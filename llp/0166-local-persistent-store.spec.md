@@ -6,7 +6,23 @@
 Live queries, Relational queries, Optimistic updates, Auth, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-03
-**Revised:** 2026-08-05 (D1/DK-9 diagnostic-spelling reconciliation: the
+**Revised:** 2026-08-06 (author ruling: public-package advertisement
+amendment — `single_table_v1` may be advertised by clean-release
+public-package builds under LLP 0110's dated conjunction including the
+packaged-closure qualification receipt; see dated section.) 2026-08-06,
+Move-1 closure (the qualified Fleet 8/8 successor
+witness is retained, the refreshed carrier exit is 17 PASS / 0 GAP / 0
+skipped, and the local publication predicate now consumes that closed row;
+Experimental maturity and all remote/hosted nonclaims remain
+unchanged; the public-package nonclaim is superseded by the dated
+advertisement amendment above); 2026-08-06 (Fleet blocker update: the reviewed
+`snapshot-batch.v2` registration landed as LLP 0157 v0.11; the carrier row
+remains GAP pending implementation, frozen cross-language vectors, and a
+fresh Fleet witness — LLP 0157 §D1's gate list is canonical.)
+2026-08-05 (Fleet blocker reconciliation: LLP 0135 OQ5's product
+direction is ruled in favor of narrow `snapshot-batch.v2`; the carrier row
+remains GAP pending reviewed profile registration, implementation, and a fresh
+Fleet witness.) 2026-08-05 (D1/DK-9 diagnostic-spelling reconciliation: the
 successor RQS store's authoritative emitted code remains
 `SNAPBACK_RQS_STORE_LOCK_UNAVAILABLE`; LLP 0008's generic CLIENT spelling is
 the owner-level semantic alias and remains emitted only by the predecessor
@@ -1445,8 +1461,9 @@ staged and fail-closed:
   including both ladder arms, mismatch-to-fresh, examined-entry refusal,
   pending-intent blocking, atomic legacy/QMK visibility cuts, and the rule
   that a legacy token is never a QMK credential. The separate evidence act is
-  now complete: `carrier-exit.2026-08-04.v1.json` records 16 PASS / 1 Fleet
-  GAP / 0 skipped, `move1-exit.2026-08-04.v1.json` records Triage 8/8, and
+  now complete (refreshed 2026-08-06 at the Move-1 closure):
+  `carrier-exit.2026-08-06.v1.json` records 17 PASS / 0 GAP / 0 skipped,
+  the 2026-08-06 `move1-exit` receipts record Triage 8/8 and Fleet 8/8, and
   `src/local-persistent-store-publication.v1.json` binds those receipts and
   their source pins into the local manifest projection. Remote-service and
   Cloudflare targets remain nonclaims.
@@ -1896,12 +1913,13 @@ workload. Its 5,505 / 2,555 / 2,147 predecessor remains byte-identical;
 predecessor and freezes only the successor profile at 5,549 / 2,593 / 2,177.
 No other ceiling changes owner or value.
 
-The dated 2026-08-04 carrier exit is 16 PASS / 1 Fleet GAP / 0 skipped, and
-the dated Triage Move-1 exit is 8/8. Those retained receipts satisfy the local
-publication predicate and are bound by
-`src/local-persistent-store-publication.v1.json`. Fleet's LLP 0135 OQ5 remains
-the sole carrier-exit GAP; it does not retract the explicitly qualified local
-publication.
+The dated 2026-08-06 carrier exit is 17 PASS / 0 GAP / 0 skipped. It consumes
+the dated Triage Move-1 8/8 receipt and qualified Fleet Move-1 8/8 receipt;
+the Fleet receipt also retains the frozen custody and hydration measurements.
+Those receipts satisfy the local publication predicate and are bound through
+`src/local-persistent-store-publication.v1.json`. This closes the Fleet row
+and Move 1 only: Experimental maturity is unchanged, and remote-service,
+Cloudflare, public-package, and hosted targets remain nonclaims.
 
 ## Guardrails
 
@@ -2161,10 +2179,11 @@ Micro-profile packaging; no change to outbox/settlement custody semantics
    commissioning. §D3 records the QMK population/persistence predicate and
    §D6 the connected prove-or-fresh same-domain adoption contract. The
    implementation program landed on 2026-08-03; the shipped client now
-   implements and activates the adoption sequence. The 2026-08-04 retained
-   carrier receipt satisfies 16 PASS / 1 Fleet GAP / 0 skipped, the Triage
-   receipt satisfies 8/8, and the publication carrier binds both into the
-   local capability projection. Other targets remain fail-closed.
+   implements and activates the adoption sequence. The 2026-08-06 retained
+   carrier receipt satisfies 17 PASS / 0 GAP / 0 skipped, while the Triage
+   and Fleet receipts each satisfy 8/8. The publication carrier binds that
+   closed local evidence into the capability projection. Other targets remain
+   fail-closed.
 2. **A proof-backed resume credential** for `qmk1` materializations —
    binding resume-token identity to the materialization key and held proof
    so fresh establishment can use ladder rungs 1–2; dated
@@ -2180,8 +2199,10 @@ Micro-profile packaging; no change to outbox/settlement custody semantics
    reaped-context memory / 1,024 consumed-request outcomes / 1,024
    released-registration tombstones / 64-byte identifiers / 256 KiB
    broker messages) await the corrected, reason-based Triage custody freeze and
-   Fleet's LLP 0135 OQ5-unblocked footprint before their first measured
-   revision. The immutable 2026-08-03 Triage predecessor captured pre-
+   Fleet's footprint after the registered (2026-08-06, LLP 0157 v0.11)
+   `snapshot-batch.v2` profile's implementation before their first measured
+   revision. The immutable
+   2026-08-03 Triage predecessor captured pre-
    maintenance payloads and is superseded for this purpose; the fresh dated
    fixture must retain one registered payload and compact the 20 released
    `none` records to inspected stubs. The constants surface in the policy
@@ -2259,9 +2280,11 @@ LLP 0053 (store-policy composition, wipe/reset scoping), and LLP 0090
 was semantic only. The implementation program then landed on 2026-08-03, and
 the §D7 gate fired on 2026-08-04 at 56/56 exact outcomes for both evaluator
 families and both claiming carriers; memory and Expo remain honest refusal
-arms. `single_table_v1@1` implementation and activation are present, and the
-dated 2026-08-04 carrier/Triage receipts subsequently satisfied the separate
-local publication predicate.
+arms. `single_table_v1@1` implementation and activation are present. The
+dated 2026-08-06 carrier receipt, qualified Triage receipt, and qualified
+Fleet receipt now satisfy the separate local publication predicate at 17
+PASS / 0 GAP / 0 skipped plus both workload exits at 8/8. This is not a
+maturity promotion or a hosted/remote claim.
 
 The v1.1 dated amendment recorded Charlie's semantic acceptance of
 `single_table_v1@1`, Arm A, and the connected prove-or-fresh adoption
@@ -2279,9 +2302,18 @@ LLP 0110's dated local-publication-authority amendment admits the exact
 contributor-source `LocalCapabilityPublicationV1` carrier for
 `single_table_v1`. That carrier binds this Spec's carrier-exit evidence, the
 qualified Triage successor receipts, and the exact implementation sources;
-it does not generalize to Fleet, public packages, remote services, or hosted
-targets. The Fleet footprint/hydration leg remains the explicit LLP 0135 OQ5
-boundary.
+the refreshed carrier exit in turn digest-binds the qualified Fleet successor
+and budget receipts in its source provenance. The Fleet footprint/hydration
+leg is now PASS from the retained 2026-08-06 witness, closing Move 1. The
+carrier still does not generalize to public packages, remote services,
+Cloudflare, or hosted targets, and its maturity remains Experimental.
+
+The source-owned `local-persistent-store-publication.anchor.v1.json` is the
+only carrier selector: its closed `published` record names `single_table_v1`
+and SHA-binds the raw carrier bytes. Evidence refresh rotates the carrier's
+three receipt digests and then the anchor digest; unchanged code validates the
+anchor → carrier → receipts → source chain. Neither `src/manifest.rs` nor the
+conformance test changes during that publication operation.
 
 When that carrier verifies, the local target may advertise the id at code-owned
 `experimental` maturity. This publication does not weaken §D5/§D6: legacy
@@ -2292,3 +2324,58 @@ transaction. It also does not commission an `AuthorizedLease`; Arm A retains
 `rqs-authority-independent-snapshot-v1`. Finite/page-set proof issuance landed with the
 2026-08-04 LLP 0094 finite-carrier amendment
 (`issues/closed/20260803-p1-server-proof-issuance.md`).
+
+## Public-package advertisement amendment — 2026-08-06
+
+**Author ruling (Charlie Cheever, 2026-08-06), executing
+`issues/20260806-published-closure-gates-offline-retention.md` ("Route 2").**
+The preceding amendment's sentence "it does not generalize to Fleet, public
+packages, remote services, or hosted targets" is narrowed for public
+packages only; remote services and hosted targets keep their GAPs, and the
+Fleet leg is governed by its own same-day Move-1 closure record above.
+
+A `public-package` build of the local target may advertise `single_table_v1`
+at unchanged code-owned `experimental` maturity when three things hold
+together, per LLP 0110's dated single-table public-package advertisement
+amendment (which owns the normative wording): the clean-release
+public-package build identity, the byte-identical embedded contributor
+carrier chain of the preceding amendment, and a
+`snapback.packaged-store-qualification.v1` receipt binding this Spec's
+acceptance corpus run against the staged packaged closure — closure digest,
+minting binary identity, and embedded carrier digest all revalidated at
+startup. Absent or mismatched, the id stays a structured GAP exactly as
+before. The bootstrap circularity is resolved by a loudly-marked, env-gated
+qualification mode that admits the id solely for the acceptance run and is
+not itself production authority.
+
+This ruling trades a reviewed fail-closed trust root for reach, by author
+signature, on three grounds: the store's behavioral acceptance is real and
+embedded (§D7 56/56, the refreshed carrier exit at 17 PASS / 0 GAP / 0
+skipped after the same-day Move-1 Fleet closure, Triage successor
+receipts); the release cadence is still LLP 0041's sole-consumer
+posture; and the surface stays bounded to apps that explicitly list
+`single_table_v1` in `acknowledgedExperimentalCapabilities`. The signed
+`PackageCapabilityAttestationV1` remains the end state (owner Charlie,
+review 2026-09-30) and supersedes this conjunction when it lands. Every
+0.1.x release re-mints the receipt against its own staged closure; the
+0.1.11 staging lane is the first required mint.
+
+**Shipped 2026-08-06.** The mechanism landed the same day: the
+distribution-split predicate and receipt verification in `src/manifest.rs`,
+the `snapback packaged-store-qualification-receipt` mint subcommand, the
+qualification-mode manifest marker, the co-installed-receipt loader seam in
+`@expo/snapback-cli`, and the end-to-end harness
+`scripts/packaged-store-qualification.mjs`. The mechanism was proven once
+end to end on linux-x64 against a dry-run-staged nine-tarball
+`0.1.11-qual.0` closure served by a clean public-package release binary:
+qualification-mode witness 3/3 (advertisement with honesty marker, packaged
+artifact admission plus live insert, retained cold render with the runtime
+stopped), receipt minted and revalidated by a receipt-backed restart, and
+the no-receipt negative refused. Proof receipt:
+`tests/acceptance/receipts/packaged-store-qualification.proof.2026-08-06.v1.json`.
+That proof receipt binds the qualification closure, not a published one; the
+0.1.11 release staging lane must re-run
+`scripts/packaged-store-qualification.mjs` against the real staged 0.1.11
+closure and release binaries (per platform) and ship each minted receipt as
+`packaged-store-qualification.receipt.json` inside the runtime package,
+adjacent to the binary, where the CLI loader forwards it.

@@ -1,0 +1,26 @@
+{
+  "name": "snapback-fleet-observatory-move1-demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/demo.test.mjs"
+  },
+  "dependencies": {
+    "@expo/snapback-client": "file:../../packages/snapback-client",
+    "@expo/snapback-codegen": "file:../../packages/snapback-codegen",
+    "@expo/snapback-contract": "file:../../packages/snapback-contract",
+    "@expo/snapback-react": "file:../../packages/snapback-react",
+    "@expo/snapback-vite": "file:../../packages/snapback-vite",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.1.12",
+    "@types/react-dom": "19.1.9",
+    "@vitejs/plugin-react": "5.0.2",
+    "typescript": "5.9.3",
+    "vite": "8.0.0"
+  }
+}

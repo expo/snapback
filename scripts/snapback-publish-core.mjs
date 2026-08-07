@@ -44,6 +44,7 @@ export const PACKAGE_INVENTORY = Object.freeze([
   ['@expo/snapback-client', '@expo/snapback-client'],
   ['@expo/snapback-codegen', '@expo/snapback-codegen'],
   ['@expo/snapback-react', '@expo/snapback-react'],
+  ['@expo/snapback-expo', '@expo/snapback-expo'],
   ['@expo/snapback-app-cli', '@expo/snapback-app-cli'],
   ['@expo/snapback-cli', '@expo/snapback-cli'],
   ['@expo/snapback-vite', '@expo/snapback-vite'],
@@ -907,7 +908,7 @@ export function validateInternalDependencyClosure(row, version, scopePreset = 'i
 function validatePackageRows(ledger, keys, statuses) {
   const inventory = inventoryForScopePreset(ledger.scopePreset);
   if (!Array.isArray(ledger.packages) || ledger.packages.length !== inventory.length) {
-    throw new TypeError('ledger is not the exact nine-package closure');
+    throw new TypeError(`ledger is not the exact ${inventory.length}-package closure`);
   }
   for (const [index, [sourceName, name]] of inventory.entries()) {
     const row = ledger.packages[index];

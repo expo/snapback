@@ -80,7 +80,7 @@ import {
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(here, '../..');
-const RUN_DATE = '2026-08-04';
+const RUN_DATE = '2026-08-06';
 const FIXTURE_DIR = join(ROOT, 'tests/acceptance/fixtures/local-persistent-store');
 const latestDatedFixture = (directory, stem, pairedStem = null) => {
   const names = readdirSync(directory);
@@ -122,6 +122,17 @@ const TRIAGE_RECEIPT_PATH = retainedTriage.path;
 const TRIAGE_BUDGET_PATH = join(
   TRIAGE_FIXTURE_DIR,
   `budget-freeze.${retainedTriage.date}.v1.json`,
+);
+const FLEET_FIXTURE_DIR = join(ROOT, 'tests/acceptance/fixtures/fleet-observatory');
+const retainedFleet = latestDatedFixture(
+  FLEET_FIXTURE_DIR,
+  'move1-exit',
+  'budget-freeze',
+);
+const FLEET_RECEIPT_PATH = retainedFleet.path;
+const FLEET_BUDGET_PATH = join(
+  FLEET_FIXTURE_DIR,
+  `budget-freeze.${retainedFleet.date}.v1.json`,
 );
 const SERVER_BINARY = join(ROOT, 'target/debug/snapback');
 const CHILD_MODE = process.argv[2] === '--file-child';
@@ -2413,6 +2424,8 @@ function sourceProvenance() {
     'demos/triage-graph/snapback/schema.mjs',
     relative(ROOT, TRIAGE_BUDGET_PATH),
     relative(ROOT, TRIAGE_RECEIPT_PATH),
+    relative(ROOT, FLEET_BUDGET_PATH),
+    relative(ROOT, FLEET_RECEIPT_PATH),
   ].map((path) => ({ path, sha256: sha256Hex(readFileSync(join(ROOT, path))) }));
   return {
     revision,
@@ -2494,6 +2507,65 @@ function triageFootprintHydrationEvidence() {
   };
 }
 
+function fleetFootprintHydrationEvidence() {
+  const budgetBytes = readFileSync(FLEET_BUDGET_PATH);
+  const receiptBytes = readFileSync(FLEET_RECEIPT_PATH);
+  const budget = JSON.parse(budgetBytes);
+  const receipt = JSON.parse(receiptBytes);
+  assert.equal(budget.schemaVersion, 'snapback.fleet-observatory.budget-freeze.v1');
+  assert.equal(receipt.schemaVersion, 'snapback.fleet-observatory.move1-exit.v1');
+  assert.equal(receipt.controlledRun.status, 'PASS');
+  assert.equal(receipt.summary.blocked, 0);
+  assert.equal(receipt.summary.pass, receipt.summary.total);
+  assert.deepEqual(receipt.budgetFreeze, budget);
+  assert.equal(existsSync(join(ROOT, 'demos/fleet-observatory-move1/demo.snapback.json')), true);
+  assert.equal(receipt.date, retainedFleet.date);
+  assert.equal(budget.date, retainedFleet.date);
+  for (const file of receipt.source.files) {
+    assert.equal(
+      sha256Hex(readFileSync(join(ROOT, file.path))),
+      file.sha256,
+      `${file.path}: Fleet receipt source drifted from the working tree`,
+    );
+  }
+
+  const { activeCustody, releasedCustody, hydration } = budget.measured;
+  const ceilings = budget.frozenCeilings;
+  for (const [name, ceiling] of Object.entries(ceilings.activeCustody)) {
+    assert.ok(activeCustody[name] <= ceiling, `Fleet active custody ${name} exceeded ceiling ${ceiling}`);
+  }
+  for (const [name, ceiling] of Object.entries(ceilings.releasedCustody)) {
+    assert.ok(releasedCustody[name] <= ceiling, `Fleet released custody ${name} exceeded ceiling ${ceiling}`);
+  }
+  for (const [name, ceiling] of Object.entries(ceilings.hydration)) {
+    const measuredName = name === 'elapsedMs' ? 'authoritativeCompleteMs' : name;
+    assert.ok(hydration[measuredName] <= ceiling, `Fleet hydration ${measuredName} exceeded ceiling ${ceiling}`);
+  }
+
+  return {
+    applicationExists: true,
+    application: 'demos/fleet-observatory-move1',
+    qualificationStatus: receipt.controlledRun.status,
+    measurements: {
+      activeMaterializations: activeCustody.materializationRecords,
+      activeProjectedRows: activeCustody.projectedResultRows,
+      activeLogicalBytes: activeCustody.logicalBytes,
+      releasedProjectedRows: releasedCustody.retainedProjectedRows,
+      hydrationAttempts: hydration.attempts,
+      hydrationRows: hydration.rowsInstalled,
+      hydrationPayloadBytes: hydration.payloadBytes,
+      hydrationElapsedMs: hydration.authoritativeCompleteMs,
+      hydrationCeilingMs: ceilings.hydration.elapsedMs,
+    },
+    receipts: {
+      budgetFreeze: relative(ROOT, FLEET_BUDGET_PATH),
+      budgetFreezeSha256: sha256Hex(budgetBytes),
+      move1Exit: relative(ROOT, FLEET_RECEIPT_PATH),
+      move1ExitSha256: sha256Hex(receiptBytes),
+    },
+  };
+}
+
 function evidenceMarkdown(receipt, bundle) {
   const rows = receipt.legs.map((row) => (
     `| ${row.leg} | ${row.carrier} | ${row.status} | ${row.status === 'GAP' ? row.reason.replaceAll('|', '\\|') : summarizeEvidence(row.evidence).replaceAll('|', '\\|')} |`
@@ -2554,11 +2626,12 @@ module-own minified bytes.
   stores the P1 proof and complete lease custody, the owned backend process
   exits, and a newly constructed client projects authoritative-retained bytes
   from the same file-v3 identity while the endpoint is unreachable.
-- Triage consumes the qualified successor application's frozen custody and
-  hydration measurements. Fleet remains GAP exactly as LLP 0157's commission
-  crosswalk says and still waits on LLP 0135 OQ5's relational-node successor.
+- Triage and Fleet consume their qualified successor applications' frozen
+  custody and hydration measurements. The retained Fleet receipt closes the
+  final LLP 0157 Move-1 workload-exit row without changing capability maturity
+  or adding a hosted/remote claim.
 
-Machine receipt: \`tests/acceptance/fixtures/local-persistent-store/carrier-exit.${DATE}.v1.json\`  
+Machine receipt: \`tests/acceptance/fixtures/local-persistent-store/carrier-exit.${DATE}.v1.json\`
 Bundle receipt: \`tests/acceptance/fixtures/local-persistent-store/bundle-attribution.${DATE}.v1.json\`
 `;
 }
@@ -2593,8 +2666,8 @@ async function verifyRetainedArtifacts() {
   assert.deepEqual(receipt.summary, summary);
   if (process.argv.includes('--require-qualified')) {
     assert.deepEqual(summary, {
-      pass: 16,
-      gap: 1,
+      pass: 17,
+      gap: 0,
       skipped: 0,
       capabilityClaimsChanged: false,
     });
@@ -2605,8 +2678,8 @@ async function verifyRetainedArtifacts() {
     );
     assert.equal(
       receipt.legs.find((row) => row.leg === 'footprint-hydration-fleet')?.status,
-      'GAP',
-      'Fleet must remain the sole explicit LLP 0135 OQ5 GAP',
+      'PASS',
+      'publication requires the measured Fleet successor leg',
     );
   }
   assert.equal(bundle.schemaVersion, 'snapback.local-persistent-store.bundle-attribution.v1');
@@ -2715,11 +2788,10 @@ async function main() {
       'triage-graph-budget-freeze-v1',
       triageFootprintHydrationEvidence(),
     ),
-    gap(
+    pass(
       'footprint-hydration-fleet',
-      'move-1-successor-app',
-      { applicationExists: false, measurements: null, blocker: 'LLP 0135 OQ5 relational-node successor' },
-      'SNAPBACK_CARRIER_EXIT_FLEET_SUCCESSOR_BLOCKED: the Move-1 Fleet application does not exist and remains blocked on LLP 0135 OQ5 relational-node admission',
+      'fleet-observatory-budget-freeze-v1',
+      fleetFootprintHydrationEvidence(),
     ),
     pass('bundle-attribution', 'full-client-store-closure', {
       artifact: relative(ROOT, BUNDLE_PATH),

@@ -39,7 +39,19 @@ prepare_rust_test_fixtures() {
 
 case "$PROOF_MODE" in
     --check)
-        exec node "$PROOF_ROOT/scripts/telemetry-phase1-evidence.mjs" validate "$PROOF_RECEIPT"
+        # Rolling main may advance forever. This proves the retained receipt
+        # historically and reports CURRENT/LAGGING/OVERDUE separately; only a
+        # divergent receipt fails the ordinary merge lane.
+        exec node "$PROOF_ROOT/scripts/telemetry-phase1-evidence.mjs" assess "$PROOF_RECEIPT"
+        ;;
+    --history)
+        exec node "$PROOF_ROOT/scripts/telemetry-phase1-evidence.mjs" validate-history "$PROOF_RECEIPT"
+        ;;
+    --require-current)
+        # This is the exact-source boundary release and capability-promotion
+        # callers must use. No repository caller is wired yet; the blocking
+        # follow-up is issues/20260806-telemetry-currentness-not-wired-to-release-promotion.md.
+        exec node "$PROOF_ROOT/scripts/telemetry-phase1-evidence.mjs" require-current "$PROOF_RECEIPT"
         ;;
     --smoke)
         cd "$PROOF_ROOT"
@@ -79,7 +91,7 @@ case "$PROOF_MODE" in
             --output "$PROOF_RECEIPT"
         ;;
     *)
-        printf 'usage: scripts/verify-telemetry-phase1-proof [--check|--smoke|--full]\n' >&2
+        printf 'usage: scripts/verify-telemetry-phase1-proof [--check|--history|--require-current|--smoke|--full]\n' >&2
         exit 2
         ;;
 esac

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.snapback.dev/snapback.v0/control-catalog-instance.v1.schema.json",
+  "title": "ControlCatalogInstanceV1",
+  "description": "LLP 0184 §Design/1's second identity: a snapshot of what a specific running target/instance permits, distinct from the build catalog. Bound to a startup nonce so a stale projection never asserts current permission — invocation admission is the authoritative check (§Design/1), this projection is advisory discovery only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "catalogDigest", "startupNonce", "target", "profile", "enabledCapabilities"],
+  "properties": {
+    "schemaVersion": { "const": "snapback.control-catalog-instance.v1" },
+    "catalogDigest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "Must match the build catalog's catalogDigest this instance was built from. A consumer refuses to combine a build catalog and instance projection whose digests differ (§Design/1)."
+    },
+    "startupNonce": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The running process's startup nonce (LLP 0167). A projection fetched from a prior process incarnation is stale by construction."
+    },
+    "target": { "enum": ["local", "derived-hosted", "primary-hosted"] },
+    "profile": { "type": "string" },
+    "enabledCapabilities": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Operation identities this instance currently permits, per its own target/profile refusal rules. Advisory only; does not replace runtime admission (§Design/1)."
+    },
+    "generatedAtMs": { "type": "integer", "minimum": 0 }
+  }
+}

@@ -44,6 +44,171 @@ impl LocalDatabase {
         Ok(stream)
     }
 
+    /// Activate the server-owned ordinary-mutation coverage cut on this
+    /// database. No production caller invokes this while LLP 0163 remains
+    /// Draft; the paired acceptance recorder uses it only on a fresh private
+    /// fixture so it can measure the real covered write seam without
+    /// advertising the capability.
+    ///
+    /// @ref LLP 0162#measurement-gate — candidate evidence must exercise the
+    ///   issuance-bearing covered lane, not merely the dormant implementation.
+    pub(crate) fn activate_ordinary_mutation_coverage_for_evidence(
+        &mut self,
+        activated_at_ms: u64,
+    ) -> SnapbackResult<()> {
+        let manifest = {
+            let _writer = self
+                .writer_authority
+                .enter(super::write_authority::LocalWriterLaneV1::OperationLedger)?;
+            let tx = self
+                .conn
+                .transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let stream = ensure_data_version_stream_in(&tx)?;
+            let manifest = crate::operation_ledger::activate_ordinary_mutation_coverage_in(
+                &tx,
+                &stream,
+                activated_at_ms,
+            )?;
+            let persisted = crate::operation_ledger::active_coverage_manifest(&tx, &stream)?
+                .ok_or_else(|| {
+                    corrupt("ordinary-mutation activation did not retain a coverage manifest")
+                })?;
+            if persisted != manifest {
+                return Err(corrupt(
+                    "ordinary-mutation activation did not retain the closed coverage manifest",
+                ));
+            }
+            tx.commit()?;
+            manifest
+        };
+        // The same-process SQLite authorizer observes this exact committed
+        // manifest before activation reports success. Reopen reconstructs the
+        // same state from the durable row.
+        self.writer_authority.arm_manifest(&self.conn, manifest)?;
+        Ok(())
+    }
+
+    /// Publish the closed local-target coverage cut through production storage
+    /// code. The caller remains server-owned: range issuance and database open
+    /// never activate coverage implicitly. Publication first proves that the
+    /// physical inventory has no grouped or reason-less row, then names only
+    /// the four adapters that already carry authenticated envelopes.
+    ///
+    /// @ref LLP 0162#acceptance — row 4 requires a complete target inventory
+    ///   and makes every excluded app-effective writer remain visibly Missing.
+    pub(crate) fn activate_local_target_operation_coverage(
+        &mut self,
+        activated_at_ms: u64,
+    ) -> SnapbackResult<crate::commit_envelope::OperationCoverageManifestV1> {
+        let before = self.local_writer_coverage_inventory()?;
+        if !before.all_physical_writers_enumerated || !before.all_app_effective_writers_accounted {
+            return Err(SnapbackError::error(
+                "SNAPBACK_OPERATION_COVERAGE_INCOMPLETE",
+                "storage",
+                "local operation coverage requires a closed physical writer inventory",
+            ));
+        }
+
+        let manifest = {
+            let _writer = self
+                .writer_authority
+                .enter(super::write_authority::LocalWriterLaneV1::OperationLedger)?;
+            let tx = self
+                .conn
+                .transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let stream = ensure_data_version_stream_in(&tx)?;
+            let manifest = crate::operation_ledger::activate_local_target_mutation_coverage_in(
+                &tx,
+                &stream,
+                activated_at_ms,
+            )?;
+            let persisted = crate::operation_ledger::active_coverage_manifest(&tx, &stream)?
+                .ok_or_else(|| corrupt("local-target activation lost its coverage manifest"))?;
+            if persisted != manifest {
+                return Err(corrupt(
+                    "local-target activation did not retain the exact coverage manifest",
+                ));
+            }
+            validate_local_target_coverage_manifest(&manifest)?;
+            tx.commit()?;
+            manifest
+        };
+        self.writer_authority
+            .arm_manifest(&self.conn, manifest.clone())?;
+        Ok(manifest)
+    }
+
+    /// Arm the fork-only journal-authority profile. The manifest uses logical
+    /// lane names distinct from LLP 0163's operation-envelope lanes, so a
+    /// normal fork mutation remains unattributed while every covered physical
+    /// writer still requires the generated token and emits the app journal in
+    /// its transaction.
+    ///
+    /// @ref LLP 0165#derived-fork-authorizer-backed-net-diff--2026-08-06 — a
+    ///   fresh derived fork may publish this narrower whole-lifetime cut
+    ///   without changing the parent deployment's default arming policy.
+    pub(crate) fn activate_derived_fork_app_row_journal_coverage(
+        &mut self,
+        activated_at_ms: u64,
+    ) -> SnapbackResult<crate::commit_envelope::OperationCoverageManifestV1> {
+        let before = self.local_writer_coverage_inventory()?;
+        if !before.all_physical_writers_enumerated || !before.all_app_effective_writers_accounted {
+            return Err(SnapbackError::error(
+                "SNAPBACK_OPERATION_COVERAGE_INCOMPLETE",
+                "storage",
+                "derived-fork journal coverage requires a closed physical writer inventory",
+            ));
+        }
+
+        let manifest = {
+            let _writer = self
+                .writer_authority
+                .enter(super::write_authority::LocalWriterLaneV1::OperationLedger)?;
+            let tx = self
+                .conn
+                .transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let stream = ensure_data_version_stream_in(&tx)?;
+            let manifest =
+                crate::operation_ledger::activate_derived_fork_app_row_journal_coverage_in(
+                    &tx,
+                    &stream,
+                    activated_at_ms,
+                )?;
+            let persisted = crate::operation_ledger::active_coverage_manifest(&tx, &stream)?
+                .ok_or_else(|| corrupt("derived-fork activation lost its coverage manifest"))?;
+            if persisted != manifest {
+                return Err(corrupt(
+                    "derived-fork activation did not retain the exact coverage manifest",
+                ));
+            }
+            validate_derived_fork_coverage_manifest(&manifest)?;
+            tx.commit()?;
+            manifest
+        };
+        self.writer_authority
+            .arm_manifest(&self.conn, manifest.clone())?;
+        Ok(manifest)
+    }
+
+    /// Persist the fork-point coverage receipt without opening a competing
+    /// short-lived SQLite connection or draining the live WAL during startup.
+    ///
+    /// @ref LLP 0165#derived-fork-authorizer-backed-net-diff--2026-08-06 —
+    ///   the receipt and active manifest share the pre-bind serving cut.
+    pub(crate) fn persist_derived_fork_app_row_coverage_receipt(
+        &self,
+        encoded: &str,
+    ) -> SnapbackResult<()> {
+        let _writer = self
+            .writer_authority
+            .enter(super::write_authority::LocalWriterLaneV1::OperationLedger)?;
+        self.conn.execute(
+            "INSERT INTO _snapback_meta(key,value) VALUES(?1,?2)",
+            params![crate::instance_fork::APP_ROW_COVERAGE_META_KEY, encoded],
+        )?;
+        Ok(())
+    }
+
     /// Reserve one never-reused boot sequence in the same transaction that
     /// reads the authorization incarnation it names. A crash consumes the
     /// reservation; rollback makes it available because no issuer escaped.
@@ -201,6 +366,78 @@ impl LocalDatabase {
         Ok(self
             .conn
             .query_row("SELECT total_changes()", [], |row| row.get(0))?)
+    }
+}
+
+fn validate_local_target_coverage_manifest(
+    manifest: &crate::commit_envelope::OperationCoverageManifestV1,
+) -> SnapbackResult<()> {
+    let actual_lanes = manifest
+        .covered_lanes
+        .iter()
+        .map(String::as_str)
+        .collect::<std::collections::BTreeSet<_>>();
+    let expected_lanes = [
+        crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+        crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1,
+    ]
+    .into_iter()
+    .collect::<std::collections::BTreeSet<_>>();
+    let actual_writers = manifest
+        .writer_choke_points
+        .iter()
+        .map(String::as_str)
+        .collect::<std::collections::BTreeSet<_>>();
+    let expected_writers = crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
+        .into_iter()
+        .chain(crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1)
+        .collect::<std::collections::BTreeSet<_>>();
+    if actual_lanes == expected_lanes && actual_writers == expected_writers {
+        Ok(())
+    } else {
+        Err(SnapbackError::error(
+            "SNAPBACK_OPERATION_COVERAGE_INCOMPLETE",
+            "storage",
+            "local operation coverage manifest is not the exact closed adapter set",
+        ))
+    }
+}
+
+fn validate_derived_fork_coverage_manifest(
+    manifest: &crate::commit_envelope::OperationCoverageManifestV1,
+) -> SnapbackResult<()> {
+    let actual_lanes = manifest
+        .covered_lanes
+        .iter()
+        .map(String::as_str)
+        .collect::<std::collections::BTreeSet<_>>();
+    let expected_lanes = [
+        crate::operation_ledger::DERIVED_FORK_ORDINARY_APP_ROW_JOURNAL_LANE_V1,
+        crate::operation_ledger::DERIVED_FORK_HOST_CHILD_APP_ROW_JOURNAL_LANE_V1,
+    ]
+    .into_iter()
+    .collect::<std::collections::BTreeSet<_>>();
+    let actual_writers = manifest
+        .writer_choke_points
+        .iter()
+        .map(String::as_str)
+        .collect::<std::collections::BTreeSet<_>>();
+    let expected_writers = crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
+        .into_iter()
+        .chain(crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1)
+        .collect::<std::collections::BTreeSet<_>>();
+    if manifest.covered_lanes.len() == expected_lanes.len()
+        && actual_lanes == expected_lanes
+        && manifest.writer_choke_points.len() == expected_writers.len()
+        && actual_writers == expected_writers
+    {
+        Ok(())
+    } else {
+        Err(SnapbackError::error(
+            "SNAPBACK_OPERATION_COVERAGE_INCOMPLETE",
+            "storage",
+            "derived-fork journal coverage manifest is not the exact closed adapter set",
+        ))
     }
 }
 

@@ -161,6 +161,20 @@ setInterval(() => {}, 1000);
   const resumes = [];
   const rebinds = [];
   let strandNextResume = false;
+  let underaccountNextResume = false;
+  let legacyEmptyNext = false;
+  const artifactGeneration = Object.freeze({
+    schemaVersion: 'snapback.v0',
+    appId: 'fake-sidecar',
+    schemaHash: `sha256:${'a'.repeat(64)}`,
+    bundleHash: `sha256:${'b'.repeat(64)}`,
+    inputsHash: `sha256:${'c'.repeat(64)}`,
+  });
+  const freshSnapshotBarrier = Object.freeze({
+    schemaVersion: 'snapback.outbox-fresh-snapshot-barrier.v1',
+    status: 'passed',
+    kind: 'full-snapshot',
+  });
   const supervisor = createSidecarSupervisor({
     database: managedDatabase,
     runtimeBinary: fakeRuntime,
@@ -170,29 +184,95 @@ setInterval(() => {}, 1000);
     outbox: {
       async status() { return { pending: 1 }; },
       async quiesce() {
+        const legacyEmpty = legacyEmptyNext;
+        legacyEmptyNext = false;
         return {
-          snapshot: { pending: 1 },
+          snapshot: legacyEmpty ? { pending: 0 } : {
+            schemaVersion: 'snapback.desktop-sidecar-store-handoff.v1',
+            clientStoreId: 'fake-sidecar-store',
+            writer: true,
+            artifactGeneration,
+            pending: 1,
+            failed: 0,
+            quarantined: 0,
+            resultGone: 0,
+          },
           async settled() {},
           async rebind(context) {
             rebinds.push({ outcome: context.outcome, url: context.attachment.url });
-            return { attachedUrl: context.attachment.url };
+            if (legacyEmpty) return { attachedUrl: context.attachment.url };
+            return {
+              schemaVersion: 'snapback.desktop-sidecar-binding.v2',
+              attachedUrl: context.attachment.url,
+              startupNonce: context.attachment.healthyStart.startupNonce,
+              clientStoreId: 'fake-sidecar-store',
+              writer: true,
+              freshSnapshotBarrier,
+              artifactGeneration,
+            };
           },
           async resume(context) {
             resumes.push(context.outcome);
-            if (strandNextResume) {
-              strandNextResume = false;
+            if (legacyEmpty) {
               return {
                 schemaVersion: 'snapback.desktop-sidecar-outbox-resume.v1',
                 attachedUrl: context.binding.attachedUrl,
                 replayed: 0,
+                remaining: 0,
+                stopped: false,
+              };
+            }
+            if (underaccountNextResume) {
+              underaccountNextResume = false;
+              return {
+                schemaVersion: 'snapback.desktop-sidecar-outbox-resume.v2',
+                attachedUrl: context.binding.attachedUrl,
+                startupNonce: context.binding.startupNonce,
+                clientStoreId: context.binding.clientStoreId,
+                writer: true,
+                freshSnapshotBarrier,
+                artifactGeneration,
+                pendingBefore: 1,
+                replayed: 0,
+                failedDelta: 0,
+                quarantinedDelta: 0,
+                resultGoneDelta: 0,
+                remaining: 0,
+                stopped: false,
+              };
+            }
+            if (strandNextResume) {
+              strandNextResume = false;
+              return {
+                schemaVersion: 'snapback.desktop-sidecar-outbox-resume.v2',
+                attachedUrl: context.binding.attachedUrl,
+                startupNonce: context.binding.startupNonce,
+                clientStoreId: context.binding.clientStoreId,
+                writer: true,
+                freshSnapshotBarrier,
+                artifactGeneration,
+                pendingBefore: 1,
+                replayed: 0,
+                failedDelta: 0,
+                quarantinedDelta: 0,
+                resultGoneDelta: 0,
                 remaining: 1,
                 stopped: true,
               };
             }
             return {
-              schemaVersion: 'snapback.desktop-sidecar-outbox-resume.v1',
+              schemaVersion: 'snapback.desktop-sidecar-outbox-resume.v2',
               attachedUrl: context.binding.attachedUrl,
+              startupNonce: context.binding.startupNonce,
+              clientStoreId: context.binding.clientStoreId,
+              writer: true,
+              freshSnapshotBarrier,
+              artifactGeneration,
+              pendingBefore: 1,
               replayed: 1,
+              failedDelta: 0,
+              quarantinedDelta: 0,
+              resultGoneDelta: 0,
               remaining: 0,
               stopped: false,
             };
@@ -221,6 +301,12 @@ setInterval(() => {}, 1000);
   assert.equal(resumes.at(-1), 'swapped');
   assert.equal(swapped.outboxResume.replayed, 1);
 
+  legacyEmptyNext = true;
+  const coldSwap = await supervisor.swap({ runtime: { runtimeBinary: fakeRuntime } });
+  assert.equal(coldSwap.outboxSnapshot.pending, 0);
+  assert.equal(coldSwap.outboxResume.schemaVersion, 'snapback.desktop-sidecar-outbox-resume.v1');
+  assert.equal(coldSwap.outboxResume.replayed, 0);
+
   strandNextResume = true;
   await assert.rejects(
     () => supervisor.swap({ runtime: { runtimeBinary: fakeRuntime } }),
@@ -231,6 +317,21 @@ setInterval(() => {}, 1000);
     ),
   );
   assert.equal((await supervisor.health()).ok, true, 'a stranded resume cannot commit the candidate');
+
+  underaccountNextResume = true;
+  await assert.rejects(
+    () => supervisor.swap({ runtime: { runtimeBinary: candidateRuntime } }),
+    (error) => (
+      error instanceof SidecarSwapError
+      && error.details.causeCode === 'SIDECAR_OUTBOX_RESUME_INCOMPLETE'
+      && ['old', 'new'].includes(error.attached)
+    ),
+  );
+  assert.equal(
+    (await supervisor.health()).ok,
+    true,
+    'zero remaining cannot commit without accounting for every pending record',
+  );
 
   let killedCandidate = null;
   await assert.rejects(

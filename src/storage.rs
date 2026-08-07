@@ -21,6 +21,8 @@ use serde_json::{Map, Number, Value, json};
 use sha2::{Digest, Sha256};
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, BTreeSet};
+use std::fs::{self, File, OpenOptions};
+use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 #[cfg(test)]
@@ -37,6 +39,11 @@ pub(crate) const SEQUENCE_MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 #[path = "storage/auth.rs"]
 pub(crate) mod auth;
 pub mod migration_executor;
+
+// Inventory-only rows remain dormant until their named lanes gain envelope
+// adapters; keeping them in the closed enum is the honesty mechanism.
+#[allow(dead_code)]
+mod write_authority;
 
 // @ref LLP 0055#principal-kinds — agent-principal ownership and durable
 //   deactivation live in their own module beneath the auth catalog. Grant/token
@@ -114,6 +121,50 @@ thread_local! {
         const { std::cell::RefCell::new(None) };
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum OperationEnvelopeCrashPointV1 {
+    BeforeSettlement,
+    AfterSettlementBeforeEnvelope,
+    AfterEnvelopeBeforeCommit,
+}
+
+#[cfg(test)]
+thread_local! {
+    /// Deterministic one-shot rollback seams for LLP 0162's ordinary-writer
+    /// atomic-envelope crash corpus. Thread-local isolation keeps concurrent
+    /// storage tests independent.
+    static OPERATION_ENVELOPE_CRASH_POINT: std::cell::Cell<Option<OperationEnvelopeCrashPointV1>> =
+        const { std::cell::Cell::new(None) };
+}
+
+#[cfg(test)]
+fn inject_operation_envelope_crash_for_test(point: OperationEnvelopeCrashPointV1) {
+    OPERATION_ENVELOPE_CRASH_POINT.with(|slot| {
+        assert!(slot.get().is_none(), "operation crash cut must be one-shot");
+        slot.set(Some(point));
+    });
+}
+
+fn operation_envelope_crash_cut(point: OperationEnvelopeCrashPointV1) -> SnapbackResult<()> {
+    #[cfg(test)]
+    if OPERATION_ENVELOPE_CRASH_POINT.with(|slot| {
+        if slot.get() == Some(point) {
+            slot.set(None);
+            true
+        } else {
+            false
+        }
+    }) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_TEST_OPERATION_CRASH_CUT",
+            "storage",
+            format!("injected operation-envelope crash cut at {point:?}"),
+        ));
+    }
+    let _ = point;
+    Ok(())
+}
+
 #[cfg(test)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum AuthorizationCommitFaultForTest {
@@ -159,6 +210,10 @@ const META_SCHEMA_MANIFEST: &str = "schema_manifest";
 const META_CRON_STATE: &str = "cron_state";
 const META_API_ENVELOPE_STATE: &str = "api_envelope.state";
 const META_API_ENVELOPE_BYTES_PREFIX: &str = "api_envelope.bytes.";
+
+pub(crate) fn local_target_app_effective_uncovered_lanes_v1() -> Vec<String> {
+    write_authority::local_target_app_effective_uncovered_lanes_v1()
+}
 
 /// The persisted api-envelope disposition (LLP 0062 §5, server-composed).
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -661,6 +716,11 @@ pub struct ClientMutationIdentity {
     pub auth_fingerprint: String,
     pub authority_instance_id: String,
     pub input_fingerprint: String,
+    /// Digest of the exact schema/function generation selected for an
+    /// issuance-bearing operation. It is retained separately from the input
+    /// collision digest so the envelope can compare today's policy artifact
+    /// before interpreting its plan.
+    pub artifact_generation_digest: Option<String>,
     /// Authenticated LLP 0163 issuance facts. Existing protocol clients leave
     /// this absent and therefore remain outside envelope coverage until the
     /// range carrier/negotiation amendment lands.
@@ -682,6 +742,7 @@ struct BufferedCommitOptions<'a> {
     ctx_ledger: Option<CtxAnswerLedger>,
     apply: bool,
     identity: Option<&'a ClientMutationIdentity>,
+    branch_operation: Option<&'a crate::fork_promotion::BranchMutationCommitV1>,
 }
 
 #[derive(Clone)]
@@ -777,6 +838,7 @@ impl ClientMutationIdentity {
             //   every settle-time policy fact shares the durable collision
             //   boundary with args/readSet/ctxLedger.
             input_fingerprint: mutation_input_fingerprint(input, settlement),
+            artifact_generation_digest: None,
             operation_issuance: None,
         }
     }
@@ -786,6 +848,24 @@ impl ClientMutationIdentity {
         issuance: crate::commit_envelope::OperationIssuanceV1,
     ) -> Self {
         self.operation_issuance = Some(issuance);
+        self
+    }
+
+    pub fn with_artifact_generation(
+        mut self,
+        generation: &crate::manifest::ArtifactGeneration,
+    ) -> Self {
+        self.artifact_generation_digest = Some(operation_artifact_generation_digest(generation));
+        let canonical = canonical_json(json!({
+            "artifactGeneration": generation,
+            "inputFingerprint": self.input_fingerprint,
+        }));
+        let mut digest = Sha256::new();
+        digest.update(b"snapback:client-mutation-artifact-binding:v1\n");
+        digest.update(
+            serde_json::to_vec(&canonical).expect("artifact-bound mutation identity serializes"),
+        );
+        self.input_fingerprint = format!("sha256:{:x}", digest.finalize());
         self
     }
 
@@ -803,6 +883,7 @@ impl ClientMutationIdentity {
                 "clientMutationId": self.id,
                 "function": self.function,
                 "inputFingerprint": self.input_fingerprint,
+                "artifactGenerationDigest": self.artifact_generation_digest,
                 "operationIssuance": issuance,
             }),
             None => json!({
@@ -820,6 +901,15 @@ impl ClientMutationIdentity {
         digest.update(encoded);
         format!("sha256:{:x}", digest.finalize())
     }
+}
+
+pub(crate) fn operation_artifact_generation_digest(
+    generation: &crate::manifest::ArtifactGeneration,
+) -> String {
+    crate::operation_ledger::digest_fact_set(
+        b"snapback:operation-artifact-generation:v1\n",
+        &canonical_json(serde_json::to_value(generation).expect("artifact generation serializes")),
+    )
 }
 
 /// One executed IR mutation plan with its recorded deterministic answers —
@@ -936,10 +1026,17 @@ impl BufferedWrite {
 
 pub struct LocalDatabase {
     conn: Connection,
+    /// The connection-local generated writer facade and SQLite authorizer.
+    /// It remains dormant until a durable coverage manifest is present.
+    writer_authority: write_authority::WriterAuthorityV1,
     path: Option<PathBuf>,
     /// LLP 0158's non-promotable derived-deployment carrier. LLP 0097 branch
     /// state never sets or consults this field.
     derived_fork: Option<crate::instance_fork::DerivedForkRuntime>,
+    /// LLP 0164's isolated in-app branch head. It shares the exhaustive host
+    /// egress choke with derived forks, but retains its own branch-local proof
+    /// and child-version state.
+    in_app_branch: Option<crate::fork_promotion::InAppBranchRuntime>,
     schema: SchemaManifest,
     // @ref LLP 0003#database-model — reads use a separate pool of WAL reader
     // connections so queries do not queue behind writes. `None` for in-memory
@@ -1350,6 +1447,9 @@ fn simulate_versioned_seed_projection_rows(
     reset_first: bool,
 ) -> SnapbackResult<usize> {
     let mut simulation = database.detached_read_snapshot()?;
+    let _writer_token = simulation
+        .writer_authority
+        .enter(write_authority::LocalWriterLaneV1::DryRun)?;
     let tx = simulation
         .conn
         .transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -1758,8 +1858,10 @@ impl LocalDatabase {
         let mode_inspection = auth_mode::inspect_for_open(&conn)?;
         let mut db = Self {
             conn,
+            writer_authority: write_authority::WriterAuthorityV1::default(),
             path: None,
             derived_fork: None,
+            in_app_branch: None,
             schema: SchemaManifest::default(),
             reader_pool: None,
             authorization_interlock: None,
@@ -1770,9 +1872,13 @@ impl LocalDatabase {
             order_field_bounds: Arc::new(BTreeMap::new()),
             sequence_declarations: Arc::new(BTreeMap::new()),
         };
+        crate::operation_detail::install(&db.conn, None)?;
         db.configure(false)?;
         db.create_infra()?;
         auth_mode::adopt_after_infra(&mut db, mode_inspection)?;
+        db.writer_authority.set_schema(&db.schema)?;
+        db.refresh_writer_authority_manifest()?;
+        db.writer_authority.install(&db.conn)?;
         Ok(db)
     }
 
@@ -1781,6 +1887,14 @@ impl LocalDatabase {
         // @ref LLP 0158#design-sketch — local publication evidence gates boot
         // before SQLite open can perform additive migration.
         let derived_fork = crate::instance_fork::inspect_boot(&path)?;
+        let in_app_branch = crate::fork_promotion::inspect_in_app_branch_boot(&path)?;
+        if derived_fork.is_some() && in_app_branch.is_some() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_BRANCH_CUSTODY_INVALID",
+                "storage",
+                "one database cannot boot as both a derived deployment and an in-app branch",
+            ));
+        }
         let conn = Connection::open(&path)?;
         // Distinguish a genuinely empty database from an existing database
         // before any additive DDL/default write. Recreating a missing head at
@@ -1800,8 +1914,10 @@ impl LocalDatabase {
         }
         let mut db = Self {
             conn,
+            writer_authority: write_authority::WriterAuthorityV1::default(),
             path: Some(path.clone()),
             derived_fork,
+            in_app_branch,
             schema: SchemaManifest::default(),
             reader_pool: None,
             authorization_interlock: None,
@@ -1812,6 +1928,7 @@ impl LocalDatabase {
             order_field_bounds: Arc::new(BTreeMap::new()),
             sequence_declarations: Arc::new(BTreeMap::new()),
         };
+        crate::operation_detail::install(&db.conn, Some(&path))?;
         db.configure(true)?;
         db.create_infra()?;
         // `_version` is a plain-JSON client cursor, not an arbitrary SQLite
@@ -1842,6 +1959,9 @@ impl LocalDatabase {
             }
         }
         auth_mode::adopt_after_infra(&mut db, mode_inspection)?;
+        db.writer_authority.set_schema(&db.schema)?;
+        db.refresh_writer_authority_manifest()?;
+        db.writer_authority.install(&db.conn)?;
         // The pool is created after configure/create_infra so readers open an
         // existing WAL database with the infra tables committed.
         db.reader_pool = Some(Arc::new(ReaderPool::new(path)));
@@ -1860,6 +1980,10 @@ impl LocalDatabase {
         self.derived_fork.as_ref()
     }
 
+    pub(crate) fn in_app_branch(&self) -> Option<&crate::fork_promotion::InAppBranchRuntime> {
+        self.in_app_branch.as_ref()
+    }
+
     /// Capture an owned, in-memory read snapshot for detached handler
     /// execution when the live database has no WAL reader pool (`:memory:`).
     /// The backup runs while the caller holds the short instance lock; handler
@@ -1875,8 +1999,10 @@ impl LocalDatabase {
         }
         let restored = Self {
             conn,
+            writer_authority: write_authority::WriterAuthorityV1::default(),
             path: None,
             derived_fork: self.derived_fork.clone(),
+            in_app_branch: self.in_app_branch.clone(),
             schema: self.schema.clone(),
             reader_pool: None,
             authorization_interlock: None,
@@ -1892,6 +2018,9 @@ impl LocalDatabase {
             &restored.schema,
             restored.sequence_declarations.as_ref(),
         )?;
+        restored.writer_authority.set_schema(&restored.schema)?;
+        restored.refresh_writer_authority_manifest()?;
+        restored.writer_authority.install(&restored.conn)?;
         Ok(restored)
     }
 
@@ -1950,6 +2079,160 @@ impl LocalDatabase {
     #[allow(dead_code)] // Consumed by the ENG-24596 keyring integration lane.
     pub(crate) fn database_path(&self) -> Option<&Path> {
         self.path.as_deref()
+    }
+
+    pub(crate) fn create_managed_in_app_branch(
+        &mut self,
+        request: &crate::fork_promotion::InAppBranchCreateV1,
+    ) -> SnapbackResult<crate::fork_promotion::ManagedInAppBranchReceiptV1> {
+        let path = self.path.clone().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_BRANCH_FILE_CUSTODY_REQUIRED",
+                "storage",
+                "managed in-app branches require a file-backed canonical database",
+            )
+        })?;
+        if self.derived_fork.is_some() || self.in_app_branch.is_some() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_BRANCH_NESTING_UNSUPPORTED",
+                "storage",
+                "a fork or branch cannot create another managed in-app branch",
+            ));
+        }
+        crate::fork_promotion::create_managed_in_app_branch(&mut self.conn, &path, request)
+    }
+
+    pub(crate) fn list_managed_in_app_branches(
+        &self,
+        now_ms: i64,
+    ) -> SnapbackResult<Vec<crate::fork_promotion::ManagedInAppBranchReceiptV1>> {
+        let path = self.path.as_deref().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_BRANCH_FILE_CUSTODY_REQUIRED",
+                "storage",
+                "managed in-app branches require a file-backed canonical database",
+            )
+        })?;
+        crate::fork_promotion::list_managed_in_app_branches(&self.conn, path, now_ms)
+    }
+
+    pub(crate) fn inspect_managed_in_app_branch(
+        &self,
+        branch_id: &crate::branches::BranchId,
+        now_ms: i64,
+    ) -> SnapbackResult<crate::fork_promotion::ManagedInAppBranchReceiptV1> {
+        let path = self.path.as_deref().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_BRANCH_FILE_CUSTODY_REQUIRED",
+                "storage",
+                "managed in-app branches require a file-backed canonical database",
+            )
+        })?;
+        crate::fork_promotion::inspect_managed_in_app_branch(&self.conn, path, branch_id, now_ms)
+    }
+
+    pub(crate) fn managed_in_app_branch_path(
+        &self,
+        branch_id: &crate::branches::BranchId,
+        now_ms: i64,
+    ) -> SnapbackResult<PathBuf> {
+        let path = self.path.as_deref().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_BRANCH_FILE_CUSTODY_REQUIRED",
+                "storage",
+                "managed in-app branches require a file-backed canonical database",
+            )
+        })?;
+        crate::fork_promotion::managed_in_app_branch_path(&self.conn, path, branch_id, now_ms)
+    }
+
+    pub(crate) fn branch_operation_retry(
+        &self,
+        branch_id: &crate::branches::BranchId,
+        draft: &crate::fork_promotion::BranchOperationDraftV1,
+    ) -> SnapbackResult<Option<crate::fork_promotion::BranchOperationV1>> {
+        crate::fork_promotion::branch_operation_retry(&self.conn, branch_id, draft)
+    }
+
+    pub(crate) fn branch_operation_log(
+        &self,
+        branch_id: &crate::branches::BranchId,
+    ) -> SnapbackResult<Vec<crate::fork_promotion::BranchOperationV1>> {
+        crate::fork_promotion::branch_operation_log(&self.conn, branch_id)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn captured_effect_intents(
+        &self,
+        branch_id: &crate::branches::BranchId,
+    ) -> SnapbackResult<Vec<crate::fork_promotion::CapturedEffectIntentV1>> {
+        crate::fork_promotion::captured_effect_intents(&self.conn, branch_id)
+    }
+
+    pub(crate) fn inspect_local_in_app_branch(
+        &self,
+        branch_id: &crate::branches::BranchId,
+    ) -> SnapbackResult<crate::fork_promotion::InAppBranchReceiptV1> {
+        crate::fork_promotion::inspect_in_app_branch(&self.conn, branch_id)
+    }
+
+    pub(crate) fn execute_branch_operation(
+        &mut self,
+        branch_id: &crate::branches::BranchId,
+        draft: &crate::fork_promotion::BranchOperationDraftV1,
+        now_ms: i64,
+        result: Value,
+    ) -> SnapbackResult<crate::fork_promotion::BranchOperationV1> {
+        crate::fork_promotion::execute_receipt_only_branch_operation(
+            &mut self.conn,
+            branch_id,
+            draft,
+            result,
+            now_ms,
+        )
+    }
+
+    pub(crate) fn finalize_captured_effect_operation(
+        &mut self,
+        context: &crate::fork_promotion::BranchEffectExecutionContextV1,
+        result: Value,
+        diagnostic_code: Option<&str>,
+    ) -> SnapbackResult<Option<crate::fork_promotion::BranchOperationV1>> {
+        crate::fork_promotion::finalize_captured_effect_operation(
+            &mut self.conn,
+            context,
+            result,
+            diagnostic_code,
+        )
+    }
+
+    pub(crate) fn reap_expired_managed_in_app_branches(
+        &mut self,
+        now_ms: i64,
+    ) -> SnapbackResult<Vec<crate::fork_promotion::ManagedInAppBranchReceiptV1>> {
+        let path = self.path.clone().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_BRANCH_FILE_CUSTODY_REQUIRED",
+                "storage",
+                "managed in-app branches require a file-backed canonical database",
+            )
+        })?;
+        crate::fork_promotion::reap_expired_managed_in_app_branches(&mut self.conn, &path, now_ms)
+    }
+
+    pub(crate) fn drop_managed_in_app_branch(
+        &mut self,
+        branch_id: &crate::branches::BranchId,
+        now_ms: i64,
+    ) -> SnapbackResult<crate::fork_promotion::ManagedInAppBranchReceiptV1> {
+        let path = self.path.clone().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_BRANCH_FILE_CUSTODY_REQUIRED",
+                "storage",
+                "managed in-app branches require a file-backed canonical database",
+            )
+        })?;
+        crate::fork_promotion::drop_managed_in_app_branch(&mut self.conn, &path, branch_id, now_ms)
     }
 
     /// One immediate write transaction over the asset system tables (LLP
@@ -2060,6 +2343,382 @@ impl LocalDatabase {
         ids: &[String],
     ) -> SnapbackResult<u64> {
         self.acknowledge_client_mutations_inner(auth_fingerprint, Some(authority_instance_id), ids)
+    }
+
+    pub(crate) fn issue_client_operation_identity_range(
+        &mut self,
+        audience: &str,
+        authority_instance_id: &str,
+        previous: Option<&crate::commit_envelope::ClientIdentityRangeV1>,
+        issued_at_ms: u64,
+    ) -> SnapbackResult<crate::commit_envelope::ClientIdentityRangeV1> {
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let stream_id =
+            crate::seed_identity::strict_current_data_version_stream(&tx)?.ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_OPERATION_STREAM_UNAVAILABLE",
+                    "storage",
+                    "operation identity range issuance requires an initialized data-version stream",
+                )
+            })?;
+        let range = crate::operation_ledger::issue_client_range_in(
+            &tx,
+            &stream_id,
+            audience,
+            authority_instance_id,
+            previous,
+            issued_at_ms,
+        )?;
+        tx.commit()?;
+        Ok(range)
+    }
+
+    pub(crate) fn host_operation_issuance(
+        &mut self,
+        authority_instance_id: &str,
+        upstream_identity: &str,
+        commit_ordinal: u64,
+        issued_at_ms: u64,
+    ) -> SnapbackResult<crate::commit_envelope::OperationIssuanceV1> {
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let stream_id =
+            crate::seed_identity::strict_current_data_version_stream(&tx)?.ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_OPERATION_STREAM_UNAVAILABLE",
+                    "storage",
+                    "host operation identity requires an initialized data-version stream",
+                )
+            })?;
+        let incarnation = crate::operation_ledger::ensure_host_incarnation_in(
+            &tx,
+            &stream_id,
+            authority_instance_id,
+            issued_at_ms,
+        )?;
+        tx.commit()?;
+        Ok(
+            crate::commit_envelope::OperationIssuanceV1::HostIncarnation {
+                epoch_id: incarnation.epoch_id,
+                upstream_identity: upstream_identity.to_owned(),
+                commit_ordinal,
+                authority_authenticator_digest: incarnation.authority_authenticator_digest,
+            },
+        )
+    }
+
+    pub(crate) fn operation_lane_covered(&self, lane: &str) -> SnapbackResult<bool> {
+        let Some(stream_id) = crate::seed_identity::strict_current_data_version_stream(&self.conn)?
+        else {
+            return Ok(false);
+        };
+        Ok(
+            crate::operation_ledger::active_coverage_manifest(&self.conn, &stream_id)?
+                .is_some_and(|manifest| manifest.covered_lanes.iter().any(|value| value == lane)),
+        )
+    }
+
+    fn refresh_writer_authority_manifest(&self) -> SnapbackResult<()> {
+        let manifest = registered_writer_coverage_manifest(&self.conn, self.path.as_deref())?;
+        self.writer_authority.set_manifest(manifest)
+    }
+
+    fn local_writer_coverage_inventory(
+        &self,
+    ) -> SnapbackResult<write_authority::LocalWriterCoverageInventoryV1> {
+        self.writer_authority.inventory(self)
+    }
+
+    /// The app-effective capability projection consumes only the exact
+    /// production activation cut: two logical lanes and all four physical
+    /// adapters. A subset, superset, test manifest, or stale in-memory writer
+    /// authority stays false.
+    ///
+    /// @ref LLP 0162#acceptance — row 4 requires the closed writer inventory;
+    /// app-effective coverage is an intersection with this exact active cut,
+    /// never an inference from target support.
+    pub(crate) fn agent_safe_exact_operation_coverage_active(&self) -> SnapbackResult<bool> {
+        let Some(stream_id) = crate::seed_identity::strict_current_data_version_stream(&self.conn)?
+        else {
+            return Ok(false);
+        };
+        let Some(manifest) =
+            crate::operation_ledger::active_coverage_manifest(&self.conn, &stream_id)?
+        else {
+            return Ok(false);
+        };
+        let expected_lanes = [
+            crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+            crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1,
+        ]
+        .into_iter()
+        .collect::<std::collections::BTreeSet<_>>();
+        let declared_lanes = manifest
+            .covered_lanes
+            .iter()
+            .map(String::as_str)
+            .collect::<std::collections::BTreeSet<_>>();
+        let expected_writers = crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
+            .into_iter()
+            .chain(crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1)
+            .collect::<std::collections::BTreeSet<_>>();
+        let declared_writers = manifest
+            .writer_choke_points
+            .iter()
+            .map(String::as_str)
+            .collect::<std::collections::BTreeSet<_>>();
+        if manifest.covered_lanes.len() != expected_lanes.len()
+            || declared_lanes != expected_lanes
+            || manifest.writer_choke_points.len() != expected_writers.len()
+            || declared_writers != expected_writers
+        {
+            return Ok(false);
+        }
+
+        let inventory = self.local_writer_coverage_inventory()?;
+        if inventory.manifest_version.is_none()
+            || !inventory.all_physical_writers_enumerated
+            || !inventory.all_app_effective_writers_accounted
+        {
+            return Ok(false);
+        }
+        let active = inventory
+            .entries
+            .iter()
+            .filter(|entry| entry.declared_covered)
+            .map(|entry| (entry.lane, entry.choke_point))
+            .collect::<std::collections::BTreeSet<_>>();
+        let expected = [
+            (
+                crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+                crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1[0],
+            ),
+            (
+                crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+                crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1[1],
+            ),
+            (
+                crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1,
+                crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1[0],
+            ),
+            (
+                crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1,
+                crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1[1],
+            ),
+        ]
+        .into_iter()
+        .collect::<std::collections::BTreeSet<_>>();
+        Ok(active == expected
+            && inventory
+                .entries
+                .iter()
+                .filter(|entry| entry.declared_covered)
+                .all(|entry| entry.envelope_mapped && entry.write_authority_enforced))
+    }
+
+    /// Verify the exact derived-fork journal-authority cut without projecting
+    /// it as LLP 0163 operation-envelope coverage. The logical manifest lanes
+    /// are fork-specific; the physical adapter set is the same closed set of
+    /// four generated app-row writers enforced by SQLite.
+    pub(crate) fn derived_fork_exact_app_row_journal_coverage_active(
+        &self,
+    ) -> SnapbackResult<bool> {
+        let Some(stream_id) = crate::seed_identity::strict_current_data_version_stream(&self.conn)?
+        else {
+            return Ok(false);
+        };
+        let Some(manifest) =
+            crate::operation_ledger::active_coverage_manifest(&self.conn, &stream_id)?
+        else {
+            return Ok(false);
+        };
+        let expected_lanes = [
+            crate::operation_ledger::DERIVED_FORK_ORDINARY_APP_ROW_JOURNAL_LANE_V1,
+            crate::operation_ledger::DERIVED_FORK_HOST_CHILD_APP_ROW_JOURNAL_LANE_V1,
+        ]
+        .into_iter()
+        .collect::<std::collections::BTreeSet<_>>();
+        let declared_lanes = manifest
+            .covered_lanes
+            .iter()
+            .map(String::as_str)
+            .collect::<std::collections::BTreeSet<_>>();
+        let expected_writers = crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
+            .into_iter()
+            .chain(crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1)
+            .collect::<std::collections::BTreeSet<_>>();
+        let declared_writers = manifest
+            .writer_choke_points
+            .iter()
+            .map(String::as_str)
+            .collect::<std::collections::BTreeSet<_>>();
+        if manifest.covered_lanes.len() != expected_lanes.len()
+            || declared_lanes != expected_lanes
+            || manifest.writer_choke_points.len() != expected_writers.len()
+            || declared_writers != expected_writers
+        {
+            return Ok(false);
+        }
+
+        let inventory = self.local_writer_coverage_inventory()?;
+        if inventory.manifest_version.is_none()
+            || !inventory.all_physical_writers_enumerated
+            || !inventory.all_app_effective_writers_accounted
+        {
+            return Ok(false);
+        }
+        let active = inventory
+            .entries
+            .iter()
+            .filter(|entry| entry.declared_covered)
+            .map(|entry| (entry.lane, entry.choke_point))
+            .collect::<std::collections::BTreeSet<_>>();
+        let expected = [
+            (
+                crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+                crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1[0],
+            ),
+            (
+                crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+                crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1[1],
+            ),
+            (
+                crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1,
+                crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1[0],
+            ),
+            (
+                crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1,
+                crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1[1],
+            ),
+        ]
+        .into_iter()
+        .collect::<std::collections::BTreeSet<_>>();
+        Ok(active == expected
+            && inventory
+                .entries
+                .iter()
+                .filter(|entry| entry.declared_covered)
+                .all(|entry| entry.envelope_mapped && entry.write_authority_enforced))
+    }
+
+    #[cfg(test)]
+    pub(crate) fn execute_out_of_seam_app_sql_for_test(
+        &self,
+        sql: &str,
+    ) -> rusqlite::Result<usize> {
+        self.conn.execute(sql, [])
+    }
+
+    #[cfg(test)]
+    fn local_writer_coverage_inventory_for_test(
+        &self,
+    ) -> SnapbackResult<write_authority::LocalWriterCoverageInventoryV1> {
+        self.local_writer_coverage_inventory()
+    }
+
+    pub(crate) fn current_data_version_stream(&self) -> SnapbackResult<String> {
+        crate::seed_identity::strict_current_data_version_stream(&self.conn)?.ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_OPERATION_STREAM_UNAVAILABLE",
+                "storage",
+                "managed branch creation requires an initialized canonical data-version stream",
+            )
+        })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn initialize_data_version_stream_for_test(&mut self) -> SnapbackResult<String> {
+        let tx = self.conn.transaction()?;
+        let stream_id = auth_invalidation::ensure_data_version_stream_in(&tx)?;
+        tx.commit()?;
+        Ok(stream_id)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn install_operation_coverage_for_test(
+        &mut self,
+        mut lanes: Vec<String>,
+        mut writers: Vec<String>,
+    ) -> SnapbackResult<()> {
+        lanes.sort();
+        lanes.dedup();
+        writers.sort();
+        writers.dedup();
+        let manifest = {
+            let _writer = self
+                .writer_authority
+                .enter(write_authority::LocalWriterLaneV1::OperationLedger)?;
+            let tx = self.conn.transaction()?;
+            let stream_id = auth_invalidation::ensure_data_version_stream_in(&tx)?;
+            let manifest_version: i64 = tx.query_row(
+                "SELECT COALESCE(MAX(manifest_version), 0) + 1
+                 FROM _snapback_operation_coverage_v1",
+                [],
+                |row| row.get(0),
+            )?;
+            let manifest_version = u64::try_from(manifest_version).map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_OPERATION_COVERAGE_INVALID",
+                    "storage",
+                    "test coverage manifest version overflowed",
+                )
+            })?;
+            let manifest = crate::commit_envelope::OperationCoverageManifestV1 {
+                schema_version: 1,
+                manifest_version,
+                stream_id: stream_id.clone(),
+                covered_lanes: lanes.clone(),
+                writer_choke_points: writers.clone(),
+                coverage_digest: crate::operation_ledger::coverage_digest(
+                    &stream_id,
+                    manifest_version,
+                    &lanes,
+                    &writers,
+                ),
+            };
+            crate::operation_ledger::register_coverage_in(&tx, &manifest, now_millis())?;
+            tx.commit()?;
+            manifest
+        };
+        self.writer_authority.arm_manifest(&self.conn, manifest)?;
+        Ok(())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn operation_envelopes_for_test(
+        &self,
+    ) -> SnapbackResult<Vec<crate::commit_envelope::CommitEnvelopeV1>> {
+        let mut statement = self.conn.prepare(
+            "SELECT envelope_json FROM _snapback_commit_envelopes_v1
+             ORDER BY recorded_at_ms, operation_id",
+        )?;
+        let encoded = statement
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        encoded
+            .into_iter()
+            .map(|value| {
+                serde_json::from_str(&value).map_err(|_| {
+                    SnapbackError::error(
+                        "SNAPBACK_OPERATION_LEDGER_INVALID",
+                        "storage",
+                        "retained test envelope could not be decoded",
+                    )
+                })
+            })
+            .collect()
+    }
+
+    pub(crate) fn explain_operation(
+        &self,
+        identity: &crate::commit_envelope::OperationIdentityV1,
+        authority: &crate::operation_ledger::CurrentExplanationAuthorityV1,
+    ) -> SnapbackResult<Option<crate::commit_envelope::OperationExplanationV1>> {
+        crate::operation_ledger::explain_operation(&self.conn, identity, authority)
+            .map(|explanation| explanation.map(|explanation| explanation.into_public()))
     }
 
     fn acknowledge_client_mutations_inner(
@@ -2185,9 +2844,11 @@ impl LocalDatabase {
     }
 
     /// Administrative recovery for a client that can no longer send durable
-    /// acknowledgements. Purging deliberately gives up exactly-once replay for
-    /// the removed settlements, so callers must gate it as an admin write.
-    /// Ledger rows plus global/per-auth counters change in one transaction.
+    /// acknowledgements. Purging deliberately gives up full-result replay for
+    /// removed settlements; covered operations retain compact duplicate
+    /// prevention while predecessor-only rows retain the legacy tradeoff.
+    /// Callers must gate this as an admin write. Ledger rows, purge audit, and
+    /// global/per-auth counters change in one transaction.
     pub fn purge_client_mutation_settlements(
         &mut self,
         auth_fingerprint: Option<&str>,
@@ -2200,6 +2861,27 @@ impl LocalDatabase {
             Some(auth_fingerprint) => {
                 let (auth_records, auth_bytes) =
                     client_mutation_auth_retention_counters(&tx, auth_fingerprint)?;
+                let settlements = tx
+                    .prepare(
+                        "SELECT client_mutation_id,auth_fingerprint,authority_instance_id
+                           FROM _snapback_client_mutations
+                          WHERE auth_fingerprint=?1 ORDER BY client_mutation_id",
+                    )?
+                    .query_map(params![auth_fingerprint], |row| {
+                        Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+                    })?
+                    .collect::<rusqlite::Result<Vec<(String, String, Option<String>)>>>()?;
+                let selector_digest = crate::operation_ledger::digest_fact_set(
+                    b"snapback:operation-purge-selector:v1\n",
+                    &json!({ "authFingerprint": auth_fingerprint }),
+                );
+                crate::operation_ledger::operator_purge_client_operations_in(
+                    &tx,
+                    "auth",
+                    &selector_digest,
+                    &settlements,
+                    now_millis(),
+                )?;
                 let deleted = tx.execute(
                     "DELETE FROM _snapback_client_mutations WHERE auth_fingerprint = ?1",
                     params![auth_fingerprint],
@@ -2231,6 +2913,24 @@ impl LocalDatabase {
                 deleted
             }
             None => {
+                let settlements = tx
+                    .prepare(
+                        "SELECT client_mutation_id,auth_fingerprint,authority_instance_id
+                           FROM _snapback_client_mutations ORDER BY client_mutation_id",
+                    )?
+                    .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
+                    .collect::<rusqlite::Result<Vec<(String, String, Option<String>)>>>()?;
+                let selector_digest = crate::operation_ledger::digest_fact_set(
+                    b"snapback:operation-purge-selector:v1\n",
+                    &json!({ "all": true }),
+                );
+                crate::operation_ledger::operator_purge_client_operations_in(
+                    &tx,
+                    "all",
+                    &selector_digest,
+                    &settlements,
+                    now_millis(),
+                )?;
                 let deleted = tx.execute("DELETE FROM _snapback_client_mutations", [])? as u64;
                 if deleted != retained_records {
                     return Err(invalid_client_mutation_retention_state(
@@ -2288,7 +2988,7 @@ impl LocalDatabase {
                 settled_version_exact: exact_settled_version,
             }) = row
             else {
-                return Ok(None);
+                return covered_operation_recovery_result(conn, identity);
             };
             if function != identity.function {
                 return Err(SnapbackError::error(
@@ -2490,6 +3190,17 @@ impl LocalDatabase {
         // for an ordinary window larger than the current age, but it must not
         // turn a non-portable caller value into an apparently valid floor.
         validate_portable_timestamp_millis(now_ms)?;
+        // Journal retention is a process-owned system writer. On an armed
+        // fork it receives exactly the DELETE authority for
+        // `_snapback_changes`; it cannot write app rows, advance the storage
+        // version, or originate journal entries.
+        //
+        // @ref LLP 0165#derived-fork-authorizer-backed-net-diff--2026-08-06
+        //   — maintenance stays inside the registered writer class instead
+        //   of silently failing every sweep after coverage activation.
+        let _writer = self
+            .writer_authority
+            .enter(write_authority::LocalWriterLaneV1::JournalMaintenance)?;
         let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
         let head = current_version_on(&tx)?;
         let mut version_floor = head.saturating_sub(retain_versions);
@@ -2560,8 +3271,9 @@ impl LocalDatabase {
         })
     }
 
-    /// Enable finite, independently-pruned record history for one declared
-    /// table. Capability publication remains gated by LLP 0162's corpus.
+    /// Configure the legacy v1 finite table-wide `maxRows` history policy.
+    /// New schema-declared history uses the distinct v2 per-record projection;
+    /// capability publication remains gated by LLP 0162's corpus.
     pub fn configure_history_policy(
         &self,
         policy: &crate::proof_checkpoint::HistoryRetentionPolicyV1,
@@ -2626,9 +3338,11 @@ impl LocalDatabase {
                 "named checkpoints require a file-backed database",
             )
         })?;
+        crate::proof_checkpoint::validate_checkpoint_request(request)?;
         // Initialize the stream before pinning. It is part of the compared
         // checkpoint header and cannot be minted after the source scan.
         let _ = self.data_version_stream()?;
+        self.ensure_checkpoint_erasure_infra()?;
         crate::proof_checkpoint::create_named_checkpoint(
             &self.conn,
             &source,
@@ -2665,12 +3379,61 @@ impl LocalDatabase {
         crate::proof_checkpoint::erase_checkpoint(&self.conn, checkpoint_id, now_ms)
     }
 
+    /// Deliberate authenticated protected-record erasure command. This is not
+    /// an alias for `BufferedWrite::Delete`: the unforgeable authority carrier
+    /// and retry-bound operation identity let the proof/checkpoint subsystem
+    /// atomically own canonical deletion, retained-detail erasure, registry
+    /// invalidation, and resumable physical-copy obligations.
+    ///
+    /// @ref LLP 0165#protected-deletion-authority-audit--2026-08-04 — one
+    /// product command owns the complete protected-erasure boundary.
+    pub(crate) fn erase_protected_record(
+        &self,
+        request: &crate::proof_checkpoint::ProtectedRecordErasureRequestV1,
+    ) -> SnapbackResult<crate::proof_checkpoint::ProtectedRecordErasureReceiptV1> {
+        crate::proof_checkpoint::validate_protected_record_erasure_request(&self.schema, request)?;
+        self.ensure_checkpoint_erasure_infra()?;
+        crate::proof_checkpoint::erase_protected_record(&self.conn, &self.schema, request)
+    }
+
+    /// Invalidate and destroy every registered materialized checkpoint copy
+    /// that could retain a protected record. Retrying `operation_id` resumes
+    /// explicit unreachable/crash obligations instead of re-enumerating a
+    /// weaker inventory.
+    pub fn erase_protected_record_checkpoint_copies(
+        &self,
+        qualified_table: &str,
+        row_id: &str,
+        operation_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::proof_checkpoint::ProtectedRecordCheckpointErasureReceiptV1> {
+        crate::proof_checkpoint::validate_checkpoint_copy_erasure_request(
+            qualified_table,
+            row_id,
+            operation_id,
+            now_ms,
+        )?;
+        self.ensure_checkpoint_erasure_infra()?;
+        crate::proof_checkpoint::erase_protected_record_checkpoint_copies(
+            &self.conn,
+            qualified_table,
+            row_id,
+            operation_id,
+            now_ms,
+        )
+    }
+
     pub fn recover_named_checkpoint(
         &self,
         checkpoint_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<crate::proof_checkpoint::CheckpointRegistryRecordV1> {
         crate::proof_checkpoint::recover_checkpoint(&self.conn, checkpoint_id, now_ms)
+    }
+
+    fn ensure_checkpoint_erasure_infra(&self) -> SnapbackResult<()> {
+        let _schema_maintenance = self.writer_authority.enter_internal_schema_maintenance()?;
+        crate::proof_checkpoint::ensure_checkpoint_erasure_infra(&self.conn)
     }
 
     pub fn change_journal_len(&self) -> SnapbackResult<u64> {
@@ -2750,7 +3513,11 @@ impl LocalDatabase {
     }
 
     pub fn apply_schema(&mut self, manifest: SchemaManifest) -> SnapbackResult<Vec<Diagnostic>> {
+        let _writer_token = self
+            .writer_authority
+            .enter(write_authority::LocalWriterLaneV1::SchemaActivation)?;
         self.apply_schema_mode_aware(manifest)?;
+        self.writer_authority.set_schema(&self.schema)?;
         Ok(Vec::new())
     }
 
@@ -2770,6 +3537,9 @@ impl LocalDatabase {
         &mut self,
         seed: Option<SeedData>,
     ) -> SnapbackResult<Option<MutationOutput>> {
+        let _writer_token = self
+            .writer_authority
+            .enter(write_authority::LocalWriterLaneV1::ResetAndSeed)?;
         use crate::auth::coordinator::AuthCoordinator;
         use crate::auth::session_projection::{
             AuthorizationStreamRecord, ProjectionSource, SessionProjection,
@@ -2809,6 +3579,13 @@ impl LocalDatabase {
         predecessor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
         successor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
     ) -> auth::AuthTransactionAttempt<Option<MutationOutput>> {
+        let _writer_token = match self
+            .writer_authority
+            .enter(write_authority::LocalWriterLaneV1::ResetAndSeed)
+        {
+            Ok(token) => token,
+            Err(error) => return auth::AuthTransactionAttempt::RolledBack(error),
+        };
         let schema = self.schema.clone();
         let authorization_interlock = self.authorization_interlock.clone();
         let tx = match self
@@ -2935,6 +3712,13 @@ impl LocalDatabase {
         Option<MutationOutput>,
         crate::seed_identity::SeedInstallReceiptV1,
     )> {
+        let _writer_token = match self
+            .writer_authority
+            .enter(write_authority::LocalWriterLaneV1::ResetAndSeed)
+        {
+            Ok(token) => token,
+            Err(error) => return auth::AuthTransactionAttempt::RolledBack(error),
+        };
         if let Err(error) = request.validate() {
             return auth::AuthTransactionAttempt::RolledBack(error);
         }
@@ -3236,6 +4020,9 @@ impl LocalDatabase {
         &mut self,
         request: crate::seed_identity::InstallSeedRequestV1,
     ) -> SnapbackResult<crate::seed_identity::SeedEnsureResultV1> {
+        let _writer_token = self
+            .writer_authority
+            .enter(write_authority::LocalWriterLaneV1::StandaloneSeed)?;
         request.validate()?;
         validate_versioned_seed_request(
             &self.schema,
@@ -3571,6 +4358,9 @@ impl LocalDatabase {
         &mut self,
         seed: SeedData,
     ) -> SnapbackResult<Vec<ChangedRow>> {
+        let _writer_token = self
+            .writer_authority
+            .enter(write_authority::LocalWriterLaneV1::DryRun)?;
         let schema = self.schema.clone();
         let tx = self
             .conn
@@ -3589,6 +4379,9 @@ impl LocalDatabase {
     }
 
     pub fn seed_with_authorization(&mut self, seed: SeedData) -> SnapbackResult<SeedCommit> {
+        let _writer_token = self
+            .writer_authority
+            .enter(write_authority::LocalWriterLaneV1::StandaloneSeed)?;
         let schema = self.schema.clone();
         let authorization_interlock = self.authorization_interlock.clone();
         let tx = self
@@ -3738,6 +4531,9 @@ impl LocalDatabase {
     /// §4: a crash after release reopens only the successor and resumes
     /// cleanup). Inventory-driven — no artifact required.
     pub(crate) fn resume_pending_migration_cleanup(&mut self) -> SnapbackResult<Option<Value>> {
+        let _writer_token = self
+            .writer_authority
+            .enter(write_authority::LocalWriterLaneV1::MigrationExecutor)?;
         let schema = self.schema.clone();
         migration_executor::resume_pending_cleanup(&mut self.conn, &schema)
     }
@@ -4161,6 +4957,8 @@ impl LocalDatabase {
             let sql = format!(
                 "SELECT * FROM {quoted} ORDER BY \"_createdAt\" ASC, \"_id\" ASC LIMIT ?1 OFFSET ?2"
             );
+            // @ref LLP 0162#measurement-gate — ordinary current-range reads
+            // preserve the pinned pre-profile per-call preparation boundary.
             let mut statement = conn.prepare(&sql)?;
             let columns = statement
                 .column_names()
@@ -4220,14 +5018,53 @@ impl LocalDatabase {
         Check: Fn() -> SnapbackResult<()>,
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
+        require_covered_mutation_identity_for_lane(
+            &self.conn,
+            CoveredMutationLaneV1::Ordinary,
+            None,
+        )?;
         Ok(self
             .execute_mutation_plan_with_lifecycle_and_settlement_time(
+                write_authority::LocalWriterLaneV1::OrdinaryHostPlan,
                 plan,
                 input,
                 true,
                 None,
                 None,
+                None,
                 &check_live,
+                before_commit,
+            )?
+            .commit)
+    }
+
+    /// Managed in-app branch mutation carrier. The branch operation is
+    /// derived and inserted inside the same transaction as the app commit.
+    pub(crate) fn execute_branch_mutation_guarded<G, BeforeCommit>(
+        &mut self,
+        plan: &MutationPlan,
+        input: &HandlerInput,
+        branch_operation: &crate::fork_promotion::BranchMutationCommitV1,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MutationCommit>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        require_covered_mutation_identity_for_lane(
+            &self.conn,
+            CoveredMutationLaneV1::Ordinary,
+            None,
+        )?;
+        Ok(self
+            .execute_mutation_plan_with_lifecycle_and_settlement_time(
+                write_authority::LocalWriterLaneV1::OrdinaryHostPlan,
+                plan,
+                input,
+                true,
+                None,
+                None,
+                Some(branch_operation),
+                &|| Ok(()),
                 before_commit,
             )?
             .commit)
@@ -4239,6 +5076,11 @@ impl LocalDatabase {
         input: &HandlerInput,
         identity: &ClientMutationIdentity,
     ) -> SnapbackResult<MutationCommit> {
+        require_covered_mutation_identity_for_lane(
+            &self.conn,
+            CoveredMutationLaneV1::Ordinary,
+            Some(identity),
+        )?;
         if let Some(commit) = self.replayed_mutation_commit(identity)? {
             return Ok(commit);
         }
@@ -4259,14 +5101,21 @@ impl LocalDatabase {
     where
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
+        require_covered_mutation_identity_for_lane(
+            &self.conn,
+            CoveredMutationLaneV1::Ordinary,
+            Some(identity),
+        )?;
         if let Some(commit) = self.replayed_mutation_commit(identity)? {
             return Ok(commit);
         }
         let attempted = self.execute_mutation_plan_with_lifecycle_and_settlement_time(
+            write_authority::LocalWriterLaneV1::OrdinaryHostPlan,
             plan,
             input,
             true,
             Some(identity),
+            None,
             None,
             &|| Ok(()),
             before_commit,
@@ -4275,6 +5124,67 @@ impl LocalDatabase {
             Ok(execution) => Ok(execution.commit),
             Err(error) => self.replay_after_concurrent_settlement(identity, error),
         }
+    }
+
+    pub(crate) fn execute_host_mutation_guarded<G, Check, BeforeCommit>(
+        &mut self,
+        plan: &MutationPlan,
+        input: &HandlerInput,
+        identity: Option<&ClientMutationIdentity>,
+        check_live: Check,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MutationCommit>
+    where
+        Check: Fn() -> SnapbackResult<()>,
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.execute_host_mutation_guarded_with_settlement_time(
+            plan,
+            input,
+            identity,
+            None,
+            check_live,
+            before_commit,
+        )
+    }
+
+    pub(crate) fn execute_host_mutation_guarded_with_settlement_time<G, Check, BeforeCommit>(
+        &mut self,
+        plan: &MutationPlan,
+        input: &HandlerInput,
+        identity: Option<&ClientMutationIdentity>,
+        policy: Option<&SettlementTimePolicy>,
+        check_live: Check,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MutationCommit>
+    where
+        Check: Fn() -> SnapbackResult<()>,
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        require_covered_mutation_identity_for_lane(
+            &self.conn,
+            CoveredMutationLaneV1::HostChild,
+            identity,
+        )?;
+        check_live()?;
+        if let Some(identity) = identity
+            && let Some(commit) = self.replayed_mutation_commit(identity)?
+        {
+            return Ok(commit);
+        }
+        Ok(self
+            .execute_mutation_plan_with_lifecycle_and_settlement_time(
+                write_authority::LocalWriterLaneV1::HostChildHostPlan,
+                plan,
+                input,
+                true,
+                identity,
+                policy,
+                None,
+                &check_live,
+                before_commit,
+            )?
+            .commit)
     }
 
     /// Dry-run an IR mutation (LLP 0051 D8): the identical step loop, binding
@@ -4316,13 +5226,20 @@ impl LocalDatabase {
         Check: Fn() -> SnapbackResult<()>,
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
+        require_covered_mutation_identity_for_lane(
+            &self.conn,
+            CoveredMutationLaneV1::Ordinary,
+            None,
+        )?;
         Ok(self
             .execute_mutation_plan_with_lifecycle_and_settlement_time(
+                write_authority::LocalWriterLaneV1::OrdinaryHostPlan,
                 plan,
                 input,
                 true,
                 None,
                 policy,
+                None,
                 &check_live,
                 before_commit,
             )?
@@ -4340,15 +5257,22 @@ impl LocalDatabase {
     where
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
+        require_covered_mutation_identity_for_lane(
+            &self.conn,
+            CoveredMutationLaneV1::Ordinary,
+            Some(identity),
+        )?;
         if let Some(commit) = self.replayed_mutation_commit(identity)? {
             return Ok(commit);
         }
         let attempted = self.execute_mutation_plan_with_lifecycle_and_settlement_time(
+            write_authority::LocalWriterLaneV1::OrdinaryHostPlan,
             plan,
             input,
             true,
             Some(identity),
             policy,
+            None,
             &|| Ok(()),
             before_commit,
         );
@@ -4404,12 +5328,25 @@ impl LocalDatabase {
         identity: Option<&ClientMutationIdentity>,
         settlement_time: Option<&SettlementTimePolicy>,
     ) -> SnapbackResult<MutationPlanExecution> {
+        if apply {
+            require_covered_mutation_identity_for_lane(
+                &self.conn,
+                CoveredMutationLaneV1::Ordinary,
+                identity,
+            )?;
+        }
         self.execute_mutation_plan_with_lifecycle_and_settlement_time(
+            if apply {
+                write_authority::LocalWriterLaneV1::OrdinaryHostPlan
+            } else {
+                write_authority::LocalWriterLaneV1::DryRun
+            },
             plan,
             input,
             apply,
             identity,
             settlement_time,
+            None,
             &|| Ok(()),
             || Ok(()),
         )
@@ -4430,10 +5367,16 @@ impl LocalDatabase {
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
         self.execute_mutation_plan_with_lifecycle_and_settlement_time(
+            if apply {
+                write_authority::LocalWriterLaneV1::OrdinaryHostPlan
+            } else {
+                write_authority::LocalWriterLaneV1::DryRun
+            },
             plan,
             input,
             apply,
             identity,
+            None,
             None,
             check_live,
             before_commit,
@@ -4445,11 +5388,13 @@ impl LocalDatabase {
     #[allow(clippy::too_many_arguments)]
     fn execute_mutation_plan_with_lifecycle_and_settlement_time<G, Check, BeforeCommit>(
         &mut self,
+        writer_lane: write_authority::LocalWriterLaneV1,
         plan: &MutationPlan,
         input: &HandlerInput,
         apply: bool,
         identity: Option<&ClientMutationIdentity>,
         settlement_time: Option<&SettlementTimePolicy>,
+        branch_operation: Option<&crate::fork_promotion::BranchMutationCommitV1>,
         check_live: &Check,
         before_commit: BeforeCommit,
     ) -> SnapbackResult<MutationPlanExecution>
@@ -4459,6 +5404,7 @@ impl LocalDatabase {
     {
         crate::exec_guard::debug_assert_off_async_worker("a SQLite mutation");
         check_live()?;
+        let _writer_token = self.writer_authority.enter(writer_lane)?;
         // @ref LLP 0003#execution-and-write-semantics — one mutation commits all buffered writes at one version.
         let schema = self.schema.clone();
         let projections = self.projections.clone();
@@ -4484,6 +5430,8 @@ impl LocalDatabase {
             .is_some_and(|(skew, policy)| skew <= policy.max_skew_ms);
         let settlement_time_sink_reached = Cell::new(false);
         let authorization_interlock = self.authorization_interlock.clone();
+        let enforce_canonical_promotion_reservation =
+            self.derived_fork.is_none() && self.in_app_branch.is_none();
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -4492,6 +5440,15 @@ impl LocalDatabase {
         //   is re-read inside every commit transaction, so a crash between
         //   reopen and resume cannot readmit application writes.
         migration_executor::ensure_migration_fence_open(&tx)?;
+        if enforce_canonical_promotion_reservation
+            && let Some(stream_id) = crate::seed_identity::strict_current_data_version_stream(&tx)?
+        {
+            crate::fork_promotion::enforce_canonical_mutation_admission_in(
+                &tx,
+                &stream_id,
+                now_ms as i64,
+            )?;
+        }
         let current_version = current_version_on(&tx)?;
         #[cfg(test)]
         notify_commit_version_sampled(&tx);
@@ -5375,11 +6332,21 @@ impl LocalDatabase {
             let _commit_guard = before_commit()?;
             check_live()?;
             if let Some(identity) = identity {
+                operation_envelope_crash_cut(OperationEnvelopeCrashPointV1::BeforeSettlement)?;
                 record_client_mutation_result(
                     &tx,
                     identity,
                     input,
                     &read_dependencies,
+                    &changes,
+                    &output,
+                )?;
+            }
+            if let Some(branch_operation) = branch_operation {
+                crate::fork_promotion::record_branch_mutation_in(
+                    &tx,
+                    branch_operation,
+                    version,
                     &changes,
                     &output,
                 )?;
@@ -5436,6 +6403,7 @@ impl LocalDatabase {
                 ctx_ledger: None,
                 apply: true,
                 identity: None,
+                branch_operation: None,
             },
         )
     }
@@ -5455,6 +6423,85 @@ impl LocalDatabase {
         Check: Fn() -> SnapbackResult<()>,
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
+        self.commit_buffered_writes_for_lane(
+            input,
+            payload,
+            identity,
+            CoveredMutationLaneV1::Ordinary,
+            None,
+            check_live,
+            before_commit,
+        )
+    }
+
+    pub(crate) fn commit_buffered_host_writes_guarded<G, Check, BeforeCommit>(
+        &mut self,
+        input: &HandlerInput,
+        payload: BufferedCommitPayload,
+        identity: Option<&ClientMutationIdentity>,
+        check_live: Check,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MutationCommit>
+    where
+        Check: Fn() -> SnapbackResult<()>,
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.commit_buffered_writes_for_lane(
+            input,
+            payload,
+            identity,
+            CoveredMutationLaneV1::HostChild,
+            None,
+            check_live,
+            before_commit,
+        )
+    }
+
+    pub(crate) fn commit_branch_buffered_writes_guarded<G, BeforeCommit>(
+        &mut self,
+        input: &HandlerInput,
+        payload: BufferedCommitPayload,
+        branch_operation: &crate::fork_promotion::BranchMutationCommitV1,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MutationCommit>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.commit_buffered_writes_for_lane(
+            input,
+            payload,
+            None,
+            CoveredMutationLaneV1::Ordinary,
+            Some(branch_operation),
+            || Ok(()),
+            before_commit,
+        )
+    }
+
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "the lane commit boundary keeps writer, authority, and lifecycle checks explicit"
+    )]
+    fn commit_buffered_writes_for_lane<G, Check, BeforeCommit>(
+        &mut self,
+        input: &HandlerInput,
+        payload: BufferedCommitPayload,
+        identity: Option<&ClientMutationIdentity>,
+        lane: CoveredMutationLaneV1,
+        branch_operation: Option<&crate::fork_promotion::BranchMutationCommitV1>,
+        check_live: Check,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MutationCommit>
+    where
+        Check: Fn() -> SnapbackResult<()>,
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        require_covered_mutation_identity_for_lane(&self.conn, lane, identity)?;
+        if let Some(identity) = identity
+            && let Some(commit) = self.replayed_mutation_commit(identity)?
+        {
+            return Ok(commit);
+        }
         let BufferedCommitPayload {
             writes,
             sequence_allocations,
@@ -5467,6 +6514,14 @@ impl LocalDatabase {
             asset_admissions,
         } = payload;
         let attempted = self.apply_buffered_writes_with_lifecycle(
+            match lane {
+                CoveredMutationLaneV1::Ordinary => {
+                    write_authority::LocalWriterLaneV1::OrdinaryIbexBuffered
+                }
+                CoveredMutationLaneV1::HostChild => {
+                    write_authority::LocalWriterLaneV1::HostChildIbexBuffered
+                }
+            },
             input,
             BufferedEffects {
                 writes,
@@ -5482,6 +6537,7 @@ impl LocalDatabase {
                 ctx_ledger: Some(ctx_ledger),
                 apply: true,
                 identity,
+                branch_operation,
             },
             &check_live,
             before_commit,
@@ -5548,6 +6604,7 @@ impl LocalDatabase {
         asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
     ) -> SnapbackResult<MutationCommit> {
         self.apply_buffered_writes_with_lifecycle_gated(
+            write_authority::LocalWriterLaneV1::DryRun,
             input,
             BufferedEffects {
                 writes,
@@ -5563,6 +6620,7 @@ impl LocalDatabase {
                 ctx_ledger: Some(ctx_ledger),
                 apply: false,
                 identity: None,
+                branch_operation: None,
             },
             MembershipCommitAuthority::deny(),
             &|| Ok(()),
@@ -5579,6 +6637,7 @@ impl LocalDatabase {
         options: BufferedCommitOptions<'_>,
     ) -> SnapbackResult<MutationCommit> {
         self.apply_buffered_writes_with_lifecycle_gated(
+            write_authority::LocalWriterLaneV1::OrdinaryIbexBuffered,
             input,
             BufferedEffects {
                 writes,
@@ -5599,6 +6658,7 @@ impl LocalDatabase {
 
     fn apply_buffered_writes_with_lifecycle<G, Check, BeforeCommit>(
         &mut self,
+        writer_lane: write_authority::LocalWriterLaneV1,
         input: &HandlerInput,
         effects: BufferedEffects,
         options: BufferedCommitOptions<'_>,
@@ -5610,6 +6670,7 @@ impl LocalDatabase {
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
         self.apply_buffered_writes_with_lifecycle_gated(
+            writer_lane,
             input,
             effects,
             options,
@@ -5619,8 +6680,13 @@ impl LocalDatabase {
         )
     }
 
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "the transaction boundary keeps writer, authority, and lifecycle checks explicit"
+    )]
     fn apply_buffered_writes_with_lifecycle_gated<G, Check, BeforeCommit>(
         &mut self,
+        writer_lane: write_authority::LocalWriterLaneV1,
         input: &HandlerInput,
         effects: BufferedEffects,
         options: BufferedCommitOptions<'_>,
@@ -5634,6 +6700,7 @@ impl LocalDatabase {
     {
         crate::exec_guard::debug_assert_off_async_worker("a SQLite commit");
         check_live()?;
+        let _writer_token = self.writer_authority.enter(writer_lane)?;
         let BufferedEffects {
             writes,
             sequence_allocations,
@@ -5644,13 +6711,19 @@ impl LocalDatabase {
             job_producer,
             asset_admissions,
         } = effects;
-        if !job_enqueues.is_empty()
-            && let Some(runtime) = self.derived_fork()
-        {
-            return Err(runtime.deny(
-                crate::instance_fork::EgressFamily::JobsEnqueue,
-                now_millis(),
-            ));
+        if !job_enqueues.is_empty() {
+            if let Some(runtime) = self.derived_fork() {
+                return Err(runtime.deny(
+                    crate::instance_fork::EgressFamily::JobsEnqueue,
+                    now_millis(),
+                ));
+            }
+            if let Some(runtime) = self.in_app_branch() {
+                return Err(runtime.mediate(
+                    crate::instance_fork::EgressFamily::JobsEnqueue,
+                    now_millis(),
+                ));
+            }
         }
         if !job_enqueues.is_empty() && job_producer.is_none() {
             return Err(SnapbackError::error(
@@ -5700,10 +6773,21 @@ impl LocalDatabase {
             .unwrap_or_else(now_millis);
         validate_portable_timestamp_millis(now_ms)?;
         let authorization_interlock = self.authorization_interlock.clone();
+        let enforce_canonical_promotion_reservation =
+            self.derived_fork.is_none() && self.in_app_branch.is_none();
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         migration_executor::ensure_migration_fence_open(&tx)?;
+        if enforce_canonical_promotion_reservation
+            && let Some(stream_id) = crate::seed_identity::strict_current_data_version_stream(&tx)?
+        {
+            crate::fork_promotion::enforce_canonical_mutation_admission_in(
+                &tx,
+                &stream_id,
+                now_ms as i64,
+            )?;
+        }
         let current_version = current_version_on(&tx)?;
         let next_version = next_storage_version(current_version)?;
 
@@ -6044,11 +7128,21 @@ impl LocalDatabase {
             let _commit_guard = before_commit()?;
             check_live()?;
             if let Some(identity) = options.identity {
+                operation_envelope_crash_cut(OperationEnvelopeCrashPointV1::BeforeSettlement)?;
                 record_client_mutation_result(
                     &tx,
                     identity,
                     input,
                     &read_dependencies,
+                    &changes,
+                    &output,
+                )?;
+            }
+            if let Some(branch_operation) = options.branch_operation {
+                crate::fork_promotion::record_branch_mutation_in(
+                    &tx,
+                    branch_operation,
+                    version,
                     &changes,
                     &output,
                 )?;
@@ -6313,7 +7407,8 @@ impl LocalDatabase {
               ON _snapback_authorized_lease_reservations(authorized_until_server_ms);
             ",
         )?;
-        crate::proof_checkpoint::create_infra(&self.conn)?;
+        crate::proof_checkpoint::create_history_infra(&self.conn)?;
+        crate::proof_checkpoint::upgrade_checkpoint_erasure_infra_if_present(&self.conn)?;
         crate::search::sqlite::create_infra(&self.conn)?;
         crate::vector::sqlite::create_infra(&self.conn)?;
         // @ref LLP 0070#job-identity-and-enqueue — the durable one-off job and
@@ -6368,6 +7463,16 @@ impl LocalDatabase {
             )?;
             tx.commit()?;
         }
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        for table in physical_user_tables(&tx)? {
+            if sqlite_table_columns(&tx, &table)?.contains("_version") {
+                ensure_managed_version_integrity_indexes(&tx, &table)?;
+            }
+        }
+        drop_stray_managed_version_integrity_indexes(&tx, None)?;
+        tx.commit()?;
         // Older databases predate settlement and authority metadata. SQLite
         // cannot express ADD COLUMN IF NOT EXISTS, so reserve the writer before
         // inspecting and applying these additive ledger migrations. A sibling
@@ -6484,6 +7589,139 @@ impl LocalDatabase {
     }
 }
 
+/// Continue settlement lookup through LLP 0163's retained operation state
+/// after the full `_snapback_client_mutations` payload has been ACK-reclaimed
+/// or operator-purged. This runs only after the caller has reconstructed the
+/// complete bound identity; it is settlement lookup, never authorization.
+///
+/// @ref LLP 0162#1-the-universal-commit-envelope — suppression, then compact
+///   envelope/tombstone, then epoch floor; a miss below the floor is
+///   outcome-unknown and may not dispatch the handler.
+fn covered_operation_recovery_result(
+    conn: &Connection,
+    identity: &ClientMutationIdentity,
+) -> SnapbackResult<Option<MutationOutput>> {
+    let Some(issuance) = identity.operation_issuance.clone() else {
+        return Ok(None);
+    };
+    let Some(stream_id) = crate::seed_identity::strict_current_data_version_stream(conn)? else {
+        return Ok(None);
+    };
+    let audience = crate::operation_ledger::resolve_operation_audience_for_lookup(
+        conn,
+        &issuance,
+        &identity.authority_instance_id,
+    )?;
+    let operation = match issuance {
+        crate::commit_envelope::OperationIssuanceV1::ClientRange { .. } => {
+            crate::commit_envelope::OperationIdentityV1::from_client_mutation(
+                stream_id,
+                audience,
+                issuance,
+                identity,
+                crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+            )
+        }
+        crate::commit_envelope::OperationIssuanceV1::HostIncarnation { .. } => {
+            crate::commit_envelope::OperationIdentityV1::from_host_mutation(
+                stream_id,
+                audience,
+                issuance,
+                identity,
+                crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1,
+            )
+        }
+    };
+    match crate::operation_ledger::lookup_operation(conn, &operation)? {
+        crate::operation_ledger::OperationLookupV1::Novel => Ok(None),
+        crate::operation_ledger::OperationLookupV1::ExactReplay(record) => {
+            if record.terminal_outcome
+                != crate::commit_envelope::OperationTerminalOutcomeV1::Committed
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_OPERATION_STORED_REFUSAL",
+                    "sync",
+                    "the covered operation retained a terminal refusal",
+                ));
+            }
+            let retained: crate::commit_envelope::RetainedEnvelopeDetailV1 =
+                serde_json::from_value(record.receipt_payload).map_err(|_| {
+                    SnapbackError::error(
+                        "SNAPBACK_OPERATION_RECEIPT_INVALID",
+                        "storage",
+                        "the retained operation receipt projection could not be decoded",
+                    )
+                })?;
+            let receipt = match retained {
+                crate::commit_envelope::RetainedEnvelopeDetailV1::InlineRedacted { detail } => {
+                    detail
+                }
+                crate::commit_envelope::RetainedEnvelopeDetailV1::ProtectedLane {
+                    custody_reference,
+                    payload_digest,
+                    ..
+                } => crate::operation_detail::open(conn, &custody_reference, &payload_digest)?
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_OPERATION_PROTECTED_CUSTODY_UNAVAILABLE",
+                            "storage",
+                            "the retained operation receipt is unavailable from protected custody",
+                        )
+                    })?,
+                crate::commit_envelope::RetainedEnvelopeDetailV1::Truncated
+                | crate::commit_envelope::RetainedEnvelopeDetailV1::Expired => {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_OPERATION_RECEIPT_INVALID",
+                        "storage",
+                        "an exact-replay suppression receipt cannot be truncated or expired",
+                    ));
+                }
+            };
+            let output: MutationOutput = serde_json::from_value(receipt).map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_OPERATION_RECEIPT_INVALID",
+                    "storage",
+                    "the retained operation receipt could not be decoded",
+                )
+            })?;
+            validate_storage_version_at_most(
+                output.version,
+                current_version_on(conn)?,
+                "retained operation receipt version",
+            )?;
+            Ok(Some(output))
+        }
+        crate::operation_ledger::OperationLookupV1::ResultExpired {
+            outcome,
+            receipt_digest,
+        } => Err(SnapbackError::error(
+            "SNAPBACK_OPERATION_RESULT_EXPIRED",
+            "sync",
+            "the operation outcome is known but its result payload was reclaimed",
+        )
+        .with_details(json!({
+            "disposition": "result-expired",
+            "outcome": match outcome {
+                crate::commit_envelope::OperationTerminalOutcomeV1::Committed => "committed",
+                crate::commit_envelope::OperationTerminalOutcomeV1::Refused => "refused",
+            },
+            "receiptDigest": receipt_digest,
+        }))),
+        crate::operation_ledger::OperationLookupV1::IdentityHorizonPassed => {
+            Err(SnapbackError::error(
+                "SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED",
+                "sync",
+                "the identity epoch is below the retained outcome horizon",
+            )
+            .with_details(json!({
+                "disposition": "identity-horizon-passed",
+                "outcome": "unknown",
+                "terminal": false,
+            })))
+        }
+    }
+}
+
 fn load_schema_manifest_from_connection(
     conn: &Connection,
 ) -> SnapbackResult<Option<SchemaManifest>> {
@@ -6519,6 +7757,17 @@ fn load_schema_manifest_from_connection(
             })
         })
         .transpose()
+}
+
+/// Read the exact active schema across both legacy and capability-aware auth
+/// modes without opening a writer. Derived proof oracles use this to decode
+/// physical rows through the same portable type contract as ordinary reads.
+pub(crate) fn active_schema_manifest_from_connection(
+    conn: &Connection,
+) -> SnapbackResult<Option<SchemaManifest>> {
+    Ok(auth_mode::inspect_for_open(conn)?
+        .active_manifest()
+        .cloned())
 }
 
 /// Resolve one schema-checked room membership projection on any SQLite
@@ -6979,6 +8228,21 @@ pub(crate) fn migration_keyset_scan_batch_on(
         .collect::<Vec<_>>();
     let mut rows = statement.query(params_from_iter(values.iter()))?;
 
+    // A NonNull validator must observe and count its target NULLs. This is a
+    // migration-fact exception only: all non-target fields and every ordinary
+    // application read retain the strict declared representation decoder.
+    //
+    // @ref LLP 0081#3-typed-migration-steps — ValidateRequired emits bounded
+    //   violation facts before MakeRequired; decoding cannot erase that fact.
+    let staged_nullable_fields = request
+        .validators
+        .iter()
+        .filter_map(|validator| match validator {
+            MigrationScanValidatorV1::NonNull { field } => Some(field.as_str()),
+            MigrationScanValidatorV1::Unique { .. } => None,
+        })
+        .collect::<Vec<_>>();
+
     let mut batch_rows = 0_u64;
     let mut batch_bytes = 0_u64;
     let mut fetched = 0_u32;
@@ -6986,7 +8250,12 @@ pub(crate) fn migration_keyset_scan_batch_on(
     let mut last_row: Option<Value> = None;
     while let Some(row) = rows.next()? {
         fetched += 1;
-        let document = row_to_document(row, table, &columns)?;
+        let document = row_to_document_with_staged_nullable_fields(
+            row,
+            table,
+            &columns,
+            &staged_nullable_fields,
+        )?;
         let id = document
             .get("_id")
             .and_then(Value::as_str)
@@ -7459,6 +8728,9 @@ impl LocalDatabase {
         plan_digest: &str,
         cause: &str,
     ) -> SnapbackResult<ProjectionRebuildReceipt> {
+        let _writer_token = self
+            .writer_authority
+            .enter(write_authority::LocalWriterLaneV1::ProjectionRebuild)?;
         crate::exec_guard::debug_assert_off_async_worker("a projection rebuild");
         let schema = self.schema.clone();
         let now_ms = now_millis();
@@ -8337,6 +9609,29 @@ pub(crate) fn query_relational_on(
     input: &HandlerInput,
     cursor: Option<&KeysetAfter>,
 ) -> SnapbackResult<(QueryOutput, Option<KeysetAfter>)> {
+    let (output, continuation, _) = query_relational_on_observed(db, plan, input, cursor)?;
+    Ok((output, continuation))
+}
+
+/// Executor-owned work facts for one relational root window. The composite
+/// executor consumes these facts immediately and refuses any implementation
+/// drift beyond the owner-pinned per-node ceilings.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub(crate) struct RelationalExecutionObservation {
+    pub(crate) examined_root_entries: usize,
+    pub(crate) joined_lookups: usize,
+}
+
+pub(crate) fn query_relational_on_observed(
+    db: &DbRead<'_>,
+    plan: &crate::manifest::RelationalQueryPlan,
+    input: &HandlerInput,
+    cursor: Option<&KeysetAfter>,
+) -> SnapbackResult<(
+    QueryOutput,
+    Option<KeysetAfter>,
+    RelationalExecutionObservation,
+)> {
     use crate::manifest::{FilterExpr, JoinKind, ProjectionSource};
 
     validate_relational_plan_shape(plan)?;
@@ -8364,6 +9659,7 @@ pub(crate) fn query_relational_on(
                 cursor: None,
             },
             None,
+            RelationalExecutionObservation::default(),
         ));
     }
 
@@ -8395,7 +9691,16 @@ pub(crate) fn query_relational_on(
     };
 
     let mut rows = Vec::with_capacity(root_window.rows.len());
+    let mut observation = RelationalExecutionObservation {
+        examined_root_entries: root_window.rows.len(),
+        joined_lookups: 0,
+    };
     for root_row in &root_window.rows {
+        // @ref LLP 0157#sbsb2-plaintext-and-budget — one joined-side
+        // unique-key decision is charged for every consumed root, including
+        // null-key and inner-omitted roots. This is the owner's separate work
+        // axis; it never gets folded into examined root entries.
+        observation.joined_lookups += 1;
         // A null (or absent) value in any join-key position never matches.
         let mut key_values = Vec::with_capacity(plan.join_on.len());
         let mut null_key = false;
@@ -8431,7 +9736,7 @@ pub(crate) fn query_relational_on(
                 // (LLP 0080 §2).
                 limit: Some(2),
                 membership_filters: Vec::new(),
-                indexed_by: None,
+                indexed_by: Some(plan.joined_index.clone()),
             };
             let looked_up = db.query(&lookup, input)?;
             if looked_up.rows.len() > 1 {
@@ -8484,6 +9789,7 @@ pub(crate) fn query_relational_on(
             cursor: None,
         },
         continuation,
+        observation,
     ))
 }
 
@@ -8772,6 +10078,7 @@ pub(crate) fn get_on(
         let mut rows = statement.query(params![id])?;
         if let Some(row) = rows.next()? {
             let document = row_to_document(row, table, &columns)?;
+            validate_point_read_identity(&document, id, &table.name)?;
             validate_document_version_at_most(&document, snapshot_version, &table.name)?;
             Ok(Some(document))
         } else {
@@ -9398,6 +10705,404 @@ impl DbRead<'_> {
 /// deadlock surface.
 const READER_POOL_RETAINED: usize = 4;
 
+/// Closed purposes for writable handles outside `LocalDatabase`'s primary
+/// connection. Construction reconstructs the durable armed manifest, verifies
+/// defensive mode, installs the same default-deny authorizer, and enters a
+/// system-only token that cannot authorize application or journal DML.
+pub(crate) enum RegisteredSystemWriterPurposeV1 {
+    DerivedForkLifecycle,
+    DerivedForkEgressMarker,
+    VectorIndex,
+}
+
+pub(crate) struct RegisteredSystemWriterV1 {
+    conn: Connection,
+    _authority: write_authority::WriterAuthorityV1,
+    _token: write_authority::GeneratedWriterTokenV1,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ForkWriterCoverageGapV1<'a> {
+    schema_version: &'static str,
+    stream_id: &'a str,
+    expected_manifest_version: u64,
+    expected_manifest_digest: &'a str,
+    detected_at_ms: u64,
+    reason: &'a str,
+}
+
+fn persist_fork_writer_coverage_gap(
+    path: &Path,
+    stream_id: &str,
+    expected_manifest_version: u64,
+    expected_manifest_digest: &str,
+    detected_at_ms: u64,
+    reason: &str,
+) -> SnapbackResult<()> {
+    let gap_path = path.with_file_name(crate::instance_fork::APP_ROW_COVERAGE_GAP_FILE);
+    let body = serde_json::to_vec(&ForkWriterCoverageGapV1 {
+        schema_version: "snapback.fork-app-row-coverage-gap.v1",
+        stream_id,
+        expected_manifest_version,
+        expected_manifest_digest,
+        detected_at_ms,
+        reason,
+    })
+    .map_err(|error| {
+        SnapbackError::error(
+            crate::instance_fork::WRITER_COVERAGE_GAP_CODE,
+            "instanceFork",
+            format!("encode durable fork writer-coverage gap: {error}"),
+        )
+    })?;
+    match OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&gap_path)
+    {
+        Ok(mut file) => {
+            file.write_all(&body).map_err(|error| {
+                SnapbackError::error(
+                    crate::instance_fork::WRITER_COVERAGE_GAP_CODE,
+                    "instanceFork",
+                    format!("write durable fork writer-coverage gap: {error}"),
+                )
+            })?;
+            file.sync_all().map_err(|error| {
+                SnapbackError::error(
+                    crate::instance_fork::WRITER_COVERAGE_GAP_CODE,
+                    "instanceFork",
+                    format!("sync durable fork writer-coverage gap: {error}"),
+                )
+            })?;
+            File::open(gap_path.parent().unwrap_or_else(|| Path::new(".")))
+                .and_then(|directory| directory.sync_all())
+                .map_err(|error| {
+                    SnapbackError::error(
+                        crate::instance_fork::WRITER_COVERAGE_GAP_CODE,
+                        "instanceFork",
+                        format!("sync fork writer-coverage gap directory: {error}"),
+                    )
+                })?;
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(error) => {
+            return Err(SnapbackError::error(
+                crate::instance_fork::WRITER_COVERAGE_GAP_CODE,
+                "instanceFork",
+                format!("create durable fork writer-coverage gap: {error}"),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn writer_coverage_gap_error(
+    reason: &str,
+    stream_id: &str,
+    expected_manifest_version: u64,
+    expected_manifest_digest: &str,
+) -> SnapbackError {
+    SnapbackError::error(
+        crate::instance_fork::WRITER_COVERAGE_GAP_CODE,
+        "instanceFork",
+        "registered writer coverage was discontinuous; recreate the fork",
+    )
+    .with_detail("reason", reason.to_owned())
+    .with_detail("streamId", stream_id.to_owned())
+    .with_detail("expectedManifestVersion", expected_manifest_version)
+    .with_detail(
+        "expectedManifestDigest",
+        expected_manifest_digest.to_owned(),
+    )
+}
+
+fn break_registered_writer_coverage(
+    conn: &Connection,
+    path: Option<&Path>,
+    stream_id: &str,
+    expected_manifest_version: u64,
+    expected_manifest_digest: &str,
+    reason: &str,
+    fork_evidence_present: bool,
+) -> SnapbackResult<crate::commit_envelope::OperationCoverageManifestV1> {
+    let detected_at_ms = now_millis();
+    let sidecar = if fork_evidence_present {
+        path.map(|path| {
+            persist_fork_writer_coverage_gap(
+                path,
+                stream_id,
+                expected_manifest_version,
+                expected_manifest_digest,
+                detected_at_ms,
+                reason,
+            )
+        })
+        .transpose()
+    } else {
+        Ok(None)
+    };
+    let durable_row = crate::operation_ledger::break_operation_coverage_continuity(
+        conn,
+        stream_id,
+        expected_manifest_version,
+        expected_manifest_digest,
+        detected_at_ms,
+        reason,
+    );
+    if sidecar.is_err() && durable_row.is_err() {
+        return Err(writer_coverage_gap_error(
+            reason,
+            stream_id,
+            expected_manifest_version,
+            expected_manifest_digest,
+        )
+        .with_detail("durableGapRecord", "failed"));
+    }
+    Err(writer_coverage_gap_error(
+        reason,
+        stream_id,
+        expected_manifest_version,
+        expected_manifest_digest,
+    ))
+}
+
+/// Reconstruct one process-owned writable connection's coverage authority.
+/// The manifest, monotonic continuity row, active stream, and both derived-
+/// fork receipt carriers must agree before the authorizer can be installed.
+/// Any contradiction is durably irreversible before the connection refuses.
+///
+/// @ref LLP 0165#derived-fork-authorizer-backed-net-diff--2026-08-06 — every
+/// registered writer joins the same continuous fork-point-to-head boundary.
+fn registered_writer_coverage_manifest(
+    conn: &Connection,
+    path: Option<&Path>,
+) -> SnapbackResult<Option<crate::commit_envelope::OperationCoverageManifestV1>> {
+    let gap_file_present = path.is_some_and(|path| {
+        path.with_file_name(crate::instance_fork::APP_ROW_COVERAGE_GAP_FILE)
+            .exists()
+    });
+    let database_receipt = conn
+        .query_row(
+            "SELECT value FROM _snapback_meta WHERE key=?1",
+            [crate::instance_fork::APP_ROW_COVERAGE_META_KEY],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?;
+    let file_receipt = match path.map(|path| {
+        fs::read(path.with_file_name(crate::instance_fork::APP_ROW_COVERAGE_RECEIPT_FILE))
+    }) {
+        Some(Ok(body)) => Some(body),
+        Some(Err(error)) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Some(Err(error)) => {
+            return Err(SnapbackError::error(
+                crate::instance_fork::WRITER_COVERAGE_GAP_CODE,
+                "instanceFork",
+                format!("read fork writer-coverage receipt: {error}"),
+            ));
+        }
+        None => None,
+    };
+    let fork_evidence_present = database_receipt.is_some() || file_receipt.is_some();
+    let receipt = match (database_receipt.as_deref(), file_receipt.as_deref()) {
+        (None, None) => None,
+        (Some(database), Some(file)) => {
+            let database: crate::instance_fork::ForkAppRowCoverageReceiptV1 =
+                serde_json::from_str(database).map_err(|_| {
+                    SnapbackError::error(
+                        crate::instance_fork::WRITER_COVERAGE_GAP_CODE,
+                        "instanceFork",
+                        "database writer-coverage receipt is malformed",
+                    )
+                })?;
+            let file: crate::instance_fork::ForkAppRowCoverageReceiptV1 =
+                serde_json::from_slice(file).map_err(|_| {
+                    SnapbackError::error(
+                        crate::instance_fork::WRITER_COVERAGE_GAP_CODE,
+                        "instanceFork",
+                        "file writer-coverage receipt is malformed",
+                    )
+                })?;
+            if database != file {
+                return break_registered_writer_coverage(
+                    conn,
+                    path,
+                    &database.data_version_stream,
+                    database.manifest_version,
+                    &database.manifest_digest,
+                    "fork-coverage-receipts-disagree",
+                    true,
+                )
+                .map(Some);
+            }
+            Some(database)
+        }
+        (Some(database), None) => {
+            let receipt: crate::instance_fork::ForkAppRowCoverageReceiptV1 =
+                serde_json::from_str(database).map_err(|_| {
+                    SnapbackError::error(
+                        crate::instance_fork::WRITER_COVERAGE_GAP_CODE,
+                        "instanceFork",
+                        "sole database writer-coverage receipt is malformed",
+                    )
+                })?;
+            return break_registered_writer_coverage(
+                conn,
+                path,
+                &receipt.data_version_stream,
+                receipt.manifest_version,
+                &receipt.manifest_digest,
+                "fork-coverage-file-missing",
+                true,
+            )
+            .map(Some);
+        }
+        (None, Some(file)) => {
+            let receipt: crate::instance_fork::ForkAppRowCoverageReceiptV1 =
+                serde_json::from_slice(file).map_err(|_| {
+                    SnapbackError::error(
+                        crate::instance_fork::WRITER_COVERAGE_GAP_CODE,
+                        "instanceFork",
+                        "sole file writer-coverage receipt is malformed",
+                    )
+                })?;
+            return break_registered_writer_coverage(
+                conn,
+                path,
+                &receipt.data_version_stream,
+                receipt.manifest_version,
+                &receipt.manifest_digest,
+                "fork-coverage-database-receipt-missing",
+                true,
+            )
+            .map(Some);
+        }
+    };
+
+    let current_stream = crate::seed_identity::strict_current_data_version_stream(conn)?;
+    let expected_stream = receipt
+        .as_ref()
+        .map(|receipt| receipt.data_version_stream.as_str())
+        .or(current_stream.as_deref());
+    let Some(expected_stream) = expected_stream else {
+        return Ok(None);
+    };
+    let manifest = current_stream
+        .as_deref()
+        .filter(|stream| *stream == expected_stream)
+        .map(|stream| crate::operation_ledger::active_coverage_manifest(conn, stream))
+        .transpose()?
+        .flatten();
+    let continuity = crate::operation_ledger::operation_coverage_continuity(conn, expected_stream)?;
+    let expectation = receipt
+        .as_ref()
+        .map(|receipt| (receipt.manifest_version, receipt.manifest_digest.as_str()))
+        .or_else(|| {
+            continuity.as_ref().map(|continuity| {
+                (
+                    continuity.expected_manifest_version,
+                    continuity.expected_coverage_digest.as_str(),
+                )
+            })
+        })
+        .or_else(|| {
+            manifest
+                .as_ref()
+                .map(|manifest| (manifest.manifest_version, manifest.coverage_digest.as_str()))
+        });
+    let Some((expected_version, expected_digest)) = expectation else {
+        return Ok(None);
+    };
+    let valid = !gap_file_present
+        && current_stream.as_deref() == Some(expected_stream)
+        && manifest.as_ref().is_some_and(|manifest| {
+            manifest.manifest_version == expected_version
+                && manifest.coverage_digest == expected_digest
+        })
+        && continuity.as_ref().is_some_and(|continuity| {
+            continuity.state == "continuous"
+                && continuity.expected_manifest_version == expected_version
+                && continuity.expected_coverage_digest == expected_digest
+        })
+        && receipt.as_ref().is_none_or(|receipt| {
+            manifest.as_ref().is_some_and(|manifest| {
+                receipt.covered_lanes == manifest.covered_lanes
+                    && receipt.writer_choke_points == manifest.writer_choke_points
+            })
+        });
+    if !valid {
+        let reason = if gap_file_present {
+            "durable-coverage-gap-already-recorded"
+        } else if current_stream.as_deref() != Some(expected_stream) {
+            "active-stream-mismatch"
+        } else if continuity
+            .as_ref()
+            .is_some_and(|value| value.state == "broken")
+        {
+            "coverage-continuity-broken"
+        } else if manifest.is_none() {
+            "active-manifest-missing"
+        } else {
+            "coverage-manifest-or-continuity-mismatch"
+        };
+        return break_registered_writer_coverage(
+            conn,
+            path,
+            expected_stream,
+            expected_version,
+            expected_digest,
+            reason,
+            fork_evidence_present,
+        )
+        .map(Some);
+    }
+    Ok(manifest)
+}
+
+impl RegisteredSystemWriterV1 {
+    pub(crate) fn conn(&self) -> &Connection {
+        &self.conn
+    }
+}
+
+pub(crate) fn open_registered_system_writer_v1(
+    path: &Path,
+    purpose: RegisteredSystemWriterPurposeV1,
+) -> SnapbackResult<RegisteredSystemWriterV1> {
+    let conn = Connection::open_with_flags(
+        path,
+        OpenFlags::SQLITE_OPEN_READ_WRITE
+            | OpenFlags::SQLITE_OPEN_URI
+            | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )?;
+    conn.busy_timeout(std::time::Duration::from_secs(5))?;
+    let authority = write_authority::WriterAuthorityV1::default();
+    if let Some(schema) = active_schema_manifest_from_connection(&conn)? {
+        authority.set_schema(&schema)?;
+    }
+    let manifest = registered_writer_coverage_manifest(&conn, Some(path))?;
+    authority.set_manifest(manifest)?;
+    authority.install(&conn)?;
+    let lane = match purpose {
+        RegisteredSystemWriterPurposeV1::DerivedForkLifecycle => {
+            write_authority::LocalWriterLaneV1::BranchRegistry
+        }
+        RegisteredSystemWriterPurposeV1::DerivedForkEgressMarker => {
+            write_authority::LocalWriterLaneV1::AdminControl
+        }
+        RegisteredSystemWriterPurposeV1::VectorIndex => {
+            write_authority::LocalWriterLaneV1::VectorIndex
+        }
+    };
+    let token = authority.enter(lane)?;
+    Ok(RegisteredSystemWriterV1 {
+        conn,
+        _authority: authority,
+        _token: token,
+    })
+}
+
 /// A pool of read-only WAL connections for the lock-free read lane.
 ///
 /// @ref LLP 0003#database-model — queries run read-only against a WAL reader
@@ -9455,15 +11160,15 @@ impl ReaderPool {
         &self,
         identity: &crate::vector::sqlite::VectorGenerationIdentity,
     ) -> SnapbackResult<bool> {
-        let conn = Connection::open_with_flags(
+        // This is the only production second writable connection for a
+        // LocalDatabase. It reconstructs a connection-local authority/token
+        // rather than borrowing the primary connection's active token state.
+        let writer = open_registered_system_writer_v1(
             &self.path,
-            OpenFlags::SQLITE_OPEN_READ_WRITE
-                | OpenFlags::SQLITE_OPEN_URI
-                | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+            RegisteredSystemWriterPurposeV1::VectorIndex,
         )?;
-        conn.busy_timeout(std::time::Duration::from_secs(5))?;
         crate::vector::sqlite::quarantine_generation_on(
-            &conn,
+            writer.conn(),
             identity,
             "same-snapshot vector release recheck failed",
         )
@@ -10781,6 +12486,23 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
                 format!("duplicate table {}", table.name),
             ));
         }
+        if let Some(history) = &table.history
+            && (history.retain_ms == 0
+                || history.retain_ms > crate::proof_checkpoint::HISTORY_MAX_RETENTION_MS
+                || history.max_versions_per_record == 0
+                || history.max_versions_per_record
+                    > crate::proof_checkpoint::HISTORY_MAX_VERSIONS_PER_RECORD)
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_HISTORY_POLICY_INVALID",
+                "schema",
+                format!(
+                    "table {} history exceeds the finite v1 age or versions-per-record bound",
+                    table.name
+                ),
+            )
+            .with_detail("table", table.name.clone()));
+        }
 
         let mut fields = BTreeSet::new();
         for field in &table.fields {
@@ -11601,6 +13323,123 @@ fn create_or_update_table(tx: &Transaction<'_>, table: &TableManifest) -> Snapba
         rebuild_table_with_required_columns(tx, &table.name, &columns, &required)?;
     }
 
+    ensure_managed_version_integrity_indexes(tx, &table.name)?;
+
+    Ok(())
+}
+
+fn managed_version_integrity_index_names(table: &str) -> (String, String) {
+    (
+        format!("_snapback_version_domain_{table}"),
+        format!("_snapback_version_head_{table}"),
+    )
+}
+
+fn managed_version_domain_predicate_is_current(sql: Option<&str>) -> bool {
+    sql.is_some_and(|sql| {
+        sql.contains("typeof(_version) <> 'integer'")
+            && sql.contains("_version <= 0")
+            && sql.contains(&format!("_version > {PORTABLE_STORAGE_VERSION_MAX}"))
+    })
+}
+
+fn managed_version_integrity_index_state(
+    conn: &Connection,
+    table: &str,
+) -> SnapbackResult<(bool, bool)> {
+    let (domain_name, head_name) = managed_version_integrity_index_names(table);
+    let mut statement = conn.prepare_cached(
+        "SELECT tbl_name, sql FROM sqlite_schema WHERE type = 'index' AND name = ?1",
+    )?;
+    let domain: Option<(String, Option<String>)> = statement
+        .query_row(params![domain_name], |row| Ok((row.get(0)?, row.get(1)?)))
+        .optional()?;
+    let head: Option<(String, Option<String>)> = statement
+        .query_row(params![head_name], |row| Ok((row.get(0)?, row.get(1)?)))
+        .optional()?;
+    Ok((
+        domain.as_ref().is_some_and(|(owner, sql)| {
+            owner == table && managed_version_domain_predicate_is_current(sql.as_deref())
+        }),
+        head.as_ref().is_some_and(|(owner, _)| owner == table),
+    ))
+}
+
+fn drop_stray_managed_version_integrity_indexes(
+    conn: &Connection,
+    table: Option<&str>,
+) -> SnapbackResult<()> {
+    let mut statement = conn.prepare(
+        "SELECT name, tbl_name
+         FROM sqlite_schema
+         WHERE type = 'index'
+           AND (name GLOB '_snapback_version_domain_*'
+                OR name GLOB '_snapback_version_head_*')",
+    )?;
+    let indexes = statement
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    drop(statement);
+    for (name, owner) in indexes {
+        if table.is_some_and(|table| table != owner) {
+            continue;
+        }
+        let (expected_domain, expected_head) = managed_version_integrity_index_names(&owner);
+        let expected = if name.starts_with("_snapback_version_domain_") {
+            expected_domain
+        } else {
+            expected_head
+        };
+        if name != expected {
+            conn.execute(&format!("DROP INDEX {}", quote_ident(&name)?), [])?;
+        }
+    }
+    Ok(())
+}
+
+// @ref LLP 0007#commit-version-graduation-dk-2-decided-2026-07-02 — managed
+//   ordering facts need runtime-owned indexes whose physical definitions are
+//   reconciled after every table rebuild or rename.
+pub(super) fn ensure_managed_version_integrity_indexes(
+    conn: &Connection,
+    table: &str,
+) -> SnapbackResult<()> {
+    drop_stray_managed_version_integrity_indexes(conn, Some(table))?;
+    let (domain_name, head_name) = managed_version_integrity_index_names(table);
+    let (domain_current, head_current) = managed_version_integrity_index_state(conn, table)?;
+    if !domain_current {
+        conn.execute(
+            &format!("DROP INDEX IF EXISTS {}", quote_ident(&domain_name)?),
+            [],
+        )?;
+        conn.execute(
+            &format!(
+                "CREATE INDEX {} ON {}(_version) \
+                 WHERE typeof(_version) <> 'integer' \
+                    OR _version <= 0 \
+                    OR _version > {PORTABLE_STORAGE_VERSION_MAX}",
+                quote_ident(&domain_name)?,
+                quote_ident(table)?,
+            ),
+            [],
+        )?;
+    }
+    if !head_current {
+        conn.execute(
+            &format!("DROP INDEX IF EXISTS {}", quote_ident(&head_name)?),
+            [],
+        )?;
+        conn.execute(
+            &format!(
+                "CREATE INDEX {} ON {}(_version)",
+                quote_ident(&head_name)?,
+                quote_ident(table)?,
+            ),
+            [],
+        )?;
+    }
     Ok(())
 }
 
@@ -12696,20 +14535,56 @@ pub(super) fn validate_managed_table_versions_by_name(
     table_name: &str,
     maximum: u64,
 ) -> SnapbackResult<()> {
-    let sql = format!(
-        "SELECT 1 FROM {} \
-         WHERE typeof(_version) <> 'integer' \
-            OR _version <= 0 \
-            OR _version > ?1 \
-         LIMIT 1",
-        quote_ident(table_name)?
-    );
-    let invalid: Option<i64> = conn
-        .query_row(&sql, params![version_to_sql_integer(maximum)?], |row| {
-            row.get(0)
-        })
-        .optional()?;
-    if invalid.is_some() {
+    // @ref LLP 0007#commit-version-graduation-dk-2-decided-2026-07-02 — every
+    //   persisted row version fails closed, with indexed absence proofs used
+    //   only when both runtime-owned indexes are current.
+    let (domain_current, head_current) = managed_version_integrity_index_state(conn, table_name)?;
+    let invalid = if domain_current && head_current {
+        let (domain_name, head_name) = managed_version_integrity_index_names(table_name);
+        let domain_predicate = format!(
+            "typeof(_version) <> 'integer' OR _version <= 0 OR _version > {PORTABLE_STORAGE_VERSION_MAX}"
+        );
+        let domain_sql = format!(
+            "SELECT _version FROM {} INDEXED BY {} \
+             WHERE {domain_predicate} LIMIT 1",
+            quote_ident(table_name)?,
+            quote_ident(&domain_name)?,
+        );
+        let mut domain_statement = conn.prepare_cached(&domain_sql)?;
+        let domain_invalid: Option<SqlValue> = domain_statement
+            .query_row([], |row| row.get(0))
+            .optional()?;
+        if domain_invalid.is_some() {
+            true
+        } else {
+            let head_sql = format!(
+                "SELECT _version FROM {} INDEXED BY {} \
+                 WHERE _version > ?1 LIMIT 1",
+                quote_ident(table_name)?,
+                quote_ident(&head_name)?,
+            );
+            let mut head_statement = conn.prepare_cached(&head_sql)?;
+            let head_invalid: Option<SqlValue> = head_statement
+                .query_row(params![version_to_sql_integer(maximum)?], |row| row.get(0))
+                .optional()?;
+            head_invalid.is_some()
+        }
+    } else {
+        let sql = format!(
+            "SELECT 1 FROM {} \
+             WHERE typeof(_version) <> 'integer' \
+                OR _version <= 0 \
+                OR _version > ?1 \
+             LIMIT 1",
+            quote_ident(table_name)?
+        );
+        let mut statement = conn.prepare_cached(&sql)?;
+        let invalid: Option<i64> = statement
+            .query_row(params![version_to_sql_integer(maximum)?], |row| row.get(0))
+            .optional()?;
+        invalid.is_some()
+    };
+    if invalid {
         return Err(SnapbackError::error(
             "SNAPBACK_STORAGE_VERSION_CORRUPT",
             "storage",
@@ -13646,6 +15521,34 @@ fn decode_json_committed_version(value: Option<&Value>, context: &str) -> Snapba
         ));
     }
     Ok(version)
+}
+
+/// A point lookup is an identity boundary, not merely a SQL-selection hint.
+/// Return only the exact opaque string id the caller requested even if a
+/// future decoder, collation, or storage adapter regresses independently of
+/// the `WHERE _id = ?` predicate.
+///
+/// @ref LLP 0007#ids — portable ids have string representation and equality
+/// semantics only; a storage target may not reinterpret either property.
+fn validate_point_read_identity(
+    document: &Value,
+    requested_id: &str,
+    table: &str,
+) -> SnapbackResult<()> {
+    if document.get("_id").and_then(Value::as_str) != Some(requested_id) {
+        return Err(point_read_identity_corrupt(table));
+    }
+    Ok(())
+}
+
+#[cold]
+fn point_read_identity_corrupt(table: &str) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_STORAGE_ROW_ID_CORRUPT",
+        "storage",
+        "point read returned a row whose decoded identity differs from the requested id",
+    )
+    .with_detail("table", table.to_owned())
 }
 
 fn validate_document_version_at_most(
@@ -14636,6 +16539,7 @@ impl LocalDatabase {
     ) -> SnapbackResult<MutationCommit> {
         let input = writer.handler_input();
         self.apply_buffered_writes_with_lifecycle_gated(
+            write_authority::LocalWriterLaneV1::MembershipTransition,
             &input,
             BufferedEffects {
                 writes: plan.writes,
@@ -14651,6 +16555,7 @@ impl LocalDatabase {
                 ctx_ledger: None,
                 apply: true,
                 identity: None,
+                branch_operation: None,
             },
             MembershipCommitAuthority::sanctioned(writer),
             &|| Ok(()),
@@ -16744,7 +18649,7 @@ fn order_field_max_encoded_bytes_exceeded(
     SnapbackError::error(
         "SNAPBACK_ORDER_FIELD_MAX_ENCODED_BYTES_EXCEEDED",
         "storage",
-        "string order field exceeds its declared UTF-8 byte ceiling",
+        "string or id order field exceeds its declared UTF-8 byte ceiling",
     )
     .with_details(json!({
         "table": table,
@@ -17989,9 +19894,26 @@ pub(crate) fn row_to_document(
     table: &TableManifest,
     columns: &[String],
 ) -> SnapbackResult<Value> {
+    row_to_document_with_staged_nullable_fields(row, table, columns, &[])
+}
+
+/// Decode one executor-owned migration page while a newly added required
+/// field is deliberately nullable between its DDL and backfill steps. This is
+/// not an application read relaxation: the migration barrier is closed, the
+/// exception is one exact destination field, and every other representation
+/// remains strict.
+///
+/// @ref LLP 0081#4-execution-journaling-and-crash-recovery — staged required
+///   columns are added nullable and become authoritative only after backfill,
+///   verification, and the publication transaction.
+fn row_to_document_with_staged_nullable_fields(
+    row: &rusqlite::Row<'_>,
+    table: &TableManifest,
+    columns: &[String],
+    staged_nullable_fields: &[&str],
+) -> SnapbackResult<Value> {
     let mut document = Map::new();
     for (index, column) in columns.iter().enumerate() {
-        let field_type = field_type(table, column);
         let raw = row.get_ref(index)?;
         let value = if column == "_version" {
             // @ref LLP 0007#commit-version-graduation-dk-2-decided-2026-07-02 —
@@ -18009,63 +19931,195 @@ pub(crate) fn row_to_document(
                 "row storage version",
             )?))
         } else {
-            sqlite_to_json(raw, field_type)?
+            sqlite_to_json_with_staged_null(
+                raw,
+                table.field(column),
+                &table.name,
+                column,
+                staged_nullable_fields.contains(&column.as_str()),
+            )?
         };
         document.insert(column.clone(), value);
     }
     Ok(Value::Object(document))
 }
 
-fn sqlite_to_json(value: ValueRef<'_>, field_type: Option<&FieldType>) -> SnapbackResult<Value> {
-    match value {
-        ValueRef::Null => Ok(Value::Null),
-        ValueRef::Integer(value) => {
-            if matches!(field_type, Some(FieldType::Boolean)) {
-                Ok(Value::Bool(value != 0))
-            } else {
-                Ok(Value::Number(Number::from(value)))
+/// Decode only the physical representation the declared portable type writes.
+/// SQLite affinity is deliberately permissive, so a direct or damaged writer
+/// can otherwise turn `Boolean(2)` into `true`, return a TEXT Integer as a
+/// string, or replace invalid UTF-8 before a caller sees the corruption.
+///
+/// @ref LLP 0007#data-model — the writer and reader must assert one
+///   single-sourced physical representation for every portable type.
+#[cfg(test)]
+fn sqlite_to_json(
+    value: ValueRef<'_>,
+    field: Option<&FieldManifest>,
+    table: &str,
+    column: &str,
+) -> SnapbackResult<Value> {
+    sqlite_to_json_with_staged_null(value, field, table, column, false)
+}
+
+fn sqlite_to_json_with_staged_null(
+    value: ValueRef<'_>,
+    field: Option<&FieldManifest>,
+    table: &str,
+    column: &str,
+    staged_null_allowed: bool,
+) -> SnapbackResult<Value> {
+    if field.is_none() {
+        match column {
+            "_id" => {
+                let ValueRef::Text(bytes) = value else {
+                    return Err(storage_field_corrupt(table, column, "TEXT", value));
+                };
+                return decode_storage_text(bytes, table, column).map(Value::String);
             }
+            "_createdAt" | "_updatedAt" => {
+                let ValueRef::Integer(timestamp) = value else {
+                    return Err(storage_field_corrupt(
+                        table,
+                        column,
+                        "portable non-negative INTEGER",
+                        value,
+                    ));
+                };
+                if !(0..=crate::manifest::PORTABLE_TIMESTAMP_MAX_MS as i64).contains(&timestamp) {
+                    return Err(storage_field_corrupt(
+                        table,
+                        column,
+                        "portable non-negative INTEGER",
+                        value,
+                    ));
+                }
+                return Ok(Value::Number(Number::from(timestamp)));
+            }
+            _ => {}
         }
-        ValueRef::Real(value) => Number::from_f64(value).map(Value::Number).ok_or_else(|| {
-            SnapbackError::error("SNAPBACK_INVALID_FLOAT", "storage", "SQLite returned NaN")
-        }),
-        ValueRef::Text(value) => {
-            let text = String::from_utf8_lossy(value).into_owned();
-            if matches!(field_type, Some(FieldType::Json)) {
-                serde_json::from_str(&text).map_err(|error| {
-                    SnapbackError::error(
-                        "SNAPBACK_JSON_PARSE_FAILED",
-                        "storage",
-                        "stored JSON field could not be parsed",
-                    )
-                    .with_detail("error", error.to_string())
-                })
-            } else {
-                Ok(Value::String(text))
-            }
-        }
-        ValueRef::Blob(bytes) => match field_type {
-            Some(FieldType::Vector { dimensions }) => {
-                let components =
-                    crate::vector::storage::decode_vector_binary64_le(bytes, *dimensions)?;
-                Ok(Value::Array(
-                    components
-                        .into_iter()
-                        .map(|component| {
-                            Number::from_f64(component)
-                                .map(Value::Number)
-                                .ok_or_else(crate::vector::diagnostics::index_corrupt)
-                        })
-                        .collect::<SnapbackResult<Vec<_>>>()?,
-                ))
-            }
-            _ => Err(SnapbackError::error(
-                "SNAPBACK_UNSUPPORTED_BLOB",
-                "storage",
-                "blob value has no declared portable storage profile",
-            )),
-        },
     }
+
+    let Some(field) = field else {
+        // Additive schema evolution retains removed physical columns. They no
+        // longer have a current declaration to assert, so preserve the legacy
+        // scalar decoder while still refusing lossy TEXT and undeclared BLOB.
+        return match value {
+            ValueRef::Null => Ok(Value::Null),
+            ValueRef::Integer(value) => Ok(Value::Number(Number::from(value))),
+            ValueRef::Real(value) => Number::from_f64(value).map(Value::Number).ok_or_else(|| {
+                storage_field_corrupt(table, column, "finite REAL", ValueRef::Real(value))
+            }),
+            ValueRef::Text(bytes) => decode_storage_text(bytes, table, column).map(Value::String),
+            ValueRef::Blob(_) => Err(storage_field_corrupt(
+                table,
+                column,
+                "portable scalar",
+                value,
+            )),
+        };
+    };
+
+    if matches!(value, ValueRef::Null) {
+        return if field.optional || staged_null_allowed {
+            Ok(Value::Null)
+        } else {
+            Err(storage_field_corrupt(
+                table,
+                column,
+                sqlite_type(&field.field_type),
+                value,
+            ))
+        };
+    }
+
+    match (&field.field_type, value) {
+        (
+            FieldType::String
+            | FieldType::Principal
+            | FieldType::Id { .. }
+            | FieldType::RelationIncarnation { .. }
+            | FieldType::AssetRef { .. },
+            ValueRef::Text(bytes),
+        ) => decode_storage_text(bytes, table, column).map(Value::String),
+        (FieldType::Boolean, ValueRef::Integer(0)) => Ok(Value::Bool(false)),
+        (FieldType::Boolean, ValueRef::Integer(1)) => Ok(Value::Bool(true)),
+        (FieldType::Integer, ValueRef::Integer(value))
+            if (PORTABLE_INTEGER_MIN..=PORTABLE_INTEGER_MAX).contains(&value) =>
+        {
+            Ok(Value::Number(Number::from(value)))
+        }
+        (FieldType::Real, ValueRef::Real(value)) => {
+            Number::from_f64(value).map(Value::Number).ok_or_else(|| {
+                storage_field_corrupt(table, column, "finite REAL", ValueRef::Real(value))
+            })
+        }
+        (FieldType::Json, ValueRef::Text(bytes)) => {
+            let text = decode_storage_text(bytes, table, column)?;
+            serde_json::from_str(&text).map_err(|error| {
+                storage_field_corrupt(table, column, "UTF-8 JSON TEXT", ValueRef::Text(bytes))
+                    .with_detail("error", error.to_string())
+            })
+        }
+        (FieldType::Vector { dimensions }, ValueRef::Blob(bytes)) => {
+            let components = crate::vector::storage::decode_vector_binary64_le(bytes, *dimensions)?;
+            Ok(Value::Array(
+                components
+                    .into_iter()
+                    .map(|component| {
+                        Number::from_f64(component)
+                            .map(Value::Number)
+                            .ok_or_else(crate::vector::diagnostics::index_corrupt)
+                    })
+                    .collect::<SnapbackResult<Vec<_>>>()?,
+            ))
+        }
+        (field_type, value) => Err(storage_field_corrupt(
+            table,
+            column,
+            sqlite_type(field_type),
+            value,
+        )),
+    }
+}
+
+fn decode_storage_text(bytes: &[u8], table: &str, column: &str) -> SnapbackResult<String> {
+    std::str::from_utf8(bytes)
+        .map(ToOwned::to_owned)
+        .map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_STORAGE_FIELD_CORRUPT",
+                "storage",
+                "stored TEXT field is not valid UTF-8",
+            )
+            .with_detail("table", table.to_owned())
+            .with_detail("field", column.to_owned())
+            .with_detail("expectedStorageClass", "UTF-8 TEXT")
+            .with_detail("actualStorageClass", "non-UTF-8 TEXT")
+        })
+}
+
+fn storage_field_corrupt(
+    table: &str,
+    column: &str,
+    expected: &str,
+    actual: ValueRef<'_>,
+) -> SnapbackError {
+    let actual = match actual {
+        ValueRef::Null => "NULL",
+        ValueRef::Integer(_) => "INTEGER",
+        ValueRef::Real(_) => "REAL",
+        ValueRef::Text(_) => "TEXT",
+        ValueRef::Blob(_) => "BLOB",
+    };
+    SnapbackError::error(
+        "SNAPBACK_STORAGE_FIELD_CORRUPT",
+        "storage",
+        "stored field does not match its declared portable representation",
+    )
+    .with_detail("table", table.to_owned())
+    .with_detail("field", column.to_owned())
+    .with_detail("expectedStorageClass", expected.to_owned())
+    .with_detail("actualStorageClass", actual)
 }
 
 // Plain JSON/JavaScript is the v0 portable wire, so declared Integer fields
@@ -18263,8 +20317,11 @@ fn ensure_field<'a>(table: &'a TableManifest, field: &str) -> SnapbackResult<&'a
         SnapbackError::error(
             "SNAPBACK_UNKNOWN_FIELD",
             "schema",
-            format!("unknown field {}.{field}", table.name),
+            "the requested field is not in the served table schema",
         )
+        .with_details(crate::authoring_suggestion::unknown_schema_field_details(
+            table, field,
+        ))
     })
 }
 
@@ -18291,6 +20348,41 @@ fn ensure_orderable_field(table: &TableManifest, field: &str) -> SnapbackResult<
         .with_detail("fieldType", "Json"));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod authoring_suggestion_tests {
+    use super::*;
+
+    #[test]
+    fn unknown_schema_field_names_only_typed_fields_from_the_served_table() {
+        let schema: SchemaManifest = serde_json::from_str(include_str!(
+            "../demos/todo/snapback/generated/schema.manifest.json"
+        ))
+        .expect("parse served schema fixture");
+        let table = schema.table("todos").expect("served todos table");
+        let error = ensure_field(table, "titel").expect_err("unknown schema field");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_UNKNOWN_FIELD");
+        assert_eq!(
+            error.diagnostic.details["candidateFields"][0]["name"],
+            "title"
+        );
+        assert_eq!(
+            error.diagnostic.details["candidateFields"][0]["expected"],
+            "string"
+        );
+        assert!(
+            error.diagnostic.details["servedShapeHash"]
+                .as_str()
+                .unwrap()
+                .starts_with("sha256:")
+        );
+        assert!(
+            !serde_json::to_string(&error.diagnostic)
+                .unwrap()
+                .contains("titel")
+        );
+    }
 }
 
 fn field_type<'a>(table: &'a TableManifest, field: &str) -> Option<&'a FieldType> {
@@ -18821,8 +20913,9 @@ fn record_client_mutation_result(
         auth_retained + 1,
         auth_admitted_bytes.expect("checked by per-auth retention admission"),
     )?;
+    operation_envelope_crash_cut(OperationEnvelopeCrashPointV1::AfterSettlementBeforeEnvelope)?;
     if identity.operation_issuance.is_some() {
-        record_covered_client_mutation_envelope_in(
+        record_covered_mutation_envelope_in(
             tx,
             identity,
             input,
@@ -18831,7 +20924,77 @@ fn record_client_mutation_result(
             output,
         )?;
     }
+    operation_envelope_crash_cut(OperationEnvelopeCrashPointV1::AfterEnvelopeBeforeCommit)?;
     Ok(())
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CoveredMutationLaneV1 {
+    Ordinary,
+    HostChild,
+}
+
+impl CoveredMutationLaneV1 {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Ordinary => crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+            Self::HostChild => crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1,
+        }
+    }
+}
+
+fn identity_lane(identity: &ClientMutationIdentity) -> Option<CoveredMutationLaneV1> {
+    match identity.operation_issuance.as_ref() {
+        Some(crate::commit_envelope::OperationIssuanceV1::ClientRange { .. }) => {
+            Some(CoveredMutationLaneV1::Ordinary)
+        }
+        Some(crate::commit_envelope::OperationIssuanceV1::HostIncarnation { .. }) => {
+            Some(CoveredMutationLaneV1::HostChild)
+        }
+        None => None,
+    }
+}
+
+fn require_covered_mutation_identity_for_lane(
+    conn: &Connection,
+    lane: CoveredMutationLaneV1,
+    identity: Option<&ClientMutationIdentity>,
+) -> SnapbackResult<()> {
+    // @ref LLP 0163#contract-summary-normative-details-per-llp-0162-0-2 —
+    //   each writer class is covered independently and must carry issuance
+    //   from the matching structurally-disjoint namespace.
+    let Some(stream_id) = crate::seed_identity::strict_current_data_version_stream(conn)? else {
+        return Ok(());
+    };
+    let covered = crate::operation_ledger::active_coverage_manifest(conn, &stream_id)?.is_some_and(
+        |manifest| {
+            manifest
+                .covered_lanes
+                .iter()
+                .any(|value| value == lane.name())
+        },
+    );
+    if !covered {
+        return Ok(());
+    }
+    let Some(identity) = identity else {
+        return Err(SnapbackError::error(
+            "SNAPBACK_OPERATION_IDENTITY_REQUIRED",
+            "sync",
+            format!(
+                "{} coverage is active; this writer must carry a server-issued operation identity",
+                lane.name()
+            ),
+        ));
+    };
+    if identity_lane(identity) == Some(lane) {
+        return Ok(());
+    }
+    Err(SnapbackError::error(
+        "SNAPBACK_OPERATION_WRITER_IDENTITY_MISMATCH",
+        "sync",
+        "operation issuance origin does not match the covered writer lane",
+    ))
 }
 
 /// The one ordinary-mutation envelope hook. Both HostPlan and Ibex buffered
@@ -18841,7 +21004,7 @@ fn record_client_mutation_result(
 ///
 /// @ref LLP 0162#1-the-universal-commit-envelope — application data,
 ///   journal, envelope, suppression, and receipt share one physical commit.
-fn record_covered_client_mutation_envelope_in(
+fn record_covered_mutation_envelope_in(
     tx: &Transaction<'_>,
     identity: &ClientMutationIdentity,
     input: &HandlerInput,
@@ -18868,13 +21031,46 @@ fn record_covered_client_mutation_envelope_in(
                 "covered ordinary mutation requires an initialized data-version stream",
             )
         })?;
-    let operation_identity = OperationIdentityV1::from_client_mutation(
-        stream_id.clone(),
-        identity.authority_instance_id.clone(),
-        issuance,
-        identity,
-        crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
-    );
+    let (audience, operation_identity, operation_lane) = match &issuance {
+        crate::commit_envelope::OperationIssuanceV1::ClientRange { .. } => {
+            let audience = crate::operation_ledger::resolve_client_range_audience_in(
+                tx,
+                &issuance,
+                &identity.authority_instance_id,
+            )?;
+            let operation = OperationIdentityV1::from_client_mutation(
+                stream_id.clone(),
+                audience.clone(),
+                issuance,
+                identity,
+                crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+            );
+            (
+                audience,
+                operation,
+                crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+            )
+        }
+        crate::commit_envelope::OperationIssuanceV1::HostIncarnation { .. } => {
+            let audience = crate::operation_ledger::resolve_host_incarnation_audience_in(
+                tx,
+                &issuance,
+                &identity.authority_instance_id,
+            )?;
+            let operation = OperationIdentityV1::from_host_mutation(
+                stream_id.clone(),
+                audience.clone(),
+                issuance,
+                identity,
+                crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1,
+            );
+            (
+                audience,
+                operation,
+                crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1,
+            )
+        }
+    };
     let history_operation_id = operation_identity.key.operation_id.clone();
     let manifest =
         crate::operation_ledger::active_coverage_manifest(tx, &stream_id)?.ok_or_else(|| {
@@ -18884,6 +21080,17 @@ fn record_covered_client_mutation_envelope_in(
                 "covered ordinary mutation has no active stream coverage manifest",
             )
         })?;
+    if !manifest
+        .covered_lanes
+        .iter()
+        .any(|lane| lane == operation_lane)
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_OPERATION_WRITER_IDENTITY_MISMATCH",
+            "storage",
+            "operation issuance origin is not covered by the active writer manifest",
+        ));
+    }
     let read_detail = serde_json::to_value(read_dependencies).map_err(|_| {
         SnapbackError::error(
             "SNAPBACK_OPERATION_LEDGER_INVALID",
@@ -18905,16 +21112,39 @@ fn record_covered_client_mutation_envelope_in(
             "captured ctx answers could not be encoded",
         )
     })?;
-    let fact_set = |domain: &'static [u8], value: Value, count: u64| EnvelopeFactSetV1 {
-        digest: crate::operation_ledger::digest_fact_set(domain, &canonical_json(value.clone())),
-        count,
-        provenance: FactProvenanceV1::ServerCaptured,
-        detail: if serde_json::to_vec(&value).is_ok_and(|bytes| bytes.len() <= 65_536) {
-            RetainedEnvelopeDetailV1::InlineRedacted { detail: value }
+    let custody_root = identity.activity_digest();
+    let protected_fact_set = |domain: &'static [u8], value: Value, count: u64, name: &str| {
+        let digest =
+            crate::operation_ledger::digest_fact_set(domain, &canonical_json(value.clone()));
+        let detail = if serde_json::to_vec(&value).is_ok_and(|bytes| bytes.len() <= 65_536) {
+            let custody_reference = format!("operation-detail:{custody_root}:{name}");
+            let payload_bytes =
+                crate::operation_detail::seal_in(tx, &custody_reference, &digest, &value)?;
+            RetainedEnvelopeDetailV1::ProtectedLane {
+                custody_reference,
+                payload_digest: digest.clone(),
+                payload_bytes,
+            }
         } else {
             RetainedEnvelopeDetailV1::Truncated
-        },
+        };
+        Ok::<EnvelopeFactSetV1, SnapbackError>(EnvelopeFactSetV1 {
+            digest,
+            count,
+            provenance: FactProvenanceV1::ServerCaptured,
+            detail,
+        })
     };
+    let inline_public_fact_set =
+        |domain: &'static [u8], value: Value, count: u64| EnvelopeFactSetV1 {
+            digest: crate::operation_ledger::digest_fact_set(
+                domain,
+                &canonical_json(value.clone()),
+            ),
+            count,
+            provenance: FactProvenanceV1::ServerCaptured,
+            detail: RetainedEnvelopeDetailV1::InlineRedacted { detail: value },
+        };
     let output_value = serde_json::to_value(output).map_err(|_| {
         SnapbackError::error(
             "SNAPBACK_OPERATION_LEDGER_INVALID",
@@ -18926,6 +21156,13 @@ fn record_covered_client_mutation_envelope_in(
         b"snapback:operation-receipt:v1\n",
         &canonical_json(output_value.clone()),
     );
+    let receipt_custody_reference = format!("operation-detail:{custody_root}:receipt");
+    let receipt_payload_bytes = crate::operation_detail::seal_in(
+        tx,
+        &receipt_custody_reference,
+        &receipt_digest,
+        &output_value,
+    )?;
     let envelope = CommitEnvelopeV1 {
         schema_version: 1,
         identity: operation_identity,
@@ -18940,34 +21177,40 @@ fn record_covered_client_mutation_envelope_in(
         },
         principal_session_or_invocation_id: identity.authority_instance_id.clone(),
         authority: EnvelopeAuthorityFactsV1 {
-            audience: identity.authority_instance_id.clone(),
+            audience,
             grant_or_policy_identity: LaneFactV1::NotDefinedForLane,
             fencing_token_or_epoch: LaneFactV1::Defined(identity.authority_instance_id.clone()),
         },
-        executable_artifact_digest: LaneFactV1::NotDefinedForLane,
+        executable_artifact_digest: identity
+            .artifact_generation_digest
+            .clone()
+            .map_or(LaneFactV1::NotDefinedForLane, LaneFactV1::Defined),
         argument_digest: crate::operation_ledger::digest_fact_set(
             b"snapback:operation-arguments:v1\n",
             &canonical_json(input.args.clone()),
         ),
         plan_digest: LaneFactV1::NotDefinedForLane,
         base_version: LaneFactV1::NotDefinedForLane,
-        read_set: fact_set(
+        read_set: protected_fact_set(
             b"snapback:operation-read-set:v1\n",
             read_detail,
             read_dependencies.len() as u64,
-        ),
-        write_set: fact_set(
+            "reads",
+        )?,
+        write_set: protected_fact_set(
             b"snapback:operation-write-set:v1\n",
             write_detail,
             changes.len() as u64,
-        ),
-        ctx_answers: fact_set(
+            "writes",
+        )?,
+        ctx_answers: protected_fact_set(
             b"snapback:operation-ctx-answers:v1\n",
             ctx_detail,
             usize::from(output.ctx_ledger.is_some()) as u64,
-        ),
+            "ctx-answers",
+        )?,
         effects: EnvelopeEffectFactsV1 {
-            facts: fact_set(b"snapback:operation-effects:v1\n", json!([]), 0),
+            facts: inline_public_fact_set(b"snapback:operation-effects:v1\n", json!([]), 0),
             egress_families: Vec::new(),
             settlement_capabilities: Vec::new(),
         },
@@ -18975,21 +21218,13 @@ fn record_covered_client_mutation_envelope_in(
             state: OperationReceiptStateV1::Committed,
             receipt_digest: receipt_digest.clone(),
             payload: RetainedEnvelopeDetailV1::ProtectedLane {
-                custody_reference: format!("client-mutation-result:{}", identity.activity_digest()),
+                custody_reference: receipt_custody_reference,
                 payload_digest: receipt_digest,
-                payload_bytes: serde_json::to_vec(&output_value)
-                    .map_err(|_| {
-                        SnapbackError::error(
-                            "SNAPBACK_OPERATION_LEDGER_INVALID",
-                            "storage",
-                            "mutation receipt bytes could not be counted",
-                        )
-                    })?
-                    .len() as u64,
+                payload_bytes: receipt_payload_bytes,
             },
         },
         coverage: EnvelopeCoverageV1 {
-            covered_lanes: vec![crate::operation_ledger::ORDINARY_MUTATION_LANE_V1.to_owned()],
+            covered_lanes: vec![operation_lane.to_owned()],
             uncovered_lanes: Vec::new(),
             coverage_digest: manifest.coverage_digest,
         },
@@ -19104,6 +21339,7 @@ mod vector_storage_carrier_tests {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         })
@@ -19120,15 +21356,15 @@ mod vector_storage_carrier_tests {
         assert_eq!(declared, "BLOB");
 
         db.seed(SeedData {
-                tables: BTreeMap::from([(
-                    "embeddings".to_owned(),
-                    vec![Map::from_iter([
-                        ("_id".to_owned(), json!("embedding_1")),
-                        ("embedding".to_owned(), json!([-0.0, 2.0, 3.0])),
-                    ])],
-                )]),
-            })
-            .expect("internal vector storage admits canonical values");
+            tables: BTreeMap::from([(
+                "embeddings".to_owned(),
+                vec![Map::from_iter([
+                    ("_id".to_owned(), json!("embedding_1")),
+                    ("embedding".to_owned(), json!([-0.0, 2.0, 3.0])),
+                ])],
+            )]),
+        })
+        .expect("internal vector storage admits canonical values");
         let stored: Vec<u8> = db
             .conn
             .query_row(
@@ -19185,6 +21421,7 @@ mod guarded_commit_tests {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         })
@@ -19413,6 +21650,70 @@ mod guarded_commit_tests {
         }
     }
 
+    // @ref LLP 0081#3-typed-migration-steps — ValidateRequired must count its
+    //   exact target NULLs as closed facts while unrelated required-field
+    //   corruption still fails through the ordinary strict decoder.
+    #[test]
+    fn migration_non_null_scan_allows_only_its_exact_validation_targets() {
+        let db = migration_scan_database();
+        db.conn
+            .execute("ALTER TABLE scanned ADD COLUMN other TEXT", [])
+            .expect("add a second physically nullable staged column");
+
+        let mut effective = db.schema().clone();
+        let table = effective
+            .tables
+            .iter_mut()
+            .find(|table| table.name == "scanned")
+            .expect("scanned table");
+        table
+            .fields
+            .iter_mut()
+            .find(|field| field.name == "v")
+            .expect("v field")
+            .optional = false;
+        table.fields.push(FieldManifest {
+            name: "other".to_owned(),
+            field_type: FieldType::String,
+            optional: false,
+        });
+
+        let request = MigrationKeysetScanRequestV1 {
+            table: "scanned".to_owned(),
+            index: None,
+            validators: vec![MigrationScanValidatorV1::NonNull {
+                field: "v".to_owned(),
+            }],
+            digest: None,
+            ceilings: MigrationScanCeilingsV1 {
+                max_batch_rows: 1024,
+                max_batch_bytes: 1024 * 1024,
+                max_batch_millis: 10_000,
+            },
+        };
+
+        let error = migration_keyset_scan_batch_on(&db.conn, &effective, &request, None)
+            .expect_err("an unrelated required NULL remains corrupt");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_FIELD_CORRUPT");
+        assert_eq!(error.diagnostic.details["field"], "other");
+
+        db.conn
+            .execute("UPDATE scanned SET other = 'ready'", [])
+            .expect("repair unrelated field");
+        let outcome = migration_keyset_scan_batch_on(&db.conn, &effective, &request, None)
+            .expect("the exact NonNull target is observable");
+        let violations = outcome
+            .checkpoint
+            .validators
+            .iter()
+            .find_map(|state| match state {
+                MigrationScanValidatorStateV1::NonNull { violations, .. } => Some(*violations),
+                MigrationScanValidatorStateV1::Unique { .. } => None,
+            })
+            .expect("NonNull result");
+        assert_eq!(violations, 2, "both staged v NULLs are counted");
+    }
+
     // @ref LLP 0081#3-typed-migration-steps — scan refusals are typed and
     //   fail closed: ceilings outside the target caps, a checkpoint from a
     //   different scan, uniqueness without its leading index, and sealed
@@ -19495,6 +21796,7 @@ mod guarded_commit_tests {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         }
@@ -19504,6 +21806,101 @@ mod guarded_commit_tests {
         let mut db = LocalDatabase::memory().expect("memory database");
         db.apply_schema(schema()).expect("apply test schema");
         db
+    }
+
+    fn apply_typed_decode_fixture(db: &mut LocalDatabase) {
+        db.apply_schema(SchemaManifest {
+            tables: vec![TableManifest {
+                name: "typed_items".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "label".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "flag".to_owned(),
+                        field_type: FieldType::Boolean,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "count".to_owned(),
+                        field_type: FieldType::Integer,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "score".to_owned(),
+                        field_type: FieldType::Real,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "payload".to_owned(),
+                        field_type: FieldType::Json,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "note".to_owned(),
+                        field_type: FieldType::String,
+                        optional: true,
+                    },
+                ],
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
+                search_live_limits: None,
+                membership: None,
+                asset_sharing: None,
+                history: None,
+            }],
+            ..SchemaManifest::default()
+        })
+        .expect("apply typed decode schema");
+        db.seed(SeedData {
+            tables: BTreeMap::from([(
+                "typed_items".to_owned(),
+                vec![Map::from_iter([
+                    ("_id".to_owned(), json!("typed-row")),
+                    ("label".to_owned(), json!("ok")),
+                    ("flag".to_owned(), json!(true)),
+                    ("count".to_owned(), json!(1)),
+                    ("score".to_owned(), json!(1.5)),
+                    ("payload".to_owned(), json!({ "ok": true })),
+                    ("note".to_owned(), Value::Null),
+                ])],
+            )]),
+        })
+        .expect("seed typed decode row");
+    }
+
+    fn typed_decode_database() -> LocalDatabase {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        apply_typed_decode_fixture(&mut db);
+        db
+    }
+
+    fn declared_storage_field(field_type: FieldType, optional: bool) -> FieldManifest {
+        FieldManifest {
+            name: "value".to_owned(),
+            field_type,
+            optional,
+        }
+    }
+
+    fn assert_storage_field_corrupt<T: std::fmt::Debug>(
+        result: SnapbackResult<T>,
+        field: &str,
+        lane: &str,
+    ) {
+        let error = result.expect_err("corrupt portable storage must fail closed");
+        assert_eq!(
+            error.diagnostic.code, "SNAPBACK_STORAGE_FIELD_CORRUPT",
+            "{field} {lane}"
+        );
+        assert_eq!(error.diagnostic.details["table"], "typed_items");
+        assert_eq!(error.diagnostic.details["field"], field);
     }
 
     fn sequence_fact(db: &LocalDatabase, value: u64) -> SequenceAllocationFact {
@@ -19964,6 +22361,7 @@ mod guarded_commit_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 TableManifest {
                     name: "children".to_owned(),
@@ -20011,6 +22409,7 @@ mod guarded_commit_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 TableManifest {
                     name: "activity".to_owned(),
@@ -20067,6 +22466,7 @@ mod guarded_commit_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -20827,6 +23227,7 @@ mod guarded_commit_tests {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         });
         let tx = simultaneous.conn.transaction().unwrap();
         let error = preflight_sequence_enrollments(
@@ -21792,6 +24193,58 @@ mod guarded_commit_tests {
         );
     }
 
+    // @ref LLP 0051#d2-promote-the-mutation-ir-extend-it-to-the-common-mutation
+    // — argOpt lowers to null-propagating Field access over the Args root.
+    #[test]
+    fn omitted_optional_arg_field_access_writes_null_to_optional_storage() {
+        let mut db = database();
+        let input = HandlerInput {
+            args: json!({}),
+            ..HandlerInput::default()
+        };
+        let plan = MutationPlan {
+            steps: vec![MutationStep::Insert {
+                table: "items".to_owned(),
+                values: BTreeMap::from([
+                    (
+                        "title".to_owned(),
+                        ValueExpr::Literal(json!("omitted optional arg")),
+                    ),
+                    (
+                        "rank".to_owned(),
+                        ValueExpr::Field {
+                            base: Box::new(ValueExpr::Args),
+                            key: "rank".to_owned(),
+                        },
+                    ),
+                ]),
+                bind_id_as: None,
+            }],
+            return_value: Some(ReturnValue::ChangedCount),
+        };
+        let identity = ClientMutationIdentity::new(
+            "cm_optional_arg_omitted",
+            "createItemWithOptionalRank",
+            &input,
+        );
+
+        let committed = db
+            .execute_mutation_idempotent(&plan, &input, &identity)
+            .expect("argOpt-shaped omitted property commits without SNAPBACK_ARG_MISSING");
+        assert_eq!(committed.output.changed_count, 1);
+        let row_id = &committed.changes.first().expect("inserted changed row").id;
+        let row = db
+            .get("items", row_id)
+            .expect("read committed item")
+            .expect("committed item exists");
+        assert_eq!(row["rank"], Value::Null);
+        assert!(
+            row.as_object()
+                .expect("stored row object")
+                .contains_key("rank")
+        );
+    }
+
     fn activity_insert_plan(return_value: ReturnValue) -> MutationPlan {
         let source_id = ValueExpr::Binding("sourceId".to_owned());
         MutationPlan {
@@ -22121,6 +24574,7 @@ mod guarded_commit_tests {
             auth_fingerprint: "sha256:test".to_owned(),
             authority_instance_id: Uuid::now_v7().to_string(),
             input_fingerprint: "sha256:input".to_owned(),
+            artifact_generation_digest: None,
             operation_issuance: None,
         };
         db.execute_mutation_idempotent(
@@ -22343,6 +24797,7 @@ mod guarded_commit_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 TableManifest {
                     name: "authors".to_owned(),
@@ -22367,6 +24822,7 @@ mod guarded_commit_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -22544,12 +25000,33 @@ mod guarded_commit_tests {
         let continuation = windowed_continuation.expect("full window continues");
         assert_eq!(continuation.id, "b2");
 
+        let (_, _, observed) = query_relational_on_observed(
+            &DbRead::Live(&db),
+            &relational_plan(JoinKind::Inner, 2),
+            &input,
+            None,
+        )
+        .expect("observed relational window");
+        assert_eq!(observed.examined_root_entries, 2);
+        assert_eq!(
+            observed.joined_lookups, 2,
+            "every consumed root is charged one joined-side lookup decision",
+        );
+
         // take: 0 is an empty page that consumes nothing.
         let (empty, empty_continuation) = db
             .query_relational(&relational_plan(JoinKind::Inner, 0), &input, None)
             .expect("take zero");
         assert!(empty.rows.is_empty());
         assert!(empty_continuation.is_none());
+        let (_, _, observed_empty) = query_relational_on_observed(
+            &DbRead::Live(&db),
+            &relational_plan(JoinKind::Inner, 0),
+            &input,
+            None,
+        )
+        .expect("observed take-zero window");
+        assert_eq!(observed_empty, RelationalExecutionObservation::default());
 
         // Below-constraint duplicate injection: a second row under the
         // claimed-unique joined key is a storage-invariant refusal.
@@ -23780,19 +26257,144 @@ mod guarded_commit_tests {
     }
 
     #[test]
+    fn promotion_head_reservation_defers_real_host_plan_and_buffered_writers_on_current_stream() {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(schema()).expect("apply schema");
+        let tx = db.conn.transaction().expect("stream transaction");
+        let stream = auth_invalidation::ensure_data_version_stream_in(&tx)
+            .expect("initialize nonliteral data-version stream");
+        tx.commit().expect("commit stream");
+        assert_ne!(
+            stream, "canonical",
+            "fixture literals are never stream authority"
+        );
+
+        crate::fork_promotion::ensure_promotion_tables(&db.conn)
+            .expect("promotion admission tables");
+        assert_eq!(
+            crate::fork_promotion::canonical_mutation_admission(&db.conn, &stream, 1)
+                .expect("no reservation admits"),
+            crate::fork_promotion::CanonicalAdmissionV1::Admit
+        );
+        let ticket_json = serde_json::to_vec(&crate::fork_promotion::PromotionAdmissionTicketV1 {
+            schema_version: 1,
+            ticket_identity: crate::commit_envelope::OperationIdentityV1 {
+                schema_version: 1,
+                key: crate::commit_envelope::OperationKeyV1 {
+                    stream_id: stream.clone(),
+                    originator_class: crate::commit_envelope::OperationOriginatorClassV1::Host,
+                    operation_id: "host:reservation-gate-test".to_owned(),
+                },
+                issuance: crate::commit_envelope::OperationIssuanceV1::HostIncarnation {
+                    epoch_id: "host-epoch-reservation-gate-test".to_owned(),
+                    upstream_identity: "reservation-gate-test".to_owned(),
+                    commit_ordinal: 0,
+                    authority_authenticator_digest: format!("sha256:{}", "a".repeat(64)),
+                },
+                bound_facts: crate::commit_envelope::OperationBoundFactsV1 {
+                    audience: "app-reservation-gate-test".to_owned(),
+                    principal_fingerprint: format!("sha256:{}", "b".repeat(64)),
+                    authority_instance_id: "authority-reservation-gate-test".to_owned(),
+                    operation_kind: "promotion".to_owned(),
+                    function_or_command: "promotion.reserve".to_owned(),
+                    input_fingerprint: format!("sha256:{}", "c".repeat(64)),
+                },
+            },
+            canonical_stream_id: stream.clone(),
+            branch_id: crate::branches::BranchId("branch-gate-test".to_owned()),
+            fifo_sequence: 1,
+            initial_queue_position: 1,
+            observed_concurrent_forks: 1,
+            rebase_budget: 3,
+            losses: 2,
+            expires_at_ms: i64::MAX,
+            contention_policy: crate::fork_promotion::PRODUCTION_PROMOTION_CONTENTION_POLICY_V1,
+        })
+        .expect("serialize production-shaped ticket");
+        db.conn
+            .execute(
+                "INSERT INTO _snapback_promotion_admission(
+                   canonical_stream_id,ticket_id,branch_id,fifo_sequence,
+                   ticket_json,state,losses,reserved_until_ms
+                 ) VALUES(?1,'host:reservation-gate-test','branch-gate-test',1,?2,'queued',2,?3)",
+                params![stream, ticket_json, i64::MAX],
+            )
+            .expect("install active production reservation");
+
+        let host_plan = db
+            .execute_mutation(&insert_plan(), &HandlerInput::default())
+            .expect_err("HostPlan must defer inside its SQLite writer transaction");
+        assert_eq!(
+            host_plan.diagnostic.code,
+            "SNAPBACK_PROMOTION_HEAD_RESERVED"
+        );
+        let buffered = db
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Insert {
+                    table: "items".to_owned(),
+                    id: "buffered-reserved".to_owned(),
+                    values: Map::from_iter([("title".to_owned(), json!("reserved"))]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect_err("buffered writer must defer inside its SQLite writer transaction");
+        assert_eq!(buffered.diagnostic.code, "SNAPBACK_PROMOTION_HEAD_RESERVED");
+        assert_eq!(
+            db.scan_table("items", 10, 0)
+                .expect("no partial writes")
+                .total,
+            0
+        );
+
+        db.conn
+            .execute(
+                "UPDATE _snapback_promotion_admission SET reserved_until_ms=NULL
+                  WHERE ticket_id='host:reservation-gate-test'",
+                [],
+            )
+            .expect("release reservation");
+        assert_eq!(
+            db.execute_mutation(&insert_plan(), &HandlerInput::default())
+                .expect("HostPlan admitted after release")
+                .changes
+                .len(),
+            2
+        );
+        assert_eq!(
+            db.commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Insert {
+                    table: "items".to_owned(),
+                    id: "buffered-admitted".to_owned(),
+                    values: Map::from_iter([("title".to_owned(), json!("admitted"))]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("buffered writer admitted after release")
+            .changes
+            .len(),
+            1
+        );
+    }
+
+    #[test]
     fn llp0163_issuance_bearing_host_plan_and_buffered_mutations_share_envelope_choke_point() {
         use crate::commit_envelope::{
-            ClientIdentityRangeV1, IdentityEpochStateV1, IdentityEpochV1,
-            OperationCoverageManifestV1, OperationIssuanceV1, OperationOriginatorClassV1,
+            ClientIdentityRangeV1, IdentityEpochStateV1, IdentityEpochV1, OperationIssuanceV1,
+            OperationOriginatorClassV1,
         };
 
-        let mut db = database();
-        db.configure_history_policy(&crate::proof_checkpoint::HistoryRetentionPolicyV1 {
-            table: "items".to_owned(),
+        let mut history_schema = schema();
+        history_schema.tables[0].history = Some(crate::manifest::HistoryRetentionManifestV1 {
             retain_ms: 60_000,
-            max_rows: 32,
-        })
-        .expect("finite history policy");
+            max_versions_per_record: 32,
+        });
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(history_schema)
+            .expect("schema-declared finite history policy");
         let tx = db.conn.transaction().expect("stream authority tx");
         let stream = auth_invalidation::ensure_data_version_stream_in(&tx)
             .expect("initialize operation stream");
@@ -23836,27 +26438,15 @@ mod guarded_commit_tests {
             },
         )
         .expect("range");
-        let lanes = vec![crate::operation_ledger::ORDINARY_MUTATION_LANE_V1.to_owned()];
-        let writers = vec![
-            "storage::execute_mutation_plan".to_owned(),
-            "storage::commit_buffered_writes".to_owned(),
-        ];
-        crate::operation_ledger::register_coverage_in(
-            &tx,
-            &OperationCoverageManifestV1 {
-                schema_version: 1,
-                manifest_version: 1,
-                stream_id: stream.clone(),
-                covered_lanes: lanes.clone(),
-                writer_choke_points: writers.clone(),
-                coverage_digest: crate::operation_ledger::coverage_digest(
-                    &stream, 1, &lanes, &writers,
-                ),
-            },
-            1,
+        tx.commit().expect("operation authority commit");
+        db.install_operation_coverage_for_test(
+            vec![crate::operation_ledger::ORDINARY_MUTATION_LANE_V1.to_owned()],
+            crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
+                .iter()
+                .map(|writer| (*writer).to_owned())
+                .collect(),
         )
         .expect("coverage");
-        tx.commit().expect("operation authority commit");
 
         let issuance = |counter| OperationIssuanceV1::ClientRange {
             epoch_id: "epoch-1".to_owned(),
@@ -23898,20 +26488,50 @@ mod guarded_commit_tests {
             )
             .expect("covered buffered commit");
         assert_eq!(buffered.changes.len(), 1);
-
-        for identity in [&host_plan_identity, &buffered_identity] {
-            let operation = crate::commit_envelope::OperationIdentityV1::from_client_mutation(
-                stream.clone(),
-                audience.clone(),
-                identity
-                    .operation_issuance
-                    .clone()
-                    .expect("issuance retained"),
-                identity,
-                crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+        let buffered_row = db
+            .get("items", "buffered")
+            .expect("read buffered postimage")
+            .expect("buffered row exists");
+        let journal_row: String = db
+            .conn
+            .query_row(
+                "SELECT row_json FROM _snapback_changes
+                 WHERE table_name='items' AND row_id='buffered'
+                 ORDER BY id DESC LIMIT 1",
+                [],
+                |row| row.get(0),
+            )
+            .expect("buffered journal postimage");
+        assert_eq!(
+            serde_json::from_str::<Value>(&journal_row).expect("journal postimage JSON"),
+            buffered_row,
+            "the authorized physical write journals the exact app and system-field postimage"
+        );
+        for field in ["_id", "_version", "_createdAt", "_updatedAt"] {
+            assert!(
+                buffered_row.get(field).is_some(),
+                "journal-complete postimage is missing system field {field}"
             );
+        }
+
+        let operations = [&host_plan_identity, &buffered_identity]
+            .into_iter()
+            .map(|identity| {
+                crate::commit_envelope::OperationIdentityV1::from_client_mutation(
+                    stream.clone(),
+                    audience.clone(),
+                    identity
+                        .operation_issuance
+                        .clone()
+                        .expect("issuance retained"),
+                    identity,
+                    crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+                )
+            })
+            .collect::<Vec<_>>();
+        for operation in &operations {
             assert!(matches!(
-                crate::operation_ledger::lookup_operation(&db.conn, &operation)
+                crate::operation_ledger::lookup_operation(&db.conn, operation)
                     .expect("operation replay lookup"),
                 crate::operation_ledger::OperationLookupV1::ExactReplay(_)
             ));
@@ -23925,6 +26545,74 @@ mod guarded_commit_tests {
             )
             .expect("envelope count");
         assert_eq!(envelope_count, 2);
+        let protected_count: u64 = db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM _snapback_operation_protected_detail_v1",
+                [],
+                |row| row.get(0),
+            )
+            .expect("protected detail count");
+        assert_eq!(
+            protected_count, 8,
+            "four protected fact classes per envelope"
+        );
+        let retained_envelopes: String = db
+            .conn
+            .query_row(
+                "SELECT group_concat(envelope_json, '\n') FROM _snapback_commit_envelopes_v1",
+                [],
+                |row| row.get(0),
+            )
+            .expect("retained envelope JSON");
+        assert!(!retained_envelopes.contains("\"title\":\"one\""));
+        assert!(!retained_envelopes.contains("\"title\":\"two\""));
+        assert!(!retained_envelopes.contains("\"title\":\"buffered\""));
+
+        let admin = crate::operation_ledger::CurrentExplanationAuthorityV1 {
+            audience: audience.clone(),
+            principal_fingerprint: String::new(),
+            authority_instance_id: String::new(),
+            current_artifact_digest: None,
+            current_policy_provable: true,
+            fact_policy: crate::operation_ledger::ExplanationFactPolicyV1::Unprovable,
+            administrative: true,
+        };
+        let explanation =
+            crate::operation_ledger::explain_operation(&db.conn, &operations[0], &admin)
+                .expect("authorized protected explanation")
+                .expect("operation exists");
+        assert_eq!(
+            explanation.disposition,
+            crate::commit_envelope::ExplanationDispositionV1::Complete
+        );
+        let detail = explanation
+            .detail
+            .expect("all retained fact classes project");
+        for name in ["readSet", "writeSet", "ctxAnswers", "effects", "receipt"] {
+            assert!(
+                detail.get(name).is_some(),
+                "missing explanation fact {name}"
+            );
+        }
+        let receipt_reference = format!(
+            "operation-detail:{}:receipt",
+            host_plan_identity.activity_digest()
+        );
+        db.conn
+            .execute(
+                "DELETE FROM _snapback_operation_protected_detail_v1
+                 WHERE custody_reference=?1",
+                [&receipt_reference],
+            )
+            .expect("remove protected receipt fixture");
+        assert_eq!(
+            crate::operation_ledger::explain_operation(&db.conn, &operations[0], &admin)
+                .expect("fail-closed explanation")
+                .expect("operation remains")
+                .disposition,
+            crate::commit_envelope::ExplanationDispositionV1::ProtectedCustodyUnavailable
+        );
         let history_operation_ids = db
             .conn
             .prepare(
@@ -23945,6 +26633,1663 @@ mod guarded_commit_tests {
             ],
             "history rows join to the covered operation in the same commit"
         );
+    }
+
+    #[derive(Clone, Copy, Debug)]
+    enum CoveredWriterFixtureV1 {
+        HostPlan,
+        Buffered,
+    }
+
+    fn operation_crash_fixture(
+        writer: CoveredWriterFixtureV1,
+    ) -> (
+        tempfile::TempDir,
+        PathBuf,
+        LocalDatabase,
+        HandlerInput,
+        ClientMutationIdentity,
+    ) {
+        use crate::commit_envelope::OperationIssuanceV1;
+
+        let (dir, path, mut db) = file_database();
+        db.install_operation_coverage_for_test(
+            vec![crate::operation_ledger::ORDINARY_MUTATION_LANE_V1.to_owned()],
+            crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
+                .iter()
+                .map(|writer| (*writer).to_owned())
+                .collect(),
+        )
+        .expect("activate test-only ordinary coverage");
+        let input = HandlerInput::default();
+        let function = match writer {
+            CoveredWriterFixtureV1::HostPlan => "items.insert",
+            CoveredWriterFixtureV1::Buffered => "items.bufferedInsert",
+        };
+        let prototype = ClientMutationIdentity::new("operation-crash-0", function, &input);
+        let range = db
+            .issue_client_operation_identity_range(
+                "crash-fixture-client",
+                &prototype.authority_instance_id,
+                None,
+                now_millis(),
+            )
+            .expect("server-issued operation range");
+        let identity = prototype.with_operation_issuance(OperationIssuanceV1::ClientRange {
+            epoch_id: range.epoch_id,
+            counter: range.range_start,
+            range_start: range.range_start,
+            range_end_exclusive: range.range_end_exclusive,
+            authority_authenticator_digest: range.authority_authenticator_digest,
+        });
+        (dir, path, db, input, identity)
+    }
+
+    fn execute_operation_crash_fixture(
+        db: &mut LocalDatabase,
+        writer: CoveredWriterFixtureV1,
+        input: &HandlerInput,
+        identity: &ClientMutationIdentity,
+    ) -> SnapbackResult<MutationCommit> {
+        match writer {
+            CoveredWriterFixtureV1::HostPlan => {
+                db.execute_mutation_idempotent(&insert_plan(), input, identity)
+            }
+            CoveredWriterFixtureV1::Buffered => db.commit_buffered_writes_idempotent_guarded(
+                input,
+                BufferedCommitPayload {
+                    writes: vec![BufferedWrite::Insert {
+                        table: "items".to_owned(),
+                        id: format!("crash-buffered-{}", identity.id),
+                        values: Map::from_iter([("title".to_owned(), json!("buffered"))]),
+                    }],
+                    sequence_allocations: Vec::new(),
+                    membership_plans: Vec::new(),
+                    read_dependencies: Vec::new(),
+                    result: json!({ "receiptSecret": "classified-operation-output" }),
+                    ctx_ledger: CtxAnswerLedger::default(),
+                    job_enqueues: Vec::new(),
+                    job_producer: None,
+                    asset_admissions: Vec::new(),
+                },
+                Some(identity),
+                || Ok(()),
+                || Ok(()),
+            ),
+        }
+    }
+
+    fn host_operation_crash_fixture(
+        writer: CoveredWriterFixtureV1,
+    ) -> (
+        tempfile::TempDir,
+        PathBuf,
+        LocalDatabase,
+        HandlerInput,
+        ClientMutationIdentity,
+    ) {
+        let (dir, path, mut db) = file_database();
+        db.install_operation_coverage_for_test(
+            vec![crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1.to_owned()],
+            crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1
+                .iter()
+                .map(|writer| (*writer).to_owned())
+                .collect(),
+        )
+        .expect("activate test-only host-child coverage");
+        let input = HandlerInput::default();
+        let function = match writer {
+            CoveredWriterFixtureV1::HostPlan => "items.insert",
+            CoveredWriterFixtureV1::Buffered => "items.bufferedInsert",
+        };
+        let upstream_identity = match writer {
+            CoveredWriterFixtureV1::HostPlan => "job:host-crash-plan",
+            CoveredWriterFixtureV1::Buffered => "job:host-crash-buffered",
+        };
+        let issuance = db
+            .host_operation_issuance(
+                TEST_CLIENT_MUTATION_AUTHORITY_INSTANCE_ID,
+                upstream_identity,
+                0,
+                now_millis(),
+            )
+            .expect("server-issued host incarnation");
+        let identity = ClientMutationIdentity::for_authority(
+            crate::commit_envelope::derive_host_operation_id(upstream_identity, 0),
+            function,
+            &input,
+            TEST_CLIENT_MUTATION_AUTHORITY_INSTANCE_ID,
+        )
+        .with_operation_issuance(issuance);
+        (dir, path, db, input, identity)
+    }
+
+    fn execute_host_operation_crash_fixture(
+        db: &mut LocalDatabase,
+        writer: CoveredWriterFixtureV1,
+        input: &HandlerInput,
+        identity: &ClientMutationIdentity,
+    ) -> SnapbackResult<MutationCommit> {
+        match writer {
+            CoveredWriterFixtureV1::HostPlan => db
+                .execute_host_mutation_guarded_with_settlement_time(
+                    &insert_plan(),
+                    input,
+                    Some(identity),
+                    None,
+                    || Ok(()),
+                    || Ok(()),
+                ),
+            CoveredWriterFixtureV1::Buffered => db.commit_buffered_host_writes_guarded(
+                input,
+                BufferedCommitPayload {
+                    writes: vec![BufferedWrite::Insert {
+                        table: "items".to_owned(),
+                        id: format!("host-crash-buffered-{}", identity.id),
+                        values: Map::from_iter([("title".to_owned(), json!("host buffered"))]),
+                    }],
+                    sequence_allocations: Vec::new(),
+                    membership_plans: Vec::new(),
+                    read_dependencies: Vec::new(),
+                    result: json!({ "receiptSecret": "classified-host-operation-output" }),
+                    ctx_ledger: CtxAnswerLedger::default(),
+                    job_enqueues: Vec::new(),
+                    job_producer: None,
+                    asset_admissions: Vec::new(),
+                },
+                Some(identity),
+                || Ok(()),
+                || Ok(()),
+            ),
+        }
+    }
+
+    fn assert_operation_commit_absent(db: &LocalDatabase) {
+        assert_eq!(db.current_version().expect("version after crash cut"), 0);
+        assert_eq!(db.scan_table("items", 10, 0).expect("app rows").total, 0);
+        for table in [
+            "_snapback_changes",
+            "_snapback_client_mutations",
+            "_snapback_commit_envelopes_v1",
+            "_snapback_operation_suppression_v1",
+            "_snapback_operation_protected_detail_v1",
+        ] {
+            let count: u64 = db
+                .conn
+                .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+                    row.get(0)
+                })
+                .unwrap_or_else(|error| panic!("count {table}: {error}"));
+            assert_eq!(count, 0, "{table} must roll back at every crash cut");
+        }
+    }
+
+    #[test]
+    fn llp0162_ordinary_writers_are_atomic_at_every_envelope_crash_cut_and_after_reopen() {
+        let points = [
+            OperationEnvelopeCrashPointV1::BeforeSettlement,
+            OperationEnvelopeCrashPointV1::AfterSettlementBeforeEnvelope,
+            OperationEnvelopeCrashPointV1::AfterEnvelopeBeforeCommit,
+        ];
+        for writer in [
+            CoveredWriterFixtureV1::HostPlan,
+            CoveredWriterFixtureV1::Buffered,
+        ] {
+            for point in points {
+                let (_dir, path, mut db, input, identity) = operation_crash_fixture(writer);
+                inject_operation_envelope_crash_for_test(point);
+                let error = execute_operation_crash_fixture(&mut db, writer, &input, &identity)
+                    .expect_err("injected crash cut must roll back the covered commit");
+                assert_eq!(error.diagnostic.code, "SNAPBACK_TEST_OPERATION_CRASH_CUT");
+                drop(db);
+                let reopened = LocalDatabase::open(&path).expect("reopen after crash cut");
+                assert_operation_commit_absent(&reopened);
+            }
+
+            let (_dir, path, mut db, input, identity) = operation_crash_fixture(writer);
+            let committed = execute_operation_crash_fixture(&mut db, writer, &input, &identity)
+                .expect("complete covered commit");
+            assert!(!committed.changes.is_empty());
+            let expected = committed.output;
+            drop(db);
+            let mut reopened = LocalDatabase::open(&path).expect("reopen committed database");
+            let replay = execute_operation_crash_fixture(&mut reopened, writer, &input, &identity)
+                .expect("exact replay after process restart");
+            assert!(replay.changes.is_empty());
+            assert_eq!(replay.output, expected);
+            assert_eq!(
+                reopened
+                    .conn
+                    .query_row(
+                        "SELECT COUNT(*) FROM _snapback_commit_envelopes_v1",
+                        [],
+                        |row| row.get::<_, u64>(0),
+                    )
+                    .expect("one complete envelope"),
+                1
+            );
+        }
+    }
+
+    #[test]
+    fn llp0163_host_writers_are_atomic_at_every_envelope_crash_cut_and_after_reopen() {
+        let points = [
+            OperationEnvelopeCrashPointV1::BeforeSettlement,
+            OperationEnvelopeCrashPointV1::AfterSettlementBeforeEnvelope,
+            OperationEnvelopeCrashPointV1::AfterEnvelopeBeforeCommit,
+        ];
+        for writer in [
+            CoveredWriterFixtureV1::HostPlan,
+            CoveredWriterFixtureV1::Buffered,
+        ] {
+            for point in points {
+                let (_dir, path, mut db, input, identity) = host_operation_crash_fixture(writer);
+                inject_operation_envelope_crash_for_test(point);
+                let error =
+                    execute_host_operation_crash_fixture(&mut db, writer, &input, &identity)
+                        .expect_err("injected crash cut must roll back the host-child commit");
+                assert_eq!(error.diagnostic.code, "SNAPBACK_TEST_OPERATION_CRASH_CUT");
+                drop(db);
+                let reopened = LocalDatabase::open(&path).expect("reopen after host crash cut");
+                assert_operation_commit_absent(&reopened);
+            }
+
+            let (_dir, path, mut db, input, identity) = host_operation_crash_fixture(writer);
+            let committed =
+                execute_host_operation_crash_fixture(&mut db, writer, &input, &identity)
+                    .expect("complete covered host-child commit");
+            assert!(!committed.changes.is_empty());
+            let expected = committed.output;
+            drop(db);
+            let mut reopened =
+                LocalDatabase::open(&path).expect("reopen committed host-child database");
+            let replay =
+                execute_host_operation_crash_fixture(&mut reopened, writer, &input, &identity)
+                    .expect("exact host-child replay after process restart");
+            assert!(replay.changes.is_empty());
+            assert_eq!(replay.output, expected);
+            let envelopes = reopened
+                .operation_envelopes_for_test()
+                .expect("read retained host-child envelopes");
+            assert_eq!(envelopes.len(), 1);
+            let envelope = &envelopes[0];
+            assert_eq!(
+                envelope.identity.key.originator_class,
+                crate::commit_envelope::OperationOriginatorClassV1::Host
+            );
+        }
+    }
+
+    #[test]
+    fn covered_replay_opens_protected_receipt_without_plaintext_in_suppression_json() {
+        use crate::commit_envelope::{OperationSuppressionRecordV1, RetainedEnvelopeDetailV1};
+
+        let (_dir, path, mut db, input, identity) =
+            operation_crash_fixture(CoveredWriterFixtureV1::Buffered);
+        let committed = execute_operation_crash_fixture(
+            &mut db,
+            CoveredWriterFixtureV1::Buffered,
+            &input,
+            &identity,
+        )
+        .expect("covered operation with protected receipt");
+        assert_eq!(
+            committed.output.result,
+            json!({ "receiptSecret": "classified-operation-output" })
+        );
+        let suppression_json: String = db
+            .conn
+            .query_row(
+                "SELECT record_json FROM _snapback_operation_suppression_v1
+                  WHERE operation_id=?1",
+                params![identity.id],
+                |row| row.get(0),
+            )
+            .expect("suppression JSON");
+        assert!(
+            !suppression_json.contains("classified-operation-output"),
+            "secret-bearing receipt plaintext belongs only in protected custody"
+        );
+        let suppression: OperationSuppressionRecordV1 =
+            serde_json::from_str(&suppression_json).expect("decode suppression projection");
+        assert!(matches!(
+            serde_json::from_value::<RetainedEnvelopeDetailV1>(suppression.receipt_payload)
+                .expect("decode retained receipt projection"),
+            RetainedEnvelopeDetailV1::ProtectedLane { .. }
+        ));
+
+        let expected = committed.output;
+        drop(db);
+        let reopened = LocalDatabase::open(&path).expect("reopen protected receipt custody");
+        // Simulate loss/reclamation of only the predecessor settlement row;
+        // the LLP 0163 lookup is authoritative after process restart and opens
+        // the digest-bound protected receipt without redispatching the writer.
+        reopened
+            .conn
+            .execute(
+                "DELETE FROM _snapback_client_mutations WHERE client_mutation_id=?1",
+                params![identity.id],
+            )
+            .expect("remove predecessor replay row fixture");
+        let recovered = reopened
+            .client_mutation_result(&identity)
+            .expect("protected operation lookup")
+            .expect("exact protected replay");
+        assert_eq!(recovered, expected);
+        assert_eq!(
+            reopened
+                .scan_table("items", 10, 0)
+                .expect("unchanged app rows")
+                .total,
+            1,
+            "exact fallback replay never redispatches the write"
+        );
+    }
+
+    #[test]
+    fn covered_capacity_ack_and_floor_lifecycle_never_reexecutes_an_ambiguous_identity() {
+        use crate::commit_envelope::{OperationIssuanceV1, OperationOriginatorClassV1};
+
+        let (_dir, _path, mut db, input, first) =
+            operation_crash_fixture(CoveredWriterFixtureV1::Buffered);
+        let OperationIssuanceV1::ClientRange {
+            epoch_id,
+            counter,
+            range_start,
+            range_end_exclusive,
+            authority_authenticator_digest,
+        } = first
+            .operation_issuance
+            .clone()
+            .expect("first range issuance")
+        else {
+            panic!("client fixture must carry range issuance");
+        };
+        let second =
+            ClientMutationIdentity::new("operation-delayed-1", "items.bufferedInsert", &input)
+                .with_operation_issuance(OperationIssuanceV1::ClientRange {
+                    epoch_id: epoch_id.clone(),
+                    counter: counter + 1,
+                    range_start,
+                    range_end_exclusive,
+                    authority_authenticator_digest: authority_authenticator_digest.clone(),
+                });
+
+        let limits = TestRetentionLimits::install(1, u64::MAX);
+        let first_commit = execute_operation_crash_fixture(
+            &mut db,
+            CoveredWriterFixtureV1::Buffered,
+            &input,
+            &first,
+        )
+        .expect("first covered settlement fills bounded retention");
+        let full = execute_operation_crash_fixture(
+            &mut db,
+            CoveredWriterFixtureV1::Buffered,
+            &input,
+            &second,
+        )
+        .expect_err("unacknowledged retention refuses new work");
+        assert_eq!(
+            full.diagnostic.code,
+            "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL"
+        );
+        assert_eq!(
+            db.scan_table("items", 10, 0)
+                .expect("one retained write")
+                .total,
+            1
+        );
+        let replay = execute_operation_crash_fixture(
+            &mut db,
+            CoveredWriterFixtureV1::Buffered,
+            &input,
+            &first,
+        )
+        .expect("full capacity cannot evict exact replay");
+        assert!(replay.changes.is_empty());
+        assert_eq!(replay.output, first_commit.output);
+        drop(limits);
+
+        assert_eq!(
+            db.acknowledge_client_mutations(
+                &first.auth_fingerprint,
+                std::slice::from_ref(&first.id),
+            )
+            .expect("durable ACK reclaims full result"),
+            1
+        );
+        let expired = db
+            .client_mutation_result(&first)
+            .expect_err("ACKed covered result keeps a compact duplicate barrier");
+        assert_eq!(expired.diagnostic.code, "SNAPBACK_OPERATION_RESULT_EXPIRED");
+        assert_eq!(expired.diagnostic.details["outcome"], "committed");
+
+        let (audience, expires_at_ms): (String, u64) = db
+            .conn
+            .query_row(
+                "SELECT audience,expires_at_ms FROM _snapback_operation_ranges_v1
+                  WHERE epoch_id=?1 AND range_start=?2 AND range_end_exclusive=?3",
+                params![epoch_id, range_start as i64, range_end_exclusive as i64],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("range lifecycle facts");
+        let stream_id = crate::seed_identity::strict_current_data_version_stream(&db.conn)
+            .expect("operation stream lookup")
+            .expect("operation stream");
+        let first_operation = crate::commit_envelope::OperationIdentityV1::from_client_mutation(
+            stream_id,
+            audience.clone(),
+            first.operation_issuance.clone().expect("first issuance"),
+            &first,
+            crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+        );
+        let tx = db.conn.transaction().expect("retire identity epoch");
+        crate::operation_ledger::terminate_epoch_in(
+            &tx,
+            OperationOriginatorClassV1::Client,
+            &audience,
+            &epoch_id,
+            false,
+            expires_at_ms,
+        )
+        .expect("terminate client epoch");
+        assert!(
+            crate::operation_ledger::close_epoch_if_complete_in(
+                &tx,
+                OperationOriginatorClassV1::Client,
+                &audience,
+                &epoch_id,
+                expires_at_ms + 1,
+            )
+            .expect("close fully acknowledged epoch")
+        );
+        assert!(
+            crate::operation_ledger::prune_compact_envelope_in(&tx, &first_operation)
+                .expect("independent compact-envelope retention expiry")
+        );
+        tx.commit().expect("commit identity floor advancement");
+
+        for (label, identity) in [
+            ("previously-committed", &first),
+            ("delayed-first-delivery", &second),
+        ] {
+            let horizon = match execute_operation_crash_fixture(
+                &mut db,
+                CoveredWriterFixtureV1::Buffered,
+                &input,
+                identity,
+            ) {
+                Err(error) => error,
+                Ok(output) => panic!("{label} below-floor identity executed: {output:?}"),
+            };
+            assert_eq!(
+                horizon.diagnostic.code, "SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED",
+                "{label} must surface outcome-unknown"
+            );
+            assert_eq!(horizon.diagnostic.details["outcome"], "unknown");
+            assert_eq!(horizon.diagnostic.details["terminal"], false);
+        }
+        assert_eq!(
+            db.scan_table("items", 10, 0)
+                .expect("no below-floor write")
+                .total,
+            1
+        );
+    }
+
+    #[test]
+    fn llp0163_writer_lane_coverage_is_explicit_and_asymmetric() {
+        use crate::commit_envelope::OperationIssuanceV1;
+
+        fn database_with_lanes(lanes: &[&str]) -> LocalDatabase {
+            let mut db = LocalDatabase::memory().expect("memory database");
+            db.apply_schema(schema())
+                .expect("apply writer fixture schema");
+            let mut covered_lanes = lanes
+                .iter()
+                .map(|lane| (*lane).to_owned())
+                .collect::<Vec<_>>();
+            covered_lanes.sort();
+            let mut writers = Vec::new();
+            if covered_lanes
+                .iter()
+                .any(|lane| lane == crate::operation_ledger::ORDINARY_MUTATION_LANE_V1)
+            {
+                writers.extend(
+                    crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
+                        .iter()
+                        .map(|writer| (*writer).to_owned()),
+                );
+            }
+            if covered_lanes
+                .iter()
+                .any(|lane| lane == crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1)
+            {
+                writers.extend(
+                    crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1
+                        .iter()
+                        .map(|writer| (*writer).to_owned()),
+                );
+            }
+            writers.sort();
+            db.install_operation_coverage_for_test(covered_lanes, writers)
+                .expect("register explicit coverage");
+            db
+        }
+
+        fn identity(issuance: OperationIssuanceV1) -> ClientMutationIdentity {
+            ClientMutationIdentity::new("operation-1", "items.insert", &HandlerInput::default())
+                .with_operation_issuance(issuance)
+        }
+
+        fn client_identity() -> ClientMutationIdentity {
+            identity(OperationIssuanceV1::ClientRange {
+                epoch_id: "client-epoch".to_owned(),
+                counter: 0,
+                range_start: 0,
+                range_end_exclusive: 1,
+                authority_authenticator_digest: format!("sha256:{}", "c".repeat(64)),
+            })
+        }
+
+        fn host_identity() -> ClientMutationIdentity {
+            identity(OperationIssuanceV1::HostIncarnation {
+                epoch_id: "host-epoch".to_owned(),
+                upstream_identity: "job:fixture".to_owned(),
+                commit_ordinal: 0,
+                authority_authenticator_digest: format!("sha256:{}", "h".repeat(64)),
+            })
+        }
+
+        fn refusal_code(
+            db: &LocalDatabase,
+            lane: CoveredMutationLaneV1,
+            identity: Option<&ClientMutationIdentity>,
+        ) -> &'static str {
+            match require_covered_mutation_identity_for_lane(&db.conn, lane, identity)
+                .expect_err("covered lane must refuse this carrier")
+                .diagnostic
+                .code
+                .as_str()
+            {
+                "SNAPBACK_OPERATION_IDENTITY_REQUIRED" => "SNAPBACK_OPERATION_IDENTITY_REQUIRED",
+                "SNAPBACK_OPERATION_WRITER_IDENTITY_MISMATCH" => {
+                    "SNAPBACK_OPERATION_WRITER_IDENTITY_MISMATCH"
+                }
+                other => panic!("unexpected writer-lane refusal {other}"),
+            }
+        }
+
+        let client = client_identity();
+        let host = host_identity();
+
+        let mut ordinary_only =
+            database_with_lanes(&[crate::operation_ledger::ORDINARY_MUTATION_LANE_V1]);
+        assert_eq!(
+            refusal_code(&ordinary_only, CoveredMutationLaneV1::Ordinary, None),
+            "SNAPBACK_OPERATION_IDENTITY_REQUIRED"
+        );
+        require_covered_mutation_identity_for_lane(
+            &ordinary_only.conn,
+            CoveredMutationLaneV1::HostChild,
+            None,
+        )
+        .expect("identityless uncovered host lane remains available");
+        require_covered_mutation_identity_for_lane(
+            &ordinary_only.conn,
+            CoveredMutationLaneV1::Ordinary,
+            Some(&client),
+        )
+        .expect("ordinary issuance matches ordinary-only coverage");
+        assert_eq!(
+            refusal_code(&ordinary_only, CoveredMutationLaneV1::Ordinary, Some(&host),),
+            "SNAPBACK_OPERATION_WRITER_IDENTITY_MISMATCH"
+        );
+        let host_authority = TEST_CLIENT_MUTATION_AUTHORITY_INSTANCE_ID;
+        let host_issuance = ordinary_only
+            .host_operation_issuance(host_authority, "job:fixture", 0, now_millis())
+            .expect("server-recorded host incarnation");
+        let host_input = HandlerInput::default();
+        let host_for_hook = ClientMutationIdentity::for_authority(
+            crate::commit_envelope::derive_host_operation_id("job:fixture", 0),
+            "items.insert",
+            &host_input,
+            host_authority,
+        )
+        .with_operation_issuance(host_issuance);
+        assert_eq!(
+            ordinary_only
+                .execute_host_mutation_guarded(
+                    &insert_plan(),
+                    &host_input,
+                    Some(&host_for_hook),
+                    || Ok(()),
+                    || Ok(()),
+                )
+                .expect_err("ordinary-only manifest must reject a host envelope")
+                .diagnostic
+                .code,
+            "SNAPBACK_OPERATION_WRITER_IDENTITY_MISMATCH"
+        );
+        assert_eq!(
+            ordinary_only
+                .conn
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_commit_envelopes_v1",
+                    [],
+                    |row| row.get::<_, u64>(0),
+                )
+                .expect("envelope count after manifest-lane refusal"),
+            0,
+            "manifest-lane refusal rolls back data and envelope together"
+        );
+
+        let host_only =
+            database_with_lanes(&[crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1]);
+        assert_eq!(
+            refusal_code(&host_only, CoveredMutationLaneV1::HostChild, None),
+            "SNAPBACK_OPERATION_IDENTITY_REQUIRED"
+        );
+        require_covered_mutation_identity_for_lane(
+            &host_only.conn,
+            CoveredMutationLaneV1::Ordinary,
+            None,
+        )
+        .expect("identityless uncovered ordinary lane remains available");
+        require_covered_mutation_identity_for_lane(
+            &host_only.conn,
+            CoveredMutationLaneV1::HostChild,
+            Some(&host),
+        )
+        .expect("host issuance matches host-only coverage");
+        assert_eq!(
+            refusal_code(&host_only, CoveredMutationLaneV1::HostChild, Some(&client),),
+            "SNAPBACK_OPERATION_WRITER_IDENTITY_MISMATCH"
+        );
+
+        let mut both = database_with_lanes(&[
+            crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+            crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1,
+        ]);
+        assert_eq!(
+            refusal_code(&both, CoveredMutationLaneV1::Ordinary, None),
+            "SNAPBACK_OPERATION_IDENTITY_REQUIRED"
+        );
+        assert_eq!(
+            refusal_code(&both, CoveredMutationLaneV1::HostChild, None),
+            "SNAPBACK_OPERATION_IDENTITY_REQUIRED"
+        );
+        require_covered_mutation_identity_for_lane(
+            &both.conn,
+            CoveredMutationLaneV1::Ordinary,
+            Some(&client),
+        )
+        .expect("ordinary issuance matches combined coverage");
+        require_covered_mutation_identity_for_lane(
+            &both.conn,
+            CoveredMutationLaneV1::HostChild,
+            Some(&host),
+        )
+        .expect("host issuance matches combined coverage");
+
+        let buffered_upstream = "job:buffered-fixture";
+        let buffered_issuance = both
+            .host_operation_issuance(
+                TEST_CLIENT_MUTATION_AUTHORITY_INSTANCE_ID,
+                buffered_upstream,
+                0,
+                now_millis(),
+            )
+            .expect("server-recorded buffered host incarnation");
+        let buffered_input = HandlerInput::default();
+        let buffered_identity = ClientMutationIdentity::for_authority(
+            crate::commit_envelope::derive_host_operation_id(buffered_upstream, 0),
+            "items.bufferedInsert",
+            &buffered_input,
+            TEST_CLIENT_MUTATION_AUTHORITY_INSTANCE_ID,
+        )
+        .with_operation_issuance(buffered_issuance);
+        let buffered_payload = BufferedCommitPayload {
+            writes: vec![BufferedWrite::Insert {
+                table: "items".to_owned(),
+                id: "host-buffered".to_owned(),
+                values: Map::from_iter([("title".to_owned(), json!("host buffered"))]),
+            }],
+            sequence_allocations: Vec::new(),
+            membership_plans: Vec::new(),
+            read_dependencies: Vec::new(),
+            result: json!("host buffered"),
+            ctx_ledger: CtxAnswerLedger::default(),
+            job_enqueues: Vec::new(),
+            job_producer: None,
+            asset_admissions: Vec::new(),
+        };
+        let first_buffered = both
+            .commit_buffered_host_writes_guarded(
+                &buffered_input,
+                buffered_payload.clone(),
+                Some(&buffered_identity),
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("covered buffered host child commit");
+        assert_eq!(first_buffered.changes.len(), 1);
+        let replayed_buffered = both
+            .commit_buffered_host_writes_guarded(
+                &buffered_input,
+                buffered_payload,
+                Some(&buffered_identity),
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("buffered host child exact replay");
+        assert!(replayed_buffered.changes.is_empty());
+        let envelopes = both
+            .operation_envelopes_for_test()
+            .expect("retained buffered host envelope");
+        assert_eq!(envelopes.len(), 1);
+        assert_eq!(
+            envelopes[0].identity.key.originator_class,
+            crate::commit_envelope::OperationOriginatorClassV1::Host
+        );
+    }
+
+    #[test]
+    fn llp0163_host_retry_capacity_purge_and_rotation_use_the_real_writer() {
+        use crate::commit_envelope::{
+            IdentityEpochStateV1, IdentityEpochV1, OperationIssuanceV1, OperationOriginatorClassV1,
+        };
+
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(schema())
+            .expect("apply writer fixture schema");
+        db.install_operation_coverage_for_test(
+            vec![crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1.to_owned()],
+            crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1
+                .iter()
+                .map(|writer| (*writer).to_owned())
+                .collect(),
+        )
+        .expect("activate the production host-child writer lane");
+
+        let authority = TEST_CLIENT_MUTATION_AUTHORITY_INSTANCE_ID;
+        let issued_at_ms = now_millis();
+        let first_upstream = "job:host-lifecycle-first";
+        let first_issuance = db
+            .host_operation_issuance(authority, first_upstream, 0, issued_at_ms)
+            .expect("server-issued host identity");
+        let input = HandlerInput::default();
+        let first = ClientMutationIdentity::for_authority(
+            crate::commit_envelope::derive_host_operation_id(first_upstream, 0),
+            "items.insert",
+            &input,
+            authority,
+        )
+        .with_operation_issuance(first_issuance.clone());
+        let second_upstream = "job:host-lifecycle-delayed";
+        let second = ClientMutationIdentity::for_authority(
+            crate::commit_envelope::derive_host_operation_id(second_upstream, 0),
+            "items.insert",
+            &input,
+            authority,
+        )
+        .with_operation_issuance(match &first_issuance {
+            OperationIssuanceV1::HostIncarnation {
+                epoch_id,
+                authority_authenticator_digest,
+                ..
+            } => OperationIssuanceV1::HostIncarnation {
+                epoch_id: epoch_id.clone(),
+                upstream_identity: second_upstream.to_owned(),
+                commit_ordinal: 0,
+                authority_authenticator_digest: authority_authenticator_digest.clone(),
+            },
+            OperationIssuanceV1::ClientRange { .. } => {
+                panic!("host issuance must be range-less")
+            }
+        });
+
+        let limits = TestRetentionLimits::install(1, u64::MAX);
+        let committed = db
+            .execute_host_mutation_guarded(
+                &insert_plan(),
+                &input,
+                Some(&first),
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("first host child fills bounded settlement custody");
+        let exact_retry = db
+            .execute_host_mutation_guarded(
+                &insert_plan(),
+                &input,
+                Some(&first),
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("exact host retry survives full custody");
+        assert!(exact_retry.changes.is_empty());
+        assert_eq!(exact_retry.output, committed.output);
+        let full = db
+            .execute_host_mutation_guarded(
+                &insert_plan(),
+                &input,
+                Some(&second),
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect_err("full custody refuses a novel host operation");
+        assert_eq!(
+            full.diagnostic.code,
+            "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL"
+        );
+        assert_eq!(
+            db.scan_table("items", 10, 0)
+                .expect("only one host plan ran")
+                .total,
+            2
+        );
+        drop(limits);
+
+        assert_eq!(
+            db.purge_client_mutation_settlements(Some(&first.auth_fingerprint))
+                .expect("operator purge removes predecessor full-result custody"),
+            1
+        );
+        let replay_after_purge = db
+            .execute_host_mutation_guarded(
+                &insert_plan(),
+                &input,
+                Some(&first),
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("host suppression is not selected by client operator purge");
+        assert!(replay_after_purge.changes.is_empty());
+        assert_eq!(replay_after_purge.output, committed.output);
+
+        let (audience, retired_epoch_id, retired_sequence): (String, String, u64) = db
+            .conn
+            .query_row(
+                "SELECT audience,epoch_id,epoch_sequence
+                   FROM _snapback_operation_epochs_v1
+                  WHERE originator_class='host' AND authority_instance_id=?1
+                    AND state='open'",
+                [authority],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        u64::try_from(row.get::<_, i64>(2)?).expect("nonnegative sequence"),
+                    ))
+                },
+            )
+            .expect("current host incarnation");
+        let rotated_at_ms = issued_at_ms.saturating_add(1);
+        let successor_authority =
+            crate::ids::mint_time_ordered(crate::ids::Kind::AuthorityInstance);
+        let tx = db.conn.transaction().expect("host incarnation rotation");
+        crate::operation_ledger::rotate_host_incarnation_in(
+            &tx,
+            &audience,
+            &retired_epoch_id,
+            &IdentityEpochV1 {
+                schema_version: 1,
+                originator_class: OperationOriginatorClassV1::Host,
+                audience: audience.clone(),
+                authority_instance_id: successor_authority,
+                epoch_id: "host-epoch-lifecycle-2".to_owned(),
+                epoch_sequence: retired_sequence + 1,
+                state: IdentityEpochStateV1::Open,
+                issued_at_ms: rotated_at_ms,
+                terminated_at_ms: None,
+                authority_authenticator_digest: format!("sha256:{}", "e".repeat(64)),
+            },
+            rotated_at_ms,
+        )
+        .expect("rotate to a distinct server authority");
+        tx.commit().expect("commit host incarnation rotation");
+
+        let replay_after_rotation = db
+            .execute_host_mutation_guarded(
+                &insert_plan(),
+                &input,
+                Some(&first),
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("settled retry remains replayable after authority rotation");
+        assert!(replay_after_rotation.changes.is_empty());
+        assert_eq!(replay_after_rotation.output, committed.output);
+        let delayed = db
+            .execute_host_mutation_guarded(
+                &insert_plan(),
+                &input,
+                Some(&second),
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect_err("delayed first delivery under the retired authority must refuse");
+        assert_eq!(
+            delayed.diagnostic.code,
+            "SNAPBACK_OPERATION_ISSUANCE_AUTH_INVALID"
+        );
+        assert_eq!(
+            db.scan_table("items", 10, 0)
+                .expect("no delayed host write")
+                .total,
+            2
+        );
+    }
+
+    #[test]
+    fn llp0162_sqlite_writer_authority_denies_bypass_and_projects_effective_gaps() {
+        fn authorization_denied(error: &rusqlite::Error) -> bool {
+            matches!(
+                error,
+                rusqlite::Error::SqliteFailure(failure, _)
+                    if failure.code == rusqlite::ErrorCode::AuthorizationForStatementDenied
+            )
+        }
+
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(schema())
+            .expect("apply writer fixture schema");
+        db.conn
+            .execute_batch(
+                "CREATE TRIGGER raw_system_to_app_bypass
+                 AFTER INSERT ON _snapback_meta
+                 BEGIN
+                   UPDATE items SET _version = _version + 1;
+                 END;",
+            )
+            .expect("install pre-coverage trigger fixture");
+        db.install_operation_coverage_for_test(
+            vec![crate::operation_ledger::ORDINARY_MUTATION_LANE_V1.to_owned()],
+            crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
+                .iter()
+                .map(|writer| (*writer).to_owned())
+                .collect(),
+        )
+        .expect("activate ordinary writer fixture");
+
+        let direct_insert = db
+            .conn
+            .execute(
+                "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title)
+                 VALUES('raw',1,1,1,'raw')",
+                [],
+            )
+            .expect_err("raw insert must be denied by SQLite");
+        assert!(authorization_denied(&direct_insert));
+
+        let cached_sql = "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title) \
+             VALUES('cached',1,1,1,'cached')";
+        {
+            let _token = db
+                .writer_authority
+                .enter(write_authority::LocalWriterLaneV1::OrdinaryHostPlan)
+                .expect("generated writer token");
+            let statement = db
+                .conn
+                .prepare_cached(cached_sql)
+                .expect("prepare covered write while token is live");
+            drop(statement);
+        }
+        let cached_escape = match db.conn.prepare_cached(cached_sql) {
+            Ok(_) => panic!("a statement prepared under a dropped token escaped reauthorization"),
+            Err(error) => error,
+        };
+        assert!(authorization_denied(&cached_escape));
+
+        let system_field = db
+            .conn
+            .execute("UPDATE items SET _version = 9 WHERE _id='raw'", [])
+            .expect_err("raw system-field patch must be denied by SQLite");
+        assert!(authorization_denied(&system_field));
+        let trigger_bypass = db
+            .conn
+            .execute(
+                "INSERT INTO _snapback_meta(key,value) VALUES('writer-trigger','1')",
+                [],
+            )
+            .expect_err("trigger-mediated app write must be denied by SQLite");
+        assert!(authorization_denied(&trigger_bypass));
+        let trigger_inside_token = {
+            let _token = db
+                .writer_authority
+                .enter(write_authority::LocalWriterLaneV1::OrdinaryHostPlan)
+                .expect("generated writer token");
+            db.conn
+                .execute(
+                    "INSERT INTO _snapback_meta(key,value) VALUES('writer-trigger-token','1')",
+                    [],
+                )
+                .expect_err("a token cannot bless an unjournaled trigger app-write")
+        };
+        assert!(authorization_denied(&trigger_inside_token));
+        let schema_bypass = db
+            .conn
+            .execute("ALTER TABLE items ADD COLUMN rawBypass TEXT", [])
+            .expect_err("raw covered schema change must be denied by SQLite");
+        assert!(authorization_denied(&schema_bypass));
+        assert_eq!(
+            db.conn
+                .query_row("SELECT COUNT(*) FROM items", [], |row| row.get::<_, u64>(0))
+                .expect("bypass rollback count"),
+            0
+        );
+        assert_eq!(
+            db.conn
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_meta
+                     WHERE key IN ('writer-trigger','writer-trigger-token')",
+                    [],
+                    |row| row.get::<_, u64>(0),
+                )
+                .expect("trigger source rollback count"),
+            0,
+            "the source system write rolls back with its denied trigger target"
+        );
+
+        let inventory = db
+            .local_writer_coverage_inventory_for_test()
+            .expect("closed local writer inventory");
+        assert_eq!(inventory.schema_version, 1);
+        assert!(inventory.all_physical_writers_enumerated);
+        assert!(inventory.all_app_effective_writers_accounted);
+        assert_eq!(
+            inventory.entries.len(),
+            write_authority::LocalWriterLaneV1::ALL.len(),
+            "every closed writer enum member has exactly one inventory row"
+        );
+        for writer in [
+            write_authority::LocalWriterLaneV1::OrdinaryHostPlan,
+            write_authority::LocalWriterLaneV1::OrdinaryIbexBuffered,
+        ] {
+            let entry = inventory
+                .entries
+                .iter()
+                .find(|entry| entry.choke_point == writer.choke_point())
+                .expect("ordinary writer inventory row");
+            assert!(entry.target_supported && entry.app_effective);
+            assert!(entry.declared_covered && entry.envelope_mapped);
+            assert!(entry.write_authority_enforced);
+        }
+        for writer in [
+            write_authority::LocalWriterLaneV1::HostChildHostPlan,
+            write_authority::LocalWriterLaneV1::HostChildIbexBuffered,
+        ] {
+            let entry = inventory
+                .entries
+                .iter()
+                .find(|entry| entry.choke_point == writer.choke_point())
+                .expect("mapped but undeclared host writer inventory row");
+            assert!(entry.target_supported && entry.app_effective);
+            assert!(!entry.declared_covered);
+            assert!(entry.envelope_mapped);
+            assert!(entry.exclusion_reason.is_none());
+        }
+        for writer in [
+            write_authority::LocalWriterLaneV1::SchemaActivation,
+            write_authority::LocalWriterLaneV1::MigrationExecutor,
+            write_authority::LocalWriterLaneV1::ResetAndSeed,
+            write_authority::LocalWriterLaneV1::StandaloneSeed,
+            write_authority::LocalWriterLaneV1::StrictPromotionReexecution,
+        ] {
+            let entry = inventory
+                .entries
+                .iter()
+                .find(|entry| entry.choke_point == writer.choke_point())
+                .expect("effective uncovered writer inventory row");
+            assert!(entry.target_supported && entry.app_effective);
+            assert!(!entry.declared_covered);
+            assert!(!entry.envelope_mapped);
+            assert!(entry.exclusion_reason.is_some());
+        }
+        assert!(
+            !inventory.all_app_effective_writers_covered,
+            "ordinary-only target support must not upcast app-effective coverage"
+        );
+        assert!(inventory.entries.iter().all(|entry| {
+            entry.physically_enumerated
+                && (entry.envelope_mapped != entry.exclusion_reason.is_some())
+        }));
+        for writer in [
+            write_authority::LocalWriterLaneV1::AuthCatalog,
+            write_authority::LocalWriterLaneV1::AdminControl,
+            write_authority::LocalWriterLaneV1::AssetCatalog,
+            write_authority::LocalWriterLaneV1::SearchIndex,
+            write_authority::LocalWriterLaneV1::VectorIndex,
+            write_authority::LocalWriterLaneV1::PushRegistry,
+            write_authority::LocalWriterLaneV1::JobAndCronState,
+            write_authority::LocalWriterLaneV1::JournalMaintenance,
+            write_authority::LocalWriterLaneV1::OperationLedger,
+            write_authority::LocalWriterLaneV1::HistoryAndCheckpoint,
+            write_authority::LocalWriterLaneV1::BranchRegistry,
+        ] {
+            let entry = inventory
+                .entries
+                .iter()
+                .find(|entry| entry.choke_point == writer.choke_point())
+                .expect("enumerated system writer row");
+            assert!(entry.target_supported && !entry.app_effective);
+            assert!(entry.exclusion_reason.is_some());
+        }
+    }
+
+    #[test]
+    fn llp0165_armed_connection_is_defensive_default_deny_and_schema_alias_safe() {
+        fn assert_authorization_denied(result: rusqlite::Result<usize>, operation: &str) {
+            let error = match result {
+                Ok(_) => panic!("{operation} unexpectedly succeeded"),
+                Err(error) => error,
+            };
+            assert!(
+                matches!(
+                    error,
+                    rusqlite::Error::SqliteFailure(failure, _)
+                        if failure.code == rusqlite::ErrorCode::AuthorizationForStatementDenied
+                ),
+                "{operation} returned {error:?}"
+            );
+        }
+
+        let mut db = LocalDatabase::memory().expect("armed adversarial database");
+        db.apply_schema(schema()).expect("apply adversarial schema");
+        db.conn
+            .execute_batch("CREATE TABLE prearmed_escape(value TEXT)")
+            .expect("create unknown pre-arm table fixture");
+        db.activate_local_target_operation_coverage(1)
+            .expect("arm local writer authority");
+        assert!(
+            db.conn
+                .db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_DEFENSIVE)
+                .expect("read defensive mode"),
+            "the armed connection verifies SQLITE_DBCONFIG_DEFENSIVE"
+        );
+
+        assert_authorization_denied(
+            db.conn.execute("PRAGMA writable_schema = ON", []),
+            "writable_schema pragma",
+        );
+        for alias in ["sqlite_schema", "sqlite_master"] {
+            assert!(
+                db.conn
+                    .execute(
+                        &format!("UPDATE {alias} SET name='items_alias' WHERE name='items'"),
+                        [],
+                    )
+                    .is_err(),
+                "defensive mode must refuse schema alias mutation through {alias}",
+            );
+        }
+        assert_eq!(
+            db.conn
+                .query_row(
+                    "SELECT name FROM sqlite_schema WHERE type='table' AND name='items'",
+                    [],
+                    |row| row.get::<_, String>(0),
+                )
+                .expect("protected schema name remains intact"),
+            "items"
+        );
+        assert_authorization_denied(
+            db.conn
+                .execute("ATTACH DATABASE ':memory:' AS attached", []),
+            "ATTACH",
+        );
+        assert_authorization_denied(db.conn.execute("DETACH DATABASE main", []), "DETACH");
+        for (sql, operation) in [
+            (
+                "CREATE TEMP TABLE temp_items(value TEXT)",
+                "temporary table",
+            ),
+            (
+                "CREATE TEMP VIEW temp_items_view AS SELECT * FROM items",
+                "temporary view",
+            ),
+            (
+                "CREATE TEMP TRIGGER temp_items_trigger AFTER INSERT ON items BEGIN SELECT 1; END",
+                "temporary trigger",
+            ),
+            ("CREATE TABLE escaped_items(value TEXT)", "ordinary DDL"),
+            (
+                "ALTER TABLE items RENAME TO items_alias",
+                "covered-table rename",
+            ),
+        ] {
+            assert_authorization_denied(db.conn.execute(sql, []), operation);
+        }
+        assert_authorization_denied(
+            db.conn
+                .execute("INSERT INTO prearmed_escape VALUES('raw')", []),
+            "unknown pre-arm table DML",
+        );
+
+        db.conn
+            .execute_batch("SAVEPOINT adversarial")
+            .expect("savepoints themselves remain usable");
+        assert_authorization_denied(
+            db.conn.execute(
+                "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title)
+                 VALUES('savepoint-bypass',1,1,1,'denied')",
+                [],
+            ),
+            "raw DML inside a savepoint",
+        );
+        db.conn
+            .execute_batch("ROLLBACK TO adversarial; RELEASE adversarial")
+            .expect("close adversarial savepoint");
+
+        for (sql, operation) in [
+            (
+                "INSERT INTO _snapback_changes DEFAULT VALUES",
+                "matching-journal forgery",
+            ),
+            (
+                "UPDATE _snapback_version SET version = version + 1",
+                "storage-version forgery",
+            ),
+        ] {
+            assert_authorization_denied(db.conn.execute(sql, []), operation);
+        }
+        assert_eq!(
+            db.conn
+                .query_row("SELECT COUNT(*) FROM items", [], |row| row.get::<_, u64>(0))
+                .expect("adversarial row count"),
+            0
+        );
+    }
+
+    #[test]
+    fn llp0165_registered_second_writer_uses_connection_local_defensive_authority() {
+        fn denied(result: rusqlite::Result<usize>) -> bool {
+            matches!(
+                result,
+                Err(rusqlite::Error::SqliteFailure(failure, _))
+                    if failure.code == rusqlite::ErrorCode::AuthorizationForStatementDenied
+            )
+        }
+
+        let directory = tempfile::tempdir().expect("registered writer fixture");
+        let path = directory.path().join("armed.sqlite3");
+        let mut db = LocalDatabase::open(&path).expect("file database");
+        db.apply_schema(schema())
+            .expect("apply registered writer schema");
+        db.activate_local_target_operation_coverage(1)
+            .expect("arm registered writer database");
+
+        let second =
+            open_registered_system_writer_v1(&path, RegisteredSystemWriterPurposeV1::VectorIndex)
+                .expect("open registered vector writer");
+        assert!(
+            second
+                .conn()
+                .db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_DEFENSIVE)
+                .expect("second writer defensive mode")
+        );
+        second
+            .conn()
+            .execute(
+                "INSERT INTO _snapback_meta(key,value) VALUES('vector-system-write','1')",
+                [],
+            )
+            .expect("the registered vector token admits its system-table lane");
+        assert!(denied(second.conn().execute(
+            "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title)
+             VALUES('second-bypass',1,1,1,'denied')",
+            [],
+        )));
+        assert!(denied(
+            second
+                .conn()
+                .execute("INSERT INTO _snapback_changes DEFAULT VALUES", [],)
+        ));
+        assert!(denied(
+            second
+                .conn()
+                .execute("DELETE FROM _snapback_operation_coverage_v1", [],)
+        ));
+        assert!(denied(second.conn().execute(
+            "DELETE FROM _snapback_operation_coverage_continuity_v1",
+            [],
+        )));
+        {
+            let _primary_writer = db
+                .writer_authority
+                .enter(write_authority::LocalWriterLaneV1::OrdinaryHostPlan)
+                .expect("enter primary ordinary writer");
+            assert!(
+                denied(second.conn().execute(
+                    "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title)
+                     VALUES('vector-bypass',1,1,1,'denied')",
+                    [],
+                )),
+                "a primary token cannot leak authority to a second connection"
+            );
+            assert!(
+                denied(
+                    second
+                        .conn()
+                        .execute("INSERT INTO _snapback_changes DEFAULT VALUES", [])
+                ),
+                "a primary token cannot leak journal authority to a second connection"
+            );
+        }
+
+        let lifecycle = open_registered_system_writer_v1(
+            &path,
+            RegisteredSystemWriterPurposeV1::DerivedForkLifecycle,
+        )
+        .expect("open registry-reconstructed lifecycle writer");
+        assert!(
+            lifecycle
+                .conn()
+                .db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_DEFENSIVE)
+                .expect("lifecycle writer defensive mode")
+        );
+        assert!(denied(lifecycle.conn().execute(
+            "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title)
+             VALUES('lifecycle-bypass',1,1,1,'denied')",
+            [],
+        )));
+        assert!(denied(
+            lifecycle
+                .conn()
+                .execute("INSERT INTO _snapback_changes DEFAULT VALUES", [])
+        ));
+    }
+
+    #[test]
+    fn llp0162_local_target_activation_names_only_envelope_writers_and_blocks_exclusions() {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(schema())
+            .expect("apply writer fixture schema");
+        db.activate_local_target_operation_coverage(1)
+            .expect("activate closed local target manifest");
+        assert!(
+            db.agent_safe_exact_operation_coverage_active()
+                .expect("read exact active coverage"),
+            "only the production two-lane/four-adapter cut projects app-effective coverage"
+        );
+
+        let inventory = db
+            .local_writer_coverage_inventory_for_test()
+            .expect("activated local writer inventory");
+        let declared = inventory
+            .entries
+            .iter()
+            .filter(|entry| entry.declared_covered)
+            .collect::<Vec<_>>();
+        assert_eq!(declared.len(), 4);
+        assert!(declared.iter().all(|entry| {
+            entry.envelope_mapped
+                && entry.exclusion_reason.is_none()
+                && entry.write_authority_enforced
+        }));
+        assert!(
+            !inventory.all_app_effective_writers_covered,
+            "explicitly excluded schema/seed/migration/projection/promotion writers remain visible"
+        );
+
+        for writer in [
+            write_authority::LocalWriterLaneV1::SchemaActivation,
+            write_authority::LocalWriterLaneV1::MigrationExecutor,
+            write_authority::LocalWriterLaneV1::ResetAndSeed,
+            write_authority::LocalWriterLaneV1::StandaloneSeed,
+            write_authority::LocalWriterLaneV1::MembershipTransition,
+            write_authority::LocalWriterLaneV1::ProjectionRebuild,
+            write_authority::LocalWriterLaneV1::StrictPromotionReexecution,
+        ] {
+            let error = match db.writer_authority.enter(writer) {
+                Ok(_) => panic!("an excluded app writer acquired authority"),
+                Err(error) => error,
+            };
+            assert_eq!(error.diagnostic.code, "SNAPBACK_OPERATION_WRITER_EXCLUDED");
+        }
+
+        let schema_error = db
+            .apply_schema(schema())
+            .expect_err("schema activation must use its excluded generated authority");
+        assert_eq!(
+            schema_error.diagnostic.code,
+            "SNAPBACK_OPERATION_WRITER_EXCLUDED"
+        );
+        let reset_error = db
+            .reset()
+            .expect_err("reset must use its excluded generated authority");
+        assert_eq!(
+            reset_error.diagnostic.code,
+            "SNAPBACK_OPERATION_WRITER_EXCLUDED"
+        );
+
+        let raw = db
+            .conn
+            .execute(
+                "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title)
+                 VALUES('excluded-bypass',1,1,1,'denied')",
+                [],
+            )
+            .expect_err("excluded writer cannot fall back to raw SQL");
+        assert!(matches!(
+            raw,
+            rusqlite::Error::SqliteFailure(failure, _)
+                if failure.code == rusqlite::ErrorCode::AuthorizationForStatementDenied
+        ));
+    }
+
+    #[test]
+    fn agent_safe_app_effective_coverage_rejects_subset_superset_and_manifest_removal() {
+        let exact_lanes = vec![
+            crate::operation_ledger::ORDINARY_MUTATION_LANE_V1.to_owned(),
+            crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1.to_owned(),
+        ];
+        let exact_writers = crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
+            .into_iter()
+            .chain(crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1)
+            .map(str::to_owned)
+            .collect::<Vec<_>>();
+
+        let mut subset = LocalDatabase::memory().expect("subset database");
+        subset.apply_schema(schema()).expect("subset schema");
+        subset
+            .install_operation_coverage_for_test(
+                vec![crate::operation_ledger::ORDINARY_MUTATION_LANE_V1.to_owned()],
+                crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
+                    .into_iter()
+                    .map(str::to_owned)
+                    .collect(),
+            )
+            .expect("install subset");
+        assert!(!subset.agent_safe_exact_operation_coverage_active().unwrap());
+
+        let mut superset = LocalDatabase::memory().expect("superset database");
+        superset.apply_schema(schema()).expect("superset schema");
+        let mut extra_writers = exact_writers.clone();
+        extra_writers.push("forged::unregistered-writer".to_owned());
+        superset
+            .install_operation_coverage_for_test(exact_lanes.clone(), extra_writers)
+            .expect("install superset");
+        assert!(
+            !superset
+                .agent_safe_exact_operation_coverage_active()
+                .unwrap()
+        );
+
+        let mut removed = LocalDatabase::memory().expect("removed database");
+        removed.apply_schema(schema()).expect("removed schema");
+        removed
+            .install_operation_coverage_for_test(exact_lanes, exact_writers)
+            .expect("install exact manifest");
+        assert!(
+            removed
+                .agent_safe_exact_operation_coverage_active()
+                .unwrap()
+        );
+        let denied = removed
+            .conn
+            .execute("DELETE FROM _snapback_operation_coverage_v1", [])
+            .expect_err("armed coverage carrier deletion must be denied");
+        assert!(
+            matches!(
+                denied,
+                rusqlite::Error::SqliteFailure(failure, _)
+                    if failure.code == rusqlite::ErrorCode::AuthorizationForStatementDenied
+            ),
+            "manifest removal returned {denied:?}"
+        );
+        assert!(
+            removed
+                .agent_safe_exact_operation_coverage_active()
+                .unwrap(),
+            "denied carrier DML leaves the exact coverage cut active"
+        );
+        removed
+            .install_operation_coverage_for_test(
+                vec![
+                    crate::operation_ledger::ORDINARY_MUTATION_LANE_V1.to_owned(),
+                    crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1.to_owned(),
+                ],
+                crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
+                    .into_iter()
+                    .chain(crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1)
+                    .map(str::to_owned)
+                    .collect(),
+            )
+            .expect("re-arm releases SQLite cache memory through the admitted pragma path");
+    }
+
+    #[test]
+    fn llp0162_writer_authority_rearms_from_durable_manifest_on_reopen() {
+        let dir = tempfile::tempdir().expect("writer authority tempdir");
+        let path = dir.path().join("writer-authority.sqlite");
+        let mut db = LocalDatabase::open(&path).expect("create file database");
+        db.apply_schema(schema())
+            .expect("apply writer fixture schema");
+        assert_eq!(
+            db.conn
+                .execute(
+                    "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title)
+                     VALUES('before-activation',1,1,1,'admitted')",
+                    [],
+                )
+                .expect("raw DML remains admitted before explicit activation"),
+            1
+        );
+        assert_eq!(
+            db.conn
+                .execute("DELETE FROM items WHERE _id='before-activation'", [])
+                .expect("pre-activation fixture cleanup uses the same admitted raw DML"),
+            1
+        );
+        db.activate_ordinary_mutation_coverage_for_evidence(1)
+            .expect("activate durable writer manifest and live authorizer");
+        let immediate = db
+            .conn
+            .execute(
+                "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title)
+                 VALUES('after-activation',1,1,1,'denied')",
+                [],
+            )
+            .expect_err("same-process authorizer must arm before activation returns");
+        assert!(matches!(
+            immediate,
+            rusqlite::Error::SqliteFailure(failure, _)
+                if failure.code == rusqlite::ErrorCode::AuthorizationForStatementDenied
+        ));
+        {
+            let _maintenance = db
+                .writer_authority
+                .enter_internal_schema_maintenance()
+                .expect("enter bounded internal schema maintenance");
+            crate::proof_checkpoint::ensure_checkpoint_erasure_infra(&db.conn)
+                .expect("owned checkpoint schema is admitted while armed");
+            for sql in [
+                "CREATE TABLE app_schema_bypass(id INTEGER)",
+                "ALTER TABLE items ADD COLUMN app_schema_bypass TEXT",
+                "DROP TABLE items",
+            ] {
+                let error = db
+                    .conn
+                    .execute(sql, [])
+                    .expect_err("internal maintenance cannot authorize application DDL");
+                assert!(matches!(
+                    error,
+                    rusqlite::Error::SqliteFailure(failure, _)
+                        if failure.code == rusqlite::ErrorCode::AuthorizationForStatementDenied
+                ));
+            }
+        }
+        let revoked = db
+            .conn
+            .execute("CREATE TABLE _snapback_maintenance_escape(id INTEGER)", [])
+            .expect_err("internal schema authority is revoked when its token drops");
+        assert!(matches!(
+            revoked,
+            rusqlite::Error::SqliteFailure(failure, _)
+                if failure.code == rusqlite::ErrorCode::AuthorizationForStatementDenied
+        ));
+        drop(db);
+
+        let reopened = LocalDatabase::open(&path).expect("reopen covered database");
+        let error = reopened
+            .conn
+            .execute(
+                "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title)
+                 VALUES('reopen-bypass',1,1,1,'raw')",
+                [],
+            )
+            .expect_err("reopened authorizer must deny raw app write");
+        assert!(matches!(
+            error,
+            rusqlite::Error::SqliteFailure(failure, _)
+                if failure.code == rusqlite::ErrorCode::AuthorizationForStatementDenied
+        ));
+        assert_eq!(
+            reopened
+                .local_writer_coverage_inventory_for_test()
+                .expect("reopened writer inventory")
+                .manifest_version,
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn llp0162_writer_authority_installs_only_at_the_active_coverage_cut() {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(schema())
+            .expect("apply writer fixture schema");
+
+        // A dormant connection must preserve SQLite's normal statement-cache
+        // behavior. Preparing raw application DML is admitted before the
+        // explicit coverage cut, including on a statement reused from cache.
+        let sql = "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title) \
+                   VALUES(?1,1,1,1,'dormant')";
+        db.conn
+            .prepare_cached(sql)
+            .expect("dormant statement prepares before the coverage cut");
+        db.install_operation_coverage_for_test(
+            vec![crate::operation_ledger::ORDINARY_MUTATION_LANE_V1.to_owned()],
+            crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
+                .iter()
+                .map(|writer| (*writer).to_owned())
+                .collect(),
+        )
+        .expect("activate ordinary writer fixture");
+
+        let denied = match db.conn.prepare_cached(sql) {
+            Ok(_) => {
+                panic!("activation failed to clear the dormant cache and install the authorizer")
+            }
+            Err(error) => error,
+        };
+        assert!(matches!(
+            denied,
+            rusqlite::Error::SqliteFailure(failure, _)
+                if failure.code == rusqlite::ErrorCode::AuthorizationForStatementDenied
+        ));
     }
 
     fn buffered_writes() -> Vec<BufferedWrite> {
@@ -24039,6 +28384,116 @@ mod guarded_commit_tests {
                 ])],
             )]),
         }
+    }
+
+    fn managed_version_runtime_indexes(conn: &Connection) -> Vec<(String, String)> {
+        let mut statement = conn
+            .prepare(
+                "SELECT name, tbl_name
+                 FROM sqlite_schema
+                 WHERE type = 'index'
+                   AND (name GLOB '_snapback_version_domain_*'
+                        OR name GLOB '_snapback_version_head_*')
+                 ORDER BY name",
+            )
+            .expect("prepare managed-version index inventory");
+        statement
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+            .expect("query managed-version index inventory")
+            .collect::<Result<Vec<_>, _>>()
+            .expect("collect managed-version index inventory")
+    }
+
+    fn explain_query_plan(conn: &Connection, sql: &str, bind: Option<i64>) -> Vec<String> {
+        let mut statement = conn.prepare(sql).expect("prepare query plan");
+        let rows = match bind {
+            Some(bind) => statement
+                .query_map(params![bind], |row| row.get::<_, String>(3))
+                .expect("explain bound query")
+                .collect::<Result<Vec<_>, _>>(),
+            None => statement
+                .query_map([], |row| row.get::<_, String>(3))
+                .expect("explain unbound query")
+                .collect::<Result<Vec<_>, _>>(),
+        };
+        rows.expect("collect query plan")
+    }
+
+    fn managed_version_scale_database(rows: usize) -> LocalDatabase {
+        assert!(rows > 0);
+        let mut db = database();
+        db.seed(seed_data("scale-0", "seed"))
+            .expect("seed scale baseline and storage head");
+        if rows > 1 {
+            db.conn
+                .execute(
+                    "WITH RECURSIVE sequence(value) AS (
+                       SELECT 1
+                       UNION ALL
+                       SELECT value + 1 FROM sequence WHERE value + 1 < ?1
+                     )
+                     INSERT INTO items(_id, _version, _createdAt, _updatedAt, title)
+                     SELECT printf('scale-%d', value), 1, 1, 1, 'seed' FROM sequence",
+                    params![rows as i64],
+                )
+                .expect("seed scale rows through runtime indexes");
+        }
+        db
+    }
+
+    fn measure_buffered_patch_vm_steps(db: &mut LocalDatabase) -> usize {
+        let steps = Arc::new(AtomicUsize::new(0));
+        let observed = Arc::clone(&steps);
+        db.conn.progress_handler(
+            1,
+            Some(move || {
+                observed.fetch_add(1, Ordering::Relaxed);
+                false
+            }),
+        );
+        db.commit_buffered_writes(
+            &HandlerInput::default(),
+            vec![BufferedWrite::Patch {
+                table: "items".to_owned(),
+                id: "scale-0".to_owned(),
+                values: Map::from_iter([("title".to_owned(), json!("mutated"))]),
+            }],
+            Vec::new(),
+            Value::Null,
+        )
+        .expect("measure fixed-size buffered mutation");
+        db.conn.progress_handler(0, None::<fn() -> bool>);
+        steps.load(Ordering::Relaxed)
+    }
+
+    fn measure_legacy_managed_version_scan_vm_steps(db: &LocalDatabase) -> usize {
+        let steps = Arc::new(AtomicUsize::new(0));
+        let observed = Arc::clone(&steps);
+        db.conn.progress_handler(
+            1,
+            Some(move || {
+                observed.fetch_add(1, Ordering::Relaxed);
+                false
+            }),
+        );
+        let maximum = version_to_sql_integer(db.current_version().expect("scale head"))
+            .expect("portable scale head");
+        let invalid: Option<i64> = db
+            .conn
+            .query_row(
+                "SELECT 1 FROM items
+                 WHERE typeof(_version) <> 'integer'
+                    OR _version <= 0
+                    OR _version > ?1
+                 LIMIT 1",
+                params![maximum],
+                |row| row.get(0),
+            )
+            .optional()
+            .expect("measure legacy managed-version scan");
+        assert!(invalid.is_none());
+        db.conn.progress_handler(0, None::<fn() -> bool>);
+        steps.load(Ordering::Relaxed)
     }
 
     fn force_exhausted_storage_version(db: &LocalDatabase) {
@@ -24448,6 +28903,316 @@ mod guarded_commit_tests {
     }
 
     #[test]
+    fn point_read_identity_requires_the_exact_requested_opaque_string() {
+        let matching = json!({ "_id": "opaque-id" });
+        validate_point_read_identity(&matching, "opaque-id", "items")
+            .expect("an exact opaque-string identity matches");
+
+        for malformed in [
+            json!({ "_id": "different-id" }),
+            json!({ "_id": 7 }),
+            json!({}),
+        ] {
+            let error = validate_point_read_identity(&malformed, "opaque-id", "items")
+                .expect_err("a mismatched or non-string decoded identity must fail closed");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_ROW_ID_CORRUPT");
+            assert_eq!(error.diagnostic.details["table"], "items");
+        }
+    }
+
+    #[test]
+    fn strict_portable_decoder_accepts_only_writer_representations() {
+        let string_families = [
+            FieldType::String,
+            FieldType::Principal,
+            FieldType::Id {
+                table: "parents".to_owned(),
+            },
+            FieldType::RelationIncarnation {
+                foreign_key_field: "parentId".to_owned(),
+                parent_table: "parents".to_owned(),
+            },
+            FieldType::AssetRef { upload: None },
+        ];
+        for field_type in string_families {
+            let field = declared_storage_field(field_type, false);
+            assert_eq!(
+                sqlite_to_json(
+                    ValueRef::Text(b"exact"),
+                    Some(&field),
+                    "typed_items",
+                    "value"
+                )
+                .expect("valid TEXT"),
+                json!("exact")
+            );
+            assert_storage_field_corrupt(
+                sqlite_to_json(ValueRef::Integer(1), Some(&field), "typed_items", "value"),
+                "value",
+                "wrong text storage class",
+            );
+            assert_storage_field_corrupt(
+                sqlite_to_json(
+                    ValueRef::Text(&[0x80]),
+                    Some(&field),
+                    "typed_items",
+                    "value",
+                ),
+                "value",
+                "invalid UTF-8",
+            );
+        }
+
+        let boolean = declared_storage_field(FieldType::Boolean, false);
+        assert_eq!(
+            sqlite_to_json(ValueRef::Integer(0), Some(&boolean), "typed_items", "value")
+                .expect("false"),
+            Value::Bool(false)
+        );
+        assert_eq!(
+            sqlite_to_json(ValueRef::Integer(1), Some(&boolean), "typed_items", "value")
+                .expect("true"),
+            Value::Bool(true)
+        );
+        for invalid in [
+            ValueRef::Integer(-1),
+            ValueRef::Integer(2),
+            ValueRef::Text(b"1"),
+        ] {
+            assert_storage_field_corrupt(
+                sqlite_to_json(invalid, Some(&boolean), "typed_items", "value"),
+                "value",
+                "invalid Boolean",
+            );
+        }
+
+        let integer = declared_storage_field(FieldType::Integer, false);
+        for value in [PORTABLE_INTEGER_MIN, 0, PORTABLE_INTEGER_MAX] {
+            assert_eq!(
+                sqlite_to_json(
+                    ValueRef::Integer(value),
+                    Some(&integer),
+                    "typed_items",
+                    "value"
+                )
+                .expect("portable Integer"),
+                json!(value)
+            );
+        }
+        for invalid in [
+            ValueRef::Integer(PORTABLE_INTEGER_MIN - 1),
+            ValueRef::Integer(PORTABLE_INTEGER_MAX + 1),
+            ValueRef::Real(1.0),
+        ] {
+            assert_storage_field_corrupt(
+                sqlite_to_json(invalid, Some(&integer), "typed_items", "value"),
+                "value",
+                "invalid Integer",
+            );
+        }
+
+        let real = declared_storage_field(FieldType::Real, false);
+        assert_eq!(
+            sqlite_to_json(ValueRef::Real(1.5), Some(&real), "typed_items", "value")
+                .expect("finite REAL"),
+            json!(1.5)
+        );
+        for invalid in [ValueRef::Integer(1), ValueRef::Real(f64::NAN)] {
+            assert_storage_field_corrupt(
+                sqlite_to_json(invalid, Some(&real), "typed_items", "value"),
+                "value",
+                "invalid Real",
+            );
+        }
+
+        let json_field = declared_storage_field(FieldType::Json, false);
+        assert_eq!(
+            sqlite_to_json(
+                ValueRef::Text(br#"{"ok":true}"#),
+                Some(&json_field),
+                "typed_items",
+                "value",
+            )
+            .expect("JSON TEXT"),
+            json!({ "ok": true })
+        );
+        assert_storage_field_corrupt(
+            sqlite_to_json(
+                ValueRef::Text(b"{"),
+                Some(&json_field),
+                "typed_items",
+                "value",
+            ),
+            "value",
+            "invalid JSON",
+        );
+
+        let vector = declared_storage_field(FieldType::Vector { dimensions: 2 }, false);
+        let mut vector_bytes = Vec::new();
+        vector_bytes.extend_from_slice(&1.0f64.to_le_bytes());
+        vector_bytes.extend_from_slice(&2.0f64.to_le_bytes());
+        assert_eq!(
+            sqlite_to_json(
+                ValueRef::Blob(&vector_bytes),
+                Some(&vector),
+                "typed_items",
+                "value",
+            )
+            .expect("binary64 vector"),
+            json!([1.0, 2.0])
+        );
+        assert_storage_field_corrupt(
+            sqlite_to_json(ValueRef::Text(b"[]"), Some(&vector), "typed_items", "value"),
+            "value",
+            "invalid Vector storage class",
+        );
+
+        assert_storage_field_corrupt(
+            sqlite_to_json(ValueRef::Null, Some(&boolean), "typed_items", "value"),
+            "value",
+            "required NULL",
+        );
+        assert_eq!(
+            sqlite_to_json_with_staged_null(
+                ValueRef::Null,
+                Some(&boolean),
+                "typed_items",
+                "value",
+                true,
+            )
+            .expect("the exact migration-staged destination may still be NULL"),
+            Value::Null
+        );
+        let optional = declared_storage_field(FieldType::Boolean, true);
+        assert_eq!(
+            sqlite_to_json(ValueRef::Null, Some(&optional), "typed_items", "value")
+                .expect("optional NULL"),
+            Value::Null
+        );
+
+        assert_eq!(
+            sqlite_to_json(ValueRef::Text(b"row"), None, "typed_items", "_id").expect("system id"),
+            json!("row")
+        );
+        assert_storage_field_corrupt(
+            sqlite_to_json(ValueRef::Integer(1), None, "typed_items", "_id"),
+            "_id",
+            "invalid system id",
+        );
+        for timestamp in [0, crate::manifest::PORTABLE_TIMESTAMP_MAX_MS as i64] {
+            assert_eq!(
+                sqlite_to_json(
+                    ValueRef::Integer(timestamp),
+                    None,
+                    "typed_items",
+                    "_createdAt",
+                )
+                .expect("portable timestamp"),
+                json!(timestamp)
+            );
+        }
+        for invalid in [
+            ValueRef::Integer(-1),
+            ValueRef::Integer(crate::manifest::PORTABLE_TIMESTAMP_MAX_MS as i64 + 1),
+            ValueRef::Text(b"0"),
+        ] {
+            assert_storage_field_corrupt(
+                sqlite_to_json(invalid, None, "typed_items", "_updatedAt"),
+                "_updatedAt",
+                "invalid system timestamp",
+            );
+        }
+    }
+
+    #[test]
+    fn corrupt_portable_field_representations_fail_every_current_read_lane() {
+        let healthy = typed_decode_database()
+            .get("typed_items", "typed-row")
+            .expect("healthy point read")
+            .expect("healthy row");
+        assert_eq!(healthy["label"], "ok");
+        assert_eq!(healthy["flag"], true);
+        assert_eq!(healthy["count"], 1);
+        assert_eq!(healthy["score"], 1.5);
+        assert_eq!(healthy["payload"], json!({ "ok": true }));
+        assert_eq!(healthy["note"], Value::Null);
+
+        let corruptions = [
+            (
+                "label",
+                "UPDATE typed_items SET label = CAST(x'80' AS TEXT) WHERE _id = 'typed-row'"
+                    .to_owned(),
+            ),
+            (
+                "flag",
+                "UPDATE typed_items SET flag = 2 WHERE _id = 'typed-row'".to_owned(),
+            ),
+            (
+                "count",
+                format!(
+                    "UPDATE typed_items SET count = {} WHERE _id = 'typed-row'",
+                    PORTABLE_INTEGER_MAX + 1
+                ),
+            ),
+            (
+                "score",
+                "UPDATE typed_items SET score = 'not-real' WHERE _id = 'typed-row'".to_owned(),
+            ),
+            (
+                "payload",
+                "UPDATE typed_items SET payload = '{' WHERE _id = 'typed-row'".to_owned(),
+            ),
+            (
+                "_createdAt",
+                "UPDATE typed_items SET _createdAt = -1 WHERE _id = 'typed-row'".to_owned(),
+            ),
+        ];
+        let plan = QueryPlan {
+            table: "typed_items".to_owned(),
+            filters: Vec::new(),
+            order: Vec::new(),
+            limit: Some(10),
+            membership_filters: Vec::new(),
+            indexed_by: None,
+        };
+
+        for (field, sql) in corruptions {
+            let db = typed_decode_database();
+            db.conn
+                .execute(&sql, [])
+                .unwrap_or_else(|error| panic!("inject {field} corruption: {error}"));
+
+            assert_storage_field_corrupt(db.get("typed_items", "typed-row"), field, "point");
+            assert_storage_field_corrupt(db.scan_table("typed_items", 10, 0), field, "scan");
+            assert_storage_field_corrupt(db.query(&plan, &HandlerInput::default()), field, "query");
+        }
+    }
+
+    #[test]
+    fn file_backed_portable_corruption_reopens_then_refuses_on_read() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("typed-corruption.sqlite3");
+        {
+            let mut db = LocalDatabase::open(&path).expect("create file database");
+            apply_typed_decode_fixture(&mut db);
+            db.conn
+                .execute(
+                    "UPDATE typed_items SET flag = 2 WHERE _id = 'typed-row'",
+                    [],
+                )
+                .expect("inject stored Boolean corruption");
+        }
+
+        let reopened = LocalDatabase::open(&path)
+            .expect("bounded open policy does not scan every declared field");
+        assert_storage_field_corrupt(
+            reopened.get("typed_items", "typed-row"),
+            "flag",
+            "reopened point read",
+        );
+    }
+
+    #[test]
     fn corrupt_managed_row_versions_fail_every_document_decoder() {
         for (name, value) in [
             ("negative", SqlValue::Integer(-1_i64)),
@@ -24488,6 +29253,374 @@ mod guarded_commit_tests {
                 "{name} admin scan"
             );
         }
+    }
+
+    #[test]
+    fn buffered_mutation_fast_path_refuses_every_managed_version_corruption_without_effects() {
+        for (name, make_value) in [
+            (
+                "non-integer-real",
+                Box::new(|_: u64| SqlValue::Real(1.5)) as Box<dyn Fn(u64) -> SqlValue>,
+            ),
+            (
+                "non-integer-text",
+                Box::new(|_: u64| SqlValue::Text("not-a-version".to_owned())),
+            ),
+            (
+                "non-integer-blob",
+                Box::new(|_: u64| SqlValue::Blob(vec![0x01, 0x02])),
+            ),
+            ("zero", Box::new(|_: u64| SqlValue::Integer(0))),
+            ("negative", Box::new(|_: u64| SqlValue::Integer(-1))),
+            (
+                "past-portable-max",
+                Box::new(|_: u64| SqlValue::Integer((PORTABLE_STORAGE_VERSION_MAX + 1) as i64)),
+            ),
+            (
+                "future-head",
+                Box::new(|head: u64| SqlValue::Integer((head + 1) as i64)),
+            ),
+        ] {
+            let mut db = database();
+            db.seed(seed_data("corrupt-row", "must-survive"))
+                .expect("seed managed row");
+            assert_eq!(
+                managed_version_integrity_index_state(&db.conn, "items").unwrap(),
+                (true, true),
+                "{name} exercises the indexed validation path"
+            );
+            let before_version = db.current_version().expect("pre-refusal version");
+            let before_changes = db.change_journal_len().expect("pre-refusal journal");
+            db.conn
+                .execute(
+                    "UPDATE items SET _version = ?1 WHERE _id = 'corrupt-row'",
+                    params![make_value(before_version)],
+                )
+                .expect("inject managed row corruption");
+
+            let error = db
+                .commit_buffered_writes(
+                    &HandlerInput::default(),
+                    vec![BufferedWrite::Insert {
+                        table: "items".to_owned(),
+                        id: "must-not-commit".to_owned(),
+                        values: Map::from_iter([("title".to_owned(), json!("refused"))]),
+                    }],
+                    Vec::new(),
+                    Value::Null,
+                )
+                .expect_err("corrupt managed version must refuse before effects");
+            assert_eq!(
+                error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
+                "{name}"
+            );
+            assert_eq!(error.diagnostic.subsystem, "storage", "{name}");
+            assert_eq!(
+                error.diagnostic.message,
+                "managed table items contains a non-portable row storage version",
+                "{name}"
+            );
+            assert_eq!(error.diagnostic.details["table"], json!("items"), "{name}");
+            assert_eq!(db.current_version().unwrap(), before_version, "{name}");
+            assert_eq!(db.change_journal_len().unwrap(), before_changes, "{name}");
+            let attempted_rows: i64 = db
+                .conn
+                .query_row(
+                    "SELECT COUNT(*) FROM items WHERE _id = 'must-not-commit'",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(attempted_rows, 0, "{name}");
+            let original_title: String = db
+                .conn
+                .query_row(
+                    "SELECT title FROM items WHERE _id = 'corrupt-row'",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(original_title, "must-survive", "{name}");
+        }
+    }
+
+    #[test]
+    fn managed_version_validation_plans_use_bounded_runtime_indexes() {
+        let db = database();
+        let (domain_name, head_name) = managed_version_integrity_index_names("items");
+        let domain_plan = explain_query_plan(
+            &db.conn,
+            &format!(
+                "EXPLAIN QUERY PLAN
+                 SELECT _version FROM items INDEXED BY {}
+                 WHERE typeof(_version) <> 'integer'
+                    OR _version <= 0
+                    OR _version > {PORTABLE_STORAGE_VERSION_MAX}
+                 LIMIT 1",
+                quote_ident(&domain_name).unwrap()
+            ),
+            None,
+        );
+        assert!(
+            domain_plan
+                .iter()
+                .any(|detail| detail.contains(&domain_name)),
+            "domain probe must use its empty partial index: {domain_plan:?}"
+        );
+
+        let head_plan = explain_query_plan(
+            &db.conn,
+            &format!(
+                "EXPLAIN QUERY PLAN
+                 SELECT _version FROM items INDEXED BY {}
+                 WHERE _version > ?1 LIMIT 1",
+                quote_ident(&head_name).unwrap()
+            ),
+            Some(1),
+        );
+        assert!(
+            head_plan
+                .iter()
+                .any(|detail| { detail.contains("SEARCH") && detail.contains(&head_name) }),
+            "future-head probe must be an indexed range search: {head_plan:?}"
+        );
+
+        let legacy_plan = explain_query_plan(
+            &db.conn,
+            "EXPLAIN QUERY PLAN
+             SELECT 1 FROM items
+             WHERE typeof(_version) <> 'integer'
+                OR _version <= 0
+                OR _version > ?1
+             LIMIT 1",
+            Some(1),
+        );
+        assert!(
+            legacy_plan.iter().any(|detail| detail.contains("SCAN")),
+            "the dynamic legacy predicate remains a cardinality scan: {legacy_plan:?}"
+        );
+    }
+
+    #[test]
+    fn buffered_managed_version_validation_cost_is_cardinality_independent() {
+        let mut small = managed_version_scale_database(1_000);
+        let mut large = managed_version_scale_database(50_000);
+
+        let small_fast = measure_buffered_patch_vm_steps(&mut small);
+        let large_fast = measure_buffered_patch_vm_steps(&mut large);
+        assert!(
+            large_fast <= small_fast.saturating_mul(2).saturating_add(2_000),
+            "indexed buffered validation must stay bounded: small={small_fast}, large={large_fast}"
+        );
+
+        let small_legacy = measure_legacy_managed_version_scan_vm_steps(&small);
+        let large_legacy = measure_legacy_managed_version_scan_vm_steps(&large);
+        assert!(
+            large_legacy > small_legacy.saturating_mul(20),
+            "legacy witness must grow with table cardinality: small={small_legacy}, large={large_legacy}"
+        );
+    }
+
+    #[test]
+    fn reopen_rebuilds_managed_version_indexes_after_upgrade_and_predicate_drift() {
+        let (_dir, path, mut db) = file_database();
+        db.seed(seed_data("healthy-on-reopen", "healthy"))
+            .expect("seed managed row");
+        let (domain_name, head_name) = managed_version_integrity_index_names("items");
+        db.conn
+            .execute(
+                &format!("DROP INDEX {}", quote_ident(&domain_name).unwrap()),
+                [],
+            )
+            .expect("drop domain index");
+        db.conn
+            .execute(
+                &format!("DROP INDEX {}", quote_ident(&head_name).unwrap()),
+                [],
+            )
+            .expect("drop head index");
+        db.conn
+            .execute(
+                &format!(
+                    "CREATE INDEX {} ON items(_version)
+                     WHERE typeof(_version) <> 'integer' OR _version < 0",
+                    quote_ident(&domain_name).unwrap()
+                ),
+                [],
+            )
+            .expect("install stale domain predicate");
+        drop(db);
+
+        let reopened = LocalDatabase::open(&path).expect("healthy reopen upgrades indexes");
+        assert_eq!(
+            managed_version_integrity_index_state(&reopened.conn, "items").unwrap(),
+            (true, true)
+        );
+        let domain_sql: String = reopened
+            .conn
+            .query_row(
+                "SELECT sql FROM sqlite_schema WHERE type = 'index' AND name = ?1",
+                params![domain_name],
+                |row| row.get(0),
+            )
+            .expect("inspect rebuilt domain index");
+        assert!(domain_sql.contains("_version <= 0"), "{domain_sql}");
+        assert!(
+            domain_sql.contains(&format!("_version > {PORTABLE_STORAGE_VERSION_MAX}")),
+            "{domain_sql}"
+        );
+        let plan = explain_query_plan(
+            &reopened.conn,
+            &format!(
+                "EXPLAIN QUERY PLAN
+                 SELECT _version FROM items INDEXED BY {}
+                 WHERE typeof(_version) <> 'integer'
+                    OR _version <= 0
+                    OR _version > {PORTABLE_STORAGE_VERSION_MAX}
+                 LIMIT 1",
+                quote_ident(&domain_name).unwrap()
+            ),
+            None,
+        );
+        assert!(
+            plan.iter().any(|detail| detail.contains(&domain_name)),
+            "{plan:?}"
+        );
+    }
+
+    #[test]
+    fn reopen_refuses_corrupt_managed_versions_before_index_upgrade() {
+        let (_dir, path, mut db) = file_database();
+        db.seed(seed_data("corrupt-on-reopen", "corrupt"))
+            .expect("seed managed row");
+        let (domain_name, head_name) = managed_version_integrity_index_names("items");
+        for name in [&domain_name, &head_name] {
+            db.conn
+                .execute(&format!("DROP INDEX {}", quote_ident(name).unwrap()), [])
+                .expect("simulate pre-index database");
+        }
+        db.conn
+            .execute(
+                "UPDATE items SET _version = ?1 WHERE _id = 'corrupt-on-reopen'",
+                params![SqlValue::Real(1.5)],
+            )
+            .expect("corrupt managed version before reopen");
+        drop(db);
+
+        let error = match LocalDatabase::open(&path) {
+            Ok(_) => panic!("open preflight must refuse before managed-index DDL"),
+            Err(error) => error,
+        };
+        assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT");
+        let raw = Connection::open(&path).expect("inspect refused database");
+        let runtime_indexes: i64 = raw
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_schema
+                 WHERE type = 'index' AND name IN (?1, ?2)",
+                params![domain_name, head_name],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            runtime_indexes, 0,
+            "preflight refusal must precede index DDL"
+        );
+    }
+
+    #[test]
+    fn missing_managed_version_indexes_fall_back_to_fail_closed_scan() {
+        let mut db = database();
+        db.seed(seed_data("corrupt-row", "must-survive"))
+            .expect("seed managed row");
+        let (domain_name, head_name) = managed_version_integrity_index_names("items");
+        for name in [&domain_name, &head_name] {
+            db.conn
+                .execute(&format!("DROP INDEX {}", quote_ident(name).unwrap()), [])
+                .expect("drop runtime index");
+        }
+        db.conn
+            .execute(
+                "UPDATE items SET _version = ?1 WHERE _id = 'corrupt-row'",
+                params![SqlValue::Real(1.5)],
+            )
+            .expect("inject corruption without sentinel");
+        let before = db.current_version().unwrap();
+
+        let error = db
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Insert {
+                    table: "items".to_owned(),
+                    id: "must-not-commit".to_owned(),
+                    values: Map::from_iter([("title".to_owned(), json!("refused"))]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect_err("fallback scan must reject corruption");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT");
+        assert_eq!(db.current_version().unwrap(), before);
+        let attempted_rows: i64 = db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM items WHERE _id = 'must-not-commit'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(attempted_rows, 0);
+    }
+
+    #[test]
+    fn optional_to_required_rebuild_restores_managed_version_indexes() {
+        let mut db = database();
+        db.seed(SeedData {
+            tables: BTreeMap::from([(
+                "items".to_owned(),
+                vec![Map::from_iter([
+                    ("_id".to_owned(), json!("required-row")),
+                    ("title".to_owned(), json!("ready")),
+                    ("rank".to_owned(), json!(1)),
+                ])],
+            )]),
+        })
+        .expect("seed non-null optional value");
+        let mut required = schema();
+        required.tables[0]
+            .fields
+            .iter_mut()
+            .find(|field| field.name == "rank")
+            .expect("rank field")
+            .optional = false;
+        db.apply_schema(required)
+            .expect("safe optional-to-required rebuild");
+
+        assert_eq!(
+            managed_version_integrity_index_state(&db.conn, "items").unwrap(),
+            (true, true)
+        );
+        assert_eq!(
+            managed_version_runtime_indexes(&db.conn),
+            vec![
+                (
+                    "_snapback_version_domain_items".to_owned(),
+                    "items".to_owned()
+                ),
+                (
+                    "_snapback_version_head_items".to_owned(),
+                    "items".to_owned()
+                ),
+            ]
+        );
+        let rank_not_null: i64 = db
+            .conn
+            .query_row(
+                "SELECT \"notnull\" FROM pragma_table_info('items') WHERE name = 'rank'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(rank_not_null, 1);
     }
 
     #[test]
@@ -24997,6 +30130,7 @@ mod guarded_commit_tests {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         };
         let projection = crate::ephemeral::RoomPermissionProjection {
             table: "memberships".to_owned(),
@@ -25072,6 +30206,7 @@ mod guarded_commit_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 }],
                 ..SchemaManifest::default()
             })
@@ -26112,6 +31247,140 @@ mod guarded_commit_tests {
         assert!(db.client_mutation_result(&identities[2]).unwrap().is_none());
     }
 
+    #[test]
+    fn covered_operator_purge_is_keyed_by_active_client_stream_not_operation_text() {
+        use crate::commit_envelope::{
+            OperationIdentityV1, OperationIssuanceV1, OperationOriginatorClassV1,
+            OperationSuppressionRecordV1,
+        };
+
+        let (_dir, _path, mut db, input, identity) =
+            operation_crash_fixture(CoveredWriterFixtureV1::Buffered);
+        execute_operation_crash_fixture(
+            &mut db,
+            CoveredWriterFixtureV1::Buffered,
+            &input,
+            &identity,
+        )
+        .expect("settle covered purge target");
+        let active_stream = crate::seed_identity::strict_current_data_version_stream(&db.conn)
+            .expect("active stream lookup")
+            .expect("active stream");
+        let (identity_json, record_json): (String, String) = db
+            .conn
+            .query_row(
+                "SELECT identity_json,record_json
+                   FROM _snapback_operation_suppression_v1
+                  WHERE stream_id=?1 AND originator_class='client' AND operation_id=?2",
+                params![active_stream, identity.id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("target suppression row");
+        let base_identity: OperationIdentityV1 =
+            serde_json::from_str(&identity_json).expect("decode target identity");
+        let base_record: OperationSuppressionRecordV1 =
+            serde_json::from_str(&record_json).expect("decode target suppression");
+
+        let insert_unrelated = |unrelated: OperationIdentityV1| {
+            let mut record = base_record.clone();
+            record.identity = unrelated.clone();
+            let (epoch_id, counter) = match &unrelated.issuance {
+                OperationIssuanceV1::ClientRange {
+                    epoch_id, counter, ..
+                } => (epoch_id.clone(), Some(*counter)),
+                OperationIssuanceV1::HostIncarnation { epoch_id, .. } => (epoch_id.clone(), None),
+            };
+            db.conn
+                .execute(
+                    "INSERT INTO _snapback_operation_suppression_v1(
+                       stream_id,originator_class,operation_id,audience,epoch_id,
+                       epoch_sequence,counter,terminal_at_ms,acknowledged_at_ms,
+                       identity_json,record_json
+                     ) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,NULL,?9,?10)",
+                    params![
+                        unrelated.key.stream_id,
+                        match unrelated.key.originator_class {
+                            OperationOriginatorClassV1::Client => "client",
+                            OperationOriginatorClassV1::Host => "host",
+                        },
+                        unrelated.key.operation_id,
+                        unrelated.bound_facts.audience,
+                        epoch_id,
+                        1_i64,
+                        counter.map(|value| value as i64),
+                        record.terminal_at_ms as i64,
+                        serde_json::to_string(&unrelated).expect("encode unrelated identity"),
+                        serde_json::to_string(&record).expect("encode unrelated suppression"),
+                    ],
+                )
+                .expect("insert unrelated operation partition");
+        };
+
+        let mut retired_stream_client = base_identity.clone();
+        retired_stream_client.key.stream_id = "retired-stream-fixture".to_owned();
+        retired_stream_client.bound_facts.principal_fingerprint =
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".to_owned();
+        insert_unrelated(retired_stream_client);
+
+        let mut host = base_identity;
+        host.key.originator_class = OperationOriginatorClassV1::Host;
+        host.bound_facts.audience = "host-audience-fixture".to_owned();
+        host.bound_facts.principal_fingerprint =
+            "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc".to_owned();
+        host.bound_facts.authority_instance_id = "host-authority-fixture".to_owned();
+        host.issuance = OperationIssuanceV1::HostIncarnation {
+            epoch_id: "host-epoch-fixture".to_owned(),
+            upstream_identity: "job:purge-collision".to_owned(),
+            commit_ordinal: 0,
+            authority_authenticator_digest:
+                "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd".to_owned(),
+        };
+        insert_unrelated(host);
+
+        assert_eq!(
+            db.purge_client_mutation_settlements(Some(&identity.auth_fingerprint))
+                .expect("purge exact active client partition"),
+            1
+        );
+        let partitions = db
+            .conn
+            .prepare(
+                "SELECT stream_id,originator_class
+                   FROM _snapback_operation_suppression_v1
+                  WHERE operation_id=?1 ORDER BY stream_id,originator_class",
+            )
+            .expect("partition query")
+            .query_map(params![identity.id], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .expect("partition rows")
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .expect("collect partitions");
+        assert_eq!(
+            partitions,
+            vec![
+                (active_stream.clone(), "host".to_owned()),
+                ("retired-stream-fixture".to_owned(), "client".to_owned()),
+            ],
+            "same-text identities in unrelated partitions survive the purge"
+        );
+        assert_eq!(
+            db.conn
+                .query_row(
+                    "SELECT operation_count FROM _snapback_operation_purges_v1",
+                    [],
+                    |row| row.get::<_, u64>(0),
+                )
+                .expect("recorded purge count"),
+            1
+        );
+        let retry = db
+            .client_mutation_result(&identity)
+            .expect_err("purged exact partition keeps a result-expired tombstone");
+        assert_eq!(retry.diagnostic.code, "SNAPBACK_OPERATION_RESULT_EXPIRED");
+        assert_eq!(retry.diagnostic.details["outcome"], "committed");
+    }
+
     struct CommitVisibilityGuard {
         reader: Connection,
         active: Arc<AtomicBool>,
@@ -26517,6 +31786,7 @@ mod membership_write_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 TableManifest {
                     name: "event_members".to_owned(),
@@ -26634,6 +31904,7 @@ mod membership_write_tests {
                         principal_addressed_writes: None,
                     }),
                     asset_sharing: None,
+                    history: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -26704,6 +31975,7 @@ mod membership_write_tests {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             });
             let mut db = ready_db_with_schema(schema);
             let (event_id, host_id) = create_event(&mut db, "alice");
@@ -28425,6 +33697,7 @@ mod membership_write_tests {
                     principal_addressed_writes: None,
                 }),
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         }

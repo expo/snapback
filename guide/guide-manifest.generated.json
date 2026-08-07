@@ -2,7 +2,11 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "68d286eb13567b4aa867ace6d6b36f71f5d21189"
+    "commit": "f5389f41a5d34641b488c3c8dcf3bc05c78679bd"
+  },
+  "publishedClosure": {
+    "scope": "@expo/snapback-*",
+    "newestPublished": "0.1.11"
   },
   "nav": {
     ".": [
@@ -168,6 +172,11 @@
         "title": "The React client"
       },
       {
+        "id": "clients.surfaces",
+        "order": 2,
+        "title": "Application surfaces"
+      },
+      {
         "id": "clients.swift",
         "order": 2,
         "title": "Swift client"
@@ -214,6 +223,11 @@
     ],
     "operating": [
       {
+        "id": "operating.agent-controls",
+        "order": 1,
+        "title": "Discover agent controls"
+      },
+      {
         "id": "operating.secrets-and-config",
         "order": 1,
         "title": "Secrets and deployment config"
@@ -222,6 +236,11 @@
         "id": "operating.host-ops",
         "order": 2,
         "title": "Host operations"
+      },
+      {
+        "id": "operating.network-profiles",
+        "order": 2,
+        "title": "Network condition profiles"
       },
       {
         "id": "operating.diagnostics",
@@ -242,6 +261,16 @@
         "id": "operating.error-tracking",
         "order": 6,
         "title": "Backend error tracking"
+      },
+      {
+        "id": "operating.instance-forks",
+        "order": 7,
+        "title": "Local instance forks"
+      },
+      {
+        "id": "operating.data-patch",
+        "order": 8,
+        "title": "Patch one existing row safely"
       }
     ],
     "protocol": [
@@ -516,6 +545,8 @@
         "llp/0057-auth-provider-protocol.spec.md",
         "llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md",
         "llp/0059-session-projection-and-client-barrier.spec.md",
+        "llp/0172-explicit-function-authorization.rfc.md",
+        "packages/snapback-codegen/index.mjs",
         "src/auth/mode.rs",
         "packages/snapback-client/index.mjs",
         "demos/card-game/snapback/functions.mjs",
@@ -526,7 +557,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "4f9933cb2cbf37ad1e8ed7698088fb61e5ef7f97db3d0d86aeb2d1e12cfc96dc",
+      "sha256": "e868958cff234cfcb65bdae3aee84164370dc761274fc793b1afe25ec20ea61f",
       "snippets": [
         {
           "lang": "js",
@@ -705,23 +736,31 @@
       "authorities": [
         "llp/0012-headless-integration-contract.spec.md",
         "llp/0044-asset-storage-pipeline.rfc.md",
+        "llp/0064-native-client-surfaces.rfc.md",
         "llp/0096-auth-profiles-for-protocol-clients.spec.md",
+        "llp/0176-expo-messaging-golden-path.plan.md",
+        "llp/0180-asset-bearing-client-commands.rfc.md",
+        "llp/0181-zero-configuration-expo.rfc.md",
         "src/assets.rs",
         "src/assets_cut.rs",
         "src/cli.rs",
         "src/local.rs",
         "src/server.rs",
         "packages/snapback-codegen/define.mjs",
+        "packages/snapback-expo/asset-source.mjs",
+        "packages/snapback-react/index.d.mts",
         "packages/snapback-vite/allowlist.mjs",
         "tests/acceptance/asset-lifecycle-v1-evidence.md"
       ],
       "examples": [
         "demos/party-wall",
-        "demos/file-drop"
+        "demos/file-drop",
+        "demos/tandem-expo-bakeoff",
+        "demos/expo-golden-path-fixture"
       ],
-      "reviewed": "2026-08-04",
-      "reviewedCommit": "4f6b1bc3d98c9b9e3d1a946ff7cbd648854ea1a6",
-      "sha256": "9491184c32f63bda691f470ce3b92d95f6f54c243c2570c4b31b0f7e35b5b7f8",
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "HEAD",
+      "sha256": "65aeef8cae8157936da0d82bc5587dc737f1b5b55cbb4d5bcbdfdd9018fbc4fb",
       "snippets": [
         {
           "lang": "js",
@@ -746,9 +785,19 @@
           "source": "packages/snapback-codegen/asset-upload-authoring.test.mjs"
         },
         {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "demos/tandem-expo-bakeoff/snapback/src/backend.tsx"
+        },
+        {
           "lang": "js",
           "class": "transcluded",
           "source": "tests/acceptance/fixtures/asset-conformance/handlers.mjs"
+        },
+        {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "demos/expo-golden-path-fixture/src/screens/chat-screen.tsx"
         },
         {
           "lang": "js",
@@ -821,7 +870,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "2cde5d2c82d606f79a2d00e651d275cff19034704442ab00bab6d31a8331330c",
+      "sha256": "2655b32e7597f79679cb4d485691bf32690d9c6677e766d5971e3b73e426d4cb",
       "snippets": [
         {
           "lang": "js",
@@ -963,7 +1012,7 @@
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "4a6000ac6f17a8c94bc2aecf573c0654e850b758",
-      "sha256": "c4762d69175f4d6148ae7b0fef52c082e3d4a240de24a05a1424396249733ab8",
+      "sha256": "49b54c8e8f650552f80332cfa692f8f0c54a2255bc46f8182687b62e9979c021",
       "snippets": [
         {
           "lang": "js",
@@ -1017,9 +1066,9 @@
         "demos/todo-v2",
         "demos/signal-desk"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "f9ae0083ef41bfc9d07f033da440f96048919613",
-      "sha256": "28ca6d2a48b56b9fa464c8f21d89daa072c6cbeb6ab31d99cdafc7448279b168",
+      "reviewed": "2026-08-05",
+      "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
+      "sha256": "b35e238819659f0f679d9934978d1656717450735281147d68a0286538a16753",
       "snippets": [
         {
           "lang": "js",
@@ -1063,9 +1112,9 @@
         "packages/snapback-codegen/relational-authoring.test.mjs",
         "packages/snapback-codegen/relation-activity-authoring.test.mjs"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "f2b7e571f65289c75df44427b08bb43c32bb6863cc99f23c132b31cbf735eeab",
+      "reviewed": "2026-08-05",
+      "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
+      "sha256": "4b2c35d8a96cc48f86faae62e0f8688e43ab7c079d592303a84a61d9d25a7cd8",
       "snippets": [
         {
           "lang": "js",
@@ -1443,9 +1492,9 @@
         "packages/snapback-react/index.mjs"
       ],
       "examples": [],
-      "reviewed": "2026-08-04",
-      "reviewedCommit": "HEAD",
-      "sha256": "c405948f7d8774ef6e1b834189d31414629b00b705e839cfa3b451a3b3c69e2b",
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
+      "sha256": "8a670efb2e6ea11eaa5df82afed3bcada55f80d2cfc1b7f7709cec1b649e6faa",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1638,7 +1687,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "e986f68a06746c0536492392e69f3f184c8d5095cdef72497aa680d59b917ae0",
+      "sha256": "56f1779d1172079c34ca92c0015e30f0f1f4b90e9a0b86b5cb79b34296fd9b20",
       "snippets": [
         {
           "lang": "js",
@@ -1670,27 +1719,59 @@
       ],
       "authorities": [
         "llp/0012-headless-integration-contract.spec.md",
+        "llp/0017-admin-console-inspection-surface.rfc.md",
+        "llp/0041-packaged-dev-loop.rfc.md",
         "llp/0064-native-client-surfaces.rfc.md",
         "llp/0114-first-class-react-and-query-groups.spec.md",
+        "llp/0176-expo-messaging-golden-path.plan.md",
+        "llp/0181-zero-configuration-expo.rfc.md",
+        "packages/snapback-cli/expo-dev.mjs",
         "packages/snapback-client/index.mjs",
         "packages/snapback-client/react-binding.mjs",
         "packages/snapback-client/rqs-store-default.mjs",
         "packages/snapback-client/rqs-store-expo.mjs",
+        "packages/snapback-expo/app-binding.mjs",
+        "packages/snapback-expo/config-plugin.cjs",
+        "packages/snapback-expo/index.mjs",
+        "packages/snapback-expo/provider.mjs",
+        "packages/snapback-expo/supervised-environment.mjs",
         "packages/snapback-react/index.mjs",
-        "demos/partiful-matrix/tests/acceptance/native-react-expo.mjs"
+        "scripts/install-local-snapback-packages.mjs",
+        "demos/partiful-matrix/tests/acceptance/native-react-expo.mjs",
+        "demos/_kit/eas-stage-build.mjs"
       ],
       "examples": [
+        "demos/expo-golden-path-fixture",
+        "demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md",
+        "demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md",
+        "demos/expo-golden-path-fixture/receipts/20260806-g4-external-summary.md",
+        "demos/expo-golden-path-fixture/receipts/physical-device-online-checklist.md",
         "demos/partiful-matrix/native/react-expo",
+        "packages/snapback-cli/expo-device-forwarding.test.mjs",
         "packages/snapback-client/webcrypto-fallback.test.mjs",
+        "packages/snapback-expo/provider.test.mjs",
         "packages/snapback-react/webcrypto-fallback.test.mjs",
         "packages/snapback-client/rqs-store-expo.test.mjs",
         "packages/snapback-client/rqs-resume-expo.test.mjs",
-        "demos/rn-durable-store-witness/probe-App.tsx"
+        "scripts/local-source-package-closure.test.mjs",
+        "demos/rn-durable-store-witness/probe-App.tsx",
+        "demos/tandem-expo-bakeoff/scripts/build-ios-dev-client",
+        "demos/_kit/tests/repo-layout-unit.mjs"
       ],
-      "reviewed": "2026-08-04",
-      "reviewedCommit": "41c2db8804ba08071c39641cc46251c9084c7a31",
-      "sha256": "60e5d6006cce3123653743b314c6ffef912d5265cf0b5373cf92e7af14be12fd",
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "4ac8387f080a2659484fc09916ff22a076dc4ca8",
+      "sha256": "0367c72818ab476c328f5539a2355b03cce0fe45dc30dc5295a3665680ca27a6",
       "snippets": [
+        {
+          "lang": "json",
+          "class": "transcluded",
+          "source": "demos/expo-golden-path-fixture/app.json"
+        },
+        {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "demos/expo-golden-path-fixture/App.tsx"
+        },
         {
           "lang": "ts",
           "class": "fragment"
@@ -1749,6 +1830,7 @@
         "demos/signal-desk/src/backends/snapback.ts",
         "demos/signal-desk/tests/react.mjs",
         "demos/signal-desk/acceptance/results/react-presence.v1.json",
+        "demos/messaging-snapback/src/lib/useTyping.ts",
         "packages/snapback-react/binding-development-sync.test.mjs",
         "packages/snapback-react/package.test.mjs",
         "packages/snapback-react/optimistic.test.mjs",
@@ -1756,9 +1838,9 @@
         "packages/snapback-react/offline.test.mjs",
         "packages/snapback-react/exact-result-types.fixture.ts"
       ],
-      "reviewed": "2026-08-04",
-      "reviewedCommit": "8154744c87ed58816703093bd526bd7a40d95a56",
-      "sha256": "4eda21c9d00e769483300783cf4f8c5c762c698a5e5045e9ad3b94e276138663",
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "4ac8387f080a2659484fc09916ff22a076dc4ca8",
+      "sha256": "05b130a6a4b298986e6c4309263773ba802aeeaaa7e6e46a979a3e5a09ee3779",
       "snippets": [
         {
           "lang": "ts",
@@ -1793,6 +1875,96 @@
           "lang": "js",
           "class": "transcluded",
           "source": "packages/snapback-react/offline.test.mjs"
+        }
+      ]
+    },
+    "clients.surfaces": {
+      "path": "guide/clients/surfaces.md",
+      "title": "Application surfaces",
+      "order": 2,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "since": "0.1.11",
+      "capabilities": [
+        "clients.surfaces"
+      ],
+      "authorities": [
+        "llp/0179-generated-app-descriptor-and-surfaces.rfc.md",
+        "llp/0180-asset-bearing-client-commands.rfc.md",
+        "llp/0181-zero-configuration-expo.rfc.md",
+        "llp/0114-first-class-react-and-query-groups.spec.md",
+        "llp/0176-expo-messaging-golden-path.plan.md",
+        "packages/snapback-codegen/define.mjs",
+        "packages/snapback-codegen/index.mjs",
+        "packages/snapback-client/commands.mjs",
+        "packages/snapback-client/react-binding.mjs",
+        "packages/snapback-expo/asset-source.mjs",
+        "packages/snapback-react/index.mjs",
+        "packages/snapback-react/index.d.mts"
+      ],
+      "examples": [
+        "packages/snapback-react/surface.test.mjs",
+        "packages/snapback-react/commands.test.mjs",
+        "packages/snapback-client/commands.test.mjs",
+        "packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.json",
+        "packages/snapback-react/fixtures/conversation/app/snapback/generated/app.d.ts",
+        "demos/expo-golden-path-fixture/snapback/functions.mjs",
+        "demos/expo-golden-path-fixture/snapback/surface-model.mjs",
+        "demos/expo-golden-path-fixture/src/screens/chat-screen.tsx",
+        "demos/expo-golden-path-fixture/tests/g2-falsification.mjs",
+        "demos/expo-golden-path-fixture/tests/g3-command.mjs"
+      ],
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "HEAD",
+      "sha256": "c202c7239bd3d1df434b8583a0f06bc889b92b447f3b5c9fe189d798c923daea",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/expo-golden-path-fixture/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/expo-golden-path-fixture/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/app-descriptor.test.mjs"
+        },
+        {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "demos/expo-golden-path-fixture/src/screens/chat-screen.tsx"
+        },
+        {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "demos/expo-golden-path-fixture/src/screens/chat-screen.tsx"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-react/surface.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-react/surface.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-react/surface.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/expo-golden-path-fixture/tests/g2-falsification.mjs"
         }
       ]
     },
@@ -1840,7 +2012,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "f9ae0083ef41bfc9d07f033da440f96048919613",
-      "sha256": "b805e180deaa21eda00a0dcbfb85dcaf65daedcc5d9b1864900d332029de568f",
+      "sha256": "cbf89e513364e1ab07956f6f81dbf12c0fd5fa544e7229c117a5ba52a5cb8e8e",
       "snippets": []
     },
     "deploying.cloudflare": {
@@ -1993,7 +2165,7 @@
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "4a6000ac6f17a8c94bc2aecf573c0654e850b758",
-      "sha256": "6957cc19ecb55b01fbe374820a54c8b7d651e79f2f7556062abe42889bb8cf15",
+      "sha256": "52d065c8229acfe3aea5a2ec91ba3b0b77a00cb5ef1f73f1a796d73eff29f1e8",
       "snippets": []
     },
     "getting-started.your-first-backend": {
@@ -2017,6 +2189,7 @@
         "llp/0037-schema-source-of-truth.decision.md",
         "llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md",
         "llp/0108-inline-handlers-and-result-contracts.spec.md",
+        "llp/0115-convex-parity-course-corrections.plan.md",
         "llp/0174-authoring-incidents-at-security-fences.research.md",
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/inline-handlers.mjs",
@@ -2029,9 +2202,9 @@
         "demos/signal-desk/snapback",
         "packages/snapback-codegen/inline-result-contracts.test.mjs"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "ffe0b6eb9260fb91e2c478a067c5b7aaca5213a394a6324f14164b2380f8f7a8",
+      "reviewed": "2026-08-05",
+      "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
+      "sha256": "923b681505b39e44b9597672c2d936c05e4023aa449d2188d7c0efbd6f0db28d",
       "snippets": [
         {
           "lang": "js",
@@ -2100,19 +2273,33 @@
       "authorities": [
         "llp/0061-agent-first-snapback-guide.rfc.md",
         "llp/0000-snapback.explainer.md",
-        "llp/0064-native-client-surfaces.rfc.md"
+        "llp/0042-agent-mcp-surface.rfc.md",
+        "llp/0064-native-client-surfaces.rfc.md",
+        "llp/0181-zero-configuration-expo.rfc.md",
+        "llp/0184-agent-accessible-control-plane.rfc.md",
+        "src/cli.rs",
+        "src/guide_mcp.rs",
+        "packages/snapback-cli/index.mjs",
+        "packages/snapback-cli/expo-dev.mjs",
+        "packages/snapback-cli/mcp-control.mjs"
       ],
       "examples": [
         "demos/todo",
         "demos/todo-v2",
         "demos/cursors-web",
         "demos/card-game",
-        "demos/partiful-matrix"
+        "demos/partiful-matrix",
+        "demos/expo-golden-path-fixture"
       ],
-      "reviewed": "2026-08-04",
-      "reviewedCommit": "dab2410b6793ffa5685069a0a4054f0e2b21608a",
-      "sha256": "114765f99fefd339df74d2365be88d4219e7acc30892fc987c8aae09ec999285",
-      "snippets": []
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
+      "sha256": "65f70324616129d43ee2aa3f0a5b641240f224cc175be8eaab1915fd944bb980",
+      "snippets": [
+        {
+          "lang": "json",
+          "class": "fragment"
+        }
+      ]
     },
     "operating.admin-console": {
       "path": "guide/operating/admin-console.md",
@@ -2156,6 +2343,70 @@
         }
       ]
     },
+    "operating.agent-controls": {
+      "path": "guide/operating/agent-controls.md",
+      "title": "Discover agent controls",
+      "order": 1,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "operating.agent-controls"
+      ],
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane.rfc.md",
+        "llp/0031-server-route-taxonomy.spec.md",
+        "llp/0042-agent-mcp-surface.rfc.md",
+        "src/control_catalog.rs",
+        "src/cli.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "examples": [],
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "2715951cf",
+      "sha256": "c793b72ec46a8dd763cb5722dbcb089d7f05e29cd850320929167bcf6a7cd0e3",
+      "snippets": []
+    },
+    "operating.data-patch": {
+      "path": "guide/operating/data-patch.md",
+      "title": "Patch one existing row safely",
+      "order": 8,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "since": "0.1.10",
+      "capabilities": [
+        "operating.data-patch"
+      ],
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane.rfc.md",
+        "llp/0024-agent-operating-surface.spec.md",
+        "llp/0031-server-route-taxonomy.spec.md",
+        "llp/0017-admin-console-inspection-surface.rfc.md",
+        "src/data_patch.rs",
+        "src/local.rs",
+        "src/server.rs",
+        "src/cli.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "examples": [
+        "tests/data_patch_v1.rs",
+        "packages/snapback-cli/mcp-control.test.mjs"
+      ],
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "HEAD",
+      "sha256": "b28f48c4fdb5257f5091fc30a6a30b6754cc0b266ffebe9c74448a1e6330527a",
+      "snippets": [
+        {
+          "lang": "json",
+          "class": "fragment"
+        }
+      ]
+    },
     "operating.diagnostics": {
       "path": "guide/operating/diagnostics.md",
       "title": "Diagnostics and local doctoring",
@@ -2170,7 +2421,9 @@
       ],
       "authorities": [
         "llp/0010-agent-dx-and-acceptance.spec.md",
+        "llp/0146-agentic-authoring-affordances.rfc.md",
         "src/diagnostic.rs",
+        "src/authoring_suggestion.rs",
         "packages/snapback-codegen/index.mjs",
         "packages/snapback-cli/runtime-recovery.mjs",
         "demos/_kit/harness.mjs",
@@ -2180,11 +2433,12 @@
       ],
       "examples": [
         "demos/todo/tests/acceptance/headless.mjs",
-        "packages/snapback-codegen/authoring-validation.test.mjs"
+        "packages/snapback-codegen/authoring-validation.test.mjs",
+        "tests/host_ops_v0.rs"
       ],
-      "reviewed": "2026-08-05",
-      "reviewedCommit": "4a6000ac6f17a8c94bc2aecf573c0654e850b758",
-      "sha256": "376323db9d3688aa78a94fae52de7eaf2d98ab6d809eb8386ea3f0dad7a16361",
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "3e78f67c4972b8c13e2375970da285ae2d4c0195",
+      "sha256": "947db98b1a94416d1bb520d4151436ddccad4f2396a3c4302f60bb4a4b707eba",
       "snippets": [
         {
           "lang": "js",
@@ -2238,6 +2492,7 @@
       ],
       "authorities": [
         "llp/0024-agent-operating-surface.spec.md",
+        "src/cli.rs",
         "src/host_ops.rs",
         "src/server.rs",
         "tests/host_ops_v0.rs"
@@ -2245,14 +2500,86 @@
       "examples": [
         "demos/todo"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "2d089ae63c44efffda186a90d0ff2b0ee1960294727a60e344167a751edda765",
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "acbb7b922a060788fd09f3f98211eb9ce35f23f4",
+      "sha256": "8a65d84436d93df74ab95516da83d047bf31e65a3aacd7552dddc869727b4292",
       "snippets": [
         {
           "lang": "json",
           "class": "transcluded",
           "source": "tests/host_ops_v0.rs"
+        }
+      ]
+    },
+    "operating.instance-forks": {
+      "path": "guide/operating/instance-forks.md",
+      "title": "Local instance forks",
+      "order": 7,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "operating.instance-forks"
+      ],
+      "authorities": [
+        "llp/0158-instance-forking.rfc.md",
+        "src/cli.rs",
+        "src/instance_fork.rs",
+        "demos/_kit/instance-fork.mjs"
+      ],
+      "examples": [
+        "demos/todo/tests/acceptance/forked-parent.mjs",
+        "tests/instance_fork_cli_v1.rs",
+        "tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json"
+      ],
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "HEAD",
+      "sha256": "191b62edf64b42e0208a4c03d7ab180dffb4110e70185ff2d842704d7d861540",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/todo/tests/acceptance/forked-parent.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/todo/tests/acceptance/forked-parent.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "fragment"
+        }
+      ]
+    },
+    "operating.network-profiles": {
+      "path": "guide/operating/network-profiles.md",
+      "title": "Network condition profiles",
+      "order": 2,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "operating.network-profiles"
+      ],
+      "authorities": [
+        "llp/0167-network-condition-profiles.rfc.md"
+      ],
+      "examples": [
+        "demos/zero-bakeoff"
+      ],
+      "reviewed": "2026-08-05",
+      "reviewedCommit": "HEAD",
+      "sha256": "eecc308a4fb6e2768a11bb90611c05c39dca314cbee87a93ec07222185b0b9cc",
+      "snippets": [
+        {
+          "lang": "json",
+          "class": "transcluded",
+          "source": "demos/zero-bakeoff/protocol/environment.v2.json"
         }
       ]
     },
@@ -2299,17 +2626,20 @@
       ],
       "authorities": [
         "llp/0036-app-secrets-and-config.rfc.md",
+        "llp/0184-agent-accessible-control-plane.rfc.md",
+        "src/cli.rs",
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/index.mjs",
         "demos/all-aboard/snapback/functions.mjs",
         "demos/all-aboard/tests/acceptance/egress.mjs"
       ],
       "examples": [
-        "demos/all-aboard"
+        "demos/all-aboard",
+        "tests/config_set_cli_v0.rs"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "2ced65efc45a6223b3623ff4540591ee6c7e335de9692388a4dd804226b008a9",
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "c9af5600c82c30e6765b270fc10db368adf0dd5a",
+      "sha256": "364efb98b9729987a3565adc06dfe227e0ea2e7dd6540b8466702cc3d28d769b",
       "snippets": [
         {
           "lang": "js",
@@ -2371,19 +2701,35 @@
       ],
       "authorities": [
         "llp/0013-ephemeral-realtime-state.rfc.md",
+        "llp/0107-react-presence-and-optimistic-lifecycle.spec.md",
+        "llp/0114-first-class-react-and-query-groups.spec.md",
+        "llp/0184-agent-accessible-control-plane.rfc.md",
+        "src/admin.rs",
+        "src/ephemeral.rs",
+        "src/server.rs",
+        "src/cli.rs",
+        "packages/snapback-cli/mcp-control.mjs",
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/index.mjs",
         "packages/snapback-client/index.mjs",
-        "packages/snapback-contract/index.mjs"
+        "packages/snapback-contract/index.mjs",
+        "packages/snapback-react/index.mjs",
+        "packages/snapback-react/index.d.mts"
       ],
       "examples": [
         "demos/cursors-web",
-        "demos/todo-v2/snapback/schema.mjs"
+        "demos/todo-v2/snapback/schema.mjs",
+        "demos/messaging-snapback/src/lib/useTyping.ts"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "8ba0760d9beb6756d6581f8cb83f9ff36bfe09574d82315d50e6bc32bb0eeef6",
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "6e158169b3c908b8be149db4487a71dc35738470",
+      "sha256": "4d1b6b6edb088e618d4a595d00c124b2198c49f8527e32ca1e2032dc4a3c86fb",
       "snippets": [
+        {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "demos/messaging-snapback/src/lib/useTyping.ts"
+        },
         {
           "lang": "js",
           "class": "transcluded",
@@ -2431,7 +2777,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "687db916140b464ba0e34bdc1f5270937c094a7132b0b58f12f19a07cd67203e",
+      "sha256": "a566ee04e4dddc4487bf58d79af40afd7a330182ba38e1cd5a98dc8b8204faa9",
       "snippets": [
         {
           "lang": "js",
@@ -2489,7 +2835,7 @@
       ],
       "reviewed": "2026-08-04",
       "reviewedCommit": "HEAD",
-      "sha256": "110621f80326afdae3c86dbaff05125fb2e85705a80a43f720bcbc27a2730c97",
+      "sha256": "6f7365692af6e1a77dc0d9507f3ba57c8fa4b55407722aa1cc74482c743e6871",
       "snippets": [
         {
           "lang": "js",
@@ -2648,16 +2994,19 @@
       ],
       "authorities": [
         "llp/0013-ephemeral-realtime-state.rfc.md",
+        "llp/0107-react-presence-and-optimistic-lifecycle.spec.md",
         "packages/snapback-codegen/define.mjs",
-        "packages/snapback-client/index.mjs"
+        "packages/snapback-client/index.mjs",
+        "packages/snapback-react/index.mjs"
       ],
       "examples": [
         "demos/cursors-web",
-        "demos/todo-v2/snapback/schema.mjs"
+        "demos/todo-v2/snapback/schema.mjs",
+        "demos/messaging-snapback/src/lib/useTyping.ts"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "5b444604ca94c17a08b054adea82a529cfa8548da6c64cd049eb9f2b72aed6e0",
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "6e158169b3c908b8be149db4487a71dc35738470",
+      "sha256": "030ee1d6e45aa45a4a31a67f897a700466c2f5406481d60e500c5043da700eab",
       "snippets": [
         {
           "lang": "js",
@@ -2692,7 +3041,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "3109a3b4f5068595a71448b10788b56b4fa358f5",
-      "sha256": "16348b4e472f6302e8802aad9a010afea53a314b1f9a59737cbb9749fbec73cf",
+      "sha256": "a2c79123854809e3df37bda3a5cf18a423d71b9028add143a84d7cfba2ef6043",
       "snippets": []
     },
     "meta.surface-map": {
@@ -2716,7 +3065,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "7b467cf16",
-      "sha256": "033b7ee51fa0cae413ec5b7d4c5050e6e68a12b0d89b6136361c0212e928c82b",
+      "sha256": "444d167fabd203a62ba81f92d19cd674dce3cd50769d33576278d37f366dccd9",
       "snippets": []
     },
     "sync.offline-and-retention": {
@@ -2742,6 +3091,7 @@
         "llp/0110-bounded-children-and-activity-patterns.spec.md",
         "llp/0129-local-first-program.plan.md",
         "llp/0133-local-settlement.spec.md",
+        "llp/0135-sequence-allocation-and-snapshot-batch.spec.md",
         "llp/0157-composition-algebra-and-completeness.spec.md",
         "llp/0166-local-persistent-store.spec.md",
         "src/local-persistent-store-publication.v1.json",
@@ -2766,11 +3116,12 @@
         "demos/public-dashboard",
         "demos/warble",
         "packages/snapback-contract/agent-authority-contract.test.mjs",
-        "packages/snapback-react/offline.test.mjs"
+        "packages/snapback-react/offline.test.mjs",
+        "tests/acceptance/desktop-sidecar-v1.mjs"
       ],
-      "reviewed": "2026-08-05",
-      "reviewedCommit": "HEAD",
-      "sha256": "14d6debf73fe102b28786611c0781c98e8b4a00076a48acdb9df24dc536bac61",
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "711e4d763d87cadf0c638bd15ed33a85427e4f11",
+      "sha256": "36a9efc9968eba5ffecad0d544e9527d7c5db0af40f4780ebfc06bc0d1adf8b3",
       "snippets": [
         {
           "lang": "js",
@@ -2970,15 +3321,19 @@
       "clients.protocol",
       "clients.react",
       "clients.react-expo",
+      "clients.surfaces",
       "clients.swift",
       "deploy.cloudflare",
       "deploy.release-build",
       "deploy.target-control",
       "operating.admin-console",
+      "operating.agent-controls",
+      "operating.data-patch",
       "operating.diagnostics",
       "operating.guide-mcp",
       "operating.host-ops",
       "operating.inspect",
+      "operating.network-profiles",
       "operating.packaged-dev-loop",
       "operating.secrets-config",
       "operating.served-guide",
@@ -2988,6 +3343,7 @@
       "realtime.ephemeral",
       "realtime.live-queries",
       "realtime.snapshot-bundles",
+      "sync.local-persistent-store",
       "sync.offline",
       "testing.acceptance"
     ],
@@ -2995,21 +3351,21 @@
       "backend.bounded-children-v1",
       "backend.notifications",
       "backend.sequences",
+      "backend.structured-stored-fields",
       "backend.write-activity-v1",
       "clients.non-js",
       "clients.poll-hosted",
+      "operating.agent-safe-storage",
       "operating.declaration-conformance",
       "operating.instance-forks",
-      "operating.network-profiles",
-      "sync.local-persistent-store",
       "sync.offline-js-arm",
       "sync.offline-js-arm-protected",
       "sync.settlement-bounded-skew"
     ]
   },
   "surfaces": {
-    "routes": 111,
-    "hostOps": 37
+    "routes": 122,
+    "hostOps": 43
   },
-  "contentHash": "a4d70bcd73ebd82b332df4612713c319394dd54684eff8ae2023fdd53f7b145d"
+  "contentHash": "71c2c8843c4f72538b4cb5b299af33dcae32d828046db86b3f8878e284378137"
 }

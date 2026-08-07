@@ -100,6 +100,15 @@ The aggregate entries are symlinks into `vendor/llp` and
 skill changes; this repo also uses tracked Git hooks in `.githooks/` to refresh
 them after normal checkout/merge operations in this local clone.
 
+Activate the tracked hooks with `git config core.hooksPath .githooks` (a
+relative path keeps each linked worktree on its own checked-out hook). The
+pre-push hook runs only frozen-record gates selected by the committed paths
+being pushed. A deliberate emergency bypass must be exact and loud:
+`SNAPBACK_DRIFT_GATES_BYPASS=1 git push ...`. Never put that variable in shell
+startup files. The independent main detector is
+`node scripts/drift-prone-gates.mjs backstop`; it files one open `issues/`
+ticket per stale gate and does not duplicate a still-open ticket.
+
 The skills sync (and therefore the checkout/merge hooks) initializes only the
 small `vendor/llp` and `vendor/ccheever-skills` submodules. It deliberately does
 **not** auto-initialize `vendor/ibex`, which is a full Ibex runtime checkout that
@@ -113,6 +122,18 @@ silent wedge trap (ENG-22659).
 
 - Read relevant LLP documents before implementing features or fixing bugs in
   the areas they cover.
+- Landings that add test files, metadata-declared demos, or generated
+  publication leaves run `node scripts/check-inventories.mjs` before pushing.
+- **`main` moves fast — often continuously for days.** Many concurrent agent
+  sessions push to it around the clock. Do not design processes, gates, or
+  qualification loops that depend on `main` being quiet for hours at a time
+  (for example, "review, then re-verify against exact HEAD, then measure
+  before landing" — newer commits will land mid-loop and starve it; the
+  Track B C27–C33 loop of 2026-08-05/06 is the cautionary case). Prefer
+  designs that land promptly after review and run remaining verification
+  against the landed commit, keeping any capability claim gated on the
+  post-landing result. Expect to `git fetch` + rebase right before every
+  push, and to retry.
 - Agents may use the machine fleet documented in
   `~/Dropbox/APIKeys/MACHINE_FLEET.md` to speed up development. Read that file
   for current availability, capabilities, and SSH commands. Prefer an

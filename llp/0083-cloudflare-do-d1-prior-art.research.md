@@ -1,11 +1,15 @@
-# LLP 0083: Cloudflare Durable Objects and D1 as prior art — with Rivet, the open counterpart
+# LLP 0083: Cloudflare Durable Objects and D1 as prior art — with Rivet and celld, the open counterparts
 
 **Type:** Research
 **Status:** Draft
 **Systems:** Deployment, Storage, Realtime, Runtime, Sync, Competitive analysis
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-23
-**Related:** LLP 0000, LLP 0001, LLP 0003, LLP 0007, LLP 0008, LLP 0013, LLP 0014, LLP 0018, LLP 0022, LLP 0028, LLP 0070, https://blog.cloudflare.com/sqlite-in-durable-objects/, https://github.com/rivet-dev/rivet
+**Revised:** 2026-08-06 (celld addendum: Deno's self-hosted Workers/DO
+implementation added beside Rivet as a second open counterpart — stronger on
+the API-compatibility axis; its LTX replication lane is extracted into
+LLP 0188 as a concrete proposal)
+**Related:** LLP 0000, LLP 0001, LLP 0003, LLP 0007, LLP 0008, LLP 0013, LLP 0014, LLP 0018, LLP 0022, LLP 0028, LLP 0070, LLP 0188, https://blog.cloudflare.com/sqlite-in-durable-objects/, https://github.com/rivet-dev/rivet, https://github.com/denoland/celld
 
 ## Summary
 
@@ -288,6 +292,53 @@ acceptance surface — the distance from actor runtime to reactive backend
 is Snapback's product layer, stated twice over by the two closest
 platforms.
 
+### celld — Deno's self-hosted implementation of the actual DO API *(added 2026-08-06)*
+
+celld (github.com/denoland/celld; Apache-2.0; ~1.6k stars at fetch;
+announced by Ryan Dahl) is "self-hosted, distributed Durable Objects": a
+Rust + Tokio daemon embedding V8 that runs **the actual Cloudflare
+Workers/DO JavaScript APIs and wrangler config** — not a DO-*like* actor
+model. Each object ("cell") is its own SQLite database replicated
+continuously to an operator-owned S3-compatible bucket as LTX segments
+(Litestream's v0.5 replica format); nodes coordinate through the bucket
+alone — ownership is a lease claimed by one atomic compare-and-swap write,
+with no control plane and no consensus. Writes are acknowledged only after
+the bucket holds them (RPO=0, ~90 ms durable-write cost); failover is
+another node winning the lease and restoring from LTX (~20 s); a live cell
+costs ~4 MB of memory and a hibernated one only its S3 storage. Supported
+surface: module Workers, DO SQLite storage, alarms, hibernatable inbound
+WebSockets, service bindings, JS RPC, `vars`, static assets, WASM.
+Missing: `scheduled` (cron), KV, R2, Queues, Cache API, HTMLRewriter, TCP
+sockets; `routes`/`triggers` config keys are deploy errors. Deploys are
+content-addressed in the bucket (manifest + sha256 asset blobs + a
+`deploy/current.json` fleet pointer carrying a rollout percentage). The
+README calls the runtime and compatibility surface "still evolving"; the
+limitations page concedes no multi-tenancy, no managed ingress, no global
+placement, manual updates, and WebSockets that do not survive cell
+migration. [confirmed — github.com/denoland/celld README + docs
+(cloudflare-compat.md, limitations.md), celld.dev, fetched **2026-08-06**]
+
+**[inferred]** Four roles for Snapback. (1) *The stronger lock-in
+counterweight:* where Rivet clones the primitive with its own API, celld
+implements the API Snapback's Cloudflare port is written against —
+`cloudflare/src` (gateway + coordinator DO + handler Worker, wrangler.jsonc
+in hand) needs exactly the surface celld supports, with cron the main gap.
+A cheap spike could run the notes bundle under celld against MinIO, and the
+LLP 0048 conformance twin could test celld as a third leg; this materially
+strengthens the LLP 0086 §CC-2a lock-in accounting for the LLP 0014 door-2
+re-ratification, beyond what Rivet's optionality offered. (2) *A liftable
+replication lane:* celld's `crates/ltx` is a conformance-tested Rust port
+of Litestream v0.5 — extracted into **LLP 0188** as the proposed
+implementation of continuous SQLite replication and LLP 0099's streaming
+pre-apply checkpoint. (3) *A minimalist coordination benchmark:*
+bucket-as-coordinator (CAS leases, no control plane) is the simplicity bar
+against which LLP 0072's control-plane machinery should periodically be
+justified. (4) *Boundary marker, again:* like Rivet and the Agents SDK,
+celld stops at "object with a database" — no schema'd live queries, no
+permission-checked sync, no acceptance surface. Same discipline as Facets
+(LLP 0087): prior art, spike, and code-lift material today, not a
+rearchitecture trigger.
+
 ## Synthesis — cross-cutting
 
 1. **The ratified DO bet is validated from three directions.** [inferred]
@@ -348,10 +399,13 @@ platforms.
   wrap it, parallel it, or ignore it; its hibernation bounds (16 KB
   attachments, state reset on wake) constrain any choice. →
   [LLP 0013](./0013-ephemeral-realtime-state.rfc.md).
-- **Rivet as an eventual second hosted target** — real optionality, young
-  substrate; decide against a concrete need, not preemptively. →
+- **Rivet or celld as an eventual second hosted target** — real
+  optionality, young substrates; decide against a concrete need, not
+  preemptively. celld leads on API compatibility (runs the Workers/DO
+  surface `cloudflare/src` already targets); Rivet leads on placement
+  maturity (live migration, multi-region). →
   [LLP 0014](./0014-cloudflare-strategy.rfc.md),
-  [LLP 0033](./0033-license-posture.decision.md).
+  [LLP 0033](./0033-license-posture.decision.md), LLP 0188.
 
 **Avoid / the platform hit this wall:**
 

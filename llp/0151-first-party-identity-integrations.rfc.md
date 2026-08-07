@@ -8,7 +8,7 @@ OpenAI Codex (`gpt-5.6-sol`) and a non-author Fable context (rounds 1–2, per
 Charlie's direction that the other family participate in the design, not
 only review it)
 **Date:** 2026-08-02
-**Revised:** 2026-08-03 (decision-sitting propagation: the two remaining
+**Revised:** 2026-08-06 (sitting #4: wave-4 deferral of the generated-domain passkeys tier and shared-delivery questions AFFIRMED; decided together at wave-4 kickoff.) 2026-08-03 (decision-sitting propagation: the two remaining
 residual questions — generated-domain passkeys tier and Expo-hosted
 shared email/SMS delivery for generated domains — are deferred to the
 wave-4 kickoff with their context recorded; see the dated note in §Open

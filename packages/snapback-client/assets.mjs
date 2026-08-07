@@ -19,13 +19,14 @@
 // create, TUS transfer, finalize, metadata, delivery-adjacent reads —
 // carries `authorization: Bearer` exactly like the client's own request
 // lane, and the asset route family's `OptionalSessionBearer` overlay
-// resolves the caller. Without a credential the dev-lane header is sent;
-// note the dev-mode HTTP body-authority gap recorded by the conformance
-// suite (asset request DTOs carry no dev auth member, so dev-lane HTTP
-// requests resolve anonymous server-side today). The reserved record
-// projection rides `SnapbackClient.subscribeLive`, whose custody the parent
-// client owns; sessions-mode establishment of that projection is refused
-// server-side until its LLP 0053 classification lands (W2e).
+// resolves the caller. Declared anonymous-public custody carries the same
+// auth-client protocol offer without a credential. A bare no-custody client
+// retains the empty dev-lane fallback; asset request DTOs carry no dev auth
+// member, so those HTTP requests resolve anonymous server-side today. The
+// reserved record projection rides `SnapbackClient.subscribeLive`, whose
+// custody the parent client owns; sessions-mode establishment of that
+// projection is refused server-side until its LLP 0053 classification lands
+// (W2e).
 
 // Digest custody: node:crypto streams when the runtime provides it; browser
 // bundles (the first real Vite build of a demo surface caught this — diary
@@ -188,7 +189,7 @@ function intentIdentity(upload) {
     // the generated reference carries the required policy and implementation
     // identities.
     throw new TypeError(
-      `start requires the generated upload reference (api.${upload}), not the intent name string — the reference carries the policy and implementation identity the server admits against`,
+      `start requires the generated upload reference (api.${upload}), not its name string; it carries policy/implementation identity`,
     );
   }
   if (
@@ -218,6 +219,12 @@ function sha256Hex(bytes) {
 
 function sha256Base64(bytes) {
   return createHash().update(bytes).digest('base64');
+}
+
+function transferError(status) {
+  const error = new Error(`asset transfer failed: ${status}`);
+  error.diagnostic = { code: 'SNAPBACK_ASSET_TRANSFER_FAILED', status };
+  return error;
 }
 
 /** In-memory default store for persisted resume facts. */
@@ -327,12 +334,21 @@ export class SnapbackAssetClient {
   #client;
   #taskStore;
   #chunkBytes;
+  #fetch;
   #tasks = new WeakMap();
 
-  constructor(client, { taskStore = null, chunkBytes = DEFAULT_CHUNK_BYTES } = {}) {
+  constructor(client, {
+    taskStore = null,
+    chunkBytes = DEFAULT_CHUNK_BYTES,
+    fetch: fetchOverride = null,
+  } = {}) {
+    if (fetchOverride !== null && typeof fetchOverride !== 'function') {
+      throw new TypeError('asset client fetch adapter must be a function');
+    }
     this.#client = client;
     this.#taskStore = taskStore ?? createMemoryAssetTaskStore();
     this.#chunkBytes = chunkBytes;
+    this.#fetch = fetchOverride ?? ((...args) => fetch(...args));
   }
 
   /** Persisted-fact partition: app (base URL) + authority identity. */
@@ -346,25 +362,77 @@ export class SnapbackAssetClient {
    * wins; the dev-lane header is the no-credential fallback and never
    * overrides a real credential.
    */
-  #custodyHeaders(userId) {
+  #custodyHeaders(
+    userId,
+    authorityCapture = undefined,
+    externalTransportGeneration = undefined,
+  ) {
+    // @ref LLP 0096#2-per-profile-contract — the parent client's auth/rr
+    // offer repeats on every asset boundary; the offer is not a credential.
+    const authClientProtocol = this.#client.authProtocols?.authClient ?? null;
+    const protocolHeaders = authClientProtocol === null
+      ? {}
+      : { 'x-snapback-auth-client-protocol': String(authClientProtocol) };
+
     // A sessions request must offer the exact auth-client protocol beside
-    // its credential (the server refuses a bare bearer).
+    // its credential (the server refuses a bare bearer). The v1 fallback
+    // preserves the existing shallow-adapter behavior; SnapbackClient owns
+    // and exposes the protocol projection used by normal parent clients.
     const bearerHeaders = (bearer) => ({
       authorization: `Bearer ${bearer}`,
-      'x-snapback-auth-client-protocol': '1',
+      ...(authClientProtocol === null
+        ? { 'x-snapback-auth-client-protocol': '1' }
+        : protocolHeaders),
     });
     const fence = this.#client.authorityFence;
     if (fence) {
       try {
-        const bearer = fence.credentialFor(fence.capture()).bearer;
+        const capture = authorityCapture === undefined ? fence.capture() : authorityCapture;
+        const current = typeof fence.isCurrent === 'function'
+          ? fence.isCurrent(capture) === true
+          : authorityCapture === undefined;
+        if (capture === null || !current) {
+          const error = new Error('asset task authority was replaced');
+          error.code = 'SNAPBACK_CLIENT_AUTHORITY_STALE';
+          error.diagnostic = {
+            code: error.code,
+            message: error.message,
+            details: { effectCommitted: false },
+          };
+          throw error;
+        }
+        const bearer = fence.credentialFor(capture).bearer;
         if (bearer) return bearerHeaders(bearer);
-      } catch {
+      } catch (error) {
+        if (authorityCapture !== undefined) throw error;
         // No current credential — fall through to the dev-lane posture.
       }
     }
     const external = this.#client.bearerToken;
+    if (
+      externalTransportGeneration !== undefined
+      && (
+        this.#client.__externalBearerTransition !== null
+        || this.#client.__authTransportGeneration !== externalTransportGeneration
+      )
+    ) {
+      const error = new Error('asset task external authority was replaced');
+      error.code = 'SNAPBACK_CLIENT_AUTHORITY_STALE';
+      error.diagnostic = {
+        code: error.code,
+        message: error.message,
+        details: { effectCommitted: false },
+      };
+      throw error;
+    }
     if (typeof external === 'string' && external.length > 0) {
       return bearerHeaders(external);
+    }
+    // @ref LLP 0176#one-owner-many-projections — anonymous-public is the
+    // parent's declared credential-free auth/rr projection, not an asset-only
+    // identity. Bare clients below must remain the offerless dev fallback.
+    if (this.#client.custody === 'anonymous-public') {
+      return protocolHeaders;
     }
     // Dev-lane HTTP asset requests resolve anonymously today: no server
     // route reads a dev identity header, and TUS PATCH bodies are raw bytes
@@ -375,12 +443,16 @@ export class SnapbackAssetClient {
     return {};
   }
 
-  async #json(method, path, body, { userId = null } = {}) {
+  async #json(method, path, body, {
+    userId = null,
+    authorityCapture = undefined,
+    externalTransportGeneration = undefined,
+  } = {}) {
     const headers = {
       'content-type': 'application/json',
-      ...this.#custodyHeaders(userId),
+      ...this.#custodyHeaders(userId, authorityCapture, externalTransportGeneration),
     };
-    const response = await fetch(`${this.#client.baseUrl}${path}`, {
+    const response = await this.#fetch(`${this.#client.baseUrl}${path}`, {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -407,6 +479,8 @@ export class SnapbackAssetClient {
     declaredFilename = null,
     declaredContentType = null,
     previewUrl = null,
+    authorityCapture = undefined,
+    externalTransportGeneration = undefined,
   }) {
     assertFileLike(file);
     const identity = intentIdentity(upload);
@@ -424,6 +498,8 @@ export class SnapbackAssetClient {
       offset: 0,
       wholeHash: createHash('sha256'),
       transfer: null,
+      authorityCapture,
+      externalTransportGeneration,
     });
     void this.#start(task);
     return task;
@@ -445,7 +521,11 @@ export class SnapbackAssetClient {
           declaredContentType: state.declaredContentType,
           ...(state.retryOfAssetId ? { retryOfAssetId: state.retryOfAssetId } : {}),
         },
-        { userId: state.userId },
+        {
+          userId: state.userId,
+          authorityCapture: state.authorityCapture,
+          externalTransportGeneration: state.externalTransportGeneration,
+        },
       );
       state.transfer = created.transfer;
       task._apply({
@@ -517,17 +597,23 @@ export class SnapbackAssetClient {
     try {
       if (state.offset === null) {
         // Resume: the acknowledged offset is the server's fact.
-        const head = await fetch(
+        const head = await this.#fetch(
           `${this.#client.baseUrl}${state.transfer.uploadUrl}`,
           {
             method: 'HEAD',
             headers: {
               'tus-resumable': TUS_VERSION,
-              ...this.#custodyHeaders(state.userId),
+              ...this.#custodyHeaders(
+                state.userId,
+                state.authorityCapture,
+                state.externalTransportGeneration,
+              ),
             },
           },
         );
-        if (!head.ok) throw new Error(`resume HEAD failed: ${head.status}`);
+        if (!head.ok) {
+          throw transferError(head.status);
+        }
         state.offset = Number(head.headers.get('upload-offset') ?? '0');
         state.wholeHash = createHash('sha256');
         if (state.offset > 0) {
@@ -556,7 +642,7 @@ export class SnapbackAssetClient {
         const bytes = await chunkBytesOf(state.file.slice(state.offset, end));
         const controller = new AbortController();
         task._bindAbort(controller);
-        const response = await fetch(
+        const response = await this.#fetch(
           `${this.#client.baseUrl}${state.transfer.uploadUrl}`,
           {
             method: 'PATCH',
@@ -567,15 +653,17 @@ export class SnapbackAssetClient {
               'upload-offset': String(state.offset),
               // The conformance requirement: every PATCH carries a checksum.
               'upload-checksum': `sha256 ${sha256Base64(bytes)}`,
-              ...this.#custodyHeaders(state.userId),
+              ...this.#custodyHeaders(
+                state.userId,
+                state.authorityCapture,
+                state.externalTransportGeneration,
+              ),
             },
             body: bytes,
           },
         );
         if (!response.ok) {
-          throw Object.assign(new Error(`TUS PATCH failed: ${response.status}`), {
-            diagnostic: { code: 'SNAPBACK_ASSET_TRANSFER_FAILED', status: response.status },
-          });
+          throw transferError(response.status);
         }
         state.wholeHash.update(bytes);
         state.offset = Number(
@@ -592,7 +680,11 @@ export class SnapbackAssetClient {
           lifecycleGeneration: 1,
           declaredDigest: state.wholeHash.digest('hex'),
         },
-        { userId: state.userId },
+        {
+          userId: state.userId,
+          authorityCapture: state.authorityCapture,
+          externalTransportGeneration: state.externalTransportGeneration,
+        },
       );
       const availability = finalized.task.availability;
       task._apply({
@@ -624,7 +716,11 @@ export class SnapbackAssetClient {
             lifecycleGeneration: 1,
             discardAsset,
           },
-          { userId: this.#tasks.get(task)?.userId ?? null },
+          {
+            userId: this.#tasks.get(task)?.userId ?? null,
+            authorityCapture: this.#tasks.get(task)?.authorityCapture,
+            externalTransportGeneration: this.#tasks.get(task)?.externalTransportGeneration,
+          },
         );
       }
     } finally {
@@ -661,13 +757,8 @@ export class SnapbackAssetClient {
   }
 
   /** One authorized metadata read. */
-  record(assetId, { userId = null } = {}) {
-    return this.#json(
-      'GET',
-      `/assets/records/${encodeURIComponent(assetId)}`,
-      undefined,
-      { userId },
-    );
+  record(assetId) {
+    return this.#json('GET', `/assets/records/${encodeURIComponent(assetId)}`);
   }
 
   /**
@@ -697,6 +788,20 @@ export class SnapbackAssetClient {
       return `${base}?maxWidth=${maxWidth}`;
     }
     return base;
+  }
+
+  /** A pasteable public-immutable rendition URL. The caller selects one
+   * concrete ready variant from the authorized record projection first. */
+  publicDeliveryUrl(assetId, { variant = 'primary', width = null } = {}) {
+    if (typeof variant !== 'string' || variant.length === 0 || variant === 'best') {
+      throw new TypeError('publicDeliveryUrl requires a concrete rendition variant');
+    }
+    const base = `${this.#client.baseUrl}/assets/public/${encodeURIComponent(assetId)}/${encodeURIComponent(variant)}`;
+    if (width === null) return base;
+    if (!Number.isSafeInteger(width) || width <= 0) {
+      throw new TypeError('publicDeliveryUrl width must be a positive integer');
+    }
+    return `${base}?width=${width}`;
   }
 
   /**

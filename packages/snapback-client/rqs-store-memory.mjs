@@ -15,6 +15,7 @@ import {
   outboxOps,
   pendingAcknowledgementsFor,
   pendingOutboxRecords,
+  unresolvedOutboxRecords,
 } from './outbox-shared.mjs';
 import {
   prepareReactBindingReceipt,
@@ -97,7 +98,7 @@ export function createMemoryRqsResumeStore({
     async outboxEmpty() {
       requireOpen();
       if (relaunchOutboxEmpty !== null && (await relaunchOutboxEmpty()) !== true) return false;
-      return pendingOutboxRecords(state.outbox).length === 0;
+      return unresolvedOutboxRecords(state.outbox).length === 0;
     },
 
     async loadReactBindingReceipt() {
@@ -280,6 +281,47 @@ export function createMemoryRqsResumeStore({
       return structuredClone(applied.result);
     },
 
+    async outboxEnqueueWithOperationIdentity(record, authorityCohortKey, range = null) {
+      if (!requireWriter()) throw outboxNotWriterError();
+      const applied = outboxOps.enqueueWithOperationIdentity(
+        state.outbox,
+        record,
+        now(),
+        authorityCohortKey,
+        range,
+      );
+      state.outbox = applied.state;
+      return structuredClone(applied.result);
+    },
+
+    async outboxAssignOperationIdentity(
+      id,
+      authorityCohortKey,
+      range = null,
+      authorityDescriptor = undefined,
+      authorityPrincipalId = undefined,
+    ) {
+      if (!requireWriter()) return false;
+      const applied = outboxOps.assignOperationIdentity(
+        state.outbox,
+        id,
+        now(),
+        authorityCohortKey,
+        range,
+        authorityDescriptor,
+        authorityPrincipalId,
+      );
+      state.outbox = applied.state;
+      return structuredClone(applied.result);
+    },
+
+    async outboxOperationIdentityRange(authorityCohortKey) {
+      requireOpen();
+      return structuredClone(
+        outboxOps.operationIdentityRange(state.outbox, authorityCohortKey).result,
+      );
+    },
+
     async outboxPending() {
       requireOpen();
       return structuredClone(pendingOutboxRecords(state.outbox));
@@ -323,6 +365,27 @@ export function createMemoryRqsResumeStore({
       const applied = outboxOps.markFailed(state.outbox, id, failure);
       state.outbox = applied.state;
       return applied.result;
+    },
+
+    async outboxMarkQuarantined(id, refusal) {
+      if (!requireWriter()) return false;
+      const applied = outboxOps.markQuarantined(state.outbox, id, refusal, now());
+      state.outbox = applied.state;
+      return structuredClone(applied.result);
+    },
+
+    async outboxReenterQuarantined() {
+      if (!requireWriter()) return false;
+      const applied = outboxOps.reenterQuarantined(state.outbox);
+      state.outbox = applied.state;
+      return structuredClone(applied.result);
+    },
+
+    async outboxMarkResultGone(id, resultGone) {
+      if (!requireWriter()) return false;
+      const applied = outboxOps.markResultGone(state.outbox, id, resultGone);
+      state.outbox = applied.state;
+      return structuredClone(applied.result);
     },
 
     async outboxDiscard(id) {
@@ -370,6 +433,10 @@ export function createMemoryRqsResumeStore({
         outbox: Object.freeze({
           pending: pendingOutboxRecords(state.outbox).length,
           failed: allOutboxRecords(state.outbox).filter((r) => r.status === 'failed').length,
+          quarantined: allOutboxRecords(state.outbox)
+            .filter((r) => r.status === 'quarantined').length,
+          resultGone: allOutboxRecords(state.outbox)
+            .filter((r) => r.status === 'result-gone').length,
           pendingAcknowledgements: state.outbox.acks.length,
         }),
       });

@@ -16,7 +16,9 @@ import { generate } from './index.mjs';
 import { createCodegenSummary } from './codegen-summary.mjs';
 import {
   CUSTODY,
+  artifactConsumer,
   codegenCacheGraphRoot,
+  logicalArtifactKind,
   resolveGeneratedArtifact,
   validateReviewManifest,
   verifyGeneratedGraph,
@@ -138,6 +140,12 @@ try {
     && consumer.length > 0
     && regeneration.rule === 'complete-inputs-hash'
   )));
+  const digest = '0'.repeat(64);
+  assert.equal(logicalArtifactKind(`app.descriptor.${digest}.json`), 'app-descriptor');
+  assert.equal(artifactConsumer(`app.descriptor.${digest}.json`), 'client-bundler');
+  assert.equal(logicalArtifactKind(`app.binding.${digest}.mjs`), 'typed-app-descriptor');
+  assert.equal(artifactConsumer(`app.binding.${digest}.mjs`), 'client-bundler');
+  assert.equal(logicalArtifactKind(`app.binding.${digest.slice(1)}.mjs`), 'generated-projection');
   const traversalManifest = structuredClone(first.artifactIndex);
   traversalManifest.inputsHash = '..';
   traversalManifest.cache.key = '..';

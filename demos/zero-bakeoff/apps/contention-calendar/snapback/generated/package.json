@@ -4,6 +4,11 @@
       "types": "./api.d.ts",
       "import": "./api.mjs"
     },
+    "./app": {
+      "types": "./app.d.ts",
+      "import": "./app.mjs"
+    },
+    "./app-descriptor": "./app.descriptor.json",
     "./capabilities": "./capability.manifest.json",
     "./contract/*": "./contract/*",
     "./functions": "./functions.manifest.json",

@@ -55,6 +55,8 @@ export const APP_DATA_CLIENT_METHODS = Object.freeze([
   'markMutationSettlementsConsumed',
   'acknowledgeMutations',
   'replayQueuedMutations',
+  'quarantinedMutations',
+  'reenterQuarantinedMutations',
   'outboxStatus',
   'authorizedLeaseQuery',
   'fetchBundle',

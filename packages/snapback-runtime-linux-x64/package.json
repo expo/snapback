@@ -5,7 +5,9 @@
   "description": "Prebuilt Snapback server and Hermes runtime for x86-64 Linux.",
   "files": [
     "bin",
-    "lib"
+    "lib",
+    "include",
+    "runtime-readiness.json"
   ],
   "exports": {
     "./package.json": "./package.json"

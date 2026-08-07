@@ -2,27 +2,17 @@
   "schemaVersion": "snapback.local-persistent-store.bundle-attribution.v1",
   "date": "2026-08-04",
   "source": {
-    "revision": "779c4f16985d375d66a6a52b2a9932cfb8386de7",
-    "dirty": true,
-    "dirtyPaths": [
-      "demos/latency-kanban/snapback/generated/artifacts.json",
-      "demos/latency-kanban/snapback/trusted-composition-activation.json",
-      "demos/triage-graph/snapback/generated/artifacts.json",
-      "demos/triage-graph/snapback/trusted-composition-activation.json",
-      "tests/acceptance/fixtures/latency-kanban/move3-exit.2026-08-04.r2.v1.json",
-      "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json",
-      "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json",
-      "tests/acceptance/latency-kanban-move3-v1-evidence.md",
-      "tests/acceptance/triage-graph-move1-v1-evidence.md"
-    ],
+    "revision": "cff30e35d2afcfddc79e41a8bac3847bf39cdeee",
+    "dirty": false,
+    "dirtyPaths": [],
     "files": [
       {
         "path": "tests/acceptance/local-store-carrier-exit-v1.mjs",
-        "sha256": "51ebd449aa5bc8c0475669ad2379de71ad030103b2c00077d3949071ee01e172"
+        "sha256": "3fb7a447d8e865cc36d4550842056bb859c6bdef21c584eeb2a42d1af672af09"
       },
       {
         "path": "packages/snapback-client/materialization-store.mjs",
-        "sha256": "e490cd25fba95521c3e0fc2f79d83bbead1f3b33f4e6fa1ab155e4e058c0717e"
+        "sha256": "34ebc65b3632869e39fd9587bd79a36e0a85316c4c660d8f1b12497668652310"
       },
       {
         "path": "packages/snapback-client/materialization-bridge.mjs",
@@ -70,15 +60,15 @@
       },
       {
         "path": "packages/snapback-client/index.mjs",
-        "sha256": "6acd1442fcf0e3dd5de640c92e83097957f18491517b6e12a83045e481ac17f0"
+        "sha256": "080b79a82ba3caf6d108c2296a581c43de0f0ee82bdfa8f54763413aafcff0af"
       },
       {
         "path": "packages/snapback-client/rqs-store.mjs",
-        "sha256": "5fba579c021d37d214e210ebe83c1306700e44c3a6073910317dd9ddda9abedf"
+        "sha256": "1f8cd7e5aad078e86abdda7fca5bb50fe6c23a9b12120eb2b35484918b17fc10"
       },
       {
         "path": "packages/snapback-client/rqs-store-file.mjs",
-        "sha256": "d42f53ecb01ffc7251d328f09f82b7b730d23f46761ca367f8e6988694248fcd"
+        "sha256": "f7ac4801c6542ed92203af4ce7e6849d3ca93eaca4fe1c429085c361604c0eb4"
       },
       {
         "path": "packages/snapback-contract/auth-coordinator.mjs",
@@ -106,11 +96,11 @@
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json",
-        "sha256": "8461e55974de124eb4aa792d3ec05c3757fe41fa8975c131fc16e2ff6002e565"
+        "sha256": "db3917debbf9ee080e198e76c3af76477711bb92aa1409c4278d36a33198d69d"
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json",
-        "sha256": "185204266b382d1234a5465773a1c8a805dc048f07ec025009def7895e3faac0"
+        "sha256": "74c22a2de7a6d4345d42ccba6f65e01712d3d46b8ea6d3fae7ffab61aeaf9704"
       }
     ]
   },
@@ -134,38 +124,38 @@
     "external": []
   },
   "output": {
-    "minifiedBytes": 624160,
-    "gzipBytes": 173463,
-    "brotliBytes": 140669,
-    "sha256": "4434492865a0d5faa932ecf9978e03eaa6f4e2a66c021af0757b5d3e86401e1f"
+    "minifiedBytes": 688504,
+    "gzipBytes": 191344,
+    "brotliBytes": 153931,
+    "sha256": "28fdffd85404c669d69f8857029ffebd6e3d7a25caea181ddeb924f76b617629"
   },
   "modules": [
     {
       "module": "materialization-store",
       "path": "packages/snapback-client/materialization-store.mjs",
-      "sourceBytes": 85606,
-      "minifiedModuleOwnBytes": 45531,
-      "sourceSha256": "e490cd25fba95521c3e0fc2f79d83bbead1f3b33f4e6fa1ab155e4e058c0717e"
+      "sourceBytes": 85627,
+      "minifiedModuleOwnBytes": 45528,
+      "sourceSha256": "34ebc65b3632869e39fd9587bd79a36e0a85316c4c660d8f1b12497668652310"
     },
     {
       "module": "materialization-bridge",
       "path": "packages/snapback-client/materialization-bridge.mjs",
       "sourceBytes": 17969,
-      "minifiedModuleOwnBytes": 10599,
+      "minifiedModuleOwnBytes": 10598,
       "sourceSha256": "5e8681971300b089e29b43b1ecd1bf4b3f7ad0ce7966e2dfc5a6f69d4cda27a1"
     },
     {
       "module": "registration-ledger",
       "path": "packages/snapback-client/registration-ledger.mjs",
       "sourceBytes": 38537,
-      "minifiedModuleOwnBytes": 19308,
+      "minifiedModuleOwnBytes": 19275,
       "sourceSha256": "620ee29ef2cbf27a1c08d65ec99049618743668bf1009b2c84e880e72b785989"
     },
     {
       "module": "demand-broker",
       "path": "packages/snapback-client/demand-broker.mjs",
       "sourceBytes": 30790,
-      "minifiedModuleOwnBytes": 15788,
+      "minifiedModuleOwnBytes": 15847,
       "sourceSha256": "bcae730e18c5a9f45b74ea205c32837d37a1e162bfd029674471e807076755ba"
     },
     {
@@ -204,12 +194,12 @@
       "sourceSha256": "a28a5013b99f7373f991c9decb4bfbc7c4ccc77bee47642bd2d0b831fd83e3f9"
     }
   ],
-  "totalMeasuredModuleOwnBytes": 112221,
+  "totalMeasuredModuleOwnBytes": 112243,
   "browserClosureQualification": {
     "status": "PASS",
     "materializationStoreResolved": true,
     "resolved": true,
-    "outputBytes": 73221,
+    "outputBytes": 73241,
     "externalImports": []
   }
 }

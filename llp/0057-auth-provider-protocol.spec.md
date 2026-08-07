@@ -5,7 +5,10 @@
 **Systems:** Auth, Storage, Security, API, Admin API, Backup/restore, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-08-01 (LLP 0148 prefixed identifiers: the four catalog object
+**Revised:** 2026-08-06 (dated amendment drafted at the author's
+direction and ratified by the author the same day: LTX-boundary capture
+discipline as a second admissible physical-capture form for the auth
+unit, per LLP 0188). 2026-08-01 (LLP 0148 prefixed identifiers: the four catalog object
 ids are respelled `usr_`/`idn_`/`ses_`/`aut_`, `usr_` gains a random body, both
 spellings stay readable, and no catalog version is taken — see the dated
 amendment). 2026-07-26 (capture-only provider ergonomics: `dev` and `demo`
@@ -1811,6 +1814,47 @@ Snapback itself wrote as corrupt.
 rest on digest resolution and the cross-table absence check, not on id shape.
 Prefixes are advisory (LLP 0148 §D4) and no authorization, resolution, or
 fencing decision reads one.
+
+## Dated amendment: LTX-boundary capture discipline (2026-08-06, ratified by the author 2026-08-06)
+
+[LLP 0188](./0188-ltx-sqlite-replication.rfc.md) (Accepted 2026-08-06)
+builds continuous LTX replication of the instance database — which contains
+this Spec's `_auth_*` catalog — and composes restores with this Spec's
+declared-restore obligations. Its restore pairs a retained LTX transaction
+boundary with the keyring snapshot governing that boundary, which security
+boundary 4 ("one quiescence boundary") and §Consistent backup's raw-copy
+exclusion do not admit as written. Recorded here because this Spec is
+Accepted and LLP 0188 may not silently reinterpret it. Drafted at the
+author's direction and ratified by the author in-session 2026-08-06.
+
+**What changes.** A second physical-capture discipline is admissible for
+the auth unit: a database materialized by LTX restore at a **retained
+transaction boundary within LLP 0188's restorable frontier**, paired with
+the **governing keyring snapshot** selected through LLP 0188 §2's
+head-committed coverage chain. The consistency-equivalence argument,
+accepted with this amendment: an LTX restore is transactionally exact at a
+commit boundary — unlike the fuzzy raw copy the exclusion targets — and
+the frontier's ordering invariant (keyring snapshot durable before any
+dependent frame counts as replicated) guarantees the governing keyring is
+at least as fresh as any `key_id` the boundary's catalog rows can
+reference, with §Restore's missing-`key_id` check still failing closed on
+any gap.
+
+**What does not change:**
+
+- **Boundary 4 for the quiesced lane.** `snapback auth backup` and its
+  single-quiescence-boundary contract are untouched; the LTX discipline is
+  additional, not a replacement.
+- **The raw-copy exclusion.** A raw `cp` of database/WAL/keyring while the
+  server runs remains explicitly not a Snapback backup; the LTX discipline
+  qualifies only through LLP 0188's verified restore path (integrity
+  check, checksum continuity, lineage binding).
+- **Declared restore.** Every obligation of §Restore applies unchanged to
+  an LTX-materialized instance: the output is non-servable until the
+  declared-restore composition runs (bulk session revocation, challenge
+  purge, `--restored-from-backup`), exactly as LLP 0188 §6 already
+  requires. The "undeclared restore can resurrect backed-up sessions"
+  residual gains no new surface.
 
 ## Open questions
 

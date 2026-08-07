@@ -14,38 +14,33 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-04
-reviewed-commit: HEAD
+reviewed: 2026-08-06
+reviewed-commit: 850427c31b9a668d55b46995e08389cd13a2c9b6
 ---
 
 # Capability index
 
 <!-- @ref LLP 0061#2-the-capability-index-registry-lite-with-witnesses — witnesses, GAP rows, and the joined surfaces -->
 
-Every author-facing capability Snapback has. **GAP** rows make missing coverage
-explicit and owned. Shipped rows carry a code **witness**. The
-[surface map](./surface-map.md)
-classifies the machine-enumerable route and host-op registries;
-`scripts/check-guide.mjs` joins it to code so shipped surfaces cannot silently
-disappear.
-
-`ccheever` owns this guide. Track gaps in Exact Linear issues labeled `Snapback`
-and `guide-gap`.
+All author-facing capabilities. **GAP** rows are owned; shipped rows need a
+**witness**. The [surface map](./surface-map.md) is checked against route and
+host-op registries. Owner: `ccheever`; label gaps `guide-gap`.
 
 ## Capabilities
 
 | id | What | Aliases | Targets | Maturity | Witness | Authorities | Page |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| backend.schema | Declare tables, fields, indexes, sync | schema, tables, model | local | shipped | `defineSchema` in packages/snapback-codegen/define.mjs | llp/0037, llp/0004 | getting-started/your-first-backend.md |
+| backend.schema | Declare tables, fields, indexes, sync | schema, tables, model, field validators, v.json | local | shipped | `defineSchema` in packages/snapback-codegen/define.mjs | llp/0037, llp/0004 | getting-started/your-first-backend.md |
+| backend.structured-stored-fields | Native stored arrays and unions with write-time element validation, portable indexing, and sync semantics | table array, array field, v.array table field, structured storage, stored arrays, array validator | none | design-only | llp/0115-convex-parity-course-corrections.plan.md (CV-4b; no shipped witness) | llp/0115 | GAP (owner: LLP 0115 CV-4b, review: 2026-08-31); getting-started/your-first-backend.md |
 | backend.functions | Queries, live queries, mutations, and actions; declarative plans or colocated JS handlers with same-file helpers; explicit document/record/value result contracts including result-side `v.doc(table)` schema references; manifest-derived handler/helper `ctx.db` types with a query-read/mutation-write split; generated exact client references and runtime egress validation | query, mutation, endpoint, api, inline handler, result contract, results.documents, results.records, v.doc, GeneratedHandler, GeneratedQueryDatabase | local | shipped | packages/snapback-codegen/define.mjs | llp/0004, llp/0009, llp/0101, llp/0108, llp/0127 | backend/queries.md |
 | backend.runtime-values | Derive deterministic per-invocation time and fresh identifiers inside JavaScript handlers | server time, server clock, timestamp, generated id, UUID, Date.now, Math.random | local | shipped | `runtime.now` in packages/snapback-harness/ctx-bootstrap.js | llp/0051, llp/0065 | backend/trusted-runtime-values.md |
 | backend.standard-patterns | Generate owner CRUD, unique lookup, owner/membership keyset pages | CRUD generator, pagination, callable pagination, membership pages, trusted defaults | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065, llp/0100 | backend/standard-patterns.md |
-| backend.relational-queries | Bounded two-source equi-joins with explicit visibility, closed projections, and transactionally maintained projection tables (`defineRelationalQuery`, `defineMaintainedProjection`, stable capability since 2026-07-26) | joins, relational queries, denormalized reads, materialized views | local | partial | `defineRelationalQuery` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
+| backend.relational-queries | Bounded two-source equi-joins with explicit visibility, closed projections, and transactionally maintained projection tables (`defineRelationalQuery`, `defineMaintainedProjection`, stable capability since 2026-07-26) | joins, relational queries, denormalized reads, materialized views, conversation membership, message sender, chat joins, defineRelationalQuery, defineMaintainedProjection | local | partial | `defineRelationalQuery` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
 | backend.bounded-children-v1 | Experimental one-visible-parent/one-index-bounded-child-page profile with protected relation incarnations and `sbbc1` AEAD keysets; only contributor source builds with the exact embedded atomic carrier advertise it, while public runtime packages and hosted targets retain a structured GAP | one-to-many, parent children, relation incarnation, bounded child page | local | partial | src/local-relation-activity-publication.v1.json | llp/0104, llp/0108, llp/0101 | GAP (public-package attestation and hosted publication; owner: Charlie, review: 2026-08-31) |
 | backend.snapshot-batch-v1 | Experimental local composition of 2–8 complete `bounded-children.v1` nodes: one pinned authoritative snapshot per invocation, structural parent-authorization dedup, a sealed all-or-nothing tuple, one LLP 0157 `sbsb1` continuation, and cursor-free-first-page `live_replace`; hosted and public-package publication remain nonclaims | snapshot batch, board view, multiple child lists, one snapshot, sbsb1, composite query | local | shipped | `snapshot_batch_three_node_cursor_sealing_and_live_acceptance` in src/local.rs + schemas/capability.manifest.local-dev-sqlite-ibex.json (`snapshot_batch_v1`) | llp/0135, llp/0157, llp/0113 | backend/snapshot-batches.md |
-| backend.single-table-v1 | Experimental host-derived `single_table_v1@1` for an exact public, authority-independent declarative live query over one table. It is single-node-only, never author-assertable, uses the class-scoped 1,024 examined-entry QMK-establishment refusal, preserves whole-result/no-cursor semantics, delivers ordered/limited results by `live_replace`, and retains through Arm A `rqs-authority-independent-snapshot-v1` with no `AuthorizedLease`. Only contributor-source local builds with the exact store publication carrier advertise it; public packages and remote/hosted targets remain structured GAPs. | single table, rqsEligible, qmk1, authority-independent retention, single node | local | shipped | src/local-persistent-store-publication.v1.json + schemas/capability.manifest.local-dev-sqlite-ibex.json (`single_table_v1`) | llp/0157, llp/0166, llp/0110, llp/0113 | sync/offline-and-retention.md |
+| backend.single-table-v1 | Experimental host-derived `single_table_v1@1` for an exact public, authority-independent declarative live query over one table. It is single-node-only, never author-assertable, uses the class-scoped 1,024 examined-entry QMK-establishment refusal, preserves whole-result/no-cursor semantics, delivers ordered/limited results by `live_replace`, and retains through Arm A `rqs-authority-independent-snapshot-v1` with no `AuthorizedLease`. Contributor-source builds advertise it via the store publication carrier; the 2026-08-06 LLP 0110/0166 amendment admits clean-release public-package builds with a packaged-closure qualification receipt, shipped inside the runtime packages since 0.1.11. Remote/hosted remain GAPs. | single table, rqsEligible, qmk1, authority-independent retention, single node | local | shipped | src/local-persistent-store-publication.v1.json + schemas/capability.manifest.local-dev-sqlite-ibex.json (`single_table_v1`) | llp/0157, llp/0166, llp/0110, llp/0113 | sync/offline-and-retention.md |
 | backend.write-activity-v1 | Experimental closed source-write plus one provenance-bearing activity insert with exact source-effect assertion and LLP 0043/0101 settlement; only contributor source builds with the exact embedded atomic carrier advertise it, while public runtime packages and hosted targets retain a structured GAP | audit log, activity feed, transactional activity, write receipt | local | partial | tests/conformance/relation-activity-publication-v1.receipt.json | llp/0104, llp/0108, llp/0043, llp/0101 | GAP (public-package attestation and hosted publication; owner: Charlie, review: 2026-08-31) |
-| backend.text-search | Portable term, phrase, prefix, exclusion, and equality-filter search with deterministic ranking, bounded highlights, public/owner/membership (seat-per-resource) visibility, and AEAD keyset cursors | search, full text, text index, phrase, prefix, highlights | local | shipped | `defineSearchQuery` in packages/snapback-codegen/define.mjs | llp/0073, llp/0065, llp/0100 | backend/text-search.md |
+| backend.text-search | Portable term, phrase, prefix, exclusion, and equality-filter search with deterministic ranking, bounded highlights, public/owner/membership (seat-per-resource) visibility, and AEAD keyset cursors | full text, text index, phrase, prefix, highlights | local | shipped | `defineSearchQuery` in packages/snapback-codegen/define.mjs | llp/0073, llp/0065, llp/0100 | backend/text-search.md |
 | backend.streamed-actions | Bounded pull-driven response streaming in actions: `ctx.fetchStream`, `ctx.streamAttempt` lease/settlement, durable progress via mutations | streaming, fetchStream, ReadableStream, AI tokens, SSE bytes | local | partial | `open_response_stream` in src/server.rs | llp/0076, llp/0075 | backend/streamed-actions.md |
 | backend.seed | Deterministic declarative seed + reset | seed, fixtures, sample data | local | shipped | route /_snapback/api/app/reset | llp/0004 | getting-started/your-first-backend.md |
 | backend.versioned-seed | Experimental local stream-scoped seed identity, pure matched observation, idempotent install/reset receipts, read-only preview, and explicit clear without legacy fallback. Hosted compiled-seed custody remains a GAP. | seed version, seed identity, reset-install, fixture drift | local | partial | tests/conformance/versioned-seed-v1.manifest.json | llp/0103 | backend/versioned-seeds.md |
@@ -54,26 +49,26 @@ and `guide-gap`.
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
 | backend.sequences | Experimental incarnation-scoped dense sequences through handler `ctx.sequence.allocate(counterName, scopeId)` and generated `AllocateSequence`, with abort-disclosure, commit-order/contention, exact replay, incarnation restart, exhaustion, Relay, Campfire, and mutation-atomic lane-Q qualification. Only the exact contributor-source local target publishes `sequence_allocation_v1`; public packages and hosted targets remain structured GAPs | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | local | partial | src/local-sequence-allocation-publication.v1.json + tests/conformance/sequence-allocation-publication-v1.receipt.json | llp/0135, llp/0128, llp/0113, llp/0157 | GAP (public-package attestation and hosted target qualification/publication; owner: Charlie, review: 2026-09-30); backend/sequences.md |
 | backend.actions | Actions with gated outbound fetch: global `fetch` and target-portable host-mediated `ctx.fetch`, in closed-script module handlers or the inline form | action, fetch, ctx.fetch, side effects, notification, webhook | local | shipped | route /action/{name} | llp/0004, llp/0009, llp/0049 | backend/actions-and-fetch.md |
-| backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks (including sessions execution under the per-app `asset-callbacks` service principal), deletion/GC, receipts, logical consistent-cut export with refuse-partial validation, and instance-wide signing-key rotation (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); the paved browser path (stock `@expo/snapback-vite` relay over the `/assets/*` family, sessions custody, typed generated upload references) is CI-verified; byte-level backup, transcoding, and hosted targets remain nonclaims | files, images, video, upload, object storage, media, browser upload, vite relay, asset export, logical backup, signing key rotation | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids plus `assets.export.cutExport`/`importValidation`) + src/assets.rs + src/assets_cut.rs + src/assets_image.rs + src/assets_video.rs suites + tests/acceptance/asset-conformance-v1.mjs (native CLI export/refuse-partial/rotation; sessions callback authority) + demos/file-drop/tests/acceptance/browser-relay.mjs (relay + sessions + typed upload reference browser path) | llp/0044 | backend/assets.md |
+| backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks (including sessions execution under the per-app `asset-callbacks` service principal), deletion/GC, receipts, logical consistent-cut export with refuse-partial validation, and instance-wide signing-key rotation (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); the paved browser path (stock `@expo/snapback-vite` relay over the `/assets/*` family, sessions custody, typed generated upload references) is CI-verified; byte-level backup, transcoding, and hosted targets remain nonclaims | files, images, video, object storage, media, browser upload, native upload, Expo ImagePicker, expo/fetch, useSnapbackAssetUpload, session mint, vite relay, asset export, logical backup, signing key rotation | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids plus `assets.export.cutExport`/`importValidation`) + src/assets.rs + src/assets_cut.rs + src/assets_image.rs + src/assets_video.rs suites + tests/acceptance/asset-conformance-v1.mjs (native CLI export/refuse-partial/rotation; sessions callback authority) + demos/file-drop/tests/acceptance/browser-relay.mjs (relay + sessions + typed upload reference browser path) | llp/0044 | backend/assets.md |
 | backend.expo-push-seam | Shipped local Expo integration seam: session-bound token custody, atomic rotation and retirement, declaration-checked/host-authorized and paced `ctx.push.send`, crash-safe intent/batch/message ledger, safe pre-transmit recovery, bounded ticket/receipt maintenance, a privacy-bounded generated ledger query, explicit ambiguous redrive risk, structured `notifications.expoPushSeam` facts, and a retained physical-device `ok` receipt witness. The complete hosted conjunction remains a GAP; this is not first-class notification delivery. | device token, expo push token, installation, ctx.push.send, handoff receipt, DeviceNotRegistered | local | shipped | schemas/capability.manifest.local-dev-sqlite-ibex.outbound-actions.json (`expoPushSeam`) + packages/snapback-cli/fake-expo-push.test.mjs + `fake_expo_acceptance_covers_tickets_receipts_dedupe_ambiguity_and_authorization` in src/push.rs + LLP 0143 implementation record (2026-08-03 physical-device witness) | llp/0143, llp/0057, llp/0059, llp/0070 | backend/expo-push.md |
 | backend.notifications | First-class notification and effect delivery; application-authored table ledgers are not this product capability | notifications, push, email, delivery, effects | none | design-only | schemas/capability.manifest.local-dev-sqlite-ibex.json (`notifications: false`; explicit `notifications` gap) | llp/0045 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260728-guide-gap-assets-and-notifications-capability-rows.md) |
 | backend.observability-v1 | Shipped local Phase-1 backend telemetry with a generation-bound sibling store, operation-class spans, bounded retention and rollups, typed agent-facing queries, Health/Logs projections, and retained clean-release idle/benchmark evidence; hosted arms and declared product analytics remain later capabilities | telemetry, observability, health, logs, metrics, traces | local | shipped | tests/acceptance/telemetry-phase1-evidence.v1.json | llp/0154 | operating/observability.md |
 | backend.error-tracking-v1 | Local Phase E0/E1 backend failure classification, deterministic grouping (including first-ordered authority plus full raw carrier facts for multiple unhandled rejections), retained raw exemplars, release-aware issue lifecycle, typed CLI/MCP operations, and Errors/Health console projections; hosted grouping, E2 alerts, and E3 client ingest remain unbuilt | error tracking, issues, fingerprints, exceptions, failures | local | partial | route /_snapback/api/errors/issues | llp/0156, llp/0154, llp/0108 | operating/error-tracking.md |
 | backend.vector-search | Experimental bounded exact k-NN over declared fixed-width binary64 vector fields, with pinned `dot`/`l2sq` arithmetic, public/owner visibility partitions, exact equality filters, stored fields, synchronous SQLite maintenance, and digest-recheck quarantine; ANN, embedding computation, live/paginated/offline search, hosted targets, PostgreSQL, and sensitive fields remain nonclaims | vector, embeddings, similarity, semantic search, RAG, exact k-NN | local | shipped | schemas/capability.manifest.local-dev-sqlite-ibex.json (`vector_search_v1` + `vectorSearch`) + `defineVectorQuery` in packages/snapback-codegen/define.mjs | llp/0132, llp/0073 | backend/vector-search.md |
-| backend.cron | Scheduled execution | cron, schedule, background jobs | local | shipped | route /_snapback/api/cron/tick | llp/0028 | backend/cron.md |
-| backend.jobs-one-off | Experimental transactional one-off durable work (LLP 0070 first slice): `ctx.jobs.enqueue` inside the mutation transaction, a paved default queue, `availableAt = now + delay`, fenced claims with append-only attempt receipts, producer association on job rows plus bounded `enqueues` facts on confirmed mutation receipts, the generated declared job-status live query (codegen emits the capability requirement and acknowledgment), the injected-clock forced drain (`POST /_snapback/api/jobs/drain`), and the secret-read-leased admin inspection lane (`GET /_snapback/api/jobs`, `/jobs/{id}`). `jobs_one_off_v1` stays experimental and no durable-background-work capability class is claimed while LLP 0070 remains pre-Accepted (in Review since 2026-08-03) | one-off jobs, runAfter, scheduler, durable work, enqueue, background jobs, drain, job status, secret-read lease | local | partial | route /_snapback/api/jobs/drain | llp/0070, llp/0121, llp/0115 | backend/jobs.md |
-| realtime.live-queries | Subscribe to a query; snapshot + replace/delta updates | live, subscription, realtime | local | shipped | route /live/{name}/subscribe | llp/0008 | realtime/live-queries.md |
-| realtime.durable-push | Durable WebSocket push lane; connection axis | websocket, stream, push, connection state | local | shipped | route /live/{connection_id}/stream | llp/0008, llp/0034 | realtime/live-queries.md |
-| realtime.ephemeral | Typed ephemeral rooms: presence, cursors, TTL | presence, cursors, rooms, ephemeral | local | shipped | route /ephemeral/publish | llp/0013 | realtime/ephemeral-state.md |
+| backend.cron | Scheduled execution | schedule, cron list, cron status, cron tick, run cron now, force tick | local | shipped | route /_snapback/api/cron | llp/0028 | backend/cron.md |
+| backend.jobs-one-off | Experimental transactional one-off durable work (LLP 0070 first slice): `ctx.jobs.enqueue` inside the mutation transaction, a paved default queue, `availableAt = now + delay`, fenced claims with append-only attempt receipts, producer association on job rows plus bounded `enqueues` facts on confirmed mutation receipts, the generated declared job-status live query (codegen emits the capability requirement and acknowledgment), the injected-clock forced drain (`POST /_snapback/api/jobs/drain`), and the secret-read-leased admin inspection lane (`GET /_snapback/api/jobs`, `/jobs/{id}`). `jobs_one_off_v1` stays experimental and no durable-background-work capability class is claimed while LLP 0070 remains pre-Accepted (in Review since 2026-08-03) | one-off jobs, runAfter, scheduler, durable work, enqueue, background jobs, job status, secret-read lease, job drain, drain jobs | local | partial | route /_snapback/api/jobs/drain | llp/0070, llp/0121, llp/0115 | backend/jobs.md |
+| realtime.live-queries | Subscribe to a query; snapshot + replace/delta updates | subscription, realtime | local | shipped | route /live/{name}/subscribe | llp/0008 | realtime/live-queries.md |
+| realtime.durable-push | Durable WebSocket push lane; connection axis | websocket, stream, push, connection state, connection disconnect, disconnect client, force disconnect | local | shipped | route /live/{connection_id}/stream | llp/0008, llp/0034 | realtime/live-queries.md |
+| realtime.ephemeral | Typed ephemeral rooms plus the scoped React presence hook: presence, typing indicators, cursors, TTL | presence, cursors, rooms, ephemeral, React ephemeral hook, useSnapbackPresence, useSnapbackEphemeral, typing indicator, ephemeral cleanup, cleanup stale entries, expire ephemeral | local | shipped | route /ephemeral/publish + `useSnapbackPresence` in packages/snapback-react/index.d.mts | llp/0013, llp/0107, llp/0114 | realtime/ephemeral-state.md |
 | realtime.snapshot-bundles | Resumable-query snapshot bundles: one request evaluates a served route-manifest entry's queries at one commit with per-query resume tokens; register mode arms the pending-registration owner. The contributor local target additionally ships Experimental `mixed_bundle_boot_v2`: a disjoint LLP 0157 `mixed-route.v2` artifact/wire evaluates live and ordinary children at one pinned snapshot, registers only identity-bound live children, and returns plain children honestly read-only. Qualifying legacy RQS entries enter QMK custody only while connected through prove-or-fresh adoption; legacy bytes stay grandfathered under LLP 0090 until that one-transaction switch. `defineRoutes` + `publicInline` feed the Channel A inlined web boot (`snapbackChannelA` in packages/snapback-vite) with anonymous reads for publicInline-class routes; on the Cloudflare arm the routes manifest compiles into the Worker, the gateway serves Channel A HTML, and the coordinator answers read-mode bundles + token resume (register and mixed mode Cloudflare: deferred) | bundle, preload, resumable snapshots, boot, RQS, mixed route, read-only child, registered live child, inlined HTML, routes manifest | local, cloudflare | partial | route /app/bundle + schemas/capability.manifest.local-dev-sqlite-ibex.json (`mixed_bundle_boot_v2`) | llp/0090, llp/0092, llp/0157, llp/0166 | realtime/snapshot-bundles.md |
-| sync.offline | Retained queries, outbox, replay, optimistic overlays (Contract arm: lease-bounded protected retention, derived overlays, `Parity` under LLP 0043's proof rule) | offline, sync, local-first, outbox | local | shipped | route /outbox/{connection_id} | llp/0043, llp/0052 | sync/offline-and-retention.md |
+| sync.offline | Retained queries, outbox, replay, optimistic overlays (Contract arm: lease-bounded protected retention, derived overlays, `Parity` under LLP 0043's proof rule) | local-first, outbox | local | shipped | route /outbox/{connection_id} | llp/0043, llp/0052 | sync/offline-and-retention.md |
 | sync.offline-js-arm | Experimental JS/React offline substrate: default IndexedDB + Web Locks in capable browsers, durable file storage in capable Node hosts, and in-memory fallback; declared public authority-independent retained queries; durable M2 outbox with exact ordered replay and pending-intent projection. Qualifying legacy RQS entries are grandfathered under LLP 0090 and move to QMK custody only while connected through prove-or-fresh, one atomic same-domain transaction; adoption never relabels bytes or drops pending outbox intent. Node/file and React-stub tests pass, and LLP 0155 proves real-Chrome `SIGKILL` persistence plus two-tab lock refusal/takeover. End-to-end browser React/server retained-current, resync/replay, settlement, observer convergence, and protected-refusal proof remain GAPs; no local execution or `Parity` claim | offline browser, cold boot, restart-safe queue, IndexedDB, default persistence, retainability opt-in, pending intent render | local | partial | `resolveDefaultRqsStore` in packages/snapback-client/rqs-store-default.mjs + `demos/public-dashboard/tests/acceptance/offline-local-first.mjs` (Node/file, same-process) + `demos/zero-bakeoff/stage0/browser/run.mjs` (real-browser carrier substrate only) | llp/0043, llp/0090, llp/0129, llp/0155, llp/0166 | GAP (end-to-end browser product proof; owner: Charlie, review: 2026-08-31; issue: issues/20260801-guide-gap-js-arm-browser-indexeddb-proof.md); sync/offline-and-retention.md |
-| sync.local-persistent-store | LLP 0166 store + hydration bridge: one v3 store domain per clientStoreId, registration-led establishment from the generated trusted activation only, completeness-proof plus applicable lease validation before page commit, public programmatic and manifest-derived preload registrations, and proof-revalidated relaunch answers. Writer maintenance derives custody from registrations: active demand is restart-volatile, durable programmatic demand survives, `none` release compacts immediately, and every retained address exposes one StorePolicyInspectionV1 reason. The D7 result-transform gate is fired on durable IndexedDB and Node/file; memory and Expo report volatile and refuse durable fragments with a structured GAP. Authority-independent `single_table_v1@1` needs no lease but keeps every proof/fence check. The contributor-source local manifest publishes the experimental class from a retained 2026-08-04 carrier exit at 16 PASS / 1 Fleet GAP / 0 skipped plus Triage 8/8; remote-service and Cloudflare manifests remain nonclaims | retained render, materialization, completeness proof, qmk1, hydration bridge, programmatic registration, preload, maintenance, custody inspection, relaunch, result transform, answer class, carrier honesty | local | partial | src/local-persistent-store-publication.v1.json + tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json + tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json + tests/conformance/result-transform-ship-gate-v1.receipt.json (56/56 Rust/JavaScript, two claiming + two refusing carriers) | llp/0166, llp/0157, llp/0110, llp/0094 | GAP (Fleet footprint/hydration remains outside support under LLP 0135 OQ5; owner: Charlie, review: 2026-08-31); sync/offline-and-retention.md |
+| sync.local-persistent-store | LLP 0166 store + hydration bridge: one v3 store domain per clientStoreId, registration-led establishment from the generated trusted activation only, completeness-proof plus applicable lease validation before page commit, public programmatic and manifest-derived preload registrations, and proof-revalidated relaunch answers. Writer maintenance derives custody from registrations: active demand is restart-volatile, durable programmatic demand survives, `none` release compacts immediately, and every retained address exposes one StorePolicyInspectionV1 reason. The D7 result-transform gate is fired on durable IndexedDB and Node/file; memory and Expo report volatile and refuse durable fragments with a structured GAP. Authority-independent `single_table_v1@1` needs no lease but keeps every proof/fence check. The contributor-source local manifest publishes the experimental class from a retained 2026-08-06 carrier exit at 17 PASS / 0 GAP / 0 skipped plus Triage and Fleet at 8/8 each; remote-service and Cloudflare manifests remain nonclaims | retained render, materialization, completeness proof, qmk1, hydration bridge, programmatic registration, preload, maintenance, custody inspection, relaunch, result transform, answer class, carrier honesty | local | partial | src/local-persistent-store-publication.v1.json + tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json + tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json + tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json + tests/conformance/result-transform-ship-gate-v1.receipt.json (56/56 Rust/JavaScript, two claiming + two refusing carriers) | llp/0166, llp/0157, llp/0135, llp/0110, llp/0094 | sync/offline-and-retention.md |
 | sync.offline-js-arm-protected | Lease-bounded protected retention (LLP 0043 M1 custody) on the JS/React arm — the Contract arm ships it; this arm does not yet | offline auth browser, lease js | none | design-only | llp/0129-local-first-program.plan.md (Phase 0 status note; no shipped witness) | llp/0043, llp/0053, llp/0129 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260731-js-arm-lease-custody-and-sessions-outbox.md) |
 | sync.settlement-bounded-skew | `settlement.bounded_skew`: a mutation-declared, structurally direct `runtimeNow()` field may accept a lane-L captured time only within its declared bound; mixed sinks stay server-derived and lane Q remains unbounded replay-accept. The server path and receipt fact ship, while local capture/execution remains outside this slice. | bounded skew, local settlement, runtimeNow, claim ledger | local | partial | src/local.rs | llp/0133 | GAP (local capture/executor; owner: LLP 0155 Stage 2, review: 2026-08-31) |
 | auth.sessions | Server-minted sessions; email-code login; server-derived principals | login, signin, identity, session | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
 | auth.external-identity-broker | Adopt a session minted by a trusted server-side identity broker; dev/test/demo host operation only | native login, external identity, broker, adopted bearer | local | partial | `createExternalSessionClient` in packages/snapback-client/index.mjs | llp/0024, llp/0057, llp/0096 | auth/native-apps.md |
-| auth.scoped-queries | Per-principal query scoping via authScopeField | hidden data, per-user, row security | local | shipped | `authScopeField` in packages/snapback-codegen/define.mjs | llp/0039, llp/0053 | auth/sessions-and-principals.md |
+| auth.scoped-queries | Per-principal query scoping via authScopeField | hidden data, per-user, row security, Supabase RLS | local | shipped | `authScopeField` in packages/snapback-codegen/define.mjs | llp/0039, llp/0053 | auth/sessions-and-principals.md |
 | auth.invalidation-barrier | Authorization invalidation; logout blanking | logout, revoke, invalidation | local | shipped | route /live/authorization-invalidation/acknowledge | llp/0053 | auth/protecting-data.md |
 | auth.authorized-leases | Lease-bounded offline retention of authorized reads | offline auth, lease, retained | local | shipped | route /query/{name}/authorized-lease | llp/0059 | auth/protecting-data.md |
 | auth.target-honesty | Per-target auth claims and non-claims; readiness reporting | hosted auth, production auth | all | shipped | `AuthProgramReadiness` in src/auth/mode.rs | llp/0060 | auth/targets.md |
@@ -93,20 +88,24 @@ and `guide-gap`.
 | clients.contract-keyed-scopes | Binding-time keyed Contract queries with dedup, refcounts, and authority fencing | dynamic query, query args, dedup, selection | local | shipped | `createKeyedSnapbackContractProvider` in packages/snapback-contract/keyed-provider.mjs | llp/0034, llp/0063 | clients/contract-adapter.md |
 | clients.mutation-outcomes | Raw provider settlement facts plus Exact three-fact mutation projection | mutation state, timeout, retry, receipt, ambiguity | local | shipped | `partitime.step1-mutation-projection.v1` in demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs | llp/0043, llp/0063 | clients/contract-adapter.md |
 | clients.optimistic-overlays | Derived optimistic mutations + reconciliation | optimistic, overlays, latency | local | shipped | `deriveOptimisticReducer` in packages/snapback-contract/index.mjs | llp/0052 | clients/contract-adapter.md |
-| clients.react | Prepared React provider over one headless store/transport seam: exact generated single/grouped live queries, capability-gated all-live and mixed-route references with one-commit register-mode adoption, explicit per-child registered-live/read-only boot provenance, honest weakest aggregate connection state, explicit live fallback, attach-deadline recovery, sessions authorization adoption, result-validated optimistic mutation rebase/rollback, local managed connection-keyed presence, per-query `freshness`/`retention` offline facts with the `useSnapbackOutbox` queued-intent projection, Strict Mode/HMR sharing, complete cleanup, and retained Signal Desk receipts | react, hooks, useSyncExternalStore, result inference, typed mutation, optimistic rollback, replay advisory, projectRecordFields, optimistic toggle helper, presence, query groups, mixed route, read-only snapshot, bundle prime, registered bundle, hmr, offline freshness, outbox badge | local | shipped | `useSnapbackOutbox` in packages/snapback-react/index.d.mts + mixed group acceptance in packages/snapback-react/package.test.mjs | llp/0012, llp/0064, llp/0074, llp/0090, llp/0101, llp/0114, llp/0106, llp/0107, llp/0129, llp/0157 | clients/react.md |
-| clients.react-expo | React Expo Online surface; independent Android and iOS implementation evidence | react native, expo, android, ios, mobile | local | shipped | `profileId` in demos/partiful-matrix/tests/acceptance/native-react-expo.mjs | llp/0012, llp/0064 | clients/react-expo.md |
+| clients.react | Prepared React provider over one headless store/transport seam: exact generated single/grouped live queries, capability-gated all-live and mixed-route references with one-commit register-mode adoption, explicit per-child registered-live/read-only boot provenance, honest weakest aggregate connection state, explicit live fallback, attach-deadline recovery, sessions authorization adoption, result-validated optimistic mutation rebase/rollback, local managed connection-keyed presence, per-query `freshness`/`retention` offline facts with the `useSnapbackOutbox` queued-intent projection, Strict Mode/HMR sharing, complete cleanup, and retained Signal Desk receipts | react, hooks, useSyncExternalStore, useSnapbackQuery, Convex useQuery, result inference, typed mutation, optimistic rollback, replay advisory, projectRecordFields, optimistic toggle helper, presence, ephemeral hook, useSnapbackPresence, typing indicator, query groups, mixed route, read-only snapshot, bundle prime, registered bundle, hmr, offline freshness, outbox badge | local | shipped | `useSnapbackPresence` in packages/snapback-react/index.d.mts | llp/0012, llp/0064, llp/0074, llp/0090, llp/0101, llp/0114, llp/0106, llp/0107, llp/0129, llp/0157 | clients/react.md |
+| clients.surfaces | Generated application surfaces bind one screen/resource's reads, ordinary mutations, asset-bearing commands, raw assets, and presence around shared params; React and headless projections share canonical owners. The closed command task composes zero/one asset child with one ordinary mutation and reports truthful failure, ambiguity, and residue provenance. | defineSurface, useSurface, observeSnapbackSurface, application surface, screen surface, one hook for a screen, bind query and mutation, surface presence, conversation surface, useSnapbackSurface, defineCommand, useSnapbackCommand, image send, upload then mutate, command task | local | partial | `useSnapbackCommand` in packages/snapback-react/index.d.mts | llp/0179, llp/0180, llp/0114, llp/0176 | clients/surfaces.md |
+| clients.react-expo | React Expo Online; supervised no-URL simulator/emulator boot. G1 receipts prove those routes. Android USB selection plus exact `adb reverse` ownership is headless-proven with a live Online receipt pending; iOS USB honestly refuses because current `devicectl` has no TCP forward and `iproxy` is the wrong direction. Physical-device capability, LAN/tunnel, and release remain unclaimed. | react native, expo, ios, android, physical device, USB device, snapback dev --expo, SnapbackExpoProvider, adb reverse, TCP/IP adb refused, ios udid, iproxy, 10.0.2.2, authority-required | local | shipped | `runExpoDev` in packages/snapback-cli/expo-dev.mjs + packages/snapback-cli/expo-device-forwarding.test.mjs + simulator/emulator receipts | llp/0012, llp/0064, llp/0176, llp/0181 | clients/react-expo.md |
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance; crash detection | run server, ports, bindPortExactly, lifecycle, watchdog, crash, prebuilt binary, seed reset | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010, llp/0030 | testing/acceptance.md |
-| operating.instance-forks | Experimental source-only finite-TTL derived-instance CLI; implementation and fleet evidence are not a capability claim while LLP 0158 stays Draft | fork, derived instance, diff, reap | none | partial | `ForkCommand` in src/cli.rs + tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json (substrate only) | llp/0158 | GAP (operating page and fork-aware acceptance harness; owner: Charlie, review: 2026-08-31; issue: issues/20260803-guide-gap-instance-forks.md) |
+| operating.instance-forks | Experimental source-only finite-TTL derived-instance CLI with expiry enforcement, bounded renewal, resource-limit admission, recovery, bounded inspection, scalar projections, diff, concurrency-safe cleanup, fork-per-worktree and parallel-suite guidance, and exact drop; LLP 0158 is Accepted as the local contract, but the separate derived capability remains unsupported and this source evidence is not a claim | fork, derived instance, fork per worktree, parallel suite, inspect, status, recover, renew, diff, automatic reap, resource limits | none | partial | `ForkCommand` in src/cli.rs + tests/instance_fork_cli_v1.rs + instance_fork unit matrices (parent-write invisibility, renewal crash cuts, concurrency, disk pressure, egress/credential) + tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json + demos/todo/tests/acceptance/fork-parallel-dispositions.mjs (source proof only; public tuple Missing) | llp/0158, llp/0185 | GAP (derived-capability qualification/publication, exact-diff validation, and hosted-target work remain; owner: Charlie, review: 2026-08-31; see operating/instance-forks.md) |
+| operating.agent-safe-storage | Registered Experimental `agent_safe_storage_v1` identity for the `agentSafe.v1` extension/component-fact vocabulary; it is not the `AgentSafeV1` core aggregate and no target currently supports it | operation envelope, explanation, agent-safe storage, capability facts | none | partial | `AgentSafeCapabilityExtensionV1` in src/manifest.rs (Missing-only public projection) | llp/0162 | GAP (acceptance corpus, review, acceptance, and publication gates; all projections remain Missing; owner: Charlie, review: 2026-08-31) |
 | operating.packaged-dev-loop | Install a native runtime; scaffold, generate, doctor, and watch/load through one CLI. The current packed React/Vite starter and inferred sessions startup pass locally, but the expanded React closure is not yet the byte-verified public `0.1.0` closure. | install, new app, react starter, vite, dev, one command, watch, sessions startup, packaged runtime | local | partial | `runDev` in packages/snapback-cli/index.mjs | llp/0041, llp/0058, llp/0114, llp/0103 | getting-started/the-authoring-loop.md |
-| operating.inspect | Health and inspect projections | inspect, status, debug | local | shipped | route /inspect | llp/0017, llp/0031 | getting-started/the-authoring-loop.md |
-| operating.secrets-config | App secrets/config: declare, set, verify — write-only | secrets, config, api keys | local | shipped | route /_snapback/api/config/status | llp/0036 | operating/secrets-and-config.md |
-| operating.admin-console | Browser inspection surface with master-derived fragment, device approval, and one-time operator claim-link handoffs | admin, console, dashboard, admin link, claim link, remote browser | local | shipped | route /_snapback/admin | llp/0017 | operating/admin-console.md |
-| operating.network-profiles | Named network condition profiles: server-side egress latency injection (mutation ack, live delta, query response lanes) with fail-closed local-only activation, startup-env and admin-API toggles, per-frame socket/poll markers, surface/principal activation provenance, and coalesced live deadlines | latency, slow network, network profile, delay, jitter, local-first testing | local | partial | route /_snapback/api/debug/network-profile + host_ops.debug.networkProfileSet + demos/zero-bakeoff/protocol/environment.v2.json | llp/0167 | GAP (CF action-route refusal parity and OQ3 implementation: fork exception + dedicated CF classification binding; owner: Charlie, review: 2026-08-31) |
+| operating.inspect | Health and inspect projections | status, debug | local | shipped | route /inspect | llp/0017, llp/0031 | getting-started/the-authoring-loop.md |
+| operating.secrets-config | App secrets/config: declare, set, verify — write-only | secrets, config, api keys, config verification, verify config, config verify | local | shipped | route /_snapback/api/config/status | llp/0036 | operating/secrets-and-config.md |
+| operating.admin-console | Shipped browser debugger for Data, Functions, Realtime, Errors, Logs, capabilities, and guide docs, with master-derived fragment, device approval, and one-time operator claim-link handoffs | console, dashboard, admin link, claim link, remote browser, table inspection, browse table, table scan, inspect rows, see backend, debug backend, inspect function, inspect realtime, Expo debugging, React debugging | local | shipped | route /_snapback/admin | llp/0017 | operating/admin-console.md |
+| operating.network-profiles | Named network condition profiles: server-side egress latency injection (mutation ack, live delta, query response lanes) with fail-closed local-only activation, startup-env and admin-API toggles, per-frame socket/poll markers, surface/principal activation provenance, and coalesced live deadlines | latency, slow network, network profile, delay, jitter, local-first testing | local | shipped | route /_snapback/api/debug/network-profile + host_ops.debug.networkProfileSet + demos/zero-bakeoff/protocol/environment.v2.json | llp/0167 | operating/network-profiles.md |
 | operating.host-ops | Host operations over CLI/HTTP | cli, ops, host operations | local | shipped | route /_snapback/api/host-ops | llp/0024 | operating/host-ops.md |
-| operating.diagnostics | Stable SNAPBACK_* codes; exact current-checkout link/launch diagnosis with one binary-selection recovery record; installed disposable vertical-slice doctor | diagnostics, errors, doctor, linker, missing symbols, stale binary, runtime recovery | all | shipped | `runRuntimeLinkProbe` in scripts/runtime-link-smoke.mjs | llp/0010, llp/0031, llp/0041, llp/0074 | operating/diagnostics.md |
+| operating.agent-controls | Build/instance control discovery | controls list, controls describe, catalog | local | shipped | route /_snapback/api/control-catalog | llp/0184 | operating/agent-controls.md |
+| operating.data-patch | Preview/apply one validated existing-row correction with per-row CAS, a single-use token, normal live notification, and explicit dev authority | data patch, direct edit, patch row, correct row, expected version, row version, apply token, devUser, devAdminBypass | local | shipped | tests/data_patch_v1.rs | llp/0184, llp/0024, llp/0017 | operating/data-patch.md |
+| operating.diagnostics | Stable SNAPBACK_* codes; exact current-checkout link/launch diagnosis with one binary-selection recovery record; installed disposable vertical-slice doctor; local served-generation candidates and bounded repeated-miss hints for unknown operations/functions/fields and wrong argument shapes (suggestion only—no remediation carrier or automatic apply while LLP 0146 OQ6 is open) | diagnostics, errors, doctor, linker, missing symbols, stale binary, runtime recovery, did you mean, candidate fields, candidate functions, repeated miss, wrong argument shape | all | shipped | `runRuntimeLinkProbe` in scripts/runtime-link-smoke.mjs + `unknown_function_details` in src/authoring_suggestion.rs + tests/host_ops_v0.rs | llp/0010, llp/0031, llp/0041, llp/0074, llp/0146 | operating/diagnostics.md |
 | operating.declaration-conformance | Per-invocation declared-vs-captured read/write report and local strict opt-in, plus `snapback verify` aggregation over explicitly registered acceptance paths: authoritative under-declarations and missing reports fail, universally extra declarations warn, and observed incomplete/unsupported provenance stays an explicit partial rather than a verdict. The Cloudflare target refuses `strictDeclarations: true` at compiled-schema load and `/app/ensure` with `SNAPBACK_STRICT_DECLARATIONS_TARGET_UNSUPPORTED`; it never admits the flag unenforced. Automatic discovery of every repository acceptance path, app-data-plane ring wiring, complete mutation-envelope provenance, and authoritative Cloudflare capture/reporting remain GAPs | declaration drift, undeclared read, undeclared write, strict declarations, conformance, coverage, missingReads, read set, write set | local | partial | `aggregateConformance` in packages/snapback-cli/verify.mjs | llp/0146, llp/0127, llp/0010 | GAP (guide page for the conformance report and strict opt-in; owner: ccheever, review: 2026-08-31) |
 | operating.verify | Five-stage CLI done-oracle with source-regenerated artifact identity, digest-bound runtime readiness, local admission plus registered-path D1 aggregation, generated capability resolution, registered acceptance execution, identity/test-byte-bound receipt, ordered next actions, and mechanically unique recommendation. Live-target admission, automatic acceptance-path discovery, `acceptance.run`, product-completeness claims, and CV-14 semantic-review custody are explicit nonclaims | verify, done oracle, receipt, recommended next, test bytes, readiness | local | partial | `runVerify` in packages/snapback-cli/verify.mjs | llp/0146, llp/0010 | testing/verify.md |
-| operating.served-guide | Server embeds and serves this guide (pages + flat.md, hash-bound) | docs endpoint, llms.txt, served docs | all | shipped | route /_snapback/guide/flat.md | llp/0061 | index.md |
+| operating.served-guide | Server embeds guide pages + hash-bound flat.md and serves the root /llms.txt index | docs endpoint, llms.txt, served docs | all | shipped | route /llms.txt | llp/0061 | index.md |
 | operating.guide-mcp | Read-only MCP resources for the build-bound guide corpus | mcp docs, guide resources | all | shipped | `run_stdio` in src/guide_mcp.rs | llp/0061 | index.md |
 | testing.acceptance | Headless-first acceptance harness and package-owned backend comparator profile | tests, acceptance, harness, comparator, backend bake-off, native push receipt | local | shipped | `runComparatorAcceptance` in packages/snapback-cli/comparator-profile.mjs | llp/0010, llp/0012, llp/0013, llp/0034 | testing/acceptance.md |
 | deploy.release-build | Target-neutral immutable release build, scan, content identity, and read-back verification | deploy build, release artifact, dirty preview, release digest | all | partial | `buildRelease` in packages/snapback-cli/index.mjs | llp/0072 | deploying/releases.md |
@@ -128,13 +127,13 @@ id: meta.index
 order: 1
 audience: agent-first
 capabilities: [operating.served-guide, operating.guide-mcp]
-authorities: [llp/0061-agent-first-snapback-guide.rfc.md, llp/0000-snapback.explainer.md, llp/0064-native-client-surfaces.rfc.md]
-examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/partiful-matrix]
+authorities: [llp/0061-agent-first-snapback-guide.rfc.md, llp/0000-snapback.explainer.md, llp/0042-agent-mcp-surface.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, src/cli.rs, src/guide_mcp.rs, packages/snapback-cli/index.mjs, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/mcp-control.mjs]
+examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/partiful-matrix, demos/expo-golden-path-fixture]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-04
-reviewed-commit: dab2410b6793ffa5685069a0a4054f0e2b21608a
+reviewed: 2026-08-06
+reviewed-commit: 850427c31b9a668d55b46995e08389cd13a2c9b6
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -153,15 +152,70 @@ running Snapback server exposes the same build-bound corpus at
 single-request projection at `GET /_snapback/guide/flat.md`. Those responses
 carry `x-snapback-guide-content-sha256` and
 `x-snapback-server-build-commit`, so a consumer can refuse to combine cached
-guide bytes with a different server build. Building Snapback itself is a
+guide bytes with a different server build. `GET /llms.txt` at the served root
+provides a convention-standard index pointing to the flat projection and
+capability index. Building Snapback itself is a
 different job — that's `AGENTS.md` and the LLP corpus, not this guide.
 
-For MCP clients, run `snapback mcp`. The read-only server exposes the same
-manifest, flat projection, and manifest-named pages at stable
-`snapback-guide://` resource URIs. Every resource repeats the guide content
-hash and build commit in MCP metadata; read the manifest first and refuse to
-combine resources whose identities differ. This resource-only command exposes
-no mutation or host-operation tools.
+## Choose the MCP authority
+
+Snapback ships two local stdio MCP servers. Keep their different authority
+postures visible when you configure an agent:
+
+| Server | What it exposes | Authority consequence |
+| --- | --- | --- |
+| `snapback mcp` | The native Rust binary's resource-only Guide server. It reads the compile-time-embedded Guide corpus and exposes the manifest, flat projection, and manifest-named pages at stable `snapback-guide://` URIs. It has no mutation or host-operation tools. | Least authority: safe to wire into any agent, with no additional authority grant. |
+| `snapback mcp-control` | The explicit JS control-plane server shipped by `@expo/snapback-cli`: typed control tools, the generated app-data catalog, `snapback-controls://catalog` plus per-operation/instance resources, and the native Guide resources. It invokes the co-installed native runtime for both embedded Guide and build-catalog bytes; the npm package carries no second snapshot. If that binary is unavailable, resource listing reports `SNAPBACK_MCP_NATIVE_DOCUMENTATION_UNAVAILABLE` and lists no pretend Guide/catalog resources. | Standing local admin: it authenticates with the auto-minted local admin token, so the wired-in client has admin authority over the local Snapback instance. |
+
+The split makes documentation safe by default while keeping a capable operating
+surface available by explicit choice. `mcp-control` has the same local authority
+the CLI already exercises, but it is still a real authority grant that a cold
+agent must understand before opting in; configuring it does not grant hosted or
+remote authority, and no credential is copied into MCP configuration.
+
+Generate the project-scoped configuration instead of guessing client syntax:
+
+```sh
+snapback agent setup --print codex
+snapback agent setup --print claude --server mcp
+snapback agent setup --install cursor --server mcp-control
+```
+
+`--print` supports `codex`, `claude`, `cursor`, and `generic`; without
+`--server` it prints both entries. Codex uses `.codex/config.toml` in a trusted
+project, Claude uses `.mcp.json`, and Cursor uses `.cursor/mcp.json`. Installation
+and exact uninstall require an explicit `--server mcp|mcp-control`; installation
+shows the target file, requested server, and authority consequence before it
+writes, then returns a receipt.
+
+For a manual setup, the two commands are simply:
+
+```sh
+snapback mcp
+snapback mcp-control
+```
+
+A project-scoped JSON client entry has this minimal shape when the installed
+`@expo/snapback-cli` `snapback` bin is on `PATH` (the setup command emits the
+resolved local executable paths instead):
+
+```json fragment reason="manual MCP client configuration; generated executable paths are installation-specific"
+{
+  "mcpServers": {
+    "snapback-guide": {
+      "command": "snapback",
+      "args": ["mcp"]
+    },
+    "snapback-control": {
+      "command": "snapback",
+      "args": ["mcp-control"]
+    }
+  }
+}
+```
+
+Every Guide resource repeats the content hash and build commit in MCP metadata;
+read the manifest first and refuse to combine resources whose identities differ.
 
 **Start every task here:** check the
 [capability index](./capabilities.md) first — it lists everything Snapback
@@ -194,8 +248,10 @@ you never build around a feature because you didn't know it existed.
   arguments, diagnostics, and transition guidance.
 - [Safe standard patterns](./backend/standard-patterns.md) — owner-scoped CRUD,
   unique lookup, keyset pages, and declarative trusted defaults.
-- [Relational queries](./backend/relational-queries.md) — bounded two-source
-  equi-joins with explicit visibility and closed projections (experimental).
+- [Relational queries](./backend/relational-queries.md) — shipped
+  `defineRelationalQuery` / `defineMaintainedProjection` support for bounded
+  two-source joins, including conversation-membership and message-sender
+  shapes; aggregation and self-joins remain explicit gaps.
 - [Snapshot batches](./backend/snapshot-batches.md) — 2–8 bounded child
   pages evaluated at one snapshot with one coordinated `sbsb1` cursor
   (experimental local target).
@@ -207,10 +263,11 @@ you never build around a feature because you didn't know it existed.
   fixed-width embeddings, pinned `dot`/`l2sq` arithmetic, bounded exact k-NN,
   authorization partitions, and explicit ANN/live/hosted nonclaims
   (experimental).
-- [Assets](./backend/assets.md) — generated upload intents, TUS resumable
-  transfer, trusted SHA-256 finalization, typed `v.assetRef` attachment,
-  private-strict delivery, consistent-cut logical export, and signing-key
-  rotation (local target; byte-level backup remains a nonclaim).
+- [Assets](./backend/assets.md) — generated upload intents, an authenticated
+  Expo ImagePicker-to-Blob recipe, TUS resumable transfer, trusted SHA-256
+  finalization, typed `v.assetRef` attachment, private-strict delivery,
+  consistent-cut logical export, and signing-key rotation (local target;
+  byte-level backup remains a nonclaim).
 - [Versioned seeds](./backend/versioned-seeds.md) — content-addressed fixture
   identity, non-destructive matching, explicit reset-install/clear, and
   migration boundaries (experimental).
@@ -233,8 +290,9 @@ you never build around a feature because you didn't know it existed.
   replace/delta, durable push, the connection axis.
 - [Route snapshot bundles](./realtime/snapshot-bundles.md) — one-commit page
   boot, route manifests, resume tokens, and register-mode handoff.
-- [Ephemeral state](./realtime/ephemeral-state.md) — typed rooms, all
-  collection options and key modes, overlays, recovery, and Contract links.
+- [Ephemeral state](./realtime/ephemeral-state.md) — presence, typing
+  indicators, cursors, typed rooms, and the scoped React
+  `useSnapbackPresence` hook, plus all collection options and recovery.
 
 ### Sync and offline
 - [Offline retention and mutation replay](./sync/offline-and-retention.md) —
@@ -270,8 +328,12 @@ you never build around a feature because you didn't know it existed.
   bindings, one-surface boot, derived optimistic overlays, offline classes.
 - [The React client](./clients/react.md) — first-class external-store hook,
   keyed sibling sharing, Strict Mode lifecycle, and settlement state.
-- [React Expo Online clients](./clients/react-expo.md) — the shared React
-  projection on native carriers, per-OS evidence, and Online/Parity honesty.
+- [Application surfaces](./clients/surfaces.md) — bind one backend resource or
+  screen once, then consume its reads, mutations, assets, and presence.
+- [React Expo Online clients](./clients/react-expo.md) — no-URL
+  `snapback dev --expo` simulator/emulator boot through
+  `SnapbackExpoProvider`, plus per-OS evidence, carrier storage, authenticated
+  asset uploads, and Online/Parity honesty.
 - [Framework bindings](./clients/framework-bindings.md) — build on the
   external store and own identity, reconnect, error, lifecycle, and teardown.
 
@@ -283,21 +345,37 @@ you never build around a feature because you didn't know it existed.
   identity-bound partial done-oracle receipt.
 
 ### Operating
+- [Discover agent controls](./operating/agent-controls.md) — search the
+  build-bound control catalog, describe exact CLI/MCP/API projections, and
+  bind advisory instance availability by digest.
+- [Local instance forks](./operating/instance-forks.md) — give each worktree a
+  finite-TTL, quarantined copy of realistic local state; run fork-aware
+  acceptance and retain bounded app-row diff receipts (partial/unpublished).
 - [Secrets and deployment config](./operating/secrets-and-config.md) —
   declare, set, verify, grant, and consume write-only values.
 - [Host operations](./operating/host-ops.md) — the complete CLI/HTTP
   operation inventory and its authority envelopes.
+- [Network condition profiles](./operating/network-profiles.md) — inject
+  server-side egress latency for honest optimistic-UI, settlement, and
+  convergence testing, then restore `normal`.
+- [Patch one existing row safely](./operating/data-patch.md) — preview a
+  schema-validated, per-row-versioned correction and apply it with one
+  short-lived single-use capability (local non-production only).
 - [Diagnostics](./operating/diagnostics.md) — stable codes, assertion
   discipline, exact runtime link/launch doctoring, binary recovery records,
   and bootstrap failure vocabulary.
-- [Admin console](./operating/admin-console.md) — build, launch, develop, and
-  debug through the privileged Contract system app.
+- [Admin console](./operating/admin-console.md) — the shipped browser debugger
+  for seeing backend Data, Functions, Realtime, Errors, Logs, and capability
+  state before reaching for `curl` or raw host operations.
 - [Backend observability](./operating/observability.md) — inspect Health and
   Logs, query typed telemetry from CLI/MCP, and interpret coverage, freshness,
   retention, and shedding honestly.
 - [Backend error tracking](./operating/error-tracking.md) — group eligible
   backend failures, inspect raw exemplars under scoped authority, and triage
   release-aware issue state from the console, CLI, or MCP.
+- [Local instance forks](./operating/instance-forks.md) — give each worktree a
+  finite-TTL, quarantined copy of realistic local state; run fork-aware
+  acceptance and retain bounded app-row diff receipts (partial/unpublished).
 
 ### Deploying
 - [Immutable releases and deploy plans](./deploying/releases.md) — build the
@@ -377,6 +455,7 @@ here (or listed here but gone from the code).
 | /_snapback/guide | operating.served-guide |
 | /_snapback/guide/flat.md | operating.served-guide |
 | /_snapback/guide/{*path} | operating.served-guide |
+| /llms.txt | operating.served-guide |
 | /_snapback/api/admin-secret-read/mint | notAuthorFacing (operator data-read lease, LLP 0058) |
 | /_snapback/api/app/reset | backend.seed |
 | /_snapback/api/app/seed/clear-v1 | backend.versioned-seed |
@@ -406,8 +485,10 @@ here (or listed here but gone from the code).
 | /_snapback/api/console/approval/approve | operating.admin-console |
 | /_snapback/api/cron/tick | backend.cron |
 | /_snapback/api/cron/{name}/run | backend.cron |
+| /_snapback/api/cron | backend.cron |
 | /_snapback/api/data/{table} | operating.admin-console |
-| /_snapback/api/ephemeral/cleanup | notAuthorFacing (operator maintenance) |
+| /_snapback/api/ephemeral/cleanup | realtime.ephemeral |
+| /_snapback/api/ephemeral/operator/delete | notAuthorFacing (local operator repair, LLP 0184 §C) |
 | /_snapback/api/errors/issue | backend.error-tracking-v1 |
 | /_snapback/api/errors/issues | backend.error-tracking-v1 |
 | /_snapback/api/errors/transition | backend.error-tracking-v1 |
@@ -415,13 +496,19 @@ here (or listed here but gone from the code).
 | /_snapback/api/functions/{name}/run | testing.acceptance |
 | /_snapback/api/health | operating.inspect |
 | /_snapback/api/host-ops | operating.host-ops |
+| /_snapback/api/control-catalog | operating.agent-controls |
+| /_snapback/api/control-catalog/instance | operating.agent-controls |
+| /_snapback/api/control-catalog/operations/{operation} | operating.agent-controls |
 | /_snapback/api/inspect | operating.inspect |
 | /_snapback/api/jobs | backend.jobs-one-off |
 | /_snapback/api/jobs/drain | backend.jobs-one-off |
 | /_snapback/api/jobs/{id} | backend.jobs-one-off |
+| /_snapback/api/operations/explain | notAuthorFacing (unpublished LLP 0163 acceptance substrate) |
 | /_snapback/api/push/maintenance | backend.expo-push-seam |
 | /_snapback/api/receipts | notAuthorFacing (operator projection) |
 | /_snapback/api/schema/load | backend.schema |
+| /_snapback/api/storage/operation-coverage/activate | notAuthorFacing (unpublished LLP 0163 coverage-publication substrate) |
+| /_snapback/api/storage/protected-erasure | notAuthorFacing (unpublished LLP 0165 protected-erasure acceptance substrate) |
 | /_snapback/api/telemetry/events | backend.observability-v1 |
 | /_snapback/api/telemetry/export | backend.observability-v1 |
 | /_snapback/api/telemetry/stats | backend.observability-v1 |
@@ -462,6 +549,7 @@ here (or listed here but gone from the code).
 | /auth/session | auth.sessions |
 | /auth/step-up/request | auth.sessions |
 | /client-mutations/acknowledge | sync.offline |
+| /client-mutations/identity-range | sync.offline |
 | /connection/open | realtime.durable-push |
 | /ephemeral/collections/ensure | realtime.ephemeral |
 | /ephemeral/delete | realtime.ephemeral |
@@ -476,6 +564,7 @@ here (or listed here but gone from the code).
 | /live/{name}/subscribe | realtime.live-queries |
 | /live/{name}/unsubscribe | realtime.live-queries |
 | /mutation/{name} | backend.functions |
+| /operations/explain | notAuthorFacing (unpublished LLP 0163 acceptance substrate) |
 | /outbox/{connection_id} | sync.offline |
 | /query/{name} | backend.functions |
 | /query/{name}/authorized-lease | auth.authorized-leases |
@@ -488,6 +577,7 @@ here (or listed here but gone from the code).
 | --- | --- |
 | host_ops.app.inspect | operating.host-ops |
 | host_ops.app.reset | operating.host-ops |
+| host_ops.cron.list | backend.cron |
 | host_ops.asset.put | backend.assets |
 | host_ops.asset.ensureSeedFixture | backend.assets |
 | host_ops.asset.inspect | backend.assets |
@@ -500,6 +590,10 @@ here (or listed here but gone from the code).
 | host_ops.asset.importCut | notAuthorFacing (operator consistent-cut restore) |
 | host_ops.auth.mintSession | operating.host-ops |
 | host_ops.auth.rescueCollidingTable | operating.host-ops |
+| host_ops.data.patch.preview | operating.data-patch |
+| host_ops.data.patch.preview.impersonated | operating.data-patch |
+| host_ops.data.patch.apply | operating.data-patch |
+| host_ops.data.patch.apply.impersonated | operating.data-patch |
 | host_ops.errors.issue | backend.error-tracking-v1 |
 | host_ops.errors.issues | backend.error-tracking-v1 |
 | host_ops.errors.transition | backend.error-tracking-v1 |
@@ -517,6 +611,7 @@ here (or listed here but gone from the code).
 | host_ops.acceptance.run | operating.host-ops |
 | host_ops.debug.networkProfileGet | operating.network-profiles |
 | host_ops.debug.networkProfileSet | operating.network-profiles |
+| host_ops.debug.live.forceResync | operating.host-ops |
 | host_ops.host.start | operating.host-ops |
 | host_ops.host.stop | operating.host-ops |
 | host_ops.host.restart | operating.host-ops |
@@ -571,6 +666,8 @@ Fields (schema: [`frontmatter.schema.json`](./frontmatter.schema.json)):
 | `status` | yes | `draft` \| `current` \| `deprecated` — authored lifecycle. |
 | `targets` | yes | `[local]`, `[local, cloudflare]`, or `[all]` for genuinely target-independent material. Local-only pages render a banner line (see below). |
 | `maturity` | yes | `shipped` \| `partial` \| `design-only`, consistent with the capability index. |
+| `since` | no | Published closure version (`X.Y.Z`) in which the page's described surface first became, or is expected to become, available. |
+| `unreleased` | no | The boolean `true` when the whole page deliberately describes a surface newer than the newest published closure; requires `since` and a rendered unreleased banner. |
 | `reviewed` | yes | Date of the last intentional review — display metadata only. |
 | `reviewed-commit` | yes | The commit the page was last reviewed at — the freshness **identity**. Bumping it is a deliberate act in a review pass; no tool regenerates it. `HEAD` is permitted only in the same change that creates or fully revises the page. |
 
@@ -590,6 +687,37 @@ Pages with `targets: [local]` start the body with:
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](./auth/targets.md).
 
+## The published-closure fence
+
+[`published-closure.json`](./published-closure.json) is the checked-in,
+machine-readable record of the newest `@expo/snapback-*` closure available
+from npm. The guide checker reads that local record; this check performs no
+network access.
+
+A page whose whole surface has one version may declare `since: X.Y.Z`. If the
+whole page is deliberately ahead of the record's `newestPublished`, it also
+declares `unreleased: true` and renders a blockquote whose first line starts
+with `> **Unreleased.**` before the first `##` heading. The banner names the
+literal newest published version so a reader knows which concrete closure is
+missing the surface. Once the closure catches up, the fence is stale and must
+be removed (or `since:` must be bumped to the actual future version).
+
+Pages that mix vintages fence the affected section with an HTML comment on its
+own line: `<!-- since: X.Y.Z -->` for a surface already present in that
+closure, or `<!-- since: X.Y.Z unreleased -->` for a surface expected in a
+future closure. An unreleased marker must be immediately followed (apart from
+blank lines) by a contiguous rendered blockquote whose first line starts with
+`> **Unreleased.**` and whose text names the literal newest published version.
+A released marker may not name a version newer than `newestPublished`, and an
+unreleased marker may not name that version or an older one.
+
+This is an availability fence, separate from capability maturity. A
+`maturity: shipped` page that claims a surface absent from the newest published
+closure without an unreleased fence is a check **failure**. The npm promotion
+lane updates `published-closure.json` in the same change that publishes a new
+closure, regenerates the guide manifest, and sweeps all unreleased fences. The
+stale-fence errors make a forgotten promotion-time sweep loud.
+
 ## Headings
 
 Intent-first: name sections for what the reader wants to do ("Subscribe to a
@@ -598,6 +726,34 @@ names, so grep-by-goal works. Where a page covers an enumerable surface, it
 lists **all** of it — sampling is how capabilities go undiscovered. Each
 teaching page ends with an **Anti-patterns** section naming what not to
 hand-roll.
+
+## Routing: paved alternatives, grep vocabulary, vocabulary splits
+
+Added 2026-08-06 from accepted LLP 0187 T1 (the routing-over-coverage
+diagnosis; LLP 0061 owns these conventions):
+
+- **Paved alternative at the point of choice.** Anti-pattern content and any
+  "hard way" a page teaches (a JS handler where a declarative surface exists,
+  a raw subscription where a hook exists) must link the paved alternative at
+  the point the reader chooses, with the honest boundary of what the paved
+  road cannot express. A worked hard-way example with no adjacent pointer is
+  a guide defect, not a style preference.
+- **The alias column is grep vocabulary.** Capability-index **Aliases** and
+  page headings must include the literal strings an agent would plausibly
+  search for: workload terms ("typing indicator", "dashboard") and plausible
+  wrong-guess symbol names (`useSnapbackEphemeral`), whichever register they
+  come from — including competitor vocabulary (Convex `useQuery`, Supabase
+  RLS; LLP 0186 W2). A miss caused by a reasonable grep that returned nothing
+  is a guide defect with a mechanical fix: add the string. Do not stuff —
+  each alias should be a string someone would actually search.
+- **Vocabulary splits are defects.** When a feature's schema side and client
+  side use different names (ephemeral collections vs `useSnapbackPresence`),
+  each side's page must name the other side's vocabulary. A grep from either
+  register must reach the feature.
+- **Every replicated miss becomes an eval seed.** When a replicated
+  discoverability miss is fixed, the fix must add a seed case to
+  [the retrieval eval](./retrieval-eval.md) that would have caught it
+  (LLP 0187 T7's standing rule), so the fix cannot silently regress.
 
 ## Links
 
@@ -762,6 +918,32 @@ land):
    rows." Expected pages: `auth/sessions-and-principals.md`,
    `recipes/hidden-hands.md`.
 
+Cases 4–8 are regression seeds from the replicated 2026-08-04/05 bakeoff and
+2026-08-06 G4 external-proof discoverability misses (LLP 0187 T7, landed under
+LLP 0186 W2). The standing rule: every replicated discoverability miss, once
+fixed in the guide, must add a seed case here that would have caught it.
+
+4. **Relational routing:** "Show a user's conversation list (a membership
+   join)." Expected pages: `backend/relational-queries.md`. The run fails if
+   the plan hand-writes the join in `defineJsLiveQuery`.
+5. **Ephemeral vocabulary:** "Add a typing indicator." Expected pages:
+   `realtime/ephemeral-state.md` or `clients/react.md` — the plan must reach
+   `useSnapbackPresence` from either vocabulary entry point (schema-side
+   `ephemeral`/`useSnapbackEphemeral` grep or client-side `presence` grep).
+6. **Operating:** "A mutation is misbehaving — inspect what it read and
+   wrote." Expected pages: `operating/admin-console.md`. The run fails if
+   the plan reaches for `curl`, raw host-op calls, or a one-off verification
+   script without naming the console.
+7. **Assets:** "Upload a photo from an Expo app without login." Expected
+   pages: `backend/assets.md` (the unified ImagePicker recipe). The plan
+   must state the owner-authorization rule — attempt creation may be public,
+   but ownership checks are never anonymous.
+8. **Expo binding identity:** "My Expo app reports
+   `SNAPBACK_APP_BINDING_IDENTITY_MISMATCH`." Expected page:
+   `clients/react-expo.md`. The plan must regenerate the descriptor, stop an
+   older supervisor, and restart the supervised loop; it fails if it suggests
+   overriding the identity or weakening binding admission.
+
 ## Budget
 
 The relevant guide page must be loaded within the first ~15 tool uses.
@@ -804,7 +986,7 @@ id: auth.sessions-and-principals
 order: 1
 audience: agent-first
 capabilities: [auth.sessions, auth.scoped-queries]
-authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, src/auth/mode.rs, packages/snapback-client/index.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0172-explicit-function-authorization.rfc.md, packages/snapback-codegen/index.mjs, src/auth/mode.rs, packages/snapback-client/index.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/card-game]
 status: current
 targets: [local]
@@ -831,6 +1013,30 @@ Auth mode is per-app schema config
 [your first backend](../getting-started/your-first-backend.md)). `dev` mode
 is the trusted-local convenience where tests pass `userId:` directly;
 `sessions` is the real thing below.
+
+## Choose each function's auth requirement
+
+Every user-authored function in a sessions-mode app should explicitly set one
+of these requirements:
+
+| `auth` value | Invocation rule |
+| --- | --- |
+| `'public'` | Anonymous and user-bearing callers are admitted after any presented credential is validated. This declaration does not by itself prove the function is authority-independent. |
+| `'optional-user'` | Anonymous and user-bearing callers are admitted, and the handler may deliberately vary behavior when a resolved user exists. |
+| `'authenticated'` | Snapback refuses the invocation before the handler runs unless authority contains a resolved user. |
+
+During the compatibility warning phase, omission still emits the legacy
+effective requirement `optional-user`, but codegen reports one
+`SNAPBACK_AUTH_REQUIREMENT_IMPLICIT` warning per omitted sessions function.
+Fix it by adding the intended `auth: 'public'`, `auth: 'optional-user'`, or
+`auth: 'authenticated'` field to the function definition; do not treat the
+legacy value as an authored choice. Dev-mode functions retain omission as a
+trusted-local compatibility convenience and do not produce this warning.
+
+An `authenticated` action cannot be a cron target because scheduled system
+authority has no resolved user. Choosing `public` or `optional-user` makes the
+cron target compatible with system authority, but does not make it
+internal-only or prevent client invocation.
 
 ## Provision sessions artifacts explicitly
 
@@ -954,6 +1160,8 @@ other way, such as an identity broker) is constructed with
 `authClientProtocol: 1` construction without declared custody is refused.
 
 ## Read public data anonymously
+
+<!-- since: 0.1.9 -->
 
 A sessions-mode app often has a public surface — an event preview, a shared
 link — that must read *without* a signed-in principal. Bare clients are
@@ -2069,8 +2277,8 @@ examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: f9ae0083ef41bfc9d07f033da440f96048919613
+reviewed: 2026-08-05
+reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
 ---
 
 # Queries
@@ -2136,9 +2344,12 @@ same public query envelope and must use declared indexes for author-facing
 lookup paths.
 
 Specialized read shapes are their own closed carriers with their own pages —
-cross-reference rather than reimplementing them in a JS handler: bounded
-joins ([relational queries](./relational-queries.md)), index-backed text
-search ([text search](./text-search.md)), exact vector search
+cross-reference rather than reimplementing them in a JS handler. Before using
+`defineJsLiveQuery` for a plain conversation-membership or message-sender
+join, check the shipped `defineRelationalQuery` and
+`defineMaintainedProjection` surfaces
+([relational queries](./relational-queries.md)). Other specialized shapes are
+index-backed text search ([text search](./text-search.md)), exact vector search
 ([vector search](./vector-search.md)), several bounded child lists from one
 snapshot ([snapshot batches](./snapshot-batches.md)), and the generated
 job-status and push-ledger queries ([jobs](./jobs.md),
@@ -2345,6 +2556,12 @@ transaction across arbitrary asynchronous handler work; commit-time OCC rejects
 relevant drift between reads. Every row changed by the commit receives the
 same monotonic version. A rejected mutation commits nothing.
 
+When one screen calls several of these mutations against the same resource id,
+declare them once with `defineSurface` instead of rewiring each call site — see
+[application surfaces](../clients/surfaces.md), which binds a resource's reads,
+mutations, assets, and presence around shared parameters. The mutations
+themselves are unchanged; a surface only composes the generated references.
+
 ## Define the write boundary
 
 The paved JS form colocates its direct handler expression with arguments,
@@ -2408,6 +2625,14 @@ packages, and multi-file graphs are not admitted by that compatibility lane.
 `delete`, conditions, and a declared return binding without running a JS
 handler.
 
+Strict `arg('name')` requires the property, so generation refuses a
+caller-optional argument consumed by it with
+`SNAPBACK_AUTHORING_OPTIONAL_ARG_CONTRADICTION`. Use `argOpt('name')` for the
+omission branch: an omitted property evaluates to `null`; use
+`coalesce(argOpt('name'), lit(default))` to supply a default. Writing that
+`null` requires the target field to be declared `v.optional(...)`, which
+stores it as a present null.
+
 Set-oriented deletion is `deleteWhere(table, filter)`. The filter argument is
 required; omitting it refuses generation with
 `SNAPBACK_DELETE_WHERE_FILTER_REQUIRED`. An explicitly authored empty array,
@@ -2459,6 +2684,8 @@ still has a terminal receipt on the error envelope so the client store can
 settle it without guessing. A confirmed receipt always carries a non-null
 durable `snapshotVersion`; `null` is allowed only for a rejected invocation
 whose durable cursor could not be read safely.
+
+<!-- since: 0.1.9 -->
 
 Application-semantic refusals get typed codes instead of message prose. A
 handler declares a closed set — `refusals: ['STALE_MOVE']` (uppercase
@@ -2967,6 +3194,25 @@ The complete authoring inventory for each job:
 
 Codegen validates job names, schedules, action existence/kind, and the
 auth-requirement boundary before the server loads the manifest.
+
+## Inspect declared jobs and runtime posture
+
+Use the read-only operator projection before forcing any scheduler work:
+
+```sh
+snapback cron list --ready-file .snapback/ready.json
+```
+
+The equivalent control-MCP tool is `snapback_cron_list`; the direct HTTP
+alias is AdminRead-gated `GET /_snapback/api/cron`. The response lists each
+declared job's name, action, schedule, enabled/activation state, next nominal
+and due time, whether work is in flight, last-run time/outcome, and consecutive
+failure count. These are the same facts already held for runtime inspection,
+so listing does not tick, run, or persist scheduler work.
+
+This narrow view intentionally omits exact run IDs, handler error details and
+results, jitter seeds, and recent-run payloads. Use the secret-read-gated full
+`app.inspect`/admin inspect view when those details are actually required.
 
 ## Gate polling on real demand
 
@@ -3507,13 +3753,13 @@ id: backend.assets
 order: 9
 audience: agent-first
 capabilities: [backend.assets]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, src/assets.rs, src/assets_cut.rs, src/cli.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
-examples: [demos/party-wall, demos/file-drop]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0181-zero-configuration-expo.rfc.md, src/assets.rs, src/assets_cut.rs, src/cli.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-react/index.d.mts, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
+examples: [demos/party-wall, demos/file-drop, demos/tandem-expo-bakeoff, demos/expo-golden-path-fixture]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-04
-reviewed-commit: 4f6b1bc3d98c9b9e3d1a946ff7cbd648854ea1a6
+reviewed: 2026-08-06
+reviewed-commit: HEAD
 ---
 
 # Assets
@@ -3624,6 +3870,50 @@ can land in tables without the declaration emits
 
 ## Upload and attach
 
+**A dev/test server with no real client session can never complete a
+multi-step upload over the ordinary client HTTP surface — for any intent auth
+mode.** Every upload attempt records the non-optional owner principal returned
+by `authorize`. Transfer, finalization, and attachment compare that owner with
+the caller resolved from each request. An anonymous browser, React Native, or
+Expo request has no caller principal, so the server refuses attempt creation
+before running the authorizer or reserving state with
+`SNAPBACK_ASSET_OWNER_CUSTODY_UNSATISFIABLE`. Setting `auth: 'public'` does
+not make ownership checks anonymous — a public intent remains legitimate with
+session custody — and `public-immutable` controls delivery rather than upload
+authority. Passing a `userId` option to the task is not authentication.
+
+There are exactly two paved local-development answers:
+
+1. For an operator, fixture, or headless proof, use the admin-impersonated CLI
+   lane: `snapback assets put ... --user <handle>`. This is not an in-app
+   upload path.
+2. For an interactive browser or native app, run the app in settled Sessions
+   auth mode and give it an ordinary session. A trusted local process that
+   already holds the ready-file/operator authority can mint one through the
+   shipped wrapper:
+
+```sh
+snapback session mint --email expo-dev@example.com --ready-file .snapback/dev.ready.json
+```
+
+The command prints a `hostOpsResult` whose `data.token` is the ordinary
+session bearer; it never prints the impersonation capability. In an app, keep
+the command or equivalent `auth.mintSession` host operation behind a trusted
+development broker that authenticates its caller and returns only that
+caller's session. Never put the ready file, admin token, impersonation
+capability, mailbox reader, or a generic mint-for-email endpoint in an Expo
+bundle. Adopt the returned bearer with `createExternalSessionClient` before
+preparing the React provider, as described in
+[native auth](../auth/native-apps.md):
+
+```tsx source=demos/tandem-expo-bakeoff/snapback/src/backend.tsx
+      const client = createExternalSessionClient(origin, { bearerToken: brokerPayload.bearerToken });
+      const binding = await client.prepareReactBinding({
+        generatedManifest: { schema, functions, capabilityManifest },
+      });
+      return { status: 'ready' as const, client, provider: createSnapbackReactProvider(binding) };
+```
+
 The client flow is: create an attempt (the generated reference plus the
 declared byte length — deferred length refuses), transfer bytes over TUS
 1.0.0 (`PATCH /assets/tus/{id}`, checksum every chunk), then finalize.
@@ -3660,6 +3950,57 @@ id-shaped string written into a `v.assetRef` field fails the commit with
 `SNAPBACK_ASSET_REF_UNVERIFIED` on every write path, and the reverse
 reference edge commits in the same changeset. Deleting an asset refuses
 while typed references remain.
+
+## Send one Expo ImagePicker image with an ordinary session
+
+For a declared asset-bearing command, `SnapbackExpoProvider` registers the
+native source adapter and binary transport once. Pass the real
+`expo-image-picker` asset directly to the generated command; application code
+does not call `expo/fetch`, start a raw upload, or carry an asset id between
+steps:
+
+```tsx source=demos/expo-golden-path-fixture/src/screens/chat-screen.tsx
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.86 });
+    if (result.canceled || !result.assets[0]) {
+      emitG3('picker-cancelled');
+      return;
+    }
+    const picked = result.assets[0];
+    emitG3('picker-image-selected', {
+      source: 'photo-library-picker',
+      uriScheme: picked.uri.slice(0, picked.uri.indexOf(':')).toLowerCase(),
+      fileName: picked.fileName ?? null,
+      mimeType: picked.mimeType ?? null,
+      fileSize: picked.fileSize ?? null,
+    });
+    try {
+      const body = proofEnabled ? G3_IMAGE_BODY : draft.trim() || undefined;
+      const outcome = await observeCommand(
+        conversation.commands.send({ ...(body ? { body } : {}), image: picked }),
+        'picked-image',
+      );
+```
+
+The adapter accepts picker-owned `content://`, `ph://`, and `file://` records.
+It copies the live-process bytes into an immutable, slice-readable structural
+source for the existing asset task. Expo's WinterCG fetch carries binary
+checksum/TUS requests. On Expo 57 Android only, a picker-cache `file://` that
+returns a genuine 404 through `expo/fetch` falls back to local
+`expo-file-system` `File.bytes()`; the 404 text is never treated as image
+bytes.
+
+The command still uses the provider's already adopted ordinary session for
+asset reservation, transfer, and mutation. Its task exposes `preparing`,
+`transferring`, `committing`, and the truthful terminal outcomes described in
+[application surfaces](../clients/surfaces.md). Render those phases and await
+`task.done`; `committed` proves the ordinary mutation settled, while `failed`,
+`ambiguous`, and `cancelled` must remain distinct. A post-finalize mutation
+failure can retain residue and is not a rollback receipt.
+
+This adapter is transient live-process custody. It does not prove background
+upload, restart recovery, offline source custody or settlement, or attempt
+grants. Use the raw `useSnapbackAssetUpload`/`assets.start` seam for workflows
+that do not fit the one-optional-asset command grammar.
 
 ## Run lifecycle callbacks
 
@@ -3753,15 +4094,25 @@ admin routes (`packages/snapback-vite/allowlist.mjs`). No app-owned Vite
 proxy is needed, and a relative URL such as
 `/__snapback/assets/public/<id>/display` works directly as an `<img src>`.
 
+The relay is a Vite-loop convenience, not a CORS requirement. The dev
+server's CORS lane admits loopback browser origins directly, and its
+preflight allows the TUS request headers (`tus-resumable`,
+`upload-offset`, `upload-length`, `upload-checksum`) and exposes the TUS
+response family (including `upload-offset`) to page JavaScript. A browser
+carrier with no Vite relay — Expo web is the common case — completes
+picker → `useSnapbackAssetUpload` → typed attach against the dev server
+origin with no app-authored proxy. Relative delivery URLs are the one
+relay-only affordance; a direct cross-origin app uses absolute delivery
+URLs against the dev server origin instead.
+
 Two facts shape the browser flow:
 
-- **Authenticated intents need sessions custody.** Dev-mode HTTP asset
-  requests deliberately resolve as anonymous — the asset DTO/TUS carrier has
-  no dev body-authority member, so passing `userId` to the upload task does
-  **not** authenticate the attempt. An intent with `auth: 'authenticated'`
-  therefore requires a real signed-in session in the browser. The `--user`
-  lane under Operate below is the CLI/host-op path (admin authority for
-  agents and fixtures), not a browser path.
+- **Interactive uploads need sessions custody.** The ordinary browser and
+  native HTTP carriers resolve as anonymous when no real session is present,
+  so the reservation refusal described under Upload and attach applies to
+  every intent auth mode. The `--user` lane under Operate below is the
+  CLI/host-op path (admin authority for agents and fixtures), not a browser or
+  Expo path.
 - **The sign-in code arrives through a trusted-local seam.** The dev
   mailbox is admin- and impersonation-gated
   ([sessions guide](../auth/sessions-and-principals.md)), so a browser demo
@@ -4559,8 +4910,8 @@ examples: [packages/snapback-codegen/relational-authoring.test.mjs, packages/sna
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-05
+reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
 ---
 
 # Relational queries (bounded joins)
@@ -4576,6 +4927,24 @@ Use `defineRelationalQuery` for the common "each row plus its one related
 row" read: a bounded two-source equi-join with an explicit projection. It is
 a closed plan — no SQL text, no callbacks — and every visibility fact is
 declared, never inferred from field names or read sets.
+
+## Recognize the messaging shape
+
+A conversation list is the same shape as the books/authors example below:
+make `conversationMembers` the bounded root, join its `conversationId` to a
+declared unique conversation key, then project the conversation title and
+membership facts. A message feed can likewise join messages to a distinct,
+uniquely indexed sender table. Use `defineRelationalQuery` when the join is a
+callable/live read, or `defineMaintainedProjection` when that same closed join
+should be a transactionally maintained table.
+
+Choose these declarations before hand-writing a `defineJsLiveQuery` for a
+plain two-source join: codegen proves joined-side uniqueness, visibility, the
+bounded root access, and target support. Stay with a bounded JS handler when
+the result also needs grouping/aggregation, arbitrary post-join logic, more
+than two sources, or a self-join. V1 explicitly refuses the same table as
+both `root` and `joined`; reply-preview self-joins and reaction counts are
+missing capability, not hidden relational options.
 
 ```js source=packages/snapback-codegen/relational-authoring.test.mjs
 export const booksWithAuthors = defineRelationalQuery({
@@ -6321,6 +6690,13 @@ class while keeping optional agent-custody and external-store package exports
 out of consumers that did not select them. Use the root entry when those
 additional exports are required.
 
+When something breaks behind this client, open the
+[admin console](../operating/admin-console.md) before writing another probe:
+`snapback admin --ready-file .snapback/dev.ready.json` opens the shipped
+browser debugger for Data, Functions, Realtime, Errors, and Logs against the
+same running backend — check it before falling back to `curl`, raw host
+operations, or a one-off verification script.
+
 ## Construct one client per backend and custody context
 
 ```js source=packages/snapback-client/index.mjs
@@ -6336,6 +6712,10 @@ additional exports are required.
     authInvalidationProtocol = null,
     authorityDescriptorProtocol = 1,
     authorizedLeaseProtocol = null,
+    // LLP 0163 pre-publication carrier. Explicit opt-in only while the Spec
+    // and capability rows remain Draft/Missing; v1 requires a durable outbox
+    // so range, next counter, and intent share one restart-safe transition.
+    operationIdentityProtocol = null,
     // Set only after capability preflight advertises the hosted ephemeral
     // authority offer. Old servers therefore never see an unknown member.
     ephemeralAuthorityProtocol = null,
@@ -6740,7 +7120,7 @@ intent so source additions cannot hide as “advanced” APIs:
 | Function calls | `query`, `search`, `vectorSearch`, `authorizedLeaseQuery`, `mutate`, `action`, `acknowledgeMutations` |
 | Route bundles | `fetchBundle` |
 | Durable live | `liveQuery`, `startLiveQuery`, `subscribeLive`, `unsubscribeLive`, `openLiveStream`, `liveStreamManager`, `acknowledgeAuthorizationInvalidation` |
-| Offline queue and settlement | `outboxStatus`, `subscribeOutbox`, `outboxDiagnostics` (getter), `replayQueuedMutations`, `settledMutations`, `markMutationSettlementsConsumed` |
+| Offline queue and settlement | `outboxStatus`, `subscribeOutbox`, `outboxDiagnostics` (getter), `replayQueuedMutations`, `adoptQueuedMutations`, `settledMutations`, `markMutationSettlementsConsumed` |
 | Ephemeral | `subscribeEphemeral`, `startEphemeralRoom`, `publishEphemeral`, `deleteEphemeral`, `unsubscribeEphemeral`, `registerEphemeralRepublisher` |
 | Connections/drains | `connectionGrant`, `refreshConnectionGrant`, `disconnect`, `releaseConnection`, `drainEnvelopes`, `drainConnection`, `drainUpdates`, `registerDurableConsumer`, `registerEphemeralConsumer` |
 | Framework bindings | `prepareReactBinding` |
@@ -7053,12 +7433,12 @@ order: 2
 audience: agent-first
 capabilities: [clients.react]
 authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts]
-examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk/src/backends/snapback.ts, demos/signal-desk/tests/react.mjs, demos/signal-desk/acceptance/results/react-presence.v1.json, packages/snapback-react/binding-development-sync.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-react/exact-result-types.fixture.ts]
+examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk/src/backends/snapback.ts, demos/signal-desk/tests/react.mjs, demos/signal-desk/acceptance/results/react-presence.v1.json, demos/messaging-snapback/src/lib/useTyping.ts, packages/snapback-react/binding-development-sync.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-react/exact-result-types.fixture.ts]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-04
-reviewed-commit: 8154744c87ed58816703093bd526bd7a40d95a56
+reviewed: 2026-08-06
+reviewed-commit: 4ac8387f080a2659484fc09916ff22a076dc4ca8
 ---
 
 # The React client
@@ -7080,7 +7460,7 @@ from that immutable binding:
 
 ```ts fragment reason="application composition varies by renderer and generated artifact imports"
 const binding = await client.prepareReactBinding({
-  generatedManifest: { schema, functions, capabilityManifest },
+  generatedManifest: app,
   developmentSync: {
     onStateChange(state) {
       setBootState(state);
@@ -7096,9 +7476,19 @@ root.render(
 );
 ```
 
-Preparation verifies app, deployment, auth-mode, schema, function-catalog,
-result contracts, ephemeral declarations, and capability identity. The
-provider borrows the client; `provider.dispose()` drains provider-owned
+When something breaks behind these hooks, open the
+[admin console](../operating/admin-console.md) before writing another probe:
+`snapback admin --ready-file .snapback/dev.ready.json` opens the shipped
+browser debugger for Data, Functions, Realtime, Errors, and Logs against the
+same running backend — check it before falling back to `curl`, raw host
+operations, or a one-off verification script.
+
+Use the generated `snapback.app.v1` descriptor exported as `app` by
+`generated/api.mjs`; it carries the same complete references components pass
+to hooks, including ephemeral collections. Preparation verifies app,
+deployment, auth-mode, schema, function-catalog, result contracts, ephemeral
+declarations, and capability identity. The provider borrows the client;
+`provider.dispose()` drains provider-owned
 subscriptions, rooms, stores, listeners, timers, connection grant, socket
 demand, and its auth-barrier participant.
 
@@ -7112,6 +7502,20 @@ generated manifest. The binding names its provenance as
 boot reaches a provider that renders retained rows (see
 [offline retention](../sync/offline-and-retention.md)). A drifted generated
 manifest never adopts the receipt.
+
+Whether that receipt is actually on disk for the next boot depends on the
+persisted store carrier:
+
+| Carrier | Receipt persisted by online preparation | Offline cold boot reaches `source: 'persisted-receipt'` | Witness |
+| --- | --- | --- | --- |
+| Browser IndexedDB + Web Locks (browser default) | Yes — the commit defers until this tab's writer election settles (before 2026-08-06 a boot-time election race silently dropped it) | Yes | `packages/snapback-react/cold-boot-binding-indexeddb.test.mjs` (Node simulation: fake IndexedDB plus a Web Locks double); the real-Chrome repro in `demos/warble` remains a manual witness |
+| Expo / registered file store | Yes — the file arm settles writer election before its writer check | Yes, proven for a fresh client in the same process; a physical-device process-kill witness is still open (`issues/20260806-expo-file-carrier-process-kill-witness.md`) | `demos/relay-room-bakeoff/snapback-expo/tests/offline-acceptance.mjs` |
+| Memory fallback | In-memory only — nothing survives the process | No — a process-cold boot has neither receipt nor rows | `packages/snapback-react/cold-boot-binding.test.mjs` (two sessions over one memory store in one process) |
+
+A tab that is not the elected writer defers its receipt commit until it is
+elected (the freshest `savedAt` wins at flush time); a terminally refused
+commit warns `SNAPBACK_REACT_BINDING_RECEIPT_NOT_PERSISTED` instead of
+dropping the receipt silently.
 
 During an ordinary local edit/restart cycle, Metro or Vite may load generated
 artifacts one backend generation ahead. After a live inspection proves both
@@ -7130,6 +7534,26 @@ window remains recoverable. Hosted, sessions, unknown, and server-refusal
 contexts stay immediate and loud. Set `developmentSync: false` when a local
 tool or test deliberately needs the original immediate mismatch behavior;
 otherwise the bounded retry is automatic even when no callback is supplied.
+
+The same dev loop has a post-mount sibling: Metro or Vite HMR can hot-replace
+the generated api module while the mounted `SnapbackProvider` keeps the
+binding admitted from the previous generation. In a positively identified
+development environment (Metro's `__DEV__`, a bundler HMR host, or
+`NODE_ENV === 'development'` — never mere absence of production markers), a
+regenerated same-app reference presented to hooks becomes a provider-boundary
+invalidation instead of a crash: the provider re-proves the whole new
+generation against the live deployment and swaps admission atomically.
+Unchanged queries keep their data throughout; changed queries show a brief
+`pending` frame, then subscribe under the new contract; a mutation invoked
+during the window settles after the swap. If the rebind cannot complete
+(backend never serves the new generation, or routes/ephemeral declarations
+changed), the provider logs one `SNAPBACK_REACT_HMR_REBIND_FAILED` diagnostic
+and triggers a controlled dev reload (`developmentHmr.onReloadRequired`
+overrides the default `DevSettings.reload`/`location.reload`). Foreign or
+stale references and production builds keep the strict
+`SNAPBACK_REACT_REFERENCE_INVALID` throw — recovery never weakens admission.
+Regression witness: `packages/snapback-react/hmr-generation-handoff.test.mjs`;
+governing design: LLP 0114 (mounted-provider HMR generation handoff).
 
 ## Bind a generated query
 
@@ -7300,11 +7724,17 @@ whose result diverges when replayed over its own output logs one
 `SNAPBACK_REACT_OPTIMISTIC_REPLAY_DIVERGENT` warning per (mutation, query)
 site; production builds skip the check.
 
-## Publish and observe presence
+## Publish and observe ephemeral presence
 
-Pass a generated connection-keyed ephemeral reference. A non-skipped value is
+`useSnapbackPresence` is the React hook for generated **ephemeral**
+collections — including presence, typing indicators, and cursors. Pass a
+generated connection-keyed ephemeral reference. A non-skipped value is
 declarative managed intent: the provider publishes it after the authoritative
-room snapshot and refreshes it within the generated TTL and rate limits.
+room snapshot and refreshes it within the generated TTL and rate limits. The
+[ephemeral-state reference](../realtime/ephemeral-state.md#find-the-react-hook-from-ephemeral-vocabulary)
+transcludes the messaging demo's conversation-scoped typing hook, including
+observer-mode `publish`/`delete`; there is no separate
+`useSnapbackEphemeral` hook.
 
 ```ts fragment reason="presence fields come from the generated ephemeral declaration"
 const presence = useSnapbackPresence(ephemeral.incidentPresence, {
@@ -7425,6 +7855,543 @@ no-work refusal, and exact provider/client/server cleanup with zero skips.
 
 ---
 
+<!-- snapback-guide-source: guide/clients/surfaces.md -->
+---
+title: Application surfaces
+id: clients.surfaces
+order: 2
+audience: agent-first
+capabilities: [clients.surfaces]
+authorities: [llp/0179-generated-app-descriptor-and-surfaces.rfc.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/commands.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
+examples: [packages/snapback-react/surface.test.mjs, packages/snapback-react/commands.test.mjs, packages/snapback-client/commands.test.mjs, packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.json, packages/snapback-react/fixtures/conversation/app/snapback/generated/app.d.ts, demos/expo-golden-path-fixture/snapback/functions.mjs, demos/expo-golden-path-fixture/snapback/surface-model.mjs, demos/expo-golden-path-fixture/src/screens/chat-screen.tsx, demos/expo-golden-path-fixture/tests/g2-falsification.mjs, demos/expo-golden-path-fixture/tests/g3-command.mjs]
+status: current
+targets: [local]
+maturity: partial
+since: 0.1.11
+reviewed: 2026-08-06
+reviewed-commit: HEAD
+---
+
+# Application surfaces
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+An **application surface** is one generated, parameterized composition of the
+reads, ordinary mutations, asset-bearing commands, raw asset intents, and
+presence lanes that belong to a resource or screen. Declare it on the backend
+with `defineSurface`; bind it in React with `useSurface`, or use
+`observeSnapbackSurface` and `provider.surface(...)` without React. This is the
+vocabulary split to keep in mind: backend searches use **surface declaration**
+and `defineSurface`, while client searches use **screen surface**,
+`useSurface`, and `observeSnapbackSurface`.
+
+A surface composes existing generated references. It adds no endpoint, cache,
+authorization layer, query language, or presence implementation. The low-level
+[React hooks](./react.md) remain available and share the same owners.
+
+## Declare one asset-bearing command
+
+Use `defineCommand` for the closed LLP 0180 composition: exactly one ordinary
+mutation plus zero or one asset input. The call inputs are derived rather than
+declared again. Every mutation argument remains an ordinary command input
+except the mapped `mutationArg`, which the asset task supplies after it
+finalizes. An optional asset makes text-only and one-image sends branches of
+the same typed call.
+
+```js source=demos/expo-golden-path-fixture/snapback/functions.mjs
+export const send = defineCommand({
+  mutation: sendMessage,
+  assets: {
+    image: {
+      intent: messageImageUpload,
+      optional: true,
+      mutationArg: 'image',
+    },
+  },
+});
+```
+
+The composed mutation is still the sole application-row and asset-attachment
+commit. The command adds no server endpoint or transaction, and it does not
+change the upload intent's policy or ownership rules.
+
+## Declare a surface for one screen
+
+Import `defineSurface`, `bind`, `param`, and `input` from
+`@expo/snapback-codegen/define`. The Expo golden-path backend declares its
+conversation once and binds `conversationId` through every scoped child:
+
+```js source=demos/expo-golden-path-fixture/snapback/functions.mjs
+export const conversation = defineSurface({
+  params: { conversationId: v.id('conversations') },
+  reads: {
+    users: bind(users, {}),
+    details: bind(conversationDetails, { conversationId: param('conversationId') }),
+    memberships: bind(membershipsForConversation, { conversationId: param('conversationId') }),
+    messages: bind(messagesForConversation, { conversationId: param('conversationId') }),
+    reactions: bind(reactionsForConversation, { conversationId: param('conversationId') }),
+  },
+  mutations: {
+    // @ref LLP 0176#g2--conversation-surface — keep the generated member at
+    // the accepted north-star spelling while the underlying function remains
+    // the ordinary addReaction mutation.
+    react: bind(addReaction, {
+      conversationId: param('conversationId'),
+      messageId: input('messageId'),
+      userId: input('userId'),
+      emoji: input('emoji'),
+    }),
+    sendText: bind(sendText, {
+      conversationId: param('conversationId'),
+      senderId: input('senderId'),
+      text: input('text'),
+    }),
+    sendReply: bind(sendReply, {
+      conversationId: param('conversationId'),
+      senderId: input('senderId'),
+      text: input('text'),
+      replyToId: input('replyToId'),
+    }),
+    removeReaction: bind(removeReaction, {
+      reactionId: input('reactionId'),
+    }),
+    sendImage: bind(sendImage, {
+      conversationId: param('conversationId'),
+      senderId: input('senderId'),
+      assetId: input('assetId'),
+      caption: input('caption'),
+      replyToId: input('replyToId'),
+    }),
+  },
+  commands: {
+    // This seeded Relay-shaped test persona binds Ada as the visible app-data
+    // sender. Ordinary Sessions authority remains separate and is still
+    // independently required by both the upload intent and mutation.
+    send: bind(send, {
+      conversationId: param('conversationId'),
+      senderId: 'user_ada',
+      body: input('body'),
+      image: input('image'),
+      failAfterFinalize: false,
+    }),
+  },
+  assets: {
+    image: bind(messageImageUpload, {}),
+  },
+  presence: {
+    typing: bind(typing, {
+      scope: { conversationId: param('conversationId') },
+    }),
+  },
+});
+```
+
+The declaration has six named fields:
+
+- `params` declares up to eight portable validators. `param('name')`
+  substitutes one of those values into a child binding.
+- `reads`, `mutations`, `assets`, and `presence` bind locally authored
+  generated references. `input('name')` leaves a mutation or asset value for
+  the eventual caller.
+- `commands` binds an exported `defineCommand` descriptor without treating it
+  as a mutation. Its caller supplies only unbound ordinary and asset-source
+  inputs.
+
+A binding leaf may be `param(name)`, `input(name)`, or a portable scalar
+literal (`null`, string, boolean, or finite number). An object-shaped target
+may instead receive one bounded **flat scope record**, such as
+`{ scope: { conversationId: param('conversationId') } }`; its values use the
+same leaves. It is not a general object-construction escape hatch.
+
+The grammar is deliberately closed: no callbacks, conditionals, loops,
+computed fields, inheritance, nested surfaces, or result transforms. Put
+composition outside that algebra in application code or extend the subsystem
+that owns the missing operation. Binding a resource id selects scope; every
+child still performs its own existing authorization.
+
+Surface member names are authored projection names, not rewrites of the
+underlying operation. The example deliberately exposes `mutations.react`
+while its reference remains the ordinary `addReaction` mutation, giving the
+screen its resource-shaped vocabulary without hiding the inspected target.
+
+## Inspect what generation emits
+
+Codegen places every admitted declaration under the generated
+`snapback.app.v1` descriptor's `surfaces` node. Each surface records its
+parameter contracts and complete `reads`, `mutations`, `commands`, `assets`,
+and `presence` maps. Every member records its generated reference, the complete
+target-to-`param`/`input`/literal binding map, and an `inputs` map containing
+only values the caller still supplies.
+
+The codegen acceptance test makes that distinction explicit:
+
+```js source=packages/snapback-codegen/app-descriptor.test.mjs
+  assert.deepEqual(descriptor.surfaces.items.mutations.create.bindings, {
+    group: { kind: 'param', name: 'group' },
+    title: { kind: 'input', name: 'title' },
+  });
+  assert.deepEqual(Object.keys(descriptor.surfaces.items.mutations.create.inputs), ['title']);
+```
+
+The tracked React fixture's
+[descriptor JSON](repo:packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.json)
+is the portable inspection artifact. Its
+[`app.d.ts`](repo:packages/snapback-react/fixtures/conversation/app/snapback/generated/app.d.ts)
+turns the same `inputs` map into the member's call type: for example,
+`addReaction` accepts `messageId`, `userId`, and `emoji`, but not the already
+bound `conversationId`. The separate `provider-bindings.d.ts` continues to
+describe the underlying raw mutation's complete arguments; the omission is a
+property of the generated surface member, not a mutation-signature rewrite.
+
+Do not ask a caller for a bound parameter again. The complete descriptor
+mapping remains available to inspection and auth review even though the
+surface callable type omits it.
+
+## Run a command and read its truthful outcome
+
+Call a bound command through `surface.commands.<name>(inputs)`, or obtain the
+same owner directly with `useSnapbackCommand(app.commands.<name>)`. Both return
+one stable command task. The task snapshot derives these phases from its
+existing asset-task and mutation-attempt children:
+
+| Phase | Fact |
+| --- | --- |
+| `preparing` | Inputs and the captured authority cohort are being checked. |
+| `transferring` | The existing asset task is reserving, transferring, or finalizing. Absent for text-only calls. |
+| `committing` | The one ordinary mutation has been invoked. |
+| `succeeded` | Mutation settlement proved the application commit. |
+| `failed` | A trust boundary proved refusal or failure. |
+| `ambiguous` | Mutation invocation began, but no commit/refusal proof arrived. |
+| `cancelled` | Cancellation completed before mutation invocation. |
+
+`task.done` resolves to `committed`, `failed`, `ambiguous`, `cancelled`, or the
+`notRetryable` result of an invalid retry. It rejects only for local input or
+source validation before network work starts. Retrying a failed or ambiguous
+task returns a successor generation and preserves the mutation attempt
+identity needed to reconcile a possibly committed attempt.
+
+Finalized bytes are not a rollback receipt. If the mutation fails after
+finalization, the terminal task retains the ready asset child and reports
+residue with `unattached: 'authoritative' | 'inferred' | 'unknown'`. Current
+LLP 0044 child facts do not prove global non-attachment, so a proved
+same-authority mutation refusal is `inferred`; missing settlement or authority
+replacement is `unknown`. Cleanup remains the declared LLP 0044 lifecycle
+policy.
+
+Cancellation before the mutation cancels the asset child when one exists.
+Cancellation after mutation invocation is `ambiguous`, never a fabricated
+rollback. Authority replacement does not adopt a task into the successor
+principal; each retry revalidates its captured cohort.
+
+### Expo ImagePicker input
+
+Inside `SnapbackExpoProvider`, pass an `expo-image-picker` asset directly to
+the bound command. Text-only and image send are branches of one typed call:
+
+```tsx source=demos/expo-golden-path-fixture/src/screens/chat-screen.tsx
+      const outcome = await observeCommand(
+        conversation.commands.send({ ...(body ? { body } : {}), image: picked }),
+        'picked-image',
+      );
+```
+
+The Expo provider owns picker-URI conversion, binary transport, integrity, and
+ordinary-session custody registration; the screen owns only picker UX and
+task rendering. The adapter supports `content://`, `ph://`, and `file://` in
+the live process. It does not add background, restart, offline, or
+attempt-grant semantics.
+
+## Consume the surface from React
+
+Pass the generated surface reference, its exact parameter object, and optional
+presence publish values to `useSurface`. The real Expo screen uses both compact
+render data and the rich child state:
+
+```tsx source=demos/expo-golden-path-fixture/src/screens/chat-screen.tsx
+  const conversation = useSurface(
+    app.surfaces.conversation,
+    { conversationId },
+    { presence: { typing: draft.trim() || proofEnabled ? { displayName: PERSONA_NAMES[activeUserId] ?? 'Someone' } : skip } },
+  );
+  const connection = useSnapbackConnection();
+  const outbox = useSnapbackOutbox();
+  const { details, memberships, messages, reactions, users } = conversation.state;
+  const activeUser = conversation.data.users?.find((user) => user._id === activeUserId);
+  const userById = useMemo(() => new Map((conversation.data.users ?? []).map((user) => [user._id, user])), [conversation.data.users]);
+  const messageById = useMemo(() => new Map((conversation.data.messages ?? []).map((message) => [message._id, message])), [conversation.data.messages]);
+  const typingNames = [...new Set(conversation.presence.typing.members
+    .filter((entry) => entry.key !== conversation.presence.typing.selfKey)
+    .map((entry) => entry.value.displayName))];
+```
+
+The snapshot exposes six member namespaces plus its descriptor:
+
+- `data.<read>` is exactly `state.<read>.data`. It is the compact row/value
+  projection and is `undefined`, never a fabricated `[]`, while that child is
+  pending, skipped, or errored.
+- `state.<read>` is the complete LLP 0114 query snapshot: `status`
+  (`pending | ready | refreshing | error | skipped`), `data`, `error`,
+  `freshness` (`unknown | retained | current`), `connection`, and the
+  `retention` fact.
+- `mutations.<name>(inputs)` is a typed ordinary mutation callable. Its input
+  contains only the generated member's unbound inputs.
+- `commands.<name>(inputs)` returns the existing command task. It composes the
+  existing asset and ordinary mutation owners without entering the mutations
+  namespace.
+- `presence.<name>` is the existing per-room presence state with `entries`
+  re-exported as `members`; status, connection, diagnostic, `selfKey`, and
+  room actions remain available.
+- `assets.<name>` exposes the existing raw asset-task seam (`reference` and
+  `start`) for workflows that do not fit the closed command grammar.
+- `descriptor` is the exact admitted generated surface reference.
+
+`skip` from `@expo/snapback-react` opts one presence member out of publishing
+without dropping its read-side room. A declared presence member missing from
+the options object also defaults to `skip`. Presence self identity is derived
+from the adopted session and connection. A publish payload containing its own
+`userId` refuses locally with
+`SNAPBACK_REACT_SURFACE_PRESENCE_IDENTITY_INPUT`; publish only the collection's
+non-identity value fields.
+
+## Observe the same surface without React
+
+Use `bindSnapbackSurface(provider, surface, params, options)` or its provider
+alias `provider.surface(...)` when another framework owns rendering. The
+listener convenience is
+`observeSnapbackSurface(provider, surface, params, options, listener)`.
+The returned owner provides:
+
+- `snapshot()` for the same `data`/`state`/`mutations`/`commands`/`presence`/
+  `assets`/`descriptor` projection;
+- `reads.<name>.snapshot()` and `reads.<name>.subscribe(listener)` for one
+  child;
+- `mutations.<name>(inputs)`, `commands.<name>(inputs)`, and
+  `assets.<name>.start(...)`;
+- `update(params, options)` to retarget that bound owner; and
+- `dispose()` for all of its owned edges.
+
+This is one owner shared with the low-level hooks, not a second subscription
+layer. The package test binds a low-level query and a surface to the same
+reference and arguments, then asserts object identity:
+
+```js source=packages/snapback-react/surface.test.mjs
+assert.strictEqual(
+  surface.snapshot().state.messages,
+  lowLevel.snapshot().queries.messages,
+  'surface and low-level reads observe the exact same LLP 0114 store snapshot',
+);
+assert.strictEqual(surface.snapshot().data.messages, surface.snapshot().state.messages.data);
+```
+
+Mixing `useSurface`, `useSnapbackQuery`, and `observeSnapbackQueries` for the
+same provider/reference/arguments therefore shares the same store snapshot and
+upstream subscription. Equivalent presence joins the same canonical room.
+
+## Change parameters without leaking predecessor state
+
+A headless `update(params, options)` prepares the successor read descriptors
+and presence rooms before releasing each predecessor room and lease exactly
+once. Compact data becomes `undefined` across the handoff instead of showing
+rows from the old scope:
+
+```js source=packages/snapback-react/surface.test.mjs
+surface.update(
+  { conversationId: 'conversation-two' },
+  { presence: { typing: { displayName: 'Ada' } } },
+);
+assert.equal(surface.snapshot().data.messages, undefined, 'parameter replacement cannot leak predecessor rows');
+await flush();
+assert.equal(surface.snapshot().data.messages[0].conversationId, 'conversation-two');
+assert.equal(directMessages.at(-1).data[0].conversationId, 'conversation-two');
+assert.deepEqual(client.metrics().rooms, [
+  { conversationId: 'conversation-one' },
+  { conversationId: 'conversation-two' },
+]);
+assert.equal(provider.inspection().presenceStores, 1, 'predecessor room is released after successor adoption');
+```
+
+With `useSurface`, a React render whose params change creates a successor
+binding and retires the predecessor generation. A mutation callable captured
+from that predecessor cannot act for the successor:
+
+```js source=packages/snapback-react/surface.test.mjs
+assert.throws(
+  () => predecessorMutation({ messageId: 'stale-message', userId: 'user-ada', emoji: '⛔' }),
+  (error) => error?.code === 'SNAPBACK_REACT_SURFACE_GENERATION_STALE',
+  'a captured mutation callable cannot act for a retired parameter generation',
+);
+```
+
+Read mutation callables from the current hook result instead of retaining one
+across a parameter change. Provider disposal and authority replacement apply
+the same generation fences and blank predecessor compact data.
+
+## Stay within the generation budgets
+
+Codegen enforces these exact ceilings before it emits a surface:
+
+| Ceiling | Maximum | Counted unit |
+| --- | ---: | --- |
+| `SURFACE_MAX_PER_APP` | 32 | Surfaces in one app |
+| `SURFACE_MAX_PARAMS` | 8 | Parameters on one surface |
+| `SURFACE_MAX_MEMBERS` | 24 | Reads + mutations + commands + assets + presence on one surface |
+| `SURFACE_MAX_MEMBER_BINDINGS` | 32 | Binding leaves on one member |
+| `SURFACE_MAX_SCOPE_RECORD_FIELDS` | 8 | Fields in one flat scope record |
+
+Exceeding any ceiling fails generation with
+`SNAPBACK_SURFACE_BUDGET_EXCEEDED`; it never truncates the descriptor. The
+limits keep a surface resource-shaped instead of recreating one global app
+store.
+
+The portable descriptor validator also measures the complete canonical UTF-8
+document against the existing 16 MiB generation-protocol ceiling, and the
+binding grammar permits only one flat object-keyed scope level. LLP 0179 leaves
+the initial product-level descriptor-byte and binding-depth budgets as an open
+question, so S2 does not invent tighter numeric ceilings.
+
+## Act on every surface refusal
+
+Generation-time `SNAPBACK_SURFACE_*` refusals are:
+
+| Code | Trigger |
+| --- | --- |
+| `SNAPBACK_SURFACE_BUDGET_EXCEEDED` | An app, parameter list, member set, member binding, or scope record exceeds the ceiling above. |
+| `SNAPBACK_SURFACE_INVALID_IDENTIFIER` | A surface export, parameter, or member name is not a portable non-reserved identifier. |
+| `SNAPBACK_SURFACE_PARAMETER_UNKNOWN` | `param(name)` names no declared surface parameter. |
+| `SNAPBACK_SURFACE_PARAMETER_TYPE_MISMATCH` | A parameter or portable literal does not match the target validator, or a parameter validator is invalid. |
+| `SNAPBACK_SURFACE_INPUT_UNKNOWN` | A binding names no target argument, or a scope record names no target field. |
+| `SNAPBACK_SURFACE_REQUIRED_INPUT_UNBOUND` | A required target argument or required scope field has no binding. |
+| `SNAPBACK_SURFACE_REFERENCE_UNKNOWN` | The bound definition is not one exported generated app member. |
+| `SNAPBACK_SURFACE_BINDING_AMBIGUOUS` | A definition has multiple export identities or one `input(name)` is bound more than once. |
+| `SNAPBACK_SURFACE_BINDING_UNPORTABLE` | A binding uses nested/object construction outside one flat object-shaped target, or a literal is not portable JSON. |
+| `SNAPBACK_SURFACE_AUTH_BINDING_REFUSED` | Application data attempts to bind a `Principal`; surface scope is not authority. |
+| `SNAPBACK_SURFACE_MEMBER_CLASS_UNSUPPORTED` | A member has the wrong reference class, `input()` appears on an unsupported member, or the target is in the wrong namespace. |
+
+Command declarations refuse at generation with their own stable codes. Every
+one names the offending command and carries structured details; none of them
+truncates or partially emits the descriptor:
+
+| Code | Trigger |
+| --- | --- |
+| `SNAPBACK_COMMAND_INVALID_IDENTIFIER` | The command export name is not a portable non-reserved identifier. |
+| `SNAPBACK_COMMAND_MUTATION_CARDINALITY_INVALID` | `mutation` is absent, `null`, or an array — v1 requires exactly one ordinary mutation. Details carry `mutations`. |
+| `SNAPBACK_COMMAND_MUTATION_UNKNOWN` | The mutation target is not one generated ordinary mutation, or is missing from the generated mutation namespace. |
+| `SNAPBACK_COMMAND_MAPPING_AMBIGUOUS` | The mutation or the asset intent has multiple generated export identities. |
+| `SNAPBACK_COMMAND_MULTI_ASSET_UNSUPPORTED` | More than one asset input — v1 admits at most one. |
+| `SNAPBACK_COMMAND_ASSET_INTENT_UNKNOWN` | `intent` resolves to no generated upload intent. |
+| `SNAPBACK_COMMAND_ASSET_INTENT_ARGS_UNSUPPORTED` | The upload intent declares its own argument map; v1 commands do not carry a second one. |
+| `SNAPBACK_COMMAND_ASSET_MAPPING_INCOMPATIBLE` | `mutationArg` does not name a `v.assetRef({ upload: <this intent> })` argument with matching optionality. |
+| `SNAPBACK_COMMAND_INPUT_COLLISION` | The asset input name collides with a different ordinary mutation input. |
+| `SNAPBACK_COMMAND_AUTHORITY_INPUT_REFUSED` | An ordinary input would inject an authority `Principal`. |
+
+A running command task reports its own `SNAPBACK_COMMAND_*` diagnostics. These
+are outcome facts, not authoring errors — branch on the code, and read
+`status` for what it says about the server:
+
+| Code | Terminal status | What it asserts |
+| --- | --- | --- |
+| `SNAPBACK_COMMAND_ASSET_FAILED` | `failed` | The asset child never finalized, so the mutation was never invoked. No residue. |
+| `SNAPBACK_COMMAND_AUTHORITY_REPLACED` | `failed` | The captured authority cohort was replaced before invocation. The task is not adopted into the successor principal. |
+| `SNAPBACK_COMMAND_MUTATION_FAILED` | `failed` | A trust boundary proved refusal — a receipt, a 401/403, an authorization diagnostic, or an explicit `effectCommitted: false`. |
+| `SNAPBACK_COMMAND_MUTATION_AMBIGUOUS` | `ambiguous` | Invocation began and no settlement proof arrived. Anything short of proof lands here by design; the client never upgrades a guess to a refusal. |
+| `SNAPBACK_COMMAND_CANCELLED` | `cancelled` | Cancellation completed before invocation; the asset child was cancelled where its state permitted. |
+| `SNAPBACK_COMMAND_CANCELLED_DURING_COMMIT` | `ambiguous` | Local interest stopped after invocation. Never reported as `cancelled` — the server outcome is unknown. |
+| `SNAPBACK_COMMAND_NOT_RETRYABLE` | (outcome only) | `retry()` on a committed, cleanly cancelled, or non-terminal task. The returned task carries the predecessor's terminal snapshot unchanged. |
+
+`SNAPBACK_REACT_COMMAND_INVALID` refuses a command reference that is not the
+complete generated command admitted by this prepared binding.
+
+Client-time `SNAPBACK_REACT_SURFACE_*` refusals are:
+
+| Code | Trigger |
+| --- | --- |
+| `SNAPBACK_REACT_SURFACE_INVALID` | The reference is not the complete generated surface admitted by this prepared binding, or a generated binding kind cannot be projected. |
+| `SNAPBACK_REACT_SURFACE_PARAMS_INVALID` | Params are not an object or their keys do not exactly match the generated declaration. |
+| `SNAPBACK_REACT_SURFACE_OPTIONS_INVALID` | Options are not the closed `{ presence }` object, or they name an unknown presence member. |
+| `SNAPBACK_REACT_SURFACE_INPUT_INVALID` | A mutation or command's unbound inputs are missing/unknown, or an asset call omits `file` or adds an unknown call field. |
+| `SNAPBACK_REACT_SURFACE_PRESENCE_IDENTITY_INPUT` | A non-skipped presence publish payload carries `userId`. |
+| `SNAPBACK_REACT_SURFACE_GENERATION_STALE` | A mutation or asset callable belongs to a retired or disposed React surface generation. |
+
+Treat the stable code as the branch key and its structured details as the
+repair context; do not match message text.
+
+## Render a cold retained boot
+
+Descriptor-mode online preparation persists a compact admitted deployment
+projection through LLP 0114's existing binding receipt and RQS store. On a
+fresh offline client, the byte-identical descriptor reconstructs the admitted
+function, RQS, ephemeral-policy, surface, and capability view before the
+provider exists. The real-runtime acceptance proves the surface then renders
+the retained rows through both projections:
+
+```js source=demos/expo-golden-path-fixture/tests/g2-falsification.mjs
+  await suite.check('descriptor cold boot renders retained message history through the surface', async () => {
+    assert(await coldStore.loadReactBindingReceipt(), 'the exact binding receipt is present before cold preparation');
+    const binding = await offline.prepareReactBinding({ generatedManifest: app });
+    assert.equal(binding.source, 'persisted-receipt');
+    offlineProvider = createSnapbackReactProvider(binding, { connectionId: 'g2-offline' });
+    offlineSurface = observeSnapbackSurface(
+      offlineProvider,
+      app.surfaces.conversation,
+      { conversationId: 'conversation_engine_room' },
+      { presence: { typing: skip } },
+      () => {},
+    );
+    await eventually(() => offlineSurface.snapshot().state.messages.freshness === 'retained');
+    const snapshot = offlineSurface.snapshot();
+    assert.equal(snapshot.data.messages.length, 3);
+    assert.strictEqual(snapshot.data.messages, snapshot.state.messages.data);
+    assert.equal(snapshot.state.messages.status, 'refreshing');
+    assert.equal(snapshot.state.messages.connection, 'stale');
+  });
+```
+
+The honest retained frame is `freshness: 'retained'`,
+`status: 'refreshing'`, and `connection: 'stale'` until an authoritative
+answer arrives. Surfaces add no cache, receipt format, retained-row copy, or
+boot lifecycle of their own. A memory-only store still cannot survive a
+process-cold boot; use the carrier rules on [the React client page](./react.md)
+and [offline retention](../sync/offline-and-retention.md).
+
+## Stay inside the v1 boundary
+
+Commands admit only the closed online v1 shape: one ordinary mutation, zero or
+one transient structural asset source, no callbacks or branching, and no
+durable restart/offline custody. They do not admit multiple assets, attempt
+grants, anonymous claim-on-attach, picker/content-URI adaptation, or generic
+workflows. Use the ordinary `mutations` namespace and raw `assets` task seam
+when the operation does not fit that grammar.
+
+V1 also does not admit nested surfaces, inheritance, dynamic member creation,
+one surface calling another, callbacks, or hidden result transformation. Reuse
+happens through the existing generated references and their canonical owners.
+The current proof is local-target only; no hosted application-surface claim is
+made here.
+
+## Anti-patterns
+
+- **Do not hand-wire five `useSnapbackQuery` calls plus a presence hook when
+  one generated composition exists.** [Declare the application surface](#declare-a-surface-for-one-screen)
+  and [consume it with `useSurface`](#consume-the-surface-from-react); use
+  low-level hooks only for composition outside the surface's closed grammar.
+- **Do not pass a bound parameter again as a mutation input.** Inspect the
+  generated member's reduced call type and
+  [supply only its unbound inputs](#inspect-what-generation-emits).
+- **Do not smuggle `userId` into a presence payload.**
+  [Publish only non-identity collection values](#consume-the-surface-from-react);
+  the session/connection owner supplies self identity.
+- **Do not hold a `useSurface` mutation callable across a parameter change.**
+  [Read it from the current generation](#change-parameters-without-leaking-predecessor-state)
+  so a retired callable cannot act under successor scope.
+- **Do not treat a finalized upload as an atomic send.** Use the
+  [command outcome and residue facts](#run-a-command-and-read-its-truthful-outcome),
+  and keep the raw asset and ordinary mutation children visible when a commit
+  fails or becomes ambiguous.
+
+---
+
 <!-- snapback-guide-source: guide/clients/swift.md -->
 ---
 title: Swift client
@@ -7534,13 +8501,13 @@ id: clients.react-expo
 order: 3
 audience: agent-first
 capabilities: [clients.react-expo]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-react/index.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs]
-examples: [demos/partiful-matrix/native/react-expo, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, demos/rn-durable-store-witness/probe-App.tsx]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0181-zero-configuration-expo.rfc.md, packages/snapback-cli/expo-dev.mjs, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-expo/app-binding.mjs, packages/snapback-expo/config-plugin.cjs, packages/snapback-expo/index.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo/supervised-environment.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/_kit/eas-stage-build.mjs]
+examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md, demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md, demos/expo-golden-path-fixture/receipts/20260806-g4-external-summary.md, demos/expo-golden-path-fixture/receipts/physical-device-online-checklist.md, demos/partiful-matrix/native/react-expo, packages/snapback-cli/expo-device-forwarding.test.mjs, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-expo/provider.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, scripts/local-source-package-closure.test.mjs, demos/rn-durable-store-witness/probe-App.tsx, demos/tandem-expo-bakeoff/scripts/build-ios-dev-client, demos/_kit/tests/repo-layout-unit.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-04
-reviewed-commit: 41c2db8804ba08071c39641cc46251c9084c7a31
+reviewed: 2026-08-06
+reviewed-commit: 4ac8387f080a2659484fc09916ff22a076dc4ca8
 ---
 
 # React Expo Online clients
@@ -7549,12 +8516,14 @@ reviewed-commit: 41c2db8804ba08071c39641cc46251c9084c7a31
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-React Native/Expo uses the same packaged surface as React web:
-`@expo/snapback-client`, generated function references, and the
-`@expo/snapback-react` provider and hooks documented on
-[the React client page](./react.md). It is an **Online** surface: queries and
-mutations run against a reachable Snapback backend. It does not execute
-handlers locally and therefore does not claim local-first behavior or Parity.
+React Native/Expo uses `@expo/snapback-expo` as the environment facade over
+the same `@expo/snapback-client` and `@expo/snapback-react` owners used by
+React web. The facade consumes the generated `snapback.app.v1` descriptor,
+admits a separate environment binding, projects boot state, and delegates the
+provider and hooks documented on [the React client page](./react.md). It is an
+**Online** surface: queries and mutations run against a reachable Snapback
+backend. It does not execute handlers locally and therefore does not claim
+local-first behavior or Parity.
 
 Everything on the React page applies here — this page covers only what is
 different on the RN carrier: the boot path, the crypto prerequisites, the
@@ -7563,7 +8532,214 @@ optimistic mutations work unchanged: for a like/favorite button backed by a
 live feed, use [the optimistic toggle recipe](../recipes/optimistic-toggle.md)
 rather than component state plus a local counter delta.
 
-## Boot: external bearer, prepared binding, provider
+## Install the Expo facade from this source checkout
+
+For an Expo app nested anywhere under this checkout, run one command from the
+Snapback repository root:
+
+```sh
+node scripts/install-local-snapback-packages.mjs <expo-app-directory>
+```
+
+The command discovers the complete internal runtime closure from the checkout
+manifests, packs those exact source packages into the app's generated
+`.snapback/local-source-packages/` directory, points the Expo, client, and React
+roots plus every top-level override at those local tarballs, and runs the Bun
+version pinned by this repository. Commit the app's resulting `package.json`
+and `bun.lock`; rerun the same command with `--frozen-lockfile` in CI or after
+deleting `node_modules`. The command regenerates the local tarballs before each
+install, so do not edit them by hand; treat that directory as generated (and
+ignore it in the app's source-control rules). Keep it present when invoking the
+out-of-checkout EAS staging helper below so the staged app can cold-install
+without reaching back into the repository.
+
+The tarball filenames are content-addressed. On a clean clone, the tracked
+manifest and lock may name predecessor archives that are correctly absent from
+the ignored directory; rerunning the helper rotates only its own local paths
+and integrity records while retaining every unrelated locked package. Do not
+work around a missing predecessor archive by deleting `bun.lock` or allowing
+Bun to regenerate the registry graph.
+
+Do not add `@expo/snapback-contract` as a direct app dependency and do not
+hand-maintain one-off overrides. A local client keeps its own exact Contract
+edge, and a nested app is outside the repository workspace, so Bun otherwise
+falls through to the registry and can either fail or mix checkout code with a
+different published generation. Direct directory links also leave runtime
+resolution dependent on symlink behavior; the app-local tarballs install as
+ordinary materialized packages and travel with the existing EAS staging copy.
+The helper keeps the entire Snapback runtime closure local. Registry installs
+remain a separate workflow: use only the published package versions and no
+source paths or local overrides there.
+
+For image messages, use the authenticated
+[Expo ImagePicker command recipe](../backend/assets.md#send-one-expo-imagepicker-image-with-an-ordinary-session).
+It passes the picker asset directly to the typed command and keeps the native
+source adapter, upload task, asset id, and attachment sequence behind the
+provider-owned client. A client with no real session cannot finish the
+multi-request upload under any intent auth mode.
+
+## Debug the backend before writing another probe
+
+The generated [admin console](../operating/admin-console.md) is the shipped
+browser debugger for an Expo/React backend. Open it while `snapback dev` is
+running to browse Data, run and inspect Functions, see Realtime delivery,
+and read Errors, Logs, Capabilities, and the build-matched Guide:
+
+```sh
+snapback admin --ready-file .snapback/dev.ready.json
+```
+
+Use the actual ready-file path printed by your dev process. The console is an
+operator surface, not part of the Expo bundle; the command derives a browser
+credential without exposing the master admin token. Check it before falling
+back to `curl`, raw host operations, or a one-off verification script.
+
+## Run the supervised Expo development loop
+
+<!-- since: 0.1.10 -->
+
+> **Published 0.1.10 caveat.** The package names exist on npm, but the dated
+> [external-consumer G4 proof](repo:demos/expo-golden-path-fixture/receipts/20260806-g4-external-summary.md)
+> found that the 0.1.10 generated descriptor requires `single_table_v1` while
+> the 0.1.10 packaged runtime rejects it, before Metro starts. That Expo
+> package also predates the provider's ImagePicker source adapter. Use the
+> source-checkout install above until a successor closure containing both
+> already-landed source repairs is published; do not cast the picker asset or
+> mix checkout and registry packages to force 0.1.10 through.
+
+The north-star boot has three application-visible pieces: the config-plugin
+entry, the generated `app`, and `SnapbackExpoProvider`. There is no backend URL
+prop and no second application model ([LLP 0181 §Config plugin](repo:llp/0181-zero-configuration-expo.rfc.md#config-plugin),
+[LLP 0181 §Provider](repo:llp/0181-zero-configuration-expo.rfc.md#provider)).
+The working fixture's plugin entry is:
+
+```json source=demos/expo-golden-path-fixture/app.json
+    "plugins": ["@expo/snapback-expo"],
+```
+
+Its application root mounts the provider with the generated descriptor and an
+optional boot-state fallback, still with no URL or binding prop:
+
+```tsx source=demos/expo-golden-path-fixture/App.tsx
+export default function App() {
+  return (
+    <SnapbackExpoProvider app={app} fallback={(state: ExpoBootState) => <BootFallback state={state} />}>
+      <G2DemoProvider><G2Screens /></G2DemoProvider>
+    </SnapbackExpoProvider>
+  );
+}
+```
+
+From an Expo app whose backend is the conventional `snapback/` child, start
+the iOS default or select Android explicitly:
+
+```sh
+snapback dev --expo
+snapback dev --expo --expo-platform android
+```
+
+Use `--expo-dir`, a positional backend directory, `--email`, or
+`--android-serial` only when the project layout or selected emulator requires
+it; the fixture README gives the full source-checkout commands
+([runnable fixture](repo:demos/expo-golden-path-fixture/README.md)).
+
+### Know what the supervisor owns
+
+One supervisor starts or adopts the exact backend generation, starts Metro,
+issues an expiring `source: "supervised-dev"` binding, mints an ordinary
+session, and verifies the backend, Metro, and bootstrap listeners before
+reporting readiness. It also owns signal forwarding and reclaims the backend,
+Metro, bootstrap exchange, binding material, and port forwards on exit
+([LLP 0181 §Supervised development baseline](repo:llp/0181-zero-configuration-expo.rfc.md#supervised-development-baseline),
+[`runExpoDev`](repo:packages/snapback-cli/expo-dev.mjs)).
+
+Metro receives only the credential-free rendezvous origin. At runtime the Expo
+facade performs a `GET /_snapback/expo/v1/bootstrap` with `cache: "no-store"`;
+the loopback-only response pairs the expiring binding with either an ordinary
+session or a structured authority refusal. The exchange has the supervisor's
+lifetime and is reclaimed with the other children
+([LLP 0181 §Delivery E1, "E1 carrier disposition"](repo:llp/0181-zero-configuration-expo.rfc.md#e1--simulatoremulator-loop),
+[supervised environment](repo:packages/snapback-expo/supervised-environment.mjs)).
+LLP 0181's E1 acceptance requires the bearer to remain absent from the named
+static/public surfaces; the retained receipt JSONL scans additionally establish
+its absence from the readiness stream. Neither fact proves confidentiality or
+peer authentication against another local process.
+
+### Settle the backend into Sessions mode first
+
+The automatic mint inherits the native `auth.mintSession` precondition: the
+app must already be settled and available in Sessions mode. The fixture does
+this in its [schema](repo:demos/expo-golden-path-fixture/snapback/schema.mjs).
+If that precondition is absent, the mint refuses and the provider reports
+`authority-required` with the native diagnostic; it never hangs or silently
+continues as anonymous. See [Sessions and principals](../auth/sessions-and-principals.md)
+for the mode transition, and [LLP 0181 §Provider](repo:llp/0181-zero-configuration-expo.rfc.md#provider)
+for the provider state contract.
+
+### Diagnose a binding identity mismatch
+
+`SNAPBACK_APP_BINDING_IDENTITY_MISMATCH` means the imported
+`AppDescriptor` and the delivered `AppBinding` name different descriptor
+identities. Stop any older supervisor, regenerate the conventional
+`snapback/generated/` app from the backend you intend to run, then restart
+`snapback dev --expo`. Do not overwrite the identity, construct a second
+descriptor in application code, or weaken admission: the refusal prevents a
+client generated for one backend shape from being bound to another.
+
+### Choose simulator, emulator, or USB routing
+
+| Carrier | Route selected by the supervised baseline | What stays loopback-only |
+| --- | --- | --- |
+| iOS simulator | Same-host loopback; the binding and Expo origin use `127.0.0.1`. | Backend, Metro, and bootstrap exchange. |
+| Android emulator | Preferred: one verified `adb reverse` rule for each of the backend, Metro, and bootstrap ports, so the app still addresses `127.0.0.1`. Fallback: the emulator-only `10.0.2.2` host alias under `routing: "port-forward"`. | Every host listener. The fallback is routing posture, not permission to bind on LAN. |
+| Android USB device | Select the exact USB serial with `--android-serial`. The supervisor classifies the `adb devices -l` row, rejects TCP/IP/mDNS adb, and installs/verifies/removes the same three `adb -s <serial> reverse` rules under `routing: "port-forward"`. | Every host listener. The USB mechanism is headless-proven; its live LLP 0064 Online receipt is pending. |
+| iOS USB device | `--ios-udid` enumerates physical devices with `xcrun devicectl` and rejects network transports. The current command then refuses with `SNAPBACK_EXPO_IOS_USB_REVERSE_FORWARD_UNAVAILABLE`: `devicectl` 518.33 has no TCP forward, while `iproxy` forwards Mac-to-device, the wrong direction for device loopback-to-Mac. | No listener or forward is created. A device-side bridge or a new author-approved posture is still required. |
+
+These routes and their cleanup are the closed iOS/Android branches in the
+[supervisor](repo:packages/snapback-cli/expo-dev.mjs),
+[LLP 0181 §iOS simulator](repo:llp/0181-zero-configuration-expo.rfc.md#ios-simulator),
+and
+[LLP 0181 §Android emulator](repo:llp/0181-zero-configuration-expo.rfc.md#android-emulator).
+The final readiness event reports `device.serial` and `device.class` alongside
+the unchanged binding `source: "supervised-dev"`; Android USB remains
+`bindingRouting: "port-forward"`. Device selection is exact and ambiguity
+refuses rather than allowing adb to choose whichever target happens to be
+first.
+
+Supervised binding admission tolerates at most 60 seconds of the host issuer's
+clock running ahead of the simulator/emulator clock. Expiry remains strict; a
+larger skew refuses with `SNAPBACK_APP_BINDING_NOT_YET_VALID`, in which case
+fix the clocks and restart the supervisor.
+
+### Keep the proof boundary visible
+
+The runnable example is
+[`demos/expo-golden-path-fixture`](repo:demos/expo-golden-path-fixture/README.md).
+Its independent
+[iOS simulator receipt](repo:demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md)
+and
+[Android emulator receipt](repo:demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md)
+prove provider readiness, ordinary Sessions authority, a seeded live query,
+an ordinary mutation returning through that query, loopback listener
+enumeration, and complete supervisor cleanup. Together they complete the LLP
+0176 G1 simulator/emulator exit.
+
+This supervised loop still makes **no LLP 0064 physical-device claim**. The
+Android USB mechanism has shipped with fake-inventory, exact forward,
+verification, rollback/removal, and readiness-shape tests, but no live device
+receipt exists. The iOS USB mechanism is not shipped: the tooling probe ruled
+out `devicectl` and `iproxy` for the required reverse direction. The
+[manual Online receipt checklist](repo:demos/expo-golden-path-fixture/receipts/physical-device-online-checklist.md)
+keeps both facts explicit and must not be cited as a receipt. LAN/tunnel edges
+remain separately gated; release bindings and per-OS release acceptance use
+the separate path later on this page
+([LLP 0181 §Real devices in the baseline](repo:llp/0181-zero-configuration-expo.rfc.md#real-devices-in-the-baseline),
+[LLP 0181 §Release binding](repo:llp/0181-zero-configuration-expo.rfc.md#release-binding)).
+Tests and advanced multi-target shells may inject a
+`SnapbackExpoEnvironmentV1`, but its binding still passes the same
+source-specific admission.
+
+## Use the low-level provider when you own environment wiring
 
 A native app carries an adopted external bearer (see
 [auth/native-apps](../auth/native-apps.md) for how a trusted broker mints it —
@@ -7589,9 +8765,13 @@ const provider = createSnapbackReactProvider(binding);
 // <SnapbackProvider provider={provider}> ... </SnapbackProvider>
 ```
 
-Preparation needs the server reachable (deployment verification); a cold boot
-with the backend unreachable cannot prepare — see the store consequence
-below for why nothing renders from disk either.
+The first preparation needs the server reachable (deployment verification).
+After one successful online preparation over a registered durable store, an
+offline relaunch re-admits against the persisted binding receipt
+(`binding.source: 'persisted-receipt'`) — see the per-carrier matrix on
+[the React client page](./react.md). Over the default in-memory fallback
+nothing survives the process, so a cold offline boot cannot prepare — see
+the store consequence below.
 
 Components then use the ordinary generated-reference hook — reference plus
 exact arguments (or `skip`), never a string name, a `userId`, or an
@@ -7695,9 +8875,14 @@ release Hermes build — `demos/rn-durable-store-witness/`):
 - **A restart-durable offline queue:** queued mutations survive relaunch,
   not just the process.
 
-The React-provider boot caveat above still applies: `prepareReactBinding`
-needs the server reachable, so hook-path rendering cannot start offline —
-the retained render is the headless `client.liveQuery` path.
+Offline cold boot of the hook path follows the binding-receipt fallback on
+this carrier: a prior successful online preparation over the registered file
+store persists the digest-bound receipt, and an offline relaunch prepares
+from it (`binding.source: 'persisted-receipt'`) and renders the retained
+rows through the hooks. The fresh-client witness is
+`demos/relay-room-bakeoff/snapback-expo/tests/offline-acceptance.mjs`; a
+physical-device process-kill witness is still open
+(`issues/20260806-expo-file-carrier-process-kill-witness.md`).
 
 Flush on background (the LLP 0091 step-5 lifecycle wiring): persistence is
 debounced, so have the shell flush pending resume state when the app leaves
@@ -7826,6 +9011,41 @@ completion overtaking the HTTP response and overflow recovery. The earlier
 `issues/closed/20260801-0137-a1expo-f7-rn-connection-cycles.md`; it is no longer
 a current limitation.
 
+## Build an EAS dev client for an app nested inside this repository
+
+`eas build` resolves its project root at the nearest **Git root**, not the
+nearest Expo app. Run it from an app nested inside this monorepo (a
+`demos/<bakeoff>/<arm>`, an internal prototype) and it archives and uploads
+the entire Snapback checkout — the Rust runtime, `vendor/ibex`, every other
+demo, and all workspace `node_modules` — a multi-minute upload for a
+kilobyte-scale app. `.easignore` and `EAS_NO_VCS=1` do **not** change that
+root resolution; this reproduced independently in two bakeoffs
+(`demos/tandem-expo-bakeoff`, `demos/relay-room-bakeoff`), and no first-party
+nested-root configuration is documented for it. The supported pattern is to
+**stage the app outside the checkout and build from the staged copy**, which
+both bakeoffs converged on and the kit now paves:
+
+```sh
+# Stage <app-dir> into an out-of-checkout temp directory, bun install there,
+# and run `eas build` from the staged copy (paid EAS service).
+node demos/_kit/eas-stage-build.mjs demos/tandem-expo-bakeoff/snapback/native-shell \
+  --platform ios --profile development
+
+# Free preflight: stage and report only (file count, size, staged path kept
+# for inspection); never installs dependencies or contacts EAS.
+node demos/_kit/eas-stage-build.mjs <app-dir> --stage-only
+```
+
+The helper excludes `node_modules`, `.expo`, `.git`, and `dist` at every
+depth, refuses any staging directory that is still inside a Git checkout, and
+keeps the small native "shell" pattern workable: the shell carries only
+native dependencies and EAS config while loading the product bundle from the
+parent Metro server (see
+[repo:demos/tandem-expo-bakeoff/scripts/build-ios-dev-client](repo:demos/tandem-expo-bakeoff/scripts/build-ios-dev-client)
+for an arm-selection wrapper). Staging behavior is unit-verified by
+[repo:demos/_kit/tests/repo-layout-unit.mjs](repo:demos/_kit/tests/repo-layout-unit.mjs);
+the EAS build itself is an external paid service and is not CI-verified.
+
 ## Anti-patterns
 
 - **Do not pass `userId`/`authority` to hooks or use the string-name object
@@ -7847,6 +9067,10 @@ a current limitation.
   contain public generated client artifacts only.
 - **Do not ship emulator port bridging as endpoint security.** It is local
   acceptance infrastructure only.
+- **Do not run `eas build` directly from an app nested in this checkout, and
+  do not try to fix it with `.easignore`.** EAS archives the whole monorepo
+  from the Git root either way; stage outside the checkout with
+  `demos/_kit/eas-stage-build.mjs` (see the nested-build section above).
 
 ---
 
@@ -8691,13 +9915,13 @@ id: getting-started.your-first-backend
 order: 1
 audience: agent-first
 capabilities: [backend.schema, backend.functions, backend.seed, backend.provisioning, backend.codegen]
-authorities: [llp/0004-application-data-api.rfc.md, llp/0037-schema-source-of-truth.decision.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0174-authoring-incidents-at-security-fences.research.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs]
+authorities: [llp/0004-application-data-api.rfc.md, llp/0037-schema-source-of-truth.decision.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0115-convex-parity-course-corrections.plan.md, llp/0174-authoring-incidents-at-security-fences.research.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs]
 examples: [demos/todo/snapback, demos/todo-v2/snapback, demos/signal-desk/snapback, packages/snapback-codegen/inline-result-contracts.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-05
+reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
 ---
 
 # Your first backend
@@ -8764,6 +9988,19 @@ The core validators: `v.string()`, `v.principal()`, `v.id(table)`,
 partial: specialized validators — typed asset references (`v.assetRef`,
 [assets](../backend/assets.md)), result-side `v.doc(table)` references
 ([queries](../backend/queries.md)) — are taught with their features.
+
+**Array-shaped table fields are a workaround, not a shipped structured-field
+capability.** A table field cannot use `v.array(...)` directly. The immediate
+workaround is to store the value as opaque `v.json()`, then narrow every
+function result that exposes it with the appropriate `v.array(...)` result
+validator. That result contract validates the returned JSON shape; it does
+not add write-time item validation, array indexing, portable structured-field
+semantics, or sync-aware array behavior to the stored column. Native stored
+arrays/unions remain the explicit
+[`backend.structured-stored-fields` GAP](../capabilities.md) owned by
+[LLP 0115 CV-4b](repo:llp/0115-convex-parity-course-corrections.plan.md#cv-4-structured-collection-validators-split-arguments-then-storage).
+Do not describe the `v.json()` pairing as that missing capability.
+
 `defineSchema` also takes an
 options object:
 `ephemeral:` (a `defineEphemeral(...)` — see the
@@ -9130,7 +10367,10 @@ need the proven closure.
 Still do not infer that a published closure contains every surface in the
 current source tree: source lands continuously, and a packaged consumer has
 whatever the newest published version froze. When a page describes a surface
-newer than the newest closure, it says so.
+newer than the newest closure, it says so. This rule is mechanical: pages carry
+`since:` / `unreleased:` fences checked against
+[`published-closure.json`](../published-closure.json) by
+`scripts/check-guide.mjs`.
 
 On each supported tuple the mapped runtime package carries the prebuilt server
 and Hermes runtime. `doctor` first launches that relocated binary with
@@ -9430,6 +10670,267 @@ the review manifest will record the new custody.
 
 ---
 
+<!-- snapback-guide-source: guide/operating/agent-controls.md -->
+---
+title: Discover agent controls
+id: operating.agent-controls
+order: 1
+audience: agent-first
+capabilities: [operating.agent-controls]
+authorities: [llp/0184-agent-accessible-control-plane.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0042-agent-mcp-surface.rfc.md, src/control_catalog.rs, src/cli.rs, packages/snapback-cli/mcp-control.mjs]
+examples: []
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-08-06
+reviewed-commit: 2715951cf
+---
+
+# Discover agent controls
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+Use the control catalog to find an operation by intent before guessing route,
+CLI, or MCP names. The catalog describes a build; it does not grant authority
+and it does not promise that one running target will admit an invocation.
+
+## Search the build catalog
+
+The native CLI works without a running server because it reads the catalog
+embedded in its own executable:
+
+```sh
+snapback controls list --intent "network profile"
+snapback controls list --intent "table scan" --json
+```
+
+Text output summarizes `operation`, `surfaceAccess`, `operability`, and
+`status`. JSON output retains the build catalog's `schemaVersion`,
+`catalogDigest`, build identity, and matching complete entries. Every word in
+`--intent` must occur in the operation id, title, or intent keywords.
+
+Through `snapback mcp-control`, read `snapback-controls://catalog`. It is the
+same searchable JSON index, obtained by invoking the co-installed native
+binary rather than reading a package snapshot. The resource list also exposes
+one `snapback-controls://operation/<operation>` URI per row.
+
+## Describe one operation
+
+```sh
+snapback controls describe debug.networkProfileSet
+snapback controls describe debug.networkProfileSet --json
+```
+
+The complete row includes projections, route policy and response sensitivity,
+destructive/approval posture, target/profile availability, Guide anchor, and
+any CLI/MCP/internal/unavailable reason. The MCP resource template
+`snapback-controls://operation/{operation}` returns the same native row with
+the catalog digest in metadata.
+
+## Build versus instance identity
+
+An admin-authenticated running server exposes:
+
+- `GET /_snapback/api/control-catalog` — the exact catalog bytes compiled into
+  the server;
+- `GET /_snapback/api/control-catalog/operations/{operation}` — one complete
+  row with its build digest; and
+- `GET /_snapback/api/control-catalog/instance` — startup nonce, target,
+  profile, advisory enabled-operation ids, and the digest it instantiates.
+
+The control MCP's `snapback-controls://instance` resource reads the instance
+projection only from its validated ready-file target, compares it with the
+co-installed native build catalog, and refuses a digest mismatch. A matching
+snapshot can still become stale during one process lifetime. Invocation
+admission is always authoritative; direct tools re-run the subsystem gate.
+
+## Native resource availability
+
+`mcp-control` does not ship a second Guide or control-catalog copy. It invokes
+the co-installed native binary's `snapback mcp` server for Guide resources and
+`snapback controls` for catalog resources. If a compatible native binary is
+missing, `resources/list` reports
+`SNAPBACK_MCP_NATIVE_DOCUMENTATION_UNAVAILABLE` in resource diagnostics and
+does not list pretend Guide/catalog resources. Direct reads fail explicitly;
+documentation absence never appears as success.
+
+## Generated inventory
+
+<!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
+The embedded build catalog contains **114 operations** at digest `sha256:3727bea45be4d72acf856b36b7158b91fc835a7f7f9d81b43d1e4d9635e245d0`. The counts and inventory below are generated; do not edit them by hand.
+
+| Axis | Value | Count |
+| --- | --- | ---: |
+| surfaceAccess | `apiOnly` | 38 |
+| surfaceAccess | `cliOnly` | 29 |
+| surfaceAccess | `mcpOnly` | 2 |
+| surfaceAccess | `native` | 41 |
+| surfaceAccess | `none` | 4 |
+| operability | `direct` | 91 |
+| operability | `internal` | 11 |
+| operability | `mediated` | 7 |
+| operability | `unavailable` | 5 |
+
+| Operation | Surface | Operability | Status | CLI | MCP | Guide |
+| --- | --- | --- | --- | --- | --- | --- |
+| `acceptance.run` | `mcpOnly` | `unavailable` | `unbuilt` | — | snapback_acceptance_run | — |
+| `admin.link.exchange` | `cliOnly` | `mediated` | `shipped` | snapback admin link | — | — |
+| `admin.link.mint` | `cliOnly` | `mediated` | `shipped` | snapback admin link | — | operating/admin-console.md#hand-a-one-time-link-from-an-agent-terminal-to-a-remote-browser |
+| `admin.link.revoke` | `cliOnly` | `mediated` | `shipped` | snapback admin link --revoke <claim> | — | — |
+| `admin.link.status` | `cliOnly` | `mediated` | `shipped` | snapback admin link --status <claim> | — | — |
+| `app.ensure.provision` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `app.inspect` | `native` | `direct` | `shipped` | snapback host inspect | snapback_inspect | operating/host-ops.md |
+| `app.reset` | `native` | `direct` | `shipped` | snapback host reset | snapback_reset | — |
+| `app.seed.clear.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `app.seed.ensure.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `app.seed.preview.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `app.seed.reset-install.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `asset.delete` | `native` | `direct` | `shipped` | snapback assets delete | snapback_asset_delete | — |
+| `asset.ensureSeedFixture` | `cliOnly` | `direct` | `shipped` | snapback assets ensure-seed-fixture | — | — |
+| `asset.exportCut` | `native` | `direct` | `shipped` | snapback assets export-cut | snapback_asset_export_cut | — |
+| `asset.gcSweep` | `native` | `direct` | `shipped` | snapback assets gc-sweep | snapback_asset_gc_sweep | — |
+| `asset.importCut` | `native` | `direct` | `shipped` | snapback assets import-cut | snapback_asset_import_cut | — |
+| `asset.inspect` | `native` | `direct` | `shipped` | snapback assets inspect | snapback_asset_inspect | — |
+| `asset.list` | `native` | `direct` | `shipped` | snapback assets list | snapback_asset_list | — |
+| `asset.put` | `cliOnly` | `direct` | `shipped` | snapback assets put | — | — |
+| `asset.retry` | `native` | `direct` | `shipped` | snapback assets retry | snapback_asset_retry | — |
+| `asset.rotateSigningKey` | `native` | `direct` | `shipped` | snapback assets rotate-signing-key | snapback_asset_rotate_signing_key | — |
+| `auth.mailbox.read` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `auth.mintSession` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `auth.rescueCollidingTable` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `branch.create.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `branch.drop.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `branch.execute.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `branch.inspect.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `branch.list.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `branch.reap.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `capability.manifest.read` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `cli.auth.backup` | `cliOnly` | `direct` | `shipped` | snapback auth backup | — | — |
+| `cli.auth.restore` | `cliOnly` | `direct` | `shipped` | snapback auth restore | — | — |
+| `cli.buildIdentity` | `cliOnly` | `direct` | `shipped` | snapback build-identity | — | — |
+| `cli.fork.create` | `cliOnly` | `direct` | `shipped` | snapback fork create | — | — |
+| `cli.fork.diff` | `cliOnly` | `direct` | `shipped` | snapback fork diff | — | — |
+| `cli.fork.drop` | `cliOnly` | `direct` | `shipped` | snapback fork drop | — | — |
+| `cli.fork.list` | `cliOnly` | `direct` | `shipped` | snapback fork list | — | — |
+| `cli.fork.reap` | `cliOnly` | `direct` | `shipped` | snapback fork reap | — | — |
+| `cli.migrate.apply` | `cliOnly` | `direct` | `shipped` | snapback migrate apply | — | — |
+| `cli.migrate.approve` | `cliOnly` | `direct` | `shipped` | snapback migrate approve | — | — |
+| `cli.migrate.cancel` | `cliOnly` | `direct` | `shipped` | snapback migrate cancel | — | — |
+| `cli.migrate.preview` | `cliOnly` | `direct` | `shipped` | snapback migrate preview | — | — |
+| `cli.migrate.rehearse` | `cliOnly` | `direct` | `shipped` | snapback migrate rehearse | — | — |
+| `cli.migrate.rollback` | `cliOnly` | `unavailable` | `unbuilt` | snapback migrate rollback | — | — |
+| `cli.migrate.verify` | `cliOnly` | `direct` | `shipped` | snapback migrate verify | — | — |
+| `cli.telemetry.query` | `cliOnly` | `direct` | `shipped` | snapback telemetry query | — | — |
+| `client-mutations.purge` | `apiOnly` | `internal` | `shipped` | — | — | — |
+| `config.plan` | `native` | `direct` | `shipped` | snapback config plan | snapback_config_plan | operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify |
+| `config.set` | `cliOnly` | `direct` | `shipped` | snapback config set --entry <name> (--value-stdin\|--value-fd N) | — | operating/secrets-and-config.md#set-an-agent-held-value-without-exposing-it |
+| `config.status` | `native` | `direct` | `shipped` | snapback config status | snapback_config_status | operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify |
+| `config.unset` | `native` | `direct` | `shipped` | snapback config unset | snapback_config_unset | — |
+| `config.verify` | `native` | `direct` | `shipped` | snapback config verify <entry> | snapback_config_verify | operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify |
+| `connection.disconnect` | `native` | `direct` | `shipped` | snapback connections disconnect | snapback_connection_disconnect | — |
+| `console.approval.approve` | `cliOnly` | `mediated` | `shipped` | snapback admin approve | — | — |
+| `console.approval.poll` | `cliOnly` | `mediated` | `shipped` | snapback admin approve | — | — |
+| `console.approval.request` | `cliOnly` | `mediated` | `shipped` | snapback admin approve | — | — |
+| `console.credential` | `apiOnly` | `internal` | `shipped` | — | — | — |
+| `console.reachability.bind` | `apiOnly` | `internal` | `shipped` | — | — | — |
+| `console.reachability.drop` | `apiOnly` | `internal` | `shipped` | — | — | — |
+| `console.reachability.register` | `apiOnly` | `internal` | `shipped` | — | — | — |
+| `console.reachability.renew` | `apiOnly` | `internal` | `shipped` | — | — | — |
+| `control.catalog.describe` | `native` | `direct` | `shipped` | snapback controls describe <operation> | snapback-controls://operation/{operation} | operating/agent-controls.md#describe-one-operation |
+| `control.catalog.instance.read` | `mcpOnly` | `direct` | `shipped` | — | snapback-controls://instance | operating/agent-controls.md#build-versus-instance-identity |
+| `control.catalog.read` | `native` | `direct` | `shipped` | snapback controls list | snapback-controls://catalog | operating/agent-controls.md#search-the-build-catalog |
+| `cron.list` | `native` | `direct` | `shipped` | snapback cron list | snapback_cron_list | backend/cron.md#inspect-declared-jobs-and-runtime-posture |
+| `cron.runOne` | `native` | `direct` | `shipped` | snapback cron run | snapback_cron_run | — |
+| `cron.status.read` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `cron.tick` | `native` | `direct` | `shipped` | snapback cron tick | snapback_cron_tick | — |
+| `data.patch.apply` | `native` | `direct` | `shipped` | snapback data patch --apply --input <file\|-> | snapback_data_patch_apply | operating/data-patch.md#apply |
+| `data.patch.preview` | `native` | `direct` | `shipped` | snapback data patch --preview --input <file\|-> | snapback_data_patch_preview | operating/data-patch.md#preview |
+| `data.scan` | `native` | `direct` | `shipped` | snapback data scan <table> | snapback_data_scan | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
+| `debug.live.forceResync` | `native` | `direct` | `shipped` | snapback debug force-resync | snapback_live_force_resync | operating/host-ops.md |
+| `debug.networkProfileGet` | `native` | `direct` | `shipped` | snapback network-profile get | snapback_network_profile_get | operating/network-profiles.md#read-the-active-profile |
+| `debug.networkProfileSet` | `native` | `direct` | `shipped` | snapback network-profile set | snapback_network_profile_set | operating/network-profiles.md#set-a-profile |
+| `direct_runner.action` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `direct_runner.mutation` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `direct_runner.query` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `direct_runner.unknown` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
+| `ephemeral.cleanup` | `native` | `direct` | `shipped` | snapback ephemeral cleanup | snapback_ephemeral_cleanup | realtime/ephemeral-state.md#clean-up-expired-entries-operationally |
+| `ephemeral.operatorDelete` | `native` | `direct` | `shipped` | snapback ephemeral operator-delete | snapback_ephemeral_operator_delete | realtime/ephemeral-state.md#delete-one-entry-as-an-operator |
+| `errors.issue` | `native` | `direct` | `shipped` | snapback errors issue | snapback_errors_issue | operating/host-ops.md |
+| `errors.issues` | `native` | `direct` | `shipped` | snapback errors issues | snapback_errors_issues | operating/host-ops.md |
+| `errors.transition` | `native` | `direct` | `shipped` | snapback errors transition | snapback_errors_transition | operating/host-ops.md |
+| `function.explain` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `function.run` | `native` | `direct` | `shipped` | snapback host run | snapback_run_function | — |
+| `functions.load` | `native` | `direct` | `shipped` | snapback host load --functions <path> | snapback_load_functions | — |
+| `functions.reload` | `apiOnly` | `unavailable` | `unbuilt` | — | — | — |
+| `health` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `health.read` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `host.restart` | `native` | `direct` | `shipped` | snapback restart | snapback_restart | operating/host-ops.md#restart-with-one-credential-bound-receipt |
+| `host.start` | `cliOnly` | `direct` | `shipped` | snapback host start | snapback_start | — |
+| `host.stop` | `cliOnly` | `direct` | `shipped` | snapback host stop | snapback_stop | — |
+| `hostCall.dispatch` | `none` | `internal` | `shipped` | — | — | — |
+| `inspect` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `jobs.drain` | `native` | `direct` | `shipped` | snapback jobs drain | snapback_jobs_drain | — |
+| `jobs.list` | `native` | `direct` | `shipped` | snapback jobs list | snapback_jobs_list | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
+| `jobs.show` | `native` | `direct` | `shipped` | snapback jobs show <id> | snapback_jobs_show | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
+| `object.evict` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `operations.explain` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `push.maintenance` | `apiOnly` | `internal` | `shipped` | — | — | — |
+| `receipts` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `route.unknown.refuse` | `none` | `internal` | `shipped` | — | — | — |
+| `schema.load` | `native` | `direct` | `shipped` | snapback host load --schema <path> | snapback_load_schema | — |
+| `schema.reload` | `apiOnly` | `unavailable` | `unbuilt` | — | — | — |
+| `secretRead.mint` | `cliOnly` | `direct` | `shipped` | snapback secret-read-mint | — | — |
+| `storage.operation-coverage.activate` | `apiOnly` | `direct` | `shipped` | — | — | operating/agent-controls.md#specialist-api-operations-apionly |
+| `storage.protected-erasure` | `apiOnly` | `direct` | `shipped` | — | — | operating/agent-controls.md#specialist-api-operations-apionly |
+| `telemetry.events` | `native` | `direct` | `shipped` | snapback telemetry events | snapback_telemetry_events | operating/host-ops.md |
+| `telemetry.export` | `native` | `direct` | `shipped` | snapback telemetry export | snapback_telemetry_export | operating/host-ops.md |
+| `telemetry.stats` | `native` | `direct` | `shipped` | snapback telemetry stats | snapback_telemetry_stats | operating/host-ops.md |
+| `test.<subpath-determined-by-coordinator>` | `none` | `internal` | `shipped` | — | — | — |
+| `test.corruptMeta` | `none` | `internal` | `shipped` | — | — | — |
+<!-- END GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
+
+## Specialist API operations (apiOnly)
+
+Two shipped operator operations are deliberately `apiOnly`: they have typed
+HTTP contracts but no CLI or MCP tool yet (usage evidence drives promotion —
+LLP 0184 OQ2). Both take the ordinary admin credential
+(`x-snapback-admin-token` or `x-snapback-console-credential`) against the
+local instance from your readiness descriptor.
+
+### Permanently erase one protected row
+
+`POST /_snapback/api/storage/protected-erasure` (LLP 0165). Body (closed):
+`{"operationId": "<caller-minted retry id>", "qualifiedTable": "<table>",
+"rowId": "<row id>"}`. Irreversibly deletes the canonical row and its
+retained journal history, invalidates every registered checkpoint copy, and
+returns a durable authority/target-bound receipt
+(`protected-record-erasure.receipt-v1`). Copies that cannot be destroyed yet
+are reported as `openObligations`; repeat the SAME `operationId` to resume
+them — exact retries are idempotent, while reuse with a different authority
+or target refuses. This is destructive and privacy/compliance-sensitive:
+catalog posture is `humanApprovalRequired` — confirm with a human before
+invoking. A refusal names the exact diagnostic; a fresh `operationId`
+against an already-erased row fails target-not-found rather than
+succeeding.
+
+### Activate operation-coverage writer admission
+
+`POST /_snapback/api/storage/operation-coverage/activate` (LLP 0163). Body
+(closed, v1): `{"schemaVersion": 1, "target": "local-dev-sqlite-ibex",
+"coverageProfile": "local-envelope-mapped-writers.v1"}`. Rechecks the closed
+writer inventory, persists and arms the exact writer manifest (ordinary and
+host-child lanes), and returns the active manifest
+(`operation.coverage-activation-response-v1`); the manifest survives restart
+and re-arms on database open. An exact repeat is idempotent. Activation
+changes future write admission (covered writers then require envelope
+authority) but deletes nothing — and success does **not** publish the
+AgentSafe capability; LLP 0162/0163's performance, review, complete-target,
+and author-acceptance gates remain independent.
+
+---
+
 <!-- snapback-guide-source: guide/operating/secrets-and-config.md -->
 ---
 title: Secrets and deployment config
@@ -9437,13 +10938,13 @@ id: operating.secrets-and-config
 order: 1
 audience: agent-first
 capabilities: [operating.secrets-config]
-authorities: [llp/0036-app-secrets-and-config.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/tests/acceptance/egress.mjs]
-examples: [demos/all-aboard]
+authorities: [llp/0036-app-secrets-and-config.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, src/cli.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/tests/acceptance/egress.mjs]
+examples: [demos/all-aboard, tests/config_set_cli_v0.rs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-06
+reviewed-commit: c9af5600c82c30e6765b270fc10db368adf0dd5a
 ---
 
 # Secrets and deployment config
@@ -9533,6 +11034,91 @@ value bytes, and neither does `status`, the diagnostics ring, or any log
 line. Pass values in the request body — never in argv, where a process list
 would leak them.
 
+## CLI and MCP projections for status/plan/verify
+
+`config.status`, `config.plan`, and `config.verify` never carry a secret
+value, so they are direct CLI and control-MCP tools (LLP 0184 Phase 2 P1).
+`config.unset` is direct CLI and control-MCP too because it carries only an
+entry name. `config.set` is deliberately CLI-only: MCP JSON-RPC has no defined
+equivalent of the process-scoped stdin/fd secret carrier.
+
+```sh
+snapback config status --ready-file .snapback/dev.ready.json
+snapback config plan --ready-file .snapback/dev.ready.json --entry caltrainFeed
+snapback config verify --ready-file .snapback/dev.ready.json caltrainFeed
+snapback config unset --ready-file .snapback/dev.ready.json --entry caltrainFeed
+```
+
+or, through `snapback mcp-control`: `snapback_config_status`,
+`snapback_config_plan` (optional `entry`), and `snapback_config_verify`
+(required `entry`), plus `snapback_config_unset` (required `entry`). Every
+result is the operation's typed, value-free envelope; a missing/unset entry is
+reported as declared state, not fabricated success.
+
+## Set an agent-held value without exposing it
+
+Start by detecting the gap and checking whether this target accepts value
+writes:
+
+```sh
+snapback config status --ready-file .snapback/dev.ready.json
+snapback config plan --ready-file .snapback/dev.ready.json --entry caltrainFeed
+```
+
+If a human holds the value, send them to
+`http://127.0.0.1:<port>/_snapback/admin/setup`. The browser setup page accepts
+the value directly; it does not hand the value back to the agent, and there is
+no speculative agent-facing acquisition operation. Afterward, the agent uses
+`config status` and `config verify` to observe completion.
+
+If the agent already lawfully holds the value, send its exact UTF-8 bytes on
+stdin. Keep the value in a shell-local variable populated by the credential
+source without echoing it; do not paste a literal into this command:
+
+```sh
+printf '%s' "$AGENT_HELD_VALUE" |
+  snapback config set --ready-file .snapback/dev.ready.json \
+    --entry caltrainFeed --value-stdin
+```
+
+`printf '%s'` is the carrier adapter, not a place to type the value. Do not
+export the variable, enable shell tracing, or use `echo`: exported state is
+needlessly inherited, tracing prints expansions, and `echo` can add or rewrite
+bytes. The CLI preserves the carrier bytes exactly, including whitespace and
+line endings, and caps the CLI value at 1 MiB.
+
+An inherited descriptor avoids even a shell expansion. Open an owner-only
+secret source, pass its descriptor number, then close it:
+
+```sh
+exec 9<./operator-owned-secret
+snapback config set --ready-file .snapback/dev.ready.json \
+  --entry caltrainFeed --value-fd 9
+exec 9<&-
+```
+
+For a pooled entry, add one member with the same carrier plus `--append`.
+
+A heredoc is usually the wrong carrier. Its body may be retained by shell
+history or terminal capture, and the newline before the delimiter becomes part
+of the value because Snapback does not trim secret bytes. Use a pipe from the
+credential-owning process or an inherited descriptor unless that final newline
+is deliberately part of the credential.
+
+There is intentionally no `snapback config set ... --value <secret>` spelling.
+Argv is visible to process inspection, commonly retained in shell history, and
+often quoted in parser diagnostics. Config-set parse failures are therefore
+collapsed to a stable value-free usage diagnostic instead of replaying argv.
+There is also no `snapback_config_set` MCP tool: defining one would make the
+ordinary JSON-RPC parameter/result channel a secret carrier.
+
+Complete the flow with value-free observation:
+
+```sh
+snapback config status --ready-file .snapback/dev.ready.json
+snapback config verify --ready-file .snapback/dev.ready.json caltrainFeed
+```
+
 ## Read through a granted handle
 
 An action names entries in `uses`, then reads `ctx.secrets.get(name)` for the
@@ -9578,13 +11164,13 @@ id: operating.host-ops
 order: 2
 audience: agent-first
 capabilities: [operating.host-ops]
-authorities: [llp/0024-agent-operating-surface.spec.md, src/host_ops.rs, src/server.rs, tests/host_ops_v0.rs]
+authorities: [llp/0024-agent-operating-surface.spec.md, src/cli.rs, src/host_ops.rs, src/server.rs, tests/host_ops_v0.rs]
 examples: [demos/todo]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-06
+reviewed-commit: acbb7b922a060788fd09f3f98211eb9ce35f23f4
 ---
 
 # Host operations
@@ -9624,96 +11210,199 @@ carries the storage diagnostic; tooling must not substitute zero.
 
 ## Served request operations
 
-The endpoint serves twenty-eight request spellings:
+<!-- BEGIN GENERATED CONTROL CATALOG: HOST OPS SERVED -->
+The endpoint serves **40 request spellings**. This count and table are generated from the build catalog's LLP 0024 allowlist projection:
 
 | Request operation | Purpose |
 | --- | --- |
-| `app.inspect` | Full runtime/artifact/capability projection. |
-| `app.reset` | Coordinated destructive reset, optionally with seed. |
-| `app.seed.ensure.v1` | Install a generated versioned seed or observe its current match. |
-| `app.seed.preview.v1` | Classify a versioned install/reset/clear without writing. |
-| `app.seed.reset-install.v1` | Coordinated destructive reset plus versioned install. |
-| `app.seed.clear.v1` | Coordinated destructive clear with an idempotent receipt. |
-| `schema.load` | Load a generated schema manifest. |
-| `functions.load` | Load a generated function/config/cron manifest. |
-| `function.run` | Run a query/live query, mutation, or action with its kind-specific gate. |
-| `function.explain` | Explain a supported kind; currently `mutationDryRun` is implemented. |
-| `auth.mintSession` | Dev/test session mint requiring the process-bound impersonation capability. |
-| `auth.rescueCollidingTable` | Operator-only pre-auth catalog collision recovery. |
-| `asset.put` | Put asset bytes/metadata through the same machinery as the asset routes. |
-| `asset.ensureSeedFixture` | Install or observe a deterministic seed-fixture asset. |
-| `asset.inspect` | Inspect one asset record. |
-| `asset.list` | List asset records. |
-| `asset.retry` | Retry a failed asset processing step. |
-| `asset.gcSweep` | Deterministic receipted GC sweep with an injected clock. |
-| `asset.delete` | Delete one asset through the authorized deletion path. |
-| `asset.rotateSigningKey` | Rotate the delivery signing key, invalidating outstanding signed URLs. |
-| `asset.exportCut` | Export a consistent asset cut to an absolute directory. |
-| `asset.importCut` | Import a previously exported consistent asset cut. |
-| `telemetry.stats` | Aggregated telemetry statistics (structural metadata). |
-| `telemetry.events` | Bounded filtered raw telemetry events (secret-read lease). |
-| `telemetry.export` | Bounded NDJSON telemetry export (secret-read lease). |
-| `errors.issues` | Structural error-issue listing. |
-| `errors.issue` | Raw detail for one error issue (secret-read lease). |
-| `errors.transition` | Resolve/ignore state transition for one issue. |
+| `app.inspect` | Inspect the running app |
+| `app.reset` | Reset local app state |
+| `app.seed.clear.v1` | app.seed.clear.v1 |
+| `app.seed.ensure.v1` | app.seed.ensure.v1 |
+| `app.seed.preview.v1` | app.seed.preview.v1 |
+| `app.seed.reset-install.v1` | app.seed.reset-install.v1 |
+| `asset.delete` | Delete one asset |
+| `asset.ensureSeedFixture` | asset.ensureSeedFixture |
+| `asset.exportCut` | Export a consistent asset cut |
+| `asset.gcSweep` | Run asset reclamation and publication maintenance |
+| `asset.importCut` | Validate or apply an exported asset cut |
+| `asset.inspect` | Inspect one asset |
+| `asset.list` | List assets by availability state |
+| `asset.put` | asset.put |
+| `asset.retry` | Re-drive pending asset work |
+| `asset.rotateSigningKey` | Rotate the asset delivery signing key |
+| `auth.mintSession` | auth.mintSession |
+| `auth.rescueCollidingTable` | auth.rescueCollidingTable |
+| `branch.create.v1` | branch.create.v1 |
+| `branch.drop.v1` | branch.drop.v1 |
+| `branch.execute.v1` | branch.execute.v1 |
+| `branch.inspect.v1` | branch.inspect.v1 |
+| `branch.list.v1` | branch.list.v1 |
+| `branch.reap.v1` | branch.reap.v1 |
+| `cron.list` | List cron jobs |
+| `data.patch.apply` | Apply one previewed bounded direct row patch |
+| `data.patch.preview` | Preview one bounded direct row patch |
+| `debug.live.forceResync` | Force one live subscription to resync (debug perturbation) |
+| `debug.networkProfileGet` | Read the active network condition profile |
+| `debug.networkProfileSet` | Set the active network condition profile |
+| `errors.issue` | Inspect one error issue |
+| `errors.issues` | List error issues |
+| `errors.transition` | Transition error issue state |
+| `function.explain` | function.explain |
+| `function.run` | Run one generated function |
+| `functions.load` | Load the generated function manifest |
+| `schema.load` | Load the generated schema manifest |
+| `telemetry.events` | Read a bounded telemetry event page |
+| `telemetry.export` | Export one bounded telemetry page |
+| `telemetry.stats` | Read aggregate telemetry health |
+<!-- END GENERATED CONTROL CATALOG: HOST OPS SERVED -->
 
-`host.start`, `host.stop`, and `host.restart` are CLI-only lifecycle
-verbs—a running server cannot safely own starting/stopping itself; over
-HTTP they fail as `SNAPBACK_HOST_OP_CLI_ONLY`.
+`snapback session mint --email <address> --ready-file <path>` projects
+`auth.mintSession` through the same target and authority handling and prints only
+the resulting `hostOpsResult` JSON.
+
+The six `branch.*.v1` operations are the closed operator surface for managed
+in-app branches
+([LLP 0162 §3](repo:llp/0162-agent-safe-storage-profile.rfc.md)). Each
+accepts its closed v1 body only under `input` (with `schemaVersion: 1`),
+refuses legacy sibling fields, and is registered AdminWrite; paths and
+grants are server-owned.
+
+`host.start` and `host.stop` are CLI-only lifecycle verbs—a running server
+cannot safely own starting/stopping itself; over HTTP they fail as
+`SNAPBACK_HOST_OP_CLI_ONLY`. `host.restart` has native CLI and MCP
+projections, but its registered HTTP identity deliberately returns the same
+CLI-only refusal.
+
+## Restart with one credential-bound receipt
+
+```sh fragment reason="The ready descriptor is a runtime-owned capability path."
+snapback restart --ready-file .snapback/dev.ready.json \
+  --reason "reload native dependency"
+```
+
+Both `snapback restart` and `snapback_restart` compose stop then start under
+one request id and one `host.restart` envelope. Before any process signal,
+they resolve a concrete administrator token and prove it through
+`app.inspect` on the AdminRead-gated host-ops route; a missing or refused
+credential leaves the old server running. The stop leg independently checks
+the descriptor's startup nonce, and the start leg accepts only a successor
+descriptor with the same database and a new startup nonce. Credentials never
+enter child argv or the receipt. The fresh-spawn leg has no prior server
+credential to hold.
+
 `schema.reload`, `functions.reload`, and `acceptance.run` are pinned but
-unbuilt and fail as `SNAPBACK_HOST_OP_UNIMPLEMENTED`. Both families are
+unbuilt and fail as `SNAPBACK_HOST_OP_UNIMPLEMENTED`. All three families are
 registered at AdminWrite so an authenticated request reaches that structured
 envelope; unknown names stay unregistered and fail closed before dispatch.
 
-## The exact 39 registry identities
+## Registered operation identities
 
-The HTTP request names above expand into these 39 audited operation
-identities (the last six are the registered CLI-only and pinned-unbuilt
-verbs):
+<!-- BEGIN GENERATED CONTROL CATALOG: HOST OPS REGISTERED -->
+The request spellings above expand into **53 registered operation identities**. This inventory is generated from each catalog row's LLP 0031 registry projection:
 
-1. `host_ops.app.inspect`
-2. `host_ops.function.explain`
-3. `host_ops.function.explain.impersonated`
-4. `host_ops.app.reset`
+1. `host_ops.acceptance.run`
+2. `host_ops.app.inspect`
+3. `host_ops.app.reset`
+4. `host_ops.app.seed.clear.v1`
 5. `host_ops.app.seed.ensure.v1`
 6. `host_ops.app.seed.preview.v1`
 7. `host_ops.app.seed.reset-install.v1`
-8. `host_ops.app.seed.clear.v1`
-9. `host_ops.schema.load`
-10. `host_ops.functions.load`
-11. `host_ops.auth.mintSession`
-12. `host_ops.auth.rescueCollidingTable`
-13. `host_ops.function.run.query`
-14. `host_ops.function.run.mutation`
-15. `host_ops.function.run.action`
-16. `host_ops.function.run.unknown`
-17. `host_ops.function.run.impersonated`
-18. `host_ops.asset.put`
-19. `host_ops.asset.ensureSeedFixture`
-20. `host_ops.asset.inspect`
-21. `host_ops.asset.list`
-22. `host_ops.asset.retry`
-23. `host_ops.asset.gcSweep`
-24. `host_ops.asset.delete`
-25. `host_ops.asset.rotateSigningKey`
-26. `host_ops.asset.exportCut`
-27. `host_ops.asset.importCut`
-28. `host_ops.telemetry.stats`
-29. `host_ops.telemetry.events`
-30. `host_ops.telemetry.export`
-31. `host_ops.errors.issues`
-32. `host_ops.errors.issue`
-33. `host_ops.errors.transition`
-34. `host_ops.schema.reload`
-35. `host_ops.functions.reload`
-36. `host_ops.acceptance.run`
-37. `host_ops.host.start`
-38. `host_ops.host.stop`
-39. `host_ops.host.restart`
+8. `host_ops.asset.delete`
+9. `host_ops.asset.ensureSeedFixture`
+10. `host_ops.asset.exportCut`
+11. `host_ops.asset.gcSweep`
+12. `host_ops.asset.importCut`
+13. `host_ops.asset.inspect`
+14. `host_ops.asset.list`
+15. `host_ops.asset.put`
+16. `host_ops.asset.retry`
+17. `host_ops.asset.rotateSigningKey`
+18. `host_ops.auth.mintSession`
+19. `host_ops.auth.rescueCollidingTable`
+20. `host_ops.branch.create.v1`
+21. `host_ops.branch.drop.v1`
+22. `host_ops.branch.execute.v1`
+23. `host_ops.branch.inspect.v1`
+24. `host_ops.branch.list.v1`
+25. `host_ops.branch.reap.v1`
+26. `host_ops.cron.list`
+27. `host_ops.data.patch.apply`
+28. `host_ops.data.patch.apply.impersonated`
+29. `host_ops.data.patch.preview`
+30. `host_ops.data.patch.preview.impersonated`
+31. `host_ops.debug.live.forceResync`
+32. `host_ops.debug.networkProfileGet`
+33. `host_ops.debug.networkProfileSet`
+34. `host_ops.errors.issue`
+35. `host_ops.errors.issues`
+36. `host_ops.errors.transition`
+37. `host_ops.function.explain`
+38. `host_ops.function.explain.impersonated`
+39. `host_ops.function.run.query`
+40. `host_ops.function.run.mutation`
+41. `host_ops.function.run.action`
+42. `host_ops.function.run.unknown`
+43. `host_ops.function.run.impersonated`
+44. `host_ops.functions.load`
+45. `host_ops.functions.reload`
+46. `host_ops.host.restart`
+47. `host_ops.host.start`
+48. `host_ops.host.stop`
+49. `host_ops.schema.load`
+50. `host_ops.schema.reload`
+51. `host_ops.telemetry.events`
+52. `host_ops.telemetry.export`
+53. `host_ops.telemetry.stats`
+<!-- END GENERATED CONTROL CATALOG: HOST OPS REGISTERED -->
 
 Query/explain reads, durable writes, credential-producing operations, and
 dev impersonation therefore keep distinct `RoutePolicy`, authority, effect,
 and response-sensitivity classifications even though they share one carrier.
+
+## Direct CLI/MCP projections beyond host-ops (LLP 0184 Phase 2 P1)
+
+Some agent-relevant reads live on their own `SystemApi` routes rather than
+the `/_snapback/api/host-ops` multiplexer above. Each now has a direct CLI
+command and a control-MCP tool:
+
+| Operation | CLI | MCP tool |
+| --- | --- | --- |
+| `data.scan` | `snapback data scan <table> [--limit N] [--offset N]` | `snapback_data_scan` |
+| `jobs.list` | `snapback jobs list` | `snapback_jobs_list` |
+| `jobs.show` | `snapback jobs show <id>` | `snapback_jobs_show` |
+
+`data.scan` projects `DataQuery` exactly as shipped — `table`, `limit`,
+`offset` — and **has no cursor**: the route does not have one. Offset paging
+is not stable under concurrent writes; a row can shift between pages between
+two calls issued moments apart. Prefer a narrow `--limit`, and treat a scan
+as a snapshot-ish sample rather than a guaranteed-complete enumeration under
+write load. A stable/snapshot-bound cursor would be a new storage semantic
+and is out of this projection's scope.
+
+```sh
+snapback data scan messages --limit 20 --ready-file .snapback/dev.ready.json
+```
+
+Both `data.scan` and the CLI's `secret-read-mint` mint a scoped,
+row/byte-budgeted secret-read lease automatically from the local readiness
+descriptor when one is not supplied — never by reading an arbitrary URL for
+credentials. `jobs.list`/`jobs.show` are the read-only half of LLP 0070's
+one-off job surface; draining jobs is a separate, mutating operation this
+slice does not add.
+
+Three `host-ops` asset operations also gained MCP tools this phase — the CLI
+paths (`snapback assets list|inspect|retry`) were already shipped:
+
+| Operation | MCP tool |
+| --- | --- |
+| `asset.list` | `snapback_asset_list` |
+| `asset.inspect` | `snapback_asset_inspect` |
+| `asset.retry` | `snapback_asset_retry` |
+
+The remaining asset operations (`put`, `gcSweep`, `delete`,
+`rotateSigningKey`, `exportCut`, `importCut`, `ensureSeedFixture`) stay
+CLI-only for now — see `snapback assets --help`.
 
 ## Respect admin, secret-read, and impersonation gates
 
@@ -9732,6 +11421,60 @@ generated app-data calls. Host operations—including `function.run`—do not
 resolve scoped tokens into authority; use the operation's explicit admin or
 dev-impersonation gate instead.
 
+## Controlled mutations: config, cron, jobs, connections
+
+These operations sit beside the host-ops multiplexer — each is its own
+admin-gated `POST /_snapback/api/...` route, not a `host-ops` request — but
+now have the same direct CLI and control-MCP shape (LLP 0184 §P2's
+"controlled mutations" projections). Each is `AdminWrite` and every CLI form
+below accepts the same `--url`/`--ready-file`/`--token` target flags as
+`host inspect`.
+
+`config.unset` removes one config entry's stored value. It carries only the
+entry identifier — no secret value crosses the wire, so it needs no secret
+carrier (unlike `config.set`, which stays CLI-only pending a defined MCP
+secret carrier):
+
+```sh
+snapback config unset --entry stripe.secretKey --ready-file .snapback/dev.ready.json
+```
+
+or `snapback_config_unset` (`{ "entry": "stripe.secretKey" }`) through
+`snapback mcp-control`.
+
+`cron.tick` force-claims and runs every currently-due cron job; `cron.runOne`
+force-runs one named job regardless of its schedule:
+
+```sh
+snapback cron tick --ready-file .snapback/dev.ready.json
+snapback cron run nightly-digest --ready-file .snapback/dev.ready.json
+```
+
+or `snapback_cron_tick` / `snapback_cron_run` (`{ "name": "nightly-digest" }`).
+
+`jobs.drain` claims and runs due one-off jobs under an injected clock — the
+deterministic seam that lets acceptance suites drive due-ness without
+sleeping, instead of the wall clock `cron.tick` uses:
+
+```sh
+snapback jobs drain --ready-file .snapback/dev.ready.json --now-ms 1700000000000 --max-waves 3
+```
+
+or `snapback_jobs_drain` (`{ "nowMs": 1700000000000, "maxWaves": 3 }`, both
+optional — absent `nowMs` means wall clock).
+
+`connection.disconnect` is an explicit **debug perturbation** of one live
+connection — force-closing a connection for local recovery/repair testing.
+It is never application disconnect authority: the underlying route accepts
+no request body, so `reason` is recorded in the CLI/MCP receipt for the
+caller's own audit trail, not acknowledged by the server.
+
+```sh
+snapback connections disconnect conn_01h8x2 --reason "stuck presence repair" --ready-file .snapback/dev.ready.json
+```
+
+or `snapback_connection_disconnect` (`{ "connectionId": "conn_01h8x2", "reason": "stuck presence repair" }`).
+
 ## Anti-patterns
 
 - **Do not call internal Rust methods from tooling.** Use the envelope so CLI
@@ -9745,6 +11488,222 @@ dev-impersonation gate instead.
 
 ---
 
+<!-- snapback-guide-source: guide/operating/network-profiles.md -->
+---
+title: Network condition profiles
+id: operating.network-profiles
+order: 2
+audience: agent-first
+capabilities: [operating.network-profiles]
+authorities: [llp/0167-network-condition-profiles.rfc.md]
+examples: [demos/zero-bakeoff]
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-08-05
+reviewed-commit: HEAD
+---
+
+# Network condition profiles
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+Use a network condition profile when you need real Snapback responses to arrive
+slowly while commits and server-side ordering remain unchanged. The delay is
+applied on the server's mutation-ack, live-delta, and query-response egress
+lanes, so optimistic UI, settlement, and convergence experience the same
+conditions an actual client would.
+
+## Choose a built-in or custom profile
+
+Snapback ships three built-ins:
+
+| Profile | Mutation ack | Live delta | Query response | Jitter | Use it for |
+| --- | ---: | ---: | ---: | ---: | --- |
+| `normal` | 0 ms | 0 ms | 0 ms | 0 ms | Ordinary operation; the identity profile. |
+| `optimistic` | 1,000 ms | 1,000 ms | 0 ms | 0 ms | Exercising optimistic UI and coordinated post-commit settlement. |
+| `demo-slow` | 2,000 ms | 2,000 ms | 2,000 ms | 250 ms | Making slow-server behavior visible in a demo. |
+
+Anywhere a built-in name is accepted, you may instead supply an inline JSON
+object with a name and the three lane delays. `jitterMs` is optional and
+defaults to zero. This is the real `demo-slow` shape from the zero-bakeoff
+acceptance environment:
+
+```json source=demos/zero-bakeoff/protocol/environment.v2.json
+{
+      "name": "demo-slow",
+      "mutationAckDelayMs": 2000,
+      "liveDeltaDelayMs": 2000,
+      "queryResponseDelayMs": 2000,
+      "jitterMs": 250
+    }
+```
+
+## Set or inspect a profile from the CLI
+
+Address the running server through its readiness file. `get` is read-only;
+`set` uses the ordinary admin-write authority and returns the structured
+`hostOpsResult` envelope.
+
+```sh
+snapback network-profile get --ready-file .snapback/dev.ready.json
+snapback network-profile set optimistic --ready-file .snapback/dev.ready.json
+snapback network-profile set demo-slow --ready-file .snapback/dev.ready.json
+```
+
+Pass custom JSON as the positional profile value:
+
+```sh
+snapback network-profile set '{"name":"ack-slow","mutationAckDelayMs":1500,"liveDeltaDelayMs":0,"queryResponseDelayMs":0,"jitterMs":0}' --ready-file .snapback/dev.ready.json
+```
+
+## Give an agent the same control through MCP
+
+The tools are exposed by `snapback mcp-control` and call the same host
+operations as the CLI:
+
+| Intent | MCP tool | Input |
+| --- | --- | --- |
+| Read the active profile and provenance | `snapback_network_profile_get` | No input. |
+| Activate a profile | `snapback_network_profile_set` | `profile` is a built-in name or the inline object above; `operatorPrincipal` is optional. |
+
+The underlying operations are `debug.networkProfileGet` and
+`debug.networkProfileSet`. The latter is mutating even though a profile does
+not change durable app data. Use `snapback_network_profile_set` with
+`profile: "normal"` as the MCP restore step.
+
+## Select a profile at server startup
+
+Set `SNAPBACK_NETWORK_PROFILE` to a built-in name or inline JSON before the
+server starts:
+
+```sh
+SNAPBACK_NETWORK_PROFILE=optimistic \
+  snapback start --memory --ready-file .snapback/dev.ready.json
+```
+
+This is startup configuration. Restarting with the same environment selects
+the profile again, and a non-`normal` selection is re-announced in startup and
+readiness output. Startup selection still passes through the same activation
+gate as every runtime control.
+
+## Read or change the profile through the admin API
+
+The admin API exposes one path with policy split by method:
+
+| Request | Authority | Body |
+| --- | --- | --- |
+| `GET /_snapback/api/debug/network-profile` | `AdminRead` | None. |
+| `PUT /_snapback/api/debug/network-profile` | `AdminWrite` | A JSON built-in name such as `"optimistic"`, or the inline profile object. |
+
+For example, after resolving the server URL and admin token from the readiness
+handoff:
+
+```sh
+curl -sS \
+  -H "x-snapback-admin-token: $ADMIN_TOKEN" \
+  http://127.0.0.1:4287/_snapback/api/debug/network-profile
+
+curl -sS -X PUT \
+  -H "x-snapback-admin-token: $ADMIN_TOKEN" \
+  -H 'content-type: application/json' \
+  --data '"demo-slow"' \
+  http://127.0.0.1:4287/_snapback/api/debug/network-profile
+```
+
+The response reports the active profile and activation provenance. Do not
+build a separate policy path around these routes; the CLI, host-ops, MCP, and
+console are thin clients over the same activation decision.
+
+## Toggle a profile while debugging in the console
+
+The admin console's Developer panel offers all three built-ins plus custom
+fields. While any non-`normal` profile is active, the console shows a
+persistent banner on every tab. The panel inherits the same refusal and
+authority behavior as the API; it does not have a browser-only bypass.
+
+## Know where activation is allowed
+
+Network profiles fail closed at one activation chokepoint. The complete matrix
+and rationale live in [LLP 0167](repo:llp/0167-network-condition-profiles.rfc.md),
+but these limits matter when operating the feature:
+
+- A local, non-`Prod` server may activate a non-`normal` profile.
+- A primary hosted target refuses every non-`normal` profile. The narrow
+  hosted exception is an LLP 0158 derived/forked instance with authoritative,
+  boot-validated identity. On Cloudflare that identity comes from the dedicated
+  `SNAPBACK_DERIVED_INSTANCE_ID` binding, independently of `SNAPBACK_TESTING`.
+- An explicit or defaulted `ServerProfile` of `Prod` always refuses a
+  non-`normal` profile, including on a derived instance.
+- Hosted, missing, malformed, or contradictory classification refusals use
+  `SNAPBACK_NETWORK_PROFILE_FORBIDDEN` on every activation surface.
+- The hard per-response delay ceiling is 30,000 ms. A profile that could
+  exceed it is refused with `SNAPBACK_NETWORK_PROFILE_DELAY_CEILING`; Snapback
+  never silently clamps it.
+
+These rules are why this page declares `targets: [local]`: the derived-instance
+allowance is a contained exception, not general hosted or production support.
+
+## Tell whether a response was perturbed
+
+Every response served under a non-`normal` profile names the profile that
+actually governed its delay:
+
+| Surface | Observation marker |
+| --- | --- |
+| HTTP | `snapback-network-profile` response header, exposed through CORS. |
+| Socket and poll live protocol | `network_profile` field on the frame. |
+
+The profile is snapshotted when the response or frame enters the delay seam, so
+a concurrent toggle cannot relabel an in-flight response. `normal` is a true
+identity: it emits no marker and adds no measurable overhead.
+
+## Understand what survives a restart
+
+A profile selected at runtime through the API, host-ops, MCP, or console is
+deliberately process-local and is not persisted. After restart, the server uses
+`normal` unless `SNAPBACK_NETWORK_PROFILE` supplies startup configuration.
+This prevents a forgotten interactive toggle from silently becoming durable;
+an environment-selected profile is different because the launcher explicitly
+selects it again at startup.
+
+## Restore `normal` when you're done
+
+Restoring the identity profile is mandatory cleanup for every test, demo, or
+debugging session that activates a non-`normal` profile. It is part of the
+honest-perturbation contract in LLP 0167, not an optional courtesy:
+
+```sh
+snapback network-profile set normal --ready-file .snapback/dev.ready.json
+```
+
+If the profile came from `SNAPBACK_NETWORK_PROFILE`, also remove that setting
+from the launcher or change it to `normal`; otherwise the next restart will
+select the non-`normal` profile again.
+
+The exact MCP equivalent is `snapback_network_profile_set` with
+`profile: "normal"`. Confirm with the CLI `get` command or
+`snapback_network_profile_get` before handing the server to another task.
+
+## Anti-patterns
+
+- **Do not leave a slow profile active.** Always perform and verify the
+  restore-to-`normal` step above, even when a test fails midway.
+- **Do not add client-side sleeps to simulate server latency.** Latency
+  Kanban's old sleep delayed the caller without exercising Snapback's pending,
+  settlement, and live-convergence paths; the server profile exists to replace
+  that false test.
+- **Do not assume hosted or production accepts non-`normal`.** Primary hosted
+  and every `Prod` profile refuse it; the derived-instance rule is the only
+  narrow hosted exception.
+- **Do not use latency profiles to model disconnects, drops, reordering, or
+  offline state.** Profiles delay otherwise unchanged, in-order observations;
+  those other perturbations belong to their dedicated test controls.
+
+---
+
 <!-- snapback-guide-source: guide/operating/diagnostics.md -->
 ---
 title: Diagnostics and local doctoring
@@ -9752,13 +11711,13 @@ id: operating.diagnostics
 order: 3
 audience: agent-first
 capabilities: [operating.diagnostics]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, src/diagnostic.rs, packages/snapback-codegen/index.mjs, packages/snapback-cli/runtime-recovery.mjs, demos/_kit/harness.mjs, scripts/ibex-doctor, scripts/runtime-link-smoke.mjs, scripts/bootstrap-ibex-runtime]
-examples: [demos/todo/tests/acceptance/headless.mjs, packages/snapback-codegen/authoring-validation.test.mjs]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0146-agentic-authoring-affordances.rfc.md, src/diagnostic.rs, src/authoring_suggestion.rs, packages/snapback-codegen/index.mjs, packages/snapback-cli/runtime-recovery.mjs, demos/_kit/harness.mjs, scripts/ibex-doctor, scripts/runtime-link-smoke.mjs, scripts/bootstrap-ibex-runtime]
+examples: [demos/todo/tests/acceptance/headless.mjs, packages/snapback-codegen/authoring-validation.test.mjs, tests/host_ops_v0.rs]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-05
-reviewed-commit: 4a6000ac6f17a8c94bc2aecf573c0654e850b758
+reviewed: 2026-08-06
+reviewed-commit: 3e78f67c4972b8c13e2375970da285ae2d4c0195
 ---
 
 # Diagnostics and local doctoring
@@ -9788,6 +11747,44 @@ Public unauthenticated projections intentionally drop `message` and
 `details`, because they can contain source paths, handler text, arguments, or
 operator context. Error envelopes expose the diagnostic at
 `error.diagnostic`; some terminal mutation paths also attach a receipt.
+
+## Use candidates from the served generation
+
+After the existing authorization gate admits a caller, local unknown-operation,
+unknown-function, unknown-field, and wrong-argument-shape refusals add
+authoring help to the same `details` object:
+
+- `candidateOperations` contains only currently served host operations;
+- `candidateFunctions` names served function ids/names, kinds, exported names,
+  and argument-contract hashes, filtered to the route's expected function
+  kinds;
+- `candidateFields` names served schema or argument fields with their expected
+  type and required/optional posture;
+- `expectedArgumentContract` carries the complete served argument contract for
+  an argument refusal; and
+- `artifactHash` or `servedShapeHash` identifies the generation that produced
+  the suggestion.
+
+Treat these as generation-bound suggestions, not aliases and not commands to
+apply. Candidates contain served schema metadata only: the rejected spelling,
+argument value, row value, and secrets are not echoed. A caller that cannot
+pass the existing auth gate receives the existing uniform refusal and learns
+no function-existence candidates.
+
+`localMissSummary` is a bounded process-local hint. `sameMissCount` and
+`repeated` tell you that this process has seen the same category, generation,
+and rejected identifier before; `capacity` is 128 and counts cap at 255. The
+runtime retains only a hash of the miss, evicts least-recently-used entries,
+does not persist the summary, and does not promote popular mistakes into
+aliases. Regenerate or reload your artifacts when the diagnostic's generation
+does not match the artifact you used.
+
+LLP 0146 OQ6 is still open. No `remediations` wire member or
+machine-applicable repair endpoint exists, and the ControlCatalog
+`remediation` field remains null/absent. Until the LLP 0094/0095 carrier
+decision lands, do not synthesize an automatic repair from these candidates;
+in particular, never apply an identifier replacement without an operation
+that atomically verifies the suggestion's artifact hash.
 
 ## Assert on codes, not prose
 
@@ -9896,16 +11893,23 @@ version, and build profile; older binaries that predate the command may still
 be classified runnable via `--help`, but their actual stamp remains honestly
 unknown.
 
-A dirty worktree triggers the same posture at server spawn: the kit skips
-a prebuilt `target/debug/snapback` it cannot verify against a committed
-identity ("this checkout is dirty or has no committed identity") and
-falls back to the `cargo run` rung, which costs a rebuild-check on every
-boot (~30 s). That is provenance working as designed, not a fault. If
-you accept the local binary knowingly — a test loop on an intentionally
-dirty tree — the sanctioned escape is the same explicit override the
-diagnostic quotes: `SNAPBACK_SERVER_BINARY=<path>`. The override's
-unpinned identity stays visible in the spawn record, so acceptance is
-always a recorded choice, never an ambient default.
+Dirtiness here is scoped to the runtime binary's input set — the shared
+pathspec list in `scripts/runtime-build-inputs.txt` (Rust sources and
+manifests, `vendor/ibex`, and the build-embedded corpora). Uncommitted
+edits to your app under `demos/`, or to LLPs, issues, and diaries, cannot
+change the binary's bytes and do not count: a prepared binary stays
+verified and reusable while you iterate on an app. A dirty *input set*
+triggers the refusal posture at server spawn: the kit skips a prebuilt
+`target/debug/snapback` it cannot verify against a committed identity
+("this checkout's runtime input set is dirty or has no committed
+identity") and falls back to the `cargo run` rung, which costs a
+rebuild-check on every boot (~30 s). That is provenance working as
+designed, not a fault. If you accept the local binary knowingly — a test
+loop on intentionally dirty runtime sources — the sanctioned escape is
+the same explicit override the diagnostic quotes:
+`SNAPBACK_SERVER_BINARY=<path>`. The override's unpinned identity stays
+visible in the spawn record, so acceptance is always a recorded choice,
+never an ambient default.
 
 When `SNAPBACK_IBEX_RUNTIME_LINK_FAILED` names compatibility symbols such as
 `ex_hermes_create_no_eval`, do not delete Cargo output or rebuild Hermes
@@ -10589,6 +12593,617 @@ between actionable faults and routine domain outcomes.
 
 ---
 
+<!-- snapback-guide-source: guide/operating/instance-forks.md -->
+---
+title: Local instance forks
+id: operating.instance-forks
+order: 7
+audience: agent-first
+capabilities: [operating.instance-forks]
+authorities: [llp/0158-instance-forking.rfc.md, src/cli.rs, src/instance_fork.rs, demos/_kit/instance-fork.mjs]
+examples: [demos/todo/tests/acceptance/forked-parent.mjs, tests/instance_fork_cli_v1.rs, tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json]
+status: current
+targets: [local]
+maturity: partial
+reviewed: 2026-08-06
+reviewed-commit: HEAD
+---
+
+# Local instance forks
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+The source CLI can give one worktree a finite-lived, independent backend that
+starts from a consistent copy of an existing file-backed local app. Use it for
+schema- or function-divergent development against realistic rows. The fork has
+the same logical `appId`, but fresh instance, authorization-stream,
+data-stream, admin-token, and resume-keyring identities.
+
+This is a **partial, unpublished surface**. The local design in
+[LLP 0158](repo:llp/0158-instance-forking.rfc.md) was Accepted on 2026-08-06,
+but the separate
+`agent_safe_derived_deployment_fork_v1` qualification and publication gates
+remain unsatisfied and its public tuple remains wholly `Missing`. The guide
+teaches the implemented source workflow; it does not claim a packaged, hosted,
+promotable, or process-sandboxed capability.
+
+## Give a worktree its own backend
+
+Bootstrap this checkout first so `target/debug/snapback` is the qualified
+binary for these exact source bytes. A parent may be a cold SQLite database or
+a live server's ready file. Run creation from the worktree whose generated
+schema and functions the fork should load:
+
+```sh
+scripts/bootstrap-ibex-runtime
+target/debug/snapback fork create \
+  --from /absolute/path/to/parent.ready.json \
+  --ttl 2h \
+  --app-root "$PWD" \
+  --fork-root /absolute/path/to/shared-fork-root
+```
+
+The default JSON `hostOpsResult` contains `data.readyFile`, `data.database`,
+`data.receipt.lineage.forkId`, and the effective `serverUrl`. Treat the ready
+file as the connection handoff. Do not infer a port, reuse the parent's admin
+token, or discover a database by scanning directories. For a shell that needs
+exactly one value, add `--format url`, `fork-id`, `database-path`,
+`ready-path`, or `admin-token-path`; JSON remains the primary automation
+contract.
+
+The fork operation does all of these before it returns:
+
+- sweeps already-expired, safely verifiable forks in the selected fork root,
+  completes any stale registry bookkeeping whose fork directory is already
+  gone (reported as `data.automaticReap.clearedStaleRegistryIds`), or refuses
+  creation if any expired target cannot be proved safe to remove;
+- checks resource admission and refuses deterministically with
+  `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` when the managed fork count, the
+  source database's estimated bytes, or the fork root's total byte budget
+  would exceed the configured limits (`--max-forks`, `--max-fork-bytes`,
+  `--max-total-bytes`), reporting the admitted usage as
+  `data.resourceAdmission`; a fork-root lock keeps the count/byte observation,
+  registry intent, and publication one atomic admission interval even when
+  creates race at a boundary; lock acquisition has a 30-second monotonic
+  deadline and refuses with `SNAPBACK_FORK_ADMISSION_TIMEOUT` rather than
+  waiting without bound; the creation TTL itself is bounded by the same maximum
+  total fork lifetime that caps renewal;
+- treats those byte checks as admission-time estimates, not a live disk
+  quota: fork-local writes and uploads can grow after creation until finite
+  TTL/reap cleanup, so use a filesystem/container quota when runtime growth
+  itself must be contained;
+- takes a consistent local snapshot and records the exact fork point;
+- records the canonical invoking app root plus logical app id in registry and
+  fork-local digest-bound evidence before publication, independently of
+  whether a server is ever launched;
+- scrubs copied sessions, agent credentials, and operational claims;
+- rotates authorization and data-stream identities and mints fresh sidecars;
+- when both generated manifests exist, admits the complete schema/function
+  pair through an owner-only fork-local cold-start carrier, then arms the
+  derived fork's generated-writer/SQLite-authorizer app-row coverage before
+  listener bind; `data.writerCoverageReceipt` names the fork-point-bound
+  manifest;
+- preserves the historical post-bind schema/function loader only for a
+  partial dev-manifest layout; that path returns
+  `data.writerCoverageReceipt: null` and makes no whole-window coverage claim;
+- boots cron, durable jobs, and asset maintenance inert;
+- applies fail-closed `deny-all-v1` host egress; and
+- records a finite expiry in the fork-root lifecycle registry; and
+- starts a server that refuses boot after expiry and checks its expiry while
+  serving.
+
+Use a shared, explicit fork root when several worktrees derive from one
+parent. Each `fork create` chooses a UUID-named direct child by default, so
+worktrees do not share a database or port. Keep `--app-root` pointed at each
+worktree: create records its canonical path and logical app id in registry and
+fork-local digest-bound evidence. Every list, inspect, diff, renew, drop, reap,
+and recover selection rechecks that identity before projecting paths or
+credentials or mutating state. Consequently, even two worktrees with the same
+`appId` cannot select one another through a shared `--fork-root`; a legacy row
+without this binding fails closed rather than acting as a wildcard.
+
+Library callers have the same contract without a launch step. Establish or
+load the app root with `ensure_expected_app(app_root, app_id)` or
+`load_expected_app(app_root)`, then pass the returned opaque
+`ExpectedForkAppV1` to `publish_managed` or
+`publish_managed_with_base`. Those APIs revalidate the canonical app-root
+identity and persist it during mint; they never infer authority from the
+destination's parent fork root. A fork minted this way can be inspected or
+diffed immediately with the owning CLI `--app-root`. The low-level `publish`
+crash-corpus primitive is deliberately unmanaged and cannot be selected by
+managed lifecycle commands.
+
+That root identity is a deliberate one-app pin. If a worktree must change to a
+different logical app id, first use its current identity to list and drop (or
+reap) every managed fork it owns. Then remove only
+`.snapback/instance-fork-app-identity.v1.json`; the next `fork create` records
+the new app id. Do not remove the identity while owned forks remain: doing so
+makes them fail closed under managed lifecycle commands and does not transfer
+their authority to the new app id.
+
+## Fork instead of seeding an acceptance suite
+
+Suites using `openHeadlessApp` opt in with `forkFrom`. The ordinary call still
+starts a blank in-memory server and installs the demo seed. The fork-aware call
+preserves parent rows, loads the current worktree's generated artifacts, and
+makes `close()` perform an exact registry-bound `fork drop`:
+
+```js source=demos/todo/tests/acceptance/forked-parent.mjs
+  const app = await openHeadlessApp(import.meta.url, {
+    appId: 'todo',
+    forkFrom: parentDb,
+    forkRoot,
+    forkTtl: '10m',
+    serverBinary,
+  });
+  cleanups.push(() => app.close());
+```
+
+Register `close()` with the shared acceptance cleanup stack immediately. The
+finite TTL is an automatically enforced backstop for interruption, not a
+substitute for attested test cleanup. Do not pass a seed on the fork path:
+replacing realistic parent state would defeat the option's purpose.
+
+After the suite writes, retain the bounded review receipt before cleanup:
+
+```js source=demos/todo/tests/acceptance/forked-parent.mjs
+    const receipt = await app.fork.diff();
+    assertEqual(receipt.rows.length, 1, 'one fork-only app-row mutation');
+    assertEqual(receipt.rows[0].postImage.title, forkOnlyTitle, 'diff post-image');
+    assert(receipt.omissions.includes('auth and credential state'), 'diff must retain explicit omissions');
+```
+
+`app.fork.createEnvelope` retains the creation facts, including worker,
+egress, secret, expiry, and lineage posture. `app.fork.diff()` returns the
+journal-derived app-row receipt. The maintained Todo proof starts from a
+parent-only edge-case row, mutates the fork, checks the receipt, and verifies
+the live parent never sees the fork-only row.
+
+## Own forks per worktree, per agent run, and per suite lane
+
+The acceptance kit layers deterministic ownership over the CLI lifecycle
+(`demos/_kit/instance-fork.mjs`). `startWorktreeFork` binds a fork to the
+exact canonical git-worktree toplevel; `startAgentFork` binds one to an
+explicit `ownerId`/`runId` pair. Both write a non-secret
+`snapback.fork-owner.v1` record into the fork directory and return
+shell-friendly `envExports` (fork id, URL, ready path). Discovery and
+cleanup then bind to that exact recorded identity — never a guessed
+directory — and every deletion still goes through registry-bound
+`fork drop`:
+
+```js fragment reason="illustrative composition; the CI-verified consumer is demos/todo/tests/acceptance/fork-parallel-dispositions.mjs"
+import {
+  startAgentFork, discoverOwnedForks, dropOwnedForks,
+} from './demos/_kit/instance-fork.mjs';
+
+const fork = await startAgentFork({
+  ownerId: 'my-fleet-lane', runId: process.env.RUN_ID,
+  from: parentDb, appRoot, repoRoot, forkRoot, ttl: '30m',
+});
+// … if this run dies without fork.stop(), a later sweep cleans up exactly:
+await dropOwnedForks({ repoRoot, appRoot, forkRoot,
+  match: { ownerId: 'my-fleet-lane', runId: process.env.RUN_ID } });
+```
+
+Parallel suites share one expensive prepared parent while each lane gets an
+isolated derived instance on its own OS-assigned port. An interrupted run
+settles into one of three named dispositions, each CI-proven in
+`demos/todo/tests/acceptance/fork-parallel-dispositions.mjs`: a fully
+cleaned state; an unexpired orphan swept later by its exact owner/run
+record; or a quarantined incomplete publication repaired through
+`fork recover`. Automatic reap separately handles the fourth shape — an
+expired fork nobody swept.
+
+## Inspect, review, and dispose forks
+
+`list` is the deliberately advisory registry projection. Safety-sensitive
+`inspect`, `diff`, `drop`, and `reap` re-bind each selected entry to the fork's
+local lineage, mint receipt, database, and ready descriptor before reading,
+signalling, or deleting anything:
+
+```sh
+target/debug/snapback fork list \
+  --app-root "$PWD" --fork-root /absolute/path/to/shared-fork-root
+
+target/debug/snapback fork inspect "$FORK_ID" \
+  --app-root "$PWD" --fork-root /absolute/path/to/shared-fork-root
+
+target/debug/snapback fork diff "$FORK_ID" \
+  --app-root "$PWD" --fork-root /absolute/path/to/shared-fork-root \
+  --out /absolute/path/to/fork-diff.json
+
+target/debug/snapback fork renew "$FORK_ID" --ttl 2h \
+  --app-root "$PWD" --fork-root /absolute/path/to/shared-fork-root
+
+target/debug/snapback fork drop "$FORK_ID" \
+  --app-root "$PWD" --fork-root /absolute/path/to/shared-fork-root
+
+target/debug/snapback fork reap --now-ms "$PORTABLE_NOW_MS" \
+  --app-root "$PWD" --fork-root /absolute/path/to/shared-fork-root
+```
+
+`inspect` is the bounded status projection: fork and parent identity, fork
+point and expiry, process health, database/ready/admin-token paths,
+scrubbed-or-copied secret disposition, inert cron/jobs/assets posture,
+`deny-all-v1` egress, and a diff count/coverage summary without full rows. Its
+five `--format` scalar values match `create`, so a script can write, for
+example, `FORK_URL=$(... fork inspect "$FORK_ID" --format url ...)` without
+parsing display text.
+
+`renew` extends one fork's finite expiry from now by `--ttl`, bounded by a
+configured maximum total lifetime from creation. It re-binds the exact
+registry identity first, refuses to shorten or clear the expiry, refuses an
+already-expired fork outright (`SNAPBACK_FORK_RENEW_EXPIRED` — reap and
+recreate instead), and emits a durable `snapback.fork-renew.v1` receipt both
+in the envelope and beside the fork database. A renewal that crashes mid-way
+is completed by `fork recover` from its durable intent; a running fork server
+re-reads the renewed expiry at its old deadline and keeps serving. On an armed
+fork the lifecycle token permits the exact checkpoint before the lineage
+transaction. An ordinary later failure compensates database lineage, mint
+receipt, and registry to the previous expiry and refuses cleanly; an injected
+or real crash preserves the sentinel/intent so `fork recover` can finish the
+same sequence.
+
+`drop` stops and removes exactly one verified fork; concurrent drop/reap of
+the same fork settles with one winner and `SNAPBACK_FORK_NOT_FOUND` for the
+rest, never a torn teardown. Explicit `reap` is a deterministic test and
+operations surface: the caller supplies a portable millisecond clock and the
+command removes only verified forks whose finite expiry is at or before that
+clock, and additionally completes stale registry entries whose fork
+directory is already gone (`data.clearedStaleRegistryIds`). `list` binds
+every entry it can and reports the rest under `data.unboundRegistry` with
+warning diagnostics instead of failing wholesale; it also projects
+`data.resourceUsage` (fork count, total bytes, default limits). Normal
+creation needs no injected clock: it uses the system clock to sweep the same
+fork-root scope first and reports the reaped IDs in `data.automaticReap`. If
+that sweep cannot safely remove every expired fork, creation fails closed
+with `SNAPBACK_FORK_EXPIRED_REAP_FAILED`.
+
+A derived server independently reads its recorded expiry. It refuses an
+already-expired boot, then checks at least once per second while serving and
+exits with `SNAPBACK_FORK_SERVER_EXPIRED` when the deadline arrives. That
+expiry exit deliberately retains the non-secret ready descriptor: a later
+`create`, `drop`, or `reap` can bind the recorded PID to the exact fork and
+prove it gone before deleting storage. Nested forks are refused in local v1.
+
+## Recover interrupted publication
+
+Creation publishes through private staging and an advisory registry. If a
+crash leaves an incomplete direct child, recover by its exact destination —
+not by scanning a root or trusting a possibly stale registry row:
+
+```sh
+target/debug/snapback fork recover /absolute/path/to/shared-fork-root/FORK_UUID \
+  --app-root "$PWD" --fork-root /absolute/path/to/shared-fork-root
+```
+
+For pre-publication S0–S3 state, recovery removes disposable staging and
+best-effort registry intent. For a published-but-unreconciled S4 destination,
+it verifies local database lineage and minted evidence, reconciles the
+registry when possible, and removes the publication sentinel. The JSON result
+identifies the recovery disposition and registry outcome. Registry repair is
+advisory: complete local evidence governs boot safety. The command refuses
+unbounded lineage and does not start a process; after recovery, inspect or
+dispose the repaired managed state explicitly.
+
+## Act on fork diagnostics
+
+Fork failures use stable `SNAPBACK_FORK_*` codes. Preserve the code and
+details object in automation; the message is for people.
+
+| Diagnostic | Action |
+| --- | --- |
+| `SNAPBACK_FORK_APP_BINDING_MISMATCH` | The selected fork belongs to another canonical app root or logical app identity, or the invoking app-root identity was replaced after it was loaded. Invoke from the owning `--app-root`; library callers should reload the opaque identity; never use the shared fork root as authority. |
+| `SNAPBACK_FORK_APP_BINDING_REQUIRED` | The entry predates mint-time app binding, came from the unmanaged low-level primitive, or lost that evidence. It is deliberately unselectable; a managed fork does not enter this class merely because it was never launched. Legacy bytes still count against root admission. Stop and identify the exact legacy process/directory from independent provenance, then remove only that UUID's registry row and direct-child directory out of band; there is no wildcard/recursive unbound reap. |
+| `SNAPBACK_FORK_PUBLICATION_PARTIAL` | Run `fork recover` on the exact sentinel-bearing destination before boot. |
+| `SNAPBACK_FORK_QUARANTINED` | Treat the database as non-bootable; recover its managed publication rather than clearing stamps by hand. |
+| `SNAPBACK_FORK_LINEAGE_INVALID` | Stop. Do not trust or delete the target until its local lineage provenance is understood. |
+| `SNAPBACK_FORK_SIDECAR_MISSING` / `SNAPBACK_FORK_SIDECAR_MALFORMED` | Do not reuse parent credentials or invent replacements; recover if publication is partial, otherwise recreate the fork. |
+| `SNAPBACK_FORK_REGISTRY_STALE` | Treat the registry as advisory and inspect the named exact path; never recursively sweep based only on the row. |
+| `SNAPBACK_FORK_STOP_UNVERIFIED` | Resolve the missing/stale ready descriptor or live PID; Snapback intentionally will not signal or delete an unproved target. |
+| `SNAPBACK_FORK_EXPIRED_REAP_FAILED` | Inspect the reported expired targets and restore enough evidence to stop/reap them safely before retrying create. |
+| `SNAPBACK_FORK_ADMISSION_TIMEOUT` | Another creator did not finish its atomic admission/publication interval within 30 seconds. Inspect that creator and its exact staging/publication state; retry only after it exits or recovery resolves its destination. |
+| `SNAPBACK_FORK_SERVER_EXPIRED` | Expected finite-TTL enforcement: use `create` or explicit `reap` to prove the stopped process and remove the fork, or `renew` **before** expiry to extend it. |
+| `SNAPBACK_FORK_RENEW_EXPIRED` | Renewal never resurrects: the fork is already past expiry — reap it and create a fresh fork. |
+| `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` | A configured bound refused deterministically; the details name the resource (`fork-count`, `fork-bytes`, `total-bytes`, `diff-work`, `renewal-lifetime`) and the observed usage. Net diff additionally reports its streaming `phase`, `limitKind`, journal/scanned rows, and bytes. Drop forks, raise the explicit flag, or bound the request. |
+| `SNAPBACK_FORK_WRITER_COVERAGE_INVALID` | Do not treat the fork as whole-window covered. Its durable fork-point receipt is partial, tampered, late, or no longer matches the active stream/manifest; recreate it through `fork create`. |
+| `SNAPBACK_FORK_WRITER_COVERAGE_GAP` | A registered writer observed a missing or contradictory boundary after coverage had armed. Snapback records the discontinuity in the database and `fork-app-row-coverage-gap.v1.json`; restoring a manifest cannot regain the class. Recreate the fork. |
+
+## Read the diff at its real boundary
+
+The default `snapback.fork-journal-diff.v3` receipt covers committed
+**application-row journal entries in `(base, head]`**, in commit order. Its
+stream-qualified `base` and `head` identify the data-version stream, commit
+version, and exclusive/inclusive boundary. It says
+`attribution: "absent-v1"`: row `operation` is insert/update/delete, not an LLP
+0163 operation or principal identity. It explicitly omits:
+
+- auth and credential state;
+- asset blob operations;
+- captured or refused egress payloads;
+- privileged or raw-SQL writes outside the app journal; and
+- sidecars and telemetry.
+
+For an exact net base-to-head receipt, create the fork with
+`--retain-base` (a digest-bound immutable snapshot; doubles the fork's byte
+footprint, and admission accounts for it) and run `fork diff FORK_ID --net`.
+The `snapback.fork-net-diff.v3` receipt is computed by comparing the
+retained base against the head directly — independent of the journal — with
+pre- and post-images, a named substrate (`retained-base-v1`) and
+machine-readable covered/omitted domains. Both v3 receipt types carry
+`receiptDigest`, a domain-separated SHA-256 digest over the JCS-canonical form
+of every other emitted fact, so approval can bind the exact receipt. To verify
+one, remove the top-level `receiptDigest`, serialize the remaining object with
+JCS, prefix those bytes with
+`snapback:fork-journal-diff-receipt:v3\n` or
+`snapback:fork-net-diff-receipt:v3\n` according to `schemaVersion`, compute
+SHA-256 over the concatenation, and compare the lowercase
+`sha256:<64-hex>` spelling. A fork
+created through the complete cold-start carrier path can advertise
+`registered-connection-defensive-app-rows-v1` only
+when its digest-bound coverage receipt proves the two app-row writer lanes
+were armed at the fork point and the journal cross-check verifies through the
+observed head. The active manifest and its per-stream continuity row are
+protected carriers. Every registered writable connection must reconstruct the
+matching database/file receipts, stream, manifest, and `continuous` row before
+receiving a token. If one observes a gap, the continuity row becomes `broken`
+and the sibling gap file is created; neither can be re-armed or erased by an
+exact manifest restore. A partial generated layout remains
+`journal-enumerated-v1` because its historical schema load occurs after bind.
+Read
+`writerCoverage.coverageWindow`, `manifestDigest`, `coveredLanes`, and
+`uncoveredLanes` as separate facts. Uncovered app-effective writer families
+are refused while the profile is armed; all non-app-row domains remain omitted.
+The covered lane names are `derivedForkOrdinaryAppRowJournal` and
+`derivedForkHostChildAppRowJournal`. They name the fork's generated-writer plus
+journal boundary, not LLP 0163 operation-envelope coverage.
+The receipt also says `attribution: "absent-v1"`: operation attribution is not
+implemented by this net view. Any other unarmed or late-armed fork and a
+retention gap remain `journal-enumerated-v1`. A change the journal cannot explain refuses
+with `SNAPBACK_FORK_DIFF_ORACLE_MISMATCH`; on the armed path, the same refusal
+applies when a row's latest journal post-image disagrees with the independently
+scanned head. Static receipt/fork-point contradictions refuse with
+`SNAPBACK_FORK_WRITER_COVERAGE_INVALID`; a discontinuity observed by a
+registered writer refuses with `SNAPBACK_FORK_WRITER_COVERAGE_GAP`, instead of
+lending either condition cover. Without a retained base, `--net` refuses with
+`SNAPBACK_FORK_NET_DIFF_UNAVAILABLE`.
+
+The journal receipt is a review aid, not a complete audit and not production
+migration admission. A long-lived fork can also outlive its journal floor;
+then diff refuses instead of returning an incomplete receipt. The default
+journal receipt pre-counts and bounds rows before materialization; it does not
+have a byte-work budget. Net diff separately bounds journal rows, base/head
+scanned rows, WAL validation bytes, and streamed bytes. Before converting a
+scanned row to an owned document, it charges borrowed SQLite value lengths for
+text escaping, blob hex expansion, JSON parsing, vector decoding, and bounded
+serialization, so one oversized value refuses before proportional expansion.
+Past `--max-rows` (default 100k), or past the fixed byte budget on net diff,
+the operation refuses with
+`SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` and observed usage instead of
+materializing an unbounded receipt. Use the reviewed migration rehearsal flow
+for production apply decisions.
+
+The upgraded completeness class covers only Snapback-registered writable
+connections with verified SQLite defensive mode and the shared default-deny
+authorizer. The net receipt validates the raw WAL header and cumulative frame
+checksums within its byte budget and detects/refuses ordinary raw WAL/app-row
+divergence and direct page corruption, but it is not an OS/file-integrity
+boundary. A same-user
+process that bypasses the connection factory and coherently forges app data,
+the version, and a matching journal entry is outside the claim; use an
+OS/container/filesystem authority boundary for that threat.
+
+## Know what the quarantine does not promise
+
+- Local forks protect the parent from actions routed through the fork's
+  runtime. They do not contain a malicious same-user process that can open the
+  parent's files or make its own network calls; that requires an OS/container
+  boundary.
+- **Workloads containing arbitrary native code need an OS isolation boundary
+  you provide.** The fork's `deny-all-v1` gate mediates Snapback-owned egress
+  and custody surfaces only. If the app under test loads native modules,
+  shells out, or executes untrusted code, run the fork server inside an OS
+  containment tier — a dedicated OS user, a container (the fork directory and
+  ready file are self-contained and bind-mountable), or a VM — and treat the
+  fork root as inside that boundary. Snapback does not ship an integrated
+  sandbox tier today; if one is added later it will be advertised as a
+  separate containment tier, not folded into the runtime quarantine claim.
+- The default is secret scrubbing. `--with-secrets` is an explicit high-risk
+  opt-in for the config-secret sibling; it does not weaken credential minting
+  or egress denial.
+- Asset-bearing parents fork with **same-cut fork-private custody**: every
+  blob the metadata cut names is copied into the fork's own store,
+  digest- and length-verified, or publication refuses
+  (`SNAPBACK_FORK_ASSET_CUT_INCOMPLETE`) — never a metadata-only success.
+  Unknown stores and digest algorithms fail closed
+  (`SNAPBACK_FORK_ASSET_CUT_UNSUPPORTED`); parent-signed URLs never
+  validate in the fork (fresh signing keys); creation admission counts the
+  blob tree in the fork's byte estimate; `create`/`inspect` report the
+  custody fact (`fork-private-same-cut` or `no-assets`).
+- Manual cron tick and forced job-drain routes refuse in a fork under the
+  deny-all posture; autonomous workers are also inert.
+- There is no fork promotion or merge-back. Move conclusions or app-level
+  changes, not fork storage, into the parent.
+- There is no hosted fork contract or packaged capability advertisement yet.
+
+## Anti-patterns
+
+- **Do not copy SQLite and boot it by hand.** That bypasses credential
+  scrub-and-mint, publication crash safety, fresh sidecars, and quarantine.
+- **Do not share one fork across worktrees.** One worktree, one ready file, one
+  finite-TTL fork keeps code, data, and cleanup ownership aligned.
+- **Do not hand-kill a recorded PID or recursively delete a fork root.** Use
+  `fork drop` or injected-clock `fork reap`; both prove the exact target first.
+- **Do not present a diff receipt as “everything the agent did.”** Preserve its
+  coverage and omissions wherever the receipt is reviewed or aggregated.
+- **Do not enable secrets or external effects just to make a test pass.** Use
+  deterministic provider doubles, or keep the missing external behavior an
+  explicit acceptance nonclaim.
+
+---
+
+<!-- snapback-guide-source: guide/operating/data-patch.md -->
+---
+title: Patch one existing row safely
+id: operating.data-patch
+order: 8
+audience: agent-first
+capabilities: [operating.data-patch]
+authorities: [llp/0184-agent-accessible-control-plane.rfc.md, llp/0024-agent-operating-surface.spec.md, llp/0031-server-route-taxonomy.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, src/data_patch.rs, src/local.rs, src/server.rs, src/cli.rs, packages/snapback-cli/mcp-control.mjs]
+examples: [tests/data_patch_v1.rs, packages/snapback-cli/mcp-control.test.mjs]
+status: current
+targets: [local]
+maturity: shipped
+since: 0.1.10
+reviewed: 2026-08-06
+reviewed-commit: HEAD
+---
+
+# Patch one existing row safely
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+Use `data.patch` to correct known fields on one existing row without adding a
+raw SQL, insert, delete, or arbitrary update surface. Preview validates the
+closed patch and captures the row's own `_version`; apply consumes a
+short-lived single-use capability and commits through the ordinary storage
+changeset pipeline. Live queries therefore receive the normal commit
+notification.
+
+## Preview
+
+Put the complete authority tuple and operation reason in a JSON file. This
+example uses `devUser`, so the server evaluates the request as `user_ada` and
+requires the process-bound impersonation capability advertised by the ready
+file:
+
+```json fragment reason="example identity, row id, and version are application-specific"
+{
+  "table": "todos",
+  "rowId": "todo_01JEXAMPLE",
+  "expectedVersion": 7,
+  "patch": { "completed": true },
+  "authority": {
+    "mode": "devUser",
+    "actorPrincipal": null,
+    "effectivePrincipal": { "userId": "user_ada", "roles": [] },
+    "localDevOnly": true,
+    "adminBypass": false,
+    "scope": null,
+    "reason": null
+  },
+  "reason": "correct completion state after acceptance review"
+}
+```
+
+Preview with the JSON body in a file or on stdin. Never put an apply token in
+an argument:
+
+```sh
+snapback data patch --preview \
+  --ready-file .snapback/dev.ready.json \
+  --input patch.json > patch-preview.json
+```
+
+The response contains the validated before/after field diff, affected live
+query classes, catalog digest, startup nonce, a non-authorizing token ID, and
+the live apply token. Treat the live token as a short-lived secret. It is bound
+to the target, process startup, catalog/schema identity, row and expected
+version, normalized patch and diff, full authority tuple, reason, and expiry.
+
+## Apply
+
+Copy the token into the JSON body, not argv. This file-only command prepares
+the exact preview input for apply:
+
+```sh
+node -e 'const fs=require("fs"); const i=JSON.parse(fs.readFileSync(process.argv[1])); const p=JSON.parse(fs.readFileSync(process.argv[2])); i.applyToken=p.data.applyToken; process.stdout.write(JSON.stringify(i));' \
+  patch.json patch-preview.json > patch-apply.json
+
+snapback data patch --apply \
+  --ready-file .snapback/dev.ready.json \
+  --input patch-apply.json
+```
+
+Apply atomically compares and consumes the token before attempting the normal
+changeset commit. A second apply cannot reuse it. If the same row changed
+after preview, the per-row compare-and-swap fails; a write to an unrelated row
+does not. Preview again after any failed commit rather than retrying the old
+capability.
+
+The receipt contains only the non-authorizing token ID/digest, catalog digest,
+startup nonce, commit version, full authority tuple, and reason. It never
+contains the live token.
+
+## Give an agent the same operation through MCP
+
+`snapback mcp-control` exposes two tools:
+
+| Intent | MCP tool | Destructive annotation |
+| --- | --- | --- |
+| Validate and retain a preview capability | `snapback_data_patch_preview` | `false` |
+| Consume that capability and commit | `snapback_data_patch_apply` | `true` (`confirmFirst` in the control catalog) |
+
+The preview tool keeps the live capability inside the bounded MCP process and
+returns only `applyTokenId`. Pass that non-authorizing ID plus the exact same
+table, row, version, patch, authority, and reason to the apply tool. The raw
+token is neither a tool argument nor a tool result. Restarting the MCP process
+or letting the preview expire loses the capability; preview again.
+
+## Choose the authority tuple honestly
+
+The operation adds no authority mode. It accepts the existing LLP 0024 local
+tuples as-is:
+
+- `devUser` has `effectivePrincipal: { userId, roles }`, `localDevOnly: true`,
+  and `adminBypass: false`. Different impersonated users are different token
+  bindings.
+- `devAdminBypass` has no effective principal, sets `adminBypass: true`, and
+  repeats the required operation reason in `authority.reason`. Its receipt
+  says `devAdminBypassAdmitted`: app authorization was skipped by an admitted
+  local admin bypass, never "evaluated as if authorized."
+
+Both modes still use AdminWrite transport policy. A closed schema rejects
+unknown tuple or patch fields, and `_id`, `_version`, `_createdAt`, and
+`_updatedAt` remain reserved.
+
+## Know where the operation is refused
+
+Both preview and apply run only on an ordinary primary local non-production
+instance. Production profiles, hosted serving, and derived instances return
+`SNAPBACK_DATA_PATCH_TARGET_REFUSED`, with `availability: "refused"` in the
+diagnostic details. LLP 0158 has not granted derived recognition for this
+purpose.
+
+This is a target-availability refusal, not `operability: unavailable`: the
+control-catalog rows remain shipped and directly operable on their declared
+`local` target. Do not reinterpret a refusal on a different target as evidence
+that the operation is missing.
+
+Other stable refusal classes include stale row version, unknown or reserved
+field, schema validator/invariant failure, missing/expired/consumed/mismatched
+apply token, and invalid authority tuple. Inspect the `SNAPBACK_DATA_PATCH_*`
+diagnostic instead of matching message text.
+
+## Anti-patterns
+
+- **Do not add a raw SQL escape hatch.** Use an application mutation when the
+  correction needs logic beyond one closed row patch.
+- **Do not use a database-wide version as `expectedVersion`.** Read the target
+  row's `_version`; unrelated commits must not invalidate the patch.
+- **Do not call apply without reviewing the diff.** Apply is deliberately
+  destructive and single-use.
+- **Do not describe `devAdminBypass` as app-authorized evaluation.** The
+  receipt explicitly discloses the admitted authorization skip.
+- **Do not expect the operation on forks, hosted instances, or production.**
+  Those are deliberate availability refusals in v1.
+
+---
+
 <!-- snapback-guide-source: guide/protocol/client-protocol.md -->
 ---
 title: Client protocol
@@ -10773,7 +13388,12 @@ durable lane as commits change the result.
 
 Mark the definition live — declarative or JS style
 ([your first backend](../getting-started/your-first-backend.md) covers the
-two styles):
+two styles). Before writing a JS handler for a plain two-source join
+(conversation membership, message ⋈ sender), check
+[relational queries](../backend/relational-queries.md) —
+`defineRelationalQuery` expresses it declaratively; the honest boundary is
+that aggregation and self-joins are not expressible there today
+([LLP 0177](repo:llp/0177-chat-aggregate-and-first-related-row-demand.research.md)):
 
 ```js source=demos/todo/snapback/functions.mjs
 export const listTodos = defineJsLiveQuery({
@@ -10794,7 +13414,11 @@ Offline cold retention is a separate per-query opt-in: `auth: 'public'` +
 `authorityIndependent: true` on a declarative live query makes it
 `rqsEligible`; without the declaration nothing persists and the handle's
 `retention` fact names the refusal. The full recipe is in
-[offline retention](../sync/offline-and-retention.md).
+[offline retention](../sync/offline-and-retention.md). Note the declaration
+forces the experimental `single_table_v1` capability, available on
+contributor-source builds and, since `@expo/snapback-*@0.1.11`, on published
+packages carrying the packaged-store qualification receipt (see the
+offline-retention page).
 
 Stored document contracts include typed `v.assetRef` fields. A photo-bearing
 table can therefore be queried directly as a live feed; the reference arrives
@@ -10947,13 +13571,13 @@ id: realtime.ephemeral-state
 order: 2
 audience: agent-first
 capabilities: [realtime.ephemeral]
-authorities: [llp/0013-ephemeral-realtime-state.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs]
-examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0184-agent-accessible-control-plane.rfc.md, src/admin.rs, src/ephemeral.rs, src/server.rs, src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
+examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging-snapback/src/lib/useTyping.ts]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-06
+reviewed-commit: 6e158169b3c908b8be149db4487a71dc35738470
 ---
 
 # Ephemeral realtime state
@@ -10970,6 +13594,66 @@ reads, or enter history/audit, put it in a durable table instead.
 Start with the [presence-cursors recipe](../recipes/presence-cursors.md) when
 building a feature. Use this page when choosing collection options or handling
 recovery.
+
+## Find the React hook from ephemeral vocabulary
+
+In the schema and headless client this feature is named **ephemeral**. In the
+React client the scoped hook is named **`useSnapbackPresence`**. The names are
+two views of the same generated ephemeral collection: use the hook for online
+presence, conversation-scoped typing indicators, cursors, and other managed
+React values. There is no separate `useSnapbackEphemeral` hook.
+
+`scope` is the room boundary, so a conversation id gives one typing room per
+conversation. `ConnectionEphemeralCollectionReference` describes how each row
+inside that room is owned and keyed; it does not force a global or
+connection-only scope. `value: skip` observes without publishing. From that
+observer state, `publish` installs managed intent (including heartbeat) and
+`delete` clears it immediately. A non-skipped `value` is the declarative form.
+In both forms the first-party React provider owns subscription, heartbeat,
+cleanup, reconnect, and authority transition:
+
+```tsx source=demos/messaging-snapback/src/lib/useTyping.ts
+import { useMemo } from 'react';
+import { skip, useSnapbackPresence } from '@messenger/snapback-react';
+import { ephemeral } from '@generated/api.mjs';
+
+export type Typer = { userHandle: string; name: string };
+
+const typingRef = ephemeral.typing;
+const PUBLISH_TTL_MS = typingRef.maxTtlMs;
+
+// `useSnapbackPresence` is the React hook for generated ephemeral collections.
+// Observer mode keeps publish/delete imperative so clearing a typing indicator
+// remains immediate while the provider owns the room, heartbeat, and cleanup.
+export function useTyping(conversationId: string, selfHandle: string) {
+  const scope = useMemo(() => ({ conversationId }), [conversationId]);
+  const presence = useSnapbackPresence(typingRef, { scope, value: skip });
+  const typers = useMemo<Typer[]>(() => {
+    if (presence.status !== 'ready' && presence.status !== 'stale') return [];
+    return presence.entries
+      .filter((entry) => entry.key !== presence.selfKey)
+      .filter((entry) => entry.value.userHandle !== selfHandle)
+      .map((entry) => entry.value);
+  }, [presence, selfHandle]);
+
+  function publishTyping(name: string) {
+    void presence
+      .publish({ userHandle: selfHandle, name }, { ttlMs: PUBLISH_TTL_MS })
+      .catch(() => {});
+  }
+
+  function clearTyping() {
+    void presence.delete().catch(() => {});
+  }
+
+  return { typers, publishTyping, clearTyping };
+}
+```
+
+See [the React client](../clients/react.md#publish-and-observe-ephemeral-presence)
+for the hook's state and lifecycle contract. Reach for the lower-level
+`subscribeEphemeral` overlay below only in headless code or when you
+deliberately need to own overlay lifecycle, manual draining, or polling.
 
 ## Declare the complete collection contract
 
@@ -11117,6 +13801,60 @@ introspection. Keep imperative overlays in headless/React code and generated
 ephemeral links in Contract code—do not mix a second polling or publish lane
 into the same surface.
 
+<!-- since: 0.1.10 -->
+
+## Delete one entry as an operator
+
+Use `snapback ephemeral operator-delete` or the
+`snapback_ephemeral_operator_delete` MCP tool only for local dev/test repair
+after inspecting the exact collection, scope, entry key, `scopeEpoch`, and
+`entryVersion`. Supply both coordinates as `--expected-scope-epoch` and
+`--expected-entry-generation`; a room can be pruned and recreated with a new
+epoch while its entry generation restarts at 1, so generation alone is not a
+safe fence. The CLI requires `--ready-file` because the server also verifies
+that descriptor's process-bound startup nonce.
+
+```sh fragment reason="Operator repair example uses inspected runtime coordinates and a local readiness descriptor, not a repository fixture."
+snapback ephemeral operator-delete \
+  --ready-file .snapback/dev.ready.json \
+  --collection boardCursors \
+  --scope-json '{"boardId":"board-1"}' \
+  --entry-key conn_owner \
+  --expected-scope-epoch 7 \
+  --expected-entry-generation 3 \
+  --reason 'remove stuck cursor after inspection'
+```
+
+This operation is an explicit administrator bypass: it never evaluates
+application authorization or ownership, and its receipt says
+`authorizationEvaluated: false`. It remains distinct from an application's
+ordinary `delete`, while still using the ordinary removal and subscriber
+notification path. The server refuses it on production and on derived
+instances; LLP 0158 does not yet recognize derived identity for this purpose.
+
+## Clean up expired entries operationally
+
+The server's background expiry sweep remains automatic. For an explicit,
+auditable maintenance pass, preview a bounded cutoff before applying it:
+
+```sh fragment reason="Operator example uses a runtime URL rather than a repository-owned server fixture."
+snapback ephemeral cleanup --url http://127.0.0.1:4287 \
+  --older-than-ms 60000 --dry-run --max-entries 1000
+```
+
+`--older-than-ms` means “expired for at least this long”; it is not the age of
+the last publish. Use `--cutoff-timestamp-ms` instead when a wall-clock expiry
+deadline is the operator's source of truth. Exactly one cutoff and exactly one
+of `--dry-run` or `--apply` are required. `--max-entries` is bounded from 1 to
+10,000.
+
+The CLI and the destructive `snapback_ephemeral_cleanup` MCP tool bind each
+request to the current process startup nonce. The receipt reports examined,
+eligible, would-delete, deleted, and remaining counts by collection and opaque
+room digest; it never exposes raw room scope. Apply emits the ordinary
+`Expired` removals and subscription notifications. Cleanup is room-linearized,
+so repeat an apply when `bounds.truncated` is true or `complete` is false.
+
 ## Anti-patterns
 
 - **Do not store transient motion in tables.** Durable commits and history are
@@ -11231,6 +13969,10 @@ Codegen emits `routes.manifest.json`; provision it beside schema and functions
 with `ensureApp({ routes })`. A route may name several queries, but every
 argument must be a literal or a declared route-parameter binding.
 
+This example works on contributor-source builds and, since
+`@expo/snapback-*@0.1.11`, on published packages carrying the packaged-store
+qualification receipt — see [offline retention](../sync/offline-and-retention.md).
+
 ## Fetch one consistent page snapshot
 
 Read mode is socketless and does not create live demand:
@@ -11282,13 +14024,13 @@ id: recipes.presence-cursors
 order: 1
 audience: agent-first
 capabilities: [realtime.ephemeral]
-authorities: [llp/0013-ephemeral-realtime-state.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-client/index.mjs]
-examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-client/index.mjs, packages/snapback-react/index.mjs]
+examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging-snapback/src/lib/useTyping.ts]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-06
+reviewed-commit: 6e158169b3c908b8be149db4487a71dc35738470
 ---
 
 # Recipe: presence cursors
@@ -11303,6 +14045,13 @@ cleanup (LLP 0013) — never in tables, never polled. The working reference
 is `demos/cursors-web`. This recipe is the shortest paved implementation;
 the [ephemeral-state reference](../realtime/ephemeral-state.md) inventories
 every collection option, key mode, recovery rule, and Contract link.
+
+For React, start with
+[`useSnapbackPresence`](../realtime/ephemeral-state.md#find-the-react-hook-from-ephemeral-vocabulary),
+the managed hook for generated ephemeral collections; that page transcludes a
+conversation-scoped typing indicator from `demos/messaging-snapback`. The raw
+`subscribeEphemeral` path below remains useful for headless consumers and code
+that deliberately owns manual draining, polling, or overlay lifecycle.
 
 ## 1. Declare the ephemeral collection in the schema
 
@@ -11339,7 +14088,7 @@ Regenerate after editing (the generated publish descriptor carries the
 budget facts your client code should assert against, e.g. cursors-web
 checks its declared publish rate fits `sustainedHz` at init).
 
-## 2. Subscribe to the room
+## 2. Subscribe to the room without React
 
 `subscribeEphemeral` returns an overlay that applies the authoritative
 snapshot, then buffers and applies deltas from the shared live socket
@@ -11405,6 +14154,9 @@ renderable during degradation instead of silently vanishing.
   with `overlay.grantedConnectionId`; only the server grant is lease identity.
 - **Do not publish above the declared budget** — assert your sample rate
   fits the generated budget facts at init, like the reference hook does.
+- **Do not hand-wire a React overlay for ordinary presence or typing.** Use
+  `useSnapbackPresence` so the provider owns Strict Mode replay, heartbeat,
+  resync, authority changes, and teardown.
 
 ---
 
@@ -11834,13 +14586,13 @@ id: sync.offline-and-retention
 order: 1
 audience: agent-first
 capabilities: [backend.single-table-v1, sync.offline, sync.offline-js-arm, sync.local-persistent-store]
-authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, src/local-persistent-store-publication.v1.json, packages/snapback-codegen/index.mjs, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs, demos/warble/snapback/functions.mjs, demos/warble/tests/acceptance/offline-local-first.mjs]
-examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, demos/warble, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, src/local-persistent-store-publication.v1.json, packages/snapback-codegen/index.mjs, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs, demos/warble/snapback/functions.mjs, demos/warble/tests/acceptance/offline-local-first.mjs]
+examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, demos/warble, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs, tests/acceptance/desktop-sidecar-v1.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-05
-reviewed-commit: HEAD
+reviewed: 2026-08-06
+reviewed-commit: 711e4d763d87cadf0c638bd15ed33a85427e4f11
 ---
 
 # Offline retention and mutation replay
@@ -11848,6 +14600,13 @@ reviewed-commit: HEAD
 > **Local target only.** This page describes the local dev/test target.
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
+
+> **Published-package availability.** Since `@expo/snapback-*@0.1.11`,
+> public-package builds advertise `single_table_v1` when the runtime package's
+> packaged-store qualification receipt is present (shipped inside the package
+> per the 2026-08-06 LLP 0110/0166 amendment): the platform cold-retention
+> path this page teaches works from a plain npm install. Contributor-source
+> builds advertise it via the store publication carrier as before.
 
 The Contract adapter can retain the last authoritative query snapshot, render
 derived optimistic changes while offline, and replay a durable mutation outbox
@@ -11947,6 +14706,35 @@ witness proves:
   assert.equal(queued.queued, true);
 ```
 
+## Preserve pending work across a desktop sidecar swap
+
+The desktop sidecar is the explicit exception to default per-origin store
+selection. Because each candidate starts on a new ephemeral port, an ordinary
+fresh client would resolve another default file-store blob. The embedding app
+instead owns one durable file store for the canonical sidecar database domain
+and injects that same store into predecessor, candidate, and rollback clients.
+Do not generalize this to arbitrary servers: the default isolation rule is a
+safety boundary.
+
+After candidate nonce attestation, construct the fresh client with the
+candidate URL and shared store, complete an application-owned full-snapshot
+barrier, then call `adoptQueuedMutations`. The checked API requires the captured
+`clientStoreId` and exact artifact generation; it also checks writer custody,
+candidate `/inspect`, and every pending record generation before replay. Its
+receipt reports authoritative before/after dispositions and terminal deltas.
+The sidecar commits only at zero remaining, no stop, and no new failed,
+quarantined, or result-gone record.
+
+Replay keeps the original `clientMutationId`; the candidate client's `baseUrl`
+supplies the new origin. The shared SQLite `_snapback_client_mutations` row is
+the exactly-once authority, so a predecessor commit whose response was lost is
+republished rather than applied twice. Startup nonce, port, and pid are
+attachment evidence, not duplicate identity.
+
+This is a pending-work-preserving stop/start swap. The predecessor is stopped
+before the candidate starts, so it does not provide zero-request-downtime. A
+stable front door or overlapping runtime ownership is separate work.
+
 ```js source=packages/snapback-client/outbox-store.test.mjs
   const outcome = await client.replayQueuedMutations();
   assert.deepEqual(
@@ -11971,7 +14759,10 @@ JS arm and it is receipt-proven end to end by
 [`tests/acceptance/local-store-carrier-exit-v1.mjs`](repo:tests/acceptance/local-store-carrier-exit-v1.mjs)
 (run in the local proof; the retained 2026-08-04 run measured **16 PASS / 1
 GAP / 0 SKIPPED** after consuming Triage's qualified budget freeze; Fleet
-remains the one explicit LLP 0135 OQ5 boundary).
+remains the one explicit GAP: its OQ5 direction was ruled 2026-08-05 and the
+`snapshot-batch.v2` profile was registered 2026-08-06 (LLP 0157 v0.11), while
+implementation, the frozen cross-language vectors, and the fresh footprint/
+hydration witness remain absent).
 
 Evidence scope, stated precisely: local target, Node process, file carrier,
 owner-scoped generated relational queries. It is not a browser-restart

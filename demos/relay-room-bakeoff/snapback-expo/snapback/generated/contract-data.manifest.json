@@ -1,0 +1,1422 @@
+{
+  "artifactKind": "contractDataManifest",
+  "bundleHash": "sha256:986243947519a652",
+  "capabilities": {
+    "branchableFixtures": false,
+    "derivedOptimisticOverlays": true,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "offlineReplay": false,
+    "optimisticMutations": true,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "ephemeral": {
+    "typing": {
+      "coalesce": true,
+      "defaultTtlMs": 4000,
+      "deliveryMode": "latest",
+      "ephemeral": true,
+      "keyMode": "Connection",
+      "maxDeltaRateHz": 13,
+      "maxTtlMs": 8000,
+      "name": "typing",
+      "publishBudget": {
+        "burst": 8,
+        "maxValueBytes": 512,
+        "sustainedHz": 4
+      },
+      "routingFields": [
+        "conversationId"
+      ],
+      "scopeFields": [
+        "conversationId"
+      ]
+    }
+  },
+  "inputsHash": "09842ae38a3ed5541d38007af3d1a125036c96d947e6d862ff824484cc815732",
+  "manifestVersion": 2,
+  "mutations": {
+    "addReaction": {
+      "argOrder": [
+        "conversationId",
+        "messageId",
+        "userId",
+        "emoji"
+      ],
+      "args": {
+        "conversationId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "emoji": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "messageId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "userId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:e5e4ca558367ce9b5a750b56c0acba1d32bb84cd61a8adbb63218dff610ae64f",
+      "implementationHash": "sha256:4f30d47619251d2af2ae41487684948b7546a9220fcbe23d2e5b7e7640b35df7",
+      "invalidates": [
+        "reactions"
+      ],
+      "name": "addReaction",
+      "optimistic": true,
+      "plan": {
+        "return_value": {
+          "Expr": {
+            "Record": {
+              "fields": {
+                "reactionId": {
+                  "Binding": "reactionId"
+                }
+              }
+            }
+          }
+        },
+        "steps": [
+          {
+            "Insert": {
+              "bind_id_as": "reactionId",
+              "table": "reactions",
+              "values": {
+                "conversationId": {
+                  "Arg": "conversationId"
+                },
+                "emoji": {
+                  "Arg": "emoji"
+                },
+                "messageId": {
+                  "Arg": "messageId"
+                },
+                "userId": {
+                  "Arg": "userId"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "reactionId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        }
+      },
+      "resultHash": "sha256:ee15a26713e017d713e3029603cdaf3d6d0305b3ad3194f5fe4b6aa1e86a8e35",
+      "serverRunnable": true,
+      "writes": [
+        "reactions"
+      ]
+    },
+    "removeReaction": {
+      "argOrder": [
+        "reactionId"
+      ],
+      "args": {
+        "reactionId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:becb982369c805fb6ea59820ec5b1bac9bb5dc5b81fdbf58822f1a42f0ae9d7b",
+      "implementationHash": "sha256:9857694e5c9d56b577213a0ecc6862f1786811f22194548c87cedd87fcff38df",
+      "invalidates": [
+        "reactions"
+      ],
+      "name": "removeReaction",
+      "optimistic": true,
+      "plan": {
+        "return_value": {
+          "Expr": {
+            "Record": {
+              "fields": {
+                "removed": {
+                  "Literal": true
+                }
+              }
+            }
+          }
+        },
+        "steps": [
+          {
+            "Delete": {
+              "id": {
+                "Arg": "reactionId"
+              },
+              "table": "reactions"
+            }
+          }
+        ]
+      },
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "removed",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            }
+          ],
+          "kind": "object"
+        }
+      },
+      "resultHash": "sha256:0049db6e709bdb59a11e258e49985b10e4f27b3ab92169ee256ec5b271f6a123",
+      "serverRunnable": true,
+      "writes": [
+        "reactions"
+      ]
+    },
+    "sendImage": {
+      "argOrder": [
+        "conversationId",
+        "senderId",
+        "assetId",
+        "caption",
+        "replyToId"
+      ],
+      "args": {
+        "assetId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "caption": {
+          "name": "string",
+          "optional": true,
+          "shape": "primitive"
+        },
+        "conversationId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "replyToId": {
+          "name": "string",
+          "optional": true,
+          "shape": "primitive"
+        },
+        "senderId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:c4a52547f6f1668118928e2de62875dedfe2d6f1ebbc3ef8e044cf58a3c68dbe",
+      "implementationHash": "sha256:005ccd18276752a292a385c3d1382a8a72550fe87d8768289f0b31de8281a621",
+      "invalidates": [
+        "messages",
+        "conversations"
+      ],
+      "name": "sendImage",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "id",
+          "table": "messages"
+        }
+      },
+      "resultHash": "sha256:c0db5ce578688b2eee3ae9683ba41981ccdb3027715de9708fdeb1738e7f8d8d",
+      "serverRunnable": true,
+      "writes": [
+        "messages",
+        "conversations"
+      ]
+    },
+    "sendReply": {
+      "argOrder": [
+        "conversationId",
+        "senderId",
+        "text",
+        "replyToId"
+      ],
+      "args": {
+        "conversationId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "replyToId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "senderId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "text": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:87d8172d0434653aa93e8e273875a3a99ced4399c230232215985d05425e31b9",
+      "implementationHash": "sha256:ed57987c5049c0e530334471edec932c83a31fc5da61371e95a854790f5b2ef3",
+      "invalidates": [
+        "messages",
+        "conversations"
+      ],
+      "name": "sendReply",
+      "optimistic": true,
+      "plan": {
+        "return_value": {
+          "Expr": {
+            "Record": {
+              "fields": {
+                "messageId": {
+                  "Binding": "messageId"
+                }
+              }
+            }
+          }
+        },
+        "steps": [
+          {
+            "Insert": {
+              "bind_id_as": "messageId",
+              "table": "messages",
+              "values": {
+                "conversationId": {
+                  "Arg": "conversationId"
+                },
+                "kind": {
+                  "Literal": "text"
+                },
+                "replyToId": {
+                  "Arg": "replyToId"
+                },
+                "senderId": {
+                  "Arg": "senderId"
+                },
+                "sentAt": "RuntimeNow",
+                "text": {
+                  "Arg": "text"
+                }
+              }
+            }
+          },
+          {
+            "Patch": {
+              "id": {
+                "Arg": "conversationId"
+              },
+              "table": "conversations",
+              "values": {
+                "lastPreview": {
+                  "Arg": "text"
+                },
+                "updatedAt": "RuntimeNow"
+              }
+            }
+          }
+        ]
+      },
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "messageId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        }
+      },
+      "resultHash": "sha256:1fe46f328384eaa84508a6ab474e2160f79a14a288a154763bbef42bb97d460a",
+      "serverRunnable": true,
+      "writes": [
+        "messages",
+        "conversations"
+      ]
+    },
+    "sendText": {
+      "argOrder": [
+        "conversationId",
+        "senderId",
+        "text"
+      ],
+      "args": {
+        "conversationId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "senderId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "text": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:19bac8e4db31ac89ae4453649c7aeab7805f73ae7815630a8cc2fdea08df18c2",
+      "implementationHash": "sha256:c5d836e2b4df655960248c0420b39321883072e0f1fb221a61a27713a8920cfd",
+      "invalidates": [
+        "messages",
+        "conversations"
+      ],
+      "name": "sendText",
+      "optimistic": true,
+      "plan": {
+        "return_value": {
+          "Expr": {
+            "Record": {
+              "fields": {
+                "messageId": {
+                  "Binding": "messageId"
+                }
+              }
+            }
+          }
+        },
+        "steps": [
+          {
+            "Insert": {
+              "bind_id_as": "messageId",
+              "table": "messages",
+              "values": {
+                "conversationId": {
+                  "Arg": "conversationId"
+                },
+                "kind": {
+                  "Literal": "text"
+                },
+                "senderId": {
+                  "Arg": "senderId"
+                },
+                "sentAt": "RuntimeNow",
+                "text": {
+                  "Arg": "text"
+                }
+              }
+            }
+          },
+          {
+            "Patch": {
+              "id": {
+                "Arg": "conversationId"
+              },
+              "table": "conversations",
+              "values": {
+                "lastPreview": {
+                  "Arg": "text"
+                },
+                "updatedAt": "RuntimeNow"
+              }
+            }
+          }
+        ]
+      },
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "messageId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        }
+      },
+      "resultHash": "sha256:1fe46f328384eaa84508a6ab474e2160f79a14a288a154763bbef42bb97d460a",
+      "serverRunnable": true,
+      "writes": [
+        "messages",
+        "conversations"
+      ]
+    }
+  },
+  "provider": "snapback",
+  "queries": {
+    "conversations": {
+      "argOrder": [],
+      "args": {},
+      "argsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:6645f84a6a4d33509d64cabd03589bc73e9f7a59ba2fb7c1074c3e125d7d52a3",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "conversations",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "conversations"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "kind": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "lastPreview": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "conversations"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "kind",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "lastPreview",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "conversations"
+      },
+      "resultHash": "sha256:7d77e57847bafa4f25e6f8b7f5394291ad8b37366dc8e841100ed31d6804a211",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "membershipsForConversation": {
+      "argOrder": [
+        "conversationId"
+      ],
+      "args": {
+        "conversationId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:99aad8e3170c2b5e7d19e5d4e0d4ca0dd29416d688816d3bac1e52ac7ebddc3a",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:e1979ae3a9ba9ae0e0119cdfc553df4f211dbcb5fe6e8670fc1c0f4b14c41b04",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "membershipsForConversation",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "memberships"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "conversationId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "userId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "memberships"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "conversationId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "conversations"
+              }
+            },
+            {
+              "name": "userId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "users"
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "memberships"
+      },
+      "resultHash": "sha256:5c9f2fa9bf6c7e8838c87c68d84c230f769e2d35f6722e65799d485d95d2b4e9",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "membershipsForUser": {
+      "argOrder": [
+        "userId"
+      ],
+      "args": {
+        "userId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:194c9110274bdbcda533c93d274b3069d3a53d1792b1d85aa1bf1b01ff5fd523",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:a1a54b06e786e8b13ba48c790de753b723766ca6b2090ec4128cd3f156ed6b88",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "membershipsForUser",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "memberships"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "conversationId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "userId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "memberships"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "conversationId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "conversations"
+              }
+            },
+            {
+              "name": "userId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "users"
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "memberships"
+      },
+      "resultHash": "sha256:5c9f2fa9bf6c7e8838c87c68d84c230f769e2d35f6722e65799d485d95d2b4e9",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "messagesForConversation": {
+      "argOrder": [
+        "conversationId"
+      ],
+      "args": {
+        "conversationId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:99aad8e3170c2b5e7d19e5d4e0d4ca0dd29416d688816d3bac1e52ac7ebddc3a",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:df1f80aa65f198dd8d2c81d3ffc4956b377e69d72dcd9bfee4aeca0b9b085e05",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "messagesForConversation",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "messages"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "conversationId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "image": {
+              "shape": "union",
+              "variants": [
+                {
+                  "shape": "literal",
+                  "value": null
+                },
+                {
+                  "name": "string",
+                  "shape": "primitive"
+                }
+              ]
+            },
+            "kind": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "replyToId": {
+              "shape": "union",
+              "variants": [
+                {
+                  "shape": "literal",
+                  "value": null
+                },
+                {
+                  "name": "string",
+                  "shape": "primitive"
+                }
+              ]
+            },
+            "senderId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "sentAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "text": {
+              "shape": "union",
+              "variants": [
+                {
+                  "shape": "literal",
+                  "value": null
+                },
+                {
+                  "name": "string",
+                  "shape": "primitive"
+                }
+              ]
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "messages"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "conversationId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "conversations"
+              }
+            },
+            {
+              "name": "senderId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "users"
+              }
+            },
+            {
+              "name": "kind",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "text",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                ]
+              }
+            },
+            {
+              "name": "image",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "assetRef"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "replyToId",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "id",
+                    "table": "messages"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "sentAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "messages"
+      },
+      "resultHash": "sha256:7964bd8d9ac5e7a60ed8c1ae443760d883151db4ba1657ec3d8b9f650ef337a4",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "reactionsForConversation": {
+      "argOrder": [
+        "conversationId"
+      ],
+      "args": {
+        "conversationId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:99aad8e3170c2b5e7d19e5d4e0d4ca0dd29416d688816d3bac1e52ac7ebddc3a",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:a516a0a86ca4af14dccfdd10cdb4a6f2581c27c47d5620b90f25941bd085ccb2",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "reactionsForConversation",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "reactions"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "conversationId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "emoji": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "messageId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "userId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "reactions"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "conversationId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "conversations"
+              }
+            },
+            {
+              "name": "messageId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "messages"
+              }
+            },
+            {
+              "name": "userId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "users"
+              }
+            },
+            {
+              "name": "emoji",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "reactions"
+      },
+      "resultHash": "sha256:88693fad0c87a250d1d10fdd31dc1857fed1f663db0266e00ca64d3bfa66e29d",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "typing": {
+      "argOrder": [
+        "conversationId"
+      ],
+      "args": {
+        "conversationId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "coalesce": true,
+      "defaultLive": true,
+      "defaultTtlMs": 4000,
+      "ephemeral": true,
+      "initialSnapshot": true,
+      "keyMode": "Connection",
+      "livePush": true,
+      "localRunnable": true,
+      "maxDeltaRateHz": 13,
+      "maxTtlMs": 8000,
+      "mode": "live",
+      "name": "typing",
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "expiresAt": {
+              "name": "number",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "key": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "self": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "sourceClientId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "value": {
+              "fields": {
+                "name": {
+                  "name": "string",
+                  "shape": "primitive"
+                },
+                "userId": {
+                  "name": "string",
+                  "shape": "primitive"
+                }
+              },
+              "shape": "object"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "scopeFields": [
+        "conversationId"
+      ],
+      "serverRunnable": false,
+      "subscription": "initial-snapshot"
+    },
+    "users": {
+      "argOrder": [],
+      "args": {},
+      "argsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:8fba2526b39f5f84296c0a4aa4f6858663360dceb484f0c41bdfe57d4cc3424f",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "users",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "users"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "color": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "handle": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "name": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "users"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "handle",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "name",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "color",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "users"
+      },
+      "resultHash": "sha256:91a76ac59ce1af2e01bbdb3622b32ebf965e4f76bd9866effb58b1a30e2e48de",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    }
+  },
+  "receipts": "mutation+subscription",
+  "schemaHash": "sha256:5f012949f1f82b31",
+  "schemaVersion": "snapback.v0"
+}

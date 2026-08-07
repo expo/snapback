@@ -1,0 +1,32 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/rematch/sendMessage.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "conversationId": {
+      "type": "string"
+    },
+    "imageAssetId": {
+      "type": "string"
+    },
+    "replyToId": {
+      "type": "string"
+    },
+    "senderHandle": {
+      "type": "string"
+    },
+    "sentAt": {
+      "type": "number"
+    },
+    "text": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "conversationId",
+    "senderHandle",
+    "sentAt"
+  ],
+  "title": "rematch:sendMessage arguments",
+  "type": "object"
+}

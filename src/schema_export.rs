@@ -29,9 +29,12 @@ use crate::auth::wire::{
     RescueCollidingTableRequest,
 };
 use crate::commit_envelope::{
-    ClientIdentityRangeV1, CommitEnvelopeV1, IdentityEpochV1, OperationCoverageManifestV1,
-    OperationExplanationV1, OperationIdentityTombstoneV1, OperationIdentityV1,
-    OperationSuppressionRecordV1,
+    ClientIdentityRangeV1, CommitEnvelopeV1, IdentityEpochV1, OperationCoverageActivationRequestV1,
+    OperationCoverageActivationResponseV1, OperationCoverageManifestV1,
+    OperationExplanationRequestV1, OperationExplanationResponseV1, OperationExplanationV1,
+    OperationIdentityRangeRequestV1, OperationIdentityRangeResponseV1,
+    OperationIdentityTombstoneV1, OperationIdentityV1, OperationSuppressionRecordV1,
+    PendingOperationLifecycleV1, PendingOperationTerminalSupplementV1,
 };
 use crate::data_tier::{DataTierCorpusCase, DataTierCorpusManifest, DataTierProfile};
 use crate::deploy::{
@@ -53,12 +56,15 @@ use crate::ephemeral::{
     PublishOutcome, PublishRequest, RealtimeEnvelope, SubscribeRequest,
 };
 use crate::fork_promotion::{
-    BranchOperationV1, BranchReapReceiptV1, DenyAllAttemptMarkerV1, ForkDiffReceiptV1,
-    InAppBranchReceiptV1, PromotionAdmissionTicketV1, PromotionReceiptV1, PromotionRequestV1,
-    RebaseReplayReceiptV1,
+    BranchOperationV1, BranchReapReceiptV1, CapturedEffectIntentV1, DenyAllAttemptMarkerV1,
+    ForkDiffReceiptV1, InAppBranchReceiptV1, ManagedInAppBranchReceiptV1, PromotedEffectIntentV1,
+    PromotionAdmissionTicketV1, PromotionReceiptV1, PromotionRequestV1, RebaseReplayReceiptV1,
 };
 use crate::handler_wire::{HandlerHostCallRequest, HandlerInvokeRequest, HandlerInvokeResponse};
-use crate::host_ops::{DryRunReport, HostOpsResult, HostReadyDescriptor};
+use crate::host_ops::{
+    DryRunReport, HostOpsResult, HostReadyDescriptor, ManagedBranchCreateHostInputV1,
+    ManagedBranchExecuteHostInputV1, ManagedBranchIdHostInputV1, ManagedBranchListHostInputV1,
+};
 use crate::live_wire::{
     KitSocketReplyFrame, KitSocketRequestFrame, LiveEnvelope, LiveSocketClientMessage,
     LiveSocketServerFrame, OutboxDrainOutput, Receipt, ResumeWire,
@@ -82,11 +88,11 @@ use crate::migration::{
 use crate::proof_checkpoint::{
     BoundaryDigestV1, BoundaryProofV1, CheckpointDigestHeaderV1, CheckpointRegistryRecordV1,
     HistoryRetentionPolicyV1, NamedCheckpointReceiptV1, NamedCheckpointRequestV1,
-    PromotionApprovedWriteV1, PromotionDigestHeaderV1, RecordHistoryPageV1,
+    PromotionApprovedWriteV1, PromotionDigestHeaderV1, ProtectedRecordCheckpointErasureReceiptV1,
+    ProtectedRecordErasureAuthorityFactsV1, ProtectedRecordErasureReceiptV1,
+    ProtectedRecordErasureWireRequestV1, RecordHistoryPageV1,
 };
-use crate::result_transform::{
-    ResultTransformCorpusCaseV1, ResultTransformCorpusManifestV1,
-};
+use crate::result_transform::{ResultTransformCorpusCaseV1, ResultTransformCorpusManifestV1};
 use crate::seed_identity::{
     ActiveSeedIdentityV1, ExpectedDataVersionStreamV1, InstallSeedRequestV1, ResetSeedRequestV1,
     SeedArtifactV1, SeedAssetFixturesV1, SeedEnsureResultV1, SeedInstallReceiptV1,
@@ -109,6 +115,21 @@ pub struct SchemaArtifact {
     /// The generated JSON Schema, with sorted keys for a stable committed diff.
     pub schema: Value,
 }
+
+/// JSON Schemas whose defining authority is a non-Rust compiler. The Rust
+/// schemagen must preserve these files, and the DK-7 directory-closure test
+/// includes them without pretending `artifact_schemas()` generated them.
+///
+/// @ref LLP 0184#phase-1--catalog-and-parity-gate — ControlCatalogV1 and its
+/// instance projection are owned by the checked cross-registry JS compiler.
+/// @ref LLP 0146#d7-implementation-record--2026-08-06-oq6-independent-substrate
+///   — the remediation registry schema is an intentionally data-only draft,
+///   not a Rust-owned wire artifact.
+pub const EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS: &[&str] = &[
+    "control-catalog-instance.v1.schema.json",
+    "control-catalog.v1.schema.json",
+    "remediation-kinds.v0.schema.json",
+];
 
 /// The single generator for every Snapback-owned committed schema.
 ///
@@ -167,6 +188,22 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             schemars::schema_for!(ClientIdentityRangeV1),
         ),
         finish(
+            "operation.identity-range-request-v1.schema.json",
+            schemars::schema_for!(OperationIdentityRangeRequestV1),
+        ),
+        finish(
+            "operation.identity-range-response-v1.schema.json",
+            schemars::schema_for!(OperationIdentityRangeResponseV1),
+        ),
+        finish(
+            "operation.coverage-activation-request-v1.schema.json",
+            schemars::schema_for!(OperationCoverageActivationRequestV1),
+        ),
+        finish(
+            "operation.coverage-activation-response-v1.schema.json",
+            schemars::schema_for!(OperationCoverageActivationResponseV1),
+        ),
+        finish(
             "operation.identity-epoch-v1.schema.json",
             schemars::schema_for!(IdentityEpochV1),
         ),
@@ -175,12 +212,28 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             schemars::schema_for!(OperationSuppressionRecordV1),
         ),
         finish(
+            "operation.pending-lifecycle-v1.schema.json",
+            schemars::schema_for!(PendingOperationLifecycleV1),
+        ),
+        finish(
+            "operation.pending-terminal-supplement-v1.schema.json",
+            schemars::schema_for!(PendingOperationTerminalSupplementV1),
+        ),
+        finish(
             "operation.identity-tombstone-v1.schema.json",
             schemars::schema_for!(OperationIdentityTombstoneV1),
         ),
         finish(
             "operation.explanation-v1.schema.json",
             schemars::schema_for!(OperationExplanationV1),
+        ),
+        finish(
+            "operation.explanation-request-v1.schema.json",
+            schemars::schema_for!(OperationExplanationRequestV1),
+        ),
+        finish(
+            "operation.explanation-response-v1.schema.json",
+            schemars::schema_for!(OperationExplanationResponseV1),
         ),
         finish(
             "operation.coverage-manifest-v1.schema.json",
@@ -222,6 +275,22 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             schemars::schema_for!(CheckpointRegistryRecordV1),
         ),
         finish(
+            "checkpoint.protected-record-erasure-receipt-v1.schema.json",
+            schemars::schema_for!(ProtectedRecordCheckpointErasureReceiptV1),
+        ),
+        finish(
+            "protected-record-erasure.authority-facts-v1.schema.json",
+            schemars::schema_for!(ProtectedRecordErasureAuthorityFactsV1),
+        ),
+        finish(
+            "protected-record-erasure.request-v1.schema.json",
+            schemars::schema_for!(ProtectedRecordErasureWireRequestV1),
+        ),
+        finish(
+            "protected-record-erasure.receipt-v1.schema.json",
+            schemars::schema_for!(ProtectedRecordErasureReceiptV1),
+        ),
+        finish(
             "history.retention-policy-v1.schema.json",
             schemars::schema_for!(HistoryRetentionPolicyV1),
         ),
@@ -241,8 +310,32 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             schemars::schema_for!(InAppBranchReceiptV1),
         ),
         finish(
+            "branch.managed-receipt-v1.schema.json",
+            schemars::schema_for!(ManagedInAppBranchReceiptV1),
+        ),
+        finish(
+            "branch.host-create-input-v1.schema.json",
+            schemars::schema_for!(ManagedBranchCreateHostInputV1),
+        ),
+        finish(
+            "branch.host-execute-input-v1.schema.json",
+            schemars::schema_for!(ManagedBranchExecuteHostInputV1),
+        ),
+        finish(
+            "branch.host-list-input-v1.schema.json",
+            schemars::schema_for!(ManagedBranchListHostInputV1),
+        ),
+        finish(
+            "branch.host-id-input-v1.schema.json",
+            schemars::schema_for!(ManagedBranchIdHostInputV1),
+        ),
+        finish(
             "branch.attempt-marker-v1.schema.json",
             schemars::schema_for!(DenyAllAttemptMarkerV1),
+        ),
+        finish(
+            "branch.effect-intent-v1.schema.json",
+            schemars::schema_for!(CapturedEffectIntentV1),
         ),
         finish(
             "branch.diff-receipt-v1.schema.json",
@@ -259,6 +352,10 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "promotion.receipt-v1.schema.json",
             schemars::schema_for!(PromotionReceiptV1),
+        ),
+        finish(
+            "promotion.effect-intent-v1.schema.json",
+            schemars::schema_for!(PromotedEffectIntentV1),
         ),
         finish(
             "branch.reap-receipt-v1.schema.json",

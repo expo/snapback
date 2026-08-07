@@ -214,6 +214,8 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/query/{name}"),
         ("POST", "/query/{name}/authorized-lease"),
         ("POST", "/client-mutations/acknowledge"),
+        ("POST", "/client-mutations/identity-range"),
+        ("POST", "/operations/explain"),
         ("POST", "/assets/attempts"),
         ("GET", "/assets/attempts/{id}"),
         ("POST", "/assets/attempts/{id}/cancel"),
@@ -252,6 +254,9 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/_snapback/api/app/seed/preview-v1"),
         ("POST", "/_snapback/api/app/seed/reset-install-v1"),
         ("POST", "/_snapback/api/client-mutations/purge"),
+        ("POST", "/_snapback/api/operations/explain"),
+        ("POST", "/_snapback/api/storage/operation-coverage/activate"),
+        ("POST", "/_snapback/api/storage/protected-erasure"),
         ("POST", "/_snapback/api/host-ops"),
         (
             "POST",
@@ -270,7 +275,12 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("GET", "/_snapback/guide"),
         ("GET", "/_snapback/guide/flat.md"),
         ("GET", "/_snapback/guide/{*path}"),
+        // The llms.txt convention pins this guide projection to the root.
+        ("GET", "/llms.txt"),
         ("GET", "/_snapback/api/health"),
+        ("GET", "/_snapback/api/control-catalog"),
+        ("GET", "/_snapback/api/control-catalog/instance"),
+        ("GET", "/_snapback/api/control-catalog/operations/{operation}"),
         ("GET", "/_snapback/api/telemetry/stats"),
         ("GET", "/_snapback/api/telemetry/events"),
         ("GET", "/_snapback/api/telemetry/export"),
@@ -294,6 +304,7 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("GET", "/_snapback/api/receipts"),
         ("GET", "/_snapback/api/data/{table}"),
         ("POST", "/_snapback/api/functions/{name}/run"),
+        ("GET", "/_snapback/api/cron"),
         ("POST", "/_snapback/api/cron/tick"),
         ("POST", "/_snapback/api/cron/{name}/run"),
         // LLP 0070 first slice: the injected-clock jobs drain plus the
@@ -303,6 +314,7 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("GET", "/_snapback/api/jobs/{id}"),
         ("POST", "/_snapback/api/push/maintenance"),
         ("POST", "/_snapback/api/ephemeral/cleanup"),
+        ("POST", "/_snapback/api/ephemeral/operator/delete"),
         // LLP 0167: network condition profile read/toggle; PUT terminates at
         // the fail-closed activation gate.
         ("GET", "/_snapback/api/debug/network-profile"),
@@ -1044,6 +1056,18 @@ fn operation_registry_is_exhaustive_and_bound_to_registered_carriers() {
             "host_ops.app.seed.reset-install.v1",
             "host_ops.auth.mintSession",
             "host_ops.auth.rescueCollidingTable",
+            "host_ops.branch.create.v1",
+            "host_ops.branch.drop.v1",
+            "host_ops.branch.execute.v1",
+            "host_ops.branch.inspect.v1",
+            "host_ops.branch.list.v1",
+            "host_ops.branch.reap.v1",
+            "host_ops.cron.list",
+            "host_ops.data.patch.preview",
+            "host_ops.data.patch.preview.impersonated",
+            "host_ops.data.patch.apply",
+            "host_ops.data.patch.apply.impersonated",
+            "host_ops.debug.live.forceResync",
             "host_ops.debug.networkProfileGet",
             "host_ops.debug.networkProfileSet",
             "host_ops.errors.issue",
@@ -1421,6 +1445,15 @@ fn session_overlay_closes_every_host_ops_branch() {
         ResponseSensitivity::OperatorMetadata
     );
 
+    let cron_list = host_ops
+        .get("host_ops.cron.list")
+        .expect("ordinary cron inventory operation");
+    assert_eq!(cron_list.path_policy, RoutePolicy::AdminRead);
+    assert_eq!(
+        cron_list.response_sensitivity,
+        ResponseSensitivity::OperatorMetadata
+    );
+
     let network_profile_get = host_ops
         .get("host_ops.debug.networkProfileGet")
         .expect("network profile read operation");
@@ -1713,6 +1746,28 @@ fn session_http_body_probes() -> BTreeMap<(&'static str, &'static str), SessionB
             SessionBodyProbe {
                 uri: "/client-mutations/acknowledge",
                 base: json!({ "clientMutationIds": [] }),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("POST", "/client-mutations/identity-range"),
+            SessionBodyProbe {
+                uri: "/client-mutations/identity-range",
+                base: json!({
+                    "schemaVersion": 1,
+                    "clientAudienceId": "policy_probe"
+                }),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("POST", "/operations/explain"),
+            SessionBodyProbe {
+                uri: "/operations/explain",
+                base: json!({
+                    "schemaVersion": 1,
+                    "clientAudienceId": "policy_probe"
+                }),
                 forbidden_fields: handler_fields(),
             },
         ),
@@ -3296,5 +3351,4 @@ async fn host_ops_peek_admits_declared_byte_envelopes() {
 
 /// Base64 payload size that pushes the host-ops JSON body past the widened
 /// peek/route envelope (chunk fact × 4/3 + 64 KiB).
-const POLICY_HOST_OPS_PROBE_OVER_LIMIT: usize =
-    (8 * 1024 * 1024 * 4) / 3 + 64 * 1024 + 128 * 1024;
+const POLICY_HOST_OPS_PROBE_OVER_LIMIT: usize = (8 * 1024 * 1024 * 4) / 3 + 64 * 1024 + 128 * 1024;

@@ -13,6 +13,7 @@ use clap::Parser;
 use rusqlite::OptionalExtension as _;
 use serde::Deserialize;
 use serde_json::{Value, json};
+use std::collections::{BTreeMap, HashMap};
 use std::ffi::OsString;
 use std::io::{self, ErrorKind, IsTerminal, Read as _};
 use std::net::IpAddr;
@@ -78,6 +79,36 @@ fn auth_policy_unavailable(message: &'static str) -> crate::diagnostic::Snapback
         "auth-mode",
         message,
     )
+}
+
+/// The settled-sessions startup pin refusing a regenerated artifact pair is
+/// correct, but it must not dead-end: even a comment-only source edit rotates
+/// the complete deployment identity (the source-byte identity contract), and
+/// without named repair paths authors reverse-engineer an ad-hoc local-store
+/// rollover. Name both supported ways forward on the refusal itself: the
+/// data-preserving live evolution through the running server, and the
+/// data-discarding backup-then-reseed procedure with the real backup command.
+// @ref LLP 0058#cold-startup-artifact-carrier — "this is not a wedge": the
+// refusal must carry its own repair, not just the expected identity
+// (issues/20260805-doc-comment-artifact-mismatch-no-successor-migration.md).
+fn with_settled_pin_repair(
+    mut error: crate::diagnostic::SnapbackError,
+    database: &Path,
+) -> crate::diagnostic::SnapbackError {
+    if let Value::Object(details) = &mut error.diagnostic.details {
+        details.insert(
+            "repair".to_owned(),
+            json!({
+                "keepData": "restart on the startup carrier matching expectedDeployment (regenerate it from the previous sources if needed), then apply the changed sources through the running server's live reload (`snapback dev` watch reload): the running-server provision moves the pinned deployment forward without touching local data",
+                "reseedFresh": format!(
+                    "to discard local data instead: back up the store with `snapback auth backup --db {} --output <ignored-backup-dir>`, move or delete the database file, then restart on the new carrier to reseed from scratch",
+                    database.display()
+                ),
+                "safety": "the refusal is auth-mode deployment state (LLP 0058), not a runtime or codegen defect; do not hand-edit generated artifacts or hashes to match the pin",
+            }),
+        );
+    }
+    error
 }
 
 /// Run a bounded synchronous startup transaction without occupying a Tokio
@@ -228,7 +259,10 @@ async fn compose_auth_mode_startup_with_embedded(
                     snapback.preflight_auth_artifacts(carrier, AuthMode::Sessions)
                 })?;
                 carrier.require_deployment(expected).map_err(|error| {
-                    with_expected_deployment(error, Some(expected), Some(&observed))
+                    with_settled_pin_repair(
+                        with_expected_deployment(error, Some(expected), Some(&observed)),
+                        &args.db,
+                    )
                 })?;
                 if carrier.seed.is_some() {
                     return Err(crate::diagnostic::SnapbackError::error(
@@ -607,6 +641,11 @@ pub struct Args {
     #[arg(long)]
     pub startup_artifacts: Option<PathBuf>,
 
+    /// Fork-create-only pre-bind cut: after the complete startup pair is
+    /// active, arm the derived fork's app-row writer coverage before bind.
+    #[arg(long, hide = true, requires = "startup_artifacts")]
+    pub derived_fork_arm_writer_coverage: bool,
+
     /// Read-only LLP 0157 trust root emitted beside the generated manifests.
     /// The server re-derives every activation binding and exact-compares the
     /// public key manifest to its database-side signing custody before bind.
@@ -672,6 +711,7 @@ impl Default for Args {
             hosted_edge: None,
             hosted_admission: None,
             startup_artifacts: None,
+            derived_fork_arm_writer_coverage: false,
             trusted_composition_activation: None,
             clear_desired_auth_mode: false,
             allow_auth_downgrade: false,
@@ -690,7 +730,8 @@ impl Default for Args {
 #[derive(Debug, Parser)]
 #[command(
     name = "snapback",
-    about = "Snapback local server + host operations (LLP 0024 first slice)"
+    about = "Snapback local server, host operations, and embedded Guide",
+    after_help = "Documentation:\n  snapback guide [QUERY]  Browse or search the build-bound Snapback Guide\n  snapback mcp            Serve the same Guide as read-only MCP resources"
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -708,6 +749,15 @@ pub enum HostCommand {
     Stop {
         #[arg(long)]
         ready_file: PathBuf,
+    },
+    /// host.restart — credential-prove, stop, then spawn the replacement
+    /// server named by the same readiness descriptor.
+    Restart {
+        #[arg(long)]
+        ready_file: PathBuf,
+        /// Operator reason recorded in the composed receipt.
+        #[arg(long, default_value = "cli-restart")]
+        reason: String,
     },
     /// Open the local admin console with a derived browser credential, or
     /// approve a browser-displayed device code from a token-holding terminal.
@@ -749,6 +799,11 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: AssetsCommand,
     },
+    /// Session operations backed by the existing auth host-op surface.
+    Session {
+        #[command(subcommand)]
+        command: SessionCommand,
+    },
     /// Typed local observability reads and the local-only SQL hatch.
     Telemetry {
         #[command(subcommand)]
@@ -759,12 +814,53 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: ErrorsCommand,
     },
+    /// data.scan — bounded read-only table projection (LLP 0184 P1).
+    Data {
+        #[command(subcommand)]
+        command: DataCommand,
+    },
+    /// Config planning, secret-safe value writes, verification, and removal.
+    Config {
+        #[command(subcommand)]
+        command: ConfigCommand,
+    },
+    /// cron.list plus the admin-gated cron dispatch surface.
+    Cron {
+        #[command(subcommand)]
+        command: CronCommand,
+    },
+    /// Receipt-bearing operator cleanup for expired ephemeral entries.
+    Ephemeral {
+        #[command(subcommand)]
+        command: EphemeralCommand,
+    },
+    /// jobs.list / jobs.show (LLP 0184 P1 read-only inspection) plus
+    /// jobs.drain (LLP 0184 §P2's injected-clock typed projection of the
+    /// existing `POST /_snapback/api/jobs/drain` route).
+    Jobs {
+        #[command(subcommand)]
+        command: JobsCommand,
+    },
+    /// connection.disconnect — an explicit debug perturbation of one live
+    /// connection, never presented as application disconnect authority
+    /// (LLP 0184 §P2).
+    Connections {
+        #[command(subcommand)]
+        command: ConnectionsCommand,
+    },
     /// debug.networkProfile* — inspect or change the process-local network
     /// condition profile through the shared host-ops envelope.
     #[command(name = "network-profile")]
     NetworkProfile {
         #[command(subcommand)]
         command: NetworkProfileCommand,
+    },
+    /// debug.live.forceResync — a non-production debug perturbation forcing
+    /// one live subscription through the normal resync-required recovery
+    /// path (LLP 0184 §B).
+    Debug {
+        #[command(subcommand)]
+        command: DebugCommand,
     },
     /// Mint one short-lived, scoped administrative data-read lease. This is a
     /// ready-file-only operation because the proof root is local operator
@@ -804,9 +900,27 @@ pub enum HostCommand {
         command: AuthCommand,
     },
     /// Create and operate finite-TTL, non-promotable local derived deployments.
+    /// Lifecycle: create -> inspect/list -> diff -> drop/reap/recover.
     Fork {
         #[command(subcommand)]
         command: ForkCommand,
+    },
+    // @ref LLP 0184#4-agent-discovery-and-setup — catalog discovery works
+    // offline from the exact build-bound artifact embedded in this binary.
+    /// Search or describe the build's administrative control catalog.
+    Controls {
+        #[command(subcommand)]
+        command: ControlsCommand,
+    },
+    // @ref LLP 0187#t4--build-the-out-of-repo-funnel-before-it-is-tested-for-real —
+    // the packaged native runtime is the checkout-independent guide carrier.
+    // @ref LLP 0061#4-distribution-and-discovery — the CLI searches the same
+    // build-bound corpus served over HTTP and MCP rather than a second copy.
+    /// Show the build-bound Guide channels or search matching Markdown sections.
+    Guide {
+        /// Words to find together in a Guide section. Omit to show all channels.
+        #[arg(value_name = "QUERY")]
+        query: Vec<String>,
     },
     /// Serve the build-bound Snapback Guide as read-only MCP resources over
     /// stdio. This is the resource-first Phase 2b slice; it exposes no tools.
@@ -817,6 +931,17 @@ pub enum HostCommand {
     // independently embedded facts without starting a server, so link probes
     // can classify the exact executable they just launched.
     BuildIdentity,
+    /// Mint the receipt that binds a qualified staged package closure to this
+    /// clean public-package release binary and its embedded store carrier.
+    #[command(name = "packaged-store-qualification-receipt")]
+    PackagedStoreQualificationReceipt {
+        #[arg(long)]
+        closure_manifest: PathBuf,
+        #[arg(long)]
+        suite_result: PathBuf,
+        #[arg(long)]
+        out: PathBuf,
+    },
     /// Prepare the public LLP 0157 activation source from the server-owned
     /// proof keyring and one already-generated manifest pair. Re-run ordinary
     /// codegen afterward; it validates and publishes this source inside the
@@ -1071,6 +1196,291 @@ pub enum ErrorsCommand {
     },
 }
 
+/// @ref LLP 0184#p2-controlled-mutations — typed CLI/MCP projections of the
+/// existing admin-gated cron dispatch routes, with an injected clock for
+/// `tick` so acceptance never depends on wall-clock due-ness.
+#[derive(clap::Subcommand)]
+pub enum CronCommand {
+    /// cron.list — list declared jobs and their current scheduler posture.
+    List {
+        #[command(flatten)]
+        target: TargetArgs,
+    },
+    /// cron.tick — force-claim and run every currently-due cron job.
+    Tick {
+        #[command(flatten)]
+        target: TargetArgs,
+    },
+    /// cron.runOne — force-claim and run one named cron job regardless of
+    /// its schedule.
+    Run {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// The cron job's declared name.
+        name: String,
+    },
+}
+
+/// @ref LLP 0184#p2-controlled-mutations — the operator cleanup is explicit
+/// about cutoff and preview/apply posture, and every apply is bounded.
+#[derive(clap::Subcommand)]
+pub enum EphemeralCommand {
+    #[command(
+        group(clap::ArgGroup::new("cutoff").required(true).multiple(false).args(["older_than_ms", "cutoff_timestamp_ms"])),
+        group(clap::ArgGroup::new("mode").required(true).multiple(false).args(["dry_run", "apply"]))
+    )]
+    Cleanup {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// Select entries whose expiry deadline is at least this old.
+        #[arg(long)]
+        older_than_ms: Option<u64>,
+        /// Select entries whose expiry deadline is at or before this timestamp.
+        #[arg(long)]
+        cutoff_timestamp_ms: Option<u64>,
+        /// Preview counts without deleting entries.
+        #[arg(long)]
+        dry_run: bool,
+        /// Apply ordinary expiry removals.
+        #[arg(long)]
+        apply: bool,
+        /// Maximum entries the corresponding apply may delete.
+        #[arg(long, default_value_t = 1_000)]
+        max_entries: usize,
+    },
+    /// ephemeral.operatorDelete — administrator bypass delete of one
+    /// ephemeral entry, fenced on BOTH the room's scope epoch and the
+    /// entry's own generation together (LLP 0184 §C). This is NOT the
+    /// same authority as an application deleting its own ephemeral entry;
+    /// it never evaluates application authorization.
+    OperatorDelete {
+        #[command(flatten)]
+        target: TargetArgs,
+        #[arg(long)]
+        collection: String,
+        /// Scope as a JSON object, e.g. '{"boardId":"board-1"}'.
+        #[arg(long = "scope-json")]
+        scope_json: String,
+        #[arg(long = "entry-key")]
+        entry_key: String,
+        #[arg(long = "expected-scope-epoch")]
+        expected_scope_epoch: u64,
+        #[arg(long = "expected-entry-generation")]
+        expected_entry_generation: u64,
+        #[arg(long)]
+        reason: String,
+    },
+}
+
+/// @ref LLP 0184#p2-controlled-mutations — `connection.disconnect` is an
+/// explicit debug perturbation of the existing admin-gated route
+/// (`POST /_snapback/api/connections/{id}/disconnect`), never application
+/// disconnect authority. `reason` is recorded in this command's own receipt
+/// (the route itself carries no request body today); the readiness
+/// descriptor's startup nonce is verified by the ordinary target-resolution
+/// path before the request is sent, so a stale/reused server can never be
+/// the disconnect target.
+#[derive(clap::Subcommand)]
+pub enum ConnectionsCommand {
+    /// connection.disconnect — force-close one live connection by id.
+    Disconnect {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// The connection id to disconnect.
+        connection_id: String,
+        /// Why this debug perturbation is being invoked (recorded in the
+        /// receipt printed on success).
+        #[arg(long)]
+        reason: String,
+    },
+}
+
+/// @ref LLP 0184#b-forced-live-resync--add-now — v1 targets exactly one
+/// subscription, fenced by connection id + subscription id (the same
+/// UUIDv7 identity the operator inspect projection already exposes) plus
+/// the running server's startup nonce. Connection-wide targeting is
+/// explicitly out of v1 scope (OQ4), not silently reachable through this
+/// command. Non-production, local-only; refused on a primary
+/// hosted/production target or a derived instance until LLP 0158 grants
+/// recognition for this purpose.
+#[derive(clap::Subcommand)]
+pub enum DebugCommand {
+    /// debug.live.forceResync — force one live subscription to re-snapshot
+    /// through the normal `resync_required` recovery path. Changes no
+    /// application data.
+    #[command(name = "force-resync")]
+    ForceResync {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// The connection id the subscription is open on.
+        #[arg(long = "connection-id")]
+        connection_id: String,
+        /// The live subscription id to force through resync.
+        #[arg(long = "subscription-id")]
+        subscription_id: String,
+        /// Why this debug perturbation is being invoked (a closed
+        /// operator/test reason, recorded in the receipt printed on
+        /// success).
+        #[arg(long)]
+        reason: String,
+        /// Whether the client must also discard any retained rows for this
+        /// subscription rather than keep them until the fresh snapshot
+        /// lands.
+        #[arg(long = "clear-retained")]
+        clear_retained: bool,
+        /// The target server's startup nonce. Defaults to the value already
+        /// recorded in `--ready-file`'s readiness descriptor; required
+        /// explicitly when targeting `--url` directly.
+        #[arg(long = "startup-nonce")]
+        startup_nonce: Option<String>,
+    },
+}
+
+#[derive(clap::Subcommand)]
+pub enum DataCommand {
+    /// data.scan — bounded read-only projection over `DataQuery`'s shipped
+    /// fields: table, limit, offset. Not a cursor: the route has none, and
+    /// offset paging is not stable under concurrent writes — a row can shift
+    /// pages between two calls. Prefer a narrow `--limit` and re-scan rather
+    /// than relying on offset continuity across a long-lived operator
+    /// session.
+    ///
+    /// @ref LLP 0184#p1-read-and-diagnose — matches `DataQuery` as shipped;
+    ///   a stable/snapshot-bound cursor is a storage-owner amendment, out of
+    ///   this pure-projection scope.
+    Scan {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// The table to scan.
+        table: String,
+        #[arg(long, default_value_t = 50)]
+        limit: usize,
+        #[arg(long, default_value_t = 0)]
+        offset: usize,
+        /// A previously minted scoped secret-read lease. Omit to mint one
+        /// automatically from the ready file (requires --ready-file).
+        #[arg(long)]
+        secret_read_lease: Option<String>,
+    },
+    /// Preview or apply one existing-row closed field patch. The complete JSON
+    /// input, including an apply token when applying, is read from a file or
+    /// stdin and is never accepted as an argv value.
+    Patch(DataPatchArgs),
+}
+
+#[derive(clap::Subcommand)]
+pub enum ControlsCommand {
+    /// Search controls by operation id, title, and intent keywords.
+    List {
+        /// Words that must all occur in the operation id, title, or intents.
+        #[arg(long)]
+        intent: Option<String>,
+        /// Emit the build-catalog JSON shape (with filtered entries when
+        /// --intent is present).
+        #[arg(long)]
+        json: bool,
+    },
+    /// Show the complete catalog row for one operation.
+    Describe {
+        operation: String,
+        /// Emit a catalog-identity wrapper plus the complete row as JSON.
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+/// @ref LLP 0184#p2-controlled-mutations — `config.unset` carries no secret
+/// value, so it needs no secret carrier; it is a direct, `AdminWrite`
+/// projection of the existing `POST /_snapback/api/config/unset` route.
+#[derive(clap::Subcommand)]
+pub enum ConfigCommand {
+    /// config.status — the full per-entry state machine: names, states,
+    /// generations, diagnostics. Never values.
+    Status {
+        #[command(flatten)]
+        target: TargetArgs,
+    },
+    /// config.plan — dry-run facts for setting an entry: write locus,
+    /// required credentials, the apply boundary, and whether this transport
+    /// would accept a value write. No write occurs.
+    Plan {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// Narrow the plan to one declared entry; omitted plans every entry.
+        #[arg(long)]
+        entry: Option<String>,
+    },
+    /// config.set — write one value through stdin or an inherited file
+    /// descriptor. The value is never accepted as a command-line argument.
+    Set {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// The config entry identifier (e.g. `stripe.secretKey`).
+        #[arg(long)]
+        entry: String,
+        /// Read the exact UTF-8 value bytes from standard input.
+        #[arg(
+            long,
+            required_unless_present = "value_fd",
+            conflicts_with = "value_fd"
+        )]
+        value_stdin: bool,
+        /// Read the exact UTF-8 value bytes from inherited descriptor N.
+        #[arg(
+            long,
+            value_name = "N",
+            required_unless_present = "value_stdin",
+            conflicts_with = "value_stdin"
+        )]
+        value_fd: Option<u32>,
+        /// Add this value to a declared pool instead of replacing the entry.
+        #[arg(long)]
+        append: bool,
+    },
+    /// config.verify — run one entry's probe action and report ok/not-ok
+    /// plus the probe diagnostic. Never returns the configured value.
+    Verify {
+        #[command(flatten)]
+        target: TargetArgs,
+        entry: String,
+    },
+    /// config.unset — remove a config entry's stored value.
+    Unset {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// The config entry identifier (e.g. `stripe.secretKey`).
+        #[arg(long)]
+        entry: String,
+    },
+}
+
+#[derive(clap::Subcommand)]
+pub enum JobsCommand {
+    /// jobs.list — the bounded one-off job inspection page (read-only).
+    List {
+        #[command(flatten)]
+        target: TargetArgs,
+    },
+    /// jobs.show — one job's full recorded state by id (read-only).
+    Show {
+        #[command(flatten)]
+        target: TargetArgs,
+        id: String,
+    },
+    /// jobs.drain — claim and run due one-off jobs under an injected clock.
+    Drain {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// The injected drain clock in epoch milliseconds. Absent means wall
+        /// clock.
+        #[arg(long)]
+        now_ms: Option<u64>,
+        /// Bounded cascade waves (server default 1 when absent).
+        #[arg(long)]
+        max_waves: Option<usize>,
+    },
+}
+
 #[derive(clap::Subcommand)]
 pub enum NetworkProfileCommand {
     /// debug.networkProfileGet — return the active profile and provenance.
@@ -1086,6 +1496,27 @@ pub enum NetworkProfileCommand {
         /// Built-in name (normal, optimistic, demo-slow) or an inline JSON object.
         profile: String,
     },
+}
+
+#[derive(clap::Args)]
+#[command(group(
+    clap::ArgGroup::new("data_patch_intent")
+        .required(true)
+        .multiple(false)
+        .args(["preview", "apply"])
+))]
+pub struct DataPatchArgs {
+    #[command(flatten)]
+    pub target: TargetArgs,
+    /// Validate and mint one short-lived apply token.
+    #[arg(long)]
+    pub preview: bool,
+    /// Consume the apply token carried inside the JSON input and commit.
+    #[arg(long)]
+    pub apply: bool,
+    /// Closed JSON input file, or '-' for stdin.
+    #[arg(long, value_name = "FILE|-")]
+    pub input: PathBuf,
 }
 
 #[derive(clap::Subcommand)]
@@ -1229,8 +1660,10 @@ pub enum AuthCommand {
 }
 
 #[derive(clap::Subcommand)]
+#[command(after_help = "Lifecycle examples:\n  snapback fork create --from parent.ready.json --ttl 2h --app-root .\n  snapback fork inspect <fork-id> --app-root .\n  snapback fork diff <fork-id> --app-root .\n  snapback fork drop <fork-id> --app-root .\n  snapback fork reap --now-ms <unix-ms> --app-root .\n  snapback fork recover <destination> --app-root .")]
 pub enum ForkCommand {
-    /// Materialize, scrub/mint, boot, and return a ready derived deployment.
+    /// Sweep expired managed forks first, then materialize, scrub/mint, boot,
+    /// and return a finite-lived ready derived deployment.
     Create {
         /// Parent SQLite database or a live server readiness descriptor.
         #[arg(long = "from")]
@@ -1253,6 +1686,22 @@ pub enum ForkCommand {
         /// Runtime readiness descriptor. Defaults inside the fork directory.
         #[arg(long)]
         ready_file: Option<PathBuf>,
+        /// Retain a digest-bound post-mint base snapshot inside the fork,
+        /// enabling the exact net diff (doubles the fork's byte footprint).
+        #[arg(long)]
+        retain_base: bool,
+        /// Refuse creation once this many managed forks exist.
+        #[arg(long, default_value_t = crate::instance_fork::MANAGED_FORK_MAX_COUNT)]
+        max_forks: usize,
+        /// Refuse a source database set larger than this many bytes.
+        #[arg(long, default_value_t = crate::instance_fork::MANAGED_FORK_MAX_FORK_BYTES)]
+        max_fork_bytes: u64,
+        /// Refuse when existing forks plus this copy would exceed this budget.
+        #[arg(long, default_value_t = crate::instance_fork::MANAGED_FORK_MAX_TOTAL_BYTES)]
+        max_total_bytes: u64,
+        /// Output JSON (default) or one shell-friendly scalar path/identity.
+        #[arg(long, value_enum, default_value = "json")]
+        format: ForkOutputFormat,
     },
     /// List advisory lifecycle records without changing them.
     List {
@@ -1260,6 +1709,18 @@ pub enum ForkCommand {
         app_root: PathBuf,
         #[arg(long)]
         fork_root: Option<PathBuf>,
+    },
+    /// Inspect identity, expiry, process health, paths, isolation posture, and
+    /// a bounded app-row diff summary for one registry-bound fork.
+    Inspect {
+        fork_id: String,
+        #[arg(long, default_value = ".")]
+        app_root: PathBuf,
+        #[arg(long)]
+        fork_root: Option<PathBuf>,
+        /// Output JSON (default) or one shell-friendly scalar path/identity.
+        #[arg(long, value_enum, default_value = "json")]
+        format: ForkOutputFormat,
     },
     /// Render the app-row-only post-fork journal receipt.
     Diff {
@@ -1270,10 +1731,30 @@ pub enum ForkCommand {
         fork_root: Option<PathBuf>,
         #[arg(long)]
         out: Option<PathBuf>,
+        /// Refuse a journal or net-diff work span larger than this many rows.
+        #[arg(long, default_value_t = crate::instance_fork::FORK_DIFF_MAX_ROWS)]
+        max_rows: u64,
+        /// Produce the exact net base-to-head receipt (snapback.fork-net-diff.v3)
+        /// instead of the journal sequence; requires --retain-base at create.
+        #[arg(long)]
+        net: bool,
     },
     /// Stop and delete exactly one registry-bound fork.
     Drop {
         fork_id: String,
+        #[arg(long, default_value = ".")]
+        app_root: PathBuf,
+        #[arg(long)]
+        fork_root: Option<PathBuf>,
+    },
+    /// Extend one fork's finite expiry within the configured maximum total
+    /// lifetime. Renewal never shortens or clears the expiry and never
+    /// resurrects an already-expired fork.
+    Renew {
+        fork_id: String,
+        /// Finite duration from now, such as 30m or 2h.
+        #[arg(long)]
+        ttl: String,
         #[arg(long, default_value = ".")]
         app_root: PathBuf,
         #[arg(long)]
@@ -1288,6 +1769,26 @@ pub enum ForkCommand {
         #[arg(long)]
         fork_root: Option<PathBuf>,
     },
+    /// Repair a crash-interrupted publication from its authoritative local
+    /// evidence, or reap matching unpublished staging state.
+    Recover {
+        /// Exact destination path or direct-child name under --fork-root.
+        destination: PathBuf,
+        #[arg(long, default_value = ".")]
+        app_root: PathBuf,
+        #[arg(long)]
+        fork_root: Option<PathBuf>,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, clap::ValueEnum)]
+pub enum ForkOutputFormat {
+    Json,
+    Url,
+    ForkId,
+    DatabasePath,
+    ReadyPath,
+    AdminTokenPath,
 }
 
 impl std::fmt::Debug for HostCommand {
@@ -1423,6 +1924,18 @@ pub enum AssetsCommand {
     },
 }
 
+#[derive(clap::Subcommand)]
+pub enum SessionCommand {
+    /// Mint an ordinary session for an admitted email address. Requires the
+    /// existing operator credential and process-bound impersonation capability.
+    Mint {
+        #[command(flatten)]
+        target: TargetArgs,
+        #[arg(long)]
+        email: String,
+    },
+}
+
 #[derive(clap::Args)]
 pub struct TargetArgs {
     /// Server base URL (e.g. http://127.0.0.1:4287).
@@ -1455,13 +1968,189 @@ impl std::fmt::Debug for TargetArgs {
     }
 }
 
+const DEFAULT_SERVED_GUIDE_URL: &str = "http://127.0.0.1:4287/_snapback/guide";
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct GuideSectionMatch {
+    path: String,
+    heading: String,
+    anchor: String,
+}
+
+fn markdown_heading(line: &str) -> Option<&str> {
+    let trimmed = line.trim_start();
+    let level = trimmed.bytes().take_while(|byte| *byte == b'#').count();
+    if !(1..=6).contains(&level) || trimmed.as_bytes().get(level) != Some(&b' ') {
+        return None;
+    }
+    let heading = trimmed[level + 1..].trim();
+    (!heading.is_empty()).then_some(heading)
+}
+
+fn markdown_anchor(heading: &str) -> String {
+    let mut anchor = String::new();
+    for character in heading.chars().flat_map(char::to_lowercase) {
+        if character.is_alphanumeric() || character == '_' || character == '-' {
+            anchor.push(character);
+        } else if character.is_whitespace() {
+            anchor.push('-');
+        }
+    }
+    if anchor.is_empty() {
+        "section".to_owned()
+    } else {
+        anchor
+    }
+}
+
+fn search_guide_sections_in(
+    files: &[crate::guide::EmbeddedGuideFile],
+    query: &str,
+) -> Vec<GuideSectionMatch> {
+    let query = query.to_lowercase();
+    let mut matches = Vec::new();
+
+    for file in files {
+        if !file.path.ends_with(".md") || file.path == crate::guide::FLAT_PATH {
+            continue;
+        }
+        let Ok(markdown) = std::str::from_utf8(file.bytes) else {
+            continue;
+        };
+        let mut anchor_counts = HashMap::<String, usize>::new();
+        let mut current: Option<(String, String, String)> = None;
+        let mut active_fence = None;
+
+        let finish_section = |current: Option<(String, String, String)>,
+                              matches: &mut Vec<GuideSectionMatch>| {
+            if let Some((heading, anchor, text)) = current
+                && text.to_lowercase().contains(&query)
+            {
+                matches.push(GuideSectionMatch {
+                    path: file.path.to_owned(),
+                    heading,
+                    anchor,
+                });
+            }
+        };
+
+        for line in markdown.lines() {
+            let trimmed = line.trim_start();
+            let fence = if trimmed.starts_with("```") {
+                Some('`')
+            } else if trimmed.starts_with("~~~") {
+                Some('~')
+            } else {
+                None
+            };
+            if let Some(fence) = fence {
+                match active_fence {
+                    Some(active) if active == fence => active_fence = None,
+                    None => active_fence = Some(fence),
+                    _ => {}
+                }
+            }
+
+            if active_fence.is_none()
+                && let Some(heading) = markdown_heading(line)
+            {
+                finish_section(current.take(), &mut matches);
+                let base_anchor = markdown_anchor(heading);
+                let count = anchor_counts.entry(base_anchor.clone()).or_default();
+                let anchor = if *count == 0 {
+                    base_anchor
+                } else {
+                    format!("{base_anchor}-{count}")
+                };
+                *count += 1;
+                current = Some((heading.to_owned(), anchor, format!("{heading}\n")));
+            } else if let Some((_, _, text)) = &mut current {
+                text.push_str(line);
+                text.push('\n');
+            }
+        }
+        finish_section(current, &mut matches);
+    }
+
+    matches
+}
+
+fn search_guide_sections(query: &str) -> Vec<GuideSectionMatch> {
+    search_guide_sections_in(crate::guide::EMBEDDED_GUIDE_FILES, query)
+}
+
+fn render_guide_command(query_words: &[String]) -> String {
+    let query = query_words.join(" ");
+    let query = query.trim();
+    if query.is_empty() {
+        return format!(
+            "Snapback Guide documentation channels\n\
+             \n\
+             The URLs below use the first default dev port. If Snapback selected another port, replace the origin with the one printed by snapback dev or snapback start.\n\
+             \n\
+             Start with the capability index: {DEFAULT_SERVED_GUIDE_URL}/capabilities.md\n\
+             Browse the Guide:             {DEFAULT_SERVED_GUIDE_URL}\n\
+             Flat agent projection:         {DEFAULT_SERVED_GUIDE_URL}/flat.md\n\
+             Search this embedded build:    snapback guide <query>\n\
+             Read through MCP:              snapback mcp\n\
+             MCP entry resource:            snapback-guide://manifest\n"
+        );
+    }
+
+    let matches = search_guide_sections(query);
+    if matches.is_empty() {
+        return format!(
+            "No embedded Guide sections matched {query:?}.\nStart with the capability index: {DEFAULT_SERVED_GUIDE_URL}/capabilities.md\n"
+        );
+    }
+
+    let mut output = format!("Embedded Guide sections matching {query:?}:\n");
+    for matched in &matches {
+        output.push_str(&format!(
+            "- {}#{} — {}\n  {DEFAULT_SERVED_GUIDE_URL}/{}#{}\n",
+            matched.path, matched.anchor, matched.heading, matched.path, matched.anchor
+        ));
+    }
+    output.push_str(&format!("{} section(s) matched.\n", matches.len()));
+    output
+}
+
+fn guide_command(query: &[String]) -> anyhow::Result<()> {
+    use std::io::Write as _;
+
+    std::io::stdout()
+        .write_all(render_guide_command(query).as_bytes())
+        .context("failed to write Guide output")
+}
+
 pub async fn run_from_env() -> anyhow::Result<()> {
-    let cli = Cli::parse();
+    let cli = match Cli::try_parse() {
+        Ok(cli) => cli,
+        Err(error)
+            if argv_targets_config_set()
+                && !matches!(
+                    error.kind(),
+                    clap::error::ErrorKind::DisplayHelp | clap::error::ErrorKind::DisplayVersion
+                ) =>
+        {
+            // Config values are deliberately absent from argv, but a caller
+            // can still make a spelling mistake that causes clap to quote an
+            // unexpected token. Collapse every config-set parse refusal to a
+            // stable, value-free diagnostic instead of rendering argv.
+            anyhow::bail!(
+                "SNAPBACK_CONFIG_SET_USAGE_INVALID: invalid config set arguments; run `snapback config set --help` for the value-free usage"
+            )
+        }
+        Err(error) => error.exit(),
+    };
     reject_misdirected_serve_flags(&cli)?;
     match cli.command {
         None => run(cli.serve).await,
         Some(HostCommand::Start(args)) => run(args).await,
         Some(HostCommand::Stop { ready_file }) => host_stop(&ready_file),
+        Some(HostCommand::Restart { ready_file, reason }) => {
+            host_restart(&ready_file, &reason).await
+        }
         Some(HostCommand::Admin(args)) => admin_command(args).await,
         Some(HostCommand::Inspect(target)) => {
             host_op_via_http(&target, json!({ "operation": "app.inspect" }))
@@ -1651,6 +2340,11 @@ pub async fn run_from_env() -> anyhow::Result<()> {
                 }),
             ),
         },
+        Some(HostCommand::Session { command }) => match command {
+            SessionCommand::Mint { target, email } => {
+                host_op_via_http(&target, mint_session_request(email))
+            }
+        },
         Some(HostCommand::SecretReadMint {
             ready_file,
             token,
@@ -1707,11 +2401,15 @@ pub async fn run_from_env() -> anyhow::Result<()> {
         }
         Some(HostCommand::Telemetry { command }) => telemetry_command(command),
         Some(HostCommand::Errors { command }) => errors_command(command),
+        Some(HostCommand::Config { command }) => config_command(command),
+        Some(HostCommand::Cron { command }) => cron_command(command),
+        Some(HostCommand::Ephemeral { command }) => ephemeral_command(command),
+        Some(HostCommand::Jobs { command }) => jobs_command(command),
+        Some(HostCommand::Connections { command }) => connections_command(command),
         Some(HostCommand::NetworkProfile { command }) => match command {
-            NetworkProfileCommand::Get { target } => host_op_via_http(
-                &target,
-                json!({ "operation": "debug.networkProfileGet" }),
-            ),
+            NetworkProfileCommand::Get { target } => {
+                host_op_via_http(&target, json!({ "operation": "debug.networkProfileGet" }))
+            }
             NetworkProfileCommand::Set { target, profile } => host_op_via_http(
                 &target,
                 json!({
@@ -1720,11 +2418,39 @@ pub async fn run_from_env() -> anyhow::Result<()> {
                 }),
             ),
         },
+        Some(HostCommand::Debug { command }) => match command {
+            DebugCommand::ForceResync {
+                target,
+                connection_id,
+                subscription_id,
+                reason,
+                clear_retained,
+                startup_nonce,
+            } => {
+                let startup_nonce = resolve_startup_nonce(&target, startup_nonce)?;
+                host_op_via_http(
+                    &target,
+                    json!({
+                        "operation": "debug.live.forceResync",
+                        "input": {
+                            "connectionId": connection_id,
+                            "subscriptionId": subscription_id,
+                            "reason": reason,
+                            "clearRetained": clear_retained,
+                            "startupNonce": startup_nonce,
+                        },
+                    }),
+                )
+            }
+        },
+        Some(HostCommand::Data { command }) => data_command(command),
         Some(HostCommand::Auth { command }) => match command {
             AuthCommand::Backup { db, output } => auth_backup(&db, &output).await,
             AuthCommand::Restore { from, db } => auth_restore(&from, &db),
         },
         Some(HostCommand::Fork { command }) => fork_command(command).await,
+        Some(HostCommand::Controls { command }) => controls_command(command),
+        Some(HostCommand::Guide { query }) => guide_command(&query),
         Some(HostCommand::Mcp) => crate::guide_mcp::run_stdio(),
         Some(HostCommand::BuildIdentity) => {
             println!(
@@ -1737,6 +2463,15 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             );
             Ok(())
         }
+        Some(HostCommand::PackagedStoreQualificationReceipt {
+            closure_manifest,
+            suite_result,
+            out,
+        }) => packaged_store_qualification_receipt_command(
+            &closure_manifest,
+            &suite_result,
+            &out,
+        ),
         Some(HostCommand::CompositionActivationPrepare {
             db,
             generated,
@@ -1778,6 +2513,11 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             startup_blocking(|| migrate_command(command, json))
         }
     }
+}
+
+fn argv_targets_config_set() -> bool {
+    let mut args = std::env::args_os().skip(1);
+    args.next().is_some_and(|arg| arg == "config") && args.next().is_some_and(|arg| arg == "set")
 }
 
 #[derive(Deserialize)]
@@ -2043,18 +2783,77 @@ fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
+async fn wait_for_derived_fork_expiry(
+    database: Option<PathBuf>,
+    lineage: Option<crate::instance_fork::DerivedForkLineageV1>,
+) -> (crate::instance_fork::DerivedForkLineageV1, u64) {
+    let Some(lineage) = lineage else {
+        return std::future::pending().await;
+    };
+    let Some(mut expires_at_ms) = lineage.expires_at_ms else {
+        return std::future::pending().await;
+    };
+    loop {
+        let observed_at_ms = now_ms();
+        if observed_at_ms >= expires_at_ms {
+            // A completed `fork renew` moves the database lineage, which is
+            // the expiry authority — the boot-time copy is only a schedule.
+            // Mid-renewal reads (sentinel window, carrier rewrite) fail
+            // transiently, so retry briefly before accepting expiry.
+            let mut renewed_to = None;
+            if let Some(database) = database.as_deref() {
+                for _ in 0..40 {
+                    match crate::instance_fork::refreshed_lineage(database) {
+                        Ok(Some(current))
+                            if current
+                                .expires_at_ms
+                                .is_some_and(|expiry| expiry > observed_at_ms) =>
+                        {
+                            renewed_to = current.expires_at_ms;
+                            break;
+                        }
+                        Ok(_) => break,
+                        Err(_) => {
+                            tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+                        }
+                    }
+                }
+            }
+            match renewed_to {
+                Some(new_expiry) => {
+                    expires_at_ms = new_expiry;
+                    continue;
+                }
+                None => return (lineage, observed_at_ms),
+            }
+        }
+        let delay_ms = expires_at_ms.saturating_sub(observed_at_ms).clamp(1, 1_000);
+        tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
+    }
+}
+
 fn stored_app_id(database: &Path) -> anyhow::Result<String> {
     let conn = rusqlite::Connection::open(database)?;
     let stored: Option<String> = conn
         .query_row(
-            "SELECT value FROM _snapback_meta WHERE key='schema_manifest'",
-            [],
+            "SELECT value
+               FROM _snapback_meta
+              WHERE key IN (?1, ?2)
+              ORDER BY CASE key WHEN ?1 THEN 0 ELSE 1 END
+              LIMIT 1",
+            rusqlite::params![
+                crate::storage::auth_mode::META_CAPABILITY_AWARE_SCHEMA_MANIFEST,
+                crate::storage::auth_mode::META_LEGACY_SCHEMA_MANIFEST,
+            ],
             |row| row.get(0),
         )
         .optional()?;
     let stored = stored.context("SNAPBACK_FORK_APP_ID_REQUIRED: source has no stored schema")?;
+    // @ref LLP 0058#the-four-keys — Sessions permanently poisons
+    // the predecessor manifest slot. The capability-aware slot is the active
+    // schema for both modes; legacy databases fall back to the old slot.
     let schema: crate::manifest::SchemaManifest =
-        serde_json::from_str(&stored).context("source stored schema is malformed")?;
+        serde_json::from_str(&stored).context("source active schema is malformed")?;
     Ok(schema.app_id)
 }
 
@@ -2119,6 +2918,24 @@ fn fork_envelope(
     server_url: Option<String>,
     data: Value,
 ) -> HostOpsResult {
+    fork_envelope_with_diagnostics(
+        operation,
+        app_id,
+        app_root,
+        server_url,
+        data,
+        Vec::new(),
+    )
+}
+
+fn fork_envelope_with_diagnostics(
+    operation: &str,
+    app_id: String,
+    app_root: Option<&Path>,
+    server_url: Option<String>,
+    data: Value,
+    diagnostics: Vec<crate::diagnostic::Diagnostic>,
+) -> HostOpsResult {
     HostOpsResult {
         schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
         result_kind: HOST_OPS_RESULT_KIND.to_owned(),
@@ -2134,12 +2951,29 @@ fn fork_envelope(
         authority: None,
         artifacts: HostOpsArtifacts::default(),
         data,
-        diagnostics: Vec::new(),
+        diagnostics,
         next: Vec::new(),
         secret_read_tables: Vec::new(),
         secret_read_rows: 0,
         secret_read_query: false,
         secret_read_provenance_complete: true,
+    }
+}
+
+/// The honest asset-custody fact for one fork directory: a fork of an
+/// asset-bearing parent carries a digest-verified private blob tree from the
+/// same cut; a fork of an asset-free parent simply has none.
+fn fork_asset_custody(destination: &Path) -> &'static str {
+    let blobs = destination.join("assets").join("blobs");
+    match std::fs::read_dir(&blobs) {
+        Ok(mut entries) => {
+            if entries.next().is_some() {
+                "fork-private-same-cut"
+            } else {
+                "no-assets"
+            }
+        }
+        Err(_) => "no-assets",
     }
 }
 
@@ -2150,6 +2984,293 @@ fn fork_secret_disposition(with_secrets: bool, database: &Path) -> &'static str 
         "copy-requested-source-absent"
     } else {
         "scrubbed"
+    }
+}
+
+fn managed_fork_secret_disposition(
+    target: &crate::instance_fork::ManagedForkTargetV1,
+) -> &'static str {
+    match target
+        .receipt
+        .custody
+        .get("sidecar:*.config.json")
+        .copied()
+    {
+        Some(crate::instance_fork::CustodyDisposition::Copy)
+            if crate::config::ConfigStore::path_for_database(&target.database).is_file() =>
+        {
+            "copied-explicitly"
+        }
+        Some(crate::instance_fork::CustodyDisposition::Copy) => "copy-requested-source-absent",
+        _ => "scrubbed",
+    }
+}
+
+#[derive(Default)]
+struct ForkProjectionScalars {
+    url: Option<String>,
+    fork_id: Option<String>,
+    database_path: Option<String>,
+    ready_path: Option<String>,
+    admin_token_path: Option<String>,
+}
+
+fn print_fork_projection(
+    format: ForkOutputFormat,
+    envelope: &HostOpsResult,
+    scalars: &ForkProjectionScalars,
+) -> anyhow::Result<()> {
+    if format == ForkOutputFormat::Json {
+        print_envelope(&serde_json::to_value(envelope)?);
+        return Ok(());
+    }
+    let value = match format {
+        ForkOutputFormat::Json => unreachable!(),
+        ForkOutputFormat::Url => scalars.url.as_deref(),
+        ForkOutputFormat::ForkId => scalars.fork_id.as_deref(),
+        ForkOutputFormat::DatabasePath => scalars.database_path.as_deref(),
+        ForkOutputFormat::ReadyPath => scalars.ready_path.as_deref(),
+        ForkOutputFormat::AdminTokenPath => scalars.admin_token_path.as_deref(),
+    };
+    let value = value.context(
+        "SNAPBACK_FORK_PROJECTION_UNAVAILABLE: requested scalar is not available for this fork",
+    )?;
+    println!("{value}");
+    Ok(())
+}
+
+fn resolve_fork_destination(root: &Path, requested: PathBuf) -> anyhow::Result<PathBuf> {
+    let destination = if requested.is_absolute() {
+        requested
+    } else {
+        root.join(requested)
+    };
+    let parent = destination
+        .parent()
+        .context("SNAPBACK_FORK_PATH_INVALID: fork destination has no parent")?;
+    anyhow::ensure!(
+        std::fs::canonicalize(parent)? == root,
+        "SNAPBACK_FORK_PATH_INVALID: destination must be a direct child of the fork root"
+    );
+    anyhow::ensure!(
+        destination.file_name().is_some(),
+        "SNAPBACK_FORK_PATH_INVALID: destination must have a direct-child name"
+    );
+    Ok(destination)
+}
+
+#[derive(Debug, Default)]
+struct ForkReapOutcome {
+    reaped: Vec<String>,
+    cleared_stale_registry: Vec<String>,
+}
+
+/// Reap every expired fork and complete any partial cleanup, tolerating
+/// concurrent lifecycle actors: an entry that disappears mid-sweep was
+/// cleaned up by its other owner, and a registry entry whose directory is
+/// already gone is stale bookkeeping to clear, never a reason to wedge the
+/// remaining forks' cleanup (LLP 0185 Phase 3 item 5).
+fn reap_managed_forks(
+    root: &Path,
+    expected: &crate::instance_fork::ExpectedForkAppV1,
+    now_ms: u64,
+) -> anyhow::Result<ForkReapOutcome> {
+    let mut outcome = ForkReapOutcome::default();
+    for fork_id in crate::instance_fork::managed_registry_ids(root)? {
+        // Holding the cleanup lock across bind → stop → drop means a
+        // concurrent drop/reap either finished before we bound (observed as
+        // NOT_FOUND) or waits until we finish — never a torn mid-teardown.
+        let lock = crate::instance_fork::lock_cleanup(root, &fork_id)?;
+        match crate::instance_fork::managed_target(root, &fork_id, expected) {
+            Ok(target) => {
+                let expired = target
+                    .entry
+                    .lineage
+                    .expires_at_ms
+                    .is_some_and(|expires| expires <= now_ms);
+                if !expired {
+                    // Release the flock but retain its inode while the fork
+                    // remains live. Unlinking a lock with queued waiters can
+                    // split later actors across old and newly-created inodes.
+                    continue;
+                }
+                if let Some(ready) = target.ready_file.as_deref() {
+                    let _ = quiet_stop_fork(ready, &target.database)?;
+                }
+                crate::instance_fork::drop_managed_locked(root, &fork_id, expected)?;
+                outcome.reaped.push(fork_id);
+                lock.dispose();
+            }
+            Err(error) if error.diagnostic.code == "SNAPBACK_FORK_NOT_FOUND" => {
+                lock.dispose();
+            }
+            Err(error)
+                if matches!(
+                    error.diagnostic.code.as_str(),
+                    crate::instance_fork::APP_BINDING_REQUIRED_CODE
+                        | crate::instance_fork::APP_BINDING_MISMATCH_CODE
+                ) =>
+            {
+                // A shared explicit root can contain other apps' entries.
+                // They are invisible and ineligible to this app's sweep.
+                // Keep the live fork's stable lock inode for its owner.
+            }
+            Err(error) if error.diagnostic.code == "SNAPBACK_FORK_REGISTRY_STALE" => {
+                crate::instance_fork::clear_stale_registry_entry_locked(
+                    root,
+                    &fork_id,
+                    expected,
+                )?;
+                outcome.cleared_stale_registry.push(fork_id);
+                lock.dispose();
+            }
+            Err(error) => return Err(error.into()),
+        }
+    }
+    outcome.reaped.sort();
+    outcome.cleared_stale_registry.sort();
+    Ok(outcome)
+}
+
+fn automatic_reap_before_create(
+    root: &Path,
+    expected: &crate::instance_fork::ExpectedForkAppV1,
+    observed_at_ms: u64,
+) -> anyhow::Result<ForkReapOutcome> {
+    reap_managed_forks(root, expected, observed_at_ms).map_err(|error| {
+        anyhow::Error::new(
+            crate::diagnostic::SnapbackError::error(
+                "SNAPBACK_FORK_EXPIRED_REAP_FAILED",
+                "instanceFork",
+                "create refused: expired managed fork(s) were present and could not all be swept",
+            )
+            .with_details(json!({
+                "observedAtMs": observed_at_ms,
+                "cause": error.to_string(),
+            })),
+        )
+    })
+}
+
+fn fork_process_health(
+    target: &crate::instance_fork::ManagedForkTargetV1,
+) -> (Value, Vec<crate::diagnostic::Diagnostic>, Option<String>) {
+    let Some(ready_file) = target.ready_file.as_deref() else {
+        return (
+            json!({
+                "status": "not-recorded",
+                "responding": false,
+                "pid": null,
+                "checkedAtMs": now_ms(),
+            }),
+            Vec::new(),
+            None,
+        );
+    };
+    if !ready_file.is_file() {
+        return (
+            json!({
+                "status": "stale-ready-file",
+                "responding": false,
+                "pid": null,
+                "checkedAtMs": now_ms(),
+            }),
+            vec![crate::diagnostic::Diagnostic::warning(
+                "SNAPBACK_FORK_REGISTRY_STALE",
+                "instanceFork",
+                "registry records a ready file that no longer exists",
+            )
+            .with_details(json!({ "readyFile": ready_file }))],
+            None,
+        );
+    }
+    let descriptor = match read_trusted_json_file(ready_file)
+        .ok()
+        .and_then(|value| HostReadyDescriptor::validate(&value).ok())
+    {
+        Some(descriptor) => descriptor,
+        None => {
+            return (
+                json!({
+                    "status": "unverifiable",
+                    "responding": false,
+                    "pid": null,
+                    "checkedAtMs": now_ms(),
+                }),
+                vec![crate::diagnostic::Diagnostic::warning(
+                    "SNAPBACK_FORK_READY_INVALID",
+                    "instanceFork",
+                    "recorded fork readiness descriptor is missing or malformed",
+                )
+                .with_details(json!({ "readyFile": ready_file }))],
+                None,
+            );
+        }
+    };
+    if let Err(error) = verify_fork_ready_database(&descriptor, &target.database) {
+        return (
+            json!({
+                "status": "unverifiable",
+                "responding": false,
+                "pid": descriptor.pid,
+                "checkedAtMs": now_ms(),
+            }),
+            vec![crate::diagnostic::Diagnostic::warning(
+                "SNAPBACK_FORK_READY_INVALID",
+                "instanceFork",
+                "recorded readiness descriptor is not bound to the fork database",
+            )
+            .with_details(json!({ "reason": error.to_string() }))],
+            None,
+        );
+    }
+    let health = fetch_health(&descriptor.server_url);
+    if verify_live_descriptor_identity(&descriptor, &health, "fork.inspect").is_ok() {
+        return (
+            json!({
+                "status": "responding",
+                "responding": true,
+                "pid": descriptor.pid,
+                "checkedAtMs": now_ms(),
+                "serverUrl": descriptor.server_url,
+            }),
+            Vec::new(),
+            Some(descriptor.server_url),
+        );
+    }
+    match process_is_proven_gone(descriptor.pid) {
+        Ok(true) => (
+            json!({
+                "status": "stopped",
+                "responding": false,
+                "pid": descriptor.pid,
+                "checkedAtMs": now_ms(),
+                "serverUrl": descriptor.server_url,
+            }),
+            vec![crate::diagnostic::Diagnostic::warning(
+                "SNAPBACK_FORK_REGISTRY_STALE",
+                "instanceFork",
+                "fork process is gone but its recorded ready descriptor remains",
+            )
+            .with_details(json!({ "pid": descriptor.pid }))],
+            Some(descriptor.server_url),
+        ),
+        Ok(false) | Err(_) => (
+            json!({
+                "status": "unverifiable",
+                "responding": false,
+                "pid": descriptor.pid,
+                "checkedAtMs": now_ms(),
+                "serverUrl": descriptor.server_url,
+            }),
+            vec![crate::diagnostic::Diagnostic::warning(
+                "SNAPBACK_FORK_STOP_UNVERIFIED",
+                "instanceFork",
+                "fork PID may still be live, but its process identity cannot be verified",
+            )
+            .with_details(json!({ "pid": descriptor.pid }))],
+            Some(descriptor.server_url),
+        ),
     }
 }
 
@@ -2224,14 +3345,21 @@ fn quiet_stop_fork(ready_file: &Path, expected_database: &Path) -> anyhow::Resul
             diagnostic.message
         );
     }
-    anyhow::ensure!(
-        std::process::Command::new("kill")
-            .arg(descriptor.pid.to_string())
-            .status()
-            .context("failed to signal fork server")?
-            .success(),
-        "SNAPBACK_FORK_STOP_FAILED: fork server did not accept SIGTERM"
-    );
+    let signalled = std::process::Command::new("kill")
+        .arg(descriptor.pid.to_string())
+        .status()
+        .context("failed to signal fork server")?
+        .success();
+    if !signalled {
+        // The server can exit between identity verification and the signal
+        // (self-shutdown at expiry, or a concurrent stop). Losing that race
+        // is a completed stop, not a failure.
+        if process_is_proven_gone(descriptor.pid)? {
+            remove_ready_after_process_gone(ready_file)?;
+            return Ok(None);
+        }
+        anyhow::bail!("SNAPBACK_FORK_STOP_FAILED: fork server did not accept SIGTERM");
+    }
     for _ in 0..40 {
         if fetch_health(&descriptor.server_url).is_err() {
             break;
@@ -2252,7 +3380,67 @@ fn quiet_stop_fork(ready_file: &Path, expected_database: &Path) -> anyhow::Resul
     Ok(Some(descriptor.pid))
 }
 
+#[cfg(unix)]
+fn detached_child_descriptor_ceiling() -> i32 {
+    let observed = ["/proc/self/fd", "/dev/fd"]
+        .into_iter()
+        .find_map(|directory| std::fs::read_dir(directory).ok())
+        .into_iter()
+        .flatten()
+        .filter_map(Result::ok)
+        .filter_map(|entry| entry.file_name().to_str()?.parse::<i32>().ok())
+        .max();
+    if let Some(maximum) = observed {
+        return maximum.saturating_add(1).max(3);
+    }
+
+    let mut limit = std::mem::MaybeUninit::<libc::rlimit>::uninit();
+    if unsafe { libc::getrlimit(libc::RLIMIT_NOFILE, limit.as_mut_ptr()) } == 0 {
+        let current = unsafe { limit.assume_init() }.rlim_cur;
+        return current.min(65_536) as i32;
+    }
+    1_024
+}
+
+#[cfg(unix)]
+fn configure_detached_child(command: &mut std::process::Command) {
+    use std::os::unix::process::CommandExt as _;
+
+    let descriptor_ceiling = detached_child_descriptor_ceiling();
+    // @ref LLP 0158#lifecycle-and-gc — the detached server outlives the
+    // short create CLI, so it must not also prolong arbitrary caller-owned
+    // pipes or locks that happened to cross the CLI's own exec boundary.
+    unsafe {
+        command.pre_exec(move || {
+            for descriptor in 3..descriptor_ceiling {
+                loop {
+                    if libc::fcntl(descriptor, libc::F_SETFD, libc::FD_CLOEXEC) == 0 {
+                        break;
+                    }
+                    let error = std::io::Error::last_os_error();
+                    match error.raw_os_error() {
+                        Some(libc::EBADF) => break,
+                        Some(libc::EINTR) => continue,
+                        _ => return Err(error),
+                    }
+                }
+            }
+            if libc::setsid() == -1 {
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
+}
+
 async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
+    fork_command_with_clock(command, now_ms).await
+}
+
+async fn fork_command_with_clock<F>(command: ForkCommand, clock: F) -> anyhow::Result<()>
+where
+    F: Fn() -> u64,
+{
     // @ref LLP 0158#implementation-path-local-v1-explored-2026-08-03 —
     // F0b is a finite-TTL, non-promotable derived deployment with an
     // explicit secret opt-in, inert workers, and fail-closed egress.
@@ -2265,15 +3453,38 @@ async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
             fork_root: requested_root,
             destination,
             ready_file,
+            retain_base,
+            max_forks,
+            max_fork_bytes,
+            max_total_bytes,
+            format,
         } => {
             let app_root = std::fs::canonicalize(&app_root).with_context(|| {
                 format!("SNAPBACK_FORK_APP_ROOT_INVALID: {}", app_root.display())
             })?;
             let root = fork_root(&app_root, requested_root)?;
+            let created_at_ms = clock();
             let source = from.unwrap_or_else(|| app_root.join(".snapback/dev.sqlite3"));
             let (source_database, app_id, parent_instance_id) = source_from_path(&source)?;
+            let expected_app = crate::instance_fork::ensure_expected_app(&app_root, &app_id)?;
+            let automatically_reaped =
+                automatic_reap_before_create(&root, &expected_app, created_at_ms)?;
+            let limits = crate::instance_fork::ForkResourceLimits {
+                max_forks,
+                max_fork_bytes,
+                max_total_bytes,
+            };
+            // @ref LLP 0158#open-questions — the root-wide admission lock
+            // linearizes the observed quota cut through registry intent and
+            // publication even when multiple worktrees share --fork-root.
+            let admission = crate::instance_fork::admit_creation(
+                &root,
+                &source_database,
+                &limits,
+                retain_base,
+            )?;
+            let resource_usage = admission.usage();
             let ttl_ms = parse_fork_ttl(&ttl)?;
-            let created_at_ms = now_ms();
             let expires_at_ms = created_at_ms
                 .checked_add(ttl_ms)
                 .context("SNAPBACK_FORK_TTL_INVALID: expiry exceeds the portable clock")?;
@@ -2281,33 +3492,90 @@ async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
                 expires_at_ms <= crate::manifest::PORTABLE_TIMESTAMP_MAX_MS,
                 "SNAPBACK_FORK_TTL_INVALID: expiry exceeds the portable clock"
             );
-            let destination = match destination {
-                Some(path) if path.is_absolute() => path,
-                Some(path) => root.join(path),
-                None => root.join(format!("fork-{}", uuid::Uuid::now_v7())),
-            };
-            let destination_parent = destination
-                .parent()
-                .context("fork destination has no parent")?;
-            anyhow::ensure!(
-                std::fs::canonicalize(destination_parent)? == root,
-                "SNAPBACK_FORK_PATH_INVALID: destination must be a direct child of the fork root"
-            );
+            let destination = resolve_fork_destination(
+                &root,
+                destination.unwrap_or_else(|| PathBuf::from(format!("fork-{}", Uuid::now_v7()))),
+            )?;
             let receipt = startup_blocking(|| {
-                crate::instance_fork::publish_managed(
+                crate::instance_fork::publish_managed_with_base(
                     &source_database,
                     &destination,
-                    &app_id,
+                    &expected_app,
                     &parent_instance_id,
                     created_at_ms,
                     expires_at_ms,
                     with_secrets,
+                    retain_base,
                 )
             })?;
+            // Registry intent and the authoritative rename are now durable;
+            // later creators will observe this fork in their admission cut.
+            drop(admission);
             let destination = std::fs::canonicalize(&destination).context(
                 "SNAPBACK_FORK_PATH_INVALID: published destination could not be resolved",
             )?;
             let database = destination.join(&receipt.database_file);
+            let generated = app_root.join("snapback/generated");
+            let generated_schema = generated.join("schema.manifest.json");
+            let generated_functions = generated.join("functions.manifest.json");
+            let startup_artifacts = if generated_schema.is_file() && generated_functions.is_file() {
+                // @ref LLP 0058#cold-startup-artifact-carrier — a settled
+                // Sessions deployment must receive its exact schema/function
+                // pair before listener bind. Keep the carrier inside the
+                // fork-private tree so exact drop/reap owns it with the rest
+                // of the derived deployment.
+                let schema = serde_json::from_value(read_json_file(&generated_schema).with_context(
+                    || {
+                        format!(
+                            "SNAPBACK_FORK_LOAD_FAILED: could not read {}",
+                            generated_schema.display()
+                        )
+                    },
+                )?)
+                .with_context(|| {
+                    format!(
+                        "SNAPBACK_FORK_LOAD_FAILED: {} is not a schema manifest",
+                        generated_schema.display()
+                    )
+                })?;
+                let functions = serde_json::from_value(
+                    read_json_file(&generated_functions).with_context(|| {
+                        format!(
+                            "SNAPBACK_FORK_LOAD_FAILED: could not read {}",
+                            generated_functions.display()
+                        )
+                    })?,
+                )
+                .with_context(|| {
+                    format!(
+                        "SNAPBACK_FORK_LOAD_FAILED: {} is not a functions manifest",
+                        generated_functions.display()
+                    )
+                })?;
+                let carrier = crate::auth::mode::StartupArtifacts {
+                    format_version: crate::auth::mode::STARTUP_ARTIFACT_FORMAT_VERSION,
+                    schema,
+                    functions,
+                    seed: None,
+                };
+                let path = destination.join("fork-startup-artifacts.json");
+                let bytes = serde_json::to_vec(&carrier)?;
+                crate::secure_file::write_new_owner_only(&path, &bytes).with_context(|| {
+                    format!(
+                        "SNAPBACK_FORK_BOOT_FAILED: could not write {}",
+                        path.display()
+                    )
+                })?;
+                crate::secure_file::sync_parent(&path).with_context(|| {
+                    format!(
+                        "SNAPBACK_FORK_BOOT_FAILED: could not sync {}",
+                        destination.display()
+                    )
+                })?;
+                Some(path)
+            } else {
+                None
+            };
             let ready_file = match ready_file {
                 Some(path) if path.is_absolute() => path,
                 Some(path) => destination.join(path),
@@ -2342,20 +3610,20 @@ async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
                 .env_remove("SNAPBACK_ADMIN_TOKEN")
                 .stdout(std::process::Stdio::from(log))
                 .stderr(std::process::Stdio::from(error_log));
+            if let Some(path) = startup_artifacts.as_deref() {
+                launch
+                    .arg("--startup-artifacts")
+                    .arg(path)
+                    .arg("--derived-fork-arm-writer-coverage");
+            }
             #[cfg(unix)]
             {
-                use std::os::unix::process::CommandExt as _;
                 // The fork server outlives this short CLI projection. A new
                 // session prevents terminal/launcher teardown from killing
-                // the derived deployment immediately after readiness.
-                unsafe {
-                    launch.pre_exec(|| {
-                        if libc::setsid() == -1 {
-                            return Err(std::io::Error::last_os_error());
-                        }
-                        Ok(())
-                    });
-                }
+                // the derived deployment immediately after readiness, while
+                // the descriptor sweep prevents it from retaining caller
+                // capture pipes after the CLI has exited.
+                configure_detached_child(&mut launch);
             }
             let mut child = launch
                 .spawn()
@@ -2363,6 +3631,15 @@ async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
             let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
             while !ready_file.exists() {
                 if let Some(status) = child.try_wait()? {
+                    if startup_artifacts.is_some()
+                        && std::fs::read_to_string(&log_path)
+                            .is_ok_and(|log| log.contains("SNAPBACK_FORK_LOAD_FAILED:"))
+                    {
+                        anyhow::bail!(
+                            "SNAPBACK_FORK_LOAD_FAILED: generated startup artifacts were refused; see {}",
+                            log_path.display()
+                        );
+                    }
                     anyhow::bail!(
                         "SNAPBACK_FORK_BOOT_FAILED: server exited with {status}; see {}",
                         log_path.display()
@@ -2392,6 +3669,25 @@ async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
                 "fork.create",
             )
             .map_err(|diagnostic| anyhow::anyhow!("{}: {}", diagnostic.code, diagnostic.message))?;
+            let writer_coverage_receipt = if startup_artifacts.is_some() {
+                match startup_blocking(|| {
+                    crate::instance_fork::verified_derived_fork_app_row_coverage(&database)
+                }) {
+                    Ok(Some(receipt)) => Some(receipt),
+                    Ok(None) => {
+                        let _ = quiet_stop_fork(&ready_file, &database);
+                        anyhow::bail!(
+                            "SNAPBACK_FORK_WRITER_COVERAGE_INVALID: complete startup returned without fork-point coverage evidence"
+                        );
+                    }
+                    Err(error) => {
+                        let _ = quiet_stop_fork(&ready_file, &database);
+                        return Err(error.into());
+                    }
+                }
+            } else {
+                None
+            };
             let declared_admin = descriptor
                 .admin_token_file
                 .as_deref()
@@ -2411,26 +3707,36 @@ async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
                 token: Some(minted_admin),
                 impersonation_capability_stdin: false,
             };
-            let generated = app_root.join("snapback/generated");
-            for (operation, key, path) in [
-                (
-                    "schema.load",
-                    "schema",
-                    generated.join("schema.manifest.json"),
-                ),
-                (
-                    "functions.load",
-                    "functions",
-                    generated.join("functions.manifest.json"),
-                ),
-            ] {
-                if path.is_file() {
-                    let mut request = json!({ "operation": operation });
-                    request[key] = read_json_file(&path)?;
-                    let response = post_host_op(&target, request)?;
-                    if !response.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-                        let _ = quiet_stop_fork(&ready_file, &database);
-                        anyhow::bail!("SNAPBACK_FORK_LOAD_FAILED: {response}");
+            // A complete pair was already admitted atomically at cold start.
+            // Preserve the historical partial-manifest dev path only when no
+            // complete startup carrier was available. This post-bind path is
+            // deliberately unarmed and therefore cannot claim whole-window
+            // authorizer-backed coverage.
+            if startup_artifacts.is_none() {
+                for (operation, key, path) in [
+                    ("schema.load", "schema", generated_schema),
+                    ("functions.load", "functions", generated_functions),
+                ] {
+                    if path.is_file() {
+                        let mut request = json!({ "operation": operation });
+                        request[key] = match read_json_file(&path) {
+                            Ok(manifest) => manifest,
+                            Err(error) => {
+                                let _ = quiet_stop_fork(&ready_file, &database);
+                                anyhow::bail!("SNAPBACK_FORK_LOAD_FAILED: {error:#}");
+                            }
+                        };
+                        let response = match post_host_op(&target, request) {
+                            Ok(response) => response,
+                            Err(error) => {
+                                let _ = quiet_stop_fork(&ready_file, &database);
+                                anyhow::bail!("SNAPBACK_FORK_LOAD_FAILED: {error:#}");
+                            }
+                        };
+                        if !response.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                            let _ = quiet_stop_fork(&ready_file, &database);
+                            anyhow::bail!("SNAPBACK_FORK_LOAD_FAILED: {response}");
+                        }
                     }
                 }
             }
@@ -2438,7 +3744,7 @@ async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
                 &root,
                 &receipt.lineage.fork_id,
                 &ready_file,
-                Some(&app_root),
+                &expected_app,
             )?;
             let envelope = fork_envelope(
                 "fork.create",
@@ -2447,6 +3753,7 @@ async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
                 Some(descriptor.server_url.clone()),
                 json!({
                     "receipt": receipt,
+                    "writerCoverageReceipt": writer_coverage_receipt,
                     "registry": entry,
                     "database": database,
                     "readyFile": ready_file,
@@ -2457,45 +3764,207 @@ async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
                         "assets": "disabled"
                     },
                     "egressPolicy": "deny-all-v1",
-                    "assetCustody": "refuse-asset-bearing-source",
+                    "assetCustody": fork_asset_custody(&destination),
                     "secrets": fork_secret_disposition(with_secrets, &database),
+                    "automaticReap": {
+                        "observedAtMs": created_at_ms,
+                        "reapedForkIds": automatically_reaped.reaped,
+                        "clearedStaleRegistryIds": automatically_reaped.cleared_stale_registry,
+                    },
+                    "resourceAdmission": {
+                        "usage": resource_usage,
+                        "limits": {
+                            "maxForks": limits.max_forks,
+                            "maxForkBytes": limits.max_fork_bytes,
+                            "maxTotalBytes": limits.max_total_bytes,
+                        },
+                    },
                 }),
             );
-            print_envelope(&serde_json::to_value(envelope)?);
-            Ok(())
+            let scalars = ForkProjectionScalars {
+                url: Some(descriptor.server_url),
+                fork_id: Some(receipt.lineage.fork_id.clone()),
+                database_path: Some(database.display().to_string()),
+                ready_path: Some(ready_file.display().to_string()),
+                admin_token_path: Some(declared_admin.display().to_string()),
+            };
+            print_fork_projection(format, &envelope, &scalars)
         }
         ForkCommand::List {
             app_root,
             fork_root: requested_root,
         } => {
             let app_root = std::fs::canonicalize(app_root)?;
+            let expected_app = crate::instance_fork::load_expected_app(&app_root)?;
             let root = fork_root(&app_root, requested_root)?;
-            let entries = crate::instance_fork::list_managed(&root)?;
-            let app_id = entries
-                .first()
-                .map(|entry| entry.lineage.app_id.clone())
-                .unwrap_or_else(|| "unknown".to_owned());
-            let envelope = fork_envelope(
+            // One stale or corrupt registry entry must not hide every other
+            // fork from the operator; bind what proves out and surface the
+            // rest as diagnostics (LLP 0185 Phase 3 item 5).
+            let mut entries = Vec::new();
+            let mut unbound = Vec::new();
+            let mut diagnostics = Vec::new();
+            for fork_id in crate::instance_fork::managed_registry_ids(&root)? {
+                match crate::instance_fork::managed_target(&root, &fork_id, &expected_app) {
+                    Ok(target) => entries.push(target.entry),
+                    Err(error) if error.diagnostic.code == "SNAPBACK_FORK_NOT_FOUND" => {}
+                    Err(error)
+                        if error.diagnostic.code
+                            == crate::instance_fork::APP_BINDING_MISMATCH_CODE =>
+                    {
+                        // Shared roots are allowed, but another app root's
+                        // entries are not part of this list projection.
+                    }
+                    Err(error)
+                        if error.diagnostic.code
+                            == crate::instance_fork::APP_BINDING_REQUIRED_CODE =>
+                    {
+                        return Err(error.into());
+                    }
+                    Err(error) => {
+                        let code = error.diagnostic.code.clone();
+                        unbound.push(json!({ "forkId": fork_id, "code": code }));
+                        diagnostics.push(
+                            crate::diagnostic::Diagnostic::warning(
+                                error.diagnostic.code,
+                                "instanceFork",
+                                "registry entry could not be bound to local fork evidence",
+                            )
+                            .with_details(json!({ "forkId": fork_id })),
+                        );
+                    }
+                }
+            }
+            entries.sort_by(|left, right| left.lineage.fork_id.cmp(&right.lineage.fork_id));
+            let app_id = expected_app.app_id().to_owned();
+            let resource_usage = json!({
+                "forkCount": entries.len() + unbound.len(),
+                "totalBytes": crate::instance_fork::directory_tree_bytes(&root)?,
+                "defaultLimits": {
+                    "maxForks": crate::instance_fork::MANAGED_FORK_MAX_COUNT,
+                    "maxForkBytes": crate::instance_fork::MANAGED_FORK_MAX_FORK_BYTES,
+                    "maxTotalBytes": crate::instance_fork::MANAGED_FORK_MAX_TOTAL_BYTES,
+                    "maxLifetimeMs": crate::instance_fork::MANAGED_FORK_MAX_LIFETIME_MS,
+                    "maxDiffRows": crate::instance_fork::FORK_DIFF_MAX_ROWS,
+                },
+            });
+            let envelope = fork_envelope_with_diagnostics(
                 "fork.list",
                 app_id,
                 Some(&app_root),
                 None,
-                json!({ "forkRoot": root, "forks": entries }),
+                json!({
+                    "forkRoot": root,
+                    "forks": entries,
+                    "unboundRegistry": unbound,
+                    "resourceUsage": resource_usage,
+                }),
+                diagnostics,
             );
             print_envelope(&serde_json::to_value(envelope)?);
             Ok(())
+        }
+        ForkCommand::Inspect {
+            fork_id,
+            app_root,
+            fork_root: requested_root,
+            format,
+        } => {
+            let app_root = std::fs::canonicalize(app_root)?;
+            let expected_app = crate::instance_fork::load_expected_app(&app_root)?;
+            let root = fork_root(&app_root, requested_root)?;
+            let target =
+                crate::instance_fork::managed_target(&root, &fork_id, &expected_app)?;
+            let (process_health, mut diagnostics, server_url) = fork_process_health(&target);
+            let diff_database = target.database.clone();
+            let diff_summary = match startup_blocking(|| {
+                crate::instance_fork::diff_receipt(&diff_database)
+            }) {
+                Ok(receipt) => json!({
+                    "schemaVersion": "snapback.fork-diff-summary.v1",
+                    "available": true,
+                    "journalRowCount": receipt.rows.len(),
+                    "tableCounts": receipt.table_counts,
+                    "observedHeadVersion": receipt.observed_head_version,
+                    "coverage": receipt.coverage,
+                    "omissions": receipt.omissions,
+                }),
+                Err(error) => {
+                    diagnostics.push(error.diagnostic);
+                    json!({
+                        "schemaVersion": "snapback.fork-diff-summary.v1",
+                        "available": false,
+                    })
+                }
+            };
+            let ready_path = target
+                .ready_file
+                .as_deref()
+                .map(|path| path.display().to_string());
+            let admin_token_path = crate::admin::admin_token_sibling(&target.database);
+            let status = json!({
+                "schemaVersion": "snapback.fork-status.v1",
+                "forkId": target.entry.lineage.fork_id,
+                "parentInstanceId": target.entry.lineage.parent_instance_id,
+                "parentIdentityKind": "recorded-source-provenance",
+                "appId": target.entry.lineage.app_id,
+                "forkPointVersion": target.entry.lineage.fork_point_version,
+                "createdAtMs": target.entry.lineage.created_at_ms,
+                "expiresAtMs": target.entry.lineage.expires_at_ms,
+                "processHealth": process_health,
+                "databasePath": target.database,
+                "readyPath": target.ready_file,
+                "adminTokenPath": admin_token_path,
+                "secretDisposition": managed_fork_secret_disposition(&target),
+                "workerPosture": {
+                    "cron": "inert",
+                    "jobs": "inert",
+                    "assets": "inert",
+                },
+                "egressPosture": "deny-all-v1",
+                "assetCustody": fork_asset_custody(&target.destination),
+                "diffSummary": diff_summary,
+            });
+            let envelope = fork_envelope_with_diagnostics(
+                "fork.inspect",
+                target.entry.lineage.app_id.clone(),
+                Some(&app_root),
+                server_url.clone(),
+                json!({ "status": status }),
+                diagnostics,
+            );
+            let scalars = ForkProjectionScalars {
+                url: server_url,
+                fork_id: Some(fork_id),
+                database_path: Some(target.database.display().to_string()),
+                ready_path,
+                admin_token_path: Some(admin_token_path.display().to_string()),
+            };
+            print_fork_projection(format, &envelope, &scalars)
         }
         ForkCommand::Diff {
             fork_id,
             app_root,
             fork_root: requested_root,
             out,
+            max_rows,
+            net,
         } => {
             let app_root = std::fs::canonicalize(app_root)?;
+            let expected_app = crate::instance_fork::load_expected_app(&app_root)?;
             let root = fork_root(&app_root, requested_root)?;
-            let target = crate::instance_fork::managed_target(&root, &fork_id)?;
-            let receipt =
-                startup_blocking(|| crate::instance_fork::diff_receipt(&target.database))?;
+            let target =
+                crate::instance_fork::managed_target(&root, &fork_id, &expected_app)?;
+            let receipt = if net {
+                let receipt = startup_blocking(|| {
+                    crate::instance_fork::net_diff_receipt(&target.database, max_rows)
+                })?;
+                serde_json::to_value(receipt)?
+            } else {
+                let receipt = startup_blocking(|| {
+                    crate::instance_fork::diff_receipt_bounded(&target.database, max_rows)
+                })?;
+                serde_json::to_value(receipt)?
+            };
             if let Some(path) = out.as_ref() {
                 std::fs::write(path, serde_json::to_vec_pretty(&receipt)?)?;
             }
@@ -2515,15 +3984,19 @@ async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
             fork_root: requested_root,
         } => {
             let app_root = std::fs::canonicalize(app_root)?;
+            let expected_app = crate::instance_fork::load_expected_app(&app_root)?;
             let root = fork_root(&app_root, requested_root)?;
-            let target = crate::instance_fork::managed_target(&root, &fork_id)?;
+            let lock = crate::instance_fork::lock_cleanup(&root, &fork_id)?;
+            let target =
+                crate::instance_fork::managed_target(&root, &fork_id, &expected_app)?;
             let stopped_pid = target
                 .ready_file
                 .as_deref()
                 .map(|ready| quiet_stop_fork(ready, &target.database))
                 .transpose()?
                 .flatten();
-            crate::instance_fork::drop_managed(&root, &fork_id)?;
+            crate::instance_fork::drop_managed_locked(&root, &fork_id, &expected_app)?;
+            lock.dispose();
             let envelope = fork_envelope(
                 "fork.drop",
                 target.entry.lineage.app_id,
@@ -2534,39 +4007,133 @@ async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
             print_envelope(&serde_json::to_value(envelope)?);
             Ok(())
         }
+        ForkCommand::Renew {
+            fork_id,
+            ttl,
+            app_root,
+            fork_root: requested_root,
+        } => {
+            let app_root = std::fs::canonicalize(app_root)?;
+            let expected_app = crate::instance_fork::load_expected_app(&app_root)?;
+            let root = fork_root(&app_root, requested_root)?;
+            let ttl_ms = parse_fork_ttl(&ttl)?;
+            let renewed_at_ms = clock();
+            let receipt = startup_blocking(|| {
+                crate::instance_fork::renew_managed(
+                    &root,
+                    &fork_id,
+                    &expected_app,
+                    renewed_at_ms,
+                    ttl_ms,
+                )
+            })?;
+            let entry =
+                crate::instance_fork::managed_entry(&root, &fork_id, &expected_app)?;
+            let envelope = fork_envelope(
+                "fork.renew",
+                entry.lineage.app_id.clone(),
+                Some(&app_root),
+                None,
+                json!({ "receipt": receipt, "registry": entry }),
+            );
+            print_envelope(&serde_json::to_value(envelope)?);
+            Ok(())
+        }
         ForkCommand::Reap {
             now_ms,
             app_root,
             fork_root: requested_root,
         } => {
             let app_root = std::fs::canonicalize(app_root)?;
+            let expected_app = crate::instance_fork::load_expected_app(&app_root)?;
             let root = fork_root(&app_root, requested_root)?;
             anyhow::ensure!(
                 now_ms <= crate::manifest::PORTABLE_TIMESTAMP_MAX_MS,
                 "SNAPBACK_FORK_REAP_CLOCK_INVALID: reap clock exceeds the portable timestamp range"
             );
-            let expired = crate::instance_fork::expired_managed(&root, now_ms)?;
-            let mut reaped = Vec::new();
-            for entry in expired {
-                let target = crate::instance_fork::managed_target(&root, &entry.lineage.fork_id)?;
-                if let Some(ready) = target.ready_file.as_deref() {
-                    let _ = quiet_stop_fork(ready, &target.database)?;
-                }
-                crate::instance_fork::drop_managed(&root, &entry.lineage.fork_id)?;
-                reaped.push(entry.lineage.fork_id);
-            }
-            reaped.sort();
+            let outcome = reap_managed_forks(&root, &expected_app, now_ms)?;
             let receipt = crate::instance_fork::ForkReapReceiptV1 {
                 schema_version: "snapback.fork-reap.v1".to_owned(),
                 now_ms,
-                reaped_fork_ids: reaped,
+                reaped_fork_ids: outcome.reaped,
             };
             let envelope = fork_envelope(
                 "fork.reap",
-                "unknown".to_owned(),
+                expected_app.app_id().to_owned(),
                 Some(&app_root),
                 None,
-                json!({ "receipt": receipt }),
+                json!({
+                    "receipt": receipt,
+                    "clearedStaleRegistryIds": outcome.cleared_stale_registry,
+                }),
+            );
+            print_envelope(&serde_json::to_value(envelope)?);
+            Ok(())
+        }
+        ForkCommand::Recover {
+            destination,
+            app_root,
+            fork_root: requested_root,
+        } => {
+            let app_root = std::fs::canonicalize(app_root)?;
+            let expected_app = crate::instance_fork::load_expected_app(&app_root)?;
+            let root = fork_root(&app_root, requested_root)?;
+            let destination = resolve_fork_destination(&root, destination)?;
+            let was_partial = destination.join(crate::instance_fork::STAGING_SENTINEL).is_file();
+            let recover_root = root.clone();
+            let recover_destination = destination.clone();
+            startup_blocking(|| {
+                crate::instance_fork::recover_bound(
+                    &recover_root,
+                    &recover_destination,
+                    &expected_app,
+                )
+            })?;
+
+            let receipt = if destination.is_dir() {
+                serde_json::from_slice::<crate::instance_fork::ForkMintReceiptV1>(
+                    &std::fs::read(destination.join(crate::instance_fork::MINT_RECEIPT_FILE))
+                        .context(
+                            "SNAPBACK_FORK_EVIDENCE_INCOMPLETE: recovered destination has no mint receipt",
+                        )?,
+                )
+                .context("SNAPBACK_FORK_RECEIPT_INVALID: recovered mint receipt is malformed")?
+                .into()
+            } else {
+                None
+            };
+            let registry = receipt.as_ref().and_then(|receipt| {
+                crate::instance_fork::managed_entry(
+                    &root,
+                    &receipt.lineage.fork_id,
+                    &expected_app,
+                )
+                .ok()
+            });
+            let disposition = match (was_partial, destination.exists()) {
+                (true, true) => "published-recovered",
+                (false, true) => "already-published",
+                (_, false) => "unpublished-staging-reaped-or-absent",
+            };
+            let app_id = receipt
+                .as_ref()
+                .map(|receipt| receipt.lineage.app_id.clone())
+                .unwrap_or_else(|| "unknown".to_owned());
+            let fork_id = receipt
+                .as_ref()
+                .map(|receipt| receipt.lineage.fork_id.clone());
+            let envelope = fork_envelope(
+                "fork.recover",
+                app_id,
+                Some(&app_root),
+                None,
+                json!({
+                    "forkRoot": root,
+                    "destination": destination,
+                    "disposition": disposition,
+                    "forkId": fork_id,
+                    "registry": registry,
+                }),
             );
             print_envelope(&serde_json::to_value(envelope)?);
             Ok(())
@@ -2596,7 +4163,10 @@ fn parse_run_args(args: Option<String>) -> anyhow::Result<Value> {
 
 fn parse_network_profile_selection(raw: &str) -> anyhow::Result<Value> {
     let trimmed = raw.trim();
-    anyhow::ensure!(!trimmed.is_empty(), "network profile selection must not be empty");
+    anyhow::ensure!(
+        !trimmed.is_empty(),
+        "network profile selection must not be empty"
+    );
     if trimmed.starts_with('{') || trimmed.starts_with('"') {
         serde_json::from_str(trimmed).context("network profile selection is not valid JSON")
     } else {
@@ -2608,6 +4178,112 @@ fn read_json_file(path: &Path) -> anyhow::Result<Value> {
     let raw = std::fs::read_to_string(path)
         .with_context(|| format!("failed to read {}", path.display()))?;
     serde_json::from_str(&raw).with_context(|| format!("{} is not valid JSON", path.display()))
+}
+
+fn utc_date_from_unix_seconds(seconds: u64) -> String {
+    let days = (seconds / 86_400) as i64 + 719_468;
+    let era = if days >= 0 { days } else { days - 146_096 } / 146_097;
+    let day_of_era = days - era * 146_097;
+    let year_of_era =
+        (day_of_era - day_of_era / 1_460 + day_of_era / 36_524 - day_of_era / 146_096)
+            / 365;
+    let mut year = year_of_era + era * 400;
+    let day_of_year = day_of_era
+        - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
+    let month_prime = (5 * day_of_year + 2) / 153;
+    let day = day_of_year - (153 * month_prime + 2) / 5 + 1;
+    let month = month_prime + if month_prime < 10 { 3 } else { -9 };
+    year += i64::from(month <= 2);
+    format!("{year:04}-{month:02}-{day:02}")
+}
+
+fn packaged_store_qualification_receipt_command(
+    closure_manifest: &Path,
+    suite_result: &Path,
+    out: &Path,
+) -> anyhow::Result<()> {
+    const IDENTITY_CODE: &str = "SNAPBACK_PACKAGED_STORE_QUALIFICATION_IDENTITY_UNQUALIFIED";
+    const SUITE_CODE: &str = "SNAPBACK_PACKAGED_STORE_QUALIFICATION_SUITE_UNQUALIFIED";
+    const CLOSURE_CODE: &str = "SNAPBACK_PACKAGED_STORE_QUALIFICATION_CLOSURE_INVALID";
+
+    let identity = crate::identity::binary_identity();
+    let build_distribution = crate::identity::build_distribution();
+    if !crate::manifest::packaged_store_runtime_identity_is_qualified(
+        &identity,
+        build_distribution,
+    ) {
+        anyhow::bail!(
+            "{IDENTITY_CODE}: receipt minting requires a known clean release public-package identity"
+        );
+    }
+
+    let suite = serde_json::from_value::<crate::manifest::PackagedStoreQualificationSuiteV1>(
+        read_json_file(suite_result)
+            .map_err(|error| anyhow::anyhow!("{SUITE_CODE}: {error:#}"))?,
+    )
+    .map_err(|error| anyhow::anyhow!("{SUITE_CODE}: invalid suite result: {error}"))?;
+    if !crate::manifest::packaged_store_qualification_suite_is_qualified(&suite) {
+        anyhow::bail!(
+            "{SUITE_CODE}: suite must pass at least one check with zero failures and zero skips"
+        );
+    }
+    let package_closure =
+        serde_json::from_value::<Vec<crate::manifest::PackagedStoreClosureEntryV1>>(
+            read_json_file(closure_manifest)
+                .map_err(|error| anyhow::anyhow!("{CLOSURE_CODE}: {error:#}"))?,
+        )
+        .map_err(|error| anyhow::anyhow!("{CLOSURE_CODE}: invalid closure manifest: {error}"))?;
+    if crate::manifest::packaged_store_closure_sha256(&package_closure).is_none() {
+        anyhow::bail!(
+            "{CLOSURE_CODE}: closure entries must be unique named versions with non-zero sha256 digests"
+        );
+    }
+    let seconds = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .context("system clock precedes the Unix epoch")?
+        .as_secs();
+    let receipt = crate::manifest::stamp_packaged_store_qualification_receipt(
+        &utc_date_from_unix_seconds(seconds),
+        &identity,
+        build_distribution,
+        package_closure,
+        suite,
+    )
+    .ok_or_else(|| anyhow::anyhow!("{CLOSURE_CODE}: receipt inputs failed validation"))?;
+    let mut bytes = serde_json::to_vec_pretty(&receipt).context("failed to serialize receipt")?;
+    bytes.push(b'\n');
+    std::fs::write(out, bytes)
+        .with_context(|| format!("failed to write qualification receipt {}", out.display()))?;
+    Ok(())
+}
+
+fn read_data_patch_input(path: &Path) -> anyhow::Result<Value> {
+    use std::io::Read as _;
+
+    const MAX_BYTES: usize = 1024 * 1024;
+    let mut bytes = Vec::new();
+    if path.as_os_str() == "-" {
+        std::io::stdin()
+            .take((MAX_BYTES + 1) as u64)
+            .read_to_end(&mut bytes)
+            .context("failed to read data patch JSON from stdin")?;
+    } else {
+        bytes = std::fs::read(path)
+            .with_context(|| format!("failed to read {}", path.display()))?;
+    }
+    anyhow::ensure!(
+        bytes.len() <= MAX_BYTES,
+        "data patch JSON exceeds the 1 MiB input bound"
+    );
+    let value: Value = serde_json::from_slice(&bytes).with_context(|| {
+        if path.as_os_str() == "-" {
+            "data patch stdin is not valid JSON".to_owned()
+        } else {
+            format!("{} is not valid JSON", path.display())
+        }
+    })?;
+    anyhow::ensure!(value.is_object(), "data patch input must be a JSON object");
+    Ok(value)
 }
 
 fn prepare_composition_activation_source(
@@ -2884,6 +4560,53 @@ fn resolve_http_target_for_operation(
     anyhow::bail!("no target: pass --url or --ready-file")
 }
 
+struct ResolvedOperatorEphemeralTarget {
+    http: ResolvedHttpTarget,
+    startup_nonce: String,
+}
+
+fn resolve_operator_ephemeral_target(
+    target: &TargetArgs,
+) -> anyhow::Result<ResolvedOperatorEphemeralTarget> {
+    if target.url.is_some() {
+        anyhow::bail!(
+            "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_READY_FILE_REQUIRED: ephemeral operator-delete requires --ready-file; --url cannot supply the process-bound startup nonce"
+        );
+    }
+    let path = target.ready_file.as_deref().context(
+        "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_READY_FILE_REQUIRED: pass --ready-file for ephemeral operator-delete",
+    )?;
+    let ready_target = ReadyFileTarget::open_existing(path)?;
+    let canonical_ready = ready_target.pinned_path().to_path_buf();
+    let descriptor_bytes = ready_target
+        .read_owner_only_sibling(&canonical_ready)
+        .with_context(|| format!("failed to read trusted ready file {}", path.display()))?;
+    let value: Value = serde_json::from_slice(&descriptor_bytes)
+        .with_context(|| format!("{} is not valid JSON", path.display()))?;
+    let descriptor = HostReadyDescriptor::validate(&value).map_err(|problems| {
+        anyhow::anyhow!(
+            "{} is not a valid readiness descriptor: {}",
+            path.display(),
+            problems.join("; ")
+        )
+    })?;
+    let health = fetch_health(&descriptor.server_url);
+    verify_live_descriptor_identity(&descriptor, &health, "ephemeral.operatorDelete")
+        .map_err(|diagnostic| anyhow::anyhow!("{}: {}", diagnostic.code, diagnostic.message))?;
+    let startup_nonce = descriptor.startup_nonce.clone().context(
+        "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_READY_FILE_REQUIRED: readiness descriptor has no startupNonce",
+    )?;
+    let minted_token = discover_minted_token_pinned(&ready_target, &canonical_ready, &descriptor);
+    Ok(ResolvedOperatorEphemeralTarget {
+        http: ResolvedHttpTarget {
+            server_url: descriptor.server_url.trim_end_matches('/').to_owned(),
+            minted_token,
+            impersonation_capability: None,
+        },
+        startup_nonce,
+    })
+}
+
 fn read_impersonation_capability_from_stdin()
 -> anyhow::Result<crate::auth::crypto::ImpersonationBearer> {
     use std::io::Read as _;
@@ -2916,7 +4639,15 @@ fn request_requires_impersonation(request: &Value) -> bool {
     let impersonated = request
         .get("userId")
         .and_then(Value::as_str)
-        .is_some_and(|user_id| !user_id.is_empty());
+        .is_some_and(|user_id| !user_id.is_empty())
+        || request
+            .get("input")
+            .and_then(Value::as_object)
+            .and_then(|input| input.get("authority"))
+            .and_then(Value::as_object)
+            .and_then(|authority| authority.get("mode"))
+            .and_then(Value::as_str)
+            == Some("devUser");
     crate::server::host_ops_operation_spec(operation, None, impersonated).is_some_and(|spec| {
         [
             crate::server::PolicyAuthMode::Dev,
@@ -2930,6 +4661,12 @@ fn request_requires_impersonation(request: &Value) -> bool {
     })
 }
 
+// @ref LLP 0176#g0--baseline-truth-and-mechanical-repair — this CLI primitive
+// is only a closed-argument projection of the existing auth.mintSession host-op.
+fn mint_session_request(email: String) -> Value {
+    json!({ "operation": "auth.mintSession", "args": { "email": email } })
+}
+
 /// POST one host operation and project the envelope to stdout + exit code
 /// (`ok: false` → exit 1) per LLP 0024's transport-projection rule.
 fn host_op_via_http(target: &TargetArgs, request: Value) -> anyhow::Result<()> {
@@ -2938,6 +4675,36 @@ fn host_op_via_http(target: &TargetArgs, request: Value) -> anyhow::Result<()> {
         std::process::exit(1);
     }
     Ok(())
+}
+
+/// LLP 0184 §B: `debug.live.forceResync` fences on the target's startup
+/// nonce so the request cannot silently land on a different process than
+/// the operator inspected. `--ready-file`'s descriptor already carries the
+/// nonce the running server minted at boot; `--url`-only targeting has no
+/// local descriptor to read it from, so the caller must supply
+/// `--startup-nonce` explicitly in that case.
+fn resolve_startup_nonce(target: &TargetArgs, explicit: Option<String>) -> anyhow::Result<String> {
+    if let Some(nonce) = explicit.filter(|value| !value.is_empty()) {
+        return Ok(nonce);
+    }
+    if let Some(path) = &target.ready_file {
+        let value = read_trusted_json_file(path)?;
+        let descriptor = HostReadyDescriptor::validate(&value).map_err(|problems| {
+            anyhow::anyhow!(
+                "{} is not a valid readiness descriptor: {}",
+                path.display(),
+                problems.join("; ")
+            )
+        })?;
+        return descriptor
+            .startup_nonce
+            .clone()
+            .context("readiness descriptor has no startupNonce");
+    }
+    anyhow::bail!(
+        "debug force-resync requires a startup nonce: pass --ready-file (the nonce is read \
+         from its readiness descriptor) or --startup-nonce explicitly when targeting --url"
+    )
 }
 
 fn post_host_op(target: &TargetArgs, request: Value) -> anyhow::Result<Value> {
@@ -3158,6 +4925,66 @@ fn telemetry_command(command: TelemetryCommand) -> anyhow::Result<()> {
     }
 }
 
+/// Generic admin GET, reusing the telemetry transport helper (it is not
+/// telemetry-specific: any admin-authenticated JSON GET fits it).
+fn admin_json_get(
+    target: &TargetArgs,
+    path: &str,
+    query: Vec<(&'static str, String)>,
+) -> anyhow::Result<Value> {
+    telemetry_json_get(target, path, query, None)
+}
+
+/// data.scan — LLP 0184 P1: a bounded, as-shipped projection of `DataQuery`
+/// (table/limit/offset, no cursor). Mirrors telemetry's automatic scoped
+/// secret-read lease minting; a Dev-policy server does not require the lease
+/// today (only Sessions-policy does), but minting it unconditionally keeps
+/// one code path correct under both policies rather than special-casing.
+fn data_command(command: DataCommand) -> anyhow::Result<()> {
+    match command {
+        DataCommand::Scan {
+            target,
+            table,
+            limit,
+            offset,
+            secret_read_lease,
+        } => {
+            let lease = telemetry_secret_read_lease(
+                &target,
+                secret_read_lease,
+                SecretReadScope::Table(table.clone()),
+                u64::try_from(limit).unwrap_or(u64::MAX),
+                4 * 1024 * 1024,
+            )?;
+            let response = telemetry_json_get(
+                &target,
+                &format!("/_snapback/api/data/{table}"),
+                vec![("limit", limit.to_string()), ("offset", offset.to_string())],
+                Some(&lease),
+            )?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        DataCommand::Patch(args) => {
+            if args.input.as_os_str() == "-" && args.target.impersonation_capability_stdin {
+                anyhow::bail!(
+                    "--input - and --impersonation-capability-stdin cannot share stdin; use a ready file or a JSON input file"
+                );
+            }
+            let input = read_data_patch_input(&args.input)?;
+            let operation = if args.preview {
+                crate::data_patch::DATA_PATCH_PREVIEW_OPERATION
+            } else {
+                crate::data_patch::DATA_PATCH_APPLY_OPERATION
+            };
+            host_op_via_http(
+                &args.target,
+                json!({ "operation": operation, "input": input }),
+            )
+        }
+    }
+}
+
 fn errors_json_post(target: &TargetArgs, value: Value) -> anyhow::Result<Value> {
     let resolved = resolve_http_target_for_operation(target, false)?;
     let token = target
@@ -3228,7 +5055,12 @@ fn errors_command(command: ErrorsCommand) -> anyhow::Result<()> {
             }
             query.push((
                 "order",
-                if order == "last-seen" { "lastSeen" } else { "count" }.to_owned(),
+                if order == "last-seen" {
+                    "lastSeen"
+                } else {
+                    "count"
+                }
+                .to_owned(),
             ));
             query.push(("limit", limit.to_string()));
 
@@ -3252,12 +5084,8 @@ fn errors_command(command: ErrorsCommand) -> anyhow::Result<()> {
             if let Some(since) = since {
                 query.push(("since", since));
             }
-            let response = telemetry_json_get(
-                &target,
-                "/_snapback/api/errors/issues",
-                query,
-                None,
-            )?;
+            let response =
+                telemetry_json_get(&target, "/_snapback/api/errors/issues", query, None)?;
             println!("{}", serde_json::to_string_pretty(&response)?);
             Ok(())
         }
@@ -3312,6 +5140,489 @@ fn errors_command(command: ErrorsCommand) -> anyhow::Result<()> {
     }
 }
 
+/// Minimal percent-encoding for one dynamic path segment (cron job names,
+/// connection ids). No existing CLI helper in this module needed one before
+/// these commands; this avoids pulling in a new dependency for two call
+/// sites while still refusing to build an unescaped URL from caller input.
+fn path_segment_escape(raw: &str) -> String {
+    let mut escaped = String::with_capacity(raw.len());
+    for byte in raw.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                escaped.push(byte as char);
+            }
+            _ => escaped.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    escaped
+}
+
+/// A generic admin-gated JSON POST, shared by the LLP 0184 §P2 typed
+/// projections below (`config.unset`, `cron.tick`/`cron.runOne`,
+/// `jobs.drain`). Mirrors `errors_json_post`'s token resolution exactly, one
+/// level more generic (an arbitrary path instead of one hardcoded route).
+fn admin_json_post(target: &TargetArgs, path: &str, value: Value) -> anyhow::Result<Value> {
+    let resolved = resolve_http_target_for_operation(target, false)?;
+    admin_json_post_resolved(target, resolved, path, value)
+}
+
+fn admin_json_post_resolved(
+    target: &TargetArgs,
+    resolved: ResolvedHttpTarget,
+    path: &str,
+    value: Value,
+) -> anyhow::Result<Value> {
+    let token = target
+        .token
+        .clone()
+        .or_else(|| std::env::var("SNAPBACK_ADMIN_TOKEN").ok())
+        .filter(|token| !token.is_empty())
+        .or(resolved.minted_token);
+    let mut request = ureq::post(&format!("{}{path}", resolved.server_url));
+    if let Some(token) = token {
+        request = request.set("x-snapback-admin-token", &token);
+    }
+    match request.send_json(value) {
+        Ok(response) => response
+            .into_json()
+            .with_context(|| format!("{path} response was not JSON")),
+        Err(ureq::Error::Status(status, response)) => {
+            let body = response
+                .into_string()
+                .unwrap_or_else(|_| "<unreadable response>".to_owned());
+            anyhow::bail!("{path} failed with HTTP {status}: {body}")
+        }
+        Err(error) => Err(error).context(format!("{path} request failed")),
+    }
+}
+
+/// The `connection.disconnect` sibling of `admin_json_post`: the route
+/// returns `204 No Content` on success (no envelope to print), so this
+/// reports only failure. LLP 0184 §P2: the route carries no request body
+/// today, so `reason` is a client-recorded receipt field, not a
+/// server-acknowledged one — the printed receipt says so.
+fn admin_json_post_no_content(target: &TargetArgs, path: &str, value: Value) -> anyhow::Result<()> {
+    let resolved = resolve_http_target_for_operation(target, false)?;
+    let token = target
+        .token
+        .clone()
+        .or_else(|| std::env::var("SNAPBACK_ADMIN_TOKEN").ok())
+        .filter(|token| !token.is_empty())
+        .or(resolved.minted_token);
+    let mut request = ureq::post(&format!("{}{path}", resolved.server_url));
+    if let Some(token) = token {
+        request = request.set("x-snapback-admin-token", &token);
+    }
+    match request.send_json(value) {
+        Ok(_response) => Ok(()),
+        Err(ureq::Error::Status(status, response)) => {
+            let body = response
+                .into_string()
+                .unwrap_or_else(|_| "<unreadable response>".to_owned());
+            anyhow::bail!("{path} failed with HTTP {status}: {body}")
+        }
+        Err(error) => Err(error).context(format!("{path} request failed")),
+    }
+}
+
+fn controls_command(command: ControlsCommand) -> anyhow::Result<()> {
+    match command {
+        ControlsCommand::List { intent, json } => {
+            let catalog = crate::control_catalog::search(intent.as_deref());
+            if json {
+                println!("{}", serde_json::to_string_pretty(&catalog)?);
+                return Ok(());
+            }
+            let digest = crate::control_catalog::catalog_digest(&catalog).unwrap_or("unknown");
+            println!("Build control catalog {digest}");
+            println!("OPERATION\tSURFACE\tOPERABILITY\tSTATUS");
+            for entry in catalog["entries"].as_array().into_iter().flatten() {
+                println!(
+                    "{}\t{}\t{}\t{}",
+                    entry["operation"].as_str().unwrap_or(""),
+                    entry["surfaceAccess"].as_str().unwrap_or(""),
+                    entry["operability"].as_str().unwrap_or(""),
+                    entry["status"].as_str().unwrap_or(""),
+                );
+            }
+            Ok(())
+        }
+        ControlsCommand::Describe { operation, json } => {
+            let Some(entry) = crate::control_catalog::operation(&operation) else {
+                anyhow::bail!("control catalog contains no operation {operation:?}");
+            };
+            let output = serde_json::json!({
+                "schemaVersion": crate::control_catalog::CATALOG_SCHEMA_VERSION,
+                "catalogDigest": crate::control_catalog::catalog_digest(
+                    crate::control_catalog::build_catalog()
+                ),
+                "entry": entry,
+            });
+            if !json {
+                println!(
+                    "Build catalog row (identity {})",
+                    crate::control_catalog::catalog_digest(crate::control_catalog::build_catalog())
+                        .unwrap_or("unknown")
+                );
+            }
+            println!("{}", serde_json::to_string_pretty(&output)?);
+            Ok(())
+        }
+    }
+}
+
+const MAX_CONFIG_CLI_VALUE_BYTES: u64 = 1024 * 1024;
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ConfigSetCliRequest<'a> {
+    entry: &'a str,
+    value: &'a str,
+    append: bool,
+    source: &'static str,
+}
+
+fn read_config_value<R: std::io::Read>(reader: R) -> anyhow::Result<zeroize::Zeroizing<String>> {
+    use zeroize::{Zeroize as _, Zeroizing};
+
+    let mut bytes = Zeroizing::new(Vec::new());
+    reader
+        .take(MAX_CONFIG_CLI_VALUE_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|_| {
+            anyhow::anyhow!(
+                "SNAPBACK_CONFIG_VALUE_READ_FAILED: config value carrier could not be read"
+            )
+        })?;
+    if bytes.len() as u64 > MAX_CONFIG_CLI_VALUE_BYTES {
+        anyhow::bail!(
+            "SNAPBACK_CONFIG_VALUE_TOO_LARGE: config value carrier exceeds the 1048576-byte CLI limit"
+        );
+    }
+    match String::from_utf8(std::mem::take(&mut *bytes)) {
+        Ok(value) => Ok(Zeroizing::new(value)),
+        Err(error) => {
+            let mut rejected = error.into_bytes();
+            rejected.zeroize();
+            anyhow::bail!(
+                "SNAPBACK_CONFIG_VALUE_INVALID: config value carrier must contain valid UTF-8"
+            )
+        }
+    }
+}
+
+fn read_config_value_carrier(
+    value_stdin: bool,
+    value_fd: Option<u32>,
+) -> anyhow::Result<zeroize::Zeroizing<String>> {
+    if value_stdin {
+        return read_config_value(std::io::stdin().lock());
+    }
+    let descriptor = value_fd.context(
+        "SNAPBACK_CONFIG_SET_USAGE_INVALID: choose exactly one of --value-stdin or --value-fd N",
+    )?;
+    #[cfg(unix)]
+    {
+        use std::os::fd::FromRawFd as _;
+
+        let descriptor = i32::try_from(descriptor).map_err(|_| {
+            anyhow::anyhow!(
+                "SNAPBACK_CONFIG_VALUE_FD_INVALID: config value descriptor is outside the supported range"
+            )
+        })?;
+        // SAFETY: dup reads the caller-provided descriptor without taking
+        // ownership of it. A nonnegative result is a new descriptor owned by
+        // the File constructed immediately below.
+        let duplicate = unsafe { libc::dup(descriptor) };
+        if duplicate < 0 {
+            return Err(anyhow::anyhow!(
+                "SNAPBACK_CONFIG_VALUE_FD_INVALID: config value descriptor is not readable"
+            ));
+        }
+        // SAFETY: duplicate is a fresh owned descriptor returned by dup and
+        // is converted into exactly one File.
+        let file = unsafe { std::fs::File::from_raw_fd(duplicate) };
+        read_config_value(file)
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = descriptor;
+        anyhow::bail!(
+            "SNAPBACK_CONFIG_VALUE_FD_UNSUPPORTED: inherited config value descriptors are unavailable on this host; use --value-stdin"
+        )
+    }
+}
+
+fn config_set_refusal(status: u16, response: ureq::Response) -> anyhow::Error {
+    let code = response
+        .into_json::<Value>()
+        .ok()
+        .and_then(|body| {
+            body.pointer("/diagnostic/code")
+                .or_else(|| body.pointer("/diagnostics/0/code"))
+                .and_then(Value::as_str)
+                .filter(|code| code.starts_with("SNAPBACK_"))
+                .map(ToOwned::to_owned)
+        })
+        .unwrap_or_else(|| "SNAPBACK_CONFIG_SET_FAILED".to_owned());
+    anyhow::anyhow!(
+        "{code}: config.set failed with HTTP {status}; response body omitted to protect the submitted value"
+    )
+}
+
+// @ref LLP 0184#product-contract-what-agent-accessible-means — config.set is
+//   `(cliOnly, direct)` and its only v1 value carriers are stdin/fd; there is
+//   deliberately no MCP projection.
+// @ref LLP 0036#operations-and-projections-llp-0024 — reuse the existing
+//   config.set route, ordinary admin credential, value-free write envelope,
+//   and `source: cli` audit fact.
+fn config_set_post(
+    target: &TargetArgs,
+    entry: &str,
+    value: &str,
+    append: bool,
+) -> anyhow::Result<crate::local::ConfigWriteOutcome> {
+    let resolved = resolve_http_target_for_operation(target, false)?;
+    let token = target
+        .token
+        .clone()
+        .or_else(|| std::env::var("SNAPBACK_ADMIN_TOKEN").ok())
+        .filter(|token| !token.is_empty())
+        .or(resolved.minted_token);
+    let path = "/_snapback/api/config/set";
+    let mut request = ureq::post(&format!("{}{path}", resolved.server_url));
+    if let Some(token) = token {
+        request = request.set("x-snapback-admin-token", &token);
+    }
+    let body = ConfigSetCliRequest {
+        entry,
+        value,
+        append,
+        source: "cli",
+    };
+    match request.send_json(&body) {
+        Ok(response) => response.into_json().map_err(|_| {
+            anyhow::anyhow!(
+                "SNAPBACK_CONFIG_SET_RESPONSE_INVALID: config.set response was not the expected value-free envelope"
+            )
+        }),
+        Err(ureq::Error::Status(status, response)) => {
+            Err(config_set_refusal(status, response))
+        }
+        Err(_) => Err(anyhow::anyhow!(
+            "SNAPBACK_CONFIG_SET_REQUEST_FAILED: config.set request failed before a response was received"
+        )),
+    }
+}
+
+fn config_command(command: ConfigCommand) -> anyhow::Result<()> {
+    match command {
+        ConfigCommand::Status { target } => {
+            let response = admin_json_get(&target, "/_snapback/api/config/status", Vec::new())?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        ConfigCommand::Plan { target, entry } => {
+            let mut query = Vec::new();
+            if let Some(entry) = entry {
+                query.push(("entry", entry));
+            }
+            let response = admin_json_get(&target, "/_snapback/api/config/plan", query)?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        ConfigCommand::Set {
+            target,
+            entry,
+            value_stdin,
+            value_fd,
+            append,
+        } => {
+            let value = read_config_value_carrier(value_stdin, value_fd)?;
+            let response = config_set_post(&target, &entry, value.as_str(), append)?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        ConfigCommand::Verify { target, entry } => {
+            let response = admin_json_post(
+                &target,
+                "/_snapback/api/config/verify",
+                json!({ "entry": entry }),
+            )?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        ConfigCommand::Unset { target, entry } => {
+            let response = admin_json_post(
+                &target,
+                "/_snapback/api/config/unset",
+                json!({ "entry": entry, "source": "cli" }),
+            )?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+    }
+}
+
+/// @ref LLP 0184#p2-controlled-mutations — `cron.tick`/`cron.runOne` direct
+/// CLI projections of the existing admin-gated forced-dispatch routes.
+fn cron_command(command: CronCommand) -> anyhow::Result<()> {
+    match command {
+        CronCommand::List { target } => {
+            host_op_via_http(&target, json!({ "operation": "cron.list" }))
+        }
+        CronCommand::Tick { target } => {
+            let response = admin_json_post(&target, "/_snapback/api/cron/tick", json!({}))?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        CronCommand::Run { target, name } => {
+            let path = format!("/_snapback/api/cron/{}/run", path_segment_escape(&name));
+            let response = admin_json_post(&target, &path, json!({}))?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+    }
+}
+
+fn ephemeral_command(command: EphemeralCommand) -> anyhow::Result<()> {
+    match command {
+        EphemeralCommand::Cleanup {
+            target,
+            older_than_ms,
+            cutoff_timestamp_ms,
+            dry_run,
+            apply: _,
+            max_entries,
+        } => {
+            let instance = admin_json_get(
+                &target,
+                "/_snapback/api/control-catalog/instance",
+                Vec::new(),
+            )?;
+            let startup_nonce = instance
+                .get("startupNonce")
+                .and_then(Value::as_str)
+                .context("control-catalog instance carried no startupNonce")?;
+            let response = admin_json_post(
+                &target,
+                "/_snapback/api/ephemeral/cleanup",
+                json!({
+                    "cutoffTimestampMs": cutoff_timestamp_ms,
+                    "olderThanMs": older_than_ms,
+                    "dryRun": dry_run,
+                    "maxEntries": max_entries,
+                    "startupNonce": startup_nonce,
+                }),
+            )?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        EphemeralCommand::OperatorDelete {
+            target,
+            collection,
+            scope_json,
+            entry_key,
+            expected_scope_epoch,
+            expected_entry_generation,
+            reason,
+        } => {
+            let scope: BTreeMap<String, String> = serde_json::from_str(&scope_json)
+                .context("--scope-json must be a JSON object whose values are strings")?;
+            let resolved = resolve_operator_ephemeral_target(&target)?;
+            let response = admin_json_post_resolved(
+                &target,
+                resolved.http,
+                "/_snapback/api/ephemeral/operator/delete",
+                json!({
+                    "collection": collection,
+                    "scope": scope,
+                    "entryKey": entry_key,
+                    "expectedScopeEpoch": expected_scope_epoch,
+                    "expectedEntryGeneration": expected_entry_generation,
+                    "reason": reason,
+                    "startupNonce": resolved.startup_nonce,
+                }),
+            )?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+    }
+}
+
+/// jobs.list / jobs.show — read-only one-off job inspection (LLP 0184 P1),
+/// plus jobs.drain (LLP 0184 §P2)'s direct CLI projection; the injected
+/// `nowMs`/`maxWaves` fields are the same deterministic seam
+/// `JobsDrainRequest` already accepts (`src/admin.rs`).
+fn jobs_command(command: JobsCommand) -> anyhow::Result<()> {
+    match command {
+        JobsCommand::List { target } => {
+            let response = admin_json_get(&target, "/_snapback/api/jobs", Vec::new())?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        JobsCommand::Show { target, id } => {
+            let response = admin_json_get(&target, &format!("/_snapback/api/jobs/{id}"), Vec::new())?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        JobsCommand::Drain {
+            target,
+            now_ms,
+            max_waves,
+        } => {
+            let mut body = serde_json::Map::new();
+            if let Some(now_ms) = now_ms {
+                body.insert("nowMs".to_owned(), json!(now_ms));
+            }
+            if let Some(max_waves) = max_waves {
+                body.insert("maxWaves".to_owned(), json!(max_waves));
+            }
+            let response =
+                admin_json_post(&target, "/_snapback/api/jobs/drain", Value::Object(body))?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+    }
+}
+
+/// @ref LLP 0184#p2-controlled-mutations — `connection.disconnect` as an
+/// explicit debug perturbation: the receipt this command prints is a client
+/// record of `reason` and target, not a server-returned envelope, because
+/// the underlying route (`src/admin.rs`'s `disconnect`) returns no body.
+fn connections_command(command: ConnectionsCommand) -> anyhow::Result<()> {
+    match command {
+        ConnectionsCommand::Disconnect {
+            target,
+            connection_id,
+            reason,
+        } => {
+            let path = format!(
+                "/_snapback/api/connections/{}/disconnect",
+                path_segment_escape(&connection_id)
+            );
+            admin_json_post_no_content(&target, &path, json!({ "reason": reason }))?;
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({
+                    "operation": "connection.disconnect",
+                    "connectionId": connection_id,
+                    "reason": reason,
+                    "ok": true,
+                }))?
+            );
+            Ok(())
+        }
+    }
+}
+
+/// The startup nonce is server authority for this operation, not an optional
+/// client hint. A URL alone cannot prove which process owns it, so the CLI
+/// requires an owner-only ready descriptor, validates it against live health,
+/// and posts the nonce from that same pinned descriptor snapshot.
+///
+/// @ref LLP 0184#c-administrator-ephemeral-entry-delete--add-now — process,
+/// epoch, and generation fences on the explicit administrator bypass.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct ConsoleCredentialCliResponse {
@@ -3422,9 +5733,8 @@ async fn admin_claim_link(request: AdminClaimLinkRequest) -> anyhow::Result<()> 
     } = request;
     let url_base = url_base.as_deref();
     let lan = lan.as_deref();
-    let selector_count = usize::from(url_base.is_some())
-        + usize::from(tailscale)
-        + usize::from(lan.is_some());
+    let selector_count =
+        usize::from(url_base.is_some()) + usize::from(tailscale) + usize::from(lan.is_some());
     anyhow::ensure!(
         selector_count <= 1,
         "SNAPBACK_ADMIN_LINK_ORIGIN_CONFLICT: --url-base, --tailscale, and --lan are mutually exclusive"
@@ -3746,15 +6056,15 @@ impl ManagedAdminLink {
         if let Some(front) = self.front.take() {
             let result = match front {
                 AdminLinkFront::Lan(relay) => relay.close().await,
-                AdminLinkFront::Tailscale(guard) => {
-                    tokio::task::spawn_blocking(move || guard.close())
-                        .await
-                        .map_err(|error| {
-                            anyhow::anyhow!(
-                                "SNAPBACK_ADMIN_TAILSCALE_CLEANUP_FAILED: lifecycle task failed: {error}"
-                            )
-                        })?
-                }
+                AdminLinkFront::Tailscale(guard) => tokio::task::spawn_blocking(move || {
+                    guard.close()
+                })
+                .await
+                .map_err(|error| {
+                    anyhow::anyhow!(
+                        "SNAPBACK_ADMIN_TAILSCALE_CLEANUP_FAILED: lifecycle task failed: {error}"
+                    )
+                })?,
             };
             if let Err(error) = result {
                 first_error = Some(error);
@@ -3819,7 +6129,9 @@ fn drop_console_reachability(
 }
 
 async fn next_relay_observation(
-    receiver: &mut Option<tokio::sync::mpsc::UnboundedReceiver<crate::admin_link::RelayObservation>>,
+    receiver: &mut Option<
+        tokio::sync::mpsc::UnboundedReceiver<crate::admin_link::RelayObservation>,
+    >,
 ) -> Option<crate::admin_link::RelayObservation> {
     match receiver {
         Some(receiver) => receiver.recv().await,
@@ -4313,13 +6625,20 @@ fn validated_secret_read_root_path(
     Ok(declared_root)
 }
 
-/// Print the envelope; returns envelope `ok` (missing/false → false).
-fn print_envelope(envelope: &Value) -> bool {
-    println!(
+/// Write only the JSON envelope; returns envelope `ok` (missing/false → false).
+fn write_envelope_to(envelope: &Value, output: &mut dyn std::io::Write) -> std::io::Result<bool> {
+    writeln!(
+        output,
         "{}",
         serde_json::to_string_pretty(envelope).unwrap_or_else(|_| envelope.to_string())
-    );
-    envelope.get("ok").and_then(Value::as_bool).unwrap_or(false)
+    )?;
+    Ok(envelope.get("ok").and_then(Value::as_bool).unwrap_or(false))
+}
+
+/// Print the envelope; returns envelope `ok` (missing/false → false).
+fn print_envelope(envelope: &Value) -> bool {
+    write_envelope_to(envelope, &mut std::io::stdout().lock())
+        .expect("write host-operation envelope to stdout")
 }
 
 /// host.stop: validate the readiness descriptor, verify the descriptor still
@@ -4327,6 +6646,16 @@ fn print_envelope(envelope: &Value) -> bool {
 /// synthesized host.stop envelope (the CLI owns this operation — a server
 /// cannot stop itself over its own HTTP surface).
 fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
+    let request_id = crate::ids::mint_time_ordered(crate::ids::Kind::HostOperation);
+    let envelope = host_stop_result(ready_file, &request_id)?;
+    let ok = print_envelope(&serde_json::to_value(&envelope)?);
+    if !ok {
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
+fn host_stop_result(ready_file: &Path, request_id: &str) -> anyhow::Result<HostOpsResult> {
     let value = read_trusted_json_file(ready_file)?;
     let descriptor = HostReadyDescriptor::validate(&value).map_err(|problems| {
         anyhow::anyhow!(
@@ -4344,7 +6673,7 @@ fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
         |ok: bool, data: Value, diagnostics: Vec<crate::diagnostic::Diagnostic>| HostOpsResult {
             schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
             result_kind: HOST_OPS_RESULT_KIND.to_owned(),
-            request_id: crate::ids::mint_time_ordered(crate::ids::Kind::HostOperation),
+            request_id: request_id.to_owned(),
             operation: "host.stop".to_owned(),
             ok,
             target: descriptor.target.clone(),
@@ -4368,8 +6697,7 @@ fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
             }),
             vec![diagnostic],
         );
-        print_envelope(&serde_json::to_value(&refused)?);
-        std::process::exit(1);
+        return Ok(refused);
     }
     let stopped = std::process::Command::new("kill")
         .arg(descriptor.pid.to_string())
@@ -4379,7 +6707,7 @@ fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
     if stopped {
         let _ = std::fs::remove_file(ready_file);
     }
-    let envelope = envelope(
+    Ok(envelope(
         stopped,
         json!({
             "stoppedPid": descriptor.pid,
@@ -4387,12 +6715,425 @@ fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
             "verifiedBy": "startupNonce",
         }),
         Vec::new(),
-    );
+    ))
+}
+
+/// Compose the same concrete-credential probe, nonce-verified stop, and
+/// detached replacement start as `snapback_restart` in mcp-control.mjs.
+/// Secrets stay in an in-memory header and never enter child argv or receipts.
+///
+/// @ref LLP 0184#2-derived-ownership-not-a-second-registry — the CLI restart
+/// closes the same named lifecycle authority exception as the MCP projection.
+async fn host_restart(ready_file: &Path, reason: &str) -> anyhow::Result<()> {
+    let request_id = crate::ids::mint_time_ordered(crate::ids::Kind::HostOperation);
+    let envelope = host_restart_result(ready_file, reason, &request_id).await?;
     let ok = print_envelope(&serde_json::to_value(&envelope)?);
     if !ok {
         std::process::exit(1);
     }
     Ok(())
+}
+
+async fn host_restart_result(
+    ready_file: &Path,
+    reason: &str,
+    request_id: &str,
+) -> anyhow::Result<HostOpsResult> {
+    let value = read_trusted_json_file(ready_file)?;
+    let previous_descriptor = HostReadyDescriptor::validate(&value).map_err(|problems| {
+        anyhow::anyhow!(
+            "{} is not a valid readiness descriptor: {}",
+            ready_file.display(),
+            problems.join("; ")
+        )
+    })?;
+
+    let probe = restart_admin_credential_probe(ready_file);
+    let probe = match probe {
+        Ok(probe) if probe.get("ok").and_then(Value::as_bool) == Some(true) => probe,
+        Ok(probe) => {
+            let diagnostics = diagnostics_from_result(&probe).unwrap_or_else(|| {
+                vec![crate::diagnostic::Diagnostic::error(
+                    "SNAPBACK_HOST_RESTART_ADMIN_CREDENTIAL_REQUIRED",
+                    "host-ops",
+                    "host.restart requires an administrator credential accepted by the live host-ops route",
+                )]
+            });
+            let previous = lifecycle_result(
+                request_id,
+                "host.stop",
+                previous_descriptor.target.clone(),
+                false,
+                json!({}),
+                diagnostics,
+            );
+            let current = lifecycle_result(
+                request_id,
+                "host.start",
+                previous_descriptor.target.clone(),
+                false,
+                json!({}),
+                Vec::new(),
+            );
+            return Ok(compose_restart_result(request_id, reason, &previous, &current));
+        }
+        Err(_) => {
+            let previous = lifecycle_result(
+                request_id,
+                "host.stop",
+                previous_descriptor.target.clone(),
+                false,
+                json!({}),
+                vec![crate::diagnostic::Diagnostic::error(
+                    "SNAPBACK_HOST_RESTART_ADMIN_CREDENTIAL_REQUIRED",
+                    "host-ops",
+                    "host.restart could not prove an administrator credential against the live host-ops route",
+                )],
+            );
+            let current = lifecycle_result(
+                request_id,
+                "host.start",
+                previous_descriptor.target.clone(),
+                false,
+                json!({}),
+                Vec::new(),
+            );
+            return Ok(compose_restart_result(request_id, reason, &previous, &current));
+        }
+    };
+    drop(probe);
+
+    let mut previous = host_stop_result(ready_file, request_id)?;
+    if !previous.ok {
+        let current = lifecycle_result(
+            request_id,
+            "host.start",
+            previous_descriptor.target.clone(),
+            false,
+            json!({}),
+            Vec::new(),
+        );
+        return Ok(compose_restart_result(request_id, reason, &previous, &current));
+    }
+
+    let exited = wait_for_server_exit(&previous_descriptor).await;
+    previous.data["exited"] = json!(exited);
+    if !exited {
+        previous.ok = false;
+        previous.diagnostics.push(crate::diagnostic::Diagnostic::error(
+            "SNAPBACK_HOST_RESTART_STOP_TIMEOUT",
+            "host-ops",
+            "the verified server did not stop before the restart deadline",
+        ));
+        let current = lifecycle_result(
+            request_id,
+            "host.start",
+            previous_descriptor.target.clone(),
+            false,
+            json!({}),
+            Vec::new(),
+        );
+        return Ok(compose_restart_result(request_id, reason, &previous, &current));
+    }
+
+    let current = restart_start_result(
+        ready_file,
+        &previous_descriptor,
+        request_id,
+    )
+    .await;
+    Ok(compose_restart_result(request_id, reason, &previous, &current))
+}
+
+fn restart_admin_credential_probe(ready_file: &Path) -> anyhow::Result<Value> {
+    let local_target = TargetArgs {
+        url: None,
+        ready_file: Some(ready_file.to_path_buf()),
+        token: None,
+        impersonation_capability_stdin: false,
+    };
+    // Unlike an ordinary loopback AdminRead, lifecycle proof requires a
+    // concrete credential carrier. Reuse the strict resolver that fails when
+    // the declared owner-only token is missing instead of falling through to
+    // the loopback read convenience.
+    let resolved = resolve_admin_console_target(&local_target)?;
+    let proof_target = TargetArgs {
+        url: Some(resolved.server_url),
+        ready_file: None,
+        token: Some(resolved.token),
+        impersonation_capability_stdin: false,
+    };
+    post_host_op(&proof_target, json!({ "operation": "app.inspect" }))
+}
+
+fn diagnostics_from_result(value: &Value) -> Option<Vec<crate::diagnostic::Diagnostic>> {
+    if let Some(diagnostics) = value.get("diagnostics") {
+        let diagnostics = serde_json::from_value(diagnostics.clone()).ok()?;
+        return Some(diagnostics);
+    }
+    value
+        .get("diagnostic")
+        .cloned()
+        .and_then(|diagnostic| serde_json::from_value(diagnostic).ok())
+        .map(|diagnostic| vec![diagnostic])
+}
+
+fn lifecycle_result(
+    request_id: &str,
+    operation: &str,
+    target: crate::host_ops::HostOpsTarget,
+    ok: bool,
+    data: Value,
+    diagnostics: Vec<crate::diagnostic::Diagnostic>,
+) -> HostOpsResult {
+    HostOpsResult {
+        schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
+        result_kind: HOST_OPS_RESULT_KIND.to_owned(),
+        request_id: request_id.to_owned(),
+        operation: operation.to_owned(),
+        ok,
+        target,
+        authority: None,
+        artifacts: HostOpsArtifacts::default(),
+        data,
+        diagnostics,
+        next: Vec::new(),
+        secret_read_tables: Vec::new(),
+        secret_read_rows: 0,
+        secret_read_query: false,
+        secret_read_provenance_complete: true,
+    }
+}
+
+fn compose_restart_result(
+    request_id: &str,
+    reason: &str,
+    previous: &HostOpsResult,
+    current: &HostOpsResult,
+) -> HostOpsResult {
+    let mut diagnostics = previous.diagnostics.clone();
+    diagnostics.extend(current.diagnostics.clone());
+    HostOpsResult {
+        schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
+        result_kind: HOST_OPS_RESULT_KIND.to_owned(),
+        request_id: request_id.to_owned(),
+        operation: "host.restart".to_owned(),
+        ok: previous.ok && current.ok,
+        target: current.target.clone(),
+        authority: None,
+        artifacts: current.artifacts.clone(),
+        data: json!({
+            "restartReason": reason,
+            "previous": previous.data,
+            "current": current.data,
+        }),
+        diagnostics,
+        next: Vec::new(),
+        secret_read_tables: Vec::new(),
+        secret_read_rows: 0,
+        secret_read_query: false,
+        secret_read_provenance_complete: true,
+    }
+}
+
+async fn wait_for_server_exit(descriptor: &HostReadyDescriptor) -> bool {
+    for _ in 0..200 {
+        let endpoint_gone = fetch_health(&descriptor.server_url).is_err();
+        #[cfg(unix)]
+        let process_gone = process_is_proven_gone(descriptor.pid).unwrap_or(false);
+        #[cfg(not(unix))]
+        let process_gone = endpoint_gone;
+        if endpoint_gone && process_gone {
+            return true;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    false
+}
+
+async fn restart_start_result(
+    ready_file: &Path,
+    previous: &HostReadyDescriptor,
+    request_id: &str,
+) -> HostOpsResult {
+    let failure = |code: &'static str, message: String| {
+        lifecycle_result(
+            request_id,
+            "host.start",
+            previous.target.clone(),
+            false,
+            json!({}),
+            vec![crate::diagnostic::Diagnostic::error(code, "host-ops", message)],
+        )
+    };
+    let argv = match restart_start_argv(ready_file, previous) {
+        Ok(argv) => argv,
+        Err(message) => return failure("SNAPBACK_HOST_RESTART_READY_INVALID", message),
+    };
+    let executable = match std::env::current_exe() {
+        Ok(executable) => executable,
+        Err(error) => {
+            return failure(
+                "SNAPBACK_HOST_RESTART_START_FAILED",
+                format!("could not resolve the current snapback executable: {error}"),
+            );
+        }
+    };
+    let mut command = std::process::Command::new(executable);
+    command
+        .args(&argv)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null());
+    for (key, _) in std::env::vars_os() {
+        if key.to_string_lossy().starts_with("DYLD_") {
+            command.env_remove(key);
+        }
+    }
+    #[cfg(unix)]
+    {
+        // The replacement outlives this one-shot CLI process. MCP keeps its
+        // child owner alive; the CLI uses a new session for equivalent custody.
+        configure_detached_child(&mut command);
+    }
+    let mut child = match command.spawn() {
+        Ok(child) => child,
+        Err(error) => {
+            return failure(
+                "SNAPBACK_HOST_RESTART_START_FAILED",
+                format!("could not spawn the replacement server: {error}"),
+            );
+        }
+    };
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    let descriptor = loop {
+        if ready_file.exists() {
+            let value = match read_trusted_json_file(ready_file) {
+                Ok(value) => value,
+                Err(error) => {
+                    let _ = child.kill();
+                    return failure(
+                        "SNAPBACK_HOST_RESTART_READY_INVALID",
+                        format!("replacement readiness could not be read: {error}"),
+                    );
+                }
+            };
+            match HostReadyDescriptor::validate(&value) {
+                Ok(descriptor) => break descriptor,
+                Err(problems) => {
+                    let _ = child.kill();
+                    return failure(
+                        "SNAPBACK_HOST_RESTART_READY_INVALID",
+                        format!("replacement readiness was invalid: {}", problems.join("; ")),
+                    );
+                }
+            }
+        }
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                return failure(
+                    "SNAPBACK_HOST_RESTART_START_FAILED",
+                    format!("replacement server exited before readiness with {status}"),
+                );
+            }
+            Err(error) => {
+                return failure(
+                    "SNAPBACK_HOST_RESTART_START_FAILED",
+                    format!("replacement process status could not be read: {error}"),
+                );
+            }
+            Ok(None) => {}
+        }
+        if std::time::Instant::now() >= deadline {
+            let _ = child.kill();
+            return failure(
+                "SNAPBACK_HOST_RESTART_START_TIMEOUT",
+                "replacement server did not publish readiness within 15 seconds".to_owned(),
+            );
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    };
+
+    if descriptor.pid != child.id()
+        || descriptor.database.mode != previous.database.mode
+        || descriptor.database.path != previous.database.path
+        || descriptor.startup_nonce == previous.startup_nonce
+    {
+        let _ = child.kill();
+        return failure(
+            "SNAPBACK_HOST_RESTART_READY_INVALID",
+            "replacement readiness did not identify the spawned successor over the same database"
+                .to_owned(),
+        );
+    }
+
+    let inspect = match restart_admin_credential_probe(ready_file) {
+        Ok(inspect) => inspect,
+        Err(_) => {
+            return failure(
+                "SNAPBACK_HOST_RESTART_START_FAILED",
+                "replacement server was ready but failed the administrator-credential inspect probe"
+                    .to_owned(),
+            );
+        }
+    };
+    let ok = inspect.get("ok").and_then(Value::as_bool) == Some(true);
+    let diagnostics = diagnostics_from_result(&inspect).unwrap_or_default();
+    let artifacts = inspect
+        .get("artifacts")
+        .cloned()
+        .and_then(|artifacts| serde_json::from_value(artifacts).ok())
+        .unwrap_or_default();
+    HostOpsResult {
+        schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
+        result_kind: HOST_OPS_RESULT_KIND.to_owned(),
+        request_id: request_id.to_owned(),
+        operation: "host.start".to_owned(),
+        ok,
+        target: descriptor.target.clone(),
+        authority: None,
+        artifacts,
+        data: json!({
+            "attached": false,
+            "managed": true,
+            "pid": descriptor.pid,
+            "serverUrl": descriptor.server_url,
+            "readyFile": ready_file.display().to_string(),
+            "database": descriptor.database.path.as_deref().unwrap_or("memory"),
+            "runtimeState": inspect.pointer("/data/runtimeState").cloned().unwrap_or(Value::Null),
+        }),
+        diagnostics,
+        next: Vec::new(),
+        secret_read_tables: Vec::new(),
+        secret_read_rows: 0,
+        secret_read_query: false,
+        secret_read_provenance_complete: true,
+    }
+}
+
+fn restart_start_argv(
+    ready_file: &Path,
+    descriptor: &HostReadyDescriptor,
+) -> Result<Vec<std::ffi::OsString>, String> {
+    let mut argv = vec![
+        std::ffi::OsString::from("start"),
+        std::ffi::OsString::from("--ready-file"),
+        ready_file.as_os_str().to_owned(),
+    ];
+    match descriptor.database.mode.as_str() {
+        "file" => {
+            let path = descriptor
+                .database
+                .path
+                .as_deref()
+                .ok_or_else(|| "file-backed readiness has no database path".to_owned())?;
+            argv.push(std::ffi::OsString::from("--db"));
+            argv.push(std::ffi::OsString::from(path));
+        }
+        "memory" => argv.push(std::ffi::OsString::from("--memory")),
+        mode => return Err(format!("unsupported readiness database mode {mode:?}")),
+    }
+    Ok(argv)
 }
 
 /// GET the descriptor's `/health` and return its JSON payload, or a
@@ -4707,6 +7448,8 @@ async fn run_composed(
         }
     };
     let derived_fork_boot = snapback.is_derived_fork();
+    let derived_fork_lineage = snapback.derived_fork_identity().cloned();
+    debug_assert_eq!(derived_fork_boot, derived_fork_lineage.is_some());
 
     // Assemble exactly one provider before listener bind. This is inspection,
     // not activation: an uninitialized catalog remains dormant and no keyring
@@ -4914,9 +7657,25 @@ async fn run_composed(
         Ok(state) => state,
         Err(error) => {
             emit_startup_artifact_refusal(&error);
+            if args.derived_fork_arm_writer_coverage {
+                return Err(anyhow::anyhow!("SNAPBACK_FORK_LOAD_FAILED: {error}"));
+            }
             return Err(error.into());
         }
     };
+    if args.derived_fork_arm_writer_coverage {
+        // @ref LLP 0058#cold-startup-artifact-carrier — the complete pair is
+        // active before the fork-specific coverage cut.
+        // @ref LLP 0165#derived-fork-authorizer-backed-net-diff--2026-08-06 —
+        // arm the process-owned connection at the fork point before bind.
+        startup_blocking(|| {
+            crate::instance_fork::arm_open_derived_fork_app_row_coverage(
+                snapback.auth_database_mut(),
+                now_ms(),
+            )
+        })
+        .map_err(anyhow::Error::new)?;
+    }
     auth_runtime.seed_durable_clock_floor(&mut snapback)?;
     validate_auth_transport(
         bind_ip,
@@ -5247,7 +8006,7 @@ async fn run_composed(
         );
     }
     println!("admin console: http://{local_addr}/_snapback/admin");
-    if let Some(db_path) = database_path {
+    if let Some(db_path) = &database_path {
         println!("sqlite database: {}", db_path.display());
     }
     // @ref LLP 0017#security-defaults — be explicit about how admin is gated.
@@ -5338,8 +8097,11 @@ async fn run_composed(
         .bind(listener)?
         .serve_with_graceful_shutdown(shutdown_signal());
     tokio::pin!(server);
-    let server_result: anyhow::Result<()> = tokio::select! {
-        result = &mut server => result.map_err(anyhow::Error::new),
+    let fork_expiry =
+        wait_for_derived_fork_expiry(database_path.clone(), derived_fork_lineage);
+    tokio::pin!(fork_expiry);
+    let (server_result, expired_fork_shutdown): (anyhow::Result<()>, bool) = tokio::select! {
+        result = &mut server => (result.map_err(anyhow::Error::new), false),
         stopped = auth_expiry_worker.stopped() => {
             let _ = auth_coordinator.fail_global_closed();
             let error = stopped.err().unwrap_or_else(|| {
@@ -5349,7 +8111,12 @@ async fn run_composed(
                     "the process-local session expiry worker stopped unexpectedly",
                 )
             });
-            Err(anyhow::Error::new(error))
+            (Err(anyhow::Error::new(error)), false)
+        }
+        (lineage, observed_at_ms) = &mut fork_expiry => {
+            let error = crate::instance_fork::server_expired_error(&lineage, observed_at_ms);
+            eprintln!("{}: {}", error.diagnostic.code, error.diagnostic.message);
+            (Err(anyhow::Error::new(error)), true)
         }
     };
     if let Some(scheduler) = cron_scheduler {
@@ -5370,7 +8137,13 @@ async fn run_composed(
     if let Some(target) = ready_target.as_ref() {
         let _ = target.remove_impersonation_capability();
         let _ = target.remove_secret_read_root();
-        let _ = target.remove_published();
+        // Keep the non-secret descriptor after an expiry-driven shutdown.
+        // The next registry-bound reap can then verify the recorded PID is
+        // gone before removing the directory; deleting it here would discard
+        // the only safe process-identity proof available to the reaper.
+        if !expired_fork_shutdown {
+            let _ = target.remove_published();
+        }
     }
     // An in-memory instance's minted token dies with the process; remove the
     // ready-file-sibling token file it was handed off through (ENG-23443).
@@ -6989,25 +9762,154 @@ mod tests {
     use super::{
         AdminArgs, AdminCommand, Args, AssetsCommand, AuthCommand, AuthConstructionFailure,
         AuthCoordinatorReadinessReceipt, AuthProgramConstructionReceipts,
-        BEFORE_STARTUP_TARGET_RESERVATION, Cli, ErrorsCommand, ForkCommand, HostCommand,
-        ManagedPath, NetworkProfileCommand, ReadyFileTarget, ResolvedHttpTarget, TargetArgs,
-        TelemetryCommand,
-        bind_first_available, bind_listener, console_claim_fragment_url, console_fragment_url,
-        fork_secret_disposition, managed_startup_paths, mint_secret_read_via_http,
-        parse_fork_ttl, parse_network_profile_selection, parse_run_args,
-        path_with_filename_suffix, prepare_database_path, prepare_database_path_for_startup,
-        quiet_stop_fork, reject_misdirected_serve_flags, resolve_http_target,
-        runtime_auth_program_readiness, validate_path_disjointness,
+        BEFORE_STARTUP_TARGET_RESERVATION, Cli, ConfigCommand, ConnectionsCommand, ControlsCommand,
+        CronCommand, DataCommand, DataPatchArgs, DebugCommand, EphemeralCommand, ErrorsCommand,
+        ForkCommand, HostCommand, JobsCommand,
+        ManagedPath, NetworkProfileCommand, ReadyFileTarget, ResolvedHttpTarget, SessionCommand,
+        TargetArgs, TelemetryCommand, automatic_reap_before_create, bind_first_available,
+        bind_listener, console_claim_fragment_url, console_fragment_url, fork_secret_disposition,
+        managed_startup_paths, mint_secret_read_via_http, parse_fork_ttl,
+        parse_network_profile_selection, parse_run_args, path_segment_escape,
+        path_with_filename_suffix,
+        prepare_database_path, prepare_database_path_for_startup, quiet_stop_fork,
+        reject_misdirected_serve_flags, render_guide_command, resolve_http_target,
+        resolve_startup_nonce,
+        runtime_auth_program_readiness, search_guide_sections_in, validate_path_disjointness,
         validated_console_origin, validated_secret_read_root_path, write_ready_file_atomic,
         write_ready_file_atomic_protected,
     };
+    use crate::guide::EmbeddedGuideFile;
     use crate::instance_lock::TargetInstanceReservation;
-    use clap::Parser;
+    use clap::{CommandFactory, Parser};
     use serde_json::json;
     use std::io::{Read as _, Write as _};
     use std::path::{Path, PathBuf};
     use std::time::Duration;
     use tokio::net::TcpListener;
+
+    #[test]
+    fn packaged_store_receipt_cli_parses_and_dates_manifest_fields() {
+        let cli = Cli::parse_from([
+            "snapback",
+            "packaged-store-qualification-receipt",
+            "--closure-manifest",
+            "closure.json",
+            "--suite-result",
+            "suite.json",
+            "--out",
+            "receipt.json",
+        ]);
+        match cli.command {
+            Some(HostCommand::PackagedStoreQualificationReceipt {
+                closure_manifest,
+                suite_result,
+                out,
+            }) => {
+                assert_eq!(closure_manifest, PathBuf::from("closure.json"));
+                assert_eq!(suite_result, PathBuf::from("suite.json"));
+                assert_eq!(out, PathBuf::from("receipt.json"));
+            }
+            _ => panic!("expected packaged-store receipt command"),
+        }
+        assert_eq!(super::utc_date_from_unix_seconds(0), "1970-01-01");
+        assert_eq!(
+            super::utc_date_from_unix_seconds(1_775_174_400),
+            "2026-04-03",
+        );
+    }
+
+    #[test]
+    fn guide_cli_parses_multiword_queries_and_root_help_names_both_channels() {
+        let cli = Cli::parse_from(["snapback", "guide", "live", "query"]);
+        match cli.command {
+            Some(HostCommand::Guide { query }) => {
+                assert_eq!(query, ["live", "query"]);
+            }
+            _ => panic!("expected guide command"),
+        }
+
+        let help = Cli::command().render_long_help().to_string();
+        assert!(help.contains("snapback guide [QUERY]"), "{help}");
+        assert!(help.contains("snapback mcp"), "{help}");
+    }
+
+    #[test]
+    fn guide_search_returns_matching_sections_with_stable_markdown_anchors() {
+        let files = [
+            EmbeddedGuideFile {
+                path: "backend/example.md",
+                bytes: b"---\ntitle: Example\n---\n# Example page\nIntro.\n## Live queries\nUse the live query handle.\n## Live queries\nSecond live query spelling.\n",
+                content_type: "text/markdown; charset=utf-8",
+            },
+            EmbeddedGuideFile {
+                path: crate::guide::FLAT_PATH,
+                bytes: b"# Duplicate projection\nlive query handle\n",
+                content_type: "text/markdown; charset=utf-8",
+            },
+        ];
+
+        let matches = search_guide_sections_in(&files, "live query");
+        assert_eq!(
+            matches,
+            [
+                super::GuideSectionMatch {
+                    path: "backend/example.md".to_owned(),
+                    heading: "Live queries".to_owned(),
+                    anchor: "live-queries".to_owned(),
+                },
+                super::GuideSectionMatch {
+                    path: "backend/example.md".to_owned(),
+                    heading: "Live queries".to_owned(),
+                    anchor: "live-queries-1".to_owned(),
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn guide_channel_output_starts_with_capabilities_and_names_flat_and_mcp() {
+        let output = render_guide_command(&[]);
+        let capability = output.find("/capabilities.md").unwrap();
+        let browse = output.find("Browse the Guide").unwrap();
+        assert!(capability < browse, "{output}");
+        assert!(output.contains("/_snapback/guide/flat.md"), "{output}");
+        assert!(output.contains("snapback mcp"), "{output}");
+    }
+
+    #[test]
+    fn controls_cli_parses_offline_list_and_describe_json_forms() {
+        let list = Cli::parse_from([
+            "snapback",
+            "controls",
+            "list",
+            "--intent",
+            "network profile",
+            "--json",
+        ]);
+        assert!(matches!(
+            list.command,
+            Some(HostCommand::Controls {
+                command: ControlsCommand::List {
+                    intent: Some(intent),
+                    json: true,
+                }
+            }) if intent == "network profile"
+        ));
+
+        let describe = Cli::parse_from([
+            "snapback",
+            "controls",
+            "describe",
+            "debug.networkProfileSet",
+            "--json",
+        ]);
+        assert!(matches!(
+            describe.command,
+            Some(HostCommand::Controls {
+                command: ControlsCommand::Describe { operation, json: true }
+            }) if operation == "debug.networkProfileSet"
+        ));
+    }
 
     #[test]
     fn fork_cli_pins_finite_ttl_and_explicit_secret_opt_in() {
@@ -7044,6 +9946,89 @@ mod tests {
             }
             _ => panic!("expected fork create"),
         }
+    }
+
+    #[test]
+    fn fork_help_exposes_one_coherent_lifecycle_and_scalar_formats() {
+        let fork_help = Cli::command()
+            .find_subcommand_mut("fork")
+            .expect("fork command")
+            .render_long_help()
+            .to_string();
+        for lifecycle_word in [
+            "create", "inspect", "list", "diff", "renew", "drop", "reap", "recover",
+        ] {
+            assert!(fork_help.contains(lifecycle_word), "{lifecycle_word}: {fork_help}");
+        }
+
+        let cli = Cli::parse_from([
+            "snapback",
+            "fork",
+            "inspect",
+            "019fd4b0-f093-7a30-835e-0c4e9ae7c7a1",
+            "--format",
+            "admin-token-path",
+        ]);
+        assert!(matches!(
+            cli.command,
+            Some(HostCommand::Fork {
+                command: ForkCommand::Inspect {
+                    format: super::ForkOutputFormat::AdminTokenPath,
+                    ..
+                }
+            })
+        ));
+    }
+
+    #[test]
+    fn fork_create_refuses_when_automatic_sweep_cannot_prove_stop() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("parent.sqlite3");
+        let database = crate::storage::LocalDatabase::open(&source).unwrap();
+        drop(database);
+        let root = directory.path().join("forks");
+        std::fs::create_dir(&root).unwrap();
+        let destination = root.join("fork-a");
+        let expected = crate::instance_fork::ensure_expected_app(&root, "app-a").unwrap();
+        let receipt = crate::instance_fork::publish_managed(
+            &source,
+            &destination,
+            &expected,
+            "parent-a",
+            100,
+            200,
+            false,
+        )
+        .unwrap();
+        let expected = crate::instance_fork::load_expected_app(&root).unwrap();
+        let ready = destination.join("fork.ready.json");
+        std::fs::write(&ready, b"{}").unwrap();
+        crate::instance_fork::record_managed_runtime(
+            &root,
+            &receipt.lineage.fork_id,
+            &ready,
+            &expected,
+        )
+        .unwrap();
+
+        let error = automatic_reap_before_create(&root, &expected, 200).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("SNAPBACK_FORK_EXPIRED_REAP_FAILED"),
+            "{error}"
+        );
+        let snapback_error = error
+            .downcast_ref::<crate::diagnostic::SnapbackError>()
+            .expect("typed refusal");
+        assert!(
+            snapback_error.diagnostic.details["cause"]
+                .as_str()
+                .is_some_and(|cause| cause.contains("SNAPBACK_FORK_READY_INVALID")),
+            "the refusal carries the exact per-fork cause, got {:?}",
+            snapback_error.diagnostic.details
+        );
+        assert!(destination.is_dir(), "failed sweep must fail closed");
     }
 
     #[test]
@@ -7255,7 +10240,10 @@ mod tests {
         assert!(matches!(
             status.command,
             Some(HostCommand::Admin(AdminArgs {
-                command: Some(AdminCommand::Link { status: Some(_), .. }),
+                command: Some(AdminCommand::Link {
+                    status: Some(_),
+                    ..
+                }),
                 ..
             }))
         ));
@@ -7593,10 +10581,7 @@ mod tests {
     #[test]
     fn detached_start_refusal_has_stable_code_and_repair() {
         let error = super::ready_descriptor_required_error();
-        assert_eq!(
-            error.diagnostic.code,
-            "SNAPBACK_READY_DESCRIPTOR_REQUIRED"
-        );
+        assert_eq!(error.diagnostic.code, "SNAPBACK_READY_DESCRIPTOR_REQUIRED");
         assert_eq!(
             error.diagnostic.details["next"][0]["command"],
             "snapback start --ready-file <owner-only-path> ..."
@@ -7626,6 +10611,85 @@ mod tests {
             }
             other => panic!("expected start command, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn restart_subcommand_requires_ready_file_and_parses_reason() {
+        let cli = Cli::parse_from([
+            "snapback",
+            "restart",
+            "--ready-file",
+            ".snapback/dev.ready.json",
+            "--reason",
+            "reload native module",
+        ]);
+        assert!(matches!(
+            cli.command,
+            Some(HostCommand::Restart { ready_file, reason })
+                if ready_file == Path::new(".snapback/dev.ready.json")
+                    && reason == "reload native module"
+        ));
+        assert!(Cli::try_parse_from(["snapback", "restart"]).is_err());
+    }
+
+    #[test]
+    fn restart_start_argv_reuses_descriptor_target_without_authority() {
+        let mut descriptor = stop_descriptor(Some("old-startup"));
+        descriptor.database.mode = "file".to_owned();
+        descriptor.database.path = Some("/tmp/restart.sqlite3".to_owned());
+        descriptor.admin_token_file = Some("/tmp/restart.sqlite3.admin-token".to_owned());
+        let argv = super::restart_start_argv(Path::new("/tmp/restart.ready.json"), &descriptor)
+            .unwrap()
+            .into_iter()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            argv,
+            [
+                "start",
+                "--ready-file",
+                "/tmp/restart.ready.json",
+                "--db",
+                "/tmp/restart.sqlite3",
+            ]
+        );
+        assert!(
+            argv.iter().all(|arg| !arg.contains("admin-token")),
+            "authority carriers never enter the replacement argv"
+        );
+    }
+
+    #[test]
+    fn restart_composition_keeps_one_request_id_and_one_envelope() {
+        let descriptor = stop_descriptor(Some("old-startup"));
+        let previous = super::lifecycle_result(
+            "hop_fixed",
+            "host.stop",
+            descriptor.target.clone(),
+            true,
+            json!({ "stoppedPid": descriptor.pid, "exited": true }),
+            Vec::new(),
+        );
+        let current = super::lifecycle_result(
+            "hop_fixed",
+            "host.start",
+            descriptor.target,
+            true,
+            json!({ "pid": 5252, "runtimeState": { "ready": true } }),
+            Vec::new(),
+        );
+        let restart = super::compose_restart_result(
+            "hop_fixed",
+            "acceptance restart",
+            &previous,
+            &current,
+        );
+        assert!(restart.ok);
+        assert_eq!(restart.operation, "host.restart");
+        assert_eq!(restart.request_id, "hop_fixed");
+        assert_eq!(restart.data["restartReason"], "acceptance restart");
+        assert_eq!(restart.data["previous"]["stoppedPid"], 4242);
+        assert_eq!(restart.data["current"]["pid"], 5252);
     }
 
     #[test]
@@ -7992,6 +11056,82 @@ mod tests {
         assert_eq!(restarted.active, AuthMode::Sessions);
     }
 
+    /// issues/20260805-doc-comment-artifact-mismatch-no-successor-migration.md:
+    /// a comment-only source edit rotates the functions bundle identity, and
+    /// the settled restart correctly refuses — but the refusal must name the
+    /// supported repair paths (live evolution through the running server, or
+    /// the `snapback auth backup` backup-then-reseed procedure) instead of
+    /// dead-ending on the identities alone.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn settled_sessions_pin_refusal_names_supported_repair_paths() {
+        use crate::auth::mode::{AuthProgramReadiness, FUNCTION_V1_PREFIX};
+        use crate::auth::provider::AuthProviderProfile;
+        use crate::local::LocalSnapback;
+        use crate::manifest::AuthMode;
+
+        let directory = tempfile::tempdir().unwrap();
+        let database = directory.path().join("app.sqlite3");
+        let carrier = directory.path().join("startup.json");
+        sessions_startup_carrier(&carrier);
+        let args = Args {
+            db: database.clone(),
+            startup_artifacts: Some(carrier.clone()),
+            ..Args::default()
+        };
+        let mut snapback = LocalSnapback::open(&database).unwrap();
+        let mut runtime = crate::auth::runtime::AuthRuntime::inspect(
+            &mut snapback,
+            Some(&database),
+            AuthProviderProfile::Test,
+        )
+        .unwrap();
+        let readiness = AuthProgramReadiness::new(true, true, true, true, false, false, false);
+        let settled =
+            super::compose_auth_mode_startup(&args, &mut snapback, &mut runtime, &readiness)
+                .await
+                .unwrap();
+        assert_eq!(settled.active, AuthMode::Sessions);
+
+        // The doc-comment edit case: only the functions bundle identity moved.
+        let mut regenerated: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&carrier).unwrap()).unwrap();
+        regenerated["functions"]["bundleHash"] =
+            json!(format!("{FUNCTION_V1_PREFIX}{}", "d".repeat(64)));
+        std::fs::write(&carrier, serde_json::to_vec(&regenerated).unwrap()).unwrap();
+
+        let error =
+            super::compose_auth_mode_startup(&args, &mut snapback, &mut runtime, &readiness)
+                .await
+                .unwrap_err();
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH"
+        );
+        let details = &error.diagnostic.details;
+        assert_ne!(
+            details["expectedDeployment"]["bundleHash"],
+            details["observedDeployment"]["bundleHash"],
+            "the refusal still carries both exact deployment identities"
+        );
+        let repair = &details["repair"];
+        let keep_data = repair["keepData"].as_str().unwrap();
+        assert!(
+            keep_data.contains("running server") && keep_data.contains("watch reload"),
+            "keepData names the live-evolution migration path: {keep_data}"
+        );
+        let reseed = repair["reseedFresh"].as_str().unwrap();
+        assert!(
+            reseed.contains("snapback auth backup --db")
+                && reseed.contains(&database.display().to_string()),
+            "reseedFresh names the exact backup command for this store: {reseed}"
+        );
+        assert!(
+            repair["safety"].as_str().unwrap().contains("LLP 0058"),
+            "safety attributes the pin to auth-mode state"
+        );
+    }
+
     #[cfg(unix)]
     #[tokio::test]
     async fn pending_missing_carrier_quarantines_and_explicit_clear_restores_dev() {
@@ -8352,6 +11492,7 @@ mod tests {
             ready_file: Some(ready.clone()),
             restored_from_backup: None,
             startup_artifacts: None,
+            derived_fork_arm_writer_coverage: false,
             trusted_composition_activation: None,
             clear_desired_auth_mode: false,
             allow_auth_downgrade: false,
@@ -8376,6 +11517,7 @@ mod tests {
             hosted_edge: None,
             hosted_admission: None,
             startup_artifacts: None,
+            derived_fork_arm_writer_coverage: false,
             trusted_composition_activation: None,
             clear_desired_auth_mode: false,
             allow_auth_downgrade: false,
@@ -8478,6 +11620,146 @@ mod tests {
     }
 
     #[test]
+    fn session_mint_cli_calls_host_op_with_closed_email_args_and_capability() {
+        let dir = tempfile::tempdir().unwrap();
+        let ready = dir.path().join("ready.json");
+        let canonical_ready = std::fs::canonicalize(dir.path())
+            .unwrap()
+            .join("ready.json");
+        let sidecar =
+            crate::admin_impersonation::impersonation_capability_sibling(&canonical_ready).unwrap();
+        let (_registry, operator) =
+            crate::admin_impersonation::ImpersonationCapabilityRegistry::generate(
+                "nonce-session-mint".to_owned(),
+                &crate::auth::crypto::OsRandom,
+            )
+            .unwrap();
+        operator
+            .publish_with(&canonical_ready, |path, bytes| {
+                crate::secure_file::write_owner_only(path, bytes)
+            })
+            .unwrap();
+        let expected_capability = std::fs::read_to_string(&sidecar).unwrap();
+
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let mut requests = Vec::new();
+            for index in 0..2 {
+                let (mut stream, _) = listener.accept().unwrap();
+                let request = read_http_request(&mut stream);
+                let body = if index == 0 {
+                    health_with_nonce("nonce-session-mint")
+                } else {
+                    json!({
+                        "ok": true,
+                        "operation": "auth.mintSession",
+                        "data": { "tokenType": "Bearer", "token": "sbss_ordinary" },
+                    })
+                };
+                write_http_json(&mut stream, &body);
+                requests.push(request);
+            }
+            requests
+        });
+
+        let mut descriptor = stop_descriptor(Some("nonce-session-mint"));
+        descriptor.server_url = format!("http://{address}");
+        descriptor.target.server_url = Some(descriptor.server_url.clone());
+        descriptor.impersonation_capability_file = Some(sidecar.display().to_string());
+        crate::secure_file::write_owner_only(&ready, &serde_json::to_vec(&descriptor).unwrap())
+            .unwrap();
+
+        let parsed = Cli::parse_from([
+            "snapback",
+            "session",
+            "mint",
+            "--email",
+            "x@example.com",
+            "--ready-file",
+            ready.to_str().unwrap(),
+        ]);
+        let (target, email) = match parsed.command {
+            Some(HostCommand::Session {
+                command: SessionCommand::Mint { target, email },
+            }) => (target, email),
+            other => panic!("expected session mint command, got {other:?}"),
+        };
+        super::post_host_op(&target, super::mint_session_request(email)).unwrap();
+
+        let requests = server.join().unwrap();
+        assert!(requests[0].starts_with("GET /health "));
+        assert!(requests[1].starts_with("POST /_snapback/api/host-ops "));
+        assert!(requests[1].lines().any(|line| {
+            let Some((name, value)) = line.split_once(':') else {
+                return false;
+            };
+            name.eq_ignore_ascii_case(crate::admin_impersonation::IMPERSONATION_CAPABILITY_HEADER)
+                && value.trim() == expected_capability
+        }));
+        let (_, body) = requests[1].split_once("\r\n\r\n").unwrap();
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(body).unwrap(),
+            json!({
+                "operation": "auth.mintSession",
+                "args": { "email": "x@example.com" },
+            })
+        );
+    }
+
+    #[test]
+    fn session_mint_cli_output_is_only_the_host_op_session_json() {
+        let impersonation_capability = "sbic_operator_capability_must_not_be_printed";
+        let session_result = json!({
+            "schemaVersion": "snapback.v0",
+            "resultKind": "hostOpsResult",
+            "operation": "auth.mintSession",
+            "ok": true,
+            "data": {
+                "tokenType": "Bearer",
+                "token": "sbss_ordinary_session",
+                "session": { "userId": "user_x" },
+            },
+            "diagnostics": [],
+        });
+        let mut output = Vec::new();
+
+        assert!(super::write_envelope_to(&session_result, &mut output).unwrap());
+
+        let output = String::from_utf8(output).unwrap();
+        assert_eq!(
+            output,
+            format!(
+                "{}\n",
+                serde_json::to_string_pretty(&session_result).unwrap()
+            )
+        );
+        assert!(!output.contains(impersonation_capability));
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&output).unwrap(),
+            session_result
+        );
+    }
+
+    #[test]
+    fn session_mint_cli_requires_email() {
+        let error = Cli::try_parse_from([
+            "snapback",
+            "session",
+            "mint",
+            "--url",
+            "http://127.0.0.1:4287",
+        ])
+        .expect_err("session mint without --email must be refused");
+
+        assert_eq!(
+            error.kind(),
+            clap::error::ErrorKind::MissingRequiredArgument
+        );
+        assert!(error.to_string().contains("--email"));
+    }
+
+    #[test]
     fn run_args_must_be_json_object() {
         assert!(parse_run_args(Some(r#"{"title":"hello"}"#.to_owned())).is_ok());
 
@@ -8526,6 +11808,615 @@ mod tests {
             .unwrap()["name"],
             "tiny"
         );
+    }
+
+    // @ref LLP 0184#project-the-shipped-long-tail — parse coverage for the
+    // Phase 2 P1 read/diagnose and P2 controlled-mutation CLI projections.
+    // These only assert clap wiring; HTTP behavior is covered by
+    // mcp-control.test.mjs's real-server acceptance because the equivalent
+    // MCP tools share the same served routes.
+    #[test]
+    fn data_scan_cli_parses_table_bounds_and_target() {
+        let parsed = Cli::parse_from([
+            "snapback",
+            "data",
+            "scan",
+            "messages",
+            "--limit",
+            "20",
+            "--offset",
+            "40",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            parsed.command,
+            Some(HostCommand::Data {
+                command: DataCommand::Scan {
+                    table,
+                    limit: 20,
+                    offset: 40,
+                    ..
+                }
+            }) if table == "messages"
+        ));
+    }
+
+    #[test]
+    fn config_read_and_verify_cli_verbs_parse() {
+        let status = Cli::parse_from([
+            "snapback",
+            "config",
+            "status",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            status.command,
+            Some(HostCommand::Config {
+                command: ConfigCommand::Status { .. }
+            })
+        ));
+
+        let plan = Cli::parse_from([
+            "snapback",
+            "config",
+            "plan",
+            "--entry",
+            "stripe.secretKey",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            plan.command,
+            Some(HostCommand::Config {
+                command: ConfigCommand::Plan { entry: Some(entry), .. }
+            }) if entry == "stripe.secretKey"
+        ));
+
+        let verify = Cli::parse_from([
+            "snapback",
+            "config",
+            "verify",
+            "stripe.secretKey",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            verify.command,
+            Some(HostCommand::Config {
+                command: ConfigCommand::Verify { entry, .. }
+            }) if entry == "stripe.secretKey"
+        ));
+    }
+
+    #[test]
+    fn config_set_cli_requires_exactly_one_non_argv_carrier() {
+        let stdin = Cli::parse_from([
+            "snapback",
+            "config",
+            "set",
+            "--entry",
+            "stripe.secretKey",
+            "--value-stdin",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            stdin.command,
+            Some(HostCommand::Config {
+                command: ConfigCommand::Set {
+                    entry,
+                    value_stdin: true,
+                    value_fd: None,
+                    append: false,
+                    ..
+                }
+            }) if entry == "stripe.secretKey"
+        ));
+
+        let descriptor = Cli::parse_from([
+            "snapback",
+            "config",
+            "set",
+            "--entry",
+            "stripe.secretKey",
+            "--value-fd",
+            "9",
+            "--append",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            descriptor.command,
+            Some(HostCommand::Config {
+                command: ConfigCommand::Set {
+                    value_stdin: false,
+                    value_fd: Some(9),
+                    append: true,
+                    ..
+                }
+            })
+        ));
+
+        assert!(
+            Cli::try_parse_from([
+                "snapback",
+                "config",
+                "set",
+                "--entry",
+                "stripe.secretKey",
+                "--url",
+                "http://127.0.0.1:4287",
+            ])
+            .is_err()
+        );
+        assert!(
+            Cli::try_parse_from([
+                "snapback",
+                "config",
+                "set",
+                "--entry",
+                "stripe.secretKey",
+                "--value-stdin",
+                "--value-fd",
+                "9",
+            ])
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn jobs_list_and_show_cli_verbs_parse() {
+        let list = Cli::parse_from([
+            "snapback",
+            "jobs",
+            "list",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            list.command,
+            Some(HostCommand::Jobs {
+                command: JobsCommand::List { .. }
+            })
+        ));
+
+        let show = Cli::parse_from([
+            "snapback",
+            "jobs",
+            "show",
+            "job_01h8x2",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            show.command,
+            Some(HostCommand::Jobs {
+                command: JobsCommand::Show { id, .. }
+            }) if id == "job_01h8x2"
+        ));
+    }
+
+    #[test]
+    fn config_unset_cli_parses_entry_and_target() {
+        let parsed = Cli::parse_from([
+            "snapback",
+            "config",
+            "unset",
+            "--entry",
+            "stripe.secretKey",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            parsed.command,
+            Some(HostCommand::Config {
+                command: ConfigCommand::Unset { entry, .. }
+            }) if entry == "stripe.secretKey"
+        ));
+    }
+
+    #[test]
+    fn cron_cli_parses_list_tick_and_run() {
+        let list = Cli::parse_from(["snapback", "cron", "list", "--url", "http://127.0.0.1:4287"]);
+        assert!(matches!(
+            list.command,
+            Some(HostCommand::Cron {
+                command: CronCommand::List { .. }
+            })
+        ));
+
+        let tick = Cli::parse_from(["snapback", "cron", "tick", "--url", "http://127.0.0.1:4287"]);
+        assert!(matches!(
+            tick.command,
+            Some(HostCommand::Cron {
+                command: CronCommand::Tick { .. }
+            })
+        ));
+
+        let run = Cli::parse_from([
+            "snapback",
+            "cron",
+            "run",
+            "nightly-digest",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            run.command,
+            Some(HostCommand::Cron {
+                command: CronCommand::Run { name, .. }
+            }) if name == "nightly-digest"
+        ));
+    }
+
+    #[test]
+    fn ephemeral_cleanup_cli_requires_cutoff_mode_and_bound() {
+        let preview = Cli::parse_from([
+            "snapback",
+            "ephemeral",
+            "cleanup",
+            "--older-than-ms",
+            "60000",
+            "--dry-run",
+            "--max-entries",
+            "25",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            preview.command,
+            Some(HostCommand::Ephemeral {
+                command: EphemeralCommand::Cleanup {
+                    older_than_ms: Some(60_000),
+                    dry_run: true,
+                    max_entries: 25,
+                    ..
+                }
+            })
+        ));
+
+        let apply = Cli::parse_from([
+            "snapback",
+            "ephemeral",
+            "cleanup",
+            "--cutoff-timestamp-ms",
+            "1700000000000",
+            "--apply",
+        ]);
+        assert!(matches!(
+            apply.command,
+            Some(HostCommand::Ephemeral {
+                command: EphemeralCommand::Cleanup {
+                    cutoff_timestamp_ms: Some(1_700_000_000_000),
+                    apply: true,
+                    max_entries: 1_000,
+                    ..
+                }
+            })
+        ));
+
+        assert!(
+            Cli::try_parse_from([
+                "snapback",
+                "ephemeral",
+                "cleanup",
+                "--older-than-ms",
+                "0",
+            ])
+            .is_err(),
+            "cleanup must explicitly select preview or apply"
+        );
+    }
+
+    #[test]
+    fn jobs_drain_cli_parses_injected_clock_and_waves() {
+        let parsed = Cli::parse_from([
+            "snapback",
+            "jobs",
+            "drain",
+            "--url",
+            "http://127.0.0.1:4287",
+            "--now-ms",
+            "1700000000000",
+            "--max-waves",
+            "3",
+        ]);
+        assert!(matches!(
+            parsed.command,
+            Some(HostCommand::Jobs {
+                command: JobsCommand::Drain {
+                    now_ms: Some(1_700_000_000_000),
+                    max_waves: Some(3),
+                    ..
+                }
+            })
+        ));
+    }
+
+    #[test]
+    fn connections_disconnect_cli_requires_a_reason() {
+        let parsed = Cli::parse_from([
+            "snapback",
+            "connections",
+            "disconnect",
+            "conn_abc123",
+            "--reason",
+            "stuck presence repair",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            parsed.command,
+            Some(HostCommand::Connections {
+                command: ConnectionsCommand::Disconnect { connection_id, reason, .. }
+            }) if connection_id == "conn_abc123" && reason == "stuck presence repair"
+        ));
+
+        let missing_reason = Cli::try_parse_from([
+            "snapback",
+            "connections",
+            "disconnect",
+            "conn_abc123",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(missing_reason.is_err());
+    }
+
+    /// @ref LLP 0184#b-forced-live-resync--add-now — `snapback debug
+    /// force-resync` parses connection id, subscription id, reason, and
+    /// the optional `--clear-retained`/`--startup-nonce` flags; a missing
+    /// reason (a required closed operator/test disclosure, matching
+    /// `connections disconnect`'s precedent) is refused at parse time.
+    #[test]
+    fn debug_force_resync_cli_parses_required_and_optional_fields() {
+        let parsed = Cli::parse_from([
+            "snapback",
+            "debug",
+            "force-resync",
+            "--connection-id",
+            "conn_abc123",
+            "--subscription-id",
+            "sub_def456",
+            "--reason",
+            "acceptance test",
+            "--clear-retained",
+            "--startup-nonce",
+            "explicit-nonce",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            parsed.command,
+            Some(HostCommand::Debug {
+                command: DebugCommand::ForceResync {
+                    ref connection_id,
+                    ref subscription_id,
+                    ref reason,
+                    clear_retained: true,
+                    startup_nonce: Some(ref startup_nonce),
+                    ..
+                }
+            }) if connection_id == "conn_abc123"
+                && subscription_id == "sub_def456"
+                && reason == "acceptance test"
+                && startup_nonce == "explicit-nonce"
+        ));
+
+        let missing_reason = Cli::try_parse_from([
+            "snapback",
+            "debug",
+            "force-resync",
+            "--connection-id",
+            "conn_abc123",
+            "--subscription-id",
+            "sub_def456",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(missing_reason.is_err());
+    }
+
+    /// `resolve_startup_nonce` reads the nonce straight from the ready
+    /// file's own readiness descriptor when the caller does not supply one
+    /// explicitly, and refuses when neither is available (`--url` alone).
+    #[test]
+    fn resolve_startup_nonce_reads_ready_file_descriptor_or_refuses() {
+        assert_eq!(
+            resolve_startup_nonce(
+                &TargetArgs {
+                    url: Some("http://127.0.0.1:4287".to_owned()),
+                    ready_file: None,
+                    token: None,
+                    impersonation_capability_stdin: false,
+                },
+                Some("explicit".to_owned()),
+            )
+            .unwrap(),
+            "explicit",
+        );
+
+        let dir = tempfile::tempdir().unwrap();
+        let ready_file = dir.path().join("ready.json");
+        crate::secure_file::write_owner_only(
+            &ready_file,
+            serde_json::to_string(&stop_descriptor(Some("descriptor-nonce")))
+                .unwrap()
+                .as_bytes(),
+        )
+        .unwrap();
+        assert_eq!(
+            resolve_startup_nonce(
+                &TargetArgs {
+                    url: None,
+                    ready_file: Some(ready_file),
+                    token: None,
+                    impersonation_capability_stdin: false,
+                },
+                None,
+            )
+            .unwrap(),
+            "descriptor-nonce",
+        );
+
+        let no_source = resolve_startup_nonce(
+            &TargetArgs {
+                url: Some("http://127.0.0.1:4287".to_owned()),
+                ready_file: None,
+                token: None,
+                impersonation_capability_stdin: false,
+            },
+            None,
+        );
+        assert!(no_source.is_err());
+    }
+
+    #[test]
+    fn ephemeral_operator_delete_cli_parses_both_fences_and_reason() {
+        let parsed = Cli::parse_from([
+            "snapback",
+            "ephemeral",
+            "operator-delete",
+            "--ready-file",
+            "/tmp/snapback-ready.json",
+            "--collection",
+            "boardCursors",
+            "--scope-json",
+            r#"{"boardId":"board-1"}"#,
+            "--entry-key",
+            "conn_owner",
+            "--expected-scope-epoch",
+            "7",
+            "--expected-entry-generation",
+            "1",
+            "--reason",
+            "stuck presence repair",
+        ]);
+        assert!(matches!(
+            parsed.command,
+            Some(HostCommand::Ephemeral {
+                command: EphemeralCommand::OperatorDelete {
+                    collection,
+                    scope_json,
+                    entry_key,
+                    expected_scope_epoch: 7,
+                    expected_entry_generation: 1,
+                    reason,
+                    ..
+                }
+            }) if collection == "boardCursors"
+                && scope_json == r#"{"boardId":"board-1"}"#
+                && entry_key == "conn_owner"
+                && reason == "stuck presence repair"
+        ));
+
+        let missing_epoch = Cli::try_parse_from([
+            "snapback",
+            "ephemeral",
+            "operator-delete",
+            "--ready-file",
+            "/tmp/snapback-ready.json",
+            "--collection",
+            "boardCursors",
+            "--scope-json",
+            r#"{"boardId":"board-1"}"#,
+            "--entry-key",
+            "conn_owner",
+            "--expected-entry-generation",
+            "1",
+            "--reason",
+            "stuck presence repair",
+        ]);
+        assert!(missing_epoch.is_err());
+    }
+
+    #[test]
+    fn path_segment_escape_encodes_reserved_bytes() {
+        assert_eq!(path_segment_escape("nightly-digest"), "nightly-digest");
+        assert_eq!(path_segment_escape("a/b c"), "a%2Fb%20c");
+    }
+
+    #[test]
+    fn data_patch_cli_requires_one_intent_and_file_or_stdin_json() {
+        let preview = Cli::parse_from([
+            "snapback",
+            "data",
+            "patch",
+            "--preview",
+            "--input",
+            "preview.json",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            preview.command,
+            Some(HostCommand::Data {
+                command: DataCommand::Patch(DataPatchArgs { preview: true, apply: false, .. })
+            })
+        ));
+
+        let apply = Cli::parse_from([
+            "snapback",
+            "data",
+            "patch",
+            "--apply",
+            "--input",
+            "-",
+            "--ready-file",
+            "server.ready.json",
+        ]);
+        assert!(matches!(
+            apply.command,
+            Some(HostCommand::Data {
+                command: DataCommand::Patch(DataPatchArgs { preview: false, apply: true, .. })
+            })
+        ));
+
+        let missing_intent = Cli::try_parse_from([
+            "snapback",
+            "data",
+            "patch",
+            "--input",
+            "patch.json",
+            "--url",
+            "http://127.0.0.1:4287",
+        ])
+        .unwrap_err();
+        assert_eq!(
+            missing_intent.kind(),
+            clap::error::ErrorKind::MissingRequiredArgument
+        );
+
+        let both = Cli::try_parse_from([
+            "snapback",
+            "data",
+            "patch",
+            "--preview",
+            "--apply",
+            "--input",
+            "patch.json",
+            "--url",
+            "http://127.0.0.1:4287",
+        ])
+        .unwrap_err();
+        assert_eq!(both.kind(), clap::error::ErrorKind::ArgumentConflict);
+
+        let token_in_argv = Cli::try_parse_from([
+            "snapback",
+            "data",
+            "patch",
+            "--apply",
+            "--input",
+            "patch.json",
+            "--apply-token",
+            "must-not-be-an-argv-carrier",
+            "--url",
+            "http://127.0.0.1:4287",
+        ])
+        .unwrap_err();
+        assert_eq!(token_in_argv.kind(), clap::error::ErrorKind::UnknownArgument);
     }
 
     #[test]
@@ -10208,6 +14099,7 @@ mod tests {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -10587,8 +14479,8 @@ pub(crate) fn migrate_command(command: MigrateCommand, json_only: bool) -> anyho
                 // Moment 3's estimate line is sourced only from the separately
                 // digested, snapshot-pinned observation; it adds no plan
                 // authority and is omitted when no step declares a read table.
-                let (head, precondition_rows) = snapback
-                    .migrate_preview_observation_facts(&steps, max_affected_rows)?;
+                let (head, precondition_rows) =
+                    snapback.migrate_preview_observation_facts(&steps, max_affected_rows)?;
                 let body = crate::migration::MigrationPlanBody {
                     schema_version: crate::migration::MIGRATION_PLAN_SCHEMA_VERSION.to_owned(),
                     app: snapback.migrate_app_id(),

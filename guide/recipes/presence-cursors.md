@@ -4,13 +4,13 @@ id: recipes.presence-cursors
 order: 1
 audience: agent-first
 capabilities: [realtime.ephemeral]
-authorities: [llp/0013-ephemeral-realtime-state.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-client/index.mjs]
-examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-client/index.mjs, packages/snapback-react/index.mjs]
+examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging-snapback/src/lib/useTyping.ts]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-06
+reviewed-commit: 6e158169b3c908b8be149db4487a71dc35738470
 ---
 
 # Recipe: presence cursors
@@ -25,6 +25,13 @@ cleanup (LLP 0013) — never in tables, never polled. The working reference
 is `demos/cursors-web`. This recipe is the shortest paved implementation;
 the [ephemeral-state reference](../realtime/ephemeral-state.md) inventories
 every collection option, key mode, recovery rule, and Contract link.
+
+For React, start with
+[`useSnapbackPresence`](../realtime/ephemeral-state.md#find-the-react-hook-from-ephemeral-vocabulary),
+the managed hook for generated ephemeral collections; that page transcludes a
+conversation-scoped typing indicator from `demos/messaging-snapback`. The raw
+`subscribeEphemeral` path below remains useful for headless consumers and code
+that deliberately owns manual draining, polling, or overlay lifecycle.
 
 ## 1. Declare the ephemeral collection in the schema
 
@@ -61,7 +68,7 @@ Regenerate after editing (the generated publish descriptor carries the
 budget facts your client code should assert against, e.g. cursors-web
 checks its declared publish rate fits `sustainedHz` at init).
 
-## 2. Subscribe to the room
+## 2. Subscribe to the room without React
 
 `subscribeEphemeral` returns an overlay that applies the authoritative
 snapshot, then buffers and applies deltas from the shared live socket
@@ -127,3 +134,6 @@ renderable during degradation instead of silently vanishing.
   with `overlay.grantedConnectionId`; only the server grant is lease identity.
 - **Do not publish above the declared budget** — assert your sample rate
   fits the generated budget facts at init, like the reference hook does.
+- **Do not hand-wire a React overlay for ordinary presence or typing.** Use
+  `useSnapbackPresence` so the provider owns Strict Mode replay, heartbeat,
+  resync, authority changes, and teardown.

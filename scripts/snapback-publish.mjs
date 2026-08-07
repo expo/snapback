@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // @ref LLP 0063#workstream-6--reduce-snapbacks-declaration-and-runtime-tax —
-// the runtime/CLI/Contract/React/client/codegen/app-CLI closure must install from a public
+// the runtime/CLI/Contract/React/Expo/client/codegen/app-CLI closure must install from a public
 // registry without sibling checkouts or repository-only resolution.
 // @ref LLP 0041#acceptance — publication is staged from immutable tarballs;
 // dry-run is the default and a real publish is double-confirmed.
@@ -33,6 +33,7 @@ import {
   validateInternalDependencyClosure,
 } from './snapback-publish-core.mjs';
 import { sha256TarEntry } from './snapback-tar-entry.mjs';
+import { verifyRuntimePackageSeal } from '../packages/snapback-cli/runtime-readiness.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const publicRegistry = 'https://registry.npmjs.org';
@@ -45,6 +46,7 @@ const commonPackages = [
   'snapback-client',
   'snapback-codegen',
   'snapback-react',
+  'snapback-expo',
   'snapback-app-cli',
   'snapback-cli',
   'snapback-vite',
@@ -154,6 +156,30 @@ function publishedName(sourceName, preset) {
 
 function sha256(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex');
+}
+
+function verifyPackedRuntimeSeal({ tarballPath, packageName, platformId }) {
+  const extractionRoot = mkdtempSync(join(dirname(tarballPath), '.runtime-seal-'));
+  try {
+    execFileSync('tar', ['-xzf', tarballPath, '-C', extractionRoot]);
+    const packageRoot = join(extractionRoot, 'package');
+    const [platform, architecture] = platformId.split('-');
+    const verdict = verifyRuntimePackageSeal({
+      root: packageRoot,
+      binaryPath: join(packageRoot, 'bin', 'snapback'),
+      packageName,
+      platform,
+      architecture,
+    });
+    if (!verdict.ok) {
+      throw new Error(
+        `${packageName} npm tarball failed its runtime seal (${verdict.reason}): `
+        + verdict.diagnostic.message,
+      );
+    }
+  } finally {
+    rmSync(extractionRoot, { recursive: true, force: true });
+  }
 }
 
 function sourceDirty() {
@@ -305,6 +331,24 @@ function stage(options) {
       ));
       if (packedManifest.name !== manifest.name || packedManifest.version !== options.version) {
         fail(`packed identity drift for ${sourceManifest.name}`);
+      }
+      const runtimePlatform = [...runtimePackages.entries()]
+        .find(([, runtimeDirectory]) => runtimeDirectory === directory)?.[0] ?? null;
+      if (runtimePlatform !== null) {
+        try {
+          // @ref LLP 0123#package-seal-landing-2026-08-06 — consumption
+          // coherence is defined over package-manager-delivered bytes.
+          // Reopen the seal from npm's serialized bytes. In particular, npm
+          // omits framework symlinks, so pre-pack verification is insufficient
+          // for Darwin runtime packages.
+          verifyPackedRuntimeSeal({
+            tarballPath,
+            packageName: manifest.name,
+            platformId: runtimePlatform,
+          });
+        } catch (error) {
+          fail(error.message);
+        }
       }
       rows.push({
         publicationOrder: rows.length,

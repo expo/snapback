@@ -5,7 +5,61 @@
 import {
   LIVE_RECONNECT_BASE_DELAY_MS,
   LIVE_RECONNECT_MAX_DELAY_MS,
+  handoffPreparedReactBindingGeneration,
 } from '@expo/snapback-client';
+
+export function triggerControlledDevelopmentReload(failure, developmentHmr) {
+  console.error(
+    `${failure.code}: ${failure.message} (reason: ${failure.details?.reason ?? 'unknown'}). `
+    + 'Snapback is triggering a full dev reload so the mounted provider realigns with the '
+    + 'regenerated api module. If no reload mechanism is available on this host, reload '
+    + 'manually (press "r" in the Metro terminal or refresh the page).',
+  );
+  try {
+    if (typeof developmentHmr?.onReloadRequired === 'function') {
+      developmentHmr.onReloadRequired(failure);
+      return;
+    }
+  } catch { /* observational */ }
+  try { globalThis.DevSettings?.reload?.('SNAPBACK_REACT_HMR_REBIND_FAILED'); } catch { /* best effort */ }
+  try { globalThis.location?.reload?.(); } catch { /* best effort */ }
+}
+
+export async function runDevelopmentHmrHandoff(binding, target, developmentHmr) {
+  let outcome;
+  try {
+    outcome = await handoffPreparedReactBindingGeneration(binding, target, {
+      ...(Number.isSafeInteger(developmentHmr?.timeoutMs)
+        ? { timeoutMs: developmentHmr.timeoutMs }
+        : {}),
+      ...(Number.isSafeInteger(developmentHmr?.pollIntervalMs)
+        ? { pollIntervalMs: developmentHmr.pollIntervalMs }
+        : {}),
+    });
+  } catch (error) {
+    outcome = {
+      ok: false,
+      reason: 'handoff-error',
+      cause: error?.code ?? String(error),
+    };
+  }
+  if (outcome?.ok === true) return outcome;
+  const failure = Object.freeze({
+    schemaVersion: 'snapback.client-diagnostic.v1',
+    code: 'SNAPBACK_REACT_HMR_REBIND_FAILED',
+    severity: 'error',
+    message: 'HMR delivered regenerated Snapback references, but the mounted provider could not atomically rebind to the new generation',
+    details: Object.freeze({
+      reason: outcome?.reason ?? 'handoff-error',
+      ...(outcome?.cause === undefined ? {} : { cause: outcome.cause }),
+    }),
+  });
+  triggerControlledDevelopmentReload(failure, developmentHmr);
+  return {
+    ...outcome,
+    failure,
+  };
+}
 
 function projectionEquals(left, right) {
   if (Object.is(left, right)) return true;

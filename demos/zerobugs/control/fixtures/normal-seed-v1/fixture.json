@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "zerobugs-normalized-fixture.v1",
+  "fixtureId": "normal-seed-v1",
+  "extensionId": "policy-extension-v1",
+  "generationInstant": "2026-08-05T00:00:00.000Z",
+  "deterministicIdRule": "<table>_ + first 24 lowercase hex chars of SHA-256(zerobugs-snapback-source-id.v1 NUL table NUL source identity)",
+  "actorBindings": {
+    "ordinary-user": {
+      "role": "user",
+      "sourceUserID": "9Fw3n6EQS8mzE126AFJxb",
+      "userID": "user_f57940f9cf974984ee36c7b2"
+    },
+    "creator": {
+      "role": "user",
+      "sourceUserID": "FPEhfZQwiEMgpk3WnEY72",
+      "userID": "user_b8222266f94aa6b36a6b5999"
+    },
+    "assignee": {
+      "role": "user",
+      "sourceUserID": "_4MJeHV4T-qZb52fyNwQ9",
+      "userID": "user_47a7fdef09689e6736359a9c"
+    },
+    "crew-admin": {
+      "role": "crew",
+      "sourceUserID": "2wKdbVVF7qtnn5bx92sr9",
+      "userID": "user_804808a3aa5ef7440e34bd42"
+    },
+    "removed-member": {
+      "role": "crew",
+      "sourceUserID": "Gg4MskWt3M-ttzzlrJ9jn",
+      "userID": "user_37617f38bd751da58ed19276"
+    }
+  },
+  "sourceInputs": {
+    "user.csv": "sha256:b446837bb0062cb0d3b2844349e35b055c02826f99311f7fa7a444cf1a7ea341",
+    "project.csv": "sha256:40d6bfdc74eae2ed68a97137ce414fa4ca6de1b3831cfd9a73c4622d8a8942c1",
+    "issue.csv": "sha256:96f6e11ae6c822bcb0045768168360beaba3a9cccc29f1e678446a05c4bd6277",
+    "comment.csv": "sha256:1e0561faaf725008269c4045160c834c32f565499b6e4fbebfe654761bd1bbda",
+    "label.csv": "sha256:beb01f84be6655ba16b7c19e0a4ecf71f8ec2eed1d0f5ce07611bdcdaea988f0",
+    "issueLabel.csv": "sha256:2136875760771825f55e5c660127477cb3b7939f6fe1b1bee53f11195bf9df3e"
+  },
+  "tableFiles": {
+    "user": "user.json",
+    "project": "project.json",
+    "issue": "issue.json",
+    "viewState": "viewState.json",
+    "comment": "comment.json",
+    "label": "label.json",
+    "issueLabel": "issueLabel.json",
+    "emoji": "emoji.json",
+    "userPref": "userPref.json",
+    "issueNotifications": "issueNotifications.json",
+    "identityBinding": "identityBinding.json",
+    "projectUserRead": "projectUserRead.json",
+    "issueListRead": "issueListRead.json",
+    "issueLabelRead": "issueLabelRead.json",
+    "issueSearchDocument": "issueSearchDocument.json",
+    "searchEpoch": "searchEpoch.json"
+  }
+}

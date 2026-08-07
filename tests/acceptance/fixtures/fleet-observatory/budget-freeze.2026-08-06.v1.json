@@ -1,0 +1,74 @@
+{
+  "schemaVersion": "snapback.fleet-observatory.budget-freeze.v1",
+  "date": "2026-08-06",
+  "authority": "LLP 0155 OQ9",
+  "workload": {
+    "devices": 25000,
+    "sourceEventRows": 250000,
+    "updateBurst": 1000,
+    "activeMatches": 100,
+    "queryChanges": 20
+  },
+  "retentionPosture": "none",
+  "measured": {
+    "activeCustody": {
+      "materializationRecords": 21,
+      "payloadBearingRecords": 1,
+      "compactedPredecessorStubs": 20,
+      "fragments": 1,
+      "topLevelEnvelopeRows": 1,
+      "projectedResultRows": 200,
+      "eventRows": 100,
+      "rollupRows": 100,
+      "logicalBytes": 51027,
+      "resultBytes": 49652,
+      "proofBytes": 1375,
+      "physicalCarrierBytes": 129338
+    },
+    "releasedCustody": {
+      "materializationRecords": 21,
+      "payloadBearingRecords": 0,
+      "compactedInstanceBookkeepingStubs": 21,
+      "fragments": 0,
+      "retainedTopLevelRows": 0,
+      "retainedProjectedRows": 0,
+      "physicalCarrierBytes": 48731
+    },
+    "hydration": {
+      "attempts": 1,
+      "firstUsefulRows": 100,
+      "rowsInstalled": 200,
+      "payloadBytes": 49652,
+      "firstUsefulMs": 171.143,
+      "authoritativeCompleteMs": 171.143
+    }
+  },
+  "frozenCeilings": {
+    "activeCustody": {
+      "materializationRecords": 21,
+      "payloadBearingRecords": 1,
+      "compactedPredecessorStubs": 20,
+      "fragments": 1,
+      "topLevelEnvelopeRows": 1,
+      "projectedResultRows": 200,
+      "eventRows": 100,
+      "rollupRows": 100,
+      "logicalBytes": 51027
+    },
+    "releasedCustody": {
+      "materializationRecords": 21,
+      "payloadBearingRecords": 0,
+      "compactedInstanceBookkeepingStubs": 21,
+      "fragments": 0,
+      "retainedTopLevelRows": 0,
+      "retainedProjectedRows": 0
+    },
+    "hydration": {
+      "attempts": 1,
+      "firstUsefulRows": 100,
+      "rowsInstalled": 200,
+      "payloadBytes": 49652,
+      "elapsedMs": 1000
+    }
+  }
+}

@@ -7,6 +7,8 @@
 //! for LLP 0030 attach. The mutationDryRun explain kind has its own suite in
 //! `tests/dry_run_v0.rs`.
 
+use axum::body::{Body, to_bytes};
+use axum::http::{Request, StatusCode, header};
 use serde_json::{Value, json};
 use snapback::admin::{AppState, ServerContext, ServerProfile};
 use snapback::admin_impersonation::{
@@ -17,9 +19,148 @@ use snapback::host_ops::{HostOpsRequest, HostReadyDescriptor, execute_host_op};
 use snapback::local::LocalSnapback;
 use std::fs;
 use std::path::PathBuf;
-use axum::body::{Body, to_bytes};
-use axum::http::{Request, StatusCode, header};
 use tower::ServiceExt as _;
+
+struct RestartServerGuard {
+    binary: &'static str,
+    ready_file: PathBuf,
+    active: bool,
+}
+
+impl RestartServerGuard {
+    fn stop(&mut self) {
+        if !self.active {
+            return;
+        }
+        let _ = std::process::Command::new(self.binary)
+            .args(["stop", "--ready-file"])
+            .arg(&self.ready_file)
+            .env_remove("SNAPBACK_ADMIN_TOKEN")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status();
+        self.active = false;
+    }
+}
+
+impl Drop for RestartServerGuard {
+    fn drop(&mut self) {
+        self.stop();
+    }
+}
+
+fn wait_for_cli_ready(
+    child: &mut std::process::Child,
+    path: &std::path::Path,
+) -> HostReadyDescriptor {
+    // 60s ceiling: readiness normally lands in ~1-2s, but a cold spawn under
+    // heavy fleet machine load (parallel builds/agent sessions) has been
+    // observed to exceed a 15s deadline; the loop returns as soon as the
+    // descriptor appears, so a generous ceiling costs nothing when healthy.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    loop {
+        if path.exists() {
+            let value: Value = serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
+            return HostReadyDescriptor::validate(&value).expect("valid CLI readiness descriptor");
+        }
+        if let Some(status) = child.try_wait().unwrap() {
+            panic!("Snapback server exited before readiness: {status}");
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "Snapback server did not publish readiness"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+}
+
+/// @ref LLP 0184#2-derived-ownership-not-a-second-registry — the native CLI
+/// restart proves a concrete admin credential before signaling, then returns
+/// one composed receipt for the stop/start successor transition.
+#[test]
+fn snapback_restart_cli_proves_credential_and_composes_lifecycle() {
+    let binary = env!("CARGO_BIN_EXE_snapback");
+    let directory = tempfile::tempdir().unwrap();
+    let database = directory.path().join("restart.sqlite3");
+    let ready_file = directory.path().join("restart.ready.json");
+    let mut initial = std::process::Command::new(binary)
+        .args(["start", "--port", "0", "--db"])
+        .arg(&database)
+        .arg("--ready-file")
+        .arg(&ready_file)
+        .env_remove("SNAPBACK_ADMIN_TOKEN")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .unwrap();
+    let previous = wait_for_cli_ready(&mut initial, &ready_file);
+    let mut cleanup = RestartServerGuard {
+        binary,
+        ready_file: ready_file.clone(),
+        active: true,
+    };
+    let previous_nonce = previous.startup_nonce.clone().unwrap();
+    let token_file = snapback::admin::admin_token_sibling(&database);
+    let token = fs::read_to_string(&token_file).unwrap();
+    let token_backup = directory.path().join("restart.admin-token.backup");
+
+    fs::rename(&token_file, &token_backup).unwrap();
+    let refused = std::process::Command::new(binary)
+        .args(["restart", "--ready-file"])
+        .arg(&ready_file)
+        .arg("--reason")
+        .arg("credential-negative")
+        .env_remove("SNAPBACK_ADMIN_TOKEN")
+        .output()
+        .unwrap();
+    fs::rename(&token_backup, &token_file).unwrap();
+    assert!(!refused.status.success());
+    let refused: Value = serde_json::from_slice(&refused.stdout).unwrap();
+    assert_eq!(refused["operation"], "host.restart");
+    assert_eq!(refused["ok"], false);
+    assert_eq!(
+        refused["diagnostics"][0]["code"],
+        "SNAPBACK_HOST_RESTART_ADMIN_CREDENTIAL_REQUIRED"
+    );
+    let after_refusal: Value = serde_json::from_slice(&fs::read(&ready_file).unwrap()).unwrap();
+    assert_eq!(after_refusal["startupNonce"], previous_nonce);
+
+    // Reap the first child as soon as restart signals it. This mirrors the
+    // long-lived MCP launcher and lets the CLI prove process exit, not merely
+    // loss of the listening socket.
+    let reaper = std::thread::spawn(move || initial.wait().unwrap());
+    let restarted = std::process::Command::new(binary)
+        .args(["restart", "--ready-file"])
+        .arg(&ready_file)
+        .arg("--reason")
+        .arg("acceptance-restart")
+        .env_remove("SNAPBACK_ADMIN_TOKEN")
+        .output()
+        .unwrap();
+    assert!(
+        restarted.status.success(),
+        "restart stderr: {}\nstdout: {}",
+        String::from_utf8_lossy(&restarted.stderr),
+        String::from_utf8_lossy(&restarted.stdout)
+    );
+    assert!(reaper.join().unwrap().success());
+    let receipt: Value = serde_json::from_slice(&restarted.stdout).unwrap();
+    assert_eq!(receipt["operation"], "host.restart");
+    assert_eq!(receipt["ok"], true, "{receipt}");
+    assert_eq!(receipt["data"]["restartReason"], "acceptance-restart");
+    assert_eq!(receipt["data"]["previous"]["stoppedPid"], previous.pid);
+    assert_eq!(receipt["data"]["previous"]["exited"], true);
+    assert!(receipt["data"]["current"]["pid"].as_u64().is_some());
+    assert!(receipt["data"]["current"]["runtimeState"].is_object());
+    assert!(
+        !String::from_utf8_lossy(&restarted.stdout).contains(token.trim()),
+        "the administrator credential must not enter the restart receipt"
+    );
+    let current: Value = serde_json::from_slice(&fs::read(&ready_file).unwrap()).unwrap();
+    assert_ne!(current["startupNonce"], previous_nonce);
+
+    cleanup.stop();
+}
 
 fn generated(file: &str) -> Value {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -40,6 +181,61 @@ fn envelope(snapback: &mut LocalSnapback, body: Value) -> Value {
         Some("http://127.0.0.1:0".to_owned()),
     );
     serde_json::to_value(&result).expect("envelope serializes")
+}
+
+#[test]
+fn cron_list_host_operation_is_a_narrow_read_only_projection() {
+    let mut snapback = LocalSnapback::memory().expect("cron-list fixture");
+    let listed = envelope(&mut snapback, json!({ "operation": "cron.list" }));
+    assert_eq!(listed["ok"], true, "{listed}");
+    assert_eq!(listed["operation"], "cron.list");
+    assert_eq!(listed["data"]["cron"]["artifactKind"], "snapback.cron-list/v1");
+    assert!(listed["data"]["cron"]["jobs"].is_array());
+    assert!(listed["data"]["cron"].get("recentRuns").is_none());
+    assert!(listed["data"]["cron"].get("diagnostics").is_none());
+}
+
+#[tokio::test]
+async fn cron_list_get_alias_enforces_admin_read_and_returns_the_same_dto() {
+    let operation = snapback::server::operation_registry()
+        .into_iter()
+        .find(|operation| operation.operation == "host_ops.cron.list")
+        .expect("cron.list host operation registration");
+    assert_eq!(operation.path_policy, snapback::server::RoutePolicy::AdminRead);
+    assert_eq!(
+        operation.response_sensitivity,
+        snapback::server::ResponseSensitivity::OperatorMetadata
+    );
+
+    let listener = std::net::TcpListener::bind("0.0.0.0:0").unwrap();
+    let mut context = ServerContext::from_bound_listener(&listener).unwrap();
+    context.profile = ServerProfile::Test;
+    context.admin_token = Some("cron-admin".to_owned());
+    let test_app = snapback::server::app(AppState::from_snapback(
+        LocalSnapback::memory().expect("cron-list HTTP fixture"),
+        context,
+    ));
+
+    let refused = test_app
+        .clone()
+        .oneshot(admin_get("/_snapback/api/cron", None))
+        .await
+        .unwrap();
+    assert!(matches!(
+        refused.status(),
+        StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN
+    ));
+
+    let accepted = test_app
+        .oneshot(admin_get("/_snapback/api/cron", Some("cron-admin")))
+        .await
+        .unwrap();
+    assert_eq!(accepted.status(), StatusCode::OK);
+    let listed = response_json(accepted).await;
+    assert_eq!(listed["artifactKind"], "snapback.cron-list/v1");
+    assert!(listed["jobs"].is_array());
+    assert!(listed.get("recentRuns").is_none());
+    assert!(listed.get("diagnostics").is_none());
 }
 
 fn assert_reset_projection_unavailable(result: &Value) {
@@ -69,6 +265,119 @@ async fn response_json(response: axum::response::Response) -> Value {
             .expect("host-ops response body"),
     )
     .expect("host-ops response JSON")
+}
+
+fn admin_get(path: &str, token: Option<&str>) -> Request<Body> {
+    let mut request = Request::builder().method("GET").uri(path);
+    if let Some(token) = token {
+        request = request.header("x-snapback-admin-token", token);
+    }
+    request.body(Body::empty()).unwrap()
+}
+
+#[tokio::test]
+async fn build_and_instance_control_catalogs_are_admin_read_gated_and_identity_bound() {
+    let catalog_routes = snapback::server::route_registry()
+        .into_iter()
+        .filter(|route| route.path.starts_with("/_snapback/api/control-catalog"))
+        .collect::<Vec<_>>();
+    assert_eq!(catalog_routes.len(), 3);
+    assert!(catalog_routes.iter().all(|route| {
+        route.class == snapback::server::RouteClass::SystemApi
+            && route.path_policy == snapback::server::RoutePolicy::AdminRead
+            && route.credential_resolution
+                == snapback::server::CredentialResolution::AdminCredential
+            && route.invocation_authority == snapback::server::InvocationAuthority::Operator
+            && route.response_sensitivity == snapback::server::ResponseSensitivity::OperatorMetadata
+    }));
+
+    // A non-loopback-bound context disables the local read bypass, proving
+    // the declared AdminRead credential floor rather than only inspecting it.
+    let listener = std::net::TcpListener::bind("0.0.0.0:0").unwrap();
+    let mut context = ServerContext::from_bound_listener(&listener).unwrap();
+    context.profile = ServerProfile::Test;
+    context.admin_token = Some("catalog-admin".to_owned());
+    let state = AppState::from_snapback(LocalSnapback::memory().expect("catalog fixture"), context)
+        .with_server_startup_nonce("catalog-startup-nonce")
+        .unwrap();
+    let test_app = snapback::server::app(state);
+
+    let refused = test_app
+        .clone()
+        .oneshot(admin_get("/_snapback/api/control-catalog", None))
+        .await
+        .unwrap();
+    assert!(
+        matches!(
+            refused.status(),
+            StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN
+        ),
+        "an exposed catalog route must refuse without administrator authority"
+    );
+
+    let build = test_app
+        .clone()
+        .oneshot(admin_get(
+            "/_snapback/api/control-catalog",
+            Some("catalog-admin"),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(build.status(), StatusCode::OK);
+    let header_digest = build
+        .headers()
+        .get(snapback::control_catalog::CATALOG_DIGEST_HEADER)
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_owned();
+    let build_bytes = to_bytes(build.into_body(), usize::MAX).await.unwrap();
+    assert_eq!(
+        build_bytes.as_ref(),
+        snapback::control_catalog::BUILD_CATALOG_BYTES,
+        "the HTTP build catalog must be the exact bytes embedded in the binary"
+    );
+    let build_json: Value = serde_json::from_slice(&build_bytes).unwrap();
+    assert_eq!(build_json["catalogDigest"], header_digest);
+
+    let instance = test_app
+        .clone()
+        .oneshot(admin_get(
+            "/_snapback/api/control-catalog/instance",
+            Some("catalog-admin"),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(instance.status(), StatusCode::OK);
+    let instance = response_json(instance).await;
+    assert_eq!(
+        instance["schemaVersion"],
+        "snapback.control-catalog-instance.v1"
+    );
+    assert_eq!(instance["catalogDigest"], build_json["catalogDigest"]);
+    assert_eq!(instance["startupNonce"], "catalog-startup-nonce");
+    assert_eq!(instance["target"], "local");
+    assert_eq!(instance["profile"], "test");
+    assert!(
+        instance["enabledCapabilities"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|operation| operation == "debug.networkProfileGet")
+    );
+    snapback::control_catalog::require_matching_identity(&build_json, &instance).unwrap();
+
+    let described = test_app
+        .oneshot(admin_get(
+            "/_snapback/api/control-catalog/operations/debug.networkProfileSet",
+            Some("catalog-admin"),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(described.status(), StatusCode::OK);
+    let described = response_json(described).await;
+    assert_eq!(described["catalogDigest"], build_json["catalogDigest"]);
+    assert_eq!(described["entry"]["operation"], "debug.networkProfileSet");
 }
 
 #[tokio::test]
@@ -124,7 +433,9 @@ async fn network_profile_ops_share_the_activation_gate_and_standard_envelope() {
     assert_eq!(set["data"]["profile"]["name"], "optimistic");
     assert_eq!(set["data"]["provenance"]["source"], "host-ops");
     assert_ne!(
-        set["diagnostics"].get(0).and_then(|entry| entry.get("code")),
+        set["diagnostics"]
+            .get(0)
+            .and_then(|entry| entry.get("code")),
         Some(&json!("SNAPBACK_HOST_OP_UNIMPLEMENTED"))
     );
 
@@ -191,9 +502,11 @@ async fn network_profile_ops_share_the_activation_gate_and_standard_envelope() {
 
 #[tokio::test]
 async fn principal_bearing_mcp_profile_set_records_authenticated_provenance() {
-    let (registry, operator) =
-        ImpersonationCapabilityRegistry::generate("host-ops-network-principal".to_owned(), &OsRandom)
-            .expect("generate process-bound impersonation capability");
+    let (registry, operator) = ImpersonationCapabilityRegistry::generate(
+        "host-ops-network-principal".to_owned(),
+        &OsRandom,
+    )
+    .expect("generate process-bound impersonation capability");
     let mut capability = None;
     operator
         .emit_once_to_terminal(|value| {
@@ -399,6 +712,17 @@ fn p6_unserved_ops_fail_closed_with_structured_envelopes() {
         unknown["diagnostics"][0]["code"],
         json!("SNAPBACK_HOST_OP_UNKNOWN")
     );
+    assert!(
+        unknown["diagnostics"][0]["details"]["candidateOperations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|operation| operation == "app.inspect")
+    );
+    assert_eq!(
+        unknown["diagnostics"][0]["details"]["localMissSummary"]["capacity"],
+        128
+    );
 
     let pinned = envelope(&mut snapback, json!({ "operation": "schema.reload" }));
     assert_eq!(pinned["ok"], json!(false));
@@ -468,6 +792,89 @@ fn p6_unserved_ops_fail_closed_with_structured_envelopes() {
     assert_eq!(echoed["requestId"], json!("hop_fixed"));
 }
 
+#[test]
+fn served_function_refusals_project_manifest_candidates_and_argument_contracts() {
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    let loaded = envelope(
+        &mut snapback,
+        json!({ "operation": "schema.load", "schema": generated("schema.manifest.json") }),
+    );
+    assert_eq!(loaded["ok"], true, "load schema: {loaded}");
+    let loaded = envelope(
+        &mut snapback,
+        json!({ "operation": "functions.load", "functions": generated("functions.manifest.json") }),
+    );
+    assert_eq!(loaded["ok"], true, "load functions: {loaded}");
+
+    let mut unknown = Value::Null;
+    for _ in 0..3 {
+        unknown = envelope(
+            &mut snapback,
+            json!({ "operation": "function.run", "function": "listTods", "args": {} }),
+        );
+    }
+    let details = &unknown["diagnostics"][0]["details"];
+    assert_eq!(
+        unknown["diagnostics"][0]["code"],
+        "SNAPBACK_HOST_OP_FUNCTION_UNKNOWN"
+    );
+    assert_eq!(details["candidateFunctions"][0]["name"], "listTodos");
+    assert_eq!(details["candidateFunctions"][0]["kind"], "LiveQuery");
+    assert_eq!(
+        details["artifactHash"],
+        generated("functions.manifest.json")["bundleHash"]
+    );
+    assert!(
+        details["localMissSummary"]["sameMissCount"]
+            .as_u64()
+            .unwrap()
+            >= 3
+    );
+    assert!(
+        !serde_json::to_string(&unknown)
+            .unwrap()
+            .contains("listTods")
+    );
+
+    let unknown_field = envelope(
+        &mut snapback,
+        json!({
+            "operation": "function.run",
+            "function": "createTodo",
+            "args": { "titel": "not disclosed" },
+            "userId": "user_1"
+        }),
+    );
+    let details = &unknown_field["diagnostics"][0]["details"];
+    assert_eq!(
+        unknown_field["diagnostics"][0]["code"],
+        "SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION"
+    );
+    assert_eq!(details["candidateFields"][0]["name"], "title");
+    assert_eq!(details["candidateFields"][0]["expected"], "string");
+    assert!(details["expectedArgumentContract"].is_object());
+    assert!(
+        !serde_json::to_string(&unknown_field)
+            .unwrap()
+            .contains("titel")
+    );
+
+    let wrong_shape = envelope(
+        &mut snapback,
+        json!({
+            "operation": "function.run",
+            "function": "createTodo",
+            "args": { "title": 42 },
+            "userId": "user_1"
+        }),
+    );
+    let details = &wrong_shape["diagnostics"][0]["details"];
+    assert_eq!(details["expected"], "string");
+    assert_eq!(details["actual"], "number");
+    assert_eq!(details["candidateFields"][0]["name"], "title");
+    assert_eq!(details["candidateFields"][0]["expected"], "string");
+}
+
 #[tokio::test]
 async fn p6_ready_file_descriptor_is_written_and_validates() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -488,6 +895,7 @@ async fn p6_ready_file_descriptor_is_written_and_validates() {
         hosted_edge: None,
         hosted_admission: None,
         cron_disabled: false,
+        derived_fork_arm_writer_coverage: false,
     };
     let server = tokio::spawn(snapback::cli::run(args));
 
@@ -550,6 +958,7 @@ async fn p6_secret_read_root_sidecar_does_not_survive_descriptor_custody() {
         hosted_edge: None,
         hosted_admission: None,
         cron_disabled: false,
+        derived_fork_arm_writer_coverage: false,
     };
     let server = tokio::spawn(snapback::cli::run(args));
 

@@ -69,7 +69,12 @@ const server = createServer(async (request, response) => {
   const chunks = [];
   for await (const chunk of request) chunks.push(chunk);
   const body = chunks.length === 0 ? null : JSON.parse(Buffer.concat(chunks).toString('utf8'));
-  calls.push({ path: request.url, body, authorization: request.headers.authorization ?? null });
+  calls.push({
+    path: request.url,
+    body,
+    authorization: request.headers.authorization ?? null,
+    authClientProtocol: request.headers['x-snapback-auth-client-protocol'] ?? null,
+  });
   const send = (status, value, headers = {}) => {
     response.writeHead(status, { 'content-type': 'application/json', ...headers });
     response.end(value === null ? '' : JSON.stringify(value));
@@ -157,6 +162,7 @@ const server = createServer(async (request, response) => {
       authorizedLease: null,
     });
   }
+  if (request.url === '/query/devEcho') return send(200, { rows: [], version: 0 });
   if (request.url === '/redirect-token') return send(307, null, { location: '/redirect-sentinel' });
   if (request.url === '/redirect-sentinel') {
     redirectHits += 1;
@@ -193,6 +199,18 @@ try {
       perGrantTokenCap: 4,
     },
   };
+  const selectedDev = await selectPrincipal({ requested: 'dev', devUser: ACTOR, env: {} });
+  const devInvocation = await principalClient(origin, surface, selectedDev);
+  await devInvocation.client.query('devEcho');
+  const devCall = calls.at(-1);
+  assert.equal(devCall.path, '/query/devEcho');
+  assert.equal(devCall.authClientProtocol, '1', 'dev calls offer the current auth protocol');
+  assert.equal(
+    devCall.body.auth.user_id,
+    ACTOR,
+    'the app CLI dev lane preserves its explicit development assertion on the wire',
+  );
+
   const invocation = await principalClient(origin, surface, selected, {
     env: { AUTH_TEST_AGENT_CREDENTIAL: AGENT_SECRET },
     authorityRoot,

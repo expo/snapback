@@ -107,6 +107,12 @@ struct ArgsViolation {
     expected: &'static str,
     actual: &'static str,
     failed_variants: Option<usize>,
+    unknown_field: Option<UnknownFieldContext>,
+}
+
+struct UnknownFieldContext {
+    guessed: String,
+    available: Vec<crate::manifest::ResultObjectFieldContract>,
 }
 
 impl ArgsViolation {
@@ -116,7 +122,20 @@ impl ArgsViolation {
             expected,
             actual,
             failed_variants: None,
+            unknown_field: None,
         }
+    }
+
+    fn with_unknown_field(
+        mut self,
+        guessed: &str,
+        available: &[crate::manifest::ResultObjectFieldContract],
+    ) -> Self {
+        self.unknown_field = Some(UnknownFieldContext {
+            guessed: guessed.to_owned(),
+            available: available.to_vec(),
+        });
+        self
     }
 }
 
@@ -148,6 +167,7 @@ pub fn validate_function_args(function: &FunctionDefinition, args: &Value) -> Sn
                 expected: "object",
                 actual: "oversized",
                 failed_variants: None,
+                unknown_field: None,
             },
         ));
     }
@@ -182,6 +202,7 @@ fn validate_args_root(args: &Value, contract: &FunctionArgsContract) -> Result<(
             "declared argument",
             "undeclared",
         )
+        .with_unknown_field(name, &contract.fields)
         .into());
     }
     let mut budget = 0_usize;
@@ -336,7 +357,9 @@ fn validate_node(
             {
                 let mut child = path.to_vec();
                 child.push(PointerSegment::UnknownKey(name.clone()));
-                return Err(ArgsViolation::at(&child, "declared field", "undeclared").into());
+                return Err(ArgsViolation::at(&child, "declared field", "undeclared")
+                    .with_unknown_field(name, fields)
+                    .into());
             }
             for field in fields {
                 let mut child = path.to_vec();
@@ -487,24 +510,34 @@ fn node_kind(contract: &ResultValueContract) -> &'static str {
 }
 
 fn violation(function: &FunctionDefinition, shape: ArgsViolation) -> SnapbackError {
+    let ArgsViolation {
+        pointer,
+        expected,
+        actual,
+        failed_variants,
+        unknown_field,
+    } = shape;
     let mut details = json!({
         "functionId": function.id,
         "kind": function.kind,
         "argsContractHash": function.args_contract_hash,
-        "path": shape.pointer,
-        "expected": shape.expected,
-        "actual": shape.actual,
+        "path": pointer,
+        "expected": expected,
+        "actual": actual,
     });
-    if let (Some(map), Some(failed)) = (details.as_object_mut(), shape.failed_variants) {
+    if let (Some(map), Some(failed)) = (details.as_object_mut(), failed_variants) {
         map.insert("failedVariants".to_owned(), json!(failed));
+    }
+    if let Some(map) = details.as_object_mut() {
+        let unknown_field = unknown_field
+            .as_ref()
+            .map(|unknown| (unknown.guessed.as_str(), unknown.available.as_slice()));
+        crate::authoring_suggestion::enrich_argument_details(map, function, unknown_field);
     }
     SnapbackError::error(
         "SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION",
         "runtime",
-        format!(
-            "function {:?} was invoked with arguments outside its declared contract",
-            function.id
-        ),
+        "the function was invoked with arguments outside its served contract",
     )
     .with_details(details)
 }
@@ -674,8 +707,14 @@ mod tests {
     #[test]
     fn undeclared_root_property_refuses_with_hashed_unknown_key() {
         let function = function(split_vector_contract());
-        let error = validate_function_args(&function, &json!({ "splits": [], "extra": true }))
-            .expect_err("undeclared root property");
+        let mut error = None;
+        for _ in 0..3 {
+            error = Some(
+                validate_function_args(&function, &json!({ "splits": [], "extra": true }))
+                    .expect_err("undeclared root property"),
+            );
+        }
+        let error = error.expect("three refusals produce a final diagnostic");
         let details = &error.diagnostic.details;
         let path = details["path"].as_str().expect("path");
         assert!(
@@ -683,6 +722,34 @@ mod tests {
             "unknown application-controlled keys are hashed, got {path}"
         );
         assert_eq!(details["actual"], "undeclared");
+        let splits = details["candidateFields"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|candidate| candidate["name"] == "splits")
+            .expect("served split field is suggested");
+        assert_eq!(splits["expected"], "array");
+        assert_eq!(
+            details["artifactHash"],
+            function.args_contract_hash.as_deref().unwrap()
+        );
+        assert_eq!(
+            details["expectedArgumentContract"],
+            serde_json::to_value(function.args_contract.as_ref().unwrap()).unwrap()
+        );
+        assert!(
+            details["localMissSummary"]["sameMissCount"]
+                .as_u64()
+                .unwrap()
+                >= 3
+        );
+        assert_eq!(details["localMissSummary"]["capacity"], 128);
+        assert!(
+            !serde_json::to_string(&error.diagnostic)
+                .expect("diagnostic serializes")
+                .contains("extra"),
+            "the rejected field name must not be disclosed"
+        );
     }
 
     #[test]
@@ -725,6 +792,24 @@ mod tests {
         assert_eq!(details["path"], "/title");
         assert_eq!(details["expected"], "string");
         assert_eq!(details["actual"], "number");
+        assert_eq!(details["candidateFields"][0]["name"], "title");
+        assert_eq!(details["candidateFields"][0]["expected"], "string");
+        assert!(details["expectedArgumentContract"].is_object());
+    }
+
+    #[test]
+    fn command_mutation_asset_ref_argument_admits_only_nonempty_ids() {
+        let function = function(FunctionArgsContract {
+            fields: vec![field("image", true, ResultValueContract::AssetRef)],
+        });
+        validate_function_args(&function, &json!({ "image": "asset-1" }))
+            .expect("opaque asset id");
+        for rejected in [json!({ "image": "" }), json!({ "image": 42 })] {
+            let error = validate_function_args(&function, &rejected)
+                .expect_err("empty or non-string asset refs refuse");
+            assert_eq!(error.diagnostic.details["path"], "/image");
+            assert_eq!(error.diagnostic.details["expected"], "assetRef");
+        }
     }
 
     #[test]
@@ -739,6 +824,28 @@ mod tests {
         validate_function_args(&optional_only, &Value::Null).expect("absent args");
         let required = function(split_vector_contract());
         validate_function_args(&required, &Value::Null).expect_err("missing required");
+    }
+
+    // @ref LLP 0131#ruling-2-item-2--explicit-null-optionals-canonical-form-projection
+    // — optionality admits omission, not null outside the inner contract.
+    #[test]
+    fn optional_non_null_argument_refuses_explicit_null() {
+        let function = function(FunctionArgsContract {
+            fields: vec![field(
+                "limit",
+                false,
+                ResultValueContract::Integer { min: 1, max: 50 },
+            )],
+        });
+        let error = validate_function_args(&function, &json!({ "limit": null }))
+            .expect_err("explicit null is not an omitted optional integer");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION"
+        );
+        assert_eq!(error.diagnostic.details["path"], "/limit");
+        assert_eq!(error.diagnostic.details["expected"], "integer");
+        assert_eq!(error.diagnostic.details["actual"], "null");
     }
 
     #[test]

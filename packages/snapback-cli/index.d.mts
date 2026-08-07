@@ -164,6 +164,12 @@ export function scrubDynamicLoaderEnvironment(
   environment?: EnvironmentVariables,
 ): Record<string, string | undefined>;
 
+/** Add an adjacent packaged-store receipt unless the caller already set one. */
+export function runtimeSpawnEnvironment(
+  binary: string,
+  environment?: EnvironmentVariables,
+): Record<string, string | undefined>;
+
 // ---------------------------------------------------------------------------
 // Runtime selection and doctor
 // ---------------------------------------------------------------------------
@@ -529,22 +535,6 @@ export function attachDevControlChannel(options: {
   readonly stdin?: DevControlStdin;
 }): () => void;
 
-export interface PackagedCliHelpEntry {
-  readonly name: string;
-  readonly usage: string;
-  readonly description: string;
-  readonly lifecycle: string;
-  readonly output: string;
-  readonly exits: string;
-  readonly recovery: string;
-  readonly path?: readonly string[];
-  readonly details?: readonly string[];
-}
-
-/** Data-only help registries rendered before command dispatch. */
-export const PACKAGED_CLI_COMMANDS: readonly PackagedCliHelpEntry[];
-export const PACKAGED_CLI_SUBCOMMANDS: readonly PackagedCliHelpEntry[];
-
 // ---------------------------------------------------------------------------
 // CLI entry
 // ---------------------------------------------------------------------------
@@ -570,4 +560,5 @@ export const __test: {
   readReadyDescriptor: typeof readReadyDescriptor;
   runtimePackages: Record<string, string>;
   scrubDynamicLoaderEnvironment: typeof scrubDynamicLoaderEnvironment;
+  runtimeSpawnEnvironment: typeof runtimeSpawnEnvironment;
 };

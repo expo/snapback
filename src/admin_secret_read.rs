@@ -61,9 +61,7 @@ impl SecretReadScope {
             | Self::Receipts
             | Self::TelemetryEvents
             | Self::TelemetryExport
-            | Self::ErrorsIssue => {
-                Ok(())
-            }
+            | Self::ErrorsIssue => Ok(()),
             Self::Table(name) | Self::FunctionRun(name) | Self::FunctionExplain(name) => {
                 if name.trim().is_empty() || name.contains('*') || name.len() > MAX_SCOPE_NAME_BYTES
                 {
@@ -1176,6 +1174,7 @@ mod tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 }],
                 ..SchemaManifest::default()
             })

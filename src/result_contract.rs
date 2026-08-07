@@ -237,6 +237,16 @@ fn path_segment(name: &str) -> String {
     }
 }
 
+/// Dynamic JSON-object keys may be application data rather than authored or
+/// stored field structure. Keep those keys out of diagnostics while retaining
+/// a stable, bounded discriminator that lets repeated failures be correlated.
+/// Declared object fields and closed-record extra fields use `path_segment`
+/// above and remain legible to the author.
+fn dynamic_path_segment(name: &str) -> String {
+    let digest = format!("{:x}", Sha256::digest(name.as_bytes()));
+    format!("<unknown>#{}", &digest[..12])
+}
+
 fn validate_json_budget(
     value: &Value,
     depth: usize,
@@ -275,7 +285,7 @@ fn validate_json_budget_with_limit(
                     depth + 1,
                     max_depth,
                     budget,
-                    &format!("{path}.{}", path_segment(name)),
+                    &format!("{path}.{}", dynamic_path_segment(name)),
                 )?;
             }
         }
@@ -313,7 +323,7 @@ fn validate_json_children_with_limit(
                     depth + 1,
                     max_depth,
                     budget,
-                    &format!("{path}.{}", path_segment(name)),
+                    &format!("{path}.{}", dynamic_path_segment(name)),
                 )?;
             }
         }
@@ -323,7 +333,6 @@ fn validate_json_children_with_limit(
 }
 
 fn violation(function: &FunctionDefinition, path: &str) -> SnapbackError {
-    let path_hash = Sha256::digest(path.as_bytes());
     SnapbackError::error(
         "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION",
         "runtime",
@@ -335,7 +344,7 @@ fn violation(function: &FunctionDefinition, path: &str) -> SnapbackError {
     .with_details(json!({
         "functionId": function.id,
         "resultContractHash": function.result_contract_hash,
-        "pathHash": format!("sha256:{path_hash:x}"),
+        "path": path,
     }))
 }
 
@@ -384,7 +393,62 @@ mod tests {
             error.diagnostic.code,
             "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION"
         );
+        assert_eq!(error.diagnostic.details["path"], "$[0].secret");
+        assert!(error.diagnostic.details.get("pathHash").is_none());
         assert!(!error.to_string().contains("do-not-echo"));
+    }
+
+    #[test]
+    fn exact_record_contract_names_stored_system_field_and_row() {
+        let function = function(FunctionResultContract::Records {
+            record: ResultValueContract::Object {
+                fields: vec![ResultObjectFieldContract {
+                    name: "title".to_owned(),
+                    required: true,
+                    value: ResultValueContract::String { max_bytes: 8 },
+                }],
+                allow_extra: false,
+            },
+            rows: None,
+        });
+        let error = validate_handler_result(
+            &function,
+            &json!([
+                {"title": "zero"},
+                {"title": "one"},
+                {"title": "two"},
+                {"title": "three", "_version": "do-not-echo-system-value"}
+            ]),
+        )
+        .unwrap_err();
+
+        assert_eq!(error.diagnostic.details["path"], "$[3]._version");
+        assert!(!error.to_string().contains("do-not-echo-system-value"));
+    }
+
+    #[test]
+    fn bounded_json_violation_redacts_dynamic_keys_and_values() {
+        let function = function(FunctionResultContract::Value {
+            value: ResultValueContract::Json {
+                max_depth: 0,
+                max_bytes: 1_024,
+            },
+        });
+        let dynamic_key = "private@example.com";
+        let offending_value = "do-not-echo-dynamic-value";
+        let value = Value::Object(serde_json::Map::from_iter([(
+            dynamic_key.to_owned(),
+            Value::String(offending_value.to_owned()),
+        )]));
+        let error = validate_handler_result(&function, &value).unwrap_err();
+
+        let path = error.diagnostic.details["path"]
+            .as_str()
+            .expect("legible redacted path");
+        assert!(path.starts_with("$.<unknown>#"), "{path}");
+        assert!(!path.contains(dynamic_key), "{path}");
+        assert!(!error.to_string().contains(dynamic_key));
+        assert!(!error.to_string().contains(offending_value));
     }
 
     #[test]

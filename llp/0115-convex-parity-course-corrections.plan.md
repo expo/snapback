@@ -41,7 +41,9 @@ an enqueue stub. A file-backed crash/reopen witness now closes its remaining
 attempt-ledger evidence gap: stored lease expiry receipts attempt 1, advances
 attempt/fence, rejects stale publication, and persists attempt-2 success. No
 `ctx.scheduler` alias or new production vocabulary was needed; LLP 0070's
-broader profile remains unclaimed.) 2026-08-02 (decision-sitting propagation: OQ5 is reaffirmed and
+broader profile remains unclaimed.) 2026-08-06 (OQ5 board update: the locally provable closure shipped —
+npm `latest` = 0.1.9 on all nine `@expo/snapback-*` packages, fast-path per
+LLP 0041; hosted claims remain separately gated.) 2026-08-02 (decision-sitting propagation: OQ5 is reaffirmed and
 carried into its owners — the locally provable npm closure follows LLP 0074's
 parallel gate and LLP 0134's maturity bar, independently of hosted work;
 source: `issues/20260802-author-decision-packet.md`). 2026-07-31 (§Sequencing 5 rerun-arm prep EXECUTED: the

@@ -11,6 +11,7 @@ import {
   buildFlatGuide,
   buildManifest,
   checkCapabilityIndex,
+  checkPublishedClosure,
   checkSnippets,
   loadCorpus,
   parseCapabilityIndex,
@@ -22,6 +23,7 @@ const { errors, pageInfo, pageBodies } = loadCorpus(root);
 const snippetRecords = checkSnippets(root, pageBodies, errors);
 const index = parseCapabilityIndex(root, errors);
 const surfaces = checkCapabilityIndex(root, index, pageInfo, errors);
+checkPublishedClosure(root, pageInfo, pageBodies, errors);
 if (errors.length > 0) {
   for (const line of errors) console.error(`[guide-manifest] error: ${line}`);
   console.error('[guide-manifest] refusing to write a manifest over a failing corpus');

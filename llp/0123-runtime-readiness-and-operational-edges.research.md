@@ -5,7 +5,15 @@
 **Systems:** Competitive evaluation, Developer experience, Runtime, Bootstrap, Packaging, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-08-05 (desktop-sidecar boundary note: LLP 0129 Phase 2b now
+**Revised:** 2026-08-06 (Darwin npm-shape correction: the package seal and
+production layout now bind the real versioned Hermes framework file named by
+the Mach-O load command, not a convenience symlink npm omits; publication
+reopens the seal from the actual packed bytes.) 2026-08-06 (Option 3 package sealing landed: both runtime
+packages carry one package-owned `snapback.runtime-readiness.v1` seal binding
+the binary, shipped Hermes header/runtime digests, full build identity, source
+revision, and the separate-process CV-2 verdict; production qualifies after
+assembly and the CLI re-hashes the seal before returning a packaged binary.)
+2026-08-05 (desktop-sidecar boundary note: LLP 0129 Phase 2b now
 consumes the runtime-package resolver and exposes a pre-commit
 `verifyCandidate` hook, but its descriptor/health nonce attestation is only a
 live-child identity proof. It does not seal the binary/Hermes pair, qualify
@@ -523,6 +531,49 @@ future package-production/consumption verifier, not permission to label the
 current package sealed. Option 1's behavioral qualification and this option's
 attestation-custody work therefore remain necessary before LLP 0129's
 "sealed, attested artifact" phrase can be promoted beyond a named dependency.
+
+#### Package seal landing (2026-08-06)
+
+The Option 3 package boundary is now sealed. Both platform packages stage the
+compile-side Hermes header with the load-time framework/library and emit one
+package-owned `snapback.runtime-readiness.v1` receipt binding their SHA-256
+digests, the binary digest, the full `snapback.binary-identity.v1` build
+identity, exact source revision, and the complete successful
+`snapback.runtime-qualify.v1` verdict. Darwin and native Linux production run
+the CV-2 probe only after the final `bin/../Frameworks` or `bin/../lib` layout
+exists, with loader overrides scrubbed so the binary's LC_RPATH/RUNPATH is the
+authority. Cross-host Linux assembly accepts only the byte-identical native
+builder attestation, now extended with the header digest and successful
+qualification verdict, because a Darwin assembler cannot execute an x86-64
+ELF binary.
+
+Package-manager tarball integrity owns custody of the receipt as a member of
+the same immutable package. At consumption, the packaged CLI resolver refuses
+before returning the binary unless `verifyRuntimePackageSeal` re-hashes the
+installed binary, header, and Hermes runtime and reopens the source/build/
+verdict binding. A replaced binary classifies `binary-drift`; a swapped or
+missing Hermes artifact classifies `framework-drift`. The app-owned
+`.snapback/runtime-readiness.json` flow remains a separate, later live
+qualification record; it no longer substitutes for the package-production
+seal.
+
+**Darwin npm-shape correction (2026-08-06).** The release binary's Mach-O
+load command names
+`@rpath/hermesvm.framework/Versions/1/hermesvm`; dyld does not open the
+top-level `hermesvm.framework/hermesvm` convenience symlink. npm omits that
+symlink when packing/installing the framework. Darwin production therefore
+stages the versioned real-file tree, qualifies that symlink-less final layout,
+and records `Frameworks/hermesvm.framework/Versions/1/hermesvm` in the seal.
+The publisher extracts every runtime tarball and reopens its seal from those
+npm-serialized bytes, so a pre-pack-only artifact spelling cannot pass again.
+
+This landing deliberately does **not** add the in-serving-process boot witness
+analyzed in Option 2. That witness still needs LLP 0009/Ibex host-handoff work
+before it can consume a strict Host token safely. It also does not add richer
+native refusal-reason propagation: that remains a new vendored-Ibex C-ABI
+channel (§Option 2, invocation-error fidelity). Package sealing uses the
+already posture-neutral, short-lived `runtime-qualify` subprocess and requires
+neither deferred change.
 
 ### Option 4 — Content-addressed immutable dynamic engine selection
 

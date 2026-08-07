@@ -1,12 +1,13 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex as StdMutex;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{
     Arc, Condvar, MutexGuard, OnceLock, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard,
 };
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sha2::{Digest as _, Sha256};
 use tokio::sync::Notify;
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
@@ -427,7 +428,9 @@ impl DeliveryNotifier {
                 };
                 if spawn {
                     #[cfg(test)]
-                    notifier.deadline_task_spawns.fetch_add(1, Ordering::Relaxed);
+                    notifier
+                        .deadline_task_spawns
+                        .fetch_add(1, Ordering::Relaxed);
                     runtime.spawn(Arc::clone(&notifier).run_deadline_scheduler());
                 } else if earlier {
                     notifier.deadline_changed.notify_one();
@@ -1084,6 +1087,18 @@ pub struct DeleteRequest {
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+pub struct OperatorDeleteRequest {
+    pub collection: String,
+    pub scope: Scope,
+    pub entry_key: String,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
+    pub expected_scope_epoch: u64,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
+    pub expected_entry_generation: u64,
+    pub reason: String,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct SubscribeRequest {
     pub collection: String,
     pub scope: Scope,
@@ -1105,6 +1120,10 @@ pub struct PublishOutcome {
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum EphemeralErrorCode {
     UnknownCollection,
+    RoomNotFound,
+    EntryNotFound,
+    StaleScopeEpoch,
+    StaleEntryGeneration,
     Unauthorized,
     InvalidScope,
     MissingKey,
@@ -1139,6 +1158,10 @@ impl EphemeralErrorCode {
     pub fn diagnostic_code(self) -> &'static str {
         match self {
             Self::UnknownCollection => "SNAPBACK_EPHEMERAL_UNKNOWN_COLLECTION",
+            Self::RoomNotFound => "SNAPBACK_EPHEMERAL_ROOM_NOT_FOUND",
+            Self::EntryNotFound => "SNAPBACK_EPHEMERAL_ENTRY_NOT_FOUND",
+            Self::StaleScopeEpoch => "SNAPBACK_EPHEMERAL_STALE_SCOPE_EPOCH",
+            Self::StaleEntryGeneration => "SNAPBACK_EPHEMERAL_STALE_ENTRY_GENERATION",
             Self::Unauthorized => "SNAPBACK_EPHEMERAL_UNAUTHORIZED",
             Self::InvalidScope => "SNAPBACK_EPHEMERAL_INVALID_SCOPE",
             Self::MissingKey => "SNAPBACK_EPHEMERAL_MISSING_KEY",
@@ -2046,6 +2069,54 @@ pub struct EphemeralRoomDiagnostics {
     pub subscribers: usize,
     pub value_bytes: usize,
     pub retained_bytes: usize,
+}
+
+/// Counts captured by one room-linearized operator cleanup pass.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct EphemeralCleanupCounts {
+    pub examined: usize,
+    pub eligible: usize,
+    pub would_delete: usize,
+    pub deleted: usize,
+    pub remaining: usize,
+}
+
+impl EphemeralCleanupCounts {
+    fn add_assign(&mut self, other: &Self) {
+        self.examined = self.examined.saturating_add(other.examined);
+        self.eligible = self.eligible.saturating_add(other.eligible);
+        self.would_delete = self.would_delete.saturating_add(other.would_delete);
+        self.deleted = self.deleted.saturating_add(other.deleted);
+        self.remaining = self.remaining.saturating_add(other.remaining);
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct EphemeralCleanupRoomReport {
+    /// Stable digest of the complete room identity. Raw scope/routing values
+    /// never enter the operator receipt.
+    pub room_digest: String,
+    pub counts: EphemeralCleanupCounts,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct EphemeralCleanupCollectionReport {
+    pub collection: String,
+    pub counts: EphemeralCleanupCounts,
+    pub rooms: Vec<EphemeralCleanupRoomReport>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct EphemeralCleanupReport {
+    pub counts: EphemeralCleanupCounts,
+    pub collections: Vec<EphemeralCleanupCollectionReport>,
+    pub truncated: bool,
+    pub complete: bool,
+    pub blocked_rooms: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -5915,6 +5986,121 @@ impl LocalEphemeralBackend {
         Ok(removed)
     }
 
+    /// Operator-only ephemeral-entry delete (LLP 0184 §C). Distinct from
+    /// `delete`/`delete_with_room_authority`: no connection/ownership
+    /// authority is evaluated — this is an explicit administrator bypass,
+    /// fenced on BOTH the room's current scope epoch and the entry's own
+    /// generation (`entry_version`) together, compared under the room lock.
+    /// A room that empties and is recreated within one server startup gets a
+    /// fresh scope epoch while its entry-version counter restarts at 1, so
+    /// generation alone would not be fencing-safe against a reborn room
+    /// reusing an old generation number.
+    ///
+    /// @ref LLP 0184#c-administrator-ephemeral-entry-delete--add-now — epoch+generation fencing, explicit bypass, ordinary notification.
+    pub fn operator_delete(
+        &self,
+        request: OperatorDeleteRequest,
+        now_ms: Millis,
+    ) -> Result<EphemeralMessage, EphemeralError> {
+        let _generation = self.lifecycle_read("ephemeral operator delete");
+        let collection = self.collection(&request.collection)?;
+        let room_id = room_id_for(&collection, &request.scope)?;
+        let key = EntryKey(request.entry_key.clone());
+        let (room_authority_generation, _room_authority) =
+            self.room_authority_for_act(&collection, &room_id, None)?;
+
+        let result = self.with_existing_room(&room_id, |room| {
+            if room.scope_epoch != request.expected_scope_epoch {
+                return Err(EphemeralError::new(
+                    EphemeralErrorCode::StaleScopeEpoch,
+                    format!(
+                        "expected scope epoch {} does not match the room's current epoch {}",
+                        request.expected_scope_epoch, room.scope_epoch
+                    ),
+                ));
+            }
+            let Some(record) = room.entries.get(&key) else {
+                return Err(EphemeralError::new(
+                    EphemeralErrorCode::EntryNotFound,
+                    "no entry exists at this key in this room",
+                ));
+            };
+            if record.entry_version != request.expected_entry_generation {
+                return Err(EphemeralError::new(
+                    EphemeralErrorCode::StaleEntryGeneration,
+                    format!(
+                        "expected entry generation {} does not match the entry's current generation {}",
+                        request.expected_entry_generation, record.entry_version
+                    ),
+                ));
+            }
+
+            let expired = room
+                .entries
+                .values()
+                .filter(|record| record.expires_at_ms <= now_ms)
+                .count();
+            let delete_after_sweep = usize::from(record.expires_at_ms > now_ms);
+            if let Err(error) =
+                room.ensure_version_capacity(expired.saturating_add(delete_after_sweep))
+            {
+                room.retired = true;
+                return Err(error);
+            }
+            self.sweep_room_locked(
+                room,
+                &room_id,
+                Some(&collection),
+                now_ms,
+                room_authority_generation,
+            )?;
+            let Some(record) = room.entries.get(&key) else {
+                return Ok((None, BTreeSet::new()));
+            };
+            let affected = room
+                .owner_connections
+                .get(&record.owner)
+                .cloned()
+                .unwrap_or_default();
+            let removed = remove_entry_locked(
+                room,
+                &room_id,
+                &key,
+                RemoveReason::Deleted,
+                room_authority_generation,
+            )?;
+            if let Some(message) = &removed {
+                self.fan_out_locked(room, &room_id, &collection, message.clone());
+            }
+            Ok((removed, affected))
+        });
+        let (removed, affected_connections) = match result {
+            Some(Ok(result)) => result,
+            Some(Err(error)) => {
+                if error.code == EphemeralErrorCode::GenerationExhausted {
+                    self.retire_generation_exhausted_room(&room_id);
+                }
+                return Err(error);
+            }
+            None => {
+                return Err(EphemeralError::new(
+                    EphemeralErrorCode::RoomNotFound,
+                    "no room exists at this collection/scope identity",
+                ));
+            }
+        };
+        for connection_id in affected_connections {
+            self.unindex_connection_room_if_unused(&connection_id, &room_id);
+        }
+        self.prune_room_if_empty(&room_id);
+        removed.ok_or_else(|| {
+            EphemeralError::new(
+                EphemeralErrorCode::EntryNotFound,
+                "no entry exists at this key in this room",
+            )
+        })
+    }
+
     /// Remove one connection's subscriber registration from a room without
     /// touching its published entries (ENG-22527 item 3: the adapter's
     /// idle-room teardown). Dropping observation is never privileged — the
@@ -6533,6 +6719,215 @@ impl LocalEphemeralBackend {
         }
     }
 
+    /// Preview or apply an operator-bounded expiry cleanup at an explicit
+    /// cutoff. The periodic wall-clock sweep above remains the compatibility
+    /// path for server maintenance; this method is the receipt-bearing LLP
+    /// 0184 control operation.
+    ///
+    /// Each room is linearized independently. Apply uses the same
+    /// `remove_entry_locked` + `fan_out_locked` mechanics as ordinary expiry,
+    /// while the global bound caps the number of removed entries across the
+    /// complete pass. Dry-run does not consume or rewrite the expiry index.
+    ///
+    /// @ref LLP 0184#p2-controlled-mutations — explicit cutoff, dry-run
+    /// counts, bounded apply, and an honest truncation/blocked-room report.
+    pub fn cleanup_expired_bounded(
+        &self,
+        cutoff_timestamp_ms: Millis,
+        max_entries: usize,
+        dry_run: bool,
+    ) -> EphemeralCleanupReport {
+        let _lifecycle = self.lifecycle_read("bounded ephemeral expiry cleanup");
+        let due: Vec<RoomId> = {
+            let mut index = lock(&self.shared.expiry_index);
+            if dry_run {
+                index
+                    .iter()
+                    .take_while(|((deadline, _), ())| *deadline <= cutoff_timestamp_ms)
+                    .map(|((_, room_id), ())| room_id.clone())
+                    .collect()
+            } else {
+                let mut due = Vec::new();
+                while let Some(entry) = index.first_entry() {
+                    if entry.key().0 > cutoff_timestamp_ms {
+                        break;
+                    }
+                    let ((_, room_id), ()) = entry.remove_entry();
+                    due.push(room_id);
+                }
+                due
+            }
+        };
+
+        let mut remaining_budget = max_entries;
+        let mut room_reports = Vec::new();
+        let mut blocked_rooms = 0_usize;
+
+        for room_id in due {
+            let collection = self.collection_if_loaded(&room_id.collection);
+            let room_authority = match collection
+                .as_ref()
+                .map(|collection| self.begin_room_authority_act(collection, &room_id))
+                .transpose()
+            {
+                Ok(room_authority) => room_authority.flatten(),
+                Err(_) => {
+                    blocked_rooms = blocked_rooms.saturating_add(1);
+                    if !dry_run {
+                        self.with_existing_room(&room_id, |room| {
+                            if room
+                                .indexed_deadline
+                                .is_some_and(|deadline| deadline <= cutoff_timestamp_ms)
+                            {
+                                room.indexed_deadline = None;
+                                room.retained_bytes = room
+                                    .retained_bytes
+                                    .saturating_sub(retained_expiry_index_entry_bytes(&room_id));
+                            }
+                            if let Some(earliest) = next_expiry_deadline(room) {
+                                self.index_room_deadline(room, &room_id, earliest);
+                            }
+                        });
+                    }
+                    continue;
+                }
+            };
+            let room_authority_generation = room_authority
+                .as_ref()
+                .map(RoomAuthorityPermit::generation)
+                .unwrap_or(0);
+            let available_budget = remaining_budget;
+            let outcome: Option<Result<(EphemeralCleanupCounts, bool), EphemeralError>> = self
+                .with_existing_room(&room_id, |room| {
+                    if !dry_run
+                        && room
+                            .indexed_deadline
+                            .is_some_and(|deadline| deadline <= cutoff_timestamp_ms)
+                    {
+                        room.indexed_deadline = None;
+                        room.retained_bytes = room
+                            .retained_bytes
+                            .saturating_sub(retained_expiry_index_entry_bytes(&room_id));
+                    }
+
+                    let eligible_keys = room
+                        .entries
+                        .iter()
+                        .filter_map(|(key, record)| {
+                            (record.expires_at_ms <= cutoff_timestamp_ms).then_some(key.clone())
+                        })
+                        .collect::<Vec<_>>();
+                    let planned = eligible_keys.len().min(available_budget);
+                    let mut counts = EphemeralCleanupCounts {
+                        examined: room.entries.len(),
+                        eligible: eligible_keys.len(),
+                        would_delete: planned,
+                        deleted: 0,
+                        remaining: eligible_keys.len().saturating_sub(planned),
+                    };
+
+                    if !dry_run && planned > 0 {
+                        if let Err(error) = room.ensure_version_capacity(planned) {
+                            if let Some(earliest) = next_expiry_deadline(room) {
+                                self.index_room_deadline(room, &room_id, earliest);
+                            }
+                            return Err(error);
+                        }
+                        for key in eligible_keys.into_iter().take(planned) {
+                            let affected_connections = room
+                                .entries
+                                .get(&key)
+                                .and_then(|record| room.owner_connections.get(&record.owner))
+                                .cloned()
+                                .unwrap_or_default();
+                            if let Some(message) = remove_entry_locked(
+                                room,
+                                &room_id,
+                                &key,
+                                RemoveReason::Expired,
+                                room_authority_generation,
+                            )
+                            .expect("bounded cleanup capacity is preflighted before mutation")
+                            {
+                                counts.deleted = counts.deleted.saturating_add(1);
+                                self.shared
+                                    .counters
+                                    .expired_entries
+                                    .fetch_add(1, Ordering::Relaxed);
+                                if let Some(collection) = collection.as_ref() {
+                                    self.fan_out_locked(room, &room_id, collection, message);
+                                }
+                                for connection_id in affected_connections {
+                                    self.sync_connection_room_index_locked(
+                                        room,
+                                        &connection_id,
+                                        &room_id,
+                                    );
+                                }
+                            }
+                        }
+                        counts.remaining = counts.eligible.saturating_sub(counts.deleted);
+                    }
+
+                    if !dry_run && let Some(earliest) = next_expiry_deadline(room) {
+                        self.index_room_deadline(room, &room_id, earliest);
+                    }
+                    Ok((
+                        counts,
+                        !dry_run && room.entries.is_empty() && room.subscribers.is_empty(),
+                    ))
+                });
+
+            match outcome {
+                Some(Ok((counts, prunable))) => {
+                    remaining_budget = remaining_budget.saturating_sub(if dry_run {
+                        counts.would_delete
+                    } else {
+                        counts.deleted
+                    });
+                    room_reports.push((room_id.clone(), counts));
+                    if prunable {
+                        self.prune_room_if_empty(&room_id);
+                    }
+                }
+                Some(Err(_)) => {
+                    blocked_rooms = blocked_rooms.saturating_add(1);
+                }
+                None => {}
+            }
+        }
+
+        let mut counts = EphemeralCleanupCounts::default();
+        let mut by_collection = BTreeMap::<String, EphemeralCleanupCollectionReport>::new();
+        for (room_id, room_counts) in room_reports {
+            counts.add_assign(&room_counts);
+            let collection = by_collection
+                .entry(room_id.collection.clone())
+                .or_insert_with(|| EphemeralCleanupCollectionReport {
+                    collection: room_id.collection.clone(),
+                    ..EphemeralCleanupCollectionReport::default()
+                });
+            collection.counts.add_assign(&room_counts);
+            collection.rooms.push(EphemeralCleanupRoomReport {
+                room_digest: ephemeral_cleanup_room_digest(&room_id),
+                counts: room_counts,
+            });
+        }
+        let truncated = counts.remaining > 0
+            && if dry_run {
+                counts.would_delete == max_entries
+            } else {
+                counts.deleted == max_entries
+            };
+        EphemeralCleanupReport {
+            counts,
+            collections: by_collection.into_values().collect(),
+            truncated,
+            complete: blocked_rooms == 0,
+            blocked_rooms,
+        }
+    }
+
     pub fn enqueue_durable(
         &self,
         connection_id: impl Into<String>,
@@ -6655,8 +7050,7 @@ impl LocalEphemeralBackend {
         match network_egress {
             Some(network_egress) => self.enqueue_network_profiled_durable_message(
                 connection_id,
-                DurableMessage::bound(payload, effect_fence)
-                    .with_network_egress(network_egress),
+                DurableMessage::bound(payload, effect_fence).with_network_egress(network_egress),
             ),
             None => self.enqueue_durable_bound(connection_id, payload, effect_fence),
         }
@@ -8128,6 +8522,19 @@ fn collection_requires_room_permission(collection: &EphemeralCollection) -> bool
     )
 }
 
+fn ephemeral_cleanup_room_digest(room_id: &RoomId) -> String {
+    let digest = Sha256::digest(
+        serde_json::to_vec(room_id).expect("RoomId always serializes for cleanup identity"),
+    );
+    let mut encoded = String::with_capacity(7 + digest.len() * 2);
+    encoded.push_str("sha256:");
+    for byte in digest {
+        use std::fmt::Write as _;
+        write!(&mut encoded, "{byte:02x}").expect("writing to String cannot fail");
+    }
+    encoded
+}
+
 fn remove_entry_locked(
     room: &mut RoomState,
     room_id: &RoomId,
@@ -8915,15 +9322,11 @@ mod tests {
         let mut queue = OutboundQueue::new();
         let mut first_message =
             DurableMessage::new(b"first".to_vec()).with_network_egress(first.clone());
-        let first_deadline = queue
-            .prepare_durable_deadline(&mut first_message)
-            .unwrap();
+        let first_deadline = queue.prepare_durable_deadline(&mut first_message).unwrap();
         queue.push_durable(first_message);
         let mut second_message =
             DurableMessage::new(b"second".to_vec()).with_network_egress(second);
-        let second_deadline = queue
-            .prepare_durable_deadline(&mut second_message)
-            .unwrap();
+        let second_deadline = queue.prepare_durable_deadline(&mut second_message).unwrap();
         queue.push_durable(second_message);
 
         assert_eq!(second_deadline, first_deadline);
@@ -8968,11 +9371,7 @@ mod tests {
             let egress = profiles
                 .admit_result(crate::network_profile::NetworkEgressLane::LiveDelta, basis)
                 .unwrap();
-            backend.enqueue_durable_with_network_egress(
-                "profile-burst",
-                vec![index],
-                Some(egress),
-            );
+            backend.enqueue_durable_with_network_egress("profile-burst", vec![index], Some(egress));
         }
         assert!(backend.drain_outbox("profile-burst").is_empty());
         tokio::time::timeout(std::time::Duration::from_secs(1), wake.notified())
@@ -9622,6 +10021,7 @@ mod tests {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -9719,6 +10119,7 @@ mod tests {
                 principal_addressed_writes: None,
             }),
             asset_sharing: None,
+            history: None,
         };
 
         validate_collection_permission_backing(
@@ -9827,6 +10228,17 @@ mod tests {
             session_id: None,
             user_id: None,
             custom_key: None,
+        }
+    }
+
+    fn operator_delete_request(published: &PublishOutcome) -> OperatorDeleteRequest {
+        OperatorDeleteRequest {
+            collection: published.room.collection.clone(),
+            scope: published.room.scope.clone(),
+            entry_key: published.key.0.clone(),
+            expected_scope_epoch: published.scope_epoch,
+            expected_entry_generation: published.entry_version,
+            reason: "operator repair test".to_owned(),
         }
     }
 
@@ -12296,6 +12708,77 @@ mod tests {
         );
     }
 
+    /// @ref LLP 0184#p2-controlled-mutations — preview and apply share the
+    /// same global bound, while apply uses ordinary expiry fan-out.
+    #[test]
+    fn bounded_cleanup_previews_then_applies_with_honest_remaining_counts() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        backend
+            .subscribe(subscribe_request("observer"), 1_000)
+            .unwrap();
+        backend
+            .publish(publish_request("a", b"old-a"), 1_000)
+            .unwrap();
+        backend
+            .publish(publish_request("b", b"old-b"), 1_000)
+            .unwrap();
+        backend
+            .publish(publish_request("c", b"fresh"), 3_000)
+            .unwrap();
+        backend.drain_outbox("observer");
+
+        let preview = backend.cleanup_expired_bounded(6_000, 1, true);
+        assert_eq!(
+            preview.counts,
+            EphemeralCleanupCounts {
+                examined: 3,
+                eligible: 2,
+                would_delete: 1,
+                deleted: 0,
+                remaining: 1,
+            }
+        );
+        assert!(preview.truncated);
+        assert!(preview.complete);
+        assert_eq!(preview.collections.len(), 1);
+        assert_eq!(preview.collections[0].collection, "boardCursors");
+        assert_eq!(preview.collections[0].rooms.len(), 1);
+        assert!(
+            preview.collections[0].rooms[0]
+                .room_digest
+                .starts_with("sha256:")
+        );
+        assert!(backend.drain_outbox("observer").is_empty());
+        assert_eq!(backend.diagnostics().entry_count, 3);
+
+        let first = backend.cleanup_expired_bounded(6_000, 1, false);
+        assert_eq!(first.counts.deleted, 1);
+        assert_eq!(first.counts.remaining, 1);
+        assert!(first.truncated);
+        let remove = first_ephemeral(backend.drain_outbox("observer"));
+        assert!(matches!(
+            remove,
+            EphemeralMessage::Remove {
+                reason: RemoveReason::Expired,
+                ..
+            }
+        ));
+
+        let second = backend.cleanup_expired_bounded(6_000, 10, false);
+        assert_eq!(second.counts.deleted, 1);
+        assert_eq!(second.counts.remaining, 0);
+        assert!(!second.truncated);
+        assert_eq!(backend.diagnostics().entry_count, 1);
+        assert!(matches!(
+            first_ephemeral(backend.drain_outbox("observer")),
+            EphemeralMessage::Remove {
+                reason: RemoveReason::Expired,
+                ..
+            }
+        ));
+    }
+
     #[test]
     fn disconnect_cleans_connection_owned_entry() {
         let backend = LocalEphemeralBackend::new();
@@ -13369,6 +13852,169 @@ mod tests {
             },
         });
         assert_eq!(applied, OverlayApply::NeedsResync);
+    }
+
+    /// @ref LLP 0184#c-administrator-ephemeral-entry-delete--add-now — the
+    /// operator bypass still uses the ordinary delete message and subscriber
+    /// fan-out path.
+    #[test]
+    fn operator_delete_fenced_match_removes_and_notifies_subscribers() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        backend
+            .subscribe(subscribe_request("observer"), 1_000)
+            .unwrap();
+        let published = backend
+            .publish(publish_request("owner", b"cursor"), 1_001)
+            .unwrap();
+        let _upsert = first_ephemeral(backend.drain_outbox("observer"));
+
+        let removed = backend
+            .operator_delete(operator_delete_request(&published), 1_002)
+            .unwrap();
+        assert!(matches!(
+            &removed,
+            EphemeralMessage::Remove {
+                room,
+                key,
+                scope_epoch,
+                reason: RemoveReason::Deleted,
+                ..
+            } if room == &published.room
+                && key == &published.key
+                && *scope_epoch == published.scope_epoch
+        ));
+        assert_eq!(
+            first_ephemeral(backend.drain_outbox("observer")),
+            removed,
+            "the ordinary subscriber fan-out must carry the same Remove message"
+        );
+        assert_eq!(backend.diagnostics().entry_count, 0);
+    }
+
+    #[test]
+    fn operator_delete_rejects_stale_entry_generation_in_current_room() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        let published = backend
+            .publish(publish_request("owner", b"cursor"), 1_000)
+            .unwrap();
+        let mut request = operator_delete_request(&published);
+        request.expected_entry_generation += 1;
+
+        let error = backend.operator_delete(request, 1_001).unwrap_err();
+        assert_eq!(error.code, EphemeralErrorCode::StaleEntryGeneration);
+        assert_eq!(backend.diagnostics().entry_count, 1);
+    }
+
+    /// The new room deliberately reuses generation 1. Only the old scope
+    /// epoch distinguishes the inspected predecessor entry from the reborn
+    /// entry, so removing the epoch check makes this test delete the wrong
+    /// entry and fail.
+    ///
+    /// @ref LLP 0184#acceptance — epoch and generation are one fencing tuple.
+    #[test]
+    fn operator_delete_rejects_old_epoch_when_reborn_room_reuses_generation_one() {
+        let backend = LocalEphemeralBackend::new();
+        backend
+            .register_collection(EphemeralCollection::local_cursor("boardCursors", "boardId"))
+            .unwrap();
+        let publish = |value: &[u8]| PublishRequest {
+            collection: "boardCursors".to_owned(),
+            scope: scope(),
+            connection_id: "owner".to_owned(),
+            session_id: None,
+            user_id: None,
+            custom_key: None,
+            value: value.to_vec(),
+            ttl_ms: None,
+            auth: AuthContext::default(),
+        };
+
+        let old = backend.publish(publish(b"old"), 1_000).unwrap();
+        backend
+            .operator_delete(operator_delete_request(&old), 1_001)
+            .unwrap();
+        assert_eq!(backend.diagnostics().room_count, 0);
+
+        let reborn = backend.publish(publish(b"new"), 1_002).unwrap();
+        assert!(reborn.scope_epoch > old.scope_epoch);
+        assert_eq!(reborn.entry_version, 1);
+        let request = OperatorDeleteRequest {
+            expected_scope_epoch: old.scope_epoch,
+            expected_entry_generation: reborn.entry_version,
+            ..operator_delete_request(&reborn)
+        };
+
+        let error = backend.operator_delete(request, 1_003).unwrap_err();
+        assert_eq!(error.code, EphemeralErrorCode::StaleScopeEpoch);
+        assert_eq!(backend.diagnostics().entry_count, 1);
+    }
+
+    #[test]
+    fn operator_delete_distinguishes_collection_room_and_entry_absence() {
+        let backend = LocalEphemeralBackend::new();
+        let unknown = backend
+            .operator_delete(
+                OperatorDeleteRequest {
+                    collection: "missing".to_owned(),
+                    scope: scope(),
+                    entry_key: "owner".to_owned(),
+                    expected_scope_epoch: 1,
+                    expected_entry_generation: 1,
+                    reason: "test".to_owned(),
+                },
+                1_000,
+            )
+            .unwrap_err();
+        assert_eq!(unknown.code, EphemeralErrorCode::UnknownCollection);
+
+        backend
+            .register_collection(EphemeralCollection::local_cursor("boardCursors", "boardId"))
+            .unwrap();
+        let room_missing = backend
+            .operator_delete(
+                OperatorDeleteRequest {
+                    collection: "boardCursors".to_owned(),
+                    scope: scope(),
+                    entry_key: "owner".to_owned(),
+                    expected_scope_epoch: 1,
+                    expected_entry_generation: 1,
+                    reason: "test".to_owned(),
+                },
+                1_000,
+            )
+            .unwrap_err();
+        assert_eq!(room_missing.code, EphemeralErrorCode::RoomNotFound);
+
+        let snapshot = backend
+            .subscribe(
+                SubscribeRequest {
+                    collection: "boardCursors".to_owned(),
+                    scope: scope(),
+                    connection_id: "observer".to_owned(),
+                    auth: AuthContext::default(),
+                },
+                1_001,
+            )
+            .unwrap();
+        let EphemeralMessage::Snapshot { scope_epoch, .. } = snapshot else {
+            panic!("expected snapshot");
+        };
+        let entry_missing = backend
+            .operator_delete(
+                OperatorDeleteRequest {
+                    collection: "boardCursors".to_owned(),
+                    scope: scope(),
+                    entry_key: "owner".to_owned(),
+                    expected_scope_epoch: scope_epoch,
+                    expected_entry_generation: 1,
+                    reason: "test".to_owned(),
+                },
+                1_002,
+            )
+            .unwrap_err();
+        assert_eq!(entry_missing.code, EphemeralErrorCode::EntryNotFound);
     }
 
     /// LLP 0026 Phase 2 — cleanup is index-driven: a pass at t only removes

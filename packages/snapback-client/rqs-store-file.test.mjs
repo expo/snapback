@@ -107,6 +107,42 @@ test('commit/load roundtrip is atomic {rows, meta, token} and clears in-progress
   await store.close();
 });
 
+test('operation identity range counter and queued intent survive file-store reopen atomically', async (t) => {
+  const directory = await makeDirectory(t);
+  const range = {
+    schemaVersion: 1,
+    audience: 'authority-file',
+    authorityInstanceId: 'authority-file',
+    epochId: 'epoch-file',
+    epochSequence: 0,
+    rangeStart: 20,
+    rangeEndExclusive: 22,
+    issuedAtMs: 1,
+    expiresAtMs: 10_000,
+    authorityAuthenticatorDigest: `sha256:${'b'.repeat(64)}`,
+  };
+  const { store } = await makeStore(t, { directory, now: () => 2 });
+  const first = await store.outboxEnqueueWithOperationIdentity(
+    { id: 'cm-file-operation-1', function: 'createThing' },
+    'dev:file-user',
+    range,
+  );
+  assert.equal(first.operationIssuance.counter, 20);
+  await store.close();
+
+  const { store: reopened } = await makeStore(t, { directory, now: () => 3 });
+  const second = await reopened.outboxEnqueueWithOperationIdentity(
+    { id: 'cm-file-operation-2', function: 'createThing' },
+    'dev:file-user',
+  );
+  assert.equal(second.operationIssuance.counter, 21);
+  assert.deepEqual(
+    (await reopened.outboxPending()).map((record) => record.id),
+    ['cm-file-operation-1', 'cm-file-operation-2'],
+  );
+  await reopened.close();
+});
+
 test('React binding receipt is atomic, detached, bounded, uncounted, writer-gated, and durable', async (t) => {
   const directory = await makeDirectory(t);
   const { store } = await makeStore(t, { directory });
@@ -483,4 +519,40 @@ test('sweepStaleRqsBlobs unlinks only provably abandoned sibling origins', async
     keepIdentity: 'origin-own-4',
   });
   assert.equal(again.swept, 0);
+});
+
+test('sweepStaleRqsBlobs keeps an old origin holding only a quarantined intent', async (t) => {
+  // Quarantine-all-on-upgrade-required leaves a blob whose only outbox work is
+  // quarantined (never pending). The staleness janitor must not reclaim it, or
+  // the tombstone-and-re-entry guarantee (LLP 0081) loses the held intent.
+  const directory = await makeDirectory(t);
+  const old = Date.now() - 90 * 24 * 60 * 60 * 1000;
+
+  const { store: quarantined } = await makeStore(t, {
+    directory,
+    identity: 'origin-quarantined-1',
+    now: () => old,
+  });
+  await quarantined.outboxEnqueue({ id: 'cm-quarantined', function: 'createThing' });
+  const marked = await quarantined.outboxMarkQuarantined('cm-quarantined', {
+    code: 'SNAPBACK_MIGRATION_UPGRADE_REQUIRED',
+  });
+  assert.equal(marked.count, 1, 'the intent is quarantined, not pending');
+  assert.equal((await quarantined.outboxPending()).length, 0, 'no pending intent remains');
+  await quarantined.close();
+
+  // A never-swept caller identity so the sweep has a keepIdentity that is not
+  // the candidate under test.
+  const { store: own } = await makeStore(t, { directory, identity: 'origin-own-keep' });
+  await own.commit(rqsEntryKey('cells', {}), makeEntry());
+  await own.close();
+
+  const summary = await sweepStaleRqsBlobs({ directory, keepIdentity: 'origin-own-keep' });
+  assert.equal(summary.swept, 0, 'the quarantined-only blob is not abandoned');
+  const names = await readdir(directory);
+  assert.equal(
+    names.filter((name) => name.endsWith('.v1.json')).length,
+    2,
+    'the quarantined origin and the caller identity both survive',
+  );
 });

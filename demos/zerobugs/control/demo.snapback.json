@@ -1,0 +1,29 @@
+{
+  "id": "zerobugs-control",
+  "title": "Zerobugs — current-surface control",
+  "description": "LLP 0183 Stage 0.5 source-faithful control on shipped Snapback capabilities.",
+  "artifactSchemaVersion": "snapback.v1",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": [
+    "Schema",
+    "Functions",
+    "Live queries",
+    "React",
+    "Auth",
+    "Assets",
+    "Actions",
+    "Jobs",
+    "Acceptance"
+  ],
+  "backend": {
+    "source": "snapback/schema.mjs + snapback/functions.mjs",
+    "generated": ["snapback/generated/artifacts.json"],
+    "stalenessPolicy": "regenerate from source; never edit generated projections"
+  },
+  "notClaiming": [
+    "the complete Stage 0.5 application from this scaffold-only job",
+    "implementation of the 19-query or 16-mutator corpus",
+    "hosted production support",
+    "native Snapback OAuth, arbitrary application routes, email, or webhook delivery"
+  ]
+}

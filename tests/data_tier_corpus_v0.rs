@@ -19,8 +19,8 @@
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 use snapback::data_tier::{
-    compatibility_outcome, DataTierCompatibilityOutcome, DataTierCorpusCase,
-    DataTierCorpusManifest, DATA_TIER_CORPUS_FORMAT_VERSION, DATA_TIER_CORPUS_NAME,
+    DATA_TIER_CORPUS_FORMAT_VERSION, DATA_TIER_CORPUS_NAME, DataTierCompatibilityOutcome,
+    DataTierCorpusCase, DataTierCorpusManifest, compatibility_outcome,
 };
 use snapback::manifest::{
     AuthInput, HandlerInput, MutationPlan, SchemaManifest, SeedData, TableManifest,
@@ -356,13 +356,15 @@ fn get_reads_are_captured_server_side() {
     let mut db = LocalDatabase::memory().expect("memory database");
     db.apply_schema(SchemaManifest {
         schema_hash: Some("read-capture".to_owned()),
-        tables: vec![serde_json::from_value::<TableManifest>(serde_json::json!({
-            "name": "rows",
-            "fields": [{ "name": "value", "field_type": "Json", "optional": true }],
-            "indexes": [],
-            "syncable": false
-        }))
-        .expect("table manifest")],
+        tables: vec![
+            serde_json::from_value::<TableManifest>(serde_json::json!({
+                "name": "rows",
+                "fields": [{ "name": "value", "field_type": "Json", "optional": true }],
+                "indexes": [],
+                "syncable": false
+            }))
+            .expect("table manifest"),
+        ],
         ..SchemaManifest::default()
     })
     .expect("apply schema");

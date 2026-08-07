@@ -144,6 +144,15 @@ uncovered `./ir-evaluator`, `./local-read-admission`, and
 ceilings, not edits to a historical receipt. Its behavior train runs each
 corresponding focused suite before the ledger can freeze.
 
+The LLP 0163 operation-identity carrier rollover is
+`baseline.operation-identity-carrier.v1.json`, declared by
+`operation-identity-carrier-profiles.v1.json`. It advances exactly the shared
+outbox, four RQS-store closures, and the opt-in registered-RQS closure for
+authenticated finite-range custody and durable `result-gone` settlement. The
+Move-3 and result-transform predecessors remain immutable. The unrelated asset
+closure stays governed by its original primary ceiling and is tightened back
+under that ceiling rather than rolled into LLP 0163.
+
 The Phase-B Micro extension is `baseline.micro-phase-b.v1.json`, backed by
 `micro-phase-b-profiles.v1.json`. It freezes separate generated core and live
 closures, the three public experimental subpaths, and a root/`./online`

@@ -5,7 +5,12 @@
 **Systems:** Deployment, Control plane, TLS, Auth, Migrations, Backup, Restore, Logs, Inspection, Secrets, Runtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-26 (author-side review application: the first Fly profile
+**Revised:** 2026-08-06 (dated amendment drafted at the author's
+direction and ratified by the author the same day: §"Continuous-replication
+authority" — first-class replication epoch, whole-authority
+revoke-then-grant handover with drain-inclusive barrier, window
+reconciliation, delete-visible mechanism for LLP 0188 pinned objects,
+asymmetric encryption custody for both object classes). 2026-07-26 (author-side review application: the first Fly profile
 now proposes one provider-enforced external control head over immutable Tigris
 records and Fly Machine lease/version-guarded metadata, pins activation
 linearization and crash recovery, derives normalized claims from retained raw
@@ -279,6 +284,76 @@ with explicit data classes and limits. Provider root credentials remain in the
 OS credential store and are not available to application code or ordinary
 agents; the receipt records the scoped provider-token fingerprint and effective
 grant, never secret bytes.
+
+### Continuous-replication authority — dated amendment 2026-08-06 (ratified by the author 2026-08-06)
+
+Required by LLP 0188 (Accepted 2026-08-06) as a hard prerequisite of its
+hosted continuous-replication lane; drafted at the author's direction.
+This amendment extends the canonical authority to the LTX replication
+stream's head and lifecycle, resolving the four items LLP 0188 delegates
+here.
+
+1. **Replication epoch — first-class, not the operation fence.** The
+   canonical authority mints a **replication epoch**: a monotonically
+   increasing value in its closed state, distinct from operation lease
+   fences because replication is *standing* authority (an operation
+   fence expires with its operation; a replication epoch changes only on
+   supervisor supersession, restore-incarnation change, or explicit
+   revocation). The epoch is granted with the supervisor role, recorded
+   in every head object that role writes, and bound — alongside the
+   deployment/restore incarnation — into LLP 0188 checkpoint proofs.
+   This resolves LLP 0188 OQ4 in favor of the first-class epoch,
+   mirroring LLP 0099's barrier-lease epochs rather than reusing an
+   expiring fence.
+2. **Credential custody and revoke-then-grant handover.** The supervisor
+   role of the current replication epoch is the **sole holder of the
+   entire replication mutating authority** — the head-write credential
+   and the lifecycle/delete credential together; the application
+   credential is append-only under store-enforced immutability (LLP 0188
+   §5). Supersession revokes both credentials behind a
+   **store-qualified revocation barrier** before the successor's grant
+   is issued: the barrier must cover propagation, session invalidation,
+   and **completion or refusal of already-authorized in-flight
+   requests** (a drain bound the store must guarantee; credential TTL
+   expiry alone is insufficient). A store that cannot provide the drain
+   guarantee is unsupported for the hosted continuous lane.
+3. **Window reconciliation.** The handover protocol defines, per window,
+   the reconciliation the successor must run before advancing the head:
+   supersession ordering; an in-flight stale head write (including one
+   authorized pre-revocation that lands post-handover) — detected
+   against the head's recorded epoch and predecessor binding, resolved
+   by re-reading the authoritative head and refusing non-descendant
+   state; a stale deletion (below); crash during handover — the grant
+   record in the canonical authority is the recovery point, and a
+   half-completed handover resumes from revocation-confirmed state, never
+   by issuing a second concurrent grant; and a lost response — the
+   writer treats an unacknowledged head CAS as unknown and must re-read
+   before any further advancement.
+4. **Delete-visible reconciliation for pinned objects.** Head-epoch
+   stamping cannot detect a slipped stale *delete*, so the per-store
+   qualification must name one delete-visible mechanism protecting LLP
+   0188 §3-pinned objects: store object versioning with delete markers,
+   object-lock retention covering the pin lifetime, or a supervisor
+   deletion journal committed through the head (a deletion is valid only
+   if journaled in a head the current epoch wrote before the store
+   delete executes). LLP 0188 G3 exercises a stale-supervisor deletion
+   against a pinned object under the qualified mechanism.
+5. **Asymmetric encryption custody, both object classes.** Per this
+   document's existing posture ("encryption keys live outside the
+   protected deployment"), the replication stream's client-side
+   encryption is asymmetric: encrypt-only material may reside in the
+   deployment; decrypt capability is custodied outside it, with the
+   holder recorded in the profile's who-can-decrypt-and-restore
+   statement. This shape is pinned for **both** object classes — LTX
+   segments and keyring snapshots — and keyring-snapshot decrypt custody
+   must survive loss of the deployment (it is the disaster-recovery
+   path).
+
+With this amendment ratified (2026-08-06, jointly with LLP 0111's
+companion custody amendment), the hosted continuous lane is admissible
+once LLP 0188's gates pass; until they do, the operative shape remains
+LLP 0111's supervisor-mediated periodic backup, exactly as LLP 0188 §5
+records.
 
 ## Release artifact
 

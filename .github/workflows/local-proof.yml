@@ -4,20 +4,22 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: '41 */6 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: read
 
-# Agents push to main in bursts with a median commit gap far below one proof
-# duration, so cancel-in-progress starved the lane completely: 39 of the 40
-# runs before 2026-08-02 ended cancelled or superseded and main had no verdict
-# for days (issues/20260802-local-proof-is-cancelled-before-it-can-finish-on-main.md).
-# Let the running proof finish; GitHub coalesces the queue to the newest
-# pending run, so the lane yields one verdict per proof duration on the then-
-# latest commit instead of zero verdicts ever.
+# @ref LLP 0175#d23-complete-latest-main-proof — pushes get an affected
+# per-change verdict, while schedule/manual runs finish one complete snapshot
+# and coalesce newer pending main heads instead of creating a full-proof queue.
+# Push groups are commit-unique: GitHub may replace an older pending run in a
+# shared concurrency group, and a later event's before..HEAD diff does not
+# contain an independently pushed commit that was discarded that way.
 concurrency:
-  group: local-proof-${{ github.ref }}
-  cancel-in-progress: false
+  group: local-proof-${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'latest-main' || (github.event_name == 'push' && github.sha || github.ref) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   local-proof:
@@ -25,26 +27,69 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          submodules: recursive
           persist-credentials: false
           # Guide freshness compares reviewed authority commits against HEAD;
           # a depth-1 checkout turns every historical review identity into an
           # unverifiable warning instead of running the intended audit.
           fetch-depth: 0
-          # vendor/ibex is a private-repo submodule; the default GITHUB_TOKEN
-          # only reads this repository. Fine-grained PAT, Contents: read on
-          # ccheever/snapback + ccheever/ibex.
 
       - name: Verify checkout credentials were removed
         run: scripts/check-checkout-credentials
 
-      # The native Ibex clippy + test profiles can fill a small runner before
-      # the in-proof Cargo cleanup point. The GitHub-hosted image also needed
-      # its unused preinstalled Android/.NET toolchains deleted to reach this
-      # budget; that cleanup was specific to the GitHub image, so on the
-      # self-hosted runner only the headroom gate remains. Refuse early when
-      # the runner starts too full for the proof.
+      # ENG-24513: .node-version is the single exact Node runtime authority;
+      # check-toolchain-authority asserts the active runtime matches it.
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .node-version
+
+      # @ref LLP 0175#d2--assign-every-test-to-an-explicit-cadence — compute
+      # the checked path-to-gate closure before installing heavyweight tools.
+      # The exact receipt is reopened by verify-local-proof and uploaded with
+      # its gate results. Keep it outside target/: the Rust cache restore owns
+      # that tree and may replace it after this planning step. Selector,
+      # workflow, and shared-authority changes fail broad.
+      - name: Plan affected or complete proof
+        id: selection
+        env:
+          PROOF_CADENCE: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'complete' || 'affected' }}
+          PROOF_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          PROOF_SELECTION: ${{ runner.temp }}/local-proof-selection.json
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$PROOF_SELECTION")"
+          selection_args=(
+            plan
+            --cadence "$PROOF_CADENCE"
+            --head HEAD
+            --output "$PROOF_SELECTION"
+            --github-output "$GITHUB_OUTPUT"
+          )
+          if [ "$PROOF_CADENCE" = affected ]; then
+            case "$PROOF_BASE" in
+              0000000000000000000000000000000000000000|'')
+                echo 'SNAPBACK_LOCAL_PROOF_SELECTION_BASE_MISSING' >&2
+                exit 1
+                ;;
+            esac
+            selection_args+=(--base "$PROOF_BASE")
+          fi
+          node scripts/select-local-proof.mjs "${selection_args[@]}"
+
+      # The repository intentionally keeps the large Ibex runtime submodule
+      # demand-loaded. Fast docs/guide selections do not pay its clone cost;
+      # every affected code or complete selection reaches native readiness
+      # through the mandatory Contract/Exact boundary and initializes it.
+      - name: Initialize native runtime submodules
+        if: steps.selection.outputs.requires_native == 'true'
+        run: |
+          git submodule update --init --recursive
+          scripts/check-checkout-credentials
+
+      # Native profiles can fill a small runner before the in-proof cleanup
+      # point. Fast docs/guide selections never need this 20 GiB admission
+      # gate, so apply it only when the selected closure owns native work.
       - name: Require workspace disk headroom
+        if: steps.selection.outputs.requires_native == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -55,15 +100,10 @@ jobs:
             echo "SNAPBACK_CI_DISK_HEADROOM_LOW: ${ci_available_kib} KiB available; ${ci_required_kib} KiB required" >&2
             exit 1
           fi
-          echo "[snapback-ci] ${ci_available_kib} KiB available for canonical proof"
-
-      # ENG-24513: .node-version is the single exact Node runtime authority;
-      # check-toolchain-authority asserts the active runtime matches it.
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version-file: .node-version
+          echo "[snapback-ci] ${ci_available_kib} KiB available for selected native proof"
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        if: steps.selection.outputs.requires_javascript_dependencies == 'true'
         with:
           bun-version-file: package.json
 
@@ -72,9 +112,11 @@ jobs:
       # clean runner must prove those exact dependencies instead of inheriting
       # an ambient node_modules tree (ENG-24385).
       - name: Install JavaScript dependencies
+        if: steps.selection.outputs.requires_javascript_dependencies == 'true'
         run: bun install --frozen-lockfile
 
       - name: Install native build dependencies
+        if: steps.selection.outputs.requires_native == 'true'
         run: sudo apt-get update && sudo apt-get install -y cmake ninja-build libcurl4-openssl-dev
 
       # @ref LLP 0010#ci-and-review-gates — the admin behavior lane is required.
@@ -84,11 +126,13 @@ jobs:
       # browser and pass its exact action-owned path to the canonical proof.
       - name: Install Chrome for browser acceptance
         id: setup-chrome
+        if: steps.selection.outputs.requires_browser == 'true'
         uses: browser-actions/setup-chrome@2e1d749697dd1612b833dba4a722266286fbefcd # v2.1.2
         with:
           chrome-version: stable
 
       - name: Cache Hermes Linux build
+        if: steps.selection.outputs.requires_native == 'true'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
@@ -104,6 +148,7 @@ jobs:
       # unlike GitHub's ubuntu-latest. Install rustup bare, then let
       # rust-toolchain.toml select the reviewed compiler authority.
       - name: Install the pinned Rust toolchain
+        if: steps.selection.outputs.requires_native == 'true'
         run: |
           if ! command -v rustup >/dev/null 2>&1; then
             curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs \
@@ -118,18 +163,21 @@ jobs:
       # full dependency tree (and the ibex-runtime C++ glue) — the dominant
       # per-run cost.
       - name: Cache Rust build
+        if: steps.selection.outputs.requires_native == 'true'
         uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
 
       # An exact-identity cache miss is expected whenever the pin, patch stack,
       # or build logic changes. Materialize and launch-test that runtime before
       # verify-local-proof reaches its read-only ibex-doctor preflight.
       - name: Prepare exact Hermes runtime
+        if: steps.selection.outputs.requires_native == 'true'
         run: scripts/bootstrap-ibex-runtime
 
       # ENG-24383: verify-local-proof denies both vulnerabilities and
       # unmaintained runtime dependencies. Pin the auditing tool so the gate's
       # own CLI/lock resolution cannot drift under an otherwise unchanged PR.
       - name: Install cargo-audit
+        if: steps.selection.outputs.requires_cargo_audit == 'true'
         run: cargo install cargo-audit --version 0.22.2 --locked
 
       - name: Verify Snapback local proof
@@ -144,6 +192,7 @@ jobs:
           SNAPBACK_VERIFY_EXACT: "1"
           CHROME_BIN: ${{ steps.setup-chrome.outputs.chrome-path }}
           SNAPBACK_PROOF_RESULTS: ${{ github.workspace }}/target/proof/local-proof-results.jsonl
+          SNAPBACK_PROOF_SELECTION_RESULTS: ${{ runner.temp }}/local-proof-selection.json
           SNAPBACK_APP_CLI_TEST_PRIVATE_ROOT: /opt/snapback-app-cli-test-${{ github.run_id }}
           # One red round names every broken gate instead of only the first
           # (issues/20260802-verify-local-proof-stops-at-the-first-failure.md).
@@ -152,14 +201,16 @@ jobs:
           # @ref LLP 0062#4-auth-the-existing-model-projected--with-explicit-selection
           # The shared runner checkout has an unsafe /home/runner ancestor;
           # prove real credential custody from a private, root-safe hierarchy.
-          case "$SNAPBACK_APP_CLI_TEST_PRIVATE_ROOT" in
-            /opt/snapback-app-cli-test-[0-9]*) ;;
-            *) echo "refusing unsafe app-CLI test root" >&2; exit 2 ;;
-          esac
-          sudo install -d -m 0700 -o "$(id -u)" -g "$(id -g)" \
-            "$SNAPBACK_APP_CLI_TEST_PRIVATE_ROOT"
-          trap 'sudo rm -rf -- "$SNAPBACK_APP_CLI_TEST_PRIVATE_ROOT"' EXIT
-          scripts/verify-local-proof
+          if [ "${{ steps.selection.outputs.requires_private_root }}" = true ]; then
+            case "$SNAPBACK_APP_CLI_TEST_PRIVATE_ROOT" in
+              /opt/snapback-app-cli-test-[0-9]*) ;;
+              *) echo "refusing unsafe app-CLI test root" >&2; exit 2 ;;
+            esac
+            sudo install -d -m 0700 -o "$(id -u)" -g "$(id -g)" \
+              "$SNAPBACK_APP_CLI_TEST_PRIVATE_ROOT"
+            trap 'sudo rm -rf -- "$SNAPBACK_APP_CLI_TEST_PRIVATE_ROOT"' EXIT
+          fi
+          scripts/verify-local-proof --selection-receipt "$SNAPBACK_PROOF_SELECTION_RESULTS"
 
       # @ref LLP 0175#d5--make-test-economics-part-of-the-inventory — retain
       # every named gate's duration and PASS/FAIL/BLOCKED state even on red.
@@ -168,5 +219,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: local-proof-gate-results-${{ github.run_id }}
-          path: target/proof/local-proof-results.jsonl
+          path: |
+            target/proof/local-proof-results.jsonl
+            ${{ runner.temp }}/local-proof-selection.json
           if-no-files-found: warn

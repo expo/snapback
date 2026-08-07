@@ -6,8 +6,8 @@
     "LLP 0166#executable-acceptance",
     "LLP 0166#d9--carriers-storage-profiles-arms-and-the-bundle"
   ],
-  "startedAt": "2026-08-05T08:05:11.421Z",
-  "completedAt": "2026-08-05T08:09:30.235Z",
+  "startedAt": "2026-08-06T17:03:33.648Z",
+  "completedAt": "2026-08-06T17:06:15.478Z",
   "runtime": {
     "node": "v24.18.0",
     "platform": "darwin",
@@ -15,27 +15,17 @@
     "hostnameClass": "local-evidence-machine"
   },
   "source": {
-    "revision": "779c4f16985d375d66a6a52b2a9932cfb8386de7",
-    "dirty": true,
-    "dirtyPaths": [
-      "demos/latency-kanban/snapback/generated/artifacts.json",
-      "demos/latency-kanban/snapback/trusted-composition-activation.json",
-      "demos/triage-graph/snapback/generated/artifacts.json",
-      "demos/triage-graph/snapback/trusted-composition-activation.json",
-      "tests/acceptance/fixtures/latency-kanban/move3-exit.2026-08-04.r2.v1.json",
-      "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json",
-      "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json",
-      "tests/acceptance/latency-kanban-move3-v1-evidence.md",
-      "tests/acceptance/triage-graph-move1-v1-evidence.md"
-    ],
+    "revision": "cff30e35d2afcfddc79e41a8bac3847bf39cdeee",
+    "dirty": false,
+    "dirtyPaths": [],
     "files": [
       {
         "path": "tests/acceptance/local-store-carrier-exit-v1.mjs",
-        "sha256": "51ebd449aa5bc8c0475669ad2379de71ad030103b2c00077d3949071ee01e172"
+        "sha256": "3fb7a447d8e865cc36d4550842056bb859c6bdef21c584eeb2a42d1af672af09"
       },
       {
         "path": "packages/snapback-client/materialization-store.mjs",
-        "sha256": "e490cd25fba95521c3e0fc2f79d83bbead1f3b33f4e6fa1ab155e4e058c0717e"
+        "sha256": "34ebc65b3632869e39fd9587bd79a36e0a85316c4c660d8f1b12497668652310"
       },
       {
         "path": "packages/snapback-client/materialization-bridge.mjs",
@@ -83,15 +73,15 @@
       },
       {
         "path": "packages/snapback-client/index.mjs",
-        "sha256": "6acd1442fcf0e3dd5de640c92e83097957f18491517b6e12a83045e481ac17f0"
+        "sha256": "080b79a82ba3caf6d108c2296a581c43de0f0ee82bdfa8f54763413aafcff0af"
       },
       {
         "path": "packages/snapback-client/rqs-store.mjs",
-        "sha256": "5fba579c021d37d214e210ebe83c1306700e44c3a6073910317dd9ddda9abedf"
+        "sha256": "1f8cd7e5aad078e86abdda7fca5bb50fe6c23a9b12120eb2b35484918b17fc10"
       },
       {
         "path": "packages/snapback-client/rqs-store-file.mjs",
-        "sha256": "d42f53ecb01ffc7251d328f09f82b7b730d23f46761ca367f8e6988694248fcd"
+        "sha256": "f7ac4801c6542ed92203af4ce7e6849d3ca93eaca4fe1c429085c361604c0eb4"
       },
       {
         "path": "packages/snapback-contract/auth-coordinator.mjs",
@@ -119,11 +109,11 @@
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json",
-        "sha256": "8461e55974de124eb4aa792d3ec05c3757fe41fa8975c131fc16e2ff6002e565"
+        "sha256": "db3917debbf9ee080e198e76c3af76477711bb92aa1409c4278d36a33198d69d"
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json",
-        "sha256": "185204266b382d1234a5465773a1c8a805dc048f07ec025009def7895e3faac0"
+        "sha256": "74c22a2de7a6d4345d42ccba6f65e01712d3d46b8ea6d3fae7ffab61aeaf9704"
       }
     ]
   },
@@ -273,7 +263,7 @@
           2,
           3
         ],
-        "relaunchToReadableMs": 2545.851,
+        "relaunchToReadableMs": 1895.497,
         "browser": {
           "executable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
           "version": "Google Chrome 150.0.7871.187",
@@ -286,12 +276,12 @@
         },
         "cleanup": {
           "firstBrowser": {
-            "pid": 6410,
+            "pid": 60455,
             "requestedSignal": "SIGKILL",
             "processTreeExitAttested": true
           },
           "finalBrowser": {
-            "pid": 6687,
+            "pid": 62081,
             "requestedSignal": "SIGTERM",
             "processTreeExitAttested": true
           },
@@ -389,7 +379,7 @@
           {
             "type": "boundary",
             "boundary": "before-rename",
-            "pid": 81301,
+            "pid": 95561,
             "exit": {
               "code": null,
               "signal": "SIGKILL"
@@ -400,7 +390,7 @@
           {
             "type": "boundary",
             "boundary": "after-rename-before-directory-sync",
-            "pid": 81368,
+            "pid": 95570,
             "exit": {
               "code": null,
               "signal": "SIGKILL"
@@ -424,7 +414,7 @@
           ],
           "nextAllocatedQueryInstanceId": 3
         },
-        "physicalBlobBytes": 1989
+        "physicalBlobBytes": 2214
       }
     },
     {
@@ -433,12 +423,12 @@
       "status": "PASS",
       "evidence": {
         "serverBinary": "target/debug/snapback",
-        "serverBinarySha256": "b0a216c9a81baeffca4362df6c6ebcc48c62926cca8c0aeef1ea59dc10fc7307",
+        "serverBinarySha256": "93a43469a7e47ae6febf6d94e3234f4a205b15e60fdf5ff5976cdad96be56301",
         "launchRung": "configured",
         "backendStoppedBeforeRelaunch": true,
         "activationPreparation": {
           "format": "snapback.composition-activation-preparation.v1",
-          "activationHash": "sha256:32f7b0fbbc92307a1a7bff7e9264c54c0161b4812dbc68559730e19535b5e990",
+          "activationHash": "sha256:def59fa8809a8223b6a4ef4b092400648cbe2b4d67a4eff451cd4debd3f92f32",
           "sourceClass": "temporary-backend-source",
           "next": "rerun Snapback codegen for this backend"
         },
@@ -480,7 +470,7 @@
         },
         "materialization": {
           "records": 1,
-          "qmk1": "qmk1.r4Hq_dOLQ2UND_oA_bjo2c5aGP7d43Hf6eDdGAUrEUg",
+          "qmk1": "qmk1.YsQRK5kY5j4NJZGw9Ky71C_5KZgtD8tUhk98WYgLv1g",
           "freshness": "retained",
           "fragments": 1,
           "leaseCustody": 1
@@ -621,8 +611,8 @@
         "recordCapRefusal": "SNAPBACK_MATERIALIZATION_BUDGET_EXCEEDED",
         "logicalBytesBefore": 38804851,
         "logicalBytesAfter": 32506933,
-        "physicalBytesBefore": 52174492,
-        "physicalBytesAfter": 43906944,
+        "physicalBytesBefore": 52174521,
+        "physicalBytesAfter": 43906973,
         "compactedAddressKeys": [
           "qmk1.CysAIfWyF3jTx0wqKc4pYMwIlIjX44GpNadmi3iUe3A",
           "qmk1.Jk32Yja9SmdgljkWdOmeZfMA5vz5sbyHRurF7ezyeNs",
@@ -649,7 +639,7 @@
           "version": 7,
           "token": "sbrt1.carrier-exit.7"
         },
-        "maintenanceMs": 210316.76
+        "maintenanceMs": 131887.98
       }
     },
     {
@@ -724,14 +714,14 @@
           "hydrationAttempts": 1,
           "hydrationRows": 100,
           "hydrationPayloadBytes": 14981,
-          "hydrationElapsedMs": 439.261,
+          "hydrationElapsedMs": 176.828,
           "hydrationCeilingMs": 1000
         },
         "receipts": {
           "budgetFreeze": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json",
-          "budgetFreezeSha256": "8461e55974de124eb4aa792d3ec05c3757fe41fa8975c131fc16e2ff6002e565",
+          "budgetFreezeSha256": "db3917debbf9ee080e198e76c3af76477711bb92aa1409c4278d36a33198d69d",
           "move1Exit": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json",
-          "move1ExitSha256": "185204266b382d1234a5465773a1c8a805dc048f07ec025009def7895e3faac0"
+          "move1ExitSha256": "74c22a2de7a6d4345d42ccba6f65e01712d3d46b8ea6d3fae7ffab61aeaf9704"
         }
       }
     },
@@ -752,14 +742,14 @@
       "status": "PASS",
       "evidence": {
         "artifact": "tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json",
-        "minifiedBytes": 624160,
-        "measuredModuleOwnBytes": 112221,
+        "minifiedBytes": 688504,
+        "measuredModuleOwnBytes": 112243,
         "modules": 9,
         "browserClosureQualification": {
           "status": "PASS",
           "materializationStoreResolved": true,
           "resolved": true,
-          "outputBytes": 73221,
+          "outputBytes": 73241,
           "externalImports": []
         }
       }

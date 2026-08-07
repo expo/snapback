@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "snapback.agent-safe-baseline-build-recipe.v1",
+  "sourceRevision": "2ab36e28c74c450213b65f17ef81c0d6652ba33a",
+  "instrumentationSourceCommit": "3109a3b4f5068595a71448b10788b56b4fa358f5",
+  "instrumentationPatchSha256": "sha256:8d1e62197fadb7fa1c8a86f16c4c1f07f474907cfd10f6d5d42ca77082c945b5",
+  "instrumentationFiles": [
+    {
+      "path": "src/bench.rs",
+      "sha256": "sha256:7d9936f65e41ff9d5b3118966c8e5038b4777cdfa2ad1fe1617e35ad5fa73ed0"
+    },
+    {
+      "path": "src/bin/snapback-agent-safe-step0.rs",
+      "sha256": "sha256:b646422c12e1651daa48b70cdb3a894693ea31cd6eb01eb81c0f6215a42e6232"
+    },
+    {
+      "path": "src/bin/snapback-bench.rs",
+      "sha256": "sha256:540e7aed8416f48df6ae361a95e39e2f6dbecca2ad22489e59325da9b0ec9b57"
+    }
+  ],
+  "acceptedProductInstrumentationPathCount": 3,
+  "externalObservationWorker": {
+    "acceptedProductInstrumentationPath": false,
+    "packageName": "snapback-agent-safe-baseline-worker",
+    "sourceTreePath": "tools/agent-safe-baseline-worker",
+    "snapbackPathDependency": "../..",
+    "pathDependencySourceRevision": "2ab36e28c74c450213b65f17ef81c0d6652ba33a",
+    "baselineRootCargoLockSha256": "sha256:496569d9a3cb87609b6e79974f69126dbaccba53eb71d093f5dcf090fe1a36b1",
+    "derivedCargoLockSha256": "sha256:05bd0af1ed649011354f091e2cd371f38aaf5c229437c6a98b4807c7d0eead3d",
+    "lockDerivation": "seed exact baseline root lock; resolve isolated wrapper offline; require every shared package name/version/source/checksum tuple to match and the wrapper to be the only addition",
+    "files": [
+      {
+        "path": "tools/agent-safe-baseline-worker/.gitignore",
+        "sha256": "sha256:306fd52e74fca6746e12acc750f232de15e71da917756a1270d74c91f5eb7368"
+      },
+      {
+        "path": "tools/agent-safe-baseline-worker/Cargo.lock",
+        "sha256": "sha256:05bd0af1ed649011354f091e2cd371f38aaf5c229437c6a98b4807c7d0eead3d"
+      },
+      {
+        "path": "tools/agent-safe-baseline-worker/Cargo.toml",
+        "sha256": "sha256:24c6ee237f07fcbb6df72ce9609368eeb8201d1927c0d583ac7851eb2f0a6a63"
+      },
+      {
+        "path": "tools/agent-safe-baseline-worker/build.rs",
+        "sha256": "sha256:6026942fdd10ca697a163fa327d0c6cf8a899d7ac2fb58115309f8651c9ee958"
+      },
+      {
+        "path": "tools/agent-safe-baseline-worker/src/main.rs",
+        "sha256": "sha256:62b82d5b15c8db63637ff91e426a14644cc34b113ce140e695e7ecec012ea0cc"
+      }
+    ]
+  },
+  "buildProfile": "release",
+  "toolchain": {
+    "rustcVersion": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "cargoVersion": "cargo 1.97.0 (c980f4866 2026-06-30)"
+  },
+  "reconstruction": [
+    "git worktree add --detach BASELINE_WORKTREE 2ab36e28c74c450213b65f17ef81c0d6652ba33a",
+    "git -C BASELINE_WORKTREE checkout 3109a3b4f5068595a71448b10788b56b4fa358f5 -- src/bench.rs src/bin/snapback-agent-safe-step0.rs src/bin/snapback-bench.rs",
+    "verify HEAD, exactly three product dirty paths, and the three accepted product content digests above before introducing the external worker",
+    "copy the external worker .gitignore, Cargo.toml, build.rs, and src/main.rs from the candidate tree into the same relative path in BASELINE_WORKTREE and verify their digests independently; build.rs supplies only the relative macOS framework rpath the wrapper binary needs",
+    "seed the worker Cargo.lock from BASELINE_WORKTREE/Cargo.lock whose exact digest is registered above, resolve the isolated graph offline, and verify the derived lock digest plus that every shared package name/version/source/checksum tuple matches the baseline root lock and the wrapper package is the only addition",
+    "verify the worker manifest has the exact snapback path dependency ../.. and its dependency root is BASELINE_WORKTREE at the pinned source revision with only the accepted three product instrumentation blobs",
+    "bootstrap the pinned Ibex runtime, then cargo build --locked --release --manifest-path BASELINE_WORKTREE/tools/agent-safe-baseline-worker/Cargo.toml",
+    "write snapback.agent-safe-baseline-build-provenance.v2 with the three accepted product identities and the separate external-worker source/root-lock/derived-lock/path-dependency identities, exact toolchain/profile, and the worker executable SHA-256; supply both lockfiles to the paired runner for byte and package-tuple verification"
+  ],
+  "claimBoundary": "reproducible build recipe only; the external wrapper is not a fourth accepted product instrumentation path, and a measurement-time provenance record plus worker executable digest are still required"
+}

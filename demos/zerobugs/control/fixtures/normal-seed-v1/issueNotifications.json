@@ -1,0 +1,37 @@
+[
+  {
+    "_id": "issueNotifications_3b818b43c520cf1b27f1122b",
+    "userID": "user_804808a3aa5ef7440e34bd42",
+    "issueID": "issue_ded0c2976675c34f4756035d",
+    "subscribed": false,
+    "created": 1785888000000
+  },
+  {
+    "_id": "issueNotifications_54699004db3f912328624226",
+    "userID": "user_47a7fdef09689e6736359a9c",
+    "issueID": "issue_ded0c2976675c34f4756035d",
+    "subscribed": true,
+    "created": 1785887999996
+  },
+  {
+    "_id": "issueNotifications_7da4237f7e786d33987588a5",
+    "userID": "user_37617f38bd751da58ed19276",
+    "issueID": "issue_ded0c2976675c34f4756035d",
+    "subscribed": true,
+    "created": 1785887999997
+  },
+  {
+    "_id": "issueNotifications_99ec745a129b373c500dbece",
+    "userID": "user_f57940f9cf974984ee36c7b2",
+    "issueID": "issue_ded0c2976675c34f4756035d",
+    "subscribed": true,
+    "created": 1785887999999
+  },
+  {
+    "_id": "issueNotifications_9f6a46efaa2f8fbb6faeeaa9",
+    "userID": "user_b8222266f94aa6b36a6b5999",
+    "issueID": "issue_ded0c2976675c34f4756035d",
+    "subscribed": false,
+    "created": 1785887999998
+  }
+]

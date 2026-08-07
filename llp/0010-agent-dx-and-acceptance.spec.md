@@ -5,7 +5,17 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-05 (generated starter acceptance correction: todo and
+**Revised:** 2026-08-06 (LLP 0175 D2 selector: every canonical gate is
+classified by a checked path authority; docs/guide can remain fast, affected
+code retains Contract/Exact and admin behavior plus prerequisite closure, and
+unknown/shared inputs fail broad. Push/PR receipts bind the selection while a
+six-hour/manual lane retains the complete inventory). 2026-08-06 (runtime
+package seal: package production now refuses with
+`SNAPBACK_RUNTIME_PACKAGE_QUALIFICATION_FAILED` unless the assembled
+binary/Hermes pair passes CV-2; the package-owned readiness receipt binds the
+verdict and native digests, and packaged resolution re-verifies it before
+returning the binary.) 2026-08-05 (generated
+starter acceptance correction: todo and
 React default `test` commands now own an isolated real target, execute a query
 and mutation, bind loaded artifact identity, reject short/vacuous runs, and
 emit a bounded cleanup-complete receipt; static coherence is separately named
@@ -281,6 +291,11 @@ The remaining (non-submodule) bootstrap failure paths carry codes too
   carries the qualification verdict beside the framework digests
   (`producerInputs.nativeArtifacts`) and the binary's build identity, so an
   artifact/link-ordering incoherence is diagnosable from the record alone.
+- `SNAPBACK_RUNTIME_PACKAGE_QUALIFICATION_FAILED` — runtime package production
+  assembled the final loader-relative binary/Hermes layout, but its
+  short-lived `runtime-qualify` process could not create the restricted
+  handler VM. No package seal is issued. Cross-host Linux assembly may consume
+  only a byte-bound successful verdict produced on the native Linux builder.
 - `SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID` — the persisted runtime readiness
   receipt (`<binary>.runtime-readiness.json`,
   `snapback.runtime-readiness.v1`) for the selected binary is absent, stale,
@@ -813,9 +828,27 @@ makes the proof red. The runner writes one JSONL result per gate with command,
 prerequisites, timestamps, duration, exit status, and causal blockers, and CI
 retains that artifact even on failure. The dependency inventory rejects an
 unknown prerequisite, duplicate stable id, or a newly added direct
-`startServer` gate that omits current-binary readiness. This is the landed
-Phase-0 boundary of [LLP 0175](./0175-local-proof-economics.rfc.md), not the
-still-unimplemented affected-path cadence in that RFC.
+`startServer` gate that omits current-binary readiness.
+
+Per-change execution is now selected by the checked
+`scripts/local-proof-selection-policy.v1.json` authority. Every canonical gate
+is classified; selected dependents close transitively over their producers;
+the Contract/Exact and admin behavior lanes remain mandatory for every
+affected code selection; and shared authority, selector machinery, or an
+unknown path selects the complete inventory. Explicit LLP/issue/diary docs and
+guide-only changes retain a fast static lane. CI binds the base/head diff,
+policy digest, exact gate inventory, chosen/not-chosen gates, and tool
+requirements in `local-proof-selection.json`, reopens that receipt before
+execution, and uploads it beside the JSONL results. Pull requests and `main`
+pushes use this affected selection. A six-hour/manual, non-cancelling
+latest-main run retains the complete inventory and coalesces pending heads.
+When Exact/admin behavior is required, the clean runner enters the selected
+frozen surface-install gates before consulting ignored local `node_modules`;
+preexisting surface dependencies are only an optional-local optimization.
+Affected evidence is per-change attribution only: release, capability
+promotion, and any subsystem's complete-corpus rule continue to require their
+declared complete/release authority. This is the landed D1/D2 boundary of
+[LLP 0175](./0175-local-proof-economics.rfc.md).
 
 CI also computes the Cargo target headroom verdict before cleaning the test
 profile. A measured `preserve` keeps reusable test/dependency artifacts for the

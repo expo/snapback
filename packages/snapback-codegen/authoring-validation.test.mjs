@@ -8,7 +8,12 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { generate } from './index.mjs';
 
-const defineUrl = pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), 'define.mjs')).href;
+const packageDir = dirname(fileURLToPath(import.meta.url));
+const defineUrl = pathToFileURL(join(packageDir, 'define.mjs')).href;
+const guideManifest = JSON.parse(readFileSync(
+  join(packageDir, '..', '..', 'guide', 'guide-manifest.generated.json'),
+  'utf8',
+));
 const dirs = [];
 const validSchema = `
 import { defineSchema, defineTable, v } from '${defineUrl}';
@@ -328,6 +333,145 @@ export const listTodos = defineQuery({ table: 'todos', args: { forged: {} } });
 `,
   });
   assert(diagnostics.some((d) => d.code === 'FUNCTION_INVALID_VALIDATOR' && d.arg === 'forged'));
+}
+
+// @ref LLP 0178#v1--optional-plan-argument-contradiction — caller-optional
+// arguments cannot feed strict Arg nodes. The positive case also exercises
+// invalidCase's existing previous-output-preservation assertions.
+{
+  const schema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({
+  todos: defineTable({
+    title: v.string(),
+    replyToId: v.optional(v.id('todos')),
+  }),
+});
+`;
+  const diagnostics = await invalidCase({
+    schema,
+    functions: `
+import { arg, defineMutation, insert, lit, v } from '${defineUrl}';
+export const createTodo = defineMutation({
+  args: { replyToId: v.optional(v.id('todos')) },
+  plan: insert('todos', { title: lit('hello'), replyToId: arg('replyToId') }),
+});
+`,
+  });
+  const contradiction = diagnostics.find(
+    (diagnostic) => diagnostic.code === 'SNAPBACK_AUTHORING_OPTIONAL_ARG_CONTRADICTION',
+  );
+  assert.ok(contradiction, `expected optional-arg contradiction: ${JSON.stringify(diagnostics)}`);
+  assert.equal(contradiction.severity, 'error');
+  assert.equal(contradiction.function, 'createTodo');
+  assert.equal(contradiction.argument, 'replyToId');
+  assert.equal(contradiction.planSite, 'insert replyToId');
+  assert.match(contradiction.message, /createTodo/u);
+  assert.match(contradiction.message, /replyToId/u);
+  assert.match(contradiction.message, /insert replyToId/u);
+  assert.equal(contradiction.details.runtimeRefusal, 'SNAPBACK_ARG_MISSING');
+  assert.deepEqual(
+    contradiction.details.remediations.map((remediation) => remediation.kind),
+    ['makeArgumentRequired', 'splitOperation', 'consumeViaArgOpt', 'guidePointer'],
+  );
+  const policyOptions = contradiction.details.remediations.filter(
+    (remediation) => remediation.kind !== 'guidePointer',
+  );
+  assert(
+    policyOptions.every((remediation) => (
+      remediation.riskClass === 'policy'
+      && remediation.machineApplicable === false
+      && remediation.requiresApproval === true
+      && remediation.authorityEffect === 'none'
+    )),
+    `repairs must remain human policy choices: ${JSON.stringify(contradiction.details.remediations)}`,
+  );
+  const guidePointer = contradiction.details.remediations.find(
+    (remediation) => remediation.kind === 'guidePointer',
+  );
+  assert.deepEqual(
+    {
+      pageId: guidePointer.pageId,
+      path: guidePointer.path,
+      anchor: guidePointer.anchor,
+      riskClass: guidePointer.riskClass,
+      machineApplicable: guidePointer.machineApplicable,
+      requiresApproval: guidePointer.requiresApproval,
+      authorityEffect: guidePointer.authorityEffect,
+      precondition: guidePointer.precondition,
+    },
+    {
+      pageId: 'backend.mutations',
+      path: 'guide/backend/mutations.md',
+      anchor: 'define-the-write-boundary',
+      riskClass: 'policy',
+      machineApplicable: false,
+      requiresApproval: true,
+      authorityEffect: 'none',
+      precondition: {
+        function: 'createTodo',
+        argument: 'replyToId',
+        planSite: 'insert replyToId',
+      },
+    },
+  );
+  assert.equal(
+    guideManifest.pages[guidePointer.pageId]?.path,
+    guidePointer.path,
+    'optional-arg guidePointer resolves through the generated guide manifest',
+  );
+  assert.equal(typeof guidePointer.reason, 'string');
+  assert.equal(guidePointer.reason.includes('\n'), false, 'guidePointer reason stays one line');
+
+  // Runtime front-run linkage: the committed LLP 0051 D5 conformance case
+  // carries the same serialized ValueExpr::Arg node and pins the refusal.
+  // The shared evaluator raises it at src/value_expr.rs:136.
+  const runtimeCase = JSON.parse(readFileSync(join(
+    dirname(fileURLToPath(import.meta.url)),
+    '..',
+    '..',
+    'tests',
+    'conformance',
+    'data-tier',
+    'reject-strict-arg-missing.case.json',
+  ), 'utf8'));
+  assert.deepEqual(Object.keys(runtimeCase.plan.return_value.Expr), [contradiction.details.expressionKind]);
+  assert.equal(runtimeCase.expect.error.code, contradiction.details.runtimeRefusal);
+
+  await validCase({
+    schema,
+    functions: `
+import { arg, defineMutation, insert, lit, v } from '${defineUrl}';
+export const createTodo = defineMutation({
+  args: { replyToId: v.id('todos') },
+  plan: insert('todos', { title: lit('hello'), replyToId: arg('replyToId') }),
+});
+`,
+  });
+
+  const omissionSafe = await validCase({
+    schema,
+    functions: `
+import { arg, argOpt, cond, defineMutation, insert, lit, v } from '${defineUrl}';
+export const createTodo = defineMutation({
+  args: {
+    replyToId: v.optional(v.id('todos')),
+    clientNote: v.optional(v.string()),
+  },
+  plan: insert('todos', {
+    title: cond(lit(false), arg('clientNote'), lit('hello')),
+    replyToId: argOpt('replyToId'),
+  }),
+});
+`,
+  });
+  assert.equal(
+    omissionSafe.diagnostics.some(
+      (diagnostic) => diagnostic.code === 'SNAPBACK_AUTHORING_OPTIONAL_ARG_CONTRADICTION',
+    ),
+    false,
+    'argOpt and a strict Arg confined to one lazy branch are not presence-requiring plan uses',
+  );
 }
 
 {
@@ -1321,6 +1465,63 @@ export const pageTodos = defineJsQuery({
 });
 `,
   });
+}
+
+// LLP 0162 row 11: history is an exact per-table schema declaration with two
+// finite axes. The generated manifest, not a runtime side command, is storage
+// policy authority.
+{
+  const result = await validCase({
+    schema: `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({
+  todos: defineTable({ title: v.string() })
+    .history({ retainMs: 60000, maxVersionsPerRecord: 12 }),
+});
+`,
+    functions: 'export const nothing = 0;\n',
+  });
+  const manifest = JSON.parse(readFileSync(join(result.outDir, 'schema.manifest.json'), 'utf8'));
+  assert.deepEqual(manifest.tables[0].history, {
+    retainMs: 60_000,
+    maxVersionsPerRecord: 12,
+  });
+
+  const typesFixture = fileURLToPath(
+    new URL('./history-authoring-types.fixture.ts', import.meta.url),
+  );
+  const typecheck = spawnSync(
+    fileURLToPath(new URL('../../node_modules/.bin/tsc', import.meta.url)),
+    [
+      '--noEmit',
+      '--strict',
+      '--target', 'es2022',
+      '--module', 'esnext',
+      '--moduleResolution', 'bundler',
+      typesFixture,
+    ],
+    { encoding: 'utf8' },
+  );
+  assert.equal(
+    typecheck.status,
+    0,
+    `history declarations failed strict typecheck\n${typecheck.stdout}\n${typecheck.stderr}`,
+  );
+
+  const diagnostics = await invalidCase({
+    schema: `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({
+  todos: defineTable({ title: v.string() })
+    .history({ retainMs: 0, maxVersionsPerRecord: 12 }),
+});
+`,
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(
+    diagnostics.some((diagnostic) => /history\(\) retainMs must be an integer/u.test(diagnostic.message)),
+    `expected finite history refusal, got ${JSON.stringify(diagnostics)}`,
+  );
 }
 
 for (const dir of dirs) rmSync(dir, { recursive: true, force: true });

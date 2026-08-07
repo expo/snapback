@@ -1,0 +1,1721 @@
+{
+  "acknowledgedExperimentalCapabilities": [
+    "args_contract_v1",
+    "inline_handler_v1",
+    "result_contract_v1",
+    "single_table_v1"
+  ],
+  "appId": "snapback-expo",
+  "artifactKind": "functionManifest",
+  "assetUploadIntents": [
+    {
+      "accept": {
+        "maxBytes": 12000000,
+        "mediaTypes": [
+          "image/jpeg",
+          "image/png",
+          "image/webp"
+        ]
+      },
+      "access": {
+        "read": "via-references"
+      },
+      "argsContractHash": "sha256:32fbef7c7e86bc9f4d07b56724204c069ccbe6cf53f6b9846cdd09d50918165e",
+      "authRequirement": "authenticated",
+      "declaredReads": [],
+      "delivery": {
+        "kind": "public-immutable"
+      },
+      "exportedName": "messageImageUpload",
+      "handlerForm": "inline",
+      "id": "snapback-expo:messageImageUpload",
+      "image": {
+        "location": "strip",
+        "variants": [
+          {
+            "key": "chat",
+            "required": true,
+            "width": 1440
+          }
+        ]
+      },
+      "implementationHash": "sha256:ff630b28e4c4c5dc7b7b1f2b5ffcde730c1c019e4c0395d68196c5173da1478d",
+      "intentPolicyHash": "sha256:b7a18ccfff8b3ea3199ec1b9603f165f9b0752f76ef7be2caccc8e2cd9965210",
+      "name": "messageImageUpload",
+      "runtime": {
+        "IbexModule": {
+          "export": "messageImageUpload",
+          "source": "globalThis.__snapbackHandlers = { \"messageImageUpload\": (async (ctx) => ({ owner: ctx.auth.userId })) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 14,
+        "file": "functions.mjs",
+        "line": 31
+      }
+    }
+  ],
+  "bundleHash": "sha256:986243947519a652",
+  "config": [],
+  "cronJobs": [],
+  "functions": [
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "conversationId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "conversations"
+            }
+          },
+          {
+            "name": "messageId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "messages"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "users"
+            }
+          },
+          {
+            "name": "emoji",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:e5e4ca558367ce9b5a750b56c0acba1d32bb84cd61a8adbb63218dff610ae64f",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "addReaction",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "reactions"
+          }
+        ]
+      },
+      "exportedName": "addReaction",
+      "handlerForm": "plan",
+      "id": "snapback-expo:addReaction",
+      "implementationHash": "sha256:4f30d47619251d2af2ae41487684948b7546a9220fcbe23d2e5b7e7640b35df7",
+      "kind": "Mutation",
+      "name": "addReaction",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "reactionId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        }
+      },
+      "resultContractHash": "sha256:ee15a26713e017d713e3029603cdaf3d6d0305b3ad3194f5fe4b6aa1e86a8e35",
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": {
+              "Expr": {
+                "Record": {
+                  "fields": {
+                    "reactionId": {
+                      "Binding": "reactionId"
+                    }
+                  }
+                }
+              }
+            },
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": "reactionId",
+                  "table": "reactions",
+                  "values": {
+                    "conversationId": {
+                      "Arg": "conversationId"
+                    },
+                    "emoji": {
+                      "Arg": "emoji"
+                    },
+                    "messageId": {
+                      "Arg": "messageId"
+                    },
+                    "userId": {
+                      "Arg": "userId"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "reactions",
+        "tables": [
+          "reactions"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": []
+      },
+      "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "authRequirement": "public",
+      "authorityIndependent": true,
+      "bundleEntrypoint": "conversations",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_updated",
+            "table": "conversations"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "conversations",
+      "handlerForm": "plan",
+      "id": "snapback-expo:conversations",
+      "implementationHash": "sha256:6645f84a6a4d33509d64cabd03589bc73e9f7a59ba2fb7c1074c3e125d7d52a3",
+      "kind": "LiveQuery",
+      "name": "conversations",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "single_table_v1",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "conversations"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "kind",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "lastPreview",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "conversations"
+      },
+      "resultContractHash": "sha256:7d77e57847bafa4f25e6f8b7f5394291ad8b37366dc8e841100ed31d6804a211",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [],
+            "indexed_by": "by_updated",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "updatedAt"
+              }
+            ],
+            "table": "conversations"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "conversationId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "conversations"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:99aad8e3170c2b5e7d19e5d4e0d4ca0dd29416d688816d3bac1e52ac7ebddc3a",
+      "authRequirement": "public",
+      "authorityIndependent": true,
+      "bundleEntrypoint": "membershipsForConversation",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_conversation",
+            "table": "memberships"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "membershipsForConversation",
+      "handlerForm": "plan",
+      "id": "snapback-expo:membershipsForConversation",
+      "implementationHash": "sha256:e1979ae3a9ba9ae0e0119cdfc553df4f211dbcb5fe6e8670fc1c0f4b14c41b04",
+      "kind": "LiveQuery",
+      "name": "membershipsForConversation",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "memberships",
+        "tables": [
+          "memberships"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "single_table_v1",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "memberships"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "conversationId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "conversations"
+              }
+            },
+            {
+              "name": "userId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "users"
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "memberships"
+      },
+      "resultContractHash": "sha256:5c9f2fa9bf6c7e8838c87c68d84c230f769e2d35f6722e65799d485d95d2b4e9",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "conversationId",
+                "op": "Eq",
+                "value": {
+                  "Arg": "conversationId"
+                }
+              }
+            ],
+            "indexed_by": "by_conversation",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [],
+            "table": "memberships"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "userId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "users"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:194c9110274bdbcda533c93d274b3069d3a53d1792b1d85aa1bf1b01ff5fd523",
+      "authRequirement": "public",
+      "authorityIndependent": true,
+      "bundleEntrypoint": "membershipsForUser",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_user",
+            "table": "memberships"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "membershipsForUser",
+      "handlerForm": "plan",
+      "id": "snapback-expo:membershipsForUser",
+      "implementationHash": "sha256:a1a54b06e786e8b13ba48c790de753b723766ca6b2090ec4128cd3f156ed6b88",
+      "kind": "LiveQuery",
+      "name": "membershipsForUser",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "memberships",
+        "tables": [
+          "memberships"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "single_table_v1",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "memberships"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "conversationId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "conversations"
+              }
+            },
+            {
+              "name": "userId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "users"
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "memberships"
+      },
+      "resultContractHash": "sha256:5c9f2fa9bf6c7e8838c87c68d84c230f769e2d35f6722e65799d485d95d2b4e9",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "userId",
+                "op": "Eq",
+                "value": {
+                  "Arg": "userId"
+                }
+              }
+            ],
+            "indexed_by": "by_user",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [],
+            "table": "memberships"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "conversationId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "conversations"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:99aad8e3170c2b5e7d19e5d4e0d4ca0dd29416d688816d3bac1e52ac7ebddc3a",
+      "authRequirement": "public",
+      "authorityIndependent": true,
+      "bundleEntrypoint": "messagesForConversation",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_conversation_sent",
+            "table": "messages"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "messagesForConversation",
+      "handlerForm": "plan",
+      "id": "snapback-expo:messagesForConversation",
+      "implementationHash": "sha256:df1f80aa65f198dd8d2c81d3ffc4956b377e69d72dcd9bfee4aeca0b9b085e05",
+      "kind": "LiveQuery",
+      "name": "messagesForConversation",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "single_table_v1",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "messages"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "conversationId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "conversations"
+              }
+            },
+            {
+              "name": "senderId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "users"
+              }
+            },
+            {
+              "name": "kind",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "text",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                ]
+              }
+            },
+            {
+              "name": "image",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "assetRef"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "replyToId",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "id",
+                    "table": "messages"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "sentAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "messages"
+      },
+      "resultContractHash": "sha256:7964bd8d9ac5e7a60ed8c1ae443760d883151db4ba1657ec3d8b9f650ef337a4",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "conversationId",
+                "op": "Eq",
+                "value": {
+                  "Arg": "conversationId"
+                }
+              }
+            ],
+            "indexed_by": "by_conversation_sent",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "sentAt"
+              }
+            ],
+            "table": "messages"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "conversationId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "conversations"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:99aad8e3170c2b5e7d19e5d4e0d4ca0dd29416d688816d3bac1e52ac7ebddc3a",
+      "authRequirement": "public",
+      "authorityIndependent": true,
+      "bundleEntrypoint": "reactionsForConversation",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_conversation",
+            "table": "reactions"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "reactionsForConversation",
+      "handlerForm": "plan",
+      "id": "snapback-expo:reactionsForConversation",
+      "implementationHash": "sha256:a516a0a86ca4af14dccfdd10cdb4a6f2581c27c47d5620b90f25941bd085ccb2",
+      "kind": "LiveQuery",
+      "name": "reactionsForConversation",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "reactions",
+        "tables": [
+          "reactions"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "single_table_v1",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "reactions"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "conversationId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "conversations"
+              }
+            },
+            {
+              "name": "messageId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "messages"
+              }
+            },
+            {
+              "name": "userId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "users"
+              }
+            },
+            {
+              "name": "emoji",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "reactions"
+      },
+      "resultContractHash": "sha256:88693fad0c87a250d1d10fdd31dc1857fed1f663db0266e00ca64d3bfa66e29d",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "conversationId",
+                "op": "Eq",
+                "value": {
+                  "Arg": "conversationId"
+                }
+              }
+            ],
+            "indexed_by": "by_conversation",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [],
+            "table": "reactions"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "reactionId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "reactions"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:becb982369c805fb6ea59820ec5b1bac9bb5dc5b81fdbf58822f1a42f0ae9d7b",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "removeReaction",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "point",
+            "table": "reactions"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "delete"
+            ],
+            "table": "reactions"
+          }
+        ]
+      },
+      "exportedName": "removeReaction",
+      "handlerForm": "plan",
+      "id": "snapback-expo:removeReaction",
+      "implementationHash": "sha256:9857694e5c9d56b577213a0ecc6862f1786811f22194548c87cedd87fcff38df",
+      "kind": "Mutation",
+      "name": "removeReaction",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "reactions",
+        "tables": [
+          "reactions"
+        ]
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "removed",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            }
+          ],
+          "kind": "object"
+        }
+      },
+      "resultContractHash": "sha256:0049db6e709bdb59a11e258e49985b10e4f27b3ab92169ee256ec5b271f6a123",
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": {
+              "Expr": {
+                "Record": {
+                  "fields": {
+                    "removed": {
+                      "Literal": true
+                    }
+                  }
+                }
+              }
+            },
+            "steps": [
+              {
+                "Delete": {
+                  "id": {
+                    "Arg": "reactionId"
+                  },
+                  "table": "reactions"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "reactions",
+        "tables": [
+          "reactions"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "conversationId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "conversations"
+            }
+          },
+          {
+            "name": "senderId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "users"
+            }
+          },
+          {
+            "name": "assetId",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "caption",
+            "required": false,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "replyToId",
+            "required": false,
+            "value": {
+              "kind": "id",
+              "table": "messages"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:c4a52547f6f1668118928e2de62875dedfe2d6f1ebbc3ef8e044cf58a3c68dbe",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "sendImage",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "messages"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "conversations"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "messages"
+          }
+        ]
+      },
+      "exportedName": "sendImage",
+      "handlerForm": "inline",
+      "id": "snapback-expo:sendImage",
+      "implementationHash": "sha256:005ccd18276752a292a385c3d1382a8a72550fe87d8768289f0b31de8281a621",
+      "kind": "Mutation",
+      "name": "sendImage",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1",
+        "inline_handler_v1"
+      ],
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "id",
+          "table": "messages"
+        }
+      },
+      "resultContractHash": "sha256:c0db5ce578688b2eee3ae9683ba41981ccdb3027715de9708fdeb1738e7f8d8d",
+      "runtime": {
+        "IbexModule": {
+          "export": "sendImage",
+          "source": "globalThis.__snapbackHandlers = { \"sendImage\": (async (ctx, args) => {\n    const messageId = await ctx.db.insert('messages', {\n      conversationId: args.conversationId,\n      senderId: args.senderId,\n      kind: 'image',\n      ...(args.caption ? { text: args.caption } : {}),\n      ...(args.replyToId ? { replyToId: args.replyToId } : {}),\n      // @ref LLP 0044#typed-references-and-atomic-attachment — asset admission,\n      // message write, and reverse reference commit together.\n      image: await ctx.assets.attach(args.assetId, { upload: 'messageImageUpload' }),\n      sentAt: ctx.runtime.now(),\n    });\n    await ctx.db.patch('conversations', args.conversationId, {\n      lastPreview: args.caption ? `Photo · ${args.caption}` : 'Photo',\n      updatedAt: ctx.runtime.now(),\n    });\n    return messageId;\n  }) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 12,
+        "file": "functions.mjs",
+        "line": 178
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages",
+          "conversations"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "conversationId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "conversations"
+            }
+          },
+          {
+            "name": "senderId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "users"
+            }
+          },
+          {
+            "name": "text",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "replyToId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "messages"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:87d8172d0434653aa93e8e273875a3a99ced4399c230232215985d05425e31b9",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "sendReply",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [
+          "runtimeNow"
+        ],
+        "reads": [
+          {
+            "access": "point",
+            "table": "conversations"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "patch"
+            ],
+            "table": "conversations"
+          },
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "messages"
+          }
+        ]
+      },
+      "exportedName": "sendReply",
+      "handlerForm": "plan",
+      "id": "snapback-expo:sendReply",
+      "implementationHash": "sha256:ed57987c5049c0e530334471edec932c83a31fc5da61371e95a854790f5b2ef3",
+      "kind": "Mutation",
+      "name": "sendReply",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
+        ]
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "messageId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        }
+      },
+      "resultContractHash": "sha256:1fe46f328384eaa84508a6ab474e2160f79a14a288a154763bbef42bb97d460a",
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": {
+              "Expr": {
+                "Record": {
+                  "fields": {
+                    "messageId": {
+                      "Binding": "messageId"
+                    }
+                  }
+                }
+              }
+            },
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": "messageId",
+                  "table": "messages",
+                  "values": {
+                    "conversationId": {
+                      "Arg": "conversationId"
+                    },
+                    "kind": {
+                      "Literal": "text"
+                    },
+                    "replyToId": {
+                      "Arg": "replyToId"
+                    },
+                    "senderId": {
+                      "Arg": "senderId"
+                    },
+                    "sentAt": "RuntimeNow",
+                    "text": {
+                      "Arg": "text"
+                    }
+                  }
+                }
+              },
+              {
+                "Patch": {
+                  "id": {
+                    "Arg": "conversationId"
+                  },
+                  "table": "conversations",
+                  "values": {
+                    "lastPreview": {
+                      "Arg": "text"
+                    },
+                    "updatedAt": "RuntimeNow"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "messages",
+        "tables": [
+          "messages",
+          "conversations"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "conversationId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "conversations"
+            }
+          },
+          {
+            "name": "senderId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "users"
+            }
+          },
+          {
+            "name": "text",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:19bac8e4db31ac89ae4453649c7aeab7805f73ae7815630a8cc2fdea08df18c2",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "sendText",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [
+          "runtimeNow"
+        ],
+        "reads": [
+          {
+            "access": "point",
+            "table": "conversations"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "patch"
+            ],
+            "table": "conversations"
+          },
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "messages"
+          }
+        ]
+      },
+      "exportedName": "sendText",
+      "handlerForm": "plan",
+      "id": "snapback-expo:sendText",
+      "implementationHash": "sha256:c5d836e2b4df655960248c0420b39321883072e0f1fb221a61a27713a8920cfd",
+      "kind": "Mutation",
+      "name": "sendText",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
+        ]
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "messageId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        }
+      },
+      "resultContractHash": "sha256:1fe46f328384eaa84508a6ab474e2160f79a14a288a154763bbef42bb97d460a",
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": {
+              "Expr": {
+                "Record": {
+                  "fields": {
+                    "messageId": {
+                      "Binding": "messageId"
+                    }
+                  }
+                }
+              }
+            },
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": "messageId",
+                  "table": "messages",
+                  "values": {
+                    "conversationId": {
+                      "Arg": "conversationId"
+                    },
+                    "kind": {
+                      "Literal": "text"
+                    },
+                    "senderId": {
+                      "Arg": "senderId"
+                    },
+                    "sentAt": "RuntimeNow",
+                    "text": {
+                      "Arg": "text"
+                    }
+                  }
+                }
+              },
+              {
+                "Patch": {
+                  "id": {
+                    "Arg": "conversationId"
+                  },
+                  "table": "conversations",
+                  "values": {
+                    "lastPreview": {
+                      "Arg": "text"
+                    },
+                    "updatedAt": "RuntimeNow"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "messages",
+        "tables": [
+          "messages",
+          "conversations"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": []
+      },
+      "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "authRequirement": "public",
+      "authorityIndependent": true,
+      "bundleEntrypoint": "users",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "users"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "users",
+      "handlerForm": "plan",
+      "id": "snapback-expo:users",
+      "implementationHash": "sha256:8fba2526b39f5f84296c0a4aa4f6858663360dceb484f0c41bdfe57d4cc3424f",
+      "kind": "LiveQuery",
+      "name": "users",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "users",
+        "tables": [
+          "users"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "single_table_v1",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "users"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "handle",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "name",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "color",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "users"
+      },
+      "resultContractHash": "sha256:91a76ac59ce1af2e01bbdb3622b32ebf965e4f76bd9866effb58b1a30e2e48de",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [],
+            "indexed_by": null,
+            "limit": null,
+            "membershipFilters": [],
+            "order": [],
+            "table": "users"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "09842ae38a3ed5541d38007af3d1a125036c96d947e6d862ff824484cc815732",
+  "schemaVersion": "snapback.v0",
+  "unsupportedDependencyDiagnostics": []
+}

@@ -8,8 +8,13 @@ bun-only suite crashes** — this file is the map.
 
 | Runtime | Suites | Why |
 | --- | --- | --- |
-| **`node`** (>= 22, built-in `fetch`/`WebSocket`) | `auth-handshake`, `auth-session-schema-parity`, `auth-coordinator-client`, `client-errors`, `exact-resolver-packages`, `harness-cleanup-failures`, `provider-live-conformance`, `regression-reconnect-nuke`, `regression-fake-live`, `regression-handshake-loss`, `regression-gc-starvation`, `regression-overlay-crossroom`, `regression-mixed-transport`, `regression-midflight-resync`, `live-delta-e2e`, `provenance-unit`, `server-process-lifecycle`, `binary-provenance-drift`, `live-wire-schema` | Pure Snapback-kit JS; no live Exact import (`exact-resolver-packages` uses a synthetic package tree). |
+| **`node`** (>= 22, built-in `fetch`/`WebSocket`) | `auth-handshake`, `auth-session-schema-parity`, `auth-coordinator-client`, `client-errors`, `exact-resolver-packages`, `harness-cleanup-failures`, `provider-live-conformance`, `regression-reconnect-nuke`, `regression-fake-live`, `regression-handshake-loss`, `regression-gc-starvation`, `regression-overlay-crossroom`, `regression-mixed-transport`, `regression-midflight-resync`, `live-delta-e2e`, `provenance-unit`, `repo-layout-unit`, `server-process-lifecycle`, `binary-provenance-drift`, `live-wire-schema` | Pure Snapback-kit JS; no live Exact import (`exact-resolver-packages` uses a synthetic package tree). |
 | **`bun`** (required — do **not** use node) | `regression-ephemeral-wiring`, `regression-optimistic-clobber`, `regression-multilive-scoped` | Import the Exact **Contract runtime**, whose `.js`-suffixed TypeScript imports (e.g. `./signals.js` → `signals.ts`) resolve **only** under bun. |
+
+`chrome-indexeddb-profile-probe.mjs` is a manual host diagnostic, not a CI
+suite. It launches real Chrome repeatedly through `launchChromeCdp`, exercises
+an actual IndexedDB database, and prints a JSON matrix with exact profile paths
+and filesystem facts. See the Chrome section in [`../README.md`](../README.md).
 
 `scripts/verify-local-proof` runs every suite under its correct runtime — the
 node suites directly, and all three Exact-importing suites under `bun`. The bun

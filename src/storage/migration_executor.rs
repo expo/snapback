@@ -15,25 +15,82 @@ use super::{
     KeysetAfter, LocalDatabase, MIGRATION_SCAN_MAX_BATCH_BYTES, MIGRATION_SCAN_MAX_BATCH_ROWS,
     MigrationKeysetScanBatch, MigrationKeysetScanCheckpointV1, MigrationKeysetScanRequestV1,
     MigrationScanCeilingsV1, MigrationScanValidatorStateV1, MigrationScanValidatorV1, QueryPlan,
-    create_index, create_or_update_table, current_version_on, eval_expr, next_storage_version,
-    now_millis, quote_ident, save_retention_floor_on, schema_table, set_version, sqlite_type,
+    create_index, create_or_update_table, current_version_on,
+    ensure_managed_version_integrity_indexes, eval_expr, next_storage_version, now_millis,
+    quote_ident, save_retention_floor_on, schema_table, set_version, sqlite_type,
     timestamp_to_sql_millis, version_to_sql_integer,
 };
+use crate::commit_envelope::{
+    CommitEnvelopeV1, EnvelopeAuthorityFactsV1, EnvelopeCoverageV1, EnvelopeEffectFactsV1,
+    EnvelopeFactSetV1, FactProvenanceV1, LaneFactV1, OperationBoundFactsV1, OperationIdentityV1,
+    OperationIssuanceV1, OperationKeyV1, OperationOriginatorClassV1, OperationReceiptStateV1,
+    OperationReceiptV1, PendingOperationLifecycleV1, PendingOperationTerminalOutcomeV1,
+    PendingOperationTerminalSupplementV1, RetainedEnvelopeDetailV1, SnapshotAssociationKindV1,
+    StreamQualifiedVersionV1, derive_host_operation_id,
+};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use crate::manifest::{HandlerInput, SchemaManifest, TableManifest};
+use crate::manifest::{BinaryOp, HandlerInput, SchemaManifest, TableManifest, UnaryOp, ValueExpr};
 use crate::migration::{
     MigrationAdmissionV1, MigrationApprovalV1, MigrationAudienceV1, MigrationExecutionStrategy,
     MigrationPlanArtifactV1, MigrationStep, admission_digest, approval_digest,
-    validate_approval_shape, validate_plan_artifact,
+    validate_approval_shape, validate_plan_artifact, validate_plan_artifact_seal,
 };
 use rusqlite::types::Value as SqlValue;
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use serde_json::{Value, json};
+use std::cell::OnceCell;
 use std::collections::{BTreeMap, BTreeSet};
 
+#[cfg(test)]
+type MigrationExecutionValueHook = Box<dyn FnMut(&str, Value) -> Value>;
+
+#[cfg(test)]
+thread_local! {
+    static MIGRATION_EXECUTION_VALUE_HOOK: std::cell::RefCell<Option<MigrationExecutionValueHook>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(test)]
+fn install_migration_execution_value_hook(hook: impl FnMut(&str, Value) -> Value + 'static) {
+    MIGRATION_EXECUTION_VALUE_HOOK.with(|slot| {
+        assert!(
+            slot.borrow().is_none(),
+            "migration execution hook is exclusive"
+        );
+        *slot.borrow_mut() = Some(Box::new(hook));
+    });
+}
+
+#[cfg(test)]
+fn clear_migration_execution_value_hook() {
+    MIGRATION_EXECUTION_VALUE_HOOK.with(|slot| *slot.borrow_mut() = None);
+}
+
+fn run_migration_execution_value_hook(field: &str, value: Value) -> Value {
+    #[cfg(not(test))]
+    let _ = field;
+    #[cfg(test)]
+    return MIGRATION_EXECUTION_VALUE_HOOK.with(|slot| {
+        slot.borrow_mut()
+            .as_mut()
+            .map_or(value.clone(), |hook| hook(field, value))
+    });
+    #[cfg(not(test))]
+    value
+}
+
 pub const MIGRATION_JOURNAL_SCHEMA_VERSION: &str = "migration-journal-v1";
+const MIGRATION_HOST_AUTHORITY_INSTANCE_ID_V1: &str = "snapback:migration-executor:v1";
+const MIGRATION_HOST_OPERATION_KIND_V1: &str = "migrationTransition";
+const MIGRATION_AGGREGATE_LANE_V1: &str = "migrationAggregate";
+/// Per-transaction children consume journal-row ordinals from zero upward.
+/// The aggregate reserves the unreachable maximum ordinal so its identity is
+/// deterministic from the approval operation id without colliding with H1/H2
+/// or cleanup transaction carriers.
+const MIGRATION_AGGREGATE_COMMIT_ORDINAL_V1: u64 = u64::MAX;
+const MIGRATION_PENDING_CAPACITY_V1: u64 = 1;
 
 /// The reserved change-journal table name for schema-transition events.
 /// The schema-transition vocabulary now lives with the journal grammar in
@@ -186,6 +243,14 @@ pub struct MigrationJournalEntryV1 {
     pub version: String,
     pub operation_id: String,
     pub plan_id: String,
+    // @ref LLP 0163#contract-summary-normative-details-per-llp-0162-0-2 — migration journal
+    //   transactions carry authenticated approval-derived host identities,
+    //   but stay uncovered until their publication/terminal cuts are atomic.
+    /// Authenticated host identity of the physical SQLite transaction that
+    /// appended this row. Legacy entries remain readable without one; a new
+    /// transaction shares one value across every row it appends.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub host_operation_identity: Option<OperationIdentityV1>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub step_id: Option<String>,
     pub attempt: u64,
@@ -327,6 +392,56 @@ fn in_place_written_columns(artifact: &MigrationPlanArtifactV1) -> Vec<(String, 
     columns
 }
 
+/// A manifest-absent field is not necessarily a fresh physical destination:
+/// logical retirement deliberately retains its column through the rollback
+/// window. A fresh operation therefore refuses any AddField destination that
+/// already exists physically. A resume may accept an existing column only
+/// when this exact operation journaled the corresponding AddField in the same
+/// transaction that created it; an ops/fence row alone grants no exception.
+///
+/// @ref LLP 0081#3-typed-migration-steps — v1 in-place backfill/copy targets
+///   a new destination; retained predecessor bytes cannot become its seed.
+fn enforce_fresh_add_field_destinations(
+    tx: &Transaction<'_>,
+    artifact: &MigrationPlanArtifactV1,
+    operation_id: &str,
+) -> SnapbackResult<()> {
+    let committed_steps = journal_entries_on(tx, operation_id)?
+        .into_iter()
+        .filter_map(|entry| {
+            let step_id = entry.step_id?;
+            match entry.state {
+                MigrationExecState::Executing { step, .. }
+                    if step == step_id && entry.plan_id == artifact.plan_id =>
+                {
+                    Some(step_id)
+                }
+                _ => None,
+            }
+        })
+        .collect::<BTreeSet<_>>();
+    for record in &artifact.body.steps {
+        let MigrationStep::AddField { table, field, .. } = &record.step else {
+            continue;
+        };
+        let physically_exists = super::physical_columns(tx, table)?.contains_key(field);
+        let committed_by_this_step = committed_steps.contains(&record.id);
+        if physically_exists && !committed_by_this_step {
+            return Err(precondition_failed(format!(
+                "step {} requires fresh physical destination {table}.{field}, but that column already exists; use fresh successor storage rather than re-adopting retained bytes",
+                record.id
+            )));
+        }
+        if !physically_exists && committed_by_this_step {
+            return Err(journal_corrupt(format!(
+                "step {} is journaled as committed but physical destination {table}.{field} is absent",
+                record.id
+            )));
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 thread_local! {
     /// Armed kill point: (state kind, remaining matching appends before the
@@ -463,7 +578,9 @@ fn ensure_migration_tables(tx: &Transaction<'_>) -> SnapbackResult<()> {
            lease_epoch INTEGER NOT NULL,
            cancel_requested INTEGER NOT NULL DEFAULT 0,
            receipt_json TEXT,
-           rollback_receipt_json TEXT
+           rollback_receipt_json TEXT,
+           approval_digest TEXT,
+           aggregate_identity_json TEXT
          );
          CREATE TABLE IF NOT EXISTS _snapback_migration_checkpoint (
            operation_id TEXT NOT NULL,
@@ -493,6 +610,16 @@ fn ensure_migration_tables(tx: &Transaction<'_>) -> SnapbackResult<()> {
         Ok(_) => {}
         Err(error) if error.to_string().contains("duplicate column name") => {}
         Err(error) => return Err(error.into()),
+    }
+    for column in ["approval_digest TEXT", "aggregate_identity_json TEXT"] {
+        match tx.execute(
+            &format!("ALTER TABLE _snapback_migration_ops ADD COLUMN {column}"),
+            [],
+        ) {
+            Ok(_) => {}
+            Err(error) if error.to_string().contains("duplicate column name") => {}
+            Err(error) => return Err(error.into()),
+        }
     }
     Ok(())
 }
@@ -532,11 +659,81 @@ struct JournalHandle<'a> {
     plan_id: String,
     lease_epoch: u64,
     input_version: u64,
+    host_operation_identity: OnceCell<OperationIdentityV1>,
 }
 
 impl JournalHandle<'_> {
     fn latest_state(&self) -> SnapbackResult<Option<MigrationExecState>> {
         latest_state_on(self.tx, &self.operation_id)
+    }
+
+    fn host_operation_identity(&self, issued_at_ms: u64) -> SnapbackResult<&OperationIdentityV1> {
+        if self.host_operation_identity.get().is_none() {
+            let stream_id = crate::seed_identity::strict_current_data_version_stream(self.tx)?
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_OPERATION_STREAM_UNAVAILABLE",
+                        "storage",
+                        "migration host identity requires an initialized data-version stream",
+                    )
+                })?;
+            let prior_journal_rows: i64 = self.tx.query_row(
+                "SELECT COUNT(*) FROM _snapback_migration_journal WHERE operation_id=?1",
+                [&self.operation_id],
+                |row| row.get(0),
+            )?;
+            let commit_ordinal = u64::try_from(prior_journal_rows).map_err(|_| {
+                journal_corrupt("migration host child ordinal overflowed".to_owned())
+            })?;
+            let authority = crate::operation_ledger::ensure_host_incarnation_in(
+                self.tx,
+                &stream_id,
+                MIGRATION_HOST_AUTHORITY_INSTANCE_ID_V1,
+                issued_at_ms,
+            )?;
+            let issuance = OperationIssuanceV1::HostIncarnation {
+                epoch_id: authority.epoch_id,
+                upstream_identity: self.operation_id.clone(),
+                commit_ordinal,
+                authority_authenticator_digest: authority.authority_authenticator_digest,
+            };
+            let identity = OperationIdentityV1 {
+                schema_version: OperationIdentityV1::SCHEMA_VERSION,
+                key: OperationKeyV1 {
+                    stream_id,
+                    originator_class: OperationOriginatorClassV1::Host,
+                    operation_id: derive_host_operation_id(&self.operation_id, commit_ordinal),
+                },
+                issuance,
+                bound_facts: OperationBoundFactsV1 {
+                    audience: authority.audience,
+                    principal_fingerprint: migration_host_digest(
+                        b"snapback:migration-host-principal:v1\n",
+                        &json!({ "operationId": self.operation_id }),
+                    ),
+                    authority_instance_id: authority.authority_instance_id,
+                    operation_kind: MIGRATION_HOST_OPERATION_KIND_V1.to_owned(),
+                    function_or_command: self.plan_id.clone(),
+                    input_fingerprint: migration_host_digest(
+                        b"snapback:migration-host-commit:v1\n",
+                        &json!({
+                            "commitOrdinal": commit_ordinal,
+                            "inputVersion": self.input_version,
+                            "operationId": self.operation_id,
+                            "planId": self.plan_id,
+                        }),
+                    ),
+                },
+            };
+            crate::operation_ledger::authenticate_host_identity(self.tx, &identity)?;
+            self.host_operation_identity.set(identity).map_err(|_| {
+                journal_corrupt("migration transaction identity initialized twice".to_owned())
+            })?;
+        }
+        Ok(self
+            .host_operation_identity
+            .get()
+            .expect("migration host identity initialized above"))
     }
 
     /// Append one durable transition. Validates the fencing token against
@@ -564,10 +761,12 @@ impl JournalHandle<'_> {
                 "the first journal entry of an operation must be admitted".to_owned(),
             ));
         }
+        let host_operation_identity = self.host_operation_identity(entry_fields.at_ms)?.clone();
         let entry = MigrationJournalEntryV1 {
             version: MIGRATION_JOURNAL_SCHEMA_VERSION.to_owned(),
             operation_id: self.operation_id.clone(),
             plan_id: self.plan_id.clone(),
+            host_operation_identity: Some(host_operation_identity),
             step_id: entry_fields.step_id.map(str::to_owned),
             attempt: entry_fields.attempt,
             state: entry_fields.state.clone(),
@@ -595,6 +794,373 @@ impl JournalHandle<'_> {
         )?;
         Ok(())
     }
+}
+
+fn migration_host_digest(domain: &[u8], value: &Value) -> String {
+    use sha2::{Digest as _, Sha256};
+    let mut digest = Sha256::new();
+    digest.update(domain);
+    digest.update(serde_json::to_vec(value).expect("migration host identity JSON serializes"));
+    format!("sha256:{:x}", digest.finalize())
+}
+
+/// Provision the server-owned host epoch before a migration transaction can
+/// consume a child ordinal. If that later transaction rolls back, retry sees
+/// the same authenticated issuance facts as well as the same operation key.
+fn ensure_migration_host_authority(conn: &mut Connection, issued_at_ms: u64) -> SnapbackResult<()> {
+    let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    let stream_id = super::auth_invalidation::ensure_data_version_stream_in(&tx)?;
+    crate::operation_ledger::ensure_host_incarnation_in(
+        &tx,
+        &stream_id,
+        MIGRATION_HOST_AUTHORITY_INSTANCE_ID_V1,
+        issued_at_ms,
+    )?;
+    tx.commit()?;
+    Ok(())
+}
+
+fn migration_aggregate_bound_facts(
+    artifact: &MigrationPlanArtifactV1,
+    approval: &MigrationApprovalV1,
+    authority_audience: &str,
+) -> SnapbackResult<OperationBoundFactsV1> {
+    Ok(OperationBoundFactsV1 {
+        audience: authority_audience.to_owned(),
+        principal_fingerprint: migration_host_digest(
+            b"snapback:migration-aggregate-principal:v1\n",
+            &json!({
+                "approver": approval.approver,
+                "policyDigest": approval.policy_digest,
+            }),
+        ),
+        authority_instance_id: MIGRATION_HOST_AUTHORITY_INSTANCE_ID_V1.to_owned(),
+        operation_kind: MIGRATION_AGGREGATE_LANE_V1.to_owned(),
+        function_or_command: artifact.plan_id.clone(),
+        input_fingerprint: migration_host_digest(
+            b"snapback:migration-aggregate-input:v1\n",
+            &json!({
+                "approvalDigest": approval_digest(approval)?,
+                "operationId": approval.operation_id,
+                "planDigest": artifact.plan_digest,
+            }),
+        ),
+    })
+}
+
+/// Return the one aggregate identity persisted at H1. A resumed executor uses
+/// those original authenticated issuance facts even if the host incarnation
+/// rotated between P and T; only request-bound facts are re-derived and
+/// compared.
+fn migration_aggregate_identity_in(
+    tx: &Transaction<'_>,
+    artifact: &MigrationPlanArtifactV1,
+    approval: &MigrationApprovalV1,
+    issued_at_ms: u64,
+) -> SnapbackResult<OperationIdentityV1> {
+    let stream_id =
+        crate::seed_identity::strict_current_data_version_stream(tx)?.ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_OPERATION_STREAM_UNAVAILABLE",
+                "storage",
+                "migration aggregate identity requires an initialized data-version stream",
+            )
+        })?;
+    let stored: Option<Option<String>> = tx
+        .query_row(
+            "SELECT aggregate_identity_json FROM _snapback_migration_ops WHERE operation_id=?1",
+            [&approval.operation_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    if let Some(Some(stored)) = stored {
+        let identity: OperationIdentityV1 = serde_json::from_str(&stored)
+            .map_err(|_| journal_corrupt("aggregate identity does not parse".to_owned()))?;
+        let recorded_audience = crate::operation_ledger::resolve_operation_audience_for_lookup(
+            tx,
+            &identity.issuance,
+            MIGRATION_HOST_AUTHORITY_INSTANCE_ID_V1,
+        )?;
+        let expected_bound =
+            migration_aggregate_bound_facts(artifact, approval, &recorded_audience)?;
+        let exact_source = matches!(
+            &identity.issuance,
+            OperationIssuanceV1::HostIncarnation {
+                upstream_identity,
+                commit_ordinal,
+                ..
+            } if upstream_identity == &approval.operation_id
+                && *commit_ordinal == MIGRATION_AGGREGATE_COMMIT_ORDINAL_V1
+        );
+        if identity.key.stream_id != stream_id
+            || identity.key.originator_class != OperationOriginatorClassV1::Host
+            || identity.key.operation_id
+                != derive_host_operation_id(
+                    &approval.operation_id,
+                    MIGRATION_AGGREGATE_COMMIT_ORDINAL_V1,
+                )
+            || identity.bound_facts != expected_bound
+            || !exact_source
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CLIENT_MUTATION_ID_REUSED",
+                "storage",
+                "migration aggregate identity was reused with divergent approval, plan, audience, or principal facts",
+            ));
+        }
+        return Ok(identity);
+    }
+    let authority = crate::operation_ledger::ensure_host_incarnation_in(
+        tx,
+        &stream_id,
+        MIGRATION_HOST_AUTHORITY_INSTANCE_ID_V1,
+        issued_at_ms,
+    )?;
+    let issuance = OperationIssuanceV1::HostIncarnation {
+        epoch_id: authority.epoch_id,
+        upstream_identity: approval.operation_id.clone(),
+        commit_ordinal: MIGRATION_AGGREGATE_COMMIT_ORDINAL_V1,
+        authority_authenticator_digest: authority.authority_authenticator_digest,
+    };
+    let identity = OperationIdentityV1 {
+        schema_version: OperationIdentityV1::SCHEMA_VERSION,
+        key: OperationKeyV1 {
+            stream_id,
+            originator_class: OperationOriginatorClassV1::Host,
+            operation_id: derive_host_operation_id(
+                &approval.operation_id,
+                MIGRATION_AGGREGATE_COMMIT_ORDINAL_V1,
+            ),
+        },
+        issuance,
+        bound_facts: migration_aggregate_bound_facts(artifact, approval, &authority.audience)?,
+    };
+    crate::operation_ledger::authenticate_host_identity(tx, &identity)?;
+    Ok(identity)
+}
+
+fn prefixed_migration_plan_digest(artifact: &MigrationPlanArtifactV1) -> String {
+    format!("sha256:{}", artifact.plan_digest)
+}
+
+fn migration_fact_set(domain: &[u8], detail: Value, count: u64) -> EnvelopeFactSetV1 {
+    EnvelopeFactSetV1 {
+        digest: migration_host_digest(domain, &detail),
+        count,
+        provenance: FactProvenanceV1::ServerCaptured,
+        detail: RetainedEnvelopeDetailV1::InlineRedacted { detail },
+    }
+}
+
+/// P-side aggregate record. The caller has already published the live schema,
+/// application version, and exact schema-transition row in this transaction.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the pending aggregate commits independent migration facts in one transaction seam"
+)]
+fn record_migration_pending_aggregate_in(
+    tx: &Transaction<'_>,
+    artifact: &MigrationPlanArtifactV1,
+    approval: &MigrationApprovalV1,
+    aggregate_identity: &OperationIdentityV1,
+    input_version: u64,
+    publication_version: u64,
+    transition_body: &crate::storage::SchemaTransitionEventBodyV1,
+    recorded_at_ms: u64,
+    lease_epoch: u64,
+) -> SnapbackResult<()> {
+    let transition_count: i64 = tx.query_row(
+        "SELECT COUNT(*) FROM _snapback_changes
+          WHERE version=?1 AND table_name=?2 AND row_id=?3 AND op=?4",
+        params![
+            version_to_sql_integer(publication_version)?,
+            crate::storage::SCHEMA_TRANSITION_JOURNAL_TABLE,
+            approval.operation_id,
+            crate::storage::SchemaTransitionKind::SchemaResync.as_op(),
+        ],
+        |row| row.get(0),
+    )?;
+    if transition_count != 1 {
+        return Err(journal_corrupt(format!(
+            "publication P must contain exactly one schema-resync change row (found {transition_count})"
+        )));
+    }
+    let pending_detail = json!({
+        "outcome": "pending",
+        "publicationVersion": publication_version,
+        "state": "published-held",
+    });
+    let pending_payload = RetainedEnvelopeDetailV1::InlineRedacted {
+        detail: pending_detail,
+    };
+    let retained_pending_projection = serde_json::to_value(&pending_payload)
+        .map_err(|_| journal_corrupt("pending receipt projection serialize".to_owned()))?;
+    let pending_receipt_digest =
+        crate::operation_ledger::pending_operation_receipt_digest(&retained_pending_projection)?;
+    let transition_detail = json!({
+        "kind": "schema-resync",
+        "version": publication_version,
+        "body": transition_body,
+    });
+    let empty = json!([]);
+    let coverage_digest = migration_host_digest(
+        b"snapback:migration-aggregate-uncovered:v1\n",
+        &json!({
+            "covered": [],
+            "lane": MIGRATION_AGGREGATE_LANE_V1,
+            "uncovered": ["migrationTransitionH1", "migrationTransitionH2", "migrationCleanup"],
+        }),
+    );
+    let envelope = CommitEnvelopeV1 {
+        schema_version: CommitEnvelopeV1::SCHEMA_VERSION,
+        identity: aggregate_identity.clone(),
+        snapshot: StreamQualifiedVersionV1 {
+            stream_id: aggregate_identity.key.stream_id.clone(),
+            version: publication_version,
+            association: SnapshotAssociationKindV1::ProducedCommit,
+        },
+        principal_session_or_invocation_id: approval.approver.clone(),
+        authority: EnvelopeAuthorityFactsV1 {
+            audience: aggregate_identity.bound_facts.audience.clone(),
+            grant_or_policy_identity: LaneFactV1::Defined(approval.policy_digest.clone()),
+            fencing_token_or_epoch: LaneFactV1::Defined(format!("migration-lease:{lease_epoch}")),
+        },
+        executable_artifact_digest: LaneFactV1::NotDefinedForLane,
+        argument_digest: migration_host_digest(
+            b"snapback:migration-aggregate-arguments:v1\n",
+            &json!({
+                "approvalDigest": approval_digest(approval)?,
+                "operationId": approval.operation_id,
+            }),
+        ),
+        plan_digest: LaneFactV1::Defined(prefixed_migration_plan_digest(artifact)),
+        base_version: LaneFactV1::Defined(StreamQualifiedVersionV1 {
+            stream_id: aggregate_identity.key.stream_id.clone(),
+            version: input_version,
+            association: SnapshotAssociationKindV1::ObservedSnapshot,
+        }),
+        read_set: migration_fact_set(
+            b"snapback:migration-aggregate-read-set:v1\n",
+            empty.clone(),
+            0,
+        ),
+        write_set: migration_fact_set(
+            b"snapback:migration-aggregate-write-set:v1\n",
+            json!([transition_detail]),
+            u64::try_from(transition_count)
+                .map_err(|_| journal_corrupt("publication change count overflow".to_owned()))?,
+        ),
+        ctx_answers: migration_fact_set(b"snapback:migration-aggregate-ctx:v1\n", empty.clone(), 0),
+        effects: EnvelopeEffectFactsV1 {
+            facts: migration_fact_set(b"snapback:migration-aggregate-effects:v1\n", empty, 0),
+            egress_families: Vec::new(),
+            settlement_capabilities: Vec::new(),
+        },
+        receipt: OperationReceiptV1 {
+            state: OperationReceiptStateV1::Pending,
+            receipt_digest: pending_receipt_digest.clone(),
+            payload: pending_payload,
+        },
+        coverage: EnvelopeCoverageV1 {
+            covered_lanes: Vec::new(),
+            uncovered_lanes: vec![MIGRATION_AGGREGATE_LANE_V1.to_owned()],
+            coverage_digest,
+        },
+        recorded_at_ms,
+    };
+    let lifecycle = PendingOperationLifecycleV1 {
+        schema_version: 1,
+        lane: MIGRATION_AGGREGATE_LANE_V1.to_owned(),
+        identity: aggregate_identity.clone(),
+        publication: envelope.snapshot.clone(),
+        pending_receipt_digest,
+        pending_payload: retained_pending_projection,
+        pending_at_ms: recorded_at_ms,
+    };
+    crate::operation_ledger::record_pending_operation_in(
+        tx,
+        &envelope,
+        &lifecycle,
+        MIGRATION_PENDING_CAPACITY_V1,
+    )
+}
+
+/// T-side digest-linked supplement. The terminal projection is read back from
+/// its owning migration receipt columns before this call, so the digest is
+/// over retained bytes rather than a caller assertion. Returns false only for
+/// a legacy published-held operation created before aggregate P records.
+fn finalize_migration_aggregate_in(
+    tx: &Transaction<'_>,
+    aggregate_identity: &OperationIdentityV1,
+    terminal_outcome: PendingOperationTerminalOutcomeV1,
+    retained_terminal_projection: &Value,
+    terminal_write_detail: &Value,
+    terminal_write_count: u64,
+    terminal_at_ms: u64,
+) -> SnapbackResult<bool> {
+    let terminal_write_set_digest = migration_host_digest(
+        b"snapback:migration-aggregate-terminal-write-set:v1\n",
+        terminal_write_detail,
+    );
+    let pending = match crate::operation_ledger::lookup_pending_operation(tx, aggregate_identity)? {
+        crate::operation_ledger::PendingOperationLookupV1::Novel => return Ok(false),
+        crate::operation_ledger::PendingOperationLookupV1::IdentityHorizonPassed => {
+            return Err(SnapbackError::error(
+                "SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED",
+                "storage",
+                "migration aggregate identity is below the retained Host outcome horizon",
+            ));
+        }
+        crate::operation_ledger::PendingOperationLookupV1::Pending(pending) => pending,
+        crate::operation_ledger::PendingOperationLookupV1::Terminal(existing) => {
+            let expected = crate::operation_ledger::pending_operation_terminal_receipt_digest(
+                retained_terminal_projection,
+            )?;
+            if existing.terminal_outcome == terminal_outcome
+                && existing.terminal_receipt_digest == expected
+                && existing.terminal_write_set_digest == terminal_write_set_digest
+                && existing.terminal_write_set_count == terminal_write_count
+            {
+                return Ok(true);
+            }
+            return Err(SnapbackError::error(
+                "SNAPBACK_OPERATION_TERMINAL_DIVERGED",
+                "storage",
+                "migration aggregate already has a different terminal supplement",
+            ));
+        }
+    };
+    let terminal_receipt_digest =
+        crate::operation_ledger::pending_operation_terminal_receipt_digest(
+            retained_terminal_projection,
+        )?;
+    let transition_digest = crate::operation_ledger::pending_operation_transition_digest(
+        aggregate_identity,
+        &pending.publication,
+        &pending.pending_receipt_digest,
+        terminal_outcome,
+        &terminal_receipt_digest,
+        &terminal_write_set_digest,
+        terminal_write_count,
+    );
+    let supplement = PendingOperationTerminalSupplementV1 {
+        schema_version: 1,
+        identity: aggregate_identity.clone(),
+        publication: pending.publication,
+        pending_receipt_digest: pending.pending_receipt_digest,
+        terminal_outcome,
+        terminal_receipt_digest,
+        terminal_write_set_digest,
+        terminal_write_set_count: terminal_write_count,
+        terminal_at_ms,
+        transition_digest,
+    };
+    crate::operation_ledger::finalize_pending_operation_in(
+        tx,
+        &supplement,
+        retained_terminal_projection,
+    )?;
+    Ok(true)
 }
 
 struct JournalAppend<'a> {
@@ -874,6 +1440,9 @@ impl LocalDatabase {
         &mut self,
         request: MigrationApplyRequest<'_>,
     ) -> SnapbackResult<MigrationReceiptV1> {
+        let _writer_token = self
+            .writer_authority
+            .enter(super::write_authority::LocalWriterLaneV1::MigrationExecutor)?;
         let MigrationApplyRequest {
             artifact,
             approval,
@@ -883,9 +1452,48 @@ impl LocalDatabase {
             rehearsal,
         } = request;
         let predecessor_schema = self.schema.clone();
+        let existing_state = latest_state_on(&self.conn, &approval.operation_id)?;
+        let resuming_operation = existing_state.is_some();
+        let plan_semantics_already_consumed = existing_state.as_ref().is_some_and(|state| {
+            state.is_terminal()
+                || matches!(
+                    state,
+                    MigrationExecState::PublishedHeld
+                        | MigrationExecState::RollingBack
+                        | MigrationExecState::CleanupPending { .. }
+                )
+        });
 
         // ---- Static validation and semantic admission (no writes). -------
-        validate_plan_artifact(artifact, &predecessor_schema, successor_schema)?;
+        if plan_semantics_already_consumed {
+            // The exact digest-bound artifact already passed semantic
+            // admission against its predecessor. After publication the live
+            // manifest is the successor, so re-running predecessor-relative
+            // lifecycle checks would reject a legitimate publication,
+            // rollback, cleanup, or terminal replay. Recompute the seal here;
+            // the stored operation binding below still requires the exact
+            // plan digest. Pre-publication resumes re-run the complete
+            // semantic check against the still-authoritative predecessor.
+            validate_plan_artifact_seal(artifact)?;
+        } else if !resuming_operation
+            && completed_predecessor_identity(&self.conn, &artifact.plan_digest)?
+                .is_some_and(|prior| prior != approval.operation_id)
+        {
+            // Recompute the seal before trusting its digest as a replay key.
+            // The same reviewed plan under a new operation is stale even
+            // though the live successor makes predecessor-relative AddField
+            // checks fail for a second reason; preserve the stable stale-plan
+            // diagnostic and require a fresh preview.
+            validate_plan_artifact_seal(artifact)?;
+            return Err(SnapbackError::error(
+                "SNAPBACK_MIGRATION_PLAN_STALE",
+                "storage",
+                "this plan already completed under a prior operation; a new operation requires \
+                 a new preview against the successor state",
+            ));
+        } else {
+            validate_plan_artifact(artifact, &predecessor_schema, successor_schema)?;
+        }
         validate_approval_shape(approval)?;
         if approval.plan_digest != artifact.plan_digest {
             return Err(SnapbackError::error(
@@ -929,6 +1537,18 @@ impl LocalDatabase {
                 }
             }
         }
+        // This binding is needed before terminal replay because a released
+        // replay adopts the caller-supplied successor into the serving handle.
+        // Never let a valid receipt become authority for divergent schema
+        // bytes merely because execution already completed.
+        let successor_identity = schema_identity(successor_schema)?;
+        if artifact.body.successor_schema_hash != successor_identity {
+            return Err(SnapbackError::error(
+                "SNAPBACK_MIGRATION_PLAN_STALE",
+                "storage",
+                "the staged successor schema does not match the plan's successor binding",
+            ));
+        }
         // Replay is keyed by operationId + audience and answers BEFORE any
         // staleness comparison: a completed operation returns its prior
         // receipt even though the target now holds the successor schema
@@ -936,9 +1556,26 @@ impl LocalDatabase {
         if let Some(receipt) = stored_receipt_on(&self.conn, &approval.operation_id)?
             && receipt.state.is_terminal()
         {
+            if receipt.plan_digest != artifact.plan_digest
+                || receipt.approval_digest != approval_digest(approval)?
+                || receipt.audience != approval.audience
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_CLIENT_MUTATION_ID_REUSED",
+                    "storage",
+                    "completed migration operation identity was reused with divergent plan, approval, or audience facts",
+                ));
+            }
+            if matches!(receipt.state, MigrationExecState::Released) {
+                // A caller can lose the response after T committed but before
+                // the serving handle adopted the successor. Exact replay is
+                // read-only with respect to storage, but it must repair that
+                // in-memory serving posture before returning the retained
+                // terminal receipt.
+                self.schema = successor_schema.clone();
+            }
             return Ok(receipt);
         }
-        let resuming_operation = latest_state_on(&self.conn, &approval.operation_id)?.is_some();
         let predecessor_identity = schema_identity(&predecessor_schema)?;
         if !resuming_operation && artifact.body.predecessor_schema_hash != predecessor_identity {
             return Err(SnapbackError::error(
@@ -951,34 +1588,24 @@ impl LocalDatabase {
                 ),
             ));
         }
-        let successor_identity = schema_identity(successor_schema)?;
-        if artifact.body.successor_schema_hash != successor_identity {
-            return Err(SnapbackError::error(
-                "SNAPBACK_MIGRATION_PLAN_STALE",
-                "storage",
-                "the staged successor schema does not match the plan's successor binding",
-            ));
-        }
         validate_supported_steps(artifact)?;
 
         // ---- Exclusivity. --------------------------------------------------
         if let Some(other) = active_other_operation(&self.conn, &approval.operation_id)? {
+            if matches!(
+                latest_state_on(&self.conn, &other)?,
+                Some(MigrationExecState::PublishedHeld)
+            ) {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_OPERATION_PENDING_CAPACITY_FULL",
+                    "storage",
+                    "migration aggregate pending capacity is full; new admission refuses rather than evicting or finalizing the held publication",
+                ));
+            }
             return Err(SnapbackError::error(
                 "SNAPBACK_MIGRATION_EXECUTOR_UNAVAILABLE",
                 "storage",
                 format!("operation {other} already owns this app; only one migration at a time"),
-            ));
-        }
-        // The same plan under a new approval is a new operation and is
-        // stale against a completed predecessor identity.
-        if completed_predecessor_identity(&self.conn, &artifact.plan_digest)?
-            .is_some_and(|prior| prior != approval.operation_id)
-        {
-            return Err(SnapbackError::error(
-                "SNAPBACK_MIGRATION_PLAN_STALE",
-                "storage",
-                "this plan already completed under a prior operation; a new operation requires \
-                 a new preview against the successor state",
             ));
         }
         if approval.expires_at_ms < now_ms && !resuming_operation {
@@ -990,18 +1617,32 @@ impl LocalDatabase {
             ));
         }
 
+        // Provision outside the journal transaction so a rollback cannot
+        // rotate the host epoch and change retry issuance facts.
+        ensure_migration_host_authority(&mut self.conn, now_ms)?;
+
         // ---- Admission transaction: lease, fence, journal head. -----------
         let resuming = resuming_operation;
-        let (lease_epoch, input_version, admission) = {
+        let (lease_epoch, input_version, admission, aggregate_identity) = {
             let tx = self
                 .conn
                 .transaction_with_behavior(TransactionBehavior::Immediate)?;
             ensure_migration_tables(&tx)?;
+            let aggregate_identity =
+                migration_aggregate_identity_in(&tx, artifact, approval, now_ms)?;
+            crate::operation_ledger::require_pending_operation_capacity_in(
+                &tx,
+                MIGRATION_AGGREGATE_LANE_V1,
+                &aggregate_identity.bound_facts.audience,
+                Some(&aggregate_identity),
+                MIGRATION_PENDING_CAPACITY_V1,
+            )?;
             let head = current_version_on(&tx)?;
             // Barrier-time resource-ceiling preconditions: growth past the
             // reviewed bounds refuses and requires a new preview/approval.
             enforce_admission_ceilings(&tx, &predecessor_schema, artifact)?;
             enforce_publication_timestamp_floor(&tx, &predecessor_schema, artifact)?;
+            enforce_fresh_add_field_destinations(&tx, artifact, &approval.operation_id)?;
             // A republished predecessor advanced its storage generation
             // (LLP 0081 §6): a plan bound to the pre-rollback generation is
             // stale and requires a fresh preview.
@@ -1071,11 +1712,15 @@ impl LocalDatabase {
             };
             let audience_json = serde_json::to_string(&approval.audience)
                 .map_err(|_| journal_corrupt("audience does not serialize".to_owned()))?;
+            let approval_digest_value = approval_digest(approval)?;
+            let aggregate_identity_json = serde_json::to_string(&aggregate_identity)
+                .map_err(|_| journal_corrupt("aggregate identity serialize".to_owned()))?;
             if !resuming {
                 tx.execute(
                     "INSERT INTO _snapback_migration_ops(operation_id, audience_json, \
-                     plan_digest, state_json, lease_epoch, cancel_requested, rehearsal) \
-                     VALUES(?1, ?2, ?3, ?4, ?5, 0, ?6)",
+                     plan_digest, state_json, lease_epoch, cancel_requested, rehearsal, \
+                     approval_digest, aggregate_identity_json) \
+                     VALUES(?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8)",
                     params![
                         approval.operation_id,
                         audience_json,
@@ -1084,12 +1729,42 @@ impl LocalDatabase {
                             .map_err(|_| journal_corrupt("state serialize".to_owned()))?,
                         lease_epoch as i64,
                         i64::from(rehearsal.is_some()),
+                        approval_digest_value,
+                        aggregate_identity_json,
                     ],
                 )?;
             } else {
+                let stored_binding: (String, String, Option<String>) = tx.query_row(
+                    "SELECT plan_digest,audience_json,approval_digest
+                       FROM _snapback_migration_ops WHERE operation_id=?1",
+                    [&approval.operation_id],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                )?;
+                if stored_binding.0 != artifact.plan_digest
+                    || stored_binding.1 != audience_json
+                    || stored_binding
+                        .2
+                        .as_deref()
+                        .is_some_and(|digest| digest != approval_digest_value)
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_CLIENT_MUTATION_ID_REUSED",
+                        "storage",
+                        "migration operation identity was reused with divergent plan, approval, or audience facts",
+                    ));
+                }
                 tx.execute(
-                    "UPDATE _snapback_migration_ops SET lease_epoch = ?2 WHERE operation_id = ?1",
-                    params![approval.operation_id, lease_epoch as i64],
+                    "UPDATE _snapback_migration_ops
+                        SET lease_epoch=?2,
+                            approval_digest=COALESCE(approval_digest,?3),
+                            aggregate_identity_json=COALESCE(aggregate_identity_json,?4)
+                      WHERE operation_id=?1",
+                    params![
+                        approval.operation_id,
+                        lease_epoch as i64,
+                        approval_digest_value,
+                        aggregate_identity_json,
+                    ],
                 )?;
             }
             let journal = JournalHandle {
@@ -1098,6 +1773,7 @@ impl LocalDatabase {
                 plan_id: artifact.plan_id.clone(),
                 lease_epoch,
                 input_version: head,
+                host_operation_identity: OnceCell::new(),
             };
             if !resuming {
                 journal.append(JournalAppend {
@@ -1121,6 +1797,7 @@ impl LocalDatabase {
                     head
                 },
                 admission,
+                aggregate_identity,
             )
         };
 
@@ -1153,6 +1830,7 @@ impl LocalDatabase {
                 successor_schema,
                 lease_epoch,
                 input_version,
+                &aggregate_identity,
                 now_ms,
             );
         }
@@ -1164,6 +1842,7 @@ impl LocalDatabase {
             successor_schema,
             lease_epoch,
             input_version,
+            &aggregate_identity,
             now_ms,
         );
         match outcome {
@@ -1200,6 +1879,7 @@ impl LocalDatabase {
         successor_schema: &SchemaManifest,
         lease_epoch: u64,
         input_version: u64,
+        aggregate_identity: &OperationIdentityV1,
         now_ms: u64,
     ) -> SnapbackResult<MigrationReceiptV1> {
         let journal_so_far = journal_entries_on(&self.conn, &approval.operation_id)?;
@@ -1304,6 +1984,7 @@ impl LocalDatabase {
                 plan_id: artifact.plan_id.clone(),
                 lease_epoch,
                 input_version,
+                host_operation_identity: OnceCell::new(),
             };
             let proof = run_data_proof(
                 &tx,
@@ -1357,6 +2038,7 @@ impl LocalDatabase {
                         ),
                         [],
                     )?;
+                    ensure_managed_version_integrity_indexes(&tx, table)?;
                 }
             }
             // Publish the successor schema manifest and its additive DDL.
@@ -1380,20 +2062,21 @@ impl LocalDatabase {
             // closed-vocabulary operation, not an informal row).
             set_version(&tx, publication_version)?;
             save_retention_floor_on(&tx, publication_version)?;
+            let transition_body = crate::storage::SchemaTransitionEventBodyV1 {
+                operation_id: approval.operation_id.clone(),
+                plan_id: artifact.plan_id.clone(),
+                predecessor_schema_hash: artifact.body.predecessor_schema_hash.clone(),
+                successor_schema_hash: artifact.body.successor_schema_hash.clone(),
+                predecessor_generation: artifact.body.predecessor_generation,
+                successor_generation: artifact.body.predecessor_generation + 1,
+                retention_floor: publication_version,
+                compatibility_posture: artifact.body.compatibility_posture,
+            };
             crate::storage::record_schema_transition_event(
                 &tx,
                 publication_version,
                 crate::storage::SchemaTransitionKind::SchemaResync,
-                &crate::storage::SchemaTransitionEventBodyV1 {
-                    operation_id: approval.operation_id.clone(),
-                    plan_id: artifact.plan_id.clone(),
-                    predecessor_schema_hash: artifact.body.predecessor_schema_hash.clone(),
-                    successor_schema_hash: artifact.body.successor_schema_hash.clone(),
-                    predecessor_generation: artifact.body.predecessor_generation,
-                    successor_generation: artifact.body.predecessor_generation + 1,
-                    retention_floor: publication_version,
-                    compatibility_posture: artifact.body.compatibility_posture,
-                },
+                &transition_body,
                 now_ms,
             )?;
             let journal = JournalHandle {
@@ -1402,6 +2085,7 @@ impl LocalDatabase {
                 plan_id: artifact.plan_id.clone(),
                 lease_epoch,
                 input_version,
+                host_operation_identity: OnceCell::new(),
             };
             journal.append(JournalAppend {
                 output_version: Some(publication_version),
@@ -1409,6 +2093,20 @@ impl LocalDatabase {
                 barrier_elapsed_ms: Some(elapsed(at)),
                 ..JournalAppend::of(&MigrationExecState::PublishedHeld)
             })?;
+            // @ref LLP 0163#implementation-record-2026-08-04-migration-aggregate-settlement-tail
+            //   — P is one atomic cut: live publication, application version,
+            //   schema-resync row, immutable Pending envelope, and lifecycle.
+            record_migration_pending_aggregate_in(
+                &tx,
+                artifact,
+                approval,
+                aggregate_identity,
+                input_version,
+                publication_version,
+                &transition_body,
+                at,
+                lease_epoch,
+            )?;
             tx.commit()?;
         }
 
@@ -1419,6 +2117,7 @@ impl LocalDatabase {
             successor_schema,
             lease_epoch,
             input_version,
+            aggregate_identity,
             step_results,
         )
     }
@@ -1434,6 +2133,7 @@ impl LocalDatabase {
         successor_schema: &SchemaManifest,
         lease_epoch: u64,
         input_version: u64,
+        aggregate_identity: &OperationIdentityV1,
         _now_ms: u64,
     ) -> SnapbackResult<MigrationReceiptV1> {
         self.migrate_release_inner(
@@ -1443,6 +2143,7 @@ impl LocalDatabase {
             successor_schema,
             lease_epoch,
             input_version,
+            aggregate_identity,
             BTreeMap::new(),
         )
     }
@@ -1456,6 +2157,7 @@ impl LocalDatabase {
         successor_schema: &SchemaManifest,
         lease_epoch: u64,
         input_version: u64,
+        aggregate_identity: &OperationIdentityV1,
         step_results: BTreeMap<String, Value>,
     ) -> SnapbackResult<MigrationReceiptV1> {
         let at = now_millis();
@@ -1469,6 +2171,7 @@ impl LocalDatabase {
                 plan_id: artifact.plan_id.clone(),
                 lease_epoch,
                 input_version,
+                host_operation_identity: OnceCell::new(),
             };
             journal.append(JournalAppend {
                 at_ms: at,
@@ -1485,9 +2188,30 @@ impl LocalDatabase {
                 None,
             )?;
             store_receipt(&tx, &approval.operation_id, &receipt)?;
+            let retained_receipt_json: String = tx.query_row(
+                "SELECT receipt_json FROM _snapback_migration_ops WHERE operation_id=?1",
+                [&approval.operation_id],
+                |row| row.get(0),
+            )?;
+            let retained_terminal_projection: Value = serde_json::from_str(&retained_receipt_json)
+                .map_err(|_| {
+                    journal_corrupt("stored terminal receipt does not parse".to_owned())
+                })?;
+            finalize_migration_aggregate_in(
+                &tx,
+                aggregate_identity,
+                PendingOperationTerminalOutcomeV1::Committed,
+                &retained_terminal_projection,
+                &json!([]),
+                0,
+                at,
+            )?;
             tx.commit()?;
             receipt
         };
+        // Test-only response-loss seam: T is durable before the caller sees
+        // its receipt, so retry must return the singleton retained result.
+        kill_point_check("terminal-response");
         // The serving handle adopts the successor schema.
         self.schema = successor_schema.clone();
         // The physical cleanup tail (§3/§4): the rollback window closed at
@@ -1541,6 +2265,7 @@ impl LocalDatabase {
             plan_id: artifact.plan_id.clone(),
             lease_epoch,
             input_version,
+            host_operation_identity: OnceCell::new(),
         };
         let latest = journal.latest_state()?;
         if !matches!(latest, Some(MigrationExecState::CancelRequested)) {
@@ -1613,6 +2338,9 @@ impl LocalDatabase {
         audience: &ResolvedLocalAudience,
         now_ms: u64,
     ) -> SnapbackResult<MigrationRollbackReceiptV1> {
+        let _writer_token = self
+            .writer_authority
+            .enter(super::write_authority::LocalWriterLaneV1::MigrationExecutor)?;
         validate_approval_shape(approval)?;
         if approval.plan_digest != artifact.plan_digest {
             return Err(SnapbackError::error(
@@ -1624,6 +2352,15 @@ impl LocalDatabase {
         validate_local_audience(&approval.audience, audience)?;
         // Completed-rollback replay returns the sealed rollback receipt.
         if let Some(receipt) = stored_rollback_receipt_on(&self.conn, &approval.operation_id)? {
+            if receipt.plan_digest != artifact.plan_digest
+                || receipt.approval_digest != approval_digest(approval)?
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_CLIENT_MUTATION_ID_REUSED",
+                    "storage",
+                    "completed rollback identity was reused with divergent plan or approval facts",
+                ));
+            }
             return Ok(receipt);
         }
         let rollback_timestamp_ms =
@@ -1657,11 +2394,14 @@ impl LocalDatabase {
             }
         }
 
+        ensure_migration_host_authority(&mut self.conn, now_ms)?;
+
         let predecessor_schema = self.schema.clone();
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         ensure_migration_tables(&tx)?;
+        let aggregate_identity = migration_aggregate_identity_in(&tx, artifact, approval, now_ms)?;
         let lease_epoch = current_lease_epoch(&tx)? + 1;
         upsert_meta(&tx, META_MIGRATION_LEASE_EPOCH, &lease_epoch.to_string())?;
         let head = current_version_on(&tx)?;
@@ -1672,6 +2412,7 @@ impl LocalDatabase {
             plan_id: artifact.plan_id.clone(),
             lease_epoch,
             input_version: head,
+            host_operation_identity: OnceCell::new(),
         };
         journal.append(JournalAppend {
             at_ms: now_ms,
@@ -1700,6 +2441,7 @@ impl LocalDatabase {
                         ),
                         [],
                     )?;
+                    ensure_managed_version_integrity_indexes(&tx, table)?;
                 }
                 staged_restored.push(table.clone());
             }
@@ -1760,22 +2502,39 @@ impl LocalDatabase {
         // and the kind carries the direction: the plan's predecessor was
         // republished, its storage generation advanced to
         // `restored_storage_generation`.
+        let rollback_transition_body = crate::storage::SchemaTransitionEventBodyV1 {
+            operation_id: approval.operation_id.clone(),
+            plan_id: artifact.plan_id.clone(),
+            predecessor_schema_hash: artifact.body.predecessor_schema_hash.clone(),
+            successor_schema_hash: artifact.body.successor_schema_hash.clone(),
+            predecessor_generation: artifact.body.predecessor_generation,
+            successor_generation: restored_storage_generation,
+            retention_floor: republished_version,
+            compatibility_posture: artifact.body.compatibility_posture,
+        };
         crate::storage::record_schema_transition_event(
             &tx,
             republished_version,
             crate::storage::SchemaTransitionKind::RollbackResync,
-            &crate::storage::SchemaTransitionEventBodyV1 {
-                operation_id: approval.operation_id.clone(),
-                plan_id: artifact.plan_id.clone(),
-                predecessor_schema_hash: artifact.body.predecessor_schema_hash.clone(),
-                successor_schema_hash: artifact.body.successor_schema_hash.clone(),
-                predecessor_generation: artifact.body.predecessor_generation,
-                successor_generation: restored_storage_generation,
-                retention_floor: republished_version,
-                compatibility_posture: artifact.body.compatibility_posture,
-            },
+            &rollback_transition_body,
             rollback_timestamp_ms,
         )?;
+        let rollback_transition_count: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM _snapback_changes
+              WHERE version=?1 AND table_name=?2 AND row_id=?3 AND op=?4",
+            params![
+                version_to_sql_integer(republished_version)?,
+                crate::storage::SCHEMA_TRANSITION_JOURNAL_TABLE,
+                approval.operation_id,
+                crate::storage::SchemaTransitionKind::RollbackResync.as_op(),
+            ],
+            |row| row.get(0),
+        )?;
+        if rollback_transition_count != 1 {
+            return Err(journal_corrupt(format!(
+                "rollback R must contain exactly one rollback-resync change row (found {rollback_transition_count})"
+            )));
+        }
 
         journal.append(JournalAppend {
             output_version: Some(republished_version),
@@ -1813,13 +2572,14 @@ impl LocalDatabase {
             journal_entries: entries.len() as u64,
             journal_digest,
         };
+        let rollback_receipt_json = serde_json::to_string(&rollback_receipt)
+            .map_err(|_| journal_corrupt("rollback receipt serialize".to_owned()))?;
         tx.execute(
             "UPDATE _snapback_migration_ops SET rollback_receipt_json = ?2, state_json = ?3 \
              WHERE operation_id = ?1",
             params![
                 approval.operation_id,
-                serde_json::to_string(&rollback_receipt)
-                    .map_err(|_| journal_corrupt("rollback receipt serialize".to_owned()))?,
+                rollback_receipt_json,
                 serde_json::to_string(&MigrationExecState::RolledBack)
                     .map_err(|_| journal_corrupt("state serialize".to_owned()))?,
             ],
@@ -1842,7 +2602,35 @@ impl LocalDatabase {
             None,
         )?;
         store_receipt(&tx, &approval.operation_id, &forward)?;
+        let retained: (String, String) = tx.query_row(
+            "SELECT receipt_json,rollback_receipt_json FROM _snapback_migration_ops
+              WHERE operation_id=?1",
+            [&approval.operation_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        let retained_terminal_projection = json!({
+            "forwardReceipt": serde_json::from_str::<Value>(&retained.0)
+                .map_err(|_| journal_corrupt("stored forward receipt does not parse".to_owned()))?,
+            "rollbackReceipt": serde_json::from_str::<Value>(&retained.1)
+                .map_err(|_| journal_corrupt("stored rollback receipt does not parse".to_owned()))?,
+        });
+        let rollback_write_detail = json!([{
+            "kind": "rollback-resync",
+            "version": republished_version,
+            "body": rollback_transition_body,
+        }]);
+        finalize_migration_aggregate_in(
+            &tx,
+            &aggregate_identity,
+            PendingOperationTerminalOutcomeV1::RolledBack,
+            &retained_terminal_projection,
+            &rollback_write_detail,
+            u64::try_from(rollback_transition_count)
+                .map_err(|_| journal_corrupt("rollback change count overflow".to_owned()))?,
+            now_ms,
+        )?;
         tx.commit()?;
+        kill_point_check("rollback-response");
         // The rollback's cleanup tail: the republished predecessor is
         // authoritative, so orphaned staged successor generations drop.
         // Same resumable posture as the release tail.
@@ -1931,6 +2719,7 @@ impl LocalDatabase {
                 plan_id: plan_id.clone(),
                 lease_epoch,
                 input_version,
+                host_operation_identity: OnceCell::new(),
             };
             let state = MigrationExecState::Executing {
                 step: step_id.to_owned(),
@@ -2277,6 +3066,8 @@ pub(crate) fn run_cleanup_tail(
     retired_columns: &[(String, String)],
     schema: &SchemaManifest,
 ) -> SnapbackResult<Value> {
+    ensure_migration_host_authority(conn, now_millis())?;
+
     // Durable cut 1: the tail's intent survives a crash.
     {
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -2286,6 +3077,7 @@ pub(crate) fn run_cleanup_tail(
             plan_id: context.plan_id.clone(),
             lease_epoch: context.lease_epoch,
             input_version: context.input_version,
+            host_operation_identity: OnceCell::new(),
         };
         journal.append(JournalAppend {
             at_ms: now_millis(),
@@ -2309,6 +3101,11 @@ fn cleanup_sweep(
     retired_columns: &[(String, String)],
     schema: &SchemaManifest,
 ) -> SnapbackResult<Value> {
+    // Crash recovery may resume a legacy migration whose original executor
+    // never provisioned the host authority. Make the epoch durable before
+    // the terminal cleanup transaction starts.
+    ensure_migration_host_authority(conn, now_millis())?;
+
     let terminal_state = match terminal {
         CleanupTerminal::Released => MigrationExecState::Released,
         CleanupTerminal::RolledBack => MigrationExecState::RolledBack,
@@ -2384,6 +3181,7 @@ fn cleanup_sweep(
         plan_id: context.plan_id.clone(),
         lease_epoch: context.lease_epoch,
         input_version: context.input_version,
+        host_operation_identity: OnceCell::new(),
     };
     journal.append(JournalAppend {
         verification: Some(&summary),
@@ -2510,6 +3308,7 @@ fn journal_step_wrapper<'a>(
                 plan_id: plan_id.to_owned(),
                 lease_epoch,
                 input_version,
+                host_operation_identity: OnceCell::new(),
             };
             let state = MigrationExecState::Executing {
                 step: step_id.to_owned(),
@@ -2603,7 +3402,12 @@ impl LocalDatabase {
                 let mut rows = statement.query(super::params_from_iter(values.iter()))?;
                 let mut out = Vec::new();
                 while let Some(row) = rows.next()? {
-                    out.push(super::row_to_document(row, table, &columns)?);
+                    out.push(super::row_to_document_with_staged_nullable_fields(
+                        row,
+                        table,
+                        &columns,
+                        &[field],
+                    )?);
                 }
                 out
             };
@@ -2723,6 +3527,7 @@ impl LocalDatabase {
                         None,
                         "migration/backfill-fields",
                     )?;
+                    let value = run_migration_execution_value_hook(dest_field, value);
                     if row.get(dest_field).cloned().unwrap_or(Value::Null) != value {
                         content_changed = true;
                     }
@@ -2935,6 +3740,327 @@ impl LocalDatabase {
     }
 }
 
+// The migration expected-value path intentionally owns a second evaluator.
+// It must not call storage's `eval_expr` or `value_expr::eval_value_expr`:
+// sharing either implementation would turn matching digests into inventory,
+// not LLP 0081 independent boundary proof.
+//
+// @ref LLP 0165#migration-verification-boundary--2026-08-04 — predecessor
+//   values are mapped through an independently implemented evaluator.
+fn migration_expected_oracle(
+    expr: &ValueExpr,
+    constants: &Value,
+    bindings: &BTreeMap<String, Value>,
+) -> SnapbackResult<Value> {
+    fn refused(message: impl Into<String>) -> SnapbackError {
+        SnapbackError::error(
+            "SNAPBACK_MIGRATION_EXPECTED_ORACLE_FAILED",
+            "storage",
+            message,
+        )
+    }
+
+    fn lookup<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
+        let mut current = value;
+        for part in path.split('.') {
+            current = current.as_object()?.get(part)?;
+        }
+        Some(current)
+    }
+
+    fn field(value: &Value, key: &str) -> Value {
+        match value {
+            Value::Object(fields) => fields.get(key).cloned().unwrap_or(Value::Null),
+            Value::Array(items) => key
+                .parse::<usize>()
+                .ok()
+                .and_then(|index| items.get(index))
+                .cloned()
+                .unwrap_or(Value::Null),
+            _ => Value::Null,
+        }
+    }
+
+    fn number(value: &Value) -> Option<f64> {
+        value.as_f64()
+    }
+
+    fn number_value(value: f64) -> Value {
+        const SAFE: f64 = 9_007_199_254_740_992.0;
+        if !value.is_finite() {
+            Value::Null
+        } else if value.fract() == 0.0 && value.abs() <= SAFE {
+            json!(value as i64)
+        } else {
+            serde_json::Number::from_f64(value).map_or(Value::Null, Value::Number)
+        }
+    }
+
+    fn truthy(value: &Value) -> bool {
+        match value {
+            Value::Null => false,
+            Value::Bool(value) => *value,
+            Value::Number(_) => number(value).is_some_and(|value| value != 0.0 && !value.is_nan()),
+            Value::String(value) => !value.is_empty(),
+            Value::Array(_) | Value::Object(_) => true,
+        }
+    }
+
+    fn equal(left: &Value, right: &Value) -> bool {
+        match (number(left), number(right)) {
+            (Some(left), Some(right)) => left == right,
+            _ => left == right,
+        }
+    }
+
+    fn numeric(op: BinaryOp, left: &Value, right: &Value) -> SnapbackResult<Value> {
+        if left.is_null() || right.is_null() {
+            return Ok(Value::Null);
+        }
+        let (Some(left), Some(right)) = (number(left), number(right)) else {
+            return Err(refused(format!("{op:?} expects numeric operands")));
+        };
+        Ok(number_value(match op {
+            BinaryOp::Add => left + right,
+            BinaryOp::Sub => left - right,
+            BinaryOp::Mul => left * right,
+            BinaryOp::Div => left / right,
+            BinaryOp::Mod => left % right,
+            _ => unreachable!("numeric oracle only receives arithmetic operators"),
+        }))
+    }
+
+    fn portable_trim(value: &str) -> String {
+        value
+            .trim_matches(|ch| {
+                matches!(
+                    ch,
+                    '\u{0009}'..='\u{000D}'
+                        | '\u{0020}'
+                        | '\u{0085}'
+                        | '\u{00A0}'
+                        | '\u{1680}'
+                        | '\u{2000}'..='\u{200A}'
+                        | '\u{2028}'
+                        | '\u{2029}'
+                        | '\u{202F}'
+                        | '\u{205F}'
+                        | '\u{3000}'
+                )
+            })
+            .to_owned()
+    }
+
+    fn round_ecmascript(value: f64) -> f64 {
+        if !value.is_finite() || value == 0.0 || value.fract() == 0.0 {
+            return value;
+        }
+        let lower = value.floor();
+        if value - lower < 0.5 {
+            lower
+        } else {
+            lower + 1.0
+        }
+    }
+
+    fn concat_string(value: &Value) -> SnapbackResult<String> {
+        match value {
+            Value::Null => Ok("null".to_owned()),
+            Value::Bool(value) => Ok(value.to_string()),
+            Value::String(value) => Ok(value.clone()),
+            Value::Number(_) => number(value)
+                .filter(|value| value.is_finite())
+                .map(|value| ryu_js::Buffer::new().format(value).to_owned())
+                .ok_or_else(|| refused("concat received an unrepresentable number")),
+            Value::Array(_) | Value::Object(_) => {
+                Err(refused("concat cannot interpolate arrays or objects"))
+            }
+        }
+    }
+
+    fn evaluate(
+        expr: &ValueExpr,
+        constants: &Value,
+        bindings: &BTreeMap<String, Value>,
+        depth: usize,
+    ) -> SnapbackResult<Value> {
+        if depth > crate::value_expr::MAX_EXPR_DEPTH {
+            return Err(refused(
+                "migration expected expression exceeds the v1 depth bound",
+            ));
+        }
+        let child = |expr| evaluate(expr, constants, bindings, depth + 1);
+        match expr {
+            ValueExpr::Arg(path) => lookup(constants, path)
+                .cloned()
+                .ok_or_else(|| refused(format!("migration constant {path} was not provided"))),
+            ValueExpr::Binding(name) => bindings
+                .get(name)
+                .cloned()
+                .ok_or_else(|| refused(format!("migration binding {name} was not provided"))),
+            ValueExpr::Literal(value) => Ok(value.clone()),
+            ValueExpr::Field { base, key } => Ok(field(&child(base)?, key)),
+            ValueExpr::Binary { op, left, right } => {
+                let left = child(left)?;
+                let right = child(right)?;
+                match op {
+                    BinaryOp::And => Ok(if truthy(&left) { right } else { left }),
+                    BinaryOp::Or => Ok(if truthy(&left) { left } else { right }),
+                    BinaryOp::Eq => Ok(Value::Bool(equal(&left, &right))),
+                    BinaryOp::Ne => Ok(Value::Bool(!equal(&left, &right))),
+                    BinaryOp::Add if left.is_string() && right.is_string() => {
+                        Ok(Value::String(format!(
+                            "{}{}",
+                            left.as_str().unwrap_or_default(),
+                            right.as_str().unwrap_or_default()
+                        )))
+                    }
+                    BinaryOp::Add
+                    | BinaryOp::Sub
+                    | BinaryOp::Mul
+                    | BinaryOp::Div
+                    | BinaryOp::Mod => numeric(*op, &left, &right),
+                    BinaryOp::Lt | BinaryOp::Lte | BinaryOp::Gt | BinaryOp::Gte => {
+                        if left.is_null() || right.is_null() {
+                            return Ok(Value::Null);
+                        }
+                        let ordering = match (&left, &right) {
+                            (Value::String(left), Value::String(right)) => {
+                                left.chars().cmp(right.chars())
+                            }
+                            _ => {
+                                let (Some(left), Some(right)) = (number(&left), number(&right))
+                                else {
+                                    return Err(refused(
+                                        "ordering expects two strings or two numbers",
+                                    ));
+                                };
+                                left.partial_cmp(&right).ok_or_else(|| {
+                                    refused("ordering received an unordered number")
+                                })?
+                            }
+                        };
+                        Ok(Value::Bool(match op {
+                            BinaryOp::Lt => ordering.is_lt(),
+                            BinaryOp::Lte => ordering.is_le(),
+                            BinaryOp::Gt => ordering.is_gt(),
+                            BinaryOp::Gte => ordering.is_ge(),
+                            _ => unreachable!(),
+                        }))
+                    }
+                }
+            }
+            ValueExpr::Unary { op, expr } => {
+                let value = child(expr)?;
+                match op {
+                    UnaryOp::Not => Ok(Value::Bool(!truthy(&value))),
+                    UnaryOp::Neg if value.is_null() => Ok(Value::Null),
+                    UnaryOp::Neg => number(&value)
+                        .map(|value| number_value(-value))
+                        .ok_or_else(|| refused("Neg expects a number")),
+                }
+            }
+            ValueExpr::If { cond, then, r#else } => {
+                if truthy(&child(cond)?) {
+                    child(then)
+                } else {
+                    child(r#else)
+                }
+            }
+            ValueExpr::Concat(parts) => {
+                let mut output = String::new();
+                for part in parts {
+                    output.push_str(&concat_string(&child(part)?)?);
+                }
+                Ok(Value::String(output))
+            }
+            ValueExpr::Call { func, args } => {
+                let values = args
+                    .iter()
+                    .map(&child)
+                    .collect::<SnapbackResult<Vec<_>>>()?;
+                match func.as_str() {
+                    "coalesce" => Ok(values
+                        .into_iter()
+                        .find(|value| !value.is_null())
+                        .unwrap_or(Value::Null)),
+                    "len" if values.len() == 1 => match &values[0] {
+                        Value::Null => Ok(Value::Null),
+                        Value::String(value) => Ok(json!(value.encode_utf16().count())),
+                        Value::Array(value) => Ok(json!(value.len())),
+                        _ => Err(refused("len expects a string or array")),
+                    },
+                    "trim" | "lower" if values.len() == 1 => match &values[0] {
+                        Value::Null => Ok(Value::Null),
+                        Value::String(value) => Ok(Value::String(if func == "trim" {
+                            portable_trim(value)
+                        } else {
+                            value.to_lowercase()
+                        })),
+                        _ => Err(refused(format!("{func} expects a string"))),
+                    },
+                    "abs" | "round" | "floor" | "ceil" if values.len() == 1 => {
+                        if values[0].is_null() {
+                            return Ok(Value::Null);
+                        }
+                        let value = number(&values[0])
+                            .ok_or_else(|| refused(format!("{func} expects a number")))?;
+                        Ok(number_value(match func.as_str() {
+                            "abs" => value.abs(),
+                            "round" => round_ecmascript(value),
+                            "floor" => value.floor(),
+                            "ceil" => value.ceil(),
+                            _ => unreachable!(),
+                        }))
+                    }
+                    "min" | "max" if !values.is_empty() => {
+                        if values.iter().any(Value::is_null) {
+                            return Ok(Value::Null);
+                        }
+                        let mut best: Option<f64> = None;
+                        for value in &values {
+                            let value = number(value)
+                                .ok_or_else(|| refused(format!("{func} expects numbers")))?;
+                            best = Some(match best {
+                                None => value,
+                                Some(best) if (func == "min") == (value < best) => value,
+                                Some(best) => best,
+                            });
+                        }
+                        Ok(number_value(best.expect("non-empty values checked")))
+                    }
+                    _ => Err(refused(format!(
+                        "function {func} has unsupported name or arity in the migration oracle"
+                    ))),
+                }
+            }
+            ValueExpr::Record { fields } => {
+                let mut output = Map::new();
+                for (name, expr) in fields {
+                    output.insert(name.clone(), child(expr)?);
+                }
+                Ok(Value::Object(output))
+            }
+            ValueExpr::Args
+            | ValueExpr::AuthUserId
+            | ValueExpr::AuthKind
+            | ValueExpr::AuthActorKind
+            | ValueExpr::AuthActivityActorKind
+            | ValueExpr::AuthActorUserId
+            | ValueExpr::AuthGrantId
+            | ValueExpr::ClientMutationDigest
+            | ValueExpr::AuthIsDelegated
+            | ValueExpr::RuntimeId
+            | ValueExpr::RuntimeNow
+            | ValueExpr::MembershipExists(_) => Err(refused(
+                "expression is outside the closed migration expected-value profile",
+            )),
+        }
+    }
+
+    evaluate(expr, constants, bindings, 0)
+}
+
 /// How one proof table's successor content derives from predecessor rows.
 enum ProofTransform<'a> {
     /// Staged CopyTable: pristine predecessor rows still exist in the
@@ -3137,14 +4263,7 @@ fn run_data_proof(
                         let mut produced = serde_json::Map::new();
                         let mut content_changed = false;
                         for (dest, expr) in fields.iter() {
-                            let value = eval_expr(
-                                expr,
-                                &input,
-                                &bindings,
-                                constants.publication_timestamp_ms,
-                                None,
-                                "migration/verify-fields",
-                            )?;
+                            let value = migration_expected_oracle(expr, &input.args, &bindings)?;
                             if row.get(dest).cloned().unwrap_or(Value::Null) != value {
                                 content_changed = true;
                             }
@@ -3238,14 +4357,7 @@ fn run_data_proof(
                             predecessor_value.as_object().cloned().unwrap_or_default();
                         let mut content_changed = false;
                         for (dest, expr) in writes {
-                            let value = eval_expr(
-                                expr,
-                                &input,
-                                &bindings,
-                                constants.publication_timestamp_ms,
-                                None,
-                                "migration/verify-writes",
-                            )?;
+                            let value = migration_expected_oracle(expr, &input.args, &bindings)?;
                             if !value.is_null() {
                                 content_changed = true;
                                 expected_row.insert((*dest).to_owned(), value);
@@ -3308,6 +4420,12 @@ fn run_data_proof(
         tables_proof.insert(
             (*table).clone(),
             json!({
+                "expectedLogicalDigest": expected_logical,
+                "actualLogicalDigest": actual_logical,
+                "expectedSystemDigest": expected_system,
+                "actualSystemDigest": actual_system,
+                "matches": true,
+                // Retain the original compact fields for v1 receipt readers.
                 "logicalDigest": actual_logical,
                 "systemDigest": actual_system,
                 "rows": rows_proven,
@@ -3353,6 +4471,22 @@ fn run_data_proof(
     }
 
     Ok(json!({
+        "proofClass": match proof_method {
+            MigrationProofMethod::Full => "independentBoundaryProof",
+            MigrationProofMethod::SampledAudit => "inventory",
+        },
+        "boundaryDomain": "migration",
+        "expectedEvaluatorIndependence": match proof_method {
+            MigrationProofMethod::Full => "separateImplementation",
+            MigrationProofMethod::SampledAudit => "notApplicable",
+        },
+        "independenceLimitation": Value::Null,
+        "expectedDerivation": match proof_method {
+            MigrationProofMethod::Full => Some(
+                "predecessor rows plus the closed typed MigrationPlanV1 expected-value evaluator"
+            ),
+            MigrationProofMethod::SampledAudit => None,
+        },
         "proofMethod": match proof_method {
             MigrationProofMethod::Full => "full",
             MigrationProofMethod::SampledAudit => "sampled-audit",
@@ -3360,7 +4494,7 @@ fn run_data_proof(
         // §5: a sampled-audit receipt says so on its face — it is a
         // rehearsal/audit label, never a substitute for proof.
         "proofLabel": match proof_method {
-            MigrationProofMethod::Full => "full-table proof",
+            MigrationProofMethod::Full => "independent full-table boundary proof",
             MigrationProofMethod::SampledAudit =>
                 "sampled-audit — lower-assurance rehearsal/audit run, NOT a proof",
         },
@@ -3777,6 +4911,110 @@ impl LocalDatabase {
         journal_entries_on(&self.conn, operation_id)
     }
 
+    /// Read-only aggregate settlement lookup. While P is held it returns the
+    /// retained `published-held`/outcome-pending lifecycle and never drives
+    /// publication or release; after T it returns the digest-linked terminal
+    /// supplement.
+    pub fn migration_aggregate_lookup(
+        &self,
+        operation_id: &str,
+    ) -> SnapbackResult<Option<crate::operation_ledger::PendingOperationLookupV1>> {
+        if !super::sqlite_table_exists(&self.conn, "_snapback_migration_ops")? {
+            return Ok(None);
+        }
+        let has_identity: bool = self.conn.query_row(
+            "SELECT EXISTS(
+               SELECT 1 FROM pragma_table_info('_snapback_migration_ops')
+                WHERE name='aggregate_identity_json'
+             )",
+            [],
+            |row| row.get(0),
+        )?;
+        if !has_identity {
+            return Ok(None);
+        }
+        let identity: Option<Option<String>> = self
+            .conn
+            .query_row(
+                "SELECT aggregate_identity_json FROM _snapback_migration_ops WHERE operation_id=?1",
+                [operation_id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let Some(Some(identity)) = identity else {
+            return Ok(None);
+        };
+        let identity: OperationIdentityV1 = serde_json::from_str(&identity)
+            .map_err(|_| journal_corrupt("aggregate identity does not parse".to_owned()))?;
+        let lookup = crate::operation_ledger::lookup_pending_operation(&self.conn, &identity)?;
+        if matches!(
+            lookup,
+            crate::operation_ledger::PendingOperationLookupV1::Pending(_)
+        ) {
+            let terminal_receipt_present: bool = self.conn.query_row(
+                "SELECT receipt_json IS NOT NULL FROM _snapback_migration_ops
+                 WHERE operation_id=?1",
+                [operation_id],
+                |row| row.get(0),
+            )?;
+            if terminal_receipt_present {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_OPERATION_LEDGER_INVALID",
+                    "storage",
+                    "terminal migration receipt survived without its aggregate supplement",
+                ));
+            }
+        }
+        if let crate::operation_ledger::PendingOperationLookupV1::Terminal(terminal) = &lookup {
+            // The supplement holds only digests. Recompute the terminal
+            // receipt digest from the exact migration receipt bytes still
+            // owned by `_snapback_migration_ops`; a swapped or corrupt owner
+            // can never authenticate merely because the supplement survived.
+            let retained_projection = match terminal.terminal_outcome {
+                PendingOperationTerminalOutcomeV1::Committed => {
+                    let receipt: String = self.conn.query_row(
+                        "SELECT receipt_json FROM _snapback_migration_ops
+                         WHERE operation_id=?1 AND receipt_json IS NOT NULL",
+                        [operation_id],
+                        |row| row.get(0),
+                    )?;
+                    serde_json::from_str::<Value>(&receipt).map_err(|_| {
+                        journal_corrupt("stored terminal receipt does not parse".to_owned())
+                    })?
+                }
+                PendingOperationTerminalOutcomeV1::RolledBack => {
+                    let receipts: (String, String) = self.conn.query_row(
+                        "SELECT receipt_json,rollback_receipt_json
+                         FROM _snapback_migration_ops
+                         WHERE operation_id=?1
+                           AND receipt_json IS NOT NULL
+                           AND rollback_receipt_json IS NOT NULL",
+                        [operation_id],
+                        |row| Ok((row.get(0)?, row.get(1)?)),
+                    )?;
+                    json!({
+                        "forwardReceipt": serde_json::from_str::<Value>(&receipts.0)
+                            .map_err(|_| journal_corrupt("stored forward receipt does not parse".to_owned()))?,
+                        "rollbackReceipt": serde_json::from_str::<Value>(&receipts.1)
+                            .map_err(|_| journal_corrupt("stored rollback receipt does not parse".to_owned()))?,
+                    })
+                }
+            };
+            let retained_digest =
+                crate::operation_ledger::pending_operation_terminal_receipt_digest(
+                    &retained_projection,
+                )?;
+            if retained_digest != terminal.terminal_receipt_digest {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_OPERATION_LEDGER_INVALID",
+                    "storage",
+                    "migration aggregate terminal supplement does not match its retained receipt bytes",
+                ));
+            }
+        }
+        Ok(Some(lookup))
+    }
+
     pub fn migration_fence(&self) -> SnapbackResult<Option<MigrationFenceV1>> {
         migration_fence_on(&self.conn)
     }
@@ -3869,6 +5107,16 @@ pub fn migration_journal_artifact() -> Value {
             .collect::<Vec<_>>(),
         "cleanupTailRule": "cleanup-pending extends exactly the terminal it was entered from and ends in that same terminal",
         "fencingToken": "leaseEpoch — validated against the stored epoch before every append",
+        "hostTransactionIdentity": "new entries carry one authenticated Host OperationIdentityV1 per physical journal transaction; parent=approval operationId and ordinal=durable pre-transaction journal row count; legacy entries may omit",
+        "aggregateSettlement": {
+            "identity": "one approval-operationId-derived authenticated Host identity",
+            "publicationCut": "P atomically retains application version, schema-resync row, Pending CommitEnvelopeV1, and pending lifecycle",
+            "terminalCut": "T-release or T-rollback atomically appends a digest-linked terminal supplement without rewriting P",
+            "terminalOutcomes": ["committed", "rolled-back"],
+            "coveredBoundaries": [],
+            "uncoveredBoundaries": ["aggregate-P/T", "H1", "H2", "C"],
+        },
+        "envelopeCoverage": "uncovered — aggregate P/T settlement is implemented for corpus evidence but remains unpublished; H1/H2/C remain carrier-only",
     })
 }
 
@@ -3953,6 +5201,7 @@ mod tests {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         }
     }
 
@@ -4099,6 +5348,243 @@ mod tests {
         })
     }
 
+    fn install_barriered_operation_for_test(
+        db: &mut LocalDatabase,
+        plan: &MigrationPlanArtifactV1,
+        approval: &MigrationApprovalV1,
+    ) {
+        ensure_migration_host_authority(&mut db.conn, 1).expect("migration host authority");
+        let input_version = db.current_version().expect("input version");
+        let tx = db
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .expect("barrier transaction");
+        ensure_migration_tables(&tx).expect("migration tables");
+        upsert_meta(&tx, META_MIGRATION_LEASE_EPOCH, "1").expect("lease epoch");
+        upsert_meta(
+            &tx,
+            META_MIGRATION_FENCE,
+            &serde_json::to_string(&MigrationFenceV1 {
+                operation_id: approval.operation_id.clone(),
+                lease_epoch: 1,
+                closed_at_ms: 1,
+            })
+            .expect("fence JSON"),
+        )
+        .expect("persist fence");
+        tx.execute(
+            "INSERT INTO _snapback_migration_ops(
+               operation_id,audience_json,plan_digest,state_json,lease_epoch,
+               cancel_requested,approval_digest
+             ) VALUES(?1,?2,?3,?4,1,0,?5)",
+            params![
+                approval.operation_id,
+                serde_json::to_string(&approval.audience).expect("audience JSON"),
+                plan.plan_digest,
+                serde_json::to_string(&MigrationExecState::Barriered).expect("state JSON"),
+                approval_digest(approval).expect("approval digest"),
+            ],
+        )
+        .expect("operation row");
+        let journal = JournalHandle {
+            tx: &tx,
+            operation_id: approval.operation_id.clone(),
+            plan_id: plan.plan_id.clone(),
+            lease_epoch: 1,
+            input_version,
+            host_operation_identity: OnceCell::new(),
+        };
+        let at = now_millis();
+        journal
+            .append(JournalAppend {
+                at_ms: at,
+                ..JournalAppend::of(&MigrationExecState::Admitted)
+            })
+            .expect("admitted row");
+        journal
+            .append(JournalAppend {
+                at_ms: at,
+                ..JournalAppend::of(&MigrationExecState::Barriered)
+            })
+            .expect("barriered row");
+        tx.commit().expect("commit barrier");
+    }
+
+    #[test]
+    fn llp0163_migration_journal_transactions_use_retry_stable_host_children() {
+        let mut db = seeded_db();
+        let operation_id = new_operation_id();
+        let plan_id = format!("migration-v1:{}", "a".repeat(64));
+        ensure_migration_host_authority(&mut db.conn, 1).expect("durable migration host epoch");
+        {
+            let tx = db
+                .conn
+                .transaction_with_behavior(TransactionBehavior::Immediate)
+                .expect("admission transaction");
+            ensure_migration_tables(&tx).expect("migration tables");
+            upsert_meta(&tx, META_MIGRATION_LEASE_EPOCH, "1").expect("lease epoch");
+            tx.execute(
+                "INSERT INTO _snapback_migration_ops(
+                   operation_id,audience_json,plan_digest,state_json,lease_epoch,
+                   cancel_requested,rehearsal
+                 ) VALUES(?1,'{}','fixture',?2,1,0,0)",
+                params![
+                    operation_id,
+                    serde_json::to_string(&MigrationExecState::Admitted)
+                        .expect("initial state JSON")
+                ],
+            )
+            .expect("operation row");
+            let journal = JournalHandle {
+                tx: &tx,
+                operation_id: operation_id.clone(),
+                plan_id: plan_id.clone(),
+                lease_epoch: 1,
+                input_version: 1,
+                host_operation_identity: OnceCell::new(),
+            };
+            journal
+                .append(JournalAppend {
+                    at_ms: 10,
+                    ..JournalAppend::of(&MigrationExecState::Admitted)
+                })
+                .expect("admitted row");
+            journal
+                .append(JournalAppend {
+                    at_ms: 11,
+                    ..JournalAppend::of(&MigrationExecState::Barriered)
+                })
+                .expect("barriered row");
+            tx.commit().expect("admission commit");
+        }
+
+        let admitted = journal_entries_on(&db.conn, &operation_id).expect("admission journal");
+        assert_eq!(admitted.len(), 2);
+        let parent_identity = admitted[0]
+            .host_operation_identity
+            .as_ref()
+            .expect("admission host identity");
+        assert_eq!(
+            admitted[1].host_operation_identity.as_ref(),
+            Some(parent_identity),
+            "every journal row in one SQLite transaction shares one child identity"
+        );
+        let OperationIssuanceV1::HostIncarnation {
+            upstream_identity,
+            commit_ordinal,
+            ..
+        } = &parent_identity.issuance
+        else {
+            panic!("migration journal identity must use host issuance");
+        };
+        assert_eq!(upstream_identity, &operation_id);
+        assert_eq!(*commit_ordinal, 0);
+        crate::operation_ledger::authenticate_host_identity(&db.conn, parent_identity)
+            .expect("admission host identity authenticates");
+
+        let executing = MigrationExecState::Executing {
+            step: "fixture-step".to_owned(),
+            batch: 0,
+        };
+        let rolled_back_identity = {
+            let tx = db
+                .conn
+                .transaction_with_behavior(TransactionBehavior::Immediate)
+                .expect("crashing step transaction");
+            let journal = JournalHandle {
+                tx: &tx,
+                operation_id: operation_id.clone(),
+                plan_id: plan_id.clone(),
+                lease_epoch: 1,
+                input_version: 1,
+                host_operation_identity: OnceCell::new(),
+            };
+            journal
+                .append(JournalAppend {
+                    step_id: Some("fixture-step"),
+                    at_ms: 12,
+                    ..JournalAppend::of(&executing)
+                })
+                .expect("provisional executing row");
+            let identity = journal
+                .host_operation_identity
+                .get()
+                .expect("provisional host identity")
+                .clone();
+            drop(journal);
+            tx.rollback().expect("simulated crash rollback");
+            identity
+        };
+        assert_eq!(
+            journal_entries_on(&db.conn, &operation_id)
+                .expect("rolled-back journal")
+                .len(),
+            2,
+            "a crash leaves neither the transition nor its carrier"
+        );
+
+        // A resumed executor owns a new fencing lease, but that attempt-local
+        // token cannot change the operation identity of the retried cut.
+        {
+            let tx = db
+                .conn
+                .transaction_with_behavior(TransactionBehavior::Immediate)
+                .expect("resume lease transaction");
+            upsert_meta(&tx, META_MIGRATION_LEASE_EPOCH, "2").expect("superseding lease");
+            tx.commit().expect("resume lease commit");
+        }
+
+        {
+            let tx = db
+                .conn
+                .transaction_with_behavior(TransactionBehavior::Immediate)
+                .expect("retry step transaction");
+            let journal = JournalHandle {
+                tx: &tx,
+                operation_id: operation_id.clone(),
+                plan_id: plan_id.clone(),
+                lease_epoch: 2,
+                input_version: 1,
+                host_operation_identity: OnceCell::new(),
+            };
+            journal
+                .append(JournalAppend {
+                    step_id: Some("fixture-step"),
+                    at_ms: 13,
+                    ..JournalAppend::of(&executing)
+                })
+                .expect("retried executing row");
+            tx.commit().expect("retry commit");
+        }
+        let retried = journal_entries_on(&db.conn, &operation_id).expect("retried journal");
+        let retry_identity = retried[2]
+            .host_operation_identity
+            .as_ref()
+            .expect("retry host identity");
+        assert_eq!(retry_identity, &rolled_back_identity);
+        let OperationIssuanceV1::HostIncarnation { commit_ordinal, .. } = &retry_identity.issuance
+        else {
+            panic!("retry identity must use host issuance");
+        };
+        assert_eq!(
+            *commit_ordinal, 2,
+            "the child ordinal is the durable pre-transaction journal-row count"
+        );
+        crate::operation_ledger::authenticate_host_identity(&db.conn, retry_identity)
+            .expect("retry host identity authenticates");
+        assert_eq!(
+            db.conn
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_commit_envelopes_v1",
+                    [],
+                    |row| row.get::<_, u64>(0),
+                )
+                .expect("migration envelope count"),
+            0,
+            "the carrier remains explicitly uncovered across PublishedHeld/Released"
+        );
+    }
+
     // @ref LLP 0081#4-execution-journaling-and-crash-recovery — the happy
     //   path end to end: admission, barrier, batched backfill, validation,
     //   one publication transaction (successor manifest + version boundary
@@ -4127,6 +5613,36 @@ mod tests {
         );
         assert_eq!(db.current_version().expect("head"), publication);
         assert!(db.migration_fence().expect("fence read").is_none());
+
+        let migration_journal = db
+            .migration_journal(&approval.operation_id)
+            .expect("migration journal");
+        let mut first_row_by_child = BTreeMap::<String, usize>::new();
+        for (row_index, entry) in migration_journal.iter().enumerate() {
+            let identity = entry
+                .host_operation_identity
+                .as_ref()
+                .expect("new production migration row has a host carrier");
+            crate::operation_ledger::authenticate_host_identity(&db.conn, identity)
+                .expect("production migration carrier authenticates");
+            let OperationIssuanceV1::HostIncarnation {
+                upstream_identity,
+                commit_ordinal,
+                ..
+            } = &identity.issuance
+            else {
+                panic!("production migration carrier must use host issuance");
+            };
+            assert_eq!(upstream_identity, &approval.operation_id);
+            let first_row = first_row_by_child
+                .entry(identity.key.operation_id.clone())
+                .or_insert(row_index);
+            assert_eq!(
+                usize::try_from(*commit_ordinal).expect("ordinal fits usize"),
+                *first_row,
+                "each transaction child is derived from its durable pre-transaction row count"
+            );
+        }
 
         // Successor schema is authoritative and the rows carry the §4
         // identity rules: changed rows get the publication version and the
@@ -4300,6 +5816,7 @@ mod tests {
                 plan_id: "migration-v1:x".to_owned(),
                 lease_epoch: 1,
                 input_version: 0,
+                host_operation_identity: OnceCell::new(),
             };
             let error = stale
                 .append(JournalAppend {
@@ -4312,10 +5829,208 @@ mod tests {
         }
     }
 
+    // @ref LLP 0081#3-typed-migration-steps — ValidateRequired reports its
+    //   staged NULL facts through the migration step contract; the effective
+    //   successor decoder must not preempt them as storage corruption.
+    #[test]
+    fn validate_required_reports_staged_nulls_as_typed_step_failure() {
+        let mut db = seeded_db();
+        let mut body = fixture_plan(
+            &predecessor_schema(),
+            &successor_schema(),
+            default_ceilings(),
+        )
+        .body;
+        body.constants
+            .values
+            .insert("noteDefault".to_owned(), Value::Null);
+        let plan = MigrationPlanArtifactV1::seal(body).expect("reseal null backfill");
+        let validation_step_id = plan.body.steps[2].id.clone();
+        let approval = approval_for(&plan, now_millis());
+
+        let error = apply_fixture(&mut db, &plan, &approval)
+            .expect_err("ValidateRequired must reject staged NULLs");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_STEP_FAILED");
+        assert!(
+            error
+                .diagnostic
+                .message
+                .contains(&format!("validation step {validation_step_id} failed"))
+        );
+        assert!(error.diagnostic.message.contains("\"violations\":2"));
+    }
+
+    // @ref LLP 0081#4-execution-journaling-and-crash-recovery — terminal
+    //   replay after reopen trusts the exact admitted plan bytes, but still
+    //   verifies the caller-supplied successor before adopting it in memory.
+    #[test]
+    fn terminal_replay_after_reopen_requires_the_exact_successor() {
+        let temp = tempfile::tempdir().expect("temporary database directory");
+        let path = temp.path().join("migration.sqlite");
+        let mut db = LocalDatabase::open(&path).expect("open file-backed database");
+        db.apply_schema(predecessor_schema())
+            .expect("apply predecessor schema");
+        db.seed(SeedData {
+            tables: BTreeMap::from([(
+                "items".to_owned(),
+                vec![
+                    json!({ "title": "one" })
+                        .as_object()
+                        .cloned()
+                        .expect("seed object"),
+                ],
+            )]),
+        })
+        .expect("seed predecessor");
+        let plan = fixture_plan(
+            &predecessor_schema(),
+            &successor_schema(),
+            default_ceilings(),
+        );
+        let approval = approval_for(&plan, now_millis());
+        let receipt = apply_fixture(&mut db, &plan, &approval).expect("initial apply");
+        drop(db);
+
+        let mut reopened = LocalDatabase::open(&path).expect("reopen published database");
+        let published_schema = reopened.schema().clone();
+        let mut divergent = successor_schema();
+        divergent.tables[0].fields.push(FieldManifest {
+            name: "unapproved".to_owned(),
+            field_type: FieldType::String,
+            optional: true,
+        });
+        let (_, resolved) = audience();
+        let error = reopened
+            .migrate_apply(MigrationApplyRequest {
+                artifact: &plan,
+                approval: &approval,
+                successor_schema: &divergent,
+                audience: &resolved,
+                now_ms: now_millis(),
+                rehearsal: None,
+            })
+            .expect_err("terminal replay must refuse divergent successor bytes");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_PLAN_STALE");
+        assert_eq!(reopened.schema(), &published_schema);
+
+        let replay = apply_fixture(&mut reopened, &plan, &approval)
+            .expect("exact terminal replay after reopen");
+        assert_eq!(replay, receipt);
+        assert_eq!(reopened.schema(), &successor_schema());
+    }
+
+    // @ref LLP 0081#4-execution-journaling-and-crash-recovery — a real
+    //   reopen at published-held loads the successor manifest under the
+    //   durable fence, validates the supplied artifact seal/bindings without
+    //   pretending that successor is the predecessor, and only exact replay
+    //   may perform the release transition.
+    #[test]
+    fn published_held_reopen_releases_only_the_exact_artifact() {
+        let temp = tempfile::tempdir().expect("temporary database directory");
+        let path = temp.path().join("published-held.sqlite");
+        let mut db = LocalDatabase::open(&path).expect("open file-backed database");
+        db.apply_schema(predecessor_schema())
+            .expect("apply predecessor schema");
+        db.seed(SeedData {
+            tables: BTreeMap::from([(
+                "items".to_owned(),
+                vec![
+                    json!({ "title": "one" })
+                        .as_object()
+                        .cloned()
+                        .expect("seed object"),
+                ],
+            )]),
+        })
+        .expect("seed predecessor");
+        let plan = fixture_plan(
+            &predecessor_schema(),
+            &successor_schema(),
+            default_ceilings(),
+        );
+        let approval = approval_for(&plan, now_millis());
+        arm_migration_kill_point("released", 0);
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            apply_fixture(&mut db, &plan, &approval)
+        }));
+        disarm_migration_kill_point();
+        assert!(outcome.is_err(), "release kill point must fire");
+        drop(db);
+
+        let mut reopened = LocalDatabase::open(&path).expect("reopen published-held database");
+        assert_eq!(reopened.schema(), &successor_schema());
+        assert!(reopened.migration_fence().expect("fence read").is_some());
+        assert!(matches!(
+            latest_state_for_test(&reopened, &approval.operation_id).expect("state read"),
+            Some(MigrationExecState::PublishedHeld)
+        ));
+
+        let mut divergent_body = plan.body.clone();
+        divergent_body.ceilings.max_writes += 1;
+        let divergent = MigrationPlanArtifactV1::seal(divergent_body).expect("reseal divergent");
+        let mut divergent_approval = approval.clone();
+        divergent_approval.plan_digest = divergent.plan_digest.clone();
+        let (_, resolved) = audience();
+        let successor = successor_schema();
+        let error = reopened
+            .migrate_apply(MigrationApplyRequest {
+                artifact: &divergent,
+                approval: &divergent_approval,
+                successor_schema: &successor,
+                audience: &resolved,
+                now_ms: now_millis(),
+                rehearsal: None,
+            })
+            .expect_err("divergent artifact cannot release a held publication");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_CLIENT_MUTATION_ID_REUSED");
+        assert!(reopened.migration_fence().expect("fence read").is_some());
+        assert!(matches!(
+            latest_state_for_test(&reopened, &approval.operation_id).expect("state read"),
+            Some(MigrationExecState::PublishedHeld)
+        ));
+
+        let receipt = apply_fixture(&mut reopened, &plan, &approval)
+            .expect("exact artifact releases after reopen");
+        assert_eq!(receipt.state, MigrationExecState::Released);
+        assert!(reopened.migration_fence().expect("fence read").is_none());
+    }
+
+    // @ref LLP 0081#4-execution-journaling-and-crash-recovery — a resume
+    //   derives physical staging authority from the exact AddField journal
+    //   transaction, never from the operation/fence row alone.
+    #[test]
+    fn resumed_add_field_requires_its_exact_committed_step() {
+        let mut db = seeded_db();
+        let plan = fixture_plan(
+            &predecessor_schema(),
+            &successor_schema(),
+            default_ceilings(),
+        );
+        let approval = approval_for(&plan, now_millis());
+        install_barriered_operation_for_test(&mut db, &plan, &approval);
+        db.conn
+            .execute("ALTER TABLE items ADD COLUMN note TEXT", [])
+            .expect("simulate ambient column creation after the barrier");
+
+        let error = apply_fixture(&mut db, &plan, &approval)
+            .expect_err("a barriered row alone cannot adopt an ambient column");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MIGRATION_PRECONDITION_FAILED"
+        );
+        assert!(error.diagnostic.message.contains("already exists"));
+        assert!(db.migration_fence().expect("fence read").is_some());
+        assert!(matches!(
+            latest_state_for_test(&db, &approval.operation_id).expect("state read"),
+            Some(MigrationExecState::Barriered)
+        ));
+    }
+
     // A transition outside the enumerated relation is refused as corruption.
     #[test]
     fn transition_outside_the_relation_is_corruption() {
         let mut db = seeded_db();
+        ensure_migration_host_authority(&mut db.conn, 1).expect("migration host authority");
         let tx = db
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)
@@ -4337,6 +6052,7 @@ mod tests {
             plan_id: "migration-v1:x".to_owned(),
             lease_epoch: 1,
             input_version: 0,
+            host_operation_identity: OnceCell::new(),
         };
         journal
             .append(JournalAppend {
@@ -4357,6 +6073,28 @@ mod tests {
     // approval binding, expiry.
     #[test]
     fn admission_refusals_hold() {
+        // Logical retirement can leave a manifest-hidden physical column.
+        // Fresh AddField admission refuses those retained bytes instead of
+        // silently re-adopting them as a new destination; only the same
+        // operation's crash-resume may observe its already-added column.
+        let mut db = seeded_db();
+        db.conn
+            .execute("ALTER TABLE items ADD COLUMN note TEXT", [])
+            .expect("simulate a retained retired column");
+        let plan = fixture_plan(
+            &predecessor_schema(),
+            &successor_schema(),
+            default_ceilings(),
+        );
+        let approval = approval_for(&plan, now_millis());
+        let error = apply_fixture(&mut db, &plan, &approval)
+            .expect_err("fresh admission must refuse a retained physical destination");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MIGRATION_PRECONDITION_FAILED"
+        );
+        assert!(error.diagnostic.message.contains("already exists"));
+
         // Resource-ceiling drift refuses at admission.
         let mut db = seeded_db();
         let mut tight = default_ceilings();
@@ -4511,6 +6249,7 @@ mod tests {
             default_ceilings(),
         );
         let approval = approval_for(&plan, now_millis());
+        ensure_migration_host_authority(&mut db.conn, 1).expect("migration host authority");
         // Manufacture an admitted non-terminal operation with a cancel
         // request already recorded, then resume: the executor honors the
         // cancel at its first boundary.
@@ -4534,9 +6273,10 @@ mod tests {
             .expect("fence");
             tx.execute(
                 "INSERT INTO _snapback_migration_ops(operation_id, audience_json, plan_digest, \
-                 state_json, lease_epoch, cancel_requested) VALUES(?1, '{}', ?2, ?3, 1, 0)",
+                 state_json, lease_epoch, cancel_requested) VALUES(?1, ?2, ?3, ?4, 1, 0)",
                 params![
                     approval.operation_id,
+                    serde_json::to_string(&approval.audience).expect("audience JSON"),
                     plan.plan_digest,
                     serde_json::to_string(&MigrationExecState::Barriered).unwrap()
                 ],
@@ -4548,6 +6288,7 @@ mod tests {
                 plan_id: plan.plan_id.clone(),
                 lease_epoch: 1,
                 input_version: 1,
+                host_operation_identity: OnceCell::new(),
             };
             let at = now_millis();
             journal
@@ -4654,9 +6395,10 @@ mod tests {
             .expect("fence");
             tx.execute(
                 "INSERT INTO _snapback_migration_ops(operation_id, audience_json, plan_digest, \
-                 state_json, lease_epoch, cancel_requested) VALUES(?1, '{}', ?2, ?3, 9, 0)",
+                 state_json, lease_epoch, cancel_requested) VALUES(?1, ?2, ?3, ?4, 9, 0)",
                 params![
                     approval2.operation_id,
+                    serde_json::to_string(&approval2.audience).expect("audience JSON"),
                     plan2.plan_digest,
                     serde_json::to_string(&MigrationExecState::PublishedHeld).unwrap()
                 ],
@@ -4668,6 +6410,7 @@ mod tests {
                 plan_id: plan2.plan_id.clone(),
                 lease_epoch: 9,
                 input_version: publication,
+                host_operation_identity: OnceCell::new(),
             };
             journal
                 .append(JournalAppend {
@@ -4821,6 +6564,804 @@ mod tests {
         })
     }
 
+    fn aggregate_identity_for(db: &LocalDatabase, operation_id: &str) -> OperationIdentityV1 {
+        let body: String = db
+            .conn
+            .query_row(
+                "SELECT aggregate_identity_json FROM _snapback_migration_ops
+                 WHERE operation_id=?1",
+                [operation_id],
+                |row| row.get(0),
+            )
+            .expect("aggregate identity");
+        serde_json::from_str(&body).expect("aggregate identity JSON")
+    }
+
+    fn scalar_count(db: &LocalDatabase, sql: &str) -> u64 {
+        db.conn
+            .query_row(sql, [], |row| row.get(0))
+            .expect("count query")
+    }
+
+    fn crash_after_publication_p(
+        db: &mut LocalDatabase,
+        plan: &MigrationPlanArtifactV1,
+        approval: &MigrationApprovalV1,
+    ) {
+        arm_migration_kill_point("released", 0);
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            staged_apply(db, plan, approval)
+        }));
+        disarm_migration_kill_point();
+        assert!(outcome.is_err(), "release transaction kill point must fire");
+        assert_eq!(
+            latest_state_for_test(db, &approval.operation_id)
+                .expect("state")
+                .expect("journaled")
+                .kind(),
+            "published-held"
+        );
+    }
+
+    // LLP 0163 amendment corpus: P publishes one successor/version/resync row
+    // and one truthful Pending envelope atomically. Lookup and ACK are
+    // read-only while held, divergent reuse refuses, lane capacity refuses
+    // rather than evicting, and T-release appends one linked terminal record.
+    #[test]
+    fn llp0163_migration_aggregate_pending_release_corpus() {
+        let mut db = seeded_db();
+        let head_before = db.current_version().expect("head");
+        let plan = staged_plan(None);
+        let approval = approval_for(&plan, now_millis());
+        crash_after_publication_p(&mut db, &plan, &approval);
+
+        let identity = aggregate_identity_for(&db, &approval.operation_id);
+        let pending = match db
+            .migration_aggregate_lookup(&approval.operation_id)
+            .expect("pending lookup")
+            .expect("aggregate identity")
+        {
+            crate::operation_ledger::PendingOperationLookupV1::Pending(pending) => pending,
+            other => panic!("expected pending aggregate, got {other:?}"),
+        };
+        assert_eq!(pending.identity, identity);
+        assert_eq!(pending.publication.version, head_before + 1);
+        assert_eq!(pending.pending_payload["detail"]["state"], "published-held");
+        assert_eq!(pending.pending_payload["detail"]["outcome"], "pending");
+
+        let envelope_body: String = db
+            .conn
+            .query_row(
+                "SELECT envelope_json FROM _snapback_commit_envelopes_v1
+                 WHERE operation_id=?1",
+                [&identity.key.operation_id],
+                |row| row.get(0),
+            )
+            .expect("aggregate envelope");
+        let envelope: CommitEnvelopeV1 =
+            serde_json::from_str(&envelope_body).expect("aggregate envelope JSON");
+        assert_eq!(envelope.receipt.state, OperationReceiptStateV1::Pending);
+        assert_eq!(envelope.snapshot, pending.publication);
+        assert_eq!(envelope.write_set.count, 1);
+        assert!(envelope.coverage.covered_lanes.is_empty());
+        assert_eq!(
+            envelope.coverage.uncovered_lanes,
+            vec![MIGRATION_AGGREGATE_LANE_V1.to_owned()]
+        );
+        assert_eq!(
+            db.conn
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_changes
+                     WHERE version=?1 AND table_name=?2 AND row_id=?3 AND op=?4",
+                    params![
+                        version_to_sql_integer(pending.publication.version).expect("version"),
+                        crate::storage::SCHEMA_TRANSITION_JOURNAL_TABLE,
+                        approval.operation_id,
+                        crate::storage::SchemaTransitionKind::SchemaResync.as_op(),
+                    ],
+                    |row| row.get::<_, u64>(0),
+                )
+                .expect("P journal count"),
+            1
+        );
+        assert_eq!(
+            scalar_count(&db, "SELECT COUNT(*) FROM _snapback_operation_pending_v1"),
+            1
+        );
+        assert_eq!(
+            scalar_count(
+                &db,
+                "SELECT COUNT(*) FROM _snapback_operation_terminal_supplements_v1"
+            ),
+            0
+        );
+
+        // Repeated lookup cannot republish, release, or add another carrier.
+        let counts_before = (
+            scalar_count(&db, "SELECT COUNT(*) FROM _snapback_changes"),
+            scalar_count(&db, "SELECT COUNT(*) FROM _snapback_commit_envelopes_v1"),
+            scalar_count(&db, "SELECT COUNT(*) FROM _snapback_operation_pending_v1"),
+        );
+        for _ in 0..2 {
+            assert!(matches!(
+                db.migration_aggregate_lookup(&approval.operation_id)
+                    .expect("stable pending lookup"),
+                Some(crate::operation_ledger::PendingOperationLookupV1::Pending(
+                    _
+                ))
+            ));
+        }
+        assert_eq!(
+            counts_before,
+            (
+                scalar_count(&db, "SELECT COUNT(*) FROM _snapback_changes"),
+                scalar_count(&db, "SELECT COUNT(*) FROM _snapback_commit_envelopes_v1"),
+                scalar_count(&db, "SELECT COUNT(*) FROM _snapback_operation_pending_v1"),
+            )
+        );
+
+        // Pending has no ordinary suppression to ACK/reclaim, and its host
+        // lease is effectively unbounded until the terminal supplement.
+        {
+            let tx = db.conn.transaction().expect("ACK transaction");
+            crate::operation_ledger::acknowledge_and_reclaim_in(&tx, &identity, now_millis())
+                .expect("pending ACK is inert");
+            tx.commit().expect("ACK commit");
+        }
+        assert_eq!(
+            db.conn
+                .query_row(
+                    "SELECT expires_at_ms FROM _snapback_host_identity_leases_v1
+                     WHERE operation_id=?1 AND completed_at_ms IS NULL",
+                    [&identity.key.operation_id],
+                    |row| row.get::<_, u64>(0),
+                )
+                .expect("pending lease"),
+            crate::operation_ledger::PENDING_HOST_IDENTITY_LEASE_EXPIRY_MS_V1
+        );
+
+        let pending_epoch_id = match &identity.issuance {
+            OperationIssuanceV1::HostIncarnation { epoch_id, .. } => epoch_id.clone(),
+            other => panic!("migration pending identity must be Host-issued, got {other:?}"),
+        };
+        for (column, moved, restored) in [
+            ("lane", "moved-lane", MIGRATION_AGGREGATE_LANE_V1),
+            (
+                "audience",
+                "moved-audience",
+                identity.bound_facts.audience.as_str(),
+            ),
+            ("epoch_id", "moved-epoch", pending_epoch_id.as_str()),
+        ] {
+            db.conn
+                .execute(
+                    &format!(
+                        "UPDATE _snapback_operation_pending_v1 SET {column}=?1
+                          WHERE stream_id=?2 AND originator_class='host' AND operation_id=?3"
+                    ),
+                    params![moved, identity.key.stream_id, identity.key.operation_id],
+                )
+                .unwrap_or_else(|error| panic!("move pending {column}: {error}"));
+            assert_eq!(
+                crate::operation_ledger::require_pending_operation_capacity_in(
+                    &db.conn,
+                    MIGRATION_AGGREGATE_LANE_V1,
+                    &identity.bound_facts.audience,
+                    None,
+                    1,
+                )
+                .expect_err("moved pending projection cannot evade the lane budget")
+                .diagnostic
+                .code,
+                "SNAPBACK_OPERATION_LEDGER_INVALID"
+            );
+            db.conn
+                .execute(
+                    &format!(
+                        "UPDATE _snapback_operation_pending_v1 SET {column}=?1
+                          WHERE stream_id=?2 AND originator_class='host' AND operation_id=?3"
+                    ),
+                    params![restored, identity.key.stream_id, identity.key.operation_id],
+                )
+                .unwrap_or_else(|error| panic!("restore pending {column}: {error}"));
+        }
+
+        let second = approval_for(&plan, now_millis());
+        let capacity = staged_apply(&mut db, &plan, &second).expect_err("pending lane full");
+        assert_eq!(
+            capacity.diagnostic.code,
+            "SNAPBACK_OPERATION_PENDING_CAPACITY_FULL"
+        );
+        let mut divergent_identity = identity.clone();
+        divergent_identity
+            .bound_facts
+            .function_or_command
+            .push_str("-divergent");
+        let divergent =
+            crate::operation_ledger::lookup_pending_operation(&db.conn, &divergent_identity)
+                .expect_err("divergent pending identity");
+        assert_eq!(
+            divergent.diagnostic.code,
+            "SNAPBACK_CLIENT_MUTATION_ID_REUSED"
+        );
+
+        let released = staged_apply(&mut db, &plan, &approval).expect("release retry");
+        let terminal = match db
+            .migration_aggregate_lookup(&approval.operation_id)
+            .expect("terminal lookup")
+            .expect("aggregate identity")
+        {
+            crate::operation_ledger::PendingOperationLookupV1::Terminal(terminal) => terminal,
+            other => panic!("expected terminal aggregate, got {other:?}"),
+        };
+        assert_eq!(
+            terminal.terminal_outcome,
+            PendingOperationTerminalOutcomeV1::Committed
+        );
+        assert_eq!(terminal.terminal_write_set_count, 0);
+        assert!(terminal.terminal_at_ms >= pending.pending_at_ms);
+        assert_eq!(
+            scalar_count(
+                &db,
+                "SELECT COUNT(*) FROM _snapback_operation_terminal_supplements_v1"
+            ),
+            1
+        );
+        assert_eq!(
+            scalar_count(
+                &db,
+                "SELECT COUNT(*) FROM _snapback_operation_suppression_v1"
+            ),
+            0,
+            "the additive terminal carrier does not widen v1 suppression"
+        );
+        assert_eq!(
+            staged_apply(&mut db, &plan, &approval).expect("exact terminal replay"),
+            released
+        );
+        assert_eq!(
+            scalar_count(
+                &db,
+                "SELECT COUNT(*) FROM _snapback_operation_terminal_supplements_v1"
+            ),
+            1
+        );
+        let mut divergent_approval = approval.clone();
+        divergent_approval.approver = "other-operator".to_owned();
+        let divergent = staged_apply(&mut db, &plan, &divergent_approval)
+            .expect_err("divergent terminal replay");
+        assert_eq!(
+            divergent.diagnostic.code,
+            "SNAPBACK_CLIENT_MUTATION_ID_REUSED"
+        );
+
+        // The additive supplement pins the retired host epoch for the full
+        // terminal window, then compacts with its Pending lifecycle and the
+        // envelope payload. It is neither forever-retained nor reclaimable
+        // while outcome is pending.
+        let OperationIssuanceV1::HostIncarnation { epoch_id, .. } = &identity.issuance else {
+            panic!("aggregate uses host issuance");
+        };
+        let epoch_sequence: u64 = db
+            .conn
+            .query_row(
+                "SELECT epoch_sequence FROM _snapback_operation_epochs_v1
+                 WHERE originator_class='host' AND audience=?1 AND epoch_id=?2",
+                params![identity.bound_facts.audience, epoch_id],
+                |row| row.get(0),
+            )
+            .expect("aggregate epoch sequence");
+        let rotate_at = terminal.terminal_at_ms + 1;
+        let successor = crate::commit_envelope::IdentityEpochV1 {
+            schema_version: 1,
+            originator_class: OperationOriginatorClassV1::Host,
+            audience: identity.bound_facts.audience.clone(),
+            authority_instance_id: "snapback:migration-executor:v1:rotated".to_owned(),
+            epoch_id: "migration-aggregate-successor-epoch".to_owned(),
+            epoch_sequence: epoch_sequence + 1,
+            state: crate::commit_envelope::IdentityEpochStateV1::Open,
+            issued_at_ms: rotate_at,
+            terminated_at_ms: None,
+            authority_authenticator_digest: format!("sha256:{}", "b".repeat(64)),
+        };
+        {
+            let tx = db.conn.transaction().expect("host rotation transaction");
+            crate::operation_ledger::rotate_host_incarnation_in(
+                &tx,
+                &identity.bound_facts.audience,
+                epoch_id,
+                &successor,
+                rotate_at,
+            )
+            .expect("rotate aggregate host epoch");
+            assert!(
+                !crate::operation_ledger::close_epoch_if_complete_in(
+                    &tx,
+                    OperationOriginatorClassV1::Host,
+                    &identity.bound_facts.audience,
+                    epoch_id,
+                    terminal.terminal_at_ms + crate::operation_ledger::HOST_RECEIPT_WINDOW_MS_V1
+                        - 1,
+                )
+                .expect("young supplement pins epoch")
+            );
+            assert!(
+                crate::operation_ledger::close_epoch_if_complete_in(
+                    &tx,
+                    OperationOriginatorClassV1::Host,
+                    &identity.bound_facts.audience,
+                    epoch_id,
+                    terminal.terminal_at_ms
+                        + crate::operation_ledger::HOST_RECEIPT_WINDOW_MS_V1
+                        + 1,
+                )
+                .expect("elapsed supplement compacts")
+            );
+            tx.commit().expect("host closure commit");
+        }
+        assert_eq!(
+            scalar_count(
+                &db,
+                "SELECT COUNT(*) FROM _snapback_operation_terminal_supplements_v1"
+            ),
+            0
+        );
+        assert_eq!(
+            scalar_count(&db, "SELECT COUNT(*) FROM _snapback_operation_pending_v1"),
+            0
+        );
+        let compacted: String = db
+            .conn
+            .query_row(
+                "SELECT envelope_json FROM _snapback_commit_envelopes_v1
+                 WHERE operation_id=?1",
+                [&identity.key.operation_id],
+                |row| row.get(0),
+            )
+            .expect("compacted aggregate envelope");
+        let compacted: CommitEnvelopeV1 =
+            serde_json::from_str(&compacted).expect("compacted envelope JSON");
+        assert_eq!(compacted.receipt.payload, RetainedEnvelopeDetailV1::Expired);
+        assert!(matches!(
+            db.migration_aggregate_lookup(&approval.operation_id)
+                .expect("closed aggregate lookup"),
+            Some(crate::operation_ledger::PendingOperationLookupV1::IdentityHorizonPassed)
+        ));
+    }
+
+    #[test]
+    fn llp0163_migration_aggregate_rejects_swapped_pending_envelope() {
+        let mut db = seeded_db();
+        let plan = staged_plan(None);
+        let approval = approval_for(&plan, now_millis());
+        crash_after_publication_p(&mut db, &plan, &approval);
+        let identity = aggregate_identity_for(&db, &approval.operation_id);
+        let body: String = db
+            .conn
+            .query_row(
+                "SELECT envelope_json FROM _snapback_commit_envelopes_v1
+                 WHERE operation_id=?1",
+                [&identity.key.operation_id],
+                |row| row.get(0),
+            )
+            .expect("envelope");
+        let mut envelope: CommitEnvelopeV1 = serde_json::from_str(&body).expect("envelope JSON");
+        envelope.receipt.payload = RetainedEnvelopeDetailV1::InlineRedacted {
+            detail: json!({
+                "outcome": "pending",
+                "publicationVersion": envelope.snapshot.version + 1,
+                "state": "published-held",
+            }),
+        };
+        db.conn
+            .execute(
+                "UPDATE _snapback_commit_envelopes_v1 SET envelope_json=?1
+                 WHERE operation_id=?2",
+                params![
+                    serde_json::to_string(&envelope).expect("mutated envelope JSON"),
+                    identity.key.operation_id,
+                ],
+            )
+            .expect("corrupt envelope fixture");
+        let error = db
+            .migration_aggregate_lookup(&approval.operation_id)
+            .expect_err("swapped envelope must refuse");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_OPERATION_LEDGER_INVALID");
+
+        let mut terminal_db = seeded_db();
+        let terminal_plan = staged_plan(None);
+        let terminal_approval = approval_for(&terminal_plan, now_millis());
+        staged_apply(&mut terminal_db, &terminal_plan, &terminal_approval)
+            .expect("terminal fixture");
+        terminal_db
+            .conn
+            .execute(
+                "UPDATE _snapback_migration_ops SET receipt_json='{}'
+                 WHERE operation_id=?1",
+                [&terminal_approval.operation_id],
+            )
+            .expect("corrupt terminal receipt fixture");
+        let error = terminal_db
+            .migration_aggregate_lookup(&terminal_approval.operation_id)
+            .expect_err("swapped terminal receipt must refuse");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_OPERATION_LEDGER_INVALID");
+    }
+
+    #[test]
+    fn llp0163_migration_aggregate_publication_and_terminal_response_crashes_are_atomic() {
+        // Kill inside P: publication, resync journal, Pending envelope, and
+        // lifecycle all roll back together.
+        let mut before_p = seeded_db();
+        let head = before_p.current_version().expect("head");
+        let plan = staged_plan(None);
+        let approval = approval_for(&plan, now_millis());
+        arm_migration_kill_point("published-held", 0);
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            staged_apply(&mut before_p, &plan, &approval)
+        }));
+        disarm_migration_kill_point();
+        assert!(outcome.is_err());
+        assert_eq!(
+            before_p.current_version().expect("head after P crash"),
+            head
+        );
+        assert_eq!(
+            scalar_count(
+                &before_p,
+                "SELECT COUNT(*) FROM _snapback_operation_pending_v1"
+            ),
+            0
+        );
+        assert_eq!(
+            scalar_count(
+                &before_p,
+                "SELECT COUNT(*) FROM _snapback_commit_envelopes_v1"
+            ),
+            0
+        );
+
+        // Lose the response after T-release commits. Lookup is terminal and
+        // exact retry returns the singleton receipt without another P or T.
+        let mut after_t = seeded_db();
+        let plan = staged_plan(None);
+        let approval = approval_for(&plan, now_millis());
+        arm_migration_kill_point("terminal-response", 0);
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            staged_apply(&mut after_t, &plan, &approval)
+        }));
+        disarm_migration_kill_point();
+        assert!(outcome.is_err());
+        assert!(matches!(
+            after_t
+                .migration_aggregate_lookup(&approval.operation_id)
+                .expect("terminal lookup after response loss"),
+            Some(crate::operation_ledger::PendingOperationLookupV1::Terminal(
+                _
+            ))
+        ));
+        let receipt = staged_apply(&mut after_t, &plan, &approval)
+            .expect("exact retry after terminal response loss");
+        assert_eq!(receipt.state.kind(), "released");
+        assert!(
+            after_t
+                .schema()
+                .table("items")
+                .expect("items")
+                .field("note")
+                .is_some(),
+            "terminal replay repairs the serving handle's successor posture"
+        );
+        assert_eq!(
+            scalar_count(
+                &after_t,
+                "SELECT COUNT(*) FROM _snapback_operation_terminal_supplements_v1"
+            ),
+            1
+        );
+    }
+
+    #[test]
+    fn llp0163_migration_aggregate_rollback_terminal_is_singleton() {
+        let mut db = seeded_db();
+        let plan = staged_plan(Some(PUBLICATION_TS + 1));
+        let approval = approval_for(&plan, now_millis());
+        let (_, resolved) = audience();
+        crash_after_publication_p(&mut db, &plan, &approval);
+
+        arm_migration_kill_point("rolling-back", 0);
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            db.migrate_rollback(&plan, &approval, &resolved, now_millis())
+        }));
+        disarm_migration_kill_point();
+        assert!(outcome.is_err());
+        assert!(matches!(
+            db.migration_aggregate_lookup(&approval.operation_id)
+                .expect("pending after rollback interior crash"),
+            Some(crate::operation_ledger::PendingOperationLookupV1::Pending(
+                _
+            ))
+        ));
+
+        arm_migration_kill_point("rollback-response", 0);
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            db.migrate_rollback(&plan, &approval, &resolved, now_millis())
+        }));
+        disarm_migration_kill_point();
+        assert!(outcome.is_err(), "rollback response-loss seam must fire");
+        let terminal = match db
+            .migration_aggregate_lookup(&approval.operation_id)
+            .expect("rollback terminal lookup")
+            .expect("aggregate")
+        {
+            crate::operation_ledger::PendingOperationLookupV1::Terminal(terminal) => terminal,
+            other => panic!("expected rollback terminal, got {other:?}"),
+        };
+        assert_eq!(
+            terminal.terminal_outcome,
+            PendingOperationTerminalOutcomeV1::RolledBack
+        );
+        assert_eq!(terminal.terminal_write_set_count, 1);
+        let rollback = db
+            .migrate_rollback(&plan, &approval, &resolved, now_millis())
+            .expect("rollback exact replay");
+        assert_eq!(
+            db.migrate_rollback(&plan, &approval, &resolved, now_millis())
+                .expect("second rollback exact replay"),
+            rollback
+        );
+        assert_eq!(
+            scalar_count(
+                &db,
+                "SELECT COUNT(*) FROM _snapback_operation_terminal_supplements_v1"
+            ),
+            1
+        );
+        assert_eq!(
+            db.conn
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_changes
+                     WHERE table_name=?1 AND row_id=?2 AND op=?3",
+                    params![
+                        crate::storage::SCHEMA_TRANSITION_JOURNAL_TABLE,
+                        approval.operation_id,
+                        crate::storage::SchemaTransitionKind::RollbackResync.as_op(),
+                    ],
+                    |row| row.get::<_, u64>(0),
+                )
+                .expect("R journal count"),
+            1
+        );
+        db.resume_pending_migration_cleanup()
+            .expect("resume rollback cleanup");
+        assert!(matches!(
+            db.migration_aggregate_lookup(&approval.operation_id)
+                .expect("terminal survives cleanup resume"),
+            Some(crate::operation_ledger::PendingOperationLookupV1::Terminal(
+                _
+            ))
+        ));
+    }
+
+    #[test]
+    fn migration_expected_oracle_covers_the_closed_expression_profile() {
+        let constants = json!({
+            "fallback": "n/a",
+            "nested": { "number": 3 },
+        });
+        let bindings = BTreeMap::from([(
+            "row".to_owned(),
+            json!({ "title": "  HeLLo  ", "n": 5, "missing": null }),
+        )]);
+        let literal = |value| ValueExpr::Literal(value);
+        let field = |key: &str| ValueExpr::Field {
+            base: Box::new(ValueExpr::Binding("row".to_owned())),
+            key: key.to_owned(),
+        };
+        let binary = |op, left, right| ValueExpr::Binary {
+            op,
+            left: Box::new(left),
+            right: Box::new(right),
+        };
+        let cases = vec![
+            (ValueExpr::Arg("nested.number".to_owned()), json!(3)),
+            (field("absent"), Value::Null),
+            (
+                binary(BinaryOp::Add, field("n"), literal(json!(2))),
+                json!(7),
+            ),
+            (
+                binary(BinaryOp::Add, literal(json!("a")), literal(json!("b"))),
+                json!("ab"),
+            ),
+            (
+                binary(BinaryOp::Sub, field("n"), literal(json!(2))),
+                json!(3),
+            ),
+            (
+                binary(BinaryOp::Mul, field("n"), literal(json!(2))),
+                json!(10),
+            ),
+            (
+                binary(BinaryOp::Div, field("n"), literal(json!(2))),
+                json!(2.5),
+            ),
+            (
+                binary(BinaryOp::Mod, field("n"), literal(json!(2))),
+                json!(1),
+            ),
+            (
+                binary(BinaryOp::Eq, field("n"), literal(json!(5.0))),
+                json!(true),
+            ),
+            (
+                binary(BinaryOp::Ne, field("n"), literal(json!(4))),
+                json!(true),
+            ),
+            (
+                binary(BinaryOp::Lt, field("n"), literal(json!(6))),
+                json!(true),
+            ),
+            (
+                binary(BinaryOp::Lte, field("n"), literal(json!(5))),
+                json!(true),
+            ),
+            (
+                binary(BinaryOp::Gt, field("n"), literal(json!(4))),
+                json!(true),
+            ),
+            (
+                binary(BinaryOp::Gte, field("n"), literal(json!(5))),
+                json!(true),
+            ),
+            (
+                binary(BinaryOp::And, literal(json!(0)), literal(json!("no"))),
+                json!(0),
+            ),
+            (
+                binary(
+                    BinaryOp::Or,
+                    ValueExpr::Arg("fallback".to_owned()),
+                    literal(json!("x")),
+                ),
+                json!("n/a"),
+            ),
+            (
+                ValueExpr::Unary {
+                    op: UnaryOp::Not,
+                    expr: Box::new(ValueExpr::Literal(Value::Null)),
+                },
+                json!(true),
+            ),
+            (
+                ValueExpr::Unary {
+                    op: UnaryOp::Neg,
+                    expr: Box::new(field("n")),
+                },
+                json!(-5),
+            ),
+            (
+                ValueExpr::If {
+                    cond: Box::new(literal(json!(true))),
+                    then: Box::new(ValueExpr::Arg("fallback".to_owned())),
+                    r#else: Box::new(literal(json!("wrong"))),
+                },
+                json!("n/a"),
+            ),
+            (
+                ValueExpr::Concat(vec![literal(json!("v=")), field("n")]),
+                json!("v=5"),
+            ),
+            (
+                ValueExpr::Call {
+                    func: "trim".to_owned(),
+                    args: vec![field("title")],
+                },
+                json!("HeLLo"),
+            ),
+            (
+                ValueExpr::Call {
+                    func: "lower".to_owned(),
+                    args: vec![field("title")],
+                },
+                json!("  hello  "),
+            ),
+            (
+                ValueExpr::Call {
+                    func: "len".to_owned(),
+                    args: vec![literal(json!("a💾"))],
+                },
+                json!(3),
+            ),
+            (
+                ValueExpr::Call {
+                    func: "coalesce".to_owned(),
+                    args: vec![field("missing"), ValueExpr::Arg("fallback".to_owned())],
+                },
+                json!("n/a"),
+            ),
+            (
+                ValueExpr::Call {
+                    func: "abs".to_owned(),
+                    args: vec![literal(json!(-2))],
+                },
+                json!(2),
+            ),
+            (
+                ValueExpr::Call {
+                    func: "round".to_owned(),
+                    args: vec![literal(json!(-1.5))],
+                },
+                json!(-1),
+            ),
+            (
+                ValueExpr::Call {
+                    func: "floor".to_owned(),
+                    args: vec![literal(json!(2.9))],
+                },
+                json!(2),
+            ),
+            (
+                ValueExpr::Call {
+                    func: "ceil".to_owned(),
+                    args: vec![literal(json!(2.1))],
+                },
+                json!(3),
+            ),
+            (
+                ValueExpr::Call {
+                    func: "min".to_owned(),
+                    args: vec![field("n"), literal(json!(8)), literal(json!(2))],
+                },
+                json!(2),
+            ),
+            (
+                ValueExpr::Call {
+                    func: "max".to_owned(),
+                    args: vec![field("n"), literal(json!(8)), literal(json!(2))],
+                },
+                json!(8),
+            ),
+            (
+                ValueExpr::Record {
+                    fields: BTreeMap::from([
+                        ("copied".to_owned(), field("n")),
+                        ("constant".to_owned(), ValueExpr::Arg("fallback".to_owned())),
+                    ]),
+                },
+                json!({ "constant": "n/a", "copied": 5 }),
+            ),
+        ];
+        let execution_input = HandlerInput {
+            args: constants.clone(),
+            ..HandlerInput::default()
+        };
+        for (index, (expr, expected)) in cases.into_iter().enumerate() {
+            let oracle = migration_expected_oracle(&expr, &constants, &bindings)
+                .unwrap_or_else(|error| panic!("oracle case {index}: {error:?}"));
+            assert_eq!(oracle, expected, "explicit oracle case {index}");
+            assert_eq!(
+                eval_expr(
+                    &expr,
+                    &execution_input,
+                    &bindings,
+                    PUBLICATION_TS,
+                    None,
+                    "migration/oracle-equivalence-corpus",
+                )
+                .unwrap_or_else(|error| panic!("execution case {index}: {error:?}")),
+                oracle,
+                "independently implemented evaluators diverged at case {index}"
+            );
+        }
+        assert_eq!(
+            migration_expected_oracle(&ValueExpr::RuntimeNow, &constants, &bindings)
+                .expect_err("ambient input is outside the oracle")
+                .diagnostic
+                .code,
+            "SNAPBACK_MIGRATION_EXPECTED_ORACLE_FAILED"
+        );
+    }
+
     // @ref LLP 0081#3-typed-migration-steps — the staged-generation path.
     // @ref LLP 0081#5-verification-and-data-proof — its independent data proof.
     //   — the staged-generation path end to end: stage, copy through closed
@@ -4856,12 +7397,29 @@ mod tests {
             .get("§5-data-proof")
             .expect("data proof on the receipt");
         assert_eq!(proof["proofMethod"], json!("full"));
+        assert_eq!(proof["proofClass"], json!("independentBoundaryProof"));
+        assert_eq!(proof["boundaryDomain"], json!("migration"));
+        assert_eq!(
+            proof["expectedEvaluatorIndependence"],
+            json!("separateImplementation")
+        );
+        assert_eq!(proof["independenceLimitation"], Value::Null);
+        assert!(proof["expectedDerivation"].as_str().is_some());
         assert!(
             proof["tables"]["items"]["logicalDigest"]
                 .as_str()
                 .is_some_and(|digest| digest.starts_with("cdv1:")),
             "{proof}"
         );
+        assert_eq!(
+            proof["tables"]["items"]["expectedLogicalDigest"],
+            proof["tables"]["items"]["actualLogicalDigest"]
+        );
+        assert_eq!(
+            proof["tables"]["items"]["expectedSystemDigest"],
+            proof["tables"]["items"]["actualSystemDigest"]
+        );
+        assert_eq!(proof["tables"]["items"]["matches"], json!(true));
         assert_eq!(proof["tables"]["items"]["rejects"], json!(0));
 
         // Published by swap: live rows carry the transform; every row's
@@ -4896,6 +7454,37 @@ mod tests {
             !super::super::sqlite_table_exists(&db.conn, "items__retired_g1")
                 .expect("retired lookup"),
         );
+        let runtime_indexes: Vec<(String, String)> = {
+            let mut statement = db
+                .conn
+                .prepare(
+                    "SELECT name, tbl_name FROM sqlite_schema
+                     WHERE type = 'index'
+                       AND (name GLOB '_snapback_version_domain_*'
+                            OR name GLOB '_snapback_version_head_*')
+                     ORDER BY name",
+                )
+                .expect("prepare runtime-index inventory");
+            statement
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+                .expect("query runtime-index inventory")
+                .collect::<Result<Vec<_>, _>>()
+                .expect("collect runtime-index inventory")
+        };
+        assert_eq!(
+            runtime_indexes,
+            vec![
+                (
+                    "_snapback_version_domain_items".to_owned(),
+                    "items".to_owned()
+                ),
+                (
+                    "_snapback_version_head_items".to_owned(),
+                    "items".to_owned()
+                ),
+            ],
+            "staged publication must leave only final-name runtime indexes"
+        );
     }
 
     // §5: sampled-audit is a separately named lower-assurance class and its
@@ -4914,6 +7503,14 @@ mod tests {
         let receipt = staged_apply(&mut db, &plan, &approval).expect("sampled apply");
         let proof = receipt.step_results.get("§5-data-proof").expect("proof");
         assert_eq!(proof["proofMethod"], json!("sampled-audit"));
+        assert_eq!(proof["proofClass"], json!("inventory"));
+        assert_eq!(proof["boundaryDomain"], json!("migration"));
+        assert_eq!(
+            proof["expectedEvaluatorIndependence"],
+            json!("notApplicable")
+        );
+        assert_eq!(proof["independenceLimitation"], Value::Null);
+        assert_eq!(proof["expectedDerivation"], Value::Null);
         assert!(
             proof["proofLabel"]
                 .as_str()
@@ -4956,6 +7553,31 @@ mod tests {
         assert!(
             !super::super::sqlite_table_exists(&db.conn, "items__retired_g1")
                 .expect("retired lookup"),
+        );
+    }
+
+    #[test]
+    fn independent_oracle_detects_executor_semantic_drift_before_publication() {
+        let mut db = seeded_db();
+        let plan = staged_plan(None);
+        let approval = approval_for(&plan, now_millis());
+        install_migration_execution_value_hook(|field, value| {
+            if field == "note" {
+                json!("executor-drift")
+            } else {
+                value
+            }
+        });
+        let result = staged_apply(&mut db, &plan, &approval);
+        clear_migration_execution_value_hook();
+        let error = result.expect_err("independent expected semantics must catch executor drift");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MIGRATION_VERIFICATION_FAILED"
+        );
+        assert!(
+            !super::super::sqlite_table_exists(&db.conn, "items__retired_g1")
+                .expect("predecessor remains authoritative"),
         );
     }
 

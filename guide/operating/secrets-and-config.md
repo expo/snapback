@@ -4,13 +4,13 @@ id: operating.secrets-and-config
 order: 1
 audience: agent-first
 capabilities: [operating.secrets-config]
-authorities: [llp/0036-app-secrets-and-config.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/tests/acceptance/egress.mjs]
-examples: [demos/all-aboard]
+authorities: [llp/0036-app-secrets-and-config.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, src/cli.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/tests/acceptance/egress.mjs]
+examples: [demos/all-aboard, tests/config_set_cli_v0.rs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-06
+reviewed-commit: c9af5600c82c30e6765b270fc10db368adf0dd5a
 ---
 
 # Secrets and deployment config
@@ -99,6 +99,91 @@ The write responses carry the new generation and set-state; they never carry
 value bytes, and neither does `status`, the diagnostics ring, or any log
 line. Pass values in the request body — never in argv, where a process list
 would leak them.
+
+## CLI and MCP projections for status/plan/verify
+
+`config.status`, `config.plan`, and `config.verify` never carry a secret
+value, so they are direct CLI and control-MCP tools (LLP 0184 Phase 2 P1).
+`config.unset` is direct CLI and control-MCP too because it carries only an
+entry name. `config.set` is deliberately CLI-only: MCP JSON-RPC has no defined
+equivalent of the process-scoped stdin/fd secret carrier.
+
+```sh
+snapback config status --ready-file .snapback/dev.ready.json
+snapback config plan --ready-file .snapback/dev.ready.json --entry caltrainFeed
+snapback config verify --ready-file .snapback/dev.ready.json caltrainFeed
+snapback config unset --ready-file .snapback/dev.ready.json --entry caltrainFeed
+```
+
+or, through `snapback mcp-control`: `snapback_config_status`,
+`snapback_config_plan` (optional `entry`), and `snapback_config_verify`
+(required `entry`), plus `snapback_config_unset` (required `entry`). Every
+result is the operation's typed, value-free envelope; a missing/unset entry is
+reported as declared state, not fabricated success.
+
+## Set an agent-held value without exposing it
+
+Start by detecting the gap and checking whether this target accepts value
+writes:
+
+```sh
+snapback config status --ready-file .snapback/dev.ready.json
+snapback config plan --ready-file .snapback/dev.ready.json --entry caltrainFeed
+```
+
+If a human holds the value, send them to
+`http://127.0.0.1:<port>/_snapback/admin/setup`. The browser setup page accepts
+the value directly; it does not hand the value back to the agent, and there is
+no speculative agent-facing acquisition operation. Afterward, the agent uses
+`config status` and `config verify` to observe completion.
+
+If the agent already lawfully holds the value, send its exact UTF-8 bytes on
+stdin. Keep the value in a shell-local variable populated by the credential
+source without echoing it; do not paste a literal into this command:
+
+```sh
+printf '%s' "$AGENT_HELD_VALUE" |
+  snapback config set --ready-file .snapback/dev.ready.json \
+    --entry caltrainFeed --value-stdin
+```
+
+`printf '%s'` is the carrier adapter, not a place to type the value. Do not
+export the variable, enable shell tracing, or use `echo`: exported state is
+needlessly inherited, tracing prints expansions, and `echo` can add or rewrite
+bytes. The CLI preserves the carrier bytes exactly, including whitespace and
+line endings, and caps the CLI value at 1 MiB.
+
+An inherited descriptor avoids even a shell expansion. Open an owner-only
+secret source, pass its descriptor number, then close it:
+
+```sh
+exec 9<./operator-owned-secret
+snapback config set --ready-file .snapback/dev.ready.json \
+  --entry caltrainFeed --value-fd 9
+exec 9<&-
+```
+
+For a pooled entry, add one member with the same carrier plus `--append`.
+
+A heredoc is usually the wrong carrier. Its body may be retained by shell
+history or terminal capture, and the newline before the delimiter becomes part
+of the value because Snapback does not trim secret bytes. Use a pipe from the
+credential-owning process or an inherited descriptor unless that final newline
+is deliberately part of the credential.
+
+There is intentionally no `snapback config set ... --value <secret>` spelling.
+Argv is visible to process inspection, commonly retained in shell history, and
+often quoted in parser diagnostics. Config-set parse failures are therefore
+collapsed to a stable value-free usage diagnostic instead of replaying argv.
+There is also no `snapback_config_set` MCP tool: defining one would make the
+ordinary JSON-RPC parameter/result channel a secret carrier.
+
+Complete the flow with value-free observation:
+
+```sh
+snapback config status --ready-file .snapback/dev.ready.json
+snapback config verify --ready-file .snapback/dev.ready.json caltrainFeed
+```
 
 ## Read through a granted handle
 

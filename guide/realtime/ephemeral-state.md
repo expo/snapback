@@ -4,13 +4,13 @@ id: realtime.ephemeral-state
 order: 2
 audience: agent-first
 capabilities: [realtime.ephemeral]
-authorities: [llp/0013-ephemeral-realtime-state.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs]
-examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0184-agent-accessible-control-plane.rfc.md, src/admin.rs, src/ephemeral.rs, src/server.rs, src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
+examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging-snapback/src/lib/useTyping.ts]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-06
+reviewed-commit: 6e158169b3c908b8be149db4487a71dc35738470
 ---
 
 # Ephemeral realtime state
@@ -27,6 +27,66 @@ reads, or enter history/audit, put it in a durable table instead.
 Start with the [presence-cursors recipe](../recipes/presence-cursors.md) when
 building a feature. Use this page when choosing collection options or handling
 recovery.
+
+## Find the React hook from ephemeral vocabulary
+
+In the schema and headless client this feature is named **ephemeral**. In the
+React client the scoped hook is named **`useSnapbackPresence`**. The names are
+two views of the same generated ephemeral collection: use the hook for online
+presence, conversation-scoped typing indicators, cursors, and other managed
+React values. There is no separate `useSnapbackEphemeral` hook.
+
+`scope` is the room boundary, so a conversation id gives one typing room per
+conversation. `ConnectionEphemeralCollectionReference` describes how each row
+inside that room is owned and keyed; it does not force a global or
+connection-only scope. `value: skip` observes without publishing. From that
+observer state, `publish` installs managed intent (including heartbeat) and
+`delete` clears it immediately. A non-skipped `value` is the declarative form.
+In both forms the first-party React provider owns subscription, heartbeat,
+cleanup, reconnect, and authority transition:
+
+```tsx source=demos/messaging-snapback/src/lib/useTyping.ts
+import { useMemo } from 'react';
+import { skip, useSnapbackPresence } from '@messenger/snapback-react';
+import { ephemeral } from '@generated/api.mjs';
+
+export type Typer = { userHandle: string; name: string };
+
+const typingRef = ephemeral.typing;
+const PUBLISH_TTL_MS = typingRef.maxTtlMs;
+
+// `useSnapbackPresence` is the React hook for generated ephemeral collections.
+// Observer mode keeps publish/delete imperative so clearing a typing indicator
+// remains immediate while the provider owns the room, heartbeat, and cleanup.
+export function useTyping(conversationId: string, selfHandle: string) {
+  const scope = useMemo(() => ({ conversationId }), [conversationId]);
+  const presence = useSnapbackPresence(typingRef, { scope, value: skip });
+  const typers = useMemo<Typer[]>(() => {
+    if (presence.status !== 'ready' && presence.status !== 'stale') return [];
+    return presence.entries
+      .filter((entry) => entry.key !== presence.selfKey)
+      .filter((entry) => entry.value.userHandle !== selfHandle)
+      .map((entry) => entry.value);
+  }, [presence, selfHandle]);
+
+  function publishTyping(name: string) {
+    void presence
+      .publish({ userHandle: selfHandle, name }, { ttlMs: PUBLISH_TTL_MS })
+      .catch(() => {});
+  }
+
+  function clearTyping() {
+    void presence.delete().catch(() => {});
+  }
+
+  return { typers, publishTyping, clearTyping };
+}
+```
+
+See [the React client](../clients/react.md#publish-and-observe-ephemeral-presence)
+for the hook's state and lifecycle contract. Reach for the lower-level
+`subscribeEphemeral` overlay below only in headless code or when you
+deliberately need to own overlay lifecycle, manual draining, or polling.
 
 ## Declare the complete collection contract
 
@@ -173,6 +233,60 @@ value type; a typed value must not degrade to `unknown` at provider
 introspection. Keep imperative overlays in headless/React code and generated
 ephemeral links in Contract code—do not mix a second polling or publish lane
 into the same surface.
+
+<!-- since: 0.1.10 -->
+
+## Delete one entry as an operator
+
+Use `snapback ephemeral operator-delete` or the
+`snapback_ephemeral_operator_delete` MCP tool only for local dev/test repair
+after inspecting the exact collection, scope, entry key, `scopeEpoch`, and
+`entryVersion`. Supply both coordinates as `--expected-scope-epoch` and
+`--expected-entry-generation`; a room can be pruned and recreated with a new
+epoch while its entry generation restarts at 1, so generation alone is not a
+safe fence. The CLI requires `--ready-file` because the server also verifies
+that descriptor's process-bound startup nonce.
+
+```sh fragment reason="Operator repair example uses inspected runtime coordinates and a local readiness descriptor, not a repository fixture."
+snapback ephemeral operator-delete \
+  --ready-file .snapback/dev.ready.json \
+  --collection boardCursors \
+  --scope-json '{"boardId":"board-1"}' \
+  --entry-key conn_owner \
+  --expected-scope-epoch 7 \
+  --expected-entry-generation 3 \
+  --reason 'remove stuck cursor after inspection'
+```
+
+This operation is an explicit administrator bypass: it never evaluates
+application authorization or ownership, and its receipt says
+`authorizationEvaluated: false`. It remains distinct from an application's
+ordinary `delete`, while still using the ordinary removal and subscriber
+notification path. The server refuses it on production and on derived
+instances; LLP 0158 does not yet recognize derived identity for this purpose.
+
+## Clean up expired entries operationally
+
+The server's background expiry sweep remains automatic. For an explicit,
+auditable maintenance pass, preview a bounded cutoff before applying it:
+
+```sh fragment reason="Operator example uses a runtime URL rather than a repository-owned server fixture."
+snapback ephemeral cleanup --url http://127.0.0.1:4287 \
+  --older-than-ms 60000 --dry-run --max-entries 1000
+```
+
+`--older-than-ms` means “expired for at least this long”; it is not the age of
+the last publish. Use `--cutoff-timestamp-ms` instead when a wall-clock expiry
+deadline is the operator's source of truth. Exactly one cutoff and exactly one
+of `--dry-run` or `--apply` are required. `--max-entries` is bounded from 1 to
+10,000.
+
+The CLI and the destructive `snapback_ephemeral_cleanup` MCP tool bind each
+request to the current process startup nonce. The receipt reports examined,
+eligible, would-delete, deleted, and remaining counts by collection and opaque
+room digest; it never exposes raw room scope. Apply emits the ordinary
+`Expired` removals and subscription notifications. Cleanup is room-linearized,
+so repeat an apply when `bounds.truncated` is true or `complete` is false.
 
 ## Anti-patterns
 

@@ -5,12 +5,12 @@ order: 2
 audience: agent-first
 capabilities: [clients.react]
 authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts]
-examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk/src/backends/snapback.ts, demos/signal-desk/tests/react.mjs, demos/signal-desk/acceptance/results/react-presence.v1.json, packages/snapback-react/binding-development-sync.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-react/exact-result-types.fixture.ts]
+examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk/src/backends/snapback.ts, demos/signal-desk/tests/react.mjs, demos/signal-desk/acceptance/results/react-presence.v1.json, demos/messaging-snapback/src/lib/useTyping.ts, packages/snapback-react/binding-development-sync.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-react/exact-result-types.fixture.ts]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-04
-reviewed-commit: 8154744c87ed58816703093bd526bd7a40d95a56
+reviewed: 2026-08-06
+reviewed-commit: 4ac8387f080a2659484fc09916ff22a076dc4ca8
 ---
 
 # The React client
@@ -32,7 +32,7 @@ from that immutable binding:
 
 ```ts fragment reason="application composition varies by renderer and generated artifact imports"
 const binding = await client.prepareReactBinding({
-  generatedManifest: { schema, functions, capabilityManifest },
+  generatedManifest: app,
   developmentSync: {
     onStateChange(state) {
       setBootState(state);
@@ -48,9 +48,19 @@ root.render(
 );
 ```
 
-Preparation verifies app, deployment, auth-mode, schema, function-catalog,
-result contracts, ephemeral declarations, and capability identity. The
-provider borrows the client; `provider.dispose()` drains provider-owned
+When something breaks behind these hooks, open the
+[admin console](../operating/admin-console.md) before writing another probe:
+`snapback admin --ready-file .snapback/dev.ready.json` opens the shipped
+browser debugger for Data, Functions, Realtime, Errors, and Logs against the
+same running backend — check it before falling back to `curl`, raw host
+operations, or a one-off verification script.
+
+Use the generated `snapback.app.v1` descriptor exported as `app` by
+`generated/api.mjs`; it carries the same complete references components pass
+to hooks, including ephemeral collections. Preparation verifies app,
+deployment, auth-mode, schema, function-catalog, result contracts, ephemeral
+declarations, and capability identity. The provider borrows the client;
+`provider.dispose()` drains provider-owned
 subscriptions, rooms, stores, listeners, timers, connection grant, socket
 demand, and its auth-barrier participant.
 
@@ -64,6 +74,20 @@ generated manifest. The binding names its provenance as
 boot reaches a provider that renders retained rows (see
 [offline retention](../sync/offline-and-retention.md)). A drifted generated
 manifest never adopts the receipt.
+
+Whether that receipt is actually on disk for the next boot depends on the
+persisted store carrier:
+
+| Carrier | Receipt persisted by online preparation | Offline cold boot reaches `source: 'persisted-receipt'` | Witness |
+| --- | --- | --- | --- |
+| Browser IndexedDB + Web Locks (browser default) | Yes — the commit defers until this tab's writer election settles (before 2026-08-06 a boot-time election race silently dropped it) | Yes | `packages/snapback-react/cold-boot-binding-indexeddb.test.mjs` (Node simulation: fake IndexedDB plus a Web Locks double); the real-Chrome repro in `demos/warble` remains a manual witness |
+| Expo / registered file store | Yes — the file arm settles writer election before its writer check | Yes, proven for a fresh client in the same process; a physical-device process-kill witness is still open (`issues/20260806-expo-file-carrier-process-kill-witness.md`) | `demos/relay-room-bakeoff/snapback-expo/tests/offline-acceptance.mjs` |
+| Memory fallback | In-memory only — nothing survives the process | No — a process-cold boot has neither receipt nor rows | `packages/snapback-react/cold-boot-binding.test.mjs` (two sessions over one memory store in one process) |
+
+A tab that is not the elected writer defers its receipt commit until it is
+elected (the freshest `savedAt` wins at flush time); a terminally refused
+commit warns `SNAPBACK_REACT_BINDING_RECEIPT_NOT_PERSISTED` instead of
+dropping the receipt silently.
 
 During an ordinary local edit/restart cycle, Metro or Vite may load generated
 artifacts one backend generation ahead. After a live inspection proves both
@@ -82,6 +106,26 @@ window remains recoverable. Hosted, sessions, unknown, and server-refusal
 contexts stay immediate and loud. Set `developmentSync: false` when a local
 tool or test deliberately needs the original immediate mismatch behavior;
 otherwise the bounded retry is automatic even when no callback is supplied.
+
+The same dev loop has a post-mount sibling: Metro or Vite HMR can hot-replace
+the generated api module while the mounted `SnapbackProvider` keeps the
+binding admitted from the previous generation. In a positively identified
+development environment (Metro's `__DEV__`, a bundler HMR host, or
+`NODE_ENV === 'development'` — never mere absence of production markers), a
+regenerated same-app reference presented to hooks becomes a provider-boundary
+invalidation instead of a crash: the provider re-proves the whole new
+generation against the live deployment and swaps admission atomically.
+Unchanged queries keep their data throughout; changed queries show a brief
+`pending` frame, then subscribe under the new contract; a mutation invoked
+during the window settles after the swap. If the rebind cannot complete
+(backend never serves the new generation, or routes/ephemeral declarations
+changed), the provider logs one `SNAPBACK_REACT_HMR_REBIND_FAILED` diagnostic
+and triggers a controlled dev reload (`developmentHmr.onReloadRequired`
+overrides the default `DevSettings.reload`/`location.reload`). Foreign or
+stale references and production builds keep the strict
+`SNAPBACK_REACT_REFERENCE_INVALID` throw — recovery never weakens admission.
+Regression witness: `packages/snapback-react/hmr-generation-handoff.test.mjs`;
+governing design: LLP 0114 (mounted-provider HMR generation handoff).
 
 ## Bind a generated query
 
@@ -252,11 +296,17 @@ whose result diverges when replayed over its own output logs one
 `SNAPBACK_REACT_OPTIMISTIC_REPLAY_DIVERGENT` warning per (mutation, query)
 site; production builds skip the check.
 
-## Publish and observe presence
+## Publish and observe ephemeral presence
 
-Pass a generated connection-keyed ephemeral reference. A non-skipped value is
+`useSnapbackPresence` is the React hook for generated **ephemeral**
+collections — including presence, typing indicators, and cursors. Pass a
+generated connection-keyed ephemeral reference. A non-skipped value is
 declarative managed intent: the provider publishes it after the authoritative
-room snapshot and refreshes it within the generated TTL and rate limits.
+room snapshot and refreshes it within the generated TTL and rate limits. The
+[ephemeral-state reference](../realtime/ephemeral-state.md#find-the-react-hook-from-ephemeral-vocabulary)
+transcludes the messaging demo's conversation-scoped typing hook, including
+observer-mode `publish`/`delete`; there is no separate
+`useSnapbackEphemeral` hook.
 
 ```ts fragment reason="presence fields come from the generated ephemeral declaration"
 const presence = useSnapbackPresence(ephemeral.incidentPresence, {

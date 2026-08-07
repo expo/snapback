@@ -5,7 +5,12 @@
 **Systems:** Storage, API, Runtime, Sync, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-03 (`single_table_v1@1` owner amendment accepted by
+**Revised:** 2026-08-06 (bounded managed-version integrity proofs: the
+local target's healthy-case `_version` validation is pinned to runtime-owned
+per-table indexes — an invalid-domain partial index plus a head index —
+mirroring the change-journal sentinel; dated note inside the DK-2
+commit-version graduation section; fail-closed semantics unchanged).
+Prior: 2026-08-03 (`single_table_v1@1` owner amendment accepted by
 Charlie: exact typed normalization/evaluation, null/order/digest semantics,
 existing query bounds, the new class-only examined-entry refusal,
 `none.v1` whole-result behavior, and cross-target parity are fixed; ordinary
@@ -289,6 +294,35 @@ machinery, they complicate the retention floor, and they buy nothing while
 every planned target has a single per-app write authority. **Revisit
 trigger:** a design that requires multi-master writes within one app stream
 (nothing planned does).
+
+**Dated note — bounded integrity proofs for managed tables (2026-08-06).**
+The fail-closed decoder posture above says nothing about *cost*, and the
+first implementation proved managed-row `_version` integrity for every
+touched table on every buffered commit by a healthy-case full scan — write
+latency grew with table cardinality even when the handler performed only
+indexed point reads (the Zerobugs Lane 8 large-fixture ingest surfaced this
+as a P1: 900-row batches degrading superlinearly past 132k rows). The
+mechanism is now pinned the same way the change journal's
+`_snapback_changes_invalid_committed_version` sentinel already was: the
+local SQLite target owns two indexes per managed table —
+`_snapback_version_domain_<table>`, a partial index over exactly the
+invalid-version predicate (non-integer storage class, `<= 0`, or above the
+portable maximum as a literal), and `_snapback_version_head_<table>` on
+`(_version)` for the forged-future range probe against the transaction's
+head. Healthy-case validation is an empty partial-index probe plus one
+indexed range probe — O(corrupt rows + log n), never table cardinality.
+The contract itself is unchanged: corrupt values still refuse with
+`SNAPBACK_STORAGE_VERSION_CORRUPT` before any application effect; a table
+whose runtime indexes are absent or predicate-stale (adopted database
+mid-upgrade, staged-rename window) validates by the unbounded scan rather
+than skipping — correctness never degrades, only speed. The indexes are
+ensured at table create/update, after a staged-generation swap rename, and
+at every open (which still refuses corruption before performing this or any
+other additive DDL). The acceptance suite must keep an executable witness
+that the healthy path performs no table-cardinality scan and a scale check
+whose fixed-size batch cost stays flat as the table grows. The authored
+identifier grammar reserves the `_snapback` prefix, so these names cannot
+collide with any authored index.
 
 ## Timestamps
 

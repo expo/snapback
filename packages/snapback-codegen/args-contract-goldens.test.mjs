@@ -133,10 +133,10 @@ assert.equal(
   argsContractHash(narrow),
 );
 
-assert.throws(
-  () => effectiveArgsContract({ photo: v.assetRef() }),
-  /v\.assetRef\(\) is a stored\/result validator, not an argument validator/u,
-  'adding AssetRef to result contracts must not silently widen operation arguments',
+assert.deepEqual(
+  effectiveArgsContract({ photo: v.assetRef({ upload: 'photoUpload' }) }).fields[0].value,
+  { kind: 'assetRef' },
+  'LLP 0180 command mutations admit the existing opaque AssetRef contract',
 );
 
 console.log('args-contract goldens: canonical form and v2 witness pinned');

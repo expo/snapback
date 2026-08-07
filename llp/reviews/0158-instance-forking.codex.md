@@ -394,3 +394,104 @@ sentinel-ordering/same-filesystem, rounds 4). One author fix-introduced
 error caught (the app.reset checklist claim). Final bytes v0.11. Status
 transitions remain the author's; the reviewers' shared next step is:
 decide OQ9, then begin F0a.
+
+
+## Round 2 — 2026-08-06 (Review-status acceptance loop)
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** `codex-cli`, `codex exec`, model `gpt-5.6-sol`,
+`model_reasoning_effort=xhigh`, sandbox `read-only`
+**Date:** 2026-08-06 (commissioned 2026-08-05)
+**Redacted:** no
+**Method:** fresh non-author `codex exec` context over the working tree at
+a3cced745 (Status already `Review`); instructed to verify the document's
+claims against `src/instance_fork.rs`, the fork sections of `src/cli.rs`,
+and the fork test corpus, with file/line citations required for every code
+claim. Orchestrated by the Claude session executing LLP 0185 (which
+authored the recent revisions and therefore does not count itself as an
+independent reviewer for them).
+
+### Review as received
+
+VERDICT: NOT-READY
+
+1. BLOCKER — §Design sketch, crash recovery (`llp/0158-instance-forking.rfc.md:573-586`). The RFC claims recovery is exact-destination and local-evidence-bound. In fact, when the destination is absent, `recover` deletes every root entry whose name merely starts with `.<destination>.staging-`, without validating a sentinel, UUID suffix, receipt, lineage, or acquiring a lifecycle lock (`src/instance_fork.rs:3033-3047`). Active publication uses that same prefix (`src/instance_fork.rs:2729-2737`), so recovery can delete an unrelated or concurrently active create. The CLI’s direct-child validation does not close this widening (`src/cli.rs:3243-3267`).
+
+2. BLOCKER — 2026-08-05 Phase 5 claim and §Implementation path (`llp/0158-instance-forking.rfc.md:23-31`, `:956`). The RFC claims crash-safe, same-cut private asset custody with no possible metadata-only publication. The implementation creates `staging/assets/blobs` and `staging/assets/staging` (`src/instance_fork.rs:2854-2858`), syncs each blob and the `blobs` directory (`src/instance_fork.rs:2909-2915`), then syncs only the top-level staging directory (`src/instance_fork.rs:2780-2785`). It never syncs `staging/assets`, whose directory entries bind the nested `blobs` tree. Thus the code does not establish the claimed power-loss durability before rename. The asset test is functional only (`src/instance_fork.rs:3137-3165`), while the crash matrix has no asset-copy cuts (`src/instance_fork.rs:4780-4801`).
+
+3. BLOCKER — §Automation-facing artifact inventory (`llp/0158-instance-forking.rfc.md:1063-1089`). The claimed frozen, complete projection says “all seven operations,” but the implementation has eight: `Renew` is a CLI operation (`src/cli.rs:1358-1370`) emitting `fork.renew` with receipt and registry (`src/cli.rs:3184-3205`). Its durable `fork-renew-intent.json`, `fork-renew-receipt.json`, and `ForkRenewReceiptV1` are also absent from the inventory (`src/instance_fork.rs:20-21`, `:759-769`). Other omitted implemented fields include create’s `automaticReap.clearedStaleRegistryIds` and `resourceAdmission` (`src/cli.rs:2960-2972`), list’s `unboundRegistry` and `resourceUsage` (`src/cli.rs:3030-3040`), reap’s `clearedStaleRegistryIds` (`src/cli.rs:3230-3233`), and the `--net` receipt alternative (`src/cli.rs:3133-3142`). This fails LLP 0185 Phase 0’s artifact-freeze requirement (`llp/0185-instance-forking-productization.plan.md:217-227`).
+
+4. MAJOR — §Stable diagnostics (`llp/0158-instance-forking.rfc.md:1184-1231`). The table claims to enumerate every `SNAPBACK_FORK_*` spelling in the primary files, but omits `SNAPBACK_FORK_NET_DIFF_UNAVAILABLE`, `SNAPBACK_FORK_ASSET_CUT_INCOMPLETE`, `SNAPBACK_FORK_ASSET_CUT_UNSUPPORTED`, and `SNAPBACK_FORK_DIFF_ORACLE_MISMATCH`, all defined in source (`src/instance_fork.rs:32-35`) and emitted by live paths (`src/instance_fork.rs:2475-2479`, `:2592-2603`, `:2860-2907`). It also misdefines `SNAPBACK_FORK_CUSTODY_REFUSED` as including asset-bearing sources (`llp/0158-instance-forking.rfc.md:1194`); supported local assets are now classified `Copy` (`src/instance_fork.rs:381-429`), while unsupported asset cuts use the newer asset diagnostics.
+
+5. MAJOR — §Runtime plane (`llp/0158-instance-forking.rfc.md:679`, `:688-690`). The RFC says every quarantine default is explicitly overridable and that inherited `SNAPBACK_ASSET_S3_*` credentials are custody-manifest entries. Neither is implemented. Custody is assembled only from classified database tables, known sidecars, and the optional config sibling (`src/instance_fork.rs:967-975`). Fork launch removes only `SNAPBACK_ADMIN_TOKEN`, while otherwise inheriting the process environment (`src/cli.rs:2827-2842`). S3 safety comes from an unconditional derived-fork egress denial before provider construction (`src/local.rs:6680-6688`), not credential scrubbing or an opt-in override; even the experimental S3 switch is evaluated only after that denial (`src/local.rs:6693-6699`). Worker disabling is likewise unconditional for derived forks (`src/cli.rs:6046-6079`). The DB/session/sidecar scrub itself is implemented (`src/instance_fork.rs:895-1004`), but the RFC misstates ambient credential custody and override behavior.
+
+6. MAJOR — §Motivation item 4 and §Non-goals (`llp/0158-instance-forking.rfc.md:340-344`, `:456-460`). These older sections say an operator can promote a checkpoint and that nothing prevents keeping a fork alive indefinitely. Current code stamps `promotable: false` (`src/instance_fork.rs:917-925`) and rejects promotable lineage at boot (`src/instance_fork.rs:1118-1127`). Creation is capped at seven days (`src/instance_fork.rs:43`, `:1463-1475`), and renewal rejects expiry beyond that lifetime (`src/instance_fork.rs:2079-2089`). The newer lifecycle text correctly says promotion and permanent forks are separate products (`llp/0158-instance-forking.rfc.md:843-856`), so these reader-facing use-case/non-goal claims directly contradict the implemented contract. Process-containment and hosted nonclaims are otherwise adequately explicit at `llp/0158-instance-forking.rfc.md:718-726` and `:1272-1276`.
+
+7. MAJOR — §Implementation path F0a/F0b and OQ5 (`llp/0158-instance-forking.rfc.md:1013-1015`, `:1022-1031`, `:1363-1368`). These sections still say asset-bearing parents refuse and private copying remains future work. Current publication always invokes private asset copying (`src/instance_fork.rs:2771-2782`); supported local-fs blobs are digest/length checked and copied (`src/instance_fork.rs:2822-2915`). This contradicts both the 2026-08-05 revision note and the current implementation inventory.
+
+8. MAJOR — Status metadata versus §Status (`llp/0158-instance-forking.rfc.md:4`, `:241-246`, `:1432-1454`, `:1498-1500`). The metadata says `Review`, but the banner and Status section repeatedly call the RFC `Draft`, say it remains Draft, and propose a future Draft-to-Review transition. LLP 0185 confirms that the transition already occurred (`llp/0185-instance-forking-productization.plan.md:9-10`). The formal state is therefore internally contradictory at the point acceptance is being considered.
+
+### Orchestrator disposition — 2026-08-06
+
+All eight findings verified against code before acting; every one was real.
+
+- **Finding 1 (staging-reap widening): FIXED in code.** `recover` now reaps
+  only directories whose suffix parses as a UUID **and** which carry the
+  staging sentinel (a sentinel-less empty shell may be removed; anything
+  non-empty and unproven stays). The remaining active-publication race is
+  now documented at the reap site: `recover` is a repair verb for a
+  destination with no live publisher.
+- **Finding 2 (missing `assets/` fsync + no asset crash cuts): FIXED in
+  code.** The durability chain staging → assets → blobs now syncs every
+  level; `PublicationCut::AfterAssetCopy` was added and the whole 21-cut
+  publication crash matrix now runs over an asset-bearing parent.
+- **Findings 3–8 (inventory, diagnostics table, runtime-plane framing,
+  stale Motivation/Non-goals/OQ5/F0 text, Status contradictions): FIXED in
+  the document** — renew and the `--net` receipt joined the operation
+  inventory with their durable artifacts, the four 2026-08-05 diagnostics
+  joined the table with a corrected `CUSTODY_REFUSED` gloss, the
+  runtime-plane table now states the implemented unconditional gates and
+  env-inheritance posture, the promotion/indefinite-lifetime/asset-refusal
+  claims were reconciled with the implemented contract, and every
+  Draft-era status self-reference now records the 2026-08-05 Review
+  transition.
+
+Proposed next step per LLP 0005: the fixes were applied by the
+orchestrating session, not re-verified by this reviewer family; a delta
+re-review of the revised document (or the author's own read of this
+disposition) is the honest gate before acceptance.
+
+
+## Round 3 (delta) — 2026-08-06
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** `codex-cli`, `codex exec`, model `gpt-5.6-sol`,
+`model_reasoning_effort=xhigh`, sandbox `read-only`
+**Date:** 2026-08-06
+**Redacted:** no
+**Method:** scoped delta re-review over the working tree at f04492813:
+verify each of the eight Round-2 findings against the applied fixes with
+citations, check for fix-introduced defects, no re-litigation of
+previously-passed text.
+
+### Review as received
+
+VERDICT: READY
+
+1. RESOLVED — `recover` now requires the exact prefix, a UUID suffix, and the staging sentinel before recursive reap, while documenting the no-live-publisher precondition (`src/instance_fork.rs:3039-3077`).
+2. RESOLVED — asset publication now syncs blobs, `assets/blobs`, and `assets`, adds `AfterAssetCopy`, and runs all 21 crash cuts with an asset-bearing parent (`src/instance_fork.rs:2781-2787`, `src/instance_fork.rs:2911-2921`, `src/instance_fork.rs:4812-4870`).
+3. RESOLVED — the inventory now covers all eight operations, renew artifacts, `--net`, and the previously omitted create/list/reap fields (`llp/0158-instance-forking.rfc.md:1085-1100`).
+4. RESOLVED — all four omitted diagnostics are present and `CUSTODY_REFUSED` correctly excludes supported local assets (`llp/0158-instance-forking.rfc.md:1195-1209`, `src/instance_fork.rs:29-35`).
+5. RESOLVED — the runtime plane now accurately records unconditional derived-fork gates, environment inheritance except the admin token, and pre-construction S3 denial (`llp/0158-instance-forking.rfc.md:681-695`, `src/cli.rs:2827-2842`, `src/local.rs:6680-6699`).
+6. RESOLVED — promotion is explicitly forbidden and managed lifetime is capped at seven days across creation and renewal (`llp/0158-instance-forking.rfc.md:340-345`, `llp/0158-instance-forking.rfc.md:457-462`, `src/instance_fork.rs:1464-1476`, `src/instance_fork.rs:2080-2090`).
+7. RESOLVED — the implementation inventory, F0 records, and OQ5 now identify same-cut private asset copying as landed and refusal as superseded (`llp/0158-instance-forking.rfc.md:962`, `llp/0158-instance-forking.rfc.md:1019-1040`, `llp/0158-instance-forking.rfc.md:1378-1385`).
+8. RESOLVED — metadata, banner, Status section, and conclusion consistently record the 2026-08-05 transition to Review (`llp/0158-instance-forking.rfc.md:4`, `llp/0158-instance-forking.rfc.md:241-246`, `llp/0158-instance-forking.rfc.md:1449-1472`, `llp/0158-instance-forking.rfc.md:1516-1518`).
+
+No new findings.
+
+### Orchestrator note
+
+The Round-2 → Round-3 arc is complete: NOT-READY (8 findings, all
+verified real) → fixes → READY with every finding independently confirmed
+RESOLVED and no new findings. Per LLP 0005 the acceptance decision now
+rests with the author.

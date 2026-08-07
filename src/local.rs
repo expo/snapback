@@ -50,8 +50,8 @@ use crate::live_wire::{
 use crate::manifest::{
     ActionPlan, ActionReturnValue, ActionStep, ArtifactGeneration, AuthInput, AuthMode,
     AuthorityDescriptor, CTX_ANSWER_LEDGER_MAX_IDS, CapabilityManifest, CtxAnswerLedger,
-    FunctionDefinition, FunctionInvocationFacts, FunctionKind, FunctionManifest,
-    FunctionRuntime, HandlerInput, HandlerPlan, MutationOutput, MutationSettlement, MutationStep,
+    FunctionDefinition, FunctionInvocationFacts, FunctionKind, FunctionManifest, FunctionRuntime,
+    HandlerInput, HandlerPlan, MutationOutput, MutationSettlement, MutationStep,
     PermissionScopeExpr, PublicFunctionManifest, PublicSchemaManifest, QueryOutput, QueryPlan,
     SNAPBACK_SCHEMA_VERSION, SchemaManifest, SeedData, SettlementLane, SettlementMintObservation,
     SettlementTimeObservation, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr, auth_fingerprint,
@@ -379,6 +379,21 @@ pub struct LiveSubscriptionInfo {
     pub id: String,
     pub connection_id: String,
     pub function: String,
+}
+
+/// Structured receipt for `debug.live.forceResync` (LLP 0184 §B). Names the
+/// consumed target by id, never a live token/credential; the operator/test
+/// `reason` is recorded verbatim so the receipt is auditable without source
+/// archaeology.
+#[derive(Clone, Debug, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ForceLiveResyncReceipt {
+    pub connection_id: String,
+    pub subscription_id: String,
+    pub function: String,
+    pub reason: String,
+    #[serde(rename = "clearRetained")]
+    pub clear_retained: bool,
 }
 
 /// The public projection of [`InspectState`] served at the root `/inspect` and
@@ -1718,19 +1733,19 @@ fn rederived_claim_ledger(
         .mints
         .iter()
         .fold(BTreeMap::new(), |mut counts, mint| {
-        *counts
-            .entry((mint.site.clone(), mint.occurrence))
-            .or_insert(0_usize) += 1;
-        counts
-    });
+            *counts
+                .entry((mint.site.clone(), mint.occurrence))
+                .or_insert(0_usize) += 1;
+            counts
+        });
     claims.extend(recorded.mints.iter().map(|mint| {
         SettlementClaim {
-        field_or_slot: format!("{}[{}]", mint.site, mint.occurrence),
-        claimed: Value::String(mint.claimed.clone()),
-        authoritative: exact_authoritative_mint(mint, &claim_counts, &authoritative)
-            .map_or(Value::Null, |id| Value::String(id.to_owned())),
-        disposition: SettlementClaimDisposition::ReDerived,
-        skew_ms: None,
+            field_or_slot: format!("{}[{}]", mint.site, mint.occurrence),
+            claimed: Value::String(mint.claimed.clone()),
+            authoritative: exact_authoritative_mint(mint, &claim_counts, &authoritative)
+                .map_or(Value::Null, |id| Value::String(id.to_owned())),
+            disposition: SettlementClaimDisposition::ReDerived,
+            skew_ms: None,
         }
     }));
     claims
@@ -1742,12 +1757,12 @@ fn authoritative_mints_by_key(
     observations
         .iter()
         .fold(BTreeMap::new(), |mut by_key, mint| {
-        by_key
-            .entry((mint.site.clone(), mint.occurrence))
-            .or_insert_with(Vec::new)
-            .push(mint.id.clone());
-        by_key
-    })
+            by_key
+                .entry((mint.site.clone(), mint.occurrence))
+                .or_insert_with(Vec::new)
+                .push(mint.id.clone());
+            by_key
+        })
 }
 
 fn exact_authoritative_mint<'a>(
@@ -1966,6 +1981,49 @@ pub(crate) struct AppActionStage {
     pub mode: StagedAction,
 }
 
+/// One deterministic parent for every durable child commit an action emits.
+/// Retries reconstruct the same parent from durable job/cron occurrence facts
+/// and restart ordinals at zero, so a committed prefix replays.
+///
+/// @ref LLP 0163#contract-summary-normative-details-per-llp-0162-0-2 — host
+///   children derive identity from an authenticated parent plus stable ordinal.
+#[derive(Clone)]
+pub(crate) struct HostOperationParentV1 {
+    upstream_identity: String,
+    next_commit_ordinal: Arc<AtomicU64>,
+}
+
+impl HostOperationParentV1 {
+    pub(crate) fn from_action_run(metadata: &CronRunMetadata) -> Self {
+        use sha2::Digest as _;
+        let mut digest = sha2::Sha256::new();
+        digest.update(b"snapback:action-host-operation-parent:v1\n");
+        digest.update(metadata.job_name.as_bytes());
+        digest.update(b"\n");
+        digest.update(metadata.slot_key.as_bytes());
+        digest.update(b"\n");
+        digest.update(metadata.idempotency_key.as_bytes());
+        Self {
+            upstream_identity: format!("host-parent:sha256:{:x}", digest.finalize()),
+            next_commit_ordinal: Arc::new(AtomicU64::new(0)),
+        }
+    }
+
+    fn next_child(&self) -> SnapbackResult<(&str, u64)> {
+        let ordinal = self
+            .next_commit_ordinal
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| value.checked_add(1))
+            .map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_HOST_OPERATION_ORDINAL_EXHAUSTED",
+                    "storage",
+                    "host action emitted more child commits than the identity ordinal can represent",
+                )
+            })?;
+        Ok((&self.upstream_identity, ordinal))
+    }
+}
+
 /// A bounded HostPlan action detached from the managed `LocalSnapback` guard.
 /// The server evaluates and commits one `RunMutation` step at a time through
 /// the authorization-reservation protocol; the captured generation prevents
@@ -1975,6 +2033,7 @@ pub(crate) struct ManagedHostPlanAction {
     pub(crate) plan: ActionPlan,
     pub(crate) input: HandlerInput,
     pub(crate) metadata: CronRunMetadata,
+    host_operation: HostOperationParentV1,
     pub(crate) invocation: PreparedInvocation,
     pub(crate) app_generation: u64,
     pub(crate) app_generation_fence: Arc<AtomicU64>,
@@ -2269,6 +2328,17 @@ impl EphemeralApi {
         );
         self.activity.remove(connection_id);
         self.store.disconnect(connection_id, now_ms);
+    }
+
+    pub fn operator_delete(
+        &self,
+        request: crate::ephemeral::OperatorDeleteRequest,
+        now_ms: u64,
+    ) -> Result<crate::ephemeral::EphemeralMessage, crate::ephemeral::EphemeralError> {
+        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
+            "EphemeralApi::operator_delete",
+        );
+        self.store.operator_delete(request, now_ms)
     }
 
     /// Whole-ID cleanup for a registry-retired grant whose removal already
@@ -2703,6 +2773,16 @@ impl EphemeralApi {
         self.store.cleanup_expired(now_ms);
     }
 
+    pub fn cleanup_expired_bounded(
+        &self,
+        cutoff_timestamp_ms: u64,
+        max_entries: usize,
+        dry_run: bool,
+    ) -> crate::ephemeral::EphemeralCleanupReport {
+        self.store
+            .cleanup_expired_bounded(cutoff_timestamp_ms, max_entries, dry_run)
+    }
+
     /// Gather shard diagnostics without the global Local writer. Server
     /// inspect/receipts composition invokes this in the post-Local blocking
     /// phase; direct embedded callers may invoke it synchronously.
@@ -2979,8 +3059,7 @@ pub struct LocalSnapback {
     network_profiles: crate::network_profile::NetworkProfileState,
     /// Prepared live-lane carrier for the commit currently producing frames.
     /// It is cleared before Local authority is released.
-    current_live_network_egress:
-        Option<Option<crate::network_profile::PreparedNetworkEgress>>,
+    current_live_network_egress: Option<Option<crate::network_profile::PreparedNetworkEgress>>,
     // Physical mutex ownership is released before committed ephemeral
     // projections run. This clone-shared barrier keeps the logical managed
     // writer closed until those projections finish.
@@ -3761,12 +3840,10 @@ struct LocalIbexActionHost<'a> {
 
 impl IbexActionHost for LocalIbexActionHost<'_> {
     fn validate_host_call(&mut self, op: &str) -> SnapbackResult<()> {
-        if let Some(family) = crate::instance_fork::EgressFamily::for_derived_host_op(op) {
-            // The pointer provenance is the same one used by every synchronous
-            // host callback below; no borrow escapes this call.
-            unsafe {
-                (&*self.snapback).deny_derived_fork_egress(family, now_millis())?;
-            }
+        // The pointer provenance is the same one used by every synchronous
+        // host callback below; no borrow escapes this call.
+        unsafe {
+            (&*self.snapback).deny_derived_fork_host_op(op, now_millis())?;
         }
         // In-process action invocation retains the instance borrow for the
         // whole run, so no schema/function/reset drift can interleave.
@@ -3998,6 +4075,39 @@ impl LocalSnapback {
         &mut self.db
     }
 
+    /// Publish the exact local operation-coverage cut and invalidate the RQS
+    /// generation cache in the same owner turn. The served capability
+    /// manifest is a generation input, so retaining a digest minted while
+    /// app-effective coverage was Missing would let old resume tokens cross a
+    /// capability transition.
+    ///
+    /// @ref LLP 0162#8-capability-honesty — app-effective coverage is an
+    /// instance-live fact and must rotate every identity that embeds the
+    /// served capability manifest.
+    pub(crate) fn activate_agent_safe_operation_coverage(
+        &mut self,
+        activated_at_ms: u64,
+    ) -> SnapbackResult<crate::commit_envelope::OperationCoverageManifestV1> {
+        let manifest = self
+            .db
+            .activate_local_target_operation_coverage(activated_at_ms)?;
+        self.rqs_generation = None;
+        Ok(manifest)
+    }
+
+    /// Product ingress for the authority-bound protected-record erasure
+    /// command. The storage transaction owns the canonical tombstone and
+    /// checkpoint obligations; an empty post-commit frame deliberately forces
+    /// every connected live query to re-read the canonical state.
+    pub(crate) fn erase_protected_record(
+        &mut self,
+        request: &crate::proof_checkpoint::ProtectedRecordErasureRequestV1,
+    ) -> SnapbackResult<crate::proof_checkpoint::ProtectedRecordErasureReceiptV1> {
+        let receipt = self.db.erase_protected_record(request)?;
+        self.notify_live_subscriptions(&[]);
+        Ok(receipt)
+    }
+
     pub(crate) fn is_derived_fork(&self) -> bool {
         self.derived_fork_identity().is_some()
     }
@@ -4011,15 +4121,34 @@ impl LocalSnapback {
         self.db.derived_fork().map(|runtime| &runtime.lineage)
     }
 
+    /// The one host-op egress gate both action hosts share: classify the op
+    /// and, on a derived fork, refuse with the exact op named in the
+    /// diagnostic — an unclassified future op fails closed with enough
+    /// context to act on (LLP 0185 Phase 3 item 4).
+    pub(crate) fn deny_derived_fork_host_op(&self, op: &str, now_ms: u64) -> SnapbackResult<()> {
+        if let Some(family) = crate::instance_fork::EgressFamily::for_derived_host_op(op)
+            && let Err(mut error) = self.deny_derived_fork_egress(family, now_ms)
+        {
+            if let Some(details) = error.diagnostic.details.as_object_mut() {
+                details.insert("hostOp".to_owned(), serde_json::Value::from(op));
+            }
+            return Err(error);
+        }
+        Ok(())
+    }
+
     pub(crate) fn deny_derived_fork_egress(
         &self,
         family: crate::instance_fork::EgressFamily,
         now_ms: u64,
     ) -> SnapbackResult<()> {
-        match self.db.derived_fork() {
-            Some(runtime) => Err(runtime.deny(family, now_ms)),
-            None => Ok(()),
+        if let Some(runtime) = self.db.derived_fork() {
+            return Err(runtime.deny(family, now_ms));
         }
+        if let Some(runtime) = self.db.in_app_branch() {
+            return Err(runtime.mediate(family, now_ms));
+        }
+        Ok(())
     }
 
     pub(crate) fn push_maintenance_access_token(&self) -> Option<String> {
@@ -4978,8 +5107,8 @@ impl LocalSnapback {
             return diagnostics;
         }
         if let Err(error) = self.db.validate_sequence_declaration_preflight(
-                &sequence_declarations,
-                trusted_active_generation,
+            &sequence_declarations,
+            trusted_active_generation,
         ) {
             let diagnostics = vec![error.diagnostic];
             self.record_diagnostics_at_boundary(diagnostics.clone(), diagnostic_boundary);
@@ -5477,6 +5606,101 @@ impl LocalSnapback {
         if let Err(error) = self.persist_cron_state() {
             self.record_attached_diagnostics(vec![error.diagnostic]);
         }
+    }
+
+    /// LLP 0184 §B: `debug.live.forceResync`, a non-production debug
+    /// perturbation. It makes exactly one live subscription re-snapshot
+    /// through the protocol's ordinary `resync_required` recovery path (LLP
+    /// 0094/0095) by enqueueing that frame on the subscription's own
+    /// connection outbox — it does not drop the subscription, does not
+    /// touch any application data, and does not invent a new
+    /// per-subscription generation (LLP 0095's subscription-scoped resync
+    /// transition requires only `subscription_id`; this reuses that
+    /// identity rather than the sessions-artifact `expected_generation`
+    /// pinned on [`LiveSubscription`], which is a different, auth-artifact
+    /// fact this operation does not read or repurpose).
+    ///
+    /// Fenced by connection id plus subscription id — the same pair the
+    /// gated `/_snapback/api/inspect` twin already exposes as
+    /// [`LiveSubscriptionInfo`]. The caller's startup nonce and target
+    /// eligibility (local non-production only in v1) are both verified by
+    /// the host-ops HTTP handler before this is ever reached; this method
+    /// assumes both checks already passed and fences only on the
+    /// connection/subscription pair actually being open together.
+    ///
+    /// Connection-wide targeting (every subscription on a connection) is
+    /// explicitly out of v1 scope (LLP 0184 OQ4), not silently reachable
+    /// through this method.
+    ///
+    /// @ref LLP 0184#b-forced-live-resync--add-now — single-subscription
+    ///   v1 scope, startup-nonce fencing, closed operator/test reason,
+    ///   selectable `clearRetained` disposition, normal `resync_required`
+    ///   path, no application-data change.
+    pub(crate) fn force_live_resync(
+        &mut self,
+        connection_id: &str,
+        subscription_id: &str,
+        reason: &str,
+        clear_retained: bool,
+    ) -> Result<ForceLiveResyncReceipt, SnapbackError> {
+        let subscription = self.subscriptions.get(subscription_id).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_LIVE_FORCE_RESYNC_SUBSCRIPTION_NOT_FOUND",
+                "debug",
+                "no live subscription with that id is currently open",
+            )
+            .with_details(json!({ "subscriptionId": subscription_id }))
+        })?;
+        if subscription.connection_id != connection_id {
+            return Err(SnapbackError::error(
+                "SNAPBACK_LIVE_FORCE_RESYNC_CONNECTION_MISMATCH",
+                "debug",
+                "the subscription id is not open on the given connection id",
+            )
+            .with_details(json!({
+                "subscriptionId": subscription_id,
+                "requestedConnectionId": connection_id,
+                "actualConnectionId": subscription.connection_id,
+            })));
+        }
+        let effect_fence = subscription.effect_fence.clone();
+        let function = subscription.function.clone();
+        let Ok(payload) = serde_json::to_vec(&LiveEnvelope::ResyncRequired {
+            network_profile: None,
+            reason: format!("operator_forced: {reason}"),
+            subscription_id: Some(subscription_id.to_owned()),
+            scope: Some(String::new()),
+            epoch: Some(0),
+            clear_retained,
+        }) else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_LIVE_FORCE_RESYNC_ENCODE_FAILED",
+                "debug",
+                "failed to encode the resync_required frame",
+            ));
+        };
+        // Deferred the same way `finish_committed_reset`'s dropped-subscription
+        // signals are: the ephemeral outbox lock must never nest inside the
+        // Local lock this method already holds.
+        // @ref LLP 0059#locking-and-linearization — after-Local projection
+        //   never overlaps a successor managed Local operation.
+        let ephemeral = self.ephemeral.clone();
+        let connection_id_owned = connection_id.to_owned();
+        crate::exec_guard::run_or_defer_after_local(move || match effect_fence {
+            Some(effect_fence) => {
+                ephemeral.enqueue_durable_bound(connection_id_owned, payload, effect_fence);
+            }
+            None => {
+                ephemeral.enqueue_durable(connection_id_owned, payload);
+            }
+        });
+        Ok(ForceLiveResyncReceipt {
+            connection_id: connection_id.to_owned(),
+            subscription_id: subscription_id.to_owned(),
+            function,
+            reason: reason.to_owned(),
+            clear_retained,
+        })
     }
 
     pub(crate) fn app_generation(&self) -> u64 {
@@ -6193,6 +6417,623 @@ impl LocalSnapback {
         self.functions.bundle_hash.clone()
     }
 
+    /// Validate one existing-row patch by executing the ordinary buffered
+    /// writer in rollback mode. The returned row image therefore reflects
+    /// storage normalization, relation stamps, uniqueness checks, and every
+    /// other invariant the real commit path applies.
+    ///
+    /// @ref LLP 0184#a-bounded-direct-row-patch--add-now — preview and apply
+    ///   reuse the normal changeset path; no raw SQL or insert/delete branch
+    ///   exists here.
+    pub(crate) fn preview_direct_data_patch(
+        &mut self,
+        input: &crate::data_patch::DataPatchPreviewInputV1,
+    ) -> SnapbackResult<crate::data_patch::ValidatedDataPatchV1> {
+        if input.patch.is_empty() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_DATA_PATCH_VALIDATION_FAILED",
+                "data-patch",
+                "a direct row patch must contain at least one field",
+            ));
+        }
+        let before = self
+            .db
+            .get(&input.table, &input.row_id)
+            .map_err(crate::data_patch::map_storage_error)?
+            .ok_or_else(crate::data_patch::row_not_found)?;
+        let actual_version = before
+            .get("_version")
+            .and_then(Value::as_u64)
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_DATA_PATCH_VALIDATION_FAILED",
+                    "data-patch",
+                    "the target row has no valid per-row version",
+                )
+            })?;
+        if actual_version != input.expected_version {
+            return Err(crate::data_patch::stale_version(
+                input.expected_version,
+                actual_version,
+            ));
+        }
+        let dependency = CapturedReadDependency {
+            kind: CapturedReadKind::Row,
+            table: Some(input.table.clone()),
+            id: Some(input.row_id.clone()),
+            version: Some(input.expected_version),
+            predicate: None,
+            rows: Vec::new(),
+            field: None,
+            value: None,
+            order: None,
+            limit: None,
+            result_count: None,
+            boundary: None,
+        };
+        let commit = self
+            .db
+            .dry_run_buffered_writes(
+                &input.authority.handler_input(),
+                vec![crate::storage::BufferedWrite::Patch {
+                    table: input.table.clone(),
+                    id: input.row_id.clone(),
+                    values: input.patch.clone(),
+                }],
+                Vec::new(),
+                Vec::new(),
+                vec![dependency],
+                Value::Null,
+                CtxAnswerLedger::default(),
+                Vec::new(),
+            )
+            .map_err(crate::data_patch::map_storage_error)?;
+        let after = commit
+            .changes
+            .first()
+            .and_then(|change| change.row.clone())
+            .unwrap_or_else(|| before.clone());
+        let mut fields = input.patch.keys().cloned().collect::<Vec<_>>();
+        fields.sort();
+        let before_fields = fields
+            .iter()
+            .filter_map(|field| {
+                before
+                    .get(field)
+                    .cloned()
+                    .map(|value| (field.clone(), value))
+            })
+            .collect::<BTreeMap<_, _>>();
+        let after_fields = fields
+            .iter()
+            .filter_map(|field| {
+                after
+                    .get(field)
+                    .cloned()
+                    .map(|value| (field.clone(), value))
+            })
+            .collect::<BTreeMap<_, _>>();
+        let live_functions = self
+            .functions
+            .functions
+            .iter()
+            .filter(|function| function.kind == FunctionKind::LiveQuery)
+            .filter(|function| {
+                self.function_declared_read_tables(&function.name)
+                    .iter()
+                    .any(|table| table == &input.table)
+            })
+            .map(|function| function.name.clone())
+            .collect::<Vec<_>>();
+        Ok(crate::data_patch::ValidatedDataPatchV1 {
+            table: input.table.clone(),
+            row_id: input.row_id.clone(),
+            expected_version: input.expected_version,
+            normalized_patch: after_fields.clone(),
+            diff: crate::data_patch::DataPatchDiffV1 {
+                fields,
+                before: before_fields,
+                after: after_fields,
+            },
+            affected_live_query_classes: vec![crate::data_patch::AffectedLiveQueryClassV1 {
+                class: "durableTable".to_owned(),
+                table: input.table.clone(),
+                live_functions,
+            }],
+        })
+    }
+
+    /// Commit a token-owned normalized patch through the same storage writer
+    /// as an app mutation, then fan its ChangedRows through the normal live
+    /// notifier.
+    pub(crate) fn apply_direct_data_patch(
+        &mut self,
+        binding: &crate::data_patch::DataPatchTokenBindingV1,
+    ) -> SnapbackResult<crate::storage::MutationCommit> {
+        // The host compares process context before consuming the token. Check
+        // the mutable app/schema identity again under the same Local lock as
+        // the commit so a concurrent artifact load cannot create a gap
+        // between that comparison and storage validation.
+        //
+        // @ref LLP 0184#a-bounded-direct-row-patch--add-now — catalog/schema
+        //   identity is part of the exact token binding, including at commit.
+        if self.loaded_app_id() != binding.target.app_id
+            || self.loaded_schema_hash() != binding.schema_identity
+        {
+            return Err(crate::data_patch::apply_context_mismatch());
+        }
+        let dependency = CapturedReadDependency {
+            kind: CapturedReadKind::Row,
+            table: Some(binding.table.clone()),
+            id: Some(binding.row_id.clone()),
+            version: Some(binding.expected_version),
+            predicate: None,
+            rows: Vec::new(),
+            field: None,
+            value: None,
+            order: None,
+            limit: None,
+            result_count: None,
+            boundary: None,
+        };
+        // @ref LLP 0184#a-bounded-direct-row-patch--add-now — the per-row
+        //   dependency is the CAS; a global database-version precondition
+        //   would spuriously reject unrelated concurrent writes.
+        let commit = self
+            .db
+            .commit_buffered_writes(
+                &binding.authority.handler_input(),
+                vec![crate::storage::BufferedWrite::Patch {
+                    table: binding.table.clone(),
+                    id: binding.row_id.clone(),
+                    values: binding
+                        .normalized_patch
+                        .clone()
+                        .into_iter()
+                        .collect::<Map<_, _>>(),
+                }],
+                vec![dependency],
+                Value::Null,
+            )
+            .map_err(crate::data_patch::map_storage_error)?;
+        self.notify_live_subscriptions(&commit.changes);
+        Ok(commit)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn initialize_data_version_stream_for_test(&mut self) -> SnapbackResult<String> {
+        self.db.initialize_data_version_stream_for_test()
+    }
+
+    /// Create a managed in-app branch from the exact currently served app and
+    /// function bundle. IDs, custody paths, and the branch grant are all
+    /// server-derived after the AdminWrite host gate; callers choose only a
+    /// finite subset of currently loaded functions and a bounded TTL.
+    ///
+    /// @ref LLP 0162#safe-current-head-forks — product creation is current
+    ///   head, same app/bundle, server named, and no broader than its creator.
+    #[cfg(test)]
+    pub(crate) fn create_operator_in_app_branch(
+        &mut self,
+        allowed_functions: Vec<String>,
+        ttl_ms: i64,
+        now_ms: i64,
+    ) -> SnapbackResult<crate::fork_promotion::ManagedInAppBranchReceiptV1> {
+        self.create_operator_in_app_branch_with_policy(
+            allowed_functions,
+            ttl_ms,
+            now_ms,
+            crate::fork_promotion::ForkEgressPolicyV1::DenyAll,
+        )
+    }
+
+    pub(crate) fn create_operator_in_app_branch_with_policy(
+        &mut self,
+        mut allowed_functions: Vec<String>,
+        ttl_ms: i64,
+        now_ms: i64,
+        egress_policy: crate::fork_promotion::ForkEgressPolicyV1,
+    ) -> SnapbackResult<crate::fork_promotion::ManagedInAppBranchReceiptV1> {
+        const MIN_TTL_MS: i64 = 1_000;
+        const MAX_TTL_MS: i64 = 15 * 60_000;
+        if !(MIN_TTL_MS..=MAX_TTL_MS).contains(&ttl_ms) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_BRANCH_LIMIT_INVALID",
+                "storage",
+                "managed branch ttlMs must be between 1000 and 900000",
+            ));
+        }
+        allowed_functions.sort();
+        allowed_functions.dedup();
+        if allowed_functions.is_empty()
+            || allowed_functions
+                .iter()
+                .any(|name| self.function_kind(name).is_none())
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_BRANCH_AUTHORITY_DENIED",
+                "auth",
+                "managed branch allowedFunctions must be a non-empty subset of the served manifest",
+            ));
+        }
+        let audience = self.loaded_app_id();
+        let schema_hash = self
+            .loaded_schema_hash()
+            .filter(|value| !value.trim().is_empty());
+        let function_bundle_hash = self
+            .loaded_bundle_hash()
+            .filter(|value| !value.trim().is_empty());
+        if audience.is_empty() || schema_hash.is_none() || function_bundle_hash.is_none() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_BRANCH_ARTIFACT_IDENTITY_MISSING",
+                "storage",
+                "managed branch creation requires a loaded app, schema hash, and function bundle hash",
+            ));
+        }
+        let principal_id = format!("host-operator:{audience}");
+        let grant_id = format!("branch-grant-v1:{}", uuid::Uuid::now_v7());
+        let authority_fingerprint = crate::fork_promotion::derive_branch_authority_fingerprint(
+            &principal_id,
+            &grant_id,
+            &audience,
+        )?;
+        let expires_at_ms = now_ms.checked_add(ttl_ms).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_BRANCH_LIMIT_INVALID",
+                "storage",
+                "managed branch expiry overflowed",
+            )
+        })?;
+        let request = crate::fork_promotion::InAppBranchCreateV1 {
+            schema_version: 1,
+            branch_id: crate::branches::BranchId(format!("branch-v1:{}", uuid::Uuid::now_v7())),
+            child_stream_id: crate::branches::ChildStreamId(format!(
+                "branch-stream-v1:{}",
+                uuid::Uuid::now_v7()
+            )),
+            base_stream: self.db.current_data_version_stream()?,
+            base_version: self.db.current_version()?,
+            artifact_binding: crate::fork_promotion::BranchArtifactBindingV1 {
+                schema_hash: schema_hash.expect("validated schema hash"),
+                function_bundle_hash: function_bundle_hash.expect("validated function bundle hash"),
+            },
+            grant: crate::fork_promotion::BranchGrantV1 {
+                principal_id,
+                grant_id,
+                audience,
+                authority_fingerprint,
+                allowed_functions,
+                allowed_lanes: vec!["ordinaryMutation".to_owned()],
+                expires_at_ms,
+            },
+            limits: crate::fork_promotion::BranchLimitsV1 {
+                max_live_branches_per_principal: 8,
+                max_live_branches_per_app: 32,
+                max_operations: 256,
+                max_retained_bytes: 8 * 1024 * 1024,
+                max_diff_rows: 10_000,
+                max_digest_work_bytes: 64 * 1024 * 1024,
+                ttl_ms,
+            },
+            coverage: crate::fork_promotion::ForkCoverageV1 {
+                covered_lanes: vec!["ordinaryMutation".to_owned()],
+                uncovered_lanes: vec!["productionWriterCoverage".to_owned()],
+                schema_covered: false,
+                system_fields_covered: false,
+                assets_covered: false,
+                effects_covered: egress_policy
+                    == crate::fork_promotion::ForkEgressPolicyV1::CaptureOnly,
+            },
+            egress_policy,
+            created_at_ms: now_ms,
+        };
+        self.db.create_managed_in_app_branch(&request)
+    }
+
+    pub(crate) fn list_operator_in_app_branches(
+        &self,
+        now_ms: i64,
+    ) -> SnapbackResult<Vec<crate::fork_promotion::ManagedInAppBranchReceiptV1>> {
+        self.db.list_managed_in_app_branches(now_ms)
+    }
+
+    pub(crate) fn inspect_operator_in_app_branch(
+        &self,
+        branch_id: &crate::branches::BranchId,
+        now_ms: i64,
+    ) -> SnapbackResult<crate::fork_promotion::ManagedInAppBranchReceiptV1> {
+        self.db.inspect_managed_in_app_branch(branch_id, now_ms)
+    }
+
+    pub(crate) fn reap_expired_operator_in_app_branches(
+        &mut self,
+        now_ms: i64,
+    ) -> SnapbackResult<Vec<crate::fork_promotion::ManagedInAppBranchReceiptV1>> {
+        self.db.reap_expired_managed_in_app_branches(now_ms)
+    }
+
+    pub(crate) fn drop_operator_in_app_branch(
+        &mut self,
+        branch_id: &crate::branches::BranchId,
+        now_ms: i64,
+    ) -> SnapbackResult<crate::fork_promotion::ManagedInAppBranchReceiptV1> {
+        self.db.drop_managed_in_app_branch(branch_id, now_ms)
+    }
+
+    /// Execute one real served mutation/action against the managed writable
+    /// head selected by a closed AdminWrite host carrier. The branch grant is
+    /// checked before a separate LocalSnapback is opened, and the opened
+    /// database re-identifies itself as that exact branch at boot.
+    ///
+    /// Mutation success retains journal-derived operation facts inside the
+    /// exact app transaction. A crash therefore reveals either neither the
+    /// app write nor operation, or both; exact retries never rerun a committed
+    /// handler and a branch remains available for later operations.
+    ///
+    /// @ref LLP 0162#3-safe-current-head-forks — public branch work is bound
+    ///   to the server-owned current-head workspace and branch-scoped grant.
+    /// @ref LLP 0162#5-promotion-stays-strict-and-merge-free — replay input
+    ///   retention and the app commit share one atomic custody boundary.
+    pub(crate) fn execute_operator_in_app_branch(
+        &mut self,
+        branch_id: &crate::branches::BranchId,
+        function: &str,
+        args: Value,
+        request_id: &str,
+        now_ms: i64,
+        server_profile: ServerProfile,
+    ) -> SnapbackResult<crate::fork_promotion::BranchOperationV1> {
+        let receipt = self.db.inspect_managed_in_app_branch(branch_id, now_ms)?;
+        let path = self.db.managed_in_app_branch_path(branch_id, now_ms)?;
+        let artifact_binding = json!({
+            "schemaHash": &receipt.branch.artifact_binding.schema_hash,
+            "functionBundleHash": &receipt.branch.artifact_binding.function_bundle_hash,
+        });
+        let artifact_identity = crate::operation_ledger::digest_fact_set(
+            b"managed-branch-artifact-v1",
+            &artifact_binding,
+        );
+        let upstream_identity = format!("branch.execute.v1:{request_id}");
+        let operation_id = crate::commit_envelope::derive_host_operation_id(&upstream_identity, 0);
+        let mut branch = LocalSnapback::open(path)?;
+        let retained_operations = branch.db.branch_operation_log(branch_id)?;
+        let causal_predecessors = retained_operations
+            .iter()
+            .find(|operation| operation.identity.key.operation_id == operation_id)
+            .map(|operation| operation.causal_predecessors.clone())
+            .unwrap_or_else(|| {
+                retained_operations
+                    .iter()
+                    .map(|operation| operation.child_version)
+                    .collect()
+            });
+        let input_fingerprint =
+            crate::fork_promotion::derive_branch_input_fingerprint(function, &args)?;
+        let principal_fingerprint = crate::fork_promotion::derive_branch_principal_fingerprint(
+            &receipt.branch.grant.principal_id,
+        )?;
+        let draft = crate::fork_promotion::BranchOperationDraftV1 {
+            schema_version: 1,
+            identity: crate::commit_envelope::OperationIdentityV1 {
+                schema_version: 1,
+                key: crate::commit_envelope::OperationKeyV1 {
+                    stream_id: receipt.branch.branch.child_stream_id.0.clone(),
+                    originator_class: crate::commit_envelope::OperationOriginatorClassV1::Host,
+                    operation_id,
+                },
+                issuance: crate::commit_envelope::OperationIssuanceV1::HostIncarnation {
+                    epoch_id: receipt.branch.grant.grant_id.clone(),
+                    upstream_identity,
+                    commit_ordinal: 0,
+                    authority_authenticator_digest: receipt
+                        .branch
+                        .grant
+                        .authority_fingerprint
+                        .clone(),
+                },
+                bound_facts: crate::commit_envelope::OperationBoundFactsV1 {
+                    audience: receipt.branch.grant.audience.clone(),
+                    principal_fingerprint,
+                    authority_instance_id: receipt.branch.grant.authority_fingerprint.clone(),
+                    operation_kind: "managedBranchOperation".to_owned(),
+                    function_or_command: function.to_owned(),
+                    input_fingerprint,
+                },
+            },
+            artifact_identity,
+            function_or_command: function.to_owned(),
+            canonical_arguments: args.clone(),
+            principal_id: receipt.branch.grant.principal_id.clone(),
+            grant_id: receipt.branch.grant.grant_id.clone(),
+            read_baseline: Value::Null,
+            replay_inputs: Vec::new(),
+            causal_predecessors,
+        };
+        let effect_context = crate::fork_promotion::BranchEffectExecutionContextV1::new(
+            branch_id.clone(),
+            draft.clone(),
+            now_ms,
+        );
+        if let Some(retained) = branch.db.branch_operation_retry(branch_id, &draft)? {
+            return Ok(retained);
+        }
+        let current_artifacts = crate::fork_promotion::BranchArtifactBindingV1 {
+            schema_hash: self.loaded_schema_hash().unwrap_or_default(),
+            function_bundle_hash: self.loaded_bundle_hash().unwrap_or_default(),
+        };
+        if current_artifacts != receipt.branch.artifact_binding {
+            return Err(SnapbackError::error(
+                "SNAPBACK_BRANCH_ARTIFACT_DRIFT",
+                "storage",
+                "managed branch execution refuses because the parent schema or function bundle changed after branch creation",
+            ));
+        }
+        let definition = self.function_definition(function).cloned().ok_or_else(|| {
+            crate::authoring_suggestion::unknown_function_error(
+                &self.functions,
+                function,
+                &[FunctionKind::Mutation, FunctionKind::Action],
+            )
+        })?;
+        if matches!(
+            definition.kind,
+            FunctionKind::Query | FunctionKind::LiveQuery
+        ) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_BRANCH_OPERATION_KIND_UNSUPPORTED",
+                "storage",
+                "managed branch execution v1 accepts mutations and DenyAll-tested actions only",
+            ));
+        }
+        let diagnostics = branch.load_functions(self.functions.clone());
+        if let Some(diagnostic) = diagnostics
+            .into_iter()
+            .find(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error)
+        {
+            return Err(SnapbackError::new(diagnostic));
+        }
+        let active_mode = branch.db.auth_mode_snapshot()?.state.active;
+        let resolved = ResolvedAppAuthority::DevImpersonation {
+            user_id: receipt.branch.grant.principal_id.clone(),
+            roles: Vec::new(),
+            // This is a server-constructed, branch-scoped principal, not the
+            // dev body-impersonation carrier. Its dedicated invocation source
+            // is the only source that admits this authority class.
+            local_dev_only: false,
+        };
+        let authority = InvocationGate::prepare_admitted_authority(
+            InvocationSource::BranchOperation,
+            active_mode,
+            server_profile,
+            branch.admission.admit_for_mode(active_mode)?,
+            &WireAuthorityFields::default(),
+            resolved,
+        )?;
+        if definition.kind == FunctionKind::Mutation {
+            let context = crate::fork_promotion::BranchMutationCommitV1 {
+                branch_id: branch_id.clone(),
+                draft: draft.clone(),
+                recorded_at_ms: now_ms,
+            };
+            let committed = crate::fork_promotion::with_branch_effect_execution_context(
+                effect_context.clone(),
+                || {
+                    branch.invoke_mutation_commit_with_id_authority_and_branch(
+                        function,
+                        HandlerInput {
+                            args,
+                            ..HandlerInput::default()
+                        },
+                        None,
+                        None,
+                        None,
+                        authority,
+                        Some(&context),
+                        Self::ensure_permission_epoch_capacity,
+                    )
+                },
+            );
+            if let Err(error) = committed {
+                if receipt.branch.egress_policy
+                    == crate::fork_promotion::ForkEgressPolicyV1::CaptureOnly
+                {
+                    let diagnostic_code = error.diagnostic.code.clone();
+                    if let Some(operation) = branch.db.finalize_captured_effect_operation(
+                        &effect_context,
+                        json!({ "handlerDiagnosticCode": diagnostic_code }),
+                        Some(&error.diagnostic.code),
+                    )? {
+                        return Ok(operation);
+                    }
+                }
+                return Err(error);
+            }
+            return branch
+                .db
+                .branch_operation_retry(branch_id, &draft)?
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_BRANCH_OPERATION_JOURNAL_INCOMPLETE",
+                        "storage",
+                        "committed branch mutation is missing its atomic operation record",
+                    )
+                });
+        }
+
+        let run = crate::fork_promotion::with_branch_effect_execution_context(
+            effect_context.clone(),
+            || {
+                branch.run_function_with_authority(
+                    function,
+                    HandlerInput {
+                        args,
+                        ..HandlerInput::default()
+                    },
+                    authority,
+                )
+            },
+        );
+        if receipt.branch.egress_policy == crate::fork_promotion::ForkEgressPolicyV1::CaptureOnly {
+            let diagnostic_code = run
+                .diagnostic
+                .as_ref()
+                .map(|diagnostic| diagnostic.code.as_str());
+            if let Some(operation) = branch.db.finalize_captured_effect_operation(
+                &effect_context,
+                run.result.clone().unwrap_or(Value::Null),
+                diagnostic_code,
+            )? {
+                return Ok(operation);
+            }
+        }
+        if !run.ok {
+            if run
+                .diagnostic
+                .as_ref()
+                .is_some_and(|diagnostic| diagnostic.code == "SNAPBACK_BRANCH_EFFECT_CAPTURED")
+            {
+                return branch
+                    .db
+                    .branch_operation_retry(branch_id, &draft)?
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_BRANCH_EFFECT_LEDGER_INVALID",
+                            "storage",
+                            "captured branch action is missing its atomic operation record",
+                        )
+                    });
+            }
+            let after = branch.db.inspect_local_in_app_branch(branch_id)?;
+            if after.deny_all_attempt_count > receipt.branch.deny_all_attempt_count {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_BRANCH_EGRESS_DENIED",
+                    "storage",
+                    "managed branch handler attempted egress under DenyAll",
+                ));
+            }
+            return Err(SnapbackError::new(run.diagnostic.unwrap_or_else(|| {
+                Diagnostic::error(
+                    "SNAPBACK_BRANCH_HANDLER_FAILED",
+                    "runtime",
+                    "managed branch handler failed without a diagnostic",
+                )
+            })));
+        }
+        if definition.kind == FunctionKind::Action {
+            return Err(SnapbackError::error(
+                "SNAPBACK_BRANCH_ACTION_SETTLEMENT_MISSING",
+                "storage",
+                "a successful branch action cannot be retained until CaptureOnly settlement exists",
+            ));
+        }
+        branch.db.execute_branch_operation(
+            branch_id,
+            &draft,
+            now_ms,
+            run.result.unwrap_or(Value::Null),
+        )
+    }
+
     pub fn durable_version(&self) -> SnapbackResult<u64> {
         self.db.current_version()
     }
@@ -6257,6 +7098,122 @@ impl LocalSnapback {
         descriptor_for_authority(authority, incarnation.as_str())
     }
 
+    pub(crate) fn issue_client_operation_identity_range(
+        &mut self,
+        authority: &PreparedAuthority,
+        client_audience_id: &str,
+        authority_descriptor: Option<&AuthorityDescriptor>,
+        previous: Option<&crate::commit_envelope::ClientIdentityRangeV1>,
+    ) -> SnapbackResult<crate::commit_envelope::ClientIdentityRangeV1> {
+        authority.validate_admission("operation identity range issuance")?;
+        self.persist_and_validate_prepared_service_authority(authority)?;
+        let incarnation = self.db.ensure_authorization_stream_incarnation()?;
+        let expected = descriptor_for_authority(authority, incarnation.as_str())?;
+        if authority.active_mode() == AuthMode::Sessions || authority_descriptor.is_some() {
+            require_current_descriptor(authority_descriptor, &expected)?;
+        }
+        if !crate::manifest::replay_opaque_id_is_valid(client_audience_id) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_OPERATION_RANGE_AUDIENCE_INVALID",
+                "protocol",
+                "clientAudienceId must use the bounded opaque replay-id alphabet",
+            ));
+        }
+        let audience =
+            operation_client_audience(&expected.authority_instance_id, client_audience_id)?;
+        let _effect = authority.effect_guard("operation identity range issuance transaction")?;
+        self.db.issue_client_operation_identity_range(
+            &audience,
+            &expected.authority_instance_id,
+            previous,
+            now_millis(),
+        )
+    }
+
+    /// Evaluate explanation authorization from the live prepared authority;
+    /// callers cannot submit the `current_policy_provable` decision.
+    pub(crate) fn explain_operation_with_authority(
+        &mut self,
+        authority: &PreparedAuthority,
+        authority_descriptor: Option<&AuthorityDescriptor>,
+        client_audience_id: &str,
+        identity: &crate::commit_envelope::OperationIdentityV1,
+    ) -> SnapbackResult<Option<crate::commit_envelope::OperationExplanationV1>> {
+        authority.validate_admission("operation explanation")?;
+        self.persist_and_validate_prepared_service_authority(authority)?;
+        let incarnation = self.db.ensure_authorization_stream_incarnation()?;
+        let expected = descriptor_for_authority(authority, incarnation.as_str())?;
+        if authority.active_mode() == AuthMode::Sessions || authority_descriptor.is_some() {
+            require_current_descriptor(authority_descriptor, &expected)?;
+        }
+        let audience =
+            operation_client_audience(&expected.authority_instance_id, client_audience_id)?;
+        let current_artifact_digest = DeploymentIdentity::from_manifests(
+            authority.active_mode(),
+            self.db.schema(),
+            &self.functions,
+        )
+        .ok()
+        .map(|identity| ArtifactGeneration {
+            schema_version: identity.schema_version,
+            app_id: identity.app_id,
+            schema_hash: identity.schema_hash,
+            bundle_hash: identity.bundle_hash,
+            inputs_hash: identity.inputs_hash,
+        })
+        .map(|generation| crate::storage::operation_artifact_generation_digest(&generation));
+        let fact_policy = self
+            .functions
+            .function(&identity.bound_facts.function_or_command)
+            .filter(|function| {
+                InvocationGate::validate_current_function_policy(authority, function).is_ok()
+            })
+            .and_then(|function| {
+                owner_mutation_explanation_policy(function, self.db.schema(), authority)
+            })
+            .unwrap_or(crate::operation_ledger::ExplanationFactPolicyV1::Unprovable);
+        let current = crate::operation_ledger::CurrentExplanationAuthorityV1 {
+            audience,
+            principal_fingerprint: auth_fingerprint(&authority.canonical_auth_input()),
+            authority_instance_id: expected.authority_instance_id,
+            current_artifact_digest,
+            // The projector still checks every retained constituent. This
+            // bit means only that live admission/grant policy was re-run; it
+            // never upgrades an unsupported fact class.
+            current_policy_provable: !matches!(
+                fact_policy,
+                crate::operation_ledger::ExplanationFactPolicyV1::Unprovable
+            ),
+            fact_policy,
+            administrative: false,
+        };
+        Ok(Some(
+            self.db
+                .explain_operation(identity, &current)?
+                .unwrap_or_else(|| {
+                    crate::commit_envelope::OperationExplanationV1::authorization_unprovable(
+                        identity.key.clone(),
+                    )
+                }),
+        ))
+    }
+
+    pub(crate) fn explain_operation_as_admin(
+        &self,
+        identity: &crate::commit_envelope::OperationIdentityV1,
+    ) -> SnapbackResult<Option<crate::commit_envelope::OperationExplanationV1>> {
+        let current = crate::operation_ledger::CurrentExplanationAuthorityV1 {
+            audience: identity.bound_facts.audience.clone(),
+            principal_fingerprint: String::new(),
+            authority_instance_id: String::new(),
+            current_artifact_digest: None,
+            current_policy_provable: true,
+            fact_policy: crate::operation_ledger::ExplanationFactPolicyV1::Unprovable,
+            administrative: true,
+        };
+        self.db.explain_operation(identity, &current)
+    }
+
     pub(crate) fn acknowledge_client_mutations_with_authority_descriptor(
         &mut self,
         authority: &PreparedAuthority,
@@ -6301,6 +7258,10 @@ impl LocalSnapback {
 
     pub fn function_definition(&self, name: &str) -> Option<&FunctionDefinition> {
         self.functions.function(name)
+    }
+
+    pub(crate) fn served_function_manifest(&self) -> &FunctionManifest {
+        &self.functions
     }
 
     pub fn inspect(&mut self) -> SnapbackResult<InspectState> {
@@ -6378,7 +7339,98 @@ impl LocalSnapback {
             capability_manifest.vm_lifecycle =
                 crate::manifest::VM_LIFECYCLE_WARM_POOLED_RESET.to_owned();
         }
+        self.project_agent_safe_app_effective(&mut capability_manifest);
         capability_manifest
+    }
+
+    fn project_agent_safe_app_effective(&self, manifest: &mut CapabilityManifest) {
+        use crate::manifest::{AgentSafeCapabilityFactsV1, TargetCapabilityId};
+
+        if !manifest
+            .supported_capabilities
+            .contains(&TargetCapabilityId::AgentSafeStorageV1)
+            || !self
+                .db
+                .agent_safe_exact_operation_coverage_active()
+                .unwrap_or(false)
+        {
+            return;
+        }
+
+        let target = &manifest.agent_safe.target;
+        let mut effective = AgentSafeCapabilityFactsV1::missing();
+        let mut ordinary_host_plan = false;
+        let mut ordinary_ibex = false;
+        let mut host_child_host_plan = false;
+        let mut host_child_ibex = false;
+        for function in &self.functions.functions {
+            match (&function.kind, &function.runtime) {
+                (
+                    FunctionKind::Mutation,
+                    FunctionRuntime::HostPlan(
+                        HandlerPlan::Mutation(_) | HandlerPlan::WriteWithActivity(_),
+                    ),
+                ) => ordinary_host_plan = true,
+                (FunctionKind::Mutation, FunctionRuntime::IbexModule(_)) => ordinary_ibex = true,
+                (FunctionKind::Action, FunctionRuntime::HostPlan(HandlerPlan::Action(plan))) => {
+                    for step in &plan.steps {
+                        let ActionStep::RunMutation { name, .. } = step;
+                        let Some(target_function) = self.functions.function(name) else {
+                            continue;
+                        };
+                        match &target_function.runtime {
+                            FunctionRuntime::HostPlan(
+                                HandlerPlan::Mutation(_) | HandlerPlan::WriteWithActivity(_),
+                            ) => host_child_host_plan = true,
+                            FunctionRuntime::IbexModule(_)
+                                if target_function.kind == FunctionKind::Mutation =>
+                            {
+                                host_child_ibex = true;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        if ordinary_host_plan {
+            effective.envelope.ordinary_mutation.host_plan =
+                target.envelope.ordinary_mutation.host_plan;
+        }
+        if ordinary_ibex {
+            effective.envelope.ordinary_mutation.ibex_buffered =
+                target.envelope.ordinary_mutation.ibex_buffered;
+        }
+        if host_child_host_plan {
+            effective.envelope.host_child_mutation.host_plan =
+                target.envelope.host_child_mutation.host_plan;
+        }
+        if host_child_ibex {
+            effective.envelope.host_child_mutation.ibex_buffered =
+                target.envelope.host_child_mutation.ibex_buffered;
+        }
+        let mut profiles = self
+            .functions
+            .functions
+            .iter()
+            .filter_map(|function| agent_safe_generated_owner_profile(function, self.db.schema()))
+            .collect::<Vec<_>>();
+        profiles.sort();
+        profiles.dedup();
+        effective.explanation.scoped_facts = profiles
+            .into_iter()
+            .filter(|_| ordinary_host_plan)
+            .filter_map(|profile| {
+                target
+                    .explanation
+                    .scoped_facts
+                    .iter()
+                    .find(|fact| fact.scope.profile == profile)
+                    .cloned()
+            })
+            .collect();
+        manifest.agent_safe.app_effective = effective;
     }
 
     fn capability_gaps(&self) -> Vec<String> {
@@ -6447,33 +7499,39 @@ impl LocalSnapback {
         expected_generation: Option<&ArtifactGeneration>,
     ) -> SnapbackResult<QueryInvocation> {
         self.validate_prepared_service_authority(&authority)?;
-        let function = self.function(name)?;
+        let function = self.functions.function(name).ok_or_else(|| {
+            crate::authoring_suggestion::unknown_function_error(
+                &self.functions,
+                name,
+                &[FunctionKind::Query, FunctionKind::LiveQuery],
+            )
+        })?;
         self.validate_expected_generation(&authority, expected_generation)?;
         let prepared = InvocationGate::prepare_function(authority, function)?;
         let input = prepared.canonicalize_input(input);
         let correlation = telemetry_correlation(&input.correlation);
         let span = self.telemetry.start_classified_span(
-                    crate::telemetry_contract::OperationClassIdV1::FUNCTION_QUERY,
-                    name,
-                    correlation.as_deref(),
-                    None,
-                );
+            crate::telemetry_contract::OperationClassIdV1::FUNCTION_QUERY,
+            name,
+            correlation.as_deref(),
+            None,
+        );
         let mut result =
             crate::runtime::with_runtime_log_telemetry(self.telemetry.clone(), correlation, || {
-        execute_query_invocation(
-            function,
-            name,
-            DbRead::Live(&self.db),
-            &self.permission_epochs,
-            input,
-            &prepared,
-            Some(&self.warm_vms),
-            Some(RelationalCursorAuthority {
-                app_id: &self.functions.app_id,
-                keyring: &self.resume_keyring,
-                schema_hash: self.db.schema().schema_hash.as_deref(),
-                function_bundle_hash: self.functions.bundle_hash.as_deref(),
-                function_publication_generation: self.app_generation,
+                execute_query_invocation(
+                    function,
+                    name,
+                    DbRead::Live(&self.db),
+                    &self.permission_epochs,
+                    input,
+                    &prepared,
+                    Some(&self.warm_vms),
+                    Some(RelationalCursorAuthority {
+                        app_id: &self.functions.app_id,
+                        keyring: &self.resume_keyring,
+                        schema_hash: self.db.schema().schema_hash.as_deref(),
+                        function_bundle_hash: self.functions.bundle_hash.as_deref(),
+                        function_publication_generation: self.app_generation,
                         target_profile: self.db.schema().target_profile.as_deref(),
                     }),
                     None,
@@ -6884,6 +7942,18 @@ impl LocalSnapback {
             ));
         }
 
+        let caller = Self::asset_caller_principal(authority);
+        // Every authorizer must declare an owner, so a caller without a
+        // resolved principal is guaranteed to fail every later ownership check.
+        if caller.is_none() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_OWNER_CUSTODY_UNSATISFIABLE",
+                "assets",
+                "every upload attempt records the authorizer-declared owner principal, and each transfer, resume, finalize, and attach step must present that owner's resolved authority; an anonymous caller can never satisfy it, so this reservation could never complete. Reserve with real caller custody: an ordinary session (for local development, snapback session mint --email <email> behind a trusted broker) or operator impersonation (snapback assets put --user <handle>).",
+            )
+            .with_details(serde_json::json!({ "intentId": intent.id })));
+        }
+
         // Run the generated authorizer under the protected profile, capturing
         // the complete LLP 0007 read-set witness.
         let definition = self.asset_intent_definition(&intent)?;
@@ -6911,7 +7981,6 @@ impl LocalSnapback {
             )
         })?;
 
-        let caller = Self::asset_caller_principal(authority);
         let auth_pair = Self::asset_auth_pair(authority);
         let witness = serde_json::to_value(&run.read_dependencies).unwrap_or_default();
         let app_id = self.functions.app_id.clone();
@@ -8901,8 +9970,7 @@ impl LocalSnapback {
         } else {
             image_location
         };
-        if location_policy.is_none()
-            && (detected_video_container || detected.starts_with("image/"))
+        if location_policy.is_none() && (detected_video_container || detected.starts_with("image/"))
         {
             // A pre-amendment or hand-built video manifest may still put its
             // policy under `image`. The sibling split is not an alias: refuse
@@ -8920,8 +9988,7 @@ impl LocalSnapback {
                 ),
             );
         }
-        let strip_declared =
-            location_policy == Some(crate::manifest::AssetLocationPolicy::Strip);
+        let strip_declared = location_policy == Some(crate::manifest::AssetLocationPolicy::Strip);
         let strip_capability_missing = if detected_video_container {
             !self.asset_video_finalization_enabled()
         } else {
@@ -11802,6 +12869,114 @@ impl LocalSnapback {
             .0
     }
 
+    /// Prepare one private acceptance fixture with the actual public-carrier
+    /// issuance and ordinary-mutation coverage state. This is deliberately
+    /// crate-private and does not create a supported profile-off/on product
+    /// switch; only the dated paired recorder calls it on a fresh database.
+    ///
+    /// @ref LLP 0162#measurement-gate — the active-path comparison must carry
+    ///   authenticated issuance through the covered production choke point.
+    pub(crate) fn prepare_agent_safe_active_lane_benchmark(
+        &mut self,
+        input: &HandlerInput,
+    ) -> SnapbackResult<crate::commit_envelope::ClientIdentityRangeV1> {
+        self.prepare_agent_safe_active_lane_benchmark_for_client(input, "agent-safe-bench-client")
+            .map(|(_, range)| range)
+    }
+
+    /// Consume the private active-lane fixture into the exact armed storage
+    /// connection used by the public carrier. This drops and joins unrelated
+    /// Local runtime services (notably telemetry) before an idle observation,
+    /// while preserving the durable range and the connection-local SQLite
+    /// writer authority installed by coverage activation.
+    ///
+    /// @ref LLP 0162#measurement-gate — setup work is outside the idle window;
+    ///   the candidate holds the same storage object as the pre-profile twin.
+    pub(crate) fn into_agent_safe_active_idle_database(self) -> LocalDatabase {
+        self.db
+    }
+
+    /// Prepare one independently identified writer for the concurrent
+    /// request-to-COMMIT fixture. Returning the server-owned stream lets the
+    /// recorder install the real promotion reservation on the exact stream
+    /// that the subsequent storage transaction will check.
+    pub(crate) fn prepare_agent_safe_active_lane_benchmark_for_client(
+        &mut self,
+        input: &HandlerInput,
+        client_audience_id: &str,
+    ) -> SnapbackResult<(String, crate::commit_envelope::ClientIdentityRangeV1)> {
+        let authority = self.admission.admit_dev().and_then(|admission| {
+            InvocationGate::prepare_admitted_dev_input(
+                InvocationSource::LocalMutation,
+                ServerProfile::Dev,
+                input,
+                admission,
+            )
+        })?;
+        // The ordinary benchmark fixture predates identity streams; create
+        // its server-owned stream before asking the public range issuer to
+        // bind a range to it.
+        let stream_id = self.db.data_version_stream()?;
+        let range =
+            self.issue_client_operation_identity_range(&authority, client_audience_id, None, None)?;
+        self.db
+            .activate_ordinary_mutation_coverage_for_evidence(now_millis())?;
+        Ok((stream_id, range))
+    }
+
+    /// Invoke the same staged issuance-bearing mutation body used by the HTTP
+    /// carrier after it has authenticated the request. Range and counter facts
+    /// are server-issued; this helper never accepts a host identity.
+    pub(crate) fn invoke_agent_safe_active_lane_benchmark_mutation(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        range: &crate::commit_envelope::ClientIdentityRangeV1,
+        counter: u64,
+    ) -> SnapbackResult<MutationOutput> {
+        if counter < range.range_start || counter >= range.range_end_exclusive {
+            return Err(SnapbackError::error(
+                "SNAPBACK_OPERATION_RANGE_EXHAUSTED",
+                "protocol",
+                "acceptance benchmark counter escaped its server-issued range",
+            ));
+        }
+        let authority = self.admission.admit_dev().and_then(|admission| {
+            InvocationGate::prepare_admitted_dev_input(
+                InvocationSource::LocalMutation,
+                ServerProfile::Dev,
+                &input,
+                admission,
+            )
+        })?;
+        let issuance = crate::commit_envelope::OperationIssuanceV1::ClientRange {
+            epoch_id: range.epoch_id.clone(),
+            counter,
+            range_start: range.range_start,
+            range_end_exclusive: range.range_end_exclusive,
+            authority_authenticator_digest: range.authority_authenticator_digest.clone(),
+        };
+        // Range counters are unique only inside their server-issued client
+        // epoch. Include that epoch in the durable replay key so concurrent
+        // acceptance writers can each start at counter zero without aliasing.
+        let client_mutation_id = format!("agent-safe-bench-{}-{counter}", range.epoch_id);
+        let (_preflight, staged) = self
+            .stage_recorded_authorization_mutation_with_generation_and_settlement(
+                name,
+                input,
+                Some(client_mutation_id),
+                None,
+                &[],
+                "agent-safe-paired-recorder",
+                authority,
+                None,
+                Some(issuance),
+                MutationSettlement::default(),
+            )?;
+        self.commit_staged_recorded_authorization_mutation(staged)?
+            .0
+    }
+
     pub(crate) fn invoke_mutation_with_authority(
         &mut self,
         name: &str,
@@ -12166,6 +13341,7 @@ impl LocalSnapback {
             transport,
             authority,
             expected_generation,
+            None,
             MutationSettlement::default(),
         )
     }
@@ -12181,11 +13357,96 @@ impl LocalSnapback {
         transport: &str,
         authority: PreparedAuthority,
         expected_generation: Option<&ArtifactGeneration>,
+        operation_issuance: Option<crate::commit_envelope::OperationIssuanceV1>,
         settlement: MutationSettlement,
     ) -> SnapbackResult<(
         crate::storage::AuthorizationCommitPreflight,
         StagedRecordedMutation,
     )> {
+        self.stage_recorded_authorization_mutation_with_generation_and_settlement_inner(
+            name,
+            input,
+            client_mutation_id,
+            authority_descriptor,
+            acknowledged_client_mutation_ids,
+            transport,
+            authority,
+            expected_generation,
+            operation_issuance,
+            settlement,
+            false,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn stage_recorded_authorization_mutation_with_generation_and_settlement_inner(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        client_mutation_id: Option<String>,
+        authority_descriptor: Option<AuthorityDescriptor>,
+        acknowledged_client_mutation_ids: &[String],
+        transport: &str,
+        authority: PreparedAuthority,
+        expected_generation: Option<&ArtifactGeneration>,
+        operation_issuance: Option<crate::commit_envelope::OperationIssuanceV1>,
+        settlement: MutationSettlement,
+        allow_host_issuance: bool,
+    ) -> SnapbackResult<(
+        crate::storage::AuthorizationCommitPreflight,
+        StagedRecordedMutation,
+    )> {
+        if operation_issuance.is_some() && client_mutation_id.is_none() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_OPERATION_IDENTITY_REQUIRES_CLIENT_MUTATION_ID",
+                "protocol",
+                "operationIssuance extends clientMutationId and cannot be sent alone",
+            ));
+        }
+        if !allow_host_issuance
+            && matches!(
+                operation_issuance,
+                Some(crate::commit_envelope::OperationIssuanceV1::HostIncarnation { .. })
+            )
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_OPERATION_HOST_IDENTITY_FORBIDDEN",
+                "protocol",
+                "client mutation transport cannot mint the host operation namespace",
+            ));
+        }
+        let artifact_generation = if operation_issuance.is_some() {
+            expected_generation.cloned().or_else(|| {
+                DeploymentIdentity::from_manifests(
+                    authority.active_mode(),
+                    self.db.schema(),
+                    &self.functions,
+                )
+                .ok()
+                .map(|identity| ArtifactGeneration {
+                    schema_version: identity.schema_version,
+                    app_id: identity.app_id,
+                    schema_hash: identity.schema_hash,
+                    bundle_hash: identity.bundle_hash,
+                    inputs_hash: identity.inputs_hash,
+                })
+            }).ok_or_else(|| SnapbackError::error(
+                "SNAPBACK_ARTIFACT_IDENTITY_MISMATCH",
+                "runtime",
+                "issuance-bearing mutation requires a derivable selected artifact generation",
+            ))?.into()
+        } else {
+            None
+        };
+        let bind_operation = |mut identity: ClientMutationIdentity| {
+            if let Some(generation) = artifact_generation.as_ref() {
+                identity = identity.with_artifact_generation(generation);
+            }
+            if let Some(issuance) = operation_issuance.clone() {
+                identity = identity.with_operation_issuance(issuance);
+            }
+            identity
+        };
         // @ref LLP 0043#settlement-consumption-and-acknowledgement-lifecycle-2026-08-01
         // A committed settlement is independent of the continued existence
         // of executable code. Re-attest the live authority and the exact
@@ -12201,13 +13462,13 @@ impl LocalSnapback {
             }
             let mut canonical_input = input.clone();
             canonical_input.auth = authority.canonical_auth_input();
-            let identity = ClientMutationIdentity::for_authority_with_settlement(
+            let identity = bind_operation(ClientMutationIdentity::for_authority_with_settlement(
                 id.clone(),
                 name.to_owned(),
                 &canonical_input,
                 expected.authority_instance_id,
                 &settlement,
-            );
+            ));
             if let Some(output) = self.db.client_mutation_result(&identity)? {
                 if !acknowledged_client_mutation_ids.is_empty() {
                     self.acknowledge_client_mutations_with_authority(
@@ -12285,12 +13546,14 @@ impl LocalSnapback {
                 let incarnation = self.db.ensure_authorization_stream_incarnation()?;
                 let expected =
                     descriptor_for_authority(prepared.authority(), incarnation.as_str())?;
-                Some(ClientMutationIdentity::for_authority_with_settlement(
-                    id,
-                    name.to_owned(),
-                    &input,
-                    expected.authority_instance_id,
-                    &settlement,
+                Some(bind_operation(
+                    ClientMutationIdentity::for_authority_with_settlement(
+                        id,
+                        name.to_owned(),
+                        &input,
+                        expected.authority_instance_id,
+                        &settlement,
+                    ),
                 ))
             } else {
                 None
@@ -12327,6 +13590,10 @@ impl LocalSnapback {
                     StagedRecordedMutation::Done(Box::new(recorded)),
                 ));
             }
+            // @ref LLP 0131#runtime-ingress-validation — the staged HTTP
+            // settlement lane keeps replay recovery first, then validates the
+            // served argument contract before any handler byte or plan step.
+            crate::args_contract::validate_function_args(&function, &input.args)?;
             let telemetry_correlation = telemetry_correlation(&input.correlation);
             let mut observation = Some(self.telemetry.start_classified_span(
                 crate::telemetry_contract::OperationClassIdV1::FUNCTION_MUTATION,
@@ -12340,135 +13607,135 @@ impl LocalSnapback {
                 telemetry_correlation,
                 || {
                     (|| -> SnapbackResult<_> {
-            let client_mutation_digest = identity
-                .as_ref()
-                .map(ClientMutationIdentity::activity_digest);
-            if settlement.lane == SettlementLane::ReDerive {
-                // The client ledger remains part of immutable request
-                // identity, but it cannot answer the authoritative run. The
-                // host-plan preview below records one server-owned clock/id
-                // sample and the commit replays only that internal sample.
-                // @ref LLP 0133#re-derivation-semantics-lane-l — lane L
-                //   discards client ctx answers before authoritative execution.
-                input.ctx_ledger = None;
-            }
-            input.auth = input
-                .auth
-                .with_client_mutation_digest(client_mutation_digest.as_deref());
-            let epoch_scopes = evaluate_permission_epoch_scopes(&function, &input)?;
-            let (preflight, execution) = match &function.runtime {
-                FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
-                | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
-                    crate::manifest::WriteWithActivityPlan { mutation: plan, .. },
-                )) => {
-                    let preview = self.db.dry_run_mutation_with_settlement_time(
-                        plan,
-                        &input,
-                        settlement_time.as_ref(),
-                    )?;
-                    crate::result_contract::validate_handler_result(
-                        &function,
-                        &preview.commit.output.result,
-                    )?;
-                    input.ctx_ledger = Some(CtxAnswerLedger {
-                        version: ctx_ledger_version(),
-                        ids: preview.generated_ids,
-                        now: preview.now_ms,
-                        auth_fingerprint: None,
-                    });
-                    (
+                        let client_mutation_digest = identity
+                            .as_ref()
+                            .map(ClientMutationIdentity::activity_digest);
+                        if settlement.lane == SettlementLane::ReDerive {
+                            // The client ledger remains part of immutable request
+                            // identity, but it cannot answer the authoritative run. The
+                            // host-plan preview below records one server-owned clock/id
+                            // sample and the commit replays only that internal sample.
+                            // @ref LLP 0133#re-derivation-semantics-lane-l — lane L
+                            //   discards client ctx answers before authoritative execution.
+                            input.ctx_ledger = None;
+                        }
+                        input.auth = input
+                            .auth
+                            .with_client_mutation_digest(client_mutation_digest.as_deref());
+                        let epoch_scopes = evaluate_permission_epoch_scopes(&function, &input)?;
+                        let (preflight, execution) = match &function.runtime {
+                            FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
+                            | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
+                                crate::manifest::WriteWithActivityPlan { mutation: plan, .. },
+                            )) => {
+                                let preview = self.db.dry_run_mutation_with_settlement_time(
+                                    plan,
+                                    &input,
+                                    settlement_time.as_ref(),
+                                )?;
+                                crate::result_contract::validate_handler_result(
+                                    &function,
+                                    &preview.commit.output.result,
+                                )?;
+                                input.ctx_ledger = Some(CtxAnswerLedger {
+                                    version: ctx_ledger_version(),
+                                    ids: preview.generated_ids,
+                                    now: preview.now_ms,
+                                    auth_fingerprint: None,
+                                });
+                                (
                                     self.authorization_commit_preflight_for_changes(
                                         preview.commit.changes,
                                     ),
-                        StagedMutationExecution::HostPlan(plan.clone()),
-                    )
-                }
-                FunctionRuntime::IbexModule(module) => {
-                    let executed = crate::runtime::execute_ibex_mutation_prepared(
-                        module,
-                        input.clone(),
-                        &prepared,
-                        DbRead::Live(&self.db),
-                        Some(&self.warm_vms),
-                        None,
-                    )?;
-                    let membership_plans = self
-                        .db
-                        .authorize_membership_commands(executed.membership_commands)?;
-                    // Callee admission for buffered enqueues happens before
-                    // any commit work: an inadmissible callee fails the whole
-                    // mutation (rollback schedules nothing).
-                    let (job_enqueues, job_producer) = admit_job_enqueues(
-                        &self.functions,
-                        executed.job_enqueues,
-                        &receipt_mutation_id,
-                        name,
-                        input.auth.user_id.clone(),
-                    )?;
-                    let payload = BufferedCommitPayload {
-                        writes: executed.writes,
-                        sequence_allocations: executed.sequence_allocations,
-                        membership_plans,
-                        read_dependencies: executed.reads,
-                        result: executed.result,
-                        ctx_ledger: executed.ctx_ledger,
-                        job_enqueues,
-                        job_producer,
-                        asset_admissions: executed.asset_admissions,
-                    };
+                                    StagedMutationExecution::HostPlan(plan.clone()),
+                                )
+                            }
+                            FunctionRuntime::IbexModule(module) => {
+                                let executed = crate::runtime::execute_ibex_mutation_prepared(
+                                    module,
+                                    input.clone(),
+                                    &prepared,
+                                    DbRead::Live(&self.db),
+                                    Some(&self.warm_vms),
+                                    None,
+                                )?;
+                                let membership_plans = self
+                                    .db
+                                    .authorize_membership_commands(executed.membership_commands)?;
+                                // Callee admission for buffered enqueues happens before
+                                // any commit work: an inadmissible callee fails the whole
+                                // mutation (rollback schedules nothing).
+                                let (job_enqueues, job_producer) = admit_job_enqueues(
+                                    &self.functions,
+                                    executed.job_enqueues,
+                                    &receipt_mutation_id,
+                                    name,
+                                    input.auth.user_id.clone(),
+                                )?;
+                                let payload = BufferedCommitPayload {
+                                    writes: executed.writes,
+                                    sequence_allocations: executed.sequence_allocations,
+                                    membership_plans,
+                                    read_dependencies: executed.reads,
+                                    result: executed.result,
+                                    ctx_ledger: executed.ctx_ledger,
+                                    job_enqueues,
+                                    job_producer,
+                                    asset_admissions: executed.asset_admissions,
+                                };
                                 crate::result_contract::validate_handler_result(
                                     &function,
                                     &payload.result,
                                 )?;
-                    let preview = self.db.dry_run_buffered_writes_with_jobs(
-                        &input,
-                        payload.writes.clone(),
-                        payload.sequence_allocations.clone(),
-                        payload.membership_plans.clone(),
-                        payload.read_dependencies.clone(),
-                        payload.result.clone(),
-                        payload.ctx_ledger.clone(),
-                        payload.job_enqueues.clone(),
-                        payload.job_producer.clone(),
-                        payload.asset_admissions.clone(),
-                    )?;
-                    (
+                                let preview = self.db.dry_run_buffered_writes_with_jobs(
+                                    &input,
+                                    payload.writes.clone(),
+                                    payload.sequence_allocations.clone(),
+                                    payload.membership_plans.clone(),
+                                    payload.read_dependencies.clone(),
+                                    payload.result.clone(),
+                                    payload.ctx_ledger.clone(),
+                                    payload.job_enqueues.clone(),
+                                    payload.job_producer.clone(),
+                                    payload.asset_admissions.clone(),
+                                )?;
+                                (
                                     self.authorization_commit_preflight_for_changes(
                                         preview.changes,
                                     ),
-                        StagedMutationExecution::Buffered(Box::new(payload)),
-                    )
-                }
-                _ => {
-                    return Err(SnapbackError::error(
-                        "SNAPBACK_FUNCTION_KIND_MISMATCH",
-                        "runtime",
-                        format!("{name} is not a mutation"),
-                    ));
-                }
-            };
-            Ok((
-                preflight,
-                StagedRecordedMutation::Ready(Box::new(StagedRecordedMutationCommit {
-                    name: name.to_owned(),
-                    transport: transport.to_owned(),
-                    correlation,
-                    receipt_mutation_id,
-                    input,
-                    settlement: settlement.clone(),
-                    prepared,
-                    identity,
-                    settlement_time,
-                    epoch_scopes,
-                    execution,
+                                    StagedMutationExecution::Buffered(Box::new(payload)),
+                                )
+                            }
+                            _ => {
+                                return Err(SnapbackError::error(
+                                    "SNAPBACK_FUNCTION_KIND_MISMATCH",
+                                    "runtime",
+                                    format!("{name} is not a mutation"),
+                                ));
+                            }
+                        };
+                        Ok((
+                            preflight,
+                            StagedRecordedMutation::Ready(Box::new(StagedRecordedMutationCommit {
+                                name: name.to_owned(),
+                                transport: transport.to_owned(),
+                                correlation,
+                                receipt_mutation_id,
+                                input,
+                                settlement: settlement.clone(),
+                                prepared,
+                                identity,
+                                settlement_time,
+                                epoch_scopes,
+                                execution,
                                 // @ref LLP 0154#d2--the-observation-span-classification-registry-and-phase-1-kinds
                                 // Staging is admission, not a successful terminal.
                                 // The authoritative guarded commit owns completion.
                                 observation: observation
                                     .take()
                                     .expect("fresh staged mutation observation"),
-                })),
-            ))
+                            })),
+                        ))
                     })()
                 },
             );
@@ -12555,14 +13822,29 @@ impl LocalSnapback {
         }
         let result = match execution {
             StagedMutationExecution::HostPlan(plan) => match identity.as_ref() {
+                Some(identity)
+                    if matches!(
+                        identity.operation_issuance.as_ref(),
+                        Some(crate::commit_envelope::OperationIssuanceV1::HostIncarnation { .. })
+                    ) =>
+                {
+                    self.db.execute_host_mutation_guarded_with_settlement_time(
+                        &plan,
+                        &input,
+                        Some(identity),
+                        settlement_time.as_ref(),
+                        || Ok(()),
+                        || prepared.effect_guard("host child mutation transaction"),
+                    )
+                }
                 Some(identity) => self
                     .db
-                        .execute_mutation_idempotent_guarded_with_settlement_time(
-                            &plan,
-                            &input,
-                            identity,
-                            settlement_time.as_ref(),
-                            || prepared.effect_guard("idempotent mutation transaction"),
+                    .execute_mutation_idempotent_guarded_with_settlement_time(
+                        &plan,
+                        &input,
+                        identity,
+                        settlement_time.as_ref(),
+                        || prepared.effect_guard("idempotent mutation transaction"),
                     ),
                 None => self.db.execute_mutation_guarded_with_settlement_time(
                     &plan,
@@ -12574,13 +13856,28 @@ impl LocalSnapback {
             },
             StagedMutationExecution::Buffered(payload) => {
                 let payload = *payload;
-                self.db.commit_buffered_writes_idempotent_guarded(
-                    &input,
-                    payload,
-                    identity.as_ref(),
-                    || Ok(()),
-                    || prepared.effect_guard("ibex mutation transaction"),
-                )
+                if identity.as_ref().is_some_and(|identity| {
+                    matches!(
+                        identity.operation_issuance.as_ref(),
+                        Some(crate::commit_envelope::OperationIssuanceV1::HostIncarnation { .. })
+                    )
+                }) {
+                    self.db.commit_buffered_host_writes_guarded(
+                        &input,
+                        payload,
+                        identity.as_ref(),
+                        || Ok(()),
+                        || prepared.effect_guard("host child ibex mutation transaction"),
+                    )
+                } else {
+                    self.db.commit_buffered_writes_idempotent_guarded(
+                        &input,
+                        payload,
+                        identity.as_ref(),
+                        || Ok(()),
+                        || prepared.effect_guard("ibex mutation transaction"),
+                    )
+                }
             }
         }
         .and_then(|commit| self.finish_mutation_commit(epoch_scopes, commit, &admission));
@@ -12724,13 +14021,13 @@ impl LocalSnapback {
         } = publication;
         match admission.effect_guard(effect) {
             Ok(_publication) => self.record_mutation_commit(
-                    name,
-                    transport,
-                    correlation,
-                    mutation_id,
-                    &settlement,
-                    result,
-                    true,
+                name,
+                transport,
+                correlation,
+                mutation_id,
+                &settlement,
+                result,
+                true,
             ),
             Err(publication_error) => {
                 self.record_attached_diagnostics(vec![publication_error.diagnostic.clone()]);
@@ -12769,6 +14066,7 @@ impl LocalSnapback {
         name: &str,
         input: HandlerInput,
         prepared: PreparedInvocation,
+        identity: Option<ClientMutationIdentity>,
         check_live: Check,
         before_commit: BeforeCommit,
     ) -> SnapbackResult<MutationOutput>
@@ -12785,6 +14083,7 @@ impl LocalSnapback {
             name,
             input,
             &prepared,
+            identity.as_ref(),
             check_live,
             before_commit,
         );
@@ -12820,6 +14119,30 @@ impl LocalSnapback {
         // the two association halves name the same identity (0127 decision 7).
         receipt_mutation_id: Option<&str>,
         authority: PreparedAuthority,
+    ) -> SnapbackResult<MutationCommit> {
+        self.invoke_mutation_commit_with_id_authority_and_branch(
+            name,
+            input,
+            client_mutation_id,
+            authority_descriptor,
+            receipt_mutation_id,
+            authority,
+            None,
+            Self::ensure_permission_epoch_capacity,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn invoke_mutation_commit_with_id_authority_and_branch(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        client_mutation_id: Option<String>,
+        authority_descriptor: Option<AuthorityDescriptor>,
+        receipt_mutation_id: Option<&str>,
+        authority: PreparedAuthority,
+        branch_operation: Option<&crate::fork_promotion::BranchMutationCommitV1>,
+        permission_epoch_preflight: fn(&LocalSnapback, &BTreeSet<String>) -> SnapbackResult<()>,
     ) -> SnapbackResult<MutationCommit> {
         // @ref LLP 0043#settlement-consumption-and-acknowledgement-lifecycle-2026-08-01
         // Recovery of an already-committed identity is non-executing and does
@@ -12920,84 +14243,95 @@ impl LocalSnapback {
         // a mutation whose declared epoch bumps cannot be resolved, and the
         // post-commit path below is infallible by construction.
         let epoch_scopes = evaluate_permission_epoch_scopes(&function, &input)?;
-        self.ensure_permission_epoch_capacity(&epoch_scopes)?;
+        permission_epoch_preflight(self, &epoch_scopes)?;
         let correlation = telemetry_correlation(&input.correlation);
         let span = self.telemetry.start_classified_span(
-                    crate::telemetry_contract::OperationClassIdV1::FUNCTION_MUTATION,
-                    name,
-                    correlation.as_deref(),
-                    None,
-                );
+            crate::telemetry_contract::OperationClassIdV1::FUNCTION_MUTATION,
+            name,
+            correlation.as_deref(),
+            None,
+        );
         let mut result = (|| {
-        let commit = match &function.runtime {
-            FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
-            | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
-                crate::manifest::WriteWithActivityPlan { mutation: plan, .. },
-            )) => {
-                // Validate the exact dry-run result while all writes remain
-                // provisional. Reuse its ctx ledger so generated ids/time are
-                // identical when the guarded transaction executes.
-                let preview = self.db.dry_run_mutation(plan, &input)?;
-                crate::result_contract::validate_handler_result(
-                    &function,
-                    &preview.commit.output.result,
-                )?;
-                input.ctx_ledger = Some(CtxAnswerLedger {
-                    version: ctx_ledger_version(),
-                    ids: preview.generated_ids,
-                    now: preview.now_ms,
-                    auth_fingerprint: None,
-                });
-                match identity.as_ref() {
-                    Some(identity) => self.db.execute_mutation_idempotent_guarded(
-                        plan,
-                        &input,
-                        identity,
-                        || prepared.effect_guard("idempotent mutation transaction"),
-                    )?,
-                    None => self.db.execute_mutation_guarded(
-                        plan,
-                        &input,
-                        || Ok(()),
-                        || prepared.effect_guard("mutation transaction"),
-                    )?,
+            let commit = match &function.runtime {
+                FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
+                | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
+                    crate::manifest::WriteWithActivityPlan { mutation: plan, .. },
+                )) => {
+                    // Validate the exact dry-run result while all writes remain
+                    // provisional. Reuse its ctx ledger so generated ids/time are
+                    // identical when the guarded transaction executes.
+                    let preview = self.db.dry_run_mutation(plan, &input)?;
+                    crate::result_contract::validate_handler_result(
+                        &function,
+                        &preview.commit.output.result,
+                    )?;
+                    input.ctx_ledger = Some(CtxAnswerLedger {
+                        version: ctx_ledger_version(),
+                        ids: preview.generated_ids,
+                        now: preview.now_ms,
+                        auth_fingerprint: None,
+                    });
+                    match (branch_operation, identity.as_ref()) {
+                        (Some(branch_operation), None) => self.db.execute_branch_mutation_guarded(
+                            plan,
+                            &input,
+                            branch_operation,
+                            || prepared.effect_guard("branch mutation transaction"),
+                        )?,
+                        (Some(_), Some(_)) => {
+                            return Err(SnapbackError::error(
+                                "SNAPBACK_BRANCH_OPERATION_INVALID",
+                                "storage",
+                                "branch mutation carrier cannot compose with a second client identity",
+                            ));
+                        }
+                        (None, Some(identity)) => self.db.execute_mutation_idempotent_guarded(
+                            plan,
+                            &input,
+                            identity,
+                            || prepared.effect_guard("idempotent mutation transaction"),
+                        )?,
+                        (None, None) => self.db.execute_mutation_guarded(
+                            plan,
+                            &input,
+                            || Ok(()),
+                            || prepared.effect_guard("mutation transaction"),
+                        )?,
+                    }
                 }
-            }
-            FunctionRuntime::IbexModule(module) => {
+                FunctionRuntime::IbexModule(module) => {
                     let executed = crate::runtime::with_runtime_log_telemetry(
                         self.telemetry.clone(),
                         correlation.clone(),
                         || {
                             crate::runtime::execute_ibex_mutation_prepared(
-                    module,
-                    input.clone(),
-                    &prepared,
-                    DbRead::Live(&self.db),
-                    Some(&self.warm_vms),
-                    None,
+                                module,
+                                input.clone(),
+                                &prepared,
+                                DbRead::Live(&self.db),
+                                Some(&self.warm_vms),
+                                None,
                             )
                         },
-                )?;
-                crate::result_contract::validate_handler_result(&function, &executed.result)?;
-                let membership_plans = self
-                    .db
-                    .authorize_membership_commands(executed.membership_commands)?;
-                let producer_mutation_id = receipt_mutation_id
-                    .map(ToOwned::to_owned)
-                    .or_else(|| identity.as_ref().map(|identity| identity.id.clone()))
+                    )?;
+                    crate::result_contract::validate_handler_result(&function, &executed.result)?;
+                    let membership_plans = self
+                        .db
+                        .authorize_membership_commands(executed.membership_commands)?;
+                    let producer_mutation_id = receipt_mutation_id
+                        .map(ToOwned::to_owned)
+                        .or_else(|| identity.as_ref().map(|identity| identity.id.clone()))
                         .unwrap_or_else(|| {
                             crate::ids::mint_time_ordered(crate::ids::Kind::Mutation)
                         });
-                let (job_enqueues, job_producer) = admit_job_enqueues(
-                    &self.functions,
-                    executed.job_enqueues,
-                    &producer_mutation_id,
-                    name,
-                    input.auth.user_id.clone(),
-                )?;
-                self.db.commit_buffered_writes_idempotent_guarded(
-                    &input,
-                    BufferedCommitPayload {
+                    let (job_enqueues, job_producer) = admit_job_enqueues(
+                        &self.functions,
+                        executed.job_enqueues,
+                        &producer_mutation_id,
+                        name,
+                        input.auth.user_id.clone(),
+                    )?;
+                    let payload = BufferedCommitPayload {
                         writes: executed.writes,
                         sequence_allocations: executed.sequence_allocations,
                         membership_plans,
@@ -13007,22 +14341,42 @@ impl LocalSnapback {
                         job_enqueues,
                         job_producer,
                         asset_admissions: executed.asset_admissions,
-                    },
-                    identity.as_ref(),
-                    || Ok(()),
-                    || prepared.effect_guard("ibex mutation transaction"),
-                )?
-            }
-            _ => {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_FUNCTION_KIND_MISMATCH",
-                    "runtime",
-                    format!("{name} is not a mutation"),
-                ));
-            }
-        };
+                    };
+                    match (branch_operation, identity.as_ref()) {
+                        (Some(branch_operation), None) => {
+                            self.db.commit_branch_buffered_writes_guarded(
+                                &input,
+                                payload,
+                                branch_operation,
+                                || prepared.effect_guard("branch ibex mutation transaction"),
+                            )?
+                        }
+                        (Some(_), Some(_)) => {
+                            return Err(SnapbackError::error(
+                                "SNAPBACK_BRANCH_OPERATION_INVALID",
+                                "storage",
+                                "branch mutation carrier cannot compose with a second client identity",
+                            ));
+                        }
+                        (None, identity) => self.db.commit_buffered_writes_idempotent_guarded(
+                            &input,
+                            payload,
+                            identity,
+                            || Ok(()),
+                            || prepared.effect_guard("ibex mutation transaction"),
+                        )?,
+                    }
+                }
+                _ => {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_FUNCTION_KIND_MISMATCH",
+                        "runtime",
+                        format!("{name} is not a mutation"),
+                    ));
+                }
+            };
 
-        self.finish_mutation_commit(epoch_scopes, commit, &admission)
+            self.finish_mutation_commit(epoch_scopes, commit, &admission)
         })();
         finish_function_observation(span, &mut result);
         result
@@ -13033,6 +14387,7 @@ impl LocalSnapback {
         name: &str,
         input: HandlerInput,
         prepared: &PreparedInvocation,
+        identity: Option<&ClientMutationIdentity>,
         check_live: Check,
         before_commit: BeforeCommit,
     ) -> SnapbackResult<MutationCommit>
@@ -13078,16 +14433,20 @@ impl LocalSnapback {
         );
         let mut result =
             crate::runtime::with_runtime_log_telemetry(self.telemetry.clone(), correlation, || {
-        let commit = self
-            .db
-            .execute_mutation_guarded(plan, &input, check_live, || {
-                let admission_guard = prepared
-                    .admission_lease()
-                    .effect_guard("nested host-plan transaction")?;
-                let caller_guard = before_commit()?;
-                Ok((admission_guard, caller_guard))
-            })?;
-        self.finish_mutation_commit(epoch_scopes, commit, prepared.admission_lease())
+                let commit = self.db.execute_host_mutation_guarded(
+                    plan,
+                    &input,
+                    identity,
+                    &check_live,
+                    || {
+                        let admission_guard = prepared
+                            .admission_lease()
+                            .effect_guard("nested host-plan transaction")?;
+                        let caller_guard = before_commit()?;
+                        Ok((admission_guard, caller_guard))
+                    },
+                )?;
+                self.finish_mutation_commit(epoch_scopes, commit, prepared.admission_lease())
             });
         finish_function_observation(span, &mut result);
         result
@@ -13115,15 +14474,14 @@ impl LocalSnapback {
             // refresh cannot overwrite the wakeup.
             self.jobs_active.store(true, Ordering::Relaxed);
         }
-        commit.network_egress =
-            if commit.authorization.is_some() && has_observable_effect {
-                self.network_profiles
-                    .admit_commit(Instant::now())
-                    .map(crate::network_profile::MutationEgressBasis::ProfiledCommit)
-                    .unwrap_or(crate::network_profile::MutationEgressBasis::NormalCommit)
-            } else {
-                crate::network_profile::MutationEgressBasis::ResultReady
-            };
+        commit.network_egress = if commit.authorization.is_some() && has_observable_effect {
+            self.network_profiles
+                .admit_commit(Instant::now())
+                .map(crate::network_profile::MutationEgressBasis::ProfiledCommit)
+                .unwrap_or(crate::network_profile::MutationEgressBasis::NormalCommit)
+        } else {
+            crate::network_profile::MutationEgressBasis::ResultReady
+        };
         self.current_live_network_egress = match &commit.network_egress {
             crate::network_profile::MutationEgressBasis::ProfiledCommit(group) => Some(Some(
                 group.for_lane(crate::network_profile::NetworkEgressLane::LiveDelta),
@@ -13225,12 +14583,17 @@ impl LocalSnapback {
         Ok(commit)
     }
 
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "the detached commit gate keeps independent authority and lifecycle checks explicit"
+    )]
     pub(crate) fn commit_detached_ibex_mutation_guarded<G, Check, BeforeCommit>(
         &mut self,
         name: &str,
         input: HandlerInput,
         binding: DetachedMutationBinding,
         executed: ExecutedIbexMutation,
+        identity: Option<ClientMutationIdentity>,
         check_live: Check,
         before_commit: BeforeCommit,
     ) -> SnapbackResult<MutationOutput>
@@ -13273,7 +14636,7 @@ impl LocalSnapback {
             input.auth.user_id.clone(),
         )?;
         self.ensure_permission_epoch_capacity(&binding.epoch_scopes)?;
-        let commit = self.db.commit_buffered_writes_idempotent_guarded(
+        let commit = self.db.commit_buffered_host_writes_guarded(
             &input,
             BufferedCommitPayload {
                 writes: executed.writes,
@@ -13286,7 +14649,7 @@ impl LocalSnapback {
                 job_producer,
                 asset_admissions: executed.asset_admissions,
             },
-            None,
+            identity.as_ref(),
             check_live,
             || {
                 let admission_guard =
@@ -14333,11 +15696,13 @@ impl LocalSnapback {
             SnapbackError::error(code, "realtime", message.to_owned())
         };
         let started = std::time::Instant::now();
-        let target = register.ok_or_else(|| {
-            refuse(code::MODE_INVALID, "mixed-route.v2 requires register mode")
-        })?;
+        let target = register
+            .ok_or_else(|| refuse(code::MODE_INVALID, "mixed-route.v2 requires register mode"))?;
         let admitted = target.mixed_children.clone().ok_or_else(|| {
-            refuse(code::ENTRY_INVALID, "mixed-route.v2 lacks admitted child identities")
+            refuse(
+                code::ENTRY_INVALID,
+                "mixed-route.v2 lacks admitted child identities",
+            )
         })?;
         if admitted.len() != entry.queries.len() {
             return Err(refuse(
@@ -14345,9 +15710,10 @@ impl LocalSnapback {
                 "mixed-route.v2 child identity count does not match the route",
             ));
         }
-        let profile = entry.mixed_profile.as_ref().ok_or_else(|| {
-            refuse(code::ENTRY_INVALID, "mixed-route.v2 lacks its route plan")
-        })?;
+        let profile = entry
+            .mixed_profile
+            .as_ref()
+            .ok_or_else(|| refuse(code::ENTRY_INVALID, "mixed-route.v2 lacks its route plan"))?;
         let generation = self
             .rqs_generation_digest()
             .map_err(|_| refuse(code::QUERY_FAILED, "bundle generation unavailable"))?;
@@ -14419,15 +15785,14 @@ impl LocalSnapback {
             } else {
                 authority.clone()
             };
-            let prepared = InvocationGate::prepare_function(
-                invocation_authority.clone(),
-                &function,
-            )
-            .map_err(|error| {
-                refuse(code::QUERY_FAILED, "mixed child invocation refused").with_details(
-                    json!({ "function": spec.function, "cause": error.diagnostic.code }),
-                )
-            })?;
+            let prepared =
+                InvocationGate::prepare_function(invocation_authority.clone(), &function).map_err(
+                    |error| {
+                        refuse(code::QUERY_FAILED, "mixed child invocation refused").with_details(
+                            json!({ "function": spec.function, "cause": error.diagnostic.code }),
+                        )
+                    },
+                )?;
             let input = prepared.canonicalize_input(HandlerInput {
                 args: args.clone(),
                 auth: auth.clone(),
@@ -14593,12 +15958,17 @@ impl LocalSnapback {
                     )
                 };
                 total_rows += rows.len();
-                total_bytes += serde_json::to_vec(&rows).map(|bytes| bytes.len()).unwrap_or(0);
+                total_bytes += serde_json::to_vec(&rows)
+                    .map(|bytes| bytes.len())
+                    .unwrap_or(0);
                 if total_rows > bundle::BUNDLE_MAX_ROWS {
                     return Err(refuse(code::LIMIT_ROWS, "mixed bundle row limit exceeded"));
                 }
                 if total_bytes > bundle::BUNDLE_MAX_BYTES {
-                    return Err(refuse(code::LIMIT_BYTES, "mixed bundle byte limit exceeded"));
+                    return Err(refuse(
+                        code::LIMIT_BYTES,
+                        "mixed bundle byte limit exceeded",
+                    ));
                 }
                 if started.elapsed().as_millis() as u64 > bundle::BUNDLE_MAX_EVAL_MS {
                     return Err(refuse(code::LIMIT_TIME, "mixed bundle time limit exceeded"));
@@ -15167,7 +16537,9 @@ impl LocalSnapback {
         }
         if matches!(
             function.runtime,
-            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(_))
+            FunctionRuntime::HostPlan(
+                HandlerPlan::SnapshotBatch(_) | HandlerPlan::SnapshotBatchV2(_)
+            )
         ) && subscription_input
             .args
             .get("cursor")
@@ -15280,19 +16652,19 @@ impl LocalSnapback {
                 self.telemetry.clone(),
                 correlation,
                 || {
-            execute_query_invocation(
-                &function,
-                name,
-                DbRead::Live(&self.db),
-                &self.permission_epochs,
-                subscription_input.clone(),
-                &prepared_invocation,
-                Some(&self.warm_vms),
-                Some(RelationalCursorAuthority {
-                    app_id: &self.functions.app_id,
-                    keyring: &self.resume_keyring,
-                    schema_hash: self.db.schema().schema_hash.as_deref(),
-                    function_bundle_hash: self.functions.bundle_hash.as_deref(),
+                    execute_query_invocation(
+                        &function,
+                        name,
+                        DbRead::Live(&self.db),
+                        &self.permission_epochs,
+                        subscription_input.clone(),
+                        &prepared_invocation,
+                        Some(&self.warm_vms),
+                        Some(RelationalCursorAuthority {
+                            app_id: &self.functions.app_id,
+                            keyring: &self.resume_keyring,
+                            schema_hash: self.db.schema().schema_hash.as_deref(),
+                            function_bundle_hash: self.functions.bundle_hash.as_deref(),
                             function_publication_generation: self.app_generation,
                             target_profile: self.db.schema().target_profile.as_deref(),
                         }),
@@ -16986,12 +18358,8 @@ impl LocalSnapback {
                 rows: None,
                 result: None,
                 diagnostic: Some(
-                    SnapbackError::error(
-                        "SNAPBACK_UNKNOWN_FUNCTION",
-                        "runtime",
-                        format!("unknown function {name}"),
-                    )
-                    .diagnostic,
+                    crate::authoring_suggestion::unknown_function_error(&self.functions, name, &[])
+                        .diagnostic,
                 ),
             };
         };
@@ -17330,10 +18698,10 @@ impl LocalSnapback {
                 rows: None,
                 result: None,
                 diagnostic: Some(
-                    SnapbackError::error(
-                        "SNAPBACK_UNKNOWN_FUNCTION",
-                        "runtime",
-                        format!("unknown function {name}"),
+                    crate::authoring_suggestion::unknown_function_error(
+                        &self.functions,
+                        name,
+                        &[FunctionKind::Action],
                     )
                     .diagnostic,
                 ),
@@ -18520,10 +19888,7 @@ impl LocalSnapback {
         &mut self,
         now_ms: u64,
     ) -> SnapbackResult<Vec<AdmittedCronClaim>> {
-        self.deny_derived_fork_egress(
-            crate::instance_fork::EgressFamily::CronTick,
-            now_ms,
-        )?;
+        self.deny_derived_fork_egress(crate::instance_fork::EgressFamily::CronTick, now_ms)?;
         // The cron lane consults the persisted migration fence per claim
         // (LLP 0081 §4's lane registry).
         self.db.ensure_migration_lane_open()?;
@@ -18601,10 +19966,7 @@ impl LocalSnapback {
         name: &str,
         now_ms: u64,
     ) -> SnapbackResult<AdmittedCronClaim> {
-        self.deny_derived_fork_egress(
-            crate::instance_fork::EgressFamily::CronTick,
-            now_ms,
-        )?;
+        self.deny_derived_fork_egress(crate::instance_fork::EgressFamily::CronTick, now_ms)?;
         self.db.ensure_migration_lane_open()?;
         let admission = self.admission.admit()?;
         let before_claim = self.cron.clone();
@@ -18659,10 +20021,7 @@ impl LocalSnapback {
         drive: &str,
         diagnostic_boundary: DiagnosticBoundary,
     ) -> SnapbackResult<Vec<AdmittedJobClaim>> {
-        self.deny_derived_fork_egress(
-            crate::instance_fork::EgressFamily::JobsDrain,
-            now_ms,
-        )?;
+        self.deny_derived_fork_egress(crate::instance_fork::EgressFamily::JobsDrain, now_ms)?;
         self.db.ensure_migration_lane_open()?;
         // Admission precedes the durable claim write, mirroring cron: if the
         // process is closing, no new claims are taken.
@@ -18677,14 +20036,14 @@ impl LocalSnapback {
             #[cfg(test)]
             let next_admission =
                 if FAIL_NEXT_ADDITIONAL_JOB_ADMISSION.with(|fail| fail.replace(false)) {
-                Err(SnapbackError::error(
-                    "SNAPBACK_AUTH_MODE_PENDING",
-                    "auth",
-                    "closed partial-claim admission fixture",
-                ))
-            } else {
-                self.admission.admit()
-            };
+                    Err(SnapbackError::error(
+                        "SNAPBACK_AUTH_MODE_PENDING",
+                        "auth",
+                        "closed partial-claim admission fixture",
+                    ))
+                } else {
+                    self.admission.admit()
+                };
             #[cfg(not(test))]
             let next_admission = self.admission.admit();
             match next_admission {
@@ -19024,12 +20383,14 @@ impl LocalSnapback {
                     effect_fence,
                     network_egress,
                 ),
-            None => self.ephemeral.enqueue_authorized_durable_with_network_egress(
-                subscription.connection_id.clone(),
-                payload,
-                authorization,
-                network_egress,
-            ),
+            None => self
+                .ephemeral
+                .enqueue_authorized_durable_with_network_egress(
+                    subscription.connection_id.clone(),
+                    payload,
+                    authorization,
+                    network_egress,
+                ),
         }
     }
 
@@ -19608,11 +20969,7 @@ impl LocalSnapback {
         name: &str,
     ) -> SnapbackResult<&crate::manifest::FunctionDefinition> {
         self.functions.function(name).ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_UNKNOWN_FUNCTION",
-                "runtime",
-                format!("unknown function {name}"),
-            )
+            crate::authoring_suggestion::unknown_function_error(&self.functions, name, &[])
         })
     }
 
@@ -19792,13 +21149,33 @@ impl LocalSnapback {
                     .collect();
                 (identity.plan_hash, nodes, "snapshot-batch.v1")
             }
+            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)) => {
+                let identity = crate::manifest::snapshot_batch_identity_v2(function, plan)?;
+                let nodes = identity
+                    .node_plan_hashes
+                    .into_iter()
+                    .zip(&plan.nodes)
+                    .enumerate()
+                    .map(|(position, (node_plan_hash, node))| {
+                        crate::completeness::ProofNodeIdentityV1 {
+                            position: position as u64,
+                            class_id: node.class_id().to_owned(),
+                            class_version: 1,
+                            node_plan_hash,
+                        }
+                    })
+                    .collect();
+                (identity.plan_hash, nodes, "snapshot-batch.v2")
+            }
             _ => return Ok(None),
         };
         let input_cursor = input.args.get("cursor").and_then(Value::as_str);
         let output_cursor = match &function.runtime {
             FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(_)) => output.cursor.as_deref(),
             FunctionRuntime::HostPlan(
-                HandlerPlan::BoundedChildrenQuery(_) | HandlerPlan::SnapshotBatch(_),
+                HandlerPlan::BoundedChildrenQuery(_)
+                | HandlerPlan::SnapshotBatch(_)
+                | HandlerPlan::SnapshotBatchV2(_),
             ) => output
                 .rows
                 .first()
@@ -19972,6 +21349,99 @@ impl LocalSnapback {
                             .collect()
                     }
                 }
+                FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)) => {
+                    if let Some(cursor) = output_cursor {
+                        let roots = self
+                            .resume_keyring
+                            .read()
+                            .map_err(|_| issue_error("resume keyring lock is poisoned".to_owned()))?
+                            .snapshot_batch_cursor_v2_materials(now_millis());
+                        let body = crate::snapshot_batch_cursor_v2::decode(
+                            cursor,
+                            &roots,
+                            &activation.activation.expected_generation.app_id,
+                            &activation.activation.database_id,
+                            &activation.activation.target_profile_id,
+                            now_millis(),
+                        )
+                        .map_err(|_| {
+                            issue_error("issued snapshot-batch v2 cursor did not verify".to_owned())
+                        })?;
+                        body.nodes
+                            .into_iter()
+                            .zip(&plan.nodes)
+                            .map(|(node, plan_node)| {
+                                let state = match (node.state, plan_node) {
+                                    (
+                                        crate::snapshot_batch_cursor_v2::NodeState::Terminal,
+                                        _,
+                                    ) => crate::completeness::NodeBoundaryStateV1::Terminal,
+                                    (
+                                        crate::snapshot_batch_cursor_v2::NodeState::Boundary {
+                                            order_fields,
+                                            boundary,
+                                            row_id,
+                                        },
+                                        crate::manifest::SnapshotBatchNodeV2::BoundedChildren(_),
+                                    ) => {
+                                        let boundary = crate::completeness::NodePageBoundaryV1::BoundedChildren {
+                                            order_fields,
+                                            boundary,
+                                            row_id,
+                                        };
+                                        crate::completeness::NodeBoundaryStateV1::Boundary {
+                                            boundary_digest: crate::completeness::node_page_boundary_digest(
+                                                node.position as u64,
+                                                "bounded_children_v1",
+                                                1,
+                                                &boundary,
+                                            ).map_err(|error| issue_error(error.to_string()))?,
+                                        }
+                                    }
+                                    (
+                                        crate::snapshot_batch_cursor_v2::NodeState::RelationalBoundary {
+                                            order_fields,
+                                            boundary,
+                                            row_id,
+                                        },
+                                        crate::manifest::SnapshotBatchNodeV2::RelationalQuery(_),
+                                    ) => {
+                                        let boundary = crate::completeness::NodePageBoundaryV1::RelationalQuery {
+                                            order_fields,
+                                            boundary,
+                                            row_id,
+                                        };
+                                        crate::completeness::NodeBoundaryStateV1::Boundary {
+                                            boundary_digest: crate::completeness::node_page_boundary_digest(
+                                                node.position as u64,
+                                                "relational_query_v1",
+                                                1,
+                                                &boundary,
+                                            ).map_err(|error| issue_error(error.to_string()))?,
+                                        }
+                                    }
+                                    _ => {
+                                        return Err(issue_error(
+                                            "issued snapshot-batch v2 cursor state did not match its node class".to_owned(),
+                                        ));
+                                    }
+                                };
+                                Ok(crate::completeness::PageBoundaryVectorNodeV1 {
+                                    position: node.position as u64,
+                                    state,
+                                })
+                            })
+                            .collect::<SnapbackResult<Vec<_>>>()?
+                    } else {
+                        nodes
+                            .iter()
+                            .map(|node| crate::completeness::PageBoundaryVectorNodeV1 {
+                                position: node.position,
+                                state: crate::completeness::NodeBoundaryStateV1::Terminal,
+                            })
+                            .collect()
+                    }
+                }
                 _ => unreachable!("admitted completeness class selected above"),
             };
             let vector = crate::completeness::PageBoundaryVectorV1 {
@@ -20044,7 +21514,9 @@ impl LocalSnapback {
             .map_err(|error| issue_error(error.to_string()))?;
         let page_set_manifest = if matches!(
             function.runtime,
-            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(_))
+            FunctionRuntime::HostPlan(
+                HandlerPlan::SnapshotBatch(_) | HandlerPlan::SnapshotBatchV2(_)
+            )
         ) && matches!(
             &proof.page,
             crate::completeness::PageIdentityV1::Visible {
@@ -20235,72 +21707,72 @@ impl LocalSnapback {
         rehearsal: Option<&crate::migration::MigrationRehearsalPlanV1>,
     ) -> SnapbackResult<crate::storage::migration_executor::MigrationReceiptV1> {
         let result = (|| {
-        // @ref LLP 0081#4-execution-journaling-and-crash-recovery — the
-        //   publication fires LLP 0053's activation obligations for
-        //   auth-scoped state: every auth-scoped subscription gets a durable
-        //   Delete obligation with the publication witness, a terminal
-        //   resolution with acknowledgement semantics, and an authenticated
-        //   scope retirement (see retire_live_subscriptions_for_publication).
-        //   The only refusal left here is the inconsistent state where
-        //   auth-scoped subscriptions exist without installed invalidation —
-        //   no durable disposition could be recorded, so publishing would
-        //   silently substitute a resync for 0053's machinery.
-        if self.auth_invalidation.is_none()
-            && self
-                .subscriptions
-                .values()
-                .any(|subscription| subscription.authorization.is_some())
-        {
-            return Err(SnapbackError::error(
-                "SNAPBACK_MIGRATION_PROFILE_UNSUPPORTED",
-                "storage",
-                "migration publication found auth-scoped subscriptions without installed \
+            // @ref LLP 0081#4-execution-journaling-and-crash-recovery — the
+            //   publication fires LLP 0053's activation obligations for
+            //   auth-scoped state: every auth-scoped subscription gets a durable
+            //   Delete obligation with the publication witness, a terminal
+            //   resolution with acknowledgement semantics, and an authenticated
+            //   scope retirement (see retire_live_subscriptions_for_publication).
+            //   The only refusal left here is the inconsistent state where
+            //   auth-scoped subscriptions exist without installed invalidation —
+            //   no durable disposition could be recorded, so publishing would
+            //   silently substitute a resync for 0053's machinery.
+            if self.auth_invalidation.is_none()
+                && self
+                    .subscriptions
+                    .values()
+                    .any(|subscription| subscription.authorization.is_some())
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_MIGRATION_PROFILE_UNSUPPORTED",
+                    "storage",
+                    "migration publication found auth-scoped subscriptions without installed \
                  authorization-invalidation state; no durable disposition can be recorded",
-            ));
-        }
-        // @ref LLP 0081#4-execution-journaling-and-crash-recovery — what
-        //   publishes with the storage is the staged generated-function and
-        //   schema identity set. On the local profile the serving manifest
-        //   is that staged set, so publication refuses when it does not
-        //   bind against the successor schema — a released database whose
-        //   functions reference retired shape is exactly the ambiguity the
-        //   receipt exists to prevent.
-        if self.functions_loaded
-            && let Err(error) =
-                validate_function_schema_references(&self.functions, successor_schema)
-        {
-            // @ref LLP 0081#6-compatibility-and-deployment-ordering — the
-            //   posture is proven from generated function/schema facts,
-            //   never inferred: a dual-compatible or predeploy-compatible
-            //   declaration claims the installed predecessor artifact
-            //   remains valid against the successor schema, so a failed
-            //   binding proof refuses the declared ordering by name.
-            let message = match artifact.body.compatibility_posture {
-                crate::migration::CompatibilityPosture::SuccessorOnly => format!(
-                    "the staged function set does not bind against the successor schema; \
+                ));
+            }
+            // @ref LLP 0081#4-execution-journaling-and-crash-recovery — what
+            //   publishes with the storage is the staged generated-function and
+            //   schema identity set. On the local profile the serving manifest
+            //   is that staged set, so publication refuses when it does not
+            //   bind against the successor schema — a released database whose
+            //   functions reference retired shape is exactly the ambiguity the
+            //   receipt exists to prevent.
+            if self.functions_loaded
+                && let Err(error) =
+                    validate_function_schema_references(&self.functions, successor_schema)
+            {
+                // @ref LLP 0081#6-compatibility-and-deployment-ordering — the
+                //   posture is proven from generated function/schema facts,
+                //   never inferred: a dual-compatible or predeploy-compatible
+                //   declaration claims the installed predecessor artifact
+                //   remains valid against the successor schema, so a failed
+                //   binding proof refuses the declared ordering by name.
+                let message = match artifact.body.compatibility_posture {
+                    crate::migration::CompatibilityPosture::SuccessorOnly => format!(
+                        "the staged function set does not bind against the successor schema; \
                      stage a successor-compatible pair before publishing ({})",
-                    error.diagnostic.message
-                ),
-                crate::migration::CompatibilityPosture::DualCompatible => format!(
-                    "the declared dual-compatible ordering is unproven: the installed \
+                        error.diagnostic.message
+                    ),
+                    crate::migration::CompatibilityPosture::DualCompatible => format!(
+                        "the declared dual-compatible ordering is unproven: the installed \
                      predecessor artifact does not remain valid against the successor \
                      schema ({})",
-                    error.diagnostic.message
-                ),
-                crate::migration::CompatibilityPosture::PredeployCompatible => format!(
-                    "the declared predeploy-compatible ordering is unproven: the \
+                        error.diagnostic.message
+                    ),
+                    crate::migration::CompatibilityPosture::PredeployCompatible => format!(
+                        "the declared predeploy-compatible ordering is unproven: the \
                      predecessor artifact's reads and writes do not remain valid against \
                      the successor schema ({})",
-                    error.diagnostic.message
-                ),
-            };
-            return Err(SnapbackError::error(
-                "SNAPBACK_MIGRATION_PRECONDITION_FAILED",
-                "storage",
-                message,
-            ));
-        }
-        let audience = self.migrate_resolved_audience()?;
+                        error.diagnostic.message
+                    ),
+                };
+                return Err(SnapbackError::error(
+                    "SNAPBACK_MIGRATION_PRECONDITION_FAILED",
+                    "storage",
+                    message,
+                ));
+            }
+            let audience = self.migrate_resolved_audience()?;
             let receipt = self.db.migrate_apply(
                 crate::storage::migration_executor::MigrationApplyRequest {
                     artifact,
@@ -20311,14 +21783,14 @@ impl LocalSnapback {
                     rehearsal,
                 },
             )?;
-        // The successor is authoritative: refresh every schema projection
-        // the serving process holds, then retire every retained live
-        // subscription with a clear-retained resync — no predecessor
-        // result, retained row, or pre-publication cursor survives the
-        // raised floor.
-        self.refresh_read_manifests();
-        self.retire_live_subscriptions_for_publication()?;
-        Ok(receipt)
+            // The successor is authoritative: refresh every schema projection
+            // the serving process holds, then retire every retained live
+            // subscription with a clear-retained resync — no predecessor
+            // result, retained row, or pre-publication cursor survives the
+            // raised floor.
+            self.refresh_read_manifests();
+            self.retire_live_subscriptions_for_publication()?;
+            Ok(receipt)
         })();
         let (name, status, code, priority) = match &result {
             Ok(_) => (
@@ -20355,14 +21827,14 @@ impl LocalSnapback {
     ) -> SnapbackResult<crate::storage::migration_executor::MigrationRollbackReceiptV1> {
         let result: SnapbackResult<crate::storage::migration_executor::MigrationRollbackReceiptV1> =
             (|| {
-        let audience = self.migrate_resolved_audience()?;
+                let audience = self.migrate_resolved_audience()?;
                 let receipt =
                     self.db
-            .migrate_rollback(artifact, approval, &audience, now_millis())?;
-        // The republished predecessor is authoritative again.
-        self.refresh_read_manifests();
-        Ok(receipt)
-        })();
+                        .migrate_rollback(artifact, approval, &audience, now_millis())?;
+                // The republished predecessor is authoritative again.
+                self.refresh_read_manifests();
+                Ok(receipt)
+            })();
         let (name, status, code) = match &result {
             Ok(_) => ("migration_success", 200, None),
             Err(error) => (
@@ -20656,6 +22128,68 @@ impl LocalSnapback {
         Ok(record)
     }
 
+    pub(crate) fn covered_host_child_identity(
+        &mut self,
+        parent: &HostOperationParentV1,
+        function: &str,
+        input: &HandlerInput,
+        authority: &PreparedAuthority,
+    ) -> SnapbackResult<Option<ClientMutationIdentity>> {
+        // @ref LLP 0163#contract-summary-normative-details-per-llp-0162-0-2 —
+        //   coverage is an explicit writer-lane cut; inactive targets neither
+        //   mint nor consume host identity ordinals.
+        if !self
+            .db
+            .operation_lane_covered(crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1)?
+        {
+            return Ok(None);
+        }
+        let (upstream_identity, commit_ordinal) = parent.next_child()?;
+        authority.validate_admission("host child operation identity")?;
+        self.persist_and_validate_prepared_service_authority(authority)?;
+        let incarnation = self.db.ensure_authorization_stream_incarnation()?;
+        let descriptor = descriptor_for_authority(authority, incarnation.as_str())?;
+        let issuance = self.db.host_operation_issuance(
+            &descriptor.authority_instance_id,
+            upstream_identity,
+            commit_ordinal,
+            now_millis(),
+        )?;
+        let operation_id =
+            crate::commit_envelope::derive_host_operation_id(upstream_identity, commit_ordinal);
+        let mut canonical_input = input.clone();
+        canonical_input.auth = authority.canonical_auth_input();
+        let generation = DeploymentIdentity::from_manifests(
+            authority.active_mode(),
+            self.db.schema(),
+            &self.functions,
+        )
+        .map(|identity| ArtifactGeneration {
+            schema_version: identity.schema_version,
+            app_id: identity.app_id,
+            schema_hash: identity.schema_hash,
+            bundle_hash: identity.bundle_hash,
+            inputs_hash: identity.inputs_hash,
+        })
+        .map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_ARTIFACT_IDENTITY_MISMATCH",
+                "runtime",
+                "covered host operation requires a derivable selected artifact generation",
+            )
+        })?;
+        Ok(Some(
+            ClientMutationIdentity::for_authority(
+                operation_id,
+                function,
+                &canonical_input,
+                descriptor.authority_instance_id,
+            )
+            .with_artifact_generation(&generation)
+            .with_operation_issuance(issuance),
+        ))
+    }
+
     /// Capture a stored HostPlan action for managed execution without keeping
     /// the global instance mutex across its sequence of nested commits. Each
     /// step is staged and reserved independently by
@@ -20692,15 +22226,17 @@ impl LocalSnapback {
         let input = prepared.canonicalize_input(input);
         let correlation = telemetry_correlation(&input.correlation);
         let observation = self.telemetry.start_classified_span(
-                    crate::telemetry_contract::OperationClassIdV1::FUNCTION_ACTION,
-                    name,
-                    correlation.as_deref(),
-                    None,
-                );
+            crate::telemetry_contract::OperationClassIdV1::FUNCTION_ACTION,
+            name,
+            correlation.as_deref(),
+            None,
+        );
+        let host_operation = HostOperationParentV1::from_action_run(&metadata);
         Ok(ManagedHostPlanAction {
             plan: plan.clone(),
             input,
             metadata,
+            host_operation,
             invocation: prepared,
             app_generation: self.app_generation,
             app_generation_fence: self.app_generation_fence.clone(),
@@ -20740,20 +22276,31 @@ impl LocalSnapback {
         let authority = action
             .invocation
             .inherit_authority_for(InvocationSource::NestedMutation)?;
-        self.stage_recorded_authorization_mutation(
+        let child_input = HandlerInput {
+            args: Value::Object(mutation_args),
+            auth: action.input.auth.clone(),
+            read_set: Vec::new(),
+            correlation: None,
+            ctx_ledger: None,
+        };
+        let host_identity = self.covered_host_child_identity(
+            &action.host_operation,
             name,
-            HandlerInput {
-                args: Value::Object(mutation_args),
-                auth: action.input.auth.clone(),
-                read_set: Vec::new(),
-                correlation: None,
-                ctx_ledger: None,
-            },
-            None,
+            &child_input,
+            &authority,
+        )?;
+        self.stage_recorded_authorization_mutation_with_generation_and_settlement_inner(
+            name,
+            child_input,
+            host_identity.as_ref().map(|identity| identity.id.clone()),
             None,
             &[],
             "local",
             authority,
+            None,
+            host_identity.and_then(|identity| identity.operation_issuance),
+            MutationSettlement::default(),
+            true,
         )
     }
 
@@ -20783,45 +22330,45 @@ impl LocalSnapback {
         crate::args_contract::validate_function_args(&function, &input.args)?;
         let correlation = telemetry_correlation(&input.correlation);
         let span = self.telemetry.start_classified_span(
-                    crate::telemetry_contract::OperationClassIdV1::FUNCTION_ACTION,
-                    name,
-                    correlation.as_deref(),
-                    None,
-                );
+            crate::telemetry_contract::OperationClassIdV1::FUNCTION_ACTION,
+            name,
+            correlation.as_deref(),
+            None,
+        );
         let invocation_redactor = self.config.secret_redactor_for(&function.uses);
         let telemetry = self.telemetry.clone();
         let result = crate::runtime::with_runtime_log_telemetry(telemetry, correlation, || {
-                match (&function.kind, &function.runtime) {
+            match (&function.kind, &function.runtime) {
                 (FunctionKind::Action, FunctionRuntime::HostPlan(HandlerPlan::Action(plan))) => {
                     self.invoke_action_plan(plan, input, metadata, &prepared)
                 }
-            (FunctionKind::Action, FunctionRuntime::IbexModule(module)) => {
-                let runtime = self.runtime.clone();
-                // @ref LLP 0036#runtime-exposure-d5-d8 — grants are computed
-                // per invocation from the function's `uses` declaration; the
-                // store is read through on every run (no caching), leaving VM
-                // reuse questions to the DK-4 machinery.
-                let grants = self.config_grants(&function);
-                // One provenance root: runMutation (and the trait's unreachable
-                // raw-read defense) derives a reference from this *mut for one
-                // synchronous call, so no borrow outlives a later write.
-                let snapback = self as *mut LocalSnapback;
-                let mut host = LocalIbexActionHost {
-                    snapback,
-                    authority: prepared.authority().clone(),
-                    _marker: PhantomData,
-                };
-                runtime.invoke_ibex_action_prepared(
-                    module, input, &prepared, metadata, &mut host, grants, None,
-                )
-            }
-            _ => Err(SnapbackError::error(
-                "SNAPBACK_FUNCTION_KIND_MISMATCH",
-                "runtime",
-                format!("{name} is not an action"),
-            )),
+                (FunctionKind::Action, FunctionRuntime::IbexModule(module)) => {
+                    let runtime = self.runtime.clone();
+                    // @ref LLP 0036#runtime-exposure-d5-d8 — grants are computed
+                    // per invocation from the function's `uses` declaration; the
+                    // store is read through on every run (no caching), leaving VM
+                    // reuse questions to the DK-4 machinery.
+                    let grants = self.config_grants(&function);
+                    // One provenance root: runMutation (and the trait's unreachable
+                    // raw-read defense) derives a reference from this *mut for one
+                    // synchronous call, so no borrow outlives a later write.
+                    let snapback = self as *mut LocalSnapback;
+                    let mut host = LocalIbexActionHost {
+                        snapback,
+                        authority: prepared.authority().clone(),
+                        _marker: PhantomData,
+                    };
+                    runtime.invoke_ibex_action_prepared(
+                        module, input, &prepared, metadata, &mut host, grants, None,
+                    )
                 }
-            });
+                _ => Err(SnapbackError::error(
+                    "SNAPBACK_FUNCTION_KIND_MISMATCH",
+                    "runtime",
+                    format!("{name} is not an action"),
+                )),
+            }
+        });
         let result = result.map_err(|error| {
             // In-lock actions cannot race config rotation, but scrub at the
             // creation boundary so no public envelope observes raw secret
@@ -22993,6 +24540,242 @@ fn user_permission_scope(user_id: &str) -> String {
     format!("user:{user_id}")
 }
 
+/// The single derivation shared by finite-range issuance and public
+/// explanation. A caller-supplied retained `audience` is never accepted as
+/// proof that the live authority owns the operation namespace.
+///
+/// @ref LLP 0163#contract-summary-normative-details-per-llp-0162-0-2 — the
+///   audience is a compared fact derived from client-store identity plus the
+///   current server authority incarnation.
+fn operation_client_audience(
+    authority_instance_id: &str,
+    client_audience_id: &str,
+) -> SnapbackResult<String> {
+    if !crate::manifest::replay_opaque_id_is_valid(client_audience_id) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_OPERATION_RANGE_AUDIENCE_INVALID",
+            "protocol",
+            "clientAudienceId must use the bounded opaque replay-id alphabet",
+        ));
+    }
+    use sha2::Digest as _;
+    let mut digest = sha2::Sha256::new();
+    digest.update(b"snapback:client-range-audience:v1\n");
+    digest.update(authority_instance_id.as_bytes());
+    digest.update(b"\n");
+    digest.update(client_audience_id.as_bytes());
+    Ok(format!("sha256:{:x}", digest.finalize()))
+}
+
+/// Recover only the generated owner-mutation policies whose complete shape is
+/// independently recognizable from the active artifact. A standardPattern
+/// string alone is not authority: hand-written, opaque, and widened plans
+/// remain unprovable. Generated owner deletes are classified so the fact
+/// evaluator can apply the explicit current-row-absent refusal.
+struct OwnerMutationExplanationShapeV1 {
+    table: String,
+    owner_field: String,
+    kind: crate::operation_ledger::OwnerMutationExplanationKindV1,
+    create_mint_site: Option<String>,
+}
+
+fn owner_mutation_explanation_shape(
+    function: &FunctionDefinition,
+    schema: &SchemaManifest,
+) -> Option<OwnerMutationExplanationShapeV1> {
+    let pattern = function.standard_pattern.as_ref()?;
+    if pattern.helper != "owned-crud.v1"
+        || pattern.profile != "owner.v1"
+        || pattern.membership.is_some()
+        || function.kind != FunctionKind::Mutation
+    {
+        return None;
+    }
+    let FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) = &function.runtime else {
+        return None;
+    };
+    let (table, owner_field, kind, create_mint_site) = match plan.steps.as_slice() {
+        [
+            MutationStep::Insert {
+                table,
+                values,
+                bind_id_as: Some(bind_id_as),
+            },
+        ] => {
+            if !matches!(
+                plan.return_value.as_ref(),
+                Some(crate::manifest::ReturnValue::Document {
+                    table: result_table,
+                    id: ValueExpr::Binding(result_binding),
+                }) if result_table == table && result_binding == bind_id_as
+            ) {
+                return None;
+            }
+            let owner_fields = values
+                .iter()
+                .filter_map(|(field, value)| (value == &ValueExpr::AuthUserId).then_some(field))
+                .collect::<Vec<_>>();
+            if owner_fields.len() != 1 {
+                return None;
+            }
+            (
+                table.clone(),
+                owner_fields[0].clone(),
+                crate::operation_ledger::OwnerMutationExplanationKindV1::Create,
+                Some("plan/steps/0/insert/row-id".to_owned()),
+            )
+        }
+        [
+            MutationStep::Get {
+                table,
+                id,
+                bind_as,
+                else_error: Some(missing),
+            },
+            MutationStep::Guard {
+                cond,
+                else_error: denied,
+            },
+            MutationStep::Patch {
+                table: patch_table,
+                id: patch_id,
+                values,
+            },
+        ] if table == patch_table
+            && id == patch_id
+            && missing == "SNAPBACK_ROW_NOT_FOUND"
+            && denied == "SNAPBACK_ROW_NOT_FOUND" =>
+        {
+            if !matches!(
+                plan.return_value.as_ref(),
+                Some(crate::manifest::ReturnValue::Document {
+                    table: result_table,
+                    id: result_id,
+                }) if result_table == table && result_id == id
+            ) {
+                return None;
+            }
+            let ValueExpr::Binary {
+                op: crate::manifest::BinaryOp::Eq,
+                left,
+                right,
+            } = cond
+            else {
+                return None;
+            };
+            let (ValueExpr::Field { base, key }, ValueExpr::AuthUserId) =
+                (left.as_ref(), right.as_ref())
+            else {
+                return None;
+            };
+            if base.as_ref() != &ValueExpr::Binding(bind_as.clone()) || values.contains_key(key) {
+                return None;
+            }
+            (
+                table.clone(),
+                key.clone(),
+                crate::operation_ledger::OwnerMutationExplanationKindV1::Update,
+                None,
+            )
+        }
+        [
+            MutationStep::Get {
+                table,
+                id,
+                bind_as,
+                else_error: Some(missing),
+            },
+            MutationStep::Guard {
+                cond,
+                else_error: denied,
+            },
+            MutationStep::Delete {
+                table: delete_table,
+                id: delete_id,
+            },
+        ] if table == delete_table
+            && id == delete_id
+            && missing == "SNAPBACK_ROW_NOT_FOUND"
+            && denied == "SNAPBACK_ROW_NOT_FOUND"
+            && plan.return_value.is_none() =>
+        {
+            let ValueExpr::Binary {
+                op: crate::manifest::BinaryOp::Eq,
+                left,
+                right,
+            } = cond
+            else {
+                return None;
+            };
+            let (ValueExpr::Field { base, key }, ValueExpr::AuthUserId) =
+                (left.as_ref(), right.as_ref())
+            else {
+                return None;
+            };
+            if base.as_ref() != &ValueExpr::Binding(bind_as.clone()) {
+                return None;
+            }
+            (
+                table.clone(),
+                key.clone(),
+                crate::operation_ledger::OwnerMutationExplanationKindV1::Delete,
+                None,
+            )
+        }
+        _ => return None,
+    };
+    let table_manifest = schema.table(&table)?;
+    let field = table_manifest.field(&owner_field)?;
+    if field.optional
+        || !matches!(
+            field.field_type,
+            crate::manifest::FieldType::String | crate::manifest::FieldType::Principal
+        )
+    {
+        return None;
+    }
+    Some(OwnerMutationExplanationShapeV1 {
+        table,
+        owner_field,
+        kind,
+        create_mint_site,
+    })
+}
+
+fn agent_safe_generated_owner_profile(
+    function: &FunctionDefinition,
+    schema: &SchemaManifest,
+) -> Option<crate::manifest::AgentSafeExplanationProfileV1> {
+    use crate::manifest::AgentSafeExplanationProfileV1;
+    match owner_mutation_explanation_shape(function, schema)?.kind {
+        crate::operation_ledger::OwnerMutationExplanationKindV1::Create => {
+            Some(AgentSafeExplanationProfileV1::GeneratedOwnedCrudOwnerCreateV1)
+        }
+        crate::operation_ledger::OwnerMutationExplanationKindV1::Update => {
+            Some(AgentSafeExplanationProfileV1::GeneratedOwnedCrudOwnerUpdateV1)
+        }
+        crate::operation_ledger::OwnerMutationExplanationKindV1::Delete => None,
+    }
+}
+
+fn owner_mutation_explanation_policy(
+    function: &FunctionDefinition,
+    schema: &SchemaManifest,
+    authority: &PreparedAuthority,
+) -> Option<crate::operation_ledger::ExplanationFactPolicyV1> {
+    let subject = authority.canonical_auth_input().user_id?;
+    let shape = owner_mutation_explanation_shape(function, schema)?;
+    Some(
+        crate::operation_ledger::ExplanationFactPolicyV1::OwnerMutationV1 {
+            subject,
+            table: shape.table,
+            owner_field: shape.owner_field,
+            kind: shape.kind,
+            create_mint_site: shape.create_mint_site,
+        },
+    )
+}
+
 /// The manifest state a read-only query invocation needs, published as one
 /// immutable snapshot so the read lane swaps it in O(1) and never blocks on
 /// (or observes a partially-applied) manifest load.
@@ -23248,10 +25031,10 @@ impl ReadLane {
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .clone();
         let function = manifests.functions.function(name).ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_UNKNOWN_FUNCTION",
-                "runtime",
-                format!("unknown function {name}"),
+            crate::authoring_suggestion::unknown_function_error(
+                &manifests.functions,
+                name,
+                &[FunctionKind::Query, FunctionKind::LiveQuery],
             )
         })?;
         validate_expected_generation_against_manifests(
@@ -23264,39 +25047,39 @@ impl ReadLane {
         let input = prepared.canonicalize_input(input);
         let correlation = telemetry_correlation(&input.correlation);
         let span = self.telemetry.start_classified_span(
-                    crate::telemetry_contract::OperationClassIdV1::FUNCTION_QUERY,
-                    name,
-                    correlation.as_deref(),
-                    None,
-                );
+            crate::telemetry_contract::OperationClassIdV1::FUNCTION_QUERY,
+            name,
+            correlation.as_deref(),
+            None,
+        );
         let vector_quarantine = VectorQuarantineCapture::default();
         let mut result = (|| {
-        let reader = pool.checkout()?;
-        let tx = reader.conn().unchecked_transaction()?;
-        // Pin the WAL snapshot now (the first read fixes it), before any
-        // handler work, so rows, captured read versions, and the reported
-        // version all come from this snapshot.
-        crate::storage::current_version_on(&tx)?;
+            let reader = pool.checkout()?;
+            let tx = reader.conn().unchecked_transaction()?;
+            // Pin the WAL snapshot now (the first read fixes it), before any
+            // handler work, so rows, captured read versions, and the reported
+            // version all come from this snapshot.
+            crate::storage::current_version_on(&tx)?;
             let invocation = crate::runtime::with_runtime_log_telemetry(
                 self.telemetry.clone(),
                 correlation,
                 || {
                     execute_query_invocation(
-            function,
-            name,
-            DbRead::Pinned {
-                conn: &tx,
-                schema: &manifests.schema,
-            },
-            epochs.as_ref(),
-            input,
-            &prepared,
-            Some(&self.warm_vms),
-            Some(RelationalCursorAuthority {
-                app_id: &manifests.functions.app_id,
-                keyring: &self.resume_keyring,
-                schema_hash: manifests.schema.schema_hash.as_deref(),
-                function_bundle_hash: manifests.functions.bundle_hash.as_deref(),
+                        function,
+                        name,
+                        DbRead::Pinned {
+                            conn: &tx,
+                            schema: &manifests.schema,
+                        },
+                        epochs.as_ref(),
+                        input,
+                        &prepared,
+                        Some(&self.warm_vms),
+                        Some(RelationalCursorAuthority {
+                            app_id: &manifests.functions.app_id,
+                            keyring: &self.resume_keyring,
+                            schema_hash: manifests.schema.schema_hash.as_deref(),
+                            function_bundle_hash: manifests.functions.bundle_hash.as_deref(),
                             function_publication_generation: manifests.app_generation,
                             target_profile: manifests.schema.target_profile.as_deref(),
                         }),
@@ -23304,8 +25087,8 @@ impl ReadLane {
                         Some(&vector_quarantine),
                     )
                 },
-        )?;
-        Ok(invocation.output)
+            )?;
+            Ok(invocation.output)
         })();
         if let Some(target) = vector_quarantine.take()
             && pool.quarantine_vector_generation(&target).is_err()
@@ -24113,13 +25896,104 @@ fn bounded_projection_result_contract(
     }
 }
 
+fn snapshot_batch_relational_result_contract(
+    root: &crate::manifest::TableManifest,
+    joined: &crate::manifest::TableManifest,
+    plan: &crate::manifest::RelationalQueryPlan,
+) -> crate::manifest::ResultValueContract {
+    use crate::manifest::{
+        FieldType, JoinKind, ProjectionSource, ResultObjectFieldContract, ResultValueContract,
+    };
+    let scalar = |table: &crate::manifest::TableManifest,
+                  field_name: &str|
+     -> ResultValueContract {
+        if field_name == "_id" {
+            return ResultValueContract::Id {
+                table: table.name.clone(),
+            };
+        }
+        let field = table
+            .field(field_name)
+            .expect("relational projection field validated before contract derivation");
+        let value = match &field.field_type {
+            FieldType::String => ResultValueContract::String {
+                max_bytes: 1_048_576,
+            },
+            FieldType::Boolean => ResultValueContract::Boolean,
+            FieldType::Integer => ResultValueContract::Integer {
+                min: -9_007_199_254_740_991,
+                max: 9_007_199_254_740_991,
+            },
+            FieldType::Real => ResultValueContract::FiniteReal {
+                min: -f64::MAX,
+                max: f64::MAX,
+            },
+            FieldType::Principal => ResultValueContract::Principal,
+            FieldType::Id { table } => ResultValueContract::Id {
+                table: table.clone(),
+            },
+            FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
+            FieldType::Vector { .. } | FieldType::Json | FieldType::RelationIncarnation { .. } => {
+                unreachable!("non-portable relational projection refused before derivation")
+            }
+        };
+        if field.optional {
+            ResultValueContract::Union {
+                variants: vec![ResultValueContract::Null, value],
+            }
+        } else {
+            value
+        }
+    };
+    let nullable = |value: ResultValueContract| match &value {
+        ResultValueContract::Null => value,
+        ResultValueContract::Union { variants }
+            if variants
+                .iter()
+                .any(|variant| matches!(variant, ResultValueContract::Null)) =>
+        {
+            value
+        }
+        _ => ResultValueContract::Union {
+            variants: vec![ResultValueContract::Null, value],
+        },
+    };
+    let fields = plan
+        .projection
+        .iter()
+        .map(|leaf| ResultObjectFieldContract {
+            name: leaf.name.clone(),
+            required: true,
+            value: match &leaf.source {
+                ProjectionSource::RootField(name) => scalar(root, name),
+                ProjectionSource::JoinedField(name) => {
+                    let value = scalar(joined, name);
+                    if plan.join_kind == JoinKind::Left {
+                        nullable(value)
+                    } else {
+                        value
+                    }
+                }
+                ProjectionSource::Literal(value) => ResultValueContract::Literal {
+                    value: value.clone(),
+                },
+            },
+        })
+        .collect();
+    ResultValueContract::Object {
+        fields,
+        allow_extra: false,
+    }
+}
+
 /// Reconcile authored order uses into the one schema-level UTF-8 ceiling for
 /// each `(table, field)`. The authoring member lives on `OrderExpr` because a
 /// cursor profile is what needs the bound, but storage must never receive two
-/// competing answers for the same column.
+/// competing answers for the same string-encoded column.
 ///
-/// @ref LLP 0135#4-fold-on-acceptance-amendments-applied-2026-08-02 — bounds
-///   are positive, string-only, and single-valued per table/field.
+/// @ref LLP 0157#d8--coordinated-cursor-family-grammar-and-the-llp-0135-seam —
+///   snapshot-batch string and application-id order values share one positive,
+///   write-enforced, single-valued bound per table/field.
 fn order_field_bounds_from_functions(
     manifest: &FunctionManifest,
     schema: &SchemaManifest,
@@ -24128,56 +26002,59 @@ fn order_field_bounds_from_functions(
     let mut register = |table_name: &str,
                         order: &[crate::manifest::OrderExpr]|
      -> SnapbackResult<()> {
-            let table = schema.table(table_name).ok_or_else(|| {
+        let table = schema.table(table_name).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+                "runtime",
+                format!("order-field bound references unknown table {table_name}"),
+            )
+        })?;
+        for declaration in order {
+            let Some(max_encoded_bytes) = declaration.max_encoded_bytes else {
+                continue;
+            };
+            let field = table.field(&declaration.field).ok_or_else(|| {
                 SnapbackError::error(
                     "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
                     "runtime",
-                    format!("order-field bound references unknown table {table_name}"),
+                    format!(
+                        "order-field bound references unknown field {table_name}.{}",
+                        declaration.field
+                    ),
                 )
             })?;
-            for declaration in order {
-                let Some(max_encoded_bytes) = declaration.max_encoded_bytes else {
-                    continue;
-                };
-                let field = table.field(&declaration.field).ok_or_else(|| {
-                    SnapbackError::error(
-                        "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
-                        "runtime",
-                        format!(
-                            "order-field bound references unknown field {table_name}.{}",
-                            declaration.field
-                        ),
-                    )
-                })?;
-                if max_encoded_bytes == 0
-                    || max_encoded_bytes > 9_007_199_254_740_991
-                    || field.field_type != crate::manifest::FieldType::String
-                {
-                    return Err(SnapbackError::error(
-                        "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
-                        "runtime",
-                        format!(
-                            "order-field maxEncodedBytes requires a positive bound on string field {table_name}.{}",
-                            declaration.field
-                        ),
-                    ));
-                }
-                let key = (table_name.to_owned(), declaration.field.clone());
-                if let Some(previous) = bounds.insert(key.clone(), max_encoded_bytes)
-                    && previous != max_encoded_bytes
-                {
-                    return Err(SnapbackError::error(
-                        "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
-                        "runtime",
-                        format!(
-                            "order-field bound for {}.{} conflicts: {previous} versus {max_encoded_bytes}",
-                            key.0, key.1
-                        ),
-                    ));
-                }
+            if max_encoded_bytes == 0
+                || max_encoded_bytes > 9_007_199_254_740_991
+                || !matches!(
+                    &field.field_type,
+                    crate::manifest::FieldType::String | crate::manifest::FieldType::Id { .. }
+                )
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+                    "runtime",
+                    format!(
+                        "order-field maxEncodedBytes requires a positive bound on string or id field {table_name}.{}",
+                        declaration.field
+                    ),
+                ));
             }
-            Ok(())
-        };
+            let key = (table_name.to_owned(), declaration.field.clone());
+            if let Some(previous) = bounds.insert(key.clone(), max_encoded_bytes)
+                && previous != max_encoded_bytes
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+                    "runtime",
+                    format!(
+                        "order-field bound for {}.{} conflicts: {previous} versus {max_encoded_bytes}",
+                        key.0, key.1
+                    ),
+                ));
+            }
+        }
+        Ok(())
+    };
 
     for function in &manifest.functions {
         match &function.runtime {
@@ -24193,6 +26070,18 @@ fn order_field_bounds_from_functions(
             FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(plan)) => {
                 for node in &plan.nodes {
                     register(&node.child_table, &node.order)?;
+                }
+            }
+            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)) => {
+                for node in &plan.nodes {
+                    match node {
+                        crate::manifest::SnapshotBatchNodeV2::BoundedChildren(node) => {
+                            register(&node.child_table, &node.order)?;
+                        }
+                        crate::manifest::SnapshotBatchNodeV2::RelationalQuery(node) => {
+                            register(&node.root, &node.order)?;
+                        }
+                    }
                 }
             }
             _ => {}
@@ -24651,15 +26540,15 @@ fn validate_function_schema_references(
                     });
                     let target = target.expect("manifest structural validation found the sink");
                     let declared = table(target)?.field(&declaration.field).ok_or_else(|| {
-                            SnapbackError::error(
-                                "SNAPBACK_BOUNDED_SKEW_DECLARATION_INVALID",
-                                "runtime",
-                                format!(
-                                    "function {} boundedSkew names unknown field {target}.{}",
-                                    function.name, declaration.field
-                                ),
-                            )
-                        })?;
+                        SnapbackError::error(
+                            "SNAPBACK_BOUNDED_SKEW_DECLARATION_INVALID",
+                            "runtime",
+                            format!(
+                                "function {} boundedSkew names unknown field {target}.{}",
+                                function.name, declaration.field
+                            ),
+                        )
+                    })?;
                     if declared.field_type != crate::manifest::FieldType::Integer {
                         return Err(SnapbackError::error(
                             "SNAPBACK_BOUNDED_SKEW_DECLARATION_INVALID",
@@ -25045,6 +26934,157 @@ fn validate_function_schema_references(
                         "SNAPBACK_SNAPSHOT_BATCH_RESULT_CONTRACT_INVALID",
                         "query",
                         "snapshot batch visible nodes must exactly match the declaration-ordered cursor-free page tuple",
+                    ));
+                }
+            }
+            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)) => {
+                // @ref LLP 0157#d1--the-node-algebra — schema admission is
+                // per owner class. The composite adds no weakened relational
+                // or bounded-child plan shape and derives its heterogeneous
+                // visible tuple in declaration order.
+                let snapshot_projection_outputs = manifest
+                    .projections
+                    .iter()
+                    .map(|projection| projection.output_table.clone())
+                    .collect();
+                let mut expected_nodes = Vec::with_capacity(plan.nodes.len());
+                for node in &plan.nodes {
+                    match node {
+                        crate::manifest::SnapshotBatchNodeV2::BoundedChildren(node) => {
+                            let parent = table(&node.parent_table)?;
+                            let child = table(&node.child_table)?;
+                            validate_bounded_children_node_schema_references(
+                                node,
+                                parent,
+                                child,
+                                &snapshot_projection_outputs,
+                            )?;
+                            use crate::manifest::{ResultObjectFieldContract, ResultValueContract};
+                            expected_nodes.push(ResultValueContract::Object {
+                                fields: vec![
+                                    ResultObjectFieldContract {
+                                        name: "parent".to_owned(),
+                                        required: true,
+                                        value: bounded_projection_result_contract(
+                                            parent,
+                                            &node.parent_projection,
+                                        ),
+                                    },
+                                    ResultObjectFieldContract {
+                                        name: "children".to_owned(),
+                                        required: true,
+                                        value: ResultValueContract::Array {
+                                            element: Box::new(bounded_projection_result_contract(
+                                                child,
+                                                &node.child_projection,
+                                            )),
+                                            max_items: node.take as usize,
+                                        },
+                                    },
+                                ],
+                                allow_extra: false,
+                            });
+                        }
+                        crate::manifest::SnapshotBatchNodeV2::RelationalQuery(node) => {
+                            let mut root_filters = node.root_visibility.clone();
+                            root_filters.extend(node.root_filters.iter().cloned());
+                            query(&QueryPlan {
+                                table: node.root.clone(),
+                                filters: root_filters,
+                                order: node.order.clone(),
+                                limit: Some(node.take as usize),
+                                membership_filters: Vec::new(),
+                                indexed_by: Some(node.root_index.clone()),
+                            })?;
+                            for pair in &node.join_on {
+                                field(&node.root, &pair.root_field)?;
+                            }
+                            let mut joined_filters: Vec<crate::manifest::FilterExpr> = node
+                                .join_on
+                                .iter()
+                                .map(|pair| crate::manifest::FilterExpr {
+                                    field: pair.joined_field.clone(),
+                                    op: crate::manifest::FilterOp::Eq,
+                                    value: ValueExpr::Literal(Value::Null),
+                                })
+                                .collect();
+                            joined_filters.extend(node.joined_visibility.iter().cloned());
+                            query(&QueryPlan {
+                                table: node.joined.clone(),
+                                filters: joined_filters,
+                                order: Vec::new(),
+                                limit: Some(1),
+                                membership_filters: Vec::new(),
+                                indexed_by: None,
+                            })?;
+                            let joined = table(&node.joined)?;
+                            let key = node
+                                .join_on
+                                .iter()
+                                .map(|pair| pair.joined_field.as_str())
+                                .collect::<Vec<_>>();
+                            if !joined.indexes.iter().any(|candidate| {
+                                candidate.name == node.joined_index
+                                    && candidate.unique
+                                    && candidate
+                                        .fields
+                                        .iter()
+                                        .map(String::as_str)
+                                        .eq(key.iter().copied())
+                            }) {
+                                return Err(SnapbackError::error(
+                                    "SNAPBACK_RELATIONAL_CARDINALITY_UNPROVEN",
+                                    "runtime",
+                                    "snapshot batch v2 relational node requires its exact unique joined index",
+                                ));
+                            }
+                            for leaf in &node.projection {
+                                match &leaf.source {
+                                    crate::manifest::ProjectionSource::RootField(name) => {
+                                        field(&node.root, name)?;
+                                    }
+                                    crate::manifest::ProjectionSource::JoinedField(name) => {
+                                        field(&node.joined, name)?;
+                                    }
+                                    crate::manifest::ProjectionSource::Literal(_) => {}
+                                }
+                            }
+                            let root = table(&node.root)?;
+                            use crate::manifest::ResultValueContract;
+                            expected_nodes.push(ResultValueContract::Array {
+                                element: Box::new(snapshot_batch_relational_result_contract(
+                                    root, joined, node,
+                                )),
+                                max_items: node.take as usize,
+                            });
+                        }
+                    }
+                }
+                let actual_nodes = match &function.result_contract {
+                    crate::manifest::FunctionResultContract::Records {
+                        record: crate::manifest::ResultValueContract::Union { variants },
+                        ..
+                    } => variants
+                        .get(1)
+                        .and_then(|visible| match visible {
+                            crate::manifest::ResultValueContract::Object { fields, .. } => {
+                                fields.get(1)
+                            }
+                            _ => None,
+                        })
+                        .and_then(|field| match &field.value {
+                            crate::manifest::ResultValueContract::Tuple { elements } => {
+                                Some(elements)
+                            }
+                            _ => None,
+                        }),
+                    _ => None,
+                };
+                if actual_nodes != Some(&expected_nodes) {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SNAPSHOT_BATCH_RESULT_CONTRACT_INVALID",
+                        "query",
+                        "snapshot batch v2 visible nodes must exactly match the declaration-ordered mixed cursor-free page tuple",
                     ));
                 }
             }
@@ -25708,6 +27748,14 @@ fn snapshot_batch_cursor_mint_unavailable() -> SnapbackError {
     )
 }
 
+fn snapshot_batch_work_ceiling_exceeded() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_SNAPSHOT_BATCH_CEILING_EXCEEDED",
+        "query",
+        "snapshot batch executor exceeded an owner-pinned per-node work ceiling",
+    )
+}
+
 fn snapshot_batch_non_cursor_args(input: &HandlerInput) -> SnapbackResult<Value> {
     let mut args = input
         .args
@@ -25773,23 +27821,34 @@ fn snapshot_batch_authority_partition_digest(
     Ok(format!("sha256:{:x}", digest.finalize()))
 }
 
+/// @ref LLP 0157#d8--coordinated-cursor-family-grammar-and-the-llp-0135-seam —
+///   the shared `sbsb1`/`sbsb2` template pins exact worst-case scalar spellings
+///   and requires application ids to use the string escape ceiling.
 fn snapshot_batch_max_boundary(
     db: &DbRead<'_>,
     node: &crate::manifest::BoundedChildrenQueryPlan,
 ) -> SnapbackResult<Vec<Value>> {
+    snapshot_batch_max_boundary_for(db, &node.child_table, &node.order)
+}
+
+fn snapshot_batch_max_boundary_for(
+    db: &DbRead<'_>,
+    table_name: &str,
+    order: &[crate::manifest::OrderExpr],
+) -> SnapbackResult<Vec<Value>> {
     use crate::manifest::FieldType;
     let table = db
         .schema()
-        .table(&node.child_table)
+        .table(table_name)
         .ok_or_else(snapshot_batch_cursor_invalid)?;
-    node.order
+    order
         .iter()
         .map(|order| {
             let field = table
                 .field(&order.field)
                 .ok_or_else(snapshot_batch_cursor_invalid)?;
             Ok(match &field.field_type {
-                FieldType::String => {
+                FieldType::String | FieldType::Id { .. } => {
                     let bound = order
                         .max_encoded_bytes
                         .ok_or_else(snapshot_batch_cursor_budget_exceeded)?;
@@ -25798,9 +27857,8 @@ fn snapshot_batch_max_boundary(
                     }
                     Value::String("\u{0}".repeat(bound as usize))
                 }
-                FieldType::Integer => Value::from(9_007_199_254_740_991_i64),
-                FieldType::Boolean => Value::Bool(true),
-                FieldType::Id { .. } => Value::String("x".repeat(256)),
+                FieldType::Integer => Value::from(-9_007_199_254_740_991_i64),
+                FieldType::Boolean => Value::Bool(false),
                 _ => return Err(snapshot_batch_cursor_budget_exceeded()),
             })
         })
@@ -25808,7 +27866,7 @@ fn snapshot_batch_max_boundary(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn enforce_snapshot_batch_cursor_budget(
+fn snapshot_batch_max_plaintext_len(
     db: &DbRead<'_>,
     plan: &crate::manifest::SnapshotBatchPlanV1,
     identity: &crate::manifest::SnapshotBatchIdentityV1,
@@ -25820,7 +27878,7 @@ fn enforce_snapshot_batch_cursor_budget(
     args: &Value,
     authority_partition: &str,
     parent_ids: &[String],
-) -> SnapbackResult<()> {
+) -> SnapbackResult<usize> {
     let parent_groups = identity
         .parent_authorization_key_digests
         .iter()
@@ -25846,6 +27904,9 @@ fn enforce_snapshot_batch_cursor_budget(
                 state: crate::snapshot_batch_cursor::NodeState::Boundary {
                     order_fields: node.order.iter().map(|order| order.field.clone()).collect(),
                     boundary: snapshot_batch_max_boundary(db, node)?,
+                    // @ref LLP 0157#d8--coordinated-cursor-family-grammar-and-the-llp-0135-seam —
+                    // unlike application id order values, framework-minted
+                    // root `_id` keeps the declaration-free 256-byte ceiling.
                     row_id: "x".repeat(256),
                 },
             })
@@ -25868,10 +27929,604 @@ fn enforce_snapshot_batch_cursor_budget(
     );
     let bytes = crate::snapshot_batch_cursor::compact_plaintext(&body)
         .map_err(|_| snapshot_batch_cursor_budget_exceeded())?;
-    if bytes.len() > crate::snapshot_batch_cursor::MAX_PLAINTEXT_BYTES {
+    Ok(bytes.len())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn enforce_snapshot_batch_cursor_budget(
+    db: &DbRead<'_>,
+    plan: &crate::manifest::SnapshotBatchPlanV1,
+    identity: &crate::manifest::SnapshotBatchIdentityV1,
+    key_generation: &str,
+    app_id: &str,
+    database_id: &str,
+    stream_epoch: &str,
+    function: &str,
+    args: &Value,
+    authority_partition: &str,
+    parent_ids: &[String],
+) -> SnapbackResult<()> {
+    if snapshot_batch_max_plaintext_len(
+        db,
+        plan,
+        identity,
+        key_generation,
+        app_id,
+        database_id,
+        stream_epoch,
+        function,
+        args,
+        authority_partition,
+        parent_ids,
+    )? > crate::snapshot_batch_cursor::MAX_PLAINTEXT_BYTES
+    {
         return Err(snapshot_batch_cursor_budget_exceeded());
     }
     Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn snapshot_batch_v2_max_plaintext_len(
+    db: &DbRead<'_>,
+    plan: &crate::manifest::SnapshotBatchPlanV2,
+    identity: &crate::manifest::SnapshotBatchIdentityV2,
+    key_generation: &str,
+    app_id: &str,
+    database_id: &str,
+    stream_epoch: &str,
+    function: &str,
+    args: &Value,
+    authority_partition: &str,
+    parent_ids: &[String],
+) -> SnapbackResult<usize> {
+    let parent_groups = identity
+        .parent_authorization_key_digests
+        .iter()
+        .enumerate()
+        .map(
+            |(index, digest)| crate::snapshot_batch_cursor_v2::ParentGroup {
+                group_index: index as u32,
+                parent_authorization_key_digest: digest.clone(),
+                parent_id: parent_ids[index].clone(),
+                parent_incarnation: "0".repeat(36),
+                parent_version: 9_007_199_254_740_991,
+            },
+        )
+        .collect();
+    let nodes = plan
+        .nodes
+        .iter()
+        .enumerate()
+        .map(|(position, node)| {
+            let state = match node {
+                crate::manifest::SnapshotBatchNodeV2::BoundedChildren(node) => {
+                    crate::snapshot_batch_cursor_v2::NodeState::Boundary {
+                        order_fields: node.order.iter().map(|order| order.field.clone()).collect(),
+                        boundary: snapshot_batch_max_boundary_for(
+                            db,
+                            &node.child_table,
+                            &node.order,
+                        )?,
+                        row_id: "x".repeat(256),
+                    }
+                }
+                crate::manifest::SnapshotBatchNodeV2::RelationalQuery(node) => {
+                    crate::snapshot_batch_cursor_v2::NodeState::RelationalBoundary {
+                        order_fields: node.order.iter().map(|order| order.field.clone()).collect(),
+                        boundary: snapshot_batch_max_boundary_for(db, &node.root, &node.order)?,
+                        row_id: "x".repeat(256),
+                    }
+                }
+            };
+            Ok(crate::snapshot_batch_cursor_v2::Node {
+                position: position as u32,
+                node_plan_hash: identity.node_plan_hashes[position].clone(),
+                state,
+            })
+        })
+        .collect::<SnapbackResult<Vec<_>>>()?;
+    let body = crate::snapshot_batch_cursor_v2::Body::new(
+        key_generation.to_owned(),
+        app_id.to_owned(),
+        database_id.to_owned(),
+        TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+        stream_epoch.to_owned(),
+        function.to_owned(),
+        identity.plan_hash.clone(),
+        args.clone(),
+        parent_groups,
+        nodes,
+        authority_partition.to_owned(),
+        9_007_198_045_140_991,
+    );
+    crate::snapshot_batch_cursor_v2::compact_plaintext(&body)
+        .map(|bytes| bytes.len())
+        .map_err(|_| snapshot_batch_cursor_budget_exceeded())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn enforce_snapshot_batch_v2_cursor_budget(
+    db: &DbRead<'_>,
+    plan: &crate::manifest::SnapshotBatchPlanV2,
+    identity: &crate::manifest::SnapshotBatchIdentityV2,
+    key_generation: &str,
+    app_id: &str,
+    database_id: &str,
+    stream_epoch: &str,
+    function: &str,
+    args: &Value,
+    authority_partition: &str,
+    parent_ids: &[String],
+) -> SnapbackResult<()> {
+    if snapshot_batch_v2_max_plaintext_len(
+        db,
+        plan,
+        identity,
+        key_generation,
+        app_id,
+        database_id,
+        stream_epoch,
+        function,
+        args,
+        authority_partition,
+        parent_ids,
+    )? > crate::snapshot_batch_cursor_v2::MAX_PLAINTEXT_BYTES
+    {
+        return Err(snapshot_batch_cursor_budget_exceeded());
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn execute_snapshot_batch_v2(
+    function: &FunctionDefinition,
+    plan: &crate::manifest::SnapshotBatchPlanV2,
+    db: &DbRead<'_>,
+    input: &HandlerInput,
+    prepared: &PreparedInvocation,
+    cursor_authority: Option<RelationalCursorAuthority<'_>>,
+) -> SnapbackResult<QueryInvocation> {
+    // @ref LLP 0135#22-one-snapshot-execution-and-parent-authorization-dedup —
+    // all node work shares this pinned DbRead; relational nodes add no
+    // structural parent and bounded nodes share declaration-equal checks.
+    let authority = cursor_authority.ok_or_else(snapshot_batch_cursor_mint_unavailable)?;
+    let now_ms = now_millis();
+    let database_id = db.search_database_identity()?;
+    let stream_epoch = prepared
+        .authority()
+        .authorization_stream_incarnation()
+        .unwrap_or(database_id.as_str())
+        .to_owned();
+    let canonical_args = snapshot_batch_non_cursor_args(input)?;
+    let identity = crate::manifest::snapshot_batch_identity_v2(function, plan)?;
+    let authority_partition =
+        snapshot_batch_authority_partition_digest(prepared, input, &stream_epoch)?;
+    let groups = crate::manifest::snapshot_batch_v2_parent_authorization_groups(function, plan)?;
+    let parent_ids = groups
+        .iter()
+        .map(|group| {
+            input
+                .args
+                .get(&group.identity.parent_id_argument)
+                .and_then(Value::as_str)
+                .filter(|id| !id.is_empty())
+                .map(ToOwned::to_owned)
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+                        "query",
+                        "snapshot batch v2 parent argument is missing or invalid",
+                    )
+                })
+        })
+        .collect::<SnapbackResult<Vec<_>>>()?;
+    let (roots, key_generation, root) = {
+        let keyring = authority
+            .keyring
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let roots = keyring.snapshot_batch_cursor_v2_materials(now_ms);
+        let (generation, root) = keyring
+            .active_current()
+            .ok_or_else(snapshot_batch_cursor_mint_unavailable)?;
+        let longest_generation = roots
+            .iter()
+            .map(|(generation, _)| generation.as_str())
+            .max_by_key(|generation| generation.len())
+            .unwrap_or(generation.as_str())
+            .to_owned();
+        (roots, (generation, longest_generation), root)
+    };
+
+    // @ref LLP 0157#sbsb2-plaintext-and-budget — establishment compares the
+    // exact class-specific maximum body against 6,099 bytes before the first
+    // application row read. Relational root order fields use the same pinned
+    // closed scalar templates as bounded-child order fields.
+    enforce_snapshot_batch_v2_cursor_budget(
+        db,
+        plan,
+        &identity,
+        &key_generation.1,
+        authority.app_id,
+        &database_id,
+        &stream_epoch,
+        &function.id,
+        &canonical_args,
+        &authority_partition,
+        &parent_ids,
+    )?;
+
+    let mut group_rows = Vec::with_capacity(groups.len());
+    for (group_index, group) in groups.iter().enumerate() {
+        let parent_id = &parent_ids[group_index];
+        let parent = db.get(&group.identity.parent_table, parent_id)?;
+        let visible = parent
+            .as_ref()
+            .is_some_and(|parent| match &group.identity.visibility {
+                crate::manifest::BoundedParentVisibility::PublicRead => true,
+                crate::manifest::BoundedParentVisibility::Owner { field } => {
+                    parent.get(field).and_then(Value::as_str) == input.auth.user_id.as_deref()
+                }
+            });
+        let state = if visible {
+            let incarnation = db
+                .active_relation_incarnation(&group.identity.parent_table, parent_id)?
+                .ok_or_else(snapshot_batch_restart_required)?;
+            let parent = parent.expect("visible snapshot-batch v2 parent exists");
+            let version = parent
+                .get("_version")
+                .and_then(Value::as_u64)
+                .ok_or_else(snapshot_batch_restart_required)?;
+            Some((parent, incarnation, version))
+        } else {
+            None
+        };
+        group_rows.push(state);
+    }
+
+    // @ref LLP 0157#sbsb2-plaintext-and-budget — bounded-parent absence or
+    // invisibility seals the whole mixed tuple before any cursor validation;
+    // all-relational tuples have no groups and cannot enter this arm.
+    if group_rows.iter().any(Option::is_none) {
+        return Ok(QueryInvocation {
+            output: QueryOutput {
+                version: db.current_version()?,
+                rows: vec![json!({
+                    "kind": "absent",
+                    "nodes": null,
+                    "continuation": null,
+                })],
+                cursor: None,
+            },
+            read_dependencies: Vec::new(),
+        });
+    }
+
+    let mut group_for_node = vec![None; plan.nodes.len()];
+    for (group_index, group) in groups.iter().enumerate() {
+        for &node_index in &group.node_indices {
+            group_for_node[node_index] = Some(group_index);
+        }
+    }
+    let mut resume = vec![(false, None::<crate::storage::KeysetAfter>); plan.nodes.len()];
+    if let Some(cursor) = input.args.get("cursor").filter(|cursor| !cursor.is_null()) {
+        let wire = cursor.as_str().ok_or_else(snapshot_batch_cursor_invalid)?;
+        let body = crate::snapshot_batch_cursor_v2::decode(
+            wire,
+            &roots,
+            authority.app_id,
+            &database_id,
+            TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+            now_ms,
+        )
+        .map_err(|_| snapshot_batch_cursor_invalid())?;
+
+        // Decode validity and every static binding failure collapse before
+        // the dynamic epoch/parent restart partition. Authority is included
+        // here, so cross-authority always wins over a coincident rotation.
+        if body.function != function.id
+            || body.plan_hash != identity.plan_hash
+            || body.args != canonical_args
+            || body.authority_partition != authority_partition
+            || body.parent_groups.len() != groups.len()
+            || body.nodes.len() != plan.nodes.len()
+        {
+            return Err(snapshot_batch_cursor_invalid());
+        }
+        for (index, cursor_group) in body.parent_groups.iter().enumerate() {
+            if cursor_group.group_index != index as u32
+                || cursor_group.parent_authorization_key_digest
+                    != identity.parent_authorization_key_digests[index]
+                || cursor_group.parent_id != parent_ids[index]
+            {
+                return Err(snapshot_batch_cursor_invalid());
+            }
+        }
+        for (position, (cursor_node, node)) in body.nodes.iter().zip(&plan.nodes).enumerate() {
+            if cursor_node.position != position as u32
+                || cursor_node.node_plan_hash != identity.node_plan_hashes[position]
+            {
+                return Err(snapshot_batch_cursor_invalid());
+            }
+            match (&cursor_node.state, node) {
+                (crate::snapshot_batch_cursor_v2::NodeState::Terminal, _) => {
+                    resume[position].0 = true;
+                }
+                (
+                    crate::snapshot_batch_cursor_v2::NodeState::Boundary {
+                        order_fields,
+                        boundary,
+                        row_id,
+                    },
+                    crate::manifest::SnapshotBatchNodeV2::BoundedChildren(node),
+                ) => {
+                    let expected = node
+                        .order
+                        .iter()
+                        .map(|order| order.field.as_str())
+                        .collect::<Vec<_>>();
+                    if order_fields.iter().map(String::as_str).collect::<Vec<_>>() != expected {
+                        return Err(snapshot_batch_cursor_invalid());
+                    }
+                    resume[position].1 = Some(
+                        crate::storage::validate_query_keyset_boundary(
+                            db.schema(),
+                            &node.child_table,
+                            &node.order,
+                            boundary,
+                            row_id,
+                        )
+                        .map_err(|_| snapshot_batch_cursor_invalid())?,
+                    );
+                }
+                (
+                    crate::snapshot_batch_cursor_v2::NodeState::RelationalBoundary {
+                        order_fields,
+                        boundary,
+                        row_id,
+                    },
+                    crate::manifest::SnapshotBatchNodeV2::RelationalQuery(node),
+                ) => {
+                    let expected = node
+                        .order
+                        .iter()
+                        .map(|order| order.field.as_str())
+                        .collect::<Vec<_>>();
+                    if order_fields.iter().map(String::as_str).collect::<Vec<_>>() != expected {
+                        return Err(snapshot_batch_cursor_invalid());
+                    }
+                    resume[position].1 = Some(
+                        crate::storage::validate_relational_boundary(
+                            db.schema(),
+                            node,
+                            boundary,
+                            row_id,
+                        )
+                        .map_err(|_| snapshot_batch_cursor_invalid())?,
+                    );
+                }
+                _ => return Err(snapshot_batch_cursor_invalid()),
+            }
+        }
+
+        if body.stream_epoch != stream_epoch {
+            return Err(snapshot_batch_restart_required());
+        }
+        for (index, (cursor_group, runtime_group)) in
+            body.parent_groups.iter().zip(&group_rows).enumerate()
+        {
+            let (_, incarnation, version) = runtime_group
+                .as_ref()
+                .expect("all snapshot-batch v2 groups remain visible");
+            debug_assert_eq!(cursor_group.group_index, index as u32);
+            if cursor_group.parent_incarnation != *incarnation
+                || cursor_group.parent_version != *version
+            {
+                return Err(snapshot_batch_restart_required());
+            }
+        }
+    }
+
+    let mut pages = Vec::with_capacity(plan.nodes.len());
+    let mut next_nodes = Vec::with_capacity(plan.nodes.len());
+    for (position, node) in plan.nodes.iter().enumerate() {
+        match node {
+            crate::manifest::SnapshotBatchNodeV2::BoundedChildren(node) => {
+                let group_index = group_for_node[position]
+                    .expect("every bounded snapshot-batch v2 node has a parent group");
+                let (parent, incarnation, _) = group_rows[group_index]
+                    .as_ref()
+                    .expect("all snapshot-batch v2 parents are visible");
+                if resume[position].0 || node.take == 0 {
+                    pages.push(json!({
+                        "parent": project_bounded_row(parent, &node.parent_projection),
+                        "children": [],
+                    }));
+                    next_nodes.push(crate::snapshot_batch_cursor_v2::Node {
+                        position: position as u32,
+                        node_plan_hash: identity.node_plan_hashes[position].clone(),
+                        state: crate::snapshot_batch_cursor_v2::NodeState::Terminal,
+                    });
+                    continue;
+                }
+                let child_query = QueryPlan {
+                    table: node.child_table.clone(),
+                    filters: vec![
+                        crate::manifest::FilterExpr {
+                            field: node.child_foreign_key.clone(),
+                            op: crate::manifest::FilterOp::Eq,
+                            value: ValueExpr::Literal(Value::String(
+                                parent_ids[group_index].clone(),
+                            )),
+                        },
+                        crate::manifest::FilterExpr {
+                            field: node.child_relation_incarnation.clone(),
+                            op: crate::manifest::FilterOp::Eq,
+                            value: ValueExpr::Literal(Value::String(incarnation.clone())),
+                        },
+                    ],
+                    membership_filters: Vec::new(),
+                    order: node.order.clone(),
+                    limit: Some(node.take.saturating_add(1) as usize),
+                    indexed_by: Some(node.child_index.clone()),
+                };
+                let mut child_output =
+                    db.query_keyset(&child_query, input, resume[position].1.as_ref())?;
+                let examined = child_output.rows.len();
+                if examined > identity.node_examined_entry_ceilings[position] {
+                    return Err(snapshot_batch_work_ceiling_exceeded());
+                }
+                let has_more = examined > node.take as usize;
+                child_output.rows.truncate(node.take as usize);
+                pages.push(json!({
+                    "parent": project_bounded_row(parent, &node.parent_projection),
+                    "children": child_output.rows.iter().map(|row| {
+                        project_bounded_row(row, &node.child_projection)
+                    }).collect::<Vec<_>>(),
+                }));
+                let state = if has_more {
+                    let boundary_row = child_output
+                        .rows
+                        .last()
+                        .ok_or_else(snapshot_batch_cursor_mint_unavailable)?;
+                    let boundary = node
+                        .order
+                        .iter()
+                        .map(|entry| {
+                            boundary_row
+                                .get(&entry.field)
+                                .cloned()
+                                .filter(|value| !value.is_null())
+                                .ok_or_else(snapshot_batch_cursor_mint_unavailable)
+                        })
+                        .collect::<SnapbackResult<Vec<_>>>()?;
+                    let row_id = boundary_row
+                        .get("_id")
+                        .and_then(Value::as_str)
+                        .filter(|id| !id.is_empty())
+                        .ok_or_else(snapshot_batch_cursor_mint_unavailable)?;
+                    crate::snapshot_batch_cursor_v2::NodeState::Boundary {
+                        order_fields: node.order.iter().map(|entry| entry.field.clone()).collect(),
+                        boundary,
+                        row_id: row_id.to_owned(),
+                    }
+                } else {
+                    crate::snapshot_batch_cursor_v2::NodeState::Terminal
+                };
+                next_nodes.push(crate::snapshot_batch_cursor_v2::Node {
+                    position: position as u32,
+                    node_plan_hash: identity.node_plan_hashes[position].clone(),
+                    state,
+                });
+            }
+            crate::manifest::SnapshotBatchNodeV2::RelationalQuery(node) => {
+                debug_assert!(group_for_node[position].is_none());
+                if resume[position].0 || node.take == 0 {
+                    pages.push(Value::Array(Vec::new()));
+                    next_nodes.push(crate::snapshot_batch_cursor_v2::Node {
+                        position: position as u32,
+                        node_plan_hash: identity.node_plan_hashes[position].clone(),
+                        state: crate::snapshot_batch_cursor_v2::NodeState::Terminal,
+                    });
+                    continue;
+                }
+                // No standalone relational cursor is decoded or minted here:
+                // `KeysetAfter` is reconstructed from the sbsb2 node state
+                // and returned directly to the owner executor.
+                let (output, continuation, observation) =
+                    crate::storage::query_relational_on_observed(
+                        db,
+                        node,
+                        input,
+                        resume[position].1.as_ref(),
+                    )?;
+                if observation.examined_root_entries
+                    > identity.node_examined_entry_ceilings[position]
+                    || observation.joined_lookups != observation.examined_root_entries
+                    || observation.joined_lookups > identity.node_joined_lookup_ceilings[position]
+                {
+                    return Err(snapshot_batch_work_ceiling_exceeded());
+                }
+                pages.push(Value::Array(output.rows));
+                let state = if let Some(boundary) = continuation {
+                    crate::snapshot_batch_cursor_v2::NodeState::RelationalBoundary {
+                        order_fields: node.order.iter().map(|entry| entry.field.clone()).collect(),
+                        boundary: boundary
+                            .entries
+                            .into_iter()
+                            .map(|(_, value)| value)
+                            .collect(),
+                        row_id: boundary.id,
+                    }
+                } else {
+                    crate::snapshot_batch_cursor_v2::NodeState::Terminal
+                };
+                next_nodes.push(crate::snapshot_batch_cursor_v2::Node {
+                    position: position as u32,
+                    node_plan_hash: identity.node_plan_hashes[position].clone(),
+                    state,
+                });
+            }
+        }
+    }
+
+    let continuation = if next_nodes.iter().any(|node| {
+        !matches!(
+            node.state,
+            crate::snapshot_batch_cursor_v2::NodeState::Terminal
+        )
+    }) {
+        let cursor_groups = group_rows
+            .iter()
+            .enumerate()
+            .map(|(index, state)| {
+                let (_, incarnation, version) = state
+                    .as_ref()
+                    .expect("all snapshot-batch v2 parent groups are visible");
+                crate::snapshot_batch_cursor_v2::ParentGroup {
+                    group_index: index as u32,
+                    parent_authorization_key_digest: identity.parent_authorization_key_digests
+                        [index]
+                        .clone(),
+                    parent_id: parent_ids[index].clone(),
+                    parent_incarnation: incarnation.clone(),
+                    parent_version: *version,
+                }
+            })
+            .collect();
+        let body = crate::snapshot_batch_cursor_v2::Body::new(
+            key_generation.0,
+            authority.app_id.to_owned(),
+            database_id,
+            TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+            stream_epoch,
+            function.id.clone(),
+            identity.plan_hash,
+            canonical_args,
+            cursor_groups,
+            next_nodes,
+            authority_partition,
+            now_ms,
+        );
+        Some(
+            crate::snapshot_batch_cursor_v2::mint(&root, &body)
+                .map_err(|_| snapshot_batch_cursor_mint_unavailable())?,
+        )
+    } else {
+        None
+    };
+    Ok(QueryInvocation {
+        output: QueryOutput {
+            version: db.current_version()?,
+            rows: vec![json!({
+                "kind": "visible",
+                "nodes": pages,
+                "continuation": continuation,
+            })],
+            cursor: None,
+        },
+        read_dependencies: Vec::new(),
+    })
 }
 
 fn project_bounded_row(row: &Value, fields: &[crate::manifest::BoundedProjectionField]) -> Value {
@@ -26369,12 +29024,12 @@ fn execute_query_invocation(
                 )
             })?;
             let (projection, authorization_dependency) = crate::push::read_ledger_projection(
-                    &db,
-                    declaration,
-                    schema,
-                    prepared.authority(),
-                    intent_id,
-                )?;
+                &db,
+                declaration,
+                schema,
+                prepared.authority(),
+                intent_id,
+            )?;
             let version = db.current_version()?;
             let rows = projection
                 .iter()
@@ -26666,6 +29321,10 @@ fn execute_query_invocation(
         }
         (
             FunctionKind::Query | FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)),
+        ) => execute_snapshot_batch_v2(function, plan, &db, &input, prepared, cursor_authority),
+        (
+            FunctionKind::Query | FunctionKind::LiveQuery,
             FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(plan)),
         ) => {
             // @ref LLP 0135#22-one-snapshot-execution-and-parent-authorization-dedup —
@@ -26900,7 +29559,7 @@ fn execute_query_invocation(
                             op: crate::manifest::FilterOp::Eq,
                             value: ValueExpr::Literal(Value::String(
                                 parent_ids[group_index].clone(),
-        )),
+                            )),
                         },
                         crate::manifest::FilterExpr {
                             field: node.child_relation_incarnation.clone(),
@@ -27505,6 +30164,21 @@ fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {
                 .nodes
                 .iter()
                 .flat_map(|node| [node.parent_table.clone(), node.child_table.clone()])
+                .collect::<BTreeSet<_>>();
+            (reads.into_iter().collect(), Vec::new())
+        }
+        FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)) => {
+            let reads = plan
+                .nodes
+                .iter()
+                .flat_map(|node| match node {
+                    crate::manifest::SnapshotBatchNodeV2::BoundedChildren(node) => {
+                        [node.parent_table.clone(), node.child_table.clone()]
+                    }
+                    crate::manifest::SnapshotBatchNodeV2::RelationalQuery(node) => {
+                        [node.root.clone(), node.joined.clone()]
+                    }
+                })
                 .collect::<BTreeSet<_>>();
             (reads.into_iter().collect(), Vec::new())
         }
@@ -28297,7 +30971,8 @@ mod tests {
         bounded_projection_result_contract, enforce_snapshot_batch_cursor_budget,
         next_secret_read_reset_generation, now_millis, order_field_bounds_from_functions,
         refuse_unprovenanced_host_plan_authority_creation, reserve_unique_generation,
-        settlement_id_map, telemetry_correlation, validate_bounded_children_node_schema_references,
+        settlement_id_map, snapshot_batch_max_boundary, snapshot_batch_max_plaintext_len,
+        telemetry_correlation, validate_bounded_children_node_schema_references,
         validate_bounded_children_schema_plan, validate_function_schema_references,
     };
     use crate::admin::ServerProfile;
@@ -28317,18 +30992,19 @@ mod tests {
     };
     use crate::live_wire::{Receipt, SettlementIdMapDisposition};
     use crate::manifest::{
-        ActionPlan, ArtifactGeneration, AuthInput, AuthManifest, AuthMode, AuthRequirement,
-        AuthorityDescriptor, BoundedSkewDeclaration, ConfigEntryDefinition, CronActivationPolicy,
-        CronJitterPolicy, CronJobDefinition, CronOverlapPolicy, CronRetryMode, CronRetryPolicy,
-        CronSchedule, CtxAnswerLedger, FieldManifest, FieldType, FilterExpr, FilterOp,
-        FunctionArgsContract, FunctionDefinition, FunctionKind, FunctionManifest,
-        FunctionResultContract, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule,
-        IndexManifest, MembershipManifest, MembershipPredicate, MembershipResourceRef,
-        MembershipScope, MutationOutput, MutationPlan, MutationSettlement, MutationStep,
-        PermissionScopeExpr, QueryPlan, ResultObjectFieldContract, ResultValueContract,
-        ReturnValue, SchemaManifest, SchemaRefAuthority, SeedData, SettlementClaimSet,
-        SettlementIdentityClaims, SettlementLane, SettlementMintClaim, SettlementMintObservation,
-        SnapshotBatchPlanV1, TableManifest, ValueExpr, ctx_ledger_version,
+        ActionPlan, ActionStep, ArtifactGeneration, AuthInput, AuthManifest, AuthMode,
+        AuthRequirement, AuthorityDescriptor, BoundedSkewDeclaration, CapabilityManifest,
+        ConfigEntryDefinition, CronActivationPolicy, CronJitterPolicy, CronJobDefinition,
+        CronOverlapPolicy, CronRetryMode, CronRetryPolicy, CronSchedule, CtxAnswerLedger,
+        FieldManifest, FieldType, FilterExpr, FilterOp, FunctionArgsContract, FunctionDefinition,
+        FunctionKind, FunctionManifest, FunctionResultContract, FunctionRuntime, HandlerInput,
+        HandlerPlan, IbexModule, IndexManifest, MembershipManifest, MembershipPredicate,
+        MembershipResourceRef, MembershipScope, MutationOutput, MutationPlan, MutationSettlement,
+        MutationStep, PermissionScopeExpr, QueryOutput, QueryPlan, ResultObjectFieldContract,
+        ResultValueContract, ReturnValue, SchemaManifest, SchemaRefAuthority, SeedData,
+        SettlementClaimSet, SettlementIdentityClaims, SettlementLane, SettlementMintClaim,
+        SettlementMintObservation, SnapshotBatchPlanV1, TableManifest, ValueExpr,
+        ctx_ledger_version,
     };
     use crate::runtime::ExecutedIbexMutation;
     use crate::search::types::{
@@ -28412,6 +31088,7 @@ mod tests {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -28540,11 +31217,22 @@ mod tests {
         assert_eq!(response.profile.as_deref(), Some("mixed-route.v2"));
         assert_eq!(response.entries.len(), 2);
         assert_eq!(response.entries[0].rows, response.entries[1].rows);
-        assert_eq!(response.entries[0].subscription_id.as_deref(), snapback.subscriptions.keys().next().map(String::as_str));
-        assert!(response.entries[1].subscription_id.is_none());
-        assert_eq!(snapback.subscriptions.len(), 1, "plain child owns no live state");
         assert_eq!(
-            snapback.subscriptions.values().next().map(|subscription| subscription.function.as_str()),
+            response.entries[0].subscription_id.as_deref(),
+            snapback.subscriptions.keys().next().map(String::as_str)
+        );
+        assert!(response.entries[1].subscription_id.is_none());
+        assert_eq!(
+            snapback.subscriptions.len(),
+            1,
+            "plain child owns no live state"
+        );
+        assert_eq!(
+            snapback
+                .subscriptions
+                .values()
+                .next()
+                .map(|subscription| subscription.function.as_str()),
             Some("liveTodos"),
         );
         assert_eq!(
@@ -28556,7 +31244,10 @@ mod tests {
             json!({ "kind": "read-only", "nodePlanHash": format!("sha256:{}", "2".repeat(64)) }),
         );
         let aggregate = response.aggregate.expect("mixed aggregate");
-        assert_eq!((aggregate.live_children, aggregate.read_only_children), (1, 1));
+        assert_eq!(
+            (aggregate.live_children, aggregate.read_only_children),
+            (1, 1)
+        );
         assert_eq!(aggregate.weakest, "read-only");
     }
 
@@ -28602,6 +31293,7 @@ mod tests {
                     principal_addressed_writes: None,
                 }),
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -28647,6 +31339,7 @@ mod tests {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         };
         let members = TableManifest {
             name: "event_members".to_owned(),
@@ -28694,6 +31387,7 @@ mod tests {
                 principal_addressed_writes: None,
             }),
             asset_sharing: None,
+            history: None,
         };
         let schema = SchemaManifest {
             tables: vec![events, members],
@@ -28790,6 +31484,7 @@ mod tests {
                 permission_fields: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -28860,6 +31555,7 @@ mod tests {
                 permission_fields: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -29044,7 +31740,7 @@ mod tests {
             }],
         };
         let route_error = LocalSnapback::validate_routes_manifest_against(&routes, &valid, &schema)
-        .expect_err("a direct route artifact cannot opt live search into register mode");
+            .expect_err("a direct route artifact cannot opt live search into register mode");
         assert_eq!(
             route_error.diagnostic.code,
             "SNAPBACK_ROUTES_MANIFEST_INVALID"
@@ -29112,6 +31808,7 @@ mod tests {
                 permission_fields: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -29133,7 +31830,7 @@ mod tests {
         function.args_contract = Some(args);
         function.result_contract =
             crate::manifest::expected_vector_result_contract(&schema.tables[0], index)
-        .expect("vector result contract derives");
+                .expect("vector result contract derives");
         function.result_contract_hash = Some(
             crate::manifest::result_contract_hash(&function.result_contract)
                 .expect("vector result contract hashes"),
@@ -29258,9 +31955,7 @@ mod tests {
         // Generation seam: rebuild the digest from the inspect-served
         // manifest and the seam's other components; equality proves the
         // generation identity embeds exactly the manifest inspect serves.
-        let digest = snapback
-            .rqs_generation_digest()
-            .expect("generation digest");
+        let digest = snapback.rqs_generation_digest().expect("generation digest");
         let capability_identity = crate::rqs::sha256_identity(
             &serde_json::to_value(&inspected).expect("manifest serializes"),
         )
@@ -29293,6 +31988,135 @@ mod tests {
             &resume_config,
         );
         assert_eq!(digest, expected);
+    }
+
+    #[test]
+    fn agent_safe_app_effective_envelopes_intersect_exact_function_reachability() {
+        let mut snapback = LocalSnapback::memory().expect("memory publication projection");
+        snapback
+            .activate_agent_safe_operation_coverage(1)
+            .expect("activate exact coverage");
+        let candidate_manifest = || {
+            let mut manifest = CapabilityManifest::local_v0_declared();
+            manifest
+                .supported_capabilities
+                .push(crate::manifest::TargetCapabilityId::AgentSafeStorageV1);
+            manifest.agent_safe.target = crate::agent_safe_publication::storage_target_candidate();
+            manifest
+        };
+
+        let mut empty = candidate_manifest();
+        snapback.project_agent_safe_app_effective(&mut empty);
+        assert_eq!(
+            empty.agent_safe.app_effective,
+            crate::manifest::AgentSafeCapabilityFactsV1::missing(),
+            "active coverage without a current mutation artifact stays Missing"
+        );
+
+        let host = FunctionDefinition::new(
+            "hostMutation",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: Vec::new(),
+                return_value: None,
+            })),
+        );
+        let ibex = FunctionDefinition::new(
+            "ibexMutation",
+            FunctionKind::Mutation,
+            FunctionRuntime::IbexModule(crate::manifest::IbexModule {
+                source: "export function ibexMutation() {}".to_owned(),
+                export: "ibexMutation".to_owned(),
+            }),
+        );
+        let host_action = FunctionDefinition::new(
+            "action",
+            FunctionKind::Action,
+            FunctionRuntime::HostPlan(HandlerPlan::Action(ActionPlan {
+                steps: vec![
+                    ActionStep::RunMutation {
+                        name: "hostMutation".to_owned(),
+                        args: BTreeMap::new(),
+                        bind_result_as: None,
+                    },
+                    ActionStep::RunMutation {
+                        name: "ibexMutation".to_owned(),
+                        args: BTreeMap::new(),
+                        bind_result_as: None,
+                    },
+                ],
+                return_value: None,
+            })),
+        );
+        snapback.functions.functions = vec![host, ibex, host_action];
+        let mut reached = candidate_manifest();
+        snapback.project_agent_safe_app_effective(&mut reached);
+        let envelope = reached.agent_safe.app_effective.envelope;
+        assert_eq!(
+            envelope.ordinary_mutation.host_plan,
+            crate::manifest::AgentSafeEnvelopeCoverageV1::Covered
+        );
+        assert_eq!(
+            envelope.ordinary_mutation.ibex_buffered,
+            crate::manifest::AgentSafeEnvelopeCoverageV1::Covered
+        );
+        assert_eq!(
+            envelope.host_child_mutation.host_plan,
+            crate::manifest::AgentSafeEnvelopeCoverageV1::Covered
+        );
+        assert_eq!(
+            envelope.host_child_mutation.ibex_buffered,
+            crate::manifest::AgentSafeEnvelopeCoverageV1::Covered
+        );
+        assert_eq!(
+            reached
+                .agent_safe
+                .app_effective
+                .forks
+                .derived_deployment
+                .egress,
+            crate::manifest::AgentSafeForkEgressV1::Missing,
+            "derived appEffective is canonical Missing"
+        );
+    }
+
+    #[test]
+    fn agent_safe_projection_rejects_marker_only_owner_artifact_and_activation_clears_rqs_cache() {
+        let mut snapback = LocalSnapback::memory().expect("memory publication projection");
+        snapback.rqs_generation = Some("stale-generation".to_owned());
+        snapback
+            .activate_agent_safe_operation_coverage(2)
+            .expect("activate exact coverage");
+        assert_eq!(snapback.rqs_generation, None);
+
+        let mut forged = FunctionDefinition::new(
+            "markerOnly",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: Vec::new(),
+                return_value: None,
+            })),
+        );
+        forged.standard_pattern = Some(crate::manifest::StandardPatternIdentity {
+            helper: "owned-crud.v1".to_owned(),
+            profile: "owner.v1".to_owned(),
+            membership: None,
+        });
+        snapback.functions.functions = vec![forged];
+        let mut manifest = CapabilityManifest::local_v0_declared();
+        manifest
+            .supported_capabilities
+            .push(crate::manifest::TargetCapabilityId::AgentSafeStorageV1);
+        manifest.agent_safe.target = crate::agent_safe_publication::storage_target_candidate();
+        snapback.project_agent_safe_app_effective(&mut manifest);
+        assert!(
+            manifest
+                .agent_safe
+                .app_effective
+                .explanation
+                .scoped_facts
+                .is_empty()
+        );
     }
 
     #[test]
@@ -29876,9 +32700,17 @@ globalThis.__snapbackHandlers = {
         user: &str,
         source: InvocationSource,
     ) -> PreparedAuthority {
+        asset_dev_authority_with_user(snapback, Some(user), source)
+    }
+
+    fn asset_dev_authority_with_user(
+        snapback: &LocalSnapback,
+        user: Option<&str>,
+        source: InvocationSource,
+    ) -> PreparedAuthority {
         let input = HandlerInput {
             auth: crate::manifest::AuthInput {
-                user_id: Some(user.to_owned()),
+                user_id: user.map(str::to_owned),
                 ..Default::default()
             },
             ..Default::default()
@@ -30052,6 +32884,67 @@ globalThis.__snapbackHandlers = {
             .asset_intent("missing")
             .expect_err("unknown intent");
         assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_INTENT_UNKNOWN");
+    }
+
+    #[test]
+    fn asset_attempt_create_refuses_unsatisfiable_anonymous_owner_custody() {
+        let mut snapback = asset_test_snapback();
+        let anonymous = asset_dev_authority_with_user(&snapback, None, InvocationSource::HttpQuery);
+
+        let error = snapback
+            .asset_attempt_create(&anonymous, asset_create_request(Some(10)))
+            .expect_err("anonymous custody refuses before reservation");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_OWNER_CUSTODY_UNSATISFIABLE"
+        );
+        assert_eq!(error.diagnostic.subsystem, "assets");
+        assert!(
+            error
+                .diagnostic
+                .message
+                .contains("each transfer, resume, finalize, and attach step")
+        );
+        assert!(
+            error
+                .diagnostic
+                .message
+                .contains("snapback session mint --email <email>")
+        );
+        assert!(
+            error
+                .diagnostic
+                .message
+                .contains("snapback assets put --user <handle>")
+        );
+        assert!(!error.diagnostic.message.contains("owner_1"));
+        assert_eq!(
+            error.diagnostic.details["intentId"],
+            serde_json::json!("app:avatarUpload")
+        );
+
+        let (asset_count, attempt_count) = snapback
+            .db
+            .asset_transaction(|tx| {
+                let asset_count: u64 = tx.query_row(
+                    "SELECT COUNT(*) FROM _snapback_asset_records_v1",
+                    [],
+                    |row| row.get(0),
+                )?;
+                let attempt_count: u64 = tx.query_row(
+                    "SELECT COUNT(*) FROM _snapback_asset_attempts_v1",
+                    [],
+                    |row| row.get(0),
+                )?;
+                Ok((asset_count, attempt_count))
+            })
+            .expect("asset state counts");
+        assert_eq!((asset_count, attempt_count), (0, 0));
+
+        let creator = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+        snapback
+            .asset_attempt_create(&creator, asset_create_request(Some(10)))
+            .expect("resolved dev impersonation still creates an attempt");
     }
 
     #[test]
@@ -30375,6 +33268,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: sharing,
+                history: None,
             }
         };
         let string_field = |name: &str| crate::manifest::FieldManifest {
@@ -30988,6 +33882,7 @@ globalThis.__snapbackHandlers = {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         };
         snapback
             .db
@@ -31279,6 +34174,85 @@ globalThis.__snapbackHandlers = {
         )
         .expect_err("deleted asset refuses at commit");
         assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_ATTACH_UNAVAILABLE");
+    }
+
+    #[test]
+    fn asset_attachment_authority_cross_owner_refuses_at_commit_boundary() {
+        let mut snapback = asset_reference_snapback();
+        let asset_id = asset_ready(&mut snapback, "user_a", b"cross-owner-bytes");
+        let plan = MutationPlan {
+            steps: vec![MutationStep::Insert {
+                table: "posts".to_owned(),
+                values: BTreeMap::from([(
+                    "photo".to_owned(),
+                    ValueExpr::Literal(json!(asset_id)),
+                )]),
+                bind_id_as: None,
+            }],
+            return_value: None,
+        };
+        let error = snapback
+            .db
+            .execute_mutation(
+                &plan,
+                &HandlerInput {
+                    auth: crate::manifest::AuthInput {
+                        user_id: Some("user_b".to_owned()),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+            )
+            .expect_err("a foreign principal cannot attach the owner's asset");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_FORBIDDEN");
+        assert_eq!(
+            error.diagnostic.message,
+            "attachment caller is not the asset owner"
+        );
+        let row_count = snapback
+            .db
+            .asset_transaction(|tx| {
+                Ok(tx.query_row("SELECT COUNT(*) FROM posts", [], |row| {
+                    row.get::<_, u64>(0)
+                })?)
+            })
+            .expect("count posts after refusal");
+        assert_eq!(row_count, 0, "the refused changeset must roll back the row");
+    }
+
+    #[test]
+    fn asset_attachment_authority_missing_principal_refuses_at_commit_boundary() {
+        let mut snapback = asset_reference_snapback();
+        let asset_id = asset_ready(&mut snapback, "user_a", b"missing-principal-bytes");
+        let plan = MutationPlan {
+            steps: vec![MutationStep::Insert {
+                table: "posts".to_owned(),
+                values: BTreeMap::from([(
+                    "photo".to_owned(),
+                    ValueExpr::Literal(json!(asset_id)),
+                )]),
+                bind_id_as: None,
+            }],
+            return_value: None,
+        };
+        let error = snapback
+            .db
+            .execute_mutation(&plan, &HandlerInput::default())
+            .expect_err("a non-seed attachment requires caller authority");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_FORBIDDEN");
+        assert_eq!(
+            error.diagnostic.message,
+            "attachment requires a caller principal"
+        );
+        let row_count = snapback
+            .db
+            .asset_transaction(|tx| {
+                Ok(tx.query_row("SELECT COUNT(*) FROM posts", [], |row| {
+                    row.get::<_, u64>(0)
+                })?)
+            })
+            .expect("count posts after refusal");
+        assert_eq!(row_count, 0, "the refused changeset must roll back the row");
     }
 
     #[test]
@@ -31870,6 +34844,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 crate::manifest::TableManifest {
                     name: "notes".to_owned(),
@@ -31887,6 +34862,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 crate::manifest::TableManifest {
                     name: "channel_members".to_owned(),
@@ -31934,6 +34910,7 @@ globalThis.__snapbackHandlers = {
                         principal_addressed_writes: None,
                     }),
                     asset_sharing: None,
+                    history: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -33397,6 +36374,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         }
@@ -34311,9 +37289,7 @@ globalThis.__snapbackHandlers = {
             "application/octet-stream".to_owned(),
         ];
         intent.accept.max_bytes = 64 * 1024;
-        intent.video = Some(crate::manifest::AssetVideoPolicy {
-            location,
-        });
+        intent.video = Some(crate::manifest::AssetVideoPolicy { location });
         intent
     }
 
@@ -35851,6 +38827,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 }],
                 ..SchemaManifest::default()
             })
@@ -35924,6 +38901,7 @@ globalThis.__snapbackHandlers = {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         }];
         functions.bundle_hash = Some(format!(
             "{}{}",
@@ -36384,6 +39362,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -36646,6 +39625,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -36868,6 +39848,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -38364,6 +41345,7 @@ globalThis.__snapbackHandlers = {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         });
         let function = functions
             .functions
@@ -38846,6 +41828,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 TableManifest {
                     name: "authors".to_owned(),
@@ -38867,6 +41850,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -38998,6 +41982,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             },
             TableManifest {
                 name: "authors".to_owned(),
@@ -39019,6 +42004,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             },
         ];
         unproven_schema_snapback
@@ -39080,6 +42066,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 TableManifest {
                     name: "authors".to_owned(),
@@ -39101,6 +42088,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -39370,6 +42358,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 TableManifest {
                     name: "authors".to_owned(),
@@ -39391,6 +42380,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -39540,6 +42530,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 TableManifest {
                     name: "authors".to_owned(),
@@ -39561,6 +42552,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -39918,6 +42910,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             };
         let schema = SchemaManifest {
             tables: vec![
@@ -40611,6 +43604,1291 @@ globalThis.__snapbackHandlers = {
         (schema, functions, plan)
     }
 
+    fn snapshot_batch_v2_publication_fixture(
+        bounded_take: u32,
+        relational_take: u32,
+    ) -> (
+        SchemaManifest,
+        FunctionManifest,
+        crate::manifest::SnapshotBatchPlanV2,
+    ) {
+        use crate::manifest::{
+            FunctionArgsContract, ResultObjectFieldContract, ResultRowsBound, ResultValueContract,
+            SnapshotBatchNodeV2, SnapshotBatchPlanV2,
+        };
+        let (mut schema, mut functions) = bounded_children_publication_fixture(bounded_take);
+        let (relational_schema, relational_functions) =
+            relational_live_fixture_functions(relational_take);
+        schema.tables.extend(relational_schema.tables);
+
+        let mut bounded = match &functions.functions[0].runtime {
+            FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)) => plan.clone(),
+            _ => panic!("bounded fixture plan"),
+        };
+        bounded
+            .order
+            .iter_mut()
+            .find(|entry| entry.field == "label")
+            .expect("bounded string order")
+            .max_encoded_bytes = Some(32);
+        let mut relational = match &relational_functions.functions[0].runtime {
+            FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => plan.clone(),
+            _ => panic!("relational fixture plan"),
+        };
+        relational.order[0].max_encoded_bytes = Some(32);
+        let plan = SnapshotBatchPlanV2 {
+            profile: "snapshot-batch.v2".to_owned(),
+            nodes: vec![
+                SnapshotBatchNodeV2::BoundedChildren(bounded.clone()),
+                SnapshotBatchNodeV2::RelationalQuery(relational),
+                SnapshotBatchNodeV2::BoundedChildren(bounded),
+            ],
+            normalized_composite_plan: Value::Null,
+            plan_hash: String::new(),
+        };
+
+        let field = |name: &str, value: ResultValueContract| ResultObjectFieldContract {
+            name: name.to_owned(),
+            required: true,
+            value,
+        };
+        let bounded_plan = match &plan.nodes[0] {
+            SnapshotBatchNodeV2::BoundedChildren(plan) => plan,
+            _ => unreachable!("bounded position"),
+        };
+        let bounded_page = ResultValueContract::Object {
+            fields: vec![
+                field(
+                    "parent",
+                    bounded_projection_result_contract(
+                        schema.table("parents").expect("parent schema"),
+                        &bounded_plan.parent_projection,
+                    ),
+                ),
+                field(
+                    "children",
+                    ResultValueContract::Array {
+                        element: Box::new(bounded_projection_result_contract(
+                            schema.table("children").expect("child schema"),
+                            &bounded_plan.child_projection,
+                        )),
+                        max_items: bounded_take as usize,
+                    },
+                ),
+            ],
+            allow_extra: false,
+        };
+        let relational_page = ResultValueContract::Array {
+            element: Box::new(ResultValueContract::Object {
+                fields: vec![field(
+                    "title",
+                    ResultValueContract::String {
+                        max_bytes: 1_048_576,
+                    },
+                )],
+                allow_extra: false,
+            }),
+            max_items: relational_take as usize,
+        };
+        let outer = |kind: &str, nodes: ResultValueContract, continuation: ResultValueContract| {
+            ResultValueContract::Object {
+                fields: vec![
+                    field("kind", ResultValueContract::Literal { value: json!(kind) }),
+                    field("nodes", nodes),
+                    field("continuation", continuation),
+                ],
+                allow_extra: false,
+            }
+        };
+        let result_contract = FunctionResultContract::Records {
+            record: ResultValueContract::Union {
+                variants: vec![
+                    outer(
+                        "absent",
+                        ResultValueContract::Null,
+                        ResultValueContract::Null,
+                    ),
+                    outer(
+                        "visible",
+                        ResultValueContract::Tuple {
+                            elements: vec![bounded_page.clone(), relational_page, bounded_page],
+                        },
+                        ResultValueContract::Union {
+                            variants: vec![
+                                ResultValueContract::Null,
+                                ResultValueContract::String { max_bytes: 8_192 },
+                            ],
+                        },
+                    ),
+                ],
+            },
+            rows: Some(ResultRowsBound {
+                min_items: 1,
+                max_items: 1,
+            }),
+        };
+        let args_contract = FunctionArgsContract {
+            fields: vec![
+                ResultObjectFieldContract {
+                    name: "parentId".to_owned(),
+                    required: true,
+                    value: ResultValueContract::Id {
+                        table: "parents".to_owned(),
+                    },
+                },
+                ResultObjectFieldContract {
+                    name: "cursor".to_owned(),
+                    required: false,
+                    value: ResultValueContract::String { max_bytes: 8_192 },
+                },
+            ],
+        };
+        let mut batch = FunctionDefinition::new(
+            "mixedView",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan.clone())),
+        );
+        batch.args_contract_hash =
+            Some(crate::manifest::args_contract_hash(&args_contract).expect("v2 args hash"));
+        batch.args_contract = Some(args_contract);
+        batch.result_contract_hash =
+            Some(crate::manifest::result_contract_hash(&result_contract).expect("v2 result hash"));
+        batch.result_contract = result_contract;
+        batch.required_capabilities = vec![
+            "snapshot_batch_v2".to_owned(),
+            "bounded_children_v1".to_owned(),
+            "relational_query_v1".to_owned(),
+            "live_subscriptions".to_owned(),
+            "args_contract_v1".to_owned(),
+            "result_contract_v1".to_owned(),
+        ];
+        let identity =
+            crate::manifest::snapshot_batch_identity_v2(&batch, &plan).expect("host v2 identity");
+        let FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(sealed)) = &mut batch.runtime
+        else {
+            unreachable!("v2 plan")
+        };
+        sealed.normalized_composite_plan = identity.normalized_composite_plan;
+        sealed.plan_hash = identity.plan_hash;
+        functions.functions.push(batch);
+        for capability in ["snapshot_batch_v2", "args_contract_v1"] {
+            if !functions
+                .acknowledged_experimental_capabilities
+                .iter()
+                .any(|entry| entry == capability)
+            {
+                functions
+                    .acknowledged_experimental_capabilities
+                    .push(capability.to_owned());
+            }
+        }
+        (schema, functions, plan)
+    }
+
+    fn seed_snapshot_batch_v2_fixture(snapback: &mut LocalSnapback, foreign_secret: &str) {
+        seed_bounded_publication_fixture(snapback, foreign_secret);
+        let row = |value: Value| value.as_object().cloned().expect("seed object");
+        snapback
+            .seed(crate::manifest::SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "books".to_owned(),
+                        vec![
+                            row(json!({"_id":"book-1","title":"alpha","authorSlug":"ada","ownerId":"user-a"})),
+                            row(json!({"_id":"book-2","title":"beta","authorSlug":"grace","ownerId":"user-a"})),
+                            row(json!({"_id":"book-3","title":foreign_secret,"authorSlug":"ada","ownerId":"user-b"})),
+                        ],
+                    ),
+                    (
+                        "authors".to_owned(),
+                        vec![
+                            row(json!({"_id":"author-1","slug":"ada","name":"Ada","ownerId":"user-a"})),
+                            row(json!({"_id":"author-2","slug":"grace","name":"Grace","ownerId":"user-b"})),
+                        ],
+                    ),
+                ]),
+            })
+            .expect("seed v2 relational rows");
+    }
+
+    #[test]
+    fn snapshot_batch_v2_three_node_sealing_resume_and_live_acceptance() {
+        let (schema, functions, _) = snapshot_batch_v2_publication_fixture(1, 1);
+        let mut snapback = LocalSnapback::memory().expect("mixed v2 store");
+        snapback
+            .apply_schema(schema)
+            .expect("apply mixed v2 schema");
+        let diagnostics = snapback.load_functions(functions);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
+            "mixed v2 artifact activates: {diagnostics:?}",
+        );
+        seed_snapshot_batch_v2_fixture(&mut snapback, "never-visible");
+        let input = |parent: &str, cursor: Option<&str>| {
+            let mut args = json!({"parentId":parent});
+            if let Some(cursor) = cursor {
+                args["cursor"] = Value::String(cursor.to_owned());
+            }
+            HandlerInput {
+                args,
+                auth: AuthInput {
+                    user_id: Some("user-a".to_owned()),
+                    ..AuthInput::default()
+                },
+                ..HandlerInput::default()
+            }
+        };
+        let first = snapback
+            .invoke_query("mixedView", input("parent-a", None))
+            .expect("mixed first page");
+        assert_eq!(first.rows[0]["kind"], "visible");
+        let nodes = first.rows[0]["nodes"].as_array().expect("three-node tuple");
+        assert_eq!(nodes.len(), 3);
+        assert_eq!(nodes[1], json!([{"title":"alpha"}]));
+        let cursor = first.rows[0]["continuation"]
+            .as_str()
+            .expect("one coordinated cursor")
+            .to_owned();
+        assert!(cursor.starts_with("sbsb2."));
+        let resumed = snapback
+            .invoke_query("mixedView", input("parent-a", Some(&cursor)))
+            .expect("mixed resume");
+        assert_eq!(resumed.rows[0]["kind"], "visible");
+        assert_eq!(resumed.rows[0]["nodes"][1], json!([{"title":"beta"}]));
+
+        let sealed = snapback
+            .invoke_query("mixedView", input("missing-parent", Some("foreign.cursor")))
+            .expect("sealing precedes cursor validation");
+        assert_eq!(
+            sealed.rows,
+            vec![json!({"kind":"absent","nodes":null,"continuation":null})]
+        );
+        let invisible = snapback
+            .invoke_query("mixedView", input("parent-b", Some(&cursor)))
+            .expect("invisible parent seals before cursor validation");
+        assert_eq!(invisible.rows, sealed.rows);
+        assert!(
+            !invisible
+                .rows
+                .iter()
+                .any(|row| row.to_string().contains("never-visible"))
+        );
+
+        let subscribed = snapback
+            .subscribe_live(
+                "mixedView",
+                LiveSubscribeInput {
+                    connection_id: "conn-v2-batch".to_owned(),
+                    input: input("parent-a", None),
+                    authorization_namespace: None,
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+            )
+            .expect("cursor-free v2 subscribe");
+        assert_eq!(
+            subscribed.snapshot.expect("initial live snapshot").rows[0]["kind"],
+            "visible"
+        );
+        snapback
+            .invoke_mutation(
+                "addChild",
+                HandlerInput {
+                    args: json!({
+                        "parentId":"parent-a", "position":5, "label":"live-v2",
+                        "active":false, "externalKey":"live-v2"
+                    }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("commit touching a v2 dependency");
+        let frames = rqs_drained_envelopes(&mut snapback, "conn-v2-batch");
+        assert!(!frames.is_empty());
+        assert!(frames.iter().all(|frame| frame["kind"] == "live_replace"));
+        let refusal = snapback
+            .subscribe_live(
+                "mixedView",
+                LiveSubscribeInput {
+                    connection_id: "conn-v2-cursor".to_owned(),
+                    input: input("parent-a", Some(&cursor)),
+                    authorization_namespace: None,
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+            )
+            .expect_err("cursor-bearing v2 subscribe refuses");
+        assert_eq!(
+            refusal.diagnostic.code,
+            "SNAPBACK_SNAPSHOT_BATCH_LIVE_CURSOR_UNSUPPORTED"
+        );
+    }
+
+    #[test]
+    fn snapshot_batch_v2_relational_root_change_delivers_live_replace() {
+        // The three-node live test above mutates a bounded-child table; this
+        // pins the other matcher direction — a commit landing only on the
+        // relational node's root table must resnapshot the whole tuple
+        // (LLP 0157 §D4 table-granular live_replace), which is exactly the
+        // Fleet Move-1 burst shape.
+        use crate::manifest::{MutationPlan, MutationStep, ValueExpr};
+        let (schema, mut functions, _) = snapshot_batch_v2_publication_fixture(1, 1);
+        functions.functions.push(FunctionDefinition::new(
+            "addBook",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "books".to_owned(),
+                    values: [
+                        ("title".to_owned(), ValueExpr::Arg("title".to_owned())),
+                        ("authorSlug".to_owned(), ValueExpr::Arg("slug".to_owned())),
+                        ("ownerId".to_owned(), ValueExpr::Literal(json!("user-a"))),
+                    ]
+                    .into_iter()
+                    .collect(),
+                    bind_id_as: None,
+                }],
+                return_value: None,
+            })),
+        ));
+        let mut snapback = LocalSnapback::memory().expect("mixed v2 store");
+        snapback.apply_schema(schema).expect("apply schema");
+        let diagnostics = snapback.load_functions(functions);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
+            "artifact activates: {diagnostics:?}",
+        );
+        seed_snapshot_batch_v2_fixture(&mut snapback, "never-visible");
+        let subscribed = snapback
+            .subscribe_live(
+                "mixedView",
+                LiveSubscribeInput {
+                    connection_id: "conn-v2-root".to_owned(),
+                    input: HandlerInput {
+                        args: json!({"parentId":"parent-a"}),
+                        auth: AuthInput {
+                            user_id: Some("user-a".to_owned()),
+                            ..AuthInput::default()
+                        },
+                        ..HandlerInput::default()
+                    },
+                    authorization_namespace: None,
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+            )
+            .expect("cursor-free v2 subscribe");
+        assert_eq!(
+            subscribed.snapshot.expect("initial live snapshot").rows[0]["kind"],
+            "visible"
+        );
+        snapback
+            .invoke_mutation(
+                "addBook",
+                HandlerInput {
+                    args: json!({"title":"gamma","slug":"author-a"}),
+                    auth: AuthInput {
+                        user_id: Some("user-a".to_owned()),
+                        ..AuthInput::default()
+                    },
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("commit touching only the relational root table");
+        let frames = rqs_drained_envelopes(&mut snapback, "conn-v2-root");
+        assert!(
+            !frames.is_empty(),
+            "a relational-root-only commit must deliver live_replace"
+        );
+        assert!(frames.iter().all(|frame| frame["kind"] == "live_replace"));
+    }
+
+    #[test]
+    fn snapshot_batch_v2_completeness_nodes_boundaries_and_page_set_are_atomic() {
+        let (mut schema, mut functions, _) = snapshot_batch_v2_publication_fixture(1, 1);
+        schema.app_id = "snapshot-batch-v2-proof-app".to_owned();
+        schema.schema_hash = Some("sha256:snapshot-batch-v2-proof-schema".to_owned());
+        schema.inputs_hash = Some("sha256:snapshot-batch-v2-proof-inputs".to_owned());
+        functions.app_id = schema.app_id.clone();
+        functions.schema_version = schema.schema_version.clone();
+        functions.bundle_hash = Some("sha256:snapshot-batch-v2-proof-functions".to_owned());
+        functions.inputs_hash = schema.inputs_hash.clone();
+        let expected_generation = ArtifactGeneration {
+            schema_version: schema.schema_version.clone(),
+            app_id: schema.app_id.clone(),
+            schema_hash: schema.schema_hash.clone().expect("schema identity"),
+            bundle_hash: functions.bundle_hash.clone().expect("function identity"),
+            inputs_hash: schema.inputs_hash.clone().expect("inputs identity"),
+        };
+        let mut snapback = LocalSnapback::memory().expect("v2 proof store");
+        snapback
+            .apply_schema(schema)
+            .expect("apply v2 proof schema");
+        let diagnostics = snapback.load_functions(functions);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error)
+        );
+        let database_id = snapback.db.data_version_stream().expect("data stream");
+        let activation = crate::completeness::TrustedCompositionActivationV1::prepare(
+            database_id,
+            "snapshot-batch-v2-proof-deployment",
+            crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+            "dev",
+            expected_generation,
+            snapback
+                .proof_keyring
+                .read()
+                .expect("proof keyring")
+                .manifest(),
+        )
+        .expect("prepare v2 trusted activation");
+        snapback
+            .install_trusted_composition_activation(activation)
+            .expect("install v2 trusted activation");
+        seed_snapshot_batch_v2_fixture(&mut snapback, "private-v2-proof");
+        let namespace = QueryNamespace {
+            client_store_id: "snapshot-batch-v2-proof-store".to_owned(),
+            query_key: "qmk1.2pHUpZC2tE1XKzuxDTpdB_d7Sck3pN0ZHzs4CPiQXME".to_owned(),
+            query_instance_id: 157,
+        };
+        let mut cursor = None::<String>;
+        let mut proofs = Vec::new();
+        let mut terminal_manifest = None;
+        for page_index in 0..8 {
+            let mut args = json!({"parentId":"parent-a"});
+            if let Some(cursor) = cursor.as_deref() {
+                args["cursor"] = json!(cursor);
+            }
+            let input = HandlerInput {
+                args,
+                auth: AuthInput {
+                    user_id: Some("user-a".to_owned()),
+                    ..AuthInput::default()
+                },
+                ..HandlerInput::default()
+            };
+            let authority = InvocationGate::prepare_admitted_dev_input(
+                InvocationSource::LocalQuery,
+                ServerProfile::Dev,
+                &input,
+                snapback.admission.admit_dev().expect("admit v2 proof page"),
+            )
+            .expect("prepare v2 proof authority");
+            let page = snapback
+                .invoke_finite_query_prepared_generation(
+                    "mixedView",
+                    input,
+                    authority,
+                    None,
+                    Some(&namespace),
+                    &proofs,
+                )
+                .expect("issue v2 completeness page");
+            let proof = page
+                .completeness_proof
+                .clone()
+                .expect("v2 completeness proof");
+            assert_eq!(
+                proof
+                    .nodes
+                    .iter()
+                    .map(|node| node.class_id.as_str())
+                    .collect::<Vec<_>>(),
+                vec![
+                    "bounded_children_v1",
+                    "relational_query_v1",
+                    "bounded_children_v1",
+                ]
+            );
+            assert_eq!(
+                proof
+                    .nodes
+                    .iter()
+                    .map(|node| node.position)
+                    .collect::<Vec<_>>(),
+                vec![0, 1, 2]
+            );
+            cursor = page.output.rows[0]["continuation"]
+                .as_str()
+                .map(ToOwned::to_owned);
+            proofs.push(proof);
+            if cursor.is_some() {
+                assert!(page.page_set_manifest.is_none());
+            } else {
+                assert!(page_index > 0, "multi-page tuple reaches a terminal vector");
+                terminal_manifest = page.page_set_manifest;
+                break;
+            }
+        }
+        let manifest = terminal_manifest.expect("terminal page-set gate");
+        assert_eq!(
+            manifest,
+            crate::completeness::PageSetManifestV1::compose(&proofs)
+                .expect("compose the same v2 proof chain")
+        );
+    }
+
+    // @ref LLP 0157#sbsb2-plaintext-and-budget — decode validity owns the
+    // first partition, authority binding precedes the dynamic restart tests,
+    // and parent sealing happens before either partition is observed.
+    #[test]
+    fn snapshot_batch_v2_refusal_restart_sealing_and_family_matrix_is_closed() {
+        fn remint(
+            original: &crate::snapshot_batch_cursor_v2::Body,
+            root: &[u8; 32],
+            mutate: impl FnOnce(&mut crate::snapshot_batch_cursor_v2::Body),
+        ) -> String {
+            let mut body = original.clone();
+            mutate(&mut body);
+            crate::snapshot_batch_cursor_v2::mint(root, &body).expect("remint v2 cursor")
+        }
+
+        let (schema, functions, _) = snapshot_batch_v2_publication_fixture(1, 1);
+        let app_id = functions.app_id.clone();
+        let mut snapback = LocalSnapback::memory().expect("v2 cursor matrix store");
+        snapback.apply_schema(schema).expect("apply mixed schema");
+        let diagnostics = snapback.load_functions(functions);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error)
+        );
+        seed_snapshot_batch_v2_fixture(&mut snapback, "private-v2");
+        let input = |parent: &str, cursor: Option<&str>| {
+            let mut args = json!({"parentId":parent});
+            if let Some(cursor) = cursor {
+                args["cursor"] = json!(cursor);
+            }
+            HandlerInput {
+                args,
+                auth: AuthInput {
+                    user_id: Some("user-a".to_owned()),
+                    ..AuthInput::default()
+                },
+                ..HandlerInput::default()
+            }
+        };
+        let first = snapback
+            .invoke_query("mixedView", input("parent-a", None))
+            .expect("first mixed page");
+        let cursor = first.rows[0]["continuation"]
+            .as_str()
+            .expect("mixed cursor")
+            .to_owned();
+        let now = now_millis();
+        let database_id = DbRead::Live(&snapback.db)
+            .search_database_identity()
+            .expect("database identity");
+        let (roots, root) = {
+            let keyring = snapback
+                .resume_keyring
+                .read()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            let roots = keyring.snapshot_batch_cursor_v2_materials(now);
+            let (_, root) = keyring.active_current().expect("active v2 key");
+            (roots, root)
+        };
+        let body = crate::snapshot_batch_cursor_v2::decode(
+            &cursor,
+            &roots,
+            &app_id,
+            &database_id,
+            crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+            now,
+        )
+        .expect("decode issued v2 cursor");
+
+        let invalid = vec![
+            remint(&body, &root, |body| body.app_id = "other-app".to_owned()),
+            remint(&body, &root, |body| {
+                body.function = "otherFunction".to_owned()
+            }),
+            remint(&body, &root, |body| {
+                body.plan_hash = format!("sha256:{}", "0".repeat(64))
+            }),
+            remint(&body, &root, |body| {
+                body.args = json!({"parentId":"parent-c"})
+            }),
+            remint(&body, &root, |body| {
+                body.parent_groups[0].parent_id = "parent-c".to_owned()
+            }),
+            remint(&body, &root, |body| {
+                body.authority_partition = format!("sha256:{}", "1".repeat(64));
+                body.stream_epoch = "also-rotated".to_owned();
+            }),
+            remint(&body, &root, |body| {
+                let crate::snapshot_batch_cursor_v2::NodeState::Boundary { boundary, .. } =
+                    &mut body.nodes[0].state
+                else {
+                    panic!("first node has a bounded boundary")
+                };
+                boundary[0] = json!("not-an-integer");
+            }),
+            remint(&body, &root, |body| {
+                let crate::snapshot_batch_cursor_v2::NodeState::Boundary {
+                    order_fields,
+                    boundary,
+                    row_id,
+                } = body.nodes[0].state.clone()
+                else {
+                    panic!("first node has a bounded boundary")
+                };
+                body.nodes[0].state =
+                    crate::snapshot_batch_cursor_v2::NodeState::RelationalBoundary {
+                        order_fields,
+                        boundary,
+                        row_id,
+                    };
+            }),
+            remint(&body, &root, |body| {
+                body.issued_at = 0;
+                body.expires_at = crate::snapshot_batch_cursor_v2::MAX_AGE_MS;
+            }),
+            remint(&body, &root, |body| {
+                body.issued_at = 0;
+                body.expires_at = crate::snapshot_batch_cursor_v2::MAX_AGE_MS;
+                body.stream_epoch = "expired-and-rotated".to_owned();
+            }),
+            cursor.replacen("sbsb2.", "sbsb1.", 1),
+        ];
+        for wire in invalid {
+            let error = snapback
+                .invoke_query("mixedView", input("parent-a", Some(&wire)))
+                .expect_err("decode/static-invalid member refuses");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID"
+            );
+        }
+
+        for wire in [
+            remint(&body, &root, |body| {
+                body.parent_groups[0].parent_version += 1
+            }),
+            remint(&body, &root, |body| {
+                body.parent_groups[0].parent_incarnation = "different-incarnation".to_owned()
+            }),
+            remint(&body, &root, |body| {
+                body.stream_epoch = "different-stream".to_owned()
+            }),
+        ] {
+            let error = snapback
+                .invoke_query("mixedView", input("parent-a", Some(&wire)))
+                .expect_err("decode-valid dynamic mismatch restarts");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_SNAPSHOT_BATCH_RESTART_REQUIRED"
+            );
+        }
+
+        let changed_version = remint(&body, &root, |body| {
+            body.parent_groups[0].parent_version += 1
+        });
+        for parent in ["missing-parent", "parent-b"] {
+            let sealed = snapback
+                .invoke_query("mixedView", input(parent, Some(&changed_version)))
+                .expect("absence seals before changed _version");
+            assert_eq!(
+                sealed.rows,
+                vec![json!({"kind":"absent","nodes":null,"continuation":null})]
+            );
+        }
+
+        let (v1_schema, v1_functions, _) = snapshot_batch_publication_fixture(2, 1);
+        let mut v1 = LocalSnapback::memory().expect("v1 cross-family surface");
+        v1.apply_schema(v1_schema)
+            .expect("apply v1 cross-family schema");
+        let diagnostics = v1.load_functions(v1_functions);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error)
+        );
+        seed_bounded_publication_fixture(&mut v1, "private-v1");
+        let v1_first = v1
+            .invoke_query("boardView", bounded_input("parent-a", None))
+            .expect("v1 first page");
+        let v1_cursor = v1_first.rows[0]["continuation"]
+            .as_str()
+            .expect("v1 family cursor");
+        assert_eq!(
+            snapback
+                .invoke_query("mixedView", input("parent-a", Some(v1_cursor)))
+                .expect_err("v1 wire refuses on v2 visible surface")
+                .diagnostic
+                .code,
+            "SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID"
+        );
+        assert_eq!(
+            v1.invoke_query("boardView", bounded_input("parent-a", Some(&cursor)))
+                .expect_err("v2 wire refuses on v1 visible surface")
+                .diagnostic
+                .code,
+            "SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID"
+        );
+        assert_eq!(
+            snapback
+                .invoke_query("mixedView", input("parent-b", Some(v1_cursor)))
+                .expect("v2 absent seals cross-family input")
+                .rows,
+            vec![json!({"kind":"absent","nodes":null,"continuation":null})]
+        );
+        assert_eq!(
+            v1.invoke_query("boardView", bounded_input("parent-b", Some(&cursor)))
+                .expect("v1 absent seals cross-family input")
+                .rows,
+            vec![json!({"kind":"absent","nodes":null,"continuation":null})]
+        );
+
+        *snapback
+            .resume_keyring
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) =
+            crate::rqs::ResumeKeyring::in_memory(now);
+        assert_eq!(
+            snapback
+                .invoke_query("mixedView", input("parent-a", Some(&cursor)))
+                .expect_err("genuine key-generation loss collapses to invalid")
+                .diagnostic
+                .code,
+            "SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID"
+        );
+    }
+
+    #[test]
+    fn snapshot_batch_v2_visible_only_result_contract_refuses_at_load() {
+        let (schema, mut functions, _) = snapshot_batch_v2_publication_fixture(1, 1);
+        let function = functions
+            .functions
+            .iter_mut()
+            .find(|function| function.name == "mixedView")
+            .expect("mixed function");
+        let FunctionResultContract::Records {
+            record: ResultValueContract::Union { variants },
+            ..
+        } = &function.result_contract
+        else {
+            panic!("two-arm v2 result contract")
+        };
+        let visible = variants[1].clone();
+        function.result_contract = FunctionResultContract::Records {
+            record: visible,
+            rows: Some(crate::manifest::ResultRowsBound {
+                min_items: 1,
+                max_items: 1,
+            }),
+        };
+        function.result_contract_hash = Some(
+            crate::manifest::result_contract_hash(&function.result_contract)
+                .expect("narrowed contract hash"),
+        );
+        let mut snapback = LocalSnapback::memory().expect("narrowed v2 store");
+        snapback.apply_schema(schema).expect("apply mixed schema");
+        let diagnostics = snapback.load_functions(functions);
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == "SNAPBACK_SNAPSHOT_BATCH_RESULT_CONTRACT_INVALID"
+                && diagnostic.severity == crate::diagnostic::DiagnosticSeverity::Error
+        }));
+    }
+
+    #[test]
+    fn snapshot_batch_v2_experimental_acknowledgment_is_required_at_load() {
+        let (schema, mut functions, _) = snapshot_batch_v2_publication_fixture(1, 1);
+        functions
+            .acknowledged_experimental_capabilities
+            .retain(|capability| capability != "snapshot_batch_v2");
+        let mut snapback = LocalSnapback::memory().expect("v2 ack store");
+        snapback.apply_schema(schema).expect("apply mixed schema");
+        let diagnostics = snapback.load_functions(functions);
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == "SNAPBACK_CAPABILITY_UNSUPPORTED"
+                && diagnostic.severity == crate::diagnostic::DiagnosticSeverity::Error
+        }));
+    }
+
+    // @ref LLP 0157#sbsb2-plaintext-and-budget — establishment uses the
+    // exact 6,099-byte compact body, class-specific root tables, and the
+    // closed integer/string/id/boolean templates before any application read.
+    #[test]
+    fn snapshot_batch_v2_budget_pins_closed_templates_at_6099_and_refuses_6100() {
+        let (mut schema, functions, plan) = snapshot_batch_v2_publication_fixture(1, 1);
+        schema
+            .tables
+            .iter_mut()
+            .find(|table| table.name == "children")
+            .and_then(|table| table.fields.iter_mut().find(|field| field.name == "label"))
+            .expect("bounded id order field")
+            .field_type = FieldType::Id {
+            table: "parents".to_owned(),
+        };
+        let mut snapback = LocalSnapback::memory().expect("v2 budget store");
+        snapback
+            .apply_schema(schema)
+            .expect("apply v2 budget schema");
+        let function = functions
+            .functions
+            .iter()
+            .find(|function| function.name == "mixedView")
+            .expect("mixed function");
+        let identity = crate::manifest::snapshot_batch_identity_v2(function, &plan)
+            .expect("v2 budget identity");
+        let db = DbRead::Live(&snapback.db);
+        let bounded = match &plan.nodes[0] {
+            crate::manifest::SnapshotBatchNodeV2::BoundedChildren(node) => node,
+            _ => unreachable!("bounded first node"),
+        };
+        let relational = match &plan.nodes[1] {
+            crate::manifest::SnapshotBatchNodeV2::RelationalQuery(node) => node,
+            _ => unreachable!("relational second node"),
+        };
+        assert_eq!(
+            super::snapshot_batch_max_boundary_for(&db, &bounded.child_table, &bounded.order)
+                .expect("bounded closed templates"),
+            vec![
+                Value::from(-9_007_199_254_740_991_i64),
+                Value::String("\u{0}".repeat(32)),
+                Value::Bool(false),
+            ]
+        );
+        assert_eq!(
+            super::snapshot_batch_max_boundary_for(&db, &relational.root, &relational.order)
+                .expect("relational closed string template"),
+            vec![Value::String("\u{0}".repeat(32))]
+        );
+
+        let authority_partition = format!("sha256:{}", "a".repeat(64));
+        let parents = ["parent-a".to_owned()];
+        let empty = json!({"parentId":"parent-a","padding":""});
+        let base = super::snapshot_batch_v2_max_plaintext_len(
+            &db,
+            &plan,
+            &identity,
+            "generation-maximum-spelling",
+            "app",
+            "database",
+            "stream",
+            &function.id,
+            &empty,
+            &authority_partition,
+            &parents,
+        )
+        .expect("v2 base maximum");
+        let padding = crate::snapshot_batch_cursor_v2::MAX_PLAINTEXT_BYTES
+            .checked_sub(base)
+            .expect("v2 fixture starts below budget");
+        let at_limit = json!({"parentId":"parent-a","padding":"x".repeat(padding)});
+        assert_eq!(
+            super::snapshot_batch_v2_max_plaintext_len(
+                &db,
+                &plan,
+                &identity,
+                "generation-maximum-spelling",
+                "app",
+                "database",
+                "stream",
+                &function.id,
+                &at_limit,
+                &authority_partition,
+                &parents,
+            )
+            .expect("exact v2 maximum"),
+            6_099
+        );
+        super::enforce_snapshot_batch_v2_cursor_budget(
+            &db,
+            &plan,
+            &identity,
+            "generation-maximum-spelling",
+            "app",
+            "database",
+            "stream",
+            &function.id,
+            &at_limit,
+            &authority_partition,
+            &parents,
+        )
+        .expect("6,099 bytes admits");
+        let over = json!({"parentId":"parent-a","padding":"x".repeat(padding + 1)});
+        assert_eq!(
+            super::snapshot_batch_v2_max_plaintext_len(
+                &db,
+                &plan,
+                &identity,
+                "generation-maximum-spelling",
+                "app",
+                "database",
+                "stream",
+                &function.id,
+                &over,
+                &authority_partition,
+                &parents,
+            )
+            .expect("one byte over v2 maximum"),
+            6_100
+        );
+        assert_eq!(
+            super::enforce_snapshot_batch_v2_cursor_budget(
+                &db,
+                &plan,
+                &identity,
+                "generation-maximum-spelling",
+                "app",
+                "database",
+                "stream",
+                &function.id,
+                &over,
+                &authority_partition,
+                &parents,
+            )
+            .expect_err("6,100 bytes refuses")
+            .diagnostic
+            .code,
+            "SNAPBACK_SNAPSHOT_BATCH_CURSOR_BUDGET_EXCEEDED"
+        );
+
+        let mut unbounded = plan;
+        let crate::manifest::SnapshotBatchNodeV2::RelationalQuery(relational) =
+            &mut unbounded.nodes[1]
+        else {
+            unreachable!("relational node")
+        };
+        relational.order[0].max_encoded_bytes = None;
+        let unbounded_identity = crate::manifest::snapshot_batch_identity_v2(function, &unbounded)
+            .expect("unbounded v2 structural identity");
+        assert_eq!(
+            super::enforce_snapshot_batch_v2_cursor_budget(
+                &db,
+                &unbounded,
+                &unbounded_identity,
+                "generation-maximum-spelling",
+                "app",
+                "database",
+                "stream",
+                &function.id,
+                &empty,
+                &authority_partition,
+                &parents,
+            )
+            .expect_err("unbounded relational order refuses before reads")
+            .diagnostic
+            .code,
+            "SNAPBACK_SNAPSHOT_BATCH_CURSOR_BUDGET_EXCEEDED"
+        );
+    }
+
+    #[test]
+    fn snapshot_batch_v2_pins_mixed_nodes_across_a_sibling_commit() {
+        let dir = tempfile::tempdir().expect("v2 snapshot directory");
+        let path = dir.path().join("snapshot-batch-v2.sqlite3");
+        let (schema, functions, _) = snapshot_batch_v2_publication_fixture(2, 2);
+        let writer_functions = functions.clone();
+        let mut reader = LocalSnapback::open(&path).expect("v2 snapshot reader");
+        reader.apply_schema(schema).expect("apply mixed schema");
+        let diagnostics = reader.load_functions(functions);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error)
+        );
+        seed_snapshot_batch_v2_fixture(&mut reader, "private-v2-sibling");
+
+        let (reached_tx, reached_rx) = std::sync::mpsc::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let _hook = crate::storage::set_storage_read_snapshot_debug_hook(
+            &reader.db, reached_tx, release_rx,
+        );
+        let writer_path = path.clone();
+        let writer =
+            std::thread::spawn(move || {
+                reached_rx
+                    .recv_timeout(std::time::Duration::from_secs(5))
+                    .expect("v2 reader pins predecessor snapshot");
+                let mut writer = LocalSnapback::open(writer_path).expect("v2 sibling writer");
+                let diagnostics = writer.load_functions(writer_functions);
+                assert!(diagnostics.iter().all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error));
+                writer
+                    .invoke_mutation(
+                        "addChild",
+                        HandlerInput {
+                            args: json!({
+                                "parentId":"parent-a", "position":5, "label":"concurrent-v2",
+                                "active":false, "externalKey":"snapshot-v2-concurrent"
+                            }),
+                            ..HandlerInput::default()
+                        },
+                    )
+                    .expect("sibling bounded commit");
+                writer
+                    .seed(crate::manifest::SeedData {
+                        tables: BTreeMap::from([(
+                            "books".to_owned(),
+                            vec![
+                                json!({
+                                    "_id":"book-concurrent", "title":"aardvark",
+                                    "authorSlug":"ada", "ownerId":"user-a"
+                                })
+                                .as_object()
+                                .cloned()
+                                .expect("concurrent book"),
+                            ],
+                        )]),
+                    })
+                    .expect("sibling relational commit");
+                release_tx.send(()).expect("release v2 pinned reader");
+            });
+        let input = HandlerInput {
+            args: json!({"parentId":"parent-a"}),
+            auth: AuthInput {
+                user_id: Some("user-a".to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+        let predecessor = reader
+            .invoke_query("mixedView", input.clone())
+            .expect("v2 pinned predecessor");
+        writer.join().expect("v2 sibling writer joins");
+        let predecessor_nodes = predecessor.rows[0]["nodes"]
+            .as_array()
+            .expect("mixed predecessor tuple");
+        for index in [0, 2] {
+            assert!(
+                predecessor_nodes[index]["children"]
+                    .as_array()
+                    .expect("bounded children")
+                    .iter()
+                    .all(|child| child["label"] != "concurrent-v2")
+            );
+        }
+        assert_eq!(predecessor_nodes[1][0]["title"], "alpha");
+
+        let successor = reader
+            .invoke_query("mixedView", input)
+            .expect("v2 successor snapshot");
+        assert!(successor.version > predecessor.version);
+        let successor_nodes = successor.rows[0]["nodes"]
+            .as_array()
+            .expect("mixed successor tuple");
+        for index in [0, 2] {
+            assert_eq!(
+                successor_nodes[index]["children"][0]["label"],
+                "concurrent-v2"
+            );
+        }
+        assert_eq!(successor_nodes[1][0]["title"], "aardvark");
+    }
+
+    #[test]
+    fn snapshot_batch_v2_all_relational_executor_uses_one_sbsb2_cursor() {
+        use crate::manifest::{
+            FunctionArgsContract, ResultObjectFieldContract, ResultValueContract,
+            SnapshotBatchNodeV2, SnapshotBatchPlanV2,
+        };
+        let mut snapback = LocalSnapback::memory().expect("v2 executor shell");
+        let (schema, fixture_functions) = relational_live_fixture_functions(1);
+        snapback.apply_schema(schema).expect("apply v2 test schema");
+        snapback
+            .seed(crate::manifest::SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "books".to_owned(),
+                        vec![
+                            json!({"_id":"b1","title":"alpha","authorSlug":"ada","ownerId":"user-a"}),
+                            json!({"_id":"b2","title":"beta","authorSlug":"grace","ownerId":"user-a"}),
+                        ]
+                        .into_iter()
+                        .map(|row| row.as_object().cloned().expect("book row"))
+                        .collect(),
+                    ),
+                    (
+                        "authors".to_owned(),
+                        vec![
+                            json!({"_id":"a1","slug":"ada","name":"Ada","ownerId":"user-a"}),
+                            json!({"_id":"a2","slug":"grace","name":"Grace","ownerId":"user-b"}),
+                        ]
+                        .into_iter()
+                        .map(|row| row.as_object().cloned().expect("author row"))
+                        .collect(),
+                    ),
+                ]),
+            })
+            .expect("seed v2 test rows");
+        let mut relational = match &fixture_functions.functions[0].runtime {
+            FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => plan.clone(),
+            _ => panic!("relational fixture plan"),
+        };
+        relational.order[0].max_encoded_bytes = Some(32);
+        let plan = SnapshotBatchPlanV2 {
+            profile: "snapshot-batch.v2".to_owned(),
+            nodes: vec![
+                SnapshotBatchNodeV2::RelationalQuery(relational.clone()),
+                SnapshotBatchNodeV2::RelationalQuery(relational),
+            ],
+            normalized_composite_plan: Value::Null,
+            plan_hash: String::new(),
+        };
+        let mut function = FunctionDefinition::new(
+            "relationalBatch",
+            FunctionKind::Query,
+            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan.clone())),
+        );
+        function.args_contract = Some(FunctionArgsContract {
+            fields: vec![ResultObjectFieldContract {
+                name: "cursor".to_owned(),
+                required: false,
+                value: ResultValueContract::String { max_bytes: 8_192 },
+            }],
+        });
+        let identity = crate::manifest::snapshot_batch_identity_v2(&function, &plan)
+            .expect("all-relational v2 identity");
+        let FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(sealed)) = &mut function.runtime
+        else {
+            unreachable!("v2 plan")
+        };
+        sealed.normalized_composite_plan = identity.normalized_composite_plan;
+        sealed.plan_hash = identity.plan_hash;
+
+        let input = |user_id: Option<&str>, cursor: Option<&str>| {
+            let mut args = json!({});
+            if let Some(cursor) = cursor {
+                args["cursor"] = json!(cursor);
+            }
+            HandlerInput {
+                args,
+                auth: AuthInput {
+                    user_id: user_id.map(ToOwned::to_owned),
+                    ..AuthInput::default()
+                },
+                ..HandlerInput::default()
+            }
+        };
+        let invoke = |snapback: &LocalSnapback,
+                      function: &FunctionDefinition,
+                      input: HandlerInput|
+         -> SnapbackResult<QueryOutput> {
+            let authority = InvocationGate::prepare_admitted_dev_input(
+                InvocationSource::LocalQuery,
+                ServerProfile::Dev,
+                &input,
+                snapback.admission.admit_dev().expect("admit v2 test input"),
+            )
+            .expect("prepare v2 test authority");
+            let prepared = InvocationGate::prepare_function(authority, function)
+                .expect("bind v2 function authority");
+            super::execute_snapshot_batch_v2(
+                function,
+                match &function.runtime {
+                    FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)) => plan,
+                    _ => unreachable!("v2 plan"),
+                },
+                &DbRead::Live(&snapback.db),
+                &input,
+                &prepared,
+                Some(super::RelationalCursorAuthority {
+                    app_id: "snapshot-batch-v2-test-app",
+                    keyring: &snapback.resume_keyring,
+                    schema_hash: None,
+                    function_bundle_hash: None,
+                    function_publication_generation: 0,
+                    target_profile: Some(crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX),
+                }),
+            )
+            .map(|invocation| invocation.output)
+        };
+
+        let first = invoke(&snapback, &function, input(Some("user-a"), None))
+            .expect("execute first v2 relational batch");
+        assert_eq!(first.rows[0]["kind"], "visible");
+        let first_nodes = first.rows[0]["nodes"].as_array().expect("v2 tuple");
+        assert_eq!(first_nodes.len(), 2);
+        assert!(first_nodes.iter().all(|node| node.as_array().is_some()));
+        let cursor = first.rows[0]["continuation"]
+            .as_str()
+            .expect("coordinated v2 continuation")
+            .to_owned();
+        assert!(cursor.starts_with("sbsb2."));
+        let database_id = DbRead::Live(&snapback.db)
+            .search_database_identity()
+            .expect("database identity");
+        let body = crate::snapshot_batch_cursor_v2::decode(
+            &cursor,
+            &snapback
+                .resume_keyring
+                .read()
+                .expect("keyring")
+                .snapshot_batch_cursor_v2_materials(now_millis()),
+            "snapshot-batch-v2-test-app",
+            &database_id,
+            crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+            now_millis(),
+        )
+        .expect("decode executor cursor");
+        assert!(body.parent_groups.is_empty());
+        assert!(body.nodes.iter().all(|node| matches!(
+            node.state,
+            crate::snapshot_batch_cursor_v2::NodeState::RelationalBoundary { .. }
+        )));
+
+        let second = invoke(&snapback, &function, input(Some("user-a"), Some(&cursor)))
+            .expect("execute resumed v2 relational batch");
+        assert_eq!(second.rows[0]["kind"], "visible");
+        assert!(second.rows[0]["continuation"].is_string());
+
+        let zero_rows = invoke(&snapback, &function, input(Some("user-c"), None))
+            .expect("a visible all-relational empty page is not absence");
+        assert_eq!(
+            zero_rows.rows,
+            vec![json!({"kind":"visible","nodes":[[],[]],"continuation":null})]
+        );
+        let refused = invoke(&snapback, &function, input(None, None))
+            .expect_err("relational invocation refusal must escape the batch envelope");
+        assert_eq!(refused.diagnostic.code, "SNAPBACK_AUTH_USER_MISSING");
+
+        let mut zero_plan = plan;
+        for node in &mut zero_plan.nodes {
+            let SnapshotBatchNodeV2::RelationalQuery(node) = node else {
+                unreachable!("all-relational zero-take tuple")
+            };
+            node.take = 0;
+        }
+        let mut zero_function = FunctionDefinition::new(
+            "relationalBatchZero",
+            FunctionKind::Query,
+            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(zero_plan.clone())),
+        );
+        zero_function.args_contract = function.args_contract.clone();
+        let zero_identity = crate::manifest::snapshot_batch_identity_v2(&zero_function, &zero_plan)
+            .expect("zero-take identity");
+        assert_eq!(zero_identity.node_examined_entry_ceilings, vec![0, 0]);
+        assert_eq!(zero_identity.node_joined_lookup_ceilings, vec![0, 0]);
+        assert_eq!(zero_identity.parent_authorization_group_count, 0);
+        let FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(sealed)) =
+            &mut zero_function.runtime
+        else {
+            unreachable!("zero-take v2 plan")
+        };
+        sealed.normalized_composite_plan = zero_identity.normalized_composite_plan;
+        sealed.plan_hash = zero_identity.plan_hash;
+        let zero = invoke(&snapback, &zero_function, input(Some("user-a"), None))
+            .expect("take zero consumes no relational work");
+        assert_eq!(
+            zero.rows,
+            vec![json!({"kind":"visible","nodes":[[],[]],"continuation":null})]
+        );
+    }
+
     // @ref LLP 0135#5-acceptance — executable Relay-shaped proof: three
     // bounded nodes, one parent authorization group, one coordinated `sbsb1`
     // continuation, sealed absence, exact resume, and whole-batch live replace.
@@ -40684,7 +44962,10 @@ globalThis.__snapbackHandlers = {
             InvocationSource::LocalQuery,
             ServerProfile::Dev,
             &first_input,
-            snapback.admission.admit_dev().expect("admit first finite page"),
+            snapback
+                .admission
+                .admit_dev()
+                .expect("admit first finite page"),
         )
         .expect("prepare first finite authority");
         let first = snapback
@@ -40751,7 +45032,10 @@ globalThis.__snapbackHandlers = {
             InvocationSource::LocalQuery,
             ServerProfile::Dev,
             &second_input,
-            snapback.admission.admit_dev().expect("admit continuation page"),
+            snapback
+                .admission
+                .admit_dev()
+                .expect("admit continuation page"),
         )
         .expect("prepare continuation authority");
         let second = snapback
@@ -40778,7 +45062,10 @@ globalThis.__snapbackHandlers = {
                 .expect("compose server page set"),
         );
         assert!(second.output.rows[0]["continuation"].is_null());
-        for node in second.output.rows[0]["nodes"].as_array().expect("node tuple") {
+        for node in second.output.rows[0]["nodes"]
+            .as_array()
+            .expect("node tuple")
+        {
             let ids = node["children"]
                 .as_array()
                 .expect("children")
@@ -41114,6 +45401,178 @@ globalThis.__snapbackHandlers = {
                 .expect("node tuple")
                 .len(),
             8,
+        );
+    }
+
+    #[test]
+    fn snapshot_batch_budget_pins_scalar_widths_at_6099_and_refuses_6100() {
+        let (mut schema, functions, plan) = snapshot_batch_publication_fixture(8, 2);
+        let id_order_field = schema
+            .tables
+            .iter_mut()
+            .find(|table| table.name == "children")
+            .and_then(|table| table.fields.iter_mut().find(|field| field.name == "label"))
+            .expect("bounded id order field");
+        id_order_field.field_type = FieldType::Id {
+            table: "parents".to_owned(),
+        };
+
+        let bounds = order_field_bounds_from_functions(&functions, &schema)
+            .expect("id order fields accept the shared write-enforced bound");
+        assert_eq!(
+            bounds.get(&("children".to_owned(), "label".to_owned())),
+            Some(&16),
+        );
+
+        let mut snapback = LocalSnapback::memory().expect("budget store");
+        snapback
+            .apply_schema(schema)
+            .expect("apply id-order schema");
+        let function = functions
+            .functions
+            .iter()
+            .find(|function| function.name == "boardView")
+            .expect("batch function");
+        let identity = crate::manifest::snapshot_batch_identity_v1(function, &plan)
+            .expect("eight-node identity");
+        let db = DbRead::Live(&snapback.db);
+        assert_eq!(
+            snapshot_batch_max_boundary(&db, &plan.nodes[0]).expect("closed scalar widths"),
+            vec![
+                Value::from(-9_007_199_254_740_991_i64),
+                Value::String("\u{0}".repeat(16)),
+                Value::Bool(false),
+            ],
+            "integer, bounded id, and boolean use LLP 0157's exact templates",
+        );
+
+        let authority_partition = format!("sha256:{}", "a".repeat(64));
+        let parent_ids = ["parent-a".to_owned()];
+        let empty_padding_args = json!({"parentId":"parent-a", "padding":""});
+        let empty_padding_len = snapshot_batch_max_plaintext_len(
+            &db,
+            &plan,
+            &identity,
+            "generation-maximum-spelling",
+            "app",
+            "database",
+            "stream",
+            &function.id,
+            &empty_padding_args,
+            &authority_partition,
+            &parent_ids,
+        )
+        .expect("bounded id template leaves room for exact-boundary padding");
+        let padding_len = crate::snapshot_batch_cursor::MAX_PLAINTEXT_BYTES
+            .checked_sub(empty_padding_len)
+            .expect("fixture begins below the plaintext ceiling");
+
+        let at_limit_args = json!({
+            "parentId":"parent-a",
+            "padding":"x".repeat(padding_len),
+        });
+        assert_eq!(
+            snapshot_batch_max_plaintext_len(
+                &db,
+                &plan,
+                &identity,
+                "generation-maximum-spelling",
+                "app",
+                "database",
+                "stream",
+                &function.id,
+                &at_limit_args,
+                &authority_partition,
+                &parent_ids,
+            )
+            .expect("serialize exact 6,099-byte template"),
+            6_099,
+        );
+        enforce_snapshot_batch_cursor_budget(
+            &db,
+            &plan,
+            &identity,
+            "generation-maximum-spelling",
+            "app",
+            "database",
+            "stream",
+            &function.id,
+            &at_limit_args,
+            &authority_partition,
+            &parent_ids,
+        )
+        .expect("6,099-byte template is admitted");
+
+        let over_limit_args = json!({
+            "parentId":"parent-a",
+            "padding":"x".repeat(padding_len + 1),
+        });
+        assert_eq!(
+            snapshot_batch_max_plaintext_len(
+                &db,
+                &plan,
+                &identity,
+                "generation-maximum-spelling",
+                "app",
+                "database",
+                "stream",
+                &function.id,
+                &over_limit_args,
+                &authority_partition,
+                &parent_ids,
+            )
+            .expect("serialize exact 6,100-byte template"),
+            6_100,
+        );
+        assert_eq!(
+            enforce_snapshot_batch_cursor_budget(
+                &db,
+                &plan,
+                &identity,
+                "generation-maximum-spelling",
+                "app",
+                "database",
+                "stream",
+                &function.id,
+                &over_limit_args,
+                &authority_partition,
+                &parent_ids,
+            )
+            .expect_err("6,100-byte template must refuse before parent reads")
+            .diagnostic
+            .code,
+            "SNAPBACK_SNAPSHOT_BATCH_CURSOR_BUDGET_EXCEEDED",
+        );
+
+        let mut unbounded_id = plan;
+        for node in &mut unbounded_id.nodes {
+            node.order
+                .iter_mut()
+                .find(|order| order.field == "label")
+                .expect("id order")
+                .max_encoded_bytes = None;
+        }
+        let unbounded_identity =
+            crate::manifest::snapshot_batch_identity_v1(function, &unbounded_id)
+                .expect("unbounded id identity remains structurally valid");
+        assert_eq!(
+            enforce_snapshot_batch_cursor_budget(
+                &db,
+                &unbounded_id,
+                &unbounded_identity,
+                "generation-maximum-spelling",
+                "app",
+                "database",
+                "stream",
+                &function.id,
+                &empty_padding_args,
+                &authority_partition,
+                &parent_ids,
+            )
+            .expect_err("id order fields without declared bounds fail closed")
+            .diagnostic
+            .code,
+            "SNAPBACK_SNAPSHOT_BATCH_CURSOR_BUDGET_EXCEEDED",
         );
     }
 
@@ -41751,6 +46210,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             };
         let schema = SchemaManifest {
             tables: vec![
@@ -42538,6 +46998,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             };
         let schema = SchemaManifest {
             tables: vec![
@@ -42645,6 +47106,7 @@ globalThis.__snapbackHandlers = {
                         principal_addressed_writes: None,
                     }),
                     asset_sharing: None,
+                    history: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -43538,6 +48000,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -43917,6 +48380,7 @@ globalThis.__snapbackHandlers = {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         };
         let schema = SchemaManifest {
             tables: vec![
@@ -44344,6 +48808,7 @@ globalThis.__snapbackHandlers = {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         }];
         if include_extra {
             tables.push(TableManifest {
@@ -44362,6 +48827,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             });
         }
         SchemaManifest {
@@ -45180,6 +49646,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 TableManifest {
                     name: "permissions".to_owned(),
@@ -45204,6 +49671,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -45346,6 +49814,7 @@ globalThis.__snapbackHandlers = {
                 &[],
                 "test",
                 authority,
+                None,
                 None,
                 settlement,
             )?;
@@ -45931,6 +50400,7 @@ globalThis.__snapbackHandlers = {
                 "test",
                 authority,
                 None,
+                None,
                 settlement.clone(),
             )
             .expect("first attempt stages");
@@ -46171,6 +50641,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -46477,6 +50948,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 }],
                 ..SchemaManifest::default()
             })
@@ -46612,8 +51084,8 @@ globalThis.__snapbackHandlers = {
         let diagnostics = snapback.load_functions(FunctionManifest::default());
         assert!(
             diagnostics.iter().all(|diagnostic| {
-                    diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
-                }),
+                diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
+            }),
             "{diagnostics:?}"
         );
 
@@ -46801,6 +51273,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 }],
                 ..SchemaManifest::default()
             })
@@ -47893,6 +52366,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 }],
                 ..SchemaManifest::default()
             })
@@ -48001,6 +52475,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 }],
                 ..SchemaManifest::default()
             })
@@ -48231,6 +52706,7 @@ globalThis.__snapbackHandlers = {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         };
 
         let books = TableManifest {
@@ -48265,6 +52741,7 @@ globalThis.__snapbackHandlers = {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         };
         let authors = TableManifest {
             name: "authors".to_owned(),
@@ -48298,6 +52775,7 @@ globalThis.__snapbackHandlers = {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         };
         let mut snapback = LocalSnapback::memory().expect("memory snapback");
         snapback
@@ -49274,6 +53752,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -49382,6 +53861,7 @@ globalThis.__snapbackHandlers = {
                 "hostInsert",
                 input(),
                 prepared_mutation(&cancelled_snapback, "hostInsert"),
+                None,
                 || Ok(()),
                 || -> crate::diagnostic::SnapbackResult<()> { Err(cancelled()) },
             )
@@ -49412,6 +53892,7 @@ globalThis.__snapbackHandlers = {
                 "hostInsert",
                 input(),
                 prepared_mutation(&committed, "hostInsert"),
+                None,
                 || Ok(()),
                 {
                     let active = active.clone();
@@ -49575,6 +54056,7 @@ globalThis.__snapbackHandlers = {
                 input(),
                 binding,
                 executed_insert(),
+                None,
                 || Ok(()),
                 || -> crate::diagnostic::SnapbackResult<()> { Err(cancelled()) },
             )
@@ -49604,6 +54086,7 @@ globalThis.__snapbackHandlers = {
                 input(),
                 binding,
                 executed_insert(),
+                None,
                 || Ok(()),
                 {
                     let active = active.clone();
@@ -49672,6 +54155,7 @@ globalThis.__snapbackHandlers = {
                 "hostInsert",
                 input(),
                 prepared_mutation(&host, "hostInsert"),
+                None,
                 || Ok(()),
                 || Ok(()),
             )
@@ -49695,6 +54179,7 @@ globalThis.__snapbackHandlers = {
                 input(),
                 binding,
                 executed_insert(),
+                None,
                 || Ok(()),
                 || Ok(()),
             )
@@ -49792,6 +54277,7 @@ globalThis.__snapbackHandlers = {
                 input(),
                 binding,
                 executed,
+                None,
                 || Ok(()),
                 || Ok(()),
             )
@@ -51098,6 +55584,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         }
@@ -51590,10 +56077,12 @@ globalThis.__snapbackHandlers = {
     fn job_activity_hint_arms_on_commit_survives_restart_and_clears_when_empty() {
         let directory = tempfile::tempdir().expect("job activity fixture directory");
         let database_path = directory.path().join("job-activity.sqlite3");
-        let mut snapback =
-            LocalSnapback::open(&database_path).expect("open job activity fixture");
+        let mut snapback = LocalSnapback::open(&database_path).expect("open job activity fixture");
         let activity = snapback.jobs_activity_flag();
-        assert!(!activity.load(Ordering::Relaxed), "an empty queue starts idle");
+        assert!(
+            !activity.load(Ordering::Relaxed),
+            "an empty queue starts idle"
+        );
         let diagnostics = snapback.load_functions(FunctionManifest {
             functions: vec![
                 FunctionDefinition::new(
@@ -51618,8 +56107,10 @@ globalThis.__snapbackHandlers = {
             ..FunctionManifest::default()
         });
         assert!(
-            diagnostics.iter().all(|diagnostic| diagnostic.severity
-                != crate::diagnostic::DiagnosticSeverity::Error),
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
             "job activity fixture must load: {diagnostics:?}"
         );
         let output = snapback
@@ -51654,7 +56145,9 @@ globalThis.__snapbackHandlers = {
             .finish_job_claim(claims.remove(0), Ok(Value::Null))
             .expect("finish activity fixture job");
         assert_eq!(
-            reopened.refresh_jobs_activity().expect("refresh empty queue"),
+            reopened
+                .refresh_jobs_activity()
+                .expect("refresh empty queue"),
             0
         );
         assert!(
@@ -53559,6 +58052,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             required_capabilities: vec![VECTOR_CAPABILITY.to_owned()],
             ..SchemaManifest::default()
@@ -53574,14 +58068,14 @@ globalThis.__snapbackHandlers = {
                     "documents".to_owned(),
                     vec![
                         json!({
-                        "_id": "doc-a",
-                        "embedding": [1.0, 0.0],
-                        "owner": "alice",
-                        "status": "ready",
-                        "title": 7.0,
-                    })
-                    .as_object()
-                    .cloned()
+                            "_id": "doc-a",
+                            "embedding": [1.0, 0.0],
+                            "owner": "alice",
+                            "status": "ready",
+                            "title": 7.0,
+                        })
+                        .as_object()
+                        .cloned()
                         .expect("seed row"),
                     ],
                 )]),
@@ -53753,6 +58247,551 @@ globalThis.__snapbackHandlers = {
                 .vector_generation_status_for_test("documents", "by_embedding")
                 .expect("inspect exact generation status"),
             "quarantined"
+        );
+    }
+
+    fn managed_branch_carrier_fixture() -> LocalSnapback {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("canonical.sqlite");
+        // Managed branch paths are siblings of the canonical file, so retain
+        // the temporary directory for the life of this test process.
+        let _retained = dir.keep();
+        let mut snapback = LocalSnapback::open(path).expect("file-backed canonical instance");
+        snapback
+            .apply_schema(SchemaManifest {
+                app_id: "branch-carrier-app".to_owned(),
+                schema_hash: Some(format!("sha256:{}", "1".repeat(64))),
+                tables: vec![TableManifest {
+                    name: "records".to_owned(),
+                    fields: vec![
+                        FieldManifest {
+                            name: "ownerId".to_owned(),
+                            field_type: FieldType::Principal,
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "value".to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        },
+                    ],
+                    indexes: Vec::new(),
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
+                    search_live_limits: None,
+                    membership: None,
+                    asset_sharing: None,
+                    history: None,
+                }],
+                ..SchemaManifest::default()
+            })
+            .expect("apply branch carrier schema");
+        snapback
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "records".to_owned(),
+                    vec![serde_json::Map::from_iter([
+                        ("_id".to_owned(), json!("admin-only")),
+                        ("ownerId".to_owned(), json!("admin")),
+                        ("value".to_owned(), json!("secret")),
+                    ])],
+                )]),
+            })
+            .expect("seed admin-owned canonical row");
+
+        let mut create_owned = FunctionDefinition::new(
+            "createOwned",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "records".to_owned(),
+                    values: BTreeMap::from([
+                        ("ownerId".to_owned(), ValueExpr::AuthUserId),
+                        ("value".to_owned(), ValueExpr::Arg("value".to_owned())),
+                    ]),
+                    bind_id_as: None,
+                }],
+                return_value: Some(ReturnValue::ChangedCount),
+            })),
+        );
+        create_owned.auth_requirement = Some(AuthRequirement::Authenticated);
+        let mut mutate_admin = FunctionDefinition::new(
+            "mutateAdminOnly",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![
+                    MutationStep::Get {
+                        table: "records".to_owned(),
+                        id: ValueExpr::Literal(json!("admin-only")),
+                        bind_as: "target".to_owned(),
+                        else_error: Some("ADMIN_ROW_MISSING".to_owned()),
+                    },
+                    MutationStep::Guard {
+                        cond: ValueExpr::Binary {
+                            op: crate::manifest::BinaryOp::Eq,
+                            left: Box::new(ValueExpr::Field {
+                                base: Box::new(ValueExpr::Binding("target".to_owned())),
+                                key: "ownerId".to_owned(),
+                            }),
+                            right: Box::new(ValueExpr::AuthUserId),
+                        },
+                        else_error: "ADMIN_ROW_DENIED".to_owned(),
+                    },
+                    MutationStep::Patch {
+                        table: "records".to_owned(),
+                        id: ValueExpr::Literal(json!("admin-only")),
+                        values: BTreeMap::from([(
+                            "value".to_owned(),
+                            ValueExpr::Literal(json!("leaked")),
+                        )]),
+                    },
+                ],
+                return_value: Some(ReturnValue::ChangedCount),
+            })),
+        );
+        mutate_admin.auth_requirement = Some(AuthRequirement::Authenticated);
+        let attempt_fetch = FunctionDefinition::new(
+            "attemptFetch",
+            FunctionKind::Action,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: "globalThis.__snapbackHandlers = { async attemptFetch(ctx) { return await ctx.fetch({ url: 'https://example.invalid/' }); } };".to_owned(),
+                export: "attemptFetch".to_owned(),
+            }),
+        );
+        let attempt_stream = FunctionDefinition::new(
+            "attemptStream",
+            FunctionKind::Action,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: "globalThis.__snapbackHandlers = { async attemptStream(ctx) { return await ctx.fetchStream({ url: 'https://example.invalid/' }); } };".to_owned(),
+                export: "attemptStream".to_owned(),
+            }),
+        );
+        let attempt_push = FunctionDefinition::new(
+            "attemptPush",
+            FunctionKind::Action,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: "globalThis.__snapbackHandlers = { async attemptPush(ctx) { return await ctx.push.send({}); } };".to_owned(),
+                export: "attemptPush".to_owned(),
+            }),
+        );
+        let enqueue_job = FunctionDefinition::new(
+            "enqueueJob",
+            FunctionKind::Mutation,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: "globalThis.__snapbackHandlers = { async enqueueJob(ctx) { return await ctx.jobs.enqueue('inertNotify', {}); } };".to_owned(),
+                export: "enqueueJob".to_owned(),
+            }),
+        );
+        let capture_twice = FunctionDefinition::new(
+            "captureTwice",
+            FunctionKind::Action,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: "globalThis.__snapbackHandlers = { async captureTwice(ctx) { let caught = 0; try { await ctx.fetch({ url: 'https://capture-sentinel.invalid/one' }); } catch (_) { caught += 1; } try { await ctx.fetch({ url: 'https://capture-sentinel.invalid/two' }); } catch (_) { caught += 1; } return { caught }; } };".to_owned(),
+                export: "captureTwice".to_owned(),
+            }),
+        );
+        let inert_notify = FunctionDefinition::new(
+            "inertNotify",
+            FunctionKind::Action,
+            FunctionRuntime::HostPlan(HandlerPlan::Action(ActionPlan {
+                steps: Vec::new(),
+                return_value: None,
+            })),
+        );
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            app_id: "branch-carrier-app".to_owned(),
+            bundle_hash: Some(format!("sha256:{}", "2".repeat(64))),
+            functions: vec![
+                create_owned,
+                mutate_admin,
+                attempt_fetch,
+                attempt_stream,
+                attempt_push,
+                enqueue_job,
+                capture_twice,
+                inert_notify,
+            ],
+            acknowledged_experimental_capabilities: vec!["jobs_one_off_v1".to_owned()],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics.iter().all(|diagnostic| {
+                diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
+            }),
+            "branch carrier functions load: {diagnostics:?}"
+        );
+        snapback
+            .db
+            .initialize_data_version_stream_for_test()
+            .expect("initialize the canonical data stream for branch-carrier tests");
+        snapback
+    }
+
+    #[test]
+    fn managed_branch_carrier_projects_scoped_principal_and_is_replay_stable() {
+        let mut snapback = managed_branch_carrier_fixture();
+        let missing_id = crate::host_ops::execute_host_op(
+            &mut snapback,
+            crate::host_ops::HostOpsRequest {
+                operation: "branch.execute.v1".to_owned(),
+                input: Some(json!({
+                    "schemaVersion": 1,
+                    "branchId": "branch-v1:missing",
+                    "function": "createOwned",
+                    "args": {"value": "ignored"},
+                })),
+                ..crate::host_ops::HostOpsRequest::default()
+            },
+            None,
+        );
+        assert_eq!(
+            missing_id.diagnostics[0].code,
+            "SNAPBACK_BRANCH_REQUEST_ID_REQUIRED"
+        );
+
+        let receipt = snapback
+            .create_operator_in_app_branch(vec!["createOwned".to_owned()], 100_000, 1_000)
+            .expect("create managed branch");
+        assert_eq!(
+            receipt.branch.artifact_binding,
+            crate::fork_promotion::BranchArtifactBindingV1 {
+                schema_hash: format!("sha256:{}", "1".repeat(64)),
+                function_bundle_hash: format!("sha256:{}", "2".repeat(64)),
+            }
+        );
+        let branch_id = receipt.branch.branch.branch_id.clone();
+        let principal_id = receipt.branch.grant.principal_id.clone();
+        let operation = snapback
+            .execute_operator_in_app_branch(
+                &branch_id,
+                "createOwned",
+                json!({"value": "branch-owned"}),
+                "branch-request-stable-1",
+                1_001,
+                ServerProfile::Test,
+            )
+            .expect("real branch mutation executes");
+        assert_eq!(operation.principal_id, principal_id);
+        assert_eq!(
+            snapback
+                .execute_operator_in_app_branch(
+                    &branch_id,
+                    "createOwned",
+                    json!({"value": "branch-owned"}),
+                    "branch-request-stable-1",
+                    1_002,
+                    ServerProfile::Test,
+                )
+                .expect("exact retry returns retained operation"),
+            operation
+        );
+        let collision = snapback
+            .execute_operator_in_app_branch(
+                &branch_id,
+                "createOwned",
+                json!({"value": "diverged"}),
+                "branch-request-stable-1",
+                1_003,
+                ServerProfile::Test,
+            )
+            .expect_err("same request id with changed args collides");
+        assert_eq!(
+            collision.diagnostic.code,
+            "SNAPBACK_BRANCH_OPERATION_ID_REUSED"
+        );
+        let second = snapback
+            .execute_operator_in_app_branch(
+                &branch_id,
+                "createOwned",
+                json!({"value": "branch-owned-second"}),
+                "branch-request-stable-2",
+                1_004,
+                ServerProfile::Test,
+            )
+            .expect("a committed operation does not foreclose later branch work");
+        assert_ne!(
+            second.identity.key.operation_id,
+            operation.identity.key.operation_id
+        );
+
+        let original_functions = snapback.functions.clone();
+        let mut drifted_functions = original_functions.clone();
+        drifted_functions.bundle_hash = Some(format!("sha256:{}", "3".repeat(64)));
+        drifted_functions.functions.clear();
+        assert!(
+            snapback
+                .load_functions(drifted_functions)
+                .iter()
+                .all(|diagnostic| {
+                    diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
+                })
+        );
+        assert_eq!(
+            snapback
+                .execute_operator_in_app_branch(
+                    &branch_id,
+                    "createOwned",
+                    json!({"value": "branch-owned"}),
+                    "branch-request-stable-1",
+                    1_005,
+                    ServerProfile::Test,
+                )
+                .expect("exact retry is recovered from the pinned branch after bundle drift"),
+            operation
+        );
+        assert_eq!(
+            snapback
+                .execute_operator_in_app_branch(
+                    &branch_id,
+                    "createOwned",
+                    json!({"value": "must-not-run-bundle-drift"}),
+                    "branch-request-bundle-drift",
+                    1_006,
+                    ServerProfile::Test,
+                )
+                .expect_err("novel request refuses parent bundle drift before handler bytes")
+                .diagnostic
+                .code,
+            "SNAPBACK_BRANCH_ARTIFACT_DRIFT"
+        );
+
+        assert!(
+            snapback
+                .load_functions(original_functions)
+                .iter()
+                .all(|diagnostic| {
+                    diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
+                })
+        );
+        let mut drifted_schema = snapback.db.schema().clone();
+        drifted_schema.schema_hash = Some(format!("sha256:{}", "4".repeat(64)));
+        snapback
+            .apply_schema(drifted_schema)
+            .expect("reload the same schema with a distinct canonical identity");
+        assert_eq!(
+            snapback
+                .execute_operator_in_app_branch(
+                    &branch_id,
+                    "createOwned",
+                    json!({"value": "branch-owned-second"}),
+                    "branch-request-stable-2",
+                    1_007,
+                    ServerProfile::Test,
+                )
+                .expect("exact retry is recovered from the pinned branch after schema drift"),
+            second
+        );
+        assert_eq!(
+            snapback
+                .execute_operator_in_app_branch(
+                    &branch_id,
+                    "createOwned",
+                    json!({"value": "must-not-run-schema-drift"}),
+                    "branch-request-schema-drift",
+                    1_008,
+                    ServerProfile::Test,
+                )
+                .expect_err("novel request refuses parent schema drift before handler bytes")
+                .diagnostic
+                .code,
+            "SNAPBACK_BRANCH_ARTIFACT_DRIFT"
+        );
+
+        let branch_path = snapback
+            .db
+            .managed_in_app_branch_path(&branch_id, 1_009)
+            .expect("resolve server-custodied branch path");
+        let branch = LocalSnapback::open(branch_path).expect("open branch for assertions");
+        let rows = branch.db.scan_table("records", 10, 0).unwrap();
+        let owned = rows
+            .rows
+            .iter()
+            .find(|row| row["value"] == "branch-owned")
+            .expect("branch-owned row exists");
+        assert_eq!(owned["ownerId"], principal_id);
+        assert_eq!(
+            branch
+                .db
+                .branch_operation_log(&branch_id)
+                .expect("reopened operation log")
+                .len(),
+            2
+        );
+        assert_eq!(snapback.db.scan_table("records", 10, 0).unwrap().total, 1);
+    }
+
+    #[test]
+    fn managed_branch_carrier_cannot_reach_admin_row_or_real_fetch_host() {
+        let mut snapback = managed_branch_carrier_fixture();
+        let row_branch = snapback
+            .create_operator_in_app_branch(vec!["mutateAdminOnly".to_owned()], 100_000, 1_000)
+            .expect("create row-policy branch");
+        let row_denial = snapback
+            .execute_operator_in_app_branch(
+                &row_branch.branch.branch.branch_id,
+                "mutateAdminOnly",
+                json!({}),
+                "branch-request-row-denial",
+                1_001,
+                ServerProfile::Test,
+            )
+            .expect_err("branch principal cannot satisfy admin-row guard");
+        assert_eq!(row_denial.diagnostic.code, "ADMIN_ROW_DENIED");
+
+        for (index, function) in ["attemptFetch", "attemptStream", "attemptPush", "enqueueJob"]
+            .into_iter()
+            .enumerate()
+        {
+            let now_ms = 1_002 + i64::try_from(index).unwrap() * 2;
+            let egress_branch = snapback
+                .create_operator_in_app_branch(vec![function.to_owned()], 100_000, now_ms)
+                .expect("create real-handler egress-denial branch");
+            let branch_id = egress_branch.branch.branch.branch_id.clone();
+            let denial = snapback
+                .execute_operator_in_app_branch(
+                    &branch_id,
+                    function,
+                    json!({}),
+                    &format!("branch-request-{function}-denial"),
+                    now_ms + 1,
+                    ServerProfile::Test,
+                )
+                .expect_err("real branch handler cannot cross DenyAll");
+            assert_eq!(
+                denial.diagnostic.code, "SNAPBACK_BRANCH_EGRESS_DENIED",
+                "{function} must reach the branch runtime choke"
+            );
+            let inspected = snapback
+                .inspect_operator_in_app_branch(&branch_id, now_ms + 1)
+                .expect("inspect branch after denial");
+            assert_eq!(inspected.branch.deny_all_attempt_count, 1);
+            assert!(!inspected.branch.promotable);
+        }
+    }
+
+    #[test]
+    fn capture_only_orders_repeated_same_family_attempts_without_payload_custody() {
+        let mut snapback = managed_branch_carrier_fixture();
+        let receipt = snapback
+            .create_operator_in_app_branch_with_policy(
+                vec!["captureTwice".to_owned()],
+                100_000,
+                1_000,
+                crate::fork_promotion::ForkEgressPolicyV1::CaptureOnly,
+            )
+            .expect("create CaptureOnly branch");
+        let branch_id = receipt.branch.branch.branch_id.clone();
+        let operation = snapback
+            .execute_operator_in_app_branch(
+                &branch_id,
+                "captureTwice",
+                json!({}),
+                "branch-capture-twice",
+                1_001,
+                ServerProfile::Test,
+            )
+            .expect("caught host refusals finalize one captured operation");
+        assert_eq!(operation.approved_facts.effects.len(), 2);
+        assert_eq!(operation.approved_facts.effects[0]["effectOrdinal"], 0);
+        assert_eq!(operation.approved_facts.effects[1]["effectOrdinal"], 1);
+        assert_ne!(
+            operation.approved_facts.effects[0]["intentId"],
+            operation.approved_facts.effects[1]["intentId"]
+        );
+        assert!(
+            !snapback
+                .inspect_operator_in_app_branch(&branch_id, 1_002)
+                .expect("CaptureOnly receipt after durable intent capture")
+                .branch
+                .promotable,
+            "CaptureOnly remains truthful: captured effects are not promotable without provider custody"
+        );
+
+        let path = snapback
+            .db
+            .managed_in_app_branch_path(&branch_id, 1_002)
+            .expect("branch path");
+        let reopened = LocalSnapback::open(&path).expect("reopen captured branch");
+        let intents = reopened
+            .db
+            .captured_effect_intents(&branch_id)
+            .expect("ordered payload-free intents");
+        assert_eq!(
+            intents
+                .iter()
+                .map(|intent| (intent.effect_ordinal, intent.egress_class.as_str()))
+                .collect::<Vec<_>>(),
+            vec![(0, "fetch"), (1, "fetch")]
+        );
+        assert!(
+            intents
+                .iter()
+                .all(|intent| intent.child_version == Some(operation.child_version))
+        );
+        let database_bytes = std::fs::read(path).expect("read branch database");
+        assert!(
+            !database_bytes
+                .windows(b"capture-sentinel.invalid".len())
+                .any(|window| window == b"capture-sentinel.invalid"),
+            "target bytes must never enter the captured-effect ledger"
+        );
+    }
+
+    #[test]
+    fn public_capture_only_carrier_derives_transitive_predecessors_and_refuses_plain_writes() {
+        let mut snapback = managed_branch_carrier_fixture();
+        let receipt = snapback
+            .create_operator_in_app_branch_with_policy(
+                vec!["captureTwice".to_owned(), "createOwned".to_owned()],
+                100_000,
+                1_000,
+                crate::fork_promotion::ForkEgressPolicyV1::CaptureOnly,
+            )
+            .expect("create multi-operation CaptureOnly branch");
+        let branch_id = receipt.branch.branch.branch_id.clone();
+        let captured = snapback
+            .execute_operator_in_app_branch(
+                &branch_id,
+                "captureTwice",
+                json!({}),
+                "branch-capture-before-write",
+                1_001,
+                ServerProfile::Test,
+            )
+            .expect("capture effect intents");
+        let later_write = snapback
+            .execute_operator_in_app_branch(
+                &branch_id,
+                "createOwned",
+                json!({"value": "must-stay-provisional"}),
+                "branch-write-after-capture",
+                1_002,
+                ServerProfile::Test,
+            )
+            .expect("branch-local write may execute before promotion review");
+        assert_eq!(
+            later_write.causal_predecessors,
+            vec![captured.child_version]
+        );
+
+        let path = snapback
+            .db
+            .managed_in_app_branch_path(&branch_id, 1_003)
+            .expect("branch path");
+        let branch = LocalSnapback::open(path).expect("reopen branch");
+        let operations = branch
+            .db
+            .branch_operation_log(&branch_id)
+            .expect("public carrier operation log");
+        assert_eq!(
+            crate::fork_promotion::provisional_effect_dependencies(&operations)
+                .expect_err("plain later write cannot assert a captured effect outcome")
+                .diagnostic
+                .code,
+            "SNAPBACK_PROMOTION_PROVISIONAL_REPRESENTATION_REQUIRED"
         );
     }
 }

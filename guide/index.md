@@ -4,13 +4,13 @@ id: meta.index
 order: 1
 audience: agent-first
 capabilities: [operating.served-guide, operating.guide-mcp]
-authorities: [llp/0061-agent-first-snapback-guide.rfc.md, llp/0000-snapback.explainer.md, llp/0064-native-client-surfaces.rfc.md]
-examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/partiful-matrix]
+authorities: [llp/0061-agent-first-snapback-guide.rfc.md, llp/0000-snapback.explainer.md, llp/0042-agent-mcp-surface.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, src/cli.rs, src/guide_mcp.rs, packages/snapback-cli/index.mjs, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/mcp-control.mjs]
+examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/partiful-matrix, demos/expo-golden-path-fixture]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-04
-reviewed-commit: dab2410b6793ffa5685069a0a4054f0e2b21608a
+reviewed: 2026-08-06
+reviewed-commit: 850427c31b9a668d55b46995e08389cd13a2c9b6
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -29,15 +29,70 @@ running Snapback server exposes the same build-bound corpus at
 single-request projection at `GET /_snapback/guide/flat.md`. Those responses
 carry `x-snapback-guide-content-sha256` and
 `x-snapback-server-build-commit`, so a consumer can refuse to combine cached
-guide bytes with a different server build. Building Snapback itself is a
+guide bytes with a different server build. `GET /llms.txt` at the served root
+provides a convention-standard index pointing to the flat projection and
+capability index. Building Snapback itself is a
 different job — that's `AGENTS.md` and the LLP corpus, not this guide.
 
-For MCP clients, run `snapback mcp`. The read-only server exposes the same
-manifest, flat projection, and manifest-named pages at stable
-`snapback-guide://` resource URIs. Every resource repeats the guide content
-hash and build commit in MCP metadata; read the manifest first and refuse to
-combine resources whose identities differ. This resource-only command exposes
-no mutation or host-operation tools.
+## Choose the MCP authority
+
+Snapback ships two local stdio MCP servers. Keep their different authority
+postures visible when you configure an agent:
+
+| Server | What it exposes | Authority consequence |
+| --- | --- | --- |
+| `snapback mcp` | The native Rust binary's resource-only Guide server. It reads the compile-time-embedded Guide corpus and exposes the manifest, flat projection, and manifest-named pages at stable `snapback-guide://` URIs. It has no mutation or host-operation tools. | Least authority: safe to wire into any agent, with no additional authority grant. |
+| `snapback mcp-control` | The explicit JS control-plane server shipped by `@expo/snapback-cli`: typed control tools, the generated app-data catalog, `snapback-controls://catalog` plus per-operation/instance resources, and the native Guide resources. It invokes the co-installed native runtime for both embedded Guide and build-catalog bytes; the npm package carries no second snapshot. If that binary is unavailable, resource listing reports `SNAPBACK_MCP_NATIVE_DOCUMENTATION_UNAVAILABLE` and lists no pretend Guide/catalog resources. | Standing local admin: it authenticates with the auto-minted local admin token, so the wired-in client has admin authority over the local Snapback instance. |
+
+The split makes documentation safe by default while keeping a capable operating
+surface available by explicit choice. `mcp-control` has the same local authority
+the CLI already exercises, but it is still a real authority grant that a cold
+agent must understand before opting in; configuring it does not grant hosted or
+remote authority, and no credential is copied into MCP configuration.
+
+Generate the project-scoped configuration instead of guessing client syntax:
+
+```sh
+snapback agent setup --print codex
+snapback agent setup --print claude --server mcp
+snapback agent setup --install cursor --server mcp-control
+```
+
+`--print` supports `codex`, `claude`, `cursor`, and `generic`; without
+`--server` it prints both entries. Codex uses `.codex/config.toml` in a trusted
+project, Claude uses `.mcp.json`, and Cursor uses `.cursor/mcp.json`. Installation
+and exact uninstall require an explicit `--server mcp|mcp-control`; installation
+shows the target file, requested server, and authority consequence before it
+writes, then returns a receipt.
+
+For a manual setup, the two commands are simply:
+
+```sh
+snapback mcp
+snapback mcp-control
+```
+
+A project-scoped JSON client entry has this minimal shape when the installed
+`@expo/snapback-cli` `snapback` bin is on `PATH` (the setup command emits the
+resolved local executable paths instead):
+
+```json fragment reason="manual MCP client configuration; generated executable paths are installation-specific"
+{
+  "mcpServers": {
+    "snapback-guide": {
+      "command": "snapback",
+      "args": ["mcp"]
+    },
+    "snapback-control": {
+      "command": "snapback",
+      "args": ["mcp-control"]
+    }
+  }
+}
+```
+
+Every Guide resource repeats the content hash and build commit in MCP metadata;
+read the manifest first and refuse to combine resources whose identities differ.
 
 **Start every task here:** check the
 [capability index](./capabilities.md) first — it lists everything Snapback
@@ -70,8 +125,10 @@ you never build around a feature because you didn't know it existed.
   arguments, diagnostics, and transition guidance.
 - [Safe standard patterns](./backend/standard-patterns.md) — owner-scoped CRUD,
   unique lookup, keyset pages, and declarative trusted defaults.
-- [Relational queries](./backend/relational-queries.md) — bounded two-source
-  equi-joins with explicit visibility and closed projections (experimental).
+- [Relational queries](./backend/relational-queries.md) — shipped
+  `defineRelationalQuery` / `defineMaintainedProjection` support for bounded
+  two-source joins, including conversation-membership and message-sender
+  shapes; aggregation and self-joins remain explicit gaps.
 - [Snapshot batches](./backend/snapshot-batches.md) — 2–8 bounded child
   pages evaluated at one snapshot with one coordinated `sbsb1` cursor
   (experimental local target).
@@ -83,10 +140,11 @@ you never build around a feature because you didn't know it existed.
   fixed-width embeddings, pinned `dot`/`l2sq` arithmetic, bounded exact k-NN,
   authorization partitions, and explicit ANN/live/hosted nonclaims
   (experimental).
-- [Assets](./backend/assets.md) — generated upload intents, TUS resumable
-  transfer, trusted SHA-256 finalization, typed `v.assetRef` attachment,
-  private-strict delivery, consistent-cut logical export, and signing-key
-  rotation (local target; byte-level backup remains a nonclaim).
+- [Assets](./backend/assets.md) — generated upload intents, an authenticated
+  Expo ImagePicker-to-Blob recipe, TUS resumable transfer, trusted SHA-256
+  finalization, typed `v.assetRef` attachment, private-strict delivery,
+  consistent-cut logical export, and signing-key rotation (local target;
+  byte-level backup remains a nonclaim).
 - [Versioned seeds](./backend/versioned-seeds.md) — content-addressed fixture
   identity, non-destructive matching, explicit reset-install/clear, and
   migration boundaries (experimental).
@@ -109,8 +167,9 @@ you never build around a feature because you didn't know it existed.
   replace/delta, durable push, the connection axis.
 - [Route snapshot bundles](./realtime/snapshot-bundles.md) — one-commit page
   boot, route manifests, resume tokens, and register-mode handoff.
-- [Ephemeral state](./realtime/ephemeral-state.md) — typed rooms, all
-  collection options and key modes, overlays, recovery, and Contract links.
+- [Ephemeral state](./realtime/ephemeral-state.md) — presence, typing
+  indicators, cursors, typed rooms, and the scoped React
+  `useSnapbackPresence` hook, plus all collection options and recovery.
 
 ### Sync and offline
 - [Offline retention and mutation replay](./sync/offline-and-retention.md) —
@@ -146,8 +205,12 @@ you never build around a feature because you didn't know it existed.
   bindings, one-surface boot, derived optimistic overlays, offline classes.
 - [The React client](./clients/react.md) — first-class external-store hook,
   keyed sibling sharing, Strict Mode lifecycle, and settlement state.
-- [React Expo Online clients](./clients/react-expo.md) — the shared React
-  projection on native carriers, per-OS evidence, and Online/Parity honesty.
+- [Application surfaces](./clients/surfaces.md) — bind one backend resource or
+  screen once, then consume its reads, mutations, assets, and presence.
+- [React Expo Online clients](./clients/react-expo.md) — no-URL
+  `snapback dev --expo` simulator/emulator boot through
+  `SnapbackExpoProvider`, plus per-OS evidence, carrier storage, authenticated
+  asset uploads, and Online/Parity honesty.
 - [Framework bindings](./clients/framework-bindings.md) — build on the
   external store and own identity, reconnect, error, lifecycle, and teardown.
 
@@ -159,21 +222,37 @@ you never build around a feature because you didn't know it existed.
   identity-bound partial done-oracle receipt.
 
 ### Operating
+- [Discover agent controls](./operating/agent-controls.md) — search the
+  build-bound control catalog, describe exact CLI/MCP/API projections, and
+  bind advisory instance availability by digest.
+- [Local instance forks](./operating/instance-forks.md) — give each worktree a
+  finite-TTL, quarantined copy of realistic local state; run fork-aware
+  acceptance and retain bounded app-row diff receipts (partial/unpublished).
 - [Secrets and deployment config](./operating/secrets-and-config.md) —
   declare, set, verify, grant, and consume write-only values.
 - [Host operations](./operating/host-ops.md) — the complete CLI/HTTP
   operation inventory and its authority envelopes.
+- [Network condition profiles](./operating/network-profiles.md) — inject
+  server-side egress latency for honest optimistic-UI, settlement, and
+  convergence testing, then restore `normal`.
+- [Patch one existing row safely](./operating/data-patch.md) — preview a
+  schema-validated, per-row-versioned correction and apply it with one
+  short-lived single-use capability (local non-production only).
 - [Diagnostics](./operating/diagnostics.md) — stable codes, assertion
   discipline, exact runtime link/launch doctoring, binary recovery records,
   and bootstrap failure vocabulary.
-- [Admin console](./operating/admin-console.md) — build, launch, develop, and
-  debug through the privileged Contract system app.
+- [Admin console](./operating/admin-console.md) — the shipped browser debugger
+  for seeing backend Data, Functions, Realtime, Errors, Logs, and capability
+  state before reaching for `curl` or raw host operations.
 - [Backend observability](./operating/observability.md) — inspect Health and
   Logs, query typed telemetry from CLI/MCP, and interpret coverage, freshness,
   retention, and shedding honestly.
 - [Backend error tracking](./operating/error-tracking.md) — group eligible
   backend failures, inspect raw exemplars under scoped authority, and triage
   release-aware issue state from the console, CLI, or MCP.
+- [Local instance forks](./operating/instance-forks.md) — give each worktree a
+  finite-TTL, quarantined copy of realistic local state; run fork-aware
+  acceptance and retain bounded app-row diff receipts (partial/unpublished).
 
 ### Deploying
 - [Immutable releases and deploy plans](./deploying/releases.md) — build the

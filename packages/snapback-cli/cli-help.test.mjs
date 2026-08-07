@@ -41,7 +41,7 @@ try {
   const native = join(root, 'snapback-native');
   writeFileSync(native, `#!/bin/sh
 if [ "$1" = "--help" ]; then
-  printf '%s\\n' 'Native Snapback help' 'Commands:' '  start' '  stop' '  admin' '  mcp'
+  printf '%s\\n' 'Native Snapback help' 'Commands:' '  start' '  stop' '  admin' '  guide' '  mcp' '' 'Documentation:' '  snapback guide [QUERY]' '  snapback mcp'
   exit 0
 fi
 if [ "$2" = "--help" ]; then
@@ -59,9 +59,12 @@ exit 97
   for (const { name } of PACKAGED_CLI_COMMANDS) {
     assert.match(rootHelp.stdout, new RegExp(`^  ${name}\\s`, 'm'), `root help omits ${name}`);
   }
-  for (const name of ['start', 'stop', 'admin', 'mcp']) {
+  for (const name of ['start', 'stop', 'admin', 'guide', 'mcp']) {
     assert.match(rootHelp.stdout, new RegExp(`^  ${name}$`, 'm'), `root help omits native ${name}`);
   }
+  assert.match(rootHelp.stdout, /^Documentation:$/m, 'root help omits the native documentation channel heading');
+  assert.match(rootHelp.stdout, /^  snapback guide \[QUERY\]$/m, 'root help omits Guide browsing and search');
+  assert.match(rootHelp.stdout, /^  snapback mcp$/m, 'root help omits Guide MCP');
 
   for (const entry of PACKAGED_CLI_COMMANDS) {
     const help = spawnSync(process.execPath, [cli, entry.name, '--help'], { encoding: 'utf8', env });
@@ -116,6 +119,11 @@ exit 97
   const nativeHelp = spawnSync(process.execPath, [cli, 'start', '--help'], { encoding: 'utf8', env });
   assert.equal(nativeHelp.status, 0, nativeHelp.stderr);
   assert.match(nativeHelp.stdout, /Native help for start/);
+
+  const guideHelp = spawnSync(process.execPath, [cli, 'guide', '--help'], { encoding: 'utf8', env });
+  assert.equal(guideHelp.status, 0, guideHelp.stderr);
+  assert.match(guideHelp.stdout, /Native help for guide/);
+  assert.doesNotMatch(`${guideHelp.stdout}\n${guideHelp.stderr}`, /EXECUTED/);
 
   const jsonHelp = spawnSync(process.execPath, [cli, 'dev', '--help', '--json'], { encoding: 'utf8', env });
   assert.equal(jsonHelp.status, 0, jsonHelp.stderr);

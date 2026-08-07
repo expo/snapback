@@ -37,6 +37,7 @@ fn probe_schema() -> SchemaManifest {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         }],
         ..Default::default()
     }

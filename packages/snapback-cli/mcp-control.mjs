@@ -10,7 +10,7 @@
 //   inside @expo/snapback-cli; the app-data catalog is derived deterministically at
 //   server start from the codegen-emitted artifacts.
 
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -23,7 +23,7 @@ import {
   native,
   readReadyDescriptor,
   resolveRuntimeBinary,
-  scrubDynamicLoaderEnvironment,
+  runtimeSpawnEnvironment,
   validateDevTarget,
   waitForReady,
 } from './index.mjs';
@@ -43,6 +43,43 @@ const TELEMETRY_EXPORT_HOST_ENVELOPE_ALLOWANCE = 64 * 1024;
 // @ref LLP 0024#authority-tuple — the five pinned modes; the local slice
 // serves the first four and refuses servicePrincipal honestly.
 const LOCAL_AUTHORITY_MODES = ['none', 'unauthenticated', 'devUser', 'devAdminBypass'];
+const CONTROL_CATALOG_URI = 'snapback-controls://catalog';
+const CONTROL_INSTANCE_URI = 'snapback-controls://instance';
+const CONTROL_OPERATION_URI_PREFIX = 'snapback-controls://operation/';
+
+// These declarations are the MCP-resource projection facts consumed by the
+// control-catalog compiler. Content still comes from the native binary at
+// request time; this array contains names/annotations only, never a catalog
+// or Guide snapshot.
+//
+// @ref LLP 0184#4-agent-discovery-and-setup — the control server re-serves
+// build-matched resources from its co-installed native runtime.
+export const CONTROL_RESOURCES = [
+  {
+    operation: 'control.catalog.read',
+    uri: CONTROL_CATALOG_URI,
+    name: 'control-catalog',
+    title: 'Snapback control catalog — searchable index',
+    description: 'Search operation, title, and intents in the exact catalog embedded in the co-installed native binary.',
+    annotations: { readOnlyHint: true },
+  },
+  {
+    operation: 'control.catalog.describe',
+    uriTemplate: `${CONTROL_OPERATION_URI_PREFIX}{operation}`,
+    name: 'control-operation',
+    title: 'Describe one Snapback control operation',
+    description: 'Read one complete build-catalog row by stable operation id.',
+    annotations: { readOnlyHint: true },
+  },
+  {
+    operation: 'control.catalog.instance.read',
+    uri: CONTROL_INSTANCE_URI,
+    name: 'control-catalog-instance',
+    title: 'Running Snapback instance availability snapshot',
+    description: 'Read the admin-gated instance projection and refuse unless its catalogDigest matches this native build.',
+    annotations: { readOnlyHint: true },
+  },
+];
 
 const AUTHORITY_INPUT_SCHEMA = {
   type: 'object',
@@ -55,6 +92,77 @@ const AUTHORITY_INPUT_SCHEMA = {
     reason: { type: 'string', description: 'required for devAdminBypass' },
   },
 };
+
+const DATA_PATCH_AUTHORITY_INPUT_SCHEMA = {
+  oneOf: [
+    {
+      type: 'object',
+      additionalProperties: false,
+      required: [
+        'mode', 'actorPrincipal', 'effectivePrincipal', 'localDevOnly',
+        'adminBypass', 'scope', 'reason',
+      ],
+      properties: {
+        mode: { const: 'devUser' },
+        actorPrincipal: { type: 'null' },
+        effectivePrincipal: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['userId', 'roles'],
+          properties: {
+            userId: { type: 'string', minLength: 1 },
+            roles: { type: 'array', items: { type: 'string', minLength: 1 } },
+          },
+        },
+        localDevOnly: { const: true },
+        adminBypass: { const: false },
+        scope: { type: 'null' },
+        reason: { type: ['string', 'null'] },
+      },
+    },
+    {
+      type: 'object',
+      additionalProperties: false,
+      required: [
+        'mode', 'actorPrincipal', 'effectivePrincipal', 'localDevOnly',
+        'adminBypass', 'scope', 'reason',
+      ],
+      properties: {
+        mode: { const: 'devAdminBypass' },
+        actorPrincipal: { type: 'null' },
+        effectivePrincipal: { type: 'null' },
+        localDevOnly: { const: true },
+        adminBypass: { const: true },
+        scope: { type: 'null' },
+        reason: { type: 'string', minLength: 1 },
+      },
+    },
+  ],
+};
+
+const DATA_PATCH_INPUT_PROPERTIES = {
+  table: { type: 'string', minLength: 1 },
+  rowId: { type: 'string', minLength: 1 },
+  expectedVersion: { type: 'integer', minimum: 0 },
+  patch: { type: 'object' },
+  authority: DATA_PATCH_AUTHORITY_INPUT_SCHEMA,
+  reason: { type: 'string', minLength: 1 },
+};
+
+function canonicalJson(value) {
+  if (Array.isArray(value)) return value.map(canonicalJson);
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, nested]) => [key, canonicalJson(nested)]),
+    );
+  }
+  return value;
+}
+
+function dataPatchInputDigest(input) {
+  return `sha256:${createHash('sha256').update(JSON.stringify(canonicalJson(input))).digest('hex')}`;
+}
 
 function diagnostic(code, message, details = undefined) {
   return {
@@ -188,7 +296,7 @@ export function buildAppDataCatalog(backendRoot) {
   };
 }
 
-const CONTROL_TOOLS = [
+export const CONTROL_TOOLS = [
   {
     name: 'snapback_start',
     operation: 'host.start',
@@ -395,6 +503,42 @@ const CONTROL_TOOLS = [
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
   },
   {
+    name: 'snapback_data_patch_preview',
+    operation: 'data.patch.preview',
+    title: 'Preview one bounded direct row patch',
+    description: 'Validate an existing-row closed field patch and retain its short-lived apply capability privately inside this MCP process. Local non-production primary targets only.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['table', 'rowId', 'expectedVersion', 'patch', 'authority', 'reason'],
+      properties: DATA_PATCH_INPUT_PROPERTIES,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
+  {
+    name: 'snapback_data_patch_apply',
+    operation: 'data.patch.apply',
+    title: 'Apply one previewed bounded direct row patch',
+    description: 'Consume the privately retained apply capability selected by its non-authorizing id and commit the exact previewed patch. Destructive; local non-production primary targets only.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: [
+        'table', 'rowId', 'expectedVersion', 'patch', 'authority', 'reason',
+        'applyTokenId',
+      ],
+      properties: {
+        ...DATA_PATCH_INPUT_PROPERTIES,
+        applyTokenId: {
+          type: 'string',
+          pattern: '^sha256:[0-9a-f]{64}$',
+          description: 'Non-authorizing id returned by snapback_data_patch_preview.',
+        },
+      },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+  },
+  {
     name: 'snapback_load_schema',
     operation: 'schema.load',
     title: 'Load the generated schema manifest',
@@ -427,6 +571,127 @@ const CONTROL_TOOLS = [
     },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
   },
+  // --- LLP 0184 Phase 2 P1: read and diagnose ------------------------------
+  {
+    name: 'snapback_data_scan',
+    operation: 'data.scan',
+    title: 'Bounded read-only table scan',
+    description: 'Project DataQuery as shipped: table, limit, offset. No cursor exists on this route — offset paging is not stable under concurrent writes; a row may shift pages between two calls. Mints a scoped, budgeted secret-read lease automatically.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['table'],
+      properties: {
+        table: { type: 'string' },
+        limit: { type: 'integer', minimum: 1, maximum: 500, default: 50 },
+        offset: { type: 'integer', minimum: 0, default: 0 },
+      },
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  {
+    name: 'snapback_asset_list',
+    operation: 'asset.list',
+    title: 'List assets by availability state',
+    description: 'asset.list — pending | ready | rejected | deleted (omitted lists all).',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: { state: { type: 'string', enum: ['pending', 'ready', 'rejected', 'deleted'] } },
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  {
+    name: 'snapback_asset_inspect',
+    operation: 'asset.inspect',
+    title: 'Inspect one asset',
+    description: "asset.inspect — one asset's lifecycle, receipts, quota, reference edges, and ledger claims. Never byte samples, staging keys, or bearer URLs.",
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['assetId'],
+      properties: {
+        assetId: { type: 'string' },
+        userId: { type: 'string', description: 'Read as this app user (owner/via-references authorization); omitted reads as the operator.' },
+      },
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  {
+    name: 'snapback_asset_retry',
+    operation: 'asset.retry',
+    title: 'Re-drive pending asset work',
+    description: 'asset.retry — generation-fenced re-drive of pending publication and ledger work; never reopens a terminal attempt.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['assetId'],
+      properties: { assetId: { type: 'string' } },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  },
+  {
+    name: 'snapback_config_status',
+    operation: 'config.status',
+    title: 'Read config status',
+    description: "config.status — the full per-entry state machine: names, states, generations, diagnostics. Never values.",
+    inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  {
+    name: 'snapback_config_plan',
+    operation: 'config.plan',
+    title: 'Dry-run a config entry write',
+    description: 'config.plan — write locus, required credentials, the apply boundary, and whether this transport would accept a value write. No write occurs.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: { entry: { type: 'string', description: 'Narrow to one declared entry; omitted plans every entry.' } },
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  {
+    name: 'snapback_config_verify',
+    operation: 'config.verify',
+    title: 'Verify one config entry',
+    description: "config.verify — run the entry's probe action. Reports ok/not-ok and the probe diagnostic; never the configured value.",
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['entry'],
+      properties: { entry: { type: 'string' } },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
+  {
+    name: 'snapback_cron_list',
+    operation: 'cron.list',
+    title: 'List cron jobs',
+    description: 'Read declared cron identities and current activation/next/last scheduler posture. Omits run ids, handler diagnostics/results, and jitter seeds.',
+    inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  {
+    name: 'snapback_jobs_list',
+    operation: 'jobs.list',
+    title: 'List one-off jobs',
+    description: 'jobs.list — the bounded one-off job inspection page (read-only).',
+    inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  {
+    name: 'snapback_jobs_show',
+    operation: 'jobs.show',
+    title: 'Show one job',
+    description: "jobs.show — one job's full recorded state by id (read-only).",
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['id'],
+      properties: { id: { type: 'string' } },
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
   {
     name: 'snapback_acceptance_run',
     operation: 'acceptance.run',
@@ -435,7 +700,227 @@ const CONTROL_TOOLS = [
     inputSchema: { type: 'object', additionalProperties: false, properties: { profile: { type: 'string' } } },
     annotations: { readOnlyHint: true, openWorldHint: false },
   },
+  // @ref LLP 0184#p2-controlled-mutations — config.unset carries no secret
+  // value, so it needs no secret carrier (unlike config.set, which stays
+  // cliOnly for v1 per §Product contract); LLP 0036 pairs a 1:1
+  // snapback_config_* MCP mapping with the CLI verb.
+  {
+    name: 'snapback_config_unset',
+    operation: 'config.unset',
+    title: 'Unset a config entry',
+    description: 'Remove one config entry\'s stored value. Carries only the entry identifier; no value crosses the wire.',
+    inputSchema: {
+      type: 'object', additionalProperties: false, required: ['entry'],
+      properties: { entry: { type: 'string' } },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  },
+  {
+    name: 'snapback_cron_tick',
+    operation: 'cron.tick',
+    title: 'Force-claim and run every due cron job',
+    description: 'Typed projection of the admin-gated forced cron dispatch route. Bounded to currently-due jobs.',
+    inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
+  {
+    name: 'snapback_cron_run',
+    operation: 'cron.runOne',
+    title: 'Force-run one named cron job',
+    description: 'Force-claim and run one cron job by name, regardless of its schedule.',
+    inputSchema: {
+      type: 'object', additionalProperties: false, required: ['name'],
+      properties: { name: { type: 'string' } },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
+  {
+    name: 'snapback_ephemeral_cleanup',
+    operation: 'ephemeral.cleanup',
+    title: 'Preview or apply bounded ephemeral expiry cleanup',
+    description: 'Count or remove entries whose expiry deadline is at/before an explicit cutoff. The tool binds the request to the current server startup and returns a room-count receipt.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['dryRun', 'maxEntries'],
+      oneOf: [
+        { required: ['olderThanMs'] },
+        { required: ['cutoffTimestampMs'] },
+      ],
+      properties: {
+        olderThanMs: { type: 'integer', minimum: 0, description: 'Select entries whose expiry deadline is at least this old.' },
+        cutoffTimestampMs: { type: 'integer', minimum: 0, description: 'Select entries whose expiry deadline is at or before this Unix millisecond timestamp.' },
+        dryRun: { type: 'boolean', description: 'True previews without deletion; false applies ordinary expiry removals.' },
+        maxEntries: { type: 'integer', minimum: 1, maximum: 10_000 },
+      },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+  },
+  {
+    name: 'snapback_jobs_drain',
+    operation: 'jobs.drain',
+    title: 'Drain due one-off jobs',
+    description: 'Claim and run due one-off jobs under an injected clock (nowMs) and bounded cascade waves (maxWaves).',
+    inputSchema: {
+      type: 'object', additionalProperties: false,
+      properties: {
+        nowMs: { type: 'integer', description: 'Injected drain clock, epoch ms. Absent means wall clock.' },
+        maxWaves: { type: 'integer', minimum: 1 },
+      },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
+  // @ref LLP 0184#p2-controlled-mutations — an explicit debug perturbation
+  // of one live connection, never application disconnect authority. The
+  // underlying route carries no request body; `reason` is recorded in this
+  // tool's own receipt, not acknowledged by the server.
+  {
+    name: 'snapback_connection_disconnect',
+    operation: 'connection.disconnect',
+    title: 'Force-disconnect one live connection (debug perturbation)',
+    description: 'Force-close one connection by id for local debugging. This is not application disconnect authority.',
+    inputSchema: {
+      type: 'object', additionalProperties: false, required: ['connectionId', 'reason'],
+      properties: {
+        connectionId: { type: 'string' },
+        reason: { type: 'string', description: 'Why this debug perturbation is being invoked; recorded in the receipt.' },
+      },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  },
+  // @ref LLP 0184#c-administrator-ephemeral-entry-delete--add-now — the
+  // inspected room incarnation and entry generation are one fence, and the
+  // receipt discloses that application authorization was never evaluated.
+  {
+    name: 'snapback_ephemeral_operator_delete',
+    operation: 'ephemeral.operatorDelete',
+    title: 'Operator-bypass delete of one ephemeral entry (debug/repair)',
+    description: 'Administrator delete of a specifically inspected ephemeral entry, fenced on BOTH the room scope epoch and entry generation together. Never evaluates application authorization — this is an explicit operator bypass, disclosed as such in the receipt. Distinct from an application deleting its own ephemeral entry.',
+    inputSchema: {
+      type: 'object', additionalProperties: false,
+      required: ['collection', 'scope', 'entryKey', 'expectedScopeEpoch', 'expectedEntryGeneration', 'reason'],
+      properties: {
+        collection: { type: 'string' },
+        scope: { type: 'object', description: 'The room scope, e.g. {"boardId":"board-1"}.' },
+        entryKey: { type: 'string' },
+        expectedScopeEpoch: { type: 'integer', description: 'Fails closed if this does not match the room\'s current epoch.' },
+        expectedEntryGeneration: { type: 'integer', description: 'Fails closed if this does not match the entry\'s current generation. Epoch and generation are both required and both checked — generation alone is not fencing-safe against a reborn room.' },
+        reason: { type: 'string' },
+      },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  },
+  // @ref LLP 0184#b-forced-live-resync--add-now — v1 targets exactly one
+  // subscription, fenced by connectionId + subscriptionId (the same UUIDv7
+  // identity the operator inspect projection already exposes) plus the
+  // running server's startupNonce, filled in from this server's own
+  // readiness descriptor — never a caller-supplied value, so an agent
+  // cannot fence a request against a server other than the one this MCP
+  // process is actually managing. Connection-wide targeting is explicitly
+  // out of v1 scope (OQ4). Local non-production only; refused on a primary
+  // hosted/production target or a derived instance until LLP 0158 grants
+  // recognition for this purpose.
+  {
+    name: 'snapback_live_force_resync',
+    operation: 'debug.live.forceResync',
+    title: 'Force one live subscription to resync (debug perturbation)',
+    description: 'Force one live subscription through the normal resync_required recovery path for local debugging. Changes no application data.',
+    inputSchema: {
+      type: 'object', additionalProperties: false, required: ['connectionId', 'subscriptionId', 'reason'],
+      properties: {
+        connectionId: { type: 'string' },
+        subscriptionId: { type: 'string' },
+        reason: { type: 'string', description: 'Why this debug perturbation is being invoked; recorded in the receipt.' },
+        clearRetained: { type: 'boolean', description: 'Also discard retained rows on the client rather than keep them until the fresh snapshot lands. Defaults to false.' },
+      },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  },
+  // @ref LLP 0184#p2-controlled-mutations — direct MCP tools for the
+  // already-shipped asset delete/GC/key-rotation/export/import CLI paths.
+  // asset.list/inspect/retry are the P1 read/diagnose projection (a
+  // parallel LLP 0184 workstream) and are intentionally not added here.
+  // These all route through the host-ops multiplexer, exactly like the
+  // shipped CLI (`snapback assets ...`).
+  {
+    name: 'snapback_asset_delete',
+    operation: 'asset.delete',
+    title: 'Delete one asset',
+    description: 'Explicit authorized delete through asset.delete; refuses while typed references remain.',
+    inputSchema: {
+      type: 'object', additionalProperties: false, required: ['assetId'],
+      properties: {
+        assetId: { type: 'string' },
+        userId: { type: 'string', description: 'Delete as this app user (owner authority); omitted deletes as the operator.' },
+      },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  },
+  {
+    name: 'snapback_asset_gc_sweep',
+    operation: 'asset.gcSweep',
+    title: 'Run asset reclamation and publication maintenance',
+    description: 'Run every asset reclamation and publication-maintenance class at an explicit injected millisecond timestamp.',
+    inputSchema: {
+      type: 'object', additionalProperties: false, required: ['nowMs'],
+      properties: { nowMs: { type: 'integer', description: 'Injected Unix time in milliseconds; required so runs are deterministic.' } },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+  },
+  {
+    name: 'snapback_asset_rotate_signing_key',
+    operation: 'asset.rotateSigningKey',
+    title: 'Rotate the asset delivery signing key',
+    description: 'Retire every signing key and mint a fresh one; every outstanding signed URL stops validating.',
+    inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+  },
+  {
+    name: 'snapback_asset_export_cut',
+    operation: 'asset.exportCut',
+    title: 'Export a consistent asset cut',
+    description: 'Write the consistent-cut manifest and every referenced blob object, digest-verified, into an empty directory on the server host.',
+    inputSchema: {
+      type: 'object', additionalProperties: false, required: ['dir'],
+      properties: { dir: { type: 'string', description: 'Absolute path of an empty (or absent) export directory, on the server host.' } },
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
+  {
+    name: 'snapback_asset_import_cut',
+    operation: 'asset.importCut',
+    title: 'Validate or apply an exported asset cut',
+    description: 'Validate an export directory (refuse-partial); with apply, restore it onto an empty asset state (requires SNAPBACK_ASSET_IMPORT_EXPERIMENTAL=1 server-side).',
+    inputSchema: {
+      type: 'object', additionalProperties: false, required: ['dir'],
+      properties: {
+        dir: { type: 'string', description: 'Absolute path of the export directory to validate or apply, on the server host.' },
+        apply: { type: 'boolean', default: false, description: 'Apply the validated cut (empty-target restore).' },
+      },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+  },
 ];
+
+export function requireMatchingControlCatalogIdentity(catalog, instance) {
+  const buildDigest = catalog?.catalogDigest;
+  const instanceDigest = instance?.catalogDigest;
+  if (typeof buildDigest !== 'string' || typeof instanceDigest !== 'string') {
+    throw diagnosticError(
+      'SNAPBACK_MCP_CONTROL_CATALOG_IDENTITY_INVALID',
+      'the build catalog or instance projection has no catalogDigest',
+      { buildDigest: buildDigest ?? null, instanceDigest: instanceDigest ?? null },
+    );
+  }
+  if (buildDigest !== instanceDigest) {
+    throw diagnosticError(
+      'SNAPBACK_MCP_CONTROL_CATALOG_IDENTITY_MISMATCH',
+      'the co-installed native build catalog does not match the running instance projection; refusing to combine them',
+      { buildDigest, instanceDigest },
+    );
+  }
+  return { catalog, instance };
+}
 
 export class McpControlServer {
   constructor(options = {}) {
@@ -451,6 +936,7 @@ export class McpControlServer {
     this.runtime = null;
     this.child = null;
     this.managed = false;
+    this.dataPatchTokens = new Map();
     const { catalog, diagnostics } = buildAppDataCatalog(this.backendRoot);
     this.catalog = catalog;
     this.catalogDiagnostics = diagnostics;
@@ -459,6 +945,234 @@ export class McpControlServer {
   resolveRuntime() {
     this.runtime ??= resolveRuntimeBinary({ runtimeBinary: this.runtimeBinary });
     return this.runtime;
+  }
+
+  nativeResourceUnavailable(error) {
+    const underlying = error?.diagnostic ?? diagnostic(
+      error?.code ?? 'SNAPBACK_RUNTIME_BINARY_MISSING',
+      error?.message ?? String(error),
+    );
+    return diagnostic(
+      'SNAPBACK_MCP_NATIVE_DOCUMENTATION_UNAVAILABLE',
+      'Guide and control-catalog resources are unavailable because no compatible co-installed native Snapback binary could provide the build-matched bytes',
+      { underlying },
+    );
+  }
+
+  runNativeJson(args, code, message) {
+    const runtime = this.resolveRuntime();
+    const result = native(runtime.binary, args, {
+      cwd: this.projectRoot,
+      env: this.env,
+    });
+    if (result.status !== 0) {
+      throw diagnosticError(code, message, {
+        status: result.status,
+        signal: result.signal ?? null,
+        stderr: result.stderr?.slice(0, 2_000) ?? '',
+      });
+    }
+    try {
+      return { value: JSON.parse(result.stdout), text: result.stdout.trimEnd() };
+    } catch (cause) {
+      const error = diagnosticError(code, `${message}: native output was not JSON`, {});
+      error.cause = cause;
+      throw error;
+    }
+  }
+
+  nativeControlCatalog() {
+    const output = this.runNativeJson(
+      ['controls', 'list', '--json'],
+      'SNAPBACK_MCP_CONTROL_CATALOG_UNAVAILABLE',
+      'the co-installed native control catalog could not be read',
+    );
+    if (output.value?.schemaVersion !== 'snapback.control-catalog.v1'
+      || typeof output.value?.catalogDigest !== 'string'
+      || !Array.isArray(output.value?.entries)) {
+      throw diagnosticError(
+        'SNAPBACK_MCP_CONTROL_CATALOG_INVALID',
+        'the co-installed native binary returned an invalid control catalog',
+        {},
+      );
+    }
+    return output;
+  }
+
+  nativeControlDescription(operation) {
+    return this.runNativeJson(
+      ['controls', 'describe', operation, '--json'],
+      'SNAPBACK_MCP_CONTROL_DESCRIPTION_UNAVAILABLE',
+      `the co-installed native control row ${operation} could not be read`,
+    );
+  }
+
+  nativeGuideRequest(method, params = {}) {
+    const runtime = this.resolveRuntime();
+    const request = { jsonrpc: '2.0', id: 1, method, params };
+    const result = spawnSync(runtime.binary, ['mcp'], {
+      cwd: this.projectRoot,
+      env: runtimeSpawnEnvironment(runtime.binary, this.env),
+      encoding: 'utf8',
+      input: `${JSON.stringify(request)}\n`,
+      timeout: 30_000,
+    });
+    if (result.status !== 0) {
+      throw diagnosticError(
+        'SNAPBACK_MCP_NATIVE_GUIDE_UNAVAILABLE',
+        'the co-installed native Guide MCP server could not provide build-matched resources',
+        {
+          status: result.status,
+          signal: result.signal ?? null,
+          stderr: result.stderr?.slice(0, 2_000) ?? '',
+        },
+      );
+    }
+    let response;
+    try {
+      response = JSON.parse(result.stdout.trim());
+    } catch (cause) {
+      const error = diagnosticError(
+        'SNAPBACK_MCP_NATIVE_GUIDE_INVALID',
+        'the co-installed native Guide MCP server returned invalid JSON',
+        {},
+      );
+      error.cause = cause;
+      throw error;
+    }
+    if (response?.error) {
+      throw diagnosticError(
+        'SNAPBACK_MCP_NATIVE_GUIDE_UNAVAILABLE',
+        `the co-installed native Guide MCP server refused ${method}: ${response.error.message}`,
+        { nativeErrorCode: response.error.code },
+      );
+    }
+    return response?.result;
+  }
+
+  controlResourceCatalog(catalog) {
+    const identity = {
+      'snapback/catalogDigest': catalog.catalogDigest,
+      'snapback/readOnly': true,
+    };
+    const resources = [
+      {
+        uri: CONTROL_CATALOG_URI,
+        name: 'control-catalog',
+        title: 'Snapback control catalog — searchable index',
+        description: 'Search operation ids, titles, and intents; bytes come from the co-installed native binary.',
+        mimeType: 'application/json',
+        annotations: { readOnlyHint: true },
+        _meta: { ...identity, 'snapback/operation': 'control.catalog.read' },
+      },
+      {
+        uri: CONTROL_INSTANCE_URI,
+        name: 'control-catalog-instance',
+        title: 'Running Snapback instance availability snapshot',
+        description: 'Requires a running ready-file target and refuses a catalogDigest mismatch.',
+        mimeType: 'application/json',
+        annotations: { readOnlyHint: true },
+        _meta: { ...identity, 'snapback/operation': 'control.catalog.instance.read' },
+      },
+    ];
+    for (const entry of catalog.entries) {
+      resources.push({
+        uri: `${CONTROL_OPERATION_URI_PREFIX}${encodeURIComponent(entry.operation)}`,
+        name: entry.operation,
+        title: entry.title,
+        description: `Complete control-catalog row for ${entry.operation}`,
+        mimeType: 'application/json',
+        annotations: { readOnlyHint: true },
+        _meta: { ...identity, 'snapback/operation': 'control.catalog.describe' },
+      });
+    }
+    return resources;
+  }
+
+  controlResourceTemplates(catalog) {
+    return [{
+      uriTemplate: `${CONTROL_OPERATION_URI_PREFIX}{operation}`,
+      name: 'control-operation',
+      title: 'Describe one Snapback control operation',
+      description: 'Substitute an operation id from snapback-controls://catalog.',
+      mimeType: 'application/json',
+      annotations: { readOnlyHint: true },
+      _meta: {
+        'snapback/catalogDigest': catalog.catalogDigest,
+        'snapback/operation': 'control.catalog.describe',
+        'snapback/readOnly': true,
+      },
+    }];
+  }
+
+  async readControlResource(uri) {
+    if (typeof uri !== 'string') return null;
+    if (uri === CONTROL_CATALOG_URI) {
+      const { value, text } = this.nativeControlCatalog();
+      return {
+        contents: [{
+          uri,
+          mimeType: 'application/json',
+          text,
+          _meta: {
+            'snapback/catalogDigest': value.catalogDigest,
+            'snapback/readOnly': true,
+          },
+        }],
+      };
+    }
+    if (uri === CONTROL_INSTANCE_URI) {
+      const { value: catalog } = this.nativeControlCatalog();
+      const { ok, status, payload } = await this.adminFetch(
+        'GET',
+        '/_snapback/api/control-catalog/instance',
+      );
+      if (!ok) {
+        throw diagnosticError(
+          'SNAPBACK_MCP_CONTROL_INSTANCE_UNAVAILABLE',
+          `the running instance projection returned HTTP ${status}`,
+          { status, payload },
+        );
+      }
+      requireMatchingControlCatalogIdentity(catalog, payload);
+      return {
+        contents: [{
+          uri,
+          mimeType: 'application/json',
+          text: JSON.stringify(payload, null, 2),
+          _meta: {
+            'snapback/catalogDigest': catalog.catalogDigest,
+            'snapback/startupNonce': payload.startupNonce,
+            'snapback/readOnly': true,
+          },
+        }],
+      };
+    }
+    if (uri.startsWith(CONTROL_OPERATION_URI_PREFIX)) {
+      let operation;
+      try {
+        operation = decodeURIComponent(uri.slice(CONTROL_OPERATION_URI_PREFIX.length));
+      } catch {
+        throw diagnosticError('SNAPBACK_MCP_CONTROL_OPERATION_INVALID', 'control operation URI is invalid', { uri });
+      }
+      if (!operation || operation.includes('/')) {
+        throw diagnosticError('SNAPBACK_MCP_CONTROL_OPERATION_INVALID', 'control operation URI is invalid', { uri });
+      }
+      const { value, text } = this.nativeControlDescription(operation);
+      return {
+        contents: [{
+          uri,
+          mimeType: 'application/json',
+          text,
+          _meta: {
+            'snapback/catalogDigest': value.catalogDigest,
+            'snapback/operation': operation,
+            'snapback/readOnly': true,
+          },
+        }],
+      };
+    }
+    return null;
   }
 
   currentDescriptor() {
@@ -550,7 +1264,8 @@ export class McpControlServer {
         }),
       };
     }
-    if (authority.mode === 'devUser' && typeof authority.userId !== 'string') {
+    const devUserId = authority.userId ?? authority.effectivePrincipal?.userId;
+    if (authority.mode === 'devUser' && typeof devUserId !== 'string') {
       return {
         refusal: this.envelope(operation, {
           diagnostics: [diagnostic('SNAPBACK_MCP_AUTHORITY_INVALID', 'devUser authority requires a userId', { tool })],
@@ -618,14 +1333,18 @@ export class McpControlServer {
   //
   // @ref LLP 0024#http-projection — the response body is the result envelope,
   //   including ok:false app-level failures.
-  secretReadLease(scopeFlag, rowBudget, byteBudget) {
+  // `scopeFlag` names a boolean secret-read-mint flag (e.g. 'telemetry-events');
+  // pass null and a value-carrying `scopeArgs` instead for a scope that takes
+  // an argument (e.g. data.scan's `--table <name>`, LLP 0184 P1).
+  secretReadLease(scopeFlag, rowBudget, byteBudget, scopeArgs = null) {
     const runtime = this.resolveRuntime();
     const descriptor = this.currentDescriptor();
     const adminToken = managedAdminToken(descriptor, this.database);
     const result = native(runtime.binary, [
       'secret-read-mint', '--ready-file', this.readyFile,
       ...(adminToken ? ['--token', adminToken] : []),
-      `--${scopeFlag}`, '--row-budget', String(rowBudget), '--byte-budget', String(byteBudget),
+      ...(scopeArgs ?? [`--${scopeFlag}`]),
+      '--row-budget', String(rowBudget), '--byte-budget', String(byteBudget),
     ], { cwd: this.projectRoot, env: this.env });
     if (result.status !== 0) {
       throw diagnosticError(
@@ -659,7 +1378,12 @@ export class McpControlServer {
   async postHostOp(body, { secretReadLease = null } = {}) {
     const descriptor = this.currentDescriptor();
     const adminToken = managedAdminToken(descriptor, this.database);
-    const impersonation = typeof body.userId === 'string' && body.userId
+    const impersonatedUserId = typeof body.userId === 'string' && body.userId
+      ? body.userId
+      : body.input?.authority?.mode === 'devUser'
+        ? body.input.authority.effectivePrincipal?.userId
+        : null;
+    const impersonation = typeof impersonatedUserId === 'string' && impersonatedUserId
       ? await this.impersonationCapability(descriptor)
       : null;
     const url = `${descriptor.serverUrl.replace(/\/$/, '')}/_snapback/api/host-ops`;
@@ -692,6 +1416,177 @@ export class McpControlServer {
     }
   }
 
+  // A direct SystemApi admin route (data.scan, config.*, jobs.*) — distinct
+  // from postHostOp's `/_snapback/api/host-ops` multiplexer, since these
+  // routes are their own typed endpoints returning their own JSON shape
+  // (TableScan, ConfigStatus, ...), not a `hostOpsResult` envelope.
+  //
+  // @ref LLP 0184#p1-read-and-diagnose — thin projections over the existing
+  //   admin API, never a second dialect.
+  async adminFetch(method, path, { query = {}, body, secretReadLease = null } = {}) {
+    const descriptor = this.currentDescriptor();
+    const adminToken = managedAdminToken(descriptor, this.database);
+    const url = new URL(`${descriptor.serverUrl.replace(/\/$/, '')}${path}`);
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined && value !== null) url.searchParams.set(key, String(value));
+    }
+    let response;
+    try {
+      response = await fetch(url, {
+        method,
+        headers: {
+          ...(body !== undefined ? { 'content-type': 'application/json' } : {}),
+          ...(adminToken ? { 'x-snapback-admin-token': adminToken } : {}),
+          ...(secretReadLease ? { 'x-snapback-secret-read-lease': secretReadLease } : {}),
+        },
+        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      });
+    } catch (cause) {
+      const error = diagnosticError('SNAPBACK_MCP_TRANSPORT_FAILED', `request to ${url} failed: ${cause.message}`, { url: String(url) });
+      error.cause = cause;
+      throw error;
+    }
+    let payload;
+    try {
+      payload = await response.json();
+    } catch (cause) {
+      const error = diagnosticError('SNAPBACK_MCP_TRANSPORT_FAILED', `response from ${url} was not JSON (HTTP ${response.status})`, { url: String(url), status: response.status });
+      error.cause = cause;
+      throw error;
+    }
+    return { ok: response.ok, status: response.status, payload };
+  }
+
+  // Wraps an adminFetch call in the shared result envelope so every direct
+  // tool — host-ops multiplexed or not — returns the same shape (§Design/4:
+  // "the ordinary subsystem result envelope ... rather than projection-
+  // specific prose").
+  async adminResult(operation, method, path, options = {}) {
+    try {
+      const { ok, status, payload } = await this.adminFetch(method, path, options);
+      return this.toolResult(this.envelope(operation, {
+        ok,
+        data: ok ? (payload ?? {}) : {},
+        diagnostics: ok
+          ? []
+          : [payload?.diagnostic ?? diagnostic(
+            'SNAPBACK_MCP_ADMIN_REQUEST_FAILED',
+            `admin request to ${path} failed with HTTP ${status}`,
+            { status, payload },
+          )],
+      }));
+    } catch (error) {
+      return this.toolResult(this.envelope(operation, {
+        diagnostics: [error.diagnostic ?? diagnostic(error?.code ?? 'SNAPBACK_MCP_ADMIN_REQUEST_FAILED', error?.message ?? String(error))],
+      }), { isError: true });
+    }
+  }
+
+  // Close LLP 0184 §Design/2's disclosed, temporary "no projection creates
+  // authority" exception for host.start/host.stop/host.restart: until this
+  // gate existed, the MCP path stopped or restarted the local server on
+  // local process/filesystem access plus the startup nonce alone, with no
+  // admin credential proof at all — while the HTTP host-ops path enforces
+  // an AdminRead floor (§Design/2, `RoutePolicy::AdminRead` on
+  // `/_snapback/api/host-ops` in `src/server.rs`) before any operation,
+  // including `app.inspect`, is dispatched. This probes that exact
+  // route+gate with the descriptor's managed admin token, so a stop/restart
+  // caller must hold the identical credential an HTTP AdminRead/AdminWrite
+  // caller would need — not a new, MCP-only authority mode.
+  //
+  // @ref LLP 0184#2-derived-ownership-not-a-second-registry — the named,
+  //   temporary MCP/HTTP authority-gap exception this closes for
+  //   host.start/host.stop/host.restart specifically.
+  async requireAdminCredentialForLifecycle(operation, toolName) {
+    let probe;
+    try {
+      probe = await this.postHostOp({ operation: 'app.inspect' });
+    } catch (error) {
+      return {
+        refusal: this.envelope(operation, {
+          diagnostics: [error.diagnostic ?? diagnostic(
+            'SNAPBACK_MCP_ADMIN_CREDENTIAL_REQUIRED',
+            `${toolName} requires the same admin-credential proof the host-ops HTTP surface requires: ${error.message}`,
+            { tool: toolName },
+          )],
+        }),
+      };
+    }
+    if (probe.ok !== true) {
+      return {
+        refusal: this.envelope(operation, {
+          diagnostics: probe.diagnostics?.length
+            ? probe.diagnostics
+            : [diagnostic(
+              'SNAPBACK_MCP_ADMIN_CREDENTIAL_REQUIRED',
+              `${toolName} requires the same admin-credential proof the host-ops HTTP surface requires; the live server refused the admin-token-authenticated probe`,
+              { tool: toolName },
+            )],
+        }),
+      };
+    }
+    return {};
+  }
+
+  // POST an admin-gated route outside the host-ops multiplexer (config,
+  // cron, jobs, connection disconnect all predate/sit beside the host-ops
+  // surface — LLP 0184 §P2 projects each existing route as-is, not through
+  // it). Same admin-token presentation as postHostOp; the response body is
+  // whatever JSON (or none, for a 204) that route already returns.
+  async postAdminRoute(path, body, descriptor = this.currentDescriptor()) {
+    const adminToken = managedAdminToken(descriptor, this.database);
+    const url = `${descriptor.serverUrl.replace(/\/$/, '')}${path}`;
+    let response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          ...(adminToken ? { 'x-snapback-admin-token': adminToken } : {}),
+        },
+        body: JSON.stringify(body ?? {}),
+      });
+    } catch (cause) {
+      const error = diagnosticError('SNAPBACK_MCP_TRANSPORT_FAILED', `admin request to ${url} failed: ${cause.message}`, { url });
+      error.cause = cause;
+      throw error;
+    }
+    let json = null;
+    if (response.status !== 204) {
+      try {
+        json = await response.json();
+      } catch (cause) {
+        const error = diagnosticError(
+          'SNAPBACK_MCP_TRANSPORT_FAILED',
+          `admin response from ${url} was not JSON (HTTP ${response.status})`,
+          { url, status: response.status },
+        );
+        error.cause = cause;
+        throw error;
+      }
+    }
+    return { ok: response.ok, status: response.status, body: json };
+  }
+
+  // Wrap a non-host-ops admin route result in the same envelope shape every
+  // other control tool returns, so a caller need not special-case these five
+  // operations. On failure, the server's own ApiError diagnostic (present at
+  // `body.diagnostic`) is surfaced verbatim rather than replaced.
+  adminRouteEnvelope(operation, id, result) {
+    return this.envelope(operation, {
+      requestId: id,
+      ok: result.ok,
+      data: result.ok ? (result.body ?? {}) : {},
+      diagnostics: result.ok
+        ? []
+        : [result.body?.diagnostic ?? diagnostic(
+          'SNAPBACK_MCP_ADMIN_ROUTE_FAILED',
+          `admin route returned HTTP ${result.status} with no structured diagnostic`,
+          { status: result.status },
+        )],
+    });
+  }
+
   async waitForExit(pid, timeoutMs = 10_000) {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
@@ -717,7 +1612,7 @@ export class McpControlServer {
         const runtime = this.resolveRuntime();
         const child = spawn(runtime.binary, ['start', '--ready-file', this.readyFile, '--db', this.database], {
           cwd: this.projectRoot,
-          env: scrubDynamicLoaderEnvironment(this.env),
+          env: runtimeSpawnEnvironment(runtime.binary, this.env),
           stdio: 'ignore',
         });
         this.child = child;
@@ -779,6 +1674,13 @@ export class McpControlServer {
     } catch {
       // The native stop reports the invalid descriptor itself.
     }
+    // @ref LLP 0184#2-derived-ownership-not-a-second-registry — the stop leg
+    // (also the mutating half of snapback_restart) requires the same
+    // admin-credential proof the host-ops HTTP surface requires, closing the
+    // disclosed MCP/HTTP authority gap. Checked before the native stop, so a
+    // caller without the credential never signals the process.
+    const { refusal } = await this.requireAdminCredentialForLifecycle('host.stop', 'snapback_stop');
+    if (refusal) return { ...refusal, requestId: id };
     const runtime = this.resolveRuntime();
     // The native stop verifies the live startupNonce before signaling, so a
     // stale descriptor never routes a signal to a reused PID.
@@ -894,12 +1796,52 @@ export class McpControlServer {
           authority: args.authority,
         });
       }
+      case 'snapback_data_patch_preview':
+        return this.dataPatchPreviewResult(name, args);
+      case 'snapback_data_patch_apply':
+        return this.dataPatchApplyResult(name, args);
       case 'snapback_load_schema':
         return this.loadArtifactResult(name, 'schema.load', 'schema', args.schemaPath ?? join(this.backendRoot, 'generated', 'schema.manifest.json'));
       case 'snapback_load_functions':
         return this.loadArtifactResult(name, 'functions.load', 'functions', args.functionsPath ?? join(this.backendRoot, 'generated', 'functions.manifest.json'));
       case 'snapback_run_function':
         return this.runFunctionResult(name, args.function, args.args ?? {}, args.authority);
+      // --- LLP 0184 Phase 2 P1: read and diagnose --------------------------
+      case 'snapback_data_scan': {
+        const limit = Number.isInteger(args.limit) ? args.limit : 50;
+        const offset = Number.isInteger(args.offset) ? args.offset : 0;
+        const lease = this.secretReadLease(null, limit, 4 * 1024 * 1024, ['--table', args.table]);
+        return this.adminResult('data.scan', 'GET', `/_snapback/api/data/${args.table}`, {
+          query: { limit, offset },
+          secretReadLease: lease,
+        });
+      }
+      case 'snapback_asset_list':
+        return this.servedResult({ operation: 'asset.list', input: { ...(args.state ? { state: args.state } : {}) } });
+      case 'snapback_asset_inspect':
+        return this.servedResult({
+          operation: 'asset.inspect',
+          input: { assetId: args.assetId },
+          ...(typeof args.userId === 'string' && args.userId ? { userId: args.userId } : {}),
+        });
+      case 'snapback_asset_retry':
+        return this.servedResult({ operation: 'asset.retry', input: { assetId: args.assetId } });
+      case 'snapback_config_status':
+        return this.adminResult('config.status', 'GET', '/_snapback/api/config/status');
+      case 'snapback_config_plan':
+        return this.adminResult('config.plan', 'GET', '/_snapback/api/config/plan', {
+          query: { ...(typeof args.entry === 'string' && args.entry ? { entry: args.entry } : {}) },
+        });
+      case 'snapback_config_verify':
+        return this.adminResult('config.verify', 'POST', '/_snapback/api/config/verify', {
+          body: { entry: args.entry },
+        });
+      case 'snapback_cron_list':
+        return this.servedResult({ operation: 'cron.list' });
+      case 'snapback_jobs_list':
+        return this.adminResult('jobs.list', 'GET', '/_snapback/api/jobs');
+      case 'snapback_jobs_show':
+        return this.adminResult('jobs.show', 'GET', `/_snapback/api/jobs/${args.id}`);
       case 'snapback_acceptance_run':
         // @ref LLP 0042#acceptance-suite-execution--exposed-runner-deferred —
         // exposed-but-honest: the server registers the pinned-unbuilt
@@ -909,6 +1851,113 @@ export class McpControlServer {
         return this.servedResult({
           operation: 'acceptance.run',
           ...(typeof args.profile === 'string' ? { args: { profile: args.profile } } : {}),
+        });
+      // @ref LLP 0184#p2-controlled-mutations — the five P2 typed
+      // projections below sit outside the host-ops multiplexer, so they go
+      // through postAdminRoute rather than servedResult/postHostOp.
+      case 'snapback_config_unset': {
+        const result = await this.postAdminRoute('/_snapback/api/config/unset', {
+          entry: args.entry,
+          source: 'mcp',
+        });
+        return this.toolResult(this.adminRouteEnvelope('config.unset', id, result));
+      }
+      case 'snapback_cron_tick': {
+        const result = await this.postAdminRoute('/_snapback/api/cron/tick', {});
+        return this.toolResult(this.adminRouteEnvelope('cron.tick', id, {
+          ...result,
+          body: result.ok ? { runs: result.body } : result.body,
+        }));
+      }
+      case 'snapback_cron_run': {
+        const result = await this.postAdminRoute(`/_snapback/api/cron/${encodeURIComponent(args.name)}/run`, {});
+        return this.toolResult(this.adminRouteEnvelope('cron.runOne', id, result));
+      }
+      case 'snapback_ephemeral_cleanup': {
+        const startupNonce = this.currentDescriptor().startupNonce;
+        const body = {
+          dryRun: args.dryRun === true,
+          maxEntries: args.maxEntries,
+          startupNonce,
+          ...(Number.isInteger(args.olderThanMs) ? { olderThanMs: args.olderThanMs } : {}),
+          ...(Number.isInteger(args.cutoffTimestampMs) ? { cutoffTimestampMs: args.cutoffTimestampMs } : {}),
+        };
+        const result = await this.postAdminRoute('/_snapback/api/ephemeral/cleanup', body);
+        return this.toolResult(this.adminRouteEnvelope('ephemeral.cleanup', id, result));
+      }
+      case 'snapback_jobs_drain': {
+        const body = {};
+        if (Number.isInteger(args.nowMs)) body.nowMs = args.nowMs;
+        if (Number.isInteger(args.maxWaves)) body.maxWaves = args.maxWaves;
+        const result = await this.postAdminRoute('/_snapback/api/jobs/drain', body);
+        return this.toolResult(this.adminRouteEnvelope('jobs.drain', id, result));
+      }
+      case 'snapback_connection_disconnect': {
+        // The route carries no request body; `reason` is recorded in this
+        // tool's own receipt (§P2's "never presented as application
+        // disconnect authority" — the server acknowledges only the
+        // disconnect itself, not a reason).
+        const result = await this.postAdminRoute(
+          `/_snapback/api/connections/${encodeURIComponent(args.connectionId)}/disconnect`,
+          { reason: args.reason },
+        );
+        return this.toolResult(this.adminRouteEnvelope('connection.disconnect', id, {
+          ...result,
+          body: result.ok ? { connectionId: args.connectionId, reason: args.reason } : result.body,
+        }));
+      }
+      case 'snapback_ephemeral_operator_delete': {
+        // Keep the URL, administrator token, and startup nonce on one
+        // descriptor snapshot. The server independently rejects a stale
+        // process identity before touching the room store.
+        const descriptor = this.currentDescriptor();
+        const result = await this.postAdminRoute('/_snapback/api/ephemeral/operator/delete', {
+          collection: args.collection,
+          scope: args.scope,
+          entryKey: args.entryKey,
+          expectedScopeEpoch: args.expectedScopeEpoch,
+          expectedEntryGeneration: args.expectedEntryGeneration,
+          reason: args.reason,
+          startupNonce: descriptor.startupNonce,
+        }, descriptor);
+        return this.toolResult(this.adminRouteEnvelope('ephemeral.operatorDelete', id, result));
+      }
+      case 'snapback_live_force_resync': {
+        // @ref LLP 0184#b-forced-live-resync--add-now — startupNonce comes
+        // only from this server's own readiness descriptor, never from
+        // caller-supplied args; the server independently verifies it
+        // matches the running process before touching any subscription.
+        const descriptor = this.currentDescriptor();
+        return this.servedResult({
+          operation: 'debug.live.forceResync',
+          input: {
+            connectionId: args.connectionId,
+            subscriptionId: args.subscriptionId,
+            reason: args.reason,
+            clearRetained: args.clearRetained === true,
+            startupNonce: descriptor.startupNonce,
+          },
+        });
+      }
+      // @ref LLP 0184#p2-controlled-mutations — asset delete/GC/key-rotation/
+      // export/import direct MCP tools; all route through the host-ops
+      // multiplexer exactly like the shipped CLI.
+      case 'snapback_asset_delete':
+        return this.servedResult({
+          operation: 'asset.delete',
+          input: { assetId: args.assetId },
+          ...(typeof args.userId === 'string' && args.userId ? { userId: args.userId } : {}),
+        });
+      case 'snapback_asset_gc_sweep':
+        return this.servedResult({ operation: 'asset.gcSweep', input: { nowMs: args.nowMs } });
+      case 'snapback_asset_rotate_signing_key':
+        return this.servedResult({ operation: 'asset.rotateSigningKey' });
+      case 'snapback_asset_export_cut':
+        return this.servedResult({ operation: 'asset.exportCut', input: { dir: args.dir } });
+      case 'snapback_asset_import_cut':
+        return this.servedResult({
+          operation: 'asset.importCut',
+          input: { dir: args.dir, apply: args.apply === true },
         });
       default: {
         const entry = (this.catalog?.entries ?? []).find((candidate) => candidate.toolName === name);
@@ -923,6 +1972,73 @@ export class McpControlServer {
         if (refusal) return this.toolResult(refusal);
         return this.runFunctionResult(name, entry.functionId, args.args ?? {}, args.authority, { checked: true });
       }
+    }
+  }
+
+  async dataPatchPreviewResult(tool, args) {
+    const { refusal } = this.checkAuthority(args.authority, {
+      required: true,
+      operation: 'data.patch.preview',
+      tool,
+    });
+    if (refusal) return this.toolResult(refusal);
+    const payload = await this.postHostOp({ operation: 'data.patch.preview', input: args });
+    if (payload?.ok === true && typeof payload.data?.applyToken === 'string') {
+      const applyTokenId = payload.data.applyTokenId;
+      const expiresAtMs = payload.data.applyTokenExpiresAtMs;
+      if (typeof applyTokenId === 'string' && Number.isSafeInteger(expiresAtMs)) {
+        // @ref LLP 0184#a-bounded-direct-row-patch--add-now — MCP retains the
+        //   live single-use capability in a bounded process-local store and
+        //   exposes only its non-authorizing id.
+        this.pruneDataPatchTokens();
+        while (this.dataPatchTokens.size >= 64) {
+          this.dataPatchTokens.delete(this.dataPatchTokens.keys().next().value);
+        }
+        this.dataPatchTokens.set(applyTokenId, {
+          token: payload.data.applyToken,
+          inputDigest: dataPatchInputDigest(args),
+          expiresAtMs,
+        });
+      }
+      const scrubbed = JSON.parse(JSON.stringify(payload));
+      delete scrubbed.data.applyToken;
+      return this.toolResult(scrubbed, { isError: scrubbed?.resultKind !== 'hostOpsResult' });
+    }
+    return this.toolResult(payload, { isError: payload?.resultKind !== 'hostOpsResult' });
+  }
+
+  async dataPatchApplyResult(tool, args) {
+    const { refusal } = this.checkAuthority(args.authority, {
+      required: true,
+      operation: 'data.patch.apply',
+      tool,
+    });
+    if (refusal) return this.toolResult(refusal);
+    this.pruneDataPatchTokens();
+    const { applyTokenId, ...input } = args;
+    const retained = this.dataPatchTokens.get(applyTokenId);
+    if (!retained || retained.inputDigest !== dataPatchInputDigest(input)) {
+      return this.toolResult(this.envelope('data.patch.apply', {
+        diagnostics: [diagnostic(
+          'SNAPBACK_MCP_DATA_PATCH_TOKEN_UNAVAILABLE',
+          'no matching live preview capability is retained by this MCP process',
+          { applyTokenId: typeof applyTokenId === 'string' ? applyTokenId : null },
+        )],
+        next: [{ kind: 'callTool', tool: 'snapback_data_patch_preview' }],
+      }));
+    }
+    // Drop before transport so retries can never replay the capability even
+    // if the response is lost. Native still owns atomic compare-and-consume.
+    this.dataPatchTokens.delete(applyTokenId);
+    return this.servedResult({
+      operation: 'data.patch.apply',
+      input: { ...input, applyToken: retained.token },
+    });
+  }
+
+  pruneDataPatchTokens(nowMs = Date.now()) {
+    for (const [id, retained] of this.dataPatchTokens) {
+      if (retained.expiresAtMs <= nowMs) this.dataPatchTokens.delete(id);
     }
   }
 
@@ -1014,6 +2130,61 @@ export class McpControlServer {
     };
   }
 
+  listResources() {
+    const resources = [];
+    const diagnostics = [];
+    let catalog = null;
+    try {
+      catalog = this.nativeControlCatalog().value;
+      resources.push(...this.controlResourceCatalog(catalog));
+    } catch (error) {
+      diagnostics.push(this.nativeResourceUnavailable(error));
+    }
+    try {
+      const guide = this.nativeGuideRequest('resources/list');
+      resources.push(...(guide?.resources ?? []));
+    } catch (error) {
+      diagnostics.push(this.nativeResourceUnavailable(error));
+    }
+    return {
+      resources,
+      _meta: {
+        ...(catalog ? { 'snapback/catalogDigest': catalog.catalogDigest } : {}),
+        'snapback/resourceDiagnostics': diagnostics,
+      },
+    };
+  }
+
+  listResourceTemplates() {
+    const diagnostics = [];
+    let resourceTemplates = [];
+    try {
+      const catalog = this.nativeControlCatalog().value;
+      resourceTemplates = this.controlResourceTemplates(catalog);
+    } catch (error) {
+      diagnostics.push(this.nativeResourceUnavailable(error));
+    }
+    try {
+      const guide = this.nativeGuideRequest('resources/templates/list');
+      resourceTemplates.push(...(guide?.resourceTemplates ?? []));
+    } catch (error) {
+      diagnostics.push(this.nativeResourceUnavailable(error));
+    }
+    return {
+      resourceTemplates,
+      _meta: { 'snapback/resourceDiagnostics': diagnostics },
+    };
+  }
+
+  async readResource(uri) {
+    const control = await this.readControlResource(uri);
+    if (control) return control;
+    if (typeof uri === 'string' && uri.startsWith('snapback-guide://')) {
+      return this.nativeGuideRequest('resources/read', { uri });
+    }
+    return null;
+  }
+
   async handleRequest(request) {
     const id = request?.id;
     const method = request?.method;
@@ -1028,15 +2199,35 @@ export class McpControlServer {
       case 'initialize':
         return success({
           protocolVersion: PROTOCOL_VERSION,
-          capabilities: { tools: { listChanged: false } },
+          capabilities: {
+            tools: { listChanged: false },
+            resources: { subscribe: false, listChanged: false },
+          },
           serverInfo: { name: 'snapback-control', version: packageVersion() },
           instructions: 'Control-plane tools project LLP 0024 host operations; '
             + 'snapback_fn_* tools are the generated app-data catalog. Every result '
             + 'is the shared hostOpsResult envelope; ok:false envelopes are '
-            + 'app-level failures, not tool errors.',
+            + 'app-level failures, not tool errors. Read snapback-controls://catalog '
+            + 'to search the build catalog and snapback-guide://manifest for the '
+            + 'Guide; both are supplied by the co-installed native binary.',
         });
       case 'ping':
         return success({});
+      case 'resources/list':
+        return success(this.listResources());
+      case 'resources/templates/list':
+        return success(this.listResourceTemplates());
+      case 'resources/read': {
+        try {
+          const result = await this.readResource(request.params?.uri);
+          if (result === null) return failure(-32002, `Resource not found: ${request.params?.uri}`);
+          return success(result);
+        } catch (error) {
+          const detail = error?.diagnostic
+            ?? diagnostic(error?.code ?? 'SNAPBACK_MCP_RESOURCE_UNAVAILABLE', error?.message ?? String(error));
+          return failure(-32001, `${detail.code}: ${detail.message}`);
+        }
+      }
       case 'tools/list':
         return success(this.listTools());
       case 'tools/call': {

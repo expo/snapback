@@ -1,0 +1,42 @@
+{
+  "seedVersion": "2026-08-06.1",
+  "tables": {
+    "users": [
+      { "_id": "user_ada", "handle": "ada", "name": "Ada Lovelace", "email": "ada@rematch.dev", "color": "#7c5cff" },
+      { "_id": "user_grace", "handle": "grace", "name": "Grace Hopper", "email": "grace@rematch.dev", "color": "#00a884" },
+      { "_id": "user_kai", "handle": "kai", "name": "Kai Tanaka", "email": "kai@rematch.dev", "color": "#e8590c" }
+    ],
+    "conversations": [
+      { "_id": "conv_dm_ada_grace", "kind": "dm", "title": "Ada ↔ Grace", "sortKey": 1 },
+      { "_id": "conv_dm_ada_kai", "kind": "dm", "title": "Ada ↔ Kai", "sortKey": 2 },
+      { "_id": "conv_weekend_ride", "kind": "group", "title": "Weekend Ride 🚴", "sortKey": 3 }
+    ],
+    "members": [
+      { "_id": "mem_1", "conversationId": "conv_dm_ada_grace", "handle": "ada" },
+      { "_id": "mem_2", "conversationId": "conv_dm_ada_grace", "handle": "grace" },
+      { "_id": "mem_3", "conversationId": "conv_dm_ada_kai", "handle": "ada" },
+      { "_id": "mem_4", "conversationId": "conv_dm_ada_kai", "handle": "kai" },
+      { "_id": "mem_5", "conversationId": "conv_weekend_ride", "handle": "ada" },
+      { "_id": "mem_6", "conversationId": "conv_weekend_ride", "handle": "grace" },
+      { "_id": "mem_7", "conversationId": "conv_weekend_ride", "handle": "kai" }
+    ],
+    "messages": [
+      { "_id": "msg_1", "conversationId": "conv_dm_ada_grace", "senderHandle": "ada", "kind": "text", "text": "Grace! Did you see the compiler finally passed all the tests?", "sentAt": 1786000000000 },
+      { "_id": "msg_2", "conversationId": "conv_dm_ada_grace", "senderHandle": "grace", "kind": "text", "text": "I did. Ship it before it changes its mind.", "sentAt": 1786000060000 },
+      { "_id": "msg_3", "conversationId": "conv_dm_ada_grace", "senderHandle": "ada", "kind": "text", "text": "Deploying now. Fingers crossed 🤞", "replyToId": "msg_2", "sentAt": 1786000120000 },
+      { "_id": "msg_4", "conversationId": "conv_dm_ada_grace", "senderHandle": "grace", "kind": "text", "text": "It's not superstition if it works.", "sentAt": 1786000180000 },
+      { "_id": "msg_5", "conversationId": "conv_dm_ada_kai", "senderHandle": "kai", "kind": "text", "text": "Ada, are we still on for the demo review at 3?", "sentAt": 1786001000000 },
+      { "_id": "msg_6", "conversationId": "conv_dm_ada_kai", "senderHandle": "ada", "kind": "text", "text": "Yes — bring the latency charts.", "replyToId": "msg_5", "sentAt": 1786001060000 },
+      { "_id": "msg_7", "conversationId": "conv_weekend_ride", "senderHandle": "kai", "kind": "text", "text": "Saturday route: coast road, 60km, coffee at the lighthouse. Who's in?", "sentAt": 1786002000000 },
+      { "_id": "msg_8", "conversationId": "conv_weekend_ride", "senderHandle": "ada", "kind": "text", "text": "In. But only if the coffee stop is mandatory.", "replyToId": "msg_7", "sentAt": 1786002060000 },
+      { "_id": "msg_9", "conversationId": "conv_weekend_ride", "senderHandle": "grace", "kind": "text", "text": "I'll join for the second half. Someone has to sweep.", "sentAt": 1786002120000 },
+      { "_id": "msg_10", "conversationId": "conv_weekend_ride", "senderHandle": "kai", "kind": "text", "text": "Coffee is a checkpoint, not a suggestion. See you at 8.", "replyToId": "msg_8", "sentAt": 1786002180000 }
+    ],
+    "reactions": [
+      { "_id": "react_1", "messageId": "msg_2", "conversationId": "conv_dm_ada_grace", "handle": "ada", "emoji": "😂" },
+      { "_id": "react_2", "messageId": "msg_7", "conversationId": "conv_weekend_ride", "handle": "ada", "emoji": "🔥" },
+      { "_id": "react_3", "messageId": "msg_7", "conversationId": "conv_weekend_ride", "handle": "grace", "emoji": "👍" },
+      { "_id": "react_4", "messageId": "msg_8", "conversationId": "conv_weekend_ride", "handle": "kai", "emoji": "☕" }
+    ]
+  }
+}

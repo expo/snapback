@@ -39,7 +39,6 @@ use base64::Engine as _;
 use futures_util::StreamExt as _;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
-use subtle::ConstantTimeEq as _;
 use std::collections::{BTreeSet, HashMap};
 use std::ffi::OsString;
 use std::fmt;
@@ -56,6 +55,7 @@ use std::{
         unix::{ffi::OsStrExt as _, fs::OpenOptionsExt as _},
     },
 };
+use subtle::ConstantTimeEq as _;
 #[cfg(unix)]
 use tokio::io::AsyncReadExt as _;
 use tokio::sync::Mutex;
@@ -220,9 +220,11 @@ pub(crate) fn operation_profile_requirement(
         // available in every profile and writes must reach the network-profile
         // activation gate so its finer hosted/Prod policy and refusal codes
         // remain authoritative. Do not preempt that gate with NonProd here.
-        "debug.networkProfileGet" | "debug.networkProfileSet" => {
-            OperationProfileRequirement::Any
-        }
+        "debug.networkProfileGet" | "debug.networkProfileSet" => OperationProfileRequirement::Any,
+        // The dedicated data-patch target classifier owns the stricter
+        // local/non-production/primary-instance rule and its availability
+        // refusal diagnostic.
+        "data.patch.preview" | "data.patch.apply" => OperationProfileRequirement::Any,
         "app.reset"
         | "app.ensure.provision"
         | "app.seed.ensure.v1"
@@ -471,9 +473,7 @@ impl ConsoleCredentialRegistry {
                             "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_STORE_INVALID: persisted credential digest is invalid"
                         ))?;
                     let lifetime_cap = match persisted.provenance {
-                        ConsoleCredentialProvenance::Standard => {
-                            CONSOLE_CREDENTIAL_MAX_LIFETIME
-                        }
+                        ConsoleCredentialProvenance::Standard => CONSOLE_CREDENTIAL_MAX_LIFETIME,
                         ConsoleCredentialProvenance::OperatorClaim => {
                             CONSOLE_CLAIM_CREDENTIAL_MAX_LIFETIME
                         }
@@ -519,12 +519,10 @@ impl ConsoleCredentialRegistry {
                                 .credential_max_expires_at_ms
                                 .saturating_sub(persisted.redeemed_at_ms)
                                 <= CONSOLE_CLAIM_CREDENTIAL_MAX_LIFETIME.as_millis() as u64
-                            && persisted
-                                .revoked_at_ms
-                                .is_none_or(|revoked| {
-                                    revoked >= persisted.redeemed_at_ms
-                                        && revoked <= persisted.credential_max_expires_at_ms
-                                }),
+                            && persisted.revoked_at_ms.is_none_or(|revoked| {
+                                revoked >= persisted.redeemed_at_ms
+                                    && revoked <= persisted.credential_max_expires_at_ms
+                            }),
                         "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_STORE_INVALID: persisted claim redemption lifetime is invalid"
                     );
                     if persisted.credential_max_expires_at_ms > now_ms {
@@ -879,22 +877,22 @@ fn persist_console_credentials(state: &ConsoleCredentialState) -> std::io::Resul
     let mut claim_redemptions = state
         .claim_redemptions
         .iter()
-        .map(|(claim_digest, redemption)| PersistedConsoleClaimRedemption {
-            claim_digest_sha256: encode_console_credential_digest(claim_digest),
-            redeemed_at_ms: redemption.redeemed_at_ms,
-            transport_peer: redemption.transport_peer.clone(),
-            credential_digest_sha256: encode_console_credential_digest(
-                &redemption.credential_digest,
-            ),
-            credential_expires_at_ms: redemption.credential_expires_at_ms,
-            credential_max_expires_at_ms: redemption.credential_max_expires_at_ms,
-            revoked_at_ms: redemption.revoked_at_ms,
-        })
+        .map(
+            |(claim_digest, redemption)| PersistedConsoleClaimRedemption {
+                claim_digest_sha256: encode_console_credential_digest(claim_digest),
+                redeemed_at_ms: redemption.redeemed_at_ms,
+                transport_peer: redemption.transport_peer.clone(),
+                credential_digest_sha256: encode_console_credential_digest(
+                    &redemption.credential_digest,
+                ),
+                credential_expires_at_ms: redemption.credential_expires_at_ms,
+                credential_max_expires_at_ms: redemption.credential_max_expires_at_ms,
+                revoked_at_ms: redemption.revoked_at_ms,
+            },
+        )
         .collect::<Vec<_>>();
-    claim_redemptions.sort_by(|left, right| {
-        left.claim_digest_sha256
-            .cmp(&right.claim_digest_sha256)
-    });
+    claim_redemptions
+        .sort_by(|left, right| left.claim_digest_sha256.cmp(&right.claim_digest_sha256));
     let bytes = serde_json::to_vec(&PersistedConsoleCredentialStore {
         version: CONSOLE_CREDENTIAL_STORE_VERSION,
         credentials,
@@ -1374,8 +1372,7 @@ impl ConsoleClaimRegistry {
             console_credential_digest(&claim_code),
             ConsoleClaimEntry {
                 expires_at_ms,
-                retain_until_ms: expires_at_ms
-                    .saturating_add(CONSOLE_CLAIM_TTL.as_millis() as u64),
+                retain_until_ms: expires_at_ms.saturating_add(CONSOLE_CLAIM_TTL.as_millis() as u64),
                 consumed_at_ms: None,
             },
         );
@@ -1690,7 +1687,10 @@ impl ConsoleReachabilityRegistry {
                 "console relay lease is unavailable",
             )
         })?;
-        if session.claim_digest.is_some_and(|bound| bound != claim_digest) {
+        if session
+            .claim_digest
+            .is_some_and(|bound| bound != claim_digest)
+        {
             return Err(console_claim_error(
                 "SNAPBACK_ADMIN_RELAY_LEASE_CLAIM_MISMATCH",
                 "console relay lease is already bound to another claim",
@@ -1740,12 +1740,13 @@ impl ConsoleReachabilityRegistry {
                         "redeemed console relay status omitted its credential binding",
                     )
                 })?;
-                let credential_digest = decode_console_credential_digest(encoded).ok_or_else(|| {
-                    console_claim_error(
-                        "SNAPBACK_ADMIN_RELAY_LEASE_STATUS_INVALID",
-                        "redeemed console relay status carried an invalid credential binding",
-                    )
-                })?;
+                let credential_digest =
+                    decode_console_credential_digest(encoded).ok_or_else(|| {
+                        console_claim_error(
+                            "SNAPBACK_ADMIN_RELAY_LEASE_STATUS_INVALID",
+                            "redeemed console relay status carried an invalid credential binding",
+                        )
+                    })?;
                 if session
                     .credential_digest
                     .is_some_and(|bound| bound != credential_digest)
@@ -1866,9 +1867,8 @@ impl ConsoleReachabilityRegistry {
         let now_ms = now_millis();
         let mut state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
         prune_console_reachability(&mut state, now_ms);
-        let matches_host = |session: &&ConsoleReachabilitySession| {
-            session.authority.eq_ignore_ascii_case(host)
-        };
+        let matches_host =
+            |session: &&ConsoleReachabilitySession| session.authority.eq_ignore_ascii_case(host);
         if let Some(session_id) = requested_session {
             let session = state.sessions.get(session_id)?;
             if !matches_host(&session) {
@@ -2425,6 +2425,9 @@ pub struct AppState {
     /// by the bootstrap handshake. It is captured once so one response cannot
     /// accidentally combine facts from different startup identities.
     pub(crate) server_startup_nonce: Arc<str>,
+    /// Single process-local registry shared by every router clone. Raw apply
+    /// tokens never leave this registry except in the one preview response.
+    pub(crate) data_patch_tokens: crate::data_patch::DataPatchTokenStore,
     /// CLI-only, process-local opt-in for exposing dev body authority on a
     /// non-loopback bind. Production profiles never honor this bit.
     pub(crate) allow_insecure_dev_auth: bool,
@@ -2560,6 +2563,7 @@ impl AppState {
                         .startup_nonce
                         .into_boxed_str(),
                 ),
+                data_patch_tokens: crate::data_patch::DataPatchTokenStore::default(),
                 allow_insecure_dev_auth: false,
                 secret_reads,
                 telemetry_export_continuation_key: Arc::new(telemetry_export_continuation_key),
@@ -2591,6 +2595,50 @@ impl AppState {
         )
     }
 
+    /// LLP 0184 §B's (and, when it lands, §A's) *local-non-production-only*
+    /// target rule for operator debug perturbations more dangerous than a
+    /// network-profile activation. This deliberately does NOT reuse
+    /// [`Self::network_profile_authority`]'s `permits` predicate: that gate
+    /// extends an explicit hosted-derived exception LLP 0158 grants "solely
+    /// for network-profile activation" (its own text) — a different,
+    /// narrower grant than the one these perturbations would need. Until
+    /// LLP 0158's owner makes that grant for this purpose, every derived
+    /// instance (local or hosted) and every hosted/production target is
+    /// refused; only a local, non-production, non-derived instance is
+    /// eligible.
+    ///
+    /// @ref LLP 0184#b-forced-live-resync--add-now — "Target rule matches
+    ///   §A's: local non-production instances in v1; refused on a primary
+    ///   hosted/production target; refused on a derived instance too until
+    ///   LLP 0158 grants recognition for this purpose."
+    pub(crate) fn debug_perturbation_target_authority(&self) -> Result<(), SnapbackError> {
+        let authority = self.network_profile_authority();
+        let allowed = matches!(
+            authority.server_profile,
+            Some(ServerProfile::Dev | ServerProfile::Demo | ServerProfile::Test)
+        ) && matches!(
+            authority.deployment,
+            Some(crate::auth::deployment::AuthDeploymentTarget::Local)
+        ) && authority.derived_instance_present == Some(false);
+        if allowed {
+            return Ok(());
+        }
+        Err(SnapbackError::error(
+            "SNAPBACK_DEBUG_PERTURBATION_TARGET_REFUSED",
+            "debug",
+            "this operator debug perturbation is local-non-production-only in v1; refused on a primary hosted/production target and on any derived instance until LLP 0158 grants recognition for this purpose",
+        )
+        .with_details(serde_json::json!({
+            "serverProfile": authority.server_profile.map(ServerProfile::as_str),
+            "deployment": authority.deployment.map(|deployment| match deployment {
+                crate::auth::deployment::AuthDeploymentTarget::Local => "local",
+                crate::auth::deployment::AuthDeploymentTarget::Hosted => "hosted",
+            }),
+            "hostedServingPresent": authority.hosted_serving_present,
+            "derivedInstancePresent": authority.derived_instance_present,
+        })))
+    }
+
     /// Both startup and runtime surfaces terminate at this one state-changing
     /// gate; callers may parse different transport representations but cannot
     /// select around classification or provenance capture.
@@ -2604,12 +2652,8 @@ impl AppState {
         source: crate::network_profile::NetworkProfileSource,
         principal: Option<String>,
     ) -> Result<Arc<crate::network_profile::ActiveNetworkProfile>, SnapbackError> {
-        self.network_profiles.activate(
-            profile,
-            self.network_profile_authority(),
-            source,
-            principal,
-        )
+        self.network_profiles
+            .activate(profile, self.network_profile_authority(), source, principal)
     }
 
     pub(crate) fn activate_network_profile_env(
@@ -2639,6 +2683,17 @@ impl AppState {
         registry: ImpersonationCapabilityRegistry,
     ) -> Self {
         self.impersonation_capabilities = Some(registry);
+        self
+    }
+
+    /// Deterministic integration-test seam for expiry without waiting. The
+    /// production constructor always uses the fixed one-minute TTL.
+    #[doc(hidden)]
+    pub fn with_data_patch_token_ttl_ms(mut self, ttl_ms: u64) -> Self {
+        self.data_patch_tokens = crate::data_patch::DataPatchTokenStore::new(
+            ttl_ms,
+            crate::data_patch::DATA_PATCH_TOKEN_CAPACITY,
+        );
         self
     }
 
@@ -3575,6 +3630,66 @@ pub(crate) fn authorize_for_mode(
     authorize_admin_access(ctx, headers, write, mode)
 }
 
+/// Bearer-free identity of the concrete credential that satisfied this
+/// protected-erasure AdminWrite request. The raw token never leaves this
+/// resolver and cannot enter a receipt or diagnostic.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ProtectedErasureAdminCredentialBinding {
+    credential_class: &'static str,
+    credential_digest_sha256: String,
+}
+
+impl ProtectedErasureAdminCredentialBinding {
+    pub(crate) fn credential_class(&self) -> &'static str {
+        self.credential_class
+    }
+
+    pub(crate) fn credential_digest_sha256(&self) -> &str {
+        &self.credential_digest_sha256
+    }
+
+    #[cfg(test)]
+    pub(crate) fn for_test(credential_class: &'static str, credential: &str) -> Self {
+        Self {
+            credential_class,
+            credential_digest_sha256: encode_console_credential_digest(&console_credential_digest(
+                credential,
+            )),
+        }
+    }
+}
+
+pub(crate) fn resolve_protected_erasure_admin_credential(
+    ctx: &ServerContext,
+    headers: &HeaderMap,
+    mode: PolicyAuthMode,
+) -> Result<ProtectedErasureAdminCredentialBinding, ApiError> {
+    authorize_for_mode(ctx, headers, true, mode)?;
+    if let Some(credential) = provided_console_credential(headers)
+        && ctx.console_credentials.allows(Some(credential))
+    {
+        return Ok(ProtectedErasureAdminCredentialBinding {
+            credential_class: "console",
+            credential_digest_sha256: encode_console_credential_digest(&console_credential_digest(
+                credential,
+            )),
+        });
+    }
+    let credential = provided_token(headers, mode == PolicyAuthMode::Dev).ok_or_else(|| {
+        ApiError::from(SnapbackError::error(
+            "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID",
+            "admin",
+            "protected-record erasure requires a concrete validated admin credential",
+        ))
+    })?;
+    Ok(ProtectedErasureAdminCredentialBinding {
+        credential_class: "master-admin",
+        credential_digest_sha256: encode_console_credential_digest(&console_credential_digest(
+            &credential,
+        )),
+    })
+}
+
 fn authorize_admin_access(
     ctx: &ServerContext,
     headers: &HeaderMap,
@@ -3705,10 +3820,7 @@ pub(crate) fn admin_route_registrations() -> Vec<RegisteredRoute> {
             get(console_asset),
         ),
         RegisteredRoute::new(
-            system_static_route(
-                "GET",
-                "/_snapback/admin/reachability/identity",
-            ),
+            system_static_route("GET", "/_snapback/admin/reachability/identity"),
             get(console_reachability_identity),
         ),
         RegisteredRoute::new(
@@ -3717,6 +3829,32 @@ pub(crate) fn admin_route_registrations() -> Vec<RegisteredRoute> {
                 ResponseSensitivity::OperatorMetadata,
             ),
             get(admin_health),
+        ),
+        // @ref LLP 0184#1-controlcatalogv1 — the build catalog and instance
+        // availability projection carry distinct, digest-bound identities;
+        // these reads do not participate in invocation admission.
+        // @ref LLP 0031#independent-policy-axes — operator discovery metadata
+        // uses the ordinary AdminRead/AdminCredential/OperatorMetadata tuple.
+        RegisteredRoute::new(
+            read(
+                "/_snapback/api/control-catalog",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            get(admin_control_catalog),
+        ),
+        RegisteredRoute::new(
+            read(
+                "/_snapback/api/control-catalog/instance",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            get(admin_control_catalog_instance),
+        ),
+        RegisteredRoute::new(
+            read(
+                "/_snapback/api/control-catalog/operations/{operation}",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            get(admin_control_catalog_operation),
         ),
         // @ref LLP 0167#authority-one-activation-chokepoint — route policy
         //   authenticates read/write separately; PUT still terminates at the
@@ -3918,6 +4056,28 @@ pub(crate) fn admin_route_registrations() -> Vec<RegisteredRoute> {
             .with_session_overlay(SessionModeOverlay::secret_read()),
             get(admin_data),
         ),
+        // @ref LLP 0165#protected-deletion-authority-audit--2026-08-04 —
+        // authority is derived from the registered AdminWrite invocation;
+        // the body carries only retry identity and the exact row target.
+        RegisteredRoute::new(
+            write(
+                "POST",
+                "/_snapback/api/storage/protected-erasure",
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            post(admin_protected_record_erasure),
+        ),
+        // @ref LLP 0162#acceptance — row 4 publication is an explicit
+        //   target-exact AdminWrite command; database open and range issuance
+        //   never activate a coverage manifest.
+        RegisteredRoute::new(
+            write(
+                "POST",
+                "/_snapback/api/storage/operation-coverage/activate",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            post(admin_operation_coverage_activate),
+        ),
         // The route has an AdminRead floor. Query versus mutation/action is an
         // operation-level split retained by the handler and operation registry.
         RegisteredRoute::new(
@@ -3937,6 +4097,13 @@ pub(crate) fn admin_route_registrations() -> Vec<RegisteredRoute> {
                 response_sensitivity: None,
             }),
             post(admin_run_function),
+        ),
+        RegisteredRoute::new(
+            read(
+                "/_snapback/api/cron",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            get(admin_cron_list),
         ),
         RegisteredRoute::new(
             write(
@@ -4014,6 +4181,42 @@ async fn admin_telemetry_stats(
     Query(request): Query<crate::telemetry_query::TelemetryStatsRequestV1>,
 ) -> Result<Json<crate::telemetry_query::TelemetryStatsResponseV1>, ApiError> {
     Ok(Json(runtime.telemetry.query_stats(&request)?))
+}
+
+async fn admin_control_catalog() -> Response {
+    let mut response = Response::new(Body::from(crate::control_catalog::BUILD_CATALOG_BYTES));
+    response.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/json; charset=utf-8"),
+    );
+    if let Some(digest) =
+        crate::control_catalog::catalog_digest(crate::control_catalog::build_catalog())
+        && let Ok(value) = HeaderValue::from_str(digest)
+    {
+        response.headers_mut().insert(
+            HeaderName::from_static(crate::control_catalog::CATALOG_DIGEST_HEADER),
+            value,
+        );
+    }
+    response
+}
+
+async fn admin_control_catalog_instance(
+    State(runtime): State<AppState>,
+) -> Json<serde_json::Value> {
+    Json(crate::control_catalog::instance_projection(&runtime))
+}
+
+async fn admin_control_catalog_operation(Path(operation): Path<String>) -> Response {
+    let Some(entry) = crate::control_catalog::operation(&operation) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    Json(serde_json::json!({
+        "schemaVersion": crate::control_catalog::CATALOG_SCHEMA_VERSION,
+        "catalogDigest": crate::control_catalog::catalog_digest(crate::control_catalog::build_catalog()),
+        "entry": entry,
+    }))
+    .into_response()
 }
 
 async fn admin_network_profile_get(
@@ -4592,21 +4795,20 @@ async fn exchange_console_claim(
         transport_peer,
         &ctx.console_credentials,
     )?;
-    response.reachability = match reachability
-        .bind_redeemed_credential(&request.claim_code, &response.credential)
-    {
-        Ok(binding) => binding,
-        Err(_) => {
-            // The claim was consumed concurrently with loss of its managed
-            // front. Revoke the just-issued credential before returning the
-            // ordinary opaque claim refusal; it must never escape without its
-            // tab/session binding.
-            let _ = ctx
-                .console_claims
-                .revoke(&request.claim_code, &ctx.console_credentials);
-            return Err(console_claim_invalid().into());
-        }
-    };
+    response.reachability =
+        match reachability.bind_redeemed_credential(&request.claim_code, &response.credential) {
+            Ok(binding) => binding,
+            Err(_) => {
+                // The claim was consumed concurrently with loss of its managed
+                // front. Revoke the just-issued credential before returning the
+                // ordinary opaque claim refusal; it must never escape without its
+                // tab/session binding.
+                let _ = ctx
+                    .console_claims
+                    .revoke(&request.claim_code, &ctx.console_credentials);
+                return Err(console_claim_invalid().into());
+            }
+        };
     Ok(Json(response))
 }
 
@@ -4648,7 +4850,9 @@ async fn register_console_reachability(
 ) -> Result<Json<ConsoleReachabilityLeaseResponse>, ApiError> {
     require_console_claim_posture(&ctx, policy_mode)?;
     authorize_master(&ctx, &headers, policy_mode)?;
-    Ok(Json(reachability.register(&request.origin, &instance_id.0)?))
+    Ok(Json(
+        reachability.register(&request.origin, &instance_id.0)?,
+    ))
 }
 
 async fn bind_console_reachability(
@@ -4660,7 +4864,9 @@ async fn bind_console_reachability(
 ) -> Result<Json<ConsoleReachabilityLeaseResponse>, ApiError> {
     require_console_claim_posture(&ctx, policy_mode)?;
     authorize_master(&ctx, &headers, policy_mode)?;
-    let claim_digest = ctx.console_claims.pending_claim_digest(&request.claim_code)?;
+    let claim_digest = ctx
+        .console_claims
+        .pending_claim_digest(&request.claim_code)?;
     let status = ctx
         .console_claims
         .status(&request.claim_code, &ctx.console_credentials)?;
@@ -4690,11 +4896,7 @@ async fn renew_console_reachability(
         .console_claims
         .status(&request.claim_code, &ctx.console_credentials)?;
     let lease = if matches!(claim.status, "pending" | "redeemed") {
-        Some(reachability.renew(
-            &request.session_id,
-            &request.claim_code,
-            &claim,
-        )?)
+        Some(reachability.renew(&request.session_id, &request.claim_code, &claim)?)
     } else {
         reachability.drop_session(&request.session_id);
         None
@@ -4728,8 +4930,7 @@ async fn console_reachability_identity(
         .get(header::HOST)
         .and_then(|value| value.to_str().ok())
         .unwrap_or_default();
-    let Some(identity) = reachability.identity_for_host(host, query.session.as_deref())
-    else {
+    let Some(identity) = reachability.identity_for_host(host, query.session.as_deref()) else {
         return diagnostic_response(
             StatusCode::NOT_FOUND,
             console_claim_error(
@@ -5025,6 +5226,111 @@ async fn admin_data(
     Ok(Json(scan))
 }
 
+async fn admin_protected_record_erasure(
+    State(state): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    headers: HeaderMap,
+    Json(wire): Json<crate::proof_checkpoint::ProtectedRecordErasureWireRequestV1>,
+) -> Result<Json<crate::proof_checkpoint::ProtectedRecordErasureReceiptV1>, ApiError> {
+    let snapback = state.snapback.clone();
+    let ctx = state.server.clone();
+    let mode = state.active_policy_auth_mode();
+    let receipt = crate::server::with_snapback(&snapback, move |snapback| {
+        // Re-resolve the exact concrete credential after the await and inside
+        // the synchronous database window; console expiry/revocation cannot
+        // ride an earlier middleware success into this mutation.
+        let credential = resolve_protected_erasure_admin_credential(&ctx, &headers, mode)?;
+        let internal_authority =
+            crate::proof_checkpoint::ProtectedRecordErasureAuthorityV1::from_prepared(
+                &authority,
+                &credential,
+            )?;
+        let now_ms = now_millis();
+        let request = crate::proof_checkpoint::ProtectedRecordErasureRequestV1 {
+            operation_id: wire.operation_id,
+            authority: internal_authority,
+            qualified_table: wire.qualified_table,
+            row_id: wire.row_id,
+            now_ms,
+        };
+        authority
+            .try_fenced_publication(now_ms, Instant::now(), || {
+                let _mode_publication =
+                    authority.effect_guard("protected-record erasure canonical publication")?;
+                snapback.erase_protected_record(&request)
+            })?
+            .ok_or_else(|| {
+                ApiError::from(SnapbackError::error(
+                    "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID",
+                    "admin",
+                    "protected-record erasure authority was revoked before publication",
+                ))
+            })
+    })
+    .await?;
+    Ok(Json(receipt))
+}
+
+async fn admin_operation_coverage_activate(
+    State(state): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    headers: HeaderMap,
+    Json(request): Json<crate::commit_envelope::OperationCoverageActivationRequestV1>,
+) -> Result<Json<crate::commit_envelope::OperationCoverageActivationResponseV1>, ApiError> {
+    if authority.source() != crate::auth::invocation::InvocationSource::OperationCoverageActivation
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_INVOCATION_SOURCE_INVALID",
+            "auth",
+            "operation coverage activation requires its registered authority source",
+        )
+        .into());
+    }
+    authorize_for_mode(
+        &state.server,
+        &headers,
+        true,
+        state.active_policy_auth_mode(),
+    )?;
+    if request.schema_version
+        != crate::commit_envelope::operation_coverage_activation_schema_version()
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_OPERATION_COVERAGE_ACTIVATION_VERSION_UNSUPPORTED",
+            "storage",
+            "operation coverage activation request schema version is unsupported",
+        )
+        .into());
+    }
+    let target_profile_id = request.target_profile_id;
+    let coverage_profile = request.coverage_profile;
+    let now_ms = now_millis();
+    let manifest = crate::server::with_snapback(&state.snapback, move |snapback| {
+        authority
+            .try_fenced_publication(now_ms, Instant::now(), || {
+                let _mode_publication =
+                    authority.effect_guard("operation coverage activation publication")?;
+                snapback.activate_agent_safe_operation_coverage(now_ms)
+            })?
+            .ok_or_else(|| {
+                ApiError::from(SnapbackError::error(
+                    "SNAPBACK_OPERATION_COVERAGE_ACTIVATION_AUTHORITY_INVALID",
+                    "storage",
+                    "operation coverage activation authority was revoked before publication",
+                ))
+            })
+    })
+    .await?;
+    Ok(Json(
+        crate::commit_envelope::OperationCoverageActivationResponseV1 {
+            schema_version: crate::commit_envelope::operation_coverage_activation_schema_version(),
+            target_profile_id,
+            coverage_profile,
+            manifest,
+        },
+    ))
+}
+
 async fn admin_run_function(
     State(state): State<AppState>,
     Extension(authority): Extension<PreparedAuthority>,
@@ -5156,6 +5462,21 @@ async fn admin_cron_tick(
     Ok(Json(runs))
 }
 
+async fn admin_cron_list(
+    State(snapback): State<SharedSnapback>,
+    State(ctx): State<Arc<ServerContext>>,
+    headers: HeaderMap,
+) -> Result<Json<crate::cron::CronListState>, ApiError> {
+    authorize(&ctx, &headers, false)?;
+    let cron = crate::server::with_snapback(&snapback, |snapback| {
+        snapback
+            .inspect_core()
+            .map(|state| crate::cron::CronListState::from(state.cron))
+    })
+    .await?;
+    Ok(Json(cron))
+}
+
 #[derive(Debug, Default, serde::Deserialize)]
 struct JobsDrainRequest {
     /// The injected drain clock. Absent means wall clock — the sibling of
@@ -5193,12 +5514,8 @@ async fn admin_push_maintenance(
         .into());
     }
     let now_ms = request.now_ms.unwrap_or_else(crate::server::now_millis);
-    crate::server::drive_push_maintenance_once(
-        &state.snapback,
-        state.server.profile,
-        now_ms,
-    )
-    .await?;
+    crate::server::drive_push_maintenance_once(&state.snapback, state.server.profile, now_ms)
+        .await?;
     Ok(Json(serde_json::json!({
         "artifactKind": "snapback.push-maintenance/v1",
         "nowMs": now_ms,
@@ -5281,17 +5598,96 @@ async fn admin_run_cron_job(
 }
 
 async fn admin_ephemeral_cleanup(
-    State(ephemeral): State<EphemeralApi>,
-    State(ctx): State<Arc<ServerContext>>,
+    State(state): State<AppState>,
     headers: HeaderMap,
-) -> Result<StatusCode, ApiError> {
-    // @ref LLP 0017#ephemeral-inspector — ephemeral mutating controls are
-    // privileged writes, gated like durable admin writes.
-    authorize(&ctx, &headers, true)?;
+    Json(body): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    // @ref LLP 0184#p2-controlled-mutations — this named, receipt-bearing
+    // maintenance operation retains the route's privileged AdminWrite gate.
+    authorize(&state.server, &headers, true)?;
+    let request: EphemeralCleanupRequest = serde_json::from_value(body).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_EPHEMERAL_CLEANUP_REQUEST_INVALID",
+            "ephemeral",
+            "cleanup requires startupNonce, dryRun, maxEntries, and exactly one cutoff",
+        )
+    })?;
+    if request.startup_nonce != state.server_startup_nonce() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_EPHEMERAL_CLEANUP_STARTUP_MISMATCH",
+            "ephemeral",
+            "cleanup target startup identity does not match the running server",
+        )
+        .into());
+    }
+    const MAX_EPHEMERAL_CLEANUP_ENTRIES: usize = 10_000;
+    if request.max_entries == 0 || request.max_entries > MAX_EPHEMERAL_CLEANUP_ENTRIES {
+        return Err(SnapbackError::error(
+            "SNAPBACK_EPHEMERAL_CLEANUP_BOUND_INVALID",
+            "ephemeral",
+            format!("maxEntries must be between 1 and {MAX_EPHEMERAL_CLEANUP_ENTRIES}"),
+        )
+        .into());
+    }
+    let evaluated_at_ms = now_millis();
+    let (cutoff_kind, requested_ms, cutoff_timestamp_ms) =
+        match (request.cutoff_timestamp_ms, request.older_than_ms) {
+            (Some(timestamp), None) if timestamp <= evaluated_at_ms => {
+                ("timestamp", timestamp, timestamp)
+            }
+            (None, Some(age)) => (
+                "expiredForAtLeast",
+                age,
+                evaluated_at_ms.saturating_sub(age),
+            ),
+            _ => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_EPHEMERAL_CLEANUP_CUTOFF_INVALID",
+                    "ephemeral",
+                    "provide exactly one of cutoffTimestampMs or olderThanMs; timestamps cannot be in the future",
+                )
+                .into());
+            }
+        };
     // Room authority is off the global mutex (LLP 0032 L9): cleanup reaches
     // the store directly and cannot queue behind a busy write.
-    ephemeral.cleanup_expired(now_millis());
-    Ok(StatusCode::NO_CONTENT)
+    let report = state.ephemeral.cleanup_expired_bounded(
+        cutoff_timestamp_ms,
+        request.max_entries,
+        request.dry_run,
+    );
+    Ok(Json(serde_json::json!({
+        "artifactKind": "snapback.ephemeral-cleanup-receipt/v1",
+        "schemaVersion": 1,
+        "operation": "ephemeral.cleanup",
+        "dryRun": request.dry_run,
+        "startupNonce": request.startup_nonce,
+        "evaluatedAtMs": evaluated_at_ms,
+        "cutoff": {
+            "kind": cutoff_kind,
+            "requestedMs": requested_ms,
+            "resolvedTimestampMs": cutoff_timestamp_ms,
+        },
+        "bounds": {
+            "maxEntries": request.max_entries,
+            "truncated": report.truncated,
+        },
+        "counts": report.counts,
+        "collections": report.collections,
+        "complete": report.complete,
+        "blockedRooms": report.blocked_rooms,
+        "consistency": "room-linearized",
+    })))
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct EphemeralCleanupRequest {
+    cutoff_timestamp_ms: Option<u64>,
+    older_than_ms: Option<u64>,
+    dry_run: bool,
+    max_entries: usize,
+    startup_nonce: String,
 }
 
 fn now_millis() -> u64 {
@@ -5305,6 +5701,385 @@ fn now_millis() -> u64 {
 mod tests {
     use super::*;
     use std::collections::BTreeMap;
+
+    #[test]
+    fn protected_erasure_route_is_admin_write_and_revalidates_concrete_credential() {
+        let route = crate::server::route_registry()
+            .into_iter()
+            .find(|route| route.path == "/_snapback/api/storage/protected-erasure")
+            .expect("registered protected-erasure route");
+        assert_eq!(route.path_policy, RoutePolicy::AdminWrite);
+        assert_eq!(
+            route.credential_resolution,
+            CredentialResolution::AdminCredential
+        );
+        assert_eq!(route.invocation_authority, InvocationAuthority::Operator);
+
+        let context = ServerContext::detached();
+        let first = context
+            .console_credentials
+            .mint_at(now_millis())
+            .expect("mint first console credential");
+        let second = context
+            .console_credentials
+            .mint_at(now_millis())
+            .expect("mint second console credential");
+        let headers_for = |credential: &str| {
+            let mut headers = HeaderMap::new();
+            headers.insert(
+                "x-snapback-console-credential",
+                credential.parse().expect("credential header"),
+            );
+            headers
+        };
+        let first_headers = headers_for(&first.credential);
+        let second_headers = headers_for(&second.credential);
+        let first_binding = resolve_protected_erasure_admin_credential(
+            &context,
+            &first_headers,
+            PolicyAuthMode::Dev,
+        )
+        .expect("resolve first validated credential");
+        let second_binding = resolve_protected_erasure_admin_credential(
+            &context,
+            &second_headers,
+            PolicyAuthMode::Dev,
+        )
+        .expect("resolve second validated credential");
+        assert_eq!(first_binding.credential_class(), "console");
+        assert_ne!(
+            first_binding.credential_digest_sha256(),
+            second_binding.credential_digest_sha256()
+        );
+        assert!(
+            !first_binding
+                .credential_digest_sha256()
+                .contains(&first.credential)
+        );
+
+        assert!(
+            authorize_for_mode(&context, &first_headers, true, PolicyAuthMode::Dev).is_ok(),
+            "middleware-time validation initially succeeds"
+        );
+        context
+            .console_credentials
+            .state
+            .lock()
+            .unwrap_or_else(|lock| lock.into_inner())
+            .entries
+            .remove(&console_credential_digest(&first.credential));
+        assert!(
+            resolve_protected_erasure_admin_credential(
+                &context,
+                &first_headers,
+                PolicyAuthMode::Dev,
+            )
+            .is_err(),
+            "publication-boundary re-resolution refuses a revoked credential"
+        );
+    }
+
+    #[tokio::test]
+    async fn protected_erasure_transport_refuses_unauthorized_and_wire_authority_inputs() {
+        use crate::manifest::{FieldManifest, FieldType, SchemaManifest, SeedData, TableManifest};
+        use axum::http::Request;
+        use tower::ServiceExt as _;
+
+        let mut snapback = LocalSnapback::memory().expect("memory app");
+        snapback
+            .apply_schema(SchemaManifest {
+                schema_hash: Some("sha256:protected-erasure-http-test".to_owned()),
+                tables: vec![TableManifest {
+                    name: "items".to_owned(),
+                    fields: vec![FieldManifest {
+                        name: "value".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    }],
+                    indexes: Vec::new(),
+                    search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
+                    search_live_limits: None,
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                    asset_sharing: None,
+                    history: None,
+                }],
+                ..SchemaManifest::default()
+            })
+            .expect("apply protected-erasure schema");
+        snapback
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "items".to_owned(),
+                    vec![serde_json::Map::from_iter([
+                        ("_id".to_owned(), serde_json::json!("row-a")),
+                        ("value".to_owned(), serde_json::json!("protected")),
+                    ])],
+                )]),
+            })
+            .expect("seed protected row");
+        let mut context = ServerContext::detached();
+        context.admin_token = Some("protected-erasure-admin".to_owned());
+        let state = AppState::from_snapback(snapback, context);
+        let shared = state.snapback.clone();
+        let router = crate::server::app(state);
+        let body = serde_json::json!({
+            "operationId": "operation-v1:protected-erasure-transport",
+            "qualifiedTable": "items",
+            "rowId": "row-a",
+        });
+        let unauthorized = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/_snapback/api/storage/protected-erasure")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .body(Body::from(serde_json::to_vec(&body).expect("request JSON")))
+                    .expect("request"),
+            )
+            .await
+            .expect("unauthorized response");
+        assert_eq!(unauthorized.status(), StatusCode::UNAUTHORIZED);
+
+        let mut forged = body.clone();
+        forged["authority"] = serde_json::json!({
+            "principalId": "forged",
+            "authorityInstanceId": "forged",
+            "authorityFingerprint": "sha256:forged",
+        });
+        let rejected = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/_snapback/api/storage/protected-erasure")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .header(header::AUTHORIZATION, "Bearer protected-erasure-admin")
+                    .body(Body::from(
+                        serde_json::to_vec(&forged).expect("forged request JSON"),
+                    ))
+                    .expect("request"),
+            )
+            .await
+            .expect("forged authority response");
+        assert!(!rejected.status().is_success());
+
+        let accepted = router
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/_snapback/api/storage/protected-erasure")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .header(header::AUTHORIZATION, "Bearer protected-erasure-admin")
+                    .body(Body::from(
+                        serde_json::to_vec(&body).expect("protected-erasure request JSON"),
+                    ))
+                    .expect("request"),
+            )
+            .await
+            .expect("protected-erasure response");
+        assert_eq!(accepted.status(), StatusCode::OK);
+        let receipt =
+            serde_json::from_slice::<crate::proof_checkpoint::ProtectedRecordErasureReceiptV1>(
+                &axum::body::to_bytes(accepted.into_body(), 1_000_000)
+                    .await
+                    .expect("receipt body"),
+            )
+            .expect("protected-erasure receipt");
+        assert_eq!(
+            receipt.state,
+            crate::proof_checkpoint::ProtectedRecordErasureStateV1::Complete
+        );
+        let remaining =
+            crate::server::with_snapback(&shared, |snapback| snapback.scan_table("items", 10, 0))
+                .await
+                .expect("scan canonical rows after erasure");
+        assert!(remaining.rows.is_empty());
+    }
+
+    #[test]
+    fn operation_coverage_activation_route_is_exact_admin_write_metadata() {
+        let route = crate::server::route_registry()
+            .into_iter()
+            .find(|route| {
+                route.path == "/_snapback/api/storage/operation-coverage/activate"
+                    && route.method == "POST"
+            })
+            .expect("registered operation-coverage activation route");
+        assert_eq!(route.class, RouteClass::SystemApi);
+        assert_eq!(route.path_policy, RoutePolicy::AdminWrite);
+        assert_eq!(
+            route.credential_resolution,
+            CredentialResolution::AdminCredential
+        );
+        assert_eq!(route.invocation_authority, InvocationAuthority::Operator);
+        assert_eq!(
+            route.response_sensitivity,
+            ResponseSensitivity::OperatorMetadata
+        );
+    }
+
+    #[tokio::test]
+    async fn operation_coverage_activation_is_authenticated_exact_and_idempotent_in_prod() {
+        use crate::commit_envelope::{
+            OperationCoverageActivationProfileV1, OperationCoverageActivationResponseV1,
+            OperationCoverageActivationTargetV1,
+        };
+        use crate::manifest::{FieldManifest, FieldType, SchemaManifest, TableManifest};
+        use axum::http::Request;
+        use tower::ServiceExt as _;
+
+        let mut snapback = LocalSnapback::memory().expect("memory app");
+        snapback
+            .apply_schema(SchemaManifest {
+                schema_hash: Some("sha256:coverage-activation-http-test".to_owned()),
+                tables: vec![TableManifest {
+                    name: "items".to_owned(),
+                    fields: vec![FieldManifest {
+                        name: "value".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    }],
+                    indexes: Vec::new(),
+                    search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
+                    search_live_limits: None,
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                    asset_sharing: None,
+                    history: None,
+                }],
+                ..SchemaManifest::default()
+            })
+            .expect("apply coverage activation schema");
+        let mut context = ServerContext::detached();
+        context.profile = ServerProfile::Prod;
+        context.admin_token = Some("coverage-activation-admin".to_owned());
+        let state = AppState::from_snapback(snapback, context);
+        let shared = state.snapback.clone();
+        let router = crate::server::app(state);
+        let exact_body = serde_json::json!({
+            "schemaVersion": 1,
+            "targetProfileId": "local-dev-sqlite-ibex",
+            "coverageProfile": "local-envelope-mapped-writers.v1",
+        });
+        let request = |body: &serde_json::Value, authenticated: bool| {
+            let mut builder = Request::builder()
+                .method("POST")
+                .uri("/_snapback/api/storage/operation-coverage/activate")
+                .header(header::CONTENT_TYPE, "application/json");
+            if authenticated {
+                builder = builder.header(header::AUTHORIZATION, "Bearer coverage-activation-admin");
+            }
+            builder
+                .body(Body::from(
+                    serde_json::to_vec(body).expect("coverage activation request JSON"),
+                ))
+                .expect("coverage activation request")
+        };
+
+        let unauthorized = router
+            .clone()
+            .oneshot(request(&exact_body, false))
+            .await
+            .expect("unauthorized response");
+        assert_eq!(unauthorized.status(), StatusCode::UNAUTHORIZED);
+
+        let wrong_target = router
+            .clone()
+            .oneshot(request(
+                &serde_json::json!({
+                    "schemaVersion": 1,
+                    "targetProfileId": "remote-service-sqlite-ibex",
+                    "coverageProfile": "local-envelope-mapped-writers.v1",
+                }),
+                true,
+            ))
+            .await
+            .expect("wrong-target response");
+        assert!(!wrong_target.status().is_success());
+
+        let wrong_version = router
+            .clone()
+            .oneshot(request(
+                &serde_json::json!({
+                    "schemaVersion": 2,
+                    "targetProfileId": "local-dev-sqlite-ibex",
+                    "coverageProfile": "local-envelope-mapped-writers.v1",
+                }),
+                true,
+            ))
+            .await
+            .expect("wrong-version response");
+        assert!(!wrong_version.status().is_success());
+
+        let covered_before_success = crate::server::with_snapback(&shared, |snapback| {
+            snapback
+                .auth_database_mut()
+                .operation_lane_covered(crate::operation_ledger::ORDINARY_MUTATION_LANE_V1)
+        })
+        .await
+        .expect("read coverage after refused requests");
+        assert!(!covered_before_success);
+
+        let activate = router
+            .clone()
+            .oneshot(request(&exact_body, true))
+            .await
+            .expect("activation response");
+        assert_eq!(activate.status(), StatusCode::OK);
+        let first = serde_json::from_slice::<OperationCoverageActivationResponseV1>(
+            &axum::body::to_bytes(activate.into_body(), 1_000_000)
+                .await
+                .expect("activation response body"),
+        )
+        .expect("activation response JSON");
+        assert_eq!(first.schema_version, 1);
+        assert_eq!(
+            first.target_profile_id,
+            OperationCoverageActivationTargetV1::LocalDevSqliteIbex
+        );
+        assert_eq!(
+            first.coverage_profile,
+            OperationCoverageActivationProfileV1::LocalEnvelopeMappedWritersV1
+        );
+        assert_eq!(
+            first.manifest.covered_lanes,
+            vec![
+                crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1.to_owned(),
+                crate::operation_ledger::ORDINARY_MUTATION_LANE_V1.to_owned(),
+            ]
+        );
+        assert_eq!(
+            first.manifest.writer_choke_points,
+            crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
+                .into_iter()
+                .chain(crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1)
+                .map(str::to_owned)
+                .collect::<std::collections::BTreeSet<_>>()
+                .into_iter()
+                .collect::<Vec<_>>()
+        );
+
+        let retry = router
+            .oneshot(request(&exact_body, true))
+            .await
+            .expect("idempotent activation response");
+        assert_eq!(retry.status(), StatusCode::OK);
+        let second = serde_json::from_slice::<OperationCoverageActivationResponseV1>(
+            &axum::body::to_bytes(retry.into_body(), 1_000_000)
+                .await
+                .expect("idempotent response body"),
+        )
+        .expect("idempotent response JSON");
+        assert_eq!(second, first, "retry must return the exact active manifest");
+    }
 
     #[test]
     fn network_profile_routes_pin_read_and_write_authority() {
@@ -5325,6 +6100,63 @@ mod tests {
         assert_eq!(
             put.credential_resolution,
             CredentialResolution::AdminCredential
+        );
+    }
+
+    /// @ref LLP 0184#b-forced-live-resync--add-now — v1's local-non-
+    /// production-only target rule for §B (and, when it lands, §A):
+    /// allowed only on a local, non-production, non-derived instance;
+    /// refused on production and on a derived instance even though that
+    /// same derived instance IS extended debug.networkProfileSet's
+    /// separate, narrower hosted-derived exception (proving the two gates
+    /// are genuinely independent, not accidentally identical).
+    #[test]
+    fn debug_perturbation_target_authority_is_local_non_production_only() {
+        let mut local_dev_context = ServerContext::new("127.0.0.1", 0, true);
+        local_dev_context.profile = ServerProfile::Dev;
+        let local_dev = AppState::from_snapback(LocalSnapback::memory().unwrap(), local_dev_context);
+        assert!(local_dev.debug_perturbation_target_authority().is_ok());
+
+        let mut local_prod_context = ServerContext::new("127.0.0.1", 0, true);
+        local_prod_context.profile = ServerProfile::Prod;
+        let local_prod = AppState::from_snapback(LocalSnapback::memory().unwrap(), local_prod_context);
+        let refusal = local_prod
+            .debug_perturbation_target_authority()
+            .expect_err("a production profile must refuse this perturbation");
+        assert_eq!(
+            refusal.diagnostic.code, "SNAPBACK_DEBUG_PERTURBATION_TARGET_REFUSED",
+        );
+
+        // A derived instance stays refused even though it is local and
+        // even though the SAME instance already qualifies for
+        // debug.networkProfileSet's distinct hosted-derived exception —
+        // the two gates must not accidentally collapse into one.
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("parent.sqlite3");
+        drop(crate::storage::LocalDatabase::open(&source).unwrap());
+        let destination = directory.path().join("fork");
+        let receipt =
+            crate::instance_fork::publish(&source, &destination, "app-a", "parent-a", 42, None)
+                .unwrap();
+        let mut derived_context = ServerContext::new("127.0.0.1", 0, true);
+        derived_context.profile = ServerProfile::Dev;
+        let derived = AppState::from_snapback(
+            LocalSnapback::open(destination.join(&receipt.database_file)).unwrap(),
+            derived_context,
+        );
+        assert!(derived.derived_instance_identity.is_some());
+        // The distinct, narrower grant this gate deliberately does NOT
+        // inherit: the same derived instance already passes the
+        // network-profile activation gate (see
+        // `network_profile_authority_captures_boot_validated_derived_identity`
+        // above, which proves `derived_instance_present: Some(true)` is
+        // exactly the fact that gate's `permits()` treats as eligible).
+        let derived_refusal = derived
+            .debug_perturbation_target_authority()
+            .expect_err("a derived instance must refuse this perturbation until LLP 0158 grants recognition");
+        assert_eq!(
+            derived_refusal.diagnostic.code,
+            "SNAPBACK_DEBUG_PERTURBATION_TARGET_REFUSED",
         );
     }
 
@@ -5852,6 +6684,7 @@ mod tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 }],
                 ..SchemaManifest::default()
             })
@@ -6423,11 +7256,7 @@ mod tests {
                 let barrier = barrier.clone();
                 std::thread::spawn(move || {
                     barrier.wait();
-                    claims.exchange(
-                        &claim,
-                        format!("127.0.0.1:{}", 4100 + index),
-                        &credentials,
-                    )
+                    claims.exchange(&claim, format!("127.0.0.1:{}", 4100 + index), &credentials)
                 })
             })
             .collect::<Vec<_>>();
@@ -6465,8 +7294,7 @@ mod tests {
             credential.provenance,
             Some(ConsoleCredentialProvenance::OperatorClaim)
         );
-        let absolute = issued_at_ms
-            + CONSOLE_CLAIM_CREDENTIAL_MAX_LIFETIME.as_millis() as u64;
+        let absolute = issued_at_ms + CONSOLE_CLAIM_CREDENTIAL_MAX_LIFETIME.as_millis() as u64;
         let mut now_ms = issued_at_ms + 9 * 60_000;
         let mut expiry = credential.expires_at_ms;
         while now_ms < absolute {
@@ -6482,8 +7310,7 @@ mod tests {
         }
         assert_eq!(expiry, absolute);
         assert!(
-            absolute
-                < issued_at_ms + CONSOLE_CREDENTIAL_MAX_LIFETIME.as_millis() as u64,
+            absolute < issued_at_ms + CONSOLE_CREDENTIAL_MAX_LIFETIME.as_millis() as u64,
             "claim provenance never inherits the ordinary eight-hour cap"
         );
         assert!(
@@ -6502,14 +7329,10 @@ mod tests {
         let claims = ConsoleClaimRegistry::default();
         let claim = claims.mint().unwrap();
         let issued = claims
-            .exchange(
-                &claim.claim_code,
-                "127.0.0.1:4300".to_owned(),
-                &credentials,
-            )
+            .exchange(&claim.claim_code, "127.0.0.1:4300".to_owned(), &credentials)
             .unwrap();
-        let stored = String::from_utf8(crate::secure_file::read_owner_only(&path).unwrap())
-            .unwrap();
+        let stored =
+            String::from_utf8(crate::secure_file::read_owner_only(&path).unwrap()).unwrap();
         assert!(!stored.contains(&claim.claim_code));
         assert!(!stored.contains(&issued.credential));
         assert!(stored.contains("operatorClaim"));
@@ -6534,7 +7357,10 @@ mod tests {
         let approvals = ConsoleApprovalRegistry::default();
         for attempt in 0..CONSOLE_APPROVAL_REQUESTS_PER_MINUTE {
             approvals
-                .request_at("http://127.0.0.1/admin".to_owned(), 1_000 + u64::from(attempt))
+                .request_at(
+                    "http://127.0.0.1/admin".to_owned(),
+                    1_000 + u64::from(attempt),
+                )
                 .unwrap();
         }
         assert_eq!(
@@ -6649,11 +7475,7 @@ mod tests {
         let claim = claims.mint().unwrap();
         let claim_digest = claims.pending_claim_digest(&claim.claim_code).unwrap();
         reachability
-            .bind_claim(
-                &lease.session_id,
-                claim_digest,
-                claim.expires_at_ms,
-            )
+            .bind_claim(&lease.session_id, claim_digest, claim.expires_at_ms)
             .unwrap();
         let mut exchanged = claims
             .exchange(

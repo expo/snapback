@@ -49,6 +49,7 @@ import {
   deriveLegacyResumeAnswerV1,
 } from './answer-classes.mjs';
 export { parseSearchQueryV1, search } from './search.mjs';
+export { SnapbackCommandClient, createCommandClient } from './commands.mjs';
 export {
   CANONICAL_CLIENT_VALUE_V1_LIMITS,
   canonicalizeClientValueV1,
@@ -59,12 +60,17 @@ export {
   RESULT_CONTRACT_LIMITS_V1,
 } from '@expo/snapback-contract/result-contract-validator';
 export {
+  activeReactBindingDeploymentIdentity,
+  admittedReactCommand,
   admittedReactEphemeralDefinition,
   admittedReactQueryGroup,
   admittedReactReference,
+  admittedReactSurface,
   abandonConsumedReactQueryGroup,
   assertPreparedReactBinding,
+  classifyRegeneratedReactReference,
   consumePreparedReactQueryGroup,
+  handoffPreparedReactBindingGeneration,
   isPreparedReactQueryGroup,
   prepareReactQueryGroupForBinding,
   preparedReactResultContract,
@@ -128,7 +134,58 @@ import { resolveDefaultRqsStore } from './rqs-store-default.mjs';
 // lives in outbox-shared.mjs so the binding-receipt path in react-binding.mjs
 // — which cannot import this module without a cycle — applies the exact same
 // rule. sanitizeTransportError below still owns the provenance stamp.
-import { isConnectivityFailureError } from './outbox-shared.mjs';
+import {
+  isConnectivityFailureError,
+  OUTBOX_QUARANTINE_TOMBSTONE_FORMAT,
+} from './outbox-shared.mjs';
+
+// @ref LLP 0162#acceptance — once an operation identity is below the retained
+// outcome horizon, the client must expose unknown outcome and retain durable
+// intent; it may never publish a terminal local failure or blindly retry.
+const isOperationOutcomeUnknownError = (error) => (
+  error?.diagnostic?.code === 'SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED'
+  || error?.code === 'SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED'
+  || error?.diagnostic?.details?.disposition === 'identity-horizon-passed'
+);
+
+const isOperationResultExpiredError = (error) => (
+  error?.diagnostic?.code === 'SNAPBACK_OPERATION_RESULT_EXPIRED'
+  || error?.code === 'SNAPBACK_OPERATION_RESULT_EXPIRED'
+  || error?.diagnostic?.details?.disposition === 'result-expired'
+);
+
+// @ref LLP 0043#dated-c28-lifecycle-reconciliation-2026-08-05 — aggregate
+// epoch capacity is uncovered queueing, never a terminal mutation failure.
+const isOperationRangeCapacityError = (error) => (
+  error?.diagnostic?.code === 'SNAPBACK_OPERATION_RANGE_EXHAUSTED'
+  || error?.code === 'SNAPBACK_OPERATION_RANGE_EXHAUSTED'
+);
+
+const isOperationRangeRecoveryBlockedError = (error) => (
+  isOperationRangeCapacityError(error)
+  || error?.diagnostic?.code === 'SNAPBACK_OPERATION_RANGE_REAUTH_REQUIRED'
+  || error?.code === 'SNAPBACK_OPERATION_RANGE_REAUTH_REQUIRED'
+);
+
+// Mirrored from @expo/snapback-sidecar so the client/storage owner can enforce
+// LLP 0081 without importing the desktop supervisor. The suffix rule keeps
+// target-specific upgrade refusals inside the same fail-closed family.
+const DEFAULT_UPGRADE_REQUIRED_CODES = new Set([
+  'SNAPBACK_UPGRADE_REQUIRED',
+  'SNAPBACK_CLIENT_UPGRADE_REQUIRED',
+  'SNAPBACK_MIGRATION_UPGRADE_REQUIRED',
+]);
+
+const isUpgradeRequiredRefusal = (error) => {
+  const code = error?.diagnostic?.code ?? error?.code;
+  return typeof code === 'string'
+    && (DEFAULT_UPGRADE_REQUIRED_CODES.has(code) || /_UPGRADE_REQUIRED$/u.test(code));
+};
+
+const operationOutcomeFromError = (error) => {
+  const outcome = error?.diagnostic?.details?.outcome;
+  return outcome === 'committed' || outcome === 'refused' ? outcome : 'unknown';
+};
 
 // ---------------------------------------------------------------------------
 // D1 freshness + reconnect policy (LLP 0034 §2.2/§2.3; Exact LLP 0284 §2.2).
@@ -178,6 +235,38 @@ export const DEFAULT_POLL_CADENCE_MS = 1_500;
 
 const SNAPBACK_ID_TABLE = /^[A-Za-z_][A-Za-z0-9_]*$/u;
 const SNAPBACK_OPAQUE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/u;
+
+const freezeDeep = (value) => {
+  if (value !== null && typeof value === 'object' && !Object.isFrozen(value)) {
+    for (const member of Object.values(value)) freezeDeep(member);
+    Object.freeze(value);
+  }
+  return value;
+};
+
+const isUnresolvedOutboxRecord = (record) => (
+  record?.status === 'pending'
+  || record?.status === 'quarantined'
+  || record?.status === 'result-gone'
+);
+
+const outboxDispositionCounts = (records) => {
+  const counts = { pending: 0, failed: 0, quarantined: 0, resultGone: 0 };
+  for (const record of records) {
+    if (record?.status === 'pending') counts.pending += 1;
+    else if (record?.status === 'failed') counts.failed += 1;
+    else if (record?.status === 'quarantined') counts.quarantined += 1;
+    else if (record?.status === 'result-gone') counts.resultGone += 1;
+  }
+  return counts;
+};
+
+const outboxAdoptionError = (code, message, details = {}) => {
+  const error = new Error(`${code}: ${message}`);
+  error.code = code;
+  error.diagnostic = { code, message, details };
+  return error;
+};
 
 function searchReferenceInvalid(message, details = {}) {
   const error = new Error(`SNAPBACK_SEARCH_REFERENCE_INVALID: ${message}`);
@@ -1769,6 +1858,10 @@ export class SnapbackClient {
     authInvalidationProtocol = null,
     authorityDescriptorProtocol = 1,
     authorizedLeaseProtocol = null,
+    // LLP 0163 pre-publication carrier. Explicit opt-in only while the Spec
+    // and capability rows remain Draft/Missing; v1 requires a durable outbox
+    // so range, next counter, and intent share one restart-safe transition.
+    operationIdentityProtocol = null,
     // Set only after capability preflight advertises the hosted ephemeral
     // authority offer. Old servers therefore never see an unknown member.
     ephemeralAuthorityProtocol = null,
@@ -1821,6 +1914,7 @@ export class SnapbackClient {
     __authorityPartitionDigestResolver = null,
     __preloadBootPayload = undefined,
     __materializationStore = null,
+    __allowLegacyDevAssertion = false,
     // Deterministic construction seam for the LLP 0166 background runtime.
     // Production callers omit it; wiring tests inject clocks/carriers without
     // replacing any policy or broker object.
@@ -1869,6 +1963,13 @@ export class SnapbackClient {
     }
     if ((authCoordinator || agentAuthority) && authClientProtocol === null) authClientProtocol = 1;
     this.custody = custody;
+    if (typeof __allowLegacyDevAssertion !== 'boolean') {
+      throw new TypeError('__allowLegacyDevAssertion must be boolean');
+    }
+    if (__allowLegacyDevAssertion && custody !== 'anonymous-public') {
+      throw new TypeError('__allowLegacyDevAssertion requires anonymous-public offer custody');
+    }
+    this.__allowLegacyDevAssertion = __allowLegacyDevAssertion;
     if (!Number.isSafeInteger(authCounterCeiling) || authCounterCeiling < 1) {
       throw new TypeError('authCounterCeiling must be a positive safe integer');
     }
@@ -1932,6 +2033,10 @@ export class SnapbackClient {
       throw new TypeError("offlineQueue must be 'auto', true, or false");
     }
     this.__offlineQueue = offlineQueue;
+    if (operationIdentityProtocol !== null && operationIdentityProtocol !== 1) {
+      throw new TypeError('operationIdentityProtocol must be null or 1');
+    }
+    this.__operationIdentityProtocol = operationIdentityProtocol;
     this.__outboxReplayTask = null;
     this.__outboxReplayScheduled = false;
     this.__outboxDiagnostics = [];
@@ -4053,7 +4158,9 @@ export class SnapbackClient {
 
       const sessionsMode = session?.activeMode === 'sessions';
       let requestBody = body;
-      if (path.startsWith('/mutation/') && body?.clientMutationId) {
+      const mutationIdentityRequest = path.startsWith('/mutation/') && body?.clientMutationId;
+      const rangeIdentityRequest = path === '/client-mutations/identity-range';
+      if (mutationIdentityRequest || rangeIdentityRequest) {
         const queuedAvailability = session?.availability?.queuedReplay;
         if (session && queuedAvailability?.available !== true) {
           const code = queuedAvailability?.reason ?? 'SNAPBACK_AUTH_POLICY_UNAVAILABLE';
@@ -4073,7 +4180,22 @@ export class SnapbackClient {
           };
         }
       }
-      const wireBody = sessionsMode ? sessionWireBody(path, requestBody) : requestBody;
+      // Anonymous-public custody never performs the handshake that flips
+      // sessionsMode, but its offer contract (LLP 0137 A4-f6) is the same
+      // sessions-era protocol: the offer header is the only auth carrier, so
+      // the body must not carry legacy identity fields — a sessions server
+      // refuses them with SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED.
+      // @ref LLP 0062#6-packaging-phases — the app CLI's dev lane must offer
+      // auth-client v1 while still presenting its explicit legacy assertion:
+      // dev targets consume it and sessions targets refuse it. Ordinary
+      // anonymous-public callers continue to strip every legacy auth field.
+      const carriesExplicitDevAssertion = this.__allowLegacyDevAssertion
+        && typeof requestBody?.auth?.user_id === 'string';
+      const wireBody = sessionsMode || (
+        this.custody === 'anonymous-public' && !carriesExplicitDevAssertion
+      )
+        ? sessionWireBody(path, requestBody)
+        : requestBody;
       const merged = {
         ...(admin && this.adminToken ? { 'x-snapback-admin-token': this.adminToken } : {}),
         ...(sessionsMode ? this.#sessionRequestHeaders(
@@ -4286,6 +4408,7 @@ export class SnapbackClient {
     const authorizedLeaseRequest = path.startsWith('/query/')
       && path.endsWith('/authorized-lease');
     const standaloneAcknowledgement = path === '/client-mutations/acknowledge'
+      || path === '/client-mutations/identity-range'
       || path === '/live/authorization-invalidation/acknowledge'
       || path === '/live/authorization-invalidation/manual-retry';
     if (path.startsWith('/live/') || path.startsWith('/ephemeral/') || authorizedLeaseRequest) {
@@ -4785,12 +4908,36 @@ export class SnapbackClient {
       responseEnvelope.body,
       [challengeId, code],
     );
+    // The POST is deliberately outside custody ownership. Reconcile its
+    // result against a fresh settled capture: an internal /auth/session may
+    // have advanced the authority while the credential exchange was in
+    // flight, and submitting the pre-POST capture would apply the exchange
+    // result against an obsolete authorization-stream incarnation.
+    // @ref LLP 0059#coordinator-interface — a different current authority is
+    // a typed stale result; only an exact requested successor is idempotent.
+    let currentCapture;
+    try {
+      currentCapture = this.authCoordinator.capture();
+    } catch (error) {
+      if (
+        error?.code === 'SNAPBACK_CLIENT_AUTHORITY_CLEARING'
+        || error?.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE'
+      ) throw staleAuthorityError();
+      throw error;
+    }
+    const current = this.authCoordinator.credentialFor(currentCapture);
     const authority = credentialAuthority(
       response,
       'sessions',
-      predecessor.authority.authorizationStreamIncarnation,
+      current.authority.authorizationStreamIncarnation,
     );
-    await this.authCoordinator.transition(capture, {
+    if (current.authority.kind !== 'anonymous') {
+      if (sameClientAuthority(current.authority, authority)) {
+        return credentialPublicProjection(response);
+      }
+      throw staleAuthorityError();
+    }
+    await this.authCoordinator.transition(currentCapture, {
       authority,
       bearer: response.token,
       refreshAfterMs: response.refreshAfter,
@@ -5758,7 +5905,8 @@ export class SnapbackClient {
       && typeof store.outboxPrepareSubmission === 'function'
       && typeof store.outboxRecords === 'function'
       && typeof store.outboxMarkAcknowledgementsReady === 'function'
-      && typeof store.outboxDurablyConsume === 'function';
+      && typeof store.outboxDurablyConsume === 'function'
+      && typeof store.outboxMarkResultGone === 'function';
     if (!capable) {
       return fail(
         'SNAPBACK_OFFLINE_QUEUE_STORE_INCAPABLE',
@@ -5800,10 +5948,19 @@ export class SnapbackClient {
     let store = null;
     try { store = this.#offlineQueueStore(); } catch { store = null; }
     if (!store) {
-      return Object.freeze({ supported: false, pending: 0, failed: 0, replaying: false });
+      return Object.freeze({
+        supported: false,
+        pending: 0,
+        failed: 0,
+        quarantined: 0,
+        resultGone: 0,
+        replaying: false,
+      });
     }
     let pending = 0;
     let failed = 0;
+    let quarantined = 0;
+    let resultGone = 0;
     try {
       const records = typeof store.outboxRecords === 'function'
         ? await store.outboxRecords()
@@ -5811,13 +5968,77 @@ export class SnapbackClient {
       for (const record of records) {
         if (record?.status === 'failed') failed += 1;
         else if (record?.status === 'pending') pending += 1;
+        else if (record?.status === 'quarantined') quarantined += 1;
+        else if (record?.status === 'result-gone') resultGone += 1;
       }
     } catch { /* counts stay zero; the store remains the authority */ }
     return Object.freeze({
       supported: true,
       pending,
       failed,
+      quarantined,
+      resultGone,
       replaying: this.__outboxReplayTask !== null,
+    });
+  }
+
+  /// Stable, payload-free LLP 0081 tombstones. The durable store privately
+  /// retains the complete intent for re-entry, but this public projection never
+  /// exposes args, auth context, read sets, generated facts, or optimistic data.
+  async quarantinedMutations() {
+    const store = this.#offlineQueueStore();
+    if (!store) return [];
+    return (await store.outboxRecords())
+      .filter((record) => record?.status === 'quarantined')
+      .map((record) => Object.freeze({
+        format: OUTBOX_QUARANTINE_TOMBSTONE_FORMAT,
+        status: 'quarantined',
+        id: record.id,
+        clientMutationId: record.clientMutationId ?? record.id,
+        function: record.function,
+        sequence: record.sequence,
+        quarantinedAt: record.quarantinedAt,
+        refusalCode: record.refusalCode,
+        quarantineDisposition: record.quarantineDisposition,
+        causeClientMutationId: record.causeClientMutationId,
+        provenance: Object.freeze({
+          source: 'server-replay-refusal',
+          payload: 'redacted',
+        }),
+      }));
+  }
+
+  /// Explicit first-cut successor admission. The application calls this only
+  /// after its successor artifacts have loaded/reconnected successfully. This
+  /// moves the whole quarantine back to pending without transforming payloads;
+  /// per-intent generated-fact classification is a named follow-on.
+  async reenterQuarantinedMutations() {
+    const store = this.#offlineQueueStore(true);
+    if (typeof store.outboxReenterQuarantined !== 'function') {
+      const error = new Error(
+        'SNAPBACK_OFFLINE_QUEUE_STORE_INCAPABLE: store cannot re-enter quarantined mutations',
+      );
+      error.code = 'SNAPBACK_OFFLINE_QUEUE_STORE_INCAPABLE';
+      throw error;
+    }
+    const result = await store.outboxReenterQuarantined();
+    if (!result) {
+      const error = new Error(
+        'SNAPBACK_OUTBOX_REENTRY_NOT_DURABLE: quarantined mutations were not re-entered',
+      );
+      error.code = 'SNAPBACK_OUTBOX_REENTRY_NOT_DURABLE';
+      throw error;
+    }
+    await this.#refreshOptimisticMutationViews('upgrade-required-reentry');
+    this.#recordOutboxDiagnostic({
+      code: 'SNAPBACK_OFFLINE_MUTATIONS_REENTERED',
+      count: result.count,
+      clientMutationIds: result.clientMutationIds,
+    });
+    this.#notifyOutboxListeners();
+    return Object.freeze({
+      reentered: result.count,
+      clientMutationIds: Object.freeze([...result.clientMutationIds]),
     });
   }
 
@@ -5958,6 +6179,46 @@ export class SnapbackClient {
     }
   }
 
+  #operationIdentityCohortKey(clientAudienceId, userId, authorityDescriptor) {
+    const authorityCohort = typeof authorityDescriptor?.authorityInstanceId === 'string'
+      ? `authority:${authorityDescriptor.authorityInstanceId}`
+      : `dev:${typeof userId === 'string' ? userId : 'anonymous'}`;
+    return `client-store:${clientAudienceId}:${authorityCohort}`;
+  }
+
+  async #refreshOperationIdentityRange(
+    store,
+    authorityCohortKey,
+    clientAudienceId,
+    userId,
+    authorityDescriptor,
+    authorityCapture,
+  ) {
+    const previousRange = await store.outboxOperationIdentityRange(authorityCohortKey);
+    const body = {
+      schemaVersion: 1,
+      auth: SnapbackClient.auth(userId),
+      clientAudienceId,
+    };
+    if (authorityDescriptor) body.authorityDescriptor = authorityDescriptor;
+    if (previousRange) body.previousRange = previousRange;
+    const response = await this.#req(
+      'POST',
+      '/client-mutations/identity-range',
+      body,
+      undefined,
+      { expectedAuthorityCapture: authorityCapture },
+    );
+    if (response?.schemaVersion !== 1 || !response.range) {
+      const error = new Error(
+        'SNAPBACK_OPERATION_RANGE_RESPONSE_INVALID: server returned no v1 identity range',
+      );
+      error.code = 'SNAPBACK_OPERATION_RANGE_RESPONSE_INVALID';
+      throw error;
+    }
+    return response.range;
+  }
+
   /// Durable enqueue of one refused-by-connectivity mutation intent.
   /// Returns the queued marker, or null when the store refused (the caller
   /// then surfaces the ORIGINAL connectivity error — an enqueue failure must
@@ -6009,12 +6270,18 @@ export class SnapbackClient {
   /// Replay every pending queued mutation in client-local sequence order
   /// (LLP 0008: ordering uses the sequence, never a wall clock). Success
   /// settles the record and schedules its exactly-once ledger ACK; a server
-  /// refusal is drop-and-mark-failed (never retried, visible as failed
-  /// client state); a connectivity failure stops the drain with the record
-  /// still pending. Single-flight: concurrent calls share one drain.
+  /// refusal is drop-and-mark-failed (never retried, visible as failed client
+  /// state), except LLP 0081 upgrade-required refusals, which quarantine the
+  /// incompatible queue for explicit successor re-entry; a connectivity
+  /// failure stops the drain with the record still pending. Single-flight:
+  /// concurrent calls share one drain.
   async replayQueuedMutations() {
+    return this.#replayQueuedMutationsWithOptions();
+  }
+
+  async #replayQueuedMutationsWithOptions(options = undefined) {
     if (this.__outboxReplayTask) return this.__outboxReplayTask;
-    const task = this.#replayOutboxOnce().finally(() => {
+    const task = this.#replayOutboxOnce(options).finally(() => {
       if (this.__outboxReplayTask === task) this.__outboxReplayTask = null;
       this.#notifyOutboxListeners();
     });
@@ -6023,26 +6290,31 @@ export class SnapbackClient {
     return task;
   }
 
-  async #replayOutboxOnce() {
+  async #replayOutboxOnce({ preserveTerminalFailures = false } = {}) {
     let store = null;
     try {
       store = this.#offlineQueueStore();
     } catch {
       store = null;
     }
-    if (!store) return { replayed: 0, failed: 0, remaining: 0 };
+    if (!store) return { replayed: 0, failed: 0, quarantined: 0, remaining: 0 };
     if (typeof store.whenLockSettled === 'function') await store.whenLockSettled();
     if (typeof store.isWriter === 'function' && store.isWriter() !== true) {
-      return { replayed: 0, failed: 0, remaining: 0, stopped: true };
+      // @ref LLP 0008#decision-dk-9--client-local-store-mandate-2026-07-02 —
+      // a non-writer may inspect the shared durable domain but may not mutate
+      // it. Never turn that custody refusal into a misleading empty queue.
+      const remaining = (await store.outboxRecords()).filter(isUnresolvedOutboxRecord).length;
+      return { replayed: 0, failed: 0, quarantined: 0, remaining, stopped: true };
     }
     let pending;
     try {
       pending = await store.outboxPending();
     } catch {
-      return { replayed: 0, failed: 0, remaining: 0 };
+      return { replayed: 0, failed: 0, quarantined: 0, remaining: 0 };
     }
     let replayed = 0;
     let failed = 0;
+    let quarantined = 0;
     let stopped = false;
     for (const queuedRecord of pending) {
       let record = queuedRecord;
@@ -6067,9 +6339,77 @@ export class SnapbackClient {
         });
         continue;
       }
+      if (prepared?.status === 'quarantined') {
+        stopped = true;
+        break;
+      }
       if (prepared?.status !== 'ready' || !prepared.record) continue;
       record = prepared.record;
       try {
+        if (this.__operationIdentityProtocol === 1 && record.operationIssuance === null) {
+          const clientAudienceId = (await store.readStoreMeta())?.clientStoreId;
+          if (typeof clientAudienceId !== 'string' || !SNAPBACK_OPAQUE_ID.test(clientAudienceId)) {
+            const error = new Error(
+              'SNAPBACK_OPERATION_RANGE_AUDIENCE_INVALID: durable store has no valid client identity',
+            );
+            error.code = 'SNAPBACK_OPERATION_RANGE_AUDIENCE_INVALID';
+            throw error;
+          }
+          let replayAuthorityDescriptor = record.authorityDescriptor;
+          let replayAuthorityPrincipalId = record.operationAuthorityPrincipalId ?? null;
+          if (this.authProtocols.authClient != null) {
+            const session = await this.authSession();
+            const currentDescriptor = requireAuthorityDescriptor(
+              session?.authorityDescriptor,
+              'SNAPBACK_AUTHORITY_DESCRIPTOR_INVALID',
+            );
+            const currentPrincipalId = session?.activeMode === 'sessions'
+              && session?.authority?.isAuthenticated === true
+              && typeof session?.authority?.userId === 'string'
+              ? session.authority.userId
+              : null;
+            if (
+              replayAuthorityPrincipalId === null
+              || currentPrincipalId === null
+              || currentPrincipalId !== replayAuthorityPrincipalId
+            ) {
+              const error = new Error(
+                'SNAPBACK_OPERATION_RANGE_REAUTH_REQUIRED: uncovered intent cannot cross principals',
+              );
+              error.code = 'SNAPBACK_OPERATION_RANGE_REAUTH_REQUIRED';
+              throw error;
+            }
+            replayAuthorityDescriptor = currentDescriptor;
+            replayAuthorityPrincipalId = currentPrincipalId;
+          }
+          const authorityCohortKey = this.#operationIdentityCohortKey(
+            clientAudienceId,
+            record.userId,
+            replayAuthorityDescriptor,
+          );
+          const range = await this.#refreshOperationIdentityRange(
+            store,
+            authorityCohortKey,
+            clientAudienceId,
+            record.userId,
+            replayAuthorityDescriptor,
+            null,
+          );
+          record = await store.outboxAssignOperationIdentity(
+            record.id,
+            authorityCohortKey,
+            range,
+            replayAuthorityDescriptor,
+            replayAuthorityPrincipalId,
+          );
+          if (!record?.operationIssuance) {
+            const error = new Error(
+              'SNAPBACK_OPERATION_RANGE_EXHAUSTED: reconnect supplied no operation identity',
+            );
+            error.code = 'SNAPBACK_OPERATION_RANGE_EXHAUSTED';
+            throw error;
+          }
+        }
         // Redelivery under the SAME client-minted durable identity: the
         // server's settlement ledger returns the original result on a
         // duplicate, so a crash between settle and remove cannot double-
@@ -6090,6 +6430,8 @@ export class SnapbackClient {
           settlementIdentity: record.settlementIdentity ?? null,
           settlementClaims: record.settlementClaims ?? null,
           boundedSkew: record.boundedSkew ?? null,
+          operationIssuance: record.operationIssuance ?? null,
+          operationCoverageDisposition: record.operationCoverageDisposition ?? null,
           optimisticOperation: record.optimisticOperation ?? null,
           queue: false,
           },
@@ -6131,8 +6473,117 @@ export class SnapbackClient {
           });
           break;
         }
+        if (isOperationResultExpiredError(error)) {
+          let retained;
+          try {
+            retained = await store.outboxMarkResultGone(record.id, {
+              outcome: operationOutcomeFromError(error),
+              receiptDigest: error?.diagnostic?.details?.receiptDigest,
+            });
+          } catch (custodyError) {
+            stopped = true;
+            this.#recordOutboxDiagnostic({
+              code: custodyError?.code ?? 'SNAPBACK_OUTBOX_RESULT_GONE_NOT_DURABLE',
+              mutation: record.function,
+              clientMutationId: record.id,
+              reason: custodyError?.message ?? String(custodyError),
+            });
+            break;
+          }
+          if (!retained) {
+            stopped = true;
+            this.#recordOutboxDiagnostic({
+              code: 'SNAPBACK_OUTBOX_RESULT_GONE_NOT_DURABLE',
+              mutation: record.function,
+              clientMutationId: record.id,
+            });
+            break;
+          }
+          stopped = true;
+          this.#recordOutboxDiagnostic({
+            code: 'SNAPBACK_OFFLINE_MUTATION_RESULT_EXPIRED',
+            mutation: record.function,
+            clientMutationId: record.id,
+            disposition: 'result-expired',
+            operationOutcome: operationOutcomeFromError(error),
+          });
+          break;
+        }
+        if (isOperationOutcomeUnknownError(error)) {
+          stopped = true;
+          this.#recordOutboxDiagnostic({
+            code: 'SNAPBACK_OFFLINE_MUTATION_OUTCOME_UNKNOWN',
+            mutation: record.function,
+            clientMutationId: record.id,
+            disposition: 'identity-horizon-passed',
+          });
+          break;
+        }
+        if (isOperationRangeRecoveryBlockedError(error)) {
+          stopped = true;
+          this.#recordOutboxDiagnostic({
+            code: 'SNAPBACK_OPERATION_RANGE_UNCOVERED_QUEUED',
+            mutation: record.function,
+            clientMutationId: record.id,
+            disposition: isOperationRangeCapacityError(error)
+              ? 'uncovered-range-exhausted'
+              : 'uncovered-reauth-required',
+          });
+          break;
+        }
         if (isConnectivityFailureError(error)) {
           // Still offline: keep the record pending and preserve order.
+          stopped = true;
+          break;
+        }
+        if (isUpgradeRequiredRefusal(error)) {
+          const refusalCode = error?.diagnostic?.code ?? error?.code;
+          if (typeof store.outboxMarkQuarantined !== 'function') {
+            stopped = true;
+            this.#recordOutboxDiagnostic({
+              code: 'SNAPBACK_OUTBOX_QUARANTINE_UNSUPPORTED',
+              mutation: record.function,
+              clientMutationId: record.id,
+              refusalCode,
+            });
+            break;
+          }
+          let held = false;
+          try {
+            held = await store.outboxMarkQuarantined(record.id, { code: refusalCode });
+          } catch { /* handled below: pending is safer than silent loss */ }
+          if (!held) {
+            stopped = true;
+            break;
+          }
+          quarantined += held.count;
+          stopped = true;
+          await this.#refreshOptimisticMutationViews('upgrade-required-quarantine');
+          this.#recordOutboxDiagnostic({
+            code: 'SNAPBACK_OFFLINE_MUTATIONS_QUARANTINED',
+            mutation: record.function,
+            clientMutationId: record.id,
+            refusalCode,
+            quarantined: held.count,
+            disposition: 'tombstone-and-re-entry',
+          });
+          break;
+        }
+        if (preserveTerminalFailures) {
+          // Sidecar adoption is a reversible stop/start handoff. A candidate
+          // identity refusal must leave the durable intent pending so the
+          // predecessor can be reattached; the ordinary reconnect path below
+          // retains LLP 0008's drop-and-mark-failed behavior.
+          //
+          // This preserves pending work across a stop/start cut. It does not
+          // make the sidecar zero-request-downtime; that needs a stable front
+          // door or overlapping runtimes owned by a separate design.
+          this.#recordOutboxDiagnostic({
+            code: 'SNAPBACK_OUTBOX_ADOPTION_REPLAY_REFUSED',
+            mutation: record.function,
+            clientMutationId: record.id,
+            reason: error?.diagnostic?.code ?? error?.code ?? error?.message,
+          });
           stopped = true;
           break;
         }
@@ -6161,9 +6612,128 @@ export class SnapbackClient {
     }
     let remaining = 0;
     try {
-      remaining = (await store.outboxPending()).length;
+      remaining = (await store.outboxRecords())
+        .filter((record) => (
+          record?.status === 'pending' || record?.status === 'result-gone'
+          || record?.status === 'quarantined'
+        )).length;
     } catch { /* inspection only */ }
-    return { replayed, failed, remaining, stopped };
+    return { replayed, failed, quarantined, remaining, stopped };
+  }
+
+  /**
+   * Adopt the caller-owned durable outbox after a sidecar transport change.
+   * This is an explicit opt-in store handoff: default per-origin store
+   * selection remains unchanged, so unrelated servers never merge queues.
+   *
+   * @ref LLP 0129#phase-2b-desktop-sidecar-first-rung-note--2026-08-05 —
+   * pending-work-preserving replacement is a checked follow-on to the cold
+   * stop/start rung, not a literal zero-request-downtime claim.
+   */
+  async adoptQueuedMutations({
+    expectedClientStoreId,
+    expectedGeneration,
+    afterFreshSnapshot,
+  } = {}) {
+    if (typeof expectedClientStoreId !== 'string' || expectedClientStoreId.length === 0) {
+      throw new TypeError('adoptQueuedMutations requires expectedClientStoreId');
+    }
+    const expectedArtifactGeneration = normalizeExpectedGeneration(
+      expectedGeneration,
+      'adoptQueuedMutations expectedGeneration',
+    );
+    if (typeof afterFreshSnapshot !== 'function') {
+      throw new TypeError('adoptQueuedMutations requires an afterFreshSnapshot function');
+    }
+    const store = this.#offlineQueueStore(true);
+
+    const barrier = normalizeOutboxFreshSnapshotBarrier(await afterFreshSnapshot());
+    if (barrier === null) {
+      throw outboxAdoptionError(
+        'SNAPBACK_OUTBOX_ADOPTION_FRESH_SNAPSHOT_REQUIRED',
+        'the application fresh-snapshot barrier returned no passed v1 evidence',
+      );
+    }
+
+    if (typeof store.whenLockSettled === 'function') await store.whenLockSettled();
+    if (typeof store.isWriter !== 'function' || store.isWriter() !== true) {
+      throw outboxAdoptionError(
+        'SNAPBACK_OUTBOX_ADOPTION_NOT_WRITER',
+        'the adopted durable store has not acquired single-writer custody',
+      );
+    }
+    if (typeof store.readStoreMeta !== 'function') {
+      throw outboxAdoptionError(
+        'SNAPBACK_OUTBOX_ADOPTION_STORE_ID_UNAVAILABLE',
+        'the adopted durable store cannot attest clientStoreId',
+      );
+    }
+    const observedClientStoreId = (await store.readStoreMeta())?.clientStoreId;
+    if (observedClientStoreId !== expectedClientStoreId) {
+      throw outboxAdoptionError(
+        'SNAPBACK_OUTBOX_ADOPTION_STORE_ID_MISMATCH',
+        'the candidate client opened a different durable store domain',
+        { expectedClientStoreId, observedClientStoreId: observedClientStoreId ?? null },
+      );
+    }
+
+    const inspection = await this.inspect();
+    const candidateGeneration = artifactGenerationFromInspection(inspection);
+    if (
+      candidateGeneration === null
+      || !sameArtifactGeneration(candidateGeneration, expectedArtifactGeneration)
+    ) {
+      throw outboxAdoptionError(
+        'SNAPBACK_OUTBOX_ADOPTION_INCOMPATIBLE_SUCCESSOR',
+        'the candidate app/schema/function generation does not exactly match the predecessor',
+        { expectedGeneration: expectedArtifactGeneration, observedGeneration: candidateGeneration },
+      );
+    }
+
+    const beforeRecords = await store.outboxRecords();
+    const before = outboxDispositionCounts(beforeRecords);
+    for (const record of beforeRecords.filter((entry) => entry?.status === 'pending')) {
+      const recordGeneration = record.expectedGeneration === null
+        || record.expectedGeneration === undefined
+        ? null
+        : normalizeExpectedGeneration(
+          record.expectedGeneration,
+          `pending outbox record ${record.id} expectedGeneration`,
+        );
+      if (
+        recordGeneration === null
+        || !sameArtifactGeneration(recordGeneration, expectedArtifactGeneration)
+      ) {
+        throw outboxAdoptionError(
+          'SNAPBACK_OUTBOX_ADOPTION_INTENT_INCOMPATIBLE',
+          'a pending intent is not exactly bound to the predecessor artifact generation',
+          { clientMutationId: record.id, expectedGeneration: expectedArtifactGeneration },
+        );
+      }
+    }
+
+    const replay = await this.#replayQueuedMutationsWithOptions({
+      preserveTerminalFailures: true,
+    });
+    const after = outboxDispositionCounts(await store.outboxRecords());
+    const receipt = {
+      schemaVersion: 'snapback.outbox-adoption.v1',
+      candidateOrigin: this.baseUrl,
+      clientStoreId: observedClientStoreId,
+      writer: store.isWriter() === true,
+      freshSnapshotBarrier: barrier,
+      artifactGeneration: candidateGeneration,
+      before,
+      after,
+      pendingBefore: before.pending,
+      replayed: replay.replayed,
+      failedDelta: Math.max(0, after.failed - before.failed),
+      quarantinedDelta: Math.max(0, after.quarantined - before.quarantined),
+      resultGoneDelta: Math.max(0, after.resultGone - before.resultGone),
+      remaining: after.pending + after.quarantined + after.resultGone,
+      stopped: replay.stopped === true,
+    };
+    return freezeDeep(receipt);
   }
 
   async mutate(ref, {
@@ -6178,6 +6748,8 @@ export class SnapbackClient {
     settlementIdentity = null,
     settlementClaims = null,
     boundedSkew = null,
+    operationIssuance = null,
+    operationCoverageDisposition = null,
     optimisticOperation = null,
     authorityDescriptor = null,
     authorityCapture = null,
@@ -6225,6 +6797,23 @@ export class SnapbackClient {
     const queueStore = generatedMutation !== null
       ? this.#offlineQueueStore(true)
       : queue === false ? null : this.#offlineQueueStore(queue === true);
+    const operationIdentityEnabled = this.__operationIdentityProtocol === 1 && queueStore !== null;
+    if (operationIdentityEnabled) {
+      const requiredMethods = [
+        'readStoreMeta',
+        'outboxEnqueueWithOperationIdentity',
+        'outboxAssignOperationIdentity',
+        'outboxOperationIdentityRange',
+      ];
+      if (requiredMethods.some((method) => typeof queueStore[method] !== 'function')) {
+        const error = new Error(
+          'SNAPBACK_OPERATION_RANGE_STORE_INCAPABLE: durable store lacks atomic range custody',
+        );
+        error.code = 'SNAPBACK_OPERATION_RANGE_STORE_INCAPABLE';
+        throw error;
+      }
+      if (clientMutationId === null) clientMutationId = createClientMutationId();
+    }
     const body = { args, auth: SnapbackClient.auth(userId), read_set: readSet };
     if (generation !== null) body.expectedGeneration = generation;
     // Opaque adapter correlation (LLP 0034 §3.2): sent verbatim, echoed on
@@ -6235,11 +6824,37 @@ export class SnapbackClient {
     // id atomically with data changes and returns the original result on a
     // duplicate delivery.
     if (clientMutationId) body.clientMutationId = clientMutationId;
+    if (operationIssuance) body.operationIssuance = operationIssuance;
     if (authorityDescriptor) {
       body.authorityDescriptor = requireAuthorityDescriptor(
         authorityDescriptor,
         'SNAPBACK_AUTHORITY_DESCRIPTOR_INVALID',
       );
+    }
+    let operationAuthorityPrincipalId = typeof userId === 'string' ? userId : null;
+    if (operationIdentityEnabled && this.authProtocols.authClient != null) {
+      const session = await this.authSession();
+      const currentDescriptor = requireAuthorityDescriptor(
+        session?.authorityDescriptor,
+        'SNAPBACK_AUTHORITY_DESCRIPTOR_INVALID',
+      );
+      const currentPrincipalId = session?.activeMode === 'sessions'
+        && session?.authority?.isAuthenticated === true
+        && typeof session?.authority?.userId === 'string'
+        ? session.authority.userId
+        : null;
+      if (
+        body.authorityDescriptor
+        && !sameAuthorityDescriptor(currentDescriptor, body.authorityDescriptor)
+      ) {
+        const error = new Error(
+          'SNAPBACK_OPERATION_RANGE_REAUTH_REQUIRED: mutation descriptor is not current',
+        );
+        error.code = 'SNAPBACK_OPERATION_RANGE_REAUTH_REQUIRED';
+        throw error;
+      }
+      body.authorityDescriptor = currentDescriptor;
+      operationAuthorityPrincipalId = currentPrincipalId;
     }
     // Exactly-once ledger GC piggyback (LLP 0043 M2): ride pending ACK
     // obligations for this auth identity on the next mutation. A request
@@ -6289,18 +6904,95 @@ export class SnapbackClient {
       readSet,
       correlation,
       authorityDescriptor: body.authorityDescriptor ?? null,
+      operationAuthorityPrincipalId,
       ctxLedger: ctxLedger ?? null,
       expectedGeneration: generation,
       settlementLane: settlementLane ?? 'replay-accept',
       settlementIdentity,
       settlementClaims,
       boundedSkew,
+      operationIssuance,
+      operationCoverageDisposition,
       optimisticOperation,
       capturedNow: Date.now(),
     } : null;
     let durableOnlineRecord = false;
     if (queueStore && durableMutationRecord) {
-      await queueStore.outboxEnqueue(durableMutationRecord);
+      if (operationIdentityEnabled) {
+        const clientAudienceId = (await queueStore.readStoreMeta())?.clientStoreId;
+        if (typeof clientAudienceId !== 'string' || !SNAPBACK_OPAQUE_ID.test(clientAudienceId)) {
+          const error = new Error(
+            'SNAPBACK_OPERATION_RANGE_AUDIENCE_INVALID: durable store has no valid client identity',
+          );
+          error.code = 'SNAPBACK_OPERATION_RANGE_AUDIENCE_INVALID';
+          throw error;
+        }
+        const authorityCohortKey = this.#operationIdentityCohortKey(
+          clientAudienceId,
+          userId,
+          body.authorityDescriptor,
+        );
+        let stored = await queueStore.outboxEnqueueWithOperationIdentity(
+          durableMutationRecord,
+          authorityCohortKey,
+        );
+        if (stored.operationIssuance === null) {
+          let range;
+          try {
+            range = await this.#refreshOperationIdentityRange(
+              queueStore,
+              authorityCohortKey,
+              clientAudienceId,
+              userId,
+              body.authorityDescriptor,
+              authorityCapture,
+            );
+            stored = await queueStore.outboxAssignOperationIdentity(
+              stored.id,
+              authorityCohortKey,
+              range,
+              body.authorityDescriptor ?? undefined,
+              operationAuthorityPrincipalId ?? undefined,
+            );
+          } catch (error) {
+            if (isConnectivityFailureError(error) || isOperationRangeCapacityError(error)) {
+              this.#recordOutboxDiagnostic({
+                code: 'SNAPBACK_OPERATION_RANGE_UNCOVERED_QUEUED',
+                mutation: name,
+                clientMutationId: stored.id,
+                disposition: 'uncovered-range-exhausted',
+                reason: isOperationRangeCapacityError(error)
+                  ? 'authenticated-epoch-capacity'
+                  : 'connectivity',
+              });
+              return {
+                queued: true,
+                clientMutationId: stored.id,
+                sequence: stored.sequence,
+                operationCoverageDisposition: 'uncovered-range-exhausted',
+              };
+            }
+            await queueStore.outboxMarkFailed(stored.id, {
+              code: error?.diagnostic?.code ?? error?.code
+                ?? 'SNAPBACK_OPERATION_RANGE_REFRESH_FAILED',
+              message: error?.message ?? String(error),
+            });
+            throw error;
+          }
+        }
+        if (!stored?.operationIssuance) {
+          const error = new Error(
+            'SNAPBACK_OPERATION_RANGE_EXHAUSTED: refreshed range supplied no operation identity',
+          );
+          error.code = 'SNAPBACK_OPERATION_RANGE_EXHAUSTED';
+          throw error;
+        }
+        body.operationIssuance = stored.operationIssuance;
+        durableMutationRecord.operationIssuance = stored.operationIssuance;
+        durableMutationRecord.operationCoverageDisposition = stored.operationCoverageDisposition;
+      } else {
+        await queueStore.outboxEnqueue(durableMutationRecord);
+      }
       durableOnlineRecord = true;
       this.#notifyOutboxListeners();
       if (optimisticOperation !== null) {
@@ -6412,6 +7104,49 @@ export class SnapbackClient {
           // stage ran even though this mutation was rejected (LLP 0043); a
           // receipt-less failure is ambiguous and RETAINS the obligations.
           if (error?.receipt) await confirmSentAcknowledgements();
+          if (isOperationResultExpiredError(error)) {
+            error.operationOutcome = operationOutcomeFromError(error);
+            error.operationResult = 'expired';
+            if (durableOnlineRecord) {
+              let retained;
+              try {
+                retained = await queueStore.outboxMarkResultGone(clientMutationId, {
+                  outcome: error.operationOutcome,
+                  receiptDigest: error?.diagnostic?.details?.receiptDigest,
+                });
+              } catch (custodyError) {
+                custodyError.outboxSettlementPersistenceFailure = true;
+                throw custodyError;
+              }
+              if (!retained) {
+                const custodyError = new Error(
+                  'SNAPBACK_OUTBOX_RESULT_GONE_NOT_DURABLE: result-expired state lost its outbox record',
+                );
+                custodyError.code = 'SNAPBACK_OUTBOX_RESULT_GONE_NOT_DURABLE';
+                custodyError.outboxSettlementPersistenceFailure = true;
+                throw custodyError;
+              }
+              this.#notifyOutboxListeners();
+            }
+            this.#recordOutboxDiagnostic({
+              code: 'SNAPBACK_OFFLINE_MUTATION_RESULT_EXPIRED',
+              mutation: name,
+              clientMutationId,
+              disposition: 'result-expired',
+              operationOutcome: error.operationOutcome,
+            });
+            throw error;
+          }
+          if (isOperationOutcomeUnknownError(error)) {
+            error.operationOutcome = 'unknown';
+            this.#recordOutboxDiagnostic({
+              code: 'SNAPBACK_OFFLINE_MUTATION_OUTCOME_UNKNOWN',
+              mutation: name,
+              clientMutationId,
+              disposition: 'identity-horizon-passed',
+            });
+            throw error;
+          }
           if (queueStore && isConnectivityFailureError(error)) {
             // LLP 0043 M2 / LLP 0129 Phase 0: delivery refused at the
             // transport — queue the intent durably under a client-minted
@@ -11979,22 +12714,71 @@ const EXPECTED_GENERATION_KEYS = Object.freeze([
   'inputsHash',
 ]);
 
-function expectedGeneration(ref) {
-  if (typeof ref !== 'object' || ref === null || ref.expectedGeneration == null) return null;
-  const value = ref.expectedGeneration;
+function normalizeExpectedGeneration(value, label) {
   if (
     typeof value !== 'object'
+    || value === null
     || Array.isArray(value)
+    || Object.keys(value).length !== EXPECTED_GENERATION_KEYS.length
     || Object.keys(value).some((key) => !EXPECTED_GENERATION_KEYS.includes(key))
     || EXPECTED_GENERATION_KEYS.some(
       (key) => typeof value[key] !== 'string' || value[key].length === 0,
     )
   ) {
-    throw new TypeError(
-      'Snapback function reference expectedGeneration must be the complete generated artifact identity',
-    );
+    throw new TypeError(`${label} must be the complete generated artifact identity`);
   }
   return Object.fromEntries(EXPECTED_GENERATION_KEYS.map((key) => [key, value[key]]));
+}
+
+const sameArtifactGeneration = (left, right) => (
+  EXPECTED_GENERATION_KEYS.every((key) => left?.[key] === right?.[key])
+);
+
+function artifactGenerationFromInspection(inspection) {
+  const schema = inspection?.schema;
+  const functions = inspection?.functions;
+  const value = {
+    schemaVersion: schema?.schemaVersion,
+    appId: schema?.appId,
+    schemaHash: schema?.schemaHash,
+    bundleHash: functions?.bundleHash,
+    inputsHash: schema?.inputsHash,
+  };
+  if (
+    schema?.appId !== functions?.appId
+    || schema?.schemaVersion !== functions?.schemaVersion
+    || schema?.inputsHash !== functions?.inputsHash
+  ) return null;
+  try {
+    return normalizeExpectedGeneration(value, 'candidate inspection generation');
+  } catch {
+    return null;
+  }
+}
+
+function normalizeOutboxFreshSnapshotBarrier(value) {
+  if (
+    value === null
+    || typeof value !== 'object'
+    || Array.isArray(value)
+    || Object.keys(value).length !== 3
+    || value.schemaVersion !== 'snapback.outbox-fresh-snapshot-barrier.v1'
+    || value.status !== 'passed'
+    || value.kind !== 'full-snapshot'
+  ) return null;
+  return Object.freeze({
+    schemaVersion: value.schemaVersion,
+    status: value.status,
+    kind: value.kind,
+  });
+}
+
+function expectedGeneration(ref) {
+  if (typeof ref !== 'object' || ref === null || ref.expectedGeneration == null) return null;
+  return normalizeExpectedGeneration(
+    ref.expectedGeneration,
+    'Snapback function reference expectedGeneration',
+  );
 }
 
 function validateGeneratedArguments(ref, args, name = functionName(ref)) {

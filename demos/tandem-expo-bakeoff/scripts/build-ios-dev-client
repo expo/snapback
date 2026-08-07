@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Thin arm-selection wrapper over the shared out-of-checkout EAS staging
+# helper. The staging pattern this script prototyped is now the paved path in
+# demos/_kit/eas-stage-build.mjs
+# (issues/closed/20260805-eas-nested-app-git-root-monorepo-archive.md); keep
+# arm-specific knowledge here and staging/build mechanics there.
+set -euo pipefail
+
+arm=${1:-}
+case "$arm" in
+  snapback|convex) ;;
+  *)
+    echo "usage: $0 snapback|convex [additional eas build arguments]" >&2
+    exit 2
+    ;;
+esac
+shift
+
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+demo_dir=$(cd -- "$script_dir/.." && pwd)
+
+exec node "$demo_dir/../_kit/eas-stage-build.mjs" \
+  "$demo_dir/$arm/native-shell" \
+  --platform ios --profile development \
+  -- "$@"

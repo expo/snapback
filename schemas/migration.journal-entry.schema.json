@@ -396,6 +396,175 @@
           "type": "object"
         }
       ]
+    },
+    "OperationBoundFactsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "audience": {
+          "type": "string"
+        },
+        "authorityInstanceId": {
+          "type": "string"
+        },
+        "functionOrCommand": {
+          "type": "string"
+        },
+        "inputFingerprint": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "operationKind": {
+          "type": "string"
+        },
+        "principalFingerprint": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "audience",
+        "principalFingerprint",
+        "authorityInstanceId",
+        "operationKind",
+        "functionOrCommand",
+        "inputFingerprint"
+      ],
+      "type": "object"
+    },
+    "OperationIdentityV1": {
+      "additionalProperties": false,
+      "description": "`operationId` widens the shipped client-mutation id; this struct preserves\nevery bound fact the existing collision check already owns.",
+      "properties": {
+        "boundFacts": {
+          "$ref": "#/$defs/OperationBoundFactsV1"
+        },
+        "issuance": {
+          "$ref": "#/$defs/OperationIssuanceV1"
+        },
+        "key": {
+          "$ref": "#/$defs/OperationKeyV1"
+        },
+        "schemaVersion": {
+          "format": "uint32",
+          "maximum": 1,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "key",
+        "issuance",
+        "boundFacts"
+      ],
+      "type": "object"
+    },
+    "OperationIssuanceV1": {
+      "description": "Issuance facts are structurally disjoint across client and host namespaces.\nThe authenticator is represented by its non-secret digest; admission later\nverifies the underlying server-issued artifact before constructing this\nvalue.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "authority_authenticator_digest": {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "counter": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "epoch_id": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "clientRange",
+              "type": "string"
+            },
+            "range_end_exclusive": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "range_start": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "epoch_id",
+            "counter",
+            "range_start",
+            "range_end_exclusive",
+            "authority_authenticator_digest"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "authority_authenticator_digest": {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "commit_ordinal": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "epoch_id": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "hostIncarnation",
+              "type": "string"
+            },
+            "upstream_identity": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "epoch_id",
+            "upstream_identity",
+            "commit_ordinal",
+            "authority_authenticator_digest"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "OperationKeyV1": {
+      "additionalProperties": false,
+      "description": "The physical key for suppression and envelope storage. Audience and all\nother semantic facts are compared facts, never key components.",
+      "properties": {
+        "operationId": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$",
+          "type": "string"
+        },
+        "originatorClass": {
+          "$ref": "#/$defs/OperationOriginatorClassV1"
+        },
+        "streamId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "streamId",
+        "originatorClass",
+        "operationId"
+      ],
+      "type": "object"
+    },
+    "OperationOriginatorClassV1": {
+      "enum": [
+        "client",
+        "host"
+      ],
+      "type": "string"
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/migration.journal-entry.schema.json",
@@ -443,6 +612,17 @@
         "string",
         "null"
       ]
+    },
+    "hostOperationIdentity": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/OperationIdentityV1"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Authenticated host identity of the physical SQLite transaction that\nappended this row. Legacy entries remain readable without one; a new\ntransaction shares one value across every row it appends."
     },
     "inputVersion": {
       "description": "Predecessor head at admission (the input generation identity).",

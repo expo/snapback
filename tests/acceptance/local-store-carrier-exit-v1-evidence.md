@@ -1,7 +1,7 @@
 # LLP 0166 local-store carrier-exit v1 evidence
 
-**Run date:** 2026-08-04
-**Source revision:** `779c4f16985d375d66a6a52b2a9932cfb8386de7` (dirty evidence worktree)
+**Run date:** 2026-08-06
+**Source revision:** `938db9b45a47a89bf59d4101fefcd9e9f430328d` (clean)
 **Machine:** darwin/arm64, Node v24.18.0
 
 This is the standards-real Move-2 carrier exit consumed by LLP 0157 and LLP
@@ -13,10 +13,10 @@ publication.
 
 | Leg | Carrier | Status | Measured result or stable GAP reason |
 | --- | --- | --- | --- |
-| browser-terminate-relaunch | browser-indexeddb-v3 | PASS | relaunch-to-readable 2545.851 ms |
+| browser-terminate-relaunch | browser-indexeddb-v3 | PASS | relaunch-to-readable 1602.794 ms |
 | two-tabs-one-profile | browser-indexeddb-web-locks-broadcastchannel | PASS | suppression true → false; undefined |
 | file-process-terminate-relaunch | node-file-v3-outbox | PASS | 2 SIGKILL write-boundary cuts; allocator next 3 |
-| retained-render-server-unreachable | live-backend-plus-node-file-v3 | PASS | {"serverBinary":"target/debug/snapback","serverBinarySha256":"b0a216c9a81baeffca4362df6c6ebcc48c62926cca8c0aeef1ea59dc10fc7307","launchRung":"configured","backendStoppedBeforeRelaunch":true,"activationPreparation":{"format":"snapback.composition-activation-preparation.v1","activationHash":"sha256:32f7b0fbbc92307a1a7bff7e9264c54c0161b4812dbc68559730e19535b5e990","sourceClass":"temporary-backend-source","next":"rerun Snapback codegen for this backend"},"generatedArtifactGraph":{"trustedActivationPresent":true,"directReferenceIdentity":true},"live":{"answerClass":"authoritative","freshness":"current","rows":[{"title":"proof-backed","authorName":"Ada"}],"retention":{"retainable":true,"code":null,"reason":null,"store":{"source":"injected","implementation":"file","durable":true,"reason":null}}},"relaunch":{"answerClass":"authoritative","freshness":"retained","rows":[{"authorName":"Ada","title":"proof-backed"}],"firstUpdate":null},"materialization":{"records":1,"qmk1":"qmk1.r4Hq_dOLQ2UND_oA_bjo2c5aGP7d43Hf6eDdGAUrEUg","freshness":"retained","fragments":1,"leaseCustody":1},"endToEndRenderedByPublicClient":true} |
+| retained-render-server-unreachable | live-backend-plus-node-file-v3 | PASS | {"serverBinary":"target/debug/snapback","serverBinarySha256":"c023eadd39af126bac364a16e1be9495c4b091110d74fa29d81f644d627cade0","launchRung":"configured","backendStoppedBeforeRelaunch":true,"activationPreparation":{"format":"snapback.composition-activation-preparation.v1","activationHash":"sha256:fa5fcfa3f45eb704586c7dfe625c297727c0ad7821dd4a60cf47767e0fc0d4a7","sourceClass":"temporary-backend-source","next":"rerun Snapback codegen for this backend"},"generatedArtifactGraph":{"trustedActivationPresent":true,"directReferenceIdentity":true},"live":{"answerClass":"authoritative","freshness":"current","rows":[{"title":"proof-backed","authorName":"Ada"}],"retention":{"retainable":true,"code":null,"reason":null,"store":{"source":"injected","implementation":"file","durable":true,"reason":null}}},"relaunch":{"answerClass":"authoritative","freshness":"retained","rows":[{"authorName":"Ada","title":"proof-backed"}],"firstUpdate":null},"materialization":{"records":1,"qmk1":"qmk1.bCA7pR65eI25rBN61kdABH3xKD9UKyZVdEEUJN-sfRw","freshness":"retained","fragments":1,"leaseCustody":1},"endToEndRenderedByPublicClient":true} |
 | authority-logout | node-public-client-to-file-v3 | PASS | {"publicMethod":"SnapbackClient.authLogout","transitionParticipant":"AuthCoordinator.commitDurable","nodeLevelBridge":true,"pageLevelBridge":false,"wipeCallsDuringLogout":1,"retainedAndOutboxClearedBeforeAnonymousResume":true,"clientStoreIdPreserved":true,"allocatorHighWaterPreserved":true,"generationHighWatersPreserved":true,"fenceTombstoneBarrierHighWatersPreserved":true,"storeMetaPolicyProjectionCleared":true,"handleKeyRotated":true,"nextAllocatedQueryInstanceId":3,"siblingIdentityBlobs":{"before":2,"after":1},"destroyedSiblingReopenedWithFreshIdentity":true} |
 | authority-user-switch | node-file-v3-multi-identity | PASS | {"blobsBefore":2,"blobsAfter":1,"wipingIdentityPreserved":true,"handleKeyRotated":true,"destroyedSiblingReopenedWithFreshIdentity":true} |
 | authority-revocation | node-file-v3-materialization | PASS | {"effectiveDisposition":"quarantine","queryGeneration":2} |
@@ -25,11 +25,11 @@ publication.
 | authority-corrupt-store-recovery | node-file-v3 | PASS | {"refusal":"SNAPBACK_RQS_STORE_CORRUPT","ordinaryWipeRefused":true,"originalBytesSeenByBarrierHook":true,"storeIdentityRotated":true,"replacementFormat":"snapback-rqs-store-file.v3"} |
 | authority-corrupt-store-recovery | browser-indexeddb-v3 | PASS | {"refusal":"SNAPBACK_RQS_STORE_CORRUPT","hookSawMalformed":true,"reset":{"reset":true,"previousClientStoreId":"browser-corrupt-predecessor","clientStoreId":"cs1_02020202020202020202020202020202"},"formatVersion":3} |
 | authority-revocation | browser-indexeddb-v3-materialization | PASS | {"disposition":"delete","fragments":0,"renderedBytes":0} |
-| bounded-custody-query-churn | node-file-v3 | PASS | 38804851 → 32506933 logical bytes in 210316.76 ms |
+| bounded-custody-query-churn | node-file-v3 | PASS | 38804851 → 32506933 logical bytes in 92842.563 ms |
 | bounded-custody-query-churn | browser-indexeddb-v3 | PASS | {"injectedLimits":{"byteCeiling":1048576,"recordCeiling":32,"fragmentCeiling":2},"committedRecords":6,"retainedPayloadRecords":2,"retainedFragments":2,"compactedStubs":4,"durableRegistrations":6,"compactionCount":4,"allocatorHighWater":6,"commits":[{"queryInstanceId":1,"registration":{"committed":true}},{"queryInstanceId":2,"registration":{"committed":true}},{"queryInstanceId":3,"registration":{"committed":true}},{"queryInstanceId":4,"registration":{"committed":true}},{"queryInstanceId":5,"registration":{"committed":true}},{"queryInstanceId":6,"registration":{"committed":true}}]} |
-| footprint-hydration-triage | triage-graph-budget-freeze-v1 | PASS | {"applicationExists":true,"application":"demos/triage-graph","qualificationStatus":"PASS","measurements":{"materializations":21,"storedResultRows":100,"logicalBytes":16205,"hydrationAttempts":1,"hydrationRows":100,"hydrationPayloadBytes":14981,"hydrationElapsedMs":439.261,"hydrationCeilingMs":1000},"receipts":{"budgetFreeze":"tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json","budgetFreezeSha256":"8461e55974de124eb4aa792d3ec05c3757fe41fa8975c131fc16e2ff6002e565","move1Exit":"tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json","move1ExitSha256":"185204266b382d1234a5465773a1c8a805dc048f07ec025009def7895e3faac0"}} |
-| footprint-hydration-fleet | move-1-successor-app | GAP | SNAPBACK_CARRIER_EXIT_FLEET_SUCCESSOR_BLOCKED: the Move-1 Fleet application does not exist and remains blocked on LLP 0135 OQ5 relational-node admission |
-| bundle-attribution | full-client-store-closure | PASS | {"artifact":"tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json","minifiedBytes":624160,"measuredModuleOwnBytes":112221,"modules":9,"browserClosureQualification":{"status":"PASS","materializationStoreResolved":true,"resolved":true,"outputBytes":73221,"externalImports":[]}} |
+| footprint-hydration-triage | triage-graph-budget-freeze-v1 | PASS | {"applicationExists":true,"application":"demos/triage-graph","qualificationStatus":"PASS","measurements":{"materializations":21,"storedResultRows":100,"logicalBytes":16205,"hydrationAttempts":1,"hydrationRows":100,"hydrationPayloadBytes":14981,"hydrationElapsedMs":387.905,"hydrationCeilingMs":1000},"receipts":{"budgetFreeze":"tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json","budgetFreezeSha256":"cfd9e65206f6c8db9ffb0ebba742373ee9f5a385b7d069e87a7c50c3d198ed2b","move1Exit":"tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json","move1ExitSha256":"417655401e10603de3d638322d22c86f700f395076e166320ba8a80748df1527"}} |
+| footprint-hydration-fleet | fleet-observatory-budget-freeze-v1 | PASS | {"applicationExists":true,"application":"demos/fleet-observatory-move1","qualificationStatus":"PASS","measurements":{"activeMaterializations":21,"activeProjectedRows":200,"activeLogicalBytes":51027,"releasedProjectedRows":0,"hydrationAttempts":1,"hydrationRows":200,"hydrationPayloadBytes":49652,"hydrationElapsedMs":171.143,"hydrationCeilingMs":1000},"receipts":{"budgetFreeze":"tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json","budgetFreezeSha256":"4c888b038745d26ac32d1c5e92e7e629b5b2459d566533d3ac27048ef39fc1a0","move1Exit":"tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json","move1ExitSha256":"efeeaeb5037150063074c5f0cbf6253a46ec278f25623688d31522fd6e1f4c09"}} |
+| bundle-attribution | full-client-store-closure | PASS | {"artifact":"tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-06.v1.json","minifiedBytes":693618,"measuredModuleOwnBytes":112243,"modules":9,"browserClosureQualification":{"status":"PASS","materializationStoreResolved":true,"resolved":true,"outputBytes":73241,"externalImports":[]}} |
 
 ## Bundle attribution
 
@@ -40,20 +40,20 @@ browser closure resolves the shipped materialization store with no
 
 | Store module | Minified module-own bytes | Source bytes |
 | --- | ---: | ---: |
-| `materialization-store` | 45,531 | 85,606 |
-| `materialization-bridge` | 10,599 | 17,969 |
-| `registration-ledger` | 19,308 | 38,537 |
-| `demand-broker` | 15,788 | 30,790 |
+| `materialization-store` | 45,528 | 85,627 |
+| `materialization-bridge` | 10,598 | 17,969 |
+| `registration-ledger` | 19,275 | 38,537 |
+| `demand-broker` | 15,847 | 30,790 |
 | `store-policy` | 13,334 | 23,705 |
 | `answer-classes` | 2,528 | 4,865 |
 | `evaluation-floor` | 682 | 1,710 |
 | `lease-convergence` | 1,407 | 3,346 |
 | `rqs-store-meta` | 3,044 | 5,550 |
 
-Full measured closure: 624,160
-minified bytes, 173,463 gzip bytes,
-140,669 Brotli bytes. The nine
-store modules account for 112,221
+Full measured closure: 693,618
+minified bytes, 192,638 gzip bytes,
+154,843 Brotli bytes. The nine
+store modules account for 112,243
 module-own minified bytes.
 
 ## Receipt interpretation
@@ -75,9 +75,10 @@ module-own minified bytes.
   stores the P1 proof and complete lease custody, the owned backend process
   exits, and a newly constructed client projects authoritative-retained bytes
   from the same file-v3 identity while the endpoint is unreachable.
-- Triage consumes the qualified successor application's frozen custody and
-  hydration measurements. Fleet remains GAP exactly as LLP 0157's commission
-  crosswalk says and still waits on LLP 0135 OQ5's relational-node successor.
+- Triage and Fleet consume their qualified successor applications' frozen
+  custody and hydration measurements. The retained Fleet receipt closes the
+  final LLP 0157 Move-1 workload-exit row without changing capability maturity
+  or adding a hosted/remote claim.
 
-Machine receipt: `tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json`  
-Bundle receipt: `tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json`
+Machine receipt: `tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json`
+Bundle receipt: `tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-06.v1.json`

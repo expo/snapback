@@ -25,6 +25,12 @@ transaction across arbitrary asynchronous handler work; commit-time OCC rejects
 relevant drift between reads. Every row changed by the commit receives the
 same monotonic version. A rejected mutation commits nothing.
 
+When one screen calls several of these mutations against the same resource id,
+declare them once with `defineSurface` instead of rewiring each call site — see
+[application surfaces](../clients/surfaces.md), which binds a resource's reads,
+mutations, assets, and presence around shared parameters. The mutations
+themselves are unchanged; a surface only composes the generated references.
+
 ## Define the write boundary
 
 The paved JS form colocates its direct handler expression with arguments,
@@ -88,6 +94,14 @@ packages, and multi-file graphs are not admitted by that compatibility lane.
 `delete`, conditions, and a declared return binding without running a JS
 handler.
 
+Strict `arg('name')` requires the property, so generation refuses a
+caller-optional argument consumed by it with
+`SNAPBACK_AUTHORING_OPTIONAL_ARG_CONTRADICTION`. Use `argOpt('name')` for the
+omission branch: an omitted property evaluates to `null`; use
+`coalesce(argOpt('name'), lit(default))` to supply a default. Writing that
+`null` requires the target field to be declared `v.optional(...)`, which
+stores it as a present null.
+
 Set-oriented deletion is `deleteWhere(table, filter)`. The filter argument is
 required; omitting it refuses generation with
 `SNAPBACK_DELETE_WHERE_FILTER_REQUIRED`. An explicitly authored empty array,
@@ -139,6 +153,8 @@ still has a terminal receipt on the error envelope so the client store can
 settle it without guessing. A confirmed receipt always carries a non-null
 durable `snapshotVersion`; `null` is allowed only for a rejected invocation
 whose durable cursor could not be read safely.
+
+<!-- since: 0.1.9 -->
 
 Application-semantic refusals get typed codes instead of message prose. A
 handler declares a closed set — `refusals: ['STALE_MOVE']` (uppercase

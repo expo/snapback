@@ -1,0 +1,1032 @@
+{
+  "schemaVersion": "snapback.local-proof-selection-policy.v1",
+  "unknownPathDisposition": "all",
+  "affectedBaselineGroups": [
+    "exact-admin"
+  ],
+  "alwaysGates": [
+    "ref-check",
+    "ref-check-fixtures",
+    "ci-workflow-fixtures",
+    "proof-runner-fixtures",
+    "local-proof-inventory",
+    "affected-selector-fixtures",
+    "package-test-inventory",
+    "package-readme-funnel"
+  ],
+  "dependencyOverrides": {
+    "snapback-cli-real-server": [
+      "current-binary-readiness",
+      "runtime-package-stage"
+    ],
+    "snapback-vite-real-server": [
+      "current-binary-readiness",
+      "runtime-package-stage"
+    ],
+    "versioned-seed-conformance": [
+      "current-binary-readiness",
+      "runtime-package-stage"
+    ]
+  },
+  "workflowRequirementMarkers": {
+    "native": [
+      "native-runtime-bootstrap",
+      "telemetry-smoke",
+      "cargo-clippy",
+      "rust-tests",
+      "current-binary-build",
+      "runtime-package-stage"
+    ],
+    "browser": [
+      "browser-availability"
+    ],
+    "cargoAudit": [
+      "cargo-audit"
+    ],
+    "privateRoot": [
+      "snapback-cli-real-server"
+    ]
+  },
+  "driftProneGates": {
+    "agent-safe-publication-fixtures": {
+      "records": [
+        "tests/agent_safe_publication_checker_v1.mjs (reviewed generated-publication leaf set)"
+      ],
+      "recordPaths": [
+        "tests/agent_safe_publication_checker_v1.mjs"
+      ],
+      "triggerRules": {
+        "files": [
+          "scripts/generated-artifact-policy.mjs",
+          "tests/agent_safe_publication_checker_v1.mjs"
+        ],
+        "prefixes": [
+          "admin-ui/generated/",
+          "demos/",
+          "packages/snapback-cli/fixtures/",
+          "packages/snapback-codegen/",
+          "packages/snapback-react/fixtures/"
+        ]
+      },
+      "regenerateCommand": "node scripts/update-agent-safe-publication-leaf-set.mjs"
+    },
+    "client-bundle-metrology": {
+      "records": [
+        "tests/fixtures/client-bundle-metrology/current.v1.json and its active profile/baseline ledgers"
+      ],
+      "recordPaths": [
+        "tests/fixtures/client-bundle-metrology"
+      ],
+      "triggerRules": {
+        "files": [
+          "scripts/client-bundle-metrology.mjs"
+        ],
+        "prefixes": [
+          "packages/snapback-client/",
+          "packages/snapback-contract/",
+          "packages/snapback-react/",
+          "tests/fixtures/client-bundle-metrology/"
+        ]
+      },
+      "regenerateCommand": "node scripts/client-bundle-metrology.mjs --write-current",
+      "blessedRegenerateCommand": "node scripts/client-bundle-metrology.mjs --write-rollover-baseline",
+      "requiredModules": [
+        "esbuild"
+      ]
+    },
+    "generated-artifacts": {
+      "records": [
+        "committed review manifests and projections selected by scripts/generated-artifact-policy.mjs"
+      ],
+      "recordPaths": [
+        "admin-ui/generated",
+        "demos",
+        "packages/snapback-cli/fixtures",
+        "packages/snapback-react/fixtures"
+      ],
+      "triggerRules": {
+        "files": [
+          "admin-ui/generate-contract-bindings.mjs",
+          "scripts/check-generated-artifacts",
+          "scripts/generated-artifact-policy.mjs",
+          "scripts/verify-generated-review-surface.mjs"
+        ],
+        "prefixes": [
+          "admin-ui/generated/",
+          "demos/",
+          "packages/snapback-cli/fixtures/",
+          "packages/snapback-codegen/",
+          "packages/snapback-react/fixtures/"
+        ]
+      },
+      "regenerateCommand": "scripts/check-generated-artifacts"
+    },
+    "contract-meta": {
+      "records": [
+        "non-generated demos/**/*.contract-meta.ts pure-parameter mirrors"
+      ],
+      "recordPaths": [
+        "demos"
+      ],
+      "triggerRules": {
+        "files": [
+          "scripts/check-contract-meta.mjs",
+          "scripts/update-contract-meta.mjs"
+        ],
+        "prefixes": [
+          "demos/"
+        ]
+      },
+      "regenerateCommand": "node scripts/update-contract-meta.mjs",
+      "requiredModules": [
+        "typescript"
+      ]
+    },
+    "guide": {
+      "records": [
+        "guide/guide-manifest.generated.json",
+        "guide/guide-flat.generated.md"
+      ],
+      "recordPaths": [
+        "guide/guide-manifest.generated.json",
+        "guide/guide-flat.generated.md"
+      ],
+      "triggerRules": {
+        "prefixes": [
+          "guide/",
+          "scripts/check-guide",
+          "scripts/generate-guide",
+          "scripts/guide-"
+        ]
+      },
+      "regenerateCommand": "node scripts/generate-guide-manifest.mjs",
+      "requiredEnvironmentPaths": [
+        "demos/competitive-checkpoint/snapback/generated/operations/startReply.args.schema.json",
+        "demos/todo-v2/snapback/generated/contract/runtime-links.ts",
+        "demos/todo-v2/snapback/generated/contract/setCompleted.mutation.ts"
+      ]
+    },
+    "telemetry-receipt-check": {
+      "records": [
+        "tests/acceptance/telemetry-phase1-evidence.v1.json"
+      ],
+      "recordPaths": [
+        "tests/acceptance/telemetry-phase1-evidence.v1.json"
+      ],
+      "triggerRules": {
+        "prefixes": [
+          "scripts/telemetry-phase1-",
+          "scripts/verify-telemetry-phase1-proof",
+          "tests/acceptance/telemetry-phase1-"
+        ]
+      },
+      "regenerateCommand": "scripts/verify-telemetry-phase1-proof --full",
+      "sameChangeSemantics": "historical-validity-only-per-llp-0175"
+    },
+  "auth-invalidation-report": {
+      "records": [
+        "tests/acceptance/auth-invalidation-v1-composed-receipt.json"
+      ],
+      "recordPaths": [
+        "tests/acceptance/auth-invalidation-v1-composed-receipt.json"
+      ],
+      "triggerRules": {
+        "files": [
+          "packages/snapback-contract/client-store.mjs",
+          "packages/snapback-contract/query-authorization.mjs",
+          "src/ephemeral.rs",
+          "src/local.rs",
+          "src/local/auth_room_kick_acceptance.rs",
+          "src/local/authorization_acceptance.rs",
+          "src/storage.rs",
+          "src/storage/auth_invalidation.rs",
+          "tests/acceptance/auth-invalidation-v1-composed-receipt.json",
+          "tests/acceptance/auth-invalidation-v1-property-corpus.json",
+          "tests/acceptance/auth-invalidation-v1-report.mjs"
+        ],
+        "prefixes": [
+          "src/auth/"
+        ]
+      },
+    "prepareCommand": "scripts/bootstrap-ibex-runtime",
+    "requiredSubmodules": [
+      "vendor/ibex"
+    ],
+    "requiredEnvironmentPaths": [
+      "demos/rbac/snapback/generated/schema.manifest.json",
+      "demos/todo/snapback/generated/functions.manifest.json",
+      "demos/todo/snapback/generated/schema.manifest.json"
+    ],
+    "regenerateCommand": "node tests/acceptance/auth-invalidation-v1-report.mjs --print > tests/acceptance/auth-invalidation-v1-composed-receipt.json"
+    },
+    "control-catalog": {
+      "records": [
+        "control-catalog/generated/control-catalog.v1.json",
+        "generated control-catalog blocks in guide/operating/host-ops.md and guide/reference/control-catalog.md"
+      ],
+      "recordPaths": [
+        "control-catalog/generated/control-catalog.v1.json",
+        "guide/operating/host-ops.md",
+        "guide/reference/control-catalog.md"
+      ],
+      "triggerRules": {
+        "files": [
+          "cloudflare/gateway-paths.inventory.json",
+          "cloudflare/hosted-adapter-manifest.json",
+          "guide/operating/host-ops.md",
+          "guide/reference/control-catalog.md",
+          "scripts/generate-control-catalog.mjs"
+        ],
+        "prefixes": [
+          "control-catalog/",
+          "packages/snapback-cli/"
+        ]
+      },
+      "regenerateCommand": "node scripts/generate-control-catalog.mjs",
+      "requiredModules": [
+        "ajv"
+      ]
+    },
+    "deployment-identity": {
+      "records": [
+        "cloudflare/generated/deployment-identity.notes.json",
+        "cloudflare/generated/deployment-identity.all-aboard.json"
+      ],
+      "recordPaths": [
+        "cloudflare/generated/deployment-identity.notes.json",
+        "cloudflare/generated/deployment-identity.all-aboard.json"
+      ],
+      "triggerRules": {
+        "files": [
+          "packages/snapback-harness/compat.json"
+        ],
+        "prefixes": [
+          "cloudflare/",
+          "demos/all-aboard/",
+          "packages/snapback-client/",
+          "packages/snapback-contract/",
+          "packages/snapback-harness/",
+          "packages/snapback-vite/"
+        ]
+      },
+      "prepareCommand": "env SNAPBACK_OUTBOUND_ACTIONS=1 node packages/snapback-codegen/index.mjs demos/all-aboard/snapback",
+      "regenerateCommand": "node cloudflare/scripts/generate-deployment-identity.mjs",
+      "requiredModules": [
+        "esbuild"
+      ]
+    },
+    "result-transform-ship-gate": {
+      "records": [
+        "tests/conformance/result-transform-ship-gate-v1.receipt.json"
+      ],
+      "recordPaths": [
+        "tests/conformance/result-transform-ship-gate-v1.receipt.json"
+      ],
+      "triggerRules": {
+        "files": [
+          "packages/snapback-client/canonical-client-value.mjs",
+          "packages/snapback-client/result-transform.mjs",
+          "tests/conformance/result-transform-ship-gate-v1.mjs",
+          "tests/conformance/result-transform-ship-gate-v1.receipt.json"
+        ],
+        "prefixes": [
+          "tests/conformance/data-tier/result-transform-v1/"
+        ]
+      },
+      "regenerateCommand": "SNAPBACK_RESULT_TRANSFORM_RUST_OUTCOMES_PATH=/private/tmp/snapback-result-transform-rust-outcomes.json cargo test --test result_transform_corpus_v1 && SNAPBACK_RESULT_TRANSFORM_RUST_OUTCOMES_PATH=/private/tmp/snapback-result-transform-rust-outcomes.json node tests/conformance/result-transform-ship-gate-v1.mjs --write"
+    },
+    "relation-activity-publication": {
+      "records": [
+        "src/local-relation-activity-publication.v1.json and its pinned readers"
+      ],
+      "recordPaths": [
+        "src/local-relation-activity-publication.v1.json",
+        "tests/conformance/relation-activity-publication-v1.mjs",
+        "src/manifest.rs"
+      ],
+      "triggerRules": {
+        "files": [
+          "packages/snapback-codegen/define.mjs",
+          "scripts/refresh-publication-carrier.mjs",
+          "src/local-relation-activity-publication.v1.json",
+          "src/local.rs",
+          "src/manifest.rs",
+          "src/storage.rs",
+          "tests/conformance/relation-activity-publication-v1.receipt.json",
+          "tests/conformance/relation-activity-publication-v1.mjs"
+        ]
+      },
+      "regenerateCommand": "node scripts/refresh-publication-carrier.mjs"
+    },
+    "sequence-allocation-publication": {
+      "records": [
+        "src/local-sequence-allocation-publication.v1.json and its pinned readers"
+      ],
+      "recordPaths": [
+        "src/local-sequence-allocation-publication.v1.json",
+        "tests/conformance/sequence-allocation-publication-v1.mjs",
+        "tests/conformance/sequence-allocation-publication-v1.receipt.json",
+        "src/manifest.rs"
+      ],
+      "triggerRules": {
+        "files": [
+          "packages/snapback-codegen/define.mjs",
+          "packages/snapback-contract/derived-overlay.mjs",
+          "packages/snapback-contract/index.mjs",
+          "scripts/refresh-publication-carrier.mjs",
+          "src/local-sequence-allocation-publication.v1.json",
+          "src/manifest.rs",
+          "src/runtime.rs",
+          "src/storage.rs",
+          "tests/conformance/sequence-allocation-publication-v1.mjs",
+          "tests/conformance/sequence-allocation-publication-v1.receipt.json"
+        ]
+      },
+      "regenerateCommand": "node scripts/refresh-publication-carrier.mjs"
+    },
+    "local-store-publication": {
+      "records": [
+        "src/local-persistent-store-publication.v1.json and src/local-persistent-store-publication.anchor.v1.json"
+      ],
+      "recordPaths": [
+        "src/local-persistent-store-publication.v1.json",
+        "src/local-persistent-store-publication.anchor.v1.json"
+      ],
+      "triggerRules": {
+        "files": [
+          "packages/snapback-client/local-read-admission.mjs",
+          "packages/snapback-client/materialization-bridge.mjs",
+          "packages/snapback-client/materialization-store.mjs",
+          "packages/snapback-client/materialization-store-runtime.mjs",
+          "packages/snapback-client/rqs-preload-core.mjs",
+          "packages/snapback-client/store-runtime.mjs",
+          "packages/snapback-codegen/index.mjs",
+          "schemas/capability.manifest.local-dev-sqlite-ibex.json",
+          "src/local-persistent-store-publication.anchor.v1.json",
+          "src/local-persistent-store-publication.v1.json",
+          "src/local.rs",
+          "src/storage.rs",
+          "tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json",
+          "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json",
+          "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json"
+        ],
+        "prefixes": [
+          "scripts/finalize-local-persistent-store-publication"
+        ]
+      },
+      "regenerateCommand": "scripts/finalize-local-persistent-store-publication"
+    },
+    "local-store-carrier-receipt": {
+      "records": [
+        "tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json",
+        "tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json"
+      ],
+      "recordPaths": [
+        "tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json",
+        "tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json"
+      ],
+      "triggerRules": {
+        "files": [
+          "demos/_kit/chrome-process.mjs",
+          "demos/triage-graph/demo.snapback.json",
+          "demos/triage-graph/snapback/functions.mjs",
+          "demos/triage-graph/snapback/schema.mjs",
+          "packages/snapback-client/answer-classes.mjs",
+          "packages/snapback-client/demand-broker.mjs",
+          "packages/snapback-client/evaluation-floor.mjs",
+          "packages/snapback-client/index.mjs",
+          "packages/snapback-client/lease-convergence.mjs",
+          "packages/snapback-client/materialization-bridge.mjs",
+          "packages/snapback-client/materialization-store.mjs",
+          "packages/snapback-client/materialization-store-runtime.mjs",
+          "packages/snapback-client/registration-ledger.mjs",
+          "packages/snapback-client/rqs-preload-core.mjs",
+          "packages/snapback-client/rqs-store.mjs",
+          "packages/snapback-client/rqs-store-file.mjs",
+          "packages/snapback-client/rqs-store-meta.mjs",
+          "packages/snapback-client/store-policy.mjs",
+          "packages/snapback-client/store-runtime.mjs",
+          "packages/snapback-contract/auth-coordinator.mjs",
+          "packages/snapback-contract/client-store.mjs",
+          "tests/acceptance/local-store-carrier-exit-v1.mjs"
+        ],
+        "prefixes": [
+          "tests/acceptance/fixtures/local-persistent-store/",
+          "tests/acceptance/fixtures/triage-graph/"
+        ]
+      },
+      "regenerateCommand": "node tests/acceptance/local-store-carrier-exit-v1.mjs",
+      "requiredModules": [
+        "esbuild"
+      ]
+    }
+  },
+  "pathRules": [
+    {
+      "id": "selector-authority",
+      "disposition": "all",
+      "files": [
+        ".github/workflows/local-proof.yml",
+        "scripts/check-local-proof-gates.mjs",
+        "scripts/lib/proof-runner.sh",
+        "scripts/local-proof-selection-policy.v1.json",
+        "scripts/select-local-proof.mjs",
+        "scripts/verify-local-proof",
+        "tests/local_proof_inventory_v0.mjs",
+        "tests/local_proof_selection_v0.mjs",
+        "tests/proof_runner_v0.mjs",
+        "llp/0010-agent-dx-and-acceptance.spec.md",
+        "llp/0109-versioned-seed-evolution.spec.md",
+        "llp/0154-minimal-observability.rfc.md",
+        "llp/0175-local-proof-economics.rfc.md"
+      ]
+    },
+    {
+      "id": "shared-authority",
+      "disposition": "all",
+      "files": [
+        ".gitignore",
+        ".gitmodules",
+        ".node-version",
+        "Cargo.lock",
+        "Cargo.toml",
+        "bun.lock",
+        "build.rs",
+        "package.json",
+        "rust-toolchain.toml"
+      ],
+      "prefixes": [
+        ".github/actions/",
+        ".github/workflows/",
+        ".githooks/",
+        "schemas/",
+        "scripts/lib/",
+        "vendor/"
+      ]
+    },
+    {
+      "id": "telemetry-policy-and-source",
+      "groups": [
+        "telemetry"
+      ],
+      "files": [
+        "scripts/telemetry-phase1-evidence.mjs",
+        "scripts/telemetry-phase1-evidence.test.mjs",
+        "scripts/telemetry-phase1-idle-proof.mjs",
+        "scripts/verify-telemetry-phase1-proof",
+        "tests/acceptance/telemetry-phase1-benchmark-baseline.v1.json",
+        "tests/acceptance/telemetry-phase1-evidence-policy.v1.json"
+      ]
+    },
+    {
+      "id": "telemetry-retained-receipt",
+      "groups": [
+        "telemetry-receipt"
+      ],
+      "files": [
+        "tests/acceptance/telemetry-phase1-evidence.v1.json"
+      ]
+    },
+    {
+      "id": "local-store-carrier",
+      "groups": [
+        "local-store"
+      ],
+      "prefixes": [
+        "tests/acceptance/fixtures/local-persistent-store/",
+        "tests/acceptance/local-store-carrier-"
+      ]
+    },
+    {
+      "id": "versioned-seed",
+      "groups": [
+        "versioned-seed"
+      ],
+      "prefixes": [
+        "tests/conformance/versioned-seed",
+        "scripts/versioned-seed"
+      ]
+    },
+    {
+      "id": "guide",
+      "groups": [
+        "guide"
+      ],
+      "prefixes": [
+        "guide/"
+      ]
+    },
+    {
+      "id": "cloudflare",
+      "groups": [
+        "cloudflare"
+      ],
+      "prefixes": [
+        "cloudflare/"
+      ]
+    },
+    {
+      "id": "admin",
+      "groups": [
+        "exact-admin"
+      ],
+      "prefixes": [
+        "admin-ui/"
+      ]
+    },
+    {
+      "id": "swift-client",
+      "groups": [
+        "swift"
+      ],
+      "prefixes": [
+        "clients/swift/"
+      ]
+    },
+    {
+      "id": "client-packages",
+      "groups": [
+        "client"
+      ],
+      "prefixes": [
+        "packages/snapback-client/",
+        "packages/snapback-react/"
+      ]
+    },
+    {
+      "id": "codegen-packages",
+      "groups": [
+        "codegen",
+        "demos"
+      ],
+      "prefixes": [
+        "packages/snapback-codegen/",
+        "packages/snapback-contract/"
+      ]
+    },
+    {
+      "id": "distribution-packages",
+      "groups": [
+        "packaging",
+        "demos"
+      ],
+      "prefixes": [
+        "packages/snapback-app-cli/",
+        "packages/snapback-cli/",
+        "packages/snapback-runtime-",
+        "packages/snapback-vite/"
+      ]
+    },
+    {
+      "id": "harness-package",
+      "groups": [
+        "demos"
+      ],
+      "prefixes": [
+        "packages/snapback-harness/"
+      ]
+    },
+    {
+      "id": "other-package",
+      "disposition": "all",
+      "prefixes": [
+        "packages/"
+      ]
+    },
+    {
+      "id": "demo-and-harness",
+      "groups": [
+        "demos",
+        "codegen"
+      ],
+      "prefixes": [
+        "demos/"
+      ]
+    },
+    {
+      "id": "native-runtime",
+      "groups": [
+        "native",
+        "versioned-seed",
+        "telemetry"
+      ],
+      "prefixes": [
+        "src/"
+      ]
+    },
+    {
+      "id": "acceptance-tests",
+      "groups": [
+        "native",
+        "demos"
+      ],
+      "prefixes": [
+        "tests/acceptance/"
+      ]
+    },
+    {
+      "id": "conformance-tests",
+      "groups": [
+        "publication",
+        "native"
+      ],
+      "prefixes": [
+        "tests/conformance/"
+      ]
+    },
+    {
+      "id": "drift-enforcement-tests",
+      "groups": [
+        "drift-enforcement"
+      ],
+      "files": [
+        "tests/drift_prone_gates_v0.mjs"
+      ]
+    },
+    {
+      "id": "agent-safe-publication-trigger",
+      "groups": [
+        "publication"
+      ],
+      "files": [
+        "tests/agent_safe_publication_checker_v1.mjs"
+      ]
+    },
+    {
+      "id": "other-tests",
+      "disposition": "all",
+      "prefixes": [
+        "tests/"
+      ]
+    },
+    {
+      "id": "known-publication-scripts",
+      "groups": [
+        "publication",
+        "packaging"
+      ],
+      "prefixes": [
+        "scripts/capability-",
+        "scripts/check-agent-safe-publication",
+        "scripts/snapback-github-latest-proof",
+        "scripts/snapback-package-",
+        "scripts/snapback-promot",
+        "scripts/snapback-publish"
+      ]
+    },
+    {
+      "id": "guide-scripts",
+      "groups": [
+        "guide"
+      ],
+      "prefixes": [
+        "scripts/check-guide",
+        "scripts/generate-guide",
+        "scripts/guide-"
+      ]
+    },
+    {
+      "id": "other-scripts",
+      "disposition": "all",
+      "prefixes": [
+        "scripts/"
+      ]
+    },
+    {
+      "id": "agent-and-project-docs",
+      "groups": [],
+      "files": [
+        "AGENTS.md",
+        "CONTRIBUTING.md",
+        "LICENSE",
+        "README.md",
+        "ref-check",
+        "ref_check.py"
+      ],
+      "prefixes": [
+        ".agents/",
+        ".claude/",
+        ".cursor/",
+        ".opencode/",
+        ".pi/",
+        "diaries/",
+        "issues/",
+        "llp/",
+        "skills/"
+      ],
+      "suffixes": [
+        ".md"
+      ]
+    }
+  ],
+  "groups": {
+    "drift-enforcement": {
+      "lane": "fast",
+      "gates": [
+        "drift-prone-gate-fixtures"
+      ]
+    },
+    "guide": {
+      "lane": "fast",
+      "gates": [
+        "generated-artifacts",
+        "guide-published-closure-fixtures",
+        "guide"
+      ]
+    },
+    "telemetry-receipt": {
+      "lane": "fast",
+      "gates": [
+        "telemetry-evidence-fixtures",
+        "telemetry-receipt-check"
+      ]
+    },
+    "publication": {
+      "lane": "affected",
+      "gates": [
+        "allowlist-install-fixtures",
+        "action-fetch-fence-fixtures",
+        "harness-envelope-fixtures",
+        "capability-maturity-fixtures",
+        "capability-maturity",
+        "agent-safe-publication-fixtures",
+        "agent-safe-publication",
+        "relation-activity-publication",
+        "sequence-allocation-publication",
+        "local-store-publication",
+        "snapshot-batch-parity",
+        "snapshot-batch-v2-parity",
+        "result-transform-ship-gate",
+        "promotion-fixtures",
+        "github-latest-proof-fixtures",
+        "revision-set-fixtures",
+        "control-catalog",
+        "control-catalog-fixtures"
+      ]
+    },
+    "client": {
+      "lane": "affected",
+      "gates": [
+        "client-bundle-metrology",
+        "hermes-intrinsics",
+        "package-export-types",
+        "client-errors",
+        "live-wire-schema",
+        "provenance-unit",
+        "repo-layout-unit",
+        "codegen-regressions",
+        "exact-resolver-packages",
+        "provider-live-conformance",
+        "regression-reconnect-nuke",
+        "regression-fake-live",
+        "regression-handshake-loss",
+        "regression-gc-starvation",
+        "regression-overlay-crossroom",
+        "regression-mixed-transport",
+        "regression-multiplexed-lanes",
+        "regression-midflight-resync",
+        "regression-durable-bytes-resync",
+        "regression-poll-decode-resync",
+        "live-delta-e2e",
+        "snapback-client-package",
+        "snapback-react-package"
+      ]
+    },
+    "codegen": {
+      "lane": "affected",
+      "gates": [
+        "generated-artifacts",
+        "contract-meta",
+        "contract-meta-fixtures",
+        "demo-materialization",
+        "deployment-identity",
+        "generated-types",
+        "demo-surfaces",
+        "required-surface-builds",
+        "headsign-typecheck",
+        "artifact-path-hygiene",
+        "required-surface-build-fixtures",
+        "artifact-path-hygiene-fixtures",
+        "codegen-regressions",
+        "snapback-codegen-package",
+        "snapback-contract-package"
+      ]
+    },
+    "native": {
+      "lane": "affected",
+      "gates": [
+        "cargo-headroom-fixtures",
+        "runtime-link-fixtures",
+        "runtime-readiness-fixtures",
+        "toolchain-authority",
+        "native-runtime-bootstrap",
+        "ibex-doctor",
+        "ibex-bootstrap-fixtures",
+        "binary-provenance-drift",
+        "cargo-clippy",
+        "cargo-audit",
+        "rust-tests",
+        "auth-invalidation-report",
+        "cargo-test-profile-clean",
+        "current-binary-build",
+        "current-binary-readiness",
+        "runtime-package-stage",
+        "snapback-cli-real-server",
+        "snapback-vite-real-server",
+        "asset-conformance",
+        "app-cli-served-journey",
+        "app-cli-settlement-goldens",
+        "todo-headless",
+        "forked-parent",
+        "fork-parallel-dispositions",
+        "todo-v2-headless",
+        "workout-apps",
+        "todo-v2-register-boot",
+        "graffiti-widget-read",
+        "all-aboard-egress",
+        "all-aboard-startup-timing",
+        "file-drop-browser-relay",
+        "card-game-authority-scope",
+        "rbac-acceptance",
+        "provider-live-conformance",
+        "regression-reconnect-nuke",
+        "regression-fake-live",
+        "regression-handshake-loss",
+        "regression-gc-starvation",
+        "regression-overlay-crossroom",
+        "regression-mixed-transport",
+        "regression-multiplexed-lanes",
+        "regression-midflight-resync",
+        "regression-durable-bytes-resync",
+        "regression-poll-decode-resync",
+        "live-delta-e2e",
+        "exact-todo-contract",
+        "exact-todo-v2-contract",
+        "exact-graffiti-contract",
+        "exact-all-aboard-live",
+        "regression-optimistic-clobber",
+        "regression-ephemeral-wiring",
+        "regression-multilive-scoped"
+      ]
+    },
+    "packaging": {
+      "lane": "affected",
+      "gates": [
+        "current-binary-build",
+        "current-binary-readiness",
+        "github-latest-proof-fixtures",
+        "local-source-package-closure",
+        "package-cold-install-fixtures",
+        "package-export-types",
+        "package-readme-funnel",
+        "promotion-fixtures",
+        "runtime-package-authority-fixtures",
+        "runtime-package-stage",
+        "snapback-app-cli-package",
+        "snapback-cli-real-server",
+        "snapback-contract-package",
+        "snapback-vite-real-server"
+      ]
+    },
+    "demos": {
+      "lane": "affected",
+      "gates": [
+        "action-fetch-fence-fixtures",
+        "agent-authority-custody",
+        "all-aboard-egress",
+        "all-aboard-startup-timing",
+        "allowlist-install-fixtures",
+        "app-cli-served-journey",
+        "app-cli-settlement-goldens",
+        "artifact-path-hygiene",
+        "artifact-path-hygiene-fixtures",
+        "asset-conformance",
+        "auth-coordinator-client",
+        "auth-handshake",
+        "auth-invalidation-client",
+        "auth-session-schema-parity",
+        "binary-provenance-drift",
+        "browser-availability",
+        "card-game-authority-scope",
+        "chrome-process-lifecycle-fixtures",
+        "client-errors",
+        "codegen-regressions",
+        "current-binary-build",
+        "current-binary-readiness",
+        "demo-materialization",
+        "demo-surfaces",
+        "exact-all-aboard-install",
+        "exact-all-aboard-live",
+        "exact-graffiti-contract",
+        "exact-graffiti-install",
+        "exact-resolver-packages",
+        "exact-todo-contract",
+        "exact-todo-install",
+        "exact-todo-v2-contract",
+        "exact-todo-v2-install",
+        "file-drop-browser-relay",
+        "file-drop-install",
+        "file-drop-typecheck",
+        "fleet-observatory-move1-receipt",
+        "fork-parallel-dispositions",
+        "forked-parent",
+        "generated-artifacts",
+        "generated-types",
+        "graffiti-widget-read",
+        "harness-cleanup-fixtures",
+        "harness-envelope-fixtures",
+        "headsign-typecheck",
+        "live-delta-e2e",
+        "live-wire-schema",
+        "provenance-unit",
+        "provider-live-conformance",
+        "rbac-acceptance",
+        "regression-durable-bytes-resync",
+        "regression-ephemeral-wiring",
+        "regression-fake-live",
+        "regression-gc-starvation",
+        "regression-handshake-loss",
+        "regression-midflight-resync",
+        "regression-mixed-transport",
+        "regression-multilive-scoped",
+        "regression-multiplexed-lanes",
+        "regression-optimistic-clobber",
+        "regression-overlay-crossroom",
+        "regression-poll-decode-resync",
+        "regression-reconnect-nuke",
+        "repo-layout-unit",
+        "required-surface-build-fixtures",
+        "required-surface-builds",
+        "server-process-lifecycle-fixtures",
+        "snapback-cli-real-server",
+        "snapback-vite-real-server",
+        "todo-headless",
+        "todo-v2-headless",
+        "todo-v2-register-boot",
+        "workout-apps"
+      ]
+    },
+    "cloudflare": {
+      "lane": "affected",
+      "gates": [
+        "deployment-identity",
+        "all-aboard-egress",
+        "all-aboard-startup-timing",
+        "harness-envelope-fixtures",
+        "cloudflare-local-suite"
+      ]
+    },
+    "versioned-seed": {
+      "lane": "affected",
+      "gates": [
+        "local-store-publication",
+        "snapshot-batch-parity",
+        "snapshot-batch-v2-parity",
+        "current-binary-build",
+        "current-binary-readiness",
+        "versioned-seed-conformance"
+      ]
+    },
+    "telemetry": {
+      "lane": "affected",
+      "gates": [
+        "telemetry-evidence-fixtures",
+        "telemetry-receipt-check",
+        "telemetry-smoke",
+        "native-runtime-bootstrap"
+      ]
+    },
+    "exact-admin": {
+      "lane": "affected",
+      "gates": [
+        "browser-availability",
+        "exact-todo-install",
+        "exact-todo-v2-install",
+        "exact-graffiti-install",
+        "exact-all-aboard-install",
+        "exact-todo-contract",
+        "exact-todo-v2-contract",
+        "exact-graffiti-contract",
+        "exact-all-aboard-live",
+        "regression-optimistic-clobber",
+        "regression-ephemeral-wiring",
+        "regression-multilive-scoped",
+        "admin-install",
+        "admin-acceptance",
+        "exact-dependencies-required"
+      ]
+    },
+    "swift": {
+      "lane": "affected",
+      "gates": [
+        "swift-client"
+      ]
+    },
+    "local-store": {
+      "lane": "affected",
+      "gates": [
+        "local-store-carrier-receipt"
+      ]
+    }
+  }
+}

@@ -6,8 +6,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
+use std::ffi::OsStr;
 use std::fmt;
 use std::str::FromStr;
+use std::sync::OnceLock;
 
 pub use crate::search::types::{
     FullTextSearchFactsV1, SearchClauseV1, SearchCursorLimitsV1, SearchCursorV1,
@@ -748,6 +750,20 @@ impl From<SchemaManifest> for PublicSchemaManifest {
     }
 }
 
+/// Finite product-history retention declared beside the table it governs.
+/// This is authoring authority; storage projects it into the durable policy
+/// table in the same transaction that publishes the schema manifest.
+// @ref LLP 0162#6-bounded-history-and-named-checkpoints — history is opt-in,
+// per-table, finite on both age and versions-per-record axes, and manifest-visible.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HistoryRetentionManifestV1 {
+    #[schemars(range(min = 1_u64, max = 2_592_000_000_u64))]
+    pub retain_ms: u64,
+    #[schemars(range(min = 1_u64, max = 1_000_u64))]
+    pub max_versions_per_record: u64,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct TableManifest {
@@ -845,6 +861,10 @@ pub struct TableManifest {
         skip_serializing_if = "Option::is_none"
     )]
     pub asset_sharing: Option<AssetSharingManifest>,
+    /// Optional bounded record-history policy. Absence disables product
+    /// history for this table; v1 deliberately has no unbounded spelling.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub history: Option<HistoryRetentionManifestV1>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -1578,6 +1598,13 @@ impl FunctionManifest {
                     validate_snapshot_batch_argument_bindings(function, plan)?;
                 }
                 (
+                    FunctionKind::Query | FunctionKind::LiveQuery,
+                    FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)),
+                ) => {
+                    validate_snapshot_batch_v2_plan_shape(plan)?;
+                    validate_snapshot_batch_v2_argument_bindings(function, plan)?;
+                }
+                (
                     FunctionKind::Mutation,
                     FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)),
                 ) => crate::value_expr::validate_mutation_plan(plan)?,
@@ -1653,6 +1680,31 @@ impl FunctionManifest {
                         &["snapshot_batch_v1", "bounded_children_v1"]
                     }
                 }
+                FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)) => {
+                    let bounded = plan
+                        .nodes
+                        .iter()
+                        .any(|node| matches!(node, SnapshotBatchNodeV2::BoundedChildren(_)));
+                    match (function.kind == FunctionKind::LiveQuery, bounded) {
+                        (true, true) => &[
+                            "snapshot_batch_v2",
+                            "relational_query_v1",
+                            "bounded_children_v1",
+                            "live_subscriptions",
+                        ],
+                        (true, false) => &[
+                            "snapshot_batch_v2",
+                            "relational_query_v1",
+                            "live_subscriptions",
+                        ],
+                        (false, true) => &[
+                            "snapshot_batch_v2",
+                            "relational_query_v1",
+                            "bounded_children_v1",
+                        ],
+                        (false, false) => &["snapshot_batch_v2", "relational_query_v1"],
+                    }
+                }
                 FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(_)) => {
                     &["write_activity_v1"]
                 }
@@ -1697,8 +1749,22 @@ impl FunctionManifest {
                         "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
                         "query",
                         "snapshot batch emitted identity does not match the host reconstruction",
-                ));
+                    ));
+                }
             }
+            if let FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)) = &function.runtime
+            {
+                validate_snapshot_batch_v2_outer_result_contract(function, plan)?;
+                let identity = snapshot_batch_identity_v2(function, plan)?;
+                if plan.normalized_composite_plan != identity.normalized_composite_plan
+                    || plan.plan_hash != identity.plan_hash
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+                        "query",
+                        "snapshot batch v2 emitted identity does not match the host reconstruction",
+                    ));
+                }
             }
             for declaration in &function.sequences {
                 match sequence_declarations.get(&declaration.name) {
@@ -2548,15 +2614,12 @@ fn validate_value_contract_node(
         ResultValueContract::Null
         | ResultValueContract::Boolean
         | ResultValueContract::Principal
+        // @ref LLP 0180#declaration — a command's mapped mutation argument
+        // retains the AssetRef contract node. Runtime ingress admits only the
+        // opaque non-empty id; LLP 0044's attach boundary still owns policy,
+        // ownership, readiness, and reverse-reference authorization.
+        | ResultValueContract::AssetRef
         | ResultValueContract::Id { .. } => {}
-        ResultValueContract::AssetRef => {
-            if lane == ContractLane::Args {
-                return Err(invalid_args_contract(
-                    function,
-                    "argument contracts do not admit assetRef nodes",
-                ));
-            }
-        }
     }
     Ok(())
 }
@@ -3620,6 +3683,31 @@ impl ObservedEffects {
                     self.read(&node.child_table, "query", Some(&node.child_index));
                 }
                 self.authorization_inputs.insert("parentVisibility");
+            }
+            HandlerPlan::SnapshotBatchV2(plan) => {
+                // @ref LLP 0157#sbsb2-plaintext-and-budget — each class keeps
+                // its owner dependency set; relational nodes add both source
+                // indexes and never invent a parent point-read.
+                let mut has_bounded_parent = false;
+                for node in &plan.nodes {
+                    match node {
+                        SnapshotBatchNodeV2::BoundedChildren(node) => {
+                            has_bounded_parent = true;
+                            self.read(&node.parent_table, "point", None);
+                            self.read(&node.child_table, "query", Some(&node.child_index));
+                        }
+                        SnapshotBatchNodeV2::RelationalQuery(node) => {
+                            self.read(&node.root, "query", Some(&node.root_index));
+                            self.read(&node.joined, "query", Some(&node.joined_index));
+                            self.filters(&node.root_filters);
+                            self.filters(&node.root_visibility);
+                            self.filters(&node.joined_visibility);
+                        }
+                    }
+                }
+                if has_bounded_parent {
+                    self.authorization_inputs.insert("parentVisibility");
+                }
             }
             HandlerPlan::Mutation(plan) => {
                 for step in &plan.steps {
@@ -4724,6 +4812,63 @@ pub fn validate_snapshot_batch_plan_shape(plan: &SnapshotBatchPlanV1) -> Snapbac
     Ok(())
 }
 
+/// Structural admission for `snapshot-batch.v2`'s closed mixed-node tuple.
+///
+/// @ref LLP 0157#d1--the-node-algebra — v2 admits exactly two through eight
+///   owner-valid bounded-child or relational nodes, requires at least one
+///   relational node, and caps the summed `take` at 1,024.
+pub fn validate_snapshot_batch_v2_plan_shape(plan: &SnapshotBatchPlanV2) -> SnapbackResult<()> {
+    let invalid = |message: String| {
+        SnapbackError::error("SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID", "query", message)
+    };
+    if plan.profile != "snapshot-batch.v2" || !(2..=8).contains(&plan.nodes.len()) {
+        return Err(invalid(
+            "snapshot batch v2 requires profile snapshot-batch.v2 and two through eight nodes"
+                .to_owned(),
+        ));
+    }
+    let mut total_take = 0_u32;
+    let mut relational = false;
+    for node in &plan.nodes {
+        let admitted = match node {
+            SnapshotBatchNodeV2::BoundedChildren(plan) => {
+                validate_bounded_children_plan_shape(plan)
+            }
+            SnapshotBatchNodeV2::RelationalQuery(plan) => {
+                relational = true;
+                validate_relational_query_plan_shape(plan)
+            }
+        };
+        admitted.map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_SNAPSHOT_BATCH_NODE_INELIGIBLE",
+                "query",
+                "snapshot batch v2 nodes must be complete bounded_children_v1 or relational_query_v1 plans",
+            )
+        })?;
+        total_take = total_take.checked_add(node.take()).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_SNAPSHOT_BATCH_CEILING_EXCEEDED",
+                "query",
+                "snapshot batch v2 node take sum overflowed the closed ceiling",
+            )
+        })?;
+    }
+    if !relational {
+        return Err(invalid(
+            "snapshot batch v2 requires at least one relational_query_v1 node".to_owned(),
+        ));
+    }
+    if total_take > 1_024 {
+        return Err(SnapbackError::error(
+            "SNAPBACK_SNAPSHOT_BATCH_CEILING_EXCEEDED",
+            "query",
+            "snapshot batch v2 node take sum exceeds 1,024",
+        ));
+    }
+    Ok(())
+}
+
 /// One internally derived structural parent-authorization identity. The dated
 /// LLP 0135 implementation record maps it to the exact closed
 /// `ParentAuthorizationKeyV1` JCS carrier used in plan and cursor identity.
@@ -4753,6 +4898,19 @@ pub struct SnapshotBatchIdentityV1 {
     pub normalized_composite_plan: Value,
     pub plan_hash: String,
     pub node_plan_hashes: Vec<String>,
+    pub parent_authorization_key_jcs: Vec<String>,
+    pub parent_authorization_key_digests: Vec<String>,
+}
+
+/// Host-recomputed LLP 0157 identity inputs used by `sbsb2` admission.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SnapshotBatchIdentityV2 {
+    pub normalized_composite_plan: Value,
+    pub plan_hash: String,
+    pub node_plan_hashes: Vec<String>,
+    pub node_examined_entry_ceilings: Vec<usize>,
+    pub node_joined_lookup_ceilings: Vec<usize>,
+    pub parent_authorization_group_count: usize,
     pub parent_authorization_key_jcs: Vec<String>,
     pub parent_authorization_key_digests: Vec<String>,
 }
@@ -4887,12 +5045,12 @@ pub fn single_node_identity_v1(
             FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => (
                 "relational_query_v1",
                 serde_json::to_value(plan).map_err(|_| {
-                SnapbackError::error(
-                    "SNAPBACK_COMPOSITION_PLAN_INVALID",
-                    "query",
-                    "relational plan does not serialize",
-                )
-            })?,
+                    SnapbackError::error(
+                        "SNAPBACK_COMPOSITION_PLAN_INVALID",
+                        "query",
+                        "relational plan does not serialize",
+                    )
+                })?,
                 function.effective_retention_class(),
                 "live_replace",
                 "table-granular-resnapshot",
@@ -4900,11 +5058,11 @@ pub fn single_node_identity_v1(
             ),
             FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)) => (
                 "bounded_children_v1",
-            serde_json::to_value(plan).map_err(|_| {
-                SnapbackError::error(
-                    "SNAPBACK_COMPOSITION_PLAN_INVALID",
-                    "query",
-                    "bounded-children plan does not serialize",
+                serde_json::to_value(plan).map_err(|_| {
+                    SnapbackError::error(
+                        "SNAPBACK_COMPOSITION_PLAN_INVALID",
+                        "query",
+                        "bounded-children plan does not serialize",
                     )
                 })?,
                 "none",
@@ -5191,6 +5349,397 @@ pub fn snapshot_batch_identity_v1(
     })
 }
 
+fn collect_snapshot_batch_v2_argument_uses(
+    value: &ValueExpr,
+    names: &mut BTreeSet<String>,
+    uses_all: &mut bool,
+) -> SnapbackResult<()> {
+    match value {
+        ValueExpr::Arg(path) => {
+            let name = path
+                .split('.')
+                .next()
+                .filter(|name| !name.is_empty())
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+                        "query",
+                        "snapshot batch v2 relational argument path must name a top-level binding",
+                    )
+                })?;
+            names.insert(name.to_owned());
+        }
+        ValueExpr::Args => *uses_all = true,
+        ValueExpr::Field { base, .. } => {
+            collect_snapshot_batch_v2_argument_uses(base, names, uses_all)?;
+        }
+        ValueExpr::Binary { left, right, .. } => {
+            collect_snapshot_batch_v2_argument_uses(left, names, uses_all)?;
+            collect_snapshot_batch_v2_argument_uses(right, names, uses_all)?;
+        }
+        ValueExpr::Unary { expr, .. } => {
+            collect_snapshot_batch_v2_argument_uses(expr, names, uses_all)?;
+        }
+        ValueExpr::If { cond, then, r#else } => {
+            collect_snapshot_batch_v2_argument_uses(cond, names, uses_all)?;
+            collect_snapshot_batch_v2_argument_uses(then, names, uses_all)?;
+            collect_snapshot_batch_v2_argument_uses(r#else, names, uses_all)?;
+        }
+        ValueExpr::Concat(values) | ValueExpr::Call { args: values, .. } => {
+            for value in values {
+                collect_snapshot_batch_v2_argument_uses(value, names, uses_all)?;
+            }
+        }
+        ValueExpr::Record { fields } => {
+            for value in fields.values() {
+                collect_snapshot_batch_v2_argument_uses(value, names, uses_all)?;
+            }
+        }
+        ValueExpr::AuthUserId
+        | ValueExpr::AuthKind
+        | ValueExpr::AuthActorKind
+        | ValueExpr::AuthActivityActorKind
+        | ValueExpr::AuthActorUserId
+        | ValueExpr::AuthGrantId
+        | ValueExpr::ClientMutationDigest
+        | ValueExpr::AuthIsDelegated
+        | ValueExpr::RuntimeId
+        | ValueExpr::RuntimeNow
+        | ValueExpr::Binding(_)
+        | ValueExpr::Literal(_)
+        | ValueExpr::MembershipExists(_) => {}
+    }
+    Ok(())
+}
+
+fn snapshot_batch_v2_node_argument_names(
+    function: &FunctionDefinition,
+    node: &SnapshotBatchNodeV2,
+) -> SnapbackResult<Vec<String>> {
+    let contract = function.args_contract.as_ref().ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+            "query",
+            "snapshot batch v2 requires a closed typed argument contract",
+        )
+    })?;
+    let mut names = BTreeSet::new();
+    let mut uses_all = false;
+    match node {
+        SnapshotBatchNodeV2::BoundedChildren(plan) => {
+            names.insert(plan.parent_id_arg.clone());
+        }
+        SnapshotBatchNodeV2::RelationalQuery(plan) => {
+            for filter in plan
+                .root_filters
+                .iter()
+                .chain(&plan.root_visibility)
+                .chain(&plan.joined_visibility)
+            {
+                collect_snapshot_batch_v2_argument_uses(&filter.value, &mut names, &mut uses_all)?;
+            }
+        }
+    }
+    if uses_all {
+        names.extend(
+            contract
+                .fields
+                .iter()
+                .filter(|field| field.name != "cursor")
+                .map(|field| field.name.clone()),
+        );
+    }
+    for name in &names {
+        if name == "cursor" || !contract.fields.iter().any(|field| field.name == *name) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+                "query",
+                format!("snapshot batch v2 node references undeclared argument {name}"),
+            ));
+        }
+    }
+    // Owner declaration order is the function contract order, never set order
+    // or traversal order through an expression tree.
+    Ok(contract
+        .fields
+        .iter()
+        .filter(|field| names.contains(&field.name))
+        .map(|field| field.name.clone())
+        .collect())
+}
+
+/// Validate and derive v2's parent groups. Relational nodes deliberately
+/// contribute no parent key and an all-relational tuple therefore returns the
+/// canonical empty group list.
+pub fn snapshot_batch_v2_parent_authorization_groups(
+    function: &FunctionDefinition,
+    plan: &SnapshotBatchPlanV2,
+) -> SnapbackResult<Vec<SnapshotBatchParentAuthorizationGroupV1>> {
+    let contract = function.args_contract.as_ref().ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+            "query",
+            "snapshot batch v2 requires a closed typed argument contract",
+        )
+    })?;
+    let mut group_positions = BTreeMap::<SnapshotBatchParentAuthorizationIdentityV1, usize>::new();
+    let mut groups: Vec<SnapshotBatchParentAuthorizationGroupV1> = Vec::new();
+    for (node_index, node) in plan.nodes.iter().enumerate() {
+        let SnapshotBatchNodeV2::BoundedChildren(node) = node else {
+            continue;
+        };
+        let argument = contract
+            .fields
+            .iter()
+            .find(|field| field.name == node.parent_id_arg)
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+                    "query",
+                    format!(
+                        "snapshot batch v2 node {node_index} names undeclared parent argument {}",
+                        node.parent_id_arg
+                    ),
+                )
+            })?;
+        if !argument.required
+            || argument.value
+                != (ResultValueContract::Id {
+                    table: node.parent_table.clone(),
+                })
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+                "query",
+                format!(
+                    "snapshot batch v2 node {node_index} parent argument {} must be a required id<{}>",
+                    node.parent_id_arg, node.parent_table
+                ),
+            ));
+        }
+        let identity = SnapshotBatchParentAuthorizationIdentityV1 {
+            parent_table: node.parent_table.clone(),
+            parent_id_argument: node.parent_id_arg.clone(),
+            parent_id_table: node.parent_table.clone(),
+            visibility: node.parent_visibility.clone(),
+        };
+        if let Some(group_index) = group_positions.get(&identity).copied() {
+            groups[group_index].node_indices.push(node_index);
+        } else {
+            group_positions.insert(identity.clone(), groups.len());
+            groups.push(SnapshotBatchParentAuthorizationGroupV1 {
+                identity,
+                node_indices: vec![node_index],
+            });
+        }
+    }
+    Ok(groups)
+}
+
+fn validate_snapshot_batch_v2_argument_bindings(
+    function: &FunctionDefinition,
+    plan: &SnapshotBatchPlanV2,
+) -> SnapbackResult<()> {
+    snapshot_batch_v2_parent_authorization_groups(function, plan)?;
+    let contract = function
+        .args_contract
+        .as_ref()
+        .expect("v2 group derivation requires the argument contract");
+    let mut expected = BTreeSet::<String>::new();
+    for node in &plan.nodes {
+        expected.extend(snapshot_batch_v2_node_argument_names(function, node)?);
+    }
+    expected.insert("cursor".to_owned());
+    let actual = contract
+        .fields
+        .iter()
+        .map(|field| field.name.clone())
+        .collect::<BTreeSet<_>>();
+    let cursor = contract.fields.iter().find(|field| field.name == "cursor");
+    if actual != expected
+        || !cursor.is_some_and(|field| {
+            !field.required && field.value == ResultValueContract::String { max_bytes: 8_192 }
+        })
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+            "query",
+            "snapshot batch v2 arguments must be exactly the merged node bindings plus optional cursor:string(maxBytes=8192)",
+        ));
+    }
+    Ok(())
+}
+
+/// Rebuild the exact v2 node/composite identity without inferring node class,
+/// parent grouping, liveness, or argument closure from serialized shape.
+///
+/// @ref LLP 0157#d2--plan-identity — v2 reuses the v1 identity stack with
+///   profileId `snapshot-batch.v2`; only bounded-child positions enter parent
+///   groups and every node binds its owner-declared arguments in order.
+pub fn snapshot_batch_identity_v2(
+    function: &FunctionDefinition,
+    plan: &SnapshotBatchPlanV2,
+) -> SnapbackResult<SnapshotBatchIdentityV2> {
+    validate_snapshot_batch_v2_argument_bindings(function, plan)?;
+    let contract = function
+        .args_contract
+        .as_ref()
+        .expect("v2 argument admission requires the contract");
+    let groups = snapshot_batch_v2_parent_authorization_groups(function, plan)?;
+    let mut node_records = Vec::with_capacity(plan.nodes.len());
+    let mut node_hashes = Vec::with_capacity(plan.nodes.len());
+    let mut merged = Vec::<Value>::new();
+    let mut merged_positions = BTreeMap::<String, usize>::new();
+
+    for (position, node) in plan.nodes.iter().enumerate() {
+        let mut bindings = Vec::new();
+        for name in snapshot_batch_v2_node_argument_names(function, node)? {
+            let field = contract
+                .fields
+                .iter()
+                .find(|field| field.name == name)
+                .expect("v2 argument closure checked names");
+            let binding_contract = serde_json::json!({
+                "format": "snapback.argument-binding-contract.v1",
+                "required": field.required,
+                "value": field.value,
+            });
+            let contract_hash =
+                domain_hash(b"snapback:argument-binding-contract:v1:", &binding_contract)?;
+            let binding = serde_json::json!({
+                "name": field.name,
+                "contract": binding_contract,
+                "contractHash": contract_hash,
+            });
+            if let Some(index) = merged_positions.get(&field.name).copied() {
+                let entry = merged[index]
+                    .as_object_mut()
+                    .expect("host-created v2 merged binding object");
+                let same = entry.get("contract") == binding.get("contract")
+                    && entry.get("contractHash") == binding.get("contractHash");
+                if !same {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+                        "query",
+                        "one merged snapshot batch v2 argument has incompatible node contracts",
+                    ));
+                }
+                entry
+                    .get_mut("sourcePositions")
+                    .and_then(Value::as_array_mut)
+                    .expect("host-created v2 sourcePositions")
+                    .push(Value::from(position));
+            } else {
+                merged_positions.insert(field.name.clone(), merged.len());
+                merged.push(serde_json::json!({
+                    "name": field.name,
+                    "contract": binding.get("contract").cloned().expect("binding contract"),
+                    "contractHash": binding.get("contractHash").cloned().expect("binding hash"),
+                    "sourcePositions": [position],
+                }));
+            }
+            bindings.push(binding);
+        }
+        let class_id = node.class_id();
+        let node_record = serde_json::json!({
+            "format": "snapback.node-plan.v1",
+            "classId": class_id,
+            "classVersion": 1,
+            "normalizedPlan": node.normalized_plan()?,
+            "argumentBindings": bindings,
+            "capability": {
+                "exportKind": "internal",
+                "live": {"kind": "none"},
+                "retention": "none",
+                "requiredCapabilityIds": [class_id],
+            },
+        });
+        let node_hash = domain_hash(b"snapback:node-plan:v1:", &node_record)?;
+        node_records.push(serde_json::json!({
+            "position": position,
+            "nodePlan": node_record,
+            "nodePlanHash": node_hash,
+        }));
+        node_hashes.push(node_hash);
+    }
+
+    let merged_record = serde_json::json!({
+        "format": "snapback.merged-args-contract.v1",
+        "bindings": merged,
+    });
+    let merged_hash = domain_hash(b"snapback:merged-args-contract:v1:", &merged_record)?;
+
+    let mut key_jcs = Vec::with_capacity(groups.len());
+    let mut key_digests = Vec::with_capacity(groups.len());
+    let mut normalized_groups = Vec::with_capacity(groups.len());
+    for group in groups {
+        let key = serde_json::json!({
+            "format": "snapback.parent-authorization-key.v1",
+            "parentTable": group.identity.parent_table,
+            "parentIdArgument": group.identity.parent_id_argument,
+            "parentIdType": {"kind": "id", "table": group.identity.parent_id_table},
+            "visibility": match group.identity.visibility {
+                BoundedParentVisibility::PublicRead => serde_json::json!({
+                    "kind": "public-read",
+                }),
+                BoundedParentVisibility::Owner { field } => serde_json::json!({
+                    "kind": "owner.v1",
+                    "field": field,
+                }),
+            },
+        });
+        let canonical = crate::rqs::jcs(&key).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+                "query",
+                "snapshot batch v2 parent authorization key is not canonicalizable",
+            )
+        })?;
+        let digest = domain_hash(b"snapback:parent-authorization-key:v1:", &key)?;
+        normalized_groups.push(serde_json::json!({
+            "members": group.node_indices,
+            "keyJcsBase64url": URL_SAFE_NO_PAD.encode(canonical.as_bytes()),
+        }));
+        key_jcs.push(canonical);
+        key_digests.push(digest);
+    }
+    let normalized = serde_json::json!({
+        "format": "snapback.normalized-composite-plan.v1",
+        "profileId": "snapshot-batch.v2",
+        "nodes": node_records,
+        "mergedArgsContractHash": merged_hash,
+        "classification": {
+            "callable": true,
+            "live": {
+                "kind": "admitted",
+                "delivery": "live_replace",
+                "pageDomain": "cursor-free-first-page",
+            },
+            "invalidation": "table-granular-resnapshot",
+            "retention": "none",
+        },
+        "parentAuthorizationGroups": normalized_groups,
+    });
+    Ok(SnapshotBatchIdentityV2 {
+        normalized_composite_plan: normalized.clone(),
+        plan_hash: domain_hash(b"snapback:plan-hash:v1:", &normalized)?,
+        node_plan_hashes: node_hashes,
+        node_examined_entry_ceilings: plan
+            .nodes
+            .iter()
+            .map(SnapshotBatchNodeV2::examined_entry_ceiling)
+            .collect(),
+        node_joined_lookup_ceilings: plan
+            .nodes
+            .iter()
+            .map(SnapshotBatchNodeV2::joined_lookup_ceiling)
+            .collect(),
+        parent_authorization_group_count: key_digests.len(),
+        parent_authorization_key_jcs: key_jcs,
+        parent_authorization_key_digests: key_digests,
+    })
+}
+
 /// Validate and derive the merged argument identities and parent-auth groups.
 /// A bounded-child parent binding must name a required `id<parentTable>` field
 /// in the function's existing LLP 0131 argument contract. Reusing one argument
@@ -5299,9 +5848,32 @@ fn validate_snapshot_batch_outer_result_contract(
     function: &FunctionDefinition,
     plan: &SnapshotBatchPlanV1,
 ) -> SnapbackResult<()> {
+    validate_snapshot_batch_outer_result_contract_len(
+        function,
+        plan.nodes.len(),
+        "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+    )
+}
+
+fn validate_snapshot_batch_v2_outer_result_contract(
+    function: &FunctionDefinition,
+    plan: &SnapshotBatchPlanV2,
+) -> SnapbackResult<()> {
+    validate_snapshot_batch_outer_result_contract_len(
+        function,
+        plan.nodes.len(),
+        "SNAPBACK_SNAPSHOT_BATCH_RESULT_CONTRACT_INVALID",
+    )
+}
+
+fn validate_snapshot_batch_outer_result_contract_len(
+    function: &FunctionDefinition,
+    node_count: usize,
+    diagnostic_code: &'static str,
+) -> SnapbackResult<()> {
     let invalid = || {
         SnapbackError::error(
-            "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+            diagnostic_code,
             "query",
             "snapshot batch requires the exact one-row sealed outer result envelope",
         )
@@ -5365,7 +5937,7 @@ fn validate_snapshot_batch_outer_result_contract(
     let ResultValueContract::Tuple { elements } = &visible[1].value else {
         return Err(invalid());
     };
-    if elements.len() != plan.nodes.len() {
+    if elements.len() != node_count {
         return Err(invalid());
     }
     Ok(())
@@ -6570,6 +7142,86 @@ pub struct SnapshotBatchPlanV1 {
     pub plan_hash: String,
 }
 
+/// One class-explicit node in `snapshot-batch.v2`. The adjacent tag keeps
+/// class membership host-visible while leaving `plan` as the owner's exact
+/// normalized record for LLP 0157 node identity.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(tag = "classId", content = "plan", deny_unknown_fields)]
+pub enum SnapshotBatchNodeV2 {
+    #[serde(rename = "bounded_children_v1")]
+    BoundedChildren(BoundedChildrenQueryPlan),
+    #[serde(rename = "relational_query_v1")]
+    RelationalQuery(RelationalQueryPlan),
+}
+
+impl SnapshotBatchNodeV2 {
+    pub fn class_id(&self) -> &'static str {
+        match self {
+            Self::BoundedChildren(_) => "bounded_children_v1",
+            Self::RelationalQuery(_) => "relational_query_v1",
+        }
+    }
+
+    pub fn take(&self) -> u32 {
+        match self {
+            Self::BoundedChildren(plan) => plan.take,
+            Self::RelationalQuery(plan) => plan.take,
+        }
+    }
+
+    /// Per-node examined index-entry ceiling carried into plan identity by
+    /// the owner-normalized `take`; parent point reads remain a separate group
+    /// count and relational joined lookups remain a separate executor axis.
+    ///
+    /// @ref LLP 0157#sbsb2-plaintext-and-budget — bounded children use
+    ///   `take + 1` except at zero; relational roots use exactly `take`.
+    pub fn examined_entry_ceiling(&self) -> usize {
+        match self {
+            Self::BoundedChildren(plan) => {
+                if plan.take == 0 {
+                    0
+                } else {
+                    plan.take as usize + 1
+                }
+            }
+            Self::RelationalQuery(plan) => plan.take as usize,
+        }
+    }
+
+    pub fn joined_lookup_ceiling(&self) -> usize {
+        match self {
+            Self::BoundedChildren(_) => 0,
+            Self::RelationalQuery(plan) => plan.take as usize,
+        }
+    }
+
+    pub fn normalized_plan(&self) -> SnapbackResult<Value> {
+        match self {
+            Self::BoundedChildren(plan) => serde_json::to_value(plan),
+            Self::RelationalQuery(plan) => serde_json::to_value(plan),
+        }
+        .map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+                "query",
+                "snapshot batch v2 node does not serialize",
+            )
+        })
+    }
+}
+
+/// The class-tagged mixed-node carrier for LLP 0157 `snapshot-batch.v2`.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SnapshotBatchPlanV2 {
+    pub profile: String,
+    pub nodes: Vec<SnapshotBatchNodeV2>,
+    #[serde(rename = "normalizedCompositePlan")]
+    pub normalized_composite_plan: Value,
+    #[serde(rename = "planHash")]
+    pub plan_hash: String,
+}
+
 #[derive(
     Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
 )]
@@ -6946,6 +7598,7 @@ pub enum PublicHostPlanKind {
     RelationalQuery,
     BoundedChildrenQuery,
     SnapshotBatch,
+    SnapshotBatchV2,
     WriteWithActivity,
 }
 
@@ -7153,6 +7806,7 @@ impl From<FunctionRuntime> for PublicFunctionRuntime {
                 HandlerPlan::RelationalQuery(_) => PublicHostPlanKind::RelationalQuery,
                 HandlerPlan::BoundedChildrenQuery(_) => PublicHostPlanKind::BoundedChildrenQuery,
                 HandlerPlan::SnapshotBatch(_) => PublicHostPlanKind::SnapshotBatch,
+                HandlerPlan::SnapshotBatchV2(_) => PublicHostPlanKind::SnapshotBatchV2,
                 HandlerPlan::WriteWithActivity(_) => PublicHostPlanKind::WriteWithActivity,
             }),
             // `source: _` is the redaction this projection exists for.
@@ -7205,6 +7859,9 @@ pub enum HandlerPlan {
     /// analysis exist, but whole-manifest load remains fail-closed until the
     /// exact tuple result contract is owner-pinned; no executor is registered.
     SnapshotBatch(SnapshotBatchPlanV1),
+    /// Class-tagged bounded-child/relational tuple using one `sbsb2`
+    /// continuation and LLP 0157's unchanged two-arm outer envelope.
+    SnapshotBatchV2(SnapshotBatchPlanV2),
     /// Closed source/scope/activity transaction.
     WriteWithActivity(WriteWithActivityPlan),
 }
@@ -7598,9 +8255,9 @@ impl<'de> Deserialize<'de> for SingleTablePlanV1 {
             && raw.query.membership_filters.is_empty()
             && raw.query.limit.is_none_or(|limit| limit <= QUERY_MAX_LIMIT)
             && raw.query.order.iter().all(|order| {
-                order.max_encoded_bytes.is_none_or(|bound| {
-                    (1..=9_007_199_254_740_991).contains(&bound)
-                })
+                order
+                    .max_encoded_bytes
+                    .is_none_or(|bound| (1..=9_007_199_254_740_991).contains(&bound))
             })
             && raw
                 .query
@@ -7717,13 +8374,13 @@ pub enum FilterOp {
 pub struct OrderExpr {
     pub field: String,
     pub direction: OrderDirection,
-    /// Optional UTF-8 ceiling for a string order field. The loader reconciles
-    /// every occurrence to one value per `(table, field)` before storage
-    /// installs it as a central-writer constraint.
+    /// Optional UTF-8 ceiling for a string or application-id order field. The
+    /// loader reconciles every occurrence to one value per `(table, field)`
+    /// before storage installs it as a central-writer constraint.
     ///
-    /// @ref LLP 0135#4-fold-on-acceptance-amendments-applied-2026-08-02 — the
-    ///   bound is schema-level even though authoring declares it at an order
-    ///   use; conflicting declarations and oversized writes fail closed.
+    /// @ref LLP 0157#d8--coordinated-cursor-family-grammar-and-the-llp-0135-seam —
+    ///   the snapshot-batch family applies the same schema-level,
+    ///   write-enforced bound to string and application-id order values.
     #[serde(
         default,
         rename = "maxEncodedBytes",
@@ -8495,6 +9152,15 @@ pub struct MutationRequest {
         pattern(REPLAY_OPAQUE_ID_PATTERN)
     )]
     pub client_mutation_id: Option<String>,
+    /// Authenticated finite-range allocation for this exact operation id.
+    /// This extends `clientMutationId`; it is not a second retry identity.
+    #[serde(
+        default,
+        rename = "operationIssuance",
+        alias = "operation_issuance",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub operation_issuance: Option<crate::commit_envelope::OperationIssuanceV1>,
     /// Required whenever `clientMutationId` is present after authority
     /// descriptor protocol v1 is negotiated. It is intentionally outside the
     /// flattened HandlerInput/ctx ledger so client-supplied replay answers can
@@ -8978,6 +9644,11 @@ pub enum TargetCapabilityId {
     SequenceAllocationV1,
     #[serde(rename = "snapshot_batch_v1")]
     SnapshotBatchV1,
+    /// LLP 0157's mixed bounded-child/relational composite. Registration is
+    /// experimental and local-only; hosted, remote, and Cloudflare targets
+    /// retain explicit gaps until their own executors and evidence land.
+    #[serde(rename = "snapshot_batch_v2")]
+    SnapshotBatchV2,
     #[serde(rename = "single_table_v1")]
     SingleTableV1,
     #[serde(rename = "migration_keyset_scan_v1")]
@@ -9017,10 +9688,19 @@ pub enum TargetCapabilityId {
     AssetReferenceGcV1,
     #[serde(rename = "asset_video_finalization_v1")]
     AssetVideoFinalizationV1,
+    /// Registry identity for the LLP 0162 `agentSafe.v1` extension/component
+    /// fact vocabulary. It does not name the `AgentSafeV1` core aggregate and
+    /// registration does not imply that any target has passed the corpus.
+    #[serde(rename = "agent_safe_storage_v1")]
+    AgentSafeStorageV1,
+    /// Additive LLP 0158 derived-deployment fork tuple. This identity remains
+    /// independent from both the storage extension and in-app branch facts.
+    #[serde(rename = "agent_safe_derived_deployment_fork_v1")]
+    AgentSafeDerivedDeploymentForkV1,
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 34] = [
+    pub const ALL: [Self; 37] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -9039,6 +9719,7 @@ impl TargetCapabilityId {
         Self::RelationalQueryV1,
         Self::SequenceAllocationV1,
         Self::SnapshotBatchV1,
+        Self::SnapshotBatchV2,
         Self::SingleTableV1,
         Self::MigrationKeysetScanV1,
         Self::FullTextSearchV1,
@@ -9055,6 +9736,8 @@ impl TargetCapabilityId {
         Self::AssetImagePipelineV1,
         Self::AssetReferenceGcV1,
         Self::AssetVideoFinalizationV1,
+        Self::AgentSafeStorageV1,
+        Self::AgentSafeDerivedDeploymentForkV1,
     ];
 
     pub const fn as_str(self) -> &'static str {
@@ -9077,6 +9760,7 @@ impl TargetCapabilityId {
             Self::RelationalQueryV1 => "relational_query_v1",
             Self::SequenceAllocationV1 => "sequence_allocation_v1",
             Self::SnapshotBatchV1 => "snapshot_batch_v1",
+            Self::SnapshotBatchV2 => "snapshot_batch_v2",
             Self::SingleTableV1 => "single_table_v1",
             Self::MigrationKeysetScanV1 => "migration_keyset_scan_v1",
             Self::FullTextSearchV1 => "full_text_search_v1",
@@ -9093,6 +9777,8 @@ impl TargetCapabilityId {
             Self::AssetVideoFinalizationV1 => "asset_video_finalization_v1",
             Self::AssetImagePipelineV1 => "asset_image_pipeline_v1",
             Self::AssetReferenceGcV1 => "asset_reference_gc_v1",
+            Self::AgentSafeStorageV1 => "agent_safe_storage_v1",
+            Self::AgentSafeDerivedDeploymentForkV1 => "agent_safe_derived_deployment_fork_v1",
         }
     }
 
@@ -9131,6 +9817,7 @@ impl TargetCapabilityId {
             | Self::RegisteredBundleBootV1
             | Self::SequenceAllocationV1
             | Self::SnapshotBatchV1
+            | Self::SnapshotBatchV2
             | Self::SingleTableV1
             | Self::LiveFullTextSearchV1
             | Self::VectorSearchV1
@@ -9143,7 +9830,9 @@ impl TargetCapabilityId {
             | Self::AssetImageFinalizationV1
             | Self::AssetVideoFinalizationV1
             | Self::AssetImagePipelineV1
-            | Self::AssetReferenceGcV1 => CapabilityMaturity::Experimental,
+            | Self::AssetReferenceGcV1
+            | Self::AgentSafeStorageV1
+            | Self::AgentSafeDerivedDeploymentForkV1 => CapabilityMaturity::Experimental,
             Self::AuthSessionsV1
             | Self::BoundedResponseStreamV1
             | Self::Cron
@@ -9321,6 +10010,16 @@ impl TargetCapabilityId {
                     && Self::LiveSubscriptions.is_supported_by(manifest, facts)
                     && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
             }
+            // @ref LLP 0157#d1--the-node-algebra — v2 support is a distinct,
+            // experimental local executor fact conjoined with the stable
+            // relational and live dependencies. Bounded-child tuples carry
+            // their own additional required capability at artifact admission.
+            Self::SnapshotBatchV2 => {
+                facts.snapshot_batch_v2_registered
+                    && Self::RelationalQueryV1.is_supported_by(manifest, facts)
+                    && Self::LiveSubscriptions.is_supported_by(manifest, facts)
+                    && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
+            }
             // @ref LLP 0110#local-persistent-store-publication-authority-amendment--2026-08-04
             // — the host-derived class is supportable only on the exact
             // contributor-source target whose embedded carrier binds the
@@ -9457,6 +10156,18 @@ impl TargetCapabilityId {
                         .as_ref()
                         .is_some_and(|assets| assets.reference_gc.is_some())
             }
+            // @ref LLP 0162#8-capability-honesty — these two component facts
+            // have independent source-owned carriers. Neither implies the
+            // other or any aggregate, and only the exact local profile may
+            // consume them.
+            Self::AgentSafeStorageV1 => {
+                facts.local_agent_safe_storage_publication_v1_verified
+                    && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
+            }
+            Self::AgentSafeDerivedDeploymentForkV1 => {
+                facts.local_agent_safe_derived_fork_publication_v1_verified
+                    && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
+            }
         }
     }
 }
@@ -9517,27 +10228,26 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:1408dc59ddbd13c1efbacf49b482417c87be22d9d81c98987b5b0d1d0490fe3d";
+    "sha256:28c653aa79e6474f72f4f5c479e591334299b9290e80f1531b596cf6844bd602";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:1f20457232f41176429197ae5ee522256b705e2f7a7b59a6e60a1d175cafbb95";
+    "sha256:4d2163706b672926f628903e1765cb4f64801ed13e4eef22cf9bb241080c394b";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-persistent-store-publication.v1.json");
-const LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256: &str =
-    "sha256:701a8337c30635826ea3b119f71bb3f04d4403dcae0c47cee0cb363148afc16f";
+const LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES: &[u8] =
+    include_bytes!("local-persistent-store-publication.anchor.v1.json");
 const LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES: &[u8] = include_bytes!(
-    "../tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json"
+    "../tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json"
 );
 const LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES: &[u8] =
-    include_bytes!("../tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json");
-const LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES: &[u8] = include_bytes!(
-    "../tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json"
-);
+    include_bytes!("../tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json");
+const LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES: &[u8] =
+    include_bytes!("../tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json");
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -9610,8 +10320,279 @@ struct LocalPersistentStorePublicationV1 {
     build_provenance_requirement: String,
 }
 
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+struct LocalPersistentStorePublicationAnchorV1 {
+    #[serde(rename = "schemaVersion")]
+    schema_version: String,
+    #[serde(rename = "capabilityId")]
+    capability_id: String,
+    state: String,
+    #[serde(rename = "carrierSha256")]
+    carrier_sha256: String,
+}
+
+pub(crate) const PACKAGED_STORE_QUALIFICATION_SCHEMA_VERSION: &str =
+    "snapback.packaged-store-qualification.v1";
+pub(crate) const PACKAGED_STORE_QUALIFICATION_SUITE_ID: &str =
+    "packaged-store-qualification-v1";
+const PACKAGED_STORE_QUALIFICATION_RECEIPT_ENV: &str =
+    "SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT";
+const PACKAGED_STORE_QUALIFICATION_MODE_ENV: &str =
+    "SNAPBACK_PACKAGED_STORE_QUALIFICATION_MODE";
+const PACKAGED_STORE_QUALIFICATION_RECEIPT_MAX_BYTES: u64 = 4 * 1024 * 1024;
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct PackagedStoreClosureEntryV1 {
+    pub(crate) name: String,
+    pub(crate) version: String,
+    pub(crate) sha256: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct PackagedStoreQualificationSuiteV1 {
+    pub(crate) id: String,
+    pub(crate) pass: u64,
+    pub(crate) fail: u64,
+    pub(crate) skipped: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct PackagedStoreBinaryIdentityV1 {
+    pub(crate) crate_version: String,
+    pub(crate) git_commit: String,
+    pub(crate) git_dirty: bool,
+    pub(crate) build_profile: String,
+    pub(crate) build_distribution: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct PackagedStoreQualificationReceiptV1 {
+    pub(crate) schema_version: String,
+    pub(crate) capability_id: String,
+    pub(crate) date: String,
+    pub(crate) binary_identity: PackagedStoreBinaryIdentityV1,
+    pub(crate) embedded_carrier_sha256: String,
+    pub(crate) package_closure: Vec<PackagedStoreClosureEntryV1>,
+    pub(crate) package_closure_sha256: String,
+    pub(crate) suite: PackagedStoreQualificationSuiteV1,
+}
+
 fn sha256_prefixed(bytes: &[u8]) -> String {
     format!("sha256:{:x}", Sha256::digest(bytes))
+}
+
+fn sha256_is_well_formed_nonzero(value: &str) -> bool {
+    value.len() == 71
+        && value.starts_with("sha256:")
+        && value[7..].bytes().all(|byte| byte.is_ascii_hexdigit())
+        && value[7..].bytes().any(|byte| byte != b'0')
+}
+
+fn packaged_store_date_is_well_formed(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.len() != 10
+        || bytes[4] != b'-'
+        || bytes[7] != b'-'
+        || bytes
+            .iter()
+            .enumerate()
+            .any(|(index, byte)| index != 4 && index != 7 && !byte.is_ascii_digit())
+    {
+        return false;
+    }
+    let Ok(year) = value[0..4].parse::<u32>() else {
+        return false;
+    };
+    let Ok(month) = value[5..7].parse::<u32>() else {
+        return false;
+    };
+    let Ok(day) = value[8..10].parse::<u32>() else {
+        return false;
+    };
+    let leap = year.is_multiple_of(4) && (!year.is_multiple_of(100) || year.is_multiple_of(400));
+    let max_day = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap => 29,
+        2 => 28,
+        _ => return false,
+    };
+    (1..=max_day).contains(&day)
+}
+
+fn packaged_store_closure_canonical_text(
+    package_closure: &[PackagedStoreClosureEntryV1],
+) -> Option<String> {
+    if package_closure.is_empty() {
+        return None;
+    }
+    let mut entries = package_closure.iter().collect::<Vec<_>>();
+    entries.sort_by(|left, right| left.name.cmp(&right.name));
+    let mut previous_name: Option<&str> = None;
+    let mut canonical = String::new();
+    for entry in entries {
+        if entry.name.is_empty()
+            || entry.version.is_empty()
+            || entry.name.chars().any(char::is_whitespace)
+            || entry.version.chars().any(char::is_whitespace)
+            || !sha256_is_well_formed_nonzero(&entry.sha256)
+            || previous_name == Some(entry.name.as_str())
+        {
+            return None;
+        }
+        previous_name = Some(&entry.name);
+        canonical.push_str(&entry.name);
+        canonical.push('@');
+        canonical.push_str(&entry.version);
+        canonical.push(' ');
+        canonical.push_str(&entry.sha256);
+        canonical.push('\n');
+    }
+    Some(canonical)
+}
+
+pub(crate) fn packaged_store_closure_sha256(
+    package_closure: &[PackagedStoreClosureEntryV1],
+) -> Option<String> {
+    packaged_store_closure_canonical_text(package_closure)
+        .map(|canonical| sha256_prefixed(canonical.as_bytes()))
+}
+
+pub(crate) fn packaged_store_qualification_suite_is_qualified(
+    suite: &PackagedStoreQualificationSuiteV1,
+) -> bool {
+    suite.id == PACKAGED_STORE_QUALIFICATION_SUITE_ID
+        && suite.pass > 0
+        && suite.fail == 0
+        && suite.skipped == 0
+}
+
+fn packaged_store_identity_facts_are_qualified(
+    crate_version: &str,
+    git_commit: &str,
+    git_dirty: bool,
+    build_profile: &str,
+    build_distribution: &str,
+) -> bool {
+    crate_version == env!("CARGO_PKG_VERSION")
+        && git_commit.len() == 40
+        && git_commit.bytes().all(|byte| byte.is_ascii_hexdigit())
+        && !git_dirty
+        && build_profile == "release"
+        && build_distribution == crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE
+}
+
+pub(crate) fn packaged_store_runtime_identity_is_qualified(
+    identity: &crate::identity::BinaryIdentity,
+    build_distribution: &str,
+) -> bool {
+    packaged_store_identity_facts_are_qualified(
+        &identity.crate_version,
+        &identity.git_commit,
+        identity.git_dirty,
+        &identity.build_profile,
+        build_distribution,
+    )
+}
+
+pub(crate) fn stamp_packaged_store_qualification_receipt(
+    date: &str,
+    identity: &crate::identity::BinaryIdentity,
+    build_distribution: &str,
+    package_closure: Vec<PackagedStoreClosureEntryV1>,
+    suite: PackagedStoreQualificationSuiteV1,
+) -> Option<PackagedStoreQualificationReceiptV1> {
+    if !packaged_store_date_is_well_formed(date)
+        || !packaged_store_runtime_identity_is_qualified(identity, build_distribution)
+        || !packaged_store_qualification_suite_is_qualified(&suite)
+    {
+        return None;
+    }
+    let package_closure_sha256 = packaged_store_closure_sha256(&package_closure)?;
+    Some(PackagedStoreQualificationReceiptV1 {
+        schema_version: PACKAGED_STORE_QUALIFICATION_SCHEMA_VERSION.to_owned(),
+        capability_id: "single_table_v1".to_owned(),
+        date: date.to_owned(),
+        binary_identity: PackagedStoreBinaryIdentityV1 {
+            crate_version: identity.crate_version.clone(),
+            git_commit: identity.git_commit.clone(),
+            git_dirty: identity.git_dirty,
+            build_profile: identity.build_profile.clone(),
+            build_distribution: build_distribution.to_owned(),
+        },
+        embedded_carrier_sha256: sha256_prefixed(LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES),
+        package_closure,
+        package_closure_sha256,
+        suite,
+    })
+}
+
+fn packaged_store_qualification_receipt_is_qualified(
+    receipt_bytes: &[u8],
+    git_commit: &str,
+    git_dirty: bool,
+    build_profile: &str,
+    build_distribution: &str,
+) -> bool {
+    if !packaged_store_identity_facts_are_qualified(
+        env!("CARGO_PKG_VERSION"),
+        git_commit,
+        git_dirty,
+        build_profile,
+        build_distribution,
+    ) {
+        return false;
+    }
+    let Ok(receipt) =
+        serde_json::from_slice::<PackagedStoreQualificationReceiptV1>(receipt_bytes)
+    else {
+        return false;
+    };
+    receipt.schema_version == PACKAGED_STORE_QUALIFICATION_SCHEMA_VERSION
+        && receipt.capability_id == "single_table_v1"
+        && packaged_store_date_is_well_formed(&receipt.date)
+        && receipt.binary_identity.crate_version == env!("CARGO_PKG_VERSION")
+        && receipt.binary_identity.git_commit == git_commit
+        && receipt.binary_identity.git_dirty == git_dirty
+        && receipt.binary_identity.build_profile == build_profile
+        && receipt.binary_identity.build_distribution == build_distribution
+        && receipt.embedded_carrier_sha256
+            == sha256_prefixed(LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES)
+        && packaged_store_closure_sha256(&receipt.package_closure)
+            .is_some_and(|digest| digest == receipt.package_closure_sha256)
+        && packaged_store_qualification_suite_is_qualified(&receipt.suite)
+}
+
+fn packaged_store_qualification_mode_from_value(value: Option<&OsStr>) -> bool {
+    value.is_some_and(|value| !value.is_empty())
+}
+
+fn packaged_store_qualification_mode() -> bool {
+    static MODE: OnceLock<bool> = OnceLock::new();
+    *MODE.get_or_init(|| {
+        let value = std::env::var_os(PACKAGED_STORE_QUALIFICATION_MODE_ENV);
+        packaged_store_qualification_mode_from_value(value.as_deref())
+    })
+}
+
+fn packaged_store_qualification_receipt_bytes() -> Option<&'static [u8]> {
+    static RECEIPT: OnceLock<Option<Vec<u8>>> = OnceLock::new();
+    RECEIPT
+        .get_or_init(|| {
+            let path = std::env::var_os(PACKAGED_STORE_QUALIFICATION_RECEIPT_ENV)?;
+            let metadata = std::fs::metadata(&path).ok()?;
+            if !metadata.is_file() || metadata.len() > PACKAGED_STORE_QUALIFICATION_RECEIPT_MAX_BYTES
+            {
+                return None;
+            }
+            std::fs::read(path).ok()
+        })
+        .as_deref()
 }
 
 /// Validate the private, source-embedded publication carrier before deriving
@@ -9655,19 +10636,19 @@ fn local_relation_activity_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:fad6987719dfb41f1a7f61ed4d822b4b5084076302515827faf11cfc2f322dae"
+                    "sha256:a9878184772249a86ea934c794c2960c1ed9dd21b45aa5c6d211e17b119d62b4"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:046f2a9e2274825b7c85ded21dd6cad9c0d0f67e77dd2105efd2cec5f2d3fd63"
+                    "sha256:975d82019b536561573a6edaffa8fe42521ed8277c9c366a73a1c0d57ccf28ff"
                         .to_owned(),
                 ),
             ])
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:ab810609fa833f5fed96016f6eb9300a7c0d8793b348c3ff076fd443743faecd"
+                "sha256:38dbd612624f11a8a9e8532fd83326638238ccf6dfc0e8432b76c96cbe7bfcce"
                     .to_owned(),
             )])
         && carrier.package_closure_sha256.is_none()
@@ -9718,19 +10699,19 @@ fn local_sequence_allocation_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/runtime.rs".to_owned(),
-                    "sha256:a4e56138992a39a677c971fa6724910c3a736561f5ecf1b16934fb149915b620"
+                    "sha256:ada756140a9088e5676e5fadb6fdddf9be2510158b94ad98b3c8ee7688ee03ef"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:046f2a9e2274825b7c85ded21dd6cad9c0d0f67e77dd2105efd2cec5f2d3fd63"
+                    "sha256:975d82019b536561573a6edaffa8fe42521ed8277c9c366a73a1c0d57ccf28ff"
                         .to_owned(),
                 ),
             ])
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:ab810609fa833f5fed96016f6eb9300a7c0d8793b348c3ff076fd443743faecd"
+                "sha256:38dbd612624f11a8a9e8532fd83326638238ccf6dfc0e8432b76c96cbe7bfcce"
                     .to_owned(),
             )])
         && carrier.client_source_sha256
@@ -9762,26 +10743,76 @@ fn local_sequence_allocation_publication_verified() -> bool {
 
 /// Validate the exact local store/class publication carrier. The carrier
 /// composes the retained carrier-exit receipt with the separately qualified
-/// Triage successor receipts; Fleet remains an explicit, non-supporting OQ5
-/// boundary. Public packages and other targets require their own authority.
+/// Triage successor receipts. The carrier exit in turn digest-binds the
+/// qualified Fleet successor. Public packages require the dated
+/// qualification conjunction; other targets require their own authority.
 ///
 /// @ref LLP 0110#local-persistent-store-publication-authority-amendment--2026-08-04
 /// — support follows the source-owned carrier and exact evidence/source
 /// bindings, never an application-authored capability string.
 /// @ref LLP 0166#local-publication-carrier-amendment--2026-08-04 — Arm A and
 /// connected prove-or-fresh store semantics remain part of the bound class.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the verifier mirrors the closed publication carrier tuple; named axes keep drift reviewable"
+)]
 fn local_persistent_store_publication_verified_for(
     build_distribution: &str,
+    git_commit: &str,
+    git_dirty: bool,
+    build_profile: &str,
+    qualification_receipt_bytes: Option<&[u8]>,
     carrier_bytes: &[u8],
-    expected_carrier_sha256: &str,
+    anchor_bytes: &[u8],
     carrier_exit_receipt_bytes: &[u8],
     triage_move1_receipt_bytes: &[u8],
     triage_budget_receipt_bytes: &[u8],
 ) -> bool {
-    if build_distribution != crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE {
+    if !local_persistent_store_contributor_chain_verified(
+        carrier_bytes,
+        anchor_bytes,
+        carrier_exit_receipt_bytes,
+        triage_move1_receipt_bytes,
+        triage_budget_receipt_bytes,
+    ) {
         return false;
     }
-    if sha256_prefixed(carrier_bytes) != expected_carrier_sha256 {
+    match build_distribution {
+        crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE => true,
+        // @ref LLP 0110#single-table-public-package-advertisement-amendment--2026-08-06
+        // — public-package support is the unchanged contributor carrier chain
+        // plus clean release identity and an exact packaged-closure receipt.
+        crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE => qualification_receipt_bytes
+            .is_some_and(|receipt| {
+                packaged_store_qualification_receipt_is_qualified(
+                    receipt,
+                    git_commit,
+                    git_dirty,
+                    build_profile,
+                    build_distribution,
+                )
+            }),
+        _ => false,
+    }
+}
+
+fn local_persistent_store_contributor_chain_verified(
+    carrier_bytes: &[u8],
+    anchor_bytes: &[u8],
+    carrier_exit_receipt_bytes: &[u8],
+    triage_move1_receipt_bytes: &[u8],
+    triage_budget_receipt_bytes: &[u8],
+) -> bool {
+    let Ok(anchor) =
+        serde_json::from_slice::<LocalPersistentStorePublicationAnchorV1>(anchor_bytes)
+    else {
+        return false;
+    };
+    if anchor.schema_version != "snapback.local-capability-publication-anchor.v1"
+        || anchor.capability_id != "single_table_v1"
+        || anchor.state != "published"
+        || sha256_prefixed(carrier_bytes) != anchor.carrier_sha256
+    {
         return false;
     }
     let Ok(carrier) = serde_json::from_slice::<LocalPersistentStorePublicationV1>(carrier_bytes)
@@ -9812,19 +10843,19 @@ fn local_persistent_store_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:fad6987719dfb41f1a7f61ed4d822b4b5084076302515827faf11cfc2f322dae"
+                    "sha256:a9878184772249a86ea934c794c2960c1ed9dd21b45aa5c6d211e17b119d62b4"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:046f2a9e2274825b7c85ded21dd6cad9c0d0f67e77dd2105efd2cec5f2d3fd63"
+                    "sha256:975d82019b536561573a6edaffa8fe42521ed8277c9c366a73a1c0d57ccf28ff"
                         .to_owned(),
                 ),
             ])
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/index.mjs".to_owned(),
-                "sha256:a8589be96b603a92c74b90a7bbc651717509620e52f20b7abfb35c176dd64792"
+                "sha256:8467070d044813973f656324e179615628e0c9f6f09e02e9c1f4967fea381b76"
                     .to_owned(),
             )])
         && carrier.client_source_sha256
@@ -9841,7 +10872,7 @@ fn local_persistent_store_publication_verified_for(
                 ),
                 (
                     "packages/snapback-client/materialization-store.mjs".to_owned(),
-                    "sha256:e490cd25fba95521c3e0fc2f79d83bbead1f3b33f4e6fa1ab155e4e058c0717e"
+                    "sha256:34ebc65b3632869e39fd9587bd79a36e0a85316c4c660d8f1b12497668652310"
                         .to_owned(),
                 ),
                 (
@@ -9884,11 +10915,11 @@ fn local_persistent_store_receipts_qualified(
     };
     carrier_exit["schemaVersion"] == "snapback.local-persistent-store.carrier-exit.v1"
         && carrier_exit["partial"] == false
-        && carrier_exit["summary"]["pass"].as_u64() == Some(16)
-        && carrier_exit["summary"]["gap"].as_u64() == Some(1)
+        && carrier_exit["summary"]["pass"].as_u64() == Some(17)
+        && carrier_exit["summary"]["gap"].as_u64() == Some(0)
         && carrier_exit["summary"]["skipped"].as_u64() == Some(0)
         && leg_status("footprint-hydration-triage") == Some("PASS")
-        && leg_status("footprint-hydration-fleet") == Some("GAP")
+        && leg_status("footprint-hydration-fleet") == Some("PASS")
         && triage_move1["schemaVersion"] == "snapback.triage-graph.move1-exit.v1"
         && triage_move1["controlledRun"]["status"] == "PASS"
         && triage_move1["summary"]["blocked"].as_u64() == Some(0)
@@ -9902,8 +10933,12 @@ fn local_persistent_store_receipts_qualified(
 fn local_persistent_store_publication_verified() -> bool {
     local_persistent_store_publication_verified_for(
         crate::identity::build_distribution(),
+        "unknown",
+        true,
+        "debug",
+        None,
         LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
-        LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256,
+        LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
         LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
         LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
         LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
@@ -9917,6 +10952,7 @@ fn local_persistent_store_publication_verified() -> bool {
 pub struct TargetCapabilityFacts {
     bounded_children_v1_registered: bool,
     snapshot_batch_v1_registered: bool,
+    snapshot_batch_v2_registered: bool,
     single_table_v1_registered: bool,
     bounded_response_stream_v1_registered: bool,
     relational_query_v1_registered: bool,
@@ -9945,7 +10981,10 @@ pub struct TargetCapabilityFacts {
     write_activity_v1_registered: bool,
     local_relation_activity_publication_v1_verified: bool,
     local_sequence_allocation_publication_v1_verified: bool,
+    local_agent_safe_storage_publication_v1_verified: bool,
+    local_agent_safe_derived_fork_publication_v1_verified: bool,
     local_persistent_store_publication_v1_verified: bool,
+    packaged_store_qualification_mode: bool,
     asset_lifecycle_local_fs_registered: bool,
     asset_image_finalization_registered: bool,
     asset_reference_gc_registered: bool,
@@ -9954,10 +10993,47 @@ pub struct TargetCapabilityFacts {
 
 impl TargetCapabilityFacts {
     fn local_auth_aware() -> Self {
-        Self::local_auth_aware_for_distribution(crate::identity::build_distribution())
+        let build_distribution = crate::identity::build_distribution();
+        let identity = crate::identity::binary_identity();
+        let (qualification_receipt_bytes, qualification_mode) =
+            if build_distribution == crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE {
+                (
+                    packaged_store_qualification_receipt_bytes(),
+                    packaged_store_qualification_mode(),
+                )
+            } else {
+                (None, false)
+            };
+        Self::local_auth_aware_with_packaged_store_evidence(
+            build_distribution,
+            &identity.git_commit,
+            identity.git_dirty,
+            &identity.build_profile,
+            qualification_receipt_bytes,
+            qualification_mode,
+        )
     }
 
+    #[cfg(test)]
     fn local_auth_aware_for_distribution(build_distribution: &str) -> Self {
+        Self::local_auth_aware_with_packaged_store_evidence(
+            build_distribution,
+            "unknown",
+            true,
+            "debug",
+            None,
+            false,
+        )
+    }
+
+    fn local_auth_aware_with_packaged_store_evidence(
+        build_distribution: &str,
+        git_commit: &str,
+        git_dirty: bool,
+        build_profile: &str,
+        qualification_receipt_bytes: Option<&[u8]>,
+        qualification_mode: bool,
+    ) -> Self {
         let local_relation_activity_publication_v1_verified =
             local_relation_activity_publication_verified_for(
                 build_distribution,
@@ -9972,15 +11048,47 @@ impl TargetCapabilityFacts {
                 LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256,
                 LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES,
             );
-        let local_persistent_store_publication_v1_verified =
-            local_persistent_store_publication_verified_for(
+        let local_agent_safe_storage_publication_v1_verified =
+            crate::agent_safe_publication::storage_publication_verified_for_distribution(
                 build_distribution,
+            );
+        let local_agent_safe_derived_fork_publication_v1_verified =
+            crate::agent_safe_publication::derived_fork_publication_verified_for_distribution(
+                build_distribution,
+            );
+        let receipt_verified = local_persistent_store_publication_verified_for(
+            build_distribution,
+            git_commit,
+            git_dirty,
+            build_profile,
+            qualification_receipt_bytes,
+            LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
+            LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
+            LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
+            LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
+            LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
+        );
+        // @ref LLP 0110#single-table-public-package-advertisement-amendment--2026-08-06
+        // — the marked bootstrap exception exists only for an intact public-
+        // package store carrier and cannot widen any other capability gate.
+        let packaged_store_qualification_mode = qualification_mode
+            && build_distribution == crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE
+            && packaged_store_identity_facts_are_qualified(
+                env!("CARGO_PKG_VERSION"),
+                git_commit,
+                git_dirty,
+                build_profile,
+                build_distribution,
+            )
+            && local_persistent_store_contributor_chain_verified(
                 LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
-                LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256,
+                LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
                 LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
                 LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
                 LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
             );
+        let local_persistent_store_publication_v1_verified =
+            receipt_verified || packaged_store_qualification_mode;
         // @ref LLP 0109#166-the-manifest-is-an-executable-advertisement-gate — both local capability ids
         // are advertised only after the closed executable suite passes every
         // mandatory local row; LLP 0109 remains Review, so registry maturity
@@ -9995,6 +11103,10 @@ impl TargetCapabilityFacts {
             //   — exact tuple execution, `sbsb1` custody, and first-page live
             //   replacement are registered together on the local target.
             snapshot_batch_v1_registered: true,
+            // @ref LLP 0157#sbsb2-plaintext-and-budget — the mixed executor,
+            // coordinated cursor family, and fixed first-page live posture
+            // are one local registration; maturity remains experimental.
+            snapshot_batch_v2_registered: true,
             // @ref LLP 0157#d1--the-node-algebra — registration enables
             // only the host-derived, single-node class; the publication
             // carrier below remains the independent support gate.
@@ -10047,7 +11159,10 @@ impl TargetCapabilityFacts {
             write_activity_v1_registered: true,
             local_relation_activity_publication_v1_verified,
             local_sequence_allocation_publication_v1_verified,
+            local_agent_safe_storage_publication_v1_verified,
+            local_agent_safe_derived_fork_publication_v1_verified,
             local_persistent_store_publication_v1_verified,
+            packaged_store_qualification_mode,
         }
     }
 
@@ -10055,6 +11170,7 @@ impl TargetCapabilityFacts {
         Self {
             bounded_children_v1_registered: false,
             snapshot_batch_v1_registered: false,
+            snapshot_batch_v2_registered: false,
             single_table_v1_registered: false,
             mixed_bundle_boot_v2_registered: false,
             sequence_allocation_v1_registered: false,
@@ -10067,7 +11183,10 @@ impl TargetCapabilityFacts {
             write_activity_v1_registered: false,
             local_relation_activity_publication_v1_verified: false,
             local_sequence_allocation_publication_v1_verified: false,
+            local_agent_safe_storage_publication_v1_verified: false,
+            local_agent_safe_derived_fork_publication_v1_verified: false,
             local_persistent_store_publication_v1_verified: false,
+            packaged_store_qualification_mode: false,
             ..Self::local_auth_aware()
         }
     }
@@ -10083,6 +11202,13 @@ impl TargetCapabilityFacts {
     fn with_local_persistent_store_publication_withheld(mut self) -> Self {
         self.single_table_v1_registered = false;
         self.local_persistent_store_publication_v1_verified = false;
+        self.packaged_store_qualification_mode = false;
+        self
+    }
+
+    fn with_agent_safe_publication_withheld(mut self) -> Self {
+        self.local_agent_safe_storage_publication_v1_verified = false;
+        self.local_agent_safe_derived_fork_publication_v1_verified = false;
         self
     }
 
@@ -10112,6 +11238,528 @@ impl AuthProtocols {
         staged_mode: 1,
         bootstrap: 1,
     };
+}
+
+/// Version discriminator for the orthogonal agent-safe storage fact block.
+/// This is intentionally independent of [`TargetCapabilityId`]: class facts
+/// are multi-valued observations, not boolean support-registry membership.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeCapabilitySchemaVersion {
+    #[serde(rename = "agentSafe.v1")]
+    V1,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeEnvelopeCoverageV1 {
+    Missing,
+    Covered,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeExplanationDetailV1 {
+    Missing,
+    DigestOnly,
+    BoundedFacts,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeExplanationRetentionV1 {
+    Missing,
+    EnvelopeBounded,
+    PolicyBounded,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeForkEgressV1 {
+    Missing,
+    DenyAll,
+    CaptureOnly,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeForkPromotionV1 {
+    Missing,
+    NotPromotable,
+    Promotable,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeForkBaseV1 {
+    Missing,
+    #[serde(rename = "currentHead")]
+    CurrentHead,
+    #[serde(rename = "namedCheckpoint")]
+    NamedCheckpoint,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeForkIsolationV1 {
+    Missing,
+    #[serde(rename = "hostMediated")]
+    HostMediated,
+    #[serde(rename = "endToEnd")]
+    EndToEnd,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeDiffCoverageV1 {
+    Missing,
+    Exact,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeHistoryClassV1 {
+    Missing,
+    BoundedChanges,
+    NamedCheckpoints,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeProofClassV1 {
+    Missing,
+    RecordedInventory,
+    #[serde(rename = "verifiedCopyFidelity")]
+    VerifiedCopyFidelity,
+    IndependentBoundaryProof,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeHandlerReplayClassV1 {
+    Missing,
+    Deterministic,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeActionReplayClassV1 {
+    Missing,
+    Nondeterministic,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeSchemaEvolutionClassV1 {
+    Missing,
+    ProofsWithoutLens,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeResourceBoundClassV1 {
+    Missing,
+    AdmissionAndResourceBounds,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeAggregateStateV1 {
+    Missing,
+    Supported,
+}
+
+/// Fixed durable-lane inventory. Specialized lanes remain first-class facts
+/// even though their absence does not block the v1 core aggregate.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeEnvelopeCoverageByAdapterV1 {
+    pub host_plan: AgentSafeEnvelopeCoverageV1,
+    pub ibex_buffered: AgentSafeEnvelopeCoverageV1,
+}
+
+/// Exact logical-lane x physical-adapter coverage. The ordinary and Host
+/// namespaces each have both execution adapters; collapsing either axis would
+/// let one green writer silently stand in for another.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeEnvelopeCoverageByScopeV1 {
+    pub ordinary_mutation: AgentSafeEnvelopeCoverageByAdapterV1,
+    pub host_child_mutation: AgentSafeEnvelopeCoverageByAdapterV1,
+    pub migration: AgentSafeEnvelopeCoverageV1,
+    pub durable_background_work: AgentSafeEnvelopeCoverageV1,
+    pub push: AgentSafeEnvelopeCoverageV1,
+    pub auth: AgentSafeEnvelopeCoverageV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeExplanationClassV1 {
+    pub detail: AgentSafeExplanationDetailV1,
+    pub retention: AgentSafeExplanationRetentionV1,
+}
+
+#[derive(
+    Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "camelCase")]
+pub enum AgentSafeExplanationLogicalLaneV1 {
+    OrdinaryMutation,
+    HostChildMutation,
+}
+
+#[derive(
+    Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "camelCase")]
+pub enum AgentSafeExplanationAdapterV1 {
+    HostPlan,
+    IbexBuffered,
+}
+
+#[derive(
+    Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "camelCase")]
+pub enum AgentSafeExplanationAccessV1 {
+    PublicCurrentPolicy,
+    Administrative,
+}
+
+#[derive(
+    Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "camelCase")]
+pub enum AgentSafeExplanationProfileV1 {
+    GeneratedOwnedCrudOwnerCreateV1,
+    GeneratedOwnedCrudOwnerUpdateV1,
+}
+
+#[derive(
+    Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeExplanationScopeV1 {
+    pub logical_lane: AgentSafeExplanationLogicalLaneV1,
+    pub adapter: AgentSafeExplanationAdapterV1,
+    pub access: AgentSafeExplanationAccessV1,
+    pub profile: AgentSafeExplanationProfileV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeScopedExplanationFactV1 {
+    pub scope: AgentSafeExplanationScopeV1,
+    pub class: AgentSafeExplanationClassV1,
+}
+
+/// Canonical sparse projection of explanation support. An empty list is the
+/// complete Missing projection. Positive entries are strictly scope-sorted,
+/// unique, and use only the closed profile/access/execution vocabulary above.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeExplanationFactsV1 {
+    pub scoped_facts: Vec<AgentSafeScopedExplanationFactV1>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeForkAxesV1 {
+    pub egress: AgentSafeForkEgressV1,
+    pub promotion: AgentSafeForkPromotionV1,
+    pub base: AgentSafeForkBaseV1,
+    pub isolation: AgentSafeForkIsolationV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeForkFactsV1 {
+    pub in_app: AgentSafeForkAxesV1,
+    pub derived_deployment: AgentSafeForkAxesV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeDiffFactsV1 {
+    pub data: AgentSafeDiffCoverageV1,
+    pub effects: AgentSafeDiffCoverageV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeReplayFactsV1 {
+    pub handlers: AgentSafeHandlerReplayClassV1,
+    pub actions: AgentSafeActionReplayClassV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeAggregateFactsV1 {
+    pub core: AgentSafeAggregateStateV1,
+    pub history: AgentSafeAggregateStateV1,
+}
+
+/// One projection of the component and aggregate facts. The target projection
+/// reports installed and qualified machinery; `appEffective` separately
+/// reports what the current app actually exercises.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeCapabilityFactsV1 {
+    pub envelope: AgentSafeEnvelopeCoverageByScopeV1,
+    pub explanation: AgentSafeExplanationFactsV1,
+    pub forks: AgentSafeForkFactsV1,
+    pub diff: AgentSafeDiffFactsV1,
+    pub history: AgentSafeHistoryClassV1,
+    pub proof: AgentSafeProofClassV1,
+    pub replay: AgentSafeReplayFactsV1,
+    pub schema_evolution: AgentSafeSchemaEvolutionClassV1,
+    pub resource_bounds: AgentSafeResourceBoundClassV1,
+    pub aggregate: AgentSafeAggregateFactsV1,
+}
+
+/// Rust-owned LLP 0162 §8 capability extension. Its public constructors are
+/// deliberately Missing-only until a later digest-bound publication carrier
+/// supplies a validated candidate for one named target.
+///
+/// @ref LLP 0162#8-capability-honesty — target support and app-effective
+/// coverage are separate, every class is closed, and specialized lane gaps
+/// remain visible without silently widening the core aggregate.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeCapabilityExtensionV1 {
+    pub schema_version: AgentSafeCapabilitySchemaVersion,
+    pub target: AgentSafeCapabilityFactsV1,
+    pub app_effective: AgentSafeCapabilityFactsV1,
+}
+
+impl<'de> Deserialize<'de> for AgentSafeCapabilityExtensionV1 {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase", deny_unknown_fields)]
+        struct Wire {
+            schema_version: AgentSafeCapabilitySchemaVersion,
+            target: AgentSafeCapabilityFactsV1,
+            app_effective: AgentSafeCapabilityFactsV1,
+        }
+
+        let wire = Wire::deserialize(deserializer)?;
+        let extension = Self {
+            schema_version: wire.schema_version,
+            target: wire.target,
+            app_effective: wire.app_effective,
+        };
+        extension.validate().map_err(serde::de::Error::custom)?;
+        Ok(extension)
+    }
+}
+
+impl Default for AgentSafeCapabilityExtensionV1 {
+    fn default() -> Self {
+        Self::missing()
+    }
+}
+
+impl AgentSafeCapabilityExtensionV1 {
+    pub fn missing() -> Self {
+        Self {
+            schema_version: AgentSafeCapabilitySchemaVersion::V1,
+            target: AgentSafeCapabilityFactsV1::missing(),
+            app_effective: AgentSafeCapabilityFactsV1::missing(),
+        }
+    }
+
+    fn validate(&self) -> Result<(), &'static str> {
+        self.target.validate_projection()?;
+        self.app_effective.validate_projection()?;
+        if !self.app_effective.is_subset_of(&self.target) {
+            return Err("appEffective facts exceed target support");
+        }
+        if self.app_effective.aggregate.core == AgentSafeAggregateStateV1::Supported
+            && self.target.aggregate.core != AgentSafeAggregateStateV1::Supported
+        {
+            return Err("appEffective core aggregate exceeds target support");
+        }
+        if self.app_effective.aggregate.history == AgentSafeAggregateStateV1::Supported
+            && self.target.aggregate.history != AgentSafeAggregateStateV1::Supported
+        {
+            return Err("appEffective history aggregate exceeds target support");
+        }
+        Ok(())
+    }
+}
+
+impl AgentSafeCapabilityFactsV1 {
+    pub(crate) fn missing() -> Self {
+        let fork = || AgentSafeForkAxesV1 {
+            egress: AgentSafeForkEgressV1::Missing,
+            promotion: AgentSafeForkPromotionV1::Missing,
+            base: AgentSafeForkBaseV1::Missing,
+            isolation: AgentSafeForkIsolationV1::Missing,
+        };
+        Self {
+            envelope: AgentSafeEnvelopeCoverageByScopeV1 {
+                ordinary_mutation: AgentSafeEnvelopeCoverageByAdapterV1 {
+                    host_plan: AgentSafeEnvelopeCoverageV1::Missing,
+                    ibex_buffered: AgentSafeEnvelopeCoverageV1::Missing,
+                },
+                host_child_mutation: AgentSafeEnvelopeCoverageByAdapterV1 {
+                    host_plan: AgentSafeEnvelopeCoverageV1::Missing,
+                    ibex_buffered: AgentSafeEnvelopeCoverageV1::Missing,
+                },
+                migration: AgentSafeEnvelopeCoverageV1::Missing,
+                durable_background_work: AgentSafeEnvelopeCoverageV1::Missing,
+                push: AgentSafeEnvelopeCoverageV1::Missing,
+                auth: AgentSafeEnvelopeCoverageV1::Missing,
+            },
+            explanation: AgentSafeExplanationFactsV1 {
+                scoped_facts: Vec::new(),
+            },
+            forks: AgentSafeForkFactsV1 {
+                in_app: fork(),
+                derived_deployment: fork(),
+            },
+            diff: AgentSafeDiffFactsV1 {
+                data: AgentSafeDiffCoverageV1::Missing,
+                effects: AgentSafeDiffCoverageV1::Missing,
+            },
+            history: AgentSafeHistoryClassV1::Missing,
+            proof: AgentSafeProofClassV1::Missing,
+            replay: AgentSafeReplayFactsV1 {
+                handlers: AgentSafeHandlerReplayClassV1::Missing,
+                actions: AgentSafeActionReplayClassV1::Missing,
+            },
+            schema_evolution: AgentSafeSchemaEvolutionClassV1::Missing,
+            resource_bounds: AgentSafeResourceBoundClassV1::Missing,
+            aggregate: AgentSafeAggregateFactsV1 {
+                core: AgentSafeAggregateStateV1::Missing,
+                history: AgentSafeAggregateStateV1::Missing,
+            },
+        }
+    }
+
+    fn validate_projection(&self) -> Result<(), &'static str> {
+        let mut prior_scope = None;
+        for fact in &self.explanation.scoped_facts {
+            if prior_scope.is_some_and(|prior| prior >= fact.scope) {
+                return Err("explanation facts must be strictly scope-sorted and unique");
+            }
+            if fact.class.detail == AgentSafeExplanationDetailV1::Missing
+                || fact.class.retention == AgentSafeExplanationRetentionV1::Missing
+            {
+                return Err("scoped explanation facts must carry positive detail and retention");
+            }
+            if fact.scope.logical_lane != AgentSafeExplanationLogicalLaneV1::OrdinaryMutation
+                || fact.scope.adapter != AgentSafeExplanationAdapterV1::HostPlan
+            {
+                return Err(
+                    "generated owner explanation profiles require ordinaryMutation HostPlan",
+                );
+            }
+            prior_scope = Some(fact.scope);
+        }
+        for fork in [&self.forks.in_app, &self.forks.derived_deployment] {
+            let missing = fork.egress == AgentSafeForkEgressV1::Missing
+                && fork.promotion == AgentSafeForkPromotionV1::Missing
+                && fork.base == AgentSafeForkBaseV1::Missing
+                && fork.isolation == AgentSafeForkIsolationV1::Missing;
+            let complete = fork.egress != AgentSafeForkEgressV1::Missing
+                && fork.promotion != AgentSafeForkPromotionV1::Missing
+                && fork.base != AgentSafeForkBaseV1::Missing
+                && fork.isolation != AgentSafeForkIsolationV1::Missing;
+            if !missing && !complete {
+                return Err("fork facts must be wholly Missing or declare every axis");
+            }
+            if fork.promotion == AgentSafeForkPromotionV1::Promotable
+                && fork.base != AgentSafeForkBaseV1::CurrentHead
+            {
+                return Err("Promotable forks require currentHead base");
+            }
+            if fork.promotion == AgentSafeForkPromotionV1::Promotable
+                && fork.egress == AgentSafeForkEgressV1::Missing
+            {
+                return Err("Promotable forks require a declared egress policy");
+            }
+        }
+        if self.aggregate.core == AgentSafeAggregateStateV1::Supported
+            || self.aggregate.history == AgentSafeAggregateStateV1::Supported
+        {
+            return Err("agent-safe aggregates require a separately verified publication carrier");
+        }
+        Ok(())
+    }
+
+    fn is_subset_of(&self, target: &Self) -> bool {
+        fn class<T: Copy + PartialEq>(effective: T, target: T, missing: T) -> bool {
+            effective == missing || effective == target
+        }
+        let fork = |effective: &AgentSafeForkAxesV1, target: &AgentSafeForkAxesV1| {
+            let missing = effective.egress == AgentSafeForkEgressV1::Missing
+                && effective.promotion == AgentSafeForkPromotionV1::Missing
+                && effective.base == AgentSafeForkBaseV1::Missing
+                && effective.isolation == AgentSafeForkIsolationV1::Missing;
+            missing || effective == target
+        };
+        let envelope = |effective: AgentSafeEnvelopeCoverageV1,
+                        target: AgentSafeEnvelopeCoverageV1| {
+            class(effective, target, AgentSafeEnvelopeCoverageV1::Missing)
+        };
+
+        envelope(
+            self.envelope.ordinary_mutation.host_plan,
+            target.envelope.ordinary_mutation.host_plan,
+        ) && envelope(
+            self.envelope.ordinary_mutation.ibex_buffered,
+            target.envelope.ordinary_mutation.ibex_buffered,
+        ) && envelope(
+            self.envelope.host_child_mutation.host_plan,
+            target.envelope.host_child_mutation.host_plan,
+        ) && envelope(
+            self.envelope.host_child_mutation.ibex_buffered,
+            target.envelope.host_child_mutation.ibex_buffered,
+        ) && envelope(self.envelope.migration, target.envelope.migration)
+            && envelope(
+                self.envelope.durable_background_work,
+                target.envelope.durable_background_work,
+            )
+            && envelope(self.envelope.push, target.envelope.push)
+            && envelope(self.envelope.auth, target.envelope.auth)
+            && self.explanation.scoped_facts.iter().all(|fact| {
+                target
+                    .explanation
+                    .scoped_facts
+                    .binary_search_by_key(&fact.scope, |candidate| candidate.scope)
+                    .ok()
+                    .is_some_and(|index| &target.explanation.scoped_facts[index] == fact)
+            })
+            && fork(&self.forks.in_app, &target.forks.in_app)
+            && fork(
+                &self.forks.derived_deployment,
+                &target.forks.derived_deployment,
+            )
+            && class(
+                self.diff.data,
+                target.diff.data,
+                AgentSafeDiffCoverageV1::Missing,
+            )
+            && class(
+                self.diff.effects,
+                target.diff.effects,
+                AgentSafeDiffCoverageV1::Missing,
+            )
+            && class(
+                self.history,
+                target.history,
+                AgentSafeHistoryClassV1::Missing,
+            )
+            && class(self.proof, target.proof, AgentSafeProofClassV1::Missing)
+            && class(
+                self.replay.handlers,
+                target.replay.handlers,
+                AgentSafeHandlerReplayClassV1::Missing,
+            )
+            && class(
+                self.replay.actions,
+                target.replay.actions,
+                AgentSafeActionReplayClassV1::Missing,
+            )
+            && class(
+                self.schema_evolution,
+                target.schema_evolution,
+                AgentSafeSchemaEvolutionClassV1::Missing,
+            )
+            && class(
+                self.resource_bounds,
+                target.resource_bounds,
+                AgentSafeResourceBoundClassV1::Missing,
+            )
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -10164,6 +11812,23 @@ pub struct CapabilityManifest {
         skip_serializing_if = "BTreeMap::is_empty"
     )]
     pub capability_maturity: BTreeMap<TargetCapabilityId, CapabilityMaturity>,
+    /// Versioned LLP 0162 fact projection. This remains present and wholly
+    /// `Missing` until a named target passes its component corpus and a later
+    /// publication carrier validates and installs the candidate facts.
+    #[serde(default, rename = "agentSafe", alias = "agent_safe")]
+    pub agent_safe: AgentSafeCapabilityExtensionV1,
+    /// Instance-live bootstrap marker for the staged packaged-store
+    /// qualification corpus. Absence/false is the only production posture.
+    // @ref LLP 0166#public-package-advertisement-amendment--2026-08-06 —
+    // qualification mode must be visible so it cannot be mistaken for
+    // receipt-backed production authority.
+    #[serde(
+        default,
+        rename = "packagedStoreQualificationMode",
+        alias = "packaged_store_qualification_mode",
+        skip_serializing_if = "bool_is_false"
+    )]
+    pub packaged_store_qualification_mode: bool,
     #[serde(
         default,
         rename = "authProtocols",
@@ -10652,6 +12317,10 @@ pub(crate) fn vm_lifecycle_fresh() -> String {
     "fresh-per-invocation".to_owned()
 }
 
+fn bool_is_false(value: &bool) -> bool {
+    !*value
+}
+
 pub(crate) const VM_LIFECYCLE_WARM_POOLED_RESET: &str = "warm-pooled-reset";
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -10685,6 +12354,7 @@ pub fn local_v0_default_capability_gaps() -> Vec<String> {
         "bounded_response_stream_v1".to_owned(),
         "bounded_children_v1".to_owned(),
         "snapshot_batch_v1".to_owned(),
+        "snapshot_batch_v2".to_owned(),
         "single_table_v1".to_owned(),
         "mixed_bundle_boot_v2".to_owned(),
         "notifications".to_owned(),
@@ -10692,6 +12362,8 @@ pub fn local_v0_default_capability_gaps() -> Vec<String> {
         "ephemeral_multi_instance_sticky_routing".to_owned(),
         "write_activity_v1".to_owned(),
         "sequence_allocation_v1".to_owned(),
+        "agent_safe_storage_v1".to_owned(),
+        "agent_safe_derived_deployment_fork_v1".to_owned(),
     ]
 }
 
@@ -10714,6 +12386,12 @@ fn ensure_snapshot_batch_capability_gap(gaps: &mut Vec<String>) {
     }
 }
 
+fn ensure_snapshot_batch_v2_capability_gap(gaps: &mut Vec<String>) {
+    if !gaps.iter().any(|gap| gap == "snapshot_batch_v2") {
+        gaps.push("snapshot_batch_v2".to_owned());
+    }
+}
+
 fn ensure_single_table_capability_gap(gaps: &mut Vec<String>) {
     if !gaps.iter().any(|gap| gap == "single_table_v1") {
         gaps.push("single_table_v1".to_owned());
@@ -10724,6 +12402,25 @@ fn ensure_mixed_bundle_capability_gap(gaps: &mut Vec<String>) {
     if !gaps.iter().any(|gap| gap == "mixed_bundle_boot_v2") {
         gaps.push("mixed_bundle_boot_v2".to_owned());
     }
+}
+
+fn ensure_agent_safe_capability_gaps(gaps: &mut Vec<String>) {
+    let insertion_index = gaps
+        .iter()
+        .position(|gap| {
+            gap == "agent_safe_storage_v1" || gap == "agent_safe_derived_deployment_fork_v1"
+        })
+        .unwrap_or(gaps.len());
+    gaps.retain(|gap| {
+        gap != "agent_safe_storage_v1" && gap != "agent_safe_derived_deployment_fork_v1"
+    });
+    gaps.splice(
+        insertion_index..insertion_index,
+        [
+            "agent_safe_storage_v1".to_owned(),
+            "agent_safe_derived_deployment_fork_v1".to_owned(),
+        ],
+    );
 }
 
 impl CapabilityManifest {
@@ -10742,6 +12439,7 @@ impl CapabilityManifest {
         mut capability_gaps: Vec<String>,
         capability_facts: TargetCapabilityFacts,
     ) -> Self {
+        ensure_agent_safe_capability_gaps(&mut capability_gaps);
         if capability_facts.local_relation_activity_publication_v1_verified {
             capability_gaps
                 .retain(|gap| gap != "bounded_children_v1" && gap != "write_activity_v1");
@@ -10771,6 +12469,9 @@ impl CapabilityManifest {
             ],
             supported_capabilities: Vec::new(),
             capability_maturity: BTreeMap::new(),
+            agent_safe: AgentSafeCapabilityExtensionV1::missing(),
+            packaged_store_qualification_mode: capability_facts
+                .packaged_store_qualification_mode,
             auth_protocols: Some(AuthProtocols::V1),
             hosted_auth: crate::auth::deployment::HostedAuthCapabilities::local_target(),
             storage_engine: "sqlite".to_owned(),
@@ -10910,6 +12611,19 @@ impl CapabilityManifest {
             vm_lifecycle: vm_lifecycle_fresh(),
             runtime_facts: None,
         };
+        // @ref LLP 0162#8-capability-honesty — target component facts are
+        // reconstructed by exact Rust builders only after their independent
+        // source-owned chains verify. App-effective remains Missing until the
+        // exact loaded app and active writer manifest are intersected in Local.
+        if capability_facts.local_agent_safe_storage_publication_v1_verified {
+            manifest.agent_safe.target = crate::agent_safe_publication::storage_target_candidate();
+        }
+        if capability_facts.local_agent_safe_derived_fork_publication_v1_verified {
+            manifest.agent_safe.target.forks.derived_deployment =
+                crate::agent_safe_publication::derived_fork_target_candidate()
+                    .forks
+                    .derived_deployment;
+        }
         manifest.refresh_supported_capabilities(capability_facts);
         manifest
     }
@@ -10953,6 +12667,9 @@ impl CapabilityManifest {
     pub fn remote_service_sqlite_ibex_declared() -> Self {
         let mut manifest = Self::local_v0_declared();
         manifest.target_profile_id = TARGET_PROFILE_REMOTE_SERVICE_SQLITE_IBEX.to_owned();
+        // Target support never inherits across projections. A future local
+        // publication must not silently widen this independently managed arm.
+        manifest.agent_safe = AgentSafeCapabilityExtensionV1::missing();
         manifest.local_server_lifecycle = false;
         manifest.full_text_search = None;
         manifest.vector_search = None;
@@ -10974,7 +12691,10 @@ impl CapabilityManifest {
         ensure_relation_activity_capability_gaps(&mut manifest.capability_gaps);
         let mut facts = TargetCapabilityFacts::local_auth_aware()
             .with_relation_activity_publication_withheld()
-            .with_local_persistent_store_publication_withheld();
+            .with_local_persistent_store_publication_withheld()
+            // @ref LLP 0162#8-capability-honesty — a local publication may
+            // not become evidence for this independently qualified target.
+            .with_agent_safe_publication_withheld();
         facts.full_text_search_v1_registered = false;
         facts.vector_search_v1_registered = false;
         facts.asset_lifecycle_local_fs_registered = false;
@@ -10994,6 +12714,7 @@ impl CapabilityManifest {
     pub fn conformance_workerd_v8(runtime_facts: Value) -> Self {
         let mut manifest = Self::local_v0(local_v0_default_capability_gaps());
         manifest.target_profile_id = TARGET_PROFILE_LOCAL_CONFORMANCE_SQLITE_WORKERD_V8.to_owned();
+        manifest.agent_safe = AgentSafeCapabilityExtensionV1::missing();
         manifest.runtime_engine = "workerd-v8".to_owned();
         manifest.full_text_search = None;
         manifest.vector_search = None;
@@ -11073,6 +12794,7 @@ impl CapabilityManifest {
     pub fn cloudflare_do_sqlite_v8(runtime_facts: Value) -> Self {
         let mut manifest = Self::local_v0(local_v0_default_capability_gaps());
         manifest.target_profile_id = TARGET_PROFILE_CLOUDFLARE_DO_SQLITE_V8.to_owned();
+        manifest.agent_safe = AgentSafeCapabilityExtensionV1::missing();
         manifest.full_text_search = None;
         manifest.vector_search = None;
         // No asset subsystem on the DO target: bytes, staging, and strict
@@ -11156,6 +12878,7 @@ impl CapabilityManifest {
             "bounded_response_stream_v1".to_owned(),
             "bounded_children_v1".to_owned(),
             "snapshot_batch_v1".to_owned(),
+            "snapshot_batch_v2".to_owned(),
             "notifications".to_owned(),
             "notifications.expoPushSeam".to_owned(),
             "cron".to_owned(),
@@ -11166,6 +12889,8 @@ impl CapabilityManifest {
             "retained_version_resume".to_owned(),
             "write_activity_v1".to_owned(),
             "sequence_allocation_v1".to_owned(),
+            "agent_safe_storage_v1".to_owned(),
+            "agent_safe_derived_deployment_fork_v1".to_owned(),
         ];
         manifest.resource_limits = vec![
             // V8 wall-clock is enforced by the platform (the object/request is
@@ -11199,6 +12924,7 @@ impl CapabilityManifest {
     }
 
     fn refresh_supported_capabilities(&mut self, facts: TargetCapabilityFacts) {
+        self.packaged_store_qualification_mode = facts.packaged_store_qualification_mode;
         self.supported_capabilities = TargetCapabilityId::ALL
             .into_iter()
             .filter(|capability| capability.is_supported_by(self, facts))
@@ -11230,12 +12956,22 @@ impl CapabilityManifest {
         } else {
             ensure_snapshot_batch_capability_gap(&mut self.capability_gaps);
         }
+        // @ref LLP 0157#d1--the-node-algebra — registration and maturity do
+        // not let remote/hosted targets inherit the local mixed executor.
+        if self
+            .supported_capabilities
+            .contains(&TargetCapabilityId::SnapshotBatchV2)
+        {
+            self.capability_gaps
+                .retain(|gap| gap != "snapshot_batch_v2");
+        } else {
+            ensure_snapshot_batch_v2_capability_gap(&mut self.capability_gaps);
+        }
         if self
             .supported_capabilities
             .contains(&TargetCapabilityId::SingleTableV1)
         {
-            self.capability_gaps
-                .retain(|gap| gap != "single_table_v1");
+            self.capability_gaps.retain(|gap| gap != "single_table_v1");
         } else {
             ensure_single_table_capability_gap(&mut self.capability_gaps);
         }
@@ -11280,6 +13016,22 @@ impl CapabilityManifest {
             {
                 self.capability_gaps
                     .push(crate::vector::VECTOR_CAPABILITY.to_owned());
+            }
+        }
+        // Re-establish the closed pair at its original position before
+        // support removes either member. Derived targets can inherit a local
+        // declaration where storage was published and therefore absent from
+        // the GAP list; appending it at the tail would make their committed
+        // projection order depend on a sibling target's publication state.
+        ensure_agent_safe_capability_gaps(&mut self.capability_gaps);
+        for id in [
+            TargetCapabilityId::AgentSafeStorageV1,
+            TargetCapabilityId::AgentSafeDerivedDeploymentForkV1,
+        ] {
+            if self.supported_capabilities.contains(&id) {
+                self.capability_gaps.retain(|gap| gap != id.as_str());
+            } else if !self.capability_gaps.iter().any(|gap| gap == id.as_str()) {
+                self.capability_gaps.push(id.as_str().to_owned());
             }
         }
         // @ref LLP 0058#capability-maturity — the maturity map annotates
@@ -11374,6 +13126,284 @@ impl CapabilityManifest {
             .into_iter()
             .filter_map(|capability| capability.parse::<TargetCapabilityId>().ok())
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod agent_safe_capability_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn owner_fact(profile: AgentSafeExplanationProfileV1) -> AgentSafeScopedExplanationFactV1 {
+        AgentSafeScopedExplanationFactV1 {
+            scope: AgentSafeExplanationScopeV1 {
+                logical_lane: AgentSafeExplanationLogicalLaneV1::OrdinaryMutation,
+                adapter: AgentSafeExplanationAdapterV1::HostPlan,
+                access: AgentSafeExplanationAccessV1::PublicCurrentPolicy,
+                profile,
+            },
+            class: AgentSafeExplanationClassV1 {
+                detail: AgentSafeExplanationDetailV1::BoundedFacts,
+                retention: AgentSafeExplanationRetentionV1::PolicyBounded,
+            },
+        }
+    }
+
+    #[test]
+    fn agent_safe_registry_ids_are_experimental_and_independently_published() {
+        for (wire, id) in [
+            (
+                "agent_safe_storage_v1",
+                TargetCapabilityId::AgentSafeStorageV1,
+            ),
+            (
+                "agent_safe_derived_deployment_fork_v1",
+                TargetCapabilityId::AgentSafeDerivedDeploymentForkV1,
+            ),
+        ] {
+            assert_eq!(wire.parse::<TargetCapabilityId>(), Ok(id));
+            assert_eq!(id.maturity(), CapabilityMaturity::Experimental);
+            let local = CapabilityManifest::local_v0_declared();
+            let expected_local = match id {
+                TargetCapabilityId::AgentSafeStorageV1 => {
+                    crate::agent_safe_publication::storage_publication_verified()
+                }
+                TargetCapabilityId::AgentSafeDerivedDeploymentForkV1 => {
+                    crate::agent_safe_publication::derived_fork_publication_verified()
+                }
+                _ => unreachable!(),
+            };
+            assert_eq!(
+                id.is_supported_by(&local, TargetCapabilityFacts::local_auth_aware()),
+                expected_local,
+            );
+            assert_eq!(local.supported_capabilities.contains(&id), expected_local);
+
+            for manifest in [
+                CapabilityManifest::remote_service_sqlite_ibex_declared(),
+                CapabilityManifest::cloudflare_do_sqlite_v8(json!({})),
+            ] {
+                assert!(!id.is_supported_by(&manifest, TargetCapabilityFacts::local_auth_aware()));
+                assert!(!manifest.supported_capabilities.contains(&id));
+            }
+        }
+    }
+
+    #[test]
+    fn remote_projection_withholds_even_verified_local_agent_safe_publications() {
+        let local_published = TargetCapabilityFacts {
+            local_agent_safe_storage_publication_v1_verified: true,
+            local_agent_safe_derived_fork_publication_v1_verified: true,
+            ..TargetCapabilityFacts::local_auth_aware()
+        };
+        let remote = local_published.with_agent_safe_publication_withheld();
+
+        assert!(!remote.local_agent_safe_storage_publication_v1_verified);
+        assert!(!remote.local_agent_safe_derived_fork_publication_v1_verified);
+
+        let mut inherited_gaps = vec![
+            "before".to_owned(),
+            "agent_safe_derived_deployment_fork_v1".to_owned(),
+            "after".to_owned(),
+        ];
+        ensure_agent_safe_capability_gaps(&mut inherited_gaps);
+        assert_eq!(
+            inherited_gaps,
+            [
+                "before",
+                "agent_safe_storage_v1",
+                "agent_safe_derived_deployment_fork_v1",
+                "after",
+            ]
+        );
+    }
+
+    #[test]
+    fn agent_safe_public_projections_are_present_closed_and_target_scoped() {
+        for manifest in [
+            CapabilityManifest::local_v0_declared(),
+            CapabilityManifest::remote_service_sqlite_ibex_declared(),
+            CapabilityManifest::conformance_workerd_v8(json!({})),
+            CapabilityManifest::cloudflare_do_sqlite_v8(json!({})),
+        ] {
+            let is_local = manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX;
+            let storage_published =
+                is_local && crate::agent_safe_publication::storage_publication_verified();
+            let expected_target = if storage_published {
+                crate::agent_safe_publication::storage_target_candidate()
+            } else {
+                AgentSafeCapabilityFactsV1::missing()
+            };
+            assert_eq!(manifest.agent_safe.target, expected_target);
+            assert_eq!(
+                manifest.agent_safe.app_effective,
+                AgentSafeCapabilityFactsV1::missing(),
+                "the static target declaration never invents app-effective coverage",
+            );
+            assert_eq!(
+                manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|gap| gap == "agent_safe_storage_v1"),
+                !storage_published,
+                "{} storage GAP disagrees with its exact publication chain",
+                manifest.target_profile_id,
+            );
+            assert!(
+                manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|gap| gap == "agent_safe_derived_deployment_fork_v1"),
+                "{} must expose the additive fork GAP",
+                manifest.target_profile_id,
+            );
+            assert_eq!(
+                manifest
+                    .supported_capabilities
+                    .contains(&TargetCapabilityId::AgentSafeStorageV1),
+                storage_published,
+                "only the exact local storage chain may publish",
+            );
+            assert!(
+                !manifest
+                    .supported_capabilities
+                    .contains(&TargetCapabilityId::AgentSafeDerivedDeploymentForkV1)
+            );
+        }
+    }
+
+    #[test]
+    fn agent_safe_target_and_app_effective_are_independent_fail_closed_facts() {
+        let mut candidate = AgentSafeCapabilityExtensionV1::missing();
+        candidate.app_effective.envelope.ordinary_mutation.host_plan =
+            AgentSafeEnvelopeCoverageV1::Covered;
+        assert_eq!(
+            candidate.validate(),
+            Err("appEffective facts exceed target support"),
+            "app-effective coverage cannot mint target support",
+        );
+
+        let create = owner_fact(AgentSafeExplanationProfileV1::GeneratedOwnedCrudOwnerCreateV1);
+        let update = owner_fact(AgentSafeExplanationProfileV1::GeneratedOwnedCrudOwnerUpdateV1);
+        let mut scoped = AgentSafeCapabilityExtensionV1::missing();
+        scoped.target.explanation.scoped_facts = vec![create.clone(), update];
+        scoped.app_effective.explanation.scoped_facts = vec![create];
+        assert_eq!(
+            scoped.validate(),
+            Ok(()),
+            "appEffective may honestly select a strict subset of target explanation profiles",
+        );
+    }
+
+    #[test]
+    fn agent_safe_fork_axes_and_aggregate_requirements_are_exact() {
+        let mut partial = AgentSafeCapabilityExtensionV1::missing();
+        partial.target.forks.derived_deployment.egress = AgentSafeForkEgressV1::DenyAll;
+        assert_eq!(
+            partial.validate(),
+            Err("fork facts must be wholly Missing or declare every axis")
+        );
+
+        let mut bad_fork = AgentSafeCapabilityExtensionV1::missing();
+        bad_fork.target.forks.in_app = AgentSafeForkAxesV1 {
+            egress: AgentSafeForkEgressV1::DenyAll,
+            promotion: AgentSafeForkPromotionV1::Promotable,
+            base: AgentSafeForkBaseV1::NamedCheckpoint,
+            isolation: AgentSafeForkIsolationV1::HostMediated,
+        };
+        assert_eq!(
+            bad_fork.validate(),
+            Err("Promotable forks require currentHead base")
+        );
+
+        let mut exact_derived = AgentSafeCapabilityExtensionV1::missing();
+        exact_derived.target.forks.derived_deployment = AgentSafeForkAxesV1 {
+            egress: AgentSafeForkEgressV1::DenyAll,
+            promotion: AgentSafeForkPromotionV1::NotPromotable,
+            base: AgentSafeForkBaseV1::CurrentHead,
+            isolation: AgentSafeForkIsolationV1::HostMediated,
+        };
+        assert_eq!(exact_derived.validate(), Ok(()));
+
+        let mut aggregate = AgentSafeCapabilityExtensionV1::missing();
+        aggregate.target.aggregate.core = AgentSafeAggregateStateV1::Supported;
+        assert_eq!(
+            aggregate.validate(),
+            Err("agent-safe aggregates require a separately verified publication carrier")
+        );
+    }
+
+    #[test]
+    fn agent_safe_explanation_scopes_are_closed_sorted_and_unique() {
+        let create = owner_fact(AgentSafeExplanationProfileV1::GeneratedOwnedCrudOwnerCreateV1);
+        let update = owner_fact(AgentSafeExplanationProfileV1::GeneratedOwnedCrudOwnerUpdateV1);
+
+        let mut reversed = AgentSafeCapabilityExtensionV1::missing();
+        reversed.target.explanation.scoped_facts = vec![update.clone(), create.clone()];
+        assert_eq!(
+            reversed.validate(),
+            Err("explanation facts must be strictly scope-sorted and unique")
+        );
+
+        let mut duplicate = AgentSafeCapabilityExtensionV1::missing();
+        duplicate.target.explanation.scoped_facts = vec![create.clone(), create.clone()];
+        assert_eq!(
+            duplicate.validate(),
+            Err("explanation facts must be strictly scope-sorted and unique")
+        );
+
+        let mut wrong_adapter = create;
+        wrong_adapter.scope.adapter = AgentSafeExplanationAdapterV1::IbexBuffered;
+        let mut incompatible = AgentSafeCapabilityExtensionV1::missing();
+        incompatible.target.explanation.scoped_facts = vec![wrong_adapter];
+        assert_eq!(
+            incompatible.validate(),
+            Err("generated owner explanation profiles require ordinaryMutation HostPlan")
+        );
+    }
+
+    #[test]
+    fn agent_safe_wire_tampering_is_rejected() {
+        let encoded = serde_json::to_value(AgentSafeCapabilityExtensionV1::missing())
+            .expect("serialize Missing extension");
+
+        let mut wrong_version = encoded.clone();
+        wrong_version["schemaVersion"] = json!("agentSafe.v2");
+        assert!(serde_json::from_value::<AgentSafeCapabilityExtensionV1>(wrong_version).is_err());
+
+        let mut conflicting_axis = encoded.clone();
+        conflicting_axis["target"]["forks"]["inApp"]["egress"] = json!({
+            "DenyAll": true,
+            "CaptureOnly": true
+        });
+        assert!(
+            serde_json::from_value::<AgentSafeCapabilityExtensionV1>(conflicting_axis).is_err(),
+            "one scalar closed enum makes fork-axis alternatives mutually exclusive",
+        );
+
+        let mut injected = encoded.clone();
+        injected["target"]["aggregate"]["agentSafeV2"] = json!("Supported");
+        assert!(
+            serde_json::from_value::<AgentSafeCapabilityExtensionV1>(injected).is_err(),
+            "unknown extension members fail closed",
+        );
+
+        let mut unknown_adapter = encoded.clone();
+        unknown_adapter["target"]["envelope"]["ordinaryMutation"]["rawSql"] = json!("Covered");
+        assert!(
+            serde_json::from_value::<AgentSafeCapabilityExtensionV1>(unknown_adapter).is_err(),
+            "unknown physical adapters fail closed",
+        );
+
+        let create = owner_fact(AgentSafeExplanationProfileV1::GeneratedOwnedCrudOwnerCreateV1);
+        let update = owner_fact(AgentSafeExplanationProfileV1::GeneratedOwnedCrudOwnerUpdateV1);
+        let mut unsorted = encoded;
+        unsorted["target"]["explanation"]["scopedFacts"] =
+            serde_json::to_value([update, create]).expect("facts serialize");
+        assert!(
+            serde_json::from_value::<AgentSafeCapabilityExtensionV1>(unsorted).is_err(),
+            "non-canonical scoped facts fail during wire decoding",
+        );
     }
 }
 
@@ -11667,6 +13697,7 @@ mod membership_manifest_grammar_tests {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         };
         let index = VectorIndexManifestV1 {
             format_version: 1,
@@ -12044,6 +14075,314 @@ mod membership_manifest_grammar_tests {
         function
     }
 
+    fn snapshot_v2_relational_node_fixture(take: u32) -> RelationalQueryPlan {
+        RelationalQueryPlan {
+            root: "events".to_owned(),
+            root_alias: "event".to_owned(),
+            joined: "actors".to_owned(),
+            joined_alias: "actor".to_owned(),
+            join_kind: JoinKind::Left,
+            join_on: vec![JoinEquality {
+                root_field: "actorId".to_owned(),
+                joined_field: "id".to_owned(),
+            }],
+            root_filters: Vec::new(),
+            root_visibility: Vec::new(),
+            joined_visibility: Vec::new(),
+            projection: vec![ProjectionLeaf {
+                name: "title".to_owned(),
+                source: ProjectionSource::RootField("title".to_owned()),
+            }],
+            order: vec![OrderExpr {
+                field: "createdAt".to_owned(),
+                direction: OrderDirection::Asc,
+                max_encoded_bytes: None,
+            }],
+            take,
+            root_index: "by_created_at".to_owned(),
+            joined_index: "by_id".to_owned(),
+        }
+    }
+
+    fn snapshot_v2_function_fixture(plan: SnapshotBatchPlanV2) -> FunctionDefinition {
+        let mut arguments = plan
+            .nodes
+            .iter()
+            .filter_map(|node| match node {
+                SnapshotBatchNodeV2::BoundedChildren(node) => {
+                    Some((node.parent_id_arg.clone(), node.parent_table.clone()))
+                }
+                SnapshotBatchNodeV2::RelationalQuery(_) => None,
+            })
+            .collect::<BTreeMap<_, _>>()
+            .into_iter()
+            .map(|(name, table)| ResultObjectFieldContract {
+                name,
+                required: true,
+                value: ResultValueContract::Id { table },
+            })
+            .collect::<Vec<_>>();
+        arguments.push(ResultObjectFieldContract {
+            name: "cursor".to_owned(),
+            required: false,
+            value: ResultValueContract::String { max_bytes: 8_192 },
+        });
+        let args_contract = FunctionArgsContract { fields: arguments };
+        let outer = |kind: &str, nodes: ResultValueContract, continuation: ResultValueContract| {
+            ResultValueContract::Object {
+                fields: vec![
+                    ResultObjectFieldContract {
+                        name: "kind".to_owned(),
+                        required: true,
+                        value: ResultValueContract::Literal { value: json!(kind) },
+                    },
+                    ResultObjectFieldContract {
+                        name: "nodes".to_owned(),
+                        required: true,
+                        value: nodes,
+                    },
+                    ResultObjectFieldContract {
+                        name: "continuation".to_owned(),
+                        required: true,
+                        value: continuation,
+                    },
+                ],
+                allow_extra: false,
+            }
+        };
+        let result_contract = FunctionResultContract::Records {
+            record: ResultValueContract::Union {
+                variants: vec![
+                    outer(
+                        "absent",
+                        ResultValueContract::Null,
+                        ResultValueContract::Null,
+                    ),
+                    outer(
+                        "visible",
+                        ResultValueContract::Tuple {
+                            elements: plan
+                                .nodes
+                                .iter()
+                                .map(|node| match node {
+                                    SnapshotBatchNodeV2::BoundedChildren(_) => {
+                                        ResultValueContract::Json {
+                                            max_depth: 16,
+                                            max_bytes: 1_048_576,
+                                        }
+                                    }
+                                    SnapshotBatchNodeV2::RelationalQuery(node) => {
+                                        ResultValueContract::Array {
+                                            element: Box::new(ResultValueContract::Json {
+                                                max_depth: 16,
+                                                max_bytes: 1_048_576,
+                                            }),
+                                            max_items: node.take as usize,
+                                        }
+                                    }
+                                })
+                                .collect(),
+                        },
+                        ResultValueContract::Union {
+                            variants: vec![
+                                ResultValueContract::Null,
+                                ResultValueContract::String { max_bytes: 8_192 },
+                            ],
+                        },
+                    ),
+                ],
+            },
+            rows: Some(ResultRowsBound {
+                min_items: 1,
+                max_items: 1,
+            }),
+        };
+        let mut function = FunctionDefinition::new(
+            "mixedView",
+            FunctionKind::Query,
+            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)),
+        );
+        function.args_contract_hash = Some(args_contract_hash(&args_contract).expect("args hash"));
+        function.args_contract = Some(args_contract);
+        function.result_contract_hash =
+            Some(result_contract_hash(&result_contract).expect("result hash"));
+        function.result_contract = result_contract;
+        function.required_capabilities = vec![
+            "snapshot_batch_v2".to_owned(),
+            "relational_query_v1".to_owned(),
+            "bounded_children_v1".to_owned(),
+            "args_contract_v1".to_owned(),
+            "result_contract_v1".to_owned(),
+        ];
+        let identity = {
+            let FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)) = &function.runtime
+            else {
+                unreachable!("snapshot v2 fixture")
+            };
+            snapshot_batch_identity_v2(&function, plan).expect("snapshot v2 identity")
+        };
+        let FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)) = &mut function.runtime
+        else {
+            unreachable!("snapshot v2 fixture")
+        };
+        plan.normalized_composite_plan = identity.normalized_composite_plan;
+        plan.plan_hash = identity.plan_hash;
+        function
+    }
+
+    #[test]
+    fn snapshot_batch_v2_shape_identity_groups_and_effect_ceilings_are_closed() {
+        let bounded = SnapshotBatchNodeV2::BoundedChildren(snapshot_node_fixture(
+            "boardId",
+            BoundedParentVisibility::PublicRead,
+            4,
+        ));
+        let relational =
+            SnapshotBatchNodeV2::RelationalQuery(snapshot_v2_relational_node_fixture(7));
+        assert_eq!(bounded.examined_entry_ceiling(), 5);
+        assert_eq!(bounded.joined_lookup_ceiling(), 0);
+        assert_eq!(relational.examined_entry_ceiling(), 7);
+        assert_eq!(relational.joined_lookup_ceiling(), 7);
+
+        let plan = SnapshotBatchPlanV2 {
+            profile: "snapshot-batch.v2".to_owned(),
+            nodes: vec![bounded.clone(), relational.clone()],
+            normalized_composite_plan: Value::Null,
+            plan_hash: String::new(),
+        };
+        validate_snapshot_batch_v2_plan_shape(&plan).expect("mixed v2 tuple");
+        let function = snapshot_v2_function_fixture(plan.clone());
+        let groups = snapshot_batch_v2_parent_authorization_groups(&function, &plan)
+            .expect("bounded positions alone form groups");
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].node_indices, vec![0]);
+        let identity = snapshot_batch_identity_v2(&function, &plan).expect("v2 identity");
+        assert_eq!(identity.node_examined_entry_ceilings, vec![5, 7]);
+        assert_eq!(identity.node_joined_lookup_ceilings, vec![0, 7]);
+        assert_eq!(identity.parent_authorization_group_count, 1);
+        assert_eq!(
+            identity.normalized_composite_plan["profileId"],
+            "snapshot-batch.v2"
+        );
+        assert_eq!(
+            identity.normalized_composite_plan["nodes"][1]["nodePlan"]["classId"],
+            "relational_query_v1"
+        );
+        assert_eq!(
+            identity.normalized_composite_plan["parentAuthorizationGroups"][0]["members"],
+            json!([0])
+        );
+        assert!(matches!(
+            PublicFunctionDefinition::from(function).runtime,
+            PublicFunctionRuntime::HostPlan(PublicHostPlanKind::SnapshotBatchV2)
+        ));
+
+        let all_relational_plan = SnapshotBatchPlanV2 {
+            profile: "snapshot-batch.v2".to_owned(),
+            nodes: vec![relational.clone(), relational.clone()],
+            normalized_composite_plan: Value::Null,
+            plan_hash: String::new(),
+        };
+        let all_relational = snapshot_v2_function_fixture(all_relational_plan.clone());
+        assert!(
+            snapshot_batch_v2_parent_authorization_groups(&all_relational, &all_relational_plan,)
+                .expect("all-relational has no parent groups")
+                .is_empty()
+        );
+
+        let no_relational = SnapshotBatchPlanV2 {
+            profile: "snapshot-batch.v2".to_owned(),
+            nodes: vec![bounded.clone(), bounded],
+            normalized_composite_plan: Value::Null,
+            plan_hash: String::new(),
+        };
+        assert_eq!(
+            validate_snapshot_batch_v2_plan_shape(&no_relational)
+                .expect_err("v2 requires a relational node")
+                .diagnostic
+                .code,
+            "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+        );
+
+        for nodes in [vec![relational.clone()], vec![relational.clone(); 9]] {
+            let out_of_range = SnapshotBatchPlanV2 {
+                profile: "snapshot-batch.v2".to_owned(),
+                nodes,
+                normalized_composite_plan: Value::Null,
+                plan_hash: String::new(),
+            };
+            assert_eq!(
+                validate_snapshot_batch_v2_plan_shape(&out_of_range)
+                    .expect_err("v2 admits exactly two through eight nodes")
+                    .diagnostic
+                    .code,
+                "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+            );
+        }
+
+        let exceeded = SnapshotBatchPlanV2 {
+            profile: "snapshot-batch.v2".to_owned(),
+            nodes: vec![
+                SnapshotBatchNodeV2::RelationalQuery(snapshot_v2_relational_node_fixture(1_024)),
+                SnapshotBatchNodeV2::RelationalQuery(snapshot_v2_relational_node_fixture(1)),
+            ],
+            normalized_composite_plan: Value::Null,
+            plan_hash: String::new(),
+        };
+        assert_eq!(
+            validate_snapshot_batch_v2_plan_shape(&exceeded)
+                .expect_err("summed take stays bounded")
+                .diagnostic
+                .code,
+            "SNAPBACK_SNAPSHOT_BATCH_CEILING_EXCEEDED",
+        );
+
+        let encoded = serde_json::to_value(relational).expect("serialize tagged v2 node");
+        assert_eq!(encoded["classId"], "relational_query_v1");
+        assert!(encoded.get("plan").is_some());
+        assert_eq!(encoded.as_object().map(|value| value.len()), Some(2));
+    }
+
+    #[test]
+    fn snapshot_batch_v2_outer_contract_never_narrows_to_visible() {
+        let plan = SnapshotBatchPlanV2 {
+            profile: "snapshot-batch.v2".to_owned(),
+            nodes: vec![
+                SnapshotBatchNodeV2::RelationalQuery(snapshot_v2_relational_node_fixture(2)),
+                SnapshotBatchNodeV2::RelationalQuery(snapshot_v2_relational_node_fixture(2)),
+            ],
+            normalized_composite_plan: Value::Null,
+            plan_hash: String::new(),
+        };
+        let function = snapshot_v2_function_fixture(plan.clone());
+        validate_snapshot_batch_v2_outer_result_contract(&function, &plan)
+            .expect("two-arm envelope admits even when absence is unreachable");
+
+        let mut narrowed = function;
+        let FunctionResultContract::Records {
+            record: ResultValueContract::Union { variants },
+            ..
+        } = &mut narrowed.result_contract
+        else {
+            unreachable!("v2 fixture result")
+        };
+        let visible = variants[1].clone();
+        narrowed.result_contract = FunctionResultContract::Records {
+            record: visible,
+            rows: Some(ResultRowsBound {
+                min_items: 1,
+                max_items: 1,
+            }),
+        };
+        assert_eq!(
+            validate_snapshot_batch_v2_outer_result_contract(&narrowed, &plan)
+                .expect_err("visible-only contract must refuse")
+                .diagnostic
+                .code,
+            "SNAPBACK_SNAPSHOT_BATCH_RESULT_CONTRACT_INVALID",
+        );
+    }
+
     #[test]
     fn snapshot_batch_static_tuple_ceiling_arguments_and_structural_groups_are_closed() {
         let owner = BoundedParentVisibility::Owner {
@@ -12326,6 +14665,10 @@ mod membership_manifest_grammar_tests {
             ),
             (
                 TargetCapabilityId::SnapshotBatchV1,
+                CapabilityMaturity::Experimental,
+            ),
+            (
+                TargetCapabilityId::SnapshotBatchV2,
                 CapabilityMaturity::Experimental,
             ),
             (
@@ -12644,12 +14987,11 @@ mod membership_manifest_grammar_tests {
             ),
             "the exact embedded carrier chain publishes iff its receipts qualify",
         );
-        let mut qualified_exit: Value = serde_json::from_slice(
-            LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
-        )
-        .expect("carrier exit fixture parses");
-        qualified_exit["summary"]["pass"] = json!(16);
-        qualified_exit["summary"]["gap"] = json!(1);
+        let mut qualified_exit: Value =
+            serde_json::from_slice(LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES)
+                .expect("carrier exit fixture parses");
+        qualified_exit["summary"]["pass"] = json!(17);
+        qualified_exit["summary"]["gap"] = json!(0);
         let triage = qualified_exit["legs"]
             .as_array_mut()
             .and_then(|legs| {
@@ -12658,6 +15000,14 @@ mod membership_manifest_grammar_tests {
             })
             .expect("carrier exit carries the Triage leg");
         triage["status"] = json!("PASS");
+        let fleet = qualified_exit["legs"]
+            .as_array_mut()
+            .and_then(|legs| {
+                legs.iter_mut()
+                    .find(|leg| leg["leg"] == "footprint-hydration-fleet")
+            })
+            .expect("carrier exit carries the Fleet leg");
+        fleet["status"] = json!("PASS");
         assert!(local_persistent_store_receipts_qualified(
             &serde_json::to_vec(&qualified_exit).expect("qualified fixture serializes"),
             LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
@@ -12678,7 +15028,10 @@ mod membership_manifest_grammar_tests {
                 published,
             );
             assert_eq!(
-                manifest.capability_gaps.iter().any(|gap| gap == "single_table_v1"),
+                manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|gap| gap == "single_table_v1"),
                 !published,
             );
         }
@@ -12694,30 +15047,262 @@ mod membership_manifest_grammar_tests {
                 "{} must not inherit contributor-source publication",
                 manifest.target_profile_id,
             );
-            assert!(manifest.capability_gaps.iter().any(|gap| gap == "single_table_v1"));
+            assert!(
+                manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|gap| gap == "single_table_v1")
+            );
         }
+    }
+
+    const PACKAGED_STORE_TEST_GIT_COMMIT: &str =
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+    fn packaged_store_test_receipt_bytes() -> Vec<u8> {
+        let identity = crate::identity::BinaryIdentity {
+            crate_version: env!("CARGO_PKG_VERSION").to_owned(),
+            git_commit: PACKAGED_STORE_TEST_GIT_COMMIT.to_owned(),
+            git_dirty: false,
+            build_profile: "release".to_owned(),
+            startup_nonce: "test-nonce".to_owned(),
+        };
+        let receipt = stamp_packaged_store_qualification_receipt(
+            "2026-08-06",
+            &identity,
+            crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
+            vec![PackagedStoreClosureEntryV1 {
+                name: "@expo/snapback-client".to_owned(),
+                version: "0.1.11".to_owned(),
+                sha256: format!("sha256:{}", "1".repeat(64)),
+            }],
+            PackagedStoreQualificationSuiteV1 {
+                id: PACKAGED_STORE_QUALIFICATION_SUITE_ID.to_owned(),
+                pass: 3,
+                fail: 0,
+                skipped: 0,
+            },
+        )
+        .expect("clean public-package fixture stamps");
+        serde_json::to_vec(&receipt).expect("packaged-store receipt serializes")
+    }
+
+    fn public_packaged_store_verified(
+        receipt: Option<&[u8]>,
+        git_commit: &str,
+        git_dirty: bool,
+        build_profile: &str,
+    ) -> bool {
+        local_persistent_store_publication_verified_for(
+            crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
+            git_commit,
+            git_dirty,
+            build_profile,
+            receipt,
+            LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
+            LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
+            LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
+            LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
+            LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
+        )
     }
 
     #[test]
     fn single_table_publication_tamper_and_package_substitutions_fail_closed() {
+        let valid_receipt = packaged_store_test_receipt_bytes();
+        // @ref LLP 0110#single-table-public-package-advertisement-amendment--2026-08-06
+        // — the amended positive requires a valid receipt and clean release
+        // identity in addition to the intact contributor carrier chain.
+        assert!(public_packaged_store_verified(
+            Some(&valid_receipt),
+            PACKAGED_STORE_TEST_GIT_COMMIT,
+            false,
+            "release",
+        ));
+        // @ref LLP 0110#single-table-public-package-advertisement-amendment--2026-08-06
+        // — public packages without the qualification receipt still fail.
+        assert!(!public_packaged_store_verified(
+            None,
+            PACKAGED_STORE_TEST_GIT_COMMIT,
+            false,
+            "release",
+        ));
+
         let mut tampered_carrier = LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES.to_vec();
         tampered_carrier[0] ^= 1;
         assert!(!local_persistent_store_publication_verified_for(
             crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
+            "ignored",
+            true,
+            "debug",
+            None,
             &tampered_carrier,
-            LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256,
+            LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
             LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
             LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
             LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
         ));
+        let mut tampered_anchor = LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES.to_vec();
+        tampered_anchor[0] ^= 1;
+        assert!(!local_persistent_store_publication_verified_for(
+            crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
+            "ignored",
+            true,
+            "debug",
+            None,
+            LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
+            &tampered_anchor,
+            LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
+            LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
+            LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
+        ));
+        let anchor_mutations: [fn(&mut Value); 4] = [
+            |anchor: &mut Value| anchor["state"] = json!("withheld"),
+            |anchor: &mut Value| anchor["capabilityId"] = json!("bounded_children_v1"),
+            |anchor: &mut Value| {
+                anchor["carrierSha256"] = json!(format!("sha256:{}", "0".repeat(64)))
+            },
+            |anchor: &mut Value| anchor["unexpected"] = json!(true),
+        ];
+        for mutate in anchor_mutations {
+            let mut anchor: Value =
+                serde_json::from_slice(LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES)
+                    .expect("persistent-store publication anchor parses");
+            mutate(&mut anchor);
+            assert!(!local_persistent_store_publication_verified_for(
+                crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
+                "ignored",
+                true,
+                "debug",
+                None,
+                LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
+                &serde_json::to_vec(&anchor).expect("tampered anchor serializes"),
+                LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
+                LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
+                LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
+            ));
+            assert!(!local_persistent_store_publication_verified_for(
+                crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
+                PACKAGED_STORE_TEST_GIT_COMMIT,
+                false,
+                "release",
+                Some(&valid_receipt),
+                LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
+                &serde_json::to_vec(&anchor).expect("tampered anchor serializes"),
+                LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
+                LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
+                LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
+            ));
+        }
         assert!(!local_persistent_store_publication_verified_for(
             crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
-            LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
-            LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256,
+            PACKAGED_STORE_TEST_GIT_COMMIT,
+            false,
+            "release",
+            Some(&valid_receipt),
+            &tampered_carrier,
+            LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
             LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
             LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
             LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
         ));
+
+        let mut tampered_receipt = valid_receipt.clone();
+        tampered_receipt[0] ^= 1;
+        assert!(!public_packaged_store_verified(
+            Some(&tampered_receipt),
+            PACKAGED_STORE_TEST_GIT_COMMIT,
+            false,
+            "release",
+        ));
+        assert!(!public_packaged_store_verified(
+            Some(&valid_receipt),
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            false,
+            "release",
+        ));
+        assert!(!public_packaged_store_verified(
+            Some(&valid_receipt),
+            PACKAGED_STORE_TEST_GIT_COMMIT,
+            true,
+            "release",
+        ));
+        assert!(!public_packaged_store_verified(
+            Some(&valid_receipt),
+            PACKAGED_STORE_TEST_GIT_COMMIT,
+            false,
+            "debug",
+        ));
+
+        let receipt_mutations: [fn(&mut Value); 17] = [
+            |receipt| receipt["schemaVersion"] = json!("snapback.packaged-store-qualification.v2"),
+            |receipt| receipt["capabilityId"] = json!("bounded_children_v1"),
+            |receipt| receipt["date"] = json!("2026-02-30"),
+            |receipt| receipt["binaryIdentity"]["crateVersion"] = json!("0.0.0"),
+            |receipt| receipt["binaryIdentity"]["gitCommit"] = json!("b".repeat(40)),
+            |receipt| receipt["binaryIdentity"]["gitDirty"] = json!(true),
+            |receipt| receipt["binaryIdentity"]["buildProfile"] = json!("debug"),
+            |receipt| {
+                receipt["binaryIdentity"]["buildDistribution"] = json!(
+                    crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE
+                )
+            },
+            |receipt| receipt["embeddedCarrierSha256"] = json!(format!("sha256:{}", "2".repeat(64))),
+            |receipt| receipt["packageClosureSha256"] = json!(format!("sha256:{}", "3".repeat(64))),
+            |receipt| receipt["packageClosure"][0]["sha256"] = json!(format!("sha256:{}", "0".repeat(64))),
+            |receipt| receipt["packageClosure"][0]["sha256"] = json!("sha256:not-a-digest"),
+            |receipt| receipt["suite"]["id"] = json!("some-other-suite"),
+            |receipt| receipt["suite"]["fail"] = json!(1),
+            |receipt| receipt["suite"]["skipped"] = json!(1),
+            |receipt| receipt["suite"]["pass"] = json!(0),
+            |receipt| receipt["unexpected"] = json!(true),
+        ];
+        for mutate in receipt_mutations {
+            let mut receipt: Value =
+                serde_json::from_slice(&valid_receipt).expect("valid receipt parses");
+            mutate(&mut receipt);
+            let receipt = serde_json::to_vec(&receipt).expect("mutated receipt serializes");
+            assert!(!public_packaged_store_verified(
+                Some(&receipt),
+                PACKAGED_STORE_TEST_GIT_COMMIT,
+                false,
+                "release",
+            ));
+        }
+        assert!(!local_persistent_store_publication_verified_for(
+            "unrecognized-distribution",
+            PACKAGED_STORE_TEST_GIT_COMMIT,
+            false,
+            "release",
+            Some(&valid_receipt),
+            LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
+            LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
+            LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
+            LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
+            LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
+        ));
+
+        let unsorted = vec![
+            PackagedStoreClosureEntryV1 {
+                name: "z-package".to_owned(),
+                version: "1.0.0".to_owned(),
+                sha256: format!("sha256:{}", "4".repeat(64)),
+            },
+            PackagedStoreClosureEntryV1 {
+                name: "a-package".to_owned(),
+                version: "2.0.0".to_owned(),
+                sha256: format!("sha256:{}", "5".repeat(64)),
+            },
+        ];
+        let expected_canonical = format!(
+            "a-package@2.0.0 sha256:{}\nz-package@1.0.0 sha256:{}\n",
+            "5".repeat(64),
+            "4".repeat(64),
+        );
+        assert_eq!(
+            packaged_store_closure_canonical_text(&unsorted).as_deref(),
+            Some(expected_canonical.as_str()),
+        );
         let withheld = CapabilityManifest::local_v0_with_facts(
             Vec::new(),
             TargetCapabilityFacts::local_auth_aware()
@@ -12728,7 +15313,126 @@ mod membership_manifest_grammar_tests {
                 .supported_capabilities
                 .contains(&TargetCapabilityId::SingleTableV1)
         );
-        assert!(withheld.capability_gaps.iter().any(|gap| gap == "single_table_v1"));
+        assert!(
+            withheld
+                .capability_gaps
+                .iter()
+                .any(|gap| gap == "single_table_v1")
+        );
+    }
+
+    #[test]
+    fn packaged_store_qualification_mode_is_public_package_only_and_manifest_honest() {
+        assert!(!packaged_store_qualification_mode_from_value(None));
+        assert!(!packaged_store_qualification_mode_from_value(Some(
+            OsStr::new("")
+        )));
+        assert!(packaged_store_qualification_mode_from_value(Some(
+            OsStr::new("1")
+        )));
+        assert!(packaged_store_qualification_mode_from_value(Some(
+            OsStr::new("0")
+        )));
+
+        let packaged_facts =
+            TargetCapabilityFacts::local_auth_aware_with_packaged_store_evidence(
+                crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
+                PACKAGED_STORE_TEST_GIT_COMMIT,
+                false,
+                "release",
+                None,
+                true,
+            );
+        let packaged = CapabilityManifest::local_v0_with_facts(
+            local_v0_default_capability_gaps(),
+            packaged_facts,
+        );
+        assert!(packaged.packaged_store_qualification_mode);
+        assert!(
+            packaged
+                .supported_capabilities
+                .contains(&TargetCapabilityId::SingleTableV1)
+        );
+        assert!(
+            !packaged
+                .capability_gaps
+                .iter()
+                .any(|gap| gap == "single_table_v1")
+        );
+        for untouched in [
+            TargetCapabilityId::BoundedChildrenV1,
+            TargetCapabilityId::WriteActivityV1,
+            TargetCapabilityId::SequenceAllocationV1,
+            TargetCapabilityId::AgentSafeStorageV1,
+            TargetCapabilityId::AgentSafeDerivedDeploymentForkV1,
+        ] {
+            assert!(
+                !packaged.supported_capabilities.contains(&untouched),
+                "qualification mode must not widen {}",
+                untouched.as_str(),
+            );
+        }
+
+        let without_mode = CapabilityManifest::local_v0_with_facts(
+            local_v0_default_capability_gaps(),
+            TargetCapabilityFacts::local_auth_aware_with_packaged_store_evidence(
+                crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
+                PACKAGED_STORE_TEST_GIT_COMMIT,
+                false,
+                "release",
+                None,
+                false,
+            ),
+        );
+        assert!(!without_mode.packaged_store_qualification_mode);
+        assert!(
+            without_mode
+                .capability_gaps
+                .iter()
+                .any(|gap| gap == "single_table_v1")
+        );
+
+        let contributor_with_mode = CapabilityManifest::local_v0_with_facts(
+            local_v0_default_capability_gaps(),
+            TargetCapabilityFacts::local_auth_aware_with_packaged_store_evidence(
+                crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
+                PACKAGED_STORE_TEST_GIT_COMMIT,
+                false,
+                "release",
+                None,
+                true,
+            ),
+        );
+        let contributor_without_mode = CapabilityManifest::local_v0_with_facts(
+            local_v0_default_capability_gaps(),
+            TargetCapabilityFacts::local_auth_aware_with_packaged_store_evidence(
+                crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
+                "unknown",
+                true,
+                "debug",
+                None,
+                false,
+            ),
+        );
+        assert_eq!(contributor_with_mode, contributor_without_mode);
+        assert!(!contributor_with_mode.packaged_store_qualification_mode);
+        assert!(
+            serde_json::to_value(&contributor_with_mode)
+                .expect("contributor manifest serializes")
+                .get("packagedStoreQualificationMode")
+                .is_none(),
+            "false qualification mode must not leak into declared manifests",
+        );
+        let committed: Value = serde_json::from_slice(include_bytes!(
+            "../schemas/capability.manifest.local-dev-sqlite-ibex.json"
+        ))
+        .expect("committed local manifest parses");
+        assert_eq!(
+            serde_json::to_value(&contributor_without_mode)
+                .expect("contributor manifest serializes"),
+            committed,
+            "the contributor-source declared manifest remains byte-shape identical",
+        );
     }
 
     #[test]
@@ -12786,6 +15490,66 @@ mod membership_manifest_grammar_tests {
                     .iter()
                     .any(|gap| gap == "snapshot_batch_v1"),
                 "{} must report the structured snapshot_batch_v1 GAP",
+                manifest.target_profile_id,
+            );
+        }
+    }
+
+    #[test]
+    fn snapshot_batch_v2_registry_is_experimental_and_local_only() {
+        assert_eq!(
+            TargetCapabilityId::SnapshotBatchV2.maturity(),
+            CapabilityMaturity::Experimental,
+        );
+        for manifest in [
+            CapabilityManifest::local_v0_declared(),
+            CapabilityManifest::local_v0_instance(Vec::new(), true),
+        ] {
+            assert!(
+                manifest
+                    .supported_capabilities
+                    .contains(&TargetCapabilityId::SnapshotBatchV2),
+                "{} must advertise the registered local v2 executor",
+                manifest.target_profile_id,
+            );
+            assert_eq!(
+                manifest
+                    .capability_maturity
+                    .get(&TargetCapabilityId::SnapshotBatchV2),
+                Some(&CapabilityMaturity::Experimental),
+            );
+            assert!(
+                !manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|gap| gap == "snapshot_batch_v2")
+            );
+        }
+        for manifest in [
+            CapabilityManifest::remote_service_sqlite_ibex_declared(),
+            CapabilityManifest::conformance_workerd_v8(json!({})),
+            CapabilityManifest::cloudflare_do_sqlite_v8(json!({})),
+        ] {
+            assert!(
+                !manifest
+                    .supported_capabilities
+                    .contains(&TargetCapabilityId::SnapshotBatchV2),
+                "{} must not inherit local snapshot-batch v2 support",
+                manifest.target_profile_id,
+            );
+            assert!(
+                !manifest
+                    .capability_maturity
+                    .contains_key(&TargetCapabilityId::SnapshotBatchV2),
+                "{} must not annotate maturity for an unsupported id",
+                manifest.target_profile_id,
+            );
+            assert!(
+                manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|gap| gap == "snapshot_batch_v2"),
+                "{} must report the structured snapshot_batch_v2 GAP",
                 manifest.target_profile_id,
             );
         }

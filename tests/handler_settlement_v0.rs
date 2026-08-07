@@ -63,6 +63,13 @@ globalThis.__snapbackHandlers = {
   },
   async echoActionWrongContract() {
     return { accepted: "not-a-boolean" };
+  },
+  async insertText(ctx, args) {
+    return await ctx.db.insert('texts', { body: args.body });
+  },
+  async readText(ctx, args) {
+    const row = await ctx.db.get('texts', args.id);
+    return row ? [{ body: row.body, observedLength: row.body.length }] : [];
   }
 };
 "#;
@@ -70,23 +77,44 @@ globalThis.__snapbackHandlers = {
 fn schema() -> SchemaManifest {
     SchemaManifest {
         schema_hash: Some("settlement-v0".to_owned()),
-        tables: vec![TableManifest {
-            name: "items".to_owned(),
-            fields: vec![FieldManifest {
-                name: "n".to_owned(),
-                field_type: FieldType::Integer,
-                optional: false,
-            }],
-            indexes: Vec::new(),
-            syncable: true,
-            permission_backing: false,
-            permission_fields: None,
-            search_indexes: Vec::new(),
-            vector_indexes: Vec::new(),
-            search_live_limits: None,
-            membership: None,
-            asset_sharing: None,
-        }],
+        tables: vec![
+            TableManifest {
+                name: "items".to_owned(),
+                fields: vec![FieldManifest {
+                    name: "n".to_owned(),
+                    field_type: FieldType::Integer,
+                    optional: false,
+                }],
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
+                search_live_limits: None,
+                membership: None,
+                asset_sharing: None,
+                history: None,
+            },
+            TableManifest {
+                name: "texts".to_owned(),
+                fields: vec![FieldManifest {
+                    name: "body".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                }],
+                indexes: Vec::new(),
+                syncable: false,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
+                search_live_limits: None,
+                membership: None,
+                asset_sharing: None,
+                history: None,
+            },
+        ],
         ..SchemaManifest::default()
     }
 }
@@ -249,6 +277,8 @@ fn functions() -> FunctionManifest {
             invalid_query,
             inline_action,
             invalid_action,
+            define("insertText", FunctionKind::Mutation),
+            define("readText", FunctionKind::Query),
         ],
         ..FunctionManifest::default()
     }
@@ -328,6 +358,27 @@ fn legitimate_empty_object_result_still_succeeds() {
         .invoke_mutation("returnsEmptyObject", input(json!({})))
         .expect("mutation returning {}");
     assert_eq!(output.result, json!({}));
+}
+
+#[test]
+fn ctx_db_string_larger_than_failure_metadata_bound_roundtrips_exactly() {
+    // @ref LLP 0108#runtime-validation-and-atomicity — a stored value below
+    // the declared result ceilings reaches the handler and its published
+    // post-JSON result in full; no engine bridge may return a plausible prefix.
+    let mut snapback = configured();
+    let body = "x".repeat(44_084);
+    let inserted = snapback
+        .invoke_mutation("insertText", input(json!({ "body": body })))
+        .expect("insert long string through a JS mutation");
+    let id = inserted.result.as_str().expect("insert returns id");
+    let rows = snapback
+        .invoke_query("readText", input(json!({ "id": id })))
+        .expect("read long string through a JS query")
+        .rows;
+
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0]["observedLength"], 44_084);
+    assert_eq!(rows[0]["body"].as_str(), Some(body.as_str()));
 }
 
 #[test]

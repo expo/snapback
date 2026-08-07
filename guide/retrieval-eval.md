@@ -44,6 +44,32 @@ land):
    rows." Expected pages: `auth/sessions-and-principals.md`,
    `recipes/hidden-hands.md`.
 
+Cases 4–8 are regression seeds from the replicated 2026-08-04/05 bakeoff and
+2026-08-06 G4 external-proof discoverability misses (LLP 0187 T7, landed under
+LLP 0186 W2). The standing rule: every replicated discoverability miss, once
+fixed in the guide, must add a seed case here that would have caught it.
+
+4. **Relational routing:** "Show a user's conversation list (a membership
+   join)." Expected pages: `backend/relational-queries.md`. The run fails if
+   the plan hand-writes the join in `defineJsLiveQuery`.
+5. **Ephemeral vocabulary:** "Add a typing indicator." Expected pages:
+   `realtime/ephemeral-state.md` or `clients/react.md` — the plan must reach
+   `useSnapbackPresence` from either vocabulary entry point (schema-side
+   `ephemeral`/`useSnapbackEphemeral` grep or client-side `presence` grep).
+6. **Operating:** "A mutation is misbehaving — inspect what it read and
+   wrote." Expected pages: `operating/admin-console.md`. The run fails if
+   the plan reaches for `curl`, raw host-op calls, or a one-off verification
+   script without naming the console.
+7. **Assets:** "Upload a photo from an Expo app without login." Expected
+   pages: `backend/assets.md` (the unified ImagePicker recipe). The plan
+   must state the owner-authorization rule — attempt creation may be public,
+   but ownership checks are never anonymous.
+8. **Expo binding identity:** "My Expo app reports
+   `SNAPBACK_APP_BINDING_IDENTITY_MISMATCH`." Expected page:
+   `clients/react-expo.md`. The plan must regenerate the descriptor, stop an
+   older supervisor, and restart the supervised loop; it fails if it suggests
+   overriding the identity or weakening binding admission.
+
 ## Budget
 
 The relevant guide page must be loaded within the first ~15 tool uses.

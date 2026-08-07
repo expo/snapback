@@ -201,7 +201,7 @@ export const conversationMessages = defineJsLiveQuery({
 // browser-session caveat, generalized), so uploads here go through
 // `snapback assets put --user <handle>` or an equivalent admin-impersonated
 // caller, never the raw fetch-based asset client.
-// See issues/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md.
+// See issues/closed/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md.
 export const messageImageUpload = defineAssetUpload({
   args: {},
   auth: 'public',

@@ -126,10 +126,19 @@
       "type": "object"
     },
     "NetDiffSubstrateV1": {
-      "enum": [
-        "immutableMaterializedBase"
-      ],
-      "type": "string"
+      "oneOf": [
+        {
+          "enum": [
+            "journalDerivedWithIndependentOracle"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "immutableMaterializedBase",
+          "description": "Legacy pre-accounting receipt value. It remains decode/schema-visible\nfor v1 compatibility but is never emitted by `exact_fork_diff` and is\nnot admissible for strict promotion.",
+          "type": "string"
+        }
+      ]
     },
     "OperationBoundFactsV1": {
       "additionalProperties": false,
@@ -336,6 +345,14 @@
     "diffDigest": {
       "pattern": "^sha256:[0-9a-f]{64}$",
       "type": "string"
+    },
+    "digestWorkBytes": {
+      "default": 0,
+      "description": "Zero is reserved for decoded legacy receipts whose work was not\naccounted. New exact diffs always emit a positive admitted byte count.",
+      "format": "uint64",
+      "maximum": 67108864,
+      "minimum": 0,
+      "type": "integer"
     },
     "netDiff": {
       "items": {

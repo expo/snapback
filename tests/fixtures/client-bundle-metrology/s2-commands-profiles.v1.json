@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "snapback.client-bundle-metrology-additive-profiles.v1",
+  "profiles": [
+    {
+      "id": "resolved-public-subpath-commands",
+      "package": "@expo/snapback-client/commands",
+      "namespace": true,
+      "resolveOptionalRuntimes": true
+    }
+  ]
+}

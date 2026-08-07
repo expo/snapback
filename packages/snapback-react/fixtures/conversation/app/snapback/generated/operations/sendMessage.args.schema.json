@@ -1,0 +1,25 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/app/sendMessage.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "body": {
+      "type": "string"
+    },
+    "conversationId": {
+      "type": "string"
+    },
+    "image": {
+      "type": "string"
+    },
+    "senderId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "conversationId",
+    "senderId"
+  ],
+  "title": "app:sendMessage arguments",
+  "type": "object"
+}

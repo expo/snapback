@@ -23,6 +23,7 @@ import { canonicalizeClientValueV1 } from './canonical-client-value.mjs';
 export const OUTBOX_MAX_RECORDS = 1024;
 export const OUTBOX_MAX_RECORD_BYTES = 262_144; // 256 KiB serialized
 export const OUTBOX_MAX_PENDING_ACKS = 4096;
+export const OUTBOX_QUARANTINE_TOMBSTONE_FORMAT = 'snapback.outbox-quarantine-tombstone.v1';
 
 // Connectivity classification shared by the LLP 0043 M2 queue path and the
 // offline binding-receipt path (react-binding.mjs, which cannot import
@@ -47,6 +48,7 @@ export const isConnectivityFailureError = (error) => (
 );
 
 const REPLAY_OPAQUE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/;
+const SHA256_DIGEST = /^sha256:[0-9a-f]{64}$/;
 const plainRecord = (value) => value !== null
   && typeof value === 'object'
   && !Array.isArray(value);
@@ -138,9 +140,12 @@ export function normalizeOutboxRecordInput(record) {
     userId: stringOrNull(record.userId),
     readSet: Array.isArray(record.readSet) ? record.readSet : [],
     correlation: record.correlation ?? null,
-    // The authority descriptor captured at enqueue (LLP 0043 §Auth posture):
-    // replay sends THIS stored descriptor, never a newly observed one.
+    // The authority descriptor captured at enqueue (LLP 0043 §Auth posture).
+    // It is immutable after identity assignment. An uncovered intent may
+    // atomically adopt a fresh descriptor only after the client proves the
+    // authenticated principal is unchanged.
     authorityDescriptor: record.authorityDescriptor ?? null,
+    operationAuthorityPrincipalId: stringOrNull(record.operationAuthorityPrincipalId),
     // The captured replay environment, when one exists (LLP 0008 pins the
     // wire to {generatedIds, now} = the ctx-answer ledger). The plain JS arm
     // runs no local execution, so it usually captures none; a composing
@@ -156,6 +161,11 @@ export function normalizeOutboxRecordInput(record) {
     settlementIdentity: record.settlementIdentity ?? null,
     settlementClaims: record.settlementClaims ?? null,
     boundedSkew: record.boundedSkew ?? null,
+    // LLP 0163 widens the existing durable clientMutationId. The issuance is
+    // immutable after first transport admission and therefore participates
+    // in the outbox's exact replay identity.
+    operationIssuance: record.operationIssuance ?? null,
+    operationCoverageDisposition: record.operationCoverageDisposition ?? null,
     // Move-3 lane-L intent payload. The durable outbox owns the immutable IR
     // operation; private layers are always recomputed from it and never become
     // a second persistence authority.
@@ -302,6 +312,52 @@ const cascadeFailure = (state, unresolvedIds, afterSequence) => {
     : { state: { ...state, records }, failedIds };
 };
 
+const quarantineDependencyIds = (records, trigger) => {
+  const unresolvedIds = new Set(settlementMintIds(trigger));
+  const dependentIds = new Set();
+  if (!unresolvedIds.size) return dependentIds;
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const candidate of records) {
+      if (
+        candidate.id === trigger.id
+        || candidate.sequence <= trigger.sequence
+        || dependentIds.has(candidate.id)
+        || !hasStringLeaf(candidate.args, unresolvedIds)
+      ) continue;
+      dependentIds.add(candidate.id);
+      for (const minted of settlementMintIds(candidate)) unresolvedIds.add(minted);
+      changed = true;
+    }
+  }
+  return dependentIds;
+};
+
+// The durable record keeps the original intent privately so explicit re-entry
+// can restore it. Every observable store/client projection replaces that
+// private record with this stable payload-free tombstone.
+//
+// @ref LLP 0081#4-execution-journaling-and-crash-recovery — an incompatible
+//   client's queued intent is observable as a redacted tombstone, never
+//   silently replayed or dropped.
+const quarantineTombstone = (record) => ({
+  format: OUTBOX_QUARANTINE_TOMBSTONE_FORMAT,
+  status: 'quarantined',
+  id: record.id,
+  clientMutationId: record.id,
+  function: record.function,
+  sequence: record.sequence,
+  quarantinedAt: record.quarantine?.quarantinedAt ?? null,
+  refusalCode: record.quarantine?.refusalCode ?? 'SNAPBACK_UPGRADE_REQUIRED',
+  quarantineDisposition: record.quarantine?.disposition ?? 'compatibility-unclassified',
+  causeClientMutationId: record.quarantine?.causeClientMutationId ?? record.id,
+  provenance: {
+    source: 'server-replay-refusal',
+    payload: 'redacted',
+  },
+});
+
 const reconcileSettledMintIds = (state, record, settlement) => {
   const { replacements, unresolved } = settlementIdResolution(record, settlement);
   let records = state.records;
@@ -328,7 +384,12 @@ const reconcileSettledMintIds = (state, record, settlement) => {
 
 /// Shared state-shape helpers for arms that hold the outbox as one JSON
 /// section ({ sequence, records: {id -> record}, acks: [{id, userId}] }).
-export const emptyOutboxState = () => ({ sequence: 0, records: {}, acks: [] });
+export const emptyOutboxState = () => ({
+  sequence: 0,
+  records: {},
+  acks: [],
+  operationIdentityRanges: {},
+});
 
 export function validateOutboxState(value) {
   if (
@@ -337,8 +398,113 @@ export function validateOutboxState(value) {
     || !plainRecord(value.records)
     || !Array.isArray(value.acks)
   ) return null;
-  return value;
+  return {
+    ...value,
+    operationIdentityRanges: value.operationIdentityRanges
+      && typeof value.operationIdentityRanges === 'object'
+      && !Array.isArray(value.operationIdentityRanges)
+      ? value.operationIdentityRanges
+      : {},
+  };
 }
+
+const validRange = (range) => (
+  range && typeof range === 'object' && !Array.isArray(range)
+  && range.schemaVersion === 1
+  && typeof range.audience === 'string' && range.audience.length > 0
+  && typeof range.authorityInstanceId === 'string' && range.authorityInstanceId.length > 0
+  && typeof range.epochId === 'string' && range.epochId.length > 0
+  && Number.isSafeInteger(range.epochSequence) && range.epochSequence >= 0
+  && Number.isSafeInteger(range.rangeStart) && range.rangeStart >= 0
+  && Number.isSafeInteger(range.rangeEndExclusive)
+  && range.rangeEndExclusive > range.rangeStart
+  && Number.isSafeInteger(range.issuedAtMs) && range.issuedAtMs >= 0
+  && Number.isSafeInteger(range.expiresAtMs) && range.expiresAtMs > range.issuedAtMs
+  && typeof range.authorityAuthenticatorDigest === 'string'
+  && SHA256_DIGEST.test(range.authorityAuthenticatorDigest)
+);
+
+const custodyKey = (value) => {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw outboxError(
+      'SNAPBACK_OPERATION_RANGE_CUSTODY_INVALID',
+      'operation identity range custody requires a non-empty authority cohort key',
+    );
+  }
+  return value;
+};
+
+const installRange = (state, key, range) => {
+  if (!validRange(range)) {
+    throw outboxError(
+      'SNAPBACK_OPERATION_RANGE_INVALID',
+      'server operation identity range has an invalid public projection',
+    );
+  }
+  const prior = state.operationIdentityRanges?.[key] ?? null;
+  if (prior) {
+    const same = canonicalizeClientValueV1(prior.range)
+      === canonicalizeClientValueV1(range);
+    if (same) return state;
+    if (
+      prior.range.authorityInstanceId !== range.authorityInstanceId
+      || prior.range.audience !== range.audience
+      || prior.range.epochId !== range.epochId
+      || prior.range.rangeEndExclusive !== range.rangeStart
+    ) {
+      throw outboxError(
+        'SNAPBACK_OPERATION_RANGE_CONTINUITY_INVALID',
+        'replacement operation identity range is not the contiguous successor',
+      );
+    }
+  }
+  return {
+    ...state,
+    operationIdentityRanges: {
+      ...(state.operationIdentityRanges ?? {}),
+      [key]: { range: structuredClone(range), nextCounter: range.rangeStart },
+    },
+  };
+};
+
+const allocateIdentity = (state, key, now) => {
+  const current = state.operationIdentityRanges?.[key] ?? null;
+  if (current && !validRange(current.range)) {
+    throw outboxError(
+      'SNAPBACK_OPERATION_RANGE_CUSTODY_INVALID',
+      'persisted operation identity range custody is corrupt',
+    );
+  }
+  if (
+    !current
+    || !Number.isSafeInteger(current.nextCounter)
+    || current.nextCounter < current.range.rangeStart
+    || current.nextCounter >= current.range.rangeEndExclusive
+    || !Number.isSafeInteger(now)
+    || now >= current.range.expiresAtMs
+  ) {
+    return { state, issuance: null, disposition: 'uncovered-range-exhausted' };
+  }
+  const issuance = {
+    kind: 'clientRange',
+    epoch_id: current.range.epochId,
+    counter: current.nextCounter,
+    range_start: current.range.rangeStart,
+    range_end_exclusive: current.range.rangeEndExclusive,
+    authority_authenticator_digest: current.range.authorityAuthenticatorDigest,
+  };
+  return {
+    state: {
+      ...state,
+      operationIdentityRanges: {
+        ...state.operationIdentityRanges,
+        [key]: { ...current, nextCounter: current.nextCounter + 1 },
+      },
+    },
+    issuance,
+    disposition: 'covered',
+  };
+};
 
 /// Pure outbox transitions over the shared JSON section. Each returns
 /// { state, result } without mutating the input, so arms can commit the
@@ -383,6 +549,74 @@ export const outboxOps = {
       result: stored,
     };
   },
+  /// Atomically install a server response (when present), consume one finite
+  /// counter, and persist the queued intent. With no available counter the
+  /// intent is retained explicitly uncovered and MUST be assigned before
+  /// transport admission.
+  enqueueWithOperationIdentity(state, input, now, authorityCohortKey, range = null) {
+    const key = custodyKey(authorityCohortKey);
+    const existing = state.records[input?.id];
+    if (existing) {
+      return outboxOps.enqueue(state, {
+        ...input,
+        operationIssuance: input.operationIssuance ?? existing.operationIssuance,
+        operationCoverageDisposition:
+          input.operationCoverageDisposition ?? existing.operationCoverageDisposition,
+      }, now);
+    }
+    let working = range === null ? state : installRange(state, key, range);
+    const allocated = allocateIdentity(working, key, now);
+    working = allocated.state;
+    return outboxOps.enqueue(working, {
+      ...input,
+      operationIssuance: allocated.issuance,
+      operationCoverageDisposition: allocated.disposition,
+    }, now);
+  },
+  /// Bind an uncovered pending intent at reconnect in the same durable cut
+  /// that installs/advances the range. A crash leaves either the original
+  /// uncovered record or the fully assigned record and advanced counter.
+  assignOperationIdentity(
+    state,
+    id,
+    now,
+    authorityCohortKey,
+    range = null,
+    authorityDescriptor = undefined,
+    authorityPrincipalId = undefined,
+  ) {
+    const key = custodyKey(authorityCohortKey);
+    let working = range === null ? state : installRange(state, key, range);
+    const existing = working.records[id];
+    if (!existing || existing.status !== 'pending') {
+      return { state: working, result: existing ?? null };
+    }
+    if (existing.operationIssuance !== null) return { state: working, result: existing };
+    const allocated = allocateIdentity(working, key, now);
+    const stored = {
+      ...existing,
+      ...(authorityDescriptor === undefined ? {} : { authorityDescriptor }),
+      ...(authorityPrincipalId === undefined
+        ? {}
+        : { operationAuthorityPrincipalId: stringOrNull(authorityPrincipalId) }),
+      operationIssuance: allocated.issuance,
+      operationCoverageDisposition: allocated.disposition,
+    };
+    if (outboxRecordBytes(stored) > OUTBOX_MAX_RECORD_BYTES) {
+      throw outboxOversizeError(outboxRecordBytes(stored));
+    }
+    return {
+      state: {
+        ...allocated.state,
+        records: { ...allocated.state.records, [id]: stored },
+      },
+      result: stored,
+    };
+  },
+  operationIdentityRange(state, authorityCohortKey) {
+    const current = state.operationIdentityRanges?.[custodyKey(authorityCohortKey)] ?? null;
+    return { state, result: current?.range ?? null };
+  },
   settle(state, id) {
     if (!state.records[id]) return { state, result: false };
     const records = { ...state.records };
@@ -412,6 +646,127 @@ export const outboxOps = {
       existing.sequence,
     );
     return { state: cascaded.state, result: true };
+  },
+  /// First-cut LLP 0081 quarantine: without generated successor-compatibility
+  /// facts, one upgrade-required replay refusal quarantines every pending
+  /// intent. Exact-leaf dependents retain an explicit dependent disposition;
+  /// other pending records are held as compatibility-unclassified. No intent
+  /// is dropped and no quarantined intent is selected by pendingOutboxRecords.
+  markQuarantined(state, id, refusal, now) {
+    const trigger = state.records[id];
+    if (!trigger || trigger.status !== 'pending') return { state, result: false };
+    const refusalCode = typeof refusal?.code === 'string' && refusal.code.length > 0
+      ? refusal.code
+      : 'SNAPBACK_UPGRADE_REQUIRED';
+    const pending = Object.values(state.records)
+      .filter((record) => record.status === 'pending')
+      .sort(outboxOrder);
+    const dependentIds = quarantineDependencyIds(pending, trigger);
+    const records = { ...state.records };
+    for (const record of pending) {
+      const disposition = record.id === trigger.id
+        ? 'upgrade-required-refusal'
+        : dependentIds.has(record.id)
+          ? 'dependent'
+          : 'compatibility-unclassified';
+      records[record.id] = {
+        ...record,
+        status: 'quarantined',
+        failure: null,
+        quarantine: {
+          quarantinedAt: now,
+          refusalCode,
+          disposition,
+          causeClientMutationId: trigger.id,
+        },
+      };
+    }
+    const next = { ...state, records };
+    return {
+      state: next,
+      result: {
+        count: pending.length,
+        tombstones: pending.map((record) => quarantineTombstone(records[record.id])),
+      },
+    };
+  },
+  /// Explicit successor-admission cut. Payloads and replay identities are
+  /// unchanged; only quarantined records re-enter the ordered pending lane.
+  /// Compatibility classification/transformation is a generated-facts
+  /// follow-on, so this first cut deliberately re-enters the whole quarantine.
+  reenterQuarantined(state) {
+    const records = { ...state.records };
+    const ids = [];
+    for (const existing of Object.values(records).sort(outboxOrder)) {
+      if (existing.status !== 'quarantined') continue;
+      const { quarantine: _quarantine, ...record } = existing;
+      records[existing.id] = { ...record, status: 'pending', failure: null };
+      ids.push(existing.id);
+    }
+    return ids.length === 0
+      ? { state, result: { count: 0, clientMutationIds: [] } }
+      : {
+        state: { ...state, records },
+        result: { count: ids.length, clientMutationIds: ids },
+      };
+  },
+  /// Persist the server's outcome-known/payload-gone disposition without
+  /// pretending that an unavailable result is a normal settlement. This is
+  /// terminal for transport (the operation must never execute again) but
+  /// remains a submission fence until the application explicitly discards
+  /// the record because a later ordered operation may depend on the missing
+  /// result.
+  ///
+  /// @ref LLP 0163#contract-summary-normative-details-per-llp-0162-0-2 —
+  ///   result-expired is outcome-known and distinct from both settled and
+  ///   identity-horizon-passed state.
+  markResultGone(state, id, resultGone) {
+    const existing = state.records[id];
+    if (!existing) return { state, result: false };
+    const outcome = resultGone?.outcome;
+    const receiptDigest = resultGone?.receiptDigest;
+    if (
+      (outcome !== 'committed' && outcome !== 'refused')
+      || typeof receiptDigest !== 'string'
+      || !SHA256_DIGEST.test(receiptDigest)
+    ) {
+      throw outboxError(
+        'SNAPBACK_OUTBOX_RESULT_GONE_INVALID',
+        'result-gone custody requires a known terminal outcome and receipt digest',
+      );
+    }
+    if (existing.status === 'result-gone') {
+      if (
+        existing.resultGone?.disposition !== 'result-expired'
+        || existing.resultGone?.outcome !== outcome
+        || existing.resultGone?.receiptDigest !== receiptDigest
+      ) {
+        throw outboxError(
+          'SNAPBACK_OUTBOX_RESULT_GONE_MISMATCH',
+          'result-gone custody is already bound to different terminal facts',
+          { id },
+        );
+      }
+      return { state, result: existing };
+    }
+    if (existing.status !== 'pending') return { state, result: false };
+    const stored = {
+      ...existing,
+      status: 'result-gone',
+      resultGone: {
+        disposition: 'result-expired',
+        outcome,
+        receiptDigest,
+      },
+      failure: null,
+    };
+    if (outboxRecordBytes(stored) > OUTBOX_MAX_RECORD_BYTES) {
+      throw outboxOversizeError(outboxRecordBytes(stored));
+    }
+    return {
+      state: { ...state, records: { ...state.records, [id]: stored } },
+      result: stored,
+    };
   },
   discard(state, id) {
     return outboxOps.settle(state, id);
@@ -487,6 +842,12 @@ export const outboxOps = {
     }
     for (const predecessor of Object.values(working.records).sort(outboxOrder)) {
       if (predecessor.sequence >= target.sequence) break;
+      if (predecessor.status === 'result-gone') {
+        return { state: working, result: { status: 'blocked', record: null } };
+      }
+      if (predecessor.status === 'quarantined') {
+        return { state: working, result: { status: 'blocked', record: null } };
+      }
       const minted = new Set(settlementMintIds(predecessor));
       if (!minted.size || !hasStringLeaf(target.args, minted)) continue;
       if (predecessor.status === 'pending') {
@@ -552,7 +913,21 @@ export const pendingOutboxRecords = (state) => Object.values(state.records)
   .filter((record) => record.status === 'pending')
   .sort(outboxOrder);
 
-export const allOutboxRecords = (state) => Object.values(state.records).sort(outboxOrder);
+/// Records that keep the client on the full-resync/submission-fence path.
+/// Result-gone entries are not replayable pending work, but they still block
+/// ordered successors until the application explicitly resolves the missing
+/// result dependency.
+export const unresolvedOutboxRecords = (state) => Object.values(state.records)
+  .filter((record) => (
+    record.status === 'pending'
+    || record.status === 'result-gone'
+    || record.status === 'quarantined'
+  ))
+  .sort(outboxOrder);
+
+export const allOutboxRecords = (state) => Object.values(state.records)
+  .sort(outboxOrder)
+  .map((record) => record.status === 'quarantined' ? quarantineTombstone(record) : record);
 
 /// Pending acknowledgements for one auth identity: only records matching the
 /// current userId are exposed/sent (LLP 0043: returning to the prior user can

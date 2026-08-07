@@ -5,7 +5,17 @@
 **Systems:** Application data API, Query planning, Storage portability, Live Queries, Authorization, Code generation, Maintained projections, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-08-03, later (`single_table_v1@1` owner amendment:
+**Revised:** 2026-08-06 (LLP 0157 v0.11 boundary note: the reviewed
+`snapshot-batch.v2` registration landed, binding this RFC's unchanged
+`relational-query.v1` root-window boundary into the `sbsb2` state union;
+grammar, standalone cursor, and admission unchanged; implementation and
+cross-language vectors remain outstanding under LLP 0157's gate —
+implementation work may land; runtime admission and claims are gated).
+2026-08-05 (LLP 0135 OQ5 owner ruling: narrow multi-node
+relational composition is accepted in direction through reserved
+`snapshot-batch.v2`; this RFC's node grammar and standalone semantics remain
+unchanged, and profile activation still requires LLP 0157's reviewed exact
+registration); 2026-08-03, later (`single_table_v1@1` owner amendment:
 the closed retention set gains the single-table-only,
 authority-independent `rqs-authority-independent-snapshot-v1` exception;
 neither authenticated class widens, anonymous retention otherwise remains
@@ -815,12 +825,23 @@ Accepted LLP 0157 registers this RFC's `relational_query_v1` node class,
 `RelationalQueryPlanV1` owner record, `relational-query.v1` cursor profile,
 and exact ordered boundary/`_id` variant. This RFC continues to own the
 relational grammar, visibility, index, result encoding, standalone cursor,
-and live semantics. `single-node.v1` is admitted now; multi-node relational
-composition still requires LLP 0135 OQ5's versioned successor registration
-in LLP 0157. LLP 0157's fragment seam does not authorize local relational
-re-evaluation: this RFC's opaque-snapshot-only retention rule remains until a
-separately accepted amendment changes it. No implementation or capability
-fact follows from the boundary.
+and live semantics. `single-node.v1` is admitted now. Charlie's 2026-08-05
+LLP 0135 OQ5 ruling directs narrow multi-node admission through reserved
+`snapshot-batch.v2` / `sbsb2`; LLP 0157's reviewed exact profile registration
+landed 2026-08-06 (its v0.11 amendment), binding this RFC's unchanged
+`relational-query.v1` root-window boundary — ordered root fields, aligned
+boundary values, and the separate root-`_id` tie-break — into the `sbsb2`
+credential's closed per-node state union, with this RFC's no-skip/
+no-duplicate untouched-root guarantee, inner/left semantics, and one
+joined-side unique lookup per consumed root carried through the composite.
+This RFC's grammar, standalone cursor, and admission are unchanged;
+implementation and cross-language vectors remain outstanding under
+LLP 0157's gate (implementation work may land; runtime admission and
+claims are gated).
+LLP 0157's fragment seam does not authorize local
+relational re-evaluation: this RFC's opaque-snapshot-only retention rule
+remains until a separately accepted amendment changes it. No implementation
+or capability fact follows from the boundary.
 
 ## LLP 0109 acceptance reconciliation — 2026-08-03
 

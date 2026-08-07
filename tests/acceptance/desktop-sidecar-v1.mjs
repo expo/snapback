@@ -2,13 +2,14 @@
 
 // LLP 0129 Phase-2b sidecar evidence gate: real packaged-runtime process,
 // real HostReadyDescriptor/capabilities, native stop, crash restart, a
-// pending-outbox fail-closed rollback, and an empty-outbox updater swap.
+// pending-work-preserving stop/start swap, fail-closed rollback, and the
+// unchanged empty-outbox updater swap.
 //
 // @ref LLP 0129#phases — a working sidecar behind acceptance precedes any
 // in-process embedding claim.
-// @ref LLP 0081#4-execution-journaling-and-crash-recovery — pending offline
-// intent stays client-custodied and pending across a refused candidate cut;
-// upgrade quarantine remains a separately owned tombstone-and-re-entry seam.
+// @ref LLP 0081#desktop-sidecar-updater-attachment-boundary-2026-08-05 —
+// incompatible successor artifacts refuse before adopted replay; upgrade
+// quarantine remains a separately owned tombstone-and-re-entry seam.
 
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -41,7 +42,7 @@ import {
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(here, '../..');
-const RUN_DATE = '2026-08-05';
+const RUN_DATE = '2026-08-06';
 const FIXTURE_DIRECTORY = join(ROOT, 'tests/acceptance/fixtures/desktop-sidecar');
 const RECEIPT_PATH = join(FIXTURE_DIRECTORY, `phase-2b.${RUN_DATE}.v1.json`);
 const SERVER_BINARY = resolve(
@@ -51,6 +52,8 @@ const CHECK_ONLY = process.argv.includes('--check');
 const SOURCE_FILES = Object.freeze([
   'packages/snapback-sidecar/index.mjs',
   'packages/snapback-sidecar/index.d.mts',
+  'packages/snapback-client/index.mjs',
+  'packages/snapback-client/index.d.mts',
   'tests/acceptance/desktop-sidecar-v1.mjs',
 ]);
 
@@ -72,6 +75,14 @@ const isListenerSandboxBlock = (error) => (
     .test(errorEvidence(error))
 );
 
+const artifactGenerationFromInspection = (inspection) => ({
+  schemaVersion: inspection.schema.schemaVersion,
+  appId: inspection.schema.appId,
+  schemaHash: inspection.schema.schemaHash,
+  bundleHash: inspection.functions.bundleHash,
+  inputsHash: inspection.schema.inputsHash,
+});
+
 function sourceRecord(path) {
   return { path, sha256: sha256(readFileSync(join(ROOT, path))) };
 }
@@ -89,20 +100,6 @@ function nextEvent(supervisor, type, timeoutMs = 30_000) {
       resolveEvent(event);
     });
   });
-}
-
-async function waitForHealthLoss(url, timeoutMs = 10_000) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    try {
-      const response = await fetch(`${url.replace(/\/$/u, '')}/health`);
-      if (!response.ok) return;
-    } catch {
-      return;
-    }
-    await new Promise((resolvePoll) => setTimeout(resolvePoll, 10));
-  }
-  assert.fail(`timed out waiting for health loss at ${url}`);
 }
 
 async function verifyRetainedReceipt() {
@@ -138,6 +135,8 @@ test('LLP 0129 Phase 2b desktop sidecar first rung', { timeout: 180_000 }, async
   let supervisor = null;
   let store = null;
   let currentClient = null;
+  let rebindStoreOverride = null;
+  let rebindGenerationOverride = null;
   let cleanupFailure = null;
   const resumeEvidence = [];
   const restartDecisions = [];
@@ -164,6 +163,7 @@ test('LLP 0129 Phase 2b desktop sidecar first rung', { timeout: 180_000 }, async
       `${pathToFileURL(resolveGeneratedArtifact(generated, 'api.mjs')).href}?sidecar=${Date.now()}`
     );
     const api = apiModule.default;
+    const artifactGeneration = api.createTodo.expectedGeneration;
 
     await mkdir(clientStoreDirectory, { recursive: true });
     store = createFileRqsResumeStore({
@@ -172,11 +172,11 @@ test('LLP 0129 Phase 2b desktop sidecar first rung', { timeout: 180_000 }, async
     });
     await store.whenLockSettled();
 
-    const attachClient = async (attachment) => {
+    const attachClient = async (attachment, rqsStore = store) => {
       const adminToken = await attachment.capabilities.adminToken.read();
       currentClient = new SnapbackClient(attachment.url, {
         adminToken,
-        rqsStore: store,
+        rqsStore,
         offlineQueue: true,
       });
       return currentClient;
@@ -184,54 +184,105 @@ test('LLP 0129 Phase 2b desktop sidecar first rung', { timeout: 180_000 }, async
     const outbox = {
       async status() {
         const records = await store.outboxRecords();
+        const storeMeta = await store.readStoreMeta();
         return {
+          schemaVersion: 'snapback.desktop-sidecar-store-handoff.v1',
+          clientStoreId: storeMeta.clientStoreId,
+          writer: store.isWriter() === true,
+          artifactGeneration,
           pending: records.filter((record) => record.status === 'pending').length,
           settled: records.filter((record) => record.status === 'settled').length,
           failed: records.filter((record) => record.status === 'failed').length,
+          quarantined: records.filter((record) => record.status === 'quarantined').length,
+          resultGone: records.filter((record) => record.status === 'result-gone').length,
         };
       },
       async quiesce() {
         const snapshot = await this.status();
         let reboundClient = null;
         let reboundUrl = null;
+        let candidateResumeAttempted = false;
         return {
           snapshot,
           async settled() {
             const status = await currentClient.outboxStatus();
             assert.equal(status.replaying, false, 'swap begins only after the in-flight replay drain settles');
           },
-          async rebind({ attachment }) {
-            reboundClient = await attachClient(attachment);
+          async rebind({ outcome, attachment }) {
+            const selectedStore = outcome === 'swapped' && rebindStoreOverride
+              ? rebindStoreOverride
+              : store;
+            reboundClient = await attachClient(attachment, selectedStore);
             reboundUrl = reboundClient.baseUrl;
             assert.equal(
               reboundUrl,
               attachment.url.replace(/\/$/u, ''),
               'the app-owned client must target the selected sidecar attachment before replay',
             );
-            return { attachedUrl: reboundUrl };
+            // The application owns this barrier: restore one complete fresh
+            // application snapshot before the adopted queue can submit.
+            await reboundClient.query(api.listTodos, { userId });
+            const candidateGeneration = rebindGenerationOverride && outcome === 'swapped'
+              ? rebindGenerationOverride
+              : artifactGenerationFromInspection(await reboundClient.inspect());
+            const storeMeta = await selectedStore.readStoreMeta();
+            return {
+              schemaVersion: 'snapback.desktop-sidecar-binding.v2',
+              attachedUrl: reboundUrl,
+              startupNonce: attachment.healthyStart.startupNonce,
+              clientStoreId: storeMeta.clientStoreId,
+              writer: selectedStore.isWriter() === true,
+              freshSnapshotBarrier: {
+                schemaVersion: 'snapback.outbox-fresh-snapshot-barrier.v1',
+                status: 'passed',
+                kind: 'full-snapshot',
+              },
+              artifactGeneration: candidateGeneration,
+            };
           },
-          async resume({ outcome, attachment, binding }) {
+          async resume({ outcome, attachment, binding, snapshot: captured }) {
             assert(reboundClient, 'resume requires a completed client rebind');
             assert.equal(binding.attachedUrl, reboundUrl);
             assert.equal(reboundUrl, attachment.url.replace(/\/$/u, ''));
-            // Cross-client outbox re-adoption is not part of this first rung.
-            // The app-owned store remains the custody authority, so report its
-            // pending count without asking this fresh client to drain intent
-            // minted by a dead predecessor client instance.
-            const status = await outbox.status();
-            const replay = {
-              attempts: 0,
-              replayed: 0,
-              failed: status.failed,
-              remaining: status.pending,
-              stopped: status.pending > 0,
-            };
+            if (outcome !== 'swapped' && !candidateResumeAttempted) {
+              const retained = await outbox.status();
+              return {
+                schemaVersion: 'snapback.desktop-sidecar-outbox-resume.v2',
+                attachedUrl: reboundUrl,
+                startupNonce: attachment.healthyStart.startupNonce,
+                clientStoreId: binding.clientStoreId,
+                writer: binding.writer,
+                freshSnapshotBarrier: binding.freshSnapshotBarrier,
+                artifactGeneration: binding.artifactGeneration,
+                pendingBefore: captured.pending,
+                replayed: 0,
+                failedDelta: 0,
+                quarantinedDelta: 0,
+                resultGoneDelta: 0,
+                remaining: retained.pending + retained.quarantined + retained.resultGone,
+                stopped: retained.pending + retained.quarantined + retained.resultGone > 0,
+              };
+            }
+            if (outcome === 'swapped') candidateResumeAttempted = true;
+            const replay = await reboundClient.adoptQueuedMutations({
+              expectedClientStoreId: captured.clientStoreId,
+              expectedGeneration: captured.artifactGeneration,
+              afterFreshSnapshot: async () => binding.freshSnapshotBarrier,
+            });
             resumeEvidence.push({ outcome, replay });
             return {
-              schemaVersion: 'snapback.desktop-sidecar-outbox-resume.v1',
+              schemaVersion: 'snapback.desktop-sidecar-outbox-resume.v2',
               attachedUrl: reboundUrl,
+              startupNonce: attachment.healthyStart.startupNonce,
+              clientStoreId: replay.clientStoreId,
+              writer: replay.writer,
+              freshSnapshotBarrier: replay.freshSnapshotBarrier,
+              artifactGeneration: replay.artifactGeneration,
+              pendingBefore: replay.pendingBefore,
               replayed: replay.replayed,
-              failed: replay.failed,
+              failedDelta: replay.failedDelta,
+              quarantinedDelta: replay.quarantinedDelta,
+              resultGoneDelta: replay.resultGoneDelta,
               remaining: replay.remaining,
               stopped: replay.stopped,
             };
@@ -356,67 +407,170 @@ test('LLP 0129 Phase 2b desktop sidecar first rung', { timeout: 180_000 }, async
       if (event.type.startsWith('swap-')) swapProtocolEvents.push(event);
     });
     const resumesBeforePendingSwap = resumeEvidence.length;
-    let pendingSwapFailure = null;
+    const pendingSwap = await supervisor.swap({ runtime: { runtimeBinary: SERVER_BINARY } });
+    unsubscribeSwapEvents();
+    assert.equal(
+      swapProtocolEvents.some((event) => event.type === 'swap-completed'),
+      true,
+      'a checked shared-store adoption commits the candidate',
+    );
+    const pendingCandidateResume = resumeEvidence[resumesBeforePendingSwap];
+    assert.equal(pendingCandidateResume.outcome, 'swapped');
+    assert.equal(pendingCandidateResume.replay.pendingBefore, 1);
+    assert.equal(pendingCandidateResume.replay.replayed, 1);
+    assert.equal(pendingCandidateResume.replay.remaining, 0);
+    assert.equal(pendingCandidateResume.replay.stopped, false);
+    assert.equal(pendingSwap.outboxResume.clientStoreId, (await store.readStoreMeta()).clientStoreId);
+    assert.equal(pendingSwap.outboxResume.startupNonce, pendingSwap.attachment.healthyStart.startupNonce);
+    assert.equal(pendingSwap.outboxResume.writer, true);
+    assert.equal(supervisor.status().state, 'attached');
+    assert.equal(supervisor.attachment.runtime.binary, SERVER_BINARY);
+    await supervisor.health();
+    assert.equal((await outbox.status()).pending, 0, 'candidate adoption drained the shared store');
+    assert.equal(
+      (await store.outboxRecords()).find((record) => record.id === queued.clientMutationId)?.status,
+      'settled',
+    );
+
+    const firstRows = (await currentClient.query(api.listTodos, { userId })).rows;
+    assert.equal(
+      firstRows.filter((row) => row.title === 'durable pending intent during updater swap').length,
+      1,
+      'candidate applied the adopted intent exactly once',
+    );
+    const adoptedSettlement = (await currentClient.settledMutations({ userId }))
+      .find((entry) => entry.clientMutationId === queued.clientMutationId)?.settlement;
+    assert(adoptedSettlement, 'adopted settlement remains recoverable before ACK');
+    const duplicate = await currentClient.mutate(api.createTodo, {
+      userId,
+      args: { title: 'durable pending intent during updater swap' },
+      clientMutationId: queued.clientMutationId,
+      queue: false,
+    });
+    const afterDuplicateRows = (await currentClient.query(api.listTodos, { userId })).rows;
+    assert.equal(afterDuplicateRows.length, firstRows.length, 'duplicate did not add a row');
+    assert.equal(duplicate.version, adoptedSettlement.version, 'duplicate republished the same version');
+    assert.deepEqual(duplicate.result, adoptedSettlement.result, 'duplicate republished the same result');
+
+    // Identity divergence is candidate-local failure, not permission to
+    // drop the shared record. The adoption drain leaves it pending, the
+    // sidecar stops the candidate, and rollback reattaches the predecessor.
+    const divergentId = 'cm-sidecar-identity-divergence';
+    const directClient = new SnapbackClient(supervisor.attachment.url, {
+      adminToken: await supervisor.attachment.capabilities.adminToken.read(),
+      rqsStore: null,
+      offlineQueue: false,
+    });
+    await directClient.mutate(api.createTodo, {
+      userId,
+      args: { title: 'settled identity' },
+      clientMutationId: divergentId,
+      queue: false,
+    });
+    await store.outboxEnqueue({
+      id: divergentId,
+      function: api.createTodo.name,
+      args: { title: 'divergent identity' },
+      userId,
+      expectedGeneration: artifactGeneration,
+    });
+    let divergentCandidatePid = null;
     await assert.rejects(
-      () => supervisor.swap({ runtime: { runtimeBinary: SERVER_BINARY } }),
+      () => supervisor.swap({
+        runtime: { runtimeBinary: candidateBinary },
+        async verifyCandidate(candidate) {
+          divergentCandidatePid = candidate.pid;
+        },
+      }),
       (error) => {
         assert(error instanceof SidecarSwapError);
         assert.equal(error.code, 'SIDECAR_SWAP_FAILED');
         assert.equal(error.details.causeCode, 'SIDECAR_OUTBOX_RESUME_INCOMPLETE');
         assert.equal(error.attached, 'old');
         assert(error.attachment);
-        pendingSwapFailure = error;
         return true;
       },
     );
-    unsubscribeSwapEvents();
-    assert.equal(
-      swapProtocolEvents.some((event) => event.type === 'swap-completed'),
-      false,
-      'a pending cross-client intent must never emit a successful swap',
-    );
-    const pendingCandidateResume = resumeEvidence[resumesBeforePendingSwap];
-    assert.equal(pendingCandidateResume.outcome, 'swapped');
-    assert.equal(pendingCandidateResume.replay.attempts, 0);
-    assert.equal(pendingCandidateResume.replay.replayed, 0);
-    assert.equal(pendingCandidateResume.replay.remaining, 1);
-    assert.equal(pendingCandidateResume.replay.stopped, true);
-    assert.equal(supervisor.status().state, 'attached');
-    assert.equal(supervisor.attachment.runtime.binary, candidateBinary);
-    await supervisor.health();
-    assert.equal((await outbox.status()).pending, 1, 'fail-closed rollback retains the intent');
-    assert.equal(
-      (await store.outboxRecords()).find((record) => record.id === queued.clientMutationId)?.status,
-      'pending',
-    );
-
-    let killedCandidatePid = null;
-    await assert.rejects(
-      () => supervisor.swap({
-        runtime: { runtimeBinary: SERVER_BINARY },
-        async verifyCandidate(candidate) {
-          killedCandidatePid = candidate.pid;
-          process.kill(candidate.pid, 'SIGKILL');
-          await waitForHealthLoss(candidate.url);
-        },
-      }),
-      (error) => {
-        assert(error instanceof SidecarSwapError);
-        assert.equal(error.code, 'SIDECAR_SWAP_FAILED');
-        assert(['old', 'new'].includes(error.attached));
-        assert(error.attachment);
-        return true;
-      },
-    );
-    assert.notEqual(supervisor.attachment, null);
-    assert.notEqual(supervisor.attachment.pid, killedCandidatePid);
+    assert.notEqual(supervisor.attachment.pid, divergentCandidatePid);
     assert.equal(supervisor.status().state, 'attached');
     await supervisor.health();
     assert.equal((await outbox.status()).pending, 1);
     assert.equal(
-      (await store.outboxRecords()).find((record) => record.id === queued.clientMutationId)?.status,
+      (await store.outboxRecords()).find((record) => record.id === divergentId)?.status,
       'pending',
     );
+    await store.outboxDiscard(divergentId);
+
+    // A fresh same-identity store instance is a reader until exact writer
+    // takeover. The sidecar rejects its v2 binding and rolls back without
+    // attempting replay or losing the intent.
+    const writerFenceId = 'cm-sidecar-writer-fence';
+    await store.outboxEnqueue({
+      id: writerFenceId,
+      function: api.createTodo.name,
+      args: { title: 'writer fence' },
+      userId,
+      expectedGeneration: artifactGeneration,
+    });
+    const readerStore = createFileRqsResumeStore({ directory: clientStoreDirectory });
+    await readerStore.whenLockSettled();
+    assert.equal(readerStore.isWriter(), false);
+    rebindStoreOverride = readerStore;
+    let writerFenceCandidatePid = null;
+    await assert.rejects(
+      () => supervisor.swap({
+        runtime: { runtimeBinary: candidateBinary },
+        async verifyCandidate(candidate) { writerFenceCandidatePid = candidate.pid; },
+      }),
+      (error) => (
+        error instanceof SidecarSwapError
+        && error.details.causeCode === 'SIDECAR_OUTBOX_REBIND_INVALID'
+        && error.attached === 'old'
+      ),
+    );
+    rebindStoreOverride = null;
+    await readerStore.close();
+    assert.notEqual(supervisor.attachment.pid, writerFenceCandidatePid);
+    assert.equal(
+      (await store.outboxRecords()).find((record) => record.id === writerFenceId)?.status,
+      'pending',
+    );
+    await store.outboxDiscard(writerFenceId);
+
+    // A candidate schema/function receipt that diverges from the predecessor
+    // handoff is refused before adoption. The client suite separately proves
+    // the same comparison against the real /inspect response.
+    const incompatibleId = 'cm-sidecar-incompatible-successor';
+    await store.outboxEnqueue({
+      id: incompatibleId,
+      function: api.createTodo.name,
+      args: { title: 'incompatible successor' },
+      userId,
+      expectedGeneration: artifactGeneration,
+    });
+    rebindGenerationOverride = {
+      ...artifactGeneration,
+      schemaHash: `sha256:${'f'.repeat(64)}`,
+    };
+    let incompatibleCandidatePid = null;
+    await assert.rejects(
+      () => supervisor.swap({
+        runtime: { runtimeBinary: candidateBinary },
+        async verifyCandidate(candidate) { incompatibleCandidatePid = candidate.pid; },
+      }),
+      (error) => (
+        error instanceof SidecarSwapError
+        && error.details.causeCode === 'SIDECAR_OUTBOX_REBIND_INVALID'
+        && error.attached === 'old'
+      ),
+    );
+    rebindGenerationOverride = null;
+    assert.notEqual(supervisor.attachment.pid, incompatibleCandidatePid);
+    assert.equal(
+      (await store.outboxRecords()).find((record) => record.id === incompatibleId)?.status,
+      'pending',
+    );
+    await store.outboxDiscard(incompatibleId);
 
     const stop = await supervisor.stop();
     assert.equal(stop.graceful, true);
@@ -472,12 +626,16 @@ test('LLP 0129 Phase 2b desktop sidecar first rung', { timeout: 180_000 }, async
           queuedBy: 'same-client transport failure',
           clientMutationId: queued.clientMutationId,
           candidateReplay: pendingCandidateResume.replay,
-          refusalCode: pendingSwapFailure.details.causeCode,
-          successfulSwapEventEmitted: false,
-          recoveredRuntime: pendingSwapFailure.attached,
-          pendingAfterRecovery: 1,
-          durableRecordStatus: 'pending',
-          disposition: 'fail-closed rollback',
+          successfulSwapEventEmitted: true,
+          candidateOrigin: pendingSwap.outboxResume.attachedUrl,
+          candidateStartupNonce: pendingSwap.outboxResume.startupNonce,
+          clientStoreId: pendingSwap.outboxResume.clientStoreId,
+          writer: pendingSwap.outboxResume.writer,
+          pendingAfter: 0,
+          durableRecordStatus: 'settled',
+          rowCountUnchangedByDuplicate: afterDuplicateRows.length === firstRows.length,
+          duplicateVersion: duplicate.version,
+          disposition: 'pending-work-preserving stop/start swap',
         },
         emptyOutboxSwap: {
           status: 'PASS',
@@ -488,11 +646,11 @@ test('LLP 0129 Phase 2b desktop sidecar first rung', { timeout: 180_000 }, async
           outcome: swap.outcome,
           outboxCustody: 'client-file-store',
         },
-        midSwapCrash: {
+        failClosedMatrix: {
           status: 'PASS',
-          candidateKilled: true,
-          attachedAfterFault: true,
-          attachedPidIsKilledCandidate: false,
+          identityDivergence: 'candidate stopped; predecessor reattached; intent pending',
+          writerFenceNotAcquired: 'candidate stopped; predecessor reattached; intent pending',
+          incompatibleSuccessor: 'candidate stopped; predecessor reattached; intent pending',
         },
         gracefulStop: {
           status: 'PASS',
@@ -504,8 +662,9 @@ test('LLP 0129 Phase 2b desktop sidecar first rung', { timeout: 180_000 }, async
       },
       explicitFollowOns: {
         llp0081: 'upgrade-required hook only; tombstone-and-re-entry quarantine not implemented',
-        llp0123: 'candidate verification hook only; package sealing/production attestation not implemented',
-        pendingOutboxHotSwap: 'fresh clients do not re-adopt predecessor-client pending records; safe first rung retains the record, rolls back, and requires a drained outbox for successful swap',
+        llp0123: 'package seal is consumed; an in-serving-process boot witness remains separate',
+        pendingOutboxHotSwap: 'built for one explicit caller-owned shared sidecar store with checked adoption',
+        zeroRequestDowntime: 'not claimed: the supervisor still stops the predecessor before starting the candidate; a stable front door or overlapping runtimes is separate work',
         inProcessEmbedding: 'no stable ABI; separately gated spike remains',
       },
     };

@@ -14,6 +14,24 @@ export type {
   ExternalStoreSnapshot,
   ExternalStoreStatus,
 } from './external-store.mjs';
+export { SnapbackCommandClient, createCommandClient } from './commands.mjs';
+export type {
+  AssetBearingCommandDescriptorV1,
+  AssetBearingCommandReferenceV1,
+  CommandArgs,
+  CommandAssetSource,
+  CommandAssetSourceAdapter,
+  AdaptedCommandAssetSource,
+  CommandOutcome,
+  CommandResidue,
+  CommandResult,
+  CommandTask,
+  CommandTaskSnapshot,
+  MutationAttemptSnapshot,
+  SnapbackCommandDiagnostic,
+  TypedRemediation,
+  PlatformCommandAssetSource,
+} from './commands.mjs';
 export {
   CANONICAL_CLIENT_VALUE_V1_LIMITS,
   canonicalizeClientValueV1,
@@ -82,6 +100,28 @@ export interface ArtifactGeneration {
   readonly schemaHash: string;
   readonly bundleHash: string;
   readonly inputsHash: string;
+}
+
+/** Stable LLP 0179 application descriptor accepted by React binding
+ * preparation. Environment endpoints and authority remain separate inputs. */
+export interface SnapbackAppDescriptorV1 {
+  readonly format: 'snapback.app.v1';
+  readonly identity: Readonly<{
+    app: string;
+    schema: string;
+    functions: string;
+    descriptor: string;
+  }>;
+  readonly api: Readonly<{
+    queries: object;
+    mutations: object;
+    assets: object;
+    ephemeral: object;
+    queryGroups: object;
+  }>;
+  readonly commands: Readonly<Record<string, unknown>>;
+  readonly surfaces: Readonly<Record<string, unknown>>;
+  readonly capabilities: Readonly<{ required: readonly string[] }>;
 }
 
 export interface SettlementIdentityClaims {
@@ -589,6 +629,9 @@ export interface PreparedReactBinding {
   readonly references: Readonly<Record<string, SnapbackFunctionReference>>;
   readonly ephemeral: Readonly<Record<string, SnapbackEphemeralReference>>;
   readonly groups: Readonly<Record<string, SnapbackQueryGroupReference>>;
+  readonly assetIntents: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+  readonly commands: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+  readonly surfaces: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   prepareQueryGroup<Ref extends SnapbackQueryGroupReference>(
     reference: Ref,
     params: QueryGroupParams<Ref>,
@@ -754,8 +797,70 @@ export interface RqsStoreInfo {
 export interface OutboxReplayOutcome {
   readonly replayed: number;
   readonly failed: number;
+  readonly quarantined: number;
   readonly remaining: number;
   readonly stopped?: boolean;
+}
+
+export interface OutboxFreshSnapshotBarrierV1 {
+  readonly schemaVersion: 'snapback.outbox-fresh-snapshot-barrier.v1';
+  readonly status: 'passed';
+  readonly kind: 'full-snapshot';
+}
+
+export interface OutboxDispositionCounts {
+  readonly pending: number;
+  readonly failed: number;
+  readonly quarantined: number;
+  readonly resultGone: number;
+}
+
+/** Checked receipt for an explicit cross-origin sidecar store handoff. The
+ * global default store remains per-origin; only a caller-injected durable
+ * store can enter this path. */
+export interface OutboxAdoptionReceipt {
+  readonly schemaVersion: 'snapback.outbox-adoption.v1';
+  readonly candidateOrigin: string;
+  readonly clientStoreId: string;
+  readonly writer: true;
+  readonly freshSnapshotBarrier: OutboxFreshSnapshotBarrierV1;
+  readonly artifactGeneration: ArtifactGeneration;
+  readonly before: OutboxDispositionCounts;
+  readonly after: OutboxDispositionCounts;
+  readonly pendingBefore: number;
+  readonly replayed: number;
+  readonly failedDelta: number;
+  readonly quarantinedDelta: number;
+  readonly resultGoneDelta: number;
+  readonly remaining: number;
+  readonly stopped: boolean;
+}
+
+/** Stable LLP 0081 payload-free observation of one held mutation. The durable
+ * client store privately retains the intent for explicit successor re-entry. */
+export interface QuarantinedMutationTombstone {
+  readonly format: 'snapback.outbox-quarantine-tombstone.v1';
+  readonly status: 'quarantined';
+  readonly id: string;
+  readonly clientMutationId: string;
+  readonly function: string;
+  readonly sequence: number;
+  readonly quarantinedAt: number;
+  readonly refusalCode: string;
+  readonly quarantineDisposition:
+    | 'upgrade-required-refusal'
+    | 'dependent'
+    | 'compatibility-unclassified';
+  readonly causeClientMutationId: string;
+  readonly provenance: Readonly<{
+    readonly source: 'server-replay-refusal';
+    readonly payload: 'redacted';
+  }>;
+}
+
+export interface QuarantinedMutationReentryOutcome {
+  readonly reentered: number;
+  readonly clientMutationIds: readonly string[];
 }
 
 /** Live outbox facts (pure projection of the durable store's records plus
@@ -765,6 +870,11 @@ export interface OutboxStatus {
   readonly supported: boolean;
   readonly pending: number;
   readonly failed: number;
+  /** Upgrade-incompatible intents held for explicit successor re-entry. */
+  readonly quarantined: number;
+  /** Outcome-known operations whose retained result payload is gone. These
+   * are not replayable failures and keep ordered successors fenced. */
+  readonly resultGone: number;
   readonly replaying: boolean;
 }
 
@@ -1012,6 +1122,7 @@ export class SnapbackClient {
   ): Promise<RegisterOutcomeV1>;
   prepareReactBinding(options: {
     readonly generatedManifest:
+      | SnapbackAppDescriptorV1
       | Readonly<Record<string, unknown>>
       | {
           readonly functions: Readonly<Record<string, unknown>>;
@@ -1144,6 +1255,7 @@ export class SnapbackClient {
       readonly settlementClaims?: SettlementClaimSet | null;
       readonly boundedSkew?: BoundedSkewDeclaration | null;
       readonly optimisticOperation?: Readonly<Record<string, unknown>> | null;
+      readonly authorityCapture?: unknown;
       readonly queue?: 'auto' | boolean;
     },
   ): Promise<MutationOutput<FunctionResult<Ref>>>;
@@ -1159,6 +1271,7 @@ export class SnapbackClient {
       readonly settlementClaims?: SettlementClaimSet | null;
       readonly boundedSkew?: BoundedSkewDeclaration | null;
       readonly optimisticOperation?: Readonly<Record<string, unknown>> | null;
+      readonly authorityCapture?: unknown;
       readonly queue?: 'auto' | boolean;
     },
   ): Promise<MutationOutput<Result>>;
@@ -1166,6 +1279,21 @@ export class SnapbackClient {
   readonly rqsStoreInfo: RqsStoreInfo;
   /** Drain the durable outbox in sequence order (single-flight). */
   replayQueuedMutations(): Promise<OutboxReplayOutcome>;
+  /** Explicit sidecar-only handoff of one caller-owned durable store across a
+   * transport-origin change. Requires an app-owned full-snapshot barrier,
+   * exact artifact generation, store identity, and writer custody. */
+  adoptQueuedMutations(options: {
+    readonly expectedClientStoreId: string;
+    readonly expectedGeneration: ArtifactGeneration;
+    readonly afterFreshSnapshot: () =>
+      | OutboxFreshSnapshotBarrierV1
+      | Promise<OutboxFreshSnapshotBarrierV1>;
+  }): Promise<OutboxAdoptionReceipt>;
+  /** Payload-free tombstones for upgrade-incompatible queued intents. */
+  quarantinedMutations(): Promise<readonly QuarantinedMutationTombstone[]>;
+  /** Explicitly return the whole quarantine to pending after successor
+   * artifact admission. This first cut does no per-intent transformation. */
+  reenterQuarantinedMutations(): Promise<QuarantinedMutationReentryOutcome>;
   /** Complete settlements recoverable after a crash before caller publication. */
   settledMutations(options?: { readonly userId?: string | null }): Promise<readonly SettledMutation[]>;
   /** Make recovered settlements eligible for same-authority ACK piggyback. */
@@ -1438,6 +1566,14 @@ export function admittedReactQueryGroup(
   binding: unknown,
   reference: SnapbackQueryGroupReference,
 ): SnapbackQueryGroupReference;
+export function admittedReactSurface(
+  binding: unknown,
+  reference: Readonly<Record<string, unknown>>,
+): Readonly<Record<string, unknown>>;
+export function admittedReactCommand(
+  binding: unknown,
+  reference: Readonly<Record<string, unknown>>,
+): Readonly<Record<string, unknown>>;
 export function admittedReactReference(
   binding: unknown,
   reference: SnapbackFunctionReference,
@@ -1456,6 +1592,32 @@ export function admittedReactEphemeralDefinition(
   binding: unknown,
   reference: SnapbackEphemeralReference,
 ): PreparedReactEphemeralDefinition;
+/** The exact generation stamp codegen embeds on every generated reference. */
+export interface RegeneratedReferenceGeneration {
+  readonly schemaVersion: string;
+  readonly appId: string;
+  readonly schemaHash: string;
+  readonly bundleHash: string;
+  readonly inputsHash: string;
+}
+export function activeReactBindingDeploymentIdentity(
+  binding: unknown,
+): Readonly<Record<string, unknown>>;
+export function classifyRegeneratedReactReference(
+  binding: unknown,
+  reference: unknown,
+): RegeneratedReferenceGeneration | null;
+export function handoffPreparedReactBindingGeneration(
+  binding: unknown,
+  targetGeneration: RegeneratedReferenceGeneration,
+  options?: {
+    readonly timeoutMs?: number;
+    readonly pollIntervalMs?: number;
+  },
+): Promise<
+  | Readonly<{ ok: true; generation: Readonly<Record<string, unknown>> }>
+  | Readonly<{ ok: false; reason: string; cause?: string; groupId?: string }>
+>;
 
 export { createFileRqsResumeStore } from './rqs-store-file.mjs';
 export {

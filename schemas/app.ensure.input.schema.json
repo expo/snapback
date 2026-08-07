@@ -2365,6 +2365,19 @@
         },
         {
           "additionalProperties": false,
+          "description": "Class-tagged bounded-child/relational tuple using one `sbsb2`\ncontinuation and LLP 0157's unchanged two-arm outer envelope.",
+          "properties": {
+            "SnapshotBatchV2": {
+              "$ref": "#/$defs/SnapshotBatchPlanV2"
+            }
+          },
+          "required": [
+            "SnapshotBatchV2"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "Closed source/scope/activity transaction.",
           "properties": {
             "WriteWithActivity": {
@@ -2377,6 +2390,29 @@
           "type": "object"
         }
       ]
+    },
+    "HistoryRetentionManifestV1": {
+      "additionalProperties": false,
+      "description": "Finite product-history retention declared beside the table it governs.\nThis is authoring authority; storage projects it into the durable policy\ntable in the same transaction that publishes the schema manifest.",
+      "properties": {
+        "maxVersionsPerRecord": {
+          "format": "uint64",
+          "maximum": 1000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "retainMs": {
+          "format": "uint64",
+          "maximum": 2592000000,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "retainMs",
+        "maxVersionsPerRecord"
+      ],
+      "type": "object"
     },
     "IbexModule": {
       "properties": {
@@ -3308,7 +3344,7 @@
           "type": "string"
         },
         "maxEncodedBytes": {
-          "description": "Optional UTF-8 ceiling for a string order field. The loader reconciles\nevery occurrence to one value per `(table, field)` before storage\ninstalls it as a central-writer constraint.\n\n@ref LLP 0135#4-fold-on-acceptance-amendments-applied-2026-08-02 — the\n  bound is schema-level even though authoring declares it at an order\n  use; conflicting declarations and oversized writes fail closed.",
+          "description": "Optional UTF-8 ceiling for a string or application-id order field. The\nloader reconciles every occurrence to one value per `(table, field)`\nbefore storage installs it as a central-writer constraint.\n\n@ref LLP 0157#d8--coordinated-cursor-family-grammar-and-the-llp-0135-seam —\n  the snapshot-batch family applies the same schema-level,\n  write-enforced bound to string and application-id order values.",
           "format": "uint64",
           "minimum": 0,
           "type": [
@@ -4928,6 +4964,45 @@
       ],
       "description": "One declared sequence counter and the structural proof that an invocation\nmay observe its allocation count. `public.v1` is deliberately a string on\nthe wire because it is the reviewed disclosure spelling pinned by LLP\n0135; non-public access names the membership declaration and exact roles\nthe host evaluates against the supplied scope row."
     },
+    "SnapshotBatchNodeV2": {
+      "description": "One class-explicit node in `snapshot-batch.v2`. The adjacent tag keeps\nclass membership host-visible while leaving `plan` as the owner's exact\nnormalized record for LLP 0157 node identity.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "classId": {
+              "const": "bounded_children_v1",
+              "type": "string"
+            },
+            "plan": {
+              "$ref": "#/$defs/BoundedChildrenQueryPlan"
+            }
+          },
+          "required": [
+            "classId",
+            "plan"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "classId": {
+              "const": "relational_query_v1",
+              "type": "string"
+            },
+            "plan": {
+              "$ref": "#/$defs/RelationalQueryPlan"
+            }
+          },
+          "required": [
+            "classId",
+            "plan"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "SnapshotBatchPlanV1": {
       "additionalProperties": false,
       "description": "The released LLP 0157 normalized carrier for LLP 0135 Part 2. Codegen emits\nthe complete normalized record and its domain-separated hash; the host\nreconstructs and compares both before treating either as identity.\n\n@ref LLP 0135#21-composite-plan-shape — v1 composes a static tuple of\n  complete bounded-children plans and no other node kind.",
@@ -4935,6 +5010,32 @@
         "nodes": {
           "items": {
             "$ref": "#/$defs/BoundedChildrenQueryPlan"
+          },
+          "type": "array"
+        },
+        "normalizedCompositePlan": true,
+        "planHash": {
+          "type": "string"
+        },
+        "profile": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile",
+        "nodes",
+        "normalizedCompositePlan",
+        "planHash"
+      ],
+      "type": "object"
+    },
+    "SnapshotBatchPlanV2": {
+      "additionalProperties": false,
+      "description": "The class-tagged mixed-node carrier for LLP 0157 `snapshot-batch.v2`.",
+      "properties": {
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/SnapshotBatchNodeV2"
           },
           "type": "array"
         },
@@ -5052,6 +5153,17 @@
             "$ref": "#/$defs/FieldManifest"
           },
           "type": "array"
+        },
+        "history": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HistoryRetentionManifestV1"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional bounded record-history policy. Absence disables product\nhistory for this table; v1 deliberately has no unbounded spelling."
         },
         "indexes": {
           "default": [],

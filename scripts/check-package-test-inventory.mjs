@@ -11,14 +11,17 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const IGNORED_TEST_DIRS = new Set(['.git', 'coverage', 'dist', 'node_modules']);
 
-const inventories = [
+export const PACKAGE_TEST_INVENTORIES = [
   {
     id: 'snapback-maturity-records',
     packageDir: '.',
     testDir: 'tests',
     suffix: '.test.mjs',
     scriptNames: ['test:maturity'],
-    expectedFiles: ['tests/capability-maturity.test.mjs'],
+    expectedFiles: [
+      'tests/capability-maturity.test.mjs',
+      'tests/check-inventories.test.mjs',
+    ],
   },
   {
     id: '@expo/snapback-runtime-darwin-arm64',
@@ -48,16 +51,20 @@ const inventories = [
     suffix: '.test.mjs',
     expectedFiles: [
       'adapters/fly-machines-vm-driver.test.mjs',
+      'agent-setup.test.mjs',
       'cli-help.test.mjs',
       'comparator-profile.test.mjs',
       'dev-cli-diagnostics.test.mjs',
       'dev-loop.test.mjs',
+      'expo-device-forwarding.test.mjs',
+      'expo-dev-loop.test.mjs',
       'fake-expo-push.test.mjs',
       'hosted-admission-producer.test.mjs',
       'hosted-control.test.mjs',
       'load-generated.test.mjs',
       'mcp-control.test.mjs',
       'package.test.mjs',
+      'packaged-store-qualification.test.mjs',
       'sessions-dev-loop.test.mjs',
       'verify.test.mjs',
     ],
@@ -82,10 +89,12 @@ const inventories = [
       'assets-watch-authorization.test.mjs',
       'assets.test.mjs',
       'attribution.test.mjs',
+      'auth-exchange-concurrency.test.mjs',
       'bearer-rotation.test.mjs',
       'browser-closure.test.mjs',
       'bundle.test.mjs',
       'carrier-capability-honesty.test.mjs',
+      'commands.test.mjs',
       'demand-broker.test.mjs',
       'ephemeral-room.test.mjs',
       'evaluation-floor.test.mjs',
@@ -105,6 +114,7 @@ const inventories = [
       'micro.test.mjs',
       'optimistic-rebase-acceptance.test.mjs',
       'optimistic-rebase.test.mjs',
+      'outbox-quarantine.test.mjs',
       'outbox-store.test.mjs',
       'package.test.mjs',
       'push-registry.test.mjs',
@@ -166,11 +176,15 @@ const inventories = [
     packageDir: 'packages/snapback-react',
     testDir: '.',
     suffix: '.test.mjs',
+    scriptNames: ['pretest', 'test'],
     expectedFiles: [
       'assets.test.mjs',
       'authorization-denial.test.mjs',
       'binding-development-sync.test.mjs',
+      'cold-boot-binding-indexeddb.test.mjs',
       'cold-boot-binding.test.mjs',
+      'commands.test.mjs',
+      'hmr-generation-handoff.test.mjs',
       'lifecycle.test.mjs',
       'offline.test.mjs',
       'optimistic.test.mjs',
@@ -178,7 +192,23 @@ const inventories = [
       'presence.test.mjs',
       'subscribe-retry.test.mjs',
       'subscribe-runtime-import-failure.test.mjs',
+      'surface.test.mjs',
       'webcrypto-fallback.test.mjs',
+    ],
+  },
+  {
+    id: '@expo/snapback-expo',
+    packageDir: 'packages/snapback-expo',
+    testDir: '.',
+    suffix: '.test.mjs',
+    expectedFiles: [
+      'app-binding.test.mjs',
+      'asset-source.test.mjs',
+      'config-plugin.test.mjs',
+      'package-closure.test.mjs',
+      'package.test.mjs',
+      'provider.test.mjs',
+      'supervised-environment.test.mjs',
     ],
   },
   {
@@ -208,6 +238,8 @@ const inventories = [
     scriptNames: ['pretest', 'test'],
     expectedFiles: [
       'api-envelope-members.test.mjs',
+      'app-descriptor.test.mjs',
+      'app-inspection.test.mjs',
       'args-contract-goldens.test.mjs',
       'asset-thumbhash-vector.test.mjs',
       'asset-upload-authoring.test.mjs',
@@ -220,6 +252,7 @@ const inventories = [
       'effect-ceiling.test.mjs',
       'function-id.test.mjs',
       'generated-mutation-ir.test.mjs',
+      'guide-pointer.test.mjs',
       'identifier-validation.test.mjs',
       'inline-helper-sharing.test.mjs',
       'inline-result-contracts.test.mjs',
@@ -248,6 +281,7 @@ const inventories = [
       'seed-artifact.test.mjs',
       'seed-asset-fixtures.test.mjs',
       'settlement-bounded-skew.test.mjs',
+      'snapshot-batch-v2-authoring.test.mjs',
       'standard-patterns.test.mjs',
       'vector-authoring.test.mjs',
       'vector-distance-profile.test.mjs',
@@ -323,7 +357,19 @@ const inventories = [
   },
 ];
 
-export function inspectInventory({ root = ROOT, inventory }) {
+function multisetDifference(left, right) {
+  const remaining = new Map();
+  for (const value of right) remaining.set(value, (remaining.get(value) ?? 0) + 1);
+  const difference = [];
+  for (const value of left) {
+    const count = remaining.get(value) ?? 0;
+    if (count === 0) difference.push(value);
+    else remaining.set(value, count - 1);
+  }
+  return difference.sort();
+}
+
+export function auditInventory({ root = ROOT, inventory }) {
   const packageRoot = join(root, inventory.packageDir);
   const packageJson = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8'));
   const scriptNames = inventory.scriptNames ?? ['test'];
@@ -353,22 +399,67 @@ export function inspectInventory({ root = ROOT, inventory }) {
     .filter((path) => path.endsWith(inventory.suffix))
     .sort();
 
-  assert.deepEqual(
-    discovered,
-    [...inventory.expectedFiles].sort(),
-    `${inventory.id} maintained test IDs/count changed; review and update the canonical inventory`,
-  );
-
-  assert.deepEqual(
-    declared,
-    discovered,
-    `${inventory.id} configured test scripts must name every maintained ${inventory.suffix} exactly once`,
-  );
-  return { id: inventory.id, count: discovered.length, files: discovered };
+  const expected = [...inventory.expectedFiles].sort();
+  return {
+    id: inventory.id,
+    count: discovered.length,
+    files: discovered,
+    unexpectedOnDisk: multisetDifference(discovered, expected),
+    missingOnDisk: multisetDifference(expected, discovered),
+    undeclaredInScripts: multisetDifference(discovered, declared),
+    missingFromDiskButDeclared: multisetDifference(declared, discovered),
+  };
 }
 
-const results = inventories.map((inventory) => inspectInventory({ inventory }));
-const total = results.reduce((sum, result) => sum + result.count, 0);
+export function inspectInventory(options) {
+  const result = auditInventory(options);
+  assert.deepEqual(
+    { unexpected: result.unexpectedOnDisk, missing: result.missingOnDisk },
+    { unexpected: [], missing: [] },
+    `${result.id} maintained test IDs/count changed; review and update the canonical inventory`,
+  );
+  assert.deepEqual(
+    {
+      undeclared: result.undeclaredInScripts,
+      missing: result.missingFromDiskButDeclared,
+    },
+    { undeclared: [], missing: [] },
+    `${result.id} configured test scripts must name every maintained test exactly once`,
+  );
+  return result;
+}
+
+export function auditPackageTestInventories({
+  root = ROOT,
+  inventories = PACKAGE_TEST_INVENTORIES,
+  expectedTotal = 227,
+} = {}) {
+  const results = inventories.map((inventory) => auditInventory({ root, inventory }));
+  const total = results.reduce((sum, result) => sum + result.count, 0);
+  return { results, total, expectedTotal, totalDrift: total - expectedTotal };
+}
+
+export function checkPackageTestInventories(options = {}) {
+  const audit = auditPackageTestInventories(options);
+  for (const result of audit.results) {
+    assert.deepEqual(
+      { unexpected: result.unexpectedOnDisk, missing: result.missingOnDisk },
+      { unexpected: [], missing: [] },
+      `${result.id} maintained test IDs/count changed; review and update the canonical inventory`,
+    );
+    assert.deepEqual(
+      {
+        undeclared: result.undeclaredInScripts,
+        missing: result.missingFromDiskButDeclared,
+      },
+      { undeclared: [], missing: [] },
+      `${result.id} configured test scripts must name every maintained test exactly once`,
+    );
+  }
+  assert.equal(audit.total, audit.expectedTotal, 'reviewed package/admin test count changed');
+  return audit;
+}
+
 // 77 -> 79 (2026-07-24, ENG-25454): @expo/snapback-vite gains channel-a.test.mjs
 // and rqs-serializer.test.mjs (LLP 0092 §0E Channel A seam + serializer).
 // 79 -> 82 (2026-07-25, ENG-25456): @expo/snapback-client gains
@@ -557,8 +648,59 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // gains composed and non-executing CLI help acceptance coverage.
 // 203 -> 204 (2026-08-05, LLP 0129 Phase 2b): the desktop-sidecar package
 // gains its descriptor/capability/publication contract suite.
-assert.equal(total, 204, 'reviewed package/admin test count changed');
-for (const result of results) {
-  process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
+// 204 -> 205 (2026-08-05, LLP 0176 G0 reconciliation): @expo/snapback-cli's
+// agent-setup.test.mjs (landed 753191e46 with its test-script entry) is
+// registered here — that landing added the file without updating this
+// canonical inventory; caught while landing the G0 lane.
+// 205 -> 206 (2026-08-05, LLP 0176 G0 reconciliation): @expo/snapback-react's
+// hmr-generation-handoff.test.mjs (landed 8ce5ca33e with its test-script
+// entry) is registered here — that landing added the file without updating
+// this canonical inventory; caught while landing the G0 A2 lane.
+// 206 -> 207 (2026-08-05, LLP 0179 S0): @expo/snapback-codegen gains the
+// generated descriptor identity, inspection, aliasing, and refusal suite.
+// 207 -> 212 (2026-08-05, LLP 0181 E0): @expo/snapback-expo gains the closed
+// AppBinding union/admission matrix, config-plugin and value-free receipt,
+// provider/boot/lifecycle composition, package surface, and packed nested
+// clean-room closure suites.
+// 212 -> 214 (2026-08-05, LLP 0181 E1): the Expo package gains the transient
+// supervised-environment exchange suite and the CLI gains the real-runtime
+// backend/Metro/provider/routing/leak/cleanup acceptance loop.
+// 214 -> 215 (2026-08-06, LLP 0114 receipt race): @expo/snapback-react gains
+// the IndexedDB/Web Locks cold-boot binding regression.
+// 215 -> 216 (2026-08-06, LLP 0081 quarantine seam): @expo/snapback-client
+// gains the upgrade-required tombstone, dependent hold, and re-entry suite.
+// 216 -> 217 (2026-08-06, LLP 0179 S1): @expo/snapback-react gains the
+// generated-surface canonical-store/room, replacement, and cleanup suite.
+// 217 -> 218 (2026-08-06, LLP 0178/LLP 0187 T2): @expo/snapback-codegen's
+// guidePointer remediation-kind suite landed in the configured test script
+// without a canonical inventory entry (`6da170bf1`); registered here.
+// 218 -> 220 (2026-08-06, LLP 0180 / LLP 0179 S2): the client and React
+// packages gain the command phase/outcome and named-projection suites.
+// 220 -> 221 (2026-08-06, LLP 0157 §D8): @expo/snapback-codegen gains the
+// mixed/all-relational snapshot-batch.v2 authoring and identity-mirror suite.
+// 221 -> 222 (2026-08-06, LLP 0179 S2): @expo/snapback-codegen gains the
+// non-React descriptor inspection consumer suite.
+// 222 -> 223 (2026-08-06): @expo/snapback-client's auth-exchange concurrency
+// suite from `f782431bd fix(auth): custody lock must not span the transition
+// participant barrier` — registered in that package's test script but not
+// here, which left this gate red on main. Registered on sight, not owned.
+// 223 -> 224 (2026-08-06, LLP 0181 E2): @expo/snapback-expo gains the
+// picker/content-URI asset-source adapter suite.
+// 224 -> 225 (2026-08-06, LLP 0176 OQ4): @expo/snapback-cli gains the
+// headless physical-device inventory, network-refusal, exact adb-reverse
+// ownership/rollback, readiness-shape, and iOS tooling-direction suite.
+// 225 -> 226 (2026-08-06): the root inventory gains the maintained synthetic
+// drift corpus for the fast pre-push inventory checker.
+// 226 -> 227 (2026-08-06, LLP 0110/0166 public-package amendment):
+// @expo/snapback-cli gains the packaged-store qualification receipt
+// plumbing suite.
+const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (invoked) {
+  const rootArg = process.argv.indexOf('--root');
+  const root = rootArg === -1 ? ROOT : resolve(process.argv[rootArg + 1]);
+  const { results, total } = checkPackageTestInventories({ root });
+  for (const result of results) {
+    process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
+  }
+  process.stdout.write(`[package-test-inventory] PASS: ${total} declared test files\n`);
 }
-process.stdout.write(`[package-test-inventory] PASS: ${total} declared test files\n`);

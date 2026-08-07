@@ -79,6 +79,55 @@ const freezeDeep = (value) => {
   return value;
 };
 
+const ARTIFACT_GENERATION_KEYS = Object.freeze([
+  'schemaVersion',
+  'appId',
+  'schemaHash',
+  'bundleHash',
+  'inputsHash',
+]);
+
+const normalizedUrl = (value) => (
+  typeof value === 'string' ? value.replace(/\/$/u, '') : null
+);
+
+const validArtifactGeneration = (value) => (
+  value !== null
+  && typeof value === 'object'
+  && !Array.isArray(value)
+  && Object.keys(value).length === ARTIFACT_GENERATION_KEYS.length
+  && Object.keys(value).every((key) => ARTIFACT_GENERATION_KEYS.includes(key))
+  && ARTIFACT_GENERATION_KEYS.every(
+    (key) => typeof value[key] === 'string' && value[key].length > 0,
+  )
+);
+
+const sameArtifactGeneration = (left, right) => (
+  validArtifactGeneration(left)
+  && validArtifactGeneration(right)
+  && ARTIFACT_GENERATION_KEYS.every((key) => left[key] === right[key])
+);
+
+const validFreshSnapshotBarrier = (value) => (
+  value?.schemaVersion === 'snapback.outbox-fresh-snapshot-barrier.v1'
+  && value.status === 'passed'
+  && value.kind === 'full-snapshot'
+);
+
+const validCount = (value) => Number.isSafeInteger(value) && value >= 0;
+
+const validStoreHandoffSnapshot = (snapshot) => (
+  snapshot?.schemaVersion === 'snapback.desktop-sidecar-store-handoff.v1'
+  && typeof snapshot.clientStoreId === 'string'
+  && snapshot.clientStoreId.length > 0
+  && snapshot.writer === true
+  && validArtifactGeneration(snapshot.artifactGeneration)
+  && validCount(snapshot.pending)
+  && validCount(snapshot.failed)
+  && validCount(snapshot.quarantined)
+  && validCount(snapshot.resultGone)
+);
+
 export class SidecarError extends Error {
   constructor(code, message, details = undefined, options = undefined) {
     super(message, options);
@@ -476,7 +525,7 @@ export class SnapbackSidecarSupervisor {
     const attachedUrl = binding?.attachedUrl;
     if (
       typeof attachedUrl !== 'string'
-      || attachedUrl.replace(/\/$/u, '') !== attachment.url.replace(/\/$/u, '')
+      || normalizedUrl(attachedUrl) !== normalizedUrl(attachment.url)
     ) {
       throw new SidecarError(
         'SIDECAR_OUTBOX_REBIND_MISMATCH',
@@ -487,22 +536,78 @@ export class SnapbackSidecarSupervisor {
         },
       );
     }
-    const receipt = await lease.resume(Object.freeze({ ...context, binding }));
-    if (
-      receipt?.schemaVersion !== 'snapback.desktop-sidecar-outbox-resume.v1'
-      || receipt.attachedUrl?.replace(/\/$/u, '') !== attachment.url.replace(/\/$/u, '')
-      || !Number.isSafeInteger(receipt.replayed)
-      || receipt.replayed < 0
-      || !Number.isSafeInteger(receipt.remaining)
-      || receipt.remaining < 0
+    const bindingV2 = binding?.schemaVersion === 'snapback.desktop-sidecar-binding.v2';
+    if (!bindingV2) {
+      // The v1 adapter remains valid only for the already-shipped cold swap:
+      // a positively observed empty queue. Pending work requires the explicit
+      // shared-store/generation/freshness handoff below.
+      if (snapshot?.pending !== 0) {
+        throw new SidecarError(
+          'SIDECAR_OUTBOX_HANDOFF_REQUIRED',
+          'pending work requires a v2 shared-store binding before candidate replay',
+          { observedPending: validCount(snapshot?.pending) ? snapshot.pending : null },
+        );
+      }
+    } else if (
+      !validStoreHandoffSnapshot(snapshot)
+      || binding.startupNonce !== attachment.healthyStart.startupNonce
+      || binding.clientStoreId !== snapshot.clientStoreId
+      || binding.writer !== true
+      || !validFreshSnapshotBarrier(binding.freshSnapshotBarrier)
+      || !sameArtifactGeneration(binding.artifactGeneration, snapshot.artifactGeneration)
     ) {
       throw new SidecarError(
+        'SIDECAR_OUTBOX_REBIND_INVALID',
+        'v2 outbox binding must attest the candidate URL/nonce, shared store writer, fresh snapshot, and exact artifact generation',
+        {
+          expectedUrl: attachment.url,
+          expectedStartupNonce: attachment.healthyStart.startupNonce,
+          expectedClientStoreId: snapshot?.clientStoreId ?? null,
+        },
+      );
+    }
+    const receipt = await lease.resume(Object.freeze({ ...context, binding }));
+    const receiptV2 = receipt?.schemaVersion === 'snapback.desktop-sidecar-outbox-resume.v2';
+    const validLegacyReceipt = !bindingV2
+      && receipt?.schemaVersion === 'snapback.desktop-sidecar-outbox-resume.v1'
+      && normalizedUrl(receipt.attachedUrl) === normalizedUrl(attachment.url)
+      && validCount(receipt.replayed)
+      && validCount(receipt.remaining);
+    const validAdoptionReceipt = bindingV2
+      && receiptV2
+      && normalizedUrl(receipt.attachedUrl) === normalizedUrl(attachment.url)
+      && receipt.startupNonce === attachment.healthyStart.startupNonce
+      && receipt.clientStoreId === binding.clientStoreId
+      && receipt.writer === true
+      && validFreshSnapshotBarrier(receipt.freshSnapshotBarrier)
+      && sameArtifactGeneration(receipt.artifactGeneration, binding.artifactGeneration)
+      && validCount(receipt.pendingBefore)
+      && receipt.pendingBefore === snapshot.pending
+      && validCount(receipt.replayed)
+      && receipt.replayed <= receipt.pendingBefore
+      && validCount(receipt.failedDelta)
+      && validCount(receipt.quarantinedDelta)
+      && validCount(receipt.resultGoneDelta)
+      && validCount(receipt.remaining)
+      && typeof receipt.stopped === 'boolean';
+    if (!validLegacyReceipt && !validAdoptionReceipt) {
+      throw new SidecarError(
         'SIDECAR_OUTBOX_RESUME_INVALID',
-        'outbox resume must return a URL-bound replay receipt',
+        'outbox resume must return a binding-matched replay/adoption receipt',
         { expectedUrl: attachment.url },
       );
     }
-    if (receipt.stopped === true || receipt.remaining !== 0) {
+    if (
+      receipt.stopped === true
+      || receipt.remaining !== 0
+      || (receiptV2 && (
+        receipt.stopped !== false
+        || receipt.replayed !== receipt.pendingBefore
+        || receipt.failedDelta !== 0
+        || receipt.quarantinedDelta !== 0
+        || receipt.resultGoneDelta !== 0
+      ))
+    ) {
       throw new SidecarError(
         'SIDECAR_OUTBOX_RESUME_INCOMPLETE',
         'outbox replay did not drain after binding to the selected runtime',
@@ -511,6 +616,11 @@ export class SnapbackSidecarSupervisor {
           replayed: receipt.replayed,
           remaining: receipt.remaining,
           stopped: receipt.stopped === true,
+          ...(receiptV2 ? {
+            failedDelta: receipt.failedDelta,
+            quarantinedDelta: receipt.quarantinedDelta,
+            resultGoneDelta: receipt.resultGoneDelta,
+          } : {}),
         },
       );
     }

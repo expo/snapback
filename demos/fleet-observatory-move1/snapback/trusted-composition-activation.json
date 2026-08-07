@@ -1,0 +1,29 @@
+{
+  "format": "snapback.trusted-composition-activation.v1",
+  "activation": {
+    "format": "snapback.composition-activation.v1",
+    "databaseId": "019fd980-e13b-7673-9bde-0717bcd83dac",
+    "deploymentId": "fleet-observatory-move1-controlled-run",
+    "targetProfileId": "local-dev-sqlite-ibex",
+    "authMode": "sessions",
+    "expectedGeneration": {
+      "schemaVersion": "snapback.v1",
+      "appId": "fleet-observatory-move1",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:b2e38a952c79cdca296c1a6704912b444e79db09d328be641f0d302cb4bb4e1c",
+      "bundleHash": "snapback.v1:sessions:function:sha256:3694c433e045c2724d67e389f7868faf9419ae2130f1cf90bbb75569dfc9ce51",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:7609759d8bb492e58abbcff5d812c7c4cebf1a16c2932d10a89740d9ee6850a1"
+    },
+    "proofKeyManifestDigest": "sha256:2102bc75a235873c9f36b8c7882dd9803c50e3df7f493a3811f5b2317492a7b7"
+  },
+  "activationHash": "sha256:3098592ec29a0b8b78180a34bb219c68ffc697f8d5bb5ef1f4ec275fd64bd856",
+  "proofKeys": {
+    "format": "snapback.completeness-proof-keys.v1",
+    "keys": [
+      {
+        "proofKeyId": "sbpk1.rDKrfwhB0iOoF15AWJlFSg",
+        "algorithm": "Ed25519",
+        "publicKeyBase64url": "p0QrIcbdHOFNAXEadEvZBGX5UtBlfyL0-7FdnV77bhc"
+      }
+    ]
+  }
+}

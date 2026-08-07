@@ -1708,6 +1708,18 @@ concretely as:
    lower count than Diary 0008's.
 7. The test-debt register has no open rows without a recorded rationale.
 
+## 2026-08-04 Wave 3 registry introductions
+
+- `agent_safe_storage_v1` is registered at `Experimental` maturity as the
+  LLP 0162 `agentSafe.v1` extension/component-fact vocabulary, not as the
+  `AgentSafeV1` core aggregate. Its positive target predicate is false and the
+  guide row remains a GAP; this board entry records vocabulary reservation,
+  not publication.
+- `agent_safe_derived_deployment_fork_v1` is separately registered at
+  `Experimental` maturity for LLP 0158's additive derived-deployment tuple.
+  Its positive target predicate is false and the complete public tuple stays
+  `Missing`; registration neither inherits storage nor in-app branch support.
+
 ## Open questions
 
 - Diary erratum policy (R3) — immutable-plus-footnote is recommended but

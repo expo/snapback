@@ -16,6 +16,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -27,8 +28,11 @@ import {
   RUNTIME_READINESS_SCHEMA_VERSION,
   digestRuntimeArtifacts,
   issueRuntimeReadinessReceipt,
+  packagedRuntimeArtifactCandidates,
+  produceRuntimePackageSeal,
   runtimeArtifactCandidates,
   runtimeReadinessReceiptPath,
+  verifyRuntimePackageSeal,
   verifyRuntimeReadinessReceipt,
 } from '../packages/snapback-cli/runtime-readiness.mjs';
 
@@ -64,6 +68,89 @@ const OK_QUALIFICATION = {
     },
   },
 };
+
+test('Darwin package seals bind the dyld versioned file across npm symlink removal', () => {
+  const root = mkdtempSync(join(tmpdir(), 'snapback-darwin-package-readiness-'));
+  const binary = join(root, 'bin', 'snapback');
+  const frameworkRoot = join(root, 'Frameworks', 'hermesvm.framework');
+  const framework = join(frameworkRoot, 'Versions', '1', 'hermesvm');
+  const frameworkAlias = join(frameworkRoot, 'hermesvm');
+  const sourceRevision = 'd'.repeat(40);
+  const buildIdentity = {
+    schemaVersion: 'snapback.binary-identity.v1',
+    binary: {
+      crateVersion: '0.1.0',
+      gitCommit: sourceRevision,
+      gitDirty: false,
+      buildProfile: 'release',
+      startupNonce: 'build-identity-process',
+    },
+    buildDistribution: 'public-package',
+  };
+  try {
+    writeFixture(binary, 'fixture packaged snapback binary bytes');
+    writeFixture(join(root, 'include', 'hermes', 'hermes.h.artifact'), 'fixture header');
+    writeFixture(framework, 'fixture versioned Hermes runtime');
+    symlinkSync('Versions/1/hermesvm', frameworkAlias);
+    const qualification = {
+      ok: true,
+      report: {
+        schemaVersion: 'snapback.runtime-qualify.v1',
+        probe: 'restricted-no-eval-handler-vm',
+        ok: true,
+        binary: {
+          ...buildIdentity.binary,
+          startupNonce: 'qualification-process',
+        },
+      },
+    };
+    const sealed = produceRuntimePackageSeal({
+      root,
+      binaryPath: binary,
+      packageName: '@expo/snapback-runtime-darwin-arm64',
+      platform: 'darwin',
+      architecture: 'arm64',
+      buildIdentity,
+      sourceRevision,
+      qualification,
+    });
+    assert.deepEqual(
+      packagedRuntimeArtifactCandidates(root, { platform: 'darwin' })
+        .map((path) => path.slice(root.length + 1)),
+      [
+        'include/hermes/hermes.h.artifact',
+        'Frameworks/hermesvm.framework/Versions/1/hermesvm',
+      ],
+    );
+    assert.equal(
+      sealed.receipt.artifacts.some(
+        (artifact) => artifact.path.endsWith('/hermesvm.framework/hermesvm'),
+      ),
+      false,
+    );
+
+    rmSync(frameworkAlias);
+    const installed = verifyRuntimePackageSeal({
+      root,
+      binaryPath: binary,
+      packageName: '@expo/snapback-runtime-darwin-arm64',
+      platform: 'darwin',
+      architecture: 'arm64',
+    });
+    assert.equal(installed.ok, true, JSON.stringify(installed.diagnostic));
+
+    writeFileSync(framework, 'genuinely drifted versioned Hermes runtime');
+    assert.equal(verifyRuntimePackageSeal({
+      root,
+      binaryPath: binary,
+      packageName: '@expo/snapback-runtime-darwin-arm64',
+      platform: 'darwin',
+      architecture: 'arm64',
+    }).reason, 'framework-drift');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test('issue → verify round-trips a digest-coherent receipt', () => {
   const { root, binary } = scaffold();

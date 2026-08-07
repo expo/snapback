@@ -787,9 +787,8 @@ async fn console_credential_is_derived_sliding_and_no_store() {
 
     let hosted = app_with_context(
         seeded_snapback(),
-        loopback_context(Some("master-secret")).with_auth_deployment(
-            snapback::auth::deployment::AuthDeploymentTarget::Hosted,
-        ),
+        loopback_context(Some("master-secret"))
+            .with_auth_deployment(snapback::auth::deployment::AuthDeploymentTarget::Hosted),
     )
     .oneshot(post_with_token(
         "/_snapback/api/console/credential",
@@ -807,10 +806,7 @@ async fn console_credential_is_derived_sliding_and_no_store() {
 
 #[tokio::test]
 async fn master_console_exchange_rate_counts_invalid_master_attempts() {
-    let app = app_with_context(
-        seeded_snapback(),
-        loopback_context(Some("master-secret")),
-    );
+    let app = app_with_context(seeded_snapback(), loopback_context(Some("master-secret")));
     for attempt in 0..60 {
         let mut request = post_with_token(
             "/_snapback/api/console/credential",
@@ -823,11 +819,7 @@ async fn master_console_exchange_rate_counts_invalid_master_attempts() {
                 "sbcc_bogus".parse().unwrap(),
             );
         }
-        let response = app
-            .clone()
-            .oneshot(request)
-            .await
-            .unwrap();
+        let response = app.clone().oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
     let bounded = app
@@ -885,17 +877,11 @@ async fn console_device_approval_is_terminal_authorized_and_single_use() {
     let app = app_with_context(seeded_snapback(), loopback_context(Some("master-secret")));
     let requested = app
         .clone()
-        .oneshot(post(
-            "/_snapback/api/console/approval/request",
-            json!({}),
-        ))
+        .oneshot(post("/_snapback/api/console/approval/request", json!({})))
         .await
         .unwrap();
     assert_eq!(requested.status(), StatusCode::OK);
-    assert_eq!(
-        requested.headers()["cache-control"],
-        "no-store, private"
-    );
+    assert_eq!(requested.headers()["cache-control"], "no-store, private");
     let requested = json(requested).await;
     let device_code = requested["deviceCode"].as_str().unwrap();
     let user_code = requested["userCode"].as_str().unwrap();
@@ -912,7 +898,12 @@ async fn console_device_approval_is_terminal_authorized_and_single_use() {
         .await
         .unwrap();
     assert_eq!(approved.status(), StatusCode::OK);
-    assert_eq!(json(approved).await["approved"], true);
+    let approved = json(approved).await;
+    assert_eq!(approved["approved"], true);
+    assert!(
+        approved.get("credential").is_none(),
+        "terminal approval must not receive the browser credential"
+    );
 
     let replayed_approval = app
         .clone()
@@ -1118,7 +1109,12 @@ async fn console_claim_exchange_is_atomic_uniform_master_observable_and_revocabl
     let status = json(status).await;
     assert_eq!(status["status"], "redeemed");
     assert_eq!(status["transportPeerSource"], "directTransport");
-    assert!(status["transportPeer"].as_str().unwrap().starts_with("127.0.0.1:500"));
+    assert!(
+        status["transportPeer"]
+            .as_str()
+            .unwrap()
+            .starts_with("127.0.0.1:500")
+    );
     assert_ne!(status["credentialDigestSha256"], credential);
     assert_eq!(status["credentialDigestSha256"].as_str().unwrap().len(), 64);
 
@@ -1170,9 +1166,8 @@ async fn console_claim_mint_and_exchange_refuse_non_loopback_and_hosted_targets(
             "SNAPBACK_ADMIN_DISABLED",
         ),
         (
-            loopback_context(Some("master-secret")).with_auth_deployment(
-            snapback::auth::deployment::AuthDeploymentTarget::Hosted,
-            ),
+            loopback_context(Some("master-secret"))
+                .with_auth_deployment(snapback::auth::deployment::AuthDeploymentTarget::Hosted),
             "SNAPBACK_ADMIN_CLAIM_UNAVAILABLE",
         ),
     ];
@@ -1229,6 +1224,65 @@ async fn s1_retired_root_operations_are_absent() {
             "{uri} must be absent from the root after migration"
         );
     }
+}
+
+/// @ref LLP 0184#p2-controlled-mutations — named maintenance binds to one
+/// startup and returns a structured preview instead of the legacy bare 204.
+#[tokio::test]
+async fn ephemeral_cleanup_requires_current_startup_and_returns_receipt() {
+    let route = snapback::server::route_registry()
+        .into_iter()
+        .find(|route| route.path == "/_snapback/api/ephemeral/cleanup")
+        .expect("ephemeral cleanup route is registered");
+    assert_eq!(route.path_policy, snapback::server::RoutePolicy::AdminWrite);
+
+    let state = AppState::from_snapback(seeded_snapback(), loopback_context(None))
+        .with_server_startup_nonce("startup-cleanup-test")
+        .unwrap();
+    let app = snapback::server::app(state);
+
+    let mismatch = app
+        .clone()
+        .oneshot(post(
+            "/_snapback/api/ephemeral/cleanup",
+            json!({
+                "olderThanMs": 0,
+                "dryRun": true,
+                "maxEntries": 10,
+                "startupNonce": "stale-startup",
+            }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(mismatch.status(), StatusCode::CONFLICT);
+    assert_eq!(
+        json(mismatch).await["diagnostic"]["code"],
+        "SNAPBACK_EPHEMERAL_CLEANUP_STARTUP_MISMATCH"
+    );
+
+    let preview = app
+        .oneshot(post(
+            "/_snapback/api/ephemeral/cleanup",
+            json!({
+                "cutoffTimestampMs": 0,
+                "dryRun": true,
+                "maxEntries": 10,
+                "startupNonce": "startup-cleanup-test",
+            }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(preview.status(), StatusCode::OK);
+    let receipt = json(preview).await;
+    assert_eq!(
+        receipt["artifactKind"],
+        "snapback.ephemeral-cleanup-receipt/v1"
+    );
+    assert_eq!(receipt["operation"], "ephemeral.cleanup");
+    assert_eq!(receipt["dryRun"], true);
+    assert_eq!(receipt["startupNonce"], "startup-cleanup-test");
+    assert_eq!(receipt["bounds"]["maxEntries"], 10);
+    assert_eq!(receipt["counts"]["deleted"], 0);
 }
 
 /// LLP 0032 S1 (was S0) — the migrated gated writes fail closed exactly like
@@ -2855,6 +2909,7 @@ fn todo_schema() -> SchemaManifest {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         }],
         ..SchemaManifest::default()
     }

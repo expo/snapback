@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
-// Compose and reopen the retained LLP 0154 Phase-1 evidence. The receipt is
-// bound to a clean measured source revision and the exact proof-source bytes.
-// The retained receipt lands in a later carrier commit to avoid a commit-hash
-// self-reference; validation requires the measured revision to be an ancestor,
-// every source-closure path to be unchanged since it, and the receipt bytes to
-// be tracked at current HEAD.
+// Compose and reopen the retained LLP 0154 Phase-1 evidence. A receipt remains
+// historically valid for its clean measured source revision even while main
+// advances; currentness is a separate assessment, and releases/capability
+// promotions retain an exact-current gate.
+//
+// @ref LLP 0154#amendment-2026-08-06-rolling-trailing-head-evidence — do not
+// collapse historical integrity, rolling-main lag, and release currentness.
 
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
@@ -14,6 +15,33 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const evidencePolicyPath = join(
+  repoRoot,
+  'tests',
+  'acceptance',
+  'telemetry-phase1-evidence-policy.v1.json',
+);
+const proofSourcePathspecs = [
+  'Cargo.toml',
+  'Cargo.lock',
+  'build.rs',
+  'src',
+  'demos/_kit',
+  'demos/todo/snapback',
+  'packages/snapback-codegen',
+  'packages/snapback-cli',
+  'scripts/bootstrap-ibex-runtime',
+  'scripts/ibex-runtime-common',
+  'scripts/lib',
+  'scripts/runtime-link-smoke.mjs',
+  'scripts/telemetry-phase1-idle-proof.mjs',
+  'scripts/telemetry-phase1-evidence.mjs',
+  'scripts/telemetry-phase1-evidence.test.mjs',
+  'scripts/verify-telemetry-phase1-proof',
+  'scripts/verify-local-proof',
+  'tests/acceptance/telemetry-phase1-benchmark-baseline.v1.json',
+  'tests/acceptance/telemetry-phase1-evidence-policy.v1.json',
+];
 const sourceFiles = trackedProofSourceFiles();
 
 if (resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url)) main();
@@ -35,10 +63,14 @@ function main() {
       idle,
     };
     validateReceipt(receipt);
+    assert(
+      assessReceiptCurrentness(receipt).state === 'CURRENT',
+      'newly composed receipt is current at measured revision',
+    );
     writeFileSync(outputPath, `${JSON.stringify(receipt, null, 2)}\n`);
     validateReceipt(readJson(outputPath));
     process.stdout.write(`wrote ${outputPath}\n`);
-  } else if (command === 'validate') {
+  } else if (command === 'validate' || command === 'validate-history') {
     const receiptPath = args[0];
     if (!receiptPath || args.length !== 1) usage();
     const receipt = readJson(receiptPath);
@@ -46,12 +78,28 @@ function main() {
     validateRetainedCarrier(receiptPath);
     process.stdout.write(
       `${JSON.stringify({
-        schemaVersion: 'snapback.telemetry-phase1-evidence-validation.v1',
+        schemaVersion: 'snapback.telemetry-phase1-evidence-validation.v2',
         valid: true,
+        evidenceState: 'HISTORICAL_VALID',
         sourceRevision: receipt.sourceRevision,
         sourceDigest: receipt.sourceInputs.digest,
       })}\n`,
     );
+  } else if (command === 'assess' || command === 'require-current') {
+    const receiptPath = args[0];
+    if (!receiptPath || args.length !== 1) usage();
+    const receipt = readJson(receiptPath);
+    validateReceipt(receipt);
+    validateRetainedCarrier(receiptPath);
+    const assessment = assessReceiptCurrentness(receipt);
+    process.stdout.write(`${JSON.stringify(assessment)}\n`);
+    if (assessment.state === 'DIVERGED') process.exitCode = 1;
+    if (command === 'require-current') {
+      assert(
+        assessment.state === 'CURRENT',
+        `exact-current evidence required; observed ${assessment.state}`,
+      );
+    }
   } else if (command === 'source-inputs') {
     if (args.length !== 0) usage();
     process.stdout.write(`${JSON.stringify(digestSourceInputs())}\n`);
@@ -60,7 +108,7 @@ function main() {
   }
 }
 
-function validateReceipt(receipt) {
+export function validateReceipt(receipt) {
   assert(receipt.schemaVersion === 'snapback.telemetry-phase1-evidence.v1', 'receipt schema');
   assert(typeof receipt.createdAt === 'string' && !Number.isNaN(Date.parse(receipt.createdAt)), 'createdAt');
   const benchmark = receipt.benchmark;
@@ -70,9 +118,20 @@ function validateReceipt(receipt) {
   assert(benchmark.environment?.buildDirty === false, 'benchmark clean build');
   assertRevision(benchmark.environment?.buildCommit, 'benchmark revision');
   assert(receipt.sourceRevision === benchmark.environment.buildCommit, 'receipt/benchmark revision');
-  assert(isAncestor(receipt.sourceRevision, currentRevision()), 'source revision is current HEAD ancestor');
-  assert(sourceClosureUnchangedSince(receipt.sourceRevision), 'source closure unchanged since measured revision');
-  const baseline = readJson(join(repoRoot, 'tests/acceptance/telemetry-phase1-benchmark-baseline.v1.json'));
+  assert(
+    JSON.stringify(receipt.sourceInputs?.files)
+      === JSON.stringify(trackedProofSourceFilesAtRevision(receipt.sourceRevision)),
+    'measured input file set',
+  );
+  const measuredSources = sourceInputsAtRevision(receipt.sourceRevision, receipt.sourceInputs);
+  validateSourceInputs(
+    receipt.sourceInputs,
+    (file) => measuredSources.get(file),
+    receipt.sourceInputs.files,
+  );
+  const baselinePath = 'tests/acceptance/telemetry-phase1-benchmark-baseline.v1.json';
+  assert(measuredSources.has(baselinePath), 'measured source closure carries benchmark baseline');
+  const baseline = JSON.parse(measuredSources.get(baselinePath).toString('utf8'));
   assert(benchmark.method === baseline.method, 'benchmark method');
   const expectedCeilings = {
     revision: baseline.revision,
@@ -177,32 +236,33 @@ function validateReceipt(receipt) {
   assert(idle.idle?.resourceCeilings?.rssGrowthPages === 8, 'idle RSS noise band');
   assert(idle.idle?.resources?.cpuTicksDelta <= idle.idle?.resourceCeilings?.cpuTicksDelta, 'idle CPU ceiling');
   assert(idle.idle?.resources?.rssGrowthPages <= idle.idle?.resourceCeilings?.rssGrowthPages, 'idle RSS ceiling');
-
-  validateSourceInputs(receipt.sourceInputs);
 }
 
 function trackedProofSourceFiles() {
   const output = execFileSync('git', [
     'ls-files', '-z', '--',
-    'Cargo.toml',
-    'Cargo.lock',
-    'build.rs',
-    'src',
-    'demos/_kit',
-    'demos/todo/snapback',
-    'packages/snapback-codegen',
-    'packages/snapback-cli',
-    'scripts/bootstrap-ibex-runtime',
-    'scripts/ibex-runtime-common',
-    'scripts/lib',
-    'scripts/runtime-link-smoke.mjs',
-    'scripts/telemetry-phase1-idle-proof.mjs',
-    'scripts/telemetry-phase1-evidence.mjs',
-    'scripts/telemetry-phase1-evidence.test.mjs',
-    'scripts/verify-telemetry-phase1-proof',
-    'scripts/verify-local-proof',
-    'tests/acceptance/telemetry-phase1-benchmark-baseline.v1.json',
+    ...proofSourcePathspecs,
   ], { cwd: repoRoot, encoding: 'utf8' });
+  const files = output.split('\0').filter(Boolean);
+  const policyFile = 'tests/acceptance/telemetry-phase1-evidence-policy.v1.json';
+  // Keep a newly added policy inside the closure before its first commit so
+  // local tests exercise the same bytes the clean producer will bind.
+  if (existsSync(evidencePolicyPath) && !files.includes(policyFile)) files.push(policyFile);
+  return files.sort();
+}
+
+function trackedProofSourceFilesAtRevision(revision) {
+  assertRevision(revision, 'measured source revision');
+  let output;
+  try {
+    output = execFileSync(
+      'git',
+      ['ls-tree', '-r', '-z', '--name-only', revision, '--', ...proofSourcePathspecs],
+      { cwd: repoRoot, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+    );
+  } catch {
+    assert(false, 'measured source revision is readable');
+  }
   return output.split('\0').filter(Boolean).sort();
 }
 
@@ -222,16 +282,142 @@ function isAncestor(ancestor, descendant) {
   }
 }
 
-function sourceClosureUnchangedSince(revision) {
-  try {
-    execFileSync('git', ['diff', '--quiet', revision, 'HEAD', '--', ...sourceFiles], {
-      cwd: repoRoot,
-      stdio: 'ignore',
-    });
-    return true;
-  } catch {
-    return false;
+export function assessReceiptCurrentness(
+  receipt,
+  {
+    headRevision = currentRevision(),
+    currentInputs = digestSourceInputs(),
+    now = Date.now(),
+    maxAgeHours = evidencePolicy().rollingAssessment.maxAgeHours,
+    ancestor = isAncestor(receipt.sourceRevision, headRevision),
+    changedFiles = ancestor
+      ? changedSourceFilesSince(receipt.sourceRevision, receipt.sourceInputs.files)
+      : [],
+  } = {},
+) {
+  const exactInputs = ancestor
+    && JSON.stringify(receipt.sourceInputs.files) === JSON.stringify(currentInputs.files)
+    && receipt.sourceInputs.digest === currentInputs.digest;
+  const ageHours = Math.max(0, now - Date.parse(receipt.createdAt)) / 3_600_000;
+  const state = !ancestor
+    ? 'DIVERGED'
+    : exactInputs
+      ? 'CURRENT'
+      : ageHours > maxAgeHours
+        ? 'OVERDUE'
+        : 'LAGGING';
+  const reportedChangedFiles = changedFiles.slice(0, 50);
+  return {
+    schemaVersion: 'snapback.telemetry-phase1-evidence-assessment.v1',
+    valid: true,
+    evidenceState: 'HISTORICAL_VALID',
+    state,
+    sourceRevision: receipt.sourceRevision,
+    headRevision,
+    sourceDigest: receipt.sourceInputs.digest,
+    currentDigest: currentInputs.digest,
+    ageHours: Number(ageHours.toFixed(3)),
+    maxAgeHours,
+    changedSourceFileCount: changedFiles.length,
+    changedSourceFiles: reportedChangedFiles,
+    changedSourceFilesTruncated: changedFiles.length > reportedChangedFiles.length,
+    acceptedForOrdinaryMerge: state !== 'DIVERGED',
+    acceptedForReleaseOrCapabilityPromotion: state === 'CURRENT',
+    rollingFullProofRequested: state !== 'CURRENT',
+  };
+}
+
+function changedSourceFilesSince(revision, measuredFiles) {
+  const files = [...new Set([...measuredFiles, ...sourceFiles])].sort();
+  const output = execFileSync(
+    'git',
+    // Compare the measured tree with the index and working tree, not only
+    // HEAD. Local assessment already digests those bytes, so its explanation
+    // must attribute the same staged and unstaged changes.
+    ['diff', '--name-only', '-z', revision, '--', ...files],
+    { cwd: repoRoot, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+  );
+  const changed = new Set(output.split('\0').filter(Boolean));
+  const measuredSet = new Set(measuredFiles);
+  const currentSet = new Set(sourceFiles);
+  // `git diff` does not report an untracked path. The policy file is admitted
+  // to the local closure before its first commit, and set differences also
+  // explain later closure additions and removals precisely.
+  for (const file of files) {
+    if (measuredSet.has(file) !== currentSet.has(file)) changed.add(file);
   }
+  return [...changed].sort();
+}
+
+function evidencePolicy() {
+  const policy = readJson(evidencePolicyPath);
+  assert(
+    policy.schemaVersion === 'snapback.telemetry-phase1-evidence-policy.v1',
+    'evidence policy schema',
+  );
+  assert(
+    Number.isFinite(policy.rollingAssessment?.maxAgeHours)
+      && policy.rollingAssessment.maxAgeHours > 0,
+    'rolling assessment max age',
+  );
+  assert(
+    policy.rollingAssessment?.overdueFailsOrdinaryMerge === false,
+    'ordinary merge accepts explicit overdue state',
+  );
+  assert(policy.release?.requireCurrent === true, 'release requires current evidence');
+  return policy;
+}
+
+function sourceInputsAtRevision(revision, sourceInputs) {
+  assertRevision(revision, 'measured source revision');
+  assert(sourceInputs?.algorithm === 'sha256-length-framed-v1', 'input digest algorithm');
+  assert(Array.isArray(sourceInputs?.files) && sourceInputs.files.length > 0, 'input file set');
+  const files = sourceInputs.files;
+  assert(
+    JSON.stringify(files) === JSON.stringify([...new Set(files)].sort()),
+    'input file set is sorted and unique',
+  );
+  for (const file of files) {
+    assert(
+      typeof file === 'string'
+        && file.length > 0
+        && !file.startsWith('/')
+        && !file.includes('\n')
+        && !file.split('/').includes('..'),
+      'input file path is repository-relative',
+    );
+  }
+
+  const queries = files.map((file) => `${revision}:${file}\n`).join('');
+  let output;
+  try {
+    output = execFileSync('git', ['cat-file', '--batch'], {
+      cwd: repoRoot,
+      input: queries,
+      encoding: null,
+      maxBuffer: 512 * 1024 * 1024,
+    });
+  } catch {
+    assert(false, 'measured source revision and files are readable');
+  }
+  const sources = new Map();
+  let offset = 0;
+  for (const file of files) {
+    const headerEnd = output.indexOf(0x0a, offset);
+    assert(headerEnd >= 0, 'git source batch header');
+    const header = output.subarray(offset, headerEnd).toString('utf8');
+    assert(!header.endsWith(' missing'), `measured source contains ${file}`);
+    const [, type, sizeText] = header.split(' ');
+    const size = Number(sizeText);
+    assert(type === 'blob' && Number.isSafeInteger(size), `measured source blob ${file}`);
+    const contentStart = headerEnd + 1;
+    const contentEnd = contentStart + size;
+    assert(contentEnd < output.length && output[contentEnd] === 0x0a, 'git source batch framing');
+    sources.set(file, Buffer.from(output.subarray(contentStart, contentEnd)));
+    offset = contentEnd + 1;
+  }
+  assert(offset === output.length, 'git source batch exhausts output');
+  return sources;
 }
 
 function validateRetainedCarrier(path) {
@@ -263,10 +449,14 @@ function canonicalJson(value) {
   return JSON.stringify(value);
 }
 
-export function digestSourceInputs(readSource = (file) => readFileSync(join(repoRoot, file))) {
+export function digestSourceInputs(
+  readSource = (file) => readFileSync(join(repoRoot, file)),
+  files = sourceFiles,
+) {
   const hash = createHash('sha256');
-  for (const file of sourceFiles) {
+  for (const file of files) {
     const bytes = readSource(file);
+    assert(Buffer.isBuffer(bytes) || bytes instanceof Uint8Array, `source bytes for ${file}`);
     hash.update(`${file.length}:`);
     hash.update(file);
     hash.update(`${bytes.length}:`);
@@ -274,15 +464,19 @@ export function digestSourceInputs(readSource = (file) => readFileSync(join(repo
   }
   return {
     algorithm: 'sha256-length-framed-v1',
-    files: sourceFiles,
+    files,
     digest: hash.digest('hex'),
   };
 }
 
-export function validateSourceInputs(sourceInputs, readSource = undefined) {
-  const currentInputs = digestSourceInputs(readSource);
+export function validateSourceInputs(
+  sourceInputs,
+  readSource = undefined,
+  expectedFiles = sourceFiles,
+) {
+  const currentInputs = digestSourceInputs(readSource, expectedFiles);
   assert(sourceInputs?.algorithm === 'sha256-length-framed-v1', 'input digest algorithm');
-  assert(JSON.stringify(sourceInputs?.files) === JSON.stringify(sourceFiles), 'input file set');
+  assert(JSON.stringify(sourceInputs?.files) === JSON.stringify(expectedFiles), 'input file set');
   assert(sourceInputs?.digest === currentInputs.digest, 'proof-source digest freshness');
 }
 
@@ -307,6 +501,6 @@ function assert(condition, label) {
 
 function usage() {
   throw new Error(
-    'usage: telemetry-phase1-evidence.mjs compose --benchmark FILE --idle FILE --output FILE | validate RECEIPT | source-inputs',
+    'usage: telemetry-phase1-evidence.mjs compose --benchmark FILE --idle FILE --output FILE | validate-history RECEIPT | assess RECEIPT | require-current RECEIPT | source-inputs',
   );
 }

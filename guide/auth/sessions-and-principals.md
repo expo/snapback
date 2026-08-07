@@ -4,7 +4,7 @@ id: auth.sessions-and-principals
 order: 1
 audience: agent-first
 capabilities: [auth.sessions, auth.scoped-queries]
-authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, src/auth/mode.rs, packages/snapback-client/index.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0172-explicit-function-authorization.rfc.md, packages/snapback-codegen/index.mjs, src/auth/mode.rs, packages/snapback-client/index.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/card-game]
 status: current
 targets: [local]
@@ -31,6 +31,30 @@ Auth mode is per-app schema config
 [your first backend](../getting-started/your-first-backend.md)). `dev` mode
 is the trusted-local convenience where tests pass `userId:` directly;
 `sessions` is the real thing below.
+
+## Choose each function's auth requirement
+
+Every user-authored function in a sessions-mode app should explicitly set one
+of these requirements:
+
+| `auth` value | Invocation rule |
+| --- | --- |
+| `'public'` | Anonymous and user-bearing callers are admitted after any presented credential is validated. This declaration does not by itself prove the function is authority-independent. |
+| `'optional-user'` | Anonymous and user-bearing callers are admitted, and the handler may deliberately vary behavior when a resolved user exists. |
+| `'authenticated'` | Snapback refuses the invocation before the handler runs unless authority contains a resolved user. |
+
+During the compatibility warning phase, omission still emits the legacy
+effective requirement `optional-user`, but codegen reports one
+`SNAPBACK_AUTH_REQUIREMENT_IMPLICIT` warning per omitted sessions function.
+Fix it by adding the intended `auth: 'public'`, `auth: 'optional-user'`, or
+`auth: 'authenticated'` field to the function definition; do not treat the
+legacy value as an authored choice. Dev-mode functions retain omission as a
+trusted-local compatibility convenience and do not produce this warning.
+
+An `authenticated` action cannot be a cron target because scheduled system
+authority has no resolved user. Choosing `public` or `optional-user` makes the
+cron target compatible with system authority, but does not make it
+internal-only or prevent client invocation.
 
 ## Provision sessions artifacts explicitly
 
@@ -154,6 +178,8 @@ other way, such as an identity broker) is constructed with
 `authClientProtocol: 1` construction without declared custody is refused.
 
 ## Read public data anonymously
+
+<!-- since: 0.1.9 -->
 
 A sessions-mode app often has a public surface — an event preview, a shared
 link — that must read *without* a signed-in principal. Bare clients are

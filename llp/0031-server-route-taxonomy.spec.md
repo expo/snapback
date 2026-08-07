@@ -5,7 +5,18 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-08-04 (dated route-class registration for the
+**Revised:** 2026-08-05 (§Server-binary identity: the build-identity dirty
+probe is scoped to the runtime binary's input set — shared pathspec definition
+in `scripts/runtime-build-inputs.txt` — instead of the whole tree, and all
+expected-identity consumers read the same definition; demo/LLP/issue edits no
+longer disqualify a prepared binary — see
+issues/closed/20260805-whole-tree-dirty-flag-forces-runtime-rebuild.md.)
+Earlier same day (LLP 0184 Phase 0 item 5 audit: corrected the
+2026-07-25 hosted route table, which was missing the
+`/_snapback/api/debug/network-profile` row — see the dated correction;
+the full first-pass audited inventory of `gateway.js`'s hand-routed
+system/control paths lives at `cloudflare/gateway-paths.inventory.json`.)
+2026-08-04 (dated route-class registration for the
 landed `/app-api/*` app-data-plane envelope surface — LLP 0062 Phase 1:
 `GET /app-api/current` is the sessions-only `PublicNoStore` discovery
 route and `GET /app-api/envelope/{sha256}` the content-addressed
@@ -721,11 +732,22 @@ index, so an incremental rebuild after a source edit — or a ref-only move like
 build's cached commit/dirty pair; without that, a binary containing
 uncommitted code could self-report the prior clean commit and falsely earn
 reuse (ENG-23365). The dirty probe distinguishes `git status --porcelain`
-succeeding with empty output (a proven-clean tree → `gitDirty: false`) from the
-command failing (unknown → env var left unset, runtime defaults to dirty);
-conflating the two had made a clean checkout unable to ever stamp
+succeeding with empty output (a proven-clean input set → `gitDirty: false`)
+from the command failing (unknown → env var left unset, runtime defaults to
+dirty); conflating the two had made a clean checkout unable to ever stamp
 `gitDirty: false`, silently disabling binary-provenance reuse in exactly the
-clean-CI case it exists for (ENG-23419).
+clean-CI case it exists for (ENG-23419). Since 2026-08-05 the probe is scoped
+to the runtime binary's input set — the shared pathspec definition in
+`scripts/runtime-build-inputs.txt` (Rust sources/manifests, `vendor/ibex`, and
+the build-embedded corpora such as `guide/` and the harness scripts) — rather
+than the whole tree: `gitDirty: true` means "this binary's *inputs* were
+uncommitted", so demo/LLP/issue/diary edits neither flip the compile-time
+`rerun-if-env-changed` input nor disqualify a prepared binary. Every consumer
+that recomputes an expected dirtiness fact (`scripts/verify-local-proof`,
+`scripts/bootstrap-ibex-runtime` receipt reuse, `demos/_kit/provenance.mjs`,
+`packages/snapback-cli/runtime-recovery.mjs`) reads the same definition file,
+falling back to whole-tree status when it is absent
+(issues/closed/20260805-whole-tree-dirty-flag-forces-runtime-rebuild.md).
 `demos/_kit/provenance.mjs` grows a `verifyBinaryProvenance` verdict beside
 `verifyApiProvenance`, and `startServer` falls back to it only when bundle
 identity is unavailable (the `code: 'no-bundle'` verdict); a present-but-wrong
@@ -1138,6 +1160,32 @@ has no enforceable route registry (the gateway is a hand-routed Worker);
 the Cloudflare acceptance suites are its enforcement seam, and
 `cloudflare/test/acceptance.mjs` + `acceptance.protocol-hardening.mjs`
 exercise the migrated paths and gates.
+
+*Dated correction (2026-08-05, LLP 0184 Phase 0 item 5 audit):* the hosted
+route table above was one row short of `gateway.js`'s real path count —
+`/_snapback/api/debug/network-profile` (the LLP 0167 runtime network-profile
+selector) was hand-routed in `gateway.js` before this table was written and
+was never added to it. It has no root alias (introduced directly under the
+reserved namespace, not part of the 2026-07-25 root migration), so it is
+recorded here rather than in the migration table above:
+
+| Route | Class | Gate |
+| --- | --- | --- |
+| `GET,HEAD /_snapback/api/debug/network-profile` | system API (read) | admin-read gate (coordinator-owned) |
+| `<write> /_snapback/api/debug/network-profile` | system API | admin-write activation gate (coordinator-owned) |
+
+`gateway.js` hand-routes every HTTP method for this single path to the
+coordinator with no method-level branch of its own; the coordinator is what
+dispatches `GET`/`HEAD` through the admin-read gate and any write method
+through the admin-write activation gate — two distinct semantic operations
+sharing one path, with different authority, effect, and schema. This is the
+worked example LLP 0184 §3a uses for why the hosted-adapter manifest it
+specifies must key entries by `(method, path, operation)` rather than by
+path alone. The full first-pass audited inventory of `gateway.js`'s
+hand-routed system/control paths — including this correction — is checked
+in at
+[`cloudflare/gateway-paths.inventory.json`](../cloudflare/gateway-paths.inventory.json);
+Phase 1's hosted-adapter manifest is generated against that fixture.
 
 ## Dated amendment: asset upload-session route family (2026-07-31)
 

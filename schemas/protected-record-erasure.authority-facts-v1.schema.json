@@ -1,0 +1,23 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/protected-record-erasure.authority-facts-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authorityFingerprint": {
+      "type": "string"
+    },
+    "authorityInstanceId": {
+      "type": "string"
+    },
+    "principalId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "principalId",
+    "authorityInstanceId",
+    "authorityFingerprint"
+  ],
+  "title": "ProtectedRecordErasureAuthorityFactsV1",
+  "type": "object"
+}

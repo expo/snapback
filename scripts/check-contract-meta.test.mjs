@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { checkContractMetaPair } from './check-contract-meta.mjs';
+import {
+  checkContractMetaPair,
+  refreshContractMetaPair,
+} from './check-contract-meta.mjs';
 
 const directory = mkdtempSync(join(tmpdir(), 'snapback-contract-meta-'));
 const source = join(directory, 'data.ts');
@@ -22,6 +25,11 @@ export default defineContractModule('./data.ts', {
   assert.deepEqual(diagnostics[0].actual, ['stationId', 'direction']);
   assert.deepEqual(diagnostics[0].mirrored, ['stationId']);
   assert.match(diagnostics[0].message, /regenerate or update/);
+  const refreshed = refreshContractMetaPair(source, sidecar);
+  assert.equal(refreshed.changed, true);
+  writeFileSync(sidecar, refreshed.source);
+  assert.match(readFileSync(sidecar, 'utf8'), /params: \["stationId","direction"\]/u);
+  assert.deepEqual(checkContractMetaPair(source, sidecar), []);
 } finally {
   rmSync(directory, { recursive: true, force: true });
 }

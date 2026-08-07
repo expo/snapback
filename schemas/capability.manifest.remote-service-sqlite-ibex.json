@@ -1,4 +1,105 @@
 {
+  "agentSafe": {
+    "appEffective": {
+      "aggregate": {
+        "core": "Missing",
+        "history": "Missing"
+      },
+      "diff": {
+        "data": "Missing",
+        "effects": "Missing"
+      },
+      "envelope": {
+        "auth": "Missing",
+        "durableBackgroundWork": "Missing",
+        "hostChildMutation": {
+          "hostPlan": "Missing",
+          "ibexBuffered": "Missing"
+        },
+        "migration": "Missing",
+        "ordinaryMutation": {
+          "hostPlan": "Missing",
+          "ibexBuffered": "Missing"
+        },
+        "push": "Missing"
+      },
+      "explanation": {
+        "scopedFacts": []
+      },
+      "forks": {
+        "derivedDeployment": {
+          "base": "Missing",
+          "egress": "Missing",
+          "isolation": "Missing",
+          "promotion": "Missing"
+        },
+        "inApp": {
+          "base": "Missing",
+          "egress": "Missing",
+          "isolation": "Missing",
+          "promotion": "Missing"
+        }
+      },
+      "history": "Missing",
+      "proof": "Missing",
+      "replay": {
+        "actions": "Missing",
+        "handlers": "Missing"
+      },
+      "resourceBounds": "Missing",
+      "schemaEvolution": "Missing"
+    },
+    "schemaVersion": "agentSafe.v1",
+    "target": {
+      "aggregate": {
+        "core": "Missing",
+        "history": "Missing"
+      },
+      "diff": {
+        "data": "Missing",
+        "effects": "Missing"
+      },
+      "envelope": {
+        "auth": "Missing",
+        "durableBackgroundWork": "Missing",
+        "hostChildMutation": {
+          "hostPlan": "Missing",
+          "ibexBuffered": "Missing"
+        },
+        "migration": "Missing",
+        "ordinaryMutation": {
+          "hostPlan": "Missing",
+          "ibexBuffered": "Missing"
+        },
+        "push": "Missing"
+      },
+      "explanation": {
+        "scopedFacts": []
+      },
+      "forks": {
+        "derivedDeployment": {
+          "base": "Missing",
+          "egress": "Missing",
+          "isolation": "Missing",
+          "promotion": "Missing"
+        },
+        "inApp": {
+          "base": "Missing",
+          "egress": "Missing",
+          "isolation": "Missing",
+          "promotion": "Missing"
+        }
+      },
+      "history": "Missing",
+      "proof": "Missing",
+      "replay": {
+        "actions": "Missing",
+        "handlers": "Missing"
+      },
+      "resourceBounds": "Missing",
+      "schemaEvolution": "Missing"
+    }
+  },
   "artifactKind": "capabilityManifest",
   "assetUpload": false,
   "authImpersonation": true,
@@ -19,12 +120,15 @@
     "notifications",
     "ephemeral_hosted_adapter",
     "ephemeral_multi_instance_sticky_routing",
+    "agent_safe_storage_v1",
+    "agent_safe_derived_deployment_fork_v1",
     "live_full_text_search_v1",
     "assets",
     "notifications.expoPushSeam",
     "write_activity_v1",
     "sequence_allocation_v1",
     "snapshot_batch_v1",
+    "snapshot_batch_v2",
     "single_table_v1",
     "mixed_bundle_boot_v2",
     "vector_search_v1"

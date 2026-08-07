@@ -74,7 +74,9 @@ import {
 import {
   digestRuntimeArtifacts,
   issueRuntimeReadinessReceipt,
+  packagedRuntimeArtifactCandidates,
   verifyRuntimeReadinessReceipt,
+  verifyRuntimePackageSeal,
 } from './runtime-readiness.mjs';
 import {
   loadComparatorProfile,
@@ -198,6 +200,33 @@ export function scrubDynamicLoaderEnvironment(environment = process.env) {
   return clean;
 }
 
+const PACKAGED_STORE_QUALIFICATION_RECEIPT_ENV =
+  'SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT';
+const PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE =
+  'packaged-store-qualification.receipt.json';
+
+// @ref LLP 0110#single-table-public-package-advertisement-amendment--2026-08-06
+// — a co-installed receipt is ambient only for the exact adjacent runtime;
+// an explicit caller environment always wins.
+export function runtimeSpawnEnvironment(binary, environment = process.env) {
+  const clean = scrubDynamicLoaderEnvironment(environment);
+  if (Object.hasOwn(clean, PACKAGED_STORE_QUALIFICATION_RECEIPT_ENV)) return clean;
+  const binaryPath = resolve(binary);
+  const receiptPath = join(dirname(binaryPath), PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE);
+  if (!existsSync(receiptPath)) return clean;
+  try {
+    const metadata = lstatSync(receiptPath);
+    if (!metadata.isFile() || metadata.isSymbolicLink()) return clean;
+    const realBinaryDirectory = realpathSync(dirname(binaryPath));
+    const realReceipt = realpathSync(receiptPath);
+    if (dirname(realReceipt) !== realBinaryDirectory) return clean;
+  } catch {
+    return clean;
+  }
+  clean[PACKAGED_STORE_QUALIFICATION_RECEIPT_ENV] = receiptPath;
+  return clean;
+}
+
 export function resolveRuntimeBinary(options = {}) {
   const override = options.runtimeBinary ?? process.env.SNAPBACK_RUNTIME_BINARY;
   if (override) {
@@ -235,14 +264,30 @@ export function resolveRuntimeBinary(options = {}) {
       binary,
     });
   }
+  const runtimeRoot = dirname(manifestPath);
+  const [runtimePlatform, runtimeArchitecture] = platform.split('-');
+  // @ref LLP 0123#package-seal-landing-2026-08-06 — never return a package
+  // binary until its production qualification/digest binding reopens.
+  const seal = verifyRuntimePackageSeal({
+    root: runtimeRoot,
+    binaryPath: binary,
+    packageName,
+    platform: runtimePlatform,
+    architecture: runtimeArchitecture,
+  });
+  if (!seal.ok) {
+    throw diagnosticError(
+      seal.diagnostic.code,
+      `runtime package ${packageName} failed its package-production seal: ${seal.diagnostic.message}`,
+      { package: packageName, binary, reason: seal.reason, seal: seal.diagnostic.details },
+    );
+  }
   return { binary, source: packageName, platform };
 }
 
 function packagedRuntimeArtifacts(binary) {
   const runtimeRoot = dirname(dirname(resolve(binary)));
-  const candidates = process.platform === 'darwin'
-    ? [join(runtimeRoot, 'Frameworks', 'hermesvm.framework', 'hermesvm')]
-    : [join(runtimeRoot, 'lib', 'libhermesvm.so')];
+  const candidates = packagedRuntimeArtifactCandidates(runtimeRoot);
   return digestRuntimeArtifacts(runtimeRoot, { candidates });
 }
 
@@ -368,7 +413,7 @@ export async function doctor(options = {}) {
   const checks = [];
   const launch = spawnSync(runtime.binary, ['--help'], {
     encoding: 'utf8',
-    env: scrubDynamicLoaderEnvironment(options.env),
+    env: runtimeSpawnEnvironment(runtime.binary, options.env),
     timeout: 15_000,
   });
   if (launch.status !== 0) {
@@ -441,7 +486,7 @@ export async function doctor(options = {}) {
     mkdirSync(stateRoot, { recursive: true });
     child = spawn(runtime.binary, ['start', '--ready-file', readyFile, '--db', database], {
       cwd: projectRoot,
-      env: scrubDynamicLoaderEnvironment(options.env),
+      env: runtimeSpawnEnvironment(runtime.binary, options.env),
       stdio: ['ignore', 'ignore', 'ignore'],
     });
     const descriptor = validateDevTarget(
@@ -1483,7 +1528,7 @@ export function validateDevTarget(descriptor, { readyFile, database }) {
 export function native(binary, args, options = {}) {
   return spawnSync(binary, args, {
     cwd: options.cwd,
-    env: scrubDynamicLoaderEnvironment(options.env),
+    env: runtimeSpawnEnvironment(binary, options.env),
     encoding: 'utf8',
     timeout: options.timeout ?? 30_000,
   });
@@ -1499,6 +1544,92 @@ function requireNativeSuccess(result, code, operation) {
     });
   }
   return result;
+}
+
+function parseJsonDocumentStream(stdout) {
+  const input = typeof stdout === 'string' ? stdout : String(stdout ?? '');
+  const documents = [];
+  let documentStart = null;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  const isWhitespace = (character) => (
+    character === ' ' || character === '\t' || character === '\n' || character === '\r'
+  );
+
+  for (let cursor = 0; cursor < input.length; cursor += 1) {
+    const character = input[cursor];
+    if (documentStart === null) {
+      if (isWhitespace(character)) continue;
+      if (character !== '{') {
+        throw new SyntaxError(`native output contained non-JSON content at character ${cursor}`);
+      }
+      documentStart = cursor;
+      depth = 1;
+      continue;
+    }
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (character === '\\') escaped = true;
+      else if (character === '"') inString = false;
+      continue;
+    }
+    if (character === '"') inString = true;
+    else if (character === '{') depth += 1;
+    else if (character === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        try {
+          documents.push(JSON.parse(input.slice(documentStart, cursor + 1)));
+        } catch (cause) {
+          throw new SyntaxError(
+            `native output contained invalid JSON at character ${documentStart}: ${cause.message}`,
+            { cause },
+          );
+        }
+        documentStart = null;
+      }
+    }
+  }
+  if (documentStart !== null) {
+    throw new SyntaxError(
+      `native output ended before the JSON document at character ${documentStart} was complete`,
+    );
+  }
+  if (documents.length === 0) {
+    throw new SyntaxError('native output contained no JSON documents');
+  }
+  return documents;
+}
+
+function requireNativeJsonSuccess(result, code, operation) {
+  requireNativeSuccess(result, code, operation);
+  let documents;
+  try {
+    documents = parseJsonDocumentStream(result.stdout);
+  } catch (cause) {
+    const error = diagnosticError(code, `${operation} failed`, {
+      status: result.status,
+      signal: result.signal,
+      stdout: result.stdout?.slice(0, 4_000) ?? '',
+      stderr: result.stderr?.slice(0, 4_000) ?? '',
+      framingError: cause.message,
+    });
+    error.cause = cause;
+    throw error;
+  }
+  const failed = documents.find((document) => document?.ok === false);
+  if (failed) {
+    throw diagnosticError(code, `${operation} failed`, {
+      status: result.status,
+      signal: result.signal,
+      stdout: result.stdout?.slice(0, 4_000) ?? '',
+      stderr: result.stderr?.slice(0, 4_000) ?? '',
+      failedOperation: failed.operation ?? null,
+      failedEnvelope: failed,
+    });
+  }
+  return documents;
 }
 
 const ARTIFACT_DECODE_EVIDENCE = /(?:unknown|missing|duplicate) field|invalid (?:json|type)|expected (?:struct|map|sequence|string)|did not match any variant|data did not match|SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH|SNAPBACK_STALE_(?:SCHEMA|FUNCTION)_ARTIFACT_(?:KIND|VERSION)/i;
@@ -1592,6 +1723,7 @@ function refineGeneratedArtifactFailure(error, {
   runtime = null,
   runtimeIdentity = null,
   artifacts = [],
+  database = null,
 } = {}) {
   // issues/20260801-0137-a3-restart-evolution-refusal-misattributed-diagnostic:
   // surface the auth-mode startup pin as itself. Wrapping it in the
@@ -1610,7 +1742,13 @@ function refineGeneratedArtifactFailure(error, {
         artifacts: artifacts.map((path) => resolve(path)),
         recovery: {
           sanctionedEvolution: 'run the evolved sources through the running dev server (`snapback dev` watch reload or the reload verb): its app.ensure provision moves the pinned deployment forward',
-          coldStartRepair: 'to cold-start first, restore the generated artifacts matching the pinned deployment, boot, then apply the evolved sources through the running server',
+          coldStartRepair: 'to cold-start first, restore the generated artifacts matching the pinned deployment (regenerate from the previous sources if needed), boot, then apply the evolved sources through the running server',
+          // issues/20260805-doc-comment-artifact-mismatch-no-successor-migration.md:
+          // the discard path is a supported procedure, not author intuition —
+          // name the real backup command and the exact store it targets.
+          freshReseed: 'to discard local data and reseed from scratch instead: back up the store with '
+            + `\`snapback auth backup --db ${database ? resolve(database) : '<database>'} --output <ignored-backup-dir>\`, `
+            + 'move or delete the database file, then restart on the new artifacts',
           safety: 'do not reinstall the runtime or set SNAPBACK_RUNTIME_BINARY; the startup pin is auth-mode state (LLP 0058), not a runtime/codegen mismatch',
         },
       },
@@ -1719,7 +1857,7 @@ export function spawnManagedRuntime(binary, args, {
   const requested = Array.isArray(stdio) ? stdio : ['ignore', stdio, stdio];
   const child = spawn(binary, args, {
     cwd,
-    env: scrubDynamicLoaderEnvironment(env),
+    env: runtimeSpawnEnvironment(binary, env),
     // Capture bounded startup diagnostics so a strict artifact decoder
     // refusal can be classified. Forwarding below preserves the caller's
     // requested human/test output behavior.
@@ -1816,7 +1954,10 @@ export async function loadGenerated(
   }
   if (!skipSchemaFunctions && requestedMode === 'dev') {
     try {
-      requireNativeSuccess(native(binary, [
+      // @ref LLP 0041#cli-commands — `load` projects one hostOpsResult JSON
+      // document per requested host operation, so schema + functions is a
+      // sequential document stream rather than one aggregate envelope.
+      requireNativeJsonSuccess(native(binary, [
         'load', ...targetArgs,
         '--schema', schemaPath,
         '--functions', functionsPath,
@@ -1826,6 +1967,7 @@ export async function loadGenerated(
         binary,
         runtime,
         runtimeIdentity,
+        database,
         artifacts: [schemaPath, functionsPath],
       });
     }
@@ -1874,6 +2016,7 @@ export async function loadGenerated(
           binary,
           runtime,
           runtimeIdentity,
+          database,
           artifacts: [
             schemaPath,
             functionsPath,
@@ -2048,6 +2191,7 @@ export async function runDev(options = {}) {
         binary: runtime.binary,
         runtime,
         runtimeIdentity,
+        database,
         artifacts: startupArtifacts
           ? [startupArtifacts, ...startupArtifactSources]
           : startupArtifactSources,
@@ -2133,6 +2277,7 @@ export async function runDev(options = {}) {
         binary: runtime.binary,
         runtime,
         runtimeIdentity,
+        database,
         artifacts: startupArtifacts
           ? [startupArtifacts, ...startupArtifactSources]
           : startupArtifactSources,
@@ -2442,6 +2587,7 @@ export async function runDev(options = {}) {
         binary: runtime.binary,
         runtime,
         runtimeIdentity,
+        database,
         artifacts: startupArtifacts
           ? [startupArtifacts, ...startupArtifactSources]
           : startupArtifactSources,
@@ -2630,8 +2776,8 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
     output: 'snapback.verify.v1 receipt', exits: '0 all required stages pass; 1 failed/refused stage', recovery: 'Use the failed stage diagnostics and rerun against the same declared app identity.',
   },
   {
-    name: 'dev', usage: 'snapback dev [<backend-dir>] [--attach] [--no-watch] [--ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] [--json]',
-    description: 'Generate, start or attach, load, watch, and optionally run a client surface.', lifecycle: 'long-running unless --no-watch',
+    name: 'dev', usage: 'snapback dev [<backend-dir>] [--attach] [--no-watch] [--ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] [--expo] [--expo-dir <dir>] [--expo-platform ios|android] [--email <address>] [--expo-command <cmd>] [--android-serial <serial>] [--ios-udid <udid>] [--json]',
+    description: 'Generate, start or attach, load, watch, and optionally supervise a web or Expo client surface.', lifecycle: 'long-running unless --no-watch (Expo supervision is always long-running)',
     output: 'snapback.dev.v1 JSON-line events; snapback.dev-command.v1 JSON lines are accepted on non-TTY stdin while it remains open', exits: '0 requested signal/TTY quit or successful --no-watch; 1 startup/watch/server failure',
     recovery: 'Act on the event diagnostic. Non-TTY stdin EOF only closes the optional control channel; use SIGINT/SIGTERM to stop the dev loop.',
   },
@@ -2649,6 +2795,13 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
     name: 'mcp-control', usage: 'snapback mcp-control [<backend-dir>] [--ready-file <path>] [--db <path>]',
     description: 'Serve control-plane MCP over newline-delimited JSON-RPC stdio.', lifecycle: 'long-running stdio server; EOF terminates', output: 'JSON-RPC 2.0 on stdout',
     exits: '0 clean EOF; non-zero startup/protocol host failure', recovery: 'Reconnect with a valid private ready-file/database target and resend complete JSON-RPC lines.',
+  },
+  {
+    name: 'agent', usage: 'snapback agent setup <--print <client>|--install <client>|--uninstall <client>> [--server mcp|mcp-control] [--receipt <file>] [--json]',
+    description: 'Print, install, or uninstall project-scoped MCP client configuration.', lifecycle: 'one-shot',
+    output: 'client config snippet or snapback.agent-setup-receipt.v1; structured envelope with --json',
+    exits: '0 printed/installed/uninstalled; 1 invalid arguments, config conflict, or receipt mismatch',
+    recovery: 'Choose a supported client/server, preserve existing entries, and resolve the named config or receipt conflict before retrying.',
   },
   {
     name: 'target', usage: 'snapback target <add|show|doctor|inspect> ... [--control-root <dir>] [--json]', description: 'Register or inspect immutable target descriptors.', lifecycle: 'one-shot',
@@ -2715,6 +2868,16 @@ const HOSTED_LIFECYCLE_HELP_DETAILS = Object.freeze([
 // spellings are derived from the exhaustive authority registry.
 export const PACKAGED_CLI_SUBCOMMANDS = Object.freeze([
   nestedCliHelp(['accept', 'comparator'], 'snapback accept comparator <--config <profile.mjs>|--verify-receipt <receipt.json>> [--receipt <receipt.json>] [--timeout-ms <ms>] [--max-age-ms <ms>] [--json]', 'Run a comparator profile or verify its retained receipt.'),
+  nestedCliHelp(
+    ['agent', 'setup'],
+    'snapback agent setup <--print <client>|--install <client>|--uninstall <client>> [--server mcp|mcp-control] [--receipt <file>] [--json]',
+    'Configure project-scoped MCP for Codex, Claude, Cursor, or a generic client.',
+    [
+      '--print defaults to both servers; --install and --uninstall require an explicit --server.',
+      'generic emits adaptable JSON with --print and has no install target.',
+      '--receipt writes an install receipt or verifies it during uninstall.',
+    ],
+  ),
   nestedCliHelp(['target', 'add'], 'snapback target add --descriptor <target.json> [--control-root <dir>] [--json]', 'Register an immutable target descriptor.'),
   ...['show', 'doctor', 'inspect'].map((verb) => nestedCliHelp(['target', verb], `snapback target ${verb} <target-id> [--control-root <dir>] [--json]`, `${verb[0].toUpperCase()}${verb.slice(1)} a registered target.`)),
   nestedCliHelp(['hosted', 'plan'], 'snapback hosted plan [--target <id>] [--control-root <dir>] [--json]', 'Render the closed hosted command and asset plan.'),
@@ -2771,7 +2934,7 @@ function nativeHelp(options, command = null) {
     const runtime = resolveRuntimeBinary(options);
     const result = spawnSync(runtime.binary, command === null ? ['--help'] : [command, '--help'], {
       encoding: 'utf8',
-      env: scrubDynamicLoaderEnvironment(options.env),
+      env: runtimeSpawnEnvironment(runtime.binary, options.env),
     });
     if (result.error) throw result.error;
     return {
@@ -3533,6 +3696,13 @@ export async function runCli(argv, options = {}) {
     const database = takeFlag(args, '--db');
     const clientDirectory = takeFlag(args, '--client');
     const clientCommand = takeFlag(args, '--client-command');
+    const expo = takeBooleanFlag(args, '--expo');
+    const expoDirectory = takeFlag(args, '--expo-dir');
+    const expoPlatform = takeFlag(args, '--expo-platform');
+    const expoEmail = takeFlag(args, '--email');
+    const expoCommand = takeFlag(args, '--expo-command');
+    const androidSerial = takeFlag(args, '--android-serial');
+    const iosUdid = takeFlag(args, '--ios-udid');
     // A leftover flag-shaped token would silently become the backend
     // directory name (`snapback dev --help` "ran" against a directory named
     // --help and exited 1 with no output — 0137 a4-f2). Reject it loudly.
@@ -3540,15 +3710,115 @@ export async function runCli(argv, options = {}) {
       throw diagnosticError(
         'SNAPBACK_CLI_ARGUMENT_INVALID',
         `unknown dev option ${args[0]}; usage: snapback dev [<backend-dir>] [--attach] [--no-watch] `
-          + '[--ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] [--json]',
+          + '[--ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] '
+          + '[--expo] [--expo-dir <dir>] [--expo-platform ios|android] [--email <address>] '
+          + '[--expo-command <cmd>] [--android-serial <serial>] [--ios-udid <udid>] [--json]',
       );
+    }
+    const backendDirectory = args.shift() ?? 'snapback';
+    if (args.length > 0) {
+      throw diagnosticError(
+        'SNAPBACK_CLI_ARGUMENT_INVALID',
+        `unexpected dev arguments: ${args.join(' ')}`,
+        { args },
+      );
+    }
+    if (!expo && [expoDirectory, expoPlatform, expoEmail, expoCommand, androidSerial, iosUdid]
+      .some((value) => value !== null)) {
+      throw diagnosticError(
+        'SNAPBACK_CLI_ARGUMENT_INVALID',
+        '--expo-dir, --expo-platform, --email, --expo-command, --android-serial, and --ios-udid require --expo',
+      );
+    }
+    if (expo) {
+      if (noWatch || clientDirectory !== null || clientCommand !== null) {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          'snapback dev --expo is a long-running supervisor and cannot be combined with --no-watch, --client, or --client-command',
+        );
+      }
+      const platform = expoPlatform ?? 'ios';
+      if (!['ios', 'android'].includes(platform)) {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          '--expo-platform must be ios or android',
+          { expoPlatform: platform },
+        );
+      }
+      if (androidSerial !== null && platform !== 'android') {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          '--android-serial requires --expo-platform android',
+        );
+      }
+      if (iosUdid !== null && platform !== 'ios') {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          '--ios-udid requires --expo-platform ios',
+        );
+      }
+      const { runExpoDev } = await import('./expo-dev.mjs');
+      let criticalExit = null;
+      let rejectCritical = null;
+      const result = await runExpoDev({
+        backendDirectory,
+        attach,
+        ...(readyFile ? { readyFile } : {}),
+        ...(database ? { database } : {}),
+        ...(expoDirectory ? { expoDirectory } : {}),
+        ...(expoEmail ? { email: expoEmail } : {}),
+        ...(expoCommand ? { metroCommand: expoCommand } : {}),
+        ...(androidSerial ? { androidSerial } : {}),
+        ...(iosUdid ? { iosUdid } : {}),
+        platform,
+        onEvent(event) { console.log(JSON.stringify(event)); },
+        onCriticalExit(error) {
+          criticalExit = error;
+          rejectCritical?.(error);
+        },
+        ...options,
+      });
+      if (result.ok === false) {
+        printResult(result, json);
+        return 1;
+      }
+      await new Promise((resolveStop, rejectStop) => {
+        let stopping = false;
+        let detachInput = () => {};
+        const settle = async (failure = null) => {
+          if (stopping) return;
+          stopping = true;
+          process.off('SIGINT', stop);
+          process.off('SIGTERM', stop);
+          detachInput();
+          try {
+            await result.close();
+            if (failure) rejectStop(failure);
+            else resolveStop();
+          } catch (error) {
+            rejectStop(error);
+          }
+        };
+        function stop() { void settle(); }
+        rejectCritical = (error) => { void settle(error); };
+        process.once('SIGINT', stop);
+        process.once('SIGTERM', stop);
+        detachInput = attachDevControlChannel({
+          verbs: result.verbs,
+          stop,
+          onEvent(event) { result.reportControlEvent(event); },
+          stdin: options.stdin ?? process.stdin,
+        });
+        if (criticalExit) void settle(criticalExit);
+      });
+      return 0;
     }
     // A restart replaces the managed child, so unexpected-exit detection goes
     // through runDev's onServerExit callback instead of a listener pinned to
     // the first child process.
     let onUnexpectedServerExit = null;
     const result = await runDev({
-      backendDirectory: args.shift() ?? 'snapback',
+      backendDirectory,
       attach,
       watch: !noWatch,
       ...(readyFile ? { readyFile } : {}),
@@ -3613,6 +3883,84 @@ export async function runCli(argv, options = {}) {
     }
     return result.ok ? 0 : 1;
   }
+  if (command === 'agent') {
+    const subcommand = args.shift();
+    const printClient = takeFlag(args, '--print');
+    const installClient = takeFlag(args, '--install');
+    const uninstallClient = takeFlag(args, '--uninstall');
+    const server = takeFlag(args, '--server');
+    const receiptPath = takeFlag(args, '--receipt');
+    const actions = [
+      ['print', printClient],
+      ['install', installClient],
+      ['uninstall', uninstallClient],
+    ].filter(([, client]) => client !== null);
+    if (subcommand !== 'setup' || actions.length !== 1 || args.length > 0) {
+      throw diagnosticError(
+        'SNAPBACK_CLI_ARGUMENT_INVALID',
+        'usage: snapback agent setup <--print <client>|--install <client>|--uninstall <client>> [--server mcp|mcp-control] [--receipt <file>] [--json]',
+      );
+    }
+    const [action, client] = actions[0];
+    if (action !== 'print' && server === null) {
+      throw diagnosticError(
+        'SNAPBACK_CLI_ARGUMENT_INVALID',
+        `--${action} requires an explicit --server mcp|mcp-control`,
+      );
+    }
+    if (action === 'print' && receiptPath !== null) {
+      throw diagnosticError('SNAPBACK_CLI_ARGUMENT_INVALID', '--receipt is valid only with --install or --uninstall');
+    }
+    const {
+      installAgentSetup,
+      printAgentSetup,
+      uninstallAgentSetup,
+    } = await import('./agent-setup.mjs');
+    const projectRoot = resolve(options.projectRoot ?? process.cwd());
+    const launchers = {
+      runtimeBinary: () => resolveRuntimeBinary(options).binary,
+      packageCli: join(packageRoot, 'cli.mjs'),
+    };
+    if (action === 'print') {
+      const result = printAgentSetup({
+        client,
+        server,
+        projectRoot,
+        launchers,
+        diagnosticError,
+      });
+      if (json) console.log(JSON.stringify(result, null, 2));
+      else process.stdout.write(result.snippet);
+      return 0;
+    }
+    if (action === 'install') {
+      const preview = json ? console.error : console.log;
+      const result = installAgentSetup({
+        client,
+        server,
+        projectRoot,
+        receiptPath,
+        launchers,
+        diagnosticError,
+        beforeWrite(disclosure) {
+          preview(`Target file: ${disclosure.targetFile}`);
+          preview(`Server: ${disclosure.server}`);
+          preview(disclosure.authoritySentence);
+        },
+      });
+      console.log(JSON.stringify(result, null, json ? 2 : 0));
+      return 0;
+    }
+    const result = uninstallAgentSetup({
+      client,
+      server,
+      projectRoot,
+      receiptPath,
+      diagnosticError,
+    });
+    console.log(JSON.stringify(result, null, json ? 2 : 0));
+    return 0;
+  }
   if (command === 'mcp-control') {
     // @ref LLP 0042#implementation-decisions-recorded-for-sc-1b-2026-07-23 —
     // the control-plane MCP server ships inside @expo/snapback-cli as a JS
@@ -3632,7 +3980,7 @@ export async function runCli(argv, options = {}) {
   const delegatedArgs = command === undefined ? [] : [command, ...args];
   const result = spawnSync(runtime.binary, delegatedArgs, {
     stdio: 'inherit',
-    env: scrubDynamicLoaderEnvironment(options.env),
+    env: runtimeSpawnEnvironment(runtime.binary, options.env),
   });
   if (result.error) throw result.error;
   return result.status ?? 1;
@@ -3642,5 +3990,6 @@ export const __test = {
   loadGenerated,
   readReadyDescriptor,
   runtimePackages: Object.fromEntries(RUNTIME_PACKAGES),
+  runtimeSpawnEnvironment,
   scrubDynamicLoaderEnvironment,
 };

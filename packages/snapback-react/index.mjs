@@ -9,17 +9,22 @@ import React, {
 } from 'react';
 
 import {
+  admittedReactCommand,
   admittedReactEphemeralDefinition,
   admittedReactQueryGroup,
   admittedReactReference,
+  admittedReactSurface,
   assertPreparedReactBinding,
   canonicalizeClientValueV1,
   canonicalReactStoreKeyV1,
+  classifyRegeneratedReactReference,
+  handoffPreparedReactBindingGeneration,
   preparedReactResultContract,
   preparedReactBindingClient,
   isPreparedReactQueryGroup,
   consumePreparedReactQueryGroup,
   abandonConsumedReactQueryGroup,
+  createCommandClient,
 } from '@expo/snapback-client';
 export { bindSnapbackAppLifecycle } from '@expo/snapback-client';
 import { createAssetClient } from '@expo/snapback-client/assets';
@@ -65,6 +70,31 @@ const preparedGroupReadersByRegistry = new WeakMap();
 function preparedGroupForProvider(provider) {
   return preparedGroupReadersByRegistry.get(provider.registry)?.() ?? null;
 }
+
+// Positive development/HMR identification for the mounted-provider generation
+// handoff. Recovery arms only when the host AFFIRMATIVELY identifies itself
+// as a development environment: Metro/React Native's compile-time `__DEV__`,
+// a live bundler HMR host (`import.meta.hot` / `module.hot`), or an explicit
+// NODE_ENV of 'development'. Absence of production markers is never treated
+// as development, so release builds keep the strict uncaught refusal.
+// @ref LLP 0114#mounted-provider-hmr-generation-handoff-dated-amendment-2026-08-05
+/* global __DEV__ */
+const positiveDevelopmentEnvironment = () => {
+  if (typeof __DEV__ === 'boolean') return __DEV__ === true;
+  if (import.meta.hot != null) return true;
+  if (typeof module !== 'undefined' && module?.hot != null) return true;
+  return typeof process !== 'undefined' && process.env?.NODE_ENV === 'development';
+};
+
+const HANDOFF_DEFERRED_REFERENCE = Symbol('snapback.react.hmr-deferred-reference.v1');
+const HANDOFF_PENDING = Object.freeze({
+  status: 'pending',
+  data: undefined,
+  error: null,
+  connection: 'connecting',
+  freshness: 'unknown',
+  retention: null,
+});
 
 const CONNECTION_ORDER = Object.freeze({
   error: 0,
@@ -316,6 +346,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   let publishers = 0;
   let terminal = false;
   let custodyPaused = false;
+  let hostPaused = false;
+  const runtimePaused = () => custodyPaused || hostPaused;
   let leaseSequence = 0;
   let registeredConnectionAttached = false;
   let registeredRecovery = null;
@@ -327,6 +359,19 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     diagnostic: null,
     activeSubscriptions: 0,
   });
+  // Mounted-provider HMR generation handoff (development only) — LLP 0114
+  // dated amendment 2026-08-05. `generationHandoff` tracks at most one
+  // in-flight or settled handoff; handoff descriptors resolve to real
+  // admitted descriptors once the binding's generation overlay swaps.
+  const developmentHmr = options.developmentHmr ?? null;
+  if (
+    developmentHmr !== null
+    && (typeof developmentHmr !== 'object' || Array.isArray(developmentHmr))
+  ) {
+    throw new TypeError('developmentHmr must be an options object');
+  }
+  let generationHandoff = null;
+  const handoffResolutions = new WeakMap();
 
   const notifyConnection = () => {
     for (const listener of [...connectionListeners]) {
@@ -462,6 +507,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           ? client.liveStreamManager(connectionId)
           : null;
         custodyPaused = false;
+        if (hostPaused) return;
         for (const store of stores.values()) startStore(store);
         for (const room of rooms.values()) startRoom(room);
       })
@@ -638,7 +684,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   };
 
   const startStore = (store, supersedes = null) => {
-    if (terminal || custodyPaused || store.handle || (store.consumers === 0 && store.pins === 0)) return;
+    if (terminal || runtimePaused() || store.handle || (store.consumers === 0 && store.pins === 0)) return;
     if (store.readOnlySnapshot !== null) return null;
     // A one-for-one supersession must carry its exact predecessor witness to
     // the server now; it is an explicit invalidation, so it resets any held
@@ -750,7 +796,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         handleSubscribeFailure([
           store, error, generation, handle, clearUnadoptedSubscription,
           allHandles, recoverExpiredRegisteredConnection, publish, serializeError,
-          () => !terminal && !custodyPaused,
+          () => !terminal && !runtimePaused(),
           () => startStore(store),
         ])
       )).catch((loadError) => {
@@ -779,7 +825,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           retryHandle = null;
           if (store.retry !== cancelRetry) return;
           store.retry = null;
-          if (!terminal && !custodyPaused && (store.consumers > 0 || store.pins > 0)) {
+          if (!terminal && !runtimePaused() && (store.consumers > 0 || store.pins > 0)) {
             startStore(store);
           }
         }, REACT_RUNTIME_FALLBACK_RETRY_MS);
@@ -918,7 +964,24 @@ function createRegistry(binding, providerInstanceId, options = {}) {
 
   const runMutation = async (mutationReference, mutationArgs, optimistic = null) => {
     if (terminal) throw diagnosticError('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed');
-    const admittedMutation = admittedReactReference(binding, mutationReference, 'Mutation');
+    if (mutationReference?.[HANDOFF_DEFERRED_REFERENCE] === true) {
+      mutationReference = mutationReference.reference;
+    }
+    // Admission stays synchronous on the settled path (the optimistic layer
+    // must install in the same frame as the user action). Only a recoverable
+    // development generation mismatch awaits the handoff; a reference that
+    // still fails afterwards rejects this promise (a handled mutation
+    // outcome), never an uncaught render error.
+    let admittedMutation;
+    try {
+      admittedMutation = admittedReactReference(binding, mutationReference, 'Mutation');
+    } catch (error) {
+      const target = recoverableGeneration(error, mutationReference);
+      if (target === null) throw error;
+      await beginGenerationHandoff(target).promise;
+      if (terminal) throw diagnosticError('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed');
+      admittedMutation = admittedReactReference(binding, mutationReference, 'Mutation');
+    }
     canonicalizeClientValueV1(mutationArgs);
     const mutationContract = preparedReactResultContract(binding, admittedMutation);
     if (optimistic === null) {
@@ -939,7 +1002,16 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       typeof optimistic !== 'object'
       || typeof optimistic.update !== 'function'
     ) throw new TypeError('optimistic mutation options require query, args, and update');
-    const queryReference = admittedReactReference(binding, optimistic.query, 'LiveQuery');
+    let queryReference;
+    try {
+      queryReference = admittedReactReference(binding, optimistic.query, 'LiveQuery');
+    } catch (error) {
+      const target = recoverableGeneration(error, optimistic.query);
+      if (target === null) throw error;
+      await beginGenerationHandoff(target).promise;
+      if (terminal) throw diagnosticError('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed');
+      queryReference = admittedReactReference(binding, optimistic.query, 'LiveQuery');
+    }
     const queryKey = canonicalReactStoreKeyV1(
       providerInstanceId,
       queryReference,
@@ -947,7 +1019,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     );
     const store = stores.get(queryKey);
     if (
-      custodyPaused
+      runtimePaused()
       || !store
       || store.authoritativeRevision === 0
       || !['ready', 'refreshing'].includes(store.snapshot.status)
@@ -1091,10 +1163,57 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     }
   };
 
+  const runCommandMutation = async (mutationReference, mutationArgs, {
+    clientMutationId,
+    authorityCapture,
+  }) => {
+    // @ref LLP 0180#mutation-ambiguity — these terminal checks refuse before
+    // client.mutate, proving that no mutation effect left this provider.
+    if (terminal) {
+      throw diagnosticError(
+        'SNAPBACK_REACT_PROVIDER_CLOSED',
+        'React provider is closed',
+        { effectCommitted: false },
+      );
+    }
+    let admittedMutation;
+    try {
+      admittedMutation = admittedReactReference(binding, mutationReference, 'Mutation');
+    } catch (error) {
+      const target = recoverableGeneration(error, mutationReference);
+      if (target === null) throw error;
+      await beginGenerationHandoff(target).promise;
+      if (terminal) {
+        throw diagnosticError(
+          'SNAPBACK_REACT_PROVIDER_CLOSED',
+          'React provider is closed',
+          { effectCommitted: false },
+        );
+      }
+      admittedMutation = admittedReactReference(binding, mutationReference, 'Mutation');
+    }
+    canonicalizeClientValueV1(mutationArgs);
+    const output = await client.mutate(admittedMutation, {
+      args: mutationArgs,
+      clientMutationId,
+      authorityCapture,
+      queue: false,
+      ...(preparedDevUserId === null ? {} : { userId: preparedDevUserId }),
+    });
+    return validateResultContract(
+      preparedReactResultContract(binding, admittedMutation),
+      output.result,
+      { violationCode: 'SNAPBACK_REACT_COMMAND_RESULT_INVALID' },
+    );
+  };
+
   const releaseLease = (lease) => {
     if (!lease || lease.released) return;
     lease.released = true;
     leases.delete(lease);
+    for (const cleanup of lease.cleanups ?? []) {
+      try { cleanup(); } catch { /* observational */ }
+    }
     consumers -= lease.edges.length;
     for (const edge of lease.edges) {
       const store = stores.get(edge.key);
@@ -1128,7 +1247,21 @@ function createRegistry(binding, providerInstanceId, options = {}) {
 
   const subscribeMany = (descriptors, listener, previousLease = null) => {
     if (terminal) throw diagnosticError('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed');
-    const admitted = descriptors.filter((entry) => !entry.skipped);
+    const admitted = [];
+    const pendingHandoffs = [];
+    for (const entry of descriptors) {
+      if (entry.skipped) continue;
+      if (entry.handoff === undefined) {
+        admitted.push(entry);
+        continue;
+      }
+      // A handoff descriptor may already be resolvable (the atomic rebind
+      // completed between render and subscribe): adopt the real admitted
+      // descriptor now; otherwise park it on the handoff completion.
+      const real = resolveHandoffDescriptor(entry);
+      if (real !== null && !real.skipped) admitted.push(real);
+      else if (real === null) pendingHandoffs.push(entry);
+    }
     const previous = previousLease && !previousLease.released ? previousLease : null;
     const previousEdges = previous?.edges ?? [];
     const projectedConsumers = consumers - previousEdges.length + admitted.length;
@@ -1180,6 +1313,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     const next = {
       id: edgeIdPrefix,
       edges: [],
+      cleanups: [],
       released: false,
       release() { releaseLease(next); },
     };
@@ -1195,6 +1329,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       }
       leases.add(next);
       consumers += next.edges.length;
+      for (const entry of pendingHandoffs) attachHandoffWaiter(next, entry, listener);
       let successorHandle = null;
       if (supersession) supersession.predecessor.handoffPending += 1;
       for (const key of uniqueNew.keys()) {
@@ -1238,6 +1373,14 @@ function createRegistry(binding, providerInstanceId, options = {}) {
 
   const snapshot = (descriptor) => {
     if (descriptor.skipped) return SKIPPED;
+    if (descriptor.handoff !== undefined) {
+      const real = resolveHandoffDescriptor(descriptor);
+      if (real !== null) {
+        return real.skipped ? SKIPPED : (stores.get(real.key)?.snapshot ?? SERVER_PENDING);
+      }
+      if (generationHandoff?.status === 'failed') return generationHandoff.failureSnapshot;
+      return HANDOFF_PENDING;
+    }
     return stores.get(descriptor.key)?.snapshot ?? SERVER_PENDING;
   };
 
@@ -1540,7 +1683,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     pauseRoom(room);
   };
   const startRoom = (room) => {
-    if (room.closed || room.handle || terminal || custodyPaused) return;
+    if (room.closed || room.handle || terminal || runtimePaused()) return;
     const generation = ++room.generation;
     room.raw = PRESENCE_SERVER_PENDING;
     const handle = client.startEphemeralRoom(
@@ -1759,6 +1902,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       view: null,
       viewVersion: -1,
       actions: null,
+      detachedView: null,
+      unsupportedView: null,
     };
     token.actions = Object.freeze({
       async publish(value, publishOptions = {}) {
@@ -1787,6 +1932,14 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         if (!token.room) return;
         return deleteTokenIntent(token.room, token);
       },
+    });
+    // useSyncExternalStore reads before subscribing. Keep that detached read
+    // referentially stable so React does not treat it as a changing store.
+    token.detachedView = Object.freeze({
+      ...PRESENCE_SERVER_PENDING,
+      publisher: Object.freeze({ status: 'observing', diagnostic: null }),
+      publish: token.actions.publish,
+      delete: token.actions.delete,
     });
     return token;
   };
@@ -1824,26 +1977,22 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   const presenceSnapshot = (descriptor, token) => {
     if (descriptor.unsupported || token.unsupported) {
       const unsupported = descriptor.unsupported ?? token.unsupported;
-      return Object.freeze({
-        status: 'unsupported',
-        entries: Object.freeze([]),
-        selfKey: null,
-        diagnostic: unsupported,
-        connection: 'idle',
-        publisher: Object.freeze({ status: 'observing', diagnostic: null }),
-        publish: token.actions.publish,
-        delete: token.actions.delete,
-      });
+      if (token.unsupportedView?.diagnostic !== unsupported) {
+        token.unsupportedView = Object.freeze({
+          status: 'unsupported',
+          entries: Object.freeze([]),
+          selfKey: null,
+          diagnostic: unsupported,
+          connection: 'idle',
+          publisher: Object.freeze({ status: 'observing', diagnostic: null }),
+          publish: token.actions.publish,
+          delete: token.actions.delete,
+        });
+      }
+      return token.unsupportedView;
     }
     const room = token.room ?? rooms.get(descriptor.key);
-    if (!room) {
-      return Object.freeze({
-        ...PRESENCE_SERVER_PENDING,
-        publisher: Object.freeze({ status: 'observing', diagnostic: null }),
-        publish: token.actions.publish,
-        delete: token.actions.delete,
-      });
-    }
+    if (!room) return token.detachedView;
     return presenceView(room, token);
   };
 
@@ -1862,17 +2011,29 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     return connectionSnapshot;
   };
 
+  const quiesceRegistry = async () => {
+    for (const store of stores.values()) stopStore(store);
+    for (const room of rooms.values()) pauseRoom(room);
+    await Promise.allSettled([
+      ...[...allHandles].map((handle) => handle.settled()),
+      ...[...rooms.values()].map((room) => room.cleanup),
+      ...(registeredRecovery === null ? [] : [registeredRecovery]),
+    ]);
+  };
+  const resumeRegistry = () => {
+    if (terminal || runtimePaused()) return;
+    manager = typeof client.liveStreamManager === 'function'
+      ? client.liveStreamManager(connectionId)
+      : null;
+    for (const store of stores.values()) startStore(store);
+    for (const room of rooms.values()) startRoom(room);
+  };
+
   const barrierParticipant = {
     name: `snapback-react:${providerInstanceId}`,
     async quiesce() {
       custodyPaused = true;
-      for (const store of stores.values()) stopStore(store);
-      for (const room of rooms.values()) pauseRoom(room);
-      await Promise.allSettled([
-        ...[...allHandles].map((handle) => handle.settled()),
-        ...[...rooms.values()].map((room) => room.cleanup),
-        ...(registeredRecovery === null ? [] : [registeredRecovery]),
-      ]);
+      await quiesceRegistry();
     },
     blank() {
       custodyPaused = true;
@@ -1901,56 +2062,239 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     async commitDurable() {},
     async resume() {
       if (terminal) return;
-      manager = typeof client.liveStreamManager === 'function'
-        ? client.liveStreamManager(connectionId)
-        : null;
       custodyPaused = false;
-      for (const store of stores.values()) startStore(store);
-      for (const room of rooms.values()) startRoom(room);
+      resumeRegistry();
     },
   };
   const unregisterBarrier = client.registerAuthBarrierParticipant(barrierParticipant);
 
+  const admittedDescriptor = (reference, args, groupBoot = null, preparedEntryName = null) => {
+    const preparedEntry = preparedEntryName === null
+      ? null
+      : preparedGroup?.entries.find((entry) => entry.name === preparedEntryName) ?? null;
+    const admitted = admittedReactReference(
+      binding,
+      reference,
+      preparedEntry?.readOnlySnapshot == null ? 'LiveQuery' : ['Query', 'LiveQuery'],
+    );
+    const resultContract = preparedReactResultContract(binding, admitted);
+    if (args === skip) return Object.freeze({
+      skipped: true,
+      reference: admitted,
+      args,
+      key: null,
+      resultContract,
+      groupBoot,
+      preparedEntryName,
+      readOnlySnapshot: preparedEntry?.readOnlySnapshot ?? null,
+      bootDelivery: preparedEntry?.bootDelivery ?? null,
+    });
+    const key = canonicalReactStoreKeyV1(providerInstanceId, admitted, args);
+    return Object.freeze({
+      skipped: false,
+      reference: admitted,
+      args,
+      key,
+      resultContract,
+      groupBoot,
+      preparedEntryName,
+      readOnlySnapshot: preparedEntry?.readOnlySnapshot ?? null,
+      bootDelivery: preparedEntry?.bootDelivery ?? null,
+    });
+  };
+
+  // --- Mounted-provider HMR generation handoff (development only) -----------
+  // @ref LLP 0114#mounted-provider-hmr-generation-handoff-dated-amendment-2026-08-05
+  // — a regenerated same-app reference in a positively identified development
+  // environment becomes a provider-boundary invalidation with an atomic
+  // rebind, never an uncaught render error; every other refusal (foreign
+  // reference, production build) stays strict and loud.
+  const recoverableGeneration = (error, reference) => {
+    if (terminal || error?.code !== 'SNAPBACK_REACT_REFERENCE_INVALID') return null;
+    if (!positiveDevelopmentEnvironment()) return null;
+    return classifyRegeneratedReactReference(binding, reference);
+  };
+
+  const triggerControlledDevelopmentReload = (failure) => {
+    console.error(
+      `${failure.code}: ${failure.message} (reason: ${failure.details?.reason ?? 'unknown'}). `
+      + 'Snapback is triggering a full dev reload so the mounted provider realigns with the '
+      + 'regenerated api module. If no reload mechanism is available on this host, reload '
+      + 'manually (press "r" in the Metro terminal or refresh the page).',
+    );
+    try {
+      if (typeof developmentHmr?.onReloadRequired === 'function') {
+        developmentHmr.onReloadRequired(failure);
+        return;
+      }
+    } catch { /* observational */ }
+    try { globalThis.DevSettings?.reload?.('SNAPBACK_REACT_HMR_REBIND_FAILED'); } catch { /* best effort */ }
+    try { globalThis.location?.reload?.(); } catch { /* best effort */ }
+  };
+
+  const beginGenerationHandoff = (target) => {
+    const key = canonicalizeClientValueV1(target);
+    if (generationHandoff !== null && generationHandoff.key === key) return generationHandoff;
+    const state = {
+      key,
+      status: 'active',
+      failure: null,
+      failureSnapshot: null,
+      waiters: new Set(),
+      promise: null,
+    };
+    // A newer generation supersedes an in-flight handoff (rapid successive
+    // HMR edits): its parked waiters move to the successor so their hooks
+    // still resolve or fail when the newest handoff settles.
+    if (generationHandoff !== null && generationHandoff.status === 'active') {
+      for (const waiter of generationHandoff.waiters) state.waiters.add(waiter);
+      generationHandoff.waiters.clear();
+    }
+    const settle = (outcome) => {
+      if (terminal || generationHandoff !== state) return outcome;
+      if (outcome?.ok === true) {
+        state.status = 'ok';
+      } else {
+        state.status = 'failed';
+        state.failure = diagnostic(
+          'SNAPBACK_REACT_HMR_REBIND_FAILED',
+          'HMR delivered regenerated Snapback references, but the mounted provider could not atomically rebind to the new generation',
+          {
+            reason: outcome?.reason ?? 'handoff-error',
+            ...(outcome?.cause === undefined ? {} : { cause: outcome.cause }),
+          },
+        );
+        state.failureSnapshot = Object.freeze({
+          status: 'error',
+          data: undefined,
+          error: state.failure,
+          connection: 'error',
+          freshness: 'unknown',
+          retention: null,
+        });
+        triggerControlledDevelopmentReload(state.failure);
+      }
+      const waiters = [...state.waiters];
+      state.waiters.clear();
+      for (const waiter of waiters) {
+        try { waiter(); } catch { /* observational */ }
+      }
+      notifyConnection();
+      return outcome;
+    };
+    state.promise = handoffPreparedReactBindingGeneration(binding, target, {
+      ...(Number.isSafeInteger(developmentHmr?.timeoutMs)
+        ? { timeoutMs: developmentHmr.timeoutMs }
+        : {}),
+      ...(Number.isSafeInteger(developmentHmr?.pollIntervalMs)
+        ? { pollIntervalMs: developmentHmr.pollIntervalMs }
+        : {}),
+    }).then(settle, (error) => settle({
+      ok: false,
+      reason: 'handoff-error',
+      cause: error?.code ?? String(error),
+    }));
+    generationHandoff = state;
+    return state;
+  };
+
+  const resolveHandoffDescriptor = (descriptor) => {
+    const resolved = handoffResolutions.get(descriptor);
+    if (resolved) return resolved;
+    try {
+      const real = admittedDescriptor(
+        descriptor.handoff.reference,
+        descriptor.handoff.args,
+        descriptor.handoff.groupBoot,
+        descriptor.handoff.preparedEntryName,
+      );
+      handoffResolutions.set(descriptor, real);
+      return real;
+    } catch {
+      return null;
+    }
+  };
+
+  const handoffDescriptor = (reference, args, groupBoot, preparedEntryName, target) => {
+    beginGenerationHandoff(target);
+    return Object.freeze({
+      skipped: args === skip,
+      handoff: Object.freeze({ reference, args, groupBoot, preparedEntryName }),
+      reference,
+      args,
+      key: null,
+      resultContract: null,
+      groupBoot,
+      preparedEntryName,
+      readOnlySnapshot: null,
+      bootDelivery: null,
+    });
+  };
+
+  const attachHandoffWaiter = (lease, descriptor, listener) => {
+    const state = generationHandoff;
+    const waiter = () => {
+      if (lease.released || terminal) return;
+      const real = resolveHandoffDescriptor(descriptor);
+      if (real !== null && !real.skipped) {
+        try {
+          if (consumers + 1 > CONSUMER_CAP) {
+            throw diagnosticError(
+              'SNAPBACK_REACT_STORE_CAPACITY',
+              `React provider has reached its ${CONSUMER_CAP}-consumer cap`,
+              { cap: CONSUMER_CAP },
+            );
+          }
+          const store = stores.get(real.key) ?? createStore(real);
+          const edgeId = `${lease.id}:handoff${lease.edges.length}`;
+          store.idleEpoch += 1;
+          store.consumers += 1;
+          store.listeners.set(edgeId, listener);
+          lease.edges.push({ key: store.key, edgeId });
+          consumers += 1;
+          startStore(store);
+        } catch (error) {
+          recordDiagnostic(error);
+        }
+      }
+      try { listener(); } catch { /* observational */ }
+    };
+    if (state === null || state.status !== 'active') {
+      queueMicrotask(waiter);
+      return;
+    }
+    state.waiters.add(waiter);
+    lease.cleanups.push(() => state.waiters.delete(waiter));
+  };
+
   const registry = Object.freeze({
     descriptor(reference, args, groupBoot = null, preparedEntryName = null) {
-      const preparedEntry = preparedEntryName === null
-        ? null
-        : preparedGroup?.entries.find((entry) => entry.name === preparedEntryName) ?? null;
-      const admitted = admittedReactReference(
-        binding,
-        reference,
-        preparedEntry?.readOnlySnapshot == null ? 'LiveQuery' : ['Query', 'LiveQuery'],
-      );
-      const resultContract = preparedReactResultContract(binding, admitted);
-      if (args === skip) return Object.freeze({
-        skipped: true,
-        reference: admitted,
-        args,
-        key: null,
-        resultContract,
-        groupBoot,
-        preparedEntryName,
-        readOnlySnapshot: preparedEntry?.readOnlySnapshot ?? null,
-        bootDelivery: preparedEntry?.bootDelivery ?? null,
-      });
-      const key = canonicalReactStoreKeyV1(providerInstanceId, admitted, args);
-      return Object.freeze({
-        skipped: false,
-        reference: admitted,
-        args,
-        key,
-        resultContract,
-        groupBoot,
-        preparedEntryName,
-        readOnlySnapshot: preparedEntry?.readOnlySnapshot ?? null,
-        bootDelivery: preparedEntry?.bootDelivery ?? null,
-      });
+      try {
+        return admittedDescriptor(reference, args, groupBoot, preparedEntryName);
+      } catch (error) {
+        const target = recoverableGeneration(error, reference);
+        if (target === null) throw error;
+        return handoffDescriptor(reference, args, groupBoot, preparedEntryName, target);
+      }
+    },
+    mutationReference(reference) {
+      try {
+        return admittedReactReference(binding, reference, 'Mutation');
+      } catch (error) {
+        const target = recoverableGeneration(error, reference);
+        if (target === null) throw error;
+        beginGenerationHandoff(target);
+        const deferred = { reference };
+        Object.defineProperty(deferred, HANDOFF_DEFERRED_REFERENCE, { value: true });
+        return Object.freeze(deferred);
+      }
     },
     subscribe(descriptor, listener, previousLease = null) {
       return subscribeMany([descriptor], listener, previousLease);
     },
     subscribeMany,
     runMutation,
+    runCommandMutation,
     createPresenceToken,
     presenceDescriptor,
     subscribePresence,
@@ -1963,11 +2307,25 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       return () => connectionListeners.delete(listener);
     },
     recordDiagnostic,
+    // Host lifecycle is projected through the same registry operations as
+    // the auth barrier, with an independent reason bit so a host resume
+    // cannot race an authority transition (or vice versa).
+    // @ref LLP 0181#provider — the Expo lifecycle shell delegates to the
+    // existing React/client machinery.
+    async pause() {
+      hostPaused = true;
+      await quiesceRegistry();
+    },
+    async resume() {
+      hostPaused = false;
+      resumeRegistry();
+    },
     inspection() {
       return Object.freeze({
         providerInstanceId,
         terminal,
-        custodyPaused,
+        custodyPaused: runtimePaused(),
+        hostPaused,
         stores: stores.size,
         consumers,
         serverSubscriptions: activeStores().length,
@@ -1992,12 +2350,14 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         preparedGroupSource: preparedGroup?.source ?? null,
         preparedGroupReason: preparedGroup?.reason ?? null,
         preparedGroupBoot: preparedGroup?.boot ?? null,
+        generationHandoff: generationHandoff?.status ?? null,
       });
     },
     async dispose() {
       if (terminal) return;
       terminal = true;
       custodyPaused = true;
+      hostPaused = true;
       const ownsUnadoptedRegisteredOwner = preparedGroup?.connectionId === connectionId
         && (
           preparedRegistrations.size > 0
@@ -2043,6 +2403,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       dirtyPreparedSubscriptions.clear();
       rooms.clear();
       connectionListeners.clear();
+      generationHandoff = null;
       unregisterPreparedFrameGuard();
       try { await unregisterBarrier(); } catch (error) { recordDiagnostic(error); }
     },
@@ -2067,18 +2428,35 @@ export function createSnapbackReactProvider(binding, options = {}) {
     if (preparedGroup !== null) void abandonConsumedReactQueryGroup(preparedGroup);
     throw error;
   }
-  return Object.freeze({
+  let disposePromise = null;
+  const provider = {
     kind: 'snapback.react-provider.v1',
     providerInstanceId,
     binding: prepared,
     registry,
     assets: options.assets ?? null,
+    assetSourceAdapter: options.assetSourceAdapter ?? null,
     registerEphemeralRepublisher(reference, callback) {
       return preparedReactBindingClient(prepared).registerEphemeralRepublisher(reference, callback);
     },
-    inspection: () => registry.inspection(),
-    dispose: () => registry.dispose(),
-  });
+    pause: () => registry.pause(),
+    resume: () => registry.resume(),
+    inspection: () => Object.freeze({
+      ...registry.inspection(),
+      commandTasks: commandClientInspectionFor(provider),
+    }),
+    dispose() {
+      disposePromise ??= (async () => {
+        await disposeCommandClientFor(provider);
+        await registry.dispose();
+      })();
+      return disposePromise;
+    },
+  };
+  provider.surface = (surface, params, surfaceOptions = {}) => (
+    bindSnapbackSurface(provider, surface, params, surfaceOptions)
+  );
+  return Object.freeze(provider);
 }
 
 export function SnapbackProvider({ binding = null, provider = null, children = null }) {
@@ -2334,14 +2712,33 @@ export function projectRecordFields(recordId, fields, { idField = '_id' } = {}) 
 
 export function useSnapbackMutation(reference, options = {}) {
   const provider = useProvider();
+  // Registry-owned admission: in a positively identified development/HMR
+  // environment a regenerated same-app reference defers to the generation
+  // handoff instead of throwing through the render tree; runMutation
+  // re-admits at call time.
   const admitted = useMemo(
-    () => admittedReactReference(provider.binding, reference, 'Mutation'),
+    () => provider.registry.mutationReference(reference),
     [provider, reference],
   );
   const optimistic = options?.optimistic ?? null;
   return useCallback(
     (args) => provider.registry.runMutation(admitted, args, optimistic),
     [provider, admitted, optimistic],
+  );
+}
+
+// @ref LLP 0180#react-and-surface-projections — the hook is a named
+// projection of the same provider-owned asset and mutation children used by
+// surfaces. It owns no command transport or authority lane of its own.
+export function useSnapbackCommand(reference) {
+  const provider = useProvider();
+  const admitted = useMemo(
+    () => admittedReactCommand(provider.binding, reference),
+    [provider, reference],
+  );
+  return useCallback(
+    (args) => commandClientFor(provider).start(admitted, args),
+    [provider, admitted],
   );
 }
 
@@ -2450,17 +2847,445 @@ export function observeSnapbackPresence(providerValue, reference, options, liste
   });
 }
 
+function surfaceRefusal(code, message, details = {}) {
+  throw diagnosticError(code, message, details);
+}
+
+const SURFACE_REACT_LIFECYCLE = Symbol('snapback.surfaceReactLifecycle');
+
+function assertSurfaceGenerationCurrent(binding) {
+  if (binding.closed || binding.retired) {
+    surfaceRefusal(
+      'SNAPBACK_REACT_SURFACE_GENERATION_STALE',
+      'surface member call belongs to a retired parameter generation',
+      { surfaceId: binding.surface.id },
+    );
+  }
+}
+
+function admittedSurfaceParams(surface, params) {
+  if (!params || typeof params !== 'object' || Array.isArray(params)) {
+    surfaceRefusal('SNAPBACK_REACT_SURFACE_PARAMS_INVALID', 'surface params must be an object map');
+  }
+  const expected = Object.keys(surface.params).sort();
+  const actual = Object.keys(params).sort();
+  if (expected.length !== actual.length || expected.some((name, index) => name !== actual[index])) {
+    surfaceRefusal(
+      'SNAPBACK_REACT_SURFACE_PARAMS_INVALID',
+      'surface params must exactly match the generated declaration',
+      { expected, actual },
+    );
+  }
+  canonicalizeClientValueV1(params);
+  return immutableClone(params);
+}
+
+function surfaceOptions(surface, options) {
+  if (!options || typeof options !== 'object' || Array.isArray(options)) {
+    surfaceRefusal('SNAPBACK_REACT_SURFACE_OPTIONS_INVALID', 'surface options must be an object');
+  }
+  const unknownOptions = Object.keys(options).filter((name) => name !== 'presence');
+  if (unknownOptions.length > 0) {
+    surfaceRefusal('SNAPBACK_REACT_SURFACE_OPTIONS_INVALID', 'surface options contain unknown members', { members: unknownOptions });
+  }
+  const presence = options.presence ?? {};
+  if (!presence || typeof presence !== 'object' || Array.isArray(presence)) {
+    surfaceRefusal('SNAPBACK_REACT_SURFACE_OPTIONS_INVALID', 'surface presence options must be an object map');
+  }
+  const unknownPresence = Object.keys(presence).filter((name) => !Object.hasOwn(surface.presence, name));
+  if (unknownPresence.length > 0) {
+    surfaceRefusal('SNAPBACK_REACT_SURFACE_OPTIONS_INVALID', 'surface presence options name unknown members', { members: unknownPresence });
+  }
+  const normalized = {};
+  for (const name of Object.keys(surface.presence).sort()) {
+    const value = Object.hasOwn(presence, name) ? presence[name] : skip;
+    // @ref LLP 0179#react-projection — a presence publish value is application
+    // presence only. Self identity comes from the adopted session/connection,
+    // never from a userId smuggled in the declarative payload.
+    if (value !== skip && value && typeof value === 'object' && Object.hasOwn(value, 'userId')) {
+      surfaceRefusal(
+        'SNAPBACK_REACT_SURFACE_PRESENCE_IDENTITY_INPUT',
+        'surface presence payloads cannot carry userId; self identity is session-derived',
+        { member: name },
+      );
+    }
+    if (value !== skip) canonicalizeClientValueV1(value);
+    normalized[name] = value === skip ? skip : immutableClone(value);
+  }
+  return Object.freeze({ presence: Object.freeze(normalized) });
+}
+
+function resolveSurfaceBindingValue(value, params, inputValues) {
+  if (value.kind === 'param') return params[value.name];
+  if (value.kind === 'input') return inputValues[value.name];
+  if (value.kind === 'literal') return value.value;
+  if (value.kind === 'scope') {
+    return Object.fromEntries(Object.entries(value.fields).map(([name, child]) => (
+      [name, resolveSurfaceBindingValue(child, params, inputValues)]
+    )));
+  }
+  surfaceRefusal('SNAPBACK_REACT_SURFACE_INVALID', `unsupported generated surface binding ${String(value.kind)}`);
+}
+
+function surfaceMemberArgs(member, params, inputs = {}, { command = false } = {}) {
+  const expected = Object.keys(member.inputs).sort();
+  const actual = Object.keys(inputs ?? {}).sort();
+  const required = expected.filter((name) => member.inputs[name].optional !== true);
+  if (
+    actual.some((name) => !Object.hasOwn(member.inputs, name))
+    || required.some((name) => !Object.hasOwn(inputs, name))
+  ) {
+    surfaceRefusal(
+      'SNAPBACK_REACT_SURFACE_INPUT_INVALID',
+      'surface member inputs do not match the generated binding',
+      { expected, required, actual },
+    );
+  }
+  const portableInputs = command
+    ? Object.fromEntries(Object.entries(inputs).filter(([name]) => (
+      member.inputs[name]?.contract?.kind !== 'commandAssetSource'
+    )))
+    : inputs;
+  canonicalizeClientValueV1(portableInputs);
+  return Object.fromEntries(Object.entries(member.bindings).map(([target, value]) => (
+    [target, resolveSurfaceBindingValue(value, params, inputs)]
+  )));
+}
+
+function presenceSurfaceView(state) {
+  return Object.freeze({ ...state, members: state.entries });
+}
+
+function surfaceSnapshot(binding) {
+  const group = binding.queryObserver?.snapshot()
+    ?? groupSnapshot(binding.provider, binding.readDescriptors);
+  const state = {};
+  const data = {};
+  for (const name of Object.keys(binding.surface.reads).sort()) {
+    state[name] = group.queries[name];
+    // Compact data is strictly a mechanical projection of owner state. An
+    // unready/error child remains undefined; retained/current rows remain
+    // distinguishable through state rather than being fabricated as [].
+    data[name] = state[name].data;
+  }
+  const presence = {};
+  for (const name of Object.keys(binding.surface.presence).sort()) {
+    const child = binding.presenceObservers[name]?.snapshot() ?? PRESENCE_SERVER_PENDING;
+    const cached = binding.presenceViews.get(child);
+    presence[name] = cached ?? presenceSurfaceView(child);
+    if (!cached && child && typeof child === 'object') binding.presenceViews.set(child, presence[name]);
+  }
+  const previous = binding.lastSnapshot;
+  if (
+    previous
+    && Object.keys(state).every((name) => previous.state[name] === state[name])
+    && Object.keys(presence).every((name) => previous.presence[name] === presence[name])
+  ) return previous;
+  binding.lastSnapshot = Object.freeze({
+    data: Object.freeze(data),
+    state: Object.freeze(state),
+    presence: Object.freeze(presence),
+    mutations: binding.mutations,
+    commands: binding.commands,
+    assets: binding.assets,
+    descriptor: binding.surface,
+  });
+  return binding.lastSnapshot;
+}
+
+function startSurfaceBinding(binding) {
+  if (binding.started || binding.closed) return;
+  binding.started = true;
+  const emit = () => {
+    binding.lastSnapshot = null;
+    for (const listener of [...binding.listeners]) listener();
+  };
+  if (binding.readDescriptors.length > 0) {
+    binding.queryObserver = observeSnapbackQueries(binding.provider, binding.readEntries, emit);
+  }
+  for (const [name, member] of Object.entries(binding.surface.presence)) {
+    binding.presenceObservers[name] = observeSnapbackPresence(
+      binding.provider,
+      member.reference,
+      {
+        scope: surfaceMemberArgs(member, binding.params).scope,
+        value: binding.options.presence[name],
+      },
+      emit,
+    );
+  }
+  emit();
+}
+
+function stopSurfaceBinding(binding) {
+  binding.queryObserver?.dispose();
+  binding.queryObserver = null;
+  const cleanups = Object.values(binding.presenceObservers).map((observer) => observer.dispose());
+  binding.presenceObservers = {};
+  binding.started = false;
+  binding.lastSnapshot = null;
+  return Promise.allSettled(cleanups);
+}
+
+// @ref LLP 0114#named-projections-from-accepted-rfcs — a surface is only a
+// projection over the provider registry. Reads use descriptor()/subscribeMany,
+// presence uses presenceDescriptor()/subscribePresence, and mutations use
+// runMutation, so low-level and surface consumers converge on canonical keys.
+export function bindSnapbackSurface(providerValue, surfaceReference, params, options = {}) {
+  const provider = assertProvider(providerValue);
+  const surface = admittedReactSurface(provider.binding, surfaceReference);
+  const binding = {
+    provider,
+    surface,
+    params: admittedSurfaceParams(surface, params),
+    options: surfaceOptions(surface, options),
+    listeners: new Set(),
+    started: false,
+    closed: false,
+    retired: false,
+    queryObserver: null,
+    presenceObservers: {},
+    presenceViews: new WeakMap(),
+    lastSnapshot: null,
+    mutations: null,
+    commands: null,
+    assets: null,
+    readEntries: null,
+    readDescriptors: null,
+    readSubscribers: Object.create(null),
+  };
+  const replaceReadProjection = () => {
+    binding.readEntries = Object.freeze(Object.fromEntries(
+      Object.entries(surface.reads).map(([name, member]) => [name, Object.freeze({
+        ref: member.reference,
+        args: surfaceMemberArgs(member, binding.params),
+      })]),
+    ));
+    binding.readDescriptors = Object.keys(binding.readEntries).length === 0
+      ? Object.freeze([])
+      : validateEntries(provider, binding.readEntries);
+  };
+  replaceReadProjection();
+  for (const name of Object.keys(surface.reads)) binding.readSubscribers[name] = new Set();
+  const migrateReadSubscribers = () => {
+    for (const [name, subscribers] of Object.entries(binding.readSubscribers)) {
+      const descriptor = binding.readDescriptors.find((candidate) => candidate.name === name);
+      for (const subscription of subscribers) {
+        const emit = () => subscription.listener(provider.registry.snapshot(descriptor));
+        const successor = provider.registry.subscribe(descriptor, emit);
+        subscription.lease.release();
+        subscription.descriptor = descriptor;
+        subscription.lease = successor;
+        subscription.listener(provider.registry.snapshot(descriptor));
+      }
+    }
+  };
+  binding.mutations = Object.freeze(Object.fromEntries(
+    Object.entries(surface.mutations).map(([name, member]) => [name, (inputs = {}) => {
+      assertSurfaceGenerationCurrent(binding);
+      return provider.registry.runMutation(
+        member.reference,
+        surfaceMemberArgs(member, binding.params, inputs),
+        null,
+      );
+    }]),
+  ));
+  binding.commands = Object.freeze(Object.fromEntries(
+    Object.entries(surface.commands ?? {}).map(([name, member]) => [name, (inputs = {}) => {
+      assertSurfaceGenerationCurrent(binding);
+      return commandClientFor(provider).start(
+        member.reference,
+        surfaceMemberArgs(member, binding.params, inputs, { command: true }),
+      );
+    }]),
+  ));
+  binding.assets = Object.freeze(Object.fromEntries(
+    Object.entries(surface.assets ?? {}).map(([name, member]) => [name, Object.freeze({
+      reference: member.reference,
+      start(call) {
+        assertSurfaceGenerationCurrent(binding);
+        if (!call || typeof call !== 'object' || Array.isArray(call) || !Object.hasOwn(call, 'file')) {
+          surfaceRefusal('SNAPBACK_REACT_SURFACE_INPUT_INVALID', `surface asset ${name} requires a file`);
+        }
+        const allowed = new Set([
+          ...Object.keys(member.inputs),
+          'file', 'declaredFilename', 'declaredContentType', 'previewUrl',
+        ]);
+        const unknown = Object.keys(call).filter((field) => !allowed.has(field));
+        if (unknown.length > 0) {
+          surfaceRefusal('SNAPBACK_REACT_SURFACE_INPUT_INVALID', `surface asset ${name} has unknown call members`, { members: unknown });
+        }
+        const inputValues = Object.fromEntries(
+          Object.keys(member.inputs)
+            .filter((field) => Object.hasOwn(call, field))
+            .map((field) => [field, call[field]]),
+        );
+        return assetRegistryFor(provider).assets.start({
+          upload: member.reference,
+          args: surfaceMemberArgs(member, binding.params, inputValues),
+          file: call.file,
+          declaredFilename: call.declaredFilename ?? null,
+          declaredContentType: call.declaredContentType ?? null,
+          previewUrl: call.previewUrl ?? null,
+        });
+      },
+    })]),
+  ));
+  const reads = Object.freeze(Object.fromEntries(Object.keys(surface.reads).map((name) => [
+    name,
+    Object.freeze({
+      snapshot: () => provider.registry.snapshot(
+        binding.readDescriptors.find((descriptor) => descriptor.name === name),
+      ),
+      subscribe(listener) {
+        if (binding.closed) surfaceRefusal('SNAPBACK_REACT_PROVIDER_CLOSED', 'surface binding is closed');
+        const descriptor = binding.readDescriptors.find((candidate) => candidate.name === name);
+        const emit = () => listener(provider.registry.snapshot(descriptor));
+        const lease = provider.registry.subscribe(descriptor, emit);
+        const subscription = { listener, descriptor, lease };
+        binding.readSubscribers[name].add(subscription);
+        listener(provider.registry.snapshot(descriptor));
+        return () => {
+          if (!binding.readSubscribers[name].delete(subscription)) return;
+          subscription.lease.release();
+        };
+      },
+    }),
+  ])));
+  const publicBinding = {
+    artifactKind: 'boundSnapbackSurface',
+    descriptor: surface,
+    reads,
+    mutations: binding.mutations,
+    commands: binding.commands,
+    assets: binding.assets,
+    [SURFACE_REACT_LIFECYCLE]: Object.freeze({
+      activate() {
+        if (!binding.closed) binding.retired = false;
+      },
+      retire() {
+        binding.retired = true;
+      },
+    }),
+    update(nextParams, nextOptions = undefined) {
+      if (binding.closed) surfaceRefusal('SNAPBACK_REACT_PROVIDER_CLOSED', 'surface binding is closed');
+      binding.params = admittedSurfaceParams(surface, nextParams);
+      if (nextOptions !== undefined) binding.options = surfaceOptions(surface, nextOptions);
+      replaceReadProjection();
+      migrateReadSubscribers();
+      if (binding.queryObserver) binding.queryObserver.update(binding.readEntries);
+      if (binding.started) {
+        const emit = () => {
+          binding.lastSnapshot = null;
+          for (const listener of [...binding.listeners]) listener();
+        };
+        const predecessors = binding.presenceObservers;
+        const successors = {};
+        for (const [name, member] of Object.entries(surface.presence)) {
+          successors[name] = observeSnapbackPresence(
+            provider,
+            member.reference,
+            {
+              scope: surfaceMemberArgs(member, binding.params).scope,
+              value: binding.options.presence[name],
+            },
+            emit,
+          );
+        }
+        binding.presenceObservers = successors;
+        for (const observer of Object.values(predecessors)) void observer.dispose();
+      }
+      binding.lastSnapshot = null;
+      for (const listener of [...binding.listeners]) listener();
+    },
+    subscribe(listener) {
+      if (binding.closed) surfaceRefusal('SNAPBACK_REACT_PROVIDER_CLOSED', 'surface binding is closed');
+      binding.listeners.add(listener);
+      startSurfaceBinding(binding);
+      return () => {
+        binding.listeners.delete(listener);
+        if (binding.listeners.size !== 0) return;
+        queueMicrotask(() => {
+          if (binding.listeners.size === 0 && !binding.closed) void stopSurfaceBinding(binding);
+        });
+      };
+    },
+    snapshot: () => surfaceSnapshot(binding),
+    async dispose() {
+      if (binding.closed) return;
+      binding.closed = true;
+      binding.retired = true;
+      binding.listeners.clear();
+      for (const subscribers of Object.values(binding.readSubscribers)) {
+        for (const subscription of subscribers) subscription.lease.release();
+        subscribers.clear();
+      }
+      await stopSurfaceBinding(binding);
+    },
+  };
+  return Object.freeze(publicBinding);
+}
+
+export function observeSnapbackSurface(provider, surface, params, options, listener) {
+  const binding = bindSnapbackSurface(provider, surface, params, options);
+  const unsubscribe = binding.subscribe(() => listener(binding.snapshot()));
+  listener(binding.snapshot());
+  return Object.freeze({
+    snapshot: binding.snapshot,
+    reads: binding.reads,
+    mutations: binding.mutations,
+    commands: binding.commands,
+    assets: binding.assets,
+    update: binding.update,
+    async dispose() {
+      unsubscribe();
+      await binding.dispose();
+    },
+  });
+}
+
+function surfaceHookOptionsKey(options) {
+  const presence = Object.fromEntries(Object.entries(options?.presence ?? {}).map(([name, child]) => (
+    [name, child === skip ? { $snapbackSurfaceSkip: true } : child]
+  )));
+  return canonicalizeClientValueV1({ ...(options ?? {}), presence });
+}
+
+export function useSurface(surface, params, options = {}) {
+  const provider = useProvider();
+  const paramKey = canonicalizeClientValueV1(params);
+  const optionsKey = surfaceHookOptionsKey(options);
+  const binding = useMemo(
+    () => bindSnapbackSurface(provider, surface, params, options),
+    [provider, surface, paramKey, optionsKey],
+  );
+  useEffect(() => {
+    const lifecycle = binding[SURFACE_REACT_LIFECYCLE];
+    lifecycle.activate();
+    return lifecycle.retire;
+  }, [binding]);
+  return useSyncExternalStore(binding.subscribe, binding.snapshot, binding.snapshot);
+}
+
 export async function invokeSnapbackMutation(providerValue, reference, args, options = {}) {
   const provider = assertProvider(providerValue);
-  const admitted = admittedReactReference(provider.binding, reference, 'Mutation');
-  return provider.registry.runMutation(admitted, args, options.optimistic ?? null);
+  // runMutation owns admission (including the development generation-handoff
+  // wait), so adapters get the exact hook-path behavior: a strict rejection
+  // stays a rejected promise here, never a synchronous throw.
+  return provider.registry.runMutation(reference, args, options.optimistic ?? null);
+}
+
+export function invokeSnapbackCommand(providerValue, reference, args) {
+  const provider = assertProvider(providerValue);
+  const admitted = admittedReactCommand(provider.binding, reference);
+  return commandClientFor(provider).start(admitted, args);
 }
 
 // ---------------------------------------------------------------------------
 // Outbox (LLP 0043 M2 queue on the JS arm — LLP 0129 Phase 0). The React
 // projection of the headless client's OWN facts: `outboxStatus()` counts and
-// the `subscribeOutbox` seam. The hook surfaces queued/failed/replaying
-// state; it never derives an overlay, reorders replay, or claims settlement
+// the `subscribeOutbox` seam. The hook surfaces queued/failed/result-gone/
+// replaying state; it never derives an overlay, reorders replay, or claims settlement
 // — LLP 0090 D3's full-resync-before-replay ordering stays entirely the
 // headless client's.
 
@@ -2469,6 +3294,7 @@ const OUTBOX_LOADING = Object.freeze({
   supported: false,
   pending: 0,
   failed: 0,
+  resultGone: 0,
   replaying: false,
 });
 
@@ -2599,6 +3425,35 @@ const BLANKED_UPLOAD = Object.freeze({
 const IDLE_UPLOAD = Object.freeze({ ...BLANKED_UPLOAD, status: 'idle' });
 
 let assetRegistries;
+
+let commandClients;
+
+function commandClientFor(provider) {
+  commandClients ??= new WeakMap();
+  let commands = commandClients.get(provider);
+  if (commands) return commands;
+  const client = preparedReactBindingClient(provider.binding);
+  commands = createCommandClient(client, {
+    assets: assetRegistryFor(provider).assets,
+    assetSourceAdapter: provider.assetSourceAdapter,
+    invokeMutation: (reference, args, options) => (
+      provider.registry.runCommandMutation(reference, args, options)
+    ),
+  });
+  commandClients.set(provider, commands);
+  return commands;
+}
+
+function commandClientInspectionFor(provider) {
+  return commandClients?.get(provider)?.inspection().activeCommandTasks ?? 0;
+}
+
+async function disposeCommandClientFor(provider) {
+  const commands = commandClients?.get(provider);
+  if (!commands) return;
+  commandClients.delete(provider);
+  await commands.dispose();
+}
 
 function assetRegistryFor(provider) {
   assetRegistries ??= new WeakMap();
@@ -2733,6 +3588,22 @@ const ASSET_IMAGE_IDLE = Object.freeze({
   record: null,
 });
 
+function bestReadyRenditionVariant(record, maxWidth) {
+  const sized = Array.isArray(record?.renditions)
+    ? record.renditions
+      .filter((rendition) => (
+        rendition?.ready === true
+        && typeof rendition.variant === 'string'
+        && Number.isFinite(rendition.width)
+      ))
+      .map((rendition) => ({ variant: rendition.variant, width: rendition.width }))
+      .sort((left, right) => left.width - right.width)
+    : [];
+  return sized.slice().reverse().find((rendition) => rendition.width <= maxWidth)?.variant
+    ?? sized[0]?.variant
+    ?? null;
+}
+
 /**
  * The renderer ladder as a headless hook (Expo-ready — no DOM API in this
  * path): local preview → ThumbHash placeholder → best delivered rendition.
@@ -2801,9 +3672,14 @@ export function useSnapbackAssetImage({
       const underlay = effectivePlaceholder !== null
         ? placeholderState(record.record)
         : null;
+      const publicVariant = record.record?.deliveryProfile === 'public-immutable'
+        ? bestReadyRenditionVariant(record.record, maxWidth)
+        : null;
       return Object.freeze({
         phase: 'rendition',
-        src: registry.assets.deliveryUrl(assetId, { maxWidth }),
+        src: publicVariant === null
+          ? registry.assets.deliveryUrl(assetId, { maxWidth })
+          : registry.assets.publicDeliveryUrl(assetId, { variant: publicVariant }),
         aspectRatio: underlay?.aspectRatio ?? null,
         placeholderSrc: underlay?.src ?? null,
         record: record.record,

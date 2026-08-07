@@ -1,0 +1,357 @@
+{
+  "schemaVersion": "snapback.triage-graph.move1-exit.v1",
+  "date": "2026-08-06",
+  "authority": [
+    "LLP 0157#move-1-workload-exit-llp-0155-normative-transcription",
+    "LLP 0155 OQ9",
+    "LLP 0155 OQ13",
+    "LLP 0166#d4--completeness-honest-local-answers"
+  ],
+  "source": {
+    "revision": "877e01fac68ac133cfc23c3b91b4002a65817606",
+    "dirty": true,
+    "files": [
+      {
+        "path": "tests/acceptance/triage-graph-move1-v1.mjs",
+        "sha256": "606929bb90abaf00628f836e1d46fa0056c8a0b070ba8e73c522db8dbfc995e9"
+      },
+      {
+        "path": "demos/triage-graph/snapback/schema.mjs",
+        "sha256": "db72b875a82245c8e2106dde0d63aa7085c29f97dfd8857442b363b87e23f360"
+      },
+      {
+        "path": "demos/triage-graph/snapback/functions.mjs",
+        "sha256": "74622a7b1949c2216dc2936604dbd52ea836ff7c6b57a702cde775a6d8db5241"
+      },
+      {
+        "path": "demos/triage-graph/snapback/trusted-composition-activation.json",
+        "sha256": "503a235f1a3b62e21277d60090be7cdf9061435bf899d9231c28bc0bf252f8a8"
+      },
+      {
+        "path": "demos/triage-graph/snapback/generated/artifacts.json",
+        "sha256": "59fd31a8610facbe0bf80f85d11633dc3903056d8614ebc97c35a9433a848ea8"
+      },
+      {
+        "path": "demos/triage-graph/demo.snapback.json",
+        "sha256": "4cefa0af8fab9471ef867dc6ec0ecd67f1289e94d72f451aa580754e721ff8af"
+      },
+      {
+        "path": "demos/triage-graph/src/App.tsx",
+        "sha256": "2127146382c0c8fc3e2c7662611ac719e016f13f3a373b99b1a2fadb446df462"
+      },
+      {
+        "path": "demos/triage-graph/src/retained-registration.ts",
+        "sha256": "2d46ec2b38ebf96cf11e14f4daca4ca15ef115ebae5a26f90574ac35965c8065"
+      },
+      {
+        "path": "packages/snapback-client/index.mjs",
+        "sha256": "688ec4d231dd23e02ea0311d91ec0da89c6659074d0274e282b82e194187c0ae"
+      },
+      {
+        "path": "packages/snapback-client/materialization-store.mjs",
+        "sha256": "34ebc65b3632869e39fd9587bd79a36e0a85316c4c660d8f1b12497668652310"
+      },
+      {
+        "path": "packages/snapback-client/materialization-store-runtime.mjs",
+        "sha256": "525ffb0bee554a6b9c2e65256e0668ebfbcc23c43b0d4ae046c399aed410c049"
+      },
+      {
+        "path": "packages/snapback-client/rqs-preload-core.mjs",
+        "sha256": "6635964dd97069c68e42f88ff7d0ac74431b88204855afce30aa3def5b4d5286"
+      },
+      {
+        "path": "packages/snapback-client/store-policy.mjs",
+        "sha256": "e13f08a294206d9b78a5bdff18ffd6ddf65c34d07724cdbcb1e860a20288687d"
+      },
+      {
+        "path": "packages/snapback-client/store-runtime.mjs",
+        "sha256": "07f7d68a8e9a34cd1232a21b54c7a486a86d6414b21cc9b1d0f47daa6b092731"
+      },
+      {
+        "path": "demos/triage-graph/workload-manifest.2026-08-03.v1.json",
+        "sha256": "3349caf8dab5caeaa0660bfa07389e0eb11d1dc23a762e99e799f947f85e250b"
+      }
+    ]
+  },
+  "controlledRun": {
+    "status": "PASS",
+    "runtime": {
+      "serverBinary": "target/debug/snapback",
+      "serverBinarySha256": "c5e95e19f6e6316a205ced00a7144765867abf1f9e39057869b55a1fb543cbe6",
+      "launchRung": "configured",
+      "backendStoppedBeforeRelaunch": true
+    },
+    "activation": {
+      "format": "snapback.composition-activation-preparation.v1",
+      "activationHash": "sha256:9ad085f96eecec1626559cc0464b80cea224c9fdb08de695e36f083c3e738e31",
+      "deploymentId": "triage-graph-p3-controlled-run"
+    }
+  },
+  "manifestDecision": "refreeze-fresh-successor-manifest",
+  "budgetFreeze": {
+    "schemaVersion": "snapback.triage-graph.budget-freeze.v1",
+    "date": "2026-08-06",
+    "authority": "LLP 0155 OQ9",
+    "feedsMeasuredRevision": "LLP 0166 OQ4",
+    "custodySemantics": "store-policy-reasons-v1",
+    "optimizationPerformedBeforeFreeze": false,
+    "controlledWorkload": {
+      "baselineEvents": 249000,
+      "updateBurst": 1000,
+      "totalEvents": 250000
+    },
+    "measured": {
+      "custody": {
+        "materializationRecords": 21,
+        "payloadBearingRecords": 1,
+        "releasedVolatilePayloadRecords": 0,
+        "instanceBookkeepingStubs": 20,
+        "releaseGraceRecords": 0,
+        "safetyBlockerRecords": 0,
+        "fragments": 1,
+        "storedResultRows": 100,
+        "authoritativeRetainedRows": 100,
+        "logicalBytes": 16205,
+        "resultBytes": 14981,
+        "proofBytes": 1224,
+        "durableRegistrations": 1,
+        "registrationBytes": 1459,
+        "leaseRecords": 1,
+        "physicalCarrierBytes": 74850
+      },
+      "hydration": {
+        "attempts": 1,
+        "rowsInstalled": 100,
+        "payloadBytes": 14981,
+        "elapsedMs": 387.905
+      }
+    },
+    "frozenCeilings": {
+      "custody": {
+        "materializationRecords": 21,
+        "payloadBearingRecords": 1,
+        "releasedVolatilePayloadRecords": 0,
+        "instanceBookkeepingStubs": 20,
+        "releaseGraceRecords": 0,
+        "safetyBlockerRecords": 0,
+        "fragments": 1,
+        "storedResultRows": 100,
+        "authoritativeRetainedRows": 100,
+        "logicalBytes": 16205,
+        "durableRegistrations": 1,
+        "registrationBytes": 1459,
+        "leaseRecords": 1
+      },
+      "hydration": {
+        "attempts": 1,
+        "rowsInstalled": 100,
+        "payloadBytes": 14981,
+        "elapsedMs": 1000
+      }
+    }
+  },
+  "summary": {
+    "pass": 8,
+    "blocked": 0,
+    "total": 8,
+    "capabilityClaimsChanged": false,
+    "fleetIncluded": false
+  },
+  "gates": [
+    {
+      "gate": "required screens consume generated composites rather than JavaScript collection joins",
+      "status": "PASS",
+      "evidence": {
+        "graphProfile": "snapshot-batch.v1",
+        "graphNodeTakes": [
+          50,
+          20
+        ],
+        "graphRetention": "none",
+        "retainedProfile": "relational-query.v1",
+        "retainedTake": 100,
+        "predecessorTransformsCopied": false,
+        "manifestDecision": "refreeze-fresh-successor-manifest"
+      }
+    },
+    {
+      "gate": "the client retains only desired bounded query results",
+      "status": "PASS",
+      "evidence": {
+        "materializationRecords": 21,
+        "payloadBearingRecords": 1,
+        "releasedVolatilePayloadRecords": 0,
+        "retainingSets": {
+          "registrations": [
+            "qmk1.dS9pfhei6hAiG8cWW42yNF24Lnk1qF6GNsi-P9auUiQ"
+          ],
+          "releaseGrace": [],
+          "safetyBlockers": [],
+          "instanceBookkeepingStubs": [
+            "qmk1.0H-2rpacaq_gHLlsnpe5AMmREw9ezVXP9ZbwkLaDtzk",
+            "qmk1.0RGMNlyBZCax9MWdfuatOid33_OwOHs826wC26w9aC8",
+            "qmk1.3rWU5eVu6LqnDpzck5-cF0awEjLqYelbbzzuSyhh-ro",
+            "qmk1.8qfc5ICaFB4SXRq3s_VMGSIhmDGDxhZiePt4OyRFd1A",
+            "qmk1.Co5cfgcyv6AQi1yGLf0grv6PUwfZdQOXPbmgt6IxkQM",
+            "qmk1.FxVSUlGJpAkFSn9Fc-THm5DZmtWGwJn9LEfVj6dsdiA",
+            "qmk1.HSRbqUcFyI5lVasE8CH_Yj4vxDiHa9Cg9SzhEKe3u-Y",
+            "qmk1.L7cKUlP1jbnKjPZ685rhqeT4KJCRSfz-SIJlBW3NgSI",
+            "qmk1.Na63fOch5yhhov84WGIdnHyz33fpiEmetUpVweHGijc",
+            "qmk1.Qw3qqfZgH1J1vclYyjvdzYvI_wNjug4VJzz9Ruq9vN4",
+            "qmk1.UZf9o-TvtOL66CnhZQ1lUyXD3mBzOLmG_V3D2a3bJWg",
+            "qmk1.VmRZ_wweH_i3zn-uivB6GpnKoYU3kjQRT7NsyoO4vZk",
+            "qmk1.YsCnXdJfpXsxqXRk5PiqGJ1npYSANTF9K_knupH12oQ",
+            "qmk1.hABqzYOk9qzOh5wDpXBI4Yxq2vshW6nWKIOYttbHNbE",
+            "qmk1.iUCEsp70RlH54fue7y0u8921wuP44w44gobSbymhoKQ",
+            "qmk1.nyQZZ-ENwsjNARWxTRwvVCJ22YtBwo57KsbfSBCvRDI",
+            "qmk1.r33MmowysCPx51-d6NUk3mnZ53OenX_k0YsQK5Guueo",
+            "qmk1.w5Yrc7HC8ORT6KcF1_diGl5cO1h8n5xgjU4spQ9QRX8",
+            "qmk1.yA7LIMSoZDnYGVABXhRQhe9GN6hkJnc-L0Klu_ppBf4",
+            "qmk1.zAD-mTy_gM7h4MUt07v3vk6sFhgK-Pb7XFV4MF6sGGE"
+          ]
+        },
+        "fragments": 1,
+        "storedResultRowsExplained": 100,
+        "authoritativeRetainedRowsExplained": 100,
+        "durableRegistrations": 1,
+        "leaseRecords": 1,
+        "addressKey": "qmk1.dS9pfhei6hAiG8cWW42yNF24Lnk1qF6GNsi-P9auUiQ",
+        "currentTransition": {
+          "answerClass": "authoritative",
+          "freshness": "current"
+        },
+        "relaunchTransition": {
+          "answerClass": "authoritative",
+          "freshness": "retained",
+          "updateKind": null,
+          "updateCallbackObserved": false
+        }
+      }
+    },
+    {
+      "gate": "pagination neither duplicates nor skips an untouched root",
+      "status": "PASS",
+      "evidence": {
+        "pages": 2,
+        "rows": 100,
+        "uniqueIssueKeys": 100,
+        "ranks": [
+          0,
+          99
+        ],
+        "transitionRows": 20
+      }
+    },
+    {
+      "gate": "20 query changes leak no predecessor rows",
+      "status": "PASS",
+      "evidence": {
+        "changes": 20,
+        "rows": [
+          "SWITCH-0",
+          "SWITCH-1",
+          "SWITCH-2",
+          "SWITCH-3",
+          "SWITCH-4",
+          "SWITCH-5",
+          "SWITCH-6",
+          "SWITCH-7",
+          "SWITCH-8",
+          "SWITCH-9",
+          "SWITCH-10",
+          "SWITCH-11",
+          "SWITCH-12",
+          "SWITCH-13",
+          "SWITCH-14",
+          "SWITCH-15",
+          "SWITCH-16",
+          "SWITCH-17",
+          "SWITCH-18",
+          "SWITCH-19"
+        ],
+        "retainedVolatilePayloadEnvelopes": 0,
+        "compactedInstanceBookkeepingStubs": 20,
+        "offlineRenderability": "unknown-render-nothing"
+      }
+    },
+    {
+      "gate": "the 250,000-event fixture converges to exactly 100 active matches from the 1,000-update burst",
+      "status": "PASS",
+      "evidence": {
+        "baselineEvents": 249000,
+        "updateBurst": 1000,
+        "totalEvents": 250000,
+        "activeMatches": 100
+      }
+    },
+    {
+      "gate": "an implicit incomplete prefix is impossible to consume as complete",
+      "status": "PASS",
+      "evidence": {
+        "refusal": "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED"
+      }
+    },
+    {
+      "gate": "Mallory receives no protected source or result rows",
+      "status": "PASS",
+      "evidence": {
+        "protectedGraphRows": 0,
+        "protectedRetainedRows": 0
+      }
+    },
+    {
+      "gate": "inspection explains every retained row and completeness transition",
+      "status": "PASS",
+      "evidence": {
+        "materializationRecords": 21,
+        "payloadBearingRecords": 1,
+        "releasedVolatilePayloadRecords": 0,
+        "retainingSets": {
+          "registrations": [
+            "qmk1.dS9pfhei6hAiG8cWW42yNF24Lnk1qF6GNsi-P9auUiQ"
+          ],
+          "releaseGrace": [],
+          "safetyBlockers": [],
+          "instanceBookkeepingStubs": [
+            "qmk1.0H-2rpacaq_gHLlsnpe5AMmREw9ezVXP9ZbwkLaDtzk",
+            "qmk1.0RGMNlyBZCax9MWdfuatOid33_OwOHs826wC26w9aC8",
+            "qmk1.3rWU5eVu6LqnDpzck5-cF0awEjLqYelbbzzuSyhh-ro",
+            "qmk1.8qfc5ICaFB4SXRq3s_VMGSIhmDGDxhZiePt4OyRFd1A",
+            "qmk1.Co5cfgcyv6AQi1yGLf0grv6PUwfZdQOXPbmgt6IxkQM",
+            "qmk1.FxVSUlGJpAkFSn9Fc-THm5DZmtWGwJn9LEfVj6dsdiA",
+            "qmk1.HSRbqUcFyI5lVasE8CH_Yj4vxDiHa9Cg9SzhEKe3u-Y",
+            "qmk1.L7cKUlP1jbnKjPZ685rhqeT4KJCRSfz-SIJlBW3NgSI",
+            "qmk1.Na63fOch5yhhov84WGIdnHyz33fpiEmetUpVweHGijc",
+            "qmk1.Qw3qqfZgH1J1vclYyjvdzYvI_wNjug4VJzz9Ruq9vN4",
+            "qmk1.UZf9o-TvtOL66CnhZQ1lUyXD3mBzOLmG_V3D2a3bJWg",
+            "qmk1.VmRZ_wweH_i3zn-uivB6GpnKoYU3kjQRT7NsyoO4vZk",
+            "qmk1.YsCnXdJfpXsxqXRk5PiqGJ1npYSANTF9K_knupH12oQ",
+            "qmk1.hABqzYOk9qzOh5wDpXBI4Yxq2vshW6nWKIOYttbHNbE",
+            "qmk1.iUCEsp70RlH54fue7y0u8921wuP44w44gobSbymhoKQ",
+            "qmk1.nyQZZ-ENwsjNARWxTRwvVCJ22YtBwo57KsbfSBCvRDI",
+            "qmk1.r33MmowysCPx51-d6NUk3mnZ53OenX_k0YsQK5Guueo",
+            "qmk1.w5Yrc7HC8ORT6KcF1_diGl5cO1h8n5xgjU4spQ9QRX8",
+            "qmk1.yA7LIMSoZDnYGVABXhRQhe9GN6hkJnc-L0Klu_ppBf4",
+            "qmk1.zAD-mTy_gM7h4MUt07v3vk6sFhgK-Pb7XFV4MF6sGGE"
+          ]
+        },
+        "fragments": 1,
+        "storedResultRowsExplained": 100,
+        "authoritativeRetainedRowsExplained": 100,
+        "durableRegistrations": 1,
+        "leaseRecords": 1,
+        "addressKey": "qmk1.dS9pfhei6hAiG8cWW42yNF24Lnk1qF6GNsi-P9auUiQ",
+        "currentTransition": {
+          "answerClass": "authoritative",
+          "freshness": "current"
+        },
+        "relaunchTransition": {
+          "answerClass": "authoritative",
+          "freshness": "retained",
+          "updateKind": null,
+          "updateCallbackObserved": false
+        }
+      }
+    }
+  ]
+}

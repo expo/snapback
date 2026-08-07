@@ -4,13 +4,17 @@ import type {
 } from '@expo/snapback-client';
 import type {
   GeneratedQueryGroups as BackendBakeoffQueryGroups,
-} from '../../demos/signal-desk/snapback/generated/api.d.ts';
+} from '../../demos/team-chat/snapback/generated/api.d.ts';
+import type { GeneratedAppDescriptorV1 as ConversationAppDescriptor } from './fixtures/conversation/app/snapback/generated/app.d.ts';
+import type { Id } from './fixtures/conversation/app/snapback/generated/api.d.ts';
 import {
   projectRecordFields,
   skip,
+  useSnapbackCommand,
   useSnapbackMutation,
   useSnapbackQueries,
   useSnapbackQuery,
+  useSurface,
 } from './index.mjs';
 
 declare const todos: SnapbackFunctionReference<
@@ -53,20 +57,14 @@ if (group.queries.feed.status === 'ready') {
   group.queries.feed.data[0]?.body.toUpperCase();
 }
 const realGeneratedGroup = useSnapbackQueries(generatedBackendBakeoff);
-if (realGeneratedGroup.queries.listIncidents.status === 'ready') {
-  realGeneratedGroup.queries.listIncidents.data[0]?.title.toUpperCase();
+if (realGeneratedGroup.queries.listMyRooms.status === 'ready') {
+  realGeneratedGroup.queries.listMyRooms.data[0]?.displayName.toUpperCase();
 }
-if (realGeneratedGroup.queries.allTasks.status === 'ready') {
-  realGeneratedGroup.queries.allTasks.data[0]?.body.toUpperCase();
+if (realGeneratedGroup.queries.unreadDeliveries.status === 'ready') {
+  realGeneratedGroup.queries.unreadDeliveries.data[0]?.body.toUpperCase();
 }
-if (realGeneratedGroup.queries.allComments.status === 'ready') {
-  realGeneratedGroup.queries.allComments.data[0]?.body.toUpperCase();
-}
-if (realGeneratedGroup.queries.allActivity.status === 'ready') {
-  realGeneratedGroup.queries.allActivity.data[0]?.kind.toUpperCase();
-}
-// @ts-expect-error the real generated route declaration has four exact keys.
-realGeneratedGroup.queries.incidentTasks;
+// @ts-expect-error the real generated route declaration has exactly two keys.
+realGeneratedGroup.queries.roomMessages;
 
 const create = useSnapbackMutation(createTodo);
 create({ title: 'ship it' }).then((id) => id.toUpperCase());
@@ -98,3 +96,41 @@ useSnapbackQuery(todos, { owner: 'ada', extra: true });
 useSnapbackQuery(createTodo, { title: 'wrong' });
 // @ts-expect-error exact mutation args are inferred from the reference.
 create({ body: 'wrong key' });
+
+// @ref LLP 0179#react-projection — the emitted surface declaration removes
+// bound params from child calls while retaining the authored typing payload.
+declare const conversationId: Id<'conversations'>;
+declare const messageId: Id<'messages'>;
+declare const userId: Id<'users'>;
+declare const conversationApp: ConversationAppDescriptor;
+declare const commandImage: {
+  readonly size: number;
+  slice(start: number, end?: number): { arrayBuffer(): Promise<ArrayBuffer> };
+};
+const directSend = useSnapbackCommand(conversationApp.commands.send);
+directSend({ conversationId, senderId: userId, body: 'hello', image: commandImage })
+  .done.then((outcome) => {
+    if (outcome.kind === 'committed') outcome.result.messageId;
+    if (outcome.kind === 'failed') outcome.residue?.unattached;
+  });
+const conversation = useSurface(
+  conversationApp.surfaces.conversation,
+  { conversationId },
+  { presence: { typing: { displayName: 'Ada' } } },
+);
+conversation.mutations.addReaction({ messageId, userId, emoji: '👍' });
+conversation.commands.send({ body: 'hello', image: commandImage });
+conversation.data.messages?.[0]?.text?.toUpperCase();
+conversation.state.messages.retention;
+conversation.presence.typing.members[0]?.value.displayName.toUpperCase();
+// @ts-expect-error conversationId is already bound at the surface.
+conversation.mutations.addReaction({ conversationId, messageId, userId, emoji: '👍' });
+// @ts-expect-error conversationId and senderId are bound by the surface.
+conversation.commands.send({ conversationId, senderId: userId, body: 'wrong' });
+useSurface(conversationApp.surfaces.conversation, { conversationId }, {
+  presence: { typing: {
+    displayName: 'Ada',
+    // @ts-expect-error typing identity is session-derived, not a publish member.
+    userId: 'forged',
+  } },
+});

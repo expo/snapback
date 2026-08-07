@@ -195,6 +195,7 @@ function createOfflineFakeClient({ outbox = null } = {}) {
       supported: outbox.supported,
       pending: outbox.records.filter((entry) => entry.status === 'pending').length,
       failed: outbox.records.filter((entry) => entry.status === 'failed').length,
+      resultGone: outbox.records.filter((entry) => entry.status === 'result-gone').length,
       replaying: false,
     });
     client.subscribeOutbox = (listener) => {
@@ -206,7 +207,8 @@ function createOfflineFakeClient({ outbox = null } = {}) {
       const replayed = outbox.records.filter((entry) => entry.status === 'pending').length;
       outbox.records = outbox.records.filter((entry) => entry.status !== 'pending');
       for (const listener of [...outboxListeners]) listener();
-      return { replayed, failed: 0, remaining: 0 };
+      const remaining = outbox.records.filter((entry) => entry.status === 'result-gone').length;
+      return { replayed, failed: 0, remaining };
     };
     client.notifyOutbox = () => {
       for (const listener of [...outboxListeners]) listener();
@@ -371,6 +373,7 @@ function createOfflineFakeClient({ outbox = null } = {}) {
       { id: 'm1', status: 'pending' },
       { id: 'm2', status: 'pending' },
       { id: 'm3', status: 'failed' },
+      { id: 'm4', status: 'result-gone' },
     ],
   };
   const fake = createOfflineFakeClient({ outbox });
@@ -392,13 +395,18 @@ function createOfflineFakeClient({ outbox = null } = {}) {
   });
   assert.equal(latest.status, 'ready');
   assert.deepEqual(
-    { supported: latest.supported, pending: latest.pending, failed: latest.failed },
-    { supported: true, pending: 2, failed: 1 },
+    {
+      supported: latest.supported,
+      pending: latest.pending,
+      failed: latest.failed,
+      resultGone: latest.resultGone,
+    },
+    { supported: true, pending: 2, failed: 1, resultGone: 1 },
   );
 
   // A queue transition on the client pushes through the subscription seam.
   await act(async () => {
-    outbox.records.push({ id: 'm4', status: 'pending' });
+    outbox.records.push({ id: 'm5', status: 'pending' });
     fake.notifyOutbox();
     await flush();
   });
@@ -413,6 +421,7 @@ function createOfflineFakeClient({ outbox = null } = {}) {
   assert.equal(outcome.replayed, 3);
   assert.equal(latest.pending, 0);
   assert.equal(latest.failed, 1, 'failed records remain visible client state');
+  assert.equal(latest.resultGone, 1, 'result-gone remains visible and unreplayed');
   assert.equal(fake.inspection().replays, 1);
   await act(async () => { renderer.unmount(); });
   await provider.dispose();

@@ -28,7 +28,12 @@ durable lane as commits change the result.
 
 Mark the definition live — declarative or JS style
 ([your first backend](../getting-started/your-first-backend.md) covers the
-two styles):
+two styles). Before writing a JS handler for a plain two-source join
+(conversation membership, message ⋈ sender), check
+[relational queries](../backend/relational-queries.md) —
+`defineRelationalQuery` expresses it declaratively; the honest boundary is
+that aggregation and self-joins are not expressible there today
+([LLP 0177](repo:llp/0177-chat-aggregate-and-first-related-row-demand.research.md)):
 
 ```js source=demos/todo/snapback/functions.mjs
 export const listTodos = defineJsLiveQuery({
@@ -49,7 +54,11 @@ Offline cold retention is a separate per-query opt-in: `auth: 'public'` +
 `authorityIndependent: true` on a declarative live query makes it
 `rqsEligible`; without the declaration nothing persists and the handle's
 `retention` fact names the refusal. The full recipe is in
-[offline retention](../sync/offline-and-retention.md).
+[offline retention](../sync/offline-and-retention.md). Note the declaration
+forces the experimental `single_table_v1` capability, available on
+contributor-source builds and, since `@expo/snapback-*@0.1.11`, on published
+packages carrying the packaged-store qualification receipt (see the
+offline-retention page).
 
 Stored document contracts include typed `v.assetRef` fields. A photo-bearing
 table can therefore be queried directly as a live feed; the reference arrives

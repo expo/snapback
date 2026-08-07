@@ -1,0 +1,961 @@
+# LLP 0181: Zero-configuration Expo integration
+
+**Type:** RFC
+**Status:** Review
+**Systems:** React/Expo, Client integration, Packaging, Local server lifecycle,
+Auth, Assets, Offline, Testing, Hosted environments, Code generation
+**Author:** Charlie Cheever / Codex
+**Date:** 2026-08-05
+**Revised:** 2026-08-06 (j) — OQ4 USB implementation probe: Android physical
+devices now use the E1 supervisor's exact per-serial `adb reverse` ownership,
+with emulator/USB/TCP-IP inventory classes, TCP/IP refusal, exact verification,
+rollback/removal, readiness device facts, and a manual-but-not-yet-executed
+Online receipt checklist. The iOS half did not survive tool-direction
+verification: installed `devicectl` 518.33 exposes no TCP forward, and
+`iproxy` forwards host loopback to a device service rather than iOS device
+loopback to host loopback. `--ios-udid` therefore enumerates/refuses network
+devices and fails with a typed reverse-forward-unavailable diagnostic before
+starting children. No live-device or LLP 0064 claim follows; iOS still needs a
+device-side bridge or a new author ruling.
+**Revised:** 2026-08-06 (i) — E2 complete: the provider registers the
+picker/content-URI structural-source adapter, Expo binary transport, client
+checksum support, and ordinary-session custody; one real system-picked image
+committed and rendered on iOS simulator and Android emulator. No background,
+restart, offline, attempt-grant, release, physical-device, or LAN-carrier claim
+follows. Earlier same day (h) — Provider boot-state clarification from the G2
+surface checkpoint: with ordinary authority already available, an exact
+AppDescriptor may reach `ready` from LLP 0114's persisted binding receipt
+while its query/connection projections truthfully remain retained/stale. The
+provider does not require live transport to call retained state ready, and it
+does not turn missing authority into that state. Earlier same day (g) — The real Android-emulator G1 receipt exposed
+ordinary host/device clock lag at immediate cold launch. Supervised
+`local-supervised-ipc` admission now tolerates at most 60 seconds on the
+`issuedAt` lower bound only; expiry stays strict, release admission is
+unchanged, and the coded refusal/test remain beyond the exact boundary.
+Earlier 2026-08-05 (f) — E1 selected the supervised development
+carriers: Metro receives only a credential-free rendezvous origin through
+`EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN`; the provider fetches the expiring
+binding and ordinary session at runtime from a supervisor-owned, loopback-only,
+`no-store` HTTP exchange. The supervisor invokes the G0 native mint with its
+database-bound operator token and the ready-file process capability, but only
+the ordinary session crosses the exchange. E1 also makes OS listener
+enumeration (backend, Metro, and exchange), verified Android `adb reverse`
+rules with an explicit `10.0.2.2` fallback posture, provider-owned authority
+replacement, the bearer-leak matrix, and strict reclamation executable.
+2026-08-05 (e) — Super-refine round 2 (delta): fixed a physical-
+device sentence orphaned by round 1's `AppBindingV1` discriminated-union fix
+(it referenced a "secure development binding" arm the union no longer, and
+never actually did, represent); swept remaining unqualified "dev persona"
+language in §Provider/§Risks/§What remains explicit/OQ2 to match the
+routed-ask framing already stated in §Supervised development baseline;
+widened E1's bearer-leak grep to the complete location set §Provider's
+requirement names (persistent public configuration was missing) and
+separated the readiness-stream check as an additional, not restated, bar;
+bound E5 to LLP 0168's actual spike fence (named owner, time-box,
+`SNAPBACK_PROFILE=prod` when reachable off-loopback) instead of describing
+its own; and added a namespace note reconciling `@expo/snapback-*` against
+LLP 0041's still-open general `@snapback/*` namespace decision. 2026-08-05
+(d) — Super-refine round 1: downgraded the bootstrap
+exchange's "no bearer anywhere" claim from an asserted design outcome to a
+stated requirement on a mechanism this RFC's own open question 2 admits is
+undesigned, and added a bundle/log/source-map grep to E1's acceptance so the
+claim is checked, not only stated; gave the advanced `binding` override an
+explicit admission rule so it cannot become the arbitrary-URL-override path
+§AppBinding v1 forbids elsewhere in the same document; made `AppBindingV1` a
+discriminated union so its `source` and `provenance` fields cannot disagree;
+added binding-integrity/authenticated-delivery requirements answering how a
+development or release binding is protected from substitution; corrected the
+LLP 0168 citation to the actual current document (it had cited an abandoned,
+superseded RFC by a stale filename) and aligned this RFC's posture with its
+real current recommendation ("do not build on the present record," not a
+ready-to-implement requirements list); and required every listener a
+supervised session forwards through — Metro included, not only the backend —
+to be verified loopback-bound in the G1-G4 baseline, closing a gap where the
+stated acceptance criterion and this RFC's own routing text disagreed.
+2026-08-05 (c) — Made the supervised dev-session bootstrap an explicit
+integration of LLP 0176 G0's standalone `snapback session mint --email`
+primitive rather than a second, independently designed mechanism; and had
+`snapback dev --expo` print the admin console's launch command in its
+readiness stream, closing the discoverability gap the same program's
+evidence found (LLP 0176 §Beyond the golden path, "already shipped but
+undiscovered"). 2026-08-05 (b) — Standardized on the
+`@expo/snapback-expo` package namespace; replaced overlapping development
+descriptor/release target objects with one environment-specific
+`AppBinding`; made LLP 0179's `AppDescriptor` the sole stable app source;
+and moved LAN relay, physical-device pairing, and attempt grants out of the
+baseline until their security boundaries are independently accepted.
+**Related:** LLP 0017, LLP 0030, LLP 0041, LLP 0044, LLP 0055, LLP 0057, LLP
+0058, LLP 0059, LLP 0064, LLP 0103, LLP 0105, LLP 0114, LLP 0146, LLP 0168,
+LLP 0171, LLP 0176, LLP 0179, LLP 0180
+
+## Summary
+
+An Expo application should not need to understand Snapback URLs, Metro package
+closure, native picker/file adapters, lifecycle plumbing, target selection, or
+backend supervision before rendering a live query and sending one image.
+
+This RFC proposes:
+
+- one first-party `@expo/snapback-expo` package;
+- one environment-specific, versioned `AppBinding` schema;
+- one provider whose common-path prop is only LLP 0179's stable
+  `AppDescriptor`; and
+- one packaged `snapback dev --expo` supervision profile.
+
+The user-facing contract is:
+
+```json
+{
+  "expo": {
+    "plugins": ["@expo/snapback-expo"]
+  }
+}
+```
+
+```tsx
+import { SnapbackExpoProvider } from "@expo/snapback-expo"
+import { app } from "./snapback/generated/app"
+
+export default function Root() {
+  return (
+    <SnapbackExpoProvider app={app}>
+      <Routes />
+    </SnapbackExpoProvider>
+  )
+}
+```
+
+```sh
+snapback dev --expo
+```
+
+There is no URL prop, committed environment variable, Metro alias table,
+picker bridge, lifecycle effect, or child-process script on the common path.
+
+“Zero configuration” means the integration derives mechanically knowable
+environment facts and leaves an inspectable receipt. It does not mean zero
+policy, hidden mutation, public development exposure, or invented authority.
+
+## Authority and scope
+
+This RFC owns:
+
+- the `@expo/snapback-expo` public package and config plugin;
+- the versioned, environment-specific `AppBinding`;
+- provider binding resolution/admission and Expo lifecycle projection;
+- simulator/emulator development routing;
+- Expo-native asset/storage/crypto/lifecycle adapters;
+- Metro and EAS dependency/archive closure;
+- the `snapback dev --expo` supervisor profile; and
+- Expo-specific boot diagnostics and qualification.
+
+It does not own:
+
+- the stable app model or application surface grammar (LLP 0179);
+- query stores, mutation attempts, presence rooms, or cleanup (LLP 0114);
+- asset policy/tasks or command semantics (LLP 0044/0180);
+- session/principal policy;
+- public or LAN-reachable development edges (LLP 0168);
+- hosted target semantics or OTA compatibility (LLP 0103/0105); or
+- per-OS capability standards (LLP 0064).
+
+The package is a projection over those owners. It creates no Expo-only cache,
+protocol, auth model, mutation ledger, asset state machine, or stable app
+descriptor.
+
+## Two objects, two lifetimes
+
+The integrated design has exactly two descriptor-shaped objects:
+
+| Object | Owner | Lifetime | Contains |
+| --- | --- | --- | --- |
+| `AppDescriptor` | LLP 0179 | Stable for generated application artifacts | API refs, commands, surfaces, required capabilities, artifact identities |
+| `AppBinding` | LLP 0181 | Specific development run or release target | Endpoint/routing, offered capabilities, source, provenance, compatibility/expiry facts |
+
+A session, pairing secret, persona, or bearer is neither object. Authority is
+adopted through the existing auth owner and stored/transmitted according to
+its own rules.
+
+## AppBinding v1
+
+The logical portable shape is a **discriminated union on `source`**, not a
+struct whose `source` and `provenance` fields could independently disagree —
+a reviewer correctly found the earlier struct shape let a value claim
+`source: "supervised-dev"` while carrying release provenance or vice versa,
+with nothing in the type preventing it:
+
+```ts
+type AppBindingV1 =
+  | {
+      readonly format: "snapback.app-binding.v1"
+      readonly source: "supervised-dev"
+      readonly descriptorIdentity: string
+      readonly target: {
+        readonly app: string; readonly schema: string
+        readonly functions: string; readonly origin: string
+        readonly routing: "loopback" | "port-forward"
+      }
+      readonly capabilities: { readonly offered: readonly CapabilityOffer[] }
+      readonly provenance: {
+        readonly supervisorGeneration: string
+        readonly issuedAt: string
+        readonly expiresAt: string
+      }
+      readonly integrity: { readonly channel: "local-supervised-ipc" }
+    }
+  | {
+      readonly format: "snapback.app-binding.v1"
+      readonly source: "release"
+      readonly descriptorIdentity: string
+      readonly target: {
+        readonly app: string; readonly schema: string
+        readonly functions: string; readonly origin: string
+        readonly routing: "https"
+      }
+      readonly capabilities: { readonly offered: readonly CapabilityOffer[] }
+      readonly provenance: {
+        readonly environment: string
+        readonly releaseChannel: string
+        readonly buildReceipt: string
+      }
+      readonly integrity:
+        | { readonly channel: "signed-artifact"; readonly signature: string }
+        | { readonly channel: "embedded-at-build" }
+    }
+```
+
+A round-2 delta review correctly found the first fix's release `integrity`
+shape self-contradicting: it typed `signature: string | null` while
+§Acceptance separately requires an unsigned release binding to refuse, which
+a type admitting `null` cannot enforce. `integrity` is now itself a
+discriminated union: the `signed-artifact` arm requires a non-null
+`signature`, full stop — there is no representable "signed channel, no
+signature" value to refuse against, because the type does not admit one.
+The `embedded-at-build` arm carries no separate signature field; its trust
+basis is `provenance.buildReceipt` (already present, already a required
+field) verified through whatever existing build-receipt verification
+mechanism admits that receipt — this RFC does not mint a second, competing
+attestation format for the same fact.
+
+The exact identity tuple and capability vocabulary reuse existing owners. The
+load-bearing properties are:
+
+- the schema is the same for development and release;
+- `source` and `provenance` cannot disagree, because the type itself couples
+  them;
+- `routing: "https"` is only reachable through the `release` arm — a
+  supervised-dev binding cannot claim the release-only routing mode, closing
+  the ambiguity a struct shape left open;
+- development bindings expire and are tied to one supervisor generation;
+- supervised-development admission tolerates at most 60 seconds of the
+  binding issuer's clock running ahead of the simulator/emulator clock. This
+  bounded allowance applies only to the `issuedAt` lower bound over
+  `local-supervised-ipc`; expiry remains strict and the window grants no
+  release-binding or network authority;
+- release bindings are tied to an admitted build/deployment receipt;
+- `descriptorIdentity` must match the imported `app`;
+- an offered capability does not upgrade the descriptor's requirement or LLP
+  0064's evidence;
+- no secret or application authority appears in the binding;
+- **binding integrity.** A development binding travels only over the local
+  supervised IPC channel between `snapback dev --expo` and the provider —
+  never a network hop, so there is no remote party to authenticate against.
+  A release binding must verify through one of `integrity`'s two arms so a
+  substituted binding cannot silently redirect a shipped app to an
+  attacker-controlled origin: the provider refuses a `signed-artifact`
+  binding whose `signature` does not verify against the admitted release
+  trust root, and refuses an `embedded-at-build` binding whose
+  `provenance.buildReceipt` does not verify — in both cases before adopting
+  `target.origin` for anything, and with no third, unverified path; and
+- v1 admits no arbitrary hostname or runtime URL override from application
+  data or remote configuration. The one exception is the explicit test/
+  advanced-multi-target `binding` override prop (§Provider), and its
+  admission rule is **not one rule but two, split by `source`** — a round-3
+  delta review correctly found the round-2 fix's single rule
+  self-defeating: "generated target facts" is, everywhere else in this RFC,
+  a build-time set of declared **release** targets (§Release binding); a
+  `supervised-dev` binding's `target.origin` is resolved at supervisor
+  *runtime* (§iOS simulator: "the binding names the **resolved** loopback
+  origin") and can never be a member of that build-time set. Requiring every
+  override to match generated target facts therefore closed the
+  arbitrary-origin hole but made every `supervised-dev` override
+  unsatisfiable too — including the legitimate test/advanced-multi-target
+  use this prop exists for. The two arms need different admission proofs
+  because they have different trust roots:
+  - **`source: "release"` override:** must match the complete `target`
+    tuple (`app`, `schema`, `functions`, `origin`, `routing` together)
+    against one entry in generated target facts — the same admitted set a
+    resolved release binding is drawn from. This is the round-2 fix,
+    correct for this arm.
+  - **`source: "supervised-dev"` override:** cannot be checked against
+    generated target facts at all — the wrong universe, as above. Instead
+    it is admitted only if the provider confirms, over the same
+    `local-supervised-ipc` channel every ordinary supervised-dev binding
+    arrives through, that a currently live `snapback dev --expo` supervisor
+    whose `descriptorIdentity` and `provenance.supervisorGeneration` match
+    the override actually issued that exact binding. An override therefore
+    lets a test *select among* a live supervisor's own issued bindings (the
+    legitimate multi-target case — for example, more than one supervisor
+    instance running against different simulators) but cannot fabricate an
+    origin no running supervisor actually resolved, which is what closes
+    the arbitrary-origin path for this arm without disabling it — merely
+    matching an app name, the round-1 rule, did neither.
+
+  The provider also refuses a `source: "supervised-dev"` override inside a
+  release build's production condition, regardless of which admission arm
+  it would otherwise satisfy.
+
+The provider verifies the binding — including `integrity` — before it
+prepares any application stores.
+
+## Package contract
+
+`@expo/snapback-expo` contains:
+
+- the Expo config plugin;
+- `SnapbackExpoProvider` and Expo-safe React re-exports;
+- binding resolution and admission;
+- Expo picker/content-URI adaptation for the existing asset client;
+- Expo filesystem, credential, crypto, network, and AppState adapters, each
+  with its honest capability grade;
+- package/Metro/EAS closure verification; and
+- structured boot/diagnostic projections.
+
+It depends only on public client packages. The production graph excludes the
+Snapback server, local handler executor, admin/host-ops clients, development
+impersonation material, and contributor-source paths.
+
+Web-only React consumers continue using `@expo/snapback-react`; they do not
+acquire Expo peer dependencies.
+
+**Namespace note.** LLP 0041 designates `@snapback/*` as the general
+published-package namespace (`@snapback/cli`, `@snapback/runtime-*`), itself
+still provisional pending a public-registry collision LLP 0041 records
+(`@snapback/cli` is occupied by an unrelated package; a fallback
+`@ccheever/snapback-*` mapping is the current staged workaround). This RFC's
+`@expo/snapback-expo`/`@expo/snapback-react` names are a distinct
+Expo-ecosystem sub-namespace, matching the convention of other
+Expo-community-scoped packages, not a claim that they resolve LLP 0041's
+still-open general namespace question.
+
+A round-3 review correctly found this note's earlier claim — that these
+names "remain a proposal… not an assertion that they already exist on the
+registry" — factually wrong: LLP 0171 independently reports an external
+Chessfield build already consuming "the published `@expo/snapback-*` 0.1.8
+closure." Corrected: **some slice of the `@expo/snapback-*` namespace is
+already published** (LLP 0171's 0.1.8 evidence), though this document does
+not independently confirm that `@expo/snapback-expo` and
+`@expo/snapback-react` specifically, by those exact names, are already
+among the published packages versus being this RFC's own proposed additions
+to an already-real namespace — that distinction matters for anyone
+depending on this RFC's exact names today and is left as an explicit gap
+rather than asserted either way.
+
+## Config plugin
+
+The plugin performs deterministic, idempotent configuration:
+
+- registers the generated `AppDescriptor` input;
+- installs only native permissions/capabilities demanded by generated app
+  requirements;
+- registers the package's native adapters and lifecycle integration;
+- adds descriptor/plugin/package inputs to build invalidation;
+- verifies supported Expo SDK/React Native/package tuples; and
+- writes a value-free integration receipt naming every derived change.
+
+It never writes sessions, pairing secrets, admin credentials, or private
+target material into `app.json`, `Info.plist`, Android resources,
+JavaScript bundles, source maps, receipts, or public EAS configuration.
+
+If Expo's plugin API cannot own a required deterministic change, the packaged
+CLI verifies or generates a bounded shim and records that provenance. The user
+does not maintain a hand-written alias table, but every change remains
+inspectable.
+
+## Provider
+
+`SnapbackExpoProvider` accepts the stable app descriptor:
+
+```tsx
+<SnapbackExpoProvider app={app}>
+  {children}
+</SnapbackExpoProvider>
+```
+
+An explicit `binding` override may exist for tests and advanced multi-target
+applications, but the common path resolves it from the supervised development
+runtime or release artifact.
+
+The provider:
+
+1. obtains one `AppBinding`;
+2. verifies its schema, source, expiry/provenance, descriptor identity, target
+   identities, protocol, and capability offer;
+3. separately adopts an ordinary application session;
+4. prepares the existing headless/React binding;
+5. installs native adapters and lifecycle signals; and
+6. exposes a structured boot state.
+
+```ts
+type ExpoBootState =
+  | { status: "starting"; stage: "binding" | "authority" | "client" }
+  | { status: "ready"; binding: PublicBindingFacts;
+      authority: PublicAuthorityFacts }
+  | { status: "authority-required"; diagnostic: SnapbackDiagnostic;
+      remediations: readonly TypedRemediation[] }
+  | { status: "unsupported" | "error"; diagnostic: SnapbackDiagnostic;
+      remediations: readonly TypedRemediation[] }
+```
+
+`ready` means descriptor/binding admission, ordinary authority adoption, and
+client/provider construction have completed; it does not assert that the
+transport is currently live or that retained rows are current. If live
+inspection is unreachable but LLP 0114 admits the exact persisted binding
+receipt, the provider may be `ready` while `useSurface` reports
+`freshness: 'retained'`, `status: 'refreshing'`, and a stale/offline
+connection fact. Authority remains a separate prerequisite: without an
+adoptable ordinary session the state is `authority-required`, never a
+receipt-backed anonymous success.
+
+The provider does not turn missing authority into anonymous success. For the
+development golden path, the supervisor supplies an ordinary bounded session
+— by email today, by declared dev persona once that layer is accepted (see
+LLP 0176 G0) — through a transient local bootstrap exchange over the same
+`local-supervised-ipc` channel `AppBindingV1`'s `integrity` field names for
+binding delivery. A round-3 review correctly noted this is one label
+covering two distinct transports (the binding itself, and separately the
+session bearer) that happen to share a channel in the common case but are
+not the same delivery guarantee — a future implementation may split them
+without that being a breaking rename of one shared concept.
+
+**This channel's actual security design remains genuinely open, not merely
+a stated requirement.** §Provider's negative greps (bearer absent from
+named artifacts) prove only that a bearer does not land somewhere static;
+they say nothing about the live channel's confidentiality, peer
+authentication, or resistance to another local process on the same machine
+observing or substituting on it. Naming the channel `local-supervised-ipc`
+is a label, not a mechanism. This RFC does not claim the channel is secure
+— OQ1/OQ2 (below) are the real, unresolved design questions, and E1's
+acceptance checks what it can (absence from static artifacts) without
+claiming to have checked the channel itself.
+
+This exchange is the automatic, integrated form of LLP 0176 G0's standalone
+`snapback session mint --email <address>` primitive (its own eventual
+`--dev-persona` layer is a routed, not-yet-accepted ask — see 0176 G0), not a
+second mechanism: both wrap the same already-gated `auth.mintSession`
+host-op, invoked by a local process that already holds the operator/
+impersonation capability, and both return only the minted ordinary session
+to the application, never that capability itself. G0 ships the primitive as
+an explicit command an author can run by hand before this RFC's supervisor
+exists to call it automatically; this section defines only the automation,
+not a new issuance authority.
+
+**Precondition this automation inherits, stated here explicitly.** A round-3
+review correctly found that `auth.mintSession`'s hard refusal — it requires
+the app to already be in settled, available Sessions auth mode, refusing
+with `SNAPBACK_AUTH_POLICY_UNAVAILABLE` otherwise — was recorded in 0176's
+prose but nowhere in this RFC, even though this section's automatic call is
+where the refusal would actually surface. `snapback dev --expo` therefore
+does not reach a `ready` boot state for a fixture that has not settled into
+Sessions mode: the bootstrap exchange's mint call refuses, and the provider
+reports `authority-required` (§Provider's `ExpoBootState`) rather than
+silently falling back to anonymous or hanging. E1's acceptance (below) now
+tests this explicitly rather than leaving it an unstated precondition a
+clean external fixture (E4/G4's own bar) could fail against with no named
+cause.
+
+**What is a requirement here, not yet an established property.** A reviewer
+correctly found the previous text asserted the exchange "leaves no bearer in
+generated artifacts or logs" as a settled design outcome while open question
+2 (below) admits the exchange's exact delivery channel is still undesigned —
+those two statements cannot both be true. This section states the property
+as a **requirement the exchange design must satisfy**, not a fact already
+established: the delivery channel must not place the session bearer in
+`AppBinding`, bundle source, source maps, Metro logs, or persistent public
+configuration. E1's acceptance (below) now includes a check for this
+specifically, so the requirement is verified once a design exists rather
+than assumed.
+
+## Supervised development baseline
+
+`snapback dev --expo` is an LLP 0041/0171 packaged supervisor profile. It:
+
+- starts or adopts the exact Snapback backend generation;
+- starts Expo/Metro in a routing mode compatible with the selected device;
+- issues one expiring `source: "supervised-dev"` binding;
+- makes an ordinary session available through the local bootstrap seam —
+  today by email, per LLP 0176 G0's primitive; a declared-dev-persona layer
+  once the routed ask to the auth owner is accepted;
+- waits for backend, Metro, binding, and client readiness;
+- emits one correlated readiness/diagnostic stream, printing the LLP 0017
+  admin console's launch command alongside it — the three bakeoffs behind
+  this program independently spent real time hand-debugging with `curl` and
+  host-operations calls because none of them discovered that a browsable
+  Data/Functions/Realtime console already existed (LLP 0176 §Beyond the
+  golden path); printing it once here is the cheapest fix available in the
+  whole program;
+- forwards signals and joins child shutdown; and
+- removes ports, bindings, bootstrap material, and child processes on every
+  exit path.
+
+It does not parse terminal prose, guess a LAN address, commit `.env` files,
+or bind the Snapback backend publicly.
+
+### iOS simulator
+
+The preferred route is same-host loopback with Metro restricted to local
+development where Expo permits it. The binding names the resolved loopback
+origin; application code does not.
+
+### Android emulator
+
+The preferred route is explicit port forwarding such as `adb reverse`, with
+a loopback origin from the app's perspective. The supervisor installs,
+verifies, and removes the forwarding rule. The Android emulator's reserved
+`10.0.2.2` host alias is the fallback posture: it is admitted only with
+`routing: "port-forward"`, never as a general private/LAN origin, and it does
+not cause the supervisor to create a non-loopback listener.
+
+### Real devices in the baseline
+
+A round-2 delta review correctly found this section orphaned by the
+`AppBindingV1` discriminated union fix (§AppBinding v1): the `supervised-dev`
+arm admits only `routing: "loopback" | "port-forward"` and
+`integrity.channel: "local-supervised-ipc"`, so no value the union can
+represent is "an appropriately defined secure development binding" reaching
+a physical device — that phrase named an option that does not exist. In the
+baseline, a physical device has exactly one representable path: an already
+admitted hosted HTTPS target using a `source: "release"` binding. There is
+no development-binding path to a physical device until E5 defines and the
+union is extended with whatever arm its accepted carrier design actually
+specifies — this RFC does not pre-declare that arm's shape here, since doing
+so would be exactly the "appropriately defined" hand-wave this correction
+removes. This RFC does not claim that a LAN Metro relay is safe merely
+because the Snapback backend behind it remains loopback-bound.
+
+The G1/E1 baseline is complete with iOS simulator and Android emulator. This
+keeps zero-URL development moving while the harder physical-device network
+boundary receives a real design.
+
+**2026-08-06 OQ4 USB follow-on.** Android USB is now a representable extension
+of the existing `supervised-dev` `routing: "port-forward"` arm: selection is
+fixed to one local USB serial, every rule is installed/verified/removed through
+`adb -s`, TCP/IP/mDNS adb serials refuse as network reachability, and readiness
+names `device.serial` plus `device.class`. This creates no new host listener and
+does not change the binding source.
+
+The equivalent iOS extension remains unbuilt after a concrete tooling probe.
+Xcode `devicectl` 518.33 has device discovery/install/process commands but no
+TCP forward. libimobiledevice's `iproxy` binds a host-local port and forwards
+host-initiated connections to an iOS service; the required direction is the
+inverse, from the app's device-local `127.0.0.1` to the host's loopback-only
+backend/Metro/bootstrap listeners. Treating those as equivalent would make the
+first live receipt fail by construction. The supervisor accepts `--ios-udid`
+only far enough to distinguish USB from `localNetwork`, then emits
+`SNAPBACK_EXPO_IOS_USB_REVERSE_FORWARD_UNAVAILABLE` without starting owned
+children. A bounded device-side bridge or a separately authorized posture must
+precede iOS physical-device evidence.
+
+## Release binding
+
+For EAS/release builds, generation selects a declared Snapback target for the
+chosen build environment/channel and embeds or packages a
+`source: "release"` binding.
+
+Selection is closed:
+
+1. an explicit build-time target name that exists in generated target facts;
+2. the descriptor-associated default for the current admitted EAS
+   environment/channel; or
+3. refusal.
+
+There is no fallback to localhost, a remembered supervised binding, or an
+arbitrary `EXPO_PUBLIC_SNAPBACK_URL`. Advanced runtime target switching is a
+separate feature and must preserve descriptor/target identity and authority
+partitioning.
+
+The selected binding and descriptor digests enter the release receipt. An OTA
+update with incompatible binding, descriptor, native adapter, or capability
+requirements is refused under LLP 0105 rather than failing on device.
+
+## Metro and package closure
+
+Before local Metro starts and before EAS submission, the verifier checks:
+
+- exactly one compatible copy of each Snapback public client package;
+- React Native/export-condition resolution;
+- descriptor, binding, plugin, and package version compatibility;
+- absence of server/admin/contributor-only imports from the app graph;
+- inclusion of every local package and generated artifact in the EAS archive;
+  and
+- the monorepo/nested-app root selected by the build.
+
+A failure names the package, selected resolution path/version, expected fact,
+and an LLP 0146-compatible remediation. A clean consumer should never need an
+undocumented Contract override, Metro alias, or staging copy.
+
+The verifier must work for public registry packages and intentional local
+development packages. It must not silently replace one with the other.
+
+## Native adapters
+
+The package registers the strongest available adapters once:
+
+- picker/content-URI to the existing structural asset source;
+- secure ordinary-session custody;
+- cryptographic digest/checksum support;
+- AppState and network lifecycle;
+- retained query storage; and
+- any later durable source/settlement adapters.
+
+Capability claims remain independent. Retaining query state does not prove
+durable mutation settlement, source-byte custody, background upload, or offline
+asset command. The provider reports each grade and LLP 0180 refuses claims it
+cannot support.
+
+LLP 0180 v1 uses an ordinary session for asset transfer. This package does not
+depend on an attempt grant. A later background adapter may consume one only
+after LLP 0044 defines it.
+
+## Diagnostics
+
+The provider and supervisor join facts by a correlation id and expose:
+
+- backend/Metro readiness and generation;
+- descriptor/binding/target compatibility;
+- selected route (`loopback | port-forward | https`);
+- public authority state without bearer material;
+- capability and per-OS gaps;
+- package/archive closure;
+- the LLP 0017 admin console's launch command, so "what is my backend
+  actually doing" has a one-line answer instead of a hand-rolled `curl`
+  session;
+- lifecycle and child-state summaries from their canonical owners; and
+- LLP 0146 typed remediations with preconditions and risk classes.
+
+The Expo overlay is a projection of shared diagnostic codes/details. It does
+not rewrite them into an Expo-only taxonomy or automatically apply
+authority-widening, principal-changing, destructive, or stale repairs.
+
+## Physical-device LAN relay: separately gated
+
+A Metro listener reachable on a local network is a network front. Forwarding
+application routes through it makes those routes reachable even if the
+Snapback backend itself listens only on loopback — and LLP 0168's own
+established finding sharpens why: a server whose profile is derived from its
+own bind (loopback → `dev`) has no way to see an undeclared front sitting in
+front of it, so "the backend is loopback-bound" proves nothing about what a
+LAN-reachable Metro is actually exposing behind it. Ordinary session checks
+protect application authorization, but they do not by themselves protect
+session confidentiality over plaintext or prevent route/origin/proxy defects.
+
+Therefore a LAN relay is not part of E0–E4 acceptance, and this section's
+requirements are corrected against the actual current governing document.
+**Citation correction:** an earlier revision of this RFC cited
+`0168-single-origin-dev-edge.rfc.md`; that RFC never landed — three
+super-refine rounds found a new bypass in its dev-auth model each round, and
+it was superseded by the current `llp/0168-browser-carrier-dev-edge.research.md`,
+which states "no edge decisions from that draft survive" except one narrow
+policy-sharing boundary. The current LLP 0168's own recommendation, as
+written, is **do not build a LAN/tunnel dev edge on the present record**.
+Reopening the question is gated on its own §Go/no-go preconditions —
+demonstrated demand for a workflow no cheaper carrier serves, an on-paper
+answer to the loopback-front auth-inference problem above, and a named
+hostname/certificate strategy — before an RFC can even be opened, and on
+running-code proof (access-capability, stable-origin, proxy-compatibility,
+and targeted hostile-network tests, plus one policy authority) before that
+RFC could be accepted. This RFC's E5 is gated on whatever that eventual,
+still-unopened successor RFC actually specifies — the bullet list below is
+this document's own best current restatement of that bar, offered as a
+starting checklist for whoever eventually opens it, not a claim that LLP
+0168 already contains a ready-to-implement requirements set:
+
+- secure transport or an equivalently reviewed confidentiality/integrity
+  channel for session-bearing traffic;
+- one generated route-admission artifact shared with every development front,
+  never a hand-copied allowlist;
+- exclusion of admin, host-ops, provisioning, reset, manifest load,
+  impersonation, and arbitrary upstream paths/hosts;
+- exact method, WebSocket upgrade, Host, Origin, redirect, and app/generation
+  admission;
+- single-use pairing bootstrap, revocation, rotation, replay, and device
+  binding;
+- value redaction from Metro logs, errors, source maps, and QR/deep links; and
+- hostile-LAN tests for route smuggling, cross-app use, replay, downgrade, and
+  credential observation.
+
+A QR code is discovery/bootstrap UX, not transport security. An attempt grant
+is asset-attempt authority, not a general relay session, and cannot satisfy
+this boundary.
+
+**This is not only a future-relay concern.** A reviewer correctly found that
+this section's rigor implicitly excluded the *baseline* routing modes: §iOS
+simulator and §Android emulator above describe Metro's own reachability only
+loosely ("restricted to local development where Expo permits it"), not as a
+hard requirement, even though a LAN-listening Metro in the G1-G4 baseline
+would expose bundles, source maps, and the bootstrap exchange itself to
+every peer on that network — the identical failure mode this section exists
+to gate, reached through the baseline instead of a hypothetical future
+relay. E1's acceptance below closes this: every listener the supervisor
+owns, Metro included, must be verified loopback-bound in the default
+baseline, not only asserted as "restricted where Expo permits."
+
+## What remains explicit
+
+The application owner still chooses:
+
+- schema, functions, visibility, auth, and business refusals;
+- asset media, privacy, delivery, processing, retention, and byte bounds;
+- named hosted/release targets and EAS environment/channel mapping;
+- which email-identified dev sessions may be minted today, and which
+  declared dev personas may be issued once LLP 0176 G0's routed persona ask
+  is accepted;
+- offline/background capability requirements; and
+- whether to opt into any future reviewed physical-device carrier.
+
+The integration carries those decisions. It does not infer them from Expo
+project metadata.
+
+## Non-goals
+
+- A second stable application descriptor.
+- A general public development edge, implicit LAN backend bind, or tunnel.
+- Serving admin/host-ops/impersonation routes through Metro.
+- Bundling the Snapback server or handler runtime into the Expo app.
+- Inferring a production endpoint from development state.
+- Storing authority inside `AppBinding`.
+- Claiming React Native parity from one simulator or Expo Go smoke test.
+- Claiming offline/background commands from retained-query storage.
+- Automatic EAS account/project provisioning or app-store submission.
+- Requiring Expo dependencies in web-only React packages.
+
+## Delivery
+
+### E0 — package and binding
+
+- Publish `@expo/snapback-expo` with config plugin, provider, binding
+  admission, boot state, lifecycle shell, and integration receipt.
+- Consume LLP 0179's `AppDescriptor`; define no alternative app model.
+- Prove a packed clean-room fixture installs only public dependencies and
+  excludes server/admin code.
+
+### E1 — simulator/emulator loop
+
+- Land `snapback dev --expo`, expiring supervised bindings, transient local
+  ordinary-session bootstrap, and strict shutdown.
+- Prove iOS simulator loopback and Android emulator port forwarding without a
+  LAN/public backend front. This proof enumerates every listener the
+  supervisor owns (backend and Metro alike) and asserts each binds loopback
+  only — not merely that the backend does, per §Physical-device LAN relay.
+- Grep the JS bundle, source maps, Metro logs, `AppBinding`, and any
+  persistent public configuration (`app.json`, EAS config, committed `.env`)
+  for the bootstrap exchange's issued session bearer and assert it appears
+  in none of them — the complete set §Provider's requirement names, not a
+  narrower subset — checking that requirement rather than only stating it.
+  The readiness stream is a separate, additional check: it is not covered
+  by §Provider's requirement (which only forbids the bearer appearing in
+  the five locations above) but should not leak it either, so assert that
+  too even though its absence there is this test's own added bar, not a
+  restatement of §Provider's.
+- Prove the Sessions-mode precondition explicitly (§Provider): a fixture
+  not yet settled into Sessions auth mode boots to `authority-required`
+  with a diagnostic naming the cause, never a hang or a silent anonymous
+  fallback; a fixture that is settled reaches `ready` and completes a real
+  mint.
+- Exercise live query, ordinary mutation, scoped presence, HMR/reconnect, and
+  authority replacement.
+
+**E1 carrier disposition.** The non-secret value Metro exposes is only the
+credential-free loopback rendezvous origin
+(`EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN`). The provider performs a runtime
+`GET /_snapback/expo/v1/bootstrap` with `cache: "no-store"`; its response pairs
+the admitted expiring `AppBinding` with either the native mint's ordinary
+session or a structured `authority-required` refusal. The exchange exists
+only for the supervisor lifetime, listens on loopback, emits no access log,
+and is reclaimed with Metro and the managed backend. This answers OQ1/OQ2 for
+the E1 simulator/emulator baseline without strengthening the security claim:
+as §Provider says, the negative greps do not establish confidentiality or peer
+authentication against another local process.
+
+E0/E1 complete LLP 0176 G1.
+
+**2026-08-06 E1 USB follow-on delivery note — PARTIAL.** Android USB mechanics
+ship with headless fake inventories, emulator/USB/TCP-IP classification,
+network refusal, exact per-serial three-rule verification, failure rollback,
+idempotent removal, readiness shape, and the existing full simulator cleanup
+regression. No Android physical device was attached for this landing, so its
+dated LLP 0064 Online receipt remains pending. The iOS half is a typed
+non-capability for the tool-direction reason recorded in §Real devices in the
+baseline; neither a forward nor a receipt is claimed. The manual checklist is
+`demos/expo-golden-path-fixture/receipts/physical-device-online-checklist.md`.
+
+### E2 — online asset command
+
+- Register the picker/content-URI adapter and required crypto/session support.
+- Prove LLP 0180's one-image command with the same ordinary session on each
+  claimed simulator/emulator OS.
+- Do not claim background, restart, offline, or attempt-grant behavior.
+
+E2 completes the Expo arm of LLP 0176 G3.
+
+**2026-08-06 E2 delivery note — PASS.** The shipped package registers the
+adapter at provider construction, not in application screens: `content://`,
+`ph://`, and `file://` picker records become immutable, slice-readable
+structural sources for the existing LLP 0044 task. `expo/fetch` owns native
+URI conversion and binary HTTP/TUS transport; the narrow Expo 57 Android
+picker-cache 404 uses `expo-file-system` `File.bytes()` so its literal error
+body cannot be mistaken for the selected image. Integrity stays on the
+existing client SHA-256/checksum path, and the already adopted ordinary
+session owns reservation, transfer, and mutation custody. Recorded fixtures
+test every named URI shape without a device.
+
+The final iOS simulator run selected a task-added image through the system
+Photos picker; the final Android emulator run installed an image with `adb
+push` plus MediaStore scan and selected it through Android's Photo Picker.
+Both used `chat.commands.send({ body, image: picked })`, rendered the resulting
+delivery URL, truthfully showed a cancelled negative, and reclaimed all
+supervised resources. Evidence:
+[`20260806-g3-ios-simulator.md`](../demos/expo-golden-path-fixture/receipts/20260806-g3-ios-simulator.md)
+and
+[`20260806-g3-android-emulator.md`](../demos/expo-golden-path-fixture/receipts/20260806-g3-android-emulator.md).
+This proves only the live-process supervised online slice named above.
+
+### E3 — EAS release
+
+- Resolve a closed release binding and verify the EAS archive/package graph.
+- Produce independent iOS and Android receipts under LLP 0064.
+- Prove OTA incompatibility refusal and absence of development binding,
+  bootstrap material, server code, and contributor paths.
+
+### E4 — external-consumer qualification
+
+- Build the LLP 0176 messaging fixture in a clean external Expo repository
+  using only published packages, plugin entry, generated app descriptor, and
+  the supervised/release binding path.
+- Measure setup, first query, first image send, and diagnosis time against the
+  bakeoff baseline.
+
+E3/E4 are LLP 0176 G4.
+
+### E5 — optional secure physical-device carrier
+
+A round-3 delta review correctly found the previous text reversed LLP
+0168's own sequencing: the time-boxed, named-owner, delete-on-expiry spike
+(run under `SNAPBACK_PROFILE=prod` whenever reachable off-loopback, and
+subject to LLP 0168's distribution fence — not enabled by default, not
+published as a supported path, not documented in the guide, not merged to
+the default branch or merged only behind a flag defaulting off) is how LLP
+0168's own successor RFC produces its B1-B5 *acceptance* evidence — it runs
+*before* that RFC is accepted, not after, and it is that RFC's process, not
+E5's. E5 only starts once that successor RFC reaches `Accepted` (which
+itself required the spike, under both fences, to have already happened, on
+that document's own timeline, to supply the evidence its acceptance
+required):
+
+- implement the now-accepted carrier and route-policy artifact as ordinary,
+  mainline (non-spike) work — E5 does not itself run a spike; it consumes
+  one RFC's finished result;
+- prove a real iOS and Android device;
+- run the hostile-network and lifecycle matrix; and
+- keep hosted HTTPS/USB paths usable independently.
+
+E5 is LLP 0176 G5 and does not block E0–E4.
+
+## Acceptance
+
+- A clean Expo fixture needs no URL prop, manual Metro alias, package override,
+  picker bridge, lifecycle effect, TUS header, or backend child-process script
+  for the admitted baseline.
+- One `AppDescriptor` plus one `AppBinding` is the complete non-secret boot
+  input; the provider refuses mismatch before preparing stores.
+- Development and release use the same binding schema with distinct explicit
+  source/provenance facts.
+- Simulator/emulator development does not bind Snapback publicly or depend on
+  a LAN relay, and every owned listener — Metro included, not only the
+  backend — is verified loopback-bound in the default baseline.
+- The dev asset path has an ordinary bounded session; absent authority refuses
+  clearly instead of becoming anonymous upload.
+- The bootstrap-issued session bearer does not appear in `AppBinding`, the
+  bundle, source maps, Metro logs, or persistent public configuration — the
+  complete location set §Provider names, matching E1's check — and
+  separately does not appear in the readiness stream.
+- A release binding's `integrity` is verified before the provider adopts its
+  `target.origin`, per its arm: a `signed-artifact` binding refuses unless
+  `integrity.signature` verifies against the admitted release trust root; an
+  `embedded-at-build` binding — which carries no `signature` field by
+  construction — refuses unless `provenance.buildReceipt` verifies through
+  the existing build-receipt mechanism. Neither arm falls back to a
+  supervised or arbitrary origin on a verification failure.
+- `snapback dev --expo` reaches one readiness state, survives HMR, and cleans
+  up every owned resource on success, failure, and signal.
+- The release graph contains only public client code and the intended release
+  binding; no dev secret or endpoint leaks.
+- iOS and Android claims have separate LLP 0064 receipts.
+- A LAN/physical-device relay is not claimed until E5's accepted security
+  proof exists.
+
+## Risks
+
+### Zero configuration could hide configuration
+
+Receipts record every derived input and plugin change. Unknown or ambiguous
+target selection refuses instead of guessing.
+
+### AppBinding could duplicate AppDescriptor
+
+Binding stores only environment/target offer and provenance plus the descriptor
+identity it admits. It does not repeat surfaces, commands, API declarations, or
+app requirements.
+
+### Development convenience could weaken authority
+
+The bootstrap issues an ordinary bounded session (by email today; by
+declared persona once that layer is accepted) and is separate from the
+public binding. No path treats localhost, Metro, Expo, or debug mode as
+authorization.
+
+### A relay could become an accidental public edge
+
+The baseline has none. A future relay is gated by an explicit LLP 0168 design
+and hostile-network proof, not bundled into routine Expo work.
+
+### Native adapters could overstate offline support
+
+Capabilities are reported independently. The provider cannot aggregate a few
+partial adapters into an unearned “offline” claim.
+
+## Open questions and E1 dispositions
+
+1. **Answered for E1:** Metro carries only the credential-free rendezvous
+   origin; the binding itself is fetched at runtime from the transient local
+   exchange described in §Delivery E1.
+2. **Answered for E1:** the supervisor-owned loopback `no-store` exchange
+   delivers the ordinary session alongside the binding. The E1 negative grep
+   proves absence from the named static surfaces, not live-channel security.
+3. Should release binding be embedded as generated source, an Expo Updates
+   asset, or a signed public artifact, and which owner verifies its receipt?
+4. **Partially answered 2026-08-06 after the LLP 0176 OQ4 ruling:** Android can
+   use the existing supported USB `adb reverse` path and its mechanism ships,
+   live receipt pending. Current `devicectl` and `iproxy` cannot provide the
+   inverse direction required by iOS device loopback, so iOS remains blocked
+   on a device-side bridge or a new author ruling; hosted HTTPS is not silently
+   substituted into the LLP 0064 local-device claim.
+5. Which initial Expo SDK/React Native matrix is small enough to prove and
+   useful enough to publish?
+
+## Status
+
+Review. E0/E1 are implemented as the first slice: the correctly named package, one
+`AppBinding`, no-URL provider boot, direct simulator/emulator routing, and the
+headless-proven Android USB extension. Its live receipt is pending; iOS USB is
+a typed non-capability after the concrete tool-direction probe above.
+E2 adds the ordinary-session image command. Release/external proof follows.
+LAN relay, physical-device pairing over that relay, background attempt grants,
+and offline custody are explicitly outside the baseline. A super-refine
+round-1 review found and fixed: an unestablished "no bearer anywhere"
+security claim, an unconstrained binding-override loophole, a struct
+`AppBindingV1` shape that let `source` and `provenance` disagree, no
+binding-integrity/authenticated-delivery requirement, a stale LLP 0168
+citation whose actual current document states a materially different
+posture than assumed, and a Metro-loopback gap between this RFC's own
+baseline routing text and its stated acceptance criterion.

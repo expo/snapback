@@ -5,7 +5,21 @@
 **Systems:** Schema evolution, Migrations, Storage portability, Deployment, Backup and restore, Code generation, CLI, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-08-05 (desktop-sidecar boundary note: LLP 0129 Phase 2b's
+**Revised:** 2026-08-06 (client tombstone-and-re-entry implementation: the JS
+client outbox now recognizes the sidecar's upgrade-required refusal family,
+atomically quarantines every pending intent under the first-cut
+compatibility-unclassified posture, exposes only stable redacted v1
+tombstones, keeps exact-leaf dependents held rather than failed, and provides
+explicit all-quarantine re-entry after successor admission. Per-intent
+compatibility classification/transformation from generated facts remains the
+named follow-on.) 2026-08-05 (post-implementation fail-closed correction: the local
+v1 in-place `BackfillField`/`CopyField` proof domain is new destinations only,
+matching the implemented rollback and content-digest oracle; `AddField` must
+name both a manifest-new and physically fresh column on fresh admission,
+requiredness follows the sealed Add/write/validate/make order with no later
+write, and only the exact staged or optional-to-required target receives the
+typed NonNull validation path; existing nullable destinations require fresh
+successor storage or a future value-preserving profile.) 2026-08-05 (desktop-sidecar boundary note: LLP 0129 Phase 2b's
 updater swap now exposes `onUpgradeRequired` with the application-owned
 outbox snapshot after quiescence. This is the attachment point for this RFC's
 incompatible-client disposition, not an implementation of quarantine,
@@ -308,7 +322,7 @@ V1 admits only closed steps whose portable semantics Snapback owns:
 
 - `CreateTable` and `CreateIndex`;
 - `AddField` with a portable literal or closed backfill expression;
-- `BackfillField` into a new or nullable destination;
+- `BackfillField` into a new destination;
 - `ValidateRequired` followed by `MakeRequired`;
 - `ValidateUnique` followed by `CreateUniqueIndex`;
 - `CopyField` and `CopyTable` into successor storage;
@@ -316,6 +330,23 @@ V1 admits only closed steps whose portable semantics Snapback owns:
 - `RebuildMaintainedProjection` under LLP 0080; and
 - `RetireField`, `RetireTable`, or `RetireGeneration` as logical retirement,
   with physical cleanup separately fenced after the rollback window.
+
+**Local v1 destination-lifecycle correction (2026-08-05):** “new” is a
+closed proof, not manifest shorthand. `AddField` must name a field absent from
+the predecessor manifest, declared with the same type in the successor, and
+absent from the physical table at fresh admission; logical retirement's
+retained column therefore cannot be silently re-adopted. The same operation's
+resume may observe the column created by its already-committed `AddField` step.
+An in-place `BackfillField` or `CopyField` may write only that prior staged
+destination and must precede `ValidateRequired`. A field that is required in
+the successor follows `ValidateRequired` then `MakeRequired`, with no later
+write; `ValidateRequired` may name only that staged field or an existing
+optional predecessor field whose successor declaration becomes required.
+Existing nullable destinations otherwise require a staged successor
+generation or a future profile that preserves their predecessor values and
+defines rollback/proof semantics. This narrows the earlier “new or nullable”
+phrase to the local executor's implemented content-digest and fast-rollback
+proof domain; it does not broaden a capability claim.
 
 Backfill expressions use the closed LLP 0051 value vocabulary over the source
 row plus the plan's explicit migration constants. They cannot call application
@@ -569,12 +600,44 @@ recovers an old-or-new runtime attachment. The supervisor neither reads nor
 rewrites queued mutation payloads itself.
 
 That hook is deliberately not this RFC's tombstone-and-re-entry
-implementation. The client/storage-evolution owner must still classify
-compatibility against generated facts, create the stable redacted tombstone,
-prevent silent replay under an incompatible schema, and drive explicit action
-re-entry after successor admission. Until that owner lands, the sidecar can
-surface and recover from the refusal but cannot claim the quarantine behavior
-specified in §4 or its acceptance rows.
+implementation. At the time the hook landed, the client/storage-evolution
+owner still had to classify compatibility against generated facts, create the
+stable redacted tombstone, prevent silent replay under an incompatible schema,
+and drive explicit action re-entry after successor admission. The dated
+implementation note below records the client-owned first cut; the sidecar
+contract remains unchanged and still neither reads nor rewrites queued payloads.
+
+#### Client tombstone-and-re-entry implementation note (2026-08-06)
+
+The `@expo/snapback-client` outbox now recognizes
+`SNAPBACK_UPGRADE_REQUIRED`, `SNAPBACK_CLIENT_UPGRADE_REQUIRED`,
+`SNAPBACK_MIGRATION_UPGRADE_REQUIRED`, and the closed
+`*_UPGRADE_REQUIRED` suffix family before ordinary replay failure handling.
+One such refusal atomically moves **every pending intent** to `quarantined`.
+This is the deliberately conservative first cut: exact-leaf/transitive
+dependents are labeled `dependent`, while every other pending record is
+`compatibility-unclassified`; none is marked `failed`, dropped, or selected by
+replay. Quarantined records continue to hold the full-resync/submission fence
+and count toward the unchanged 1,024-record outbox bound.
+
+The durable store privately retains the original intent and replay identity.
+Its observable projection is instead
+`snapback.outbox-quarantine-tombstone.v1`: `{status, clientMutationId,
+function, sequence, quarantinedAt, refusalCode, quarantineDisposition,
+causeClientMutationId, provenance:{source, payload:'redacted'}}`. It carries no
+arguments, authority context, read set, generated artifact facts, settlement
+claims, or optimistic payload. `client.quarantinedMutations()` returns those
+tombstones and `client.outboxStatus()` reports their count.
+
+After the application has successfully loaded/reconnected with successor
+artifacts, `client.reenterQuarantinedMutations()` explicitly returns the whole
+quarantine to `pending` in its original sequence and identity; the next normal
+drain supplies exactly-once replay. It does not automatically re-enter on
+connectivity, rewrite a payload, or infer compatibility. Per-intent
+classification and any transformation against successor generated
+function/schema facts remain a named codegen/Contract/client follow-on. Until
+that lands, applications must treat the explicit method call as their
+successor-admission assertion and use the conservative quarantine-all posture.
 
 Each plan declares one of:
 

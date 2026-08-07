@@ -94,6 +94,10 @@ Codegen emits `routes.manifest.json`; provision it beside schema and functions
 with `ensureApp({ routes })`. A route may name several queries, but every
 argument must be a literal or a declared route-parameter binding.
 
+This example works on contributor-source builds and, since
+`@expo/snapback-*@0.1.11`, on published packages carrying the packaged-store
+qualification receipt — see [offline retention](../sync/offline-and-retention.md).
+
 ## Fetch one consistent page snapshot
 
 Read mode is socketless and does not create live demand:

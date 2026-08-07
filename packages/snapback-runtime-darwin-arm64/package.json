@@ -5,7 +5,9 @@
   "description": "Prebuilt Snapback server and Hermes runtime for Apple-silicon macOS.",
   "files": [
     "bin",
-    "Frameworks"
+    "Frameworks",
+    "include",
+    "runtime-readiness.json"
   ],
   "exports": {
     "./package.json": "./package.json"

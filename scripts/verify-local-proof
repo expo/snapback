@@ -10,18 +10,74 @@ VERIFY_EXACT="${SNAPBACK_VERIFY_EXACT:-auto}"
 # transitive dependents become BLOCKED, so one failed producer cannot turn into
 # dozens of repeated server-start timeouts (LLP 0175 D1).
 KEEP_GOING=0
+PROOF_CADENCE="complete"
+PROOF_BASE_REVISION=""
+PROOF_SELECTION_RECEIPT=""
 case "${SNAPBACK_PROOF_KEEP_GOING:-}" in
     1|true|TRUE|yes|on) KEEP_GOING=1 ;;
 esac
-for proof_arg in "$@"; do
-    case "$proof_arg" in
-        --keep-going) KEEP_GOING=1 ;;
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --keep-going)
+            KEEP_GOING=1
+            shift
+            ;;
+        --complete)
+            PROOF_CADENCE="complete"
+            shift
+            ;;
+        --affected)
+            [ "$#" -ge 2 ] || {
+                printf '[snapback-verify] --affected requires a Git base revision\n' >&2
+                exit 2
+            }
+            PROOF_CADENCE="affected"
+            PROOF_BASE_REVISION="$2"
+            shift 2
+            ;;
+        --selection-receipt)
+            [ "$#" -ge 2 ] || {
+                printf '[snapback-verify] --selection-receipt requires a path\n' >&2
+                exit 2
+            }
+            PROOF_SELECTION_RECEIPT="$2"
+            shift 2
+            ;;
         *)
-            printf '[snapback-verify] unknown argument: %s\n' "$proof_arg" >&2
+            printf '[snapback-verify] unknown argument: %s\n' "$1" >&2
             exit 2
             ;;
     esac
 done
+
+if [ -n "$PROOF_SELECTION_RECEIPT" ] && [ -n "$PROOF_BASE_REVISION" ]; then
+    printf '[snapback-verify] --selection-receipt and --affected are mutually exclusive\n' >&2
+    exit 2
+fi
+
+PROOF_SELECTION_RESULTS="${SNAPBACK_PROOF_SELECTION_RESULTS:-$ROOT/target/proof/local-proof-selection.json}"
+PROOF_SELECTED_GATES="$ROOT/target/proof/local-proof-selected-gates.txt"
+mkdir -p "$ROOT/target/proof"
+if [ -n "$PROOF_SELECTION_RECEIPT" ]; then
+    node "$ROOT/scripts/select-local-proof.mjs" validate "$PROOF_SELECTION_RECEIPT"
+    PROOF_CADENCE="$(node -e \
+        'process.stdout.write(JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).cadence)' \
+        "$PROOF_SELECTION_RECEIPT")"
+else
+    selection_args=(
+        plan
+        --cadence "$PROOF_CADENCE"
+        --head HEAD
+        --output "$PROOF_SELECTION_RESULTS"
+    )
+    if [ "$PROOF_CADENCE" = "affected" ]; then
+        selection_args+=(--base "$PROOF_BASE_REVISION")
+    fi
+    node "$ROOT/scripts/select-local-proof.mjs" "${selection_args[@]}"
+    PROOF_SELECTION_RECEIPT="$PROOF_SELECTION_RESULTS"
+fi
+node "$ROOT/scripts/select-local-proof.mjs" gates "$PROOF_SELECTION_RECEIPT" \
+    > "$PROOF_SELECTED_GATES"
 
 # @ref LLP 0175#d1--make-keep-going-dependency-aware — named gates retain
 # structured timings and distinguish root FAIL from transitive BLOCKED.
@@ -31,7 +87,12 @@ PROOF_RESULTS="${SNAPBACK_PROOF_RESULTS:-$ROOT/target/proof/local-proof-results.
 proof_runner_init local-proof "$PROOF_RESULTS" "$KEEP_GOING"
 
 run() {
-    proof_gate "$@"
+    local gate_id="$1"
+    if grep -Fqx -- "$gate_id" "$PROOF_SELECTED_GATES"; then
+        proof_gate "$@"
+    else
+        proof_not_selected "$gate_id" "not selected by $PROOF_CADENCE proof policy"
+    fi
 }
 
 not_selected() {
@@ -44,19 +105,46 @@ finish() {
 
 exact_available() {
     command -v bun >/dev/null 2>&1 || return 1
+    # Required CI mode owns the frozen surface installs below. Do not require
+    # their ignored node_modules outputs to exist before those producer gates
+    # get a chance to run on a clean checkout.
+    if [ "$VERIFY_EXACT" = "1" ]; then
+        return 0
+    fi
     [ -f "$ROOT/demos/all-aboard/surfaces/contract/node_modules/@exact/contract/package.json" ] ||
         [ -f "$ROOT/demos/cursors-web/surfaces/contract/node_modules/@exact/contract/package.json" ]
 }
 
+# The dirty fact is scoped to the runtime binary's input set (shared
+# definition: scripts/runtime-build-inputs.txt), not the whole tree, so
+# demo/guide-authoring/LLP/issue edits do not disqualify a prepared binary or
+# force identity-consuming crates to recompile
+# (issues/closed/20260805-whole-tree-dirty-flag-forces-runtime-rebuild.md).
+# A missing definition file falls back to whole-tree status (conservative).
 stamp_snapback_build_identity() {
-    local commit status
+    local commit status inputs_file line
+    local -a input_pathspecs=()
     commit="$(git rev-parse HEAD 2>/dev/null || true)"
     unset SNAPBACK_BUILD_GIT_COMMIT
     export SNAPBACK_BUILD_GIT_DIRTY=true
     if [ -n "$commit" ]; then
         export SNAPBACK_BUILD_GIT_COMMIT="$commit"
-        if status="$(git status --porcelain 2>/dev/null)" && [ -z "$status" ]; then
+        inputs_file="$ROOT/scripts/runtime-build-inputs.txt"
+        if [ -f "$inputs_file" ]; then
+            while IFS= read -r line; do
+                case "$line" in ''|\#*) continue ;; esac
+                input_pathspecs+=("$line")
+            done <"$inputs_file"
+        fi
+        if [ "${#input_pathspecs[@]}" -gt 0 ]; then
+            status="$(git status --porcelain --ignore-submodules=untracked -- "${input_pathspecs[@]}" 2>/dev/null)" || status="(git status failed)"
+        else
+            status="$(git status --porcelain 2>/dev/null)" || status="(git status failed)"
+        fi
+        if [ -z "$status" ]; then
             export SNAPBACK_BUILD_GIT_DIRTY=false
+        else
+            printf '[local-proof] runtime input set is dirty; builds are stamped SNAPBACK_BUILD_GIT_DIRTY=true by:\n%s\n' "$status" >&2
         fi
     fi
 }
@@ -83,11 +171,19 @@ run runtime-link-fixtures -- node --test tests/runtime_link_smoke_v0.mjs
 run runtime-readiness-fixtures -- node --test tests/runtime_readiness_receipt_v0.mjs
 run proof-runner-fixtures -- node --test tests/proof_runner_v0.mjs
 run local-proof-inventory -- node --test tests/local_proof_inventory_v0.mjs
+run affected-selector-fixtures -- node --test tests/local_proof_selection_v0.mjs
+run drift-prone-gate-fixtures -- node --test tests/drift_prone_gates_v0.mjs
 run package-test-inventory -- node scripts/check-package-test-inventory.mjs
 # @ref LLP 0134#9-acceptance — closed maturity records and the pushed-range
 # transition pin are checked before generated artifacts or native builds.
 run capability-maturity-fixtures -- node tests/capability-maturity.test.mjs
 run capability-maturity -- node scripts/check-capability-maturity.mjs
+# @ref LLP 0162#8-capability-honesty — the agent-safe publication transition
+# is valid only when its P-vs-C path history, implementation-tree digest, and
+# exact evidence bytes pass the source-owned checker. Keep both the checker's
+# adversarial self-tests and the live records in the canonical proof.
+run agent-safe-publication-fixtures -- node --test tests/agent_safe_publication_checker_v1.mjs
+run agent-safe-publication -- node scripts/check-agent-safe-publication.mjs
 # @ref LLP 0145#phase-a--establish-a-size-ratchet — reproduce every shipped
 # client profile/subpath closure and fail on growth beyond the frozen first run.
 run client-bundle-metrology -- node scripts/client-bundle-metrology.mjs --check
@@ -101,12 +197,19 @@ run hermes-intrinsics -- node scripts/check-hermes-intrinsics.mjs
 # must resolve declarations under the `types` condition, compile for an
 # external nodenext consumer, and match its module's runtime export surface.
 run package-export-types -- node scripts/check-package-export-types.mjs
+run package-readme-funnel -- node --test scripts/package-readme-funnel.test.mjs
 run relation-activity-publication -- node tests/conformance/relation-activity-publication-v1.mjs
 run sequence-allocation-publication -- node tests/conformance/sequence-allocation-publication-v1.mjs
 run local-store-publication -- node tests/conformance/local-persistent-store-publication-v1.mjs
 run snapshot-batch-parity -- node tests/conformance/snapshot-batch-sbsb1-parity-v1.mjs
+run snapshot-batch-v2-parity -- node tests/conformance/snapshot-batch-sbsb2-parity-v1.mjs
+# @ref LLP 0157#move-1-workload-exit-llp-0155-normative-transcription — the
+# fresh provider-native workload witness remains source-bound and preserves
+# its qualification-binary edge through tracked runtime-readiness evidence.
+run fleet-observatory-move1-receipt -- node tests/acceptance/fleet-observatory-move1-v1.mjs --check --require-qualified
 run runtime-package-authority-fixtures -- node --test scripts/runtime-package-authority.test.mjs
 run package-cold-install-fixtures -- node --test scripts/snapback-package-cold-install.test.mjs
+run local-source-package-closure -- node --test scripts/local-source-package-closure.test.mjs
 run result-transform-ship-gate -- node tests/conformance/result-transform-ship-gate-v1.mjs --check
 # @ref LLP 0041#unreviewed-post-round-correction-publication-lease-and-rollback
 # — candidate publication and default-tag promotion are separate operations;
@@ -126,9 +229,22 @@ run revision-set-fixtures -- node --test demos/partiful-matrix/tests/acceptance/
 # requires this ordering (LLP 0061 §3); review manifests and policy-required
 # committed projections still fail closed on any diff.
 run generated-artifacts -- scripts/check-generated-artifacts
+# @ref LLP 0061#3-verification-snippets-that-ran — published-closure fixtures
+# keep released, unreleased, stale-fence, banner, and record failures executable.
+run guide-published-closure-fixtures -- node --test scripts/guide-published-closure.test.mjs
 # LLP 0061: guide corpus — snippet transclusion-match, capability-index joins,
 # manifest staleness. Docs-only fast path: node scripts/check-guide.mjs.
 run guide --requires generated-artifacts -- node scripts/check-guide.mjs
+# LLP 0184 Phase 1: the ControlCatalogV1 compiler is the checked join of the
+# LLP 0031/0024 registries, CLI/MCP/AdminClient declarations, and the
+# hosted-adapter manifest (§Design/2, §3, §3a). --check fails on any stale
+# committed catalog or an incomplete domain/parity join (rules 1-11); it does
+# not require a fresh cargo build (packages/snapback-cli/control-plane-
+# registry.json is itself drift-gated separately by
+# `cargo test --test control_catalog_registry_export`, run alongside other
+# Rust suites, not by this docs/JS-only step).
+run control-catalog -- node scripts/generate-control-catalog.mjs --check
+run control-catalog-fixtures -- node --test scripts/generate-control-catalog.test.mjs
 # ENG-25268: hand-authored Contract helper sidecars are checked against their
 # exported TypeScript parameter lists; structural result regression catches
 # the All Aboard `headsgn` typo at compile time.
@@ -181,9 +297,10 @@ run harness-cleanup-fixtures -- node demos/_kit/tests/harness-cleanup-failures.m
 run browser-availability -- scripts/check-browser-availability
 run ibex-bootstrap-fixtures -- node tests/ibex_bootstrap_v0.mjs
 # @ref LLP 0154#d7--aggregates-a-watermarked-state-machine-mergeable-by-construction —
-# reopen the retained clean-release receipt, keep the validator's transitive-
-# closure regression, and exercise the nondefault proof feature at smoke scale
-# in every recurring local/CI proof.
+# reopen the retained clean-release receipt as historical evidence, report its
+# rolling CURRENT/LAGGING/OVERDUE state without requiring main to stop, keep the
+# validator's transitive-closure regression, and exercise the nondefault proof
+# feature at smoke scale until LLP 0175's affected selector owns that cadence.
 run telemetry-evidence-fixtures -- node --test scripts/telemetry-phase1-evidence.test.mjs
 run telemetry-receipt-check -- scripts/verify-telemetry-phase1-proof --check
 run telemetry-smoke --requires native-runtime-bootstrap -- \
@@ -306,6 +423,15 @@ run asset-conformance --requires current-binary-readiness -- node tests/acceptan
 run app-cli-served-journey --requires current-binary-readiness -- node tests/acceptance/app-cli-served-journey.mjs
 run app-cli-settlement-goldens --requires current-binary-readiness -- node tests/acceptance/app-cli-settlement-goldens.mjs
 run todo-headless --requires current-binary-readiness -- node demos/todo/tests/acceptance/headless.mjs
+# @ref LLP 0158#implementation-path-local-v1-explored-2026-08-03 — the F1
+# acceptance-harness option preserves realistic parent state, verifies fork
+# isolation, and tears down through the exact registry-bound drop lifecycle.
+run forked-parent --requires current-binary-readiness -- node demos/todo/tests/acceptance/forked-parent.mjs
+# @ref LLP 0185#phase-2b--integrate-worktree-parallel-suite-and-fork-per-agent-workflows —
+# parallel lanes share one prepared parent, ownership binds cleanup to exact
+# worktree/agent-run identity, and interruptions settle into the three named
+# dispositions (clean, owner-swept orphan, recovered quarantine).
+run fork-parallel-dispositions --requires current-binary-readiness -- node demos/todo/tests/acceptance/fork-parallel-dispositions.mjs
 run todo-v2-headless --requires current-binary-readiness -- node demos/todo-v2/tests/acceptance/headless.mjs
 # Five deliberately different app kernels keep relational reads, trusted
 # runtime values, cron/live demand, route bundles, and membership authority in
@@ -341,6 +467,7 @@ run rbac-acceptance --requires current-binary-readiness -- node demos/rbac/tests
 run client-errors -- node demos/_kit/tests/client-errors.mjs
 run live-wire-schema -- node demos/_kit/tests/live-wire-schema.mjs
 run provenance-unit -- node demos/_kit/tests/provenance-unit.mjs
+run repo-layout-unit -- node demos/_kit/tests/repo-layout-unit.mjs
 run codegen-regressions -- node demos/_kit/tests/codegen-regressions.mjs
 run exact-resolver-packages -- node demos/_kit/tests/exact-resolver-packages.mjs
 run provider-live-conformance --requires current-binary-readiness -- node demos/_kit/tests/provider-live-conformance.mjs

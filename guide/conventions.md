@@ -42,6 +42,8 @@ Fields (schema: [`frontmatter.schema.json`](./frontmatter.schema.json)):
 | `status` | yes | `draft` \| `current` \| `deprecated` — authored lifecycle. |
 | `targets` | yes | `[local]`, `[local, cloudflare]`, or `[all]` for genuinely target-independent material. Local-only pages render a banner line (see below). |
 | `maturity` | yes | `shipped` \| `partial` \| `design-only`, consistent with the capability index. |
+| `since` | no | Published closure version (`X.Y.Z`) in which the page's described surface first became, or is expected to become, available. |
+| `unreleased` | no | The boolean `true` when the whole page deliberately describes a surface newer than the newest published closure; requires `since` and a rendered unreleased banner. |
 | `reviewed` | yes | Date of the last intentional review — display metadata only. |
 | `reviewed-commit` | yes | The commit the page was last reviewed at — the freshness **identity**. Bumping it is a deliberate act in a review pass; no tool regenerates it. `HEAD` is permitted only in the same change that creates or fully revises the page. |
 
@@ -61,6 +63,37 @@ Pages with `targets: [local]` start the body with:
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](./auth/targets.md).
 
+## The published-closure fence
+
+[`published-closure.json`](./published-closure.json) is the checked-in,
+machine-readable record of the newest `@expo/snapback-*` closure available
+from npm. The guide checker reads that local record; this check performs no
+network access.
+
+A page whose whole surface has one version may declare `since: X.Y.Z`. If the
+whole page is deliberately ahead of the record's `newestPublished`, it also
+declares `unreleased: true` and renders a blockquote whose first line starts
+with `> **Unreleased.**` before the first `##` heading. The banner names the
+literal newest published version so a reader knows which concrete closure is
+missing the surface. Once the closure catches up, the fence is stale and must
+be removed (or `since:` must be bumped to the actual future version).
+
+Pages that mix vintages fence the affected section with an HTML comment on its
+own line: `<!-- since: X.Y.Z -->` for a surface already present in that
+closure, or `<!-- since: X.Y.Z unreleased -->` for a surface expected in a
+future closure. An unreleased marker must be immediately followed (apart from
+blank lines) by a contiguous rendered blockquote whose first line starts with
+`> **Unreleased.**` and whose text names the literal newest published version.
+A released marker may not name a version newer than `newestPublished`, and an
+unreleased marker may not name that version or an older one.
+
+This is an availability fence, separate from capability maturity. A
+`maturity: shipped` page that claims a surface absent from the newest published
+closure without an unreleased fence is a check **failure**. The npm promotion
+lane updates `published-closure.json` in the same change that publishes a new
+closure, regenerates the guide manifest, and sweeps all unreleased fences. The
+stale-fence errors make a forgotten promotion-time sweep loud.
+
 ## Headings
 
 Intent-first: name sections for what the reader wants to do ("Subscribe to a
@@ -69,6 +102,34 @@ names, so grep-by-goal works. Where a page covers an enumerable surface, it
 lists **all** of it — sampling is how capabilities go undiscovered. Each
 teaching page ends with an **Anti-patterns** section naming what not to
 hand-roll.
+
+## Routing: paved alternatives, grep vocabulary, vocabulary splits
+
+Added 2026-08-06 from accepted LLP 0187 T1 (the routing-over-coverage
+diagnosis; LLP 0061 owns these conventions):
+
+- **Paved alternative at the point of choice.** Anti-pattern content and any
+  "hard way" a page teaches (a JS handler where a declarative surface exists,
+  a raw subscription where a hook exists) must link the paved alternative at
+  the point the reader chooses, with the honest boundary of what the paved
+  road cannot express. A worked hard-way example with no adjacent pointer is
+  a guide defect, not a style preference.
+- **The alias column is grep vocabulary.** Capability-index **Aliases** and
+  page headings must include the literal strings an agent would plausibly
+  search for: workload terms ("typing indicator", "dashboard") and plausible
+  wrong-guess symbol names (`useSnapbackEphemeral`), whichever register they
+  come from — including competitor vocabulary (Convex `useQuery`, Supabase
+  RLS; LLP 0186 W2). A miss caused by a reasonable grep that returned nothing
+  is a guide defect with a mechanical fix: add the string. Do not stuff —
+  each alias should be a string someone would actually search.
+- **Vocabulary splits are defects.** When a feature's schema side and client
+  side use different names (ephemeral collections vs `useSnapbackPresence`),
+  each side's page must name the other side's vocabulary. A grep from either
+  register must reach the feature.
+- **Every replicated miss becomes an eval seed.** When a replicated
+  discoverability miss is fixed, the fix must add a seed case to
+  [the retrieval eval](./retrieval-eval.md) that would have caught it
+  (LLP 0187 T7's standing rule), so the fix cannot silently regress.
 
 ## Links
 

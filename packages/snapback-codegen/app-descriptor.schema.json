@@ -1,0 +1,248 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.snapback.dev/app-descriptor/v1.schema.json",
+  "title": "Snapback AppDescriptor v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "identity", "api", "commands", "surfaces", "capabilities"],
+  "properties": {
+    "format": { "const": "snapback.app.v1" },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["app", "schema", "functions", "descriptor"],
+      "properties": {
+        "app": { "type": "string", "minLength": 1 },
+        "schema": { "$ref": "#/$defs/generatedIdentity" },
+        "functions": { "$ref": "#/$defs/generatedIdentity" },
+        "descriptor": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "api": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["queries", "mutations", "assets", "ephemeral", "queryGroups"],
+      "properties": {
+        "queries": { "$ref": "#/$defs/queryMap" },
+        "mutations": { "$ref": "#/$defs/mutationMap" },
+        "assets": { "$ref": "#/$defs/assetMap" },
+        "ephemeral": { "$ref": "#/$defs/ephemeralMap" },
+        "queryGroups": { "$ref": "#/$defs/queryGroupMap" }
+      }
+    },
+    "commands": { "$ref": "#/$defs/commandMap" },
+    "surfaces": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/surfaceDescriptor" }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required"],
+      "properties": {
+        "required": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]+$" },
+    "generatedIdentity": {
+      "type": "string",
+      "pattern": "^(sha256:[0-9a-f]+|snapback\\.v[0-9]+:[a-z0-9-]+:(schema|function):sha256:[0-9a-f]{64})$"
+    },
+    "sourceSpan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file"],
+      "properties": {
+        "file": { "type": "string", "minLength": 1 },
+        "line": { "type": "integer", "minimum": 1 },
+        "column": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "reference": {
+      "type": "object",
+      "required": ["artifactKind", "appId", "id"],
+      "properties": {
+        "artifactKind": { "type": "string" },
+        "appId": { "type": "string", "minLength": 1 },
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "sourceSpan": { "$ref": "#/$defs/sourceSpan" }
+      }
+    },
+    "queryReference": {
+      "allOf": [
+        { "$ref": "#/$defs/reference" },
+        {
+          "properties": {
+            "artifactKind": { "const": "functionReference" },
+            "kind": { "enum": ["Query", "LiveQuery"] }
+          },
+          "required": ["kind", "name"]
+        }
+      ]
+    },
+    "mutationReference": {
+      "allOf": [
+        { "$ref": "#/$defs/reference" },
+        {
+          "properties": {
+            "artifactKind": { "const": "functionReference" },
+            "kind": { "const": "Mutation" }
+          },
+          "required": ["kind", "name"]
+        }
+      ]
+    },
+    "assetReference": {
+      "allOf": [
+        { "$ref": "#/$defs/reference" },
+        { "properties": { "artifactKind": { "const": "assetUploadReference" } }, "required": ["name"] }
+      ]
+    },
+    "ephemeralReference": {
+      "allOf": [
+        { "$ref": "#/$defs/reference" },
+        { "properties": { "artifactKind": { "const": "ephemeralCollectionReference" } }, "required": ["name"] }
+      ]
+    },
+    "queryGroupReference": {
+      "allOf": [
+        { "$ref": "#/$defs/reference" },
+        {
+          "properties": {
+            "artifactKind": { "const": "queryGroupReference" },
+            "route": { "type": "string", "minLength": 1 }
+          },
+          "required": ["route"]
+        }
+      ]
+    },
+    "queryMap": { "type": "object", "additionalProperties": { "$ref": "#/$defs/queryReference" } },
+    "mutationMap": { "type": "object", "additionalProperties": { "$ref": "#/$defs/mutationReference" } },
+    "assetMap": { "type": "object", "additionalProperties": { "$ref": "#/$defs/assetReference" } },
+    "ephemeralMap": { "type": "object", "additionalProperties": { "$ref": "#/$defs/ephemeralReference" } },
+    "queryGroupMap": { "type": "object", "additionalProperties": { "$ref": "#/$defs/queryGroupReference" } },
+    "commandDescriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "mutation", "asset", "passthroughArgs"],
+      "properties": {
+        "kind": { "const": "asset-bearing-command.v1" },
+        "mutation": { "$ref": "#/$defs/mutationReference" },
+        "asset": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["input", "intent", "mutationArg", "optional"],
+              "properties": {
+                "input": { "type": "string", "minLength": 1 },
+                "intent": { "$ref": "#/$defs/assetReference" },
+                "mutationArg": { "type": "string", "minLength": 1 },
+                "optional": { "type": "boolean" }
+              }
+            }
+          ]
+        },
+        "passthroughArgs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "commandMap": { "type": "object", "additionalProperties": { "$ref": "#/$defs/commandDescriptor" } },
+    "surfaceBindingValue": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "name"],
+          "properties": { "kind": { "enum": ["param", "input"] }, "name": { "type": "string", "minLength": 1 } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "value"],
+          "properties": { "kind": { "const": "literal" }, "value": {} }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "fields"],
+          "properties": {
+            "kind": { "const": "scope" },
+            "fields": { "type": "object", "additionalProperties": { "$ref": "#/$defs/surfaceBindingLeaf" } }
+          }
+        }
+      ]
+    },
+    "surfaceBindingLeaf": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "name"],
+          "properties": { "kind": { "enum": ["param", "input"] }, "name": { "type": "string", "minLength": 1 } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "value"],
+          "properties": { "kind": { "const": "literal" }, "value": {} }
+        }
+      ]
+    },
+    "surfaceMember": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactKind", "reference", "bindings", "inputs"],
+      "properties": {
+        "artifactKind": { "const": "surfaceMemberBinding" },
+        "reference": {
+          "oneOf": [
+            { "$ref": "#/$defs/reference" },
+            { "$ref": "#/$defs/commandDescriptor" }
+          ]
+        },
+        "bindings": { "type": "object", "additionalProperties": { "$ref": "#/$defs/surfaceBindingValue" } },
+        "inputs": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["contract", "optional"],
+            "properties": { "contract": { "type": "object" }, "optional": { "type": "boolean" } }
+          }
+        }
+      }
+    },
+    "surfaceMemberMap": { "type": "object", "additionalProperties": { "$ref": "#/$defs/surfaceMember" } },
+    "surfaceDescriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactKind", "schemaVersion", "appId", "id", "name", "sourceSpan", "params", "reads", "mutations", "commands", "assets", "presence"],
+      "properties": {
+        "artifactKind": { "const": "surfaceDescriptor" },
+        "schemaVersion": { "type": "string", "minLength": 1 },
+        "appId": { "type": "string", "minLength": 1 },
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "sourceSpan": { "$ref": "#/$defs/sourceSpan" },
+        "params": { "type": "object", "additionalProperties": { "type": "object" } },
+        "reads": { "$ref": "#/$defs/surfaceMemberMap" },
+        "mutations": { "$ref": "#/$defs/surfaceMemberMap" },
+        "commands": { "$ref": "#/$defs/surfaceMemberMap" },
+        "assets": { "$ref": "#/$defs/surfaceMemberMap" },
+        "presence": { "$ref": "#/$defs/surfaceMemberMap" }
+      }
+    }
+  }
+}

@@ -1,0 +1,617 @@
+{
+  "$schemaNote": "LLP 0184 Phase 1 item 6 backfill: hand-authored operability/surfaceAccess/behavior overrides keyed by the post-join operation identity (host_ops.* stripped to its LLP 0024 spelling, e.g. 'host_ops.app.inspect' -> 'app.inspect'). scripts/generate-control-catalog.mjs applies these on top of its structurally-derived surfaceAccess (native/cliOnly/mcpOnly/apiOnly from projection presence) \u2014 operability itself is NEVER derived automatically (the RFC requires per-operation authored classification, never compiler inference, since it is a security disagreement axis the compiler must not resolve toward permissive). Every row not listed here defaults to operability 'unavailable' with a generic 'not yet classified' reason so an un-triaged row can never silently read as agent-invokable \u2014 see the compiler's DEFAULT_UNCLASSIFIED constant. This file covers: (a) the RFC's 'already good' research-snapshot list (network profiles, lifecycle, telemetry, errors, assets), (b) every RFC worked example (host.restart, admin link, acceptance.run, config.set/unset, the dev-mailbox pin), and (c) the direct_runner/app.ensure.provision family already well-understood from LLP 0024/0031.",
+  "overrides": {
+    "host.start": {
+      "operability": "direct",
+      "surfaceAccessOverride": "cliOnly",
+      "mcpDeferralReason": "snapback_start exists but is a distinct MCP-only projection today (this row's own HTTP/CLI path is the source of truth for surfaceAccess derivation; see host.restart below for the composed case)."
+    },
+    "host.stop": {
+      "operability": "direct",
+      "surfaceAccessOverride": "cliOnly",
+      "mcpDeferralReason": "Analogous to host.start."
+    },
+    "host.restart": {
+      "operability": "direct",
+      "composedFrom": [
+        "host.stop",
+        "host.start"
+      ],
+      "projectionCredentials": {
+        "http": "AdminCredential (refuses this operation entirely: SNAPBACK_HOST_OP_CLI_ONLY)",
+        "cli": "snapback restart resolves a concrete owner-only admin token and proves it with app.inspect on the AdminRead-gated /_snapback/api/host-ops route before its nonce-verified native stop; no credential enters argv or its receipt (src/cli.rs host_restart_result/restart_admin_credential_probe).",
+        "mcp": "LLP 0184 \u00a7Design/2's disclosed, temporary, named exception is CLOSED: snapback_stop (and therefore the mutating half of snapback_restart) requires an admin token accepted by the same AdminRead-gated /_snapback/api/host-ops route, verified with a live probe before any process signal (packages/snapback-cli/mcp-control.mjs McpControlServer#requireAdminCredentialForLifecycle). The fresh-spawn leg has no prior server credential to hold."
+      }
+    },
+    "app.inspect": {
+      "operability": "direct"
+    },
+    "app.reset": {
+      "operability": "direct"
+    },
+    "app.seed.ensure.v1": {
+      "operability": "direct"
+    },
+    "app.seed.preview.v1": {
+      "operability": "direct"
+    },
+    "app.seed.reset-install.v1": {
+      "operability": "direct"
+    },
+    "app.seed.clear.v1": {
+      "operability": "direct"
+    },
+    "schema.load": {
+      "operability": "direct"
+    },
+    "functions.load": {
+      "operability": "direct"
+    },
+    "function.run": {
+      "operability": "direct"
+    },
+    "function.explain": {
+      "operability": "direct"
+    },
+    "auth.mintSession": {
+      "operability": "direct"
+    },
+    "auth.rescueCollidingTable": {
+      "operability": "direct"
+    },
+    "telemetry.stats": {
+      "operability": "direct"
+    },
+    "telemetry.events": {
+      "operability": "direct"
+    },
+    "telemetry.export": {
+      "operability": "direct"
+    },
+    "errors.issues": {
+      "operability": "direct"
+    },
+    "errors.issue": {
+      "operability": "direct"
+    },
+    "errors.transition": {
+      "operability": "direct"
+    },
+    "data.patch.preview": {
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "behavior": {
+        "persistsAcrossRestart": false
+      },
+      "authorities": [
+        "llp/0024-agent-operating-surface",
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "src/data_patch.rs",
+        "src/local.rs",
+        "src/server.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    "data.patch.apply": {
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "behavior": {
+        "persistsAcrossRestart": true
+      },
+      "authorities": [
+        "llp/0024-agent-operating-surface",
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "src/data_patch.rs",
+        "src/local.rs",
+        "src/server.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    "debug.networkProfileGet": {
+      "operability": "direct"
+    },
+    "debug.networkProfileSet": {
+      "operability": "direct"
+    },
+    "debug.live.forceResync": {
+      "operability": "direct",
+      "availabilityTargets": [
+        "local"
+      ],
+      "adminClient": "forceLiveResync",
+      "note": "LLP 0184 \u00a7B, LANDED: single-subscription v1 scope only (connection-wide targeting deliberately deferred \u2014 OQ4). Target rule matches data.patch's (\u00a7A, not yet landed as of this row): local-non-production only, gated by AppState::debug_perturbation_target_authority \u2014 refused on a primary hosted/production target AND on any derived instance (local or hosted) until LLP 0158 grants recognition for this specific purpose. This is NOT debug.networkProfileSet's hosted-derived exception (a different, narrower LLP 0158 grant \"solely for network-profile activation\"), so 'derived-hosted' is deliberately excluded from availabilityTargets here unlike the network-profile rows above. CLI (`snapback debug force-resync`), MCP (`snapback_live_force_resync`), and AdminClient (`forceLiveResync`) all landed from the same host operation; the console leg (admin-ui/app.contract) was NOT reached in this pass \u2014 the operation is otherwise complete (server, CLI, MCP, AdminClient, acceptance tests) but has no console button yet. `projections.console` intentionally stays null; do not read that as the operation being unavailable."
+    },
+    "asset.put": {
+      "operability": "direct",
+      "mcpDeferralReason": "Assets: full typed CLI, zero MCP tools today \u2014 the RFC's (cliOnly, direct) worked example (\u00a7Product contract). MCP projection is a Phase 2 P1 item."
+    },
+    "asset.ensureSeedFixture": {
+      "operability": "direct",
+      "mcpDeferralReason": "Assets family; see asset.put."
+    },
+    "asset.inspect": {
+      "operability": "direct",
+      "note": "LLP 0184 Phase 2 P1: gained snapback_asset_inspect; now (native, direct)."
+    },
+    "asset.list": {
+      "operability": "direct",
+      "note": "LLP 0184 Phase 2 P1: gained snapback_asset_list; now (native, direct)."
+    },
+    "asset.exportCut": {
+      "operability": "direct",
+      "note": "LLP 0184 \u00a7P2 landed `snapback_asset_export_cut`; surfaceAccess is now derived native alongside the pre-existing `snapback assets export-cut` CLI."
+    },
+    "asset.importCut": {
+      "operability": "direct",
+      "note": "LLP 0184 \u00a7P2 landed `snapback_asset_import_cut`; surfaceAccess is now derived native alongside the pre-existing `snapback assets import-cut` CLI."
+    },
+    "asset.retry": {
+      "operability": "direct",
+      "note": "LLP 0184 Phase 2 P1: gained snapback_asset_retry; now (native, direct)."
+    },
+    "asset.gcSweep": {
+      "operability": "direct",
+      "note": "LLP 0184 \u00a7P2 landed `snapback_asset_gc_sweep`; surfaceAccess is now derived native alongside the pre-existing `snapback assets gc-sweep` CLI."
+    },
+    "asset.delete": {
+      "operability": "direct",
+      "note": "LLP 0184 \u00a7P2 landed `snapback_asset_delete`; surfaceAccess is now derived native alongside the pre-existing `snapback assets delete` CLI."
+    },
+    "asset.rotateSigningKey": {
+      "operability": "direct",
+      "note": "LLP 0184 \u00a7P2 landed `snapback_asset_rotate_signing_key`; surfaceAccess is now derived native alongside the pre-existing `snapback assets rotate-signing-key` CLI."
+    },
+    "schema.reload": {
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0024-agent-operating-surface",
+        "ticketOrDesignPointer": "llp/0024-agent-operating-surface.spec.md",
+        "note": "Pinned by LLP 0024, not yet built anywhere. Returns SNAPBACK_HOST_OP_UNIMPLEMENTED."
+      }
+    },
+    "functions.reload": {
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0024-agent-operating-surface",
+        "ticketOrDesignPointer": "llp/0024-agent-operating-surface.spec.md",
+        "note": "Pinned by LLP 0024, not yet built anywhere. Returns SNAPBACK_HOST_OP_UNIMPLEMENTED."
+      }
+    },
+    "acceptance.run": {
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0024-agent-operating-surface",
+        "ticketOrDesignPointer": "llp/0024-agent-operating-surface.spec.md",
+        "note": "The shipped, exposed-but-unbuilt MCP tool (snapback_acceptance_run) returns SNAPBACK_HOST_OP_UNIMPLEMENTED. Supported, LLP 0024-pinned future operation \u2014 not internal."
+      }
+    },
+    "direct_runner.query": {
+      "operability": "direct"
+    },
+    "direct_runner.mutation": {
+      "operability": "direct"
+    },
+    "direct_runner.action": {
+      "operability": "direct"
+    },
+    "direct_runner.unknown": {
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "src/server.rs",
+        "ticketOrDesignPointer": null,
+        "note": "The unrecognized-function-kind branch; carries EffectPolicy::Unavailable on its own registration."
+      }
+    },
+    "app.ensure.provision": {
+      "operability": "direct",
+      "surfaceAccessOverride": "apiOnly",
+      "note": "Provisioning is invoked through the /app/ensure HTTP path only today; no direct CLI/MCP tool wraps this specific dispatched intent yet."
+    },
+    "admin.link.mint": {
+      "operability": "mediated",
+      "surfaceAccessOverride": "cliOnly",
+      "intents": [
+        "open admin console for a human",
+        "mint one-time operator link",
+        "observe browser redemption",
+        "resume admin link handoff"
+      ],
+      "guide": "operating/admin-console.md#hand-a-one-time-link-from-an-agent-terminal-to-a-remote-browser",
+      "authorities": [
+        "llp/0017-admin-console-inspection-surface",
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "src/cli.rs AdminCommand::Link",
+        "tests/admin_claim_link_v0.rs"
+      ],
+      "mediatedHandoff": {
+        "plan": "Select the direct, --url-base, --lan, or --tailscale reachability posture and attached/default or --no-wait lifecycle before minting; snapback admin link --help exposes their conflicts without creating a claim.",
+        "initiate": "snapback admin link authenticates with the ordinary admin credential, mints a one-time fragment link, and prints that deliberately shareable link for human browser redemption.",
+        "status": "The default attached invocation polls until redemption or expiry; snapback admin link --status <claim> observes the same bounded server-side record after --no-wait.",
+        "resume": "snapback admin link --status <claim> reattaches to an outstanding or redeemed claim, while --revoke <claim> provides bounded cleanup of the issued credential.",
+        "protectedArtifact": "The issued sbcc_ console credential is delivered only to the redeeming browser; the one-time sbcl_ claim link is intentionally agent-visible and becomes inert after redemption or expiry.",
+        "negativeLeakTests": [
+          "tests/admin_claim_link_v0.rs::planted_claim_link_redeems_once_and_attached_cli_reports_it"
+        ]
+      },
+      "mcpDeferralReason": "No MCP tool yet; a one-time operator claim link is a human-redemption artifact (LLP 0184 \u00a7Product contract's cliOnly/mediated worked example).",
+      "note": "snapback admin link (src/cli.rs AdminCommand::Link) \u2014 mints, observes, reattaches to, or revokes a one-time operator claim link via POST /_snapback/api/console/claim(/exchange|/status|/revoke). Human redemption is the operation's whole point, so every leg is mediated regardless of surfaceAccess (rule 6)."
+    },
+    "admin.link.exchange": {
+      "operability": "mediated",
+      "surfaceAccessOverride": "cliOnly",
+      "mediatedHandoff": {
+        "plan": "Select the direct, --url-base, --lan, or --tailscale reachability posture and attached/default or --no-wait lifecycle before minting; snapback admin link --help exposes their conflicts without creating a claim.",
+        "initiate": "snapback admin link authenticates with the ordinary admin credential, mints a one-time fragment link, and prints that deliberately shareable link for human browser redemption.",
+        "status": "The default attached invocation polls until redemption or expiry; snapback admin link --status <claim> observes the same bounded server-side record after --no-wait.",
+        "resume": "snapback admin link --status <claim> reattaches to an outstanding or redeemed claim, while --revoke <claim> provides bounded cleanup of the issued credential.",
+        "protectedArtifact": "The issued sbcc_ console credential is delivered only to the redeeming browser; the one-time sbcl_ claim link is intentionally agent-visible and becomes inert after redemption or expiry.",
+        "negativeLeakTests": [
+          "tests/admin_claim_link_v0.rs::planted_claim_link_redeems_once_and_attached_cli_reports_it"
+        ]
+      },
+      "mcpDeferralReason": "See admin.link.mint."
+    },
+    "admin.link.status": {
+      "operability": "mediated",
+      "surfaceAccessOverride": "cliOnly",
+      "mediatedHandoff": {
+        "plan": "Select the direct, --url-base, --lan, or --tailscale reachability posture and attached/default or --no-wait lifecycle before minting; snapback admin link --help exposes their conflicts without creating a claim.",
+        "initiate": "snapback admin link authenticates with the ordinary admin credential, mints a one-time fragment link, and prints that deliberately shareable link for human browser redemption.",
+        "status": "The default attached invocation polls until redemption or expiry; snapback admin link --status <claim> observes the same bounded server-side record after --no-wait.",
+        "resume": "snapback admin link --status <claim> reattaches to an outstanding or redeemed claim, while --revoke <claim> provides bounded cleanup of the issued credential.",
+        "protectedArtifact": "The issued sbcc_ console credential is delivered only to the redeeming browser; the one-time sbcl_ claim link is intentionally agent-visible and becomes inert after redemption or expiry.",
+        "negativeLeakTests": [
+          "tests/admin_claim_link_v0.rs::planted_claim_link_redeems_once_and_attached_cli_reports_it"
+        ]
+      },
+      "mcpDeferralReason": "See admin.link.mint."
+    },
+    "admin.link.revoke": {
+      "operability": "mediated",
+      "surfaceAccessOverride": "cliOnly",
+      "mediatedHandoff": {
+        "plan": "Select the direct, --url-base, --lan, or --tailscale reachability posture and attached/default or --no-wait lifecycle before minting; snapback admin link --help exposes their conflicts without creating a claim.",
+        "initiate": "snapback admin link authenticates with the ordinary admin credential, mints a one-time fragment link, and prints that deliberately shareable link for human browser redemption.",
+        "status": "The default attached invocation polls until redemption or expiry; snapback admin link --status <claim> observes the same bounded server-side record after --no-wait.",
+        "resume": "snapback admin link --status <claim> reattaches to an outstanding or redeemed claim, while --revoke <claim> provides bounded cleanup of the issued credential.",
+        "protectedArtifact": "The issued sbcc_ console credential is delivered only to the redeeming browser; the one-time sbcl_ claim link is intentionally agent-visible and becomes inert after redemption or expiry.",
+        "negativeLeakTests": [
+          "tests/admin_claim_link_v0.rs::planted_claim_link_redeems_once_and_attached_cli_reports_it"
+        ]
+      },
+      "mcpDeferralReason": "See admin.link.mint."
+    },
+    "config.status": {
+      "operability": "direct",
+      "note": "LLP 0184 Phase 2 P1: gained snapback config status + snapback_config_status; now (native, direct)."
+    },
+    "config.plan": {
+      "operability": "direct",
+      "note": "LLP 0184 Phase 2 P1: gained snapback config plan + snapback_config_plan; now (native, direct)."
+    },
+    "config.verify": {
+      "operability": "direct",
+      "note": "LLP 0184 Phase 2 P1: gained snapback config verify + snapback_config_verify; now (native, direct)."
+    },
+    "config.set": {
+      "operability": "direct",
+      "intents": [
+        "set config",
+        "set secret",
+        "configure api key",
+        "write deployment credential"
+      ],
+      "mcpDeferralReason": "No MCP secret carrier is defined (\u00a7Product contract): stdin/fd is a CLI-process carrier with no MCP equivalent. Promoting to native requires a defined, security-owner-approved MCP secret carrier first.",
+      "guide": "operating/secrets-and-config.md#set-an-agent-held-value-without-exposing-it",
+      "authorities": [
+        "llp/0036-app-secrets-and-config",
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "src/server.rs config_set()",
+        "src/cli.rs ConfigCommand::Set"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "entry",
+          "valueCarrier"
+        ],
+        "properties": {
+          "entry": {
+            "type": "string",
+            "minLength": 1
+          },
+          "valueCarrier": {
+            "enum": [
+              "stdin",
+              "fd"
+            ],
+            "description": "The CLI accepts value bytes only through --value-stdin or --value-fd N. The value is structurally absent from argv, MCP, catalog examples, and receipts."
+          },
+          "append": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "entry",
+          "applyState",
+          "valueChanged",
+          "generation"
+        ],
+        "properties": {
+          "entry": {
+            "type": "string"
+          },
+          "applyState": {
+            "type": "string"
+          },
+          "valueChanged": {
+            "type": "boolean"
+          },
+          "generation": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "note": "Phase 4: snapback config set now carries exactly one UTF-8 secret value through --value-stdin or --value-fd N, posts the existing admin-gated route with source=cli, and returns only the value-free ConfigWriteOutcome. Human entry through the existing browser/operator setup page needs no agent-facing handoff row \u2014 the agent is never in that call chain."
+    },
+    "cron.tick": {
+      "operability": "direct",
+      "note": "LLP 0184 \u00a7P2 landed `snapback cron tick` (src/cli.rs CronCommand::Tick) and `snapback_cron_tick` (mcp-control.mjs); surfaceAccess is now derived native. AdminClient.tickCron() (packages/snapback-admin-client/index.mjs:577) remains the pre-existing apiOnly path."
+    },
+    "cron.list": {
+      "operability": "direct",
+      "note": "LLP 0184 Phase 2 residue: read-only cron inspection projects the loaded functions manifest and already-held scheduler ledger through the AdminRead cron.list host operation, `GET /_snapback/api/cron`, `snapback cron list`, and `snapback_cron_list`. It deliberately omits run ids, handler diagnostics/results, jitter seeds, and recent-run payloads."
+    },
+    "cron.runOne": {
+      "operability": "direct",
+      "note": "LLP 0184 \u00a7P2 landed `snapback cron run <name>` and `snapback_cron_run`; surfaceAccess is now derived native. AdminClient.runCronJob() (index.mjs:581)."
+    },
+    "jobs.drain": {
+      "operability": "direct",
+      "note": "LLP 0184 \u00a7P2 landed `snapback jobs drain` and `snapback_jobs_drain`, both accepting the injected `nowMs`/`maxWaves` clock the route already supported; surfaceAccess is now derived native. AdminClient.drainJobs() (index.mjs:588)."
+    },
+    "jobs.list": {
+      "operability": "direct",
+      "note": "LLP 0184 Phase 2 P1: gained snapback jobs list + snapback_jobs_list; now (native, direct). AdminClient.listJobs() (index.mjs:595)."
+    },
+    "jobs.show": {
+      "operability": "direct",
+      "note": "LLP 0184 Phase 2 P1: gained snapback jobs show + snapback_jobs_show; now (native, direct). AdminClient.showJob() (index.mjs:599)."
+    },
+    "ephemeral.cleanup": {
+      "operability": "direct",
+      "behavior": {
+        "persistsAcrossRestart": false
+      },
+      "note": "LLP 0184 \u00a7P2 semantic upgrade: the AdminWrite route now requires an explicit expiry cutoff, dry-run/apply posture, maximum entry count, and startup nonce; it returns a room-count receipt and uses ordinary Expired remove/fan-out mechanics. `snapback ephemeral cleanup` and `snapback_ephemeral_cleanup` make the operation native; the MCP tool is destructive:true/confirmFirst because it can apply deletion. AdminClient.cleanupEphemeral() consciously migrates its existing console caller to a 1,000-entry apply batch bound to the current startup."
+    },
+    "ephemeral.operatorDelete": {
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "note": "LLP 0184 \u00a7C: operator-only ephemeral-entry delete, fenced on scope epoch AND entry generation together, explicit unevaluated bypass (no application authorization check). Local non-production only in v1 \u2014 refused on primary hosted/production and on a derived instance until LLP 0158 grants recognition for this purpose."
+    },
+    "connection.disconnect": {
+      "operability": "direct",
+      "note": "LLP 0184 \u00a7P2 landed `snapback connections disconnect <id> --reason <reason>` (src/cli.rs ConnectionsCommand::Disconnect) and `snapback_connection_disconnect` (mcp-control.mjs) as an explicit debug perturbation, never application disconnect authority; surfaceAccess is now derived native. The underlying route (`src/admin.rs`'s `disconnect`) takes no request body, so `reason` is recorded in the CLI/MCP receipt only, not acknowledged by the server."
+    },
+    "data.scan": {
+      "operability": "direct",
+      "note": "LLP 0184 Phase 2 P1: gained snapback data scan + snapback_data_scan; now (native, direct). AdminClient.scanTable() (index.mjs:555)."
+    },
+    "secretRead.mint": {
+      "operability": "direct",
+      "surfaceAccessOverride": "cliOnly",
+      "mcpDeferralReason": "Ready-file-only local operator authority (src/cli.rs HostCommand::SecretReadMint doc comment: 'can never be discovered from a URL'); no MCP projection."
+    },
+    "health": {
+      "operability": "direct"
+    },
+    "inspect": {
+      "operability": "direct",
+      "note": "Public admin-projected read alias of app.inspect's HTTP surface; distinct route from POST /_snapback/api/host-ops's app.inspect operation."
+    },
+    "receipts": {
+      "operability": "direct"
+    },
+    "console.credential": {
+      "operability": "internal",
+      "internalReason": "Browser-console session-credential bootstrap machinery consumed by AdminClient's own private #restoreReachabilityCredential/#renewConsoleCredential methods, not an author/operator action a client invokes directly."
+    },
+    "console.reachability.register": {
+      "operability": "internal",
+      "internalReason": "Console session-bootstrap plumbing; see console.credential."
+    },
+    "console.reachability.bind": {
+      "operability": "internal",
+      "internalReason": "Console session-bootstrap plumbing; see console.credential."
+    },
+    "console.reachability.renew": {
+      "operability": "internal",
+      "internalReason": "Console session-bootstrap plumbing; see console.credential."
+    },
+    "console.reachability.drop": {
+      "operability": "internal",
+      "internalReason": "Console session-bootstrap plumbing; see console.credential."
+    },
+    "console.approval.request": {
+      "operability": "mediated",
+      "surfaceAccessOverride": "cliOnly",
+      "mediatedHandoff": {
+        "plan": "The browser explains that terminal approval is required and displays the bounded snapback admin approve <code> command without displaying any console credential.",
+        "initiate": "The browser requests a short-lived device/user-code pair and transfers only the user code to the terminal operator.",
+        "status": "The browser polls with its device code and observes pending or the terminal-approved terminal state.",
+        "resume": "Polling resumes until the ten-minute bound; an expired or consumed attempt starts a fresh request rather than reusing an artifact.",
+        "protectedArtifact": "The sbcc_ console credential is returned only to the browser poll; snapback admin approve receives only the user code and a value-free approved receipt.",
+        "negativeLeakTests": [
+          "tests/admin_v0.rs::console_device_approval_is_terminal_authorized_and_single_use"
+        ]
+      },
+      "mcpDeferralReason": "No MCP tool yet; approving a short-lived console-displayed code is a human action by design (src/cli.rs AdminCommand::Approve).",
+      "note": "Backs `snapback admin approve`."
+    },
+    "console.approval.poll": {
+      "operability": "mediated",
+      "surfaceAccessOverride": "cliOnly",
+      "mediatedHandoff": {
+        "plan": "The browser explains that terminal approval is required and displays the bounded snapback admin approve <code> command without displaying any console credential.",
+        "initiate": "The browser requests a short-lived device/user-code pair and transfers only the user code to the terminal operator.",
+        "status": "The browser polls with its device code and observes pending or the terminal-approved terminal state.",
+        "resume": "Polling resumes until the ten-minute bound; an expired or consumed attempt starts a fresh request rather than reusing an artifact.",
+        "protectedArtifact": "The sbcc_ console credential is returned only to the browser poll; snapback admin approve receives only the user code and a value-free approved receipt.",
+        "negativeLeakTests": [
+          "tests/admin_v0.rs::console_device_approval_is_terminal_authorized_and_single_use"
+        ]
+      },
+      "mcpDeferralReason": "See console.approval.request."
+    },
+    "console.approval.approve": {
+      "operability": "mediated",
+      "surfaceAccessOverride": "cliOnly",
+      "mediatedHandoff": {
+        "plan": "The browser explains that terminal approval is required and displays the bounded snapback admin approve <code> command without displaying any console credential.",
+        "initiate": "The browser requests a short-lived device/user-code pair and transfers only the user code to the terminal operator.",
+        "status": "The browser polls with its device code and observes pending or the terminal-approved terminal state.",
+        "resume": "Polling resumes until the ten-minute bound; an expired or consumed attempt starts a fresh request rather than reusing an artifact.",
+        "protectedArtifact": "The sbcc_ console credential is returned only to the browser poll; snapback admin approve receives only the user code and a value-free approved receipt.",
+        "negativeLeakTests": [
+          "tests/admin_v0.rs::console_device_approval_is_terminal_authorized_and_single_use"
+        ]
+      },
+      "mcpDeferralReason": "See console.approval.request."
+    },
+    "push.maintenance": {
+      "operability": "internal",
+      "internalReason": "Push-notification maintenance sweep; internal scheduled/system maintenance, not an author/operator-invoked action today."
+    },
+    "client-mutations.purge": {
+      "operability": "internal",
+      "internalReason": "Internal client-mutation-log retention maintenance; not an author/operator-invoked action today."
+    },
+    "config.unset": {
+      "operability": "direct",
+      "note": "Carries no secret value \u2014 LLP 0036 specifies a 1:1 snapback_config_* MCP mapping alongside the CLI verb, so both projections land together (\u00a7Product contract/P3). A P2-style controlled mutation. LLP 0184 \u00a7P2 landed both `snapback config unset` (src/cli.rs ConfigCommand::Unset) and `snapback_config_unset` (mcp-control.mjs); surfaceAccess is now derived as native from those real projections rather than an aspirational override."
+    },
+    "control.catalog.read": {
+      "operability": "direct",
+      "note": "The server serves the exact compiled catalog; the offline CLI and control MCP consume the same native binary's embedded projection."
+    },
+    "control.catalog.describe": {
+      "operability": "direct",
+      "note": "A read-only per-operation view over the same embedded build catalog."
+    },
+    "control.catalog.instance.read": {
+      "operability": "direct",
+      "cliDeferralReason": "The v1 CLI stays honestly build-only/offline. Instance availability is served by the admin-gated HTTP endpoint and the control MCP resource; invocation admission remains authoritative.",
+      "note": "Advisory startup snapshot only. Consumers compare catalogDigest and invocation admission remains authoritative."
+    },
+    "branch.create.v1": {
+      "operability": "direct",
+      "note": "LLP 0185 managed in-app branches: shipped SystemApi/AdminWrite host operations built for agent use (create/execute/list/inspect/reap/drop under allowed-function, TTL, and egress policy). operability direct: an agent holding the local admin credential invokes them through the host-ops envelope; no human step is part of the design. surfaceAccess stays the derived apiOnly \u2014 the typed host-ops HTTP projection with LLP 0024 schemas and the generated host-ops guide table is the stable recipe; direct CLI/MCP tools are usage-evidence promotions (OQ2), not gaps."
+    },
+    "branch.execute.v1": {
+      "operability": "direct",
+      "note": "LLP 0185 managed in-app branches: shipped SystemApi/AdminWrite host operations built for agent use (create/execute/list/inspect/reap/drop under allowed-function, TTL, and egress policy). operability direct: an agent holding the local admin credential invokes them through the host-ops envelope; no human step is part of the design. surfaceAccess stays the derived apiOnly \u2014 the typed host-ops HTTP projection with LLP 0024 schemas and the generated host-ops guide table is the stable recipe; direct CLI/MCP tools are usage-evidence promotions (OQ2), not gaps."
+    },
+    "branch.list.v1": {
+      "operability": "direct",
+      "note": "LLP 0185 managed in-app branches: shipped SystemApi/AdminWrite host operations built for agent use (create/execute/list/inspect/reap/drop under allowed-function, TTL, and egress policy). operability direct: an agent holding the local admin credential invokes them through the host-ops envelope; no human step is part of the design. surfaceAccess stays the derived apiOnly \u2014 the typed host-ops HTTP projection with LLP 0024 schemas and the generated host-ops guide table is the stable recipe; direct CLI/MCP tools are usage-evidence promotions (OQ2), not gaps."
+    },
+    "branch.inspect.v1": {
+      "operability": "direct",
+      "note": "LLP 0185 managed in-app branches: shipped SystemApi/AdminWrite host operations built for agent use (create/execute/list/inspect/reap/drop under allowed-function, TTL, and egress policy). operability direct: an agent holding the local admin credential invokes them through the host-ops envelope; no human step is part of the design. surfaceAccess stays the derived apiOnly \u2014 the typed host-ops HTTP projection with LLP 0024 schemas and the generated host-ops guide table is the stable recipe; direct CLI/MCP tools are usage-evidence promotions (OQ2), not gaps."
+    },
+    "branch.reap.v1": {
+      "operability": "direct",
+      "note": "LLP 0185 managed in-app branches: shipped SystemApi/AdminWrite host operations built for agent use (create/execute/list/inspect/reap/drop under allowed-function, TTL, and egress policy). operability direct: an agent holding the local admin credential invokes them through the host-ops envelope; no human step is part of the design. surfaceAccess stays the derived apiOnly \u2014 the typed host-ops HTTP projection with LLP 0024 schemas and the generated host-ops guide table is the stable recipe; direct CLI/MCP tools are usage-evidence promotions (OQ2), not gaps."
+    },
+    "branch.drop.v1": {
+      "operability": "direct",
+      "note": "LLP 0185 managed in-app branches: shipped SystemApi/AdminWrite host operations built for agent use (create/execute/list/inspect/reap/drop under allowed-function, TTL, and egress policy). operability direct: an agent holding the local admin credential invokes them through the host-ops envelope; no human step is part of the design. surfaceAccess stays the derived apiOnly \u2014 the typed host-ops HTTP projection with LLP 0024 schemas and the generated host-ops guide table is the stable recipe; direct CLI/MCP tools are usage-evidence promotions (OQ2), not gaps."
+    },
+    "operations.explain": {
+      "operability": "direct",
+      "note": "Route-level twin of the already-classified function.explain host operation (mutationDryRun explain): same admin authority, same explain semantics, reachable at POST /_snapback/api/operations/explain. Direct for the same reason function.explain is; apiOnly derivation stands (the host-op spelling carries the CLI/MCP story)."
+    },
+    "storage.protected-erasure": {
+      "operability": "direct",
+      "behavior": {
+        "readOnly": false,
+        "destructive": true,
+        "approvalPosture": "humanApprovalRequired",
+        "idempotent": true,
+        "persistsAcrossRestart": true
+      },
+      "note": "LLP 0184 storage-owner classification (2026-08-06): POST /_snapback/api/storage/protected-erasure erases one identified row (qualified_table + row_id), gated by re-validating a concrete admin credential inside the same synchronous commit window and a fenced-authority publication (LLP 0165 protected-deletion-authority-audit). A narrowly-scoped, legitimate operator erasure capability, not system-internal plumbing \u2014 an agent should be able to discover and invoke it, but the row it deletes is irreversible and likely privacy/compliance-sensitive, so approvalPosture is humanApprovalRequired rather than a bare confirmFirst. apiOnly stands: no CLI/MCP tool exists yet. Rule-5 completion (2026-08-06, memo-verified): exact retries with the same operationId/authority/target are idempotent and resume open checkpoint-destruction obligations; divergent reuse refuses; the deletion, fence, and receipt persist across restart (LLP 0165 crash/reopen record). Invocation recipe: guide anchor above.",
+      "intents": [
+        "protected erasure",
+        "permanently erase one row",
+        "destroy row history",
+        "compliance delete",
+        "invalidate checkpoints for a row"
+      ],
+      "guide": "operating/agent-controls.md#specialist-api-operations-apionly",
+      "authorities": [
+        "llp/0165-proof-domains-and-checkpoints"
+      ]
+    },
+    "storage.operation-coverage.activate": {
+      "operability": "direct",
+      "note": "LLP 0184 storage-owner classification (2026-08-06): POST /_snapback/api/storage/operation-coverage/activate activates a coverage manifest for a target/coverage profile (LLP 0162 managed-branch row-4 publication). InvocationSource::OperationCoverageActivation resolves to the ordinary admin credential class, not a system-internal-only source, and the route is ResponseSensitivity::OperatorMetadata rather than destructive \u2014 ordinary operator maintenance, ordinarily agent-invokable. apiOnly stands: no CLI/MCP tool exists yet. Rule-5 completion (2026-08-06, memo-verified): accepts only the v1 local-dev-sqlite-ibex / local-envelope-mapped-writers.v1 pair; exact repeat returns the same active manifest; the manifest persists and re-arms on database open. Success does NOT publish the AgentSafe capability or waive LLP 0162/0163 gates. targets [local] is a discovery fact (request contract exposes only the local target; handler does not yet compare declared target with derived identity) \u2014 invocation admission stays authoritative per \u00a7Design/1.",
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "idempotent": true,
+        "persistsAcrossRestart": true
+      },
+      "availabilityTargets": [
+        "local"
+      ],
+      "intents": [
+        "activate operation coverage",
+        "commit envelope writer manifest",
+        "arm writer authority",
+        "agent-safe writer admission"
+      ],
+      "guide": "operating/agent-controls.md#specialist-api-operations-apionly",
+      "authorities": [
+        "llp/0163-operation-identity-and-commit-envelope"
+      ]
+    }
+  },
+  "pinned": {
+    "auth.mailbox.read": {
+      "route": "GET /_snapback/api/auth/mailbox",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "pinReason": "CredentialSecret responseSensitivity + ImpersonationCapability-adjacent effect: usage-evidence promotion to native/cliOnly/mcpOnly is refused outright per \u00a7Product contract's promotion-refusal rule, regardless of call volume. An authored override, not a threshold, is the only way past this pin, and only after passing the same secret-carrier review config.set requires.",
+      "note": "src/server.rs's route_registry() exports this row directly: GET /_snapback/api/auth/mailbox, AdminWrite policy, CredentialSecret responseSensitivity. The compiler's promotion-refusal check keys off this exact policy fact from the live export, not this override file, so this entry documents intent rather than driving enforcement."
+    }
+  }
+}

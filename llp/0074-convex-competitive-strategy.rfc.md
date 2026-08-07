@@ -1,5 +1,6 @@
 # LLP 0074: Convex-competitive strategy
 
+**Revised (parallel npm gate executed):** 2026-08-06 (nine-package closure live on npm `latest` at 0.1.9; receipts in LLP 0041 §Fast-path.)
 **Revised (Priority 1 lifecycle checkpoint):** 2026-07-22 (exact target/plan fencing, idempotent lifecycle orchestration, verified backups, interruption resume, and rollback now pass a non-remote harness; provider drills and npm remain open.)
 **Revised (checkpoint author adjudication):** 2026-07-22 (Charlie Cheever
 accepted LLP 0075 v0 and adjudicated the current checkpoint `reprioritize`.

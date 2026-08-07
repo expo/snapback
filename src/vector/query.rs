@@ -442,6 +442,7 @@ mod tests {
             permission_fields: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         }
     }
 

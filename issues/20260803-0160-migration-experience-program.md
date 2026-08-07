@@ -85,6 +85,12 @@ the doc stays the single source of truth.
 
 ## Author rulings routed out of this program
 
+> **2026-08-06 (sitting #4):** OQ3 is BLESSED as proposed — the
+> compatibility-verdict presentation half stays owned here, the protocol
+> fact is restated in LLP 0093. Record in the LLPs at implementation
+> time. OQ6/OQ7 remain routed with their evidence packets as below.
+
+
 - **OQ6 (Moment 8 settlement)** — gates G4′b; presented to Charlie
   separately with the decision input 0160 records.
 - **OQ7 (G9b rollback input)** — presented with the drift audit's

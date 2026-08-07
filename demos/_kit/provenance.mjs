@@ -172,11 +172,18 @@ export async function verifyViteProvenance(
 // so it is a not-ok verdict, never a silent reuse.
 
 /// The expected server-binary identity of a Snapback checkout: its committed
-/// git commit, whether the working tree is dirty, and the crate version from
-/// `Cargo.toml`. A dirty tree means the built bytes are not pinned to a commit,
-/// so `gitDirty: true` — which `verifyBinaryProvenance` treats as unverifiable.
+/// git commit, whether the runtime binary's input set is dirty, and the crate
+/// version from `Cargo.toml`. Dirtiness is scoped by the shared definition in
+/// `scripts/runtime-build-inputs.txt` — the same set `build.rs` and
+/// `verify-local-proof` stamp from — so demo/LLP/issue edits do not make a
+/// prepared binary unverifiable, while an edit to any real input still does
+/// (issues/closed/20260805-whole-tree-dirty-flag-forces-runtime-rebuild.md).
+/// A dirty input set means the built bytes are not pinned to a commit, so
+/// `gitDirty: true` — which `verifyBinaryProvenance` treats as unverifiable.
 /// `git` failures (not a checkout, git absent) yield `gitCommit: 'unknown'` and
-/// `gitDirty: true`, i.e. "cannot identify" rather than a throw.
+/// `gitDirty: true`, i.e. "cannot identify" rather than a throw. A checkout
+/// without the shared definition file falls back to whole-tree status
+/// (conservative: over-reports dirty, never under-reports).
 export function readCheckoutBinaryIdentity(cwd = process.cwd()) {
   const git = (args) => {
     try {
@@ -186,7 +193,11 @@ export function readCheckoutBinaryIdentity(cwd = process.cwd()) {
     }
   };
   const gitCommit = git(['rev-parse', 'HEAD']);
-  const status = git(['status', '--porcelain']);
+  const inputPathspecs = runtimeInputPathspecs(cwd);
+  const status = git([
+    'status', '--porcelain', '--ignore-submodules=untracked',
+    ...(inputPathspecs ? ['--', ...inputPathspecs] : []),
+  ]);
   const crateVersion = readCrateVersion(cwd);
   return {
     crateVersion,
@@ -194,6 +205,22 @@ export function readCheckoutBinaryIdentity(cwd = process.cwd()) {
     // Unknown commit or a non-empty status ⇒ not pinned to a clean commit.
     gitDirty: !gitCommit || status === null || status.length > 0,
   };
+}
+
+/// Git pathspecs bounding the runtime binary's input set, read from the shared
+/// definition `scripts/runtime-build-inputs.txt` (one pathspec per line, `#`
+/// comments). `null` — file missing/unreadable/empty — means "no scoped
+/// definition"; callers fall back to whole-tree status.
+function runtimeInputPathspecs(cwd) {
+  try {
+    const pathspecs = readFileSync(join(cwd, 'scripts', 'runtime-build-inputs.txt'), 'utf8')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0 && !line.startsWith('#'));
+    return pathspecs.length > 0 ? pathspecs : null;
+  } catch {
+    return null;
+  }
 }
 
 /// The `version` from the repo-root `Cargo.toml` (`[package] version = "..."`),

@@ -1,0 +1,569 @@
+{
+  "actorIdentity": {
+    "actors": {
+      "assignee": {
+        "role": "user",
+        "sourceUserID": "usr_0012"
+      },
+      "creator": {
+        "role": "user",
+        "sourceUserID": "usr_0011"
+      },
+      "crew-admin": {
+        "role": "crew",
+        "sourceUserID": "usr_0000"
+      },
+      "ordinary-user": {
+        "role": "user",
+        "sourceUserID": "usr_0010"
+      },
+      "removed-member": {
+        "role": "crew",
+        "sourceUserID": "usr_0001"
+      }
+    },
+    "mode": "manifest source-user bindings; no session carriers retained"
+  },
+  "arm": "snapback-control-large",
+  "assistance": [
+    {
+      "at": "2026-08-06T20:48:04.875Z",
+      "kind": "governing-design",
+      "purpose": "ZB acceptance and immutable evidence contract",
+      "sequence": 1,
+      "source": "llp/0183-zerobugs-quality-surface.rfc.md"
+    },
+    {
+      "at": "2026-08-06T20:48:04.875Z",
+      "kind": "guide",
+      "purpose": "fresh owned server and non-vacuous check lifecycle",
+      "sequence": 2,
+      "source": "guide/testing/acceptance.md"
+    },
+    {
+      "at": "2026-08-06T20:48:04.875Z",
+      "kind": "landed-lane-evidence",
+      "purpose": "reuse source-oracle, actor, mutation, effect, and adapter checks",
+      "sequence": 3,
+      "source": "demos/zerobugs/control/tests/acceptance/lane2-live.mts..lane6a-live.mts"
+    }
+  ],
+  "attempt": "v1",
+  "browserIdentity": {
+    "mode": "not-launched; live rows are named GAP"
+  },
+  "capabilityFacts": [
+    {
+      "id": "performance.large-fixture",
+      "status": "gap"
+    },
+    {
+      "bound": "W=1,000",
+      "id": "relational-graph.issue-list.large-W",
+      "status": "gap"
+    },
+    {
+      "id": "derived-search.large-refusal",
+      "status": "gap"
+    }
+  ],
+  "checks": {
+    "counts": {
+      "fail": 0,
+      "gap": 9,
+      "missing": 0,
+      "pass": 5
+    },
+    "executed": 14,
+    "expected": 14,
+    "harness": {
+      "expectedChecks": 14,
+      "failed": 0,
+      "ok": true,
+      "passed": 5,
+      "shortfall": null,
+      "skipped": 9,
+      "total": 14
+    },
+    "missing": [],
+    "rows": [
+      {
+        "details": {
+          "arm": "snapback-control-large",
+          "expectedChecks": 14,
+          "overwritesLane7": false,
+          "performancePolicy": "single raw sample per named path; no margins or score",
+          "receipt": "snapback-control-large.zb5.v1.json"
+        },
+        "id": "gate-definition-and-distinct-receipt-arm",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "bytesUsedOnlyAfterAllShardDigestsMatched": true,
+          "fixtureId": "large-seed42-v1",
+          "overallDigest": "sha256:7514938a88bb1b8d77fee15f2cf7a50aa1030be2ebee344c473ef4d263a21c94",
+          "receiptDigest": "sha256:d9dfd4fde488a388502773f569e829746f66826ae0f9f47263d36eef7d625a8a",
+          "shardsVerified": 16
+        },
+        "id": "large-source-shards-match-frozen-receipt",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "collisionAndReferenceChecks": "builder refused before artifact publication on mismatch",
+          "contentDigest": "sha256:39d7758a5a5809abf9fa3b3c6b966ecdf43dd9f5c6cc8b3977a94c17dd4efd73",
+          "overlayId": "large-overlay-v1",
+          "policyIssueFirst": true,
+          "selectedProject": {
+            "id": "OfAwqxYz9GbQfkkFpNpkT",
+            "issueCount": 99943
+          },
+          "workingSetDigest": "sha256:7e3ee7d659ad10e69f4ff681b091980d30525b62991ab4548c547e5240b9e464"
+        },
+        "id": "large-overlay-rules-1-through-6-and-digest",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "loadPlan": {
+            "batchesByTable": {
+              "comment": 2809,
+              "emoji": 2,
+              "issue": 1112,
+              "issueLabel": 2223,
+              "issueLabelRead": 3,
+              "issueListRead": 2,
+              "issueNotifications": 6,
+              "issueSearchDocument": 2,
+              "label": 6,
+              "project": 1,
+              "projectUserRead": 1,
+              "searchEpoch": 1,
+              "user": 1,
+              "userPref": 1,
+              "viewState": 6
+            },
+            "rowsByTable": {
+              "comment": 2527887,
+              "emoji": 1746,
+              "issue": 1000001,
+              "issueLabel": 2000370,
+              "issueLabelRead": 1992,
+              "issueListRead": 1000,
+              "issueNotifications": 5000,
+              "issueSearchDocument": 1000,
+              "label": 4810,
+              "project": 100,
+              "projectUserRead": 100,
+              "searchEpoch": 2,
+              "user": 100,
+              "userPref": 5,
+              "viewState": 5000
+            },
+            "totalBatches": 6176,
+            "totalRows": 5549113
+          },
+          "sourceCounts": {
+            "comment": 2527886,
+            "issue": 1000000,
+            "issueLabel": 2000370,
+            "label": 4810,
+            "project": 100,
+            "total": 5533266,
+            "user": 100
+          }
+        },
+        "id": "large-source-and-overlay-counts",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "digest": "sha256:25034c07339f524d3dd78281c0da953ed6f64e9320f71eec98c89ba7682005b2",
+          "oracleBound": "exactly W; no full 5.5M-row replay claimed",
+          "order": "(modified desc, id desc)",
+          "rows": 1000
+        },
+        "id": "working-set-oracle-is-bounded-and-exact",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "owner": "Lane 8 live supervisor after compatible seam lands",
+          "reason": "The source identity changed after this gate was authored; rerun/review the live driver against that exact generated API."
+        },
+        "id": "resumable-ingest-and-inverse-remap",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "owner": "Lane 8 live supervisor after compatible seam lands",
+          "reason": "The source identity changed after this gate was authored; rerun/review the live driver against that exact generated API."
+        },
+        "id": "loaded-table-counts-equal-large-profile",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "owner": "Lane 8 live supervisor after compatible seam lands",
+          "reason": "The source identity changed after this gate was authored; rerun/review the live driver against that exact generated API."
+        },
+        "id": "live-list-window-matches-bounded-working-set-oracle",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "owner": "Lane 8 live supervisor after compatible seam lands",
+          "reason": "The source identity changed after this gate was authored; rerun/review the live driver against that exact generated API."
+        },
+        "id": "protected-internal-issue-enters-working-set",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "owner": "Lane 8 live supervisor after compatible seam lands",
+          "reason": "The source identity changed after this gate was authored; rerun/review the live driver against that exact generated API."
+        },
+        "id": "ordinary-and-anonymous-count-like-surfaces-do-not-leak-protected-issue",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "owner": "Lane 8 live supervisor after compatible seam lands",
+          "reason": "The source identity changed after this gate was authored; rerun/review the live driver against that exact generated API."
+        },
+        "id": "search-epoch-refuses-at-1024-partition-boundary",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "owner": "Lane 8 live supervisor after compatible seam lands",
+          "reason": "The source identity changed after this gate was authored; rerun/review the live driver against that exact generated API."
+        },
+        "id": "raw-list-ready-timing",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "owner": "Lane 8 live supervisor after compatible seam lands",
+          "reason": "The source identity changed after this gate was authored; rerun/review the live driver against that exact generated API."
+        },
+        "id": "raw-representative-window-walk-timing",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "owner": "Lane 8 live supervisor after compatible seam lands",
+          "reason": "The source identity changed after this gate was authored; rerun/review the live driver against that exact generated API."
+        },
+        "id": "large-custody-counters",
+        "status": "GAP"
+      }
+    ]
+  },
+  "cleanup": {
+    "ownership": "No server, socket, browser, process, credential file, or scratch target was created.",
+    "results": [],
+    "status": "PASS",
+    "targets": []
+  },
+  "completedAt": "2026-08-06T20:48:05.789Z",
+  "componentReleaseIdentities": [
+    {
+      "id": "zerobugs-control-composition",
+      "path": "demos/zerobugs/control/composition/zerobugs-control-composition.v1.json",
+      "runtime": {
+        "entrypoint": "composition/server.mts",
+        "hostEnv": "ZERBUGS_GATEWAY_HOST",
+        "name": "bun",
+        "portEnv": "ZERBUGS_GATEWAY_PORT",
+        "readyFileEnv": "ZERBUGS_GATEWAY_READY_FILE",
+        "version": "1.3.12"
+      },
+      "sha256": "sha256:f5c232abe1ec9a4ef72f9ca3479ff556b340f38ec48319e8d5946fecfd949de6",
+      "snapbackRelease": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:7e1e6aaff8c68371de8bf55c0e02b332232627c507ebfb98138b4514d2d4179e",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:6947b605efaf9c4ee08ae9243eeb39ee1587e85e911ee329eaddd4d9114e63ae",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "status": "supported-local-control",
+      "version": 1
+    }
+  ],
+  "custodyAccounting": {
+    "browserFacts": null,
+    "reason": "live run not admitted",
+    "serverRows": null,
+    "status": "GAP"
+  },
+  "diagnostics": [],
+  "execution": {
+    "harnessAcceptedCount": true,
+    "setupCompleted": true,
+    "status": "PASS"
+  },
+  "fixtureIdentity": {
+    "digest": "sha256:7514938a88bb1b8d77fee15f2cf7a50aa1030be2ebee344c473ef4d263a21c94",
+    "extensionIds": [
+      "large-overlay-v1",
+      "policy-extension-v1"
+    ],
+    "id": "large-seed42-v1",
+    "mode": "canonical CSV shards verified before use; W projection bound recorded separately",
+    "overlayDigest": "sha256:39d7758a5a5809abf9fa3b3c6b966ecdf43dd9f5c6cc8b3977a94c17dd4efd73",
+    "rowCount": 5533266
+  },
+  "gate": "zb5",
+  "generatedIdentities": [
+    {
+      "id": "schemaManifest",
+      "path": "demos/zerobugs/control/snapback/generated/schema.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:7e1e6aaff8c68371de8bf55c0e02b332232627c507ebfb98138b4514d2d4179e",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:6947b605efaf9c4ee08ae9243eeb39ee1587e85e911ee329eaddd4d9114e63ae",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:beff7f5e99aef868060d9fcbddf8f111f0b2f49278ca48c9c53433901f10c179"
+    },
+    {
+      "id": "functionManifest",
+      "path": "demos/zerobugs/control/snapback/generated/functions.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:7e1e6aaff8c68371de8bf55c0e02b332232627c507ebfb98138b4514d2d4179e",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:6947b605efaf9c4ee08ae9243eeb39ee1587e85e911ee329eaddd4d9114e63ae",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:539b30d277a9c280a11cd2074a6208e068daf239ab90807066648d6c1edd3b6b"
+    },
+    {
+      "id": "capabilityManifest",
+      "path": "demos/zerobugs/control/snapback/generated/capability.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:7e1e6aaff8c68371de8bf55c0e02b332232627c507ebfb98138b4514d2d4179e",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:6947b605efaf9c4ee08ae9243eeb39ee1587e85e911ee329eaddd4d9114e63ae",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v0",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:95acfb5fa272a4c7acc7f52d11f1ad0054b98152c45903cf3cb9430b4ab8c286"
+    },
+    {
+      "id": "contractDataManifest",
+      "path": "demos/zerobugs/control/snapback/generated/contract-data.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:7e1e6aaff8c68371de8bf55c0e02b332232627c507ebfb98138b4514d2d4179e",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:6947b605efaf9c4ee08ae9243eeb39ee1587e85e911ee329eaddd4d9114e63ae",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:8b9adc1269dc73e1a530fddbb7fbfa63a4eecf01bb2695cacdc866610fa04839"
+    },
+    {
+      "id": "artifactIndex",
+      "path": "demos/zerobugs/control/snapback/generated/artifacts.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:7e1e6aaff8c68371de8bf55c0e02b332232627c507ebfb98138b4514d2d4179e",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:6947b605efaf9c4ee08ae9243eeb39ee1587e85e911ee329eaddd4d9114e63ae",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:48dd8f7e7a87dce75e1d3d9dc6249b10a49739eb4bc29abb6509fd64089cdf51"
+    }
+  ],
+  "machineIdentity": {
+    "arch": "arm64",
+    "cpuCount": 18,
+    "hostnameSha256": "sha256:4a238cd09cfb162aa54334e6f1b3fba341960951bd6f36b2b01b6e77a72395c0",
+    "platform": "darwin"
+  },
+  "manifest": {
+    "id": "zerobugs-acceptance.v1",
+    "path": "demos/zerobugs/manifest/acceptance.v1.json",
+    "sha256": "sha256:3eb0280a5803da887cea371193f62ff372ac537efa24e7cd53b150afe0d1fc2c"
+  },
+  "network": "socket-free gate classification; no timing sample claimed",
+  "outcome": "GAP",
+  "rawArtifacts": [
+    {
+      "path": "demos/zerobugs/control/PLAN.md",
+      "sha256": "sha256:be36beb9c6939e993f2a64d7c0d9ce5672b2b4b1e15d941d10c4a87656829f90"
+    },
+    {
+      "path": "demos/zerobugs/control/composition/zerobugs-control-composition.v1.json",
+      "sha256": "sha256:f5c232abe1ec9a4ef72f9ca3479ff556b340f38ec48319e8d5946fecfd949de6"
+    },
+    {
+      "path": "demos/zerobugs/control/scripts/build-large-overlay.mts",
+      "sha256": "sha256:e0b7369049f69cba9bfa784af3c4efae44fe8460043d3c99c4df2ce7cc46f4ff"
+    },
+    {
+      "path": "demos/zerobugs/control/scripts/load-large-fixture.mts",
+      "sha256": "sha256:0c21bb7a1481ee177956bed60d8d34b38b701af62de5353e3596651c4f1a82af"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/artifacts.json",
+      "sha256": "sha256:48dd8f7e7a87dce75e1d3d9dc6249b10a49739eb4bc29abb6509fd64089cdf51"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/capability.manifest.json",
+      "sha256": "sha256:95acfb5fa272a4c7acc7f52d11f1ad0054b98152c45903cf3cb9430b4ab8c286"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/contract-data.manifest.json",
+      "sha256": "sha256:8b9adc1269dc73e1a530fddbb7fbfa63a4eecf01bb2695cacdc866610fa04839"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/functions.manifest.json",
+      "sha256": "sha256:539b30d277a9c280a11cd2074a6208e068daf239ab90807066648d6c1edd3b6b"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/schema.manifest.json",
+      "sha256": "sha256:beff7f5e99aef868060d9fcbddf8f111f0b2f49278ca48c9c53433901f10c179"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/gate-support.mjs",
+      "sha256": "sha256:52e514bc20ab2ac0dfba2639e7e07ac2f38f824836070c3847867afb221f2437"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs",
+      "sha256": "sha256:2d83f85e94d0b551d31c9e75b078c18134f711825d1c20ac5edc765e6d553629"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/fixtures/fixture-digests.json",
+      "sha256": "sha256:56afa56a74f0edddfd71ac0e7a09f5c12bc1e2eaed9e2be2f2ad6c84c31d38b3"
+    },
+    {
+      "path": "demos/zerobugs/manifest/acceptance.v1.json",
+      "sha256": "sha256:3eb0280a5803da887cea371193f62ff372ac537efa24e7cd53b150afe0d1fc2c"
+    },
+    {
+      "path": "demos/zerobugs/manifest/large-seed42-v1.receipt.json",
+      "sha256": "sha256:d9dfd4fde488a388502773f569e829746f66826ae0f9f47263d36eef7d625a8a"
+    },
+    {
+      "path": "demos/zerobugs/stage0/inventory.v1.json",
+      "sha256": "sha256:0d7233897864c39f99ef5c46946da21ddfc8a404e6f0441c741c02192a43eaa3"
+    },
+    {
+      "path": "guide/testing/acceptance.md",
+      "sha256": "sha256:36217c23daac04ad360ed0866a6f76a17fd59e9d7aa8afa340f36513a4c2db75"
+    }
+  ],
+  "refusalFacts": [
+    {
+      "blockers": [],
+      "id": "large-ingest-without-idempotent-batch-ledger",
+      "status": "refused"
+    },
+    {
+      "id": "large-full-corpus-readmodel-projection",
+      "owner": "control server/read-model ingestion lane",
+      "status": "gap"
+    },
+    {
+      "id": "performance-unfrozen-margin",
+      "status": "refused"
+    }
+  ],
+  "schemaVersion": "zerobugs-gate-receipt.v1",
+  "sourceAccounting": {
+    "batchMath": {
+      "batchesByTable": {
+        "comment": 2809,
+        "emoji": 2,
+        "issue": 1112,
+        "issueLabel": 2223,
+        "issueLabelRead": 3,
+        "issueListRead": 2,
+        "issueNotifications": 6,
+        "issueSearchDocument": 2,
+        "label": 6,
+        "project": 1,
+        "projectUserRead": 1,
+        "searchEpoch": 1,
+        "user": 1,
+        "userPref": 1,
+        "viewState": 6
+      },
+      "rowsByTable": {
+        "comment": 2527887,
+        "emoji": 1746,
+        "issue": 1000001,
+        "issueLabel": 2000370,
+        "issueLabelRead": 1992,
+        "issueListRead": 1000,
+        "issueNotifications": 5000,
+        "issueSearchDocument": 1000,
+        "label": 4810,
+        "project": 100,
+        "projectUserRead": 100,
+        "searchEpoch": 2,
+        "user": 100,
+        "userPref": 5,
+        "viewState": 5000
+      },
+      "totalBatches": 6176,
+      "totalRows": 5549113
+    },
+    "expectedChecks": 14,
+    "oracleBound": "W only",
+    "overlayCounts": {
+      "baseGenerated": 5533266,
+      "boundedProjectionRows": 4094,
+      "comment": 2527887,
+      "emoji": 1746,
+      "issue": 1000001,
+      "issueLabelRead": 1992,
+      "issueListRead": 1000,
+      "issueNotifications": 5000,
+      "issueSearchDocument": 1000,
+      "overlaySourceRows": 11753,
+      "projectUserRead": 100,
+      "searchEpoch": 2,
+      "userPref": 5,
+      "viewState": 5000
+    },
+    "rawSamples": 0,
+    "sourceCounts": {
+      "comment": 2527886,
+      "issue": 1000000,
+      "issueLabel": 2000370,
+      "label": 4810,
+      "project": 100,
+      "total": 5533266,
+      "user": 100
+    }
+  },
+  "startedAt": "2026-08-06T20:48:04.875Z",
+  "targetIdentity": {
+    "appId": "zerobugs-control",
+    "bundleHash": "snapback.v1:sessions:function:sha256:7e1e6aaff8c68371de8bf55c0e02b332232627c507ebfb98138b4514d2d4179e",
+    "id": "local-dev-sqlite-ibex",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:6947b605efaf9c4ee08ae9243eeb39ee1587e85e911ee329eaddd4d9114e63ae",
+    "mode": "fresh local Ibex plus SQLite server",
+    "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+    "schemaVersion": "snapback.v1"
+  },
+  "workarounds": [
+    {
+      "admittedBound": "working set W only",
+      "id": "W-READMODEL-LARGE-FULL-CORPUS",
+      "owner": "control server/read-model ingestion lane",
+      "status": "gap"
+    }
+  ]
+}

@@ -1,0 +1,278 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.snapback.dev/snapback.v0/control-catalog.v1.schema.json",
+  "title": "ControlCatalogV1",
+  "description": "LLP 0184 §Design/1. A checked join of every administrative operation's intent, status, authority, effects, input/output schemas, target availability, projections, guide anchor, and agent-access classification. The catalog is a projection of existing owners (LLP 0024 host-operation registry, LLP 0031 route registry, CLI/MCP/AdminClient/console declarations, the Guide manifest) and never a second operation or security authority (§Design/2). Two independent identities exist: the build catalog (this schema) carries schemaVersion/catalogDigest/build identity; the instance availability projection (control-catalog-instance.v1.schema.json) is a separate, smaller artifact served per running target.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "catalogDigest", "buildIdentity", "generatedAtCommit", "entries"],
+  "properties": {
+    "schemaVersion": { "const": "snapback.control-catalog.v1" },
+    "catalogDigest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "Content digest of the normalized `entries` array (JCS-canonicalized), computed by the compiler. Instance projections and clients pin against this to refuse a mismatched build/instance pairing (§Design/1)."
+    },
+    "buildIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceCommit"],
+      "properties": {
+        "sourceCommit": { "type": "string", "minLength": 7 },
+        "dirty": { "type": "boolean" }
+      }
+    },
+    "generatedAtCommit": {
+      "type": "string",
+      "description": "The commit the compiler ran against; informational, distinct from buildIdentity.sourceCommit which may differ for a dirty tree."
+    },
+    "entries": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ControlCatalogEntryV1" }
+    }
+  },
+  "$defs": {
+    "SurfaceAccess": {
+      "enum": ["native", "cliOnly", "mcpOnly", "apiOnly", "none"]
+    },
+    "Operability": {
+      "enum": ["direct", "mediated", "internal", "unavailable"]
+    },
+    "ApprovalPosture": {
+      "enum": ["open", "confirmFirst", "humanApprovalRequired"]
+    },
+    "MediatedHandoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["plan", "initiate", "status", "resume", "protectedArtifact", "negativeLeakTests"],
+      "properties": {
+        "plan": { "type": "string", "minLength": 1 },
+        "initiate": { "type": "string", "minLength": 1 },
+        "status": { "type": "string", "minLength": 1 },
+        "resume": { "type": "string", "minLength": 1 },
+        "protectedArtifact": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The secret, approval artifact, or external-custodian material the agent-facing projection must never receive."
+        },
+        "negativeLeakTests": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "description": "Checked-in witnesses proving the protected artifact stays out of the agent-facing projection."
+        }
+      },
+      "description": "LLP 0184 rule 6. Required for every mediated row so plan/initiate/status/resume and the negative custody witness remain catalog facts."
+    },
+    "RouteClassDomain": {
+      "description": "The domain this row's identity was drawn from (§3's completeness rules and §3a's fifth leg).",
+      "enum": [
+        "systemApi",
+        "hostOps",
+        "appEnsureProvisionException",
+        "cliOnlyDeclared",
+        "hostedAdapter"
+      ]
+    },
+    "Projections": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cli": { "type": ["string", "null"] },
+        "mcp": { "type": ["string", "null"] },
+        "hostOps": { "type": ["string", "null"] },
+        "http": { "type": ["string", "null"] },
+        "adminClient": { "type": ["string", "null"] },
+        "console": { "type": ["string", "null"] },
+        "hostedAdapter": { "type": ["string", "null"] }
+      }
+    },
+    "ControlCatalogEntryV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation",
+        "title",
+        "intents",
+        "status",
+        "domain",
+        "surfaceAccess",
+        "operability",
+        "availability",
+        "policy",
+        "behavior",
+        "projections",
+        "sources"
+      ],
+      "properties": {
+        "operation": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The stable operation identity. For a row keyed by an LLP 0024 host-op or LLP 0031 route/operation, this is that identity verbatim. For a hosted-adapter row, this is the manifest's `operation` field."
+        },
+        "title": { "type": "string", "minLength": 1 },
+        "intents": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 0,
+          "description": "Intent keywords for `controls list --intent`. Required (non-empty) for every surfaceAccess other than `none` (rule 4/5)."
+        },
+        "status": { "enum": ["shipped", "unbuilt"] },
+        "domain": { "$ref": "#/$defs/RouteClassDomain" },
+        "surfaceAccess": { "$ref": "#/$defs/SurfaceAccess" },
+        "operability": { "$ref": "#/$defs/Operability" },
+        "mediatedHandoff": { "$ref": "#/$defs/MediatedHandoff" },
+        "mcpDeferralReason": {
+          "type": "string",
+          "description": "Required when surfaceAccess is cliOnly (§Product contract)."
+        },
+        "cliDeferralReason": {
+          "type": "string",
+          "description": "Required when surfaceAccess is mcpOnly (§Product contract)."
+        },
+        "uiLocal": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reason"],
+          "properties": { "reason": { "type": "string", "minLength": 1 } },
+          "description": "Present only on a console/CLI/MCP/AdminClient enumeration entry that is deliberately NOT a catalog operation (rule 2/3)."
+        },
+        "internalReason": {
+          "type": "string",
+          "description": "Required when operability is internal (rule 7)."
+        },
+        "unavailableReason": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["owner", "note"],
+          "properties": {
+            "owner": { "type": "string", "minLength": 1 },
+            "ticketOrDesignPointer": { "type": ["string", "null"] },
+            "note": { "type": "string", "minLength": 1 }
+          },
+          "description": "Required when operability is unavailable (rule 7)."
+        },
+        "composedFrom": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "§Design/2: additive, alongside the row's own projections.hostOps/route identity, never a substitute for it. Used for host.restart's MCP projection (composed of host.stop + host.start)."
+        },
+        "hostOpsDisposition": {
+          "enum": ["served", "cliOnly", "pinnedUnbuilt"],
+          "description": "Projection of the LLP 0024 host-operation allowlist owning this hostOps row. Used by generated Guide inventories; absent for non-hostOps rows."
+        },
+        "registeredOperations": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "The LLP 0031 multiplexed operation identities registered for this hostOps request spelling. Generated from the registry export so Guide identity counts never parse Rust source text."
+        },
+        "availability": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["targets"],
+          "properties": {
+            "targets": {
+              "type": "array",
+              "items": { "enum": ["local", "derived-hosted", "primary-hosted"] },
+              "minItems": 1
+            },
+            "profiles": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "runtimeProbe": { "type": ["string", "null"] }
+          }
+        },
+        "policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["authority", "effect", "responseSensitivity"],
+          "properties": {
+            "authority": { "type": "string", "minLength": 1 },
+            "routePolicy": { "type": "string", "minLength": 1 },
+            "effect": { "type": "string", "minLength": 1 },
+            "responseSensitivity": { "type": "string", "minLength": 1 },
+            "projectionCredentials": {
+              "type": "object",
+              "description": "§Design/2's per-projection credential carrier disclosure — required whenever a row's projections disagree on gate (the host.restart case). Keys are projection names (cli/mcp/hostOps/http/adminClient/console/hostedAdapter).",
+              "additionalProperties": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "behavior": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["readOnly", "destructive", "approvalPosture", "idempotent", "openWorld", "persistsAcrossRestart"],
+          "properties": {
+            "readOnly": { "type": "boolean" },
+            "destructive": { "type": "boolean" },
+            "approvalPosture": {
+              "anyOf": [{ "$ref": "#/$defs/ApprovalPosture" }, { "type": "null" }]
+            },
+            "idempotent": { "type": "boolean" },
+            "openWorld": { "type": "boolean" },
+            "persistsAcrossRestart": { "type": "boolean" }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "destructive": { "const": true } } },
+              "then": { "properties": { "approvalPosture": { "not": { "type": "null" } } } }
+            }
+          ]
+        },
+        "inputSchema": {},
+        "outputSchema": {},
+        "genericInvoke": {
+          "type": "boolean",
+          "default": false,
+          "description": "§Design/4: allowlist for `snapback controls invoke`. Never true for mediated/destructive/internal/unavailable rows (checked by the compiler, not just this schema)."
+        },
+        "projections": { "$ref": "#/$defs/Projections" },
+        "guide": {
+          "type": ["string", "null"],
+          "description": "Guide anchor, e.g. operating/network-profiles.md#set-a-profile. Required (non-null) for every surfaceAccess other than none."
+        },
+        "authorities": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "remediation": {
+          "description": "Reserved; stays null/absent until LLP 0146 D7 lands a carrier (§Design/1).",
+          "type": "null"
+        },
+        "sources": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "pinned": {
+          "type": "boolean",
+          "description": "True when this row is refused promotion by the CredentialSecret/ImpersonationCapability rule (§Product contract) regardless of usage evidence."
+        },
+        "pinReason": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "surfaceAccess": { "const": "cliOnly" } } },
+          "then": { "required": ["mcpDeferralReason"] }
+        },
+        {
+          "if": { "properties": { "surfaceAccess": { "const": "mcpOnly" } } },
+          "then": { "required": ["cliDeferralReason"] }
+        },
+        {
+          "if": { "properties": { "operability": { "const": "internal" } } },
+          "then": { "required": ["internalReason"] }
+        },
+        {
+          "if": { "properties": { "operability": { "const": "unavailable" } } },
+          "then": { "required": ["unavailableReason"] }
+        },
+        {
+          "if": { "properties": { "operability": { "const": "mediated" } } },
+          "then": { "required": ["mediatedHandoff"] }
+        }
+      ]
+    }
+  }
+}

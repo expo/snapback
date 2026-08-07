@@ -38,6 +38,7 @@ const MICRO_CORE_MODULE = 'packages/snapback-client/micro-core.mjs';
 const MICRO_LIVE_MODULE = 'packages/snapback-client/micro-live.mjs';
 const STORE_RUNTIME_MODULE = 'packages/snapback-client/store-runtime.mjs';
 const REACT_RUNTIME_MODULE = 'packages/snapback-react/react-runtime.mjs';
+const REACT_BINDING_HMR_MODULE = 'packages/snapback-client/react-binding-hmr.mjs';
 const FINITE_CARRIER_MODULE = 'packages/snapback-client/finite-completeness-carrier.mjs';
 const MATERIALIZATION_RUNTIME_MODULE =
   'packages/snapback-client/materialization-store-runtime.mjs';
@@ -100,9 +101,29 @@ const RESOLVED_NARROW_SUBPATH_PROFILES = Object.freeze(
     resolveOptionalRuntimes: true,
   })),
 );
-const RESOLVED_NARROW_SUBPATH_PROFILE_IDS = Object.freeze(
-  RESOLVED_NARROW_SUBPATH_PROFILES.map((profile) => profile.id),
+// This immutable receipt predates the commands export. Keep its exact nine
+// profiles stable; each later export receives its own prospective additive
+// receipt instead of mutating historical first-run evidence.
+const LOCAL_SYNC_ABSENCE_V1_PROFILE_IDS = Object.freeze([
+  'resolved-public-subpath-agent-authority',
+  'resolved-public-subpath-assets',
+  'resolved-public-subpath-canonical-client-value',
+  'resolved-public-subpath-external-store',
+  'resolved-public-subpath-micro',
+  'resolved-public-subpath-micro-core',
+  'resolved-public-subpath-micro-live',
+  'resolved-public-subpath-push-installation-expo',
+  'resolved-public-subpath-search',
+]);
+const LOCAL_SYNC_ABSENCE_V1_PROFILES = Object.freeze(
+  RESOLVED_NARROW_SUBPATH_PROFILES.filter(
+    (profile) => LOCAL_SYNC_ABSENCE_V1_PROFILE_IDS.includes(profile.id),
+  ),
 );
+const COMMANDS_LOCAL_SYNC_ABSENCE_PROFILE_IDS = Object.freeze([
+  'public-subpath-commands',
+  'resolved-public-subpath-commands',
+]);
 const BEHAVIOR_COMMANDS = Object.freeze([
   ['node', ['packages/snapback-client/package.test.mjs']],
   ['node', ['packages/snapback-client/browser-closure.test.mjs']],
@@ -256,8 +277,8 @@ const SUPPLEMENTAL_LEDGER_SPECS = Object.freeze([
   Object.freeze({
     filename: 'baseline.local-sync-absence.v1.json',
     profileFilename: 'local-sync-absence-profiles.v1.json',
-    profileIds: RESOLVED_NARROW_SUBPATH_PROFILE_IDS,
-    derivedProfiles: RESOLVED_NARROW_SUBPATH_PROFILES,
+    profileIds: LOCAL_SYNC_ABSENCE_V1_PROFILE_IDS,
+    derivedProfiles: LOCAL_SYNC_ABSENCE_V1_PROFILES,
     authorities: Object.freeze([
       'LLP 0145#phase-a--establish-a-size-ratchet',
       'LLP 0063#workstream-8--performance-and-packaging-budgets',
@@ -265,6 +286,21 @@ const SUPPLEMENTAL_LEDGER_SPECS = Object.freeze([
     ]),
     behaviorCommands: Object.freeze([
       ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.s2-commands.v1.json',
+    profileFilename: 's2-commands-profiles.v1.json',
+    profileIds: COMMANDS_LOCAL_SYNC_ABSENCE_PROFILE_IDS,
+    authorities: Object.freeze([
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0179#s2--command-member-and-wider-consumers',
+      'LLP 0180#acceptance',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/commands.test.mjs']],
       ['node', ['packages/snapback-client/browser-closure.test.mjs']],
     ]),
   }),
@@ -403,6 +439,35 @@ const POST_FFEE_ROLLOVER_PROFILE_IDS = Object.freeze([
   ...POST_FFEE_FINITE_PREDECESSOR_PROFILE_IDS,
   ...POST_FFEE_PRIMARY_PREDECESSOR_PROFILE_IDS,
 ].toSorted());
+const OPERATION_IDENTITY_CARRIER_ROLLOVER_PROFILE_IDS = Object.freeze([
+  'public-subpath-outbox-shared',
+  'public-subpath-rqs-registered',
+  'public-subpath-rqs-store',
+  'public-subpath-rqs-store-default',
+  'public-subpath-rqs-store-expo',
+  'public-subpath-rqs-store-file',
+]);
+const CLIENT_BUNDLE_DISPOSITION_ROLLOVER_PROFILE_IDS = Object.freeze([
+  'external-react-application',
+  'public-subpath-assets',
+  'public-subpath-outbox-shared',
+  'public-subpath-rqs-registered',
+  'public-subpath-rqs-store',
+  'public-subpath-rqs-store-default',
+  'public-subpath-rqs-store-expo',
+  'public-subpath-rqs-store-file',
+  'react-external',
+  'resolved-public-subpath-assets',
+]);
+const CLIENT_BUNDLE_G3_E2_DISPOSITION_ROLLOVER_PROFILE_IDS = Object.freeze([
+  'external-react-application',
+  'public-subpath-assets',
+  'public-subpath-commands',
+  'public-subpath-ir-evaluator',
+  'react-external',
+  'resolved-public-subpath-assets',
+  'resolved-public-subpath-commands',
+]);
 const ROLLOVER_LEDGER_SPECS = Object.freeze([
   Object.freeze({
     filename: 'baseline.local-persistent-store.v1.json',
@@ -683,6 +748,189 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-client/demand-broker.test.mjs']],
     ]),
   }),
+  Object.freeze({
+    filename: 'baseline.operation-identity-carrier.v1.json',
+    profileFilename: 'operation-identity-carrier-profiles.v1.json',
+    workloadVersion: 'llp-0163-operation-identity-carrier.v1',
+    profileIds: OPERATION_IDENTITY_CARRIER_ROLLOVER_PROFILE_IDS,
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.move3-single-table-lifecycle.v1.json',
+        profileIds: Object.freeze([
+          'public-subpath-outbox-shared',
+          'public-subpath-rqs-store',
+          'public-subpath-rqs-store-default',
+          'public-subpath-rqs-store-expo',
+          'public-subpath-rqs-store-file',
+        ]),
+      }),
+      Object.freeze({
+        filename: 'baseline.result-transform.v1.json',
+        profileIds: Object.freeze(['public-subpath-rqs-registered']),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0163#implementation-record--2026-08-04-lifecycle-and-atomic-envelope-tail',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-05',
+      summary: 'LLP 0163 deliberately adds authenticated finite-range custody and durable result-gone settlement to the shared outbox and all persistent-store arms. The rollover advances only the six measured closures whose valid ceilings the combined implementation exceeds; every predecessor receipt remains immutable.',
+    }),
+    beforeAfterProfileIds: OPERATION_IDENTITY_CARRIER_ROLLOVER_PROFILE_IDS,
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+      ['node', ['packages/snapback-client/outbox-store.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-store-file.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.client-bundle-disposition.v1.json',
+    profileFilename: 'client-bundle-disposition-profiles.v1.json',
+    workloadVersion: 'client-bundle-ratchet-disposition.2026-08-06.v1',
+    profileIds: CLIENT_BUNDLE_DISPOSITION_ROLLOVER_PROFILE_IDS,
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.v1.json',
+        profileIds: Object.freeze(['public-subpath-assets']),
+      }),
+      Object.freeze({
+        filename: 'baseline.local-sync-absence.v1.json',
+        profileIds: Object.freeze(['resolved-public-subpath-assets']),
+      }),
+      Object.freeze({
+        filename: 'baseline.move3-single-table-lifecycle.v1.json',
+        profileIds: Object.freeze([
+          'external-react-application',
+          'react-external',
+        ]),
+      }),
+      Object.freeze({
+        filename: 'baseline.operation-identity-carrier.v1.json',
+        profileIds: OPERATION_IDENTITY_CARRIER_ROLLOVER_PROFILE_IDS,
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0081#4-execution-journaling-and-crash-recovery',
+      'LLP 0114#mounted-provider-hmr-generation-handoff-dated-amendment-2026-08-05',
+      'LLP 0163#implementation-record--2026-08-06-c33-dual-ready-landing-chain',
+      'LLP 0179#react-projection',
+      'LLP 0180#react-and-surface-projections',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-06',
+      classification: 'mixed: accidental HMR closure fixed; later accepted capability growth rolled prospectively',
+      accidentalClosureFix: 'The 8ce5ca33e HMR handoff statically pulled the result-contract compiler, RQS hashing, and complete re-admission loop into every React entry. react-binding-hmr.mjs now remains behind a literal development-only dynamic import, so none of those bytes are included in this successor ceiling.',
+      legitimateGrowth: 'The remaining React mass is the accepted LLP 0179 provider.surface/useSurface composition and LLP 0180 synchronous CommandTask projection, including its asset client. Moving that implementation behind an asynchronous boundary would change provider.surface(...) and start(...) returning a ready binding/task synchronously; a narrow compatibility-preserving React entry requires a separate composition design and is tracked in issues/20260806-react-optional-capability-composition.md.',
+      smallDriftDisposition: 'The operation-lifecycle, tombstone/re-entry, assets, and retained-store correctness changes are the measured small-drift cluster. They are real shipped client behavior, so exactly their affected profiles advance while all unrelated ceilings and historical receipts remain immutable.',
+      summary: 'This disposition removes the accidental 35% HMR closure step, then records only the remaining accepted August client capability and correctness mass across the ten profiles that still exceed their active ceilings.',
+    }),
+    beforeAfterProfileIds: CLIENT_BUNDLE_DISPOSITION_ROLLOVER_PROFILE_IDS,
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+      ['node', ['packages/snapback-client/assets.test.mjs']],
+      ['node', ['packages/snapback-client/commands.test.mjs']],
+      ['node', ['packages/snapback-client/outbox-store.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-store.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-store-file.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-react/commands.test.mjs']],
+      ['node', ['packages/snapback-react/hmr-generation-handoff.test.mjs']],
+      ['node', ['packages/snapback-react/surface.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.client-bundle-disposition.v2.json',
+    profileFilename: 'client-bundle-disposition-profiles.v1.json',
+    workloadVersion: 'client-bundle-ratchet-disposition.2026-08-06.v2',
+    profileIds: CLIENT_BUNDLE_G3_E2_DISPOSITION_ROLLOVER_PROFILE_IDS,
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.client-bundle-disposition.v1.json',
+        profileIds: Object.freeze([
+          'external-react-application',
+          'public-subpath-assets',
+          'react-external',
+          'resolved-public-subpath-assets',
+        ]),
+      }),
+      Object.freeze({
+        filename: 'baseline.s2-commands.v1.json',
+        profileIds: Object.freeze([
+          'public-subpath-commands',
+          'resolved-public-subpath-commands',
+        ]),
+      }),
+      Object.freeze({
+        filename: 'baseline.local-read-admission.v1.json',
+        profileIds: Object.freeze(['public-subpath-ir-evaluator']),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0176#g3--one-online-image-send-command',
+      'LLP 0180#input-and-platform-adapters',
+      'LLP 0180#authority-and-replacement',
+      'LLP 0180#react-and-surface-projections',
+      'LLP 0181#e2--online-asset-command',
+      'LLP 0059#cross-context-ownership',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-06',
+      classification: 'reviewed G3/E2 capability and command-lifecycle growth; no assets-subpath import leak found',
+      reviewNote: 'The post-E2 module-attribution review found that both assets-only profiles still contain exactly assets.mjs plus their fixture. CommandAssetSource and the Expo picker types are declaration-only; neither commands.mjs nor @expo/snapback-expo crosses the assets export boundary. The 588 minified bytes are the asset owner\'s host-fetch seam and public-immutable delivery URL, both exercised by the landed E2/G3 behavior, so removing them would change that behavior rather than repair an import leak.',
+      landedFeatures: Object.freeze({
+        g3: '17e7ca8ca feat(client,react,codegen,runtime): image-send command core + S2 commands admission',
+        e2: '47b4a59ac feat(expo,fixture): E2 picker adapter + G3 platform receipts',
+        commandLifecycle: '02bf40745 fix(client,react): fence command tasks on disposal and stop reporting false ambiguity',
+        authCompressionDrift: 'f782431bd fix(auth): custody lock must not span the transition participant barrier',
+      }),
+      perProfileDisposition: Object.freeze([
+        Object.freeze({
+          profiles: Object.freeze(['public-subpath-assets', 'resolved-public-subpath-assets']),
+          decision: 'ratify',
+          justification: '47b4a59ac added the generic host-fetch seam used by Expo binary TUS transport and public-immutable rendition URL construction; attribution proves no command or Expo adapter module is present in either assets-only closure.',
+        }),
+        Object.freeze({
+          profiles: Object.freeze(['public-subpath-commands', 'resolved-public-subpath-commands']),
+          decision: 'ratify',
+          justification: '47b4a59ac added platform-source normalization to the 17e7ca8ca command engine, and 02bf40745 added the required disposal/authority fence and truthful settlement handling.',
+        }),
+        Object.freeze({
+          profiles: Object.freeze(['external-react-application', 'react-external']),
+          decision: 'ratify',
+          justification: 'The React closure composes LLP 0179 useSurface/useSnapbackCommand, the 47b4a59ac asset-source and public-delivery projections, and the 02bf40745 provider-disposal fence.',
+        }),
+        Object.freeze({
+          profiles: Object.freeze(['public-subpath-ir-evaluator']),
+          decision: 'ratify compressed-output-only drift',
+          justification: 'f782431bd changed reachable auth-coordinator correctness code; minified and gzip bytes remain identical while Brotli increases by one byte. No evaluator capability or closure module was added.',
+        }),
+      ]),
+      summary: 'Advance exactly the seven profiles changed by the landed G3/E2 and command-lifecycle work, plus the one-byte reachable-auth compression residue; every predecessor and all unaffected ceilings remain immutable.',
+    }),
+    beforeAfterProfileIds: CLIENT_BUNDLE_G3_E2_DISPOSITION_ROLLOVER_PROFILE_IDS,
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+      ['node', ['packages/snapback-client/assets.test.mjs']],
+      ['node', ['packages/snapback-client/commands.test.mjs']],
+      ['node', ['packages/snapback-client/ir-evaluator.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-react/assets.test.mjs']],
+      ['node', ['packages/snapback-react/commands.test.mjs']],
+      ['node', ['packages/snapback-react/surface.test.mjs']],
+      ['node', ['packages/snapback-expo/package.test.mjs']],
+      ['node', ['packages/snapback-expo/asset-source.test.mjs']],
+      ['node', ['packages/snapback-expo/provider.test.mjs']],
+    ]),
+  }),
 ]);
 
 function fail(message) {
@@ -699,6 +947,10 @@ function sha256(bytes) {
 
 function gitText(args) {
   return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).trim();
+}
+
+function gitBytes(args) {
+  return execFileSync('git', args, { cwd: ROOT });
 }
 
 function baselineSourceProvenance() {
@@ -723,6 +975,47 @@ function validateBaselineSource(source) {
       `baseline package tree provenance for ${path}`,
     );
   }
+}
+
+function ledgerCarrierRevision(ledgerFilename, uncommittedCarrierRevision = null) {
+  const revisions = gitText([
+    'log',
+    '--diff-filter=A',
+    '--format=%H',
+    '--',
+    `tests/fixtures/client-bundle-metrology/${ledgerFilename}`,
+  ]).split('\n').filter(Boolean);
+  if (revisions.length === 0 && uncommittedCarrierRevision !== null) {
+    assert.equal(
+      uncommittedCarrierRevision,
+      gitText(['rev-parse', 'HEAD']),
+      `${ledgerFilename}: uncommitted write carrier is the exact committed source head`,
+    );
+    return uncommittedCarrierRevision;
+  }
+  assert.equal(revisions.length, 1, `${ledgerFilename}: one reachable carrier introduction`);
+  return revisions[0];
+}
+
+function validateFrozenInputs(
+  inputs,
+  profileFilename,
+  ledgerFilename,
+  label,
+  uncommittedCarrierRevision = null,
+) {
+  const carrierRevision = ledgerCarrierRevision(ledgerFilename, uncommittedCarrierRevision);
+  assert.deepEqual(
+    inputs,
+    {
+      profilesSha256: sha256(gitBytes([
+        'show',
+        `${carrierRevision}:tests/fixtures/client-bundle-metrology/${profileFilename}`,
+      ])),
+      lockfileSha256: sha256(gitBytes(['show', `${carrierRevision}:bun.lock`])),
+    },
+    `${label} frozen input digests`,
+  );
 }
 
 function normalizePath(path) {
@@ -788,7 +1081,7 @@ const optionalRuntimeBoundaries = {
   name: 'snapback-client-metrology-optional-runtime-boundaries',
   setup(buildContext) {
     buildContext.onResolve({
-      filter: /^\.\/(?:store-runtime|react-runtime|finite-completeness-carrier|materialization-store-runtime)\.mjs$/,
+      filter: /^\.\/(?:store-runtime|react-runtime|react-binding-hmr|finite-completeness-carrier|materialization-store-runtime)\.mjs$/,
     }, (args) => (
       args.kind === 'dynamic-import' ? { path: args.path, external: true } : null
     ));
@@ -1186,6 +1479,11 @@ function assertStoreRuntimeClosure(profiles) {
       `${profile.id}: optional React failure/development runtime stays outside the static entry closure`,
     );
     assert.equal(
+      Object.hasOwn(profile.metafile.inputs, REACT_BINDING_HMR_MODULE),
+      false,
+      `${profile.id}: optional React binding HMR runtime stays outside the static entry closure`,
+    );
+    assert.equal(
       Object.hasOwn(profile.metafile.inputs, FINITE_CARRIER_MODULE),
       false,
       `${profile.id}: optional finite carrier verifier stays outside the static entry closure`,
@@ -1206,6 +1504,18 @@ function assertStoreRuntimeClosure(profiles) {
     )),
     'root retains one external dynamic store-runtime boundary',
   );
+  for (const id of ['external-react-application', 'react-external']) {
+    const react = profiles.find((profile) => profile.id === id);
+    assert.ok(react, `${id}: React profile is present`);
+    assert.ok(
+      react.metafile.output.imports.some((entry) => (
+        entry.kind === 'dynamic-import'
+        && entry.external === true
+        && entry.path === './react-binding-hmr.mjs'
+      )),
+      `${id}: retains one external dynamic React binding HMR boundary`,
+    );
+  }
 }
 
 function assertResolvedNarrowSubpathAbsence(profiles) {
@@ -1473,9 +1783,14 @@ function compactBaseline(report, profiles) {
 function validateMainBaseline(report, baseline) {
   assert.equal(baseline.schemaVersion, 'snapback.client-bundle-metrology-baseline.v1');
   validateBaselineSource(baseline.source);
+  validateFrozenInputs(
+    baseline.inputs,
+    'profiles.v1.json',
+    'baseline.v1.json',
+    'primary baseline',
+  );
   assert.deepEqual(report.authorities, baseline.authorities, 'baseline authorities');
   assert.deepEqual(report.method, baseline.method, 'baseline measurement method');
-  assert.deepEqual(report.inputs, baseline.inputs, 'baseline input digests');
   assert.deepEqual(report.behaviorCommands, baseline.behaviorCommands, 'baseline behavior commands');
 }
 
@@ -1485,11 +1800,16 @@ function validateSupplementalBaseline(report, spec, supplemental) {
     'snapback.client-bundle-metrology-supplemental-baseline.v1',
   );
   validateBaselineSource(supplemental.source);
+  validateFrozenInputs(
+    supplemental.inputs,
+    spec.profileFilename,
+    spec.filename,
+    spec.filename,
+  );
   const evidence = report.additiveLedgers.find((entry) => entry.filename === spec.filename);
   assert.ok(evidence, `${spec.filename}: additive evidence`);
   assert.deepEqual(spec.authorities, supplemental.authorities, 'supplemental authorities');
   assert.deepEqual(report.method, supplemental.method, 'supplemental measurement method');
-  assert.deepEqual(evidence.inputs, supplemental.inputs, 'supplemental inputs');
   assert.deepEqual(
     evidence.behaviorCommands,
     supplemental.behaviorCommands,
@@ -1526,12 +1846,19 @@ function validateSupplementalBaseline(report, spec, supplemental) {
   }
 }
 
-function validateRolloverBaseline(report, spec, rollover) {
+function validateRolloverBaseline(report, spec, rollover, uncommittedCarrierRevision = null) {
   assert.equal(
     rollover.schemaVersion,
     'snapback.client-bundle-metrology-rollover-baseline.v1',
   );
   validateBaselineSource(rollover.source);
+  validateFrozenInputs(
+    rollover.inputs,
+    spec.profileFilename,
+    spec.filename,
+    spec.filename,
+    uncommittedCarrierRevision,
+  );
   const evidence = report.rolloverLedgers.find((entry) => entry.filename === spec.filename);
   assert.ok(evidence, `${spec.filename}: rollover evidence`);
   assert.deepEqual(spec.authorities, rollover.authorities, `${spec.filename}: authorities`);
@@ -1552,7 +1879,6 @@ function validateRolloverBaseline(report, spec, rollover) {
     `${spec.filename}: immutable predecessor receipts`,
   );
   assert.deepEqual(report.method, rollover.method, `${spec.filename}: measurement method`);
-  assert.deepEqual(evidence.inputs, rollover.inputs, `${spec.filename}: inputs`);
   assert.deepEqual(
     evidence.behaviorCommands,
     rollover.behaviorCommands,
@@ -1682,12 +2008,23 @@ function activeBaselineEntries(
   }));
 }
 
-function compareToBaselines(report, baseline, supplementals, rollovers) {
+function compareToBaselines(
+  report,
+  baseline,
+  supplementals,
+  rollovers,
+  { uncommittedCarrierRevisions = new Map() } = {},
+) {
   for (const { spec, baseline: supplemental } of supplementals) {
     validateSupplementalBaseline(report, spec, supplemental);
   }
   for (const { spec, baseline: rollover } of rollovers) {
-    validateRolloverBaseline(report, spec, rollover);
+    validateRolloverBaseline(
+      report,
+      spec,
+      rollover,
+      uncommittedCarrierRevisions.get(spec.filename) ?? null,
+    );
   }
   compareProfiles(
     report,
@@ -1767,6 +2104,7 @@ function stableJson(value) {
 
 const mode = process.argv[2] ?? '--check';
 if (![
+  '--report',
   '--check',
   '--check-primary',
   '--write-baseline',
@@ -1774,11 +2112,19 @@ if (![
   '--write-supplemental-baseline',
   '--write-rollover-baseline',
 ].includes(mode)) {
-  console.error('usage: node scripts/client-bundle-metrology.mjs [--check|--check-primary|--write-baseline|--write-current|--write-supplemental-baseline|--write-rollover-baseline]');
+  console.error('usage: node scripts/client-bundle-metrology.mjs [--report|--check|--check-primary|--write-baseline|--write-current|--write-supplemental-baseline|--write-rollover-baseline]');
   process.exit(2);
 }
 
 const report = await measure();
+if (mode === '--report') {
+  await new Promise((resolve, reject) => {
+    process.stdout.write(stableJson(report), (error) => (
+      error ? reject(error) : resolve()
+    ));
+  });
+  process.exit(0);
+}
 if (mode === '--write-baseline') {
   if (existsSync(BASELINE_PATH)) fail('baseline.v1.json already exists; the first-run baseline is immutable');
   const additiveIds = new Set(additiveProfileIds());
@@ -1891,7 +2237,14 @@ if (mode === '--write-rollover-baseline') {
   runBehaviorTrain();
   writeFileSync(join(FIXTURE_DIR, spec.filename), stableJson(rollover));
   const frozenRollovers = readRolloverBaselines();
-  compareToBaselines(report, baseline, supplementals, frozenRollovers);
+  compareToBaselines(report, baseline, supplementals, frozenRollovers, {
+    // The documented write protocol commits implementation, declaration,
+    // inventory, and authorities before minting the immutable receipt. During
+    // this final self-check the new receipt cannot yet have a Git carrier, so
+    // bind it to that exact committed source head. Ordinary --check calls pass
+    // no override and still require one reachable carrier introduction.
+    uncommittedCarrierRevisions: new Map([[spec.filename, rollover.source.revision]]),
+  });
   writeFileSync(
     CURRENT_PATH,
     stableJson(withSavings(report, baseline, supplementals, frozenRollovers)),

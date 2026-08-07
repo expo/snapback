@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 
 // The local capability publication carriers pin the sha256 of every executor,
-// schema, and client source they were published from, and src/manifest.rs
-// plus each conformance test pin the carrier's own digest. Any landing that
-// edits one of those sources leaves the chain stale and the conformance
-// corpus refuses.
+// schema, and client source they were published from. Most carriers are
+// digest-pinned by src/manifest.rs plus their conformance test; the persistent
+// store uses a source-owned anchor so its evidence can rotate without changing
+// executable or conformance bytes. Any landing that edits a pinned source
+// leaves the chain stale and the conformance corpus refuses.
 //
 // Refreshing is mechanical — recompute the source digests, then the carrier
 // digest, then rewrite the files that carry them — but it had been done
@@ -35,37 +36,23 @@ const CARRIERS = [
     receipt: 'tests/conformance/sequence-allocation-publication-v1.receipt.json',
   },
   {
+    anchor: 'src/local-persistent-store-publication.anchor.v1.json',
     carrier: 'src/local-persistent-store-publication.v1.json',
     test: 'tests/conformance/local-persistent-store-publication-v1.mjs',
     receipts: [
       {
         field: 'qualificationReceiptSha256',
-        latest: {
-          directory: 'tests/acceptance/fixtures/local-persistent-store',
-          stem: 'carrier-exit',
-        },
-        manifestIncludePrefix: '../tests/acceptance/fixtures/local-persistent-store/carrier-exit.',
-        testIncludePrefix: '../acceptance/fixtures/local-persistent-store/carrier-exit.',
+        path: 'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json',
       },
       {
         field: 'supportingReceiptSha256',
         key: 'triageBudgetFreeze',
-        latest: {
-          directory: 'tests/acceptance/fixtures/triage-graph',
-          stem: 'budget-freeze',
-          pairedStem: 'move1-exit',
-        },
-        manifestIncludePrefix: '../tests/acceptance/fixtures/triage-graph/budget-freeze.',
+        path: 'tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json',
       },
       {
         field: 'supportingReceiptSha256',
         key: 'triageMove1Exit',
-        latest: {
-          directory: 'tests/acceptance/fixtures/triage-graph',
-          stem: 'move1-exit',
-          pairedStem: 'budget-freeze',
-        },
-        manifestIncludePrefix: '../tests/acceptance/fixtures/triage-graph/move1-exit.',
+        path: 'tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json',
       },
     ],
   },
@@ -149,13 +136,21 @@ const MANIFEST = join(ROOT, 'src/manifest.rs');
 
 for (const entry of CARRIERS) {
   const carrierPath = join(ROOT, entry.carrier);
-  const readers = [MANIFEST, join(ROOT, entry.test)];
+  const readers = entry.anchor
+    ? [join(ROOT, entry.anchor)]
+    : [MANIFEST, join(ROOT, entry.test)];
   const carrierDigestBefore = digestOf(carrierPath);
   let carrierText = readFileSync(carrierPath, 'utf8');
   const carrier = JSON.parse(carrierText);
   let manifestText = readFileSync(MANIFEST, 'utf8');
   const testPath = join(ROOT, entry.test);
   let testText = readFileSync(testPath, 'utf8');
+  if (entry.anchor) {
+    const anchor = JSON.parse(readFileSync(join(ROOT, entry.anchor), 'utf8'));
+    if (anchor.carrierSha256 !== carrierDigestBefore) {
+      throw new Error(`${entry.anchor}: carrier digest does not match ${entry.carrier}`);
+    }
+  }
 
   const refreshed = [];
   for (const group of ['executorSourceSha256', 'schemaSourceSha256', 'clientSourceSha256']) {

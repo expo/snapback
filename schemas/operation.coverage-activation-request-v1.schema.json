@@ -1,0 +1,43 @@
+{
+  "$defs": {
+    "OperationCoverageActivationProfileV1": {
+      "description": "The exact manifest cut published by the v1 command. The name deliberately\nsays envelope-mapped writers rather than complete target coverage: excluded\napp-effective writers remain visible and fail closed after publication.",
+      "enum": [
+        "local-envelope-mapped-writers.v1"
+      ],
+      "type": "string"
+    },
+    "OperationCoverageActivationTargetV1": {
+      "description": "The exact target accepted by the v1 coverage-publication command. A closed\nenum keeps a future target from inheriting the local SQLite inventory by\nstring convention.",
+      "enum": [
+        "local-dev-sqlite-ibex"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/operation.coverage-activation-request-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Explicit operator request for the local target's closed envelope-writer\ncut. Publication is never an implicit side effect of database open, range\nissuance, or capability inspection.\n\n@ref LLP 0162#acceptance — row 4 requires target-exact coverage and stable\n  exclusion of every app-effective writer outside the manifest.",
+  "properties": {
+    "coverageProfile": {
+      "$ref": "#/$defs/OperationCoverageActivationProfileV1"
+    },
+    "schemaVersion": {
+      "default": 1,
+      "format": "uint32",
+      "maximum": 1,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "targetProfileId": {
+      "$ref": "#/$defs/OperationCoverageActivationTargetV1"
+    }
+  },
+  "required": [
+    "targetProfileId",
+    "coverageProfile"
+  ],
+  "title": "OperationCoverageActivationRequestV1",
+  "type": "object"
+}

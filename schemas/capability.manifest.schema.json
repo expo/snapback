@@ -1,5 +1,434 @@
 {
   "$defs": {
+    "AgentSafeActionReplayClassV1": {
+      "enum": [
+        "Missing",
+        "Nondeterministic"
+      ],
+      "type": "string"
+    },
+    "AgentSafeAggregateFactsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "core": {
+          "$ref": "#/$defs/AgentSafeAggregateStateV1"
+        },
+        "history": {
+          "$ref": "#/$defs/AgentSafeAggregateStateV1"
+        }
+      },
+      "required": [
+        "core",
+        "history"
+      ],
+      "type": "object"
+    },
+    "AgentSafeAggregateStateV1": {
+      "enum": [
+        "Missing",
+        "Supported"
+      ],
+      "type": "string"
+    },
+    "AgentSafeCapabilityExtensionV1": {
+      "additionalProperties": false,
+      "description": "Rust-owned LLP 0162 §8 capability extension. Its public constructors are\ndeliberately Missing-only until a later digest-bound publication carrier\nsupplies a validated candidate for one named target.\n\n@ref LLP 0162#8-capability-honesty — target support and app-effective\ncoverage are separate, every class is closed, and specialized lane gaps\nremain visible without silently widening the core aggregate.",
+      "properties": {
+        "appEffective": {
+          "$ref": "#/$defs/AgentSafeCapabilityFactsV1"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/AgentSafeCapabilitySchemaVersion"
+        },
+        "target": {
+          "$ref": "#/$defs/AgentSafeCapabilityFactsV1"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "target",
+        "appEffective"
+      ],
+      "type": "object"
+    },
+    "AgentSafeCapabilityFactsV1": {
+      "additionalProperties": false,
+      "description": "One projection of the component and aggregate facts. The target projection\nreports installed and qualified machinery; `appEffective` separately\nreports what the current app actually exercises.",
+      "properties": {
+        "aggregate": {
+          "$ref": "#/$defs/AgentSafeAggregateFactsV1"
+        },
+        "diff": {
+          "$ref": "#/$defs/AgentSafeDiffFactsV1"
+        },
+        "envelope": {
+          "$ref": "#/$defs/AgentSafeEnvelopeCoverageByScopeV1"
+        },
+        "explanation": {
+          "$ref": "#/$defs/AgentSafeExplanationFactsV1"
+        },
+        "forks": {
+          "$ref": "#/$defs/AgentSafeForkFactsV1"
+        },
+        "history": {
+          "$ref": "#/$defs/AgentSafeHistoryClassV1"
+        },
+        "proof": {
+          "$ref": "#/$defs/AgentSafeProofClassV1"
+        },
+        "replay": {
+          "$ref": "#/$defs/AgentSafeReplayFactsV1"
+        },
+        "resourceBounds": {
+          "$ref": "#/$defs/AgentSafeResourceBoundClassV1"
+        },
+        "schemaEvolution": {
+          "$ref": "#/$defs/AgentSafeSchemaEvolutionClassV1"
+        }
+      },
+      "required": [
+        "envelope",
+        "explanation",
+        "forks",
+        "diff",
+        "history",
+        "proof",
+        "replay",
+        "schemaEvolution",
+        "resourceBounds",
+        "aggregate"
+      ],
+      "type": "object"
+    },
+    "AgentSafeCapabilitySchemaVersion": {
+      "description": "Version discriminator for the orthogonal agent-safe storage fact block.\nThis is intentionally independent of [`TargetCapabilityId`]: class facts\nare multi-valued observations, not boolean support-registry membership.",
+      "enum": [
+        "agentSafe.v1"
+      ],
+      "type": "string"
+    },
+    "AgentSafeDiffCoverageV1": {
+      "enum": [
+        "Missing",
+        "Exact"
+      ],
+      "type": "string"
+    },
+    "AgentSafeDiffFactsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/AgentSafeDiffCoverageV1"
+        },
+        "effects": {
+          "$ref": "#/$defs/AgentSafeDiffCoverageV1"
+        }
+      },
+      "required": [
+        "data",
+        "effects"
+      ],
+      "type": "object"
+    },
+    "AgentSafeEnvelopeCoverageByAdapterV1": {
+      "additionalProperties": false,
+      "description": "Fixed durable-lane inventory. Specialized lanes remain first-class facts\neven though their absence does not block the v1 core aggregate.",
+      "properties": {
+        "hostPlan": {
+          "$ref": "#/$defs/AgentSafeEnvelopeCoverageV1"
+        },
+        "ibexBuffered": {
+          "$ref": "#/$defs/AgentSafeEnvelopeCoverageV1"
+        }
+      },
+      "required": [
+        "hostPlan",
+        "ibexBuffered"
+      ],
+      "type": "object"
+    },
+    "AgentSafeEnvelopeCoverageByScopeV1": {
+      "additionalProperties": false,
+      "description": "Exact logical-lane x physical-adapter coverage. The ordinary and Host\nnamespaces each have both execution adapters; collapsing either axis would\nlet one green writer silently stand in for another.",
+      "properties": {
+        "auth": {
+          "$ref": "#/$defs/AgentSafeEnvelopeCoverageV1"
+        },
+        "durableBackgroundWork": {
+          "$ref": "#/$defs/AgentSafeEnvelopeCoverageV1"
+        },
+        "hostChildMutation": {
+          "$ref": "#/$defs/AgentSafeEnvelopeCoverageByAdapterV1"
+        },
+        "migration": {
+          "$ref": "#/$defs/AgentSafeEnvelopeCoverageV1"
+        },
+        "ordinaryMutation": {
+          "$ref": "#/$defs/AgentSafeEnvelopeCoverageByAdapterV1"
+        },
+        "push": {
+          "$ref": "#/$defs/AgentSafeEnvelopeCoverageV1"
+        }
+      },
+      "required": [
+        "ordinaryMutation",
+        "hostChildMutation",
+        "migration",
+        "durableBackgroundWork",
+        "push",
+        "auth"
+      ],
+      "type": "object"
+    },
+    "AgentSafeEnvelopeCoverageV1": {
+      "enum": [
+        "Missing",
+        "Covered"
+      ],
+      "type": "string"
+    },
+    "AgentSafeExplanationAccessV1": {
+      "enum": [
+        "publicCurrentPolicy",
+        "administrative"
+      ],
+      "type": "string"
+    },
+    "AgentSafeExplanationAdapterV1": {
+      "enum": [
+        "hostPlan",
+        "ibexBuffered"
+      ],
+      "type": "string"
+    },
+    "AgentSafeExplanationClassV1": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "$ref": "#/$defs/AgentSafeExplanationDetailV1"
+        },
+        "retention": {
+          "$ref": "#/$defs/AgentSafeExplanationRetentionV1"
+        }
+      },
+      "required": [
+        "detail",
+        "retention"
+      ],
+      "type": "object"
+    },
+    "AgentSafeExplanationDetailV1": {
+      "enum": [
+        "Missing",
+        "DigestOnly",
+        "BoundedFacts"
+      ],
+      "type": "string"
+    },
+    "AgentSafeExplanationFactsV1": {
+      "additionalProperties": false,
+      "description": "Canonical sparse projection of explanation support. An empty list is the\ncomplete Missing projection. Positive entries are strictly scope-sorted,\nunique, and use only the closed profile/access/execution vocabulary above.",
+      "properties": {
+        "scopedFacts": {
+          "items": {
+            "$ref": "#/$defs/AgentSafeScopedExplanationFactV1"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "scopedFacts"
+      ],
+      "type": "object"
+    },
+    "AgentSafeExplanationLogicalLaneV1": {
+      "enum": [
+        "ordinaryMutation",
+        "hostChildMutation"
+      ],
+      "type": "string"
+    },
+    "AgentSafeExplanationProfileV1": {
+      "enum": [
+        "generatedOwnedCrudOwnerCreateV1",
+        "generatedOwnedCrudOwnerUpdateV1"
+      ],
+      "type": "string"
+    },
+    "AgentSafeExplanationRetentionV1": {
+      "enum": [
+        "Missing",
+        "EnvelopeBounded",
+        "PolicyBounded"
+      ],
+      "type": "string"
+    },
+    "AgentSafeExplanationScopeV1": {
+      "additionalProperties": false,
+      "properties": {
+        "access": {
+          "$ref": "#/$defs/AgentSafeExplanationAccessV1"
+        },
+        "adapter": {
+          "$ref": "#/$defs/AgentSafeExplanationAdapterV1"
+        },
+        "logicalLane": {
+          "$ref": "#/$defs/AgentSafeExplanationLogicalLaneV1"
+        },
+        "profile": {
+          "$ref": "#/$defs/AgentSafeExplanationProfileV1"
+        }
+      },
+      "required": [
+        "logicalLane",
+        "adapter",
+        "access",
+        "profile"
+      ],
+      "type": "object"
+    },
+    "AgentSafeForkAxesV1": {
+      "additionalProperties": false,
+      "properties": {
+        "base": {
+          "$ref": "#/$defs/AgentSafeForkBaseV1"
+        },
+        "egress": {
+          "$ref": "#/$defs/AgentSafeForkEgressV1"
+        },
+        "isolation": {
+          "$ref": "#/$defs/AgentSafeForkIsolationV1"
+        },
+        "promotion": {
+          "$ref": "#/$defs/AgentSafeForkPromotionV1"
+        }
+      },
+      "required": [
+        "egress",
+        "promotion",
+        "base",
+        "isolation"
+      ],
+      "type": "object"
+    },
+    "AgentSafeForkBaseV1": {
+      "enum": [
+        "Missing",
+        "currentHead",
+        "namedCheckpoint"
+      ],
+      "type": "string"
+    },
+    "AgentSafeForkEgressV1": {
+      "enum": [
+        "Missing",
+        "DenyAll",
+        "CaptureOnly"
+      ],
+      "type": "string"
+    },
+    "AgentSafeForkFactsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "derivedDeployment": {
+          "$ref": "#/$defs/AgentSafeForkAxesV1"
+        },
+        "inApp": {
+          "$ref": "#/$defs/AgentSafeForkAxesV1"
+        }
+      },
+      "required": [
+        "inApp",
+        "derivedDeployment"
+      ],
+      "type": "object"
+    },
+    "AgentSafeForkIsolationV1": {
+      "enum": [
+        "Missing",
+        "hostMediated",
+        "endToEnd"
+      ],
+      "type": "string"
+    },
+    "AgentSafeForkPromotionV1": {
+      "enum": [
+        "Missing",
+        "NotPromotable",
+        "Promotable"
+      ],
+      "type": "string"
+    },
+    "AgentSafeHandlerReplayClassV1": {
+      "enum": [
+        "Missing",
+        "Deterministic"
+      ],
+      "type": "string"
+    },
+    "AgentSafeHistoryClassV1": {
+      "enum": [
+        "Missing",
+        "BoundedChanges",
+        "NamedCheckpoints"
+      ],
+      "type": "string"
+    },
+    "AgentSafeProofClassV1": {
+      "enum": [
+        "Missing",
+        "RecordedInventory",
+        "verifiedCopyFidelity",
+        "IndependentBoundaryProof"
+      ],
+      "type": "string"
+    },
+    "AgentSafeReplayFactsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "actions": {
+          "$ref": "#/$defs/AgentSafeActionReplayClassV1"
+        },
+        "handlers": {
+          "$ref": "#/$defs/AgentSafeHandlerReplayClassV1"
+        }
+      },
+      "required": [
+        "handlers",
+        "actions"
+      ],
+      "type": "object"
+    },
+    "AgentSafeResourceBoundClassV1": {
+      "enum": [
+        "Missing",
+        "AdmissionAndResourceBounds"
+      ],
+      "type": "string"
+    },
+    "AgentSafeSchemaEvolutionClassV1": {
+      "enum": [
+        "Missing",
+        "ProofsWithoutLens"
+      ],
+      "type": "string"
+    },
+    "AgentSafeScopedExplanationFactV1": {
+      "additionalProperties": false,
+      "properties": {
+        "class": {
+          "$ref": "#/$defs/AgentSafeExplanationClassV1"
+        },
+        "scope": {
+          "$ref": "#/$defs/AgentSafeExplanationScopeV1"
+        }
+      },
+      "required": [
+        "scope",
+        "class"
+      ],
+      "type": "object"
+    },
     "AppCliTargetFactsV1": {
       "additionalProperties": false,
       "description": "The `app-cli.target` eligibility descriptor (LLP 0062 §4; dated LLP 0058\namendment 2026-08-01).\n\nDeliberately a **structured descriptor**, not a ninth entry in the closed\n`TargetCapabilityId` string set: §4 requires a target to state *which*\nprincipal classes it supports, whether it serves envelopes and accepts\ngeneration assertions, and the per-grant token cap the engine's admission\nbound must read rather than hardcode. A boolean could carry none of that.\n\nAbsence is the honest capability-absent report — §4's rule that the engine\n\"never infers any of this from a URL\" has teeth only because this fact\nexists to read. Facts state what the target *supports*; they never prove\ntransport locality, which is why the agent lane's loopback condition stays\nengine-enforced.",
@@ -986,6 +1415,11 @@
           "type": "string"
         },
         {
+          "const": "snapshot_batch_v2",
+          "description": "LLP 0157's mixed bounded-child/relational composite. Registration is\nexperimental and local-only; hosted, remote, and Cloudflare targets\nretain explicit gaps until their own executors and evidence land.",
+          "type": "string"
+        },
+        {
           "const": "live_full_text_search_v1",
           "description": "First-page-only live search by bounded coarse re-execution. The id is\nregistered at experimental maturity but remains unsupported until the\ncomplete LLP 0136 evidence/publication train lands.",
           "type": "string"
@@ -993,6 +1427,16 @@
         {
           "const": "vector_search_v1",
           "description": "Exact portable vector search. The local target publishes this at\nexperimental maturity only when its dedicated implementation fact and\ncomplete closed profile are both present; every other target remains\na structured GAP.",
+          "type": "string"
+        },
+        {
+          "const": "agent_safe_storage_v1",
+          "description": "Registry identity for the LLP 0162 `agentSafe.v1` extension/component\nfact vocabulary. It does not name the `AgentSafeV1` core aggregate and\nregistration does not imply that any target has passed the corpus.",
+          "type": "string"
+        },
+        {
+          "const": "agent_safe_derived_deployment_fork_v1",
+          "description": "Additive LLP 0158 derived-deployment fork tuple. This identity remains\nindependent from both the storage extension and in-app branch facts.",
           "type": "string"
         }
       ]
@@ -1135,6 +1579,111 @@
   "$id": "https://schemas.snapback.dev/snapback.v0/capability.manifest.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
+    "agentSafe": {
+      "$ref": "#/$defs/AgentSafeCapabilityExtensionV1",
+      "default": {
+        "appEffective": {
+          "aggregate": {
+            "core": "Missing",
+            "history": "Missing"
+          },
+          "diff": {
+            "data": "Missing",
+            "effects": "Missing"
+          },
+          "envelope": {
+            "auth": "Missing",
+            "durableBackgroundWork": "Missing",
+            "hostChildMutation": {
+              "hostPlan": "Missing",
+              "ibexBuffered": "Missing"
+            },
+            "migration": "Missing",
+            "ordinaryMutation": {
+              "hostPlan": "Missing",
+              "ibexBuffered": "Missing"
+            },
+            "push": "Missing"
+          },
+          "explanation": {
+            "scopedFacts": []
+          },
+          "forks": {
+            "derivedDeployment": {
+              "base": "Missing",
+              "egress": "Missing",
+              "isolation": "Missing",
+              "promotion": "Missing"
+            },
+            "inApp": {
+              "base": "Missing",
+              "egress": "Missing",
+              "isolation": "Missing",
+              "promotion": "Missing"
+            }
+          },
+          "history": "Missing",
+          "proof": "Missing",
+          "replay": {
+            "actions": "Missing",
+            "handlers": "Missing"
+          },
+          "resourceBounds": "Missing",
+          "schemaEvolution": "Missing"
+        },
+        "schemaVersion": "agentSafe.v1",
+        "target": {
+          "aggregate": {
+            "core": "Missing",
+            "history": "Missing"
+          },
+          "diff": {
+            "data": "Missing",
+            "effects": "Missing"
+          },
+          "envelope": {
+            "auth": "Missing",
+            "durableBackgroundWork": "Missing",
+            "hostChildMutation": {
+              "hostPlan": "Missing",
+              "ibexBuffered": "Missing"
+            },
+            "migration": "Missing",
+            "ordinaryMutation": {
+              "hostPlan": "Missing",
+              "ibexBuffered": "Missing"
+            },
+            "push": "Missing"
+          },
+          "explanation": {
+            "scopedFacts": []
+          },
+          "forks": {
+            "derivedDeployment": {
+              "base": "Missing",
+              "egress": "Missing",
+              "isolation": "Missing",
+              "promotion": "Missing"
+            },
+            "inApp": {
+              "base": "Missing",
+              "egress": "Missing",
+              "isolation": "Missing",
+              "promotion": "Missing"
+            }
+          },
+          "history": "Missing",
+          "proof": "Missing",
+          "replay": {
+            "actions": "Missing",
+            "handlers": "Missing"
+          },
+          "resourceBounds": "Missing",
+          "schemaEvolution": "Missing"
+        }
+      },
+      "description": "Versioned LLP 0162 fact projection. This remains present and wholly\n`Missing` until a named target passes its component corpus and a later\npublication carrier validates and installs the candidate facts."
+    },
     "appCliTarget": {
       "anyOf": [
         {
@@ -1286,6 +1835,10 @@
       "type": "boolean"
     },
     "outboundActions": {
+      "type": "boolean"
+    },
+    "packagedStoreQualificationMode": {
+      "description": "Instance-live bootstrap marker for the staged packaged-store\nqualification corpus. Absence/false is the only production posture.",
       "type": "boolean"
     },
     "permissionDiagnostics": {

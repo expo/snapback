@@ -5,7 +5,16 @@
 **Systems:** Application data API, Relational queries, Mutations, Code generation, Authorization, Live Queries, Storage portability, Contract/Exact, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-04 (local persistent-store / `single_table_v1`
+**Revised:** 2026-08-06 (author ruling: single-table public-package
+advertisement amendment — for `single_table_v1` only, packaged advertisement
+by clean-release build identity + embedded carrier + packaged-closure
+qualification receipt; signed `PackageCapabilityAttestationV1` deferred to
+the 2026-09-30 review; see dated section). 2026-08-06 (dated boundary note for LLP 0157 v0.11's
+`snapshot-batch.v2` registration: bounded-child positions keep this Spec's
+mapping/point-read/restart semantics under LLP 0135's unchanged seal-entirely
+rule; no byte, semantic, or support fact changes). 2026-08-05 (Fleet GAP wording reconciled after LLP 0135 OQ5's
+narrow `snapshot-batch.v2` direction ruling; no receipt or support claim
+changes). 2026-08-04 (local persistent-store / `single_table_v1`
 publication-authority amendment; see dated section). 2026-08-03 (Accepted LLP 0157 boundary: this Spec keeps
 `BoundedChildrenQueryPlanV1`, bounded-child body semantics, and frozen `sbbc1`
 bytes; LLP 0157 owns the shared cursor-family registry and composition
@@ -1779,6 +1788,27 @@ positions carry bounded-child boundary state without embedding an `sbbc1`
 credential. Existing `sbbc1` bytes do not migrate. No support fact changes
 until the owning executable gates pass.
 
+> **Dated note (2026-08-06):** LLP 0157's v0.11 amendment registers
+> `snapshot-batch.v2` / `sbsb2`, whose bounded-child positions keep this
+> Spec's boundary/terminal mapping, parent point-read, and incarnation/
+> `_version` restart semantics byte-for-byte, under LLP 0135 §2.3's
+> unchanged seal-entirely rule; relational positions are LLP 0080's and
+> carry no parent group. LLP 0157 §D8 also states the validation-order fact
+> this Spec's `sbbc1` protocol left implicit: the authority-partition
+> comparison is evaluated before the stream/restore-epoch comparison — the
+> shipped order in every family. The stronger `sbsb1`/`sbsb2` consequence
+> does **not** carry to `sbbc1`: those families bind `authorityPartition`
+> as LLP 0157 §D2's `AuthorityPartitionDigestV1`, whose preimage contains
+> the stream incarnation, so a genuine rotation changes both members and
+> collapses to their cursor-invalid class; `sbbc1` binds the coarser
+> owner-specific authority-partition identity, which a stream rotation does
+> not move, so a genuine rotation legitimately reaches
+> `SNAPBACK_BOUNDED_CHILDREN_PARENT_RESTART_REQUIRED`, exactly as this
+> Spec's protocol section states. The protocol section's two lists gain no
+> new code. Nothing changes for `bounded_children_v1`,
+> `snapshot-batch.v1`, `sbbc1`, or `sbsb1` bytes, semantics, or support
+> facts.
+
 ## Local persistent-store publication authority amendment — 2026-08-04
 
 The local and packaged publication authority above admits one additional,
@@ -1790,15 +1820,29 @@ qualified Triage successor's Move-1 and budget-freeze receipts, and the exact
 executor, schema/codegen, and client-store source bytes that implement the
 proof/wire/store path. The older carrier-exit receipt's Triage GAP is closed
 only by those separately digest-bound successor receipts; its Fleet GAP stays
-an explicit LLP 0135 OQ5 boundary and is not rewritten as success.
+explicit and is not rewritten as success. The 2026-08-05 LLP 0135 OQ5 product
+direction is ruled and the reviewed `snapshot-batch.v2` registration landed
+2026-08-06 (LLP 0157 v0.11), while implementation, the frozen cross-language
+vectors, and a fresh Fleet witness remain absent (LLP 0157 §D1's gate list
+is canonical).
 
 The code-owned target registry may derive positive local support only when the
-embedded carrier parses, its compiled digest and every bound evidence/source
-digest match, the dedicated class registration is true, and the existing
+source-owned published anchor names exactly `single_table_v1`, its
+`carrierSha256` matches the raw embedded carrier, the carrier parses, every
+bound evidence/source digest matches, the dedicated class registration is
+true, and the existing
 `live_subscriptions` plus host-plan/runtime dependencies are supported by that
 same target. Static experimental maturity remains independent and still
 requires artifact acknowledgment. A generated artifact cannot supply,
 replace, or broaden the carrier.
+
+The anchor and carrier are publication-plane records rather than executable
+implementation. A later evidence refresh may rotate only the three receipt
+digests in the carrier and the resulting carrier digest in the anchor; the
+agent-safe history checker derives those exact bytes from qualification C and
+rejects source-map, class, target, maturity, distribution, formatting, or
+shape drift. Rust and conformance-test bytes remain frozen implementation
+inputs across that publication cycle.
 
 Contributor source remains the only admitted distribution. Public packages
 continue to require the release-key-verified
@@ -1806,4 +1850,78 @@ continue to require the release-key-verified
 require their own target-scoped publication authority; until those carriers
 exist, `single_table_v1` is absent from support and remains a structured GAP
 there. LLP 0166 cross-references this authority and continues to own the store,
-retention, Arm-A, and connected prove-or-fresh semantics.
+retention, Arm-A, and connected prove-or-fresh semantics. The dated 2026-08-06
+amendment below narrows the public-package half of this paragraph for
+`single_table_v1` only.
+
+## Single-table public-package advertisement amendment — 2026-08-06
+
+**Author ruling (Charlie Cheever, 2026-08-06), executing
+`issues/20260806-published-closure-gates-offline-retention.md` — "Route 2".**
+This amendment deliberately narrows the reviewed fail-closed packaged trust
+root above, by author signature, for exactly one capability id. It exists
+because the published `@expo/snapback-*` closure could not reach the
+platform offline-retention contract the guide teaches (diary 0065 collapsed
+the offline scoring edge), the signed-attestation lane was never built, and
+the release cadence is still the LLP 0041 sole-consumer posture where 0.1.x
+closures publish with relaxed ceremony.
+
+For `single_table_v1` only, a `public-package` build of the local
+`local-dev-sqlite-ibex` target may derive positive support from the exact
+conjunction of:
+
+1. **Clean-release public-package build identity.** The compiled binary
+   identity carries `buildDistribution: public-package`, a known
+   (non-`unknown`) git commit, `gitDirty: false`, and the `release` build
+   profile — the `assertPublicPackageBuildIdentity` posture already enforced
+   by `scripts/runtime-package-authority.mjs` for the relation/activity GAPs.
+2. **The embedded contributor carrier chain, unchanged.** The same
+   source-owned anchor → carrier → carrier-exit/Triage-receipt →
+   source-digest chain required of contributor-source builds must validate
+   byte-for-byte. The public-package cut adds no evidence binding and may
+   weaken none.
+3. **A packaged-closure qualification receipt.** A
+   `snapback.packaged-store-qualification.v1` receipt minted by running the
+   LLP 0166 store acceptance corpus against a staged packaged closure served
+   by a binary with identity (1). The receipt binds the package-closure
+   digest, the exact minting binary identity (git commit, build profile,
+   build distribution), and the embedded carrier digest. The runtime
+   revalidates all three bindings before advertising; an absent, malformed,
+   tampered, wrong-binary, wrong-carrier, or wrong-schema receipt withholds
+   the id as the same structured GAP as before this amendment.
+
+The receipt is minted under an explicitly named, env-gated qualification
+mode whose only purpose is resolving the bootstrap circularity (the packaged
+binary must serve the capability once so the acceptance corpus can run
+against it before any receipt exists). The mode admits `single_table_v1`
+solely for that run, marks the served capability manifest with a structured
+qualification-mode fact so no downstream proof or consumer can mistake the
+instance for production authority, and is inert on contributor-source
+builds. A qualification-mode instance is not production support; the receipt
+it mints is what production instances verify.
+
+Boundaries, restated so this cannot creep:
+
+- `bounded_children_v1`, `write_activity_v1`, `sequence_allocation_v1`,
+  `agent_safe_storage_v1`, and `agent_safe_derived_deployment_fork_v1` keep
+  the unamended packaged trust root and keep failing closed on
+  public-package builds. Their mandatory negatives are unchanged.
+- Hosted and remote-service profiles are untouched; `single_table_v1`
+  remains a structured GAP there.
+- Static experimental maturity is unchanged: a consuming app must still list
+  `single_table_v1` in `acknowledgedExperimentalCapabilities` before
+  artifact admission accepts it, so the widened surface reaches only
+  consumers who explicitly acknowledged the experimental contract.
+- The substitution/tamper negatives above remain mandatory in their
+  amended form: what changes is that "public-package must fail" becomes
+  "public-package **without a valid qualification receipt** must fail."
+
+The release-key-signed `PackageCapabilityAttestationV1` remains the target
+end state for every packaged capability, this one included. It is explicitly
+deferred, not cancelled: owner Charlie, review 2026-09-30, per the standing
+GAP row in `guide/capabilities.md` (backend.sequences) that already carries
+that owner/date. When the signed attestation lane lands, it supersedes the
+receipt conjunction above and this amendment collapses into it. Each 0.1.x
+release meanwhile re-mints the qualification receipt against its own staged
+closure during release staging; a receipt minted for one closure/binary pair
+grants nothing to any other.

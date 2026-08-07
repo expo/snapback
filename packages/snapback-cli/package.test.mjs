@@ -101,7 +101,14 @@ try {
   const packagedBinary = join(packagedRuntimeRoot, 'bin', 'snapback');
   mkdirSync(join(packagedRuntimeRoot, 'bin'), { recursive: true });
   const packagedArtifact = process.platform === 'darwin'
-    ? join(packagedRuntimeRoot, 'Frameworks', 'hermesvm.framework', 'hermesvm')
+    ? join(
+      packagedRuntimeRoot,
+      'Frameworks',
+      'hermesvm.framework',
+      'Versions',
+      '1',
+      'hermesvm',
+    )
     : join(packagedRuntimeRoot, 'lib', 'libhermesvm.so');
   mkdirSync(join(packagedArtifact, '..'), { recursive: true });
   writeFileSync(packagedArtifact, 'packaged hermes fixture');
@@ -146,6 +153,10 @@ console.log(JSON.stringify({
   assert.equal(manifest.scripts.test, 'node acceptance.mjs');
   assert.equal(manifest.scripts['test:static'], 'node acceptance.static.mjs');
   assert.equal(manifest.scripts['test:live'], manifest.scripts.test);
+  const todoAgentInstructions = readFileSync(join(project, 'AGENTS.md'), 'utf8');
+  assert.match(todoAgentInstructions, /capability index first/u);
+  assert.match(todoAgentInstructions, /snapback guide <query>/u);
+  assert.match(todoAgentInstructions, /snapback mcp/u);
   const generated = await generateApp(join(project, 'snapback'));
   assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
   const todoStatic = spawnSync(process.execPath, ['acceptance.static.mjs'], {
@@ -166,6 +177,10 @@ console.log(JSON.stringify({
   assert.equal(reactManifest.scripts.test, 'node acceptance.mjs');
   assert.equal(reactManifest.scripts['test:static'], 'node acceptance.static.mjs');
   assert.equal(reactManifest.scripts['test:live'], reactManifest.scripts.test);
+  const reactAgentInstructions = readFileSync(join(reactProject, 'AGENTS.md'), 'utf8');
+  assert.match(reactAgentInstructions, /capability index first/u);
+  assert.match(reactAgentInstructions, /snapback guide <query>/u);
+  assert.match(reactAgentInstructions, /snapback mcp/u);
   const generatedReact = await generateApp(join(reactProject, 'snapback'));
   assert.equal(generatedReact.ok, true, JSON.stringify(generatedReact.diagnostics));
   assert.equal(
@@ -1615,7 +1630,14 @@ process.stdout.write(JSON.stringify(response));
 
   const commandLog = join(root, 'runtime-commands.log');
   const recordingRuntime = join(root, 'recording-snapback');
-  writeFileSync(recordingRuntime, `#!/bin/sh\nprintf '%s\\n' "$*" >> '${commandLog}'\nexit 0\n`);
+  writeFileSync(recordingRuntime, `#!/bin/sh
+printf '%s\\n' "$*" >> '${commandLog}'
+if [ "$1" = "load" ]; then
+  printf '%s\\n' '{"resultKind":"hostOpsResult","operation":"schema.load","ok":true}'
+  printf '%s\\n' '{"resultKind":"hostOpsResult","operation":"functions.load","ok":true}'
+fi
+exit 0
+`);
   chmodSync(recordingRuntime, 0o755);
   const backend = join(root, 'seed-once', 'snapback');
   mkdirSync(join(backend, 'generated'), { recursive: true });

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "snapback.fleet-observatory-successor-workload.v1",
+  "date": "2026-08-06",
+  "decisionAuthority": "LLP 0155 OQ13",
+  "reuseDecision": "refreeze-fresh-successor-manifest",
+  "predecessorLineageRetained": true,
+  "predecessorManifestCopied": false,
+  "predecessorTransformsCopied": false,
+  "predecessorEvidenceRewritten": false,
+  "predecessorEvidence": [
+    "demos/zero-bakeoff/protocol/acceptance/fleet-observatory.v1.json",
+    "demos/zero-bakeoff/apps/fleet-observatory/evidence/snapback.v1.json",
+    "demos/zero-bakeoff/apps/fleet-observatory/evidence/snapback.v2.json"
+  ],
+  "fixture": {
+    "devices": 25000,
+    "events": 250000,
+    "updateBurst": 1000,
+    "activeMatches": 100,
+    "queryChanges": 20,
+    "pageSize": 100
+  },
+  "requiredComposite": {
+    "export": "fleetObservatory",
+    "profile": "snapshot-batch.v2",
+    "nodeClasses": ["relational_query_v1", "bounded_children_v1"],
+    "retention": "none"
+  }
+}

@@ -102,7 +102,24 @@ import {
   createCodegenSummary,
   formatCodegenSummary,
 } from './codegen-summary.mjs';
-export { formatCodegenSummary };
+import {
+  createAppDescriptorV1,
+  serializeAppDescriptorV1,
+  SURFACE_MAX_MEMBER_BINDINGS,
+  SURFACE_MAX_MEMBERS,
+  SURFACE_MAX_PARAMS,
+  SURFACE_MAX_PER_APP,
+  SURFACE_MAX_SCOPE_RECORD_FIELDS,
+  validateAppDescriptorV1,
+} from './app-descriptor.mjs';
+export {
+  formatCodegenSummary,
+  SURFACE_MAX_MEMBER_BINDINGS,
+  SURFACE_MAX_MEMBERS,
+  SURFACE_MAX_PARAMS,
+  SURFACE_MAX_PER_APP,
+  SURFACE_MAX_SCOPE_RECORD_FIELDS,
+};
 
 const SEARCH_FIELD_CLASSIFICATIONS = new Set([
   'public',
@@ -312,6 +329,175 @@ function snapshotBatchIdentityV1(plan, argsContract) {
   };
 }
 
+function collectSnapshotBatchV2ArgumentUses(value, names, state) {
+  if (value === 'Args') {
+    state.usesAll = true;
+    return;
+  }
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return;
+  if (typeof value.Arg === 'string') {
+    const [name] = value.Arg.split('.');
+    if (!name) throw new TypeError('snapshot batch v2 relational argument path is empty');
+    names.add(name);
+    return;
+  }
+  if (value.Field) collectSnapshotBatchV2ArgumentUses(value.Field.base, names, state);
+  if (value.Binary) {
+    collectSnapshotBatchV2ArgumentUses(value.Binary.left, names, state);
+    collectSnapshotBatchV2ArgumentUses(value.Binary.right, names, state);
+  }
+  if (value.Unary) collectSnapshotBatchV2ArgumentUses(value.Unary.expr, names, state);
+  if (value.If) {
+    collectSnapshotBatchV2ArgumentUses(value.If.cond, names, state);
+    collectSnapshotBatchV2ArgumentUses(value.If.then, names, state);
+    collectSnapshotBatchV2ArgumentUses(value.If.else, names, state);
+  }
+  if (value.Concat) {
+    for (const item of value.Concat) collectSnapshotBatchV2ArgumentUses(item, names, state);
+  }
+  if (value.Call) {
+    for (const item of value.Call.args ?? []) {
+      collectSnapshotBatchV2ArgumentUses(item, names, state);
+    }
+  }
+  if (value.Record) {
+    for (const item of Object.values(value.Record.fields ?? {})) {
+      collectSnapshotBatchV2ArgumentUses(item, names, state);
+    }
+  }
+}
+
+// @ref LLP 0157#d2--plan-identity — v2 reuses the one identity stack while
+// preserving each owner's normalized plan, class-selected argument closure,
+// and bounded-child-only parent groups byte-for-byte with the Rust host.
+function snapshotBatchIdentityV2(plan, argsContract) {
+  const nodes = [];
+  const merged = [];
+  const mergedByName = new Map();
+  const contractByName = new Map(argsContract.fields.map((field) => [field.name, field]));
+  for (const [position, node] of plan.nodes.entries()) {
+    const names = new Set();
+    if (node.classId === 'bounded_children_v1') {
+      names.add(node.plan.parentIdArg);
+    } else if (node.classId === 'relational_query_v1') {
+      const state = { usesAll: false };
+      for (const filter of [
+        ...(node.plan.rootFilters ?? []),
+        ...(node.plan.rootVisibility ?? []),
+        ...(node.plan.joinedVisibility ?? []),
+      ]) collectSnapshotBatchV2ArgumentUses(filter.value, names, state);
+      if (state.usesAll) {
+        for (const field of argsContract.fields) if (field.name !== 'cursor') names.add(field.name);
+      }
+    } else {
+      throw new TypeError(`snapshot batch v2 node ${position} has unknown class ${String(node.classId)}`);
+    }
+    const bindings = [];
+    for (const field of argsContract.fields) {
+      if (!names.has(field.name)) continue;
+      if (field.name === 'cursor') {
+        throw new TypeError(`snapshot batch v2 node ${position} cannot bind the composite cursor`);
+      }
+      const contract = {
+        format: 'snapback.argument-binding-contract.v1',
+        required: field.required,
+        value: field.value,
+      };
+      const contractHash = compositionDomainHash(
+        'snapback:argument-binding-contract:v1:',
+        contract,
+      );
+      const binding = { name: field.name, contract, contractHash };
+      bindings.push(binding);
+      const prior = mergedByName.get(field.name);
+      if (prior) {
+        if (canonicalResultJson(prior.contract) !== canonicalResultJson(contract)
+          || prior.contractHash !== contractHash) {
+          throw new TypeError(`snapshot batch argument ${field.name} has incompatible node contracts`);
+        }
+        prior.sourcePositions.push(position);
+      } else {
+        const entry = { name: field.name, contract, contractHash, sourcePositions: [position] };
+        mergedByName.set(field.name, entry);
+        merged.push(entry);
+      }
+    }
+    for (const name of names) {
+      if (!contractByName.has(name)) {
+        throw new TypeError(`snapshot batch v2 node ${position} references undeclared argument ${name}`);
+      }
+    }
+    const nodePlan = {
+      format: 'snapback.node-plan.v1',
+      classId: node.classId,
+      classVersion: 1,
+      normalizedPlan: node.plan,
+      argumentBindings: bindings,
+      capability: {
+        exportKind: 'internal',
+        live: { kind: 'none' },
+        retention: 'none',
+        requiredCapabilityIds: [node.classId],
+      },
+    };
+    nodes.push({
+      position,
+      nodePlan,
+      nodePlanHash: compositionDomainHash('snapback:node-plan:v1:', nodePlan),
+    });
+  }
+  const mergedArgs = { format: 'snapback.merged-args-contract.v1', bindings: merged };
+  const groups = [];
+  const groupsByKey = new Map();
+  for (const [position, node] of plan.nodes.entries()) {
+    if (node.classId !== 'bounded_children_v1') continue;
+    const key = {
+      format: 'snapback.parent-authorization-key.v1',
+      parentTable: node.plan.parentTable,
+      parentIdArgument: node.plan.parentIdArg,
+      parentIdType: { kind: 'id', table: node.plan.parentTable },
+      visibility: node.plan.parentVisibility === 'publicRead'
+        ? { kind: 'public-read' }
+        : { kind: 'owner.v1', field: node.plan.parentVisibility.owner.field },
+    };
+    const keyJcs = canonicalResultJson(key);
+    let group = groupsByKey.get(keyJcs);
+    if (!group) {
+      group = {
+        members: [],
+        keyJcsBase64url: Buffer.from(keyJcs, 'utf8').toString('base64url'),
+      };
+      groupsByKey.set(keyJcs, group);
+      groups.push(group);
+    }
+    group.members.push(position);
+  }
+  const normalizedCompositePlan = {
+    format: 'snapback.normalized-composite-plan.v1',
+    profileId: 'snapshot-batch.v2',
+    nodes,
+    mergedArgsContractHash: compositionDomainHash(
+      'snapback:merged-args-contract:v1:',
+      mergedArgs,
+    ),
+    classification: {
+      callable: true,
+      live: {
+        kind: 'admitted',
+        delivery: 'live_replace',
+        pageDomain: 'cursor-free-first-page',
+      },
+      invalidation: 'table-granular-resnapshot',
+      retention: 'none',
+    },
+    parentAuthorizationGroups: groups,
+  };
+  return {
+    normalizedCompositePlan,
+    planHash: compositionDomainHash('snapback:plan-hash:v1:', normalizedCompositePlan),
+  };
+}
+
 function serializedValueUsesAuthorityOrAmbientInput(value) {
   if (typeof value === 'string') {
     return value === 'AuthUserId'
@@ -497,7 +683,8 @@ function singleNodeIdentityV1(fn) {
 function functionCompositionIdentityV1(fn) {
   const single = singleNodeIdentityV1(fn);
   if (single) return single;
-  const batch = fn.runtime?.HostPlan?.SnapshotBatch;
+  const batch = fn.runtime?.HostPlan?.SnapshotBatch
+    ?? fn.runtime?.HostPlan?.SnapshotBatchV2;
   if (!batch) return null;
   return {
     normalizedCompositePlan: batch.normalizedCompositePlan,
@@ -655,12 +842,24 @@ const RESERVED_WORDS = new Set([
   'throw', 'true', 'try', 'typeof', 'var', 'void', 'while', 'with', 'yield',
   'eval', 'arguments',
 ]);
-const GENERATED_API_RESERVED_EXPORTS = new Set(['api', 'ephemeral']);
+// @ref LLP 0179#existing-exports — standalone query/mutation exports are
+// aliases of app.api nodes, so authored names cannot collide with either the
+// legacy api module namespaces or the new descriptor binding itself.
+const GENERATED_API_RESERVED_EXPORTS = new Set([
+  'api',
+  'app',
+  'artifacts',
+  'defaults',
+  'ephemeral',
+  'groups',
+]);
 const SCHEMA_VERSION = 'snapback.v0';
 const SESSIONS_SCHEMA_VERSION = 'snapback.v1';
 const AUTH_MODES = new Set(['dev', 'sessions']);
 const AUTH_REQUIREMENTS = new Set(['public', 'optional-user', 'authenticated']);
 const TARGET_CAPABILITY_IDS = new Set([
+  'agent_safe_derived_deployment_fork_v1',
+  'agent_safe_storage_v1',
   'auth.sessions.v1',
   'bounded_response_stream_v1',
   'bounded_children_v1',
@@ -682,6 +881,7 @@ const TARGET_CAPABILITY_IDS = new Set([
   'migration_keyset_scan_v1',
   'sequence_allocation_v1',
   'snapshot_batch_v1',
+  'snapshot_batch_v2',
   'single_table_v1',
   'result_contract_v1',
   'args_contract_v1',
@@ -703,6 +903,8 @@ const TARGET_CAPABILITY_IDS = new Set([
 // (bounded_response_stream_v1 left this set when LLP 0076 was Accepted,
 // 2026-07-25).
 const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
+  'agent_safe_derived_deployment_fork_v1',
+  'agent_safe_storage_v1',
   'args_contract_v1',
   'asset_image_finalization_v1',
   'asset_image_pipeline_v1',
@@ -716,6 +918,7 @@ const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
   'mixed_bundle_boot_v2',
   'sequence_allocation_v1',
   'snapshot_batch_v1',
+  'snapshot_batch_v2',
   'single_table_v1',
   'registered_bundle_boot_v1',
   'result_contract_v1',
@@ -1224,6 +1427,9 @@ export async function generateInProcess(backendDir, options = {}) {
   }
   const authMode = validateSchemaAuthDefinition(schemaDef, err);
   const artifactVersion = authMode === 'sessions' ? SESSIONS_SCHEMA_VERSION : SCHEMA_VERSION;
+  const functionDefinitionSourceSpans = exportedDefinitionSourceSpans(
+    graphEntrySource(functionsGraph, functionsPath),
+  );
   const schemaRequiredCapabilities = [...new Set(schemaDef.requiredCapabilities ?? [])];
   if (authMode === 'sessions' && !schemaRequiredCapabilities.includes('auth.sessions.v1')) {
     schemaRequiredCapabilities.unshift('auth.sessions.v1');
@@ -1739,6 +1945,7 @@ export async function generateInProcess(backendDir, options = {}) {
       ...(Array.isArray(table.permissionFields) ? { permissionFields: table.permissionFields } : {}),
       ...(membership ? { membership } : {}),
       ...(assetSharing ? { assetSharing } : {}),
+      ...(table.historyDeclaration ? { history: { ...table.historyDeclaration } } : {}),
     };
   }
 
@@ -1861,6 +2068,8 @@ export async function generateInProcess(backendDir, options = {}) {
   const configDefs = [];
   const projectionDefs = [];
   const assetUploadDefs = [];
+  const commandDefs = [];
+  const surfaceDefs = [];
 
   // @ref LLP 0108#final-author-reconciliation-after-round-3 — codegen
   // evaluates only an opaque marker in the definition sandbox, then binds
@@ -1964,6 +2173,14 @@ export async function generateInProcess(backendDir, options = {}) {
       assetUploadDefs.push({ exportName: name, def });
       continue;
     }
+    if (isIsolatedDefinition(def, 'command')) {
+      commandDefs.push({ exportName: name, def });
+      continue;
+    }
+    if (isIsolatedDefinition(def, 'surface')) {
+      surfaceDefs.push({ exportName: name, def });
+      continue;
+    }
     if (!isIsolatedDefinition(def, 'function')) continue;
     // Function export names flow unescaped into emitted declarations
     // (`export function ${name}(`), pascal-cased type names, unquoted
@@ -2004,14 +2221,217 @@ export async function generateInProcess(backendDir, options = {}) {
       continue;
     }
     validateFunctionAuthDefinition(name, def, err);
+    // @ref LLP 0178#v4--function-auth-omission — omission remains valid only
+    // through the sessions compatibility phase, so report it as an advisory
+    // rather than an unsuppressible validation error.
+    // @ref LLP 0186#w3--errors-as-the-primary-docs-channel-sequencing-ask — name the
+    // explicit-auth rule and carry every valid repair instead of silently
+    // widening the authored operation to optional-user.
+    if (authMode === 'sessions' && def.auth === undefined) {
+      const authoredSpan = functionDefinitionSourceSpans[name];
+      const precondition = {
+        function: name,
+        authMode: 'sessions',
+        authoredRequirement: 'omitted',
+        effectiveLegacyRequirement: 'optional-user',
+      };
+      diagnostics.push({
+        code: 'SNAPBACK_AUTH_REQUIREMENT_IMPLICIT',
+        severity: 'warning',
+        subsystem: 'auth',
+        message: `${name}: sessions-mode functions must explicitly set auth; omission currently uses the legacy optional-user requirement. Add auth: 'public', auth: 'optional-user', or auth: 'authenticated' (guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement).`,
+        function: name,
+        ...(authoredSpan
+          ? {
+              sourceSpan: {
+                file: authoredSpan.path,
+                line: authoredSpan.line,
+                column: authoredSpan.column,
+              },
+            }
+          : {}),
+        details: {
+          function: name,
+          authMode: 'sessions',
+          effectiveLegacyRequirement: 'optional-user',
+          allowed: ['public', 'optional-user', 'authenticated'],
+          guideAnchor: 'guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement',
+          remediations: [
+            {
+              kind: 'setFunctionAuthRequirement',
+              requirement: 'public',
+              riskClass: 'policy',
+              machineApplicable: false,
+              requiresApproval: true,
+              authorityEffect: 'changes-declared-requirement',
+              precondition,
+              description: `Add auth: 'public' to ${name} when anonymous invocation is intentional without declaring optional-user behavior.`,
+            },
+            {
+              kind: 'setFunctionAuthRequirement',
+              requirement: 'optional-user',
+              riskClass: 'policy',
+              machineApplicable: false,
+              requiresApproval: true,
+              authorityEffect: 'none',
+              precondition,
+              description: `Add auth: 'optional-user' to ${name} when anonymous and user-bearing invocation are both intentional.`,
+            },
+            {
+              kind: 'setFunctionAuthRequirement',
+              requirement: 'authenticated',
+              riskClass: 'policy',
+              machineApplicable: false,
+              requiresApproval: true,
+              authorityEffect: 'narrows',
+              precondition,
+              description: `Add auth: 'authenticated' to ${name} when invocation must require a resolved user.`,
+            },
+            // @ref LLP 0178#2-diagnostic-shape — policy-choice diagnostics
+            // may route to the governing guide, but never guess one patch.
+            {
+              kind: 'guidePointer',
+              pageId: 'auth.sessions-and-principals',
+              path: 'guide/auth/sessions-and-principals.md',
+              anchor: 'choose-each-functions-auth-requirement',
+              reason: 'Choose the explicit function auth requirement that matches the intended caller policy.',
+              riskClass: 'policy',
+              machineApplicable: false,
+              requiresApproval: true,
+              authorityEffect: 'none',
+              precondition,
+              description: 'Read the sessions and principals guide before choosing the function auth requirement.',
+            },
+          ],
+        },
+      });
+    }
     validateFunctionRefusalTrackingDefinition(name, def, err);
     validateProtectedAndRetainabilityDefinition(name, def, err);
     const argNames = new Set(Object.keys(def.args));
+    const optionalArgNames = new Set(
+      Object.entries(def.args)
+        .filter(([, validator]) => validator?.optional === true)
+        .map(([argName]) => argName),
+    );
+    const optionalArgContradictionSites = new Set();
+
+    // @ref LLP 0178#v1--optional-plan-argument-contradiction — a strict Arg
+    // node cannot consume a caller-optional argument: the shared runtime
+    // evaluator refuses an omitted key with SNAPBACK_ARG_MISSING. Keep the
+    // three valid repairs as human policy choices; codegen must not guess one.
+    const reportOptionalArgContradiction = (argument, planSite) => {
+      if (!optionalArgNames.has(argument)) return;
+      const siteKey = `${argument}\0${planSite}`;
+      if (optionalArgContradictionSites.has(siteKey)) return;
+      optionalArgContradictionSites.add(siteKey);
+      const precondition = { function: name, argument, planSite };
+      err(
+        'SNAPBACK_AUTHORING_OPTIONAL_ARG_CONTRADICTION',
+        'codegen',
+        `${name}: optional argument "${argument}" is consumed by presence-requiring plan site "${planSite}" via arg("${argument}")`,
+        {
+          function: name,
+          argument,
+          planSite,
+          details: {
+            argument,
+            validator: 'optional',
+            planUse: 'required',
+            planSite,
+            expressionKind: 'Arg',
+            runtimeRefusal: 'SNAPBACK_ARG_MISSING',
+            remediations: [
+              {
+                kind: 'makeArgumentRequired',
+                riskClass: 'policy',
+                machineApplicable: false,
+                requiresApproval: true,
+                authorityEffect: 'none',
+                precondition,
+                description: `Make ${argument} required so every caller must supply it.`,
+              },
+              {
+                kind: 'splitOperation',
+                riskClass: 'policy',
+                machineApplicable: false,
+                requiresApproval: true,
+                authorityEffect: 'none',
+                precondition,
+                description: `Split ${name} into a required-argument operation and an omission-safe operation.`,
+              },
+              {
+                kind: 'consumeViaArgOpt',
+                riskClass: 'policy',
+                machineApplicable: false,
+                requiresApproval: true,
+                authorityEffect: 'none',
+                precondition,
+                description: `Consume ${argument} with argOpt("${argument}") — an omitted property evaluates to null (wrap with coalesce(argOpt(...), lit(default)) for a default); a null write requires the target field to be declared optional.`,
+              },
+              // @ref LLP 0178#2-diagnostic-shape — policy-choice diagnostics
+              // may route to the governing guide, but never guess one patch.
+              {
+                kind: 'guidePointer',
+                pageId: 'backend.mutations',
+                path: 'guide/backend/mutations.md',
+                anchor: 'define-the-write-boundary',
+                reason: 'Choose whether callers must supply the argument or the plan must consume its omission branch.',
+                riskClass: 'policy',
+                machineApplicable: false,
+                requiresApproval: true,
+                authorityEffect: 'none',
+                precondition,
+                description: 'Read the mutation guide before choosing the required-argument or omission-safe policy.',
+              },
+            ],
+          },
+        },
+      );
+    };
 
     // Recursive fail-closed validation of the closed v1 expression profile
     // (LLP 0051 D2): undeclared args, non-expressions, and functions outside
     // the pinned library are authoring errors, never silent passthrough.
-    const checkExpr = (expr, where) => {
+    // `If` is the profile's one lazy expression: its condition is always
+    // evaluated, but only one branch is. An Arg in one branch therefore does
+    // not prove presence is required; an Arg in both branches does. Every
+    // other composite expression evaluates all children eagerly today.
+    const presenceRequiredArgs = (expr) => {
+      if (!expr || !expr.__expr) return new Set();
+      if ('Arg' in expr) return new Set([expr.Arg]);
+      if ('Field' in expr) return presenceRequiredArgs(expr.Field.base);
+      if ('Binary' in expr) {
+        return new Set([
+          ...presenceRequiredArgs(expr.Binary.left),
+          ...presenceRequiredArgs(expr.Binary.right),
+        ]);
+      }
+      if ('Unary' in expr) return presenceRequiredArgs(expr.Unary.expr);
+      if ('If' in expr) {
+        const required = presenceRequiredArgs(expr.If.cond);
+        const thenRequired = presenceRequiredArgs(expr.If.then);
+        const elseRequired = presenceRequiredArgs(expr.If.else);
+        for (const argument of thenRequired) {
+          if (elseRequired.has(argument)) required.add(argument);
+        }
+        return required;
+      }
+      if ('Concat' in expr) {
+        return new Set(expr.Concat.flatMap((part) => [...presenceRequiredArgs(part)]));
+      }
+      if ('Call' in expr) {
+        return new Set(expr.Call.args.flatMap((argument) => [...presenceRequiredArgs(argument)]));
+      }
+      if ('Record' in expr) {
+        return new Set(
+          Object.values(expr.Record.fields).flatMap((fieldExpr) => [...presenceRequiredArgs(fieldExpr)]),
+        );
+      }
+      return new Set();
+    };
+
+    const checkExpr = (expr, where, root = true) => {
       if (!expr || !expr.__expr) {
         err('FUNCTION_INVALID_EXPR', 'function', `${name}: ${where} is not a value expression`, { function: name });
         return;
@@ -2025,26 +2445,33 @@ export async function generateInProcess(backendDir, options = {}) {
         if (expr.Field.base?.kind === 'Args' && !argNames.has(expr.Field.key)) {
           err('FUNCTION_UNKNOWN_ARG', 'function', `${name}: ${where} references undeclared arg "${expr.Field.key}"`, { function: name });
         }
-        checkExpr(expr.Field.base, where);
+        checkExpr(expr.Field.base, where, false);
       }
       if ('Binary' in expr) {
-        checkExpr(expr.Binary.left, where);
-        checkExpr(expr.Binary.right, where);
+        checkExpr(expr.Binary.left, where, false);
+        checkExpr(expr.Binary.right, where, false);
       }
-      if ('Unary' in expr) checkExpr(expr.Unary.expr, where);
+      if ('Unary' in expr) checkExpr(expr.Unary.expr, where, false);
       if ('If' in expr) {
-        checkExpr(expr.If.cond, where);
-        checkExpr(expr.If.then, where);
-        checkExpr(expr.If.else, where);
+        checkExpr(expr.If.cond, where, false);
+        checkExpr(expr.If.then, where, false);
+        checkExpr(expr.If.else, where, false);
       }
-      if ('Concat' in expr) for (const part of expr.Concat) checkExpr(part, where);
+      if ('Concat' in expr) for (const part of expr.Concat) checkExpr(part, where, false);
       if ('Call' in expr) {
         if (!PINNED_FUNCTIONS.includes(expr.Call.func)) {
           err('MUTATION_UNSUPPORTED_FUNCTION', 'function', `${name}: ${where} calls ${expr.Call.func}, which is not in the pinned v1 library`, { function: name, calledFunction: expr.Call.func });
         }
-        for (const argExpr of expr.Call.args) checkExpr(argExpr, where);
+        for (const argExpr of expr.Call.args) checkExpr(argExpr, where, false);
       }
-      if ('Record' in expr) for (const fieldExpr of Object.values(expr.Record.fields)) checkExpr(fieldExpr, where);
+      if ('Record' in expr) {
+        for (const fieldExpr of Object.values(expr.Record.fields)) checkExpr(fieldExpr, where, false);
+      }
+      if (root) {
+        for (const argument of presenceRequiredArgs(expr)) {
+          reportOptionalArgContradiction(argument, where);
+        }
+      }
     };
 
     if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.searchPlan) {
@@ -2269,17 +2696,37 @@ export async function generateInProcess(backendDir, options = {}) {
       };
     } else if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.snapshotBatchPlan) {
       const plan = def.snapshotBatchPlan;
-      const reads = [...new Set(plan.nodes.flatMap((node) => [node.parentTable, node.childTable]))].sort();
+      const v2 = plan.profile === 'snapshot-batch.v2';
+      const serializedPlan = v2
+        ? {
+            profile: plan.profile,
+            nodes: plan.nodes.map((node) => ({
+              classId: node.classId,
+              plan: node.classId === 'relational_query_v1'
+                ? serializeRelationalPlan(node.plan)
+                : node.plan,
+            })),
+          }
+        : plan;
+      const reads = [...new Set((v2 ? serializedPlan.nodes : plan.nodes).flatMap((node) => {
+        const classId = v2 ? node.classId : 'bounded_children_v1';
+        const nodePlan = v2 ? node.plan : node;
+        return classId === 'relational_query_v1'
+          ? [nodePlan.root, nodePlan.joined]
+          : [nodePlan.parentTable, nodePlan.childTable];
+      }))].sort();
+      const runtime = v2
+        ? { HostPlan: { SnapshotBatchV2: serializedPlan } }
+        : { HostPlan: { SnapshotBatch: serializedPlan } };
       functions.push({
         name,
         kind: def.__kind,
         ...authoredFunctionManifestFields(def),
-        runtime: { HostPlan: { SnapshotBatch: plan } },
+        runtime,
         declaredReads: reads,
         declaredWrites: [],
         authScopeField: null,
-        authorizationDependence: plan.nodes.some((node) => node.parentVisibility !== 'publicRead')
-          ? ['userId'] : [],
+        authorizationDependence: def.auth === 'authenticated' ? ['userId'] : [],
         syncabilityClass: 'syncable-live',
       });
       contractQueries[name] = {
@@ -2290,7 +2737,7 @@ export async function generateInProcess(backendDir, options = {}) {
         result: providerResultDescriptor(effectiveResultContract({
           def,
           functionKind: def.__kind,
-          runtime: { HostPlan: { SnapshotBatch: plan } },
+          runtime,
           tables,
         })),
         serverRunnable: true,
@@ -2418,33 +2865,13 @@ export async function generateInProcess(backendDir, options = {}) {
       //   branch serializes the normalized plan and nothing else. Activation
       //   on the server re-proves schema binding and the cardinality claim.
       const plan = def.relationalPlan;
-      const serializeFilters = (filters) => filters.map((f) => ({
-        field: f.field,
-        op: f.op,
-        value: serializeExpr(f.value),
-      }));
       functions.push({
         name,
         kind: def.__kind,
         ...authoredFunctionManifestFields(def),
         runtime: {
           HostPlan: {
-            RelationalQuery: {
-              root: plan.root,
-              rootAlias: plan.rootAlias,
-              joined: plan.joined,
-              joinedAlias: plan.joinedAlias,
-              joinKind: plan.joinKind,
-              joinOn: plan.joinOn,
-              rootFilters: [],
-              rootVisibility: serializeFilters(plan.rootVisibility),
-              joinedVisibility: serializeFilters(plan.joinedVisibility),
-              projection: plan.projection,
-              order: plan.order.map(serializeOrderExpr),
-              take: plan.take,
-              rootIndex: plan.rootIndex,
-              joinedIndex: plan.joinedIndex,
-            },
+            RelationalQuery: serializeRelationalPlan(plan),
           },
         },
         declaredReads: [plan.root, plan.joined],
@@ -2887,7 +3314,9 @@ export async function generateInProcess(backendDir, options = {}) {
           { function: name, allocations: sequenceAllocationCount },
         );
       }
-      if (def.plan.return_value && 'Expr' in def.plan.return_value) {
+      if (def.plan.return_value && 'Document' in def.plan.return_value) {
+        checkExpr(def.plan.return_value.Document.id, 'return document id');
+      } else if (def.plan.return_value && 'Expr' in def.plan.return_value) {
         checkExpr(def.plan.return_value.Expr, 'return expression');
       }
       const serializedPlan = serializeMutationPlan(def.plan, name, err);
@@ -2963,6 +3392,15 @@ export async function generateInProcess(backendDir, options = {}) {
           err('FUNCTION_UNKNOWN_TABLE', 'function', `${name}: action declares unknown write table ${table}`, { function: name, table });
         }
       }
+      for (const step of def.plan?.steps ?? []) {
+        const runMutation = step?.RunMutation;
+        if (!runMutation) continue;
+        for (const [argument, expr] of Object.entries(runMutation.args ?? {})) {
+          if (expr?.__expr) {
+            checkExpr(expr, `runMutation ${runMutation.name} argument ${argument}`);
+          }
+        }
+      }
       functions.push({
         name,
         kind: 'Action',
@@ -3015,6 +3453,12 @@ export async function generateInProcess(backendDir, options = {}) {
         Object.assign(
           fn.runtime.HostPlan.SnapshotBatch,
           snapshotBatchIdentityV1(fn.runtime.HostPlan.SnapshotBatch, fn.argsContract),
+        );
+      }
+      if (fn.runtime?.HostPlan?.SnapshotBatchV2) {
+        Object.assign(
+          fn.runtime.HostPlan.SnapshotBatchV2,
+          snapshotBatchIdentityV2(fn.runtime.HostPlan.SnapshotBatchV2, fn.argsContract),
         );
       }
       fn.resultContract = effectiveResultContract({
@@ -3952,7 +4396,10 @@ export async function generateInProcess(backendDir, options = {}) {
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
-  const apiModule = renderApiModule(
+  const functionSourceSpans = exportedDefinitionSourceSpans(
+    graphEntrySource(functionsGraph, functionsPath),
+  );
+  const generatedReferences = buildGeneratedReferences(
     appId,
     functionManifest.functions,
     functionsModule,
@@ -3961,7 +4408,85 @@ export async function generateInProcess(backendDir, options = {}) {
     routesManifest,
     assetUploadIntents,
     { schemaVersion: artifactVersion, appId, schemaHash, bundleHash, inputsHash },
+    functionDefinitionSourceSpans,
+  );
+  const generatedCommands = buildGeneratedCommands({
+    commandDefs,
+    functionsModule,
+    generatedReferences,
+    err,
+  });
+  const generatedSurfaces = buildGeneratedSurfaces({
+    appId,
+    surfaceDefs,
+    functionsModule,
+    schemaDef,
+    generatedReferences,
+    generatedCommands,
+    functionSourceSpans,
+    err,
+  });
+  if (diagnostics.some((d) => d.severity === 'error')) {
+    return { ok: false, diagnostics };
+  }
+  const appDescriptor = createAppDescriptorV1({
+    app: appId,
+    schema: schemaHash,
+    functions: bundleHash,
+    api: generatedReferences.api,
+    commands: generatedCommands,
+    surfaces: generatedSurfaces,
+    requiredCapabilities: [...requiredTargetCapabilities],
+  });
+  // @ref LLP 0178#integration-with-the-descriptor-spine — descriptor
+  // validation joins the existing unsuppressible lane before any generated
+  // graph is published, preserving the prior complete output on refusal.
+  for (const problem of validateAppDescriptorV1(appDescriptor)) {
+    err(problem.code, 'app-descriptor', problem.message, {
+      path: problem.path,
+      details: problem.details,
+    });
+  }
+  if (diagnostics.some((d) => d.severity === 'error')) {
+    return { ok: false, diagnostics };
+  }
+  const appDescriptorSource = serializeAppDescriptorV1(appDescriptor);
+  const appBindingIdentity = compositionDomainHash('snapback:app-binding:v1:', {
+    descriptor: appDescriptor.identity.descriptor,
+    artifacts: { trustedCompositionActivation },
+  });
+  const contentAddressedDescriptorFile = contentAddressedArtifactPath(
+    'app.descriptor.json',
+    appDescriptor.identity.descriptor,
+  );
+  const contentAddressedAppBindingFile = contentAddressedArtifactPath(
+    'app.binding.mjs',
+    appBindingIdentity,
+  );
+  const contentAddressedAppBindingModule = renderAppBindingModule(
+    functionManifest.functions,
+    appDescriptor.identity.descriptor,
     trustedCompositionActivation,
+  );
+  const appBindingModule = renderAppBindingAlias(
+    functionManifest.functions,
+    appBindingIdentity,
+  );
+  const appModule = renderAppModule(
+    functionManifest.functions,
+    appBindingIdentity,
+  );
+  const appTypes = renderAppTypes(
+    functionManifest.functions,
+    assetUploadIntents,
+    generatedCommands,
+    generatedSurfaces,
+  );
+  const apiModule = renderApiModule(
+    functionManifest.functions,
+    generatedReferences.actions,
+    generatedReferences.defaultAssetNames,
+    appBindingIdentity,
   );
   const apiTypes = renderApiTypes(
     functionManifest.functions,
@@ -4041,6 +4566,11 @@ export async function generateInProcess(backendDir, options = {}) {
         types: './api.d.ts',
         import: './api.mjs',
       },
+      './app': {
+        types: './app.d.ts',
+        import: './app.mjs',
+      },
+      './app-descriptor': './app.descriptor.json',
       './schema': './schema.manifest.json',
       './functions': './functions.manifest.json',
       './capabilities': './capability.manifest.json',
@@ -4076,13 +4606,15 @@ export async function generateInProcess(backendDir, options = {}) {
   const remoteServiceArtifactFiles = remoteServicePublication?.artifacts.map((artifact) => artifact.file) ?? [];
   const legacyArtifactIndex = {
     artifactKind: 'artifactIndex',
-    schemaVersion: SCHEMA_VERSION,
+    // @ref LLP 0037#revisit-triggers — this codegen-owned review index follows
+    // the paired auth artifact generation, not the Rust-owned capability format.
+    schemaVersion: artifactVersion,
     appId,
     inputsHash,
     generatedAt,
     schemaHash,
     bundleHash,
-    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', ...(trustedCompositionActivation ? [TRUSTED_COMPOSITION_ACTIVATION_FILE] : []), 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'api.mjs', 'api.d.ts', API_ENVELOPE_MEMBERS_FILE, 'package.json', ...(microArtifacts ? ['micro.mjs', 'micro.d.ts', 'micro.profile.json'] : []), ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
+    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', ...(trustedCompositionActivation ? [TRUSTED_COMPOSITION_ACTIVATION_FILE] : []), 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'app.descriptor.json', contentAddressedDescriptorFile, 'app.binding.mjs', contentAddressedAppBindingFile, 'app.mjs', 'app.d.ts', 'api.mjs', 'api.d.ts', API_ENVELOPE_MEMBERS_FILE, 'package.json', ...(microArtifacts ? ['micro.mjs', 'micro.d.ts', 'micro.profile.json'] : []), ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
     tables: Object.keys(tables),
     ephemeralCollections: ephemeralCollections.map((collection) => collection.name),
     functions: functionManifest.functions.map((f) => ({ id: f.id, name: f.name, kind: f.kind })),
@@ -4114,6 +4646,13 @@ export async function generateInProcess(backendDir, options = {}) {
       providerBindingMetadata,
       providerBindingTypes,
       contractManifest,
+      appDescriptorSource,
+      contentAddressedDescriptorFile,
+      appBindingModule,
+      contentAddressedAppBindingFile,
+      contentAddressedAppBindingModule,
+      appModule,
+      appTypes,
       apiModule,
       apiTypes,
       apiEnvelopeMembers,
@@ -4139,7 +4678,7 @@ export async function generateInProcess(backendDir, options = {}) {
       ephemeralCollections,
       fileRecords: files,
       diagnostics: [...diagnostics, ...infoDiagnostics],
-      sourceSpans: exportedDefinitionSourceSpans(graphEntrySource(functionsGraph, functionsPath)),
+      sourceSpans: functionDefinitionSourceSpans,
       schemaFieldSpans: authoredPropertySourceSpans(graphEntrySource(schemaGraph, schemaPath), 'schema.mjs'),
       outputDirectory: targetConfig.outputDirectory,
       seedArtifact,
@@ -4182,6 +4721,7 @@ export async function generateInProcess(backendDir, options = {}) {
     providerIntrospection,
     providerBindingMetadata,
     contractManifest,
+    appDescriptor,
     artifactIndex,
     summary,
     cacheGraphRoot: verifiedGraph.graphRoot,
@@ -4590,6 +5130,30 @@ function serializeOrderExpr(order) {
     ...(order.maxEncodedBytes !== undefined
       ? { maxEncodedBytes: order.maxEncodedBytes }
       : {}),
+  };
+}
+
+function serializeRelationalPlan(plan) {
+  const serializeFilters = (filters) => filters.map((filter) => ({
+    field: filter.field,
+    op: filter.op,
+    value: serializeExpr(filter.value),
+  }));
+  return {
+    root: plan.root,
+    rootAlias: plan.rootAlias,
+    joined: plan.joined,
+    joinedAlias: plan.joinedAlias,
+    joinKind: plan.joinKind,
+    joinOn: plan.joinOn,
+    rootFilters: serializeFilters(plan.rootFilters ?? []),
+    rootVisibility: serializeFilters(plan.rootVisibility),
+    joinedVisibility: serializeFilters(plan.joinedVisibility),
+    projection: plan.projection,
+    order: plan.order.map(serializeOrderExpr),
+    take: plan.take,
+    rootIndex: plan.rootIndex,
+    joinedIndex: plan.joinedIndex,
   };
 }
 
@@ -5306,7 +5870,7 @@ function validateAuthoringValidator(val, where, report, seen = new Set(), positi
   if (!primitives.get(val.primitive)?.has(val.fieldType)
       && !(val.primitive === 'string' && (idTable !== null || relationIncarnation || assetRef))) {
     const arrayHint = val.primitive === 'array'
-      ? ' (table fields have no array node; declare the field v.json() to store an array, or model one row per element)'
+      ? ' (table fields have no array node; store the field as v.json() and narrow it with v.array(...) in the result contract of any function that returns it, or model one row per element — see guide/getting-started/your-first-backend.md#declare-the-schema)'
       : '';
     report(`${where} has unsupported validator primitive/field type ${JSON.stringify(val.primitive)}/${JSON.stringify(val.fieldType)}${arrayHint}`);
     return false;
@@ -6607,6 +7171,18 @@ function requiredCapabilities(fn) {
       runtimeCapability,
       'snapshot_batch_v1',
       'bounded_children_v1',
+      ...contractCapabilities,
+    ];
+  }
+  if (fn.runtime?.HostPlan?.SnapshotBatchV2) {
+    const bounded = fn.runtime.HostPlan.SnapshotBatchV2.nodes
+      .some((node) => node.classId === 'bounded_children_v1');
+    return [
+      'live_subscriptions',
+      runtimeCapability,
+      'snapshot_batch_v2',
+      'relational_query_v1',
+      ...(bounded ? ['bounded_children_v1'] : []),
       ...contractCapabilities,
     ];
   }
@@ -8608,7 +9184,580 @@ function renderMicroDeclaration(functions, functionsModule, schemaDef) {
   return `${lines.join('\n')}\n`;
 }
 
-function renderApiModule(
+function generatedReferenceSourceSpan(sourceSpans, name, fallbackFile) {
+  const span = sourceSpans?.[name];
+  return span
+    ? { file: span.path, line: span.line, column: span.column }
+    : { file: fallbackFile };
+}
+
+function surfaceContract(validator) {
+  if (validator?.__commandAssetSource === true) {
+    return { kind: 'commandAssetSource' };
+  }
+  return validatorResultValue(validator, { args: true });
+}
+
+function sameSurfaceContract(left, right) {
+  return canonicalResultJson(surfaceContract(left)) === canonicalResultJson(surfaceContract(right));
+}
+
+function surfaceLiteralMatchesValidator(value, validator) {
+  if (value === undefined) return validator?.optional === true;
+  if (!validator?.__validator) return false;
+  if (validator.resultKind === 'null') return value === null;
+  if (validator.resultKind === 'literal') return Object.is(value, validator.literal);
+  if (validator.resultKind === 'array' || validator.resultKind === 'vector') {
+    return Array.isArray(value)
+      && (validator.resultKind !== 'vector' || value.length === validator.dimensions)
+      && value.every((entry) => surfaceLiteralMatchesValidator(entry, validator.element ?? { __validator: true, primitive: 'number' }));
+  }
+  if (validator.resultKind === 'union') {
+    return (validator.variants ?? []).some((variant) => surfaceLiteralMatchesValidator(value, variant));
+  }
+  if (validator.primitive === 'object') {
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+    const fields = validator.fields ?? {};
+    return Object.keys(value).every((name) => fields[name] !== undefined)
+      && Object.entries(fields).every(([name, field]) => (
+        Object.hasOwn(value, name)
+          ? surfaceLiteralMatchesValidator(value[name], field)
+          : field.optional === true
+      ));
+  }
+  if (idFieldTypeTable(validator.fieldType) !== null || validator.fieldType === 'Principal') {
+    return typeof value === 'string';
+  }
+  if (validator.primitive === 'string') return typeof value === 'string';
+  if (validator.primitive === 'boolean') return typeof value === 'boolean';
+  if (validator.primitive === 'number') return typeof value === 'number' && Number.isFinite(value);
+  if (validator.primitive === 'unknown') return true;
+  return value !== undefined;
+}
+
+// @ref LLP 0180#declaration — generated commands retain
+// the exact small logical descriptor. The enclosing commands map supplies the
+// name; mutation and intent children are existing generated references.
+function buildGeneratedCommands({
+  commandDefs,
+  functionsModule,
+  generatedReferences,
+  err,
+}) {
+  const commands = dict();
+  const canonicalDefinition = (value) => canonicalResultJson(value);
+  const functionDefinitions = Object.entries(functionsModule)
+    .filter(([, value]) => isIsolatedDefinition(value, 'function'));
+  const assetDefinitions = Object.entries(functionsModule)
+    .filter(([, value]) => isIsolatedDefinition(value, 'asset-upload'));
+  const report = (code, command, message, details = {}) => err(
+    code,
+    'command',
+    `${command}: ${message}`,
+    { command, ...details },
+  );
+
+  for (const { exportName: commandName, def } of commandDefs) {
+    let valid = true;
+    if (!IDENT.test(commandName) || RESERVED_WORDS.has(commandName)) {
+      report('SNAPBACK_COMMAND_INVALID_IDENTIFIER', commandName, 'command export name must be a portable identifier');
+      continue;
+    }
+    const authoredMutations = Array.isArray(def.mutation)
+      ? def.mutation
+      : def.mutation === null
+        ? []
+        : [def.mutation];
+    if (authoredMutations.length !== 1) {
+      report(
+        'SNAPBACK_COMMAND_MUTATION_CARDINALITY_INVALID',
+        commandName,
+        'v1 requires exactly one ordinary mutation',
+        { mutations: authoredMutations.length },
+      );
+      continue;
+    }
+    const [authoredMutation] = authoredMutations;
+    const mutationCandidates = functionDefinitions.filter(([, candidate]) => (
+      candidate.__kind === 'Mutation'
+      && canonicalDefinition(candidate) === canonicalDefinition(authoredMutation)
+    ));
+    if (mutationCandidates.length !== 1) {
+      report(
+        mutationCandidates.length === 0
+          ? 'SNAPBACK_COMMAND_MUTATION_UNKNOWN'
+          : 'SNAPBACK_COMMAND_MAPPING_AMBIGUOUS',
+        commandName,
+        mutationCandidates.length === 0
+          ? 'mutation target is not one generated ordinary mutation'
+          : 'mutation target has multiple generated export identities',
+      );
+      continue;
+    }
+    const [mutationName, mutationDefinition] = mutationCandidates[0];
+    const mutation = generatedReferences.api.mutations[mutationName];
+    if (!mutation) {
+      report('SNAPBACK_COMMAND_MUTATION_UNKNOWN', commandName, `${mutationName} is not in the generated mutation namespace`);
+      continue;
+    }
+    const assetEntries = Object.entries(def.assets ?? {});
+    if (assetEntries.length > 1) {
+      report('SNAPBACK_COMMAND_MULTI_ASSET_UNSUPPORTED', commandName, 'v1 admits at most one asset input');
+      continue;
+    }
+    let asset = null;
+    let mappedMutationArg = null;
+    if (assetEntries.length === 1) {
+      const [inputName, mapping] = assetEntries[0];
+      const intentCandidates = assetDefinitions.filter(([, candidate]) => (
+        canonicalDefinition(candidate) === canonicalDefinition(mapping.intent)
+      ));
+      if (intentCandidates.length !== 1) {
+        report(
+          intentCandidates.length === 0
+            ? 'SNAPBACK_COMMAND_ASSET_INTENT_UNKNOWN'
+            : 'SNAPBACK_COMMAND_MAPPING_AMBIGUOUS',
+          commandName,
+          'asset intent must resolve to exactly one generated upload intent',
+          { input: inputName },
+        );
+        valid = false;
+      } else {
+        const [intentName, intentDefinition] = intentCandidates[0];
+        if (Object.keys(intentDefinition.args ?? {}).length > 0) {
+          report(
+            'SNAPBACK_COMMAND_ASSET_INTENT_ARGS_UNSUPPORTED',
+            commandName,
+            'v1 command assets do not define a second upload-intent argument mapping',
+            { input: inputName, intent: intentName },
+          );
+          valid = false;
+        }
+        const mutationArg = mutationDefinition.args?.[mapping.mutationArg];
+        const upload = mutationArg?.fieldType?.AssetRef?.upload;
+        if (!mutationArg || upload !== intentName || mutationArg.optional !== mapping.optional) {
+          report(
+            'SNAPBACK_COMMAND_ASSET_MAPPING_INCOMPATIBLE',
+            commandName,
+            `asset ${inputName} must map to a ${mapping.optional ? 'optional' : 'required'} v.assetRef({ upload: ${JSON.stringify(intentName)} }) mutation argument`,
+            { input: inputName, mutationArg: mapping.mutationArg, intent: intentName },
+          );
+          valid = false;
+        }
+        if (Object.hasOwn(mutationDefinition.args ?? {}, inputName) && inputName !== mapping.mutationArg) {
+          report(
+            'SNAPBACK_COMMAND_INPUT_COLLISION',
+            commandName,
+            `asset input ${inputName} collides with an ordinary mutation input`,
+            { input: inputName },
+          );
+          valid = false;
+        }
+        const intent = generatedReferences.api.assets[intentName];
+        if (!intent) {
+          report('SNAPBACK_COMMAND_ASSET_INTENT_UNKNOWN', commandName, `${intentName} is not in the generated asset namespace`);
+          valid = false;
+        } else {
+          mappedMutationArg = mapping.mutationArg;
+          asset = {
+            input: inputName,
+            intent,
+            mutationArg: mapping.mutationArg,
+            optional: mapping.optional,
+          };
+        }
+      }
+    }
+    const passthroughArgs = Object.keys(mutationDefinition.args ?? {})
+      .filter((name) => name !== mappedMutationArg);
+    for (const name of passthroughArgs) {
+      if (mutationDefinition.args[name]?.fieldType === 'Principal') {
+        report(
+          'SNAPBACK_COMMAND_AUTHORITY_INPUT_REFUSED',
+          commandName,
+          `ordinary input ${name} attempts to inject an authority principal`,
+          { input: name },
+        );
+        valid = false;
+      }
+    }
+    if (!valid) continue;
+    commands[commandName] = {
+      kind: 'asset-bearing-command.v1',
+      mutation,
+      asset,
+      passthroughArgs,
+    };
+  }
+  return commands;
+}
+
+// @ref LLP 0179#binding-is-not-authorization — generation performs only
+// closed argument/scope substitution. It never binds, derives, or records a
+// session principal; runtime authority remains an independent registry axis.
+function buildGeneratedSurfaces({
+  appId,
+  surfaceDefs,
+  functionsModule,
+  schemaDef,
+  generatedReferences,
+  generatedCommands,
+  functionSourceSpans,
+  err,
+}) {
+  const surfaces = dict();
+  const canonicalDefinition = (value) => canonicalResultJson(value);
+  const functionDefinitions = Object.entries(functionsModule)
+    .filter(([, value]) => isIsolatedDefinition(value, 'function'));
+  const assetDefinitions = Object.entries(functionsModule)
+    .filter(([, value]) => isIsolatedDefinition(value, 'asset-upload'));
+  const commandDefinitions = Object.entries(functionsModule)
+    .filter(([, value]) => isIsolatedDefinition(value, 'command'));
+  const ephemeralDefinitions = Object.entries(schemaDef.ephemeral?.collections ?? {})
+    .filter(([, value]) => isIsolatedDefinition(value, 'ephemeral-collection'));
+  const schemaVersion = Object.values(generatedReferences.api.queries)[0]?.schemaVersion
+    ?? Object.values(generatedReferences.api.mutations)[0]?.schemaVersion
+    ?? Object.values(generatedReferences.api.ephemeral)[0]?.schemaVersion
+    ?? SCHEMA_VERSION;
+
+  const report = (code, surface, member, message, details = {}) => {
+    err(code, 'surface', `${surface}${member ? `.${member}` : ''}: ${message}`, {
+      surface,
+      ...(member ? { member } : {}),
+      ...details,
+    });
+  };
+
+  // @ref LLP 0179#binding-is-not-authorization — numeric declaration
+  // ceilings refuse unbounded fan-out before a surface can become authority.
+  if (surfaceDefs.length > SURFACE_MAX_PER_APP) {
+    err(
+      'SNAPBACK_SURFACE_BUDGET_EXCEEDED',
+      'surface',
+      `app declares ${surfaceDefs.length} surfaces; the maximum is ${SURFACE_MAX_PER_APP}`,
+      { surfaces: surfaceDefs.length, maximum: SURFACE_MAX_PER_APP },
+    );
+  }
+
+  for (const { exportName: surfaceName, def } of surfaceDefs) {
+    if (!IDENT.test(surfaceName) || RESERVED_WORDS.has(surfaceName)) {
+      report('SNAPBACK_SURFACE_INVALID_IDENTIFIER', surfaceName, null, 'surface export name must be a portable identifier');
+      continue;
+    }
+    const params = dict();
+    let valid = true;
+    const paramCount = Object.keys(def.params ?? {}).length;
+    if (paramCount > SURFACE_MAX_PARAMS) {
+      report(
+        'SNAPBACK_SURFACE_BUDGET_EXCEEDED',
+        surfaceName,
+        null,
+        `${paramCount} params exceed the maximum ${SURFACE_MAX_PARAMS}`,
+        { params: paramCount, maximum: SURFACE_MAX_PARAMS },
+      );
+      valid = false;
+    }
+    const memberCount = ['reads', 'mutations', 'commands', 'assets', 'presence']
+      .reduce((count, namespace) => count + Object.keys(def[namespace] ?? {}).length, 0);
+    if (memberCount > SURFACE_MAX_MEMBERS) {
+      report(
+        'SNAPBACK_SURFACE_BUDGET_EXCEEDED',
+        surfaceName,
+        null,
+        `${memberCount} members exceed the maximum ${SURFACE_MAX_MEMBERS}`,
+        { members: memberCount, maximum: SURFACE_MAX_MEMBERS },
+      );
+      valid = false;
+    }
+    for (const [name, validator] of Object.entries(def.params ?? {})) {
+      if (!IDENT.test(name) || RESERVED_WORDS.has(name)) {
+        report('SNAPBACK_SURFACE_INVALID_IDENTIFIER', surfaceName, null, `invalid parameter ${name}`, { parameter: name });
+        valid = false;
+        continue;
+      }
+      const validatorValid = validateAuthoringValidator(validator, `${surfaceName} parameter ${name}`, (message) => {
+        report('SNAPBACK_SURFACE_PARAMETER_TYPE_MISMATCH', surfaceName, null, message, { parameter: name });
+      }, new Set(), 'argument');
+      if (!validatorValid) valid = false;
+      params[name] = surfaceContract(validator);
+    }
+
+    const compileLeaf = (
+      authored,
+      validator,
+      namespace,
+      memberPath,
+      inputs,
+      usedInputs,
+      allowScopeRecord = true,
+    ) => {
+      if (validator?.fieldType === 'Principal') {
+        report(
+          'SNAPBACK_SURFACE_AUTH_BINDING_REFUSED',
+          surfaceName,
+          memberPath,
+          'surface application data cannot bind an authority principal',
+        );
+        valid = false;
+        return null;
+      }
+      if (authored?.__surfaceValue === true && authored.kind === 'param') {
+        const parameter = def.params?.[authored.name];
+        if (!parameter) {
+          report('SNAPBACK_SURFACE_PARAMETER_UNKNOWN', surfaceName, memberPath, `binding names unknown parameter ${authored.name}`, { parameter: authored.name });
+          valid = false;
+          return null;
+        }
+        if (!sameSurfaceContract(parameter, validator)) {
+          report('SNAPBACK_SURFACE_PARAMETER_TYPE_MISMATCH', surfaceName, memberPath, `parameter ${authored.name} does not match its target contract`, { parameter: authored.name });
+          valid = false;
+          return null;
+        }
+        return { kind: 'param', name: authored.name };
+      }
+      if (authored?.__surfaceValue === true && authored.kind === 'input') {
+        if (namespace !== 'mutations' && namespace !== 'commands' && namespace !== 'assets') {
+          report('SNAPBACK_SURFACE_MEMBER_CLASS_UNSUPPORTED', surfaceName, memberPath, 'input(...) is admitted only for mutation, command, and asset calls');
+          valid = false;
+          return null;
+        }
+        if (usedInputs.has(authored.name)) {
+          report('SNAPBACK_SURFACE_BINDING_AMBIGUOUS', surfaceName, memberPath, `input ${authored.name} is bound more than once`, { input: authored.name });
+          valid = false;
+          return null;
+        }
+        usedInputs.add(authored.name);
+        inputs[authored.name] = {
+          contract: surfaceContract(validator),
+          optional: validator.optional === true,
+        };
+        return { kind: 'input', name: authored.name };
+      }
+      if (authored && typeof authored === 'object' && !Array.isArray(authored)) {
+        if (!allowScopeRecord || validator?.primitive !== 'object') {
+          report(
+            'SNAPBACK_SURFACE_BINDING_UNPORTABLE',
+            surfaceName,
+            memberPath,
+            'bounded scope records are admitted only at one object-keyed target level',
+          );
+          valid = false;
+          return null;
+        }
+        const fields = validator.fields ?? {};
+        const compiledFields = dict();
+        const authoredFields = Object.keys(authored);
+        if (authoredFields.length > SURFACE_MAX_SCOPE_RECORD_FIELDS) {
+          report(
+            'SNAPBACK_SURFACE_BUDGET_EXCEEDED',
+            surfaceName,
+            memberPath,
+            `${authoredFields.length} scope record fields exceed the maximum ${SURFACE_MAX_SCOPE_RECORD_FIELDS}`,
+            { fields: authoredFields.length, maximum: SURFACE_MAX_SCOPE_RECORD_FIELDS },
+          );
+          valid = false;
+        }
+        for (const field of authoredFields) {
+          if (!Object.hasOwn(fields, field)) {
+            report('SNAPBACK_SURFACE_INPUT_UNKNOWN', surfaceName, memberPath, `scope names unknown field ${field}`, { input: field });
+            valid = false;
+          }
+        }
+        for (const [field, fieldValidator] of Object.entries(fields)) {
+          if (!Object.hasOwn(authored, field)) {
+            if (fieldValidator.optional !== true) {
+              report('SNAPBACK_SURFACE_REQUIRED_INPUT_UNBOUND', surfaceName, memberPath, `required scope field ${field} is not bound`, { input: field });
+              valid = false;
+            }
+            continue;
+          }
+          const leaf = compileLeaf(
+            authored[field],
+            fieldValidator,
+            namespace,
+            memberPath,
+            inputs,
+            usedInputs,
+            false,
+          );
+          if (leaf) compiledFields[field] = leaf;
+        }
+        return { kind: 'scope', fields: compiledFields };
+      }
+      try {
+        canonicalResultJson(authored);
+      } catch {
+        report('SNAPBACK_SURFACE_BINDING_UNPORTABLE', surfaceName, memberPath, 'literal binding is not portable JSON');
+        valid = false;
+        return null;
+      }
+      if (!surfaceLiteralMatchesValidator(authored, validator)) {
+        report('SNAPBACK_SURFACE_PARAMETER_TYPE_MISMATCH', surfaceName, memberPath, 'literal binding does not match its target contract');
+        valid = false;
+        return null;
+      }
+      return { kind: 'literal', value: authored };
+    };
+
+    const compileMembers = (namespace) => {
+      const output = dict();
+      for (const [memberName, binding] of Object.entries(def[namespace] ?? {})) {
+        const memberPath = `${namespace}.${memberName}`;
+        if (!IDENT.test(memberName) || RESERVED_WORDS.has(memberName)) {
+          report('SNAPBACK_SURFACE_INVALID_IDENTIFIER', surfaceName, memberPath, 'member name must be a portable identifier');
+          valid = false;
+          continue;
+        }
+        const expectedDefinitionKind = namespace === 'presence'
+          ? 'ephemeral-collection'
+          : namespace === 'assets'
+            ? 'asset-upload'
+            : namespace === 'commands'
+              ? 'command'
+            : 'function';
+        if (binding?.__surfaceBinding !== true
+          || binding.reference?.__snapbackDefinitionKind !== expectedDefinitionKind) {
+          report('SNAPBACK_SURFACE_MEMBER_CLASS_UNSUPPORTED', surfaceName, memberPath, `unsupported ${namespace} member class`);
+          valid = false;
+          continue;
+        }
+        const candidates = (namespace === 'presence'
+          ? ephemeralDefinitions
+          : namespace === 'assets'
+            ? assetDefinitions
+            : namespace === 'commands'
+              ? commandDefinitions
+            : functionDefinitions)
+          .filter(([, candidate]) => canonicalDefinition(candidate) === canonicalDefinition(binding.reference));
+        if (candidates.length !== 1) {
+          report(
+            candidates.length === 0 ? 'SNAPBACK_SURFACE_REFERENCE_UNKNOWN' : 'SNAPBACK_SURFACE_BINDING_AMBIGUOUS',
+            surfaceName,
+            memberPath,
+            candidates.length === 0 ? 'binding target is not a generated app member' : 'binding target has multiple generated export identities',
+          );
+          valid = false;
+          continue;
+        }
+        const [targetName, targetDefinition] = candidates[0];
+        let reference;
+        let targetArgs;
+        if (namespace === 'reads') {
+          reference = generatedReferences.api.queries[targetName];
+          targetArgs = targetDefinition.args ?? {};
+        } else if (namespace === 'mutations') {
+          reference = generatedReferences.api.mutations[targetName];
+          targetArgs = targetDefinition.args ?? {};
+        } else if (namespace === 'commands') {
+          reference = generatedCommands[targetName];
+          const commandAsset = Object.entries(targetDefinition.assets ?? {})[0] ?? null;
+          const mappedMutationArg = commandAsset?.[1]?.mutationArg ?? null;
+          targetArgs = Object.fromEntries(Object.entries(targetDefinition.mutation?.args ?? {})
+            .filter(([name]) => name !== mappedMutationArg));
+          if (commandAsset) {
+            targetArgs[commandAsset[0]] = {
+              __validator: true,
+              __commandAssetSource: true,
+              fieldType: 'Json',
+              primitive: 'unknown',
+              optional: commandAsset[1].optional,
+            };
+          }
+        } else if (namespace === 'presence') {
+          reference = generatedReferences.api.ephemeral[targetName];
+          targetArgs = {
+            scope: {
+              __validator: true,
+              fieldType: 'Json',
+              primitive: 'object',
+              optional: false,
+              fields: targetDefinition.scope ?? {},
+            },
+          };
+        } else {
+          reference = generatedReferences.api.assets[targetName];
+          targetArgs = targetDefinition.args ?? {};
+        }
+        if (!reference) {
+          report('SNAPBACK_SURFACE_MEMBER_CLASS_UNSUPPORTED', surfaceName, memberPath, `target ${targetName} is in the wrong generated namespace`, { target: targetName });
+          valid = false;
+          continue;
+        }
+        const authoredBindings = binding.bindings ?? {};
+        for (const target of Object.keys(authoredBindings)) {
+          if (!Object.hasOwn(targetArgs, target)) {
+            report('SNAPBACK_SURFACE_INPUT_UNKNOWN', surfaceName, memberPath, `binding names unknown target input ${target}`, { input: target });
+            valid = false;
+          }
+        }
+        const compiledBindings = dict();
+        const inputs = dict();
+        const usedInputs = new Set();
+        let bindingCount = 0;
+        for (const [target, validator] of Object.entries(targetArgs)) {
+          if (!Object.hasOwn(authoredBindings, target)) {
+            if (validator.optional !== true) {
+              report('SNAPBACK_SURFACE_REQUIRED_INPUT_UNBOUND', surfaceName, memberPath, `required target input ${target} is not bound`, { input: target });
+              valid = false;
+            }
+            continue;
+          }
+          const authored = authoredBindings[target];
+          bindingCount += (
+            authored
+            && typeof authored === 'object'
+            && !Array.isArray(authored)
+            && authored.__surfaceValue !== true
+            && validator?.primitive === 'object'
+          ) ? Object.keys(authored).length : 1;
+          const leaf = compileLeaf(authored, validator, namespace, memberPath, inputs, usedInputs);
+          if (leaf) compiledBindings[target] = leaf;
+        }
+        if (bindingCount > SURFACE_MAX_MEMBER_BINDINGS) {
+          report(
+            'SNAPBACK_SURFACE_BUDGET_EXCEEDED',
+            surfaceName,
+            memberPath,
+            `${bindingCount} bindings exceed the maximum ${SURFACE_MAX_MEMBER_BINDINGS}`,
+            { bindings: bindingCount, maximum: SURFACE_MAX_MEMBER_BINDINGS },
+          );
+          valid = false;
+        }
+        output[memberName] = {
+          artifactKind: 'surfaceMemberBinding',
+          reference,
+          bindings: compiledBindings,
+          inputs,
+        };
+      }
+      return output;
+    };
+
+    const reads = compileMembers('reads');
+    const mutations = compileMembers('mutations');
+    const commands = compileMembers('commands');
+    const assets = compileMembers('assets');
+    const presence = compileMembers('presence');
+    if (!valid) continue;
+    surfaces[surfaceName] = {
+      artifactKind: 'surfaceDescriptor',
+      schemaVersion,
+      appId,
+      id: `${appId}:surface:${surfaceName}`,
+      name: surfaceName,
+      sourceSpan: generatedReferenceSourceSpan(functionSourceSpans, surfaceName, 'functions.mjs'),
+      params,
+      reads,
+      mutations,
+      commands,
+      assets,
+      presence,
+    };
+  }
+  return surfaces;
+}
+
+function buildGeneratedReferences(
   appId,
   functions,
   functionsModule,
@@ -8617,25 +9766,28 @@ function renderApiModule(
   routesManifest,
   assetUploadIntents = [],
   expectedGeneration,
-  trustedCompositionActivation = null,
+  functionSourceSpans = {},
 ) {
-  const refs = dict();
+  const queries = dict();
+  const mutations = dict();
+  const actions = dict();
+  const assets = dict();
   // Derived default intents also project as api.defaults.<table>.<field>
   // so the zero-ceremony flow reads naturally (LLP 0044 §Ceremony floor).
-  const defaultRefs = dict();
+  const defaultAssetNames = dict();
   for (const reference of renderAssetUploadReferences(appId, assetUploadIntents, functionsModule)) {
-    refs[reference.name] = reference;
+    assets[reference.name] = reference;
     if (reference.name.startsWith('_assets.default.')) {
       const [tableName, fieldName] = reference.name.slice('_assets.default.'.length).split('.');
       if (tableName && fieldName) {
-        (defaultRefs[tableName] ??= dict())[fieldName] = reference;
+        (defaultAssetNames[tableName] ??= dict())[fieldName] = reference.name;
       }
     }
   }
   for (const fn of functions) {
     const composition = functionCompositionIdentityV1(fn);
     const mutationIr = generatedMutationIrV1(fn, schemaManifest, expectedGeneration);
-    refs[fn.name] = {
+    const reference = {
       artifactKind: 'functionReference',
       schemaVersion: SCHEMA_VERSION,
       appId,
@@ -8646,6 +9798,8 @@ function renderApiModule(
       argsContractHash: fn.argsContractHash,
       resultContractHash: fn.resultContractHash,
       expectedGeneration,
+      sourceSpan: generatedReferenceSourceSpan(functionSourceSpans, fn.name, 'functions.mjs'),
+      resultContract: fn.resultContract,
       ...(mutationIr ? { mutationIr } : {}),
       ...(composition ? {
         composition: {
@@ -8665,6 +9819,9 @@ function renderApiModule(
         ...jsonSchemaObjectProperties(functionsModule[fn.name]?.args ?? {}),
       },
     };
+    if (fn.kind === 'Query' || fn.kind === 'LiveQuery') queries[fn.name] = reference;
+    else if (fn.kind === 'Mutation') mutations[fn.name] = reference;
+    else actions[fn.name] = reference;
   }
   const ephemeralRefs = dict();
   for (const collection of ephemeralCollections) {
@@ -8674,8 +9831,11 @@ function renderApiModule(
       appId,
       id: `${appId}:ephemeral:${collection.name}`,
       name: collection.name,
+      sourceSpan: { file: 'schema.mjs' },
       keyMode: collection.keyMode,
       scopeFields: collection.scopeFields,
+      scopeContract: collection.scopeContract,
+      valueContract: collection.valueContract,
       routingFields: collection.routingFields,
       defaultTtlMs: collection.defaultTtlMs,
       maxTtlMs: collection.maxTtlMs,
@@ -8687,26 +9847,241 @@ function renderApiModule(
       deliveryMode: 'latest',
     };
   }
-  refs.ephemeral = ephemeralRefs;
   const groupRefs = renderQueryGroupReferences(
     appId,
     functions,
     routesManifest,
     expectedGeneration,
   );
-  refs.groups = groupRefs;
+  return {
+    api: {
+      queries,
+      mutations,
+      assets,
+      ephemeral: ephemeralRefs,
+      queryGroups: groupRefs,
+    },
+    actions,
+    defaultAssetNames,
+  };
+}
+
+function standaloneDescriptorFunctions(functions) {
+  return functions.filter(({ kind }) => kind === 'Query' || kind === 'LiveQuery' || kind === 'Mutation');
+}
+
+function contentAddressedArtifactPath(path, identity) {
+  const digest = identity.replace(/^sha256:/, '');
+  const extensionIndex = path.lastIndexOf('.');
+  if (extensionIndex <= 0 || !/^[0-9a-f]{64}$/u.test(digest)) {
+    throw new TypeError('content-addressed generated artifact needs a filename extension and SHA-256 identity');
+  }
+  return `${path.slice(0, extensionIndex)}.${digest}${path.slice(extensionIndex)}`;
+}
+
+function contentAddressedModuleSpecifier(path, identity) {
+  // @ref LLP 0179#appdescriptor-v1 — the portable descriptor identity also
+  // keys its generated hydration graph, so regenerating in a live process
+  // cannot retain a prior descriptor through the ESM dependency cache. Use a
+  // real content-addressed filename, not a URL query: Metro resolves the
+  // latter as literal filesystem text and refuses the otherwise-valid graph.
+  return contentAddressedArtifactPath(path, identity);
+}
+
+function renderAppBindingModule(functions, descriptorIdentity, trustedCompositionActivation = null) {
+  const standalone = standaloneDescriptorFunctions(functions);
+  const aliases = standalone.map(({ name, kind }) => (
+    `export const ${name} = app.api.${kind === 'Mutation' ? 'mutations' : 'queries'}.${name};`
+  ));
+  const descriptorSpecifier = contentAddressedModuleSpecifier('./app.descriptor.json', descriptorIdentity);
   return `${HEADER}\n` +
+    `import descriptorDocument from ${JSON.stringify(descriptorSpecifier)} with { type: 'json' };\n` +
     `const deepFreeze = (value) => { if (value && typeof value === 'object' && !Object.isFrozen(value)) { for (const child of Object.values(value)) deepFreeze(child); Object.freeze(value); } return value; };\n` +
     `/** @type {import('./api.d.ts').GeneratedArtifacts} */\n` +
     `export const artifacts = deepFreeze(${stableJson({ trustedCompositionActivation })});\n` +
+    `const hydratedDescriptor = structuredClone(descriptorDocument);\n` +
+    `for (const namespace of [hydratedDescriptor.api.queries, hydratedDescriptor.api.mutations]) { for (const reference of Object.values(namespace)) Object.defineProperty(reference, 'artifacts', { value: artifacts, enumerable: false }); }\n` +
+    `const commandReferences = new Map(Object.values(hydratedDescriptor.commands).map((command) => [JSON.stringify(command), command]));\n` +
+    `for (const command of Object.values(hydratedDescriptor.commands)) { command.mutation = hydratedDescriptor.api.mutations[command.mutation.name]; if (command.asset) command.asset.intent = hydratedDescriptor.api.assets[command.asset.intent.name]; }\n` +
+    `for (const surface of Object.values(hydratedDescriptor.surfaces)) { for (const member of Object.values(surface.reads)) member.reference = hydratedDescriptor.api.queries[member.reference.name]; for (const member of Object.values(surface.mutations)) member.reference = hydratedDescriptor.api.mutations[member.reference.name]; for (const member of Object.values(surface.commands)) member.reference = commandReferences.get(JSON.stringify(member.reference)); for (const member of Object.values(surface.assets)) member.reference = hydratedDescriptor.api.assets[member.reference.name]; for (const member of Object.values(surface.presence)) member.reference = hydratedDescriptor.api.ephemeral[member.reference.name]; }\n` +
+    `/** @type {import('./app.d.ts').GeneratedAppDescriptorV1} */\n` +
+    `export const app = deepFreeze(hydratedDescriptor);\n` +
+    `${aliases.join('\n')}\n` +
+    `export default app;\n`;
+}
+
+function renderAppBindingAlias(functions, appBindingIdentity) {
+  const standalone = standaloneDescriptorFunctions(functions);
+  const reexports = ['app', 'artifacts', ...standalone.map(({ name }) => name)].join(', ');
+  const bindingSpecifier = contentAddressedModuleSpecifier('./app.binding.mjs', appBindingIdentity);
+  return `${HEADER}\n` +
+    `// Stable compatibility alias; the digest-named module is the sole hydrated binding.\n` +
+    `export { ${reexports} } from ${JSON.stringify(bindingSpecifier)};\n` +
+    `export { default } from ${JSON.stringify(bindingSpecifier)};\n`;
+}
+
+function renderAppModule(functions, appBindingIdentity) {
+  const standalone = standaloneDescriptorFunctions(functions);
+  const reexports = ['app', 'artifacts', ...standalone.map(({ name }) => name)].join(', ');
+  const bindingSpecifier = contentAddressedModuleSpecifier('./app.binding.mjs', appBindingIdentity);
+  return `${HEADER}\n` +
+    `export { ${reexports} } from ${JSON.stringify(bindingSpecifier)};\n` +
+    `export { default } from ${JSON.stringify(bindingSpecifier)};\n`;
+}
+
+function surfaceContractType(value) {
+  if (!value || typeof value !== 'object') return 'unknown';
+  if (value.kind === 'null') return 'null';
+  if (value.kind === 'string' || value.kind === 'assetRef') return 'string';
+  if (value.kind === 'commandAssetSource') return 'CommandAssetSource';
+  if (value.kind === 'principal') return 'Principal';
+  if (value.kind === 'id') return `Id<${JSON.stringify(value.table)}>`;
+  if (value.kind === 'integer' || value.kind === 'finiteReal') return 'number';
+  if (value.kind === 'boolean') return 'boolean';
+  if (value.kind === 'literal') return JSON.stringify(value.value);
+  if (value.kind === 'json') return 'unknown';
+  if (value.kind === 'array') return `ReadonlyArray<${surfaceContractType(value.element)}>`;
+  if (value.kind === 'tuple') return `readonly [${(value.elements ?? []).map(surfaceContractType).join(', ')}]`;
+  if (value.kind === 'vector') return `ReadonlyArray<number> & { readonly length: ${value.dimensions} }`;
+  if (value.kind === 'union') return (value.variants ?? []).map(surfaceContractType).join(' | ');
+  if (value.kind === 'object') {
+    const fields = (value.fields ?? []).map((field) => (
+      `${JSON.stringify(field.name)}${field.required === false ? '?' : ''}: ${surfaceContractType(field.value)}`
+    ));
+    return fields.length === 0 ? 'Record<string, never>' : `{ ${fields.join('; ')} }`;
+  }
+  return 'unknown';
+}
+
+function renderSurfaceTypeMap(members, referenceNamespace, commandMap = {}) {
+  const entries = Object.entries(members ?? {}).map(([name, member]) => {
+    const inputs = Object.entries(member.inputs ?? {});
+    const inputType = inputs.length === 0
+      ? 'Record<string, never>'
+      : `{ ${inputs.map(([inputName, descriptor]) => `${JSON.stringify(inputName)}${descriptor.optional ? '?' : ''}: ${surfaceContractType(descriptor.contract)}`).join('; ')} }`;
+    const referenceName = referenceNamespace === 'GeneratedAppCommands'
+      ? Object.entries(commandMap).find(([, command]) => (
+        canonicalResultJson(command) === canonicalResultJson(member.reference)
+      ))?.[0]
+      : member.reference.name;
+    return `${JSON.stringify(name)}: SurfaceMemberDescriptor<${referenceNamespace}[${JSON.stringify(referenceName)}], ${inputType}>`;
+  });
+  return entries.length === 0 ? 'Record<string, never>' : `{ ${entries.join('; ')} }`;
+}
+
+function renderAppTypes(functions, assetUploadIntents = [], commands = {}, surfaces = {}) {
+  const standalone = standaloneDescriptorFunctions(functions);
+  const queryNames = standalone
+    .filter(({ kind }) => kind === 'Query' || kind === 'LiveQuery')
+    .map(({ name }) => JSON.stringify(name));
+  const mutationNames = standalone
+    .filter(({ kind }) => kind === 'Mutation')
+    .map(({ name }) => JSON.stringify(name));
+  const assetNames = assetUploadIntents.map(({ name }) => JSON.stringify(name));
+  const union = (names) => names.join(' | ') || 'never';
+  const lines = [
+    HEADER,
+    "import type { GeneratedApi, GeneratedArtifacts, GeneratedEphemeral, GeneratedQueryGroups, Id, Principal } from './api.d.ts';",
+    `export type GeneratedAppQueryName = ${union(queryNames)};`,
+    `export type GeneratedAppMutationName = ${union(mutationNames)};`,
+    `export type GeneratedAppAssetName = ${union(assetNames)};`,
+    'export type CapabilityRequirement = string;',
+    'export interface CommandBlobSource { readonly size: number; readonly name?: string; readonly type?: string; slice(start: number, end?: number): { arrayBuffer(): Promise<ArrayBuffer> } }',
+    'export interface CommandPlatformAssetSource { readonly uri: string; readonly fileName?: string | null; readonly mimeType?: string | null; readonly fileSize?: number | null }',
+    'export type CommandAssetSource = CommandBlobSource | CommandPlatformAssetSource;',
+    'type ReferenceArgs<Reference> = Reference extends { readonly __args?: infer Args } ? Args : Record<string, unknown>;',
+    'type ReferenceResult<Reference> = Reference extends { readonly __result?: infer Result } ? Result : unknown;',
+    'type CommandAssetInput<Input extends string | never, Optional extends boolean> = [Input] extends [never] ? unknown : Optional extends true ? { readonly [Field in Input]?: CommandAssetSource } : { readonly [Field in Input]: CommandAssetSource };',
+    'export interface CommandDescriptor<Mutation = unknown, Input extends string | never = never, MutationArg extends string | never = never, Optional extends boolean = false, Intent = unknown> {',
+    "  readonly kind: 'asset-bearing-command.v1';",
+    '  readonly mutation: Mutation;',
+    '  readonly asset: [Input] extends [never] ? null : Readonly<{ input: Input; intent: Intent; mutationArg: MutationArg; optional: Optional }>;',
+    '  readonly passthroughArgs: readonly string[];',
+    '  readonly __args?: Omit<ReferenceArgs<Mutation>, MutationArg> & CommandAssetInput<Input, Optional>;',
+    '  readonly __result?: ReferenceResult<Mutation>;',
+    '}',
+    'export interface GeneratedAppCommands {',
+    ...Object.entries(commands).map(([name, command]) => `  readonly ${JSON.stringify(name)}: CommandDescriptor<GeneratedApi[${JSON.stringify(command.mutation.name)}], ${command.asset ? JSON.stringify(command.asset.input) : 'never'}, ${command.asset ? JSON.stringify(command.asset.mutationArg) : 'never'}, ${command.asset?.optional === true}, ${command.asset ? `GeneratedApi[${JSON.stringify(command.asset.intent.name)}]` : 'never'}>;`),
+    '}',
+    'export interface SurfaceMemberDescriptor<Reference = unknown, Input = Record<string, never>> {',
+    "  readonly artifactKind: 'surfaceMemberBinding';",
+    '  readonly reference: Reference;',
+    '  readonly bindings: Readonly<Record<string, unknown>>;',
+    '  readonly inputs: Readonly<Record<string, unknown>>;',
+    '  readonly __input?: Input;',
+    '}',
+    'export interface SurfaceDescriptor<Params = Record<string, never>, Reads = Record<string, never>, Mutations = Record<string, never>, Commands = Record<string, never>, Presence = Record<string, never>, Assets = Record<string, never>> {',
+    "  readonly artifactKind: 'surfaceDescriptor';",
+    '  readonly id: string;',
+    '  readonly name: string;',
+    '  readonly params: Readonly<Record<string, unknown>>;',
+    '  readonly reads: Reads;',
+    '  readonly mutations: Mutations;',
+    '  readonly presence: Presence;',
+    '  readonly commands: Commands;',
+    '  readonly assets: Assets;',
+    '  readonly __params?: Params;',
+    '}',
+    'export interface GeneratedAppSurfaces {',
+    ...Object.entries(surfaces).map(([name, surface]) => {
+      const params = Object.entries(surface.params ?? {});
+      const paramType = params.length === 0
+        ? 'Record<string, never>'
+        : `{ ${params.map(([paramName, contract]) => `${JSON.stringify(paramName)}: ${surfaceContractType(contract)}`).join('; ')} }`;
+      return `  readonly ${JSON.stringify(name)}: SurfaceDescriptor<${paramType}, ${renderSurfaceTypeMap(surface.reads, 'GeneratedApi')}, ${renderSurfaceTypeMap(surface.mutations, 'GeneratedApi')}, ${renderSurfaceTypeMap(surface.commands, 'GeneratedAppCommands', commands)}, ${renderSurfaceTypeMap(surface.presence, 'GeneratedEphemeral')}, ${renderSurfaceTypeMap(surface.assets, 'GeneratedApi')}>;`;
+    }),
+    '}',
+    'export interface AppDescriptorV1 {',
+    "  readonly format: 'snapback.app.v1';",
+    '  readonly identity: Readonly<{ app: string; schema: string; functions: string; descriptor: `sha256:${string}` }>;',
+    '  readonly api: Readonly<{',
+    '    queries: Readonly<Pick<GeneratedApi, GeneratedAppQueryName>>;',
+    '    mutations: Readonly<Pick<GeneratedApi, GeneratedAppMutationName>>;',
+    '    assets: Readonly<Pick<GeneratedApi, GeneratedAppAssetName>>;',
+    '    ephemeral: GeneratedEphemeral;',
+    '    queryGroups: GeneratedQueryGroups;',
+    '  }>;',
+    '  readonly commands: Readonly<GeneratedAppCommands>;',
+    '  readonly surfaces: Readonly<GeneratedAppSurfaces>;',
+    '  readonly capabilities: Readonly<{ required: readonly CapabilityRequirement[] }>;',
+    '}',
+    'export type GeneratedAppDescriptorV1 = AppDescriptorV1;',
+    'export declare const artifacts: GeneratedArtifacts;',
+    'export declare const app: GeneratedAppDescriptorV1;',
+  ];
+  for (const { name, kind } of standalone) {
+    lines.push(`export declare const ${name}: GeneratedAppDescriptorV1['api']['${kind === 'Mutation' ? 'mutations' : 'queries'}']['${name}'];`);
+  }
+  lines.push('export default app;');
+  return `${lines.join('\n')}\n`;
+}
+
+function renderApiModule(functions, actionReferences, defaultAssetNames, appBindingIdentity) {
+  const standalone = standaloneDescriptorFunctions(functions);
+  const reexports = ['app', ...standalone.map(({ name }) => name)].join(', ');
+  const appSpecifier = contentAddressedModuleSpecifier('./app.binding.mjs', appBindingIdentity);
+  const defaultAssignments = [];
+  for (const [tableName, fields] of Object.entries(defaultAssetNames)) {
+    defaultAssignments.push(`defaults[${JSON.stringify(tableName)}] = Object.create(null);`);
+    for (const [fieldName, assetName] of Object.entries(fields)) {
+      defaultAssignments.push(`defaults[${JSON.stringify(tableName)}][${JSON.stringify(fieldName)}] = app.api.assets[${JSON.stringify(assetName)}];`);
+    }
+  }
+  return `${HEADER}\n` +
+    `import { app, artifacts } from ${JSON.stringify(appSpecifier)};\n` +
+    `export { ${reexports}, artifacts } from ${JSON.stringify(appSpecifier)};\n` +
+    `const deepFreeze = (value) => { if (value && typeof value === 'object' && !Object.isFrozen(value)) { for (const child of Object.values(value)) deepFreeze(child); Object.freeze(value); } return value; };\n` +
     `/** @type {import('./api.d.ts').GeneratedEphemeral} */\n` +
-    `export const ephemeral = Object.freeze(${stableJson(ephemeralRefs)});\n` +
+    `export const ephemeral = app.api.ephemeral;\n` +
     `/** @type {import('./api.d.ts').GeneratedQueryGroups} */\n` +
-    `export const groups = Object.freeze(${stableJson(groupRefs)});\n` +
+    `export const groups = app.api.queryGroups;\n` +
     `/** @type {import('./api.d.ts').GeneratedAssetUploadDefaults} */\n` +
-    `export const defaults = Object.freeze(${stableJson(defaultRefs)});\n` +
-    `const references = ${stableJson(refs)};\n` +
-    `for (const reference of Object.values(references)) { if (reference?.artifactKind === 'functionReference') Object.defineProperty(reference, 'artifacts', { value: artifacts, enumerable: false }); }\n` +
+    `export const defaults = Object.create(null);\n` +
+    `${defaultAssignments.join('\n')}\n` +
+    `deepFreeze(defaults);\n` +
+    `const actionReferences = ${stableJson(actionReferences)};\n` +
+    `for (const reference of Object.values(actionReferences)) Object.defineProperty(reference, 'artifacts', { value: artifacts, enumerable: false });\n` +
+    `const references = { ...app.api.assets, ...app.api.queries, ...app.api.mutations, ...actionReferences, ephemeral, groups };\n` +
     `/** @type {import('./api.d.ts').GeneratedApi} */\n` +
     `export const api = deepFreeze(references);\n` +
     `export default api;\n`;
@@ -8822,6 +10197,8 @@ function renderApiTypes(
     '  argsContractHash: string;',
     '  resultContractHash: string;',
     '  expectedGeneration: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }>;',
+    '  sourceSpan?: Readonly<{ file: string; line?: number; column?: number }>;',
+    '  resultContract?: Readonly<Record<string, unknown>>;',
     '  mutationIr?: GeneratedMutationIrV1;',
     '  composition?: Readonly<{ normalizedCompositePlan: Readonly<Record<string, unknown>>; planHash: `sha256:${string}`; resultContract: Readonly<Record<string, unknown>> }>;',
     '  readonly artifacts?: GeneratedArtifacts;',
@@ -8906,8 +10283,11 @@ function renderApiTypes(
     '  appId: string;',
     '  id: string;',
     '  name: Name;',
+    '  sourceSpan: Readonly<{ file: string; line?: number; column?: number }>;',
     '  keyMode: KeyMode;',
     '  scopeFields: readonly string[];',
+    '  scopeContract: Readonly<Record<string, unknown>>;',
+    '  valueContract: Readonly<Record<string, unknown>>;',
     '  routingFields: readonly string[];',
     '  defaultTtlMs: number;',
     '  maxTtlMs: number;',
@@ -9227,6 +10607,9 @@ function renderApiTypes(
   lines.push('}');
   lines.push('export declare const defaults: GeneratedAssetUploadDefaults;');
   lines.push('export declare const api: GeneratedApi;');
+  const descriptorExports = standaloneDescriptorFunctions(functions).map(({ name }) => name);
+  lines.push(`export { app${descriptorExports.length > 0 ? `, ${descriptorExports.join(', ')}` : ''} } from './app';`);
+  lines.push("export type { AppDescriptorV1, CapabilityRequirement, CommandDescriptor, GeneratedAppDescriptorV1, SurfaceDescriptor } from './app';");
   lines.push('export default api;');
   return lines.join('\n') + '\n';
 }
@@ -9624,7 +11007,10 @@ function typeForGeneratedValidator(val) {
   else if (idTable !== null) type = `Id<'${idTable}'>`;
   else type = { string: 'string', boolean: 'boolean', number: 'number', unknown: 'unknown' }[val.primitive] ?? 'unknown';
   if (val.primitive === 'object') {
-    type = `{ ${Object.entries(val.fields ?? {}).map(([name, field]) => `${name}${field.optional ? '?' : ''}: ${typeForGeneratedValidator(field).replace(/ \| undefined$/, '')}`).join('; ')} }`;
+    const fields = Object.entries(val.fields ?? {});
+    type = fields.length === 0
+      ? 'Record<string, never>'
+      : `{ ${fields.map(([name, field]) => `${name}${field.optional ? '?' : ''}: ${typeForGeneratedValidator(field).replace(/ \| undefined$/, '')}`).join('; ')} }`;
   }
   return val.optional ? `${type} | undefined` : type;
 }
@@ -9659,7 +11045,10 @@ function typeForValidator(val) {
       .map((variant) => typeForValidator(variant).replace(/ \| undefined$/, ''))
       .join(' | ');
   } else if (val.primitive === 'object') {
-    type = `{ ${Object.entries(val.fields ?? {}).map(([name, field]) => `${name}${field.optional ? '?' : ''}: ${typeForValidator(field).replace(/ \| undefined$/, '')}`).join('; ')} }`;
+    const fields = Object.entries(val.fields ?? {});
+    type = fields.length === 0
+      ? 'Record<string, never>'
+      : `{ ${fields.map(([name, field]) => `${name}${field.optional ? '?' : ''}: ${typeForValidator(field).replace(/ \| undefined$/, '')}`).join('; ')} }`;
   }
   return val.optional ? `${type} | undefined` : type;
 }
@@ -10310,16 +11699,18 @@ async function buildDefinitionBundle(
 function definitionFacadeSource(entryPath, definePath, resultKey, kind) {
   const entry = JSON.stringify(entryPath);
   const define = JSON.stringify(definePath);
-  const imports = `import { isAssetUploadDef, isConfigDef, isCronDef, isEphemeralCollectionDef, isEphemeralDef, isFunctionDef, isMaintainedProjectionDef, isRoutesDef, isTableDef } from ${define};`;
+  const imports = `import { isAssetUploadDef, isCommandDef, isConfigDef, isCronDef, isEphemeralCollectionDef, isEphemeralDef, isFunctionDef, isMaintainedProjectionDef, isRoutesDef, isSurfaceBinding, isSurfaceDef, isTableDef } from ${define};`;
   const normalization = String.raw`
 function __snapbackDefinitionKind(value) {
   if (isFunctionDef(value)) return 'function';
   if (isAssetUploadDef(value)) return 'asset-upload';
+  if (isCommandDef(value)) return 'command';
   if (isCronDef(value)) return 'cron';
   if (isConfigDef(value)) return 'config';
   if (isEphemeralCollectionDef(value)) return 'ephemeral-collection';
   if (isRoutesDef(value)) return 'routes';
   if (isMaintainedProjectionDef(value)) return 'maintained-projection';
+  if (isSurfaceDef(value)) return 'surface';
   return null;
 }
 function __snapbackKnownMarkerKind(value) {
@@ -10327,6 +11718,7 @@ function __snapbackKnownMarkerKind(value) {
   if (definitionKind !== null) return definitionKind;
   if (isTableDef(value)) return 'table';
   if (isEphemeralDef(value)) return 'ephemeral';
+  if (isSurfaceBinding(value)) return 'surface-binding';
   return null;
 }
 function __snapbackOwnDescriptor(value, key) {
@@ -10763,6 +12155,13 @@ function writeGeneratedOutput(outDir, {
   providerBindingMetadata,
   providerBindingTypes,
   contractManifest,
+  appDescriptorSource,
+  contentAddressedDescriptorFile,
+  appBindingModule,
+  contentAddressedAppBindingFile,
+  contentAddressedAppBindingModule,
+  appModule,
+  appTypes,
   apiModule,
   apiTypes,
   apiEnvelopeMembers,
@@ -10797,6 +12196,12 @@ function writeGeneratedOutput(outDir, {
   writeFileSync(join(outDir, 'provider-bindings.json'), serializeProviderBindingMetadata(providerBindingMetadata));
   writeFileSync(join(outDir, 'provider-bindings.d.ts'), providerBindingTypes);
   writeFileSync(join(outDir, 'contract-data.manifest.json'), stableJson(contractManifest) + '\n');
+  writeFileSync(join(outDir, 'app.descriptor.json'), appDescriptorSource);
+  writeFileSync(join(outDir, contentAddressedDescriptorFile), appDescriptorSource);
+  writeFileSync(join(outDir, 'app.binding.mjs'), appBindingModule);
+  writeFileSync(join(outDir, contentAddressedAppBindingFile), contentAddressedAppBindingModule);
+  writeFileSync(join(outDir, 'app.mjs'), appModule);
+  writeFileSync(join(outDir, 'app.d.ts'), appTypes);
   writeFileSync(join(outDir, 'api.mjs'), apiModule);
   writeFileSync(join(outDir, 'api.d.ts'), apiTypes);
   if (microArtifacts) {

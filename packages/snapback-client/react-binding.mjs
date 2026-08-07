@@ -17,6 +17,18 @@ const PREPARED_REACT_BINDING = Symbol('snapback.prepared-react-binding.v1');
 const PREPARED_REACT_QUERY_GROUP = Symbol('snapback.prepared-react-query-group.v1');
 const REACT_BINDING_MISMATCH_CONTEXT = Symbol('snapback.react-binding-mismatch-context.v1');
 const preparedReactQueryGroupOwners = new WeakMap();
+// Mounted-provider HMR generation handoff (development only). The frozen
+// prepared binding stays the boot-time record; a successful handoff publishes
+// a complete replacement admission view in a side table, and every admission
+// read resolves through it. See handoffPreparedReactBindingGeneration below.
+// @ref LLP 0114#mounted-provider-hmr-generation-handoff-dated-amendment-2026-08-05
+const preparedReactBindingInternals = new WeakMap();
+const preparedReactBindingGenerationOverlays = new WeakMap();
+const preparedReactBindingGenerationHandoffs = new WeakMap();
+
+function functionAdmissionForBinding(binding) {
+  return preparedReactBindingGenerationOverlays.get(binding) ?? binding;
+}
 const REGISTERED_BUNDLE_CAPABILITY = 'registered_bundle_boot_v1';
 const MIXED_BUNDLE_CAPABILITY = 'mixed_bundle_boot_v2';
 const LOCAL_DEVELOPMENT_PROFILE = 'local-dev-sqlite-ibex';
@@ -159,6 +171,78 @@ function publicReference(
 }
 
 function normalizedManifest(input) {
+  // @ref LLP 0179#appbinding-seam — AppDescriptor is now the stable client
+  // input. Preserve the older manifest carrier, but project descriptor
+  // references into this owner's existing admission machinery rather than
+  // asking the Expo package to recreate a React binding implementation.
+  if (input?.format === 'snapback.app.v1') {
+    // @ref LLP 0179#portable-descriptor-document-and-typed-binding — the
+    // generated module may hydrate portable references with non-enumerable
+    // runtime conveniences. Admission owns a frozen portable projection, so
+    // manifest hashing and later descriptor checks never mistake those
+    // conveniences for CanonicalClientValueV1 query arguments.
+    const descriptor = deepFreeze(structuredClone(input));
+    const identity = descriptor.identity;
+    const api = descriptor.api;
+    const definitions = [
+      ...Object.values(api?.queries ?? {}),
+      ...Object.values(api?.mutations ?? {}),
+    ];
+    if (
+      !identity
+      || typeof identity.app !== 'string'
+      || typeof identity.schema !== 'string'
+      || typeof identity.functions !== 'string'
+      || typeof identity.descriptor !== 'string'
+      || !api
+      || !descriptor.commands
+      || !descriptor.capabilities
+      || !Array.isArray(descriptor.capabilities.required)
+      || definitions.some((reference) => (
+        !reference
+        || reference.artifactKind !== 'functionReference'
+        || reference.appId !== identity.app
+        || !['Query', 'LiveQuery', 'Mutation'].includes(reference.kind)
+        || reference.expectedGeneration?.appId !== identity.app
+        || reference.expectedGeneration?.schemaHash !== identity.schema
+        || reference.expectedGeneration?.bundleHash !== identity.functions
+      ))
+    ) {
+      throw diagnosticError(
+        'SNAPBACK_REACT_MANIFEST_INVALID',
+        'prepareReactBinding requires a complete snapback.app.v1 descriptor',
+      );
+    }
+    const names = new Set();
+    const ids = new Set();
+    for (const reference of definitions) {
+      if (names.has(reference.name) || ids.has(reference.id)) {
+        throw diagnosticError(
+          'SNAPBACK_REACT_MANIFEST_INVALID',
+          'AppDescriptor repeats a function name or id',
+          { functionId: reference.id, function: reference.name },
+        );
+      }
+      names.add(reference.name);
+      ids.add(reference.id);
+    }
+    const first = definitions[0] ?? null;
+    return Object.freeze({
+      descriptorMode: true,
+      descriptor,
+      functions: Object.freeze({
+        artifactKind: 'functionManifest',
+        schemaVersion: first?.schemaVersion ?? null,
+        appId: identity.app,
+        bundleHash: identity.functions,
+        inputsHash: first?.expectedGeneration?.inputsHash ?? null,
+        functions: Object.freeze(definitions),
+      }),
+      schema: null,
+      capabilityManifest: null,
+      routes: null,
+    });
+  }
   const functions = input?.artifactKind === 'functionManifest'
     ? input
     : input?.functions;
@@ -175,6 +259,8 @@ function normalizedManifest(input) {
     );
   }
   return Object.freeze({
+    descriptorMode: false,
+    descriptor: null,
     functions,
     schema: input?.artifactKind === 'functionManifest'
       ? null
@@ -275,6 +361,88 @@ function groupResponseArgsMatch(mapping, params, actual) {
 // refusal stays loud), and only for a byte-identical generated manifest.
 const BINDING_RECEIPT_FORMAT_VERSION = 1;
 
+function persistedReceiptMismatch(message, generated, receipt, details = {}) {
+  const error = diagnosticError(
+    'SNAPBACK_REACT_BINDING_MISMATCH',
+    message,
+    {
+      expectedAppId: generated.functions.appId,
+      actualAppId: receipt?.appId ?? null,
+      expectedBundleHash: generated.functions.bundleHash,
+      actualBundleHash: receipt?.deployment?.bundleHash ?? null,
+      ...details,
+    },
+  );
+  Object.defineProperty(error, REACT_BINDING_MISMATCH_CONTEXT, {
+    value: Object.freeze({
+      source: 'persisted-receipt',
+      localDevelopment: false,
+    }),
+  });
+  return error;
+}
+
+function descriptorAdmissionFromReceipt(receipt, generated) {
+  const admission = receipt.descriptorAdmission;
+  if (
+    !admission
+    || typeof admission !== 'object'
+    || admission.descriptorIdentity !== generated.descriptor.identity.descriptor
+    || !Array.isArray(admission.functions)
+    || !Array.isArray(admission.ephemeralCollections)
+  ) {
+    throw persistedReceiptMismatch(
+      'persisted binding receipt does not carry the admitted AppDescriptor deployment view',
+      generated,
+      receipt,
+      {
+        expectedDescriptorIdentity: generated.descriptor.identity.descriptor,
+        actualDescriptorIdentity: admission?.descriptorIdentity ?? null,
+      },
+    );
+  }
+  const functionsById = new Map();
+  for (const fact of admission.functions) {
+    if (
+      !fact
+      || typeof fact !== 'object'
+      || typeof fact.id !== 'string'
+      || typeof fact.queryArtifact !== 'string'
+      || typeof fact.authorityIndependent !== 'boolean'
+      || functionsById.has(fact.id)
+    ) {
+      throw persistedReceiptMismatch(
+        'persisted binding receipt carries invalid AppDescriptor function admission facts',
+        generated,
+        receipt,
+      );
+    }
+    functionsById.set(fact.id, Object.freeze({
+      queryArtifact: fact.queryArtifact,
+      authorityIndependent: fact.authorityIndependent,
+    }));
+  }
+  const expectedFunctionIds = generated.functions.functions.map((definition) => definition.id);
+  if (
+    functionsById.size !== expectedFunctionIds.length
+    || expectedFunctionIds.some((id) => !functionsById.has(id))
+  ) {
+    throw persistedReceiptMismatch(
+      'persisted binding receipt carries a different AppDescriptor function generation',
+      generated,
+      receipt,
+      {
+        expectedFunctionIds: expectedFunctionIds.slice().sort(),
+        actualFunctionIds: [...functionsById.keys()].sort(),
+      },
+    );
+  }
+  return Object.freeze({
+    functionsById,
+    ephemeralCollections: deepFreeze(structuredClone(admission.ephemeralCollections)),
+  });
+}
+
 async function adoptPersistedBindingReceipt(client, generated, cause) {
   if (!isConnectivityFailureError(cause)) return null;
   const store = client.rqsStore;
@@ -289,21 +457,46 @@ async function adoptPersistedBindingReceipt(client, generated, cause) {
     !receipt
     || typeof receipt !== 'object'
     || receipt.formatVersion !== BINDING_RECEIPT_FORMAT_VERSION
-    || receipt.appId !== generated.functions.appId
     || typeof receipt.generatedManifestDigest !== 'string'
     || !receipt.deployment
     || typeof receipt.deployment !== 'object'
-    || receipt.generatedManifestDigest !== await sha256GeneratedManifest(generated)
   ) return null;
+  if (receipt.appId !== generated.functions.appId) return null;
+  if (receipt.generatedManifestDigest !== await sha256GeneratedManifest(generated)) {
+    throw persistedReceiptMismatch(
+      'generated artifacts do not match the persisted binding receipt',
+      generated,
+      receipt,
+      generated.descriptorMode ? {
+        expectedSchemaHash: generated.descriptor.identity.schema,
+        actualSchemaHash: receipt.deployment.schemaHash ?? null,
+        expectedDescriptorIdentity: generated.descriptor.identity.descriptor,
+        actualDescriptorIdentity: receipt.descriptorAdmission?.descriptorIdentity ?? null,
+      } : {},
+    );
+  }
+  const descriptorAdmission = generated.descriptorMode
+    ? descriptorAdmissionFromReceipt(receipt, generated)
+    : null;
   // The digest equality above proves the presented generated manifest is
-  // byte-identical to the one online admission proved equal to the
-  // deployment — so the deployed view IS the generated manifest, and every
-  // per-item admission check below re-runs against it unchanged.
+  // byte-identical to the one online admission proved. In legacy manifest
+  // mode the deployed view IS that generated manifest. Descriptor mode keeps
+  // its portable document environment-independent, so the same receipt also
+  // carries the compact server-only facts from the admitted deployment view;
+  // every per-item admission check below still re-runs in this owner.
+  // @ref LLP 0179#appbinding-seam — descriptor cold boot reaches LLP 0114's
+  // existing receipt/admission owner; it does not create a surface cache or
+  // a second binding format.
   const inspection = {
     targetProfileId: receipt.deployment.targetProfileId,
     target: receipt.deployment.target,
     functions: generated.functions,
-    schema: generated.schema === null
+    schema: descriptorAdmission !== null
+      ? {
+        schemaHash: receipt.deployment.schemaHash,
+        ephemeralCollections: descriptorAdmission.ephemeralCollections,
+      }
+      : generated.schema === null
       ? (receipt.deployment.schemaHash == null
         ? null
         : { schemaHash: receipt.deployment.schemaHash })
@@ -321,16 +514,42 @@ async function adoptPersistedBindingReceipt(client, generated, cause) {
       deployment: receipt.deployment,
       capabilityDigest: receipt.capabilityDigest ?? null,
       registeredBundleAvailable: receipt.registeredBundleAvailable === true,
+      mixedBundleAvailable: receipt.mixedBundleAvailable === true,
+      descriptorFunctionFacts: descriptorAdmission?.functionsById ?? null,
     },
   };
+}
+
+function warnBindingReceiptNotPersisted(details) {
+  try {
+    globalThis.console?.warn?.(
+      'SNAPBACK_REACT_BINDING_RECEIPT_NOT_PERSISTED: react binding receipt was not persisted; the next offline cold boot cannot adopt it',
+      details,
+    );
+  } catch {
+    // A missing or throwing console must not fail availability-only preparation.
+  }
 }
 
 function persistBindingReceipt(client, receipt) {
   const store = client.rqsStore;
   if (typeof store?.commitReactBindingReceipt !== 'function') return;
-  // Availability-only: a store that cannot persist the receipt (reader
-  // instance, quota, closed) never fails the online preparation.
-  void Promise.resolve(store.commitReactBindingReceipt(receipt)).catch(() => {});
+  // Availability-only: a store that cannot persist the receipt never fails
+  // or blocks online preparation, but a terminal refusal is observable.
+  let commit;
+  try {
+    commit = store.commitReactBindingReceipt(receipt);
+  } catch (error) {
+    warnBindingReceiptNotPersisted({ error });
+    return;
+  }
+  void Promise.resolve(commit)
+    .then((result) => {
+      if (result === false) warnBindingReceiptNotPersisted({ result });
+    })
+    .catch((error) => {
+      warnBindingReceiptNotPersisted({ error });
+    });
 }
 
 function boundedMilliseconds(value, fallback, field, maximum) {
@@ -488,6 +707,18 @@ async function prepareReactBindingOnce(
       },
     );
   }
+  if (
+    generated.descriptorMode
+    && inspection.schema?.schemaHash !== generated.descriptor.identity.schema
+  ) {
+    throw bindingMismatch(
+      'AppDescriptor schema identity does not match the connected deployment',
+      {
+        expectedSchemaHash: generated.descriptor.identity.schema,
+        actualSchemaHash: inspection.schema?.schemaHash ?? null,
+      },
+    );
+  }
   const deployedFunctions = new Map(
     (deployed.functions ?? []).map((definition) => [definition.id, definition]),
   );
@@ -504,7 +735,8 @@ async function prepareReactBindingOnce(
   // references canonically and fail-closed, so a carrier-grammar stamp here
   // would reject every generated `api.ephemeral.*` reference (0137 A2 f2).
   const referenceSchemaVersion = generated.capabilityManifest?.schemaVersion
-    ?? generated.functions.schemaVersion;
+    ?? generated.functions.schemaVersion
+    ?? deployed.schemaVersion;
   const expectedGeneration = generated.schema?.schemaHash
     && generated.functions.inputsHash
     ? Object.freeze({
@@ -520,14 +752,17 @@ async function prepareReactBindingOnce(
       definition,
       generated.functions.appId,
       referenceSchemaVersion,
-      expectedGeneration,
+      generated.descriptorMode
+        ? definition.expectedGeneration ?? null
+        : expectedGeneration,
     );
     const actual = deployedFunctions.get(reference.id);
     if (
       !actual
       || exactDeploymentFunction(actual) !== exactDeploymentFunction(reference)
-      || (actual.authorityIndependent === true)
-        !== (definition.authorityIndependent === true)
+      || (!generated.descriptorMode
+        && (actual.authorityIndependent === true)
+          !== (definition.authorityIndependent === true))
     ) {
       throw bindingMismatch(
         `generated reference ${reference.name} does not match the connected deployment`,
@@ -542,10 +777,17 @@ async function prepareReactBindingOnce(
     }
     references[reference.name] = reference;
     referencesById.set(reference.id, reference);
-    queryArtifactsById.set(reference.id, queryArtifactHash(definition));
+    const descriptorReceiptFact = receiptFacts?.descriptorFunctionFacts?.get(reference.id)
+      ?? null;
+    queryArtifactsById.set(
+      reference.id,
+      descriptorReceiptFact?.queryArtifact
+        ?? queryArtifactHash(generated.descriptorMode ? actual : definition),
+    );
     authorityIndependentById.set(
       reference.id,
-      definition.authorityIndependent === true,
+      descriptorReceiptFact?.authorityIndependent
+        ?? (generated.descriptorMode ? actual : definition).authorityIndependent === true,
     );
     const descriptor = deepFreeze(
       structuredClone(definition.resultContract ?? { kind: 'unknown' }),
@@ -578,7 +820,88 @@ async function prepareReactBindingOnce(
   }
   const ephemeralReferences = Object.create(null);
   const ephemeralDefinitionsById = new Map();
-  if (generated.schema !== null) {
+  if (generated.descriptorMode) {
+    const deployedCollections = new Map(
+      (inspection.schema?.ephemeralCollections ?? []).map((definition) => [
+        definition.name,
+        definition,
+      ]),
+    );
+    for (const [name, carried] of Object.entries(generated.descriptor.api.ephemeral ?? {})) {
+      const deployedDefinition = deployedCollections.get(name);
+      const expectedSubset = carried && typeof carried === 'object'
+        ? {
+            name: carried.name,
+            scopeFields: carried.scopeFields,
+            scopeContract: carried.scopeContract,
+            valueContract: carried.valueContract,
+            keyMode: carried.keyMode,
+            routingFields: carried.routingFields,
+            defaultTtlMs: carried.defaultTtlMs,
+            maxTtlMs: carried.maxTtlMs,
+            maxValueBytes: carried.maxValueBytes,
+            sustainedHz: carried.publishRate?.sustainedHz,
+            burst: carried.publishRate?.burst,
+          }
+        : null;
+      const deployedSubset = deployedDefinition
+        ? Object.fromEntries(Object.keys(expectedSubset ?? {}).map((key) => [
+            key,
+            deployedDefinition[key],
+          ]))
+        : null;
+      if (
+        !carried
+        || carried.artifactKind !== 'ephemeralCollectionReference'
+        || carried.appId !== generated.functions.appId
+        || carried.name !== name
+        || !deployedDefinition
+        || canonicalizeClientValueV1(deployedSubset)
+          !== canonicalizeClientValueV1(expectedSubset)
+      ) {
+        throw bindingMismatch(
+          `AppDescriptor ephemeral collection ${name} does not match the connected deployment`,
+          { collection: name },
+        );
+      }
+      const reference = deepFreeze(structuredClone(carried));
+      let scopeValidator;
+      let valueValidator;
+      try {
+        scopeValidator = compileResultContractValidator({
+          kind: 'value',
+          value: reference.scopeContract,
+        });
+        valueValidator = compileResultContractValidator({
+          kind: 'value',
+          value: reference.valueContract,
+        });
+      } catch (error) {
+        throw diagnosticError(
+          'SNAPBACK_REACT_MANIFEST_INVALID',
+          `AppDescriptor ephemeral collection ${name} has an invalid scope or value contract`,
+          { collection: name, cause: error?.code ?? String(error) },
+        );
+      }
+      ephemeralReferences[name] = reference;
+      ephemeralDefinitionsById.set(reference.id, Object.freeze({
+        reference,
+        definition: deepFreeze(structuredClone(deployedDefinition)),
+        staticPolicyDigest: await sha256Canonical(deployedDefinition),
+        scopeValidator,
+        valueValidator,
+      }));
+    }
+    if (deployedCollections.size !== Object.keys(ephemeralReferences).length) {
+      throw bindingMismatch(
+        'AppDescriptor ephemeral collection set does not match the connected deployment',
+        {
+          expectedCollections: Object.keys(ephemeralReferences).sort(),
+          actualCollections: [...deployedCollections.keys()].sort(),
+        },
+      );
+    }
+  } else if (generated.schema !== null) {
     if (
       generated.schema?.artifactKind !== 'schemaManifest'
       || generated.schema.appId !== generated.functions.appId
@@ -661,8 +984,50 @@ async function prepareReactBindingOnce(
   }
   const queryGroups = Object.create(null);
   const queryGroupsById = new Map();
-  let routeManifestHash = 'absent';
-  if (generated.routes !== null) {
+  let routeManifestHash = generated.descriptorMode
+    ? `descriptor:${generated.descriptor.identity.descriptor}`
+    : 'absent';
+  if (generated.descriptorMode) {
+    for (const [route, carried] of Object.entries(
+      generated.descriptor.api.queryGroups ?? {},
+    )) {
+      if (
+        !carried
+        || carried.artifactKind !== 'queryGroupReference'
+        || carried.appId !== generated.functions.appId
+        || carried.route !== route
+        || ![1, 2].includes(carried.formatVersion)
+        || !Array.isArray(carried.queries)
+        || carried.queries.length < 1
+        || carried.queries.length > 32
+      ) {
+        throw diagnosticError(
+          'SNAPBACK_REACT_MANIFEST_INVALID',
+          'AppDescriptor contains an invalid query-group reference',
+          { route },
+        );
+      }
+      for (const query of carried.queries) {
+        const admitted = referencesById.get(query?.ref?.id);
+        if (
+          !admitted
+          || exactDeploymentFunction(admitted) !== exactDeploymentFunction(query.ref)
+          || (carried.formatVersion === 1 && admitted.kind !== 'LiveQuery')
+          || (carried.formatVersion === 2
+            && !['Query', 'LiveQuery'].includes(admitted.kind))
+        ) {
+          throw diagnosticError(
+            'SNAPBACK_REACT_MANIFEST_INVALID',
+            'AppDescriptor query group contains an unadmitted child reference',
+            { route, functionId: query?.ref?.id ?? null },
+          );
+        }
+      }
+      const reference = deepFreeze(structuredClone(carried));
+      queryGroups[route] = reference;
+      queryGroupsById.set(reference.id, reference);
+    }
+  } else if (generated.routes !== null) {
     if (
       generated.routes?.formatVersion !== 1
       || generated.routes.app !== generated.functions.appId
@@ -764,9 +1129,163 @@ async function prepareReactBindingOnce(
       queryGroupsById.set(reference.id, reference);
     }
   }
+  const assetIntents = Object.create(null);
+  const assetIntentsById = new Map();
+  if (generated.descriptorMode) {
+    for (const [name, carried] of Object.entries(generated.descriptor.api.assets ?? {})) {
+      if (
+        !carried
+        || carried.artifactKind !== 'assetUploadReference'
+        || carried.appId !== generated.functions.appId
+        || carried.name !== name
+        || typeof carried.id !== 'string'
+      ) {
+        throw diagnosticError('SNAPBACK_REACT_MANIFEST_INVALID', 'AppDescriptor contains an invalid asset intent', { asset: name });
+      }
+      const reference = deepFreeze(structuredClone(carried));
+      assetIntents[name] = reference;
+      assetIntentsById.set(reference.id, reference);
+    }
+  }
+  const commands = Object.create(null);
+  const commandsByCanonical = new Map();
+  if (generated.descriptorMode) {
+    for (const [name, carried] of Object.entries(generated.descriptor.commands ?? {})) {
+      const mutation = referencesById.get(carried?.mutation?.id);
+      const intent = carried?.asset === null
+        ? null
+        : assetIntentsById.get(carried?.asset?.intent?.id);
+      if (
+        !carried
+        || carried.kind !== 'asset-bearing-command.v1'
+        || !mutation
+        || mutation.kind !== 'Mutation'
+        || !Array.isArray(carried.passthroughArgs)
+        || !(carried.asset === null || intent)
+      ) {
+        throw diagnosticError(
+          'SNAPBACK_REACT_MANIFEST_INVALID',
+          'AppDescriptor contains an invalid asset-bearing command',
+          { command: name },
+        );
+      }
+      const command = structuredClone(carried);
+      command.mutation = mutation;
+      if (command.asset) command.asset.intent = intent;
+      const admitted = deepFreeze(command);
+      const key = canonicalizeClientValueV1(admitted);
+      commands[name] = admitted;
+      commandsByCanonical.set(key, admitted);
+    }
+  }
+  const surfaces = Object.create(null);
+  const surfacesById = new Map();
+  if (generated.descriptorMode) {
+    for (const [name, carried] of Object.entries(generated.descriptor.surfaces ?? {})) {
+      if (
+        !carried
+        || carried.artifactKind !== 'surfaceDescriptor'
+        || carried.appId !== generated.functions.appId
+        || carried.name !== name
+        || typeof carried.id !== 'string'
+        || !carried.params
+        || !carried.reads
+        || !carried.mutations
+        || !carried.presence
+        || !carried.commands
+      ) {
+        throw diagnosticError(
+          'SNAPBACK_REACT_MANIFEST_INVALID',
+          'AppDescriptor contains an invalid generated surface',
+          { surface: name },
+        );
+      }
+      const surface = structuredClone(carried);
+      for (const [namespace, members] of [
+        ['reads', surface.reads],
+        ['mutations', surface.mutations],
+      ]) {
+        for (const [memberName, member] of Object.entries(members)) {
+          const admitted = referencesById.get(member?.reference?.id);
+          const expectedKind = namespace === 'reads' ? ['Query', 'LiveQuery'] : ['Mutation'];
+          if (
+            member?.artifactKind !== 'surfaceMemberBinding'
+            || !admitted
+            || !expectedKind.includes(admitted.kind)
+            || exactDeploymentFunction(admitted) !== exactDeploymentFunction(member.reference)
+          ) {
+            throw diagnosticError(
+              'SNAPBACK_REACT_MANIFEST_INVALID',
+              'generated surface contains an unadmitted function child',
+              { surface: name, member: memberName },
+            );
+          }
+          member.reference = admitted;
+        }
+      }
+      for (const [memberName, member] of Object.entries(surface.presence)) {
+        const admitted = ephemeralDefinitionsById.get(member?.reference?.id)?.reference;
+        if (
+          member?.artifactKind !== 'surfaceMemberBinding'
+          || !admitted
+          || canonicalizeClientValueV1(admitted) !== canonicalizeClientValueV1(member.reference)
+        ) {
+          throw diagnosticError(
+            'SNAPBACK_REACT_MANIFEST_INVALID',
+            'generated surface contains an unadmitted presence child',
+            { surface: name, member: memberName },
+          );
+        }
+        member.reference = admitted;
+      }
+      for (const [memberName, member] of Object.entries(surface.assets ?? {})) {
+        const admitted = assetIntentsById.get(member?.reference?.id);
+        if (
+          member?.artifactKind !== 'surfaceMemberBinding'
+          || !admitted
+          || canonicalizeClientValueV1(admitted) !== canonicalizeClientValueV1(member.reference)
+        ) {
+          throw diagnosticError(
+            'SNAPBACK_REACT_MANIFEST_INVALID',
+            'generated surface contains an unadmitted asset child',
+            { surface: name, member: memberName },
+          );
+        }
+        member.reference = admitted;
+      }
+      for (const [memberName, member] of Object.entries(surface.commands ?? {})) {
+        const candidate = structuredClone(member?.reference);
+        if (candidate?.mutation?.id) {
+          candidate.mutation = referencesById.get(candidate.mutation.id) ?? candidate.mutation;
+        }
+        if (candidate?.asset?.intent?.id) {
+          candidate.asset.intent = assetIntentsById.get(candidate.asset.intent.id)
+            ?? candidate.asset.intent;
+        }
+        const admitted = commandsByCanonical.get(canonicalizeClientValueV1(candidate));
+        if (member?.artifactKind !== 'surfaceMemberBinding' || !admitted) {
+          throw diagnosticError(
+            'SNAPBACK_REACT_MANIFEST_INVALID',
+            'generated surface contains an unadmitted command child',
+            { surface: name, member: memberName },
+          );
+        }
+        member.reference = admitted;
+      }
+      const admittedSurface = deepFreeze(surface);
+      if (surfacesById.has(admittedSurface.id)) {
+        throw diagnosticError('SNAPBACK_REACT_MANIFEST_INVALID', 'AppDescriptor repeats a surface id', { surface: name });
+      }
+      surfaces[name] = admittedSurface;
+      surfacesById.set(admittedSurface.id, admittedSurface);
+    }
+  }
   Object.freeze(references);
   Object.freeze(ephemeralReferences);
   Object.freeze(queryGroups);
+  Object.freeze(assetIntents);
+  Object.freeze(commands);
+  Object.freeze(surfaces);
   const functionCatalogDigest = await sha256Canonical(Object.values(references));
   // On the receipt path the live capability manifest is not available; the
   // receipt carries the digest and availability fact the online admission
@@ -782,7 +1301,7 @@ async function prepareReactBindingOnce(
       REGISTERED_BUNDLE_CAPABILITY,
     );
   const mixedBundleAvailable = receiptFacts
-    ? false
+    ? receiptFacts.mixedBundleAvailable
     : Array.isArray(
       inspection.capabilityManifest?.supportedCapabilities,
     ) && inspection.capabilityManifest.supportedCapabilities.includes(
@@ -818,7 +1337,28 @@ async function prepareReactBindingOnce(
       routeManifestHash,
       authMode: session?.activeMode ?? null,
       registeredBundleAvailable,
+      mixedBundleAvailable,
       capabilityDigest,
+      ...(generated.descriptorMode ? {
+        // AppDescriptor deliberately omits the server function interiors.
+        // Persist only the admitted facts this binding owner needs to
+        // reconstruct its existing RQS/presence admission on a cold boot;
+        // the byte-identical descriptor is supplied again by the app.
+        descriptorAdmission: {
+          descriptorIdentity: generated.descriptor.identity.descriptor,
+          functions: generated.functions.functions.map((definition) => {
+            const actual = deployedFunctions.get(definition.id);
+            return {
+              id: definition.id,
+              queryArtifact: queryArtifactHash(actual),
+              authorityIndependent: actual.authorityIndependent === true,
+            };
+          }),
+          ephemeralCollections: structuredClone(
+            inspection.schema?.ephemeralCollections ?? [],
+          ),
+        },
+      } : {}),
       savedAt: Date.now(),
     });
   }
@@ -839,6 +1379,9 @@ async function prepareReactBindingOnce(
     references,
     ephemeral: ephemeralReferences,
     groups: queryGroups,
+    assetIntents,
+    commands,
+    surfaces,
     prepareQueryGroup(reference, params, groupOptions) {
       return prepareReactQueryGroupForBinding(binding, reference, params, groupOptions);
     },
@@ -852,6 +1395,9 @@ async function prepareReactBindingOnce(
     authorityIndependentById: { value: authorityIndependentById },
     ephemeralDefinitionsById: { value: ephemeralDefinitionsById },
     queryGroupsById: { value: queryGroupsById },
+    surfacesById: { value: surfacesById },
+    assetIntentsById: { value: assetIntentsById },
+    commandsByCanonical: { value: commandsByCanonical },
     routesManifest: { value: generated.routes },
   });
   // Channel A has concrete, schema-decoded route arguments while the raw
@@ -877,6 +1423,7 @@ async function prepareReactBindingOnce(
       );
     }
   }
+  preparedReactBindingInternals.set(binding, Object.freeze({ referenceSchemaVersion }));
   return Object.freeze(binding);
 }
 
@@ -989,6 +1536,77 @@ export function admittedReactQueryGroup(binding, reference) {
       'SNAPBACK_REACT_GROUP_REFERENCE_INVALID',
       'React query-group preparation requires a complete generated group reference',
       { groupId: reference?.id ?? null },
+    );
+  }
+  return expected;
+}
+
+export function admittedReactSurface(binding, reference) {
+  const prepared = assertPreparedReactBinding(binding);
+  const expected = prepared.surfacesById.get(reference?.id);
+  let normalized = null;
+  if (reference && expected) {
+    normalized = structuredClone(reference);
+    for (const namespace of ['reads', 'mutations', 'presence']) {
+      for (const [name, member] of Object.entries(normalized[namespace] ?? {})) {
+        const expectedMember = expected[namespace]?.[name];
+        if (!expectedMember) continue;
+        if (namespace === 'presence') {
+          if (canonicalizeClientValueV1(member.reference) !== canonicalizeClientValueV1(expectedMember.reference)) continue;
+        } else if (exactDeploymentFunction(member.reference) !== exactDeploymentFunction(expectedMember.reference)) {
+          continue;
+        }
+        member.reference = expectedMember.reference;
+      }
+    }
+    for (const [name, member] of Object.entries(normalized.assets ?? {})) {
+      const expectedMember = expected.assets?.[name];
+      if (
+        expectedMember
+        && canonicalizeClientValueV1(member.reference) === canonicalizeClientValueV1(expectedMember.reference)
+      ) member.reference = expectedMember.reference;
+    }
+    for (const [name, member] of Object.entries(normalized.commands ?? {})) {
+      const expectedMember = expected.commands?.[name];
+      if (!expectedMember) continue;
+      try {
+        if (admittedReactCommand(prepared, member.reference) === expectedMember.reference) {
+          member.reference = expectedMember.reference;
+        }
+      } catch { /* final whole-surface comparison reports the refusal */ }
+    }
+  }
+  if (
+    !reference
+    || reference.artifactKind !== 'surfaceDescriptor'
+    || !expected
+    || canonicalizeClientValueV1(expected) !== canonicalizeClientValueV1(normalized)
+  ) {
+    throw diagnosticError(
+      'SNAPBACK_REACT_SURFACE_INVALID',
+      'surface projection requires a complete generated surface admitted by this binding',
+      { surfaceId: reference?.id ?? null },
+    );
+  }
+  return expected;
+}
+
+export function admittedReactCommand(binding, reference) {
+  const prepared = assertPreparedReactBinding(binding);
+  const normalized = structuredClone(reference);
+  if (normalized?.mutation?.id) {
+    normalized.mutation = prepared.referencesById.get(normalized.mutation.id) ?? normalized.mutation;
+  }
+  if (normalized?.asset?.intent?.id) {
+    normalized.asset.intent = prepared.assetIntentsById.get(normalized.asset.intent.id)
+      ?? normalized.asset.intent;
+  }
+  const expected = prepared.commandsByCanonical.get(canonicalizeClientValueV1(normalized));
+  if (!expected) {
+    throw diagnosticError(
+      'SNAPBACK_REACT_COMMAND_INVALID',
+      'command projection requires a complete generated command admitted by this binding',
+      { mutationId: reference?.mutation?.id ?? null },
     );
   }
   return expected;
@@ -1116,6 +1734,9 @@ export async function prepareReactQueryGroupForBinding(
   { fallbackToLive = false, userId } = {},
 ) {
   const prepared = assertPreparedReactBinding(binding);
+  // One consistent admission view for the whole preparation, even if a
+  // development generation handoff swaps the overlay mid-flight.
+  const functionAdmission = functionAdmissionForBinding(prepared);
   const admitted = admittedReactQueryGroup(prepared, reference);
   const mixed = admitted.formatVersion === 2 && admitted.profile === 'mixed-route.v2';
   const nonLive = admitted.queries.find((query) => query.ref.kind !== 'LiveQuery');
@@ -1259,7 +1880,7 @@ export async function prepareReactQueryGroupForBinding(
     && prepared.client.authProtocols?.authInvalidation === 1
     ? entries.map((entry) => (
         (mixed && entry.liveness.kind === 'none')
-          || prepared.authorityIndependentById.get(entry.ref.id) === true
+          || functionAdmission.authorityIndependentById.get(entry.ref.id) === true
           ? null
           : prepared.client.allocateLiveQueryNamespace(entry.ref, entry.args)
       ))
@@ -1448,7 +2069,7 @@ export async function prepareReactQueryGroupForBinding(
           || response.resume.meta.generation !== bundle.generation
           || response.resume.meta.versionStream !== bundle.versionStream
           || response.resume.meta.queryArtifact
-            !== prepared.queryArtifactsById.get(entry.ref.id)
+            !== functionAdmission.queryArtifactsById.get(entry.ref.id)
           || response.resume.meta.argsHash !== argsHash(response.args)
           || !rowsMatchDigest(response.rows, response.resume.meta.contentDigest)
         ) {
@@ -1463,7 +2084,7 @@ export async function prepareReactQueryGroupForBinding(
       }
       let authorization = null;
       const expectsAuthorization = childLive && prepared.authMode === 'sessions'
-        && prepared.authorityIndependentById.get(entry.ref.id) !== true;
+        && functionAdmission.authorityIndependentById.get(entry.ref.id) !== true;
       const carriesAuthorization = Object.prototype.hasOwnProperty.call(
         response,
         'authorization',
@@ -1524,7 +2145,7 @@ export async function prepareReactQueryGroupForBinding(
         authorization = deepFreeze(structuredClone(response.authorization));
         sawAuthorization = true;
       }
-      const contract = prepared.resultContractsById.get(entry.ref.id);
+      const contract = functionAdmission.resultContractsById.get(entry.ref.id);
       const verdict = contract?.validator.validate(response.rows);
       if (!verdict?.ok) {
         throw diagnosticError(
@@ -1624,7 +2245,7 @@ export function admittedReactReference(binding, reference, expectedKind) {
       'React hooks require a generated function reference',
     );
   }
-  const admitted = prepared.referencesById.get(reference.id);
+  const admitted = functionAdmissionForBinding(prepared).referencesById.get(reference.id);
   const complete = admitted && exactDeploymentFunction(admitted) === exactDeploymentFunction(reference);
   if (!complete || admitted.appId !== prepared.appId) {
     throw diagnosticError(
@@ -1646,7 +2267,8 @@ export function admittedReactReference(binding, reference, expectedKind) {
 
 export function preparedReactResultContract(binding, reference) {
   const admitted = admittedReactReference(binding, reference, reference?.kind);
-  return assertPreparedReactBinding(binding).resultContractsById.get(admitted.id) ?? null;
+  return functionAdmissionForBinding(assertPreparedReactBinding(binding))
+    .resultContractsById.get(admitted.id) ?? null;
 }
 
 export function admittedReactEphemeralDefinition(binding, reference) {
@@ -1673,4 +2295,163 @@ export function admittedReactEphemeralDefinition(binding, reference) {
     );
   }
   return expected;
+}
+
+// --- Mounted-provider HMR generation handoff (development only) -------------
+//
+// Metro/Vite HMR can hot-replace the generated api module while the mounted
+// provider keeps a prepared binding admitted from the previous codegen
+// generation. Hooks then present a valid new-generation reference to
+// old-generation admission state, and the strict refusal above becomes an
+// uncaught render error. The machinery below lets the React arm classify that
+// exact split (same app, complete reference, a different `expectedGeneration`
+// than the currently admitted deployment identity) and re-run complete
+// per-function admission against the LIVE deployment, publishing the new
+// generation's admission view in one synchronous swap. Admission strictness
+// is unchanged: a reference still admits only by exact identity match against
+// deployment-proved facts, and the caller (the React provider) arms this path
+// only on a positive development/HMR signal.
+// @ref LLP 0114#mounted-provider-hmr-generation-handoff-dated-amendment-2026-08-05
+
+const GENERATION_FIELDS = Object.freeze([
+  'schemaVersion',
+  'appId',
+  'schemaHash',
+  'bundleHash',
+  'inputsHash',
+]);
+const REFERENCE_IDENTITY_FIELDS = Object.freeze([
+  'id',
+  'name',
+  'kind',
+  'implementationHash',
+  'argsContractHash',
+  'resultContractHash',
+]);
+
+export function activeReactBindingDeploymentIdentity(binding) {
+  const prepared = assertPreparedReactBinding(binding);
+  return preparedReactBindingGenerationOverlays.get(prepared)?.deploymentIdentity
+    ?? prepared.deploymentIdentity;
+}
+
+function completeGeneration(value, appId) {
+  return value !== null
+    && typeof value === 'object'
+    && !Array.isArray(value)
+    && !GENERATION_FIELDS.some((field) => (
+      typeof value[field] !== 'string' || value[field].length === 0
+    ))
+    && value.appId === appId;
+}
+
+/**
+ * Positively identify a regenerated-same-app reference: complete function
+ * reference, same appId, and a complete `expectedGeneration` naming a
+ * DIFFERENT generation than the currently admitted deployment identity.
+ * Anything else (foreign appId, missing generation stamp, same-generation
+ * corruption) returns null so the strict refusal stands.
+ */
+export function classifyRegeneratedReactReference(binding, reference) {
+  if (binding?.[PREPARED_REACT_BINDING] !== true) return null;
+  if (
+    !reference
+    || typeof reference !== 'object'
+    || reference.artifactKind !== 'functionReference'
+    || reference.appId !== binding.appId
+    || REFERENCE_IDENTITY_FIELDS.some((field) => (
+      typeof reference[field] !== 'string' || reference[field].length === 0
+    ))
+  ) return null;
+  const generation = reference.expectedGeneration;
+  if (!completeGeneration(generation, binding.appId)) return null;
+  const current = activeReactBindingDeploymentIdentity(binding);
+  const differs = generation.bundleHash !== current.bundleHash
+    || (current.schemaHash !== null && generation.schemaHash !== current.schemaHash)
+    || (current.inputsHash !== null && generation.inputsHash !== current.inputsHash);
+  if (!differs) return null;
+  return Object.freeze({
+    schemaVersion: generation.schemaVersion,
+    appId: generation.appId,
+    schemaHash: generation.schemaHash,
+    bundleHash: generation.bundleHash,
+    inputsHash: generation.inputsHash,
+  });
+}
+
+/**
+ * Re-admit a mounted prepared binding against the live deployment for a
+ * regenerated generation (development HMR only — the caller owns the positive
+ * development signal). Resolves `{ ok: true, generation }` once the complete
+ * new-generation admission view is published, or `{ ok: false, reason }` when
+ * the deployment never reached the target inside the budget or the change is
+ * not atomically re-provable (routes/ephemeral/group shape changed), in which
+ * case the caller must fall back to a controlled full reload. Never rejects
+ * for expected outcomes. Single-flight per binding and target generation.
+ */
+export function handoffPreparedReactBindingGeneration(binding, targetGeneration, options = {}) {
+  const prepared = assertPreparedReactBinding(binding);
+  if (!completeGeneration(targetGeneration ?? null, prepared.appId)) {
+    throw new TypeError(
+      'handoffPreparedReactBindingGeneration requires the complete expectedGeneration of a regenerated reference for the same app',
+    );
+  }
+  const budget = {
+    timeoutMs: boundedMilliseconds(
+      options.timeoutMs,
+      DEFAULT_DEVELOPMENT_SYNC_TIMEOUT_MS,
+      'timeoutMs',
+      MAX_DEVELOPMENT_SYNC_TIMEOUT_MS,
+    ),
+    pollIntervalMs: boundedMilliseconds(
+      options.pollIntervalMs,
+      DEFAULT_DEVELOPMENT_SYNC_POLL_INTERVAL_MS,
+      'pollIntervalMs',
+      MAX_DEVELOPMENT_SYNC_POLL_INTERVAL_MS,
+    ),
+  };
+  const target = Object.freeze({
+    schemaVersion: targetGeneration.schemaVersion,
+    appId: targetGeneration.appId,
+    schemaHash: targetGeneration.schemaHash,
+    bundleHash: targetGeneration.bundleHash,
+    inputsHash: targetGeneration.inputsHash,
+  });
+  const active = activeReactBindingDeploymentIdentity(prepared);
+  if (
+    active.bundleHash === target.bundleHash
+    && active.schemaHash === target.schemaHash
+    && active.inputsHash === target.inputsHash
+  ) {
+    return Promise.resolve({ ok: true, generation: active });
+  }
+  const key = canonicalizeClientValueV1(target);
+  const existing = preparedReactBindingGenerationHandoffs.get(prepared);
+  if (existing?.key === key) return existing.promise;
+  const entry = { key, promise: null };
+  // The admission compiler and RQS digest helpers are needed only after a
+  // positive development/HMR signal. Keep that failure-only path outside the
+  // production React entry closure, matching react-runtime.mjs.
+  entry.promise = import('./react-binding-hmr.mjs')
+    .then(({ runPreparedReactBindingGenerationHandoff }) => (
+      runPreparedReactBindingGenerationHandoff({
+        binding: prepared,
+        target,
+        budget,
+        referenceSchemaVersion:
+          preparedReactBindingInternals.get(prepared)?.referenceSchemaVersion ?? null,
+        publishOverlay(overlay) {
+          // Atomic swap: the runtime verified the complete generation off to
+          // the side; this one synchronous write publishes it.
+          preparedReactBindingGenerationOverlays.set(prepared, overlay);
+        },
+      })
+    ))
+    .finally(() => {
+      if (preparedReactBindingGenerationHandoffs.get(prepared) === entry) {
+        preparedReactBindingGenerationHandoffs.delete(prepared);
+      }
+    });
+  preparedReactBindingGenerationHandoffs.set(prepared, entry);
+  return entry.promise;
 }

@@ -4,13 +4,13 @@ id: operating.diagnostics
 order: 3
 audience: agent-first
 capabilities: [operating.diagnostics]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, src/diagnostic.rs, packages/snapback-codegen/index.mjs, packages/snapback-cli/runtime-recovery.mjs, demos/_kit/harness.mjs, scripts/ibex-doctor, scripts/runtime-link-smoke.mjs, scripts/bootstrap-ibex-runtime]
-examples: [demos/todo/tests/acceptance/headless.mjs, packages/snapback-codegen/authoring-validation.test.mjs]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0146-agentic-authoring-affordances.rfc.md, src/diagnostic.rs, src/authoring_suggestion.rs, packages/snapback-codegen/index.mjs, packages/snapback-cli/runtime-recovery.mjs, demos/_kit/harness.mjs, scripts/ibex-doctor, scripts/runtime-link-smoke.mjs, scripts/bootstrap-ibex-runtime]
+examples: [demos/todo/tests/acceptance/headless.mjs, packages/snapback-codegen/authoring-validation.test.mjs, tests/host_ops_v0.rs]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-05
-reviewed-commit: 4a6000ac6f17a8c94bc2aecf573c0654e850b758
+reviewed: 2026-08-06
+reviewed-commit: 3e78f67c4972b8c13e2375970da285ae2d4c0195
 ---
 
 # Diagnostics and local doctoring
@@ -40,6 +40,44 @@ Public unauthenticated projections intentionally drop `message` and
 `details`, because they can contain source paths, handler text, arguments, or
 operator context. Error envelopes expose the diagnostic at
 `error.diagnostic`; some terminal mutation paths also attach a receipt.
+
+## Use candidates from the served generation
+
+After the existing authorization gate admits a caller, local unknown-operation,
+unknown-function, unknown-field, and wrong-argument-shape refusals add
+authoring help to the same `details` object:
+
+- `candidateOperations` contains only currently served host operations;
+- `candidateFunctions` names served function ids/names, kinds, exported names,
+  and argument-contract hashes, filtered to the route's expected function
+  kinds;
+- `candidateFields` names served schema or argument fields with their expected
+  type and required/optional posture;
+- `expectedArgumentContract` carries the complete served argument contract for
+  an argument refusal; and
+- `artifactHash` or `servedShapeHash` identifies the generation that produced
+  the suggestion.
+
+Treat these as generation-bound suggestions, not aliases and not commands to
+apply. Candidates contain served schema metadata only: the rejected spelling,
+argument value, row value, and secrets are not echoed. A caller that cannot
+pass the existing auth gate receives the existing uniform refusal and learns
+no function-existence candidates.
+
+`localMissSummary` is a bounded process-local hint. `sameMissCount` and
+`repeated` tell you that this process has seen the same category, generation,
+and rejected identifier before; `capacity` is 128 and counts cap at 255. The
+runtime retains only a hash of the miss, evicts least-recently-used entries,
+does not persist the summary, and does not promote popular mistakes into
+aliases. Regenerate or reload your artifacts when the diagnostic's generation
+does not match the artifact you used.
+
+LLP 0146 OQ6 is still open. No `remediations` wire member or
+machine-applicable repair endpoint exists, and the ControlCatalog
+`remediation` field remains null/absent. Until the LLP 0094/0095 carrier
+decision lands, do not synthesize an automatic repair from these candidates;
+in particular, never apply an identifier replacement without an operation
+that atomically verifies the suggestion's artifact hash.
 
 ## Assert on codes, not prose
 
@@ -148,16 +186,23 @@ version, and build profile; older binaries that predate the command may still
 be classified runnable via `--help`, but their actual stamp remains honestly
 unknown.
 
-A dirty worktree triggers the same posture at server spawn: the kit skips
-a prebuilt `target/debug/snapback` it cannot verify against a committed
-identity ("this checkout is dirty or has no committed identity") and
-falls back to the `cargo run` rung, which costs a rebuild-check on every
-boot (~30 s). That is provenance working as designed, not a fault. If
-you accept the local binary knowingly — a test loop on an intentionally
-dirty tree — the sanctioned escape is the same explicit override the
-diagnostic quotes: `SNAPBACK_SERVER_BINARY=<path>`. The override's
-unpinned identity stays visible in the spawn record, so acceptance is
-always a recorded choice, never an ambient default.
+Dirtiness here is scoped to the runtime binary's input set — the shared
+pathspec list in `scripts/runtime-build-inputs.txt` (Rust sources and
+manifests, `vendor/ibex`, and the build-embedded corpora). Uncommitted
+edits to your app under `demos/`, or to LLPs, issues, and diaries, cannot
+change the binary's bytes and do not count: a prepared binary stays
+verified and reusable while you iterate on an app. A dirty *input set*
+triggers the refusal posture at server spawn: the kit skips a prebuilt
+`target/debug/snapback` it cannot verify against a committed identity
+("this checkout's runtime input set is dirty or has no committed
+identity") and falls back to the `cargo run` rung, which costs a
+rebuild-check on every boot (~30 s). That is provenance working as
+designed, not a fault. If you accept the local binary knowingly — a test
+loop on intentionally dirty runtime sources — the sanctioned escape is
+the same explicit override the diagnostic quotes:
+`SNAPBACK_SERVER_BINARY=<path>`. The override's unpinned identity stays
+visible in the spawn record, so acceptance is always a recorded choice,
+never an ambient default.
 
 When `SNAPBACK_IBEX_RUNTIME_LINK_FAILED` names compatibility symbols such as
 `ex_hermes_create_no_eval`, do not delete Cargo output or rebuild Hermes

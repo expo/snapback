@@ -191,7 +191,7 @@ export interface FilterSpec { field: string; op: string; value: ValueExpr }
 export interface OrderSpec {
   field: string;
   direction: 'Asc' | 'Desc';
-  /** UTF-8 write ceiling for a string order field; single-valued per table/field. */
+  /** UTF-8 write ceiling for a string or application-id order field; single-valued per table/field. */
   maxEncodedBytes?: number;
 }
 
@@ -278,6 +278,7 @@ export type TargetCapabilityId =
   | 'mutation_read_set_validation'
   | 'sequence_allocation_v1'
   | 'snapshot_batch_v1'
+  | 'snapshot_batch_v2'
   | 'settlement.bounded_skew'
   | 'permission_epoch_resync'
   | 'full_text_search_v1'
@@ -499,6 +500,13 @@ export type AssetSharingSpec<Fields extends Record<string, Validator> = Record<s
   | { kind: 'owner'; field: keyof Fields & string }
   | { kind: 'membership'; membership: string; roles?: readonly string[] };
 
+/** Finite schema authority for retained record history. Runtime validation
+ * enforces retainMs in 1..2,592,000,000 and maxVersionsPerRecord in 1..1,000. */
+export interface HistoryRetentionSpec {
+  readonly retainMs: number;
+  readonly maxVersionsPerRecord: number;
+}
+
 export interface TableBuilder<Fields extends Record<string, Validator> = Record<string, Validator>> {
   index(name: string, fields: Array<keyof Fields & string>, options?: { unique?: boolean }): TableBuilder<Fields>;
   searchIndex(name: string, spec: SearchIndexSpec<Fields>): TableBuilder<Fields>;
@@ -512,6 +520,8 @@ export interface TableBuilder<Fields extends Record<string, Validator> = Record<
    * 2026-07-31). Without it a typed reference confers no via-references
    * read authority. */
   assetSharing(spec: AssetSharingSpec<Fields>): TableBuilder<Fields>;
+  /** Opt into bounded per-record history for this table. */
+  history(spec: HistoryRetentionSpec): TableBuilder<Fields>;
 }
 
 export type SearchFieldClassification = 'public' | 'private' | 'sensitive' | 'forbidden';
@@ -689,6 +699,10 @@ export declare function throughScope(spec: {
   scopeIncarnationField: string;
 }): { kind: 'through-scope.v1'; scopeField: string; scopeIncarnationField: string };
 export declare function defineBoundedChildrenQuery(spec: unknown): unknown;
+/** Defines a static 2–8 node snapshot batch. All-bounded tuples retain the
+ * frozen `snapshot-batch.v1` profile; any tuple containing a relational node
+ * emits `snapshot-batch.v2`, which admits only bounded-children and
+ * relational-query definitions and requires at least one relational node. */
 export declare function defineSnapshotBatchQuery(spec: { nodes: readonly unknown[] }): unknown;
 
 export interface MaintainedProjectionSpec {
@@ -760,6 +774,18 @@ export interface AssetUploadSpec {
 }
 export declare function defineAssetUpload(spec: AssetUploadSpec): unknown;
 export declare function isAssetUploadDef(value: unknown): boolean;
+export interface AssetBearingCommandSpec {
+  readonly mutation: unknown;
+  readonly assets?: Record<string, Readonly<{
+    readonly intent: unknown;
+    readonly mutationArg: string;
+    readonly optional: boolean;
+  }>>;
+}
+/** Closed LLP 0180 command declaration: one ordinary mutation and at most one
+ * asset input. Codegen derives the public inputs and validates the mapping. */
+export declare function defineCommand(spec: AssetBearingCommandSpec): unknown;
+export declare function isCommandDef(value: unknown): boolean;
 export declare function defineCron(jobs: Record<string, unknown>): unknown;
 export declare function defineConfig(entries: Record<string, unknown>): unknown;
 export declare function runMutation(name: string, args?: Record<string, ValueExpr>, opts?: { bindResultAs?: string }): unknown;
@@ -768,11 +794,45 @@ export declare const allow: Record<string, (...args: unknown[]) => unknown>;
 export declare const ephemeral: { collection(spec: Record<string, unknown>): unknown };
 export declare function defineEphemeral(collections: Record<string, unknown>): unknown;
 
+// LLP 0179's closed generated-surface declaration grammar.
+export interface SurfaceParam<Name extends string = string> {
+  readonly __surfaceValue: true;
+  readonly kind: 'param';
+  readonly name: Name;
+}
+export interface SurfaceInput<Name extends string = string> {
+  readonly __surfaceValue: true;
+  readonly kind: 'input';
+  readonly name: Name;
+}
+export interface SurfaceBinding<Reference = unknown, Bindings extends Record<string, unknown> = Record<string, unknown>> {
+  readonly __surfaceBinding: true;
+  readonly reference: Reference;
+  readonly bindings: Bindings;
+}
+export declare function param<const Name extends string>(name: Name): SurfaceParam<Name>;
+export declare function input<const Name extends string>(name: Name): SurfaceInput<Name>;
+export declare function bind<Reference, const Bindings extends Record<string, unknown>>(
+  reference: Reference,
+  bindings?: Bindings,
+): SurfaceBinding<Reference, Bindings>;
+export interface SurfaceSpec {
+  readonly params?: Record<string, Validator>;
+  readonly reads?: Record<string, SurfaceBinding>;
+  readonly mutations?: Record<string, SurfaceBinding>;
+  readonly commands?: Record<string, SurfaceBinding>;
+  readonly assets?: Record<string, SurfaceBinding>;
+  readonly presence?: Record<string, SurfaceBinding>;
+}
+export declare function defineSurface<const Spec extends SurfaceSpec>(spec: Spec): Spec;
+
 export declare function isFunctionDef(value: unknown): boolean;
 export declare function isCronDef(value: unknown): boolean;
 export declare function isConfigDef(value: unknown): boolean;
 export declare function isEphemeralCollectionDef(value: unknown): boolean;
 export declare function isEphemeralDef(value: unknown): boolean;
+export declare function isSurfaceDef(value: unknown): boolean;
+export declare function isSurfaceBinding(value: unknown): boolean;
 export declare function isRoutesDef(value: unknown): boolean;
 export declare function isTableDef(value: unknown): boolean;
 

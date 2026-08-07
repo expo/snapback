@@ -4,13 +4,13 @@ id: backend.assets
 order: 9
 audience: agent-first
 capabilities: [backend.assets]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, src/assets.rs, src/assets_cut.rs, src/cli.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
-examples: [demos/party-wall, demos/file-drop]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0181-zero-configuration-expo.rfc.md, src/assets.rs, src/assets_cut.rs, src/cli.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-react/index.d.mts, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
+examples: [demos/party-wall, demos/file-drop, demos/tandem-expo-bakeoff, demos/expo-golden-path-fixture]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-04
-reviewed-commit: 4f6b1bc3d98c9b9e3d1a946ff7cbd648854ea1a6
+reviewed: 2026-08-06
+reviewed-commit: HEAD
 ---
 
 # Assets
@@ -121,6 +121,50 @@ can land in tables without the declaration emits
 
 ## Upload and attach
 
+**A dev/test server with no real client session can never complete a
+multi-step upload over the ordinary client HTTP surface — for any intent auth
+mode.** Every upload attempt records the non-optional owner principal returned
+by `authorize`. Transfer, finalization, and attachment compare that owner with
+the caller resolved from each request. An anonymous browser, React Native, or
+Expo request has no caller principal, so the server refuses attempt creation
+before running the authorizer or reserving state with
+`SNAPBACK_ASSET_OWNER_CUSTODY_UNSATISFIABLE`. Setting `auth: 'public'` does
+not make ownership checks anonymous — a public intent remains legitimate with
+session custody — and `public-immutable` controls delivery rather than upload
+authority. Passing a `userId` option to the task is not authentication.
+
+There are exactly two paved local-development answers:
+
+1. For an operator, fixture, or headless proof, use the admin-impersonated CLI
+   lane: `snapback assets put ... --user <handle>`. This is not an in-app
+   upload path.
+2. For an interactive browser or native app, run the app in settled Sessions
+   auth mode and give it an ordinary session. A trusted local process that
+   already holds the ready-file/operator authority can mint one through the
+   shipped wrapper:
+
+```sh
+snapback session mint --email expo-dev@example.com --ready-file .snapback/dev.ready.json
+```
+
+The command prints a `hostOpsResult` whose `data.token` is the ordinary
+session bearer; it never prints the impersonation capability. In an app, keep
+the command or equivalent `auth.mintSession` host operation behind a trusted
+development broker that authenticates its caller and returns only that
+caller's session. Never put the ready file, admin token, impersonation
+capability, mailbox reader, or a generic mint-for-email endpoint in an Expo
+bundle. Adopt the returned bearer with `createExternalSessionClient` before
+preparing the React provider, as described in
+[native auth](../auth/native-apps.md):
+
+```tsx source=demos/tandem-expo-bakeoff/snapback/src/backend.tsx
+      const client = createExternalSessionClient(origin, { bearerToken: brokerPayload.bearerToken });
+      const binding = await client.prepareReactBinding({
+        generatedManifest: { schema, functions, capabilityManifest },
+      });
+      return { status: 'ready' as const, client, provider: createSnapbackReactProvider(binding) };
+```
+
 The client flow is: create an attempt (the generated reference plus the
 declared byte length — deferred length refuses), transfer bytes over TUS
 1.0.0 (`PATCH /assets/tus/{id}`, checksum every chunk), then finalize.
@@ -157,6 +201,57 @@ id-shaped string written into a `v.assetRef` field fails the commit with
 `SNAPBACK_ASSET_REF_UNVERIFIED` on every write path, and the reverse
 reference edge commits in the same changeset. Deleting an asset refuses
 while typed references remain.
+
+## Send one Expo ImagePicker image with an ordinary session
+
+For a declared asset-bearing command, `SnapbackExpoProvider` registers the
+native source adapter and binary transport once. Pass the real
+`expo-image-picker` asset directly to the generated command; application code
+does not call `expo/fetch`, start a raw upload, or carry an asset id between
+steps:
+
+```tsx source=demos/expo-golden-path-fixture/src/screens/chat-screen.tsx
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.86 });
+    if (result.canceled || !result.assets[0]) {
+      emitG3('picker-cancelled');
+      return;
+    }
+    const picked = result.assets[0];
+    emitG3('picker-image-selected', {
+      source: 'photo-library-picker',
+      uriScheme: picked.uri.slice(0, picked.uri.indexOf(':')).toLowerCase(),
+      fileName: picked.fileName ?? null,
+      mimeType: picked.mimeType ?? null,
+      fileSize: picked.fileSize ?? null,
+    });
+    try {
+      const body = proofEnabled ? G3_IMAGE_BODY : draft.trim() || undefined;
+      const outcome = await observeCommand(
+        conversation.commands.send({ ...(body ? { body } : {}), image: picked }),
+        'picked-image',
+      );
+```
+
+The adapter accepts picker-owned `content://`, `ph://`, and `file://` records.
+It copies the live-process bytes into an immutable, slice-readable structural
+source for the existing asset task. Expo's WinterCG fetch carries binary
+checksum/TUS requests. On Expo 57 Android only, a picker-cache `file://` that
+returns a genuine 404 through `expo/fetch` falls back to local
+`expo-file-system` `File.bytes()`; the 404 text is never treated as image
+bytes.
+
+The command still uses the provider's already adopted ordinary session for
+asset reservation, transfer, and mutation. Its task exposes `preparing`,
+`transferring`, `committing`, and the truthful terminal outcomes described in
+[application surfaces](../clients/surfaces.md). Render those phases and await
+`task.done`; `committed` proves the ordinary mutation settled, while `failed`,
+`ambiguous`, and `cancelled` must remain distinct. A post-finalize mutation
+failure can retain residue and is not a rollback receipt.
+
+This adapter is transient live-process custody. It does not prove background
+upload, restart recovery, offline source custody or settlement, or attempt
+grants. Use the raw `useSnapbackAssetUpload`/`assets.start` seam for workflows
+that do not fit the one-optional-asset command grammar.
 
 ## Run lifecycle callbacks
 
@@ -250,15 +345,25 @@ admin routes (`packages/snapback-vite/allowlist.mjs`). No app-owned Vite
 proxy is needed, and a relative URL such as
 `/__snapback/assets/public/<id>/display` works directly as an `<img src>`.
 
+The relay is a Vite-loop convenience, not a CORS requirement. The dev
+server's CORS lane admits loopback browser origins directly, and its
+preflight allows the TUS request headers (`tus-resumable`,
+`upload-offset`, `upload-length`, `upload-checksum`) and exposes the TUS
+response family (including `upload-offset`) to page JavaScript. A browser
+carrier with no Vite relay — Expo web is the common case — completes
+picker → `useSnapbackAssetUpload` → typed attach against the dev server
+origin with no app-authored proxy. Relative delivery URLs are the one
+relay-only affordance; a direct cross-origin app uses absolute delivery
+URLs against the dev server origin instead.
+
 Two facts shape the browser flow:
 
-- **Authenticated intents need sessions custody.** Dev-mode HTTP asset
-  requests deliberately resolve as anonymous — the asset DTO/TUS carrier has
-  no dev body-authority member, so passing `userId` to the upload task does
-  **not** authenticate the attempt. An intent with `auth: 'authenticated'`
-  therefore requires a real signed-in session in the browser. The `--user`
-  lane under Operate below is the CLI/host-op path (admin authority for
-  agents and fixtures), not a browser path.
+- **Interactive uploads need sessions custody.** The ordinary browser and
+  native HTTP carriers resolve as anonymous when no real session is present,
+  so the reservation refusal described under Upload and attach applies to
+  every intent auth mode. The `--user` lane under Operate below is the
+  CLI/host-op path (admin authority for agents and fixtures), not a browser or
+  Expo path.
 - **The sign-in code arrives through a trusted-local seam.** The dev
   mailbox is admin- and impersonation-gated
   ([sessions guide](../auth/sessions-and-principals.md)), so a browser demo

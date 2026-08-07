@@ -5,7 +5,25 @@
 **Systems:** React, React/Expo, Client integration, Live Queries, Ephemeral state, Code generation, Sync, Auth, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-04 (bounded subscribe-failure window: a live-query
+**Revised:** 2026-08-06 (descriptor-mode cold retained boot: the existing
+binding receipt now carries a compact admitted deployment projection for an
+exact AppDescriptor, so descriptor preparation reuses the same process-cold
+receipt/RQS machinery and same typed mismatch refusal; no surface cache,
+receipt format, or React state owner was added — see §Offline binding
+receipt); 2026-08-06 (named-projection amendment, author-accepted with
+LLPs 0179/0180: `useSurface` and `useSnapbackCommand` are named projections
+over this Spec's canonical stores — see §Named projections from accepted
+RFCs; no React state rule changes); 2026-08-06 (IndexedDB binding-receipt commits now defer through
+boot-time Web Locks election, with observable terminal refusals and a
+browser-carrier regression witness); 2026-08-05 (mounted-provider HMR generation handoff: in a
+positively identified development environment, a regenerated same-app
+reference presented to an already-mounted provider becomes a
+provider-boundary invalidation — complete function admission re-runs against
+the live deployment and swaps atomically, hooks render a brief boundary frame
+instead of throwing, and a handoff that cannot complete triggers a controlled
+dev reload; foreign/stale references and production builds keep the strict
+`SNAPBACK_REACT_REFERENCE_INVALID` refusal — see the dated section);
+2026-08-04 (bounded subscribe-failure window: a live-query
 subscribe whose admission rejects before any transport exists holds its
 `error` snapshot behind a per-store timer-owned failure window on the
 client's 250 ms → 10 s reconnect ladder, held at the cap while demanded;
@@ -629,6 +647,27 @@ With no active resource, `connection` is `null`,
 not React hook or group-edge subscribers.
 Errors are structured and authority-safe; removing the resource that owned the
 latest error recomputes the aggregate.
+
+## Named projections from accepted RFCs
+
+Accepted sibling RFCs may add named projections over this Spec's canonical
+stores without becoming second React authorities. This section is the
+amendment ledger those acceptances write into; each entry reuses this
+Spec's retained/error/lifecycle/cleanup semantics unchanged and adds no
+new React state rules.
+
+- **`useSurface` (LLP 0179, accepted 2026-08-06).** A surface binding is a
+  projection over this Spec's canonical query stores, mutation attempts,
+  and presence rooms: equivalent low-level and surface reads share one
+  store, equivalent presence shares one room, and cleanup follows the same
+  strict disposal rules as `useSnapbackQuery`/`useSnapbackPresence`. The
+  surface grammar, budgets, and refusal vocabulary belong to LLP 0179; the
+  React state semantics remain this Spec's.
+- **`useSnapbackCommand` (LLP 0180, accepted 2026-08-06).** A command task
+  hook is a projection with the same lifecycle/cleanup discipline this
+  Spec requires of `useSnapbackMutation`; its child asset/mutation facts
+  and residue vocabulary belong to LLP 0180. It never merges into the
+  ordinary mutation return type.
 
 ## External-store composition and cleanup
 
@@ -1379,10 +1418,11 @@ digest, and registered-bundle availability that admission computed. When a
 later preparation's inspect/session fetch fails with a transport-provenance
 connectivity error (and ONLY then — a server-answered refusal is never
 masked), the client re-runs the complete admission against the persisted
-identity: digest equality proves the presented generated manifest is
-byte-identical to the one the online admission proved equal to the deployed
-manifest, so the deployed view IS the generated manifest and every per-item
-check re-runs unchanged. The prepared binding names its provenance:
+identity: digest equality proves the presented generated input is
+byte-identical to the one online admission proved. In legacy manifest mode
+the deployed view is that manifest; AppDescriptor mode uses the compact
+admitted projection specified below. In both cases every per-item check
+re-runs in the same owner. The prepared binding names its provenance:
 `binding.source` is `'deployment' | 'persisted-receipt'`.
 
 The receipt digest reuses the getter-free canonical JSON implementation but
@@ -1397,12 +1437,43 @@ instead of silently producing an unbound offline receipt.
 
 The asynchronous-admission rule of this spec is unchanged: admission
 completes (against the persisted identity) before a synchronous provider is
-constructed. A drifted generated manifest never adopts the receipt (digest
-mismatch falls through to the original connectivity error), and the
-user-switch custody wipe drops the receipt with the rest of the store.
-Regression witness: `packages/snapback-react/cold-boot-binding.test.mjs`
-(real client over a scripted wire; warmed store; cold offline process
-reaches a ready provider rendering `freshness: 'retained'` rows).
+constructed. A drifted generated manifest never adopts the receipt. Once a
+well-formed same-app receipt is found, digest/generation mismatch uses the
+existing typed `SNAPBACK_REACT_BINDING_MISMATCH` refusal rather than exposing
+the incidental connectivity error; a missing, foreign, unreadable, or
+unknown-version receipt still leaves the original connectivity failure
+unmasked. The user-switch custody wipe drops the receipt with the rest of the
+store. Regression witness:
+`packages/snapback-react/cold-boot-binding.test.mjs` (real client over a
+scripted wire; warmed store; cold offline process reaches a ready provider
+rendering `freshness: 'retained'` rows).
+
+**Dated implementation amendment (2026-08-06, AppDescriptor projection).**
+LLP 0179's portable AppDescriptor intentionally does not duplicate the
+server-owned function manifest or ephemeral policy interiors, so the original
+digest-only receipt could prove descriptor identity but could not reconstruct
+the admitted RQS/presence view. Descriptor-mode online preparation now adds a
+compact projection to the same `snapback` React binding receipt: each admitted
+function's server-derived query-artifact hash and authority-independent fact,
+the admitted ephemeral collection definitions, descriptor identity, and the
+existing registered/mixed capability facts. The application supplies the
+byte-identical descriptor again; neither the descriptor nor retained rows are
+copied into the receipt. Cold preparation reconstructs the inspection input
+and re-runs the existing per-function, result-contract, schema/ephemeral,
+surface, and capability admission in this owner before provider construction.
+An exact descriptor can therefore render the existing RQS rows through
+`useSurface`; a descriptor/generation drift remains the typed binding
+mismatch. Regression witnesses:
+`packages/snapback-react/cold-boot-binding.test.mjs` and
+`demos/expo-golden-path-fixture/tests/g2-falsification.mjs`.
+
+**Dated implementation amendment (2026-08-06).** The IndexedDB arm's
+boot-time Web Locks election race silently dropped the receipt commit
+(`issues/20260804-guide-gap-react-expo-offline-cold-boot.md`). Its commit now
+returns `'deferred'` and flushes when this instance's election settles, with a
+`savedAt` staleness guard; terminal refusals surface as
+`SNAPBACK_REACT_BINDING_RECEIPT_NOT_PERSISTED`. Regression witness:
+`packages/snapback-react/cold-boot-binding-indexeddb.test.mjs`.
 
 ### Local development binding synchronization (dated amendment 2026-08-03)
 
@@ -1476,3 +1547,79 @@ must carry its predecessor witness immediately) and every store stop
 clear the window. Healthy subscribes and async transport failures below this
 layer are untouched. Regression witness:
 `packages/snapback-react/subscribe-retry.test.mjs`.
+
+### Mounted-provider HMR generation handoff (dated amendment 2026-08-05)
+
+The 2026-08-03 local-development binding synchronization covers the
+pre-provider window. Its post-provider sibling
+(`issues/closed/20260803-react-hmr-reference-invalid.md`) remained: Metro/Vite
+HMR can hot-replace the generated api module while the mounted
+`SnapbackProvider` keeps a prepared binding admitted from the previous codegen
+generation. Hooks then present a valid new-generation reference to
+old-generation admission state, and the strict
+`SNAPBACK_REACT_REFERENCE_INVALID` refusal — correct in substance — threw
+uncaught through the application tree, turning a recoverable dev-loop handoff
+into a crash.
+
+The provider now treats that exact split as a **provider-boundary
+invalidation**, under three fail-closed gates:
+
+- **Positive development identification.** Recovery arms only when the host
+  affirmatively identifies itself as development: Metro/React Native's
+  compile-time `__DEV__`, a live bundler HMR host (`import.meta.hot` /
+  `module.hot`), or an explicit `NODE_ENV === 'development'`. Absence of
+  production markers is never treated as development, so release builds keep
+  the strict throw.
+- **Positive regeneration classification.** Only a complete same-app function
+  reference whose codegen-stamped `expectedGeneration` names a *different*
+  generation than the currently admitted deployment identity classifies as
+  regenerated (`classifyRegeneratedReactReference`). Foreign appIds, missing
+  generation stamps, and same-generation corruption stay strict even in
+  development.
+- **Deployment-proved re-admission.** The handoff
+  (`handoffPreparedReactBindingGeneration`) polls the live inspection inside a
+  bounded budget (the development-sync defaults: 10 s / 250 ms) until the
+  deployment serves exactly the target generation, then re-runs complete
+  per-function admission — reference completeness, result-contract
+  compilation, and hash binding — off to the side, and publishes the whole
+  new-generation admission view in **one synchronous swap** (a WeakMap
+  overlay over the frozen binding; single-flight per binding and target).
+  No frame can pair a new reference with old admission state: until the swap,
+  new-generation references resolve to a handoff descriptor whose snapshot is
+  a pending/refreshing boundary frame; after it, admission is exactly as
+  strict as boot-time preparation, proved against the live deployment.
+
+The complete polling/re-admission engine is a literal development/failure-only
+dynamic runtime (`react-binding-hmr-runtime.mjs`), reached through the React
+arm's existing optional runtime loader only after the synchronous positive
+development and regeneration gates above pass. The strict classifier, active
+generation overlay reads, and the one-write publication seam remain in the
+always-loaded binding module. This boundary is semantic, not a hidden byte
+transfer: a production build can never arm HMR recovery and therefore never
+loads the optional chunk, while a development handoff downloads and executes
+the complete machinery before it can publish a replacement admission view.
+The LLP 0145 metrology gate excludes that literal optional chunk from its
+frozen successful-production entry closure and the package/browser closure
+tests still resolve and bundle the shipped runtime itself.
+
+Renderability during and after the window: unchanged functions re-admit
+immediately (their store keys exclude the generation stamp), so untouched
+queries keep full continuity; changed queries show the brief boundary frame,
+then subscribe fresh under the new contract. Deferred mutation references
+admit at call time after awaiting the handoff, so a tap during the window is
+a handled rejection at worst, never an uncaught render error.
+
+What the overlay cannot re-prove from the live inspection it refuses to hand
+off: a changed routes manifest, changed ephemeral collection declarations, a
+changed query-group child, or a deployed manifest that fails admission ends
+the handoff, and development performs a **controlled full reload** — one
+clear `SNAPBACK_REACT_HMR_REBIND_FAILED` console diagnostic, the
+`developmentHmr.onReloadRequired` seam (defaulting to `DevSettings.reload` /
+`location.reload` where reachable), and an `error` snapshot on the affected
+hooks. Presence/ephemeral references are outside the v1 handoff: a changed
+collection under HMR resolves through the reload path.
+
+Regression witness: `packages/snapback-react/hmr-generation-handoff.test.mjs`
+(atomic handoff with continuity, mutation deferral, controlled reload on a
+never-redeployed backend, and strict production/foreign admission — all with
+zero uncaught errors).

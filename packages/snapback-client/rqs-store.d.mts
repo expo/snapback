@@ -155,12 +155,37 @@ export interface RqsResumeStore {
   isWriter(): boolean;
   whenLockSettled(): Promise<void>;
   outboxEmpty(): Promise<boolean>;
+  outboxRecords(): Promise<readonly Readonly<Record<string, unknown>>[]>;
+  outboxMarkQuarantined?(
+    id: string,
+    refusal: Readonly<{ code: string }>,
+  ): Promise<false | Readonly<{
+    count: number;
+    tombstones: readonly Readonly<Record<string, unknown>>[];
+  }>>;
+  outboxReenterQuarantined?(): Promise<false | Readonly<{
+    count: number;
+    clientMutationIds: readonly string[];
+  }>>;
+  outboxEnqueueWithOperationIdentity?(
+    record: Readonly<Record<string, unknown>>,
+    authorityCohortKey: string,
+    range?: Readonly<Record<string, unknown>> | null,
+  ): Promise<Readonly<Record<string, unknown>>>;
+  outboxAssignOperationIdentity?(
+    id: string,
+    authorityCohortKey: string,
+    range?: Readonly<Record<string, unknown>> | null,
+  ): Promise<Readonly<Record<string, unknown>> | false | null>;
+  outboxOperationIdentityRange?(
+    authorityCohortKey: string,
+  ): Promise<Readonly<Record<string, unknown>> | null>;
   /** Optional metadata slot used to prepare React bindings while offline. */
   loadReactBindingReceipt?(): Promise<Readonly<Record<string, unknown>> | null>;
-  /** Writer-gated replacement of the optional React binding receipt. */
+  /** Writer-gated replacement; IndexedDB may defer until writer election. */
   commitReactBindingReceipt?(
     receipt: Readonly<Record<string, unknown>>,
-  ): Promise<boolean>;
+  ): Promise<boolean | 'deferred'>;
   readStoreMeta(): Promise<RqsStoreMetaV3>;
   writeStoreMeta(meta: RqsStoreMetaV3): Promise<boolean>;
   allocateQueryInstanceId(): Promise<number | null>;

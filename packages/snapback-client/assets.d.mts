@@ -64,6 +64,11 @@ export interface AssetTaskStore {
   keys(): string[];
 }
 
+export type AssetFetch = (
+  input: string | URL | Request,
+  init?: RequestInit,
+) => Promise<Response>;
+
 export declare function createMemoryAssetTaskStore(): AssetTaskStore;
 
 export interface AssetUploadReferenceLike {
@@ -76,7 +81,12 @@ export interface AssetUploadReferenceLike {
 export declare class SnapbackAssetClient {
   constructor(
     client: { baseUrl: string; subscribeLive: (ref: unknown, options?: unknown) => unknown },
-    options?: { taskStore?: AssetTaskStore | null; chunkBytes?: number },
+    options?: {
+      taskStore?: AssetTaskStore | null;
+      chunkBytes?: number;
+      /** Host transport adapter; Expo registers expo/fetch for binary TUS bodies. */
+      fetch?: AssetFetch | null;
+    },
   );
   taskStoreKey(options: { userId?: string | null; assetId: string }): string;
   start(options: {
@@ -87,6 +97,12 @@ export declare class SnapbackAssetClient {
     declaredFilename?: string | null;
     declaredContentType?: string | null;
     previewUrl?: string | null;
+    /** Exact authority cohort captured by a composing command. Direct asset
+     * callers normally omit this and retain the existing per-request capture. */
+    authorityCapture?: unknown;
+    /** Internal external-bearer generation fence used by a composing command.
+     * Direct callers normally omit this. */
+    externalTransportGeneration?: number;
   }): AssetUploadTask;
   resumePersisted(options: {
     assetId: string;
@@ -98,6 +114,10 @@ export declare class SnapbackAssetClient {
   deliveryUrl(
     assetId: string,
     options?: { variant?: string; maxWidth?: number | null; width?: number | null },
+  ): string;
+  publicDeliveryUrl(
+    assetId: string,
+    options?: { variant?: string; width?: number | null },
   ): string;
   watchStore(
     assetId: string,

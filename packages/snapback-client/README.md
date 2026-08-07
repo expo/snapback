@@ -65,9 +65,11 @@ a second network transport or durable local-first cache. Providers retain
 ownership of generated function references, `liveQuery`, authorization, and
 connection semantics. Optimistic mutations may supply `isAuthoritative` to
 correlate a live row set with the pending mutation; that closes the valid race
-where the query update arrives before the mutation response. See
-`guide/clients/headless.md` and
-`guide/clients/react.md` for the supported composition.
+where the query update arrives before the mutation response. See the served
+[headless client](http://127.0.0.1:4287/_snapback/guide/clients/headless.md)
+and [React client](http://127.0.0.1:4287/_snapback/guide/clients/react.md)
+Guide pages for the supported composition, or read the same build-bound pages
+through `snapback mcp`.
 
 ## Externally brokered sessions
 
@@ -84,8 +86,10 @@ const client = createExternalSessionClient('http://127.0.0.1:5173', {
 
 The constructor offers the exact auth-client, invalidation, and authority
 descriptor protocols. It is ordinary bearer custody, not browser
-sender-constraint, and does not make hosted auth production-ready. See
-`guide/auth/native-apps.md`.
+sender-constraint, and does not make hosted auth production-ready. See the
+served [native app authentication](http://127.0.0.1:4287/_snapback/guide/auth/native-apps.md)
+Guide page for the complete session flow; it is also available through
+`snapback mcp`.
 
 For mobile hosts, bind the platform lifecycle to a live-query handle:
 

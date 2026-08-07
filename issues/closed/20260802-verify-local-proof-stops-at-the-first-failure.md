@@ -1,6 +1,6 @@
 # verify-local-proof stops at the first failure, so the queue behind it stays invisible
 
-**Status:** Open
+**Status:** Resolved
 **Impact:** 4
 **Urgency:** 3
 **Ease:** 4

@@ -6,7 +6,8 @@
 Developer experience, Acceptance testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-04
-**Revised:** 2026-08-05 (v1.2 — OQ3 implemented: Rust activation now
+**Revised:** 2026-08-05 (v1.3 — OQ5 resolved by the shipped guide surface
+under LLP 0184 Phase 0); 2026-08-05 (v1.2 — OQ3 implemented: Rust activation now
 consumes LLP 0158's boot-validated derived-instance identity as the sole
 hosted exception, while Cloudflare uses the dedicated
 `SNAPBACK_DERIVED_INSTANCE_ID` deployment binding without enabling
@@ -445,10 +446,13 @@ ban points at — but the reconciliation must be explicit:
   micro-seam outside the egress model — it delays an internal stage, which
   the observation-not-state rule excludes — now under the 30,000 ms cap
   discipline.
-- **OQ5 — Guide surface.** Ship with a `guide/` page and a capability row,
-  or land the row as a GAP until the acceptance corpus above passes? The
-  LLP 0162 precedent (capabilities stay Missing until acceptance passes)
-  suggests the latter.
+- **OQ5 — Guide surface. RESOLVED (2026-08-05):** ship the guide page now
+  rather than retaining the GAP because the acceptance corpus had already
+  passed when this decision was made. LLP 0184 Phase 0 item 2 executes the
+  ruling: [`guide/operating/network-profiles.md`](../guide/operating/network-profiles.md)
+  now teaches the complete operating surface, and the
+  `operating.network-profiles` row in the
+  [capability index](../guide/capabilities.md) is `shipped`.
 
 ## Implementation record
 
@@ -477,6 +481,9 @@ ban points at — but the reconciliation must be explicit:
   Unit/acceptance matrices cover local, explicit/defaulted `Prod`, primary
   hosted, hosted derived, missing, malformed, and contradictory facts for env
   and runtime selection.
+- 2026-08-05 — LLP 0184 Phase 0 item 2 shipped the dedicated network-profile
+  guide page and flipped `operating.network-profiles` from `partial`/GAP to
+  `shipped` after the acceptance corpus passed.
 
 ## Revision history
 

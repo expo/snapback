@@ -23,11 +23,12 @@ pub mod embed;
 #[doc(hidden)]
 pub mod admin;
 #[doc(hidden)]
-pub mod admin_link;
-#[doc(hidden)]
 pub mod admin_impersonation;
 #[doc(hidden)]
+pub mod admin_link;
+#[doc(hidden)]
 pub mod admin_secret_read;
+pub(crate) mod agent_safe_publication;
 #[doc(hidden)]
 pub mod api_envelope;
 #[doc(hidden)]
@@ -48,6 +49,7 @@ pub mod assets_store;
 pub mod assets_video;
 #[doc(hidden)]
 pub mod auth;
+pub(crate) mod authoring_suggestion;
 #[doc(hidden)]
 pub mod bench;
 pub(crate) mod bounded_children_cursor;
@@ -67,7 +69,11 @@ pub mod conformance;
 #[doc(hidden)]
 pub mod contract_exact;
 #[doc(hidden)]
+pub mod control_catalog;
+#[doc(hidden)]
 pub mod cron;
+#[doc(hidden)]
+pub mod data_patch;
 #[doc(hidden)]
 pub mod data_tier;
 #[doc(hidden)]
@@ -116,6 +122,7 @@ pub mod migration;
 pub mod migration_presentation;
 #[doc(hidden)]
 pub mod network_profile;
+pub(crate) mod operation_detail;
 #[doc(hidden)]
 pub mod operation_ledger;
 #[doc(hidden)]
@@ -142,6 +149,8 @@ pub mod server;
 #[doc(hidden)]
 pub mod service_profile;
 pub(crate) mod snapshot_batch_cursor;
+#[doc(hidden)]
+pub mod snapshot_batch_cursor_v2;
 #[doc(hidden)]
 pub mod storage;
 #[doc(hidden)]

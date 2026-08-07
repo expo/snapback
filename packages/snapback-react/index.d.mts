@@ -11,6 +11,43 @@ import type {
   SnapbackEphemeralReference,
   SnapbackFunctionReference,
 } from '@expo/snapback-client';
+import type {
+  AssetFileLike,
+  AssetTaskSnapshot,
+  AssetUploadTask,
+} from '@expo/snapback-client/assets';
+import type {
+  AssetBearingCommandDescriptorV1,
+  AssetBearingCommandReferenceV1,
+  CommandArgs,
+  CommandOutcome,
+  CommandResidue,
+  CommandResult,
+  CommandTask,
+  CommandTaskSnapshot,
+  MutationAttemptSnapshot,
+  SnapbackCommandDiagnostic,
+  TypedRemediation,
+} from '@expo/snapback-client/commands';
+
+export type {
+  AssetFileLike,
+  AssetTaskSnapshot,
+  AssetUploadTask,
+} from '@expo/snapback-client/assets';
+export type {
+  AssetBearingCommandDescriptorV1,
+  AssetBearingCommandReferenceV1,
+  CommandArgs,
+  CommandOutcome,
+  CommandResidue,
+  CommandResult,
+  CommandTask,
+  CommandTaskSnapshot,
+  MutationAttemptSnapshot,
+  SnapbackCommandDiagnostic,
+  TypedRemediation,
+} from '@expo/snapback-client/commands';
 
 export type SnapbackDiagnostic = Readonly<{
   schemaVersion: 'snapback.client-diagnostic.v1';
@@ -71,6 +108,12 @@ export interface SnapbackReactProvider {
   readonly providerInstanceId: string;
   readonly binding: PreparedReactBinding;
   readonly assets: unknown | null;
+  readonly assetSourceAdapter: import('@expo/snapback-client').CommandAssetSourceAdapter | null;
+  surface<Surface extends SnapbackSurfaceDescriptor>(
+    descriptor: Surface,
+    params: SurfaceParams<Surface>,
+    options?: SurfaceOptions<Surface>,
+  ): BoundSnapbackSurface<Surface>;
   registerEphemeralRepublisher(
     reference: string,
     callback: (context: Readonly<{
@@ -78,10 +121,15 @@ export interface SnapbackReactProvider {
       publish(value: unknown, options?: Readonly<Record<string, unknown>>): Promise<unknown>;
     }>) => unknown,
   ): Readonly<{ dispose(): void }>;
+  /** Quiesce provider-owned live query and presence handles for host lifecycle. */
+  pause(): Promise<void>;
+  /** Resume provider-owned live query and presence handles after host activation. */
+  resume(): Promise<void>;
   inspection(): Readonly<{
     providerInstanceId: string;
     terminal: boolean;
     custodyPaused: boolean;
+    hostPaused: boolean;
     stores: number;
     consumers: number;
     serverSubscriptions: number;
@@ -101,6 +149,8 @@ export interface SnapbackReactProvider {
     preparedGroupSource: PreparedReactQueryGroup['source'] | null;
     preparedGroupReason: string | null;
     preparedGroupBoot: PreparedReactQueryGroup['boot'];
+    /** Mounted-provider HMR generation handoff state (development only). */
+    generationHandoff: 'active' | 'ok' | 'failed' | null;
   }>;
   dispose(): Promise<void>;
 }
@@ -113,6 +163,20 @@ export function createSnapbackReactProvider(
     readonly preparedGroup?: PreparedReactQueryGroup;
     /** Test/DI seam: a pre-built SnapbackAssetClient-compatible surface. */
     readonly assets?: unknown;
+    /** Platform URI/picker conversion installed once by an owning host package. */
+    readonly assetSourceAdapter?: import('@expo/snapback-client').CommandAssetSourceAdapter;
+    /**
+     * Mounted-provider HMR generation handoff tuning (development only —
+     * the handoff arms itself only on a positive development signal such as
+     * Metro's `__DEV__` or a bundler HMR host). `onReloadRequired` replaces
+     * the default full-reload attempt when the handoff cannot complete
+     * atomically.
+     */
+    readonly developmentHmr?: {
+      readonly timeoutMs?: number;
+      readonly pollIntervalMs?: number;
+      readonly onReloadRequired?: (failure: SnapbackDiagnostic) => void;
+    };
   },
 ): SnapbackReactProvider;
 
@@ -171,6 +235,12 @@ type DeepReadonly<Value> =
       : Value extends object ? { readonly [Name in keyof Value]: DeepReadonly<Value[Name]> }
         : Value;
 
+/**
+ * React hook for a generated connection-owned ephemeral collection. The
+ * generated `scope` is the app-defined room boundary (for example, a
+ * conversation id); "presence" names the managed React projection, not a
+ * separate schema feature.
+ */
 export function useSnapbackPresence<
   Ref extends ConnectionEphemeralCollectionReference,
 >(
@@ -181,6 +251,131 @@ export function useSnapbackPresence<
     ttlMs?: number;
   }>,
 ): PresenceState<EphemeralValue<Ref>>;
+
+export interface SnapbackSurfaceMember<Reference = unknown, Input = Record<string, never>> {
+  readonly artifactKind: 'surfaceMemberBinding';
+  readonly reference: Reference;
+  readonly __input?: Input;
+}
+export interface SnapbackSurfaceDescriptor<
+  Params = any,
+  Reads = any,
+  Mutations = any,
+  Commands = any,
+  Presence = any,
+  Assets = any,
+> {
+  readonly artifactKind: 'surfaceDescriptor';
+  readonly id: string;
+  readonly params: Readonly<Record<string, unknown>>;
+  readonly reads: Reads;
+  readonly mutations: Mutations;
+  readonly commands: Commands;
+  readonly presence: Presence;
+  readonly assets: Assets;
+  readonly __params?: Params;
+}
+export type SurfaceParams<Surface> = Surface extends SnapbackSurfaceDescriptor<infer Params, any, any, any, any, any>
+  ? Params
+  : never;
+type SurfaceReads<Surface> = Surface extends SnapbackSurfaceDescriptor<any, infer Reads, any, any, any, any> ? Reads : never;
+type SurfaceMutations<Surface> = Surface extends SnapbackSurfaceDescriptor<any, any, infer Mutations, any, any, any> ? Mutations : never;
+type SurfaceCommands<Surface> = Surface extends SnapbackSurfaceDescriptor<any, any, any, infer Commands, any, any> ? Commands : never;
+type SurfacePresence<Surface> = Surface extends SnapbackSurfaceDescriptor<any, any, any, any, infer Presence, any> ? Presence : never;
+type SurfaceAssets<Surface> = Surface extends SnapbackSurfaceDescriptor<any, any, any, any, any, infer Assets> ? Assets : never;
+type SurfaceMemberReference<Member> = Member extends SnapbackSurfaceMember<infer Reference, any> ? Reference : never;
+type SurfaceMemberInput<Member> = Member extends SnapbackSurfaceMember<any, infer Input> ? Input : never;
+export type SurfaceOptions<Surface extends SnapbackSurfaceDescriptor> = Readonly<{
+  presence?: Readonly<{
+    [Name in keyof SurfacePresence<Surface>]?: SurfaceMemberReference<SurfacePresence<Surface>[Name]> extends ConnectionEphemeralCollectionReference
+      ? EphemeralValue<SurfaceMemberReference<SurfacePresence<Surface>[Name]>> | typeof skip
+      : never
+  }>;
+}>;
+export type SurfaceResult<Surface extends SnapbackSurfaceDescriptor> = Readonly<{
+  data: Readonly<{
+    [Name in keyof SurfaceReads<Surface>]: SurfaceMemberReference<SurfaceReads<Surface>[Name]> extends QueryReference
+      ? FunctionResult<SurfaceMemberReference<SurfaceReads<Surface>[Name]>> | undefined
+      : never
+  }>;
+  state: Readonly<{
+    [Name in keyof SurfaceReads<Surface>]: SurfaceMemberReference<SurfaceReads<Surface>[Name]> extends QueryReference
+      ? QueryState<FunctionResult<SurfaceMemberReference<SurfaceReads<Surface>[Name]>>>
+      : never
+  }>;
+  mutations: Readonly<{
+    [Name in keyof SurfaceMutations<Surface>]: SurfaceMemberReference<SurfaceMutations<Surface>[Name]> extends MutationReference
+      ? (input: SurfaceMemberInput<SurfaceMutations<Surface>[Name]>) => Promise<FunctionResult<SurfaceMemberReference<SurfaceMutations<Surface>[Name]>>>
+      : never
+  }>;
+  commands: Readonly<{
+    [Name in keyof SurfaceCommands<Surface>]: SurfaceMemberReference<SurfaceCommands<Surface>[Name]> extends AssetBearingCommandReferenceV1
+      ? (input: SurfaceMemberInput<SurfaceCommands<Surface>[Name]>) => CommandTask<CommandResult<SurfaceMemberReference<SurfaceCommands<Surface>[Name]>>>
+      : never
+  }>;
+  presence: Readonly<{
+    [Name in keyof SurfacePresence<Surface>]: SurfaceMemberReference<SurfacePresence<Surface>[Name]> extends ConnectionEphemeralCollectionReference
+      ? PresenceState<EphemeralValue<SurfaceMemberReference<SurfacePresence<Surface>[Name]>>> & Readonly<{
+          members: readonly PresenceEntry<EphemeralValue<SurfaceMemberReference<SurfacePresence<Surface>[Name]>>>[];
+        }>
+      : never
+  }>;
+  assets: Readonly<{
+    [Name in keyof SurfaceAssets<Surface>]: Readonly<{
+      readonly reference: SurfaceMemberReference<SurfaceAssets<Surface>[Name]>;
+      start(input: SurfaceMemberInput<SurfaceAssets<Surface>[Name]> & Readonly<{
+        file: AssetFileLike;
+        declaredFilename?: string | null;
+        declaredContentType?: string | null;
+        previewUrl?: string | null;
+      }>): AssetUploadTask;
+    }>
+  }>;
+  descriptor: Surface;
+}>;
+export interface BoundSnapbackSurface<Surface extends SnapbackSurfaceDescriptor> {
+  readonly artifactKind: 'boundSnapbackSurface';
+  readonly descriptor: Surface;
+  readonly reads: Readonly<{
+    [Name in keyof SurfaceReads<Surface>]: Readonly<{
+      snapshot(): SurfaceResult<Surface>['state'][Name];
+      subscribe(listener: (state: SurfaceResult<Surface>['state'][Name]) => void): () => void;
+    }>
+  }>;
+  readonly mutations: SurfaceResult<Surface>['mutations'];
+  readonly commands: SurfaceResult<Surface>['commands'];
+  readonly assets: SurfaceResult<Surface>['assets'];
+  update(params: SurfaceParams<Surface>, options?: SurfaceOptions<Surface>): void;
+  subscribe(listener: () => void): () => void;
+  snapshot(): SurfaceResult<Surface>;
+  dispose(): Promise<void>;
+}
+export function bindSnapbackSurface<Surface extends SnapbackSurfaceDescriptor>(
+  provider: SnapbackReactProvider,
+  surface: Surface,
+  params: SurfaceParams<Surface>,
+  options?: SurfaceOptions<Surface>,
+): BoundSnapbackSurface<Surface>;
+export function observeSnapbackSurface<Surface extends SnapbackSurfaceDescriptor>(
+  provider: SnapbackReactProvider,
+  surface: Surface,
+  params: SurfaceParams<Surface>,
+  options: SurfaceOptions<Surface>,
+  listener: (state: SurfaceResult<Surface>) => void,
+): Readonly<{
+  snapshot(): SurfaceResult<Surface>;
+  readonly reads: BoundSnapbackSurface<Surface>['reads'];
+  readonly mutations: BoundSnapbackSurface<Surface>['mutations'];
+  readonly commands: BoundSnapbackSurface<Surface>['commands'];
+  readonly assets: BoundSnapbackSurface<Surface>['assets'];
+  update(params: SurfaceParams<Surface>, options?: SurfaceOptions<Surface>): void;
+  dispose(): Promise<void>;
+}>;
+export function useSurface<Surface extends SnapbackSurfaceDescriptor>(
+  surface: Surface,
+  params: SurfaceParams<Surface>,
+  options?: SurfaceOptions<Surface>,
+): SurfaceResult<Surface>;
 
 export type QueryEntry<Ref extends QueryReference = QueryReference> = Readonly<{
   ref: Ref;
@@ -264,6 +459,9 @@ export function useSnapbackMutation<
     }>;
   }>,
 ): (args: FunctionArgs<Ref>) => Promise<FunctionResult<Ref>>;
+export function useSnapbackCommand<Command extends AssetBearingCommandReferenceV1>(
+  reference: Command,
+): (args: CommandArgs<Command>) => CommandTask<CommandResult<Command>>;
 
 export type SnapbackConnectionState = Readonly<{
   status: SnapbackConnection;
@@ -276,8 +474,8 @@ export function useSnapbackConnection(): SnapbackConnectionState;
 /** Projection of the headless client's queued-intent facts (LLP 0043 M2 /
  * LLP 0129 Phase 0): 'loading' until the first durable-store read lands. */
 export type SnapbackOutboxState =
-  | Readonly<{ status: 'loading'; supported: false; pending: 0; failed: 0; replaying: false }>
-  | Readonly<{ status: 'ready'; supported: boolean; pending: number; failed: number; replaying: boolean }>;
+  | Readonly<{ status: 'loading'; supported: false; pending: 0; failed: 0; resultGone: 0; replaying: false }>
+  | Readonly<{ status: 'ready'; supported: boolean; pending: number; failed: number; resultGone: number; replaying: boolean }>;
 
 export type SnapbackOutboxHandle = SnapbackOutboxState & Readonly<{
   /** Drain the durable outbox in sequence order (the client's single-flight
@@ -362,6 +560,11 @@ export function invokeSnapbackMutation<
     }>;
   }>,
 ): Promise<FunctionResult<Ref>>;
+export function invokeSnapbackCommand<Command extends AssetBearingCommandReferenceV1>(
+  provider: SnapbackReactProvider,
+  reference: Command,
+  args: CommandArgs<Command>,
+): CommandTask<CommandResult<Command>>;
 
 export function bindSnapbackAppLifecycle(
   appState: {
@@ -389,23 +592,17 @@ export type AssetUploadHookStatus =
   | 'cancelled'
   | 'failed';
 
-export interface AssetUploadHookState {
-  readonly assetId: string | null;
-  readonly assetRef: string | null;
-  readonly attemptId: string | null;
-  readonly attemptExpiresAtMs: number | null;
-  readonly status: AssetUploadHookStatus;
-  readonly diagnostic: { code?: string; message?: string } | null;
-  readonly bytesTransferred: number;
-  readonly totalBytes: number;
-  readonly previewUrl: string | null;
-  readonly integrityBasis: string | null;
-}
+export type AssetUploadHookState = Readonly<
+  Omit<AssetTaskSnapshot, 'status' | 'integrityBasis'> & {
+    readonly status: AssetUploadHookStatus;
+    readonly integrityBasis: AssetTaskSnapshot['integrityBasis'] | null;
+  }
+>;
 
 export interface AssetUploadHook {
   readonly state: AssetUploadHookState;
   start(
-    file: { size: number; slice(start: number, end?: number): unknown },
+    file: AssetFileLike,
     options?: Readonly<{
       args?: Record<string, unknown>;
       userId?: string | null;
@@ -413,16 +610,16 @@ export interface AssetUploadHook {
       declaredContentType?: string | null;
       previewUrl?: string | null;
     }>,
-  ): unknown;
+  ): AssetUploadTask;
   resumePersisted(options: {
     assetId: string;
-    file: { size: number; slice(start: number, end?: number): unknown };
+    file: AssetFileLike;
     userId?: string | null;
-  }): unknown;
+  }): AssetUploadTask | null;
   pause(): void;
   resume(): void;
-  cancel(options?: { discardAsset?: boolean }): Promise<unknown>;
-  retry(): Promise<unknown>;
+  cancel(options?: { discardAsset?: boolean }): Promise<AssetTaskSnapshot>;
+  retry(): Promise<AssetUploadTask>;
 }
 
 export function useSnapbackAssetUpload(options: Readonly<{

@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "snapback.runtime-readiness.v1",
+  "issuedAt": "2026-08-06T23:06:02.669Z",
+  "issuer": "runtime-link-smoke",
+  "platform": "darwin-arm64",
+  "binary": {
+    "bytes": 338619912,
+    "sha256": "7a08f72d17387896ec9f4ad51d182e2525f5aa4a32fa7aaa5e0b615fd33b7a84"
+  },
+  "buildIdentity": {
+    "crateVersion": "0.1.0",
+    "gitCommit": "a972f053003893e7f64ed825639dbe389508738e",
+    "gitDirty": true,
+    "buildProfile": "debug",
+    "startupNonce": "019fd953-994e-7cb3-b9a6-d81a3016152c"
+  },
+  "artifacts": [
+    {
+      "path": "vendor/ibex/ios/Frameworks/hermes-headers/hermes/hermes.h",
+      "bytes": 11126,
+      "sha256": "4327ff32a1d4b68fabee775055660118fede4deeac7b88ddc6edf587b8b2a354"
+    },
+    {
+      "path": "vendor/ibex/ios/Frameworks/hermesvm.framework/hermesvm",
+      "bytes": 9899784,
+      "sha256": "7c3dd1a82c329c187d57939071dbffb8fa699518559a32019f17077a4413bfb6"
+    }
+  ],
+  "qualification": {
+    "probe": "restricted-no-eval-handler-vm",
+    "ok": true,
+    "report": {
+      "schemaVersion": "snapback.runtime-qualify.v1",
+      "probe": "restricted-no-eval-handler-vm",
+      "ok": true,
+      "binary": {
+        "crateVersion": "0.1.0",
+        "gitCommit": "a972f053003893e7f64ed825639dbe389508738e",
+        "gitDirty": true,
+        "buildProfile": "debug",
+        "startupNonce": "019fd953-994e-7cb3-b9a6-d81a3016152c"
+      }
+    }
+  }
+}

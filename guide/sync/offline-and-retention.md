@@ -4,13 +4,13 @@ id: sync.offline-and-retention
 order: 1
 audience: agent-first
 capabilities: [backend.single-table-v1, sync.offline, sync.offline-js-arm, sync.local-persistent-store]
-authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, src/local-persistent-store-publication.v1.json, packages/snapback-codegen/index.mjs, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs, demos/warble/snapback/functions.mjs, demos/warble/tests/acceptance/offline-local-first.mjs]
-examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, demos/warble, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, src/local-persistent-store-publication.v1.json, packages/snapback-codegen/index.mjs, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs, demos/warble/snapback/functions.mjs, demos/warble/tests/acceptance/offline-local-first.mjs]
+examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, demos/warble, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs, tests/acceptance/desktop-sidecar-v1.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-05
-reviewed-commit: HEAD
+reviewed: 2026-08-06
+reviewed-commit: 711e4d763d87cadf0c638bd15ed33a85427e4f11
 ---
 
 # Offline retention and mutation replay
@@ -18,6 +18,13 @@ reviewed-commit: HEAD
 > **Local target only.** This page describes the local dev/test target.
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
+
+> **Published-package availability.** Since `@expo/snapback-*@0.1.11`,
+> public-package builds advertise `single_table_v1` when the runtime package's
+> packaged-store qualification receipt is present (shipped inside the package
+> per the 2026-08-06 LLP 0110/0166 amendment): the platform cold-retention
+> path this page teaches works from a plain npm install. Contributor-source
+> builds advertise it via the store publication carrier as before.
 
 The Contract adapter can retain the last authoritative query snapshot, render
 derived optimistic changes while offline, and replay a durable mutation outbox
@@ -117,6 +124,35 @@ witness proves:
   assert.equal(queued.queued, true);
 ```
 
+## Preserve pending work across a desktop sidecar swap
+
+The desktop sidecar is the explicit exception to default per-origin store
+selection. Because each candidate starts on a new ephemeral port, an ordinary
+fresh client would resolve another default file-store blob. The embedding app
+instead owns one durable file store for the canonical sidecar database domain
+and injects that same store into predecessor, candidate, and rollback clients.
+Do not generalize this to arbitrary servers: the default isolation rule is a
+safety boundary.
+
+After candidate nonce attestation, construct the fresh client with the
+candidate URL and shared store, complete an application-owned full-snapshot
+barrier, then call `adoptQueuedMutations`. The checked API requires the captured
+`clientStoreId` and exact artifact generation; it also checks writer custody,
+candidate `/inspect`, and every pending record generation before replay. Its
+receipt reports authoritative before/after dispositions and terminal deltas.
+The sidecar commits only at zero remaining, no stop, and no new failed,
+quarantined, or result-gone record.
+
+Replay keeps the original `clientMutationId`; the candidate client's `baseUrl`
+supplies the new origin. The shared SQLite `_snapback_client_mutations` row is
+the exactly-once authority, so a predecessor commit whose response was lost is
+republished rather than applied twice. Startup nonce, port, and pid are
+attachment evidence, not duplicate identity.
+
+This is a pending-work-preserving stop/start swap. The predecessor is stopped
+before the candidate starts, so it does not provide zero-request-downtime. A
+stable front door or overlapping runtime ownership is separate work.
+
 ```js source=packages/snapback-client/outbox-store.test.mjs
   const outcome = await client.replayQueuedMutations();
   assert.deepEqual(
@@ -141,7 +177,10 @@ JS arm and it is receipt-proven end to end by
 [`tests/acceptance/local-store-carrier-exit-v1.mjs`](repo:tests/acceptance/local-store-carrier-exit-v1.mjs)
 (run in the local proof; the retained 2026-08-04 run measured **16 PASS / 1
 GAP / 0 SKIPPED** after consuming Triage's qualified budget freeze; Fleet
-remains the one explicit LLP 0135 OQ5 boundary).
+remains the one explicit GAP: its OQ5 direction was ruled 2026-08-05 and the
+`snapshot-batch.v2` profile was registered 2026-08-06 (LLP 0157 v0.11), while
+implementation, the frozen cross-language vectors, and the fresh footprint/
+hydration witness remain absent).
 
 Evidence scope, stated precisely: local target, Node process, file carrier,
 owner-scoped generated relational queries. It is not a browser-restart

@@ -1123,7 +1123,17 @@ fn ibex_handler_lone_surrogate_strings_are_sanitized() {
         r#"
         globalThis.__snapbackHandlers = {
           async listTodos() {
-            return ["\uD800"];
+            return [
+              "\uD800",
+              "\uDC00",
+              "\uD83D\uDE00",
+              "x".repeat(16400) + "\uD800" + "tail",
+              { ["\uD800"]: "lone-high-key" },
+              { ["\uDC00"]: "lone-low-key" },
+              { ["\uD83D\uDE00"]: "valid-pair-key" },
+              { ["\\uD800"]: "literal-escape-key" },
+              { ["x".repeat(16400) + "\uD800" + "tail"]: "long-key" }
+            ];
           },
           async createTodo() {
             return null;
@@ -1135,7 +1145,20 @@ fn ibex_handler_lone_surrogate_strings_are_sanitized() {
     let output = snapback
         .invoke_query("listTodos", input(json!({}), "user_1"))
         .expect("lone surrogate should not break JSON transport");
-    assert_eq!(output.rows, vec![json!("\u{FFFD}")]);
+    assert_eq!(
+        output.rows,
+        vec![
+            json!("\u{FFFD}"),
+            json!("\u{FFFD}"),
+            json!("😀"),
+            json!(format!("{}\u{FFFD}tail", "x".repeat(16_400))),
+            json!({ "\u{FFFD}": "lone-high-key" }),
+            json!({ "\u{FFFD}": "lone-low-key" }),
+            json!({ "😀": "valid-pair-key" }),
+            json!({ "\\uD800": "literal-escape-key" }),
+            json!({ format!("{}\u{FFFD}tail", "x".repeat(16_400)): "long-key" }),
+        ]
+    );
 }
 
 #[test]
@@ -2802,6 +2825,7 @@ fn todo_schema() -> SchemaManifest {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         }],
         ..SchemaManifest::default()
     }
@@ -4980,6 +5004,7 @@ fn l3_prune_preserves_cold_table_validation_version() {
         search_live_limits: None,
         membership: None,
         asset_sharing: None,
+        history: None,
     });
     snapback
         .apply_schema(schema)
@@ -5064,6 +5089,7 @@ fn l3_retention_floor_boundary_still_allows_precise_query_validation() {
         search_live_limits: None,
         membership: None,
         asset_sharing: None,
+        history: None,
     });
     let mut db = LocalDatabase::memory().unwrap();
     db.apply_schema(schema).unwrap();
@@ -5796,6 +5822,7 @@ fn single_index_schema(hash: &str, table: &str, field: &str, index: &str) -> Sch
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         }],
         ..SchemaManifest::default()
     }

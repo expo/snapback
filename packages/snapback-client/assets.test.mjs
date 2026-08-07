@@ -17,6 +17,10 @@ import {
   SnapbackAssetClient,
   createMemoryAssetTaskStore,
 } from './assets.mjs';
+import {
+  SnapbackClient,
+  createExternalSessionClient,
+} from './index.mjs';
 
 const CHUNK = 8;
 const AVATAR_UPLOAD_REF = Object.freeze({
@@ -190,10 +194,17 @@ const client = { baseUrl, subscribeLive: () => {} };
 // --- upload end to end: chunked, checksummed, digested ---
 {
   const store = createMemoryAssetTaskStore();
+  const transportCalls = [];
   // No explicit chunkBytes: the client must narrow its default to the
   // create response's declared maxChunkBytes (limits preflight,
   // 20260801-0044-limits-preflight-ergonomics).
-  const assets = new SnapbackAssetClient(client, { taskStore: store });
+  const assets = new SnapbackAssetClient(client, {
+    taskStore: store,
+    fetch: (...args) => {
+      transportCalls.push(args);
+      return fetch(...args);
+    },
+  });
   const payload = 'twenty-six characters here!!';
   const file = makeFile(payload);
   const seen = [];
@@ -229,6 +240,11 @@ const client = { baseUrl, subscribeLive: () => {} };
     assert.match(patch.headers['upload-checksum'], /^sha256 [A-Za-z0-9+/]+=*$/);
     assert.equal(patch.headers['tus-resumable'], '1.0.0');
   }
+  assert.equal(
+    transportCalls.length,
+    state.requests.length,
+    'the registered host transport owns create, TUS PATCH, and finalize',
+  );
   // The client narrowed its default chunk to the declared maxChunkBytes
   // instead of discovering the ceiling by 413.
   for (const [, attempt] of state.attempts) {
@@ -352,6 +368,14 @@ const client = { baseUrl, subscribeLive: () => {} };
     delivering.deliveryUrl('asset_9', { variant: 'thumb' }),
     `${baseUrl}/assets/records/asset_9/bytes/thumb`,
   );
+  assert.equal(
+    delivering.publicDeliveryUrl('asset public', { variant: 'chat' }),
+    `${baseUrl}/assets/public/asset%20public/chat`,
+  );
+  assert.equal(
+    delivering.publicDeliveryUrl('asset_9', { variant: 'primary', width: 320 }),
+    `${baseUrl}/assets/public/asset_9/primary?width=320`,
+  );
   let refused = false;
   try {
     delivering.deliveryUrl('asset_9');
@@ -359,6 +383,10 @@ const client = { baseUrl, subscribeLive: () => {} };
     refused = error instanceof TypeError;
   }
   assert.ok(refused, 'best selection without maxWidth refuses client-side');
+  assert.throws(
+    () => delivering.publicDeliveryUrl('asset_9', { variant: 'best' }),
+    TypeError,
+  );
 }
 
 // --- watchStore: establishment snapshot, frames, blank, dispose ---
@@ -432,30 +460,87 @@ const client = { baseUrl, subscribeLive: () => {} };
   store.dispose();
 }
 
-// --- sessions custody: a fence credential rides authorization on every
-// --- asset request; the dev header is only the no-credential fallback ---
+// --- parent-client custody is projected consistently across reservation,
+// --- TUS transfer, finalize, metadata/delivery-adjacent reads, and resume.
+// --- Anonymous-public offers auth/rr with no bearer; a bare dev client keeps
+// --- the empty fallback instead of inventing identity. ---
 {
-  const seenHeaders = [];
-  const custodyServer = createServer((request, response) => {
-    seenHeaders.push({
-      url: request.url,
-      method: request.method,
-      authorization: request.headers.authorization ?? null,
-      devUser: request.headers['x-snapback-dev-user'] ?? null,
-    });
-    if (request.method === 'HEAD') {
-      response.setHeader('tus-resumable', '1.0.0');
-      response.setHeader('upload-offset', '0');
-      response.end();
-      return;
+  const protocolHeader = 'x-snapback-auth-client-protocol';
+  const assertCustody = (label, requests, authorization) => {
+    const expected = [
+      ['reservation', (request) => request.method === 'POST' && request.path === '/assets/attempts'],
+      ['TUS transfer', (request) => request.method === 'PATCH' && request.path.startsWith('/assets/tus/')],
+      ['finalize', (request) => request.method === 'POST' && request.path.endsWith('/finalize')],
+      ['metadata/delivery-adjacent read', (request) => request.method === 'GET' && request.path.startsWith('/assets/records/')],
+    ];
+    for (const [boundary, matches] of expected) {
+      const request = requests.find(matches);
+      assert.ok(request, `${label} reached ${boundary}`);
+      assert.equal(request.headers[protocolHeader], '1', `${label} ${boundary} offers auth/rr`);
+      assert.equal(
+        request.headers.authorization ?? null,
+        authorization,
+        `${label} ${boundary} bearer projection`,
+      );
     }
-    response.statusCode = 404;
-    response.end(JSON.stringify({ diagnostics: [{ code: 'SNAPBACK_ASSET_UNKNOWN' }] }));
+  };
+
+  const runCustodyLifecycle = async ({ label, parent, authorization }) => {
+    const requestStart = state.requests.length;
+    const assets = new SnapbackAssetClient(parent, { chunkBytes: CHUNK });
+    const task = assets.start({
+      upload: AVATAR_UPLOAD_REF,
+      file: makeFile(`${label}-asset-payload`),
+    });
+    const completed = await task.done;
+    assert.equal(completed.status, 'ready', `${label} lifecycle completes in the scripted server`);
+    await assets.record(completed.assetId);
+    assertCustody(label, state.requests.slice(requestStart), authorization);
+    const deliveryUrl = assets.deliveryUrl(completed.assetId, { variant: 'primary' });
+    assert.ok(!deliveryUrl.includes('Bearer'), `${label} delivery URL carries no header authority`);
+  };
+
+  const externalParent = createExternalSessionClient(baseUrl, {
+    bearerToken: 'bearer_external_1',
+    rqsStore: null,
+    offlineQueue: false,
   });
-  await new Promise((resolve) => custodyServer.listen(0, '127.0.0.1', resolve));
-  const custodyBase = `http://127.0.0.1:${custodyServer.address().port}`;
+  const anonymousParent = new SnapbackClient(baseUrl, {
+    custody: 'anonymous-public',
+    adminToken: null,
+    rqsStore: null,
+    offlineQueue: false,
+  });
+  try {
+    await runCustodyLifecycle({
+      label: 'external-session',
+      parent: externalParent,
+      authorization: 'Bearer bearer_external_1',
+    });
+    const staleStart = state.requests.length;
+    const staleTask = new SnapbackAssetClient(externalParent).start({
+      upload: AVATAR_UPLOAD_REF,
+      file: makeFile('stale-command-cohort'),
+      externalTransportGeneration: externalParent.__authTransportGeneration + 1,
+    });
+    const stale = await staleTask.done;
+    assert.equal(stale.status, 'failed');
+    assert.equal(stale.diagnostic.code, 'SNAPBACK_CLIENT_AUTHORITY_STALE');
+    assert.equal(state.requests.length, staleStart, 'a stale command cohort dispatches no asset request');
+    await runCustodyLifecycle({
+      label: 'anonymous-public',
+      parent: anonymousParent,
+      authorization: null,
+    });
+  } finally {
+    await Promise.all([externalParent.closeAuth(), anonymousParent.closeAuth()]);
+  }
+
+  // Authority-fence credentials retain the same bearer + offer projection.
+  const fencedStart = state.requests.length;
   const fenced = new SnapbackAssetClient({
-    baseUrl: custodyBase,
+    baseUrl,
+    authProtocols: { authClient: 1 },
     authorityFence: {
       capture: () => ({ lineage: 'l1' }),
       credentialFor: () => ({ bearer: 'bearer_fence_1' }),
@@ -463,22 +548,21 @@ const client = { baseUrl, subscribeLive: () => {} };
     subscribeLive: () => {},
   });
   await fenced.record('asset_c1', { userId: 'user_ignored' }).catch(() => {});
-  const external = new SnapbackAssetClient({
-    baseUrl: custodyBase,
-    bearerToken: 'bearer_external_1',
-    subscribeLive: () => {},
-  });
-  await external.record('asset_c2').catch(() => {});
+
+  // The no-custody development fallback remains completely offerless.
+  const devStart = state.requests.length;
   const devLane = new SnapbackAssetClient({
-    baseUrl: custodyBase,
+    baseUrl,
     subscribeLive: () => {},
   });
   await devLane.record('asset_c3', { userId: 'user_dev' }).catch(() => {});
+
   // TUS resume HEAD carries the same custody.
   const resumeStore = createMemoryAssetTaskStore();
   const fencedResume = new SnapbackAssetClient(
     {
-      baseUrl: custodyBase,
+      baseUrl,
+      authProtocols: { authClient: 1 },
       authorityFence: {
         capture: () => ({ lineage: 'l1' }),
         credentialFor: () => ({ bearer: 'bearer_fence_1' }),
@@ -488,29 +572,35 @@ const client = { baseUrl, subscribeLive: () => {} };
     { taskStore: resumeStore },
   );
   resumeStore.set(
-    fencedResume.taskStoreKey({ userId: null, assetId: 'asset_c4' }),
+    fencedResume.taskStoreKey({ userId: null, assetId: 'asset_1' }),
     JSON.stringify({
-      assetId: 'asset_c4', attemptId: 'attempt_c4', attemptExpiresAtMs: null,
-      fileSize: 1, fileName: null,
+      assetId: 'asset_1', attemptId: 'attempt_1', attemptExpiresAtMs: null,
+      fileSize: state.attempts.get('attempt_1').declaredLength, fileName: null,
     }),
   );
-  const resumeTask = fencedResume.resumePersisted({ assetId: 'asset_c4', file: makeFile('z') });
+  const resumeTask = fencedResume.resumePersisted({
+    assetId: 'asset_1',
+    file: makeFile(state.assets.get('asset_1').bytes),
+  });
   await resumeTask.done;
-  await new Promise((resolve) => custodyServer.close(resolve));
-  const [fencedSeen, externalSeen, devSeen, headSeen] = [
-    seenHeaders.find((entry) => entry.url.includes('asset_c1')),
-    seenHeaders.find((entry) => entry.url.includes('asset_c2')),
-    seenHeaders.find((entry) => entry.url.includes('asset_c3')),
-    seenHeaders.find((entry) => entry.method === 'HEAD'),
-  ];
-  assert.equal(fencedSeen.authorization, 'Bearer bearer_fence_1');
-  assert.equal(fencedSeen.devUser, null, 'a credential suppresses the dev header');
-  assert.equal(externalSeen.authorization, 'Bearer bearer_external_1');
-  assert.equal(devSeen.authorization, null);
+
+  const fencedSeen = state.requests.slice(fencedStart).find(
+    (request) => request.path === '/assets/records/asset_c1',
+  );
+  const devSeen = state.requests.slice(devStart).find(
+    (request) => request.path === '/assets/records/asset_c3',
+  );
+  const headSeen = state.requests.findLast((request) => request.method === 'HEAD');
+  assert.equal(fencedSeen.headers.authorization, 'Bearer bearer_fence_1');
+  assert.equal(fencedSeen.headers[protocolHeader], '1');
+  assert.equal(fencedSeen.headers['x-snapback-dev-user'] ?? null, null, 'a credential suppresses the dev header');
+  assert.equal(devSeen.headers.authorization ?? null, null);
+  assert.equal(devSeen.headers[protocolHeader] ?? null, null, 'bare dev sends no auth/rr offer');
   // No server route ever read a dev-identity header; the client no longer
   // sends one (dead-header removal, 20260801-0044-dev-user-header-dead-read).
-  assert.equal(devSeen.devUser, null, 'the dev lane sends no dead identity header');
-  assert.equal(headSeen.authorization, 'Bearer bearer_fence_1', 'TUS custody matches');
+  assert.equal(devSeen.headers['x-snapback-dev-user'] ?? null, null, 'the dev lane sends no dead identity header');
+  assert.equal(headSeen.headers.authorization, 'Bearer bearer_fence_1', 'TUS custody matches');
+  assert.equal(headSeen.headers[protocolHeader], '1', 'TUS resume repeats auth/rr');
 }
 
 // --- watchStore consumes the real establishment shape (snapshot.rows) and

@@ -6,7 +6,7 @@
 // demos/public-dashboard/tests/acceptance/offline-local-first.mjs.
 
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -31,8 +31,35 @@ const TEST_AUTHORITY_DESCRIPTOR = Object.freeze({
   sessionGeneration: 1,
 });
 const TEST_SESSION_USER_ID = '018f0d90-7b25-7a22-8c33-445566778899';
+const TEST_ARTIFACT_GENERATION = Object.freeze({
+  schemaVersion: 'snapback.v0',
+  appId: 'outbox-adoption-test',
+  schemaHash: `sha256:${'a'.repeat(64)}`,
+  bundleHash: `sha256:${'b'.repeat(64)}`,
+  inputsHash: `sha256:${'c'.repeat(64)}`,
+});
+const TEST_FRESH_SNAPSHOT_BARRIER = Object.freeze({
+  schemaVersion: 'snapback.outbox-fresh-snapshot-barrier.v1',
+  status: 'passed',
+  kind: 'full-snapshot',
+});
 
-const sessionHandshake = (authorityDescriptor) => ({
+const adoptionInspection = (generation = TEST_ARTIFACT_GENERATION) => ({
+  schema: {
+    schemaVersion: generation.schemaVersion,
+    appId: generation.appId,
+    schemaHash: generation.schemaHash,
+    inputsHash: generation.inputsHash,
+  },
+  functions: {
+    schemaVersion: generation.schemaVersion,
+    appId: generation.appId,
+    bundleHash: generation.bundleHash,
+    inputsHash: generation.inputsHash,
+  },
+});
+
+const sessionHandshake = (authorityDescriptor, userId = TEST_SESSION_USER_ID) => ({
   protocolVersion: 1,
   serverStartupNonce: 'outbox-recovery-test',
   authorizationStreamIncarnation: '018f0d90-7b26-7a22-8c33-445566778899',
@@ -71,7 +98,7 @@ const sessionHandshake = (authorityDescriptor) => ({
   transports: ['bearer'],
   authority: {
     kind: 'humanSession',
-    userId: TEST_SESSION_USER_ID,
+    userId,
     sessionId: '018f0d90-7b27-7a22-8c33-445566778899',
     isAuthenticated: true,
   },
@@ -180,8 +207,75 @@ async function exerciseOutboxContract(store, { label }) {
     false,
     `${label}: confirmation retires the retained settlement`,
   );
+  // Outcome-known/payload-gone is a durable fourth state, not pending,
+  // failed, or settled. It never re-enters transport and remains an ordered
+  // submission fence until explicitly discarded.
+  await store.outboxEnqueue({ id: 'cm-result-gone', function: 'createThing' });
+  const resultGone = await store.outboxMarkResultGone('cm-result-gone', {
+    outcome: 'committed',
+    receiptDigest: `sha256:${'e'.repeat(64)}`,
+  });
+  assert.equal(resultGone.status, 'result-gone');
+  assert.deepEqual(resultGone.resultGone, {
+    disposition: 'result-expired',
+    outcome: 'committed',
+    receiptDigest: `sha256:${'e'.repeat(64)}`,
+  });
+  assert.deepEqual(
+    await store.outboxMarkResultGone('cm-result-gone', {
+      outcome: 'committed',
+      receiptDigest: `sha256:${'e'.repeat(64)}`,
+    }),
+    resultGone,
+    `${label}: exact result-gone retry is idempotent`,
+  );
+  for (const divergent of [
+    { outcome: 'refused', receiptDigest: `sha256:${'e'.repeat(64)}` },
+    { outcome: 'committed', receiptDigest: `sha256:${'f'.repeat(64)}` },
+  ]) {
+    await assert.rejects(
+      () => store.outboxMarkResultGone('cm-result-gone', divergent),
+      (error) => error.code === 'SNAPBACK_OUTBOX_RESULT_GONE_MISMATCH',
+      `${label}: divergent result-gone custody refuses`,
+    );
+  }
+  await store.outboxEnqueue({ id: 'cm-after-result-gone', function: 'updateThing' });
+  assert.deepEqual(
+    (await store.outboxPending()).map((record) => record.id),
+    ['cm-after-result-gone'],
+    `${label}: result-gone is not replayable pending work`,
+  );
+  assert.equal(await store.outboxEmpty(), false, `${label}: result-gone keeps resume fenced`);
+  assert.deepEqual(
+    await store.outboxPrepareSubmission('cm-after-result-gone'),
+    { status: 'blocked', record: null },
+    `${label}: missing result blocks ordered successors`,
+  );
+  await store.outboxDiscard('cm-result-gone');
+  assert.equal(
+    (await store.outboxPrepareSubmission('cm-after-result-gone')).status,
+    'ready',
+    `${label}: explicit discard releases the ordered successor`,
+  );
+  await store.outboxDiscard('cm-after-result-gone');
   // Explicit discard of the failed record; wipe clears everything.
   assert.equal(await store.outboxDiscard('cm-1'), true);
+  await store.outboxEnqueue({
+    id: 'cm-quarantine',
+    function: 'createThing',
+    args: { privateValue: 'must-not-project' },
+  });
+  const quarantine = await store.outboxMarkQuarantined('cm-quarantine', {
+    code: 'SNAPBACK_MIGRATION_UPGRADE_REQUIRED',
+  });
+  assert.equal(quarantine.count, 1, `${label}: quarantine transition commits`);
+  assert.equal((await store.outboxRecords())[0].status, 'quarantined');
+  assert.equal(Object.hasOwn((await store.outboxRecords())[0], 'args'), false);
+  assert.equal(await store.outboxEmpty(), false, `${label}: quarantine keeps resume fenced`);
+  const reentry = await store.outboxReenterQuarantined();
+  assert.deepEqual(reentry.clientMutationIds, ['cm-quarantine']);
+  assert.deepEqual((await store.outboxPending())[0].args, { privateValue: 'must-not-project' });
+  await store.outboxDiscard('cm-quarantine');
   await store.outboxEnqueue({ id: 'cm-3', function: 'createThing' });
   await store.wipe();
   assert.deepEqual(await store.outboxPending(), [], `${label}: wipe clears the queue`);
@@ -192,6 +286,56 @@ test('memory arm carries the outbox contract', async () => {
   await exerciseOutboxContract(store, { label: 'memory' });
   assert.deepEqual(store.durability(), { implementation: 'memory', durable: false });
   await store.close();
+});
+
+const OPERATION_RANGE = Object.freeze({
+  schemaVersion: 1,
+  audience: 'authority-a',
+  authorityInstanceId: 'authority-a',
+  epochId: 'epoch-a',
+  epochSequence: 0,
+  rangeStart: 10,
+  rangeEndExclusive: 12,
+  issuedAtMs: 1,
+  expiresAtMs: 10_000,
+  authorityAuthenticatorDigest: `sha256:${'a'.repeat(64)}`,
+});
+
+test('operation range, next counter, and intent move in one outbox transition', () => {
+  const first = outboxOps.enqueueWithOperationIdentity(
+    emptyOutboxState(),
+    { id: 'cm-operation-1', function: 'createThing' },
+    2,
+    'dev:user-a',
+    OPERATION_RANGE,
+  );
+  assert.equal(first.result.operationIssuance.counter, 10);
+  assert.equal(first.result.operationCoverageDisposition, 'covered');
+  assert.equal(first.state.operationIdentityRanges['dev:user-a'].nextCounter, 11);
+
+  // A JSON crash/reopen cut cannot preserve the intent without the advanced
+  // counter: both live in the same persisted outbox section.
+  const reopened = JSON.parse(JSON.stringify(first.state));
+  const second = outboxOps.enqueueWithOperationIdentity(
+    reopened,
+    { id: 'cm-operation-2', function: 'createThing' },
+    3,
+    'dev:user-a',
+  );
+  assert.equal(second.result.operationIssuance.counter, 11);
+  assert.equal(second.state.operationIdentityRanges['dev:user-a'].nextCounter, 12);
+
+  const exhausted = outboxOps.enqueueWithOperationIdentity(
+    second.state,
+    { id: 'cm-operation-3', function: 'createThing' },
+    4,
+    'dev:user-a',
+  );
+  assert.equal(exhausted.result.operationIssuance, null);
+  assert.equal(
+    exhausted.result.operationCoverageDisposition,
+    'uncovered-range-exhausted',
+  );
 });
 
 test('ACK pressure refuses settlement publication without losing pending intent', () => {
@@ -543,6 +687,570 @@ test('mutate queues on connectivity failure and replays exactly-once', async (t)
     [],
     'a successful response confirms the sent acknowledgements',
   );
+});
+
+test('checked sidecar adoption drains one injected store against the candidate origin', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const clientStoreId = (await store.readStoreMeta()).clientStoreId;
+  await store.outboxEnqueue({
+    id: 'cm-sidecar-adoption',
+    function: 'createThing',
+    args: { title: 'pending across origin' },
+    expectedGeneration: TEST_ARTIFACT_GENERATION,
+  });
+  const delivered = [];
+  globalThis.fetch = async (url, init = {}) => {
+    if (String(url).endsWith('/inspect')) return Response.json(adoptionInspection());
+    const body = JSON.parse(init.body);
+    delivered.push({ url: String(url), body });
+    return Response.json({ result: { ok: true }, version: 7 });
+  };
+  const candidate = new SnapbackClient('http://127.0.0.1:41002', {
+    rqsStore: store,
+    offlineQueue: true,
+  });
+  const receipt = await candidate.adoptQueuedMutations({
+    expectedClientStoreId: clientStoreId,
+    expectedGeneration: TEST_ARTIFACT_GENERATION,
+    afterFreshSnapshot: async () => TEST_FRESH_SNAPSHOT_BARRIER,
+  });
+  assert.equal(receipt.schemaVersion, 'snapback.outbox-adoption.v1');
+  assert.equal(receipt.clientStoreId, clientStoreId);
+  assert.equal(receipt.writer, true);
+  assert.equal(receipt.pendingBefore, 1);
+  assert.equal(receipt.replayed, 1);
+  assert.equal(receipt.remaining, 0);
+  assert.equal(receipt.stopped, false);
+  assert.deepEqual(receipt.before, { pending: 1, failed: 0, quarantined: 0, resultGone: 0 });
+  assert.deepEqual(receipt.after, { pending: 0, failed: 0, quarantined: 0, resultGone: 0 });
+  assert.equal(delivered[0].url, 'http://127.0.0.1:41002/mutation/createThing');
+  assert.equal(delivered[0].body.clientMutationId, 'cm-sidecar-adoption');
+  assert.equal(Object.isFrozen(receipt), true);
+  assert.equal(Object.isFrozen(receipt.before), true);
+});
+
+test('sidecar adoption refuses freshness, store, writer, and artifact divergence before replay', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const directory = mkdtempSync(join(tmpdir(), 'snapback-outbox-adoption-writer-'));
+  const firstStore = createFileRqsResumeStore({
+    directory,
+    identity: 'sidecar-adoption-writer',
+    clientStoreId: 'sidecar-adoption-writer-store',
+  });
+  await firstStore.whenLockSettled();
+  await firstStore.outboxEnqueue({
+    id: 'cm-sidecar-writer-fence',
+    function: 'createThing',
+    args: {},
+    expectedGeneration: TEST_ARTIFACT_GENERATION,
+  });
+  const secondStore = createFileRqsResumeStore({
+    directory,
+    identity: 'sidecar-adoption-writer',
+  });
+  t.after(async () => {
+    await secondStore.close();
+    await firstStore.close();
+    rmSync(directory, { recursive: true, force: true });
+  });
+  await secondStore.whenLockSettled();
+  assert.equal(secondStore.isWriter(), false);
+  const nonWriter = new SnapbackClient('http://127.0.0.1:41003', {
+    rqsStore: secondStore,
+    offlineQueue: true,
+  });
+  await assert.rejects(
+    () => nonWriter.adoptQueuedMutations({
+      expectedClientStoreId: 'sidecar-adoption-writer-store',
+      expectedGeneration: TEST_ARTIFACT_GENERATION,
+      afterFreshSnapshot: async () => TEST_FRESH_SNAPSHOT_BARRIER,
+    }),
+    (error) => error.code === 'SNAPBACK_OUTBOX_ADOPTION_NOT_WRITER',
+  );
+  const fencedReplay = await nonWriter.replayQueuedMutations();
+  assert.deepEqual(
+    { remaining: fencedReplay.remaining, stopped: fencedReplay.stopped },
+    { remaining: 1, stopped: true },
+    'a non-writer reports the authoritative visible queue instead of zero',
+  );
+
+  const writerClient = new SnapbackClient('http://127.0.0.1:41004', {
+    rqsStore: firstStore,
+    offlineQueue: true,
+  });
+  let unexpectedDispatches = 0;
+  globalThis.fetch = async () => {
+    unexpectedDispatches += 1;
+    throw new Error('adoption prerequisite refusal must precede network dispatch');
+  };
+  await assert.rejects(
+    () => writerClient.adoptQueuedMutations({
+      expectedClientStoreId: 'sidecar-adoption-writer-store',
+      expectedGeneration: TEST_ARTIFACT_GENERATION,
+      afterFreshSnapshot: async () => ({
+        ...TEST_FRESH_SNAPSHOT_BARRIER,
+        kind: 'incremental',
+      }),
+    }),
+    (error) => error.code === 'SNAPBACK_OUTBOX_ADOPTION_FRESH_SNAPSHOT_REQUIRED',
+  );
+  await assert.rejects(
+    () => writerClient.adoptQueuedMutations({
+      expectedClientStoreId: 'different-sidecar-store',
+      expectedGeneration: TEST_ARTIFACT_GENERATION,
+      afterFreshSnapshot: async () => TEST_FRESH_SNAPSHOT_BARRIER,
+    }),
+    (error) => error.code === 'SNAPBACK_OUTBOX_ADOPTION_STORE_ID_MISMATCH',
+  );
+  assert.equal(unexpectedDispatches, 0);
+  globalThis.fetch = async (url) => {
+    assert.match(String(url), /\/inspect$/u, 'artifact mismatch refuses before mutation dispatch');
+    return Response.json(adoptionInspection({
+      ...TEST_ARTIFACT_GENERATION,
+      bundleHash: `sha256:${'d'.repeat(64)}`,
+    }));
+  };
+  await assert.rejects(
+    () => writerClient.adoptQueuedMutations({
+      expectedClientStoreId: 'sidecar-adoption-writer-store',
+      expectedGeneration: TEST_ARTIFACT_GENERATION,
+      afterFreshSnapshot: async () => TEST_FRESH_SNAPSHOT_BARRIER,
+    }),
+    (error) => error.code === 'SNAPBACK_OUTBOX_ADOPTION_INCOMPATIBLE_SUCCESSOR',
+  );
+  assert.equal((await firstStore.outboxPending()).length, 1);
+});
+
+test('sidecar adoption keeps identity-divergent intent pending for rollback', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const clientStoreId = (await store.readStoreMeta()).clientStoreId;
+  await store.outboxEnqueue({
+    id: 'cm-sidecar-identity-divergence',
+    function: 'createThing',
+    args: { title: 'different identity' },
+    expectedGeneration: TEST_ARTIFACT_GENERATION,
+  });
+  globalThis.fetch = async (url) => {
+    if (String(url).endsWith('/inspect')) return Response.json(adoptionInspection());
+    return Response.json({
+      diagnostic: {
+        code: 'SNAPBACK_CLIENT_MUTATION_ID_REUSED',
+        message: 'client mutation identity diverged',
+      },
+    }, { status: 409 });
+  };
+  const candidate = new SnapbackClient('http://127.0.0.1:41005', {
+    rqsStore: store,
+    offlineQueue: true,
+  });
+  const receipt = await candidate.adoptQueuedMutations({
+    expectedClientStoreId: clientStoreId,
+    expectedGeneration: TEST_ARTIFACT_GENERATION,
+    afterFreshSnapshot: async () => TEST_FRESH_SNAPSHOT_BARRIER,
+  });
+  assert.deepEqual(
+    {
+      replayed: receipt.replayed,
+      failedDelta: receipt.failedDelta,
+      remaining: receipt.remaining,
+      stopped: receipt.stopped,
+    },
+    { replayed: 0, failedDelta: 0, remaining: 1, stopped: true },
+  );
+  const [retained] = await store.outboxRecords();
+  assert.equal(retained.status, 'pending');
+  assert.equal(retained.id, 'cm-sidecar-identity-divergence');
+});
+
+test('opt-in client range transport allocates before first mutation and reuses one retry carrier', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const clientAudienceId = (await store.readStoreMeta()).clientStoreId;
+  const requests = [];
+  const issuedAtMs = Date.now();
+  globalThis.fetch = async (url, init) => {
+    const body = JSON.parse(init.body);
+    requests.push({ url: String(url), body });
+    if (String(url).endsWith('/client-mutations/identity-range')) {
+      return Response.json({
+        schemaVersion: 1,
+        range: {
+          schemaVersion: 1,
+          audience: 'dev-user-a',
+          authorityInstanceId: 'dev-user-a',
+          epochId: 'epoch-client-a',
+          epochSequence: 0,
+          rangeStart: 0,
+          rangeEndExclusive: 256,
+          issuedAtMs,
+          expiresAtMs: issuedAtMs + 60_000,
+          authorityAuthenticatorDigest: `sha256:${'c'.repeat(64)}`,
+        },
+      });
+    }
+    return Response.json({ result: { ok: true }, version: 1 });
+  };
+  const client = new SnapbackClient('https://operation-range.example', {
+    rqsStore: store,
+    operationIdentityProtocol: 1,
+  });
+  const result = await client.mutate('createThing', {
+    args: { title: 'covered' },
+    userId: 'user-a',
+  });
+  assert.deepEqual(result.result, { ok: true });
+  assert.equal(requests.length, 2);
+  assert.match(requests[0].url, /\/client-mutations\/identity-range$/);
+  assert.equal(requests[0].body.clientAudienceId, clientAudienceId);
+  assert.match(requests[1].url, /\/mutation\/createThing$/);
+  assert.match(requests[1].body.clientMutationId, /^mut_/u);
+  assert.deepEqual(requests[1].body.operationIssuance, {
+    kind: 'clientRange',
+    epoch_id: 'epoch-client-a',
+    counter: 0,
+    range_start: 0,
+    range_end_exclusive: 256,
+    authority_authenticator_digest: `sha256:${'c'.repeat(64)}`,
+  });
+  const retained = await store.outboxRecords();
+  assert.equal(retained[0].operationIssuance.counter, 0);
+  assert.equal(retained[0].status, 'settled');
+});
+
+test('uncovered offline intent obtains and durably assigns a range before reconnect admission', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
+  const client = new SnapbackClient('https://operation-reconnect.example', {
+    rqsStore: store,
+    operationIdentityProtocol: 1,
+  });
+  const queued = await client.mutate('createThing', {
+    args: { title: 'offline-before-range' },
+    userId: 'user-a',
+  });
+  assert.equal(queued.operationCoverageDisposition, 'uncovered-range-exhausted');
+  assert.equal((await store.outboxPending())[0].operationIssuance, null);
+
+  const requests = [];
+  const issuedAtMs = Date.now();
+  globalThis.fetch = async (url, init) => {
+    const body = JSON.parse(init.body);
+    requests.push({ url: String(url), body });
+    if (String(url).endsWith('/client-mutations/identity-range')) {
+      return Response.json({
+        schemaVersion: 1,
+        range: {
+          schemaVersion: 1,
+          audience: 'audience-reconnect',
+          authorityInstanceId: 'authority-reconnect',
+          epochId: 'epoch-reconnect',
+          epochSequence: 0,
+          rangeStart: 0,
+          rangeEndExclusive: 256,
+          issuedAtMs,
+          expiresAtMs: issuedAtMs + 60_000,
+          authorityAuthenticatorDigest: `sha256:${'d'.repeat(64)}`,
+        },
+      });
+    }
+    assert(body.operationIssuance, 'mutation transport must never see an uncovered replay');
+    return Response.json({ result: { ok: true }, version: 1 });
+  };
+  const replay = await client.replayQueuedMutations();
+  assert.deepEqual(
+    { replayed: replay.replayed, failed: replay.failed, remaining: replay.remaining },
+    { replayed: 1, failed: 0, remaining: 0 },
+  );
+  assert.equal(
+    requests.filter(({ url }) => url.endsWith('/mutation/createThing')).length,
+    1,
+  );
+  assert.equal(requests[1].body.operationIssuance.epoch_id, 'epoch-reconnect');
+});
+
+test('server epoch-capacity refusal keeps uncovered intent queued for fresh authority', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  globalThis.fetch = async (url) => {
+    assert.match(String(url), /\/client-mutations\/identity-range$/u);
+    return Response.json({
+      diagnostic: {
+        code: 'SNAPBACK_OPERATION_RANGE_EXHAUSTED',
+        message: 'client identity epoch reached its finite v1 counter capacity',
+      },
+    }, { status: 409 });
+  };
+  const client = new SnapbackClient('https://operation-capacity.example', {
+    rqsStore: store,
+    operationIdentityProtocol: 1,
+  });
+  const queued = await client.mutate('createThing', {
+    args: { title: 'wait-for-fresh-epoch' },
+    userId: 'user-a',
+  });
+  assert.equal(queued.queued, true);
+  assert.equal(queued.operationCoverageDisposition, 'uncovered-range-exhausted');
+  let [retained] = await store.outboxRecords();
+  assert.equal(retained.status, 'pending');
+  assert.equal(retained.operationIssuance, null);
+
+  const replay = await client.replayQueuedMutations();
+  assert.deepEqual(
+    { failed: replay.failed, remaining: replay.remaining, stopped: replay.stopped },
+    { failed: 0, remaining: 1, stopped: true },
+  );
+  [retained] = await store.outboxRecords();
+  assert.equal(retained.status, 'pending');
+  assert.equal(retained.operationIssuance, null);
+});
+
+test('fresh same-principal authority atomically covers capacity-stranded intent', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const descriptorA = TEST_AUTHORITY_DESCRIPTOR;
+  const descriptorB = {
+    descriptorVersion: 1,
+    authorityInstanceId: '018f0d90-7b24-7a22-8c33-4455667788bb',
+    sessionGeneration: 2,
+  };
+  let currentDescriptor = descriptorA;
+  let currentPrincipalId = TEST_SESSION_USER_ID;
+  const issuedAtMs = Date.now();
+  const mutationBodies = [];
+  globalThis.fetch = async (url, init = {}) => {
+    const target = String(url);
+    if (target.endsWith('/auth/session')) {
+      return Response.json(sessionHandshake(currentDescriptor, currentPrincipalId));
+    }
+    const body = JSON.parse(init.body);
+    if (target.endsWith('/client-mutations/identity-range')) {
+      assert.deepEqual(body.authorityDescriptor, currentDescriptor);
+      if (currentDescriptor.authorityInstanceId === descriptorA.authorityInstanceId) {
+        return Response.json({
+          diagnostic: {
+            code: 'SNAPBACK_OPERATION_RANGE_EXHAUSTED',
+            message: 'predecessor epoch reached its finite v1 counter capacity',
+          },
+        }, { status: 409 });
+      }
+      return Response.json({
+        schemaVersion: 1,
+        range: {
+          schemaVersion: 1,
+          audience: 'audience-successor',
+          authorityInstanceId: descriptorB.authorityInstanceId,
+          epochId: 'epoch-successor',
+          epochSequence: 2,
+          rangeStart: 0,
+          rangeEndExclusive: 256,
+          issuedAtMs,
+          expiresAtMs: issuedAtMs + 60_000,
+          authorityAuthenticatorDigest: `sha256:${'e'.repeat(64)}`,
+        },
+      });
+    }
+    mutationBodies.push(body);
+    return Response.json({
+      result: { ok: true },
+      version: 2,
+      authorityDescriptor: descriptorB,
+    });
+  };
+  const client = new SnapbackClient('https://operation-successor.example', {
+    bearerToken: 'sbs_predecessor_authority',
+    authClientProtocol: 1,
+    rqsStore: store,
+    operationIdentityProtocol: 1,
+  });
+  const queued = await client.mutate('createThing', {
+    args: { title: 'same principal, fresh authority' },
+    authorityDescriptor: descriptorA,
+  });
+  assert.equal(queued.queued, true);
+  let [retained] = await store.outboxRecords();
+  assert.equal(retained.operationIssuance, null);
+  assert.equal(retained.operationAuthorityPrincipalId, TEST_SESSION_USER_ID);
+
+  currentDescriptor = descriptorB;
+  currentPrincipalId = '018f0d90-7b25-7a22-8c33-4455667788cc';
+  client.clearAuthSession();
+  const crossPrincipal = await client.replayQueuedMutations();
+  assert.deepEqual(
+    {
+      replayed: crossPrincipal.replayed,
+      failed: crossPrincipal.failed,
+      remaining: crossPrincipal.remaining,
+      stopped: crossPrincipal.stopped,
+    },
+    { replayed: 0, failed: 0, remaining: 1, stopped: true },
+  );
+  [retained] = await store.outboxRecords();
+  assert.equal(retained.status, 'pending');
+  assert.equal(retained.operationIssuance, null);
+  assert.deepEqual(retained.authorityDescriptor, descriptorA);
+
+  currentPrincipalId = TEST_SESSION_USER_ID;
+  client.clearAuthSession();
+  const replay = await client.replayQueuedMutations();
+  assert.deepEqual(
+    { replayed: replay.replayed, failed: replay.failed, remaining: replay.remaining },
+    { replayed: 1, failed: 0, remaining: 0 },
+  );
+  [retained] = await store.outboxRecords();
+  assert.equal(retained.status, 'settled');
+  assert.deepEqual(retained.authorityDescriptor, descriptorB);
+  assert.equal(retained.operationIssuance.epoch_id, 'epoch-successor');
+  assert.equal(mutationBodies.length, 1);
+  assert.deepEqual(mutationBodies[0].authorityDescriptor, descriptorB);
+  assert.equal(mutationBodies[0].operationIssuance.epoch_id, 'epoch-successor');
+});
+
+test('sessions mode automatically carries authority through range issuance and ACK custody', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const issuedAtMs = Date.now();
+  const rangeBodies = [];
+  const mutationBodies = [];
+  globalThis.fetch = async (url, init = {}) => {
+    const target = String(url);
+    if (target.endsWith('/auth/session')) {
+      return Response.json(sessionHandshake(TEST_AUTHORITY_DESCRIPTOR, TEST_SESSION_USER_ID));
+    }
+    const body = JSON.parse(init.body);
+    if (target.endsWith('/client-mutations/identity-range')) {
+      rangeBodies.push(body);
+      return Response.json({
+        schemaVersion: 1,
+        range: {
+          schemaVersion: 1,
+          audience: 'audience-automatic-session',
+          authorityInstanceId: TEST_AUTHORITY_DESCRIPTOR.authorityInstanceId,
+          epochId: 'epoch-automatic-session',
+          epochSequence: 1,
+          rangeStart: 0,
+          rangeEndExclusive: 256,
+          issuedAtMs,
+          expiresAtMs: issuedAtMs + 60_000,
+          authorityAuthenticatorDigest: `sha256:${'a'.repeat(64)}`,
+        },
+      });
+    }
+    mutationBodies.push(body);
+    return Response.json({
+      result: { ok: true },
+      version: 1,
+      authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR,
+    });
+  };
+  const client = new SnapbackClient('https://operation-automatic-session.example', {
+    bearerToken: 'sbs_automatic_session',
+    authClientProtocol: 1,
+    rqsStore: store,
+    operationIdentityProtocol: 1,
+  });
+  const result = await client.mutate('createThing', {
+    args: { title: 'automatic session authority' },
+  });
+  assert.deepEqual(result.result, { ok: true });
+  assert.equal(rangeBodies.length, 1);
+  assert.deepEqual(rangeBodies[0].authorityDescriptor, TEST_AUTHORITY_DESCRIPTOR);
+  assert.equal(mutationBodies.length, 1);
+  assert.deepEqual(mutationBodies[0].authorityDescriptor, TEST_AUTHORITY_DESCRIPTOR);
+  const [retained] = await store.outboxRecords();
+  assert.deepEqual(retained.authorityDescriptor, TEST_AUTHORITY_DESCRIPTOR);
+  assert.equal(retained.operationAuthorityPrincipalId, TEST_SESSION_USER_ID);
+  assert.equal(retained.operationIssuance.epoch_id, 'epoch-automatic-session');
+
+  const recovered = await client.settledMutations();
+  assert.equal(recovered.length, 1);
+  assert.equal(recovered[0].clientMutationId, retained.id);
+  await client.markMutationSettlementsConsumed([retained.id]);
+  assert.deepEqual(
+    await store.outboxPendingAcknowledgements(null, 64, TEST_AUTHORITY_DESCRIPTOR),
+    [retained.id],
+  );
+
+  await client.mutate('createThing', {
+    args: { title: 'automatic session acknowledgement' },
+  });
+  assert.equal(mutationBodies.length, 2);
+  assert.deepEqual(mutationBodies[1].authorityDescriptor, TEST_AUTHORITY_DESCRIPTOR);
+  assert.deepEqual(mutationBodies[1].acknowledgedClientMutationIds, [retained.id]);
+  assert.deepEqual(
+    await store.outboxPendingAcknowledgements(null, 64, TEST_AUTHORITY_DESCRIPTOR),
+    [],
+    'the ACK obligation clears only after the second mutation succeeds',
+  );
+});
+
+test('authority rotation allocates a disjoint range without rebinding old queued identity', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const descriptorA = TEST_AUTHORITY_DESCRIPTOR;
+  const descriptorB = {
+    descriptorVersion: 1,
+    authorityInstanceId: '018f0d90-7b24-7a22-8c33-4455667788aa',
+    sessionGeneration: 2,
+  };
+  const rangeRequests = [];
+  const issuedAtMs = Date.now();
+  let refuseAuthorityAMutation = true;
+  globalThis.fetch = async (url, init) => {
+    const body = JSON.parse(init.body);
+    if (String(url).endsWith('/client-mutations/identity-range')) {
+      rangeRequests.push(body);
+      const descriptor = body.authorityDescriptor;
+      const suffix = descriptor.authorityInstanceId === descriptorA.authorityInstanceId ? 'a' : 'b';
+      return Response.json({
+        schemaVersion: 1,
+        range: {
+          schemaVersion: 1,
+          audience: `audience-${suffix}`,
+          authorityInstanceId: descriptor.authorityInstanceId,
+          epochId: `epoch-${suffix}`,
+          epochSequence: 0,
+          rangeStart: 0,
+          rangeEndExclusive: 256,
+          issuedAtMs,
+          expiresAtMs: issuedAtMs + 60_000,
+          authorityAuthenticatorDigest: `sha256:${suffix.repeat(64)}`,
+        },
+      });
+    }
+    if (body.authorityDescriptor?.authorityInstanceId === descriptorA.authorityInstanceId
+        && refuseAuthorityAMutation) {
+      refuseAuthorityAMutation = false;
+      throw new TypeError('response lost');
+    }
+    return Response.json({ result: { ok: true }, version: 1 });
+  };
+  const client = new SnapbackClient('https://operation-rotation.example', {
+    rqsStore: store,
+    operationIdentityProtocol: 1,
+  });
+  const oldQueued = await client.mutate('createThing', {
+    args: { title: 'old authority' },
+    userId: 'user-a',
+    authorityDescriptor: descriptorA,
+  });
+  const oldRecordBefore = (await store.outboxRecords())
+    .find(({ id }) => id === oldQueued.clientMutationId);
+  assert.equal(oldRecordBefore.operationIssuance.epoch_id, 'epoch-a');
+
+  await client.mutate('createThing', {
+    args: { title: 'new authority' },
+    userId: 'user-a',
+    authorityDescriptor: descriptorB,
+  });
+  assert.equal(rangeRequests.length, 2);
+  assert.equal(rangeRequests[1].previousRange, undefined);
+  const oldRecordAfter = (await store.outboxRecords())
+    .find(({ id }) => id === oldQueued.clientMutationId);
+  assert.equal(oldRecordAfter.authorityDescriptor.authorityInstanceId, descriptorA.authorityInstanceId);
+  assert.deepEqual(oldRecordAfter.operationIssuance, oldRecordBefore.operationIssuance);
 });
 
 test('mixed lane-Q and lane-L intents replay in sequence with immutable per-item policy', async (t) => {
@@ -1183,6 +1891,182 @@ test('replay persistence failure stops without drop-and-mark-failed', async (t) 
   assert.equal(record.status, 'pending');
 });
 
+test('identity horizon outcome-unknown remains pending online and during replay', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  globalThis.fetch = async () => Response.json({
+    diagnostic: {
+      code: 'SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED',
+      message: 'the identity epoch is below the retained outcome horizon',
+      details: {
+        disposition: 'identity-horizon-passed',
+        outcome: 'unknown',
+        terminal: false,
+      },
+    },
+  }, { status: 409 });
+
+  await assert.rejects(
+    () => client.mutate('createThing', {
+      args: { title: 'ambiguous' },
+      clientMutationId: 'cm-outcome-unknown',
+    }),
+    (error) => (
+      error.diagnostic.code === 'SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED'
+      && error.operationOutcome === 'unknown'
+    ),
+  );
+  let record = (await store.outboxRecords()).find((item) => item.id === 'cm-outcome-unknown');
+  assert.equal(record.status, 'pending', 'online horizon refusal is not terminal failed state');
+
+  const replay = await client.replayQueuedMutations();
+  assert.deepEqual(
+    {
+      replayed: replay.replayed,
+      failed: replay.failed,
+      remaining: replay.remaining,
+      stopped: replay.stopped,
+    },
+    { replayed: 0, failed: 0, remaining: 1, stopped: true },
+  );
+  record = (await store.outboxRecords()).find((item) => item.id === 'cm-outcome-unknown');
+  assert.equal(record.status, 'pending', 'replay horizon refusal remains operator-visible pending');
+});
+
+test('committed result-expired becomes durable result-gone and blocks ordered successors', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    return Response.json({
+      diagnostic: {
+        code: 'SNAPBACK_OPERATION_RESULT_EXPIRED',
+        message: 'the committed operation result payload was reclaimed',
+        details: {
+          disposition: 'result-expired',
+          outcome: 'committed',
+          receiptDigest: `sha256:${'e'.repeat(64)}`,
+        },
+      },
+    }, { status: 410 });
+  };
+
+  await assert.rejects(
+    () => client.mutate('createThing', {
+      args: { title: 'known-committed' },
+      clientMutationId: 'cm-result-expired',
+    }),
+    (error) => (
+      error.operationOutcome === 'committed'
+      && error.operationResult === 'expired'
+    ),
+  );
+  await store.outboxEnqueue({
+    id: 'cm-after-result-expired',
+    function: 'updateThing',
+    args: { title: 'must-wait' },
+  });
+  calls = 0;
+  const replay = await client.replayQueuedMutations();
+  assert.deepEqual(
+    {
+      replayed: replay.replayed,
+      failed: replay.failed,
+      remaining: replay.remaining,
+      stopped: replay.stopped,
+      calls,
+    },
+    { replayed: 0, failed: 0, remaining: 2, stopped: true, calls: 0 },
+    'durable payload loss is never retried and keeps successors behind the submission fence',
+  );
+  assert.deepEqual(
+    (await store.outboxRecords()).map((record) => [record.id, record.status]),
+    [
+      ['cm-result-expired', 'result-gone'],
+      ['cm-after-result-expired', 'pending'],
+    ],
+  );
+  assert.deepEqual(
+    { ...(await client.outboxStatus()) },
+    { supported: true, pending: 1, failed: 0, quarantined: 0, resultGone: 1, replaying: false },
+  );
+});
+
+test('recreated file-backed client preserves result-gone without redelivery', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const directory = mkdtempSync(join(tmpdir(), 'snapback-result-gone-relaunch-'));
+  const firstStore = createFileRqsResumeStore({
+    directory,
+    identity: 'origin:result-gone-relaunch',
+  });
+  await firstStore.whenLockSettled();
+  const firstClient = new SnapbackClient('https://result-gone.example', {
+    rqsStore: firstStore,
+  });
+  globalThis.fetch = async () => Response.json({
+    diagnostic: {
+      code: 'SNAPBACK_OPERATION_RESULT_EXPIRED',
+      message: 'the committed operation result payload was reclaimed',
+      details: {
+        disposition: 'result-expired',
+        outcome: 'committed',
+        receiptDigest: `sha256:${'f'.repeat(64)}`,
+      },
+    },
+  }, { status: 410 });
+  await assert.rejects(
+    () => firstClient.mutate('createThing', {
+      args: { title: 'restored-operation' },
+      clientMutationId: 'cm-result-gone-relaunch',
+    }),
+    (error) => error.operationOutcome === 'committed' && error.operationResult === 'expired',
+  );
+  await firstStore.close();
+
+  const reopenedStore = createFileRqsResumeStore({
+    directory,
+    identity: 'origin:result-gone-relaunch',
+  });
+  await reopenedStore.whenLockSettled();
+  await reopenedStore.outboxEnqueue({
+    id: 'cm-after-result-gone-relaunch',
+    function: 'updateThing',
+    args: { title: 'must remain fenced' },
+  });
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    throw new Error('result-gone relaunch must not dispatch');
+  };
+  const recreatedClient = new SnapbackClient('https://result-gone.example', {
+    rqsStore: reopenedStore,
+  });
+  assert.deepEqual(
+    { ...(await recreatedClient.outboxStatus()) },
+    { supported: true, pending: 1, failed: 0, quarantined: 0, resultGone: 1, replaying: false },
+  );
+  const replay = await recreatedClient.replayQueuedMutations();
+  assert.deepEqual(
+    {
+      replayed: replay.replayed,
+      failed: replay.failed,
+      remaining: replay.remaining,
+      stopped: replay.stopped,
+      calls,
+    },
+    { replayed: 0, failed: 0, remaining: 2, stopped: true, calls: 0 },
+  );
+  const restored = (await reopenedStore.outboxRecords())
+    .find((record) => record.id === 'cm-result-gone-relaunch');
+  assert.equal(restored.status, 'result-gone');
+  assert.equal(restored.resultGone.outcome, 'committed');
+  assert.equal(restored.settlement, undefined, 'payload-gone never fabricates a settlement');
+  await reopenedStore.close();
+});
+
 test('replay drop-and-mark-failed on server refusal, pending kept on connectivity', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
@@ -1310,14 +2194,14 @@ test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-a
   const disabled = new SnapbackClient('http://127.0.0.1:9', { rqsStore: null });
   assert.deepEqual(
     { ...(await disabled.outboxStatus()) },
-    { supported: false, pending: 0, failed: 0, replaying: false },
+    { supported: false, pending: 0, failed: 0, quarantined: 0, resultGone: 0, replaying: false },
   );
 
   const events = [];
   const unsubscribe = client.subscribeOutbox(() => events.push('event'));
   assert.deepEqual(
     { ...(await client.outboxStatus()) },
-    { supported: true, pending: 0, failed: 0, replaying: false },
+    { supported: true, pending: 0, failed: 0, quarantined: 0, resultGone: 0, replaying: false },
   );
 
   // Queue two intents offline: each transition notifies subscribers.
@@ -1327,7 +2211,7 @@ test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-a
   assert(events.length >= 2, 'queue transitions notified subscribers');
   assert.deepEqual(
     { ...(await client.outboxStatus()) },
-    { supported: true, pending: 2, failed: 0, replaying: false },
+    { supported: true, pending: 2, failed: 0, quarantined: 0, resultGone: 0, replaying: false },
   );
 
   // Replay: first record refused (drop-and-mark-failed), second settles.
@@ -1356,7 +2240,7 @@ test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-a
   assert(events.length > drained, 'replay transitions notified subscribers');
   assert.deepEqual(
     { ...(await client.outboxStatus()) },
-    { supported: true, pending: 0, failed: 1, replaying: false },
+    { supported: true, pending: 0, failed: 1, quarantined: 0, resultGone: 0, replaying: false },
     'failed records stay visible; settled records leave the counts',
   );
 

@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-05
 **Systems:** Backend (schema/functions), live queries, ephemeral state, assets, React/Expo client
-**Related:** `demos/messaging-snapback`, `issues/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`
+**Related:** `demos/messaging-snapback`, `issues/closed/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`, `issues/closed/20260805-guide-gap-ephemeral-presence-hook-naming.md`
 
 ## What this is
 
@@ -31,14 +31,13 @@ images, seeded through the actual upload pipeline, not a raw row insert).
   the unique index plus a `.first()` lookup is the whole mechanism. This is
   the same "structural constraint over runtime check" pattern Warble uses
   for likes, and it held up cleanly for reactions too.
-- **Ephemeral typing state was genuinely fast to wire once I found the
-  pattern.** There is no `useSnapbackEphemeral` React hook (confirmed by
-  grep, not assumption), so I hand-wired `client.subscribeEphemeral`
-  following `demos/cursors-web`'s `useCursorRoom` shape. Once I had a
-  reference to the raw client (exported from `lib/snapback.ts` as a module
-  singleton, captured at provider-construction time), the rest — snapshot +
-  delta overlay, TTL, self-filtering by `grantedConnectionId` — worked on
-  the first try and is verifiably live: I proved it by publishing typing
+- **Ephemeral typing state was genuinely fast to wire once I found a working
+  pattern, but my first discovery conclusion was wrong.** I grepped for
+  `useSnapbackEphemeral`, missed the differently named
+  `useSnapbackPresence`, and hand-wired `client.subscribeEphemeral` following
+  `demos/cursors-web`'s `useCursorRoom` shape. The resulting snapshot + delta
+  overlay, TTL, and self-filtering by `grantedConnectionId` worked on the
+  first try and was verifiably live: I proved it by publishing typing
   presence from a *second, independent* `SnapbackClient` in a Node script
   while a real browser tab had the conversation open, and the "Priya Rao is
   typing…" indicator appeared with no page reload
@@ -84,7 +83,7 @@ images, seeded through the actual upload pipeline, not a raw row insert).
 - **The real headline finding: dev-mode asset uploads cannot complete over
   the plain client HTTP surface, for *any* auth mode, and this generalizes
   well past the one browser caveat the guide states.** Filed as
-  `issues/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`
+  `issues/closed/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`
   with the exact mechanism (caller resolves anonymous; owner_principal is a
   required non-optional string; the equality check can therefore never
   pass). This blocked the in-app "add photo" feature from ever completing
@@ -149,3 +148,83 @@ images, seeded through the actual upload pipeline, not a raw row insert).
   React/Expo client page documents the native carrier as the same generated
   surface plus platform-specific store/crypto concerns already exercised
   elsewhere in the repo, e.g. `demos/rn-durable-store-witness`).
+
+## 2026-08-05 — G0 exit evidence
+
+The fixture now proves the ordinary application path in settled Sessions
+mode. The command/API chain that suffices is:
+
+1. A trusted local process runs
+   `snapback session mint --email lin@messaging.test` with operator-only
+   impersonation-capability custody and receives only the ordinary session
+   envelope.
+2. Application-facing code adopts that bearer with
+   `createExternalSessionClient`; it receives no admin token, ready file, or
+   impersonation capability.
+3. `createAssetClient(client).start(...)` performs ordinary reservation, TUS
+   transfer, and trusted finalization to a `ready` task receipt.
+4. `sendMessage` performs the typed `ctx.assets.attach(...)` inside the
+   ordinary authenticated mutation.
+5. The resulting public-immutable rendition returns `200 image/png` with
+   `Cross-Origin-Resource-Policy: cross-origin`, so it is embeddable rather
+   than merely directly fetchable.
+
+This replaces what the bakeoff had to hand-build: an app-specific session
+broker/backend launcher plus application-side shelling out to the
+admin-impersonated `snapback assets put --user ...` lane. G0 does not remove
+the trusted operator step; it makes it one paved session-mint command and
+then uses the same public client and asset APIs the application uses.
+
+The receipt work itself exposed one final client contradiction:
+`packages/snapback-client/assets.mjs` emitted
+`x-snapback-auth-client-protocol: 1` only beside a bearer. A documented
+`custody: 'anonymous-public'` parent therefore sent neither credential nor
+offer and was rejected by the Sessions profile gate before asset ownership
+ran. The resolved ticket is
+`issues/closed/20260805-anonymous-public-asset-client-drops-auth-protocol-offer.md`.
+The fix projects the parent client's declared auth/rr offer into every direct
+asset request without adding a bearer; bare no-custody dev clients remain
+offerless. Package coverage pins external-session and anonymous-public
+reservation, TUS, finalize, metadata/delivery-adjacent, and resume headers.
+The real-server negative reserves an attempt under the minted session, then
+has an anonymous-public asset client resume that exact attempt: it passes the
+protocol gate and receives HTTP 403 from the owner/caller comparison.
+
+Remaining friction is now narrower and explicit. The harness still has to
+stage a Sessions-mode copy of this deliberately dev-mode interactive demo,
+hold operator authority long enough to invoke the mint command, and choose a
+raw email rather than a declared persona. Automatic supervised session
+issuance belongs to G1, and friendlier persona policy remains with the auth
+owner. The current negative also needs a two-client pause/resume probe because
+this upload intent derives its required owner from `ctx.auth.userId`; a direct
+anonymous reservation correctly cannot produce that owner. Native iOS and
+Android device receipts remain outside this G0 proof.
+
+Verification:
+
+- `bun run test` from `packages/snapback-client` — pass.
+- `node demos/messaging-snapback/tests/acceptance/headless.mjs` — 11/11,
+  including minted-session upload → typed attach → embeddable delivery and
+  the anonymous-public HTTP 403 ownership negative.
+
+## 2026-08-06 — Ephemeral/presence naming correction
+
+The earlier claim that Snapback had no React hook for ephemeral typing was a
+search-vocabulary failure, not a capability gap. Reading the implementation
+showed that `ConnectionEphemeralCollectionReference` fixes entry ownership to
+the provider connection while the generated `scope` remains the app-defined
+room boundary. `{ conversationId }` therefore creates exactly one typing room
+per conversation.
+
+`src/lib/useTyping.ts` now uses `useSnapbackPresence` in observer mode. Its
+`publish`/`delete` actions preserve the existing immediate keystroke/clear
+behavior while the provider owns snapshot subscription, self identity,
+heartbeat, resync, and cleanup. The raw-client singleton formerly kept only
+for the hand-wired overlay is gone. Provider preparation now uses the generated
+`snapback.app.v1` descriptor because the legacy three-manifest path did not
+admit the byte-complete ephemeral reference carried by `api.mjs`. The guide now
+transcludes this actual demo hook and explicitly bridges the schema term
+“ephemeral” to the React term “presence.” Live browser verification also found
+that the hook's pre-subscribe snapshot was not referentially stable for
+React's external-store contract; the package now caches that state, and the
+typing proof fails unless the indicator itself becomes visible.

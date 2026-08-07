@@ -53,8 +53,8 @@ use crate::auth::wire::{
 use crate::cron::{CronRunMetadata, CronRunRecord};
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::ephemeral::{
-    AuthContext, DeleteRequest, EphemeralCollection, PublishRequest, RealtimeEnvelope,
-    RealtimePublicationPermit, RoomAuthorityPermit, Scope, SubscribeRequest,
+    AuthContext, DeleteRequest, EphemeralCollection, OperatorDeleteRequest, PublishRequest,
+    RealtimeEnvelope, RealtimePublicationPermit, RoomAuthorityPermit, Scope, SubscribeRequest,
 };
 use crate::live_wire::{
     LiveEnvelope, LiveSocketClientMessage, LiveSocketServerFrame, Receipt, SubscriptionReceiptEvent,
@@ -63,18 +63,17 @@ use crate::local::{
     AdmittedCronClaim, AppActionStage, AuthProvisionCommit, AuthorizationInvalidationAckInput,
     AuthorizationInvalidationManualRetryInput, ConfigVerifyStage, DetachedMutationRead,
     EnsureAppExplicitInput, EnsureAppMode, EnsureAppRequest, EnsureAppResponse, EphemeralApi,
-    FunctionRunResult, InspectState, LiveInvalidationAdmission, LiveResumeInput,
-    LiveSubscribeRequest, LiveUnsubscribeInput, LocalSnapback, MaintenanceOperation,
-    PreparedAuthProvision, StagedAction, StagedAppAction, StagedConfigVerify, StagedNestedMutation,
-    live_stream_text, live_stream_text_with_server_observed,
+    FunctionRunResult, HostOperationParentV1, InspectState, LiveInvalidationAdmission,
+    LiveResumeInput, LiveSubscribeRequest, LiveUnsubscribeInput, LocalSnapback,
+    MaintenanceOperation, PreparedAuthProvision, StagedAction, StagedAppAction, StagedConfigVerify,
+    StagedNestedMutation, live_stream_text, live_stream_text_with_server_observed,
 };
 use crate::manifest::{
     ActionReturnValue, ActionStep, ArtifactGeneration, AuthInput, AuthMode, AuthRequirement,
     AuthorityDescriptor, CtxAnswerLedger, FiniteQueryOutput, FiniteQueryRequest,
-    FunctionCallRequest, FunctionInvocationFacts, FunctionKind, FunctionManifest,
-    FunctionResponse, FunctionRuntime, HandlerInput, MutationAcknowledgementRequest,
-    MutationAcknowledgementResponse, MutationOutput, MutationRequest, QueryOutput,
-    ReadDependency, SchemaManifest, SeedData,
+    FunctionCallRequest, FunctionInvocationFacts, FunctionKind, FunctionManifest, FunctionResponse,
+    FunctionRuntime, HandlerInput, MutationAcknowledgementRequest, MutationAcknowledgementResponse,
+    MutationOutput, MutationRequest, QueryOutput, ReadDependency, SchemaManifest, SeedData,
 };
 use crate::push::{
     PushTokenRegistrationResponse, PushTokenUnregisterResponse, RegisterPushTokenRequest,
@@ -998,6 +997,7 @@ struct DetachedActionHost {
     /// are excluded from streamed actions until resumable retry semantics
     /// exist (LLP 0076 §Evidence-status, retry-fencing gap).
     automatic_retry_invocation: bool,
+    host_operation: HostOperationParentV1,
 }
 
 struct ScopedLocalSnapbackGuard {
@@ -1403,9 +1403,9 @@ impl DetachedActionHost {
 
 impl IbexActionHost for DetachedActionHost {
     fn validate_host_call(&mut self, op: &str) -> SnapbackResult<()> {
-        if let Some(family) = crate::instance_fork::EgressFamily::for_derived_host_op(op) {
+        if crate::instance_fork::EgressFamily::for_derived_host_op(op).is_some() {
             let snapback = self.lock_live(op)?;
-            snapback.deny_derived_fork_egress(family, now_millis())?;
+            snapback.deny_derived_fork_host_op(op, now_millis())?;
         }
         // This atomic generation fence keeps ordinary runtime/id/log calls off
         // the global instance mutex. A mutation rechecks while holding that
@@ -1480,6 +1480,8 @@ impl IbexActionHost for DetachedActionHost {
         let authority = self
             .authority
             .inherit_for(InvocationSource::NestedMutation)?;
+        let host_identity =
+            snapback.covered_host_child_identity(&self.host_operation, name, &input, &authority)?;
         match snapback.stage_nested_mutation(name, &input, authority)? {
             StagedNestedMutation::InLock(staged) => {
                 let snapshot = snapback.authorization_reservation_snapshot()?;
@@ -1499,6 +1501,7 @@ impl IbexActionHost for DetachedActionHost {
                         name,
                         staged.input,
                         staged.invocation,
+                        host_identity,
                         || self.validate_live("runMutation"),
                         || self.lock_commit_live("runMutation"),
                     )
@@ -1538,10 +1541,10 @@ impl IbexActionHost for DetachedActionHost {
                 );
                 drop(snapback);
                 let mut output = (|| {
-                let module = match &binding.function.runtime {
-                    FunctionRuntime::IbexModule(module) => module,
-                    _ => unreachable!("detached nested mutation must be an Ibex module"),
-                };
+                    let module = match &binding.function.runtime {
+                        FunctionRuntime::IbexModule(module) => module,
+                        _ => unreachable!("detached nested mutation must be an Ibex module"),
+                    };
                     let executed = crate::runtime::with_runtime_log_telemetry(
                         telemetry.clone(),
                         correlation,
@@ -1597,6 +1600,7 @@ impl IbexActionHost for DetachedActionHost {
                             input,
                             binding,
                             executed,
+                            host_identity,
                             || self.validate_live("runMutation"),
                             || self.lock_commit_live("runMutation"),
                         )
@@ -2668,6 +2672,7 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
     let stream_runner = crate::stream_attempt::StreamRunnerIdentity::new(abandoned.clone());
     let automatic_retry_invocation =
         metadata.attempt > 1 || matches!(metadata.trigger, crate::cron::CronRunTrigger::Recovery);
+    let host_operation = HostOperationParentV1::from_action_run(&metadata);
     let (sender, mut receiver) = tokio::sync::oneshot::channel();
     let spawned = spawn_detached_action_worker(
         worker_permit,
@@ -2723,6 +2728,7 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     stream_buffered_bytes: Arc::new(AtomicU64::new(0)),
                     stream_buffered_peak: Arc::new(AtomicU64::new(0)),
                     automatic_retry_invocation,
+                    host_operation,
                 };
                 let input = invocation.canonicalize_input(input);
                 let result = crate::runtime::with_runtime_log_telemetry(
@@ -3303,20 +3309,17 @@ pub fn spawn_jobs_worker(state: SharedSnapback, autonomy_disabled: bool) -> Join
             // The flag is only a wakeup hint; durable rows remain authority.
             // Refresh under the Local lock so a concurrent enqueue cannot be
             // lost between the count and clearing the flag.
-            let pending = match with_snapback(&state, |snapback| {
-                snapback.refresh_jobs_activity()
-            })
-            .await
-            {
-                Ok(pending) => pending,
-                Err(error) => {
-                    state.lock().await.record_cron_tick_error(
-                        error,
-                        crate::local::DiagnosticBoundary::Standalone,
-                    );
-                    continue;
-                }
-            };
+            let pending =
+                match with_snapback(&state, |snapback| snapback.refresh_jobs_activity()).await {
+                    Ok(pending) => pending,
+                    Err(error) => {
+                        state.lock().await.record_cron_tick_error(
+                            error,
+                            crate::local::DiagnosticBoundary::Standalone,
+                        );
+                        continue;
+                    }
+                };
             if pending == 0 {
                 continue;
             }
@@ -7425,6 +7428,10 @@ pub struct EffectiveRoutePolicy {
     pub legacy_body_policy: LegacyBodyPolicy,
     pub effect_policy: EffectPolicy,
     pub response_sensitivity: ResponseSensitivity,
+    /// The closed LLP 0044 delivery-route predicate, carried into response
+    /// controls so no other public/static route inherits cross-origin embed
+    /// permission from its sensitivity class alone.
+    pub cross_origin_embeddable: bool,
 }
 
 /// A declared route in the registry. `policy` is retained as a source
@@ -7508,6 +7515,7 @@ impl RouteSpec {
             legacy_body_policy: self.legacy_body_policy,
             effect_policy: self.effect_policy,
             response_sensitivity: self.response_sensitivity,
+            cross_origin_embeddable: pasteable_delivery_route(self),
         };
         if matches!(mode, PolicyAuthMode::Sessions) {
             let overlay = self.session_overlay;
@@ -7548,9 +7556,11 @@ impl RouteSpec {
                 return fail("app-data route escaped the root namespace");
             }
             RouteClass::SystemStatic => {
+                // The llms.txt convention pins this one system-static guide
+                // projection to the served root.
                 let approved_projection = (self.path.starts_with("/_snapback/admin")
                     && self.response_sensitivity == ResponseSensitivity::StaticPublic)
-                    || (self.path.starts_with("/_snapback/guide")
+                    || ((self.path.starts_with("/_snapback/guide") || self.path == "/llms.txt")
                         && self.response_sensitivity == ResponseSensitivity::PublicProjection);
                 if !approved_projection
                     || self.path_policy != RoutePolicy::Public
@@ -7972,13 +7982,14 @@ const fn served_guide_route(path: &'static str) -> RouteSpec {
 pub const GUIDE_CONTENT_HASH_HEADER: &str = "x-snapback-guide-content-sha256";
 pub const GUIDE_BUILD_COMMIT_HEADER: &str = "x-snapback-server-build-commit";
 
-fn embedded_guide_response(file: &'static crate::guide::EmbeddedGuideFile) -> Response {
-    let mut response = Response::new(Body::from(file.bytes));
+// @ref LLP 0186#w2-context-injection-surface-owned-here — the convention
+// endpoint gives agent probes a short index into the build-bound guide.
+const LLMS_TXT: &str = "# Snapback\n\n> Snapback is a local-first app backend. This server embeds its own authoring guide.\n\n## Docs\n\n- [Complete guide, single file](/_snapback/guide/flat.md)\n- [Capability index](/_snapback/guide/capabilities.md)\n- [Guide index](/_snapback/guide)\n";
+
+fn guide_bound_response(body: &'static [u8], content_type: &'static str) -> Response {
+    let mut response = Response::new(Body::from(body));
     let headers = response.headers_mut();
-    headers.insert(
-        header::CONTENT_TYPE,
-        HeaderValue::from_static(file.content_type),
-    );
+    headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(content_type));
     headers.insert(
         HeaderName::from_static(GUIDE_CONTENT_HASH_HEADER),
         HeaderValue::from_static(crate::guide::GUIDE_CONTENT_SHA256),
@@ -7988,6 +7999,10 @@ fn embedded_guide_response(file: &'static crate::guide::EmbeddedGuideFile) -> Re
         HeaderValue::from_static(option_env!("SNAPBACK_BUILD_GIT_COMMIT").unwrap_or("unknown")),
     );
     response
+}
+
+fn embedded_guide_response(file: &'static crate::guide::EmbeddedGuideFile) -> Response {
+    guide_bound_response(file.bytes, file.content_type)
 }
 
 fn embedded_guide_path(path: &str) -> Response {
@@ -8010,6 +8025,10 @@ async fn served_guide_flat() -> Response {
 
 async fn served_guide_page(Path(path): Path<String>) -> Response {
     embedded_guide_path(&path)
+}
+
+async fn served_llms_txt() -> Response {
+    guide_bound_response(LLMS_TXT.as_bytes(), "text/markdown; charset=utf-8")
 }
 
 /// The app-data route registrations. Each handler literal appears only here;
@@ -8351,6 +8370,14 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             app_auth_route("POST", "/client-mutations/acknowledge"),
             post(acknowledge_mutations),
         ),
+        RegisteredRoute::new(
+            app_auth_route("POST", "/client-mutations/identity-range"),
+            post(issue_operation_identity_range),
+        ),
+        RegisteredRoute::new(
+            app_auth_route("POST", "/operations/explain"),
+            post(explain_operation_public),
+        ),
         // The snapshot bundle endpoint (LLP 0090 D1.2 / LLP 0092 §0D):
         // optional credential — anonymous accepted only for read mode against
         // publicInline-class routes; register mode is credentialed-only. The
@@ -8634,6 +8661,7 @@ fn system_route_registrations() -> Vec<RegisteredRoute> {
     let write =
         |path, sensitivity| system_api_route("POST", path, RoutePolicy::AdminWrite, sensitivity);
     vec![
+        RegisteredRoute::new(served_guide_route("/llms.txt"), get(served_llms_txt)),
         RegisteredRoute::new(
             served_guide_route("/_snapback/guide"),
             get(served_guide_index),
@@ -8717,6 +8745,16 @@ fn system_route_registrations() -> Vec<RegisteredRoute> {
             ),
             post(purge_client_mutation_settlements),
         ),
+        RegisteredRoute::new(
+            system_api_route(
+                "POST",
+                "/_snapback/api/operations/explain",
+                RoutePolicy::AdminRead,
+                ResponseSensitivity::SensitiveApplicationData,
+            )
+            .with_session_overlay(SessionModeOverlay::secret_read()),
+            post(explain_operation_admin),
+        ),
         // @ref LLP 0024#result-envelope — host ops resolve their per-operation
         // authority after the shared route-level AdminRead floor.
         RegisteredRoute::new(
@@ -8738,6 +8776,13 @@ fn system_route_registrations() -> Vec<RegisteredRoute> {
                 ResponseSensitivity::OperatorMetadata,
             ),
             post(disconnect),
+        ),
+        RegisteredRoute::new(
+            write(
+                "/_snapback/api/ephemeral/operator/delete",
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            post(operator_delete_ephemeral),
         ),
         // @ref LLP 0036#operations-and-projections-llp-0024 — config reads
         // exclude values; set/unset/verify remain write-gated.
@@ -8837,6 +8882,16 @@ fn apply_registered_response_controls(
             HeaderName::from_static("cross-origin-opener-policy"),
             HeaderValue::from_static("same-origin"),
         );
+    }
+    if effective.cross_origin_embeddable {
+        // @ref LLP 0044#delivery-profiles — these two closed delivery lanes
+        // are expressly consumable by cross-origin `<img src>` and CDN pulls;
+        // the URL is their entire authority.
+        headers.insert(
+            HeaderName::from_static("cross-origin-resource-policy"),
+            HeaderValue::from_static("cross-origin"),
+        );
+    } else if effective.response_sensitivity == ResponseSensitivity::StaticPublic {
         headers.insert(
             HeaderName::from_static("cross-origin-resource-policy"),
             HeaderValue::from_static("same-origin"),
@@ -9214,7 +9269,15 @@ async fn select_http_operation(
             let impersonated = fields
                 .get("userId")
                 .or_else(|| fields.get("user_id"))
-                .is_some_and(|value| !value.is_null());
+                .is_some_and(|value| !value.is_null())
+                || fields
+                    .get("input")
+                    .and_then(Value::as_object)
+                    .and_then(|input| input.get("authority"))
+                    .and_then(Value::as_object)
+                    .and_then(|authority| authority.get("mode"))
+                    .and_then(Value::as_str)
+                    == Some("devUser");
             match host_ops_operation_spec(operation, kind.as_ref(), impersonated) {
                 Some(spec) => HttpOperationSelection::Selected(spec),
                 None => HttpOperationSelection::UnknownHost,
@@ -9580,9 +9643,10 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         "/app/bundle" => Some(InvocationSource::HttpQuery),
         "/mutation/{name}" => Some(InvocationSource::HttpMutation),
         "/action/{name}" => Some(InvocationSource::HttpAction),
-        "/client-mutations/acknowledge" => {
+        "/client-mutations/acknowledge" | "/client-mutations/identity-range" => {
             Some(InvocationSource::MutationSettlementAcknowledgement)
         }
+        "/operations/explain" => Some(InvocationSource::HttpQuery),
         "/live/authorization-invalidation/acknowledge"
         | "/live/authorization-invalidation/manual-retry" => {
             Some(InvocationSource::InvalidationAcknowledgement)
@@ -9598,6 +9662,12 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         "/ephemeral/subscribe" => Some(InvocationSource::EphemeralSubscribe),
         "/ephemeral/delete" => Some(InvocationSource::EphemeralDelete),
         "/_snapback/api/functions/{name}/run" => Some(InvocationSource::DirectAdminRunner),
+        "/_snapback/api/storage/protected-erasure" => {
+            Some(InvocationSource::ProtectedRecordErasure)
+        }
+        "/_snapback/api/storage/operation-coverage/activate" => {
+            Some(InvocationSource::OperationCoverageActivation)
+        }
         _ => None,
     }
 }
@@ -9774,6 +9844,8 @@ async fn prepare_registered_route_authority(
                         InvocationSource::DirectAdminRunner
                             | InvocationSource::HostOperationFunctionRun
                             | InvocationSource::HostOperationMutationDryRun
+                            | InvocationSource::ProtectedRecordErasure
+                            | InvocationSource::OperationCoverageActivation
                     ) {
                         (
                             ResolvedAppAuthority::AdminBypass {
@@ -10020,6 +10092,8 @@ fn route_uses_managed_admission(spec: RouteSpec) -> bool {
                 | "/_snapback/api/app/seed/preview-v1"
                 | "/_snapback/api/app/seed/reset-install-v1"
                 | "/_snapback/api/app/seed/clear-v1"
+                | "/_snapback/api/storage/protected-erasure"
+                | "/_snapback/api/storage/operation-coverage/activate"
                 | "/_snapback/api/auth/mailbox"
                 | "/_snapback/api/admin-secret-read/mint"
         )
@@ -11780,12 +11854,15 @@ async fn enforce_registered_route_policy(
                     true,
                     policy_mode,
                 ) {
-                    Ok(()) => Err(SnapbackError::error(
+                    Ok(()) => Err(SnapbackError::new(crate::host_ops::host_op_diagnostic(
                         "SNAPBACK_HOST_OP_UNKNOWN",
-                        "host-ops",
+                        policy_body
+                            .as_ref()
+                            .and_then(|body| body.get("operation"))
+                            .and_then(Value::as_str)
+                            .unwrap_or_default(),
                         "unknown or unregistered host operation",
-                    )
-                    .with_details(serde_json::json!({ "operation": "unrecognized" }))
+                    ))
                     .into()),
                     Err(error) => Err(error),
                 }
@@ -14653,11 +14730,7 @@ pub(crate) fn router_from_registrations(
                             .get::<NetworkProfileObservation>()
                             .and_then(|observation| serde_json::to_value(&*observation.0).ok())
                             .map(|profile| json!({ "networkProfile": profile }));
-                        span.finish(
-                            Some(i64::from(response.status().as_u16())),
-                            code,
-                            details,
-                        );
+                        span.finish(Some(i64::from(response.status().as_u16())), code, details);
                     }
                     if let Some(value) = sender_nonce.value() {
                         response
@@ -14805,20 +14878,14 @@ fn router_for_state(state: AppState) -> Router {
     let reachability = state.console_reachability.clone();
     router_from_registrations(all_route_registrations(), state.clone())
         .with_state(state)
-        .layer(middleware::from_fn_with_state(
-            reachability,
-            local_dev_cors,
-        ))
+        .layer(middleware::from_fn_with_state(reachability, local_dev_cors))
 }
 
 fn app_from_registrations(registrations: Vec<RegisteredRoute>, state: AppState) -> SnapbackApp {
     let reachability = state.console_reachability.clone();
     let router = router_from_registrations(registrations, state.clone())
         .with_state(state.clone())
-        .layer(middleware::from_fn_with_state(
-            reachability,
-            local_dev_cors,
-        ));
+        .layer(middleware::from_fn_with_state(reachability, local_dev_cors));
     SnapbackApp { router, state }
 }
 
@@ -15019,6 +15086,44 @@ pub fn operation_registry() -> Vec<OperationSpec> {
             session_overlay,
         )
     };
+    let branch_host = |name| {
+        operation(
+            name,
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            RoutePolicy::AdminWrite,
+            CredentialResolution::AdminCredential,
+            InvocationAuthority::Operator,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::None,
+            ResponseSensitivity::OperatorMetadata,
+            SessionModeOverlay::NONE,
+        )
+    };
+    let data_patch = |name, impersonated| {
+        operation(
+            name,
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            RoutePolicy::AdminWrite,
+            CredentialResolution::AdminCredential,
+            if impersonated {
+                InvocationAuthority::DevImpersonation
+            } else {
+                InvocationAuthority::AnonymousAdminBypass
+            },
+            LegacyBodyPolicy::NotApplicable,
+            if impersonated {
+                EffectPolicy::ImpersonationCapability
+            } else {
+                EffectPolicy::None
+            },
+            ResponseSensitivity::SensitiveApplicationData,
+            SessionModeOverlay::NONE,
+        )
+    };
     let operations = vec![
         operation(
             "app.ensure.legacy",
@@ -15151,6 +15256,22 @@ pub fn operation_registry() -> Vec<OperationSpec> {
             EffectPolicy::None,
             SessionModeOverlay::secret_read(),
         ),
+        // @ref LLP 0184#p1-read-and-diagnose — cron.list is a narrow
+        // OperatorMetadata projection of the scheduler facts already held by
+        // app.inspect; it adds no scheduler state or mutation authority.
+        operation(
+            "host_ops.cron.list",
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            RoutePolicy::AdminRead,
+            CredentialResolution::AdminCredential,
+            InvocationAuthority::Operator,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::None,
+            ResponseSensitivity::OperatorMetadata,
+            SessionModeOverlay::NONE,
+        ),
         // Proposed LLP 0167 OQ2 ruling (2026-08-04; author may veto): runtime
         // perturbations form a debug.* family. The carrier authenticates the
         // declared AdminRead/AdminWrite class; set still terminates at the one
@@ -15173,6 +15294,24 @@ pub fn operation_registry() -> Vec<OperationSpec> {
         ),
         operation(
             "host_ops.debug.networkProfileSet",
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            RoutePolicy::AdminWrite,
+            CredentialResolution::AdminCredential,
+            InvocationAuthority::Operator,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::None,
+            ResponseSensitivity::OperatorMetadata,
+            SessionModeOverlay::NONE,
+        ),
+        // @ref LLP 0184#b-forced-live-resync--add-now — a non-production
+        //   debug perturbation, AdminWrite like `debug.networkProfileSet`,
+        //   but gated by `AppState::debug_perturbation_target_authority`
+        //   (local-non-production-only) rather than the network-profile
+        //   activation gate's hosted-derived exception.
+        operation(
+            "host_ops.debug.live.forceResync",
             "/_snapback/api/host-ops",
             HostOps,
             RouteClass::SystemApi,
@@ -15486,6 +15625,15 @@ pub fn operation_registry() -> Vec<OperationSpec> {
             EffectPolicy::None,
             SessionModeOverlay::NONE,
         ),
+        // @ref LLP 0162#3-safe-current-head-forks — the reachable in-app branch
+        //   lifecycle is a closed operator surface. Paths and grants are
+        //   server-owned; the multiplexed carrier cannot weaken AdminWrite.
+        branch_host("host_ops.branch.create.v1"),
+        branch_host("host_ops.branch.execute.v1"),
+        branch_host("host_ops.branch.list.v1"),
+        branch_host("host_ops.branch.reap.v1"),
+        branch_host("host_ops.branch.inspect.v1"),
+        branch_host("host_ops.branch.drop.v1"),
         // The pinned-unbuilt reload/acceptance verbs and the CLI-owned
         // `host.*` lifecycle verbs are registered so an authenticated request
         // reaches the dispatcher's honest `SNAPBACK_HOST_OP_UNIMPLEMENTED` /
@@ -15580,6 +15728,13 @@ pub fn operation_registry() -> Vec<OperationSpec> {
                 response_sensitivity: None,
             },
         ),
+        // LLP 0184 §A uses LLP 0024's two existing authority branches as-is.
+        // The physical route remains the registered SystemApi/AdminWrite
+        // host-ops carrier; operation identity holds the dynamic effect.
+        data_patch("host_ops.data.patch.preview", false),
+        data_patch("host_ops.data.patch.preview.impersonated", true),
+        data_patch("host_ops.data.patch.apply", false),
+        data_patch("host_ops.data.patch.apply.impersonated", true),
         host(
             "host_ops.function.run.mutation",
             RoutePolicy::AdminWrite,
@@ -15803,8 +15958,10 @@ pub(crate) fn host_ops_operation_spec(
 ) -> Option<OperationSpec> {
     let name = match operation {
         "app.inspect" => "host_ops.app.inspect",
+        "cron.list" => "host_ops.cron.list",
         "debug.networkProfileGet" => "host_ops.debug.networkProfileGet",
         "debug.networkProfileSet" => "host_ops.debug.networkProfileSet",
+        "debug.live.forceResync" => "host_ops.debug.live.forceResync",
         "app.reset" => "host_ops.app.reset",
         "app.seed.ensure.v1" => "host_ops.app.seed.ensure.v1",
         "app.seed.preview.v1" => "host_ops.app.seed.preview.v1",
@@ -15830,6 +15987,12 @@ pub(crate) fn host_ops_operation_spec(
         "errors.issues" => "host_ops.errors.issues",
         "errors.issue" => "host_ops.errors.issue",
         "errors.transition" => "host_ops.errors.transition",
+        "branch.create.v1" => "host_ops.branch.create.v1",
+        "branch.execute.v1" => "host_ops.branch.execute.v1",
+        "branch.list.v1" => "host_ops.branch.list.v1",
+        "branch.reap.v1" => "host_ops.branch.reap.v1",
+        "branch.inspect.v1" => "host_ops.branch.inspect.v1",
+        "branch.drop.v1" => "host_ops.branch.drop.v1",
         // @ref LLP 0024#http-projection — pinned-unbuilt and CLI-only
         // operations resolve to registered AdminWrite policies so an
         // authenticated request reaches the structured UNIMPLEMENTED /
@@ -15841,6 +16004,10 @@ pub(crate) fn host_ops_operation_spec(
         "host.start" => "host_ops.host.start",
         "host.stop" => "host_ops.host.stop",
         "host.restart" => "host_ops.host.restart",
+        "data.patch.preview" if impersonated => "host_ops.data.patch.preview.impersonated",
+        "data.patch.preview" => "host_ops.data.patch.preview",
+        "data.patch.apply" if impersonated => "host_ops.data.patch.apply.impersonated",
+        "data.patch.apply" => "host_ops.data.patch.apply",
         "function.explain" if impersonated => "host_ops.function.explain.impersonated",
         "function.explain" => "host_ops.function.explain",
         "function.run" if impersonated => "host_ops.function.run.impersonated",
@@ -17058,15 +17225,55 @@ fn with_cors_headers(mut response: Response, allowed_origin: Option<HeaderValue>
     );
     headers.insert(
         header::ACCESS_CONTROL_ALLOW_HEADERS,
-        HeaderValue::from_static(
-            "content-type, authorization, dpop, x-snapback-admin-token, x-snapback-console-credential, x-snapback-connection-token, x-snapback-ephemeral-authority-instance, x-snapback-secret-read-lease, x-snapback-auth-client-protocol, x-snapback-auth-invalidation-protocol, x-snapback-authority-descriptor-protocol, x-snapback-authorized-lease-protocol, x-snapback-network-profile-source",
-        ),
+        cors_allow_headers().clone(),
     );
     headers.insert(
         header::ACCESS_CONTROL_EXPOSE_HEADERS,
-        HeaderValue::from_static("dpop-nonce, snapback-network-profile"),
+        cors_expose_headers().clone(),
     );
     response
+}
+
+fn cors_allow_headers() -> &'static HeaderValue {
+    static HEADERS: OnceLock<HeaderValue> = OnceLock::new();
+    HEADERS.get_or_init(|| {
+        const BASE_HEADERS: &str = "content-type, authorization, dpop, x-snapback-admin-token, x-snapback-console-credential, x-snapback-connection-token, x-snapback-ephemeral-authority-instance, x-snapback-secret-read-lease, x-snapback-auth-client-protocol, x-snapback-auth-invalidation-protocol, x-snapback-authority-descriptor-protocol, x-snapback-authorized-lease-protocol, x-snapback-network-profile-source";
+        // @ref LLP 0044#byte-stores-and-resumable-transfer — TUS request
+        // headers ride the dev CORS lane so a browser can drive PATCH
+        // `/assets/tus/{id}` without a relay. `upload-metadata` is deliberately
+        // absent because attempt creation is Snapback JSON, not TUS creation,
+        // and no route reads it. `upload-length` remains allowed for foreign
+        // TUS clients that offer it on PATCH, though Snapback only emits it.
+        let tus_headers = [
+            TUS_RESUMABLE_HEADER,
+            TUS_UPLOAD_OFFSET_HEADER,
+            TUS_UPLOAD_LENGTH_HEADER,
+            TUS_UPLOAD_CHECKSUM_HEADER,
+        ];
+        HeaderValue::from_str(&format!("{BASE_HEADERS}, {}", tus_headers.join(", ")))
+            .expect("registered request header names are valid CORS header values")
+    })
+}
+
+fn cors_expose_headers() -> &'static HeaderValue {
+    static HEADERS: OnceLock<HeaderValue> = OnceLock::new();
+    HEADERS.get_or_init(|| {
+        const BASE_HEADERS: &str = "dpop-nonce, snapback-network-profile";
+        // `location` is deliberately absent: Snapback has no TUS creation
+        // route, and no handler emits Location.
+        let tus_headers = [
+            TUS_RESUMABLE_HEADER,
+            TUS_VERSION_HEADER,
+            TUS_EXTENSION_HEADER,
+            TUS_CHECKSUM_ALGORITHM_HEADER,
+            TUS_UPLOAD_OFFSET_HEADER,
+            TUS_UPLOAD_LENGTH_HEADER,
+            TUS_UPLOAD_EXPIRES_MS_HEADER,
+            SNAPBACK_MAX_CHUNK_BYTES_HEADER,
+        ];
+        HeaderValue::from_str(&format!("{BASE_HEADERS}, {}", tus_headers.join(", ")))
+            .expect("registered response header names are valid CORS header values")
+    })
 }
 
 fn cors_allow_methods() -> &'static HeaderValue {
@@ -17892,6 +18099,23 @@ async fn host_ops_handler_inner(
 
     if matches!(
         request.operation.as_str(),
+        crate::data_patch::DATA_PATCH_PREVIEW_OPERATION
+            | crate::data_patch::DATA_PATCH_APPLY_OPERATION
+    ) {
+        let result = execute_data_patch_host_operation(
+            &runtime,
+            &headers,
+            impersonation.as_ref().map(|Extension(verified)| verified),
+            request,
+            server_url,
+            profile,
+        )
+        .await?;
+        return Ok(Json(result));
+    }
+
+    if matches!(
+        request.operation.as_str(),
         "auth.mintSession" | "auth.rescueCollidingTable"
     ) {
         let result = execute_auth_host_operation(
@@ -17998,12 +18222,120 @@ async fn host_ops_handler_inner(
         };
         let result = with_snapback(&state, move |snapback| {
             crate::host_ops::network_profile_result(
-                snapback,
-                &request,
-                server_url,
-                profile,
-                outcome,
+                snapback, &request, server_url, profile, outcome,
             )
+        })
+        .await;
+        return Ok(Json(result));
+    }
+
+    // @ref LLP 0184#b-forced-live-resync--add-now — a non-production debug
+    //   perturbation dispatched outside the main match arm, the same shape
+    //   as the `debug.networkProfile{Get,Set}` block above: AdminWrite,
+    //   then a target-rule gate distinct from the network-profile
+    //   activation gate (this operation is NOT extended the hosted-derived
+    //   exception LLP 0158 grants "solely for network-profile activation").
+    if request.operation == "debug.live.forceResync" {
+        crate::admin::authorize_host_operation(
+            &ctx,
+            &headers,
+            &request.operation,
+            None,
+            false,
+            policy_mode,
+            &secret_reads,
+            None,
+        )?;
+        runtime.debug_perturbation_target_authority()?;
+        let outcome = (|| -> Result<(String, String, String, bool), SnapbackError> {
+            let input = request.input.clone().ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_HOST_OP_INPUT_MISSING",
+                    "host-ops",
+                    "debug.live.forceResync requires connectionId, subscriptionId, reason, and startupNonce under input",
+                )
+            })?;
+            let connection_id = input
+                .get("connectionId")
+                .and_then(Value::as_str)
+                .filter(|value| !value.is_empty())
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_HOST_OP_INPUT_MISSING",
+                        "host-ops",
+                        "debug.live.forceResync requires a non-empty string connectionId",
+                    )
+                })?
+                .to_owned();
+            let subscription_id = input
+                .get("subscriptionId")
+                .and_then(Value::as_str)
+                .filter(|value| !value.is_empty())
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_HOST_OP_INPUT_MISSING",
+                        "host-ops",
+                        "debug.live.forceResync requires a non-empty string subscriptionId",
+                    )
+                })?
+                .to_owned();
+            let reason = input
+                .get("reason")
+                .and_then(Value::as_str)
+                .filter(|value| !value.is_empty())
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_HOST_OP_INPUT_MISSING",
+                        "host-ops",
+                        "debug.live.forceResync requires a non-empty string reason (a closed operator/test reason)",
+                    )
+                })?
+                .to_owned();
+            let startup_nonce = input
+                .get("startupNonce")
+                .and_then(Value::as_str)
+                .filter(|value| !value.is_empty())
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_HOST_OP_INPUT_MISSING",
+                        "host-ops",
+                        "debug.live.forceResync requires the target's startupNonce, fencing the request to this exact running process",
+                    )
+                })?;
+            if startup_nonce != runtime.server_startup_nonce() {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_LIVE_FORCE_RESYNC_STARTUP_NONCE_MISMATCH",
+                    "host-ops",
+                    "the supplied startupNonce does not match the running process; a forced resync is refused rather than fenced against a possibly different server",
+                )
+                .with_details(json!({ "expected": runtime.server_startup_nonce() })));
+            }
+            let clear_retained = input
+                .get("clearRetained")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            Ok((connection_id, subscription_id, reason, clear_retained))
+        })();
+        let outcome = match outcome {
+            Ok((connection_id, subscription_id, reason, clear_retained)) => {
+                with_snapback(&state, move |snapback| {
+                    snapback.force_live_resync(
+                        &connection_id,
+                        &subscription_id,
+                        &reason,
+                        clear_retained,
+                    )
+                })
+                .await
+                .map(|receipt| {
+                    serde_json::to_value(&receipt)
+                        .expect("ForceLiveResyncReceipt is a serializable closed DTO")
+                })
+            }
+            Err(error) => Err(error),
+        };
+        let result = with_snapback(&state, move |snapback| {
+            crate::host_ops::force_live_resync_result(snapback, &request, server_url, profile, outcome)
         })
         .await;
         return Ok(Json(result));
@@ -18183,11 +18515,11 @@ async fn host_ops_handler_inner(
                     let rows = response.issues.len();
                     (
                         serde_json::to_value(response).map_err(|_| {
-                        SnapbackError::error(
-                            "SNAPBACK_ERRORS_QUERY_SERIALIZATION_FAILED",
-                            "telemetry",
-                            "failed to serialize the errors issues response",
-                        )
+                            SnapbackError::error(
+                                "SNAPBACK_ERRORS_QUERY_SERIALIZATION_FAILED",
+                                "telemetry",
+                                "failed to serialize the errors issues response",
+                            )
                         }),
                         rows,
                     )
@@ -18205,11 +18537,11 @@ async fn host_ops_handler_inner(
                         .saturating_add(response.transitions.len());
                     (
                         serde_json::to_value(response).map_err(|_| {
-                        SnapbackError::error(
-                            "SNAPBACK_ERRORS_QUERY_SERIALIZATION_FAILED",
-                            "telemetry",
-                            "failed to serialize the errors issue response",
-                        )
+                            SnapbackError::error(
+                                "SNAPBACK_ERRORS_QUERY_SERIALIZATION_FAILED",
+                                "telemetry",
+                                "failed to serialize the errors issue response",
+                            )
                         }),
                         rows,
                     )
@@ -18223,11 +18555,11 @@ async fn host_ops_handler_inner(
                 .and_then(|input| runtime.telemetry.transition_errors(&input))
                 .and_then(|response| {
                     serde_json::to_value(response).map_err(|_| {
-                    SnapbackError::error(
-                        "SNAPBACK_ERRORS_QUERY_SERIALIZATION_FAILED",
-                        "telemetry",
-                        "failed to serialize the errors transition response",
-                    )
+                        SnapbackError::error(
+                            "SNAPBACK_ERRORS_QUERY_SERIALIZATION_FAILED",
+                            "telemetry",
+                            "failed to serialize the errors transition response",
+                        )
                     })
                 });
                 (outcome, 0)
@@ -18752,6 +19084,274 @@ async fn host_ops_handler_inner(
         }
     }
     Ok(Json(result))
+}
+
+fn data_patch_input_error() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_DATA_PATCH_VALIDATION_FAILED",
+        "data-patch",
+        "data patch input must match the closed operation schema",
+    )
+}
+
+fn data_patch_authority_from_raw(
+    request: &crate::host_ops::HostOpsRequest,
+) -> Option<crate::data_patch::DataPatchAuthorityV1> {
+    request
+        .input
+        .as_ref()
+        .and_then(Value::as_object)
+        .and_then(|input| input.get("authority"))
+        .cloned()
+        .and_then(|authority| serde_json::from_value(authority).ok())
+}
+
+async fn project_data_patch_result(
+    state: &SharedSnapback,
+    request: crate::host_ops::HostOpsRequest,
+    server_url: Option<String>,
+    profile: ServerProfile,
+    authority: Option<crate::data_patch::DataPatchAuthorityV1>,
+    outcome: Result<Value, SnapbackError>,
+) -> crate::host_ops::HostOpsResult {
+    with_snapback(state, move |snapback| {
+        crate::host_ops::data_patch_result(
+            snapback, &request, server_url, profile, authority, outcome,
+        )
+    })
+    .await
+}
+
+fn data_patch_target_context(
+    runtime: &AppState,
+    app_id: String,
+    schema_identity: Option<String>,
+) -> SnapbackResult<crate::data_patch::DataPatchTokenContextV1> {
+    crate::data_patch::target_context(
+        app_id,
+        schema_identity,
+        runtime.server.profile,
+        runtime.server.auth_deployment,
+        runtime.hosted_serving.is_some(),
+        runtime.derived_instance_identity.is_some(),
+        runtime.server_startup_nonce.to_string(),
+    )
+}
+
+/// The one managed server entry point for both token intents. Authentication
+/// is still the LLP 0031 operation gate; this function adds the LLP 0184
+/// target/binding lifecycle without defining another authority mode.
+async fn execute_data_patch_host_operation(
+    runtime: &AppState,
+    headers: &HeaderMap,
+    impersonation: Option<&crate::admin_impersonation::VerifiedImpersonationCapability>,
+    request: crate::host_ops::HostOpsRequest,
+    server_url: Option<String>,
+    profile: ServerProfile,
+) -> Result<crate::host_ops::HostOpsResult, ApiError> {
+    let state = runtime.snapback.clone();
+    let raw_authority = data_patch_authority_from_raw(&request);
+    let policy_mode = runtime.active_policy_auth_mode();
+    let operation = request.operation.clone();
+
+    if operation == crate::data_patch::DATA_PATCH_PREVIEW_OPERATION {
+        let input = match request
+            .input
+            .clone()
+            .ok_or_else(data_patch_input_error)
+            .and_then(|value| {
+                serde_json::from_value::<crate::data_patch::DataPatchPreviewInputV1>(value)
+                    .map_err(|_| data_patch_input_error())
+            }) {
+            Ok(input) => input,
+            Err(error) => {
+                return Ok(project_data_patch_result(
+                    &state,
+                    request,
+                    server_url,
+                    profile,
+                    raw_authority,
+                    Err(error),
+                )
+                .await);
+            }
+        };
+        if let Err(error) = input.authority.validate(&input.reason) {
+            return Ok(project_data_patch_result(
+                &state,
+                request,
+                server_url,
+                profile,
+                Some(input.authority),
+                Err(error),
+            )
+            .await);
+        }
+        let impersonated = input.authority.impersonated();
+        crate::admin::authorize_host_operation(
+            &runtime.server,
+            headers,
+            &operation,
+            None,
+            impersonated,
+            policy_mode,
+            &runtime.secret_reads,
+            impersonation,
+        )?;
+        crate::admin::require_operation_profile(&runtime.server, &operation, impersonated)?;
+        let (app_id, schema_identity) = with_snapback(&state, |snapback| {
+            (snapback.loaded_app_id(), snapback.loaded_schema_hash())
+        })
+        .await;
+        let context = match data_patch_target_context(runtime, app_id, schema_identity) {
+            Ok(context) => context,
+            Err(error) => {
+                return Ok(project_data_patch_result(
+                    &state,
+                    request,
+                    server_url,
+                    profile,
+                    Some(input.authority),
+                    Err(error),
+                )
+                .await);
+            }
+        };
+        let preview_input = input.clone();
+        let validated = with_snapback(&state, move |snapback| {
+            snapback.preview_direct_data_patch(&preview_input)
+        })
+        .await;
+        let authority = input.authority.clone();
+        let outcome = validated.and_then(|validated| {
+            let binding = crate::data_patch::binding_from_preview(&input, &validated, &context);
+            let (apply_token, apply_token_id, apply_token_expires_at_ms) =
+                runtime.data_patch_tokens.mint(binding)?;
+            Ok(serde_json::to_value(crate::data_patch::DataPatchPreviewOutputV1 {
+                validated,
+                apply_token,
+                apply_token_id,
+                apply_token_expires_at_ms,
+                catalog_digest: context.catalog_digest,
+                startup_nonce: context.startup_nonce,
+            })
+            .expect("closed data-patch preview output serializes"))
+        });
+        return Ok(project_data_patch_result(
+            &state,
+            request,
+            server_url,
+            profile,
+            Some(authority),
+            outcome,
+        )
+        .await);
+    }
+
+    let input = match request
+        .input
+        .clone()
+        .ok_or_else(data_patch_input_error)
+        .and_then(|value| {
+            serde_json::from_value::<crate::data_patch::DataPatchApplyInputV1>(value)
+                .map_err(|_| data_patch_input_error())
+        }) {
+        Ok(input) => input,
+        Err(error) => {
+            return Ok(project_data_patch_result(
+                &state,
+                request,
+                server_url,
+                profile,
+                raw_authority,
+                Err(error),
+            )
+            .await);
+        }
+    };
+    if let Err(error) = input.authority.validate(&input.reason) {
+        return Ok(project_data_patch_result(
+            &state,
+            request,
+            server_url,
+            profile,
+            Some(input.authority),
+            Err(error),
+        )
+        .await);
+    }
+    let impersonated = input.authority.impersonated();
+    crate::admin::authorize_host_operation(
+        &runtime.server,
+        headers,
+        &operation,
+        None,
+        impersonated,
+        policy_mode,
+        &runtime.secret_reads,
+        impersonation,
+    )?;
+    crate::admin::require_operation_profile(&runtime.server, &operation, impersonated)?;
+    let (app_id, schema_identity) = with_snapback(&state, |snapback| {
+        (snapback.loaded_app_id(), snapback.loaded_schema_hash())
+    })
+    .await;
+    let context = match data_patch_target_context(runtime, app_id, schema_identity) {
+        Ok(context) => context,
+        Err(error) => {
+            return Ok(project_data_patch_result(
+                &state,
+                request,
+                server_url,
+                profile,
+                Some(input.authority),
+                Err(error),
+            )
+            .await);
+        }
+    };
+    let authority = input.authority.clone();
+    let consumed = runtime.data_patch_tokens.consume(&input, &context);
+    let (token_id, binding) = match consumed {
+        Ok(consumed) => consumed,
+        Err(error) => {
+            return Ok(project_data_patch_result(
+                &state,
+                request,
+                server_url,
+                profile,
+                Some(authority),
+                Err(error),
+            )
+            .await);
+        }
+    };
+    let commit_binding = binding.clone();
+    let committed = with_snapback_authorization_write(
+        &state,
+        |_| Ok(crate::storage::AuthorizationCommitPreflight::AllProtectedRooms),
+        move |snapback| snapback.apply_direct_data_patch(&commit_binding),
+    )
+    .await
+    .and_then(|outcome| outcome);
+    let outcome = committed.map(|commit| {
+        serde_json::to_value(crate::data_patch::receipt(
+            token_id,
+            binding,
+            commit.output.version,
+            commit.output.changed_count,
+        ))
+        .expect("closed data-patch receipt serializes")
+    });
+    Ok(project_data_patch_result(
+        &state,
+        request,
+        server_url,
+        profile,
+        Some(authority),
+        outcome,
+    )
+    .await)
 }
 
 /// Execute the sole production app-reset primitive. Provider maintenance is
@@ -20066,6 +20666,103 @@ async fn acknowledge_mutations(
     Ok(Json(MutationAcknowledgementResponse { acknowledged }))
 }
 
+async fn issue_operation_identity_range(
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+    input: Result<Json<crate::commit_envelope::OperationIdentityRangeRequestV1>, JsonRejection>,
+) -> Result<Json<crate::commit_envelope::OperationIdentityRangeResponseV1>, ApiError> {
+    let Json(request) = input.map_err(ApiError::from_json_rejection)?;
+    if request.schema_version != crate::commit_envelope::operation_identity_range_schema_version() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_OPERATION_IDENTITY_RANGE_VERSION_UNSUPPORTED",
+            "protocol",
+            "operation identity range request schema version is unsupported",
+        )
+        .into());
+    }
+    let range = with_snapback(&state, move |snapback| {
+        snapback.issue_client_operation_identity_range(
+            &authority,
+            &request.client_audience_id,
+            request.authority_descriptor.as_ref(),
+            request.previous_range.as_ref(),
+        )
+    })
+    .await?;
+    Ok(Json(
+        crate::commit_envelope::OperationIdentityRangeResponseV1 {
+            schema_version: crate::commit_envelope::operation_identity_range_schema_version(),
+            range,
+        },
+    ))
+}
+
+async fn explain_operation_public(
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+    input: Result<Json<crate::commit_envelope::OperationExplanationRequestV1>, JsonRejection>,
+) -> Result<Json<crate::commit_envelope::OperationExplanationResponseV1>, ApiError> {
+    let Json(request) = input.map_err(ApiError::from_json_rejection)?;
+    if request.schema_version != crate::commit_envelope::operation_explanation_schema_version() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_OPERATION_EXPLANATION_VERSION_UNSUPPORTED",
+            "protocol",
+            "operation explanation request schema version is unsupported",
+        )
+        .into());
+    }
+    let client_audience_id = request.client_audience_id.ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_OPERATION_EXPLANATION_AUDIENCE_REQUIRED",
+            "protocol",
+            "public operation explanation requires clientAudienceId",
+        )
+    })?;
+    let explanation = with_snapback(&state, move |snapback| {
+        snapback.explain_operation_with_authority(
+            &authority,
+            request.authority_descriptor.as_ref(),
+            &client_audience_id,
+            &request.identity,
+        )
+    })
+    .await?;
+    Ok(Json(
+        crate::commit_envelope::OperationExplanationResponseV1 {
+            schema_version: crate::commit_envelope::operation_explanation_schema_version(),
+            explanation,
+        },
+    ))
+}
+
+async fn explain_operation_admin(
+    State(state): State<SharedSnapback>,
+    State(ctx): State<Arc<ServerContext>>,
+    headers: HeaderMap,
+    input: Result<Json<crate::commit_envelope::OperationExplanationRequestV1>, JsonRejection>,
+) -> Result<Json<crate::commit_envelope::OperationExplanationResponseV1>, ApiError> {
+    crate::admin::authorize(&ctx, &headers, false)?;
+    let Json(request) = input.map_err(ApiError::from_json_rejection)?;
+    if request.schema_version != crate::commit_envelope::operation_explanation_schema_version() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_OPERATION_EXPLANATION_VERSION_UNSUPPORTED",
+            "protocol",
+            "operation explanation request schema version is unsupported",
+        )
+        .into());
+    }
+    let explanation = with_snapback(&state, move |snapback| {
+        snapback.explain_operation_as_admin(&request.identity)
+    })
+    .await?;
+    Ok(Json(
+        crate::commit_envelope::OperationExplanationResponseV1 {
+            schema_version: crate::commit_envelope::operation_explanation_schema_version(),
+            explanation,
+        },
+    ))
+}
+
 // ---------------------------------------------------------------------------
 // Asset upload sessions (LLP 0044; tickets L1-04/L1-05).
 // ---------------------------------------------------------------------------
@@ -20575,6 +21272,7 @@ async fn invoke_mutation(
         let stage_authority_descriptor = request.authority_descriptor.clone();
         let stage_acknowledgements = request.acknowledged_client_mutation_ids.clone();
         let stage_expected_generation = request.expected_generation.clone();
+        let stage_operation_issuance = request.operation_issuance.clone();
         let stage_settlement = request.settlement.clone();
         let stage_authority = authority.clone();
         let (result, receipt, response_authority_descriptor, committed_network_basis) =
@@ -20593,6 +21291,7 @@ async fn invoke_mutation(
                             "http",
                             stage_authority.clone(),
                             stage_expected_generation.as_ref(),
+                            stage_operation_issuance.clone(),
                             stage_settlement.clone(),
                         )?;
                     Ok((preflight, (response_authority_descriptor, staged)))
@@ -20644,7 +21343,8 @@ async fn invoke_mutation(
     // The invocation lease is deliberately released before egress waiting.
     drop(authority);
     let response = result.into_response();
-    let prepared = prepare_mutation_network_egress(&network_profiles, network_basis, Instant::now());
+    let prepared =
+        prepare_mutation_network_egress(&network_profiles, network_basis, Instant::now());
     release_network_profiled_response(response, prepared).await
 }
 
@@ -24310,6 +25010,124 @@ async fn disconnect(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct OperatorDeleteEphemeralBody {
+    collection: String,
+    scope: Scope,
+    entry_key: String,
+    expected_scope_epoch: u64,
+    expected_entry_generation: u64,
+    reason: String,
+    startup_nonce: String,
+}
+
+/// LLP 0158 currently recognizes derived identity only for network-profile
+/// activation. LLP 0184 §C therefore keeps this destructive bypass local and
+/// non-production until a later amendment grants a broader recognition.
+fn refuse_unless_local_non_production_target(runtime: &AppState) -> Result<(), ApiError> {
+    if runtime.derived_instance_identity.is_some() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_TARGET_REFUSED_DERIVED",
+            "ephemeral",
+            "operator ephemeral deletion is refused on a derived instance because LLP 0158 has not granted derived-instance recognition for this purpose",
+        )
+        .into());
+    }
+    if runtime.server.profile == ServerProfile::Prod {
+        return Err(SnapbackError::error(
+            "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_TARGET_REFUSED_HOSTED",
+            "ephemeral",
+            "operator ephemeral deletion is refused on the primary hosted/production target",
+        )
+        .into());
+    }
+    Ok(())
+}
+
+/// Administrator-only repair of one exactly inspected ephemeral entry. This
+/// is intentionally separate from `/ephemeral/delete`: application authority
+/// is not evaluated, while the inspected room incarnation and entry
+/// generation are both fenced under the room lock.
+///
+/// @ref LLP 0184#c-administrator-ephemeral-entry-delete--add-now — local-only explicit bypass with process, epoch, and generation fences.
+async fn operator_delete_ephemeral(
+    State(runtime): State<AppState>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<Value>, ApiError> {
+    crate::admin::authorize(&runtime.server, &headers, true)?;
+    refuse_unless_local_non_production_target(&runtime)?;
+
+    let input: OperatorDeleteEphemeralBody = parse_ephemeral_json(&headers, body)?;
+    if input.reason.trim().is_empty() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_REASON_REQUIRED",
+            "ephemeral",
+            "operator ephemeral deletion requires a non-empty reason",
+        )
+        .into());
+    }
+    if input.startup_nonce.is_empty() || input.startup_nonce != runtime.server_startup_nonce() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_STALE_STARTUP_NONCE",
+            "ephemeral",
+            "startup nonce is empty or does not identify this live server process",
+        )
+        .into());
+    }
+
+    let expected_entry_generation = input.expected_entry_generation;
+    let reason = input.reason.clone();
+    let removed = runtime
+        .ephemeral
+        .operator_delete(
+            OperatorDeleteRequest {
+                collection: input.collection,
+                scope: input.scope,
+                entry_key: input.entry_key,
+                expected_scope_epoch: input.expected_scope_epoch,
+                expected_entry_generation,
+                reason: reason.clone(),
+            },
+            now_millis(),
+        )
+        .map_err(ApiError::from_ephemeral)?;
+    let crate::ephemeral::EphemeralMessage::Remove {
+        room,
+        key,
+        scope_epoch,
+        ..
+    } = removed
+    else {
+        return Err(SnapbackError::error(
+            "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_RECEIPT_INVALID",
+            "ephemeral",
+            "operator ephemeral deletion completed without a removal message",
+        )
+        .into());
+    };
+
+    Ok(Json(json!({
+        "operation": "ephemeral.operatorDelete",
+        "collection": room.collection.clone(),
+        "room": {
+            "collection": room.collection,
+            "scope": room.scope,
+            "routingKey": room.routing_key,
+        },
+        "entryKey": key.0,
+        "scopeEpoch": scope_epoch,
+        "entryGeneration": expected_entry_generation,
+        "reason": reason,
+        "bypass": true,
+        "authorityMode": "operatorBypass",
+        "authorizationEvaluated": false,
+        "note": "This deletion bypassed application authorization entirely — there is no durable owner record to evaluate for an ephemeral entry outside the live connection that wrote it. This is not an authorization decision; it is an explicit operator override.",
+        "ok": true,
+    })))
+}
+
 #[derive(Debug)]
 pub struct ApiError(
     SnapbackError,
@@ -24453,8 +25271,11 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_FORK_CUSTODY_UNCLASSIFIED"
         | "SNAPBACK_FORK_DESTINATION_EXISTS"
         | "SNAPBACK_FORK_EGRESS_MARKER_FAILED"
+        | "SNAPBACK_FORK_ASSET_CUT_INCOMPLETE"
+        | "SNAPBACK_FORK_DIFF_ORACLE_MISMATCH"
         | "SNAPBACK_FORK_EVIDENCE_INCOMPLETE"
         | "SNAPBACK_FORK_EVIDENCE_MISMATCH"
+        | "SNAPBACK_FORK_WRITER_COVERAGE_INVALID"
         | "SNAPBACK_FORK_IO_FAILED"
         | "SNAPBACK_FORK_KEYRING_MINT_FAILED"
         | "SNAPBACK_FORK_LINEAGE_INVALID"
@@ -24485,7 +25306,11 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_PUSH_PROVIDER_OVERRIDE_REFUSED"
         | "SNAPBACK_PUSH_RECEIPT_CLAIM_STALE"
         | "SNAPBACK_PUSH_SEND_FAILED"
-        | "SNAPBACK_PUSH_REGISTRY_CORRUPT" => StatusCode::INTERNAL_SERVER_ERROR,
+        | "SNAPBACK_PUSH_REGISTRY_CORRUPT"
+        // @ref LLP 0184#b-forced-live-resync--add-now — an infallible-in-
+        //   practice serde encode failure of a closed DTO; a server
+        //   invariant, not a caller-fixable input.
+        | "SNAPBACK_LIVE_FORCE_RESYNC_ENCODE_FAILED" => StatusCode::INTERNAL_SERVER_ERROR,
         // @ref LLP 0132#query-surface — malformed query/value carriers and a
         // mutation that exceeds the fixed maintenance admission ceiling are
         // caller-fixable. Retrying the unchanged request cannot succeed.
@@ -24515,6 +25340,9 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_UNKNOWN_CRON_JOB"
         | "SNAPBACK_JOB_UNKNOWN"
         | "SNAPBACK_UNKNOWN_SUBSCRIPTION"
+        // @ref LLP 0184#b-forced-live-resync--add-now — the target
+        //   subscription id is not currently open.
+        | "SNAPBACK_LIVE_FORCE_RESYNC_SUBSCRIPTION_NOT_FOUND"
         | "SNAPBACK_ERROR_ISSUE_NOT_FOUND"
         | "SNAPBACK_AUTH_MODE_DEV"
         // @ref LLP 0055#principal-kinds — an operation naming a principal that is
@@ -24522,11 +25350,18 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_AGENT_UNKNOWN"
         | "SNAPBACK_AUTH_MAILBOX_ENTRY_NOT_FOUND"
         | "SNAPBACK_ROW_NOT_FOUND"
+        | "SNAPBACK_EPHEMERAL_ROOM_NOT_FOUND"
+        | "SNAPBACK_EPHEMERAL_ENTRY_NOT_FOUND"
         // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —
         //   the private self resolver may disclose only that the caller's own
         //   membership row is absent, so this is a scoped not-found result.
         | "SNAPBACK_MEMBERSHIP_SELF_NOT_FOUND" => StatusCode::NOT_FOUND,
         "SNAPBACK_ARTIFACT_IDENTITY_MISMATCH"
+        // @ref LLP 0184#b-forced-live-resync--add-now — the given
+        //   subscription id is open on a different connection than fenced;
+        //   the fence itself is intact (not a not-found), so this is a
+        //   conflict, not a 404.
+        | "SNAPBACK_LIVE_FORCE_RESYNC_CONNECTION_MISMATCH"
         // @ref LLP 0154#d5--the-query-contract-typed-operations-projected-everywhere —
         //   a continuation or frozen export snapshot bound to retired sibling
         //   state conflicts with the current store and must be restarted.
@@ -24539,12 +25374,18 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // with the durable terminal row.
         | "SNAPBACK_ACTION_STREAM_CANCELLED"
         | "SNAPBACK_OPERATION_CANCELLED"
+        | "SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED"
+        | "SNAPBACK_OPERATION_STORED_REFUSAL"
         | "SNAPBACK_CONFIG_VERIFY_STALE"
         | "SNAPBACK_CLIENT_MUTATION_ID_REUSED"
         | "SNAPBACK_CLIENT_MUTATION_LEGACY_AUTH_QUARANTINED"
         | "SNAPBACK_CONNECTION_TEARDOWN_PENDING"
+        | "SNAPBACK_EPHEMERAL_CLEANUP_STARTUP_MISMATCH"
         | "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION"
         | "SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_CHANGED"
+        | "SNAPBACK_EPHEMERAL_STALE_SCOPE_EPOCH"
+        | "SNAPBACK_EPHEMERAL_STALE_ENTRY_GENERATION"
+        | "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_STALE_STARTUP_NONCE"
         | "SNAPBACK_LIVE_STAGE_CONFLICT"
         | "SNAPBACK_AUTH_TABLE_COLLISION"
         | "SNAPBACK_AUTH_CATALOG_OBJECT_COLLISION"
@@ -24632,6 +25473,8 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_ADMIN_SECRET_READ_PROOF_REPLAYED"
         | "SNAPBACK_ADMIN_SECRET_READ_PROOF_STALE"
         | "SNAPBACK_ADMIN_SECRET_READ_PROOF_STARTUP_MISMATCH"
+        | "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_TARGET_REFUSED_HOSTED"
+        | "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_TARGET_REFUSED_DERIVED"
         | "SNAPBACK_LIVE_RESUME_OWNERSHIP"
         | "SNAPBACK_CONNECTION_TOKEN_INVALID"
         | "SNAPBACK_AUTH_CODE_LOCKED"
@@ -24664,7 +25507,13 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_STANDARD_PATTERN_PRINCIPAL_UNSUPPORTED"
         // LLP 0081 §2: apply without a binding authenticated approval.
         | "SNAPBACK_MIGRATION_APPROVAL_REQUIRED"
-        | "SNAPBACK_PROFILE_FORBIDS" => StatusCode::FORBIDDEN,
+        | "SNAPBACK_PROFILE_FORBIDS"
+        // @ref LLP 0184#b-forced-live-resync--add-now — target-rule refusal
+        //   (local-non-production-only) and a startup-nonce that does not
+        //   match the running process are both authorization refusals, not
+        //   caller-fixable-by-retry input errors.
+        | "SNAPBACK_DEBUG_PERTURBATION_TARGET_REFUSED"
+        | "SNAPBACK_LIVE_FORCE_RESYNC_STARTUP_NONCE_MISMATCH" => StatusCode::FORBIDDEN,
         "SNAPBACK_ADMIN_TOKEN_REQUIRED"
         | "SNAPBACK_ADMIN_SECRET_READ_REQUIRED"
         | "SNAPBACK_CONNECTION_TOKEN_REQUIRED"
@@ -24893,7 +25742,9 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // each producer chose these deliberately with this landing.
         "SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED"
         | "SNAPBACK_ASSET_DEFERRED_LENGTH_UNSUPPORTED" => StatusCode::BAD_REQUEST,
-        "SNAPBACK_ASSET_FORBIDDEN" => StatusCode::FORBIDDEN,
+        "SNAPBACK_ASSET_FORBIDDEN" | "SNAPBACK_ASSET_OWNER_CUSTODY_UNSATISFIABLE" => {
+            StatusCode::FORBIDDEN
+        }
         "SNAPBACK_ASSET_INTENT_UNKNOWN"
         | "SNAPBACK_ASSET_ATTEMPT_UNKNOWN"
         | "SNAPBACK_ASSET_UNKNOWN" => StatusCode::NOT_FOUND,
@@ -24960,7 +25811,9 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_APP_API_ENVELOPE_UNKNOWN" | "SNAPBACK_APP_API_UNAVAILABLE" => {
             StatusCode::NOT_FOUND
         }
-        "SNAPBACK_ASSET_ATTEMPT_EXPIRED" => StatusCode::GONE,
+        "SNAPBACK_ASSET_ATTEMPT_EXPIRED" | "SNAPBACK_OPERATION_RESULT_EXPIRED" => {
+            StatusCode::GONE
+        }
         "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED" => StatusCode::PAYLOAD_TOO_LARGE,
         "SNAPBACK_ASSET_QUOTA_EXCEEDED"
         | "SNAPBACK_ASSET_CEILING_EXCEEDED" => StatusCode::TOO_MANY_REQUESTS,
@@ -25004,6 +25857,10 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_BINDING_MISSING"
         | "SNAPBACK_CAPTURED_READ_INVALID"
         | "SNAPBACK_CLIENT_MUTATION_ID_INVALID"
+        // @ref LLP 0162#acceptance — client mutation transport cannot omit
+        //   its retry key or claim the server-derived Host identity namespace.
+        | "SNAPBACK_OPERATION_IDENTITY_REQUIRES_CLIENT_MUTATION_ID"
+        | "SNAPBACK_OPERATION_HOST_IDENTITY_FORBIDDEN"
         | "SNAPBACK_CONFIG_DEFAULT_UNIMPLEMENTED"
         | "SNAPBACK_CONFIG_ENTRY_INVALID"
         | "SNAPBACK_CONFIG_MISSING"
@@ -25042,6 +25899,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_DATA_TIER_VERSION_UNSUPPORTED"
         | "SNAPBACK_EPHEMERAL_INVALID_SCOPE"
         | "SNAPBACK_EPHEMERAL_INVALID_TTL"
+        | "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_REASON_REQUIRED"
         | "SNAPBACK_EPHEMERAL_MISSING_KEY"
         | "SNAPBACK_EPHEMERAL_MISSING_OWNER"
         | "SNAPBACK_EPHEMERAL_ROOM_LIMIT_EXCEEDED"
@@ -25353,6 +26211,92 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_AUTH_SENDER_PROOF_REQUIRED"
         | "SNAPBACK_AUTH_SENDER_PROOF_INVALID"
         | "SNAPBACK_AUTH_SENDER_PROOF_REPLAYED" => StatusCode::UNAUTHORIZED,
+        // @ref LLP 0162#acceptance — the Track B public carriers keep
+        // malformed caller facts, authorization failures, durable conflicts,
+        // bounded admission, transient custody, and server invariants in
+        // distinct HTTP classes. This block covers the acceptance-tail codes
+        // added after the original extracted-Spec registry was written.
+        "SNAPBACK_BRANCH_NESTING_UNSUPPORTED"
+        | "SNAPBACK_BRANCH_OPERATION_KIND_UNSUPPORTED"
+        | "SNAPBACK_BRANCH_REQUEST_ID_REQUIRED"
+        | "SNAPBACK_BRANCH_REQUEST_INVALID"
+        | "SNAPBACK_CHECKPOINT_ERASURE_REQUEST_INVALID"
+        | "SNAPBACK_EPHEMERAL_CLEANUP_BOUND_INVALID"
+        | "SNAPBACK_EPHEMERAL_CLEANUP_CUTOFF_INVALID"
+        | "SNAPBACK_EPHEMERAL_CLEANUP_REQUEST_INVALID"
+        | "SNAPBACK_OPERATION_COVERAGE_ACTIVATION_VERSION_UNSUPPORTED"
+        | "SNAPBACK_OPERATION_EXPLANATION_AUDIENCE_REQUIRED"
+        | "SNAPBACK_OPERATION_EXPLANATION_VERSION_UNSUPPORTED"
+        | "SNAPBACK_OPERATION_IDENTITY_RANGE_VERSION_UNSUPPORTED"
+        | "SNAPBACK_OPERATION_IDENTITY_REQUIRED"
+        | "SNAPBACK_OPERATION_RANGE_AUDIENCE_INVALID"
+        | "SNAPBACK_PROMOTION_PROVISIONAL_REPRESENTATION_REQUIRED"
+        | "SNAPBACK_PROTECTED_ERASURE_REQUEST_INVALID" => StatusCode::BAD_REQUEST,
+        "SNAPBACK_OPERATION_COVERAGE_ACTIVATION_AUTHORITY_INVALID"
+        | "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID" => StatusCode::FORBIDDEN,
+        "SNAPBACK_PROTECTED_ERASURE_TARGET_NOT_FOUND" => StatusCode::NOT_FOUND,
+        "SNAPBACK_BRANCH_ARTIFACT_DRIFT"
+        | "SNAPBACK_BRANCH_CUSTODY_COLLISION"
+        | "SNAPBACK_BRANCH_FORECLOSED"
+        | "SNAPBACK_BRANCH_OPERATION_ID_REUSED"
+        | "SNAPBACK_BRANCH_OPERATION_OUTCOME_UNKNOWN"
+        | "SNAPBACK_CHECKPOINT_ERASURE_IDENTITY_REUSED"
+        | "SNAPBACK_CHECKPOINT_PROTECTED_ERASURE_FENCED"
+        | "SNAPBACK_HISTORY_POLICY_VERSION_CONFLICT"
+        | "SNAPBACK_OPERATION_RANGE_CONTINUITY_INVALID"
+        | "SNAPBACK_OPERATION_RANGE_COUNTER_REUSED"
+        | "SNAPBACK_OPERATION_TERMINAL_DIVERGED"
+        | "SNAPBACK_PROMOTION_CAPTURE_ONLY_UNSUPPORTED"
+        | "SNAPBACK_PROMOTION_RESERVATION_EXPIRED"
+        | "SNAPBACK_PROTECTED_ERASURE_BUSY"
+        | "SNAPBACK_PROTECTED_ERASURE_IDENTITY_REUSED" => StatusCode::CONFLICT,
+        "SNAPBACK_BRANCH_DIGEST_WORK_LIMIT_EXCEEDED" => StatusCode::PAYLOAD_TOO_LARGE,
+        "SNAPBACK_OPERATION_PENDING_CAPACITY_FULL" | "SNAPBACK_PROMOTION_HEAD_RESERVED" => {
+            StatusCode::TOO_MANY_REQUESTS
+        }
+        "SNAPBACK_BRANCH_CUSTODY_RECOVERY_REQUIRED"
+        | "SNAPBACK_BRANCH_EXPIRY_REAP_REQUIRED"
+        | "SNAPBACK_HOST_OPERATION_ORDINAL_EXHAUSTED"
+        | "SNAPBACK_OPERATION_PROTECTED_CUSTODY_UNAVAILABLE" => {
+            StatusCode::SERVICE_UNAVAILABLE
+        }
+        "SNAPBACK_BENCH_RANGE_EXHAUSTED"
+        | "SNAPBACK_BENCH_STREAM_DIVERGED"
+        | "SNAPBACK_BRANCH_ACTION_SETTLEMENT_MISSING"
+        | "SNAPBACK_BRANCH_ARTIFACT_IDENTITY_MISSING"
+        | "SNAPBACK_BRANCH_CAUSAL_ORDER_INVALID"
+        | "SNAPBACK_BRANCH_CUSTODY_FAILED"
+        | "SNAPBACK_BRANCH_CUSTODY_INVALID"
+        | "SNAPBACK_BRANCH_CUSTODY_PATH_MISMATCH"
+        | "SNAPBACK_BRANCH_DIFF_JOURNAL_INCOMPLETE"
+        | "SNAPBACK_BRANCH_DIGEST_WORK_UNACCOUNTED"
+        | "SNAPBACK_BRANCH_EFFECT_CAPTURED"
+        | "SNAPBACK_BRANCH_EFFECT_CAPTURE_FAILED"
+        | "SNAPBACK_BRANCH_EFFECT_CONTEXT_MISSING"
+        | "SNAPBACK_BRANCH_EFFECT_LEDGER_INVALID"
+        | "SNAPBACK_BRANCH_EFFECT_ORDINAL_REUSED"
+        | "SNAPBACK_BRANCH_EFFECT_POLICY_INVALID"
+        | "SNAPBACK_BRANCH_EGRESS_MARKER_FAILED"
+        | "SNAPBACK_BRANCH_FILE_CUSTODY_REQUIRED"
+        | "SNAPBACK_BRANCH_HANDLER_FAILED"
+        | "SNAPBACK_BRANCH_OPERATION_JOURNAL_INCOMPLETE"
+        | "SNAPBACK_BRANCH_OPERATION_RESERVATION_MISSING"
+        | "SNAPBACK_CHECKPOINT_ERASURE_REGISTRY_CORRUPT"
+        | "SNAPBACK_CHECKPOINT_ERASURE_TEST_CRASH_CUT"
+        | "SNAPBACK_MIGRATION_EXPECTED_ORACLE_FAILED"
+        | "SNAPBACK_OPERATION_COVERAGE_INCOMPLETE"
+        | "SNAPBACK_OPERATION_PENDING_NOT_FOUND"
+        | "SNAPBACK_OPERATION_PROTECTED_CUSTODY_INVALID"
+        | "SNAPBACK_OPERATION_RECEIPT_INVALID"
+        | "SNAPBACK_OPERATION_WRITER_EXCLUDED"
+        | "SNAPBACK_OPERATION_WRITER_IDENTITY_MISMATCH"
+        | "SNAPBACK_OPERATION_WRITE_AUTHORITY_INVALID"
+        | "SNAPBACK_PROMOTION_EFFECT_INTENT_MISSING"
+        | "SNAPBACK_PROTECTED_ERASURE_REGISTRY_CORRUPT"
+        | "SNAPBACK_PROTECTED_ERASURE_TEST_CRASH_CUT"
+        | "SNAPBACK_STORAGE_FIELD_CORRUPT"
+        | "SNAPBACK_STORAGE_ROW_ID_CORRUPT"
+        | "SNAPBACK_TEST_OPERATION_CRASH_CUT" => StatusCode::INTERNAL_SERVER_ERROR,
         // @ref LLP 0158#implementation-path-local-v1-explored-2026-08-03 —
         // derived-fork request shape, lifecycle, custody, and subprocess
         // outcomes retain distinct caller/state/server HTTP classes.
@@ -25372,10 +26316,15 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_BRANCH_STREAM_MISMATCH"
         | "SNAPBACK_CHECKPOINT_DESTINATION_INVALID"
         | "SNAPBACK_CHECKPOINT_REQUEST_INVALID"
+        | "SNAPBACK_FORK_APP_BINDING_REQUIRED"
         | "SNAPBACK_FORK_APP_ID_REQUIRED"
+        | "SNAPBACK_FORK_ASSET_CUT_UNSUPPORTED"
         | "SNAPBACK_FORK_APP_ROOT_INVALID"
         | "SNAPBACK_FORK_ID_INVALID"
+        | "SNAPBACK_FORK_NET_DIFF_UNAVAILABLE"
+        | "SNAPBACK_FORK_PROJECTION_UNAVAILABLE"
         | "SNAPBACK_FORK_REAP_CLOCK_INVALID"
+        | "SNAPBACK_FORK_RENEW_EXPIRED"
         | "SNAPBACK_FORK_SOURCE_INVALID"
         | "SNAPBACK_FORK_TTL_INVALID"
         | "SNAPBACK_HISTORY_PAGE_INVALID"
@@ -25388,6 +26337,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_PROMOTION_TICKET_TTL_INSUFFICIENT" => StatusCode::BAD_REQUEST,
         "SNAPBACK_BRANCH_AUTHORITY_DENIED"
         | "SNAPBACK_BRANCH_EGRESS_DENIED"
+        | "SNAPBACK_FORK_APP_BINDING_MISMATCH"
         | "SNAPBACK_HISTORY_AUTHORIZATION_DENIED"
         | "SNAPBACK_OPERATION_ISSUANCE_AUTH_INVALID"
         | "SNAPBACK_OPERATION_RANGE_AUTH_INVALID"
@@ -25434,6 +26384,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_BRANCH_GRANT_STALE"
         | "SNAPBACK_CHECKPOINT_INVALID"
         | "SNAPBACK_FORK_DIFF_RETENTION_GAP"
+        | "SNAPBACK_FORK_SERVER_EXPIRED"
         | "SNAPBACK_OPERATION_EPOCH_CLOSED"
         | "SNAPBACK_PROMOTION_TICKET_EXPIRED" => StatusCode::GONE,
         "SNAPBACK_BRANCH_BYTE_LIMIT_EXCEEDED"
@@ -25444,9 +26395,11 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_BRANCH_LIVE_LIMIT_EXCEEDED"
         | "SNAPBACK_BRANCH_OPERATION_LIMIT_EXCEEDED"
         | "SNAPBACK_CHECKPOINT_WAL_BUDGET_EXCEEDED"
+        | "SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED"
         | "SNAPBACK_OPERATION_RANGE_EXHAUSTED"
         | "SNAPBACK_PROMOTION_CONTENTION_EXHAUSTED" => StatusCode::TOO_MANY_REQUESTS,
-        "SNAPBACK_FORK_BOOT_TIMEOUT"
+        "SNAPBACK_FORK_ADMISSION_TIMEOUT"
+        | "SNAPBACK_FORK_BOOT_TIMEOUT"
         | "SNAPBACK_FORK_STOP_TIMEOUT"
         | "SNAPBACK_PROMOTION_COMMIT_TIMEOUT" => StatusCode::GATEWAY_TIMEOUT,
         "SNAPBACK_CHECKPOINT_SOURCE_UNSUPPORTED"
@@ -25473,6 +26426,11 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_FORK_LOAD_FAILED"
         | "SNAPBACK_FORK_READY_INVALID"
         | "SNAPBACK_FORK_REGISTRY_INVALID"
+        | "SNAPBACK_FORK_REGISTRY_STALE"
+        | "SNAPBACK_FORK_PUBLICATION_PARTIAL"
+        | "SNAPBACK_FORK_EXPIRED_REAP_FAILED"
+        | "SNAPBACK_FORK_SIDECAR_MALFORMED"
+        | "SNAPBACK_FORK_SIDECAR_MISSING"
         | "SNAPBACK_FORK_STOP_FAILED"
         | "SNAPBACK_FORK_STOP_UNVERIFIED"
         | "SNAPBACK_HISTORY_CORRUPT"
@@ -25532,16 +26490,16 @@ mod tests {
         ACTION_WORKER_LIMIT_MAX, ADMITTED_BODY_INGEST_DEADLINE_MS, AdmissionLease,
         CRON_DISPATCH_CONCURRENCY_DEFAULT, CRON_DISPATCH_CONCURRENCY_MAX, ConnectionGrant,
         ConnectionOpenAttempt, DetachedActionHost, DetachedActionWorkerCounters,
-        OpenConnectionRequest, PolicyAuthMode, PreparedAuthority, RealtimeEnvelope, SharedSnapback,
-        SnapbackApp, TEST_FINITE_AUTHORITY_PAUSE_HEADER, TestFiniteAuthorityPausePoint,
-        already_terminal_session_error, app, configured_action_worker_limit,
-        configured_cron_dispatch_concurrency, coordinated_app_reset, dispatch_cron_tick_background,
-        finish_registered_response, install_test_finite_authority_pause,
-        linearize_detached_action_abandonment, parse_action_watchdog_timeout, parse_optional_json,
-        reserve_detached_action_worker, reserve_detached_action_worker_with_counters,
-        retain_realtime_authority_in, run_detached_ibex_action_with_admission_and_counters,
-        spawn_detached_action_worker, status_for_diagnostic_code, with_snapback,
-        with_snapback_staged_authorization_write,
+        HostOperationParentV1, OpenConnectionRequest, PolicyAuthMode, PreparedAuthority,
+        RealtimeEnvelope, SharedSnapback, SnapbackApp, TEST_FINITE_AUTHORITY_PAUSE_HEADER,
+        TestFiniteAuthorityPausePoint, already_terminal_session_error, app,
+        configured_action_worker_limit, configured_cron_dispatch_concurrency,
+        coordinated_app_reset, dispatch_cron_tick_background, finish_registered_response,
+        install_test_finite_authority_pause, linearize_detached_action_abandonment,
+        parse_action_watchdog_timeout, parse_optional_json, reserve_detached_action_worker,
+        reserve_detached_action_worker_with_counters, retain_realtime_authority_in,
+        run_detached_ibex_action_with_admission_and_counters, spawn_detached_action_worker,
+        status_for_diagnostic_code, with_snapback, with_snapback_staged_authorization_write,
     };
 
     #[tokio::test]
@@ -25575,10 +26533,7 @@ mod tests {
             ready_at,
         )
         .expect("a rejected mutation uses its result-readiness deadline");
-        assert!(
-            rejected.release_at()
-                >= ready_at + std::time::Duration::from_millis(30)
-        );
+        assert!(rejected.release_at() >= ready_at + std::time::Duration::from_millis(30));
         let started = Instant::now();
         let delayed = super::release_network_profiled_response(
             axum::response::Response::new(axum::body::Body::empty()),
@@ -25736,7 +26691,10 @@ mod tests {
             .iter()
             .map(|byte| byte.as_u64().unwrap() as u8)
             .collect::<Vec<_>>();
-        assert_eq!(normal, live_bytes, "normal poll payload stays byte-identical");
+        assert_eq!(
+            normal, live_bytes,
+            "normal poll payload stays byte-identical"
+        );
     }
 
     #[tokio::test]
@@ -25905,6 +26863,149 @@ mod tests {
     use tower::ServiceExt as _;
     use uuid::Uuid;
 
+    fn operator_delete_server_fixture(profile: ServerProfile, derived: bool) -> AppState {
+        let mut context = ServerContext::detached();
+        context.profile = profile;
+        context.admin_token = Some("operator-delete-admin".to_owned());
+        let mut snapback = LocalSnapback::memory().expect("operator delete server fixture");
+        snapback
+            .register_ephemeral_collection(EphemeralCollection::local_cursor(
+                "boardCursors",
+                "boardId",
+            ))
+            .expect("register operator delete fixture collection");
+        let mut state = AppState::from_snapback(snapback, context)
+            .with_server_startup_nonce("operator-delete-startup")
+            .expect("install deterministic startup nonce");
+        if derived {
+            state.derived_instance_identity = Some(crate::instance_fork::DerivedForkLineageV1 {
+                format_version: 1,
+                fork_id: "fork_operator_delete_test".to_owned(),
+                parent_instance_id: "parent-test".to_owned(),
+                app_id: "operator-delete-test".to_owned(),
+                created_at_ms: 1,
+                fork_point_version: 1,
+                expires_at_ms: Some(u64::MAX),
+                promotable: false,
+            });
+        }
+        state
+    }
+
+    fn operator_delete_headers() -> HeaderMap {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/json"),
+        );
+        headers.insert(
+            "x-snapback-admin-token",
+            HeaderValue::from_static("operator-delete-admin"),
+        );
+        headers
+    }
+
+    /// @ref LLP 0184#c-administrator-ephemeral-entry-delete--add-now — the
+    /// HTTP receipt must call the operation an unevaluated operator bypass,
+    /// and the process nonce is an enforced server-side fence.
+    #[tokio::test]
+    async fn operator_delete_http_checks_startup_nonce_and_discloses_bypass() {
+        let state = operator_delete_server_fixture(ServerProfile::Test, false);
+        let now_ms = super::now_millis();
+        let published = state
+            .ephemeral
+            .publish(
+                PublishRequest {
+                    collection: "boardCursors".to_owned(),
+                    scope: Scope::from_pairs([("boardId", "board-1")]),
+                    connection_id: "owner".to_owned(),
+                    session_id: None,
+                    user_id: None,
+                    custom_key: None,
+                    value: b"cursor".to_vec(),
+                    ttl_ms: None,
+                    auth: crate::ephemeral::AuthContext::default(),
+                },
+                now_ms,
+            )
+            .expect("publish inspected entry");
+        let request_body = |startup_nonce: &str| {
+            serde_json::to_vec(&json!({
+                "collection": published.room.collection.clone(),
+                "scope": published.room.scope.clone(),
+                "entryKey": published.key.0.clone(),
+                "expectedScopeEpoch": published.scope_epoch,
+                "expectedEntryGeneration": published.entry_version,
+                "reason": "repair stuck presence",
+                "startupNonce": startup_nonce,
+            }))
+            .unwrap()
+        };
+
+        let stale = super::operator_delete_ephemeral(
+            State(state.clone()),
+            operator_delete_headers(),
+            Ok(Bytes::from(request_body("wrong-process"))),
+        )
+        .await
+        .expect_err("stale process identity must refuse before deletion")
+        .into_response();
+        assert_eq!(stale.status(), StatusCode::CONFLICT);
+        assert_eq!(
+            response_json(stale).await["diagnostic"]["code"],
+            "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_STALE_STARTUP_NONCE"
+        );
+
+        let receipt = super::operator_delete_ephemeral(
+            State(state),
+            operator_delete_headers(),
+            Ok(Bytes::from(request_body("operator-delete-startup"))),
+        )
+        .await
+        .expect("matching process, epoch, and generation delete")
+        .0;
+        assert_eq!(receipt["operation"], "ephemeral.operatorDelete");
+        assert_eq!(receipt["authorityMode"], "operatorBypass");
+        assert_eq!(receipt["authorizationEvaluated"], false);
+        assert_eq!(receipt["bypass"], true);
+        assert_eq!(receipt["ok"], true);
+        assert!(
+            receipt["note"]
+                .as_str()
+                .is_some_and(|note| note.contains("not an authorization decision"))
+        );
+    }
+
+    #[tokio::test]
+    async fn operator_delete_refuses_production_and_derived_before_body_parsing() {
+        for (state, expected_code) in [
+            (
+                operator_delete_server_fixture(ServerProfile::Prod, false),
+                "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_TARGET_REFUSED_HOSTED",
+            ),
+            (
+                operator_delete_server_fixture(ServerProfile::Test, true),
+                "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_TARGET_REFUSED_DERIVED",
+            ),
+        ] {
+            let mut headers = HeaderMap::new();
+            headers.insert(
+                "x-snapback-admin-token",
+                HeaderValue::from_static("operator-delete-admin"),
+            );
+            let response =
+                super::operator_delete_ephemeral(State(state), headers, Ok(Bytes::new()))
+                    .await
+                    .expect_err("target posture must refuse malformed body without parsing it")
+                    .into_response();
+            assert_eq!(response.status(), StatusCode::FORBIDDEN);
+            assert_eq!(
+                response_json(response).await["diagnostic"]["code"],
+                expected_code
+            );
+        }
+    }
+
     struct ManualServerAuthClock {
         base_epoch_ms: u64,
         epoch_ms: AtomicU64,
@@ -25951,6 +27052,110 @@ mod tests {
         assert!(
             second.is_err(),
             "a second independent connection/lifecycle graph must be rejected"
+        );
+    }
+
+    #[tokio::test]
+    async fn tus_upload_cors_headers_cover_the_protocol() {
+        let state = AppState::from_snapback(
+            LocalSnapback::memory().expect("TUS CORS fixture"),
+            bound_loopback_context(),
+        );
+        let router = app(state);
+        let preflight = |origin: &'static str| {
+            Request::builder()
+                .method("OPTIONS")
+                .uri("/assets/tus/some-attempt-id")
+                .header(header::ORIGIN, origin)
+                .header(header::ACCESS_CONTROL_REQUEST_METHOD, "PATCH")
+                .header(
+                    header::ACCESS_CONTROL_REQUEST_HEADERS,
+                    "tus-resumable,upload-offset,upload-checksum,content-type",
+                )
+                .body(Body::empty())
+                .unwrap()
+        };
+
+        let allowed = router
+            .clone()
+            .oneshot(preflight("http://localhost:5173"))
+            .await
+            .unwrap();
+        assert!(allowed.status().is_success());
+        assert_eq!(
+            allowed
+                .headers()
+                .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                .and_then(|value| value.to_str().ok()),
+            Some("http://localhost:5173")
+        );
+        let allow_headers = allowed
+            .headers()
+            .get(header::ACCESS_CONTROL_ALLOW_HEADERS)
+            .and_then(|value| value.to_str().ok())
+            .expect("preflight exposes the allowed request headers")
+            .to_ascii_lowercase();
+        for expected in [
+            "tus-resumable",
+            "upload-offset",
+            "upload-length",
+            "upload-checksum",
+        ] {
+            assert!(
+                allow_headers
+                    .split(',')
+                    .any(|header_name| header_name.trim() == expected),
+                "allow-headers omits {expected}: {allow_headers}"
+            );
+        }
+
+        let head = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("HEAD")
+                    .uri("/assets/tus/some-attempt-id")
+                    .header(header::ORIGIN, "http://localhost:5173")
+                    .header("tus-resumable", crate::assets::ASSET_TUS_VERSION)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let expose_headers = head
+            .headers()
+            .get(header::ACCESS_CONTROL_EXPOSE_HEADERS)
+            .and_then(|value| value.to_str().ok())
+            .expect("TUS errors still expose the protocol response headers")
+            .to_ascii_lowercase();
+        for expected in [
+            "upload-offset",
+            "upload-length",
+            "tus-resumable",
+            "tus-version",
+            "tus-extension",
+            "tus-checksum-algorithm",
+            "upload-expires-ms",
+            "snapback-max-chunk-bytes",
+        ] {
+            assert!(
+                expose_headers
+                    .split(',')
+                    .any(|header_name| header_name.trim() == expected),
+                "expose-headers omits {expected}: {expose_headers}"
+            );
+        }
+
+        let hostile = router
+            .oneshot(preflight("http://attacker.invalid"))
+            .await
+            .unwrap();
+        assert!(
+            hostile
+                .headers()
+                .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                .is_none(),
+            "an unadmitted origin must not receive CORS admission"
         );
     }
 
@@ -26669,6 +27874,7 @@ mod tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 }],
                 ..SchemaManifest::default()
             })
@@ -26884,6 +28090,7 @@ mod tests {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ephemeral_collections: vec![collection],
             ..SchemaManifest::default()
@@ -27786,6 +28993,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -30129,6 +31337,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -31057,6 +32266,7 @@ globalThis.__snapbackHandlers = {
                         search_live_limits: None,
                         membership: None,
                         asset_sharing: None,
+                        history: None,
                     }],
                     ..SchemaManifest::default()
                 })
@@ -32334,6 +33544,7 @@ globalThis.__snapbackHandlers = {
                         search_live_limits: None,
                         membership: None,
                         asset_sharing: None,
+                        history: None,
                     }],
                     ..SchemaManifest::default()
                 })
@@ -32463,6 +33674,111 @@ globalThis.__snapbackHandlers = {
             response_json(refused).await["diagnostic"]["code"],
             "SNAPBACK_AUTH_REQUIRED",
         );
+    }
+
+    /// @ref LLP 0146#d7-typed-remediations-and-type-aware-suggestion — the
+    /// direct HTTP projection enriches its existing diagnostic details from
+    /// the exact served manifest generation; it does not add a wire member.
+    #[tokio::test]
+    async fn served_http_refusals_project_typed_candidates_and_argument_contracts() {
+        let (state, _) = auth_runtime_fixture_with(PolicyAuthMode::Dev, |snapback| {
+            let schema: SchemaManifest = serde_json::from_str(include_str!(
+                "../demos/todo/snapback/generated/schema.manifest.json"
+            ))
+            .expect("parse served suggestion schema");
+            snapback
+                .apply_schema(schema)
+                .expect("load suggestion schema");
+            let functions: FunctionManifest = serde_json::from_str(include_str!(
+                "../demos/todo/snapback/generated/functions.manifest.json"
+            ))
+            .expect("parse served suggestion functions");
+            let diagnostics = snapback.load_functions(functions);
+            assert!(
+                !diagnostics.iter().any(|diagnostic| matches!(
+                    diagnostic.severity,
+                    crate::diagnostic::DiagnosticSeverity::Error
+                        | crate::diagnostic::DiagnosticSeverity::Fatal
+                )),
+                "served suggestion fixture loads: {diagnostics:?}",
+            );
+        });
+        let router = app(state);
+        let request = |path: &str, args: Value| {
+            Request::builder()
+                .method("POST")
+                .uri(path)
+                .header(header::CONTENT_TYPE, "application/json")
+                .header("x-snapback-auth-client-protocol", "1")
+                .body(Body::from(
+                    serde_json::to_vec(&json!({ "args": args })).expect("serialize args"),
+                ))
+                .expect("served refusal request")
+        };
+
+        let mut unknown = Value::Null;
+        for _ in 0..3 {
+            let response = router
+                .clone()
+                .oneshot(request("/query/listTods", json!({})))
+                .await
+                .expect("unknown function response");
+            assert_eq!(response.status(), StatusCode::NOT_FOUND);
+            unknown = response_json(response).await;
+        }
+        let details = &unknown["diagnostic"]["details"];
+        assert_eq!(unknown["diagnostic"]["code"], "SNAPBACK_UNKNOWN_FUNCTION");
+        assert_eq!(details["candidateFunctions"][0]["name"], "listTodos");
+        assert_eq!(details["candidateFunctions"][0]["kind"], "LiveQuery");
+        assert_eq!(details["artifactHash"], "sha256:f41b9f6133737ac4");
+        assert!(
+            details["localMissSummary"]["sameMissCount"]
+                .as_u64()
+                .unwrap()
+                >= 3
+        );
+        assert!(
+            !serde_json::to_string(&unknown)
+                .unwrap()
+                .contains("listTods")
+        );
+
+        let response = router
+            .clone()
+            .oneshot(request(
+                "/mutation/createTodo",
+                json!({ "titel": "not disclosed" }),
+            ))
+            .await
+            .expect("unknown argument field response");
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let unknown_field = response_json(response).await;
+        let details = &unknown_field["diagnostic"]["details"];
+        assert_eq!(
+            unknown_field["diagnostic"]["code"],
+            "SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION",
+            "{unknown_field}"
+        );
+        assert_eq!(details["candidateFields"][0]["name"], "title");
+        assert_eq!(details["candidateFields"][0]["expected"], "string");
+        assert!(details["expectedArgumentContract"].is_object());
+        assert!(
+            !serde_json::to_string(&unknown_field)
+                .unwrap()
+                .contains("titel")
+        );
+
+        let response = router
+            .oneshot(request("/mutation/createTodo", json!({ "title": 42 })))
+            .await
+            .expect("wrong argument shape response");
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let wrong_shape = response_json(response).await;
+        let details = &wrong_shape["diagnostic"]["details"];
+        assert_eq!(details["expected"], "string");
+        assert_eq!(details["actual"], "number");
+        assert_eq!(details["candidateFields"][0]["name"], "title");
+        assert_eq!(details["candidateFields"][0]["expected"], "string");
     }
 
     /// A malformed carrier on a function-authenticated hosted route keeps the
@@ -33968,6 +35284,41 @@ globalThis.__snapbackHandlers = {
         assert_eq!(body.as_ref(), admin_html.as_bytes());
     }
 
+    #[test]
+    fn pasteable_asset_delivery_is_cross_origin_without_weakening_static_pages() {
+        let spec_for = |method, path| {
+            super::route_registry()
+                .into_iter()
+                .find(|spec| spec.method == method && spec.path == path)
+                .unwrap_or_else(|| panic!("registered route {method} {path}"))
+        };
+
+        for path in [
+            "/assets/public/{id}/{variant}",
+            "/assets/signed/{id}/{variant}",
+        ] {
+            let response = super::apply_registered_response_controls(
+                spec_for("GET", path).effective_for(PolicyAuthMode::Sessions),
+                axum::response::Response::new(Body::empty()),
+            );
+            assert_eq!(
+                response.headers()["cross-origin-resource-policy"],
+                "cross-origin",
+                "{path} must remain pasteable from another origin"
+            );
+        }
+
+        let response = super::apply_registered_response_controls(
+            spec_for("GET", "/_snapback/admin/setup").effective_for(PolicyAuthMode::Dev),
+            axum::response::Response::new(Body::empty()),
+        );
+        assert_eq!(
+            response.headers()["cross-origin-resource-policy"],
+            "same-origin",
+            "a non-delivery StaticPublic route keeps LLP 0060's isolation"
+        );
+    }
+
     #[tokio::test]
     async fn public_and_admin_inspect_project_exact_auth_program_readiness() {
         let readiness = AuthProgramReadiness::new(true, true, true, true, true, true, true);
@@ -35350,6 +36701,86 @@ globalThis.__snapbackHandlers = {
             "unrecognized"
         );
         assert!(!serialized.contains(SENTINEL), "{serialized}");
+    }
+
+    /// @ref LLP 0162#3-safe-current-head-forks — lifecycle dispatch is reachable
+    ///   only after the production host carrier resolves AdminWrite authority;
+    ///   an unauthenticated request never reaches the branch dispatcher.
+    #[tokio::test]
+    async fn managed_branch_host_operations_are_admin_write_before_dispatch() {
+        let (router, _) = auth_http_fixture(PolicyAuthMode::Sessions);
+        let cases = [
+            (
+                "branch.create.v1",
+                json!({
+                    "schemaVersion": 1,
+                    "allowedFunctions": ["safeAction"],
+                    "ttlMs": 60_000
+                }),
+            ),
+            (
+                "branch.execute.v1",
+                json!({
+                    "schemaVersion": 1,
+                    "branchId": "branch-v1:test",
+                    "function": "safeAction",
+                    "args": {}
+                }),
+            ),
+            ("branch.list.v1", json!({"schemaVersion": 1})),
+            ("branch.reap.v1", json!({"schemaVersion": 1})),
+            (
+                "branch.inspect.v1",
+                json!({"schemaVersion": 1, "branchId": "branch-v1:test"}),
+            ),
+            (
+                "branch.drop.v1",
+                json!({"schemaVersion": 1, "branchId": "branch-v1:test"}),
+            ),
+        ];
+        for (operation, input) in cases {
+            let spec = super::host_ops_operation_spec(operation, None, false)
+                .unwrap_or_else(|| panic!("registered branch operation {operation}"));
+            assert_eq!(spec.class, RouteClass::SystemApi, "{operation}");
+            assert_eq!(spec.path_policy, RoutePolicy::AdminWrite, "{operation}");
+            assert_eq!(
+                spec.credential_resolution,
+                super::CredentialResolution::AdminCredential,
+                "{operation}"
+            );
+            assert_eq!(
+                spec.invocation_authority,
+                super::InvocationAuthority::Operator,
+                "{operation}"
+            );
+            assert_eq!(
+                spec.transport,
+                super::OperationTransport::HostOps,
+                "{operation}"
+            );
+
+            let response = router
+                .clone()
+                .oneshot(auth_http_request(
+                    "POST",
+                    "/_snapback/api/host-ops",
+                    serde_json::to_vec(&json!({
+                        "operation": operation,
+                        "input": input,
+                    }))
+                    .unwrap(),
+                    true,
+                    None,
+                    None,
+                ))
+                .await
+                .unwrap();
+            assert_eq!(
+                response.status(),
+                StatusCode::UNAUTHORIZED,
+                "{operation} must refuse before dispatch"
+            );
+        }
     }
 
     /// @ref LLP 0024#http-projection — the pinned-but-unbuilt operations and
@@ -39064,8 +40495,70 @@ globalThis.__snapbackHandlers = {
             "environment variable selecting the startup network condition profile (LLP 0167)",
         ),
         (
+            "SNAPBACK_AGENT_SAFE_IMPLEMENTATION_SHA256",
+            "environment variable binding an agent-safe performance worker to the qualified implementation digest (LLP 0162)",
+        ),
+        (
             "SNAPBACK_READY_DESCRIPTOR_REQUIRED",
             "CLI-local detached-start lifecycle diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_HOST_RESTART_ADMIN_CREDENTIAL_REQUIRED",
+            "CLI-local composed-restart authority diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_HOST_RESTART_READY_INVALID",
+            "CLI-local replacement-readiness diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_HOST_RESTART_START_FAILED",
+            "CLI-local replacement-spawn diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_HOST_RESTART_START_TIMEOUT",
+            "CLI-local replacement-readiness timeout diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_HOST_RESTART_STOP_TIMEOUT",
+            "CLI-local verified-stop timeout diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        // @ref LLP 0184#product-contract-what-agent-accessible-means — the
+        // config.set value carrier and its transport remain CLI-only in v1.
+        (
+            "SNAPBACK_CONFIG_SET_FAILED",
+            "CLI-local config.set HTTP-refusal fallback; the server's actual diagnostic, when present, is classified separately",
+        ),
+        (
+            "SNAPBACK_CONFIG_SET_REQUEST_FAILED",
+            "CLI-local config.set transport diagnostic; no HTTP response was received",
+        ),
+        (
+            "SNAPBACK_CONFIG_SET_RESPONSE_INVALID",
+            "CLI-local config.set response-envelope validation diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_CONFIG_SET_USAGE_INVALID",
+            "CLI-local config.set argument/value-carrier diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_CONFIG_VALUE_FD_INVALID",
+            "CLI-local config.set inherited-descriptor diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_CONFIG_VALUE_FD_UNSUPPORTED",
+            "CLI-local config.set host-capability diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_CONFIG_VALUE_READ_FAILED",
+            "CLI-local config.set value-carrier read diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_CONFIG_VALUE_TOO_LARGE",
+            "CLI-local config.set value-carrier bound diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_READY_FILE_REQUIRED",
+            "CLI-local operator-delete process-binding diagnostic; never emitted by the Snapback HTTP server",
         ),
         (
             "SNAPBACK_ACTION_MAX_CONCURRENCY",
@@ -39347,6 +40840,26 @@ globalThis.__snapbackHandlers = {
             "SNAPBACK_PROFILE",
             "environment variable selecting the server profile",
         ),
+        (
+            "SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT",
+            "environment variable selecting the public-package store qualification receipt",
+        ),
+        (
+            "SNAPBACK_PACKAGED_STORE_QUALIFICATION_MODE",
+            "environment variable enabling receipt-backed public-package store qualification",
+        ),
+        (
+            "SNAPBACK_PACKAGED_STORE_QUALIFICATION_IDENTITY_UNQUALIFIED",
+            "CLI-local receipt-minting identity diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_PACKAGED_STORE_QUALIFICATION_SUITE_UNQUALIFIED",
+            "CLI-local receipt-minting suite diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_PACKAGED_STORE_QUALIFICATION_CLOSURE_INVALID",
+            "CLI-local receipt-minting package-closure diagnostic; never emitted by the Snapback HTTP server",
+        ),
         // @ref LLP 0132#acceptance — these test-only harness inputs bind the
         // retained scale receipt; they are not runtime/API refusal codes.
         (
@@ -39489,27 +41002,47 @@ globalThis.__snapbackHandlers = {
 
     const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
         // LLP 0158/0163/0164/0165 experimental control-plane request shapes.
+        "SNAPBACK_BRANCH_NESTING_UNSUPPORTED",
+        "SNAPBACK_BRANCH_OPERATION_KIND_UNSUPPORTED",
+        "SNAPBACK_BRANCH_REQUEST_ID_REQUIRED",
+        "SNAPBACK_BRANCH_REQUEST_INVALID",
         "SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING",
         "SNAPBACK_BRANCH_LIMIT_INVALID",
         "SNAPBACK_BRANCH_OPERATION_INVALID",
         "SNAPBACK_BRANCH_SCHEMA_VERSION_UNSUPPORTED",
         "SNAPBACK_BRANCH_STREAM_MISMATCH",
         "SNAPBACK_CHECKPOINT_DESTINATION_INVALID",
+        "SNAPBACK_CHECKPOINT_ERASURE_REQUEST_INVALID",
         "SNAPBACK_CHECKPOINT_REQUEST_INVALID",
+        "SNAPBACK_FORK_APP_BINDING_REQUIRED",
         "SNAPBACK_FORK_APP_ID_REQUIRED",
+        "SNAPBACK_FORK_ASSET_CUT_UNSUPPORTED",
         "SNAPBACK_FORK_APP_ROOT_INVALID",
         "SNAPBACK_FORK_ID_INVALID",
+        "SNAPBACK_FORK_NET_DIFF_UNAVAILABLE",
+        "SNAPBACK_FORK_PROJECTION_UNAVAILABLE",
         "SNAPBACK_FORK_REAP_CLOCK_INVALID",
+        "SNAPBACK_FORK_RENEW_EXPIRED",
         "SNAPBACK_FORK_SOURCE_INVALID",
         "SNAPBACK_FORK_TTL_INVALID",
         "SNAPBACK_HISTORY_PAGE_INVALID",
         "SNAPBACK_HISTORY_POLICY_INVALID",
         "SNAPBACK_HOST_OPERATION_IDENTITY_INVALID",
+        "SNAPBACK_OPERATION_COVERAGE_ACTIVATION_VERSION_UNSUPPORTED",
+        "SNAPBACK_OPERATION_EXPLANATION_AUDIENCE_REQUIRED",
         "SNAPBACK_OPERATION_EXPLANATION_LIMIT_INVALID",
         "SNAPBACK_OPERATION_EXPLANATION_QUERY_UNBOUNDED",
+        "SNAPBACK_OPERATION_EXPLANATION_VERSION_UNSUPPORTED",
+        "SNAPBACK_OPERATION_HOST_IDENTITY_FORBIDDEN",
+        "SNAPBACK_OPERATION_IDENTITY_RANGE_VERSION_UNSUPPORTED",
+        "SNAPBACK_OPERATION_IDENTITY_REQUIRED",
+        "SNAPBACK_OPERATION_IDENTITY_REQUIRES_CLIENT_MUTATION_ID",
+        "SNAPBACK_OPERATION_RANGE_AUDIENCE_INVALID",
         "SNAPBACK_PROMOTION_CONTENTION_POLICY_INVALID",
+        "SNAPBACK_PROMOTION_PROVISIONAL_REPRESENTATION_REQUIRED",
         "SNAPBACK_PROMOTION_TICKET_IDENTITY_INVALID",
         "SNAPBACK_PROMOTION_TICKET_TTL_INSUFFICIENT",
+        "SNAPBACK_PROTECTED_ERASURE_REQUEST_INVALID",
         "SNAPBACK_NETWORK_PROFILE_DELAY_CEILING",
         "SNAPBACK_NETWORK_PROFILE_INVALID",
         "SNAPBACK_RESULT_TRANSFORM_BASE_INVALID",
@@ -39570,6 +41103,12 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_WIRE_VERSION_UNSUPPORTED",
         "SNAPBACK_WIRE_VERSION_MISMATCH",
         "SNAPBACK_WIRE_VERSION_REQUIRED",
+        "SNAPBACK_EPHEMERAL_CLEANUP_BOUND_INVALID",
+        "SNAPBACK_EPHEMERAL_CLEANUP_CUTOFF_INVALID",
+        "SNAPBACK_EPHEMERAL_CLEANUP_REQUEST_INVALID",
+        // @ref LLP 0184#c-administrator-ephemeral-entry-delete--add-now — a
+        // blank reason is malformed input on the raw admin route.
+        "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_REASON_REQUIRED",
         "SNAPBACK_EPHEMERAL_AUTHORITY_PROTOCOL_MISMATCH",
         "SNAPBACK_EPHEMERAL_AUTHORITY_UNSUPPORTED",
         "SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_REQUIRED",
@@ -39910,15 +41449,21 @@ globalThis.__snapbackHandlers = {
         // LLP 0158/0163/0164 authorization and sealed-authority refusals.
         "SNAPBACK_BRANCH_AUTHORITY_DENIED",
         "SNAPBACK_BRANCH_EGRESS_DENIED",
+        "SNAPBACK_FORK_APP_BINDING_MISMATCH",
         "SNAPBACK_HISTORY_AUTHORIZATION_DENIED",
         "SNAPBACK_OPERATION_ISSUANCE_AUTH_INVALID",
+        "SNAPBACK_OPERATION_COVERAGE_ACTIVATION_AUTHORITY_INVALID",
         "SNAPBACK_OPERATION_RANGE_AUTH_INVALID",
         "SNAPBACK_PROMOTION_APPROVAL_INVALID",
         "SNAPBACK_PROMOTION_AUTHORITY_DENIED",
         "SNAPBACK_PROMOTION_REQUEST_SEAL_INVALID",
         "SNAPBACK_PROMOTION_TICKET_MISMATCH",
+        "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID",
         "SNAPBACK_NETWORK_PROFILE_FORBIDDEN",
         "SNAPBACK_ADMIN_DISABLED",
+        // @ref LLP 0184#b-forced-live-resync--add-now
+        "SNAPBACK_DEBUG_PERTURBATION_TARGET_REFUSED",
+        "SNAPBACK_LIVE_FORCE_RESYNC_STARTUP_NONCE_MISMATCH",
         "SNAPBACK_ADMIN_APPROVAL_UNAVAILABLE",
         "SNAPBACK_ADMIN_CLAIM_UNAVAILABLE",
         "SNAPBACK_ADMIN_CONSOLE_MINT_UNAVAILABLE",
@@ -39942,6 +41487,10 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ADMIN_SECRET_READ_PROOF_STALE",
         "SNAPBACK_ADMIN_SECRET_READ_PROOF_STARTUP_MISMATCH",
         "SNAPBACK_ADMIN_SECRET_READ_SCOPE_DENIED",
+        // @ref LLP 0184#c-administrator-ephemeral-entry-delete--add-now —
+        // these are target-policy refusals from the raw admin route.
+        "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_TARGET_REFUSED_DERIVED",
+        "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_TARGET_REFUSED_HOSTED",
         "SNAPBACK_AUTH_CODE_LOCKED",
         "SNAPBACK_AUTHORIZED_LEASE_AUTHORITY_INVALID",
         "SNAPBACK_AUTH_IMPERSONATION_REQUIRED",
@@ -39962,6 +41511,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_PROFILE_FORBIDS",
         "SNAPBACK_ACTIVITY_AUTHORITY_UNPROVENANCED",
         "SNAPBACK_ASSET_FORBIDDEN",
+        "SNAPBACK_ASSET_OWNER_CUSTODY_UNSATISFIABLE",
         "SNAPBACK_ASSET_ADMISSION_REVOKED",
         "SNAPBACK_ASSET_SIGNATURE_INVALID",
     ];
@@ -39971,6 +41521,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_CHECKPOINT_NOT_FOUND",
         "SNAPBACK_FORK_NOT_FOUND",
         "SNAPBACK_HISTORY_TABLE_UNKNOWN",
+        "SNAPBACK_PROTECTED_ERASURE_TARGET_NOT_FOUND",
         "SNAPBACK_ADMIN_CLAIM_STATUS_INVALID",
         "SNAPBACK_ADMIN_RELAY_LEASE_INVALID",
         "SNAPBACK_ADMIN_REACHABILITY_SESSION_INVALID",
@@ -39979,12 +41530,18 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_BUNDLE_ROUTE_UNKNOWN",
         "SNAPBACK_AUTH_MAILBOX_ENTRY_NOT_FOUND",
         "SNAPBACK_AUTH_MODE_DEV",
+        // @ref LLP 0184#c-administrator-ephemeral-entry-delete--add-now — the
+        // exactly inspected operator-delete target is absent.
+        "SNAPBACK_EPHEMERAL_ENTRY_NOT_FOUND",
+        "SNAPBACK_EPHEMERAL_ROOM_NOT_FOUND",
         "SNAPBACK_MEMBERSHIP_SELF_NOT_FOUND",
         "SNAPBACK_ROW_NOT_FOUND",
         "SNAPBACK_UNKNOWN_CRON_JOB",
         "SNAPBACK_UNKNOWN_FIELD",
         "SNAPBACK_UNKNOWN_FUNCTION",
         "SNAPBACK_UNKNOWN_SUBSCRIPTION",
+        // @ref LLP 0184#b-forced-live-resync--add-now
+        "SNAPBACK_LIVE_FORCE_RESYNC_SUBSCRIPTION_NOT_FOUND",
         "SNAPBACK_UNKNOWN_TABLE",
         "SNAPBACK_ERROR_ISSUE_NOT_FOUND",
         "SNAPBACK_ASSET_INTENT_UNKNOWN",
@@ -39997,20 +41554,33 @@ globalThis.__snapbackHandlers = {
 
     const CONFLICT_DIAGNOSTICS: &[&str] = &[
         // LLP 0158/0163/0164 current-state, CAS, and reseal conflicts.
+        "SNAPBACK_BRANCH_ARTIFACT_DRIFT",
         "SNAPBACK_BRANCH_BASE_NOT_CURRENT",
+        "SNAPBACK_BRANCH_CUSTODY_COLLISION",
+        "SNAPBACK_BRANCH_FORECLOSED",
         "SNAPBACK_BRANCH_NOT_ACTIVE",
         "SNAPBACK_BRANCH_NOT_PROMOTABLE",
         "SNAPBACK_BRANCH_NO_COMMON_BASE",
+        "SNAPBACK_BRANCH_OPERATION_ID_REUSED",
+        "SNAPBACK_BRANCH_OPERATION_OUTCOME_UNKNOWN",
         "SNAPBACK_CHECKPOINT_DESTINATION_EXISTS",
+        "SNAPBACK_CHECKPOINT_ERASURE_IDENTITY_REUSED",
+        "SNAPBACK_CHECKPOINT_PROTECTED_ERASURE_FENCED",
         "SNAPBACK_CHECKPOINT_SOURCE_ADVANCED",
         "SNAPBACK_HISTORY_NOT_ENABLED",
+        "SNAPBACK_HISTORY_POLICY_VERSION_CONFLICT",
         "SNAPBACK_HOST_INCARNATION_ROTATION_INVALID",
         "SNAPBACK_HOST_OPERATION_IDENTITY_REUSED",
         "SNAPBACK_HOST_OPERATION_LEASE_INVALID",
+        "SNAPBACK_EPHEMERAL_CLEANUP_STARTUP_MISMATCH",
         "SNAPBACK_OPERATION_ALREADY_RECORDED",
         "SNAPBACK_OPERATION_EPOCH_STATE_INVALID",
         "SNAPBACK_OPERATION_EPOCH_UNAVAILABLE",
         "SNAPBACK_OPERATION_RANGE_OVERLAP",
+        "SNAPBACK_OPERATION_RANGE_CONTINUITY_INVALID",
+        "SNAPBACK_OPERATION_RANGE_COUNTER_REUSED",
+        "SNAPBACK_OPERATION_TERMINAL_DIVERGED",
+        "SNAPBACK_PROMOTION_CAPTURE_ONLY_UNSUPPORTED",
         "SNAPBACK_PROMOTION_APPROVED_FACTS_CONFLICT",
         "SNAPBACK_PROMOTION_BASE_ADVANCED",
         "SNAPBACK_PROMOTION_BASE_PRECONDITION_FAILED",
@@ -40023,11 +41593,14 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_PROMOTION_REBASE_LOG_EMPTY",
         "SNAPBACK_PROMOTION_REPLAY_DIVERGED",
         "SNAPBACK_PROMOTION_REQUEST_FACTS_DIVERGED",
+        "SNAPBACK_PROMOTION_RESERVATION_EXPIRED",
         "SNAPBACK_PROMOTION_RESERVATION_NOT_ELIGIBLE",
         "SNAPBACK_PROMOTION_SCHEMA_DIVERGED",
         "SNAPBACK_PROMOTION_TICKET_IDENTITY_REUSED",
         "SNAPBACK_PROMOTION_WRITE_COVERAGE_INCOMPLETE",
         "SNAPBACK_PROMOTION_WRITE_PATH_UNCOVERED",
+        "SNAPBACK_PROTECTED_ERASURE_BUSY",
+        "SNAPBACK_PROTECTED_ERASURE_IDENTITY_REUSED",
         "SNAPBACK_ADMIN_RELAY_LEASE_CLAIM_MISMATCH",
         "SNAPBACK_ADMIN_RELAY_LEASE_CREDENTIAL_MISMATCH",
         "SNAPBACK_VECTOR_CORPUS_BOUND",
@@ -40053,6 +41626,8 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_BUNDLE_IDEMPOTENCY_SCOPE_MISMATCH",
         "SNAPBACK_ACTION_STREAM_CANCELLED",
         "SNAPBACK_OPERATION_CANCELLED",
+        "SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED",
+        "SNAPBACK_OPERATION_STORED_REFUSAL",
         "SNAPBACK_AUTH_AGENT_DEACTIVATION_WOULD_STRAND",
         "SNAPBACK_AUTH_AGENT_CREDENTIAL_EXISTS",
         "SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND",
@@ -40077,12 +41652,20 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_AUTH_REFRESH_SUPERSEDED",
         "SNAPBACK_AUTH_TABLE_COLLISION",
         "SNAPBACK_ARTIFACT_IDENTITY_MISMATCH",
+        // @ref LLP 0184#b-forced-live-resync--add-now
+        "SNAPBACK_LIVE_FORCE_RESYNC_CONNECTION_MISMATCH",
         "SNAPBACK_CLIENT_MUTATION_ID_REUSED",
         "SNAPBACK_CLIENT_MUTATION_LEGACY_AUTH_QUARANTINED",
         "SNAPBACK_CONFIG_VERIFY_STALE",
         "SNAPBACK_CONNECTION_TEARDOWN_PENDING",
         "SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_CHANGED",
         "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION",
+        // @ref LLP 0184#c-administrator-ephemeral-entry-delete--add-now —
+        // process, room-incarnation, and entry-generation fences conflict
+        // with the caller's earlier observation.
+        "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_STALE_STARTUP_NONCE",
+        "SNAPBACK_EPHEMERAL_STALE_ENTRY_GENERATION",
+        "SNAPBACK_EPHEMERAL_STALE_SCOPE_EPOCH",
         "SNAPBACK_LIVE_STAGE_CONFLICT",
         "SNAPBACK_MUTATION_CONFLICT",
         "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED",
@@ -40127,6 +41710,7 @@ globalThis.__snapbackHandlers = {
     const PAYLOAD_TOO_LARGE_DIAGNOSTICS: &[&str] = &[
         // Bounded branch/checkpoint/proof byte work is request-size-shaped.
         "SNAPBACK_BRANCH_BYTE_LIMIT_EXCEEDED",
+        "SNAPBACK_BRANCH_DIGEST_WORK_LIMIT_EXCEEDED",
         "SNAPBACK_BRANCH_DIFF_LIMIT_EXCEEDED",
         "SNAPBACK_CHECKPOINT_COPY_BUDGET_EXCEEDED",
         "SNAPBACK_CHECKPOINT_DIGEST_BUDGET_EXCEEDED",
@@ -40153,7 +41737,10 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_BRANCH_LIVE_LIMIT_EXCEEDED",
         "SNAPBACK_BRANCH_OPERATION_LIMIT_EXCEEDED",
         "SNAPBACK_CHECKPOINT_WAL_BUDGET_EXCEEDED",
+        "SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED",
         "SNAPBACK_OPERATION_RANGE_EXHAUSTED",
+        "SNAPBACK_OPERATION_PENDING_CAPACITY_FULL",
+        "SNAPBACK_PROMOTION_HEAD_RESERVED",
         "SNAPBACK_PROMOTION_CONTENTION_EXHAUSTED",
         "SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED",
         "SNAPBACK_ADMIN_APPROVAL_RATE_LIMITED",
@@ -40186,6 +41773,7 @@ globalThis.__snapbackHandlers = {
     const REQUEST_TIMEOUT_DIAGNOSTICS: &[&str] = &["SNAPBACK_REQUEST_BODY_TIMEOUT"];
 
     const GATEWAY_TIMEOUT_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_FORK_ADMISSION_TIMEOUT",
         "SNAPBACK_FORK_BOOT_TIMEOUT",
         "SNAPBACK_FORK_STOP_TIMEOUT",
         "SNAPBACK_PROMOTION_COMMIT_TIMEOUT",
@@ -40212,13 +41800,16 @@ globalThis.__snapbackHandlers = {
     ];
 
     const MISDIRECTED_REQUEST_DIAGNOSTICS: &[&str] = &["SNAPBACK_ADMIN_RELAY_HOST_REFUSED"];
-    const NOT_IMPLEMENTED_DIAGNOSTICS: &[&str] =
-        &["SNAPBACK_ADMIN_RELAY_WEBSOCKET_UNAVAILABLE"];
+    const NOT_IMPLEMENTED_DIAGNOSTICS: &[&str] = &["SNAPBACK_ADMIN_RELAY_WEBSOCKET_UNAVAILABLE"];
 
     const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_BRANCH_CUSTODY_RECOVERY_REQUIRED",
+        "SNAPBACK_BRANCH_EXPIRY_REAP_REQUIRED",
         "SNAPBACK_CHECKPOINT_SOURCE_UNSUPPORTED",
+        "SNAPBACK_HOST_OPERATION_ORDINAL_EXHAUSTED",
         "SNAPBACK_OPERATION_COVERAGE_UNAVAILABLE",
         "SNAPBACK_OPERATION_STREAM_UNAVAILABLE",
+        "SNAPBACK_OPERATION_PROTECTED_CUSTODY_UNAVAILABLE",
         // LLP 0132: index readiness is transient, but retry waits for the
         // target's readiness state to change.
         "SNAPBACK_VECTOR_INDEX_UNAVAILABLE",
@@ -40309,14 +41900,56 @@ globalThis.__snapbackHandlers = {
     // diagnostics that never normally become an `ApiError`. If one does reach
     // that boundary, the fail-safe class is still 500 rather than a false 4xx.
     const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
+        // @ref LLP 0184#b-forced-live-resync--add-now
+        "SNAPBACK_LIVE_FORCE_RESYNC_ENCODE_FAILED",
+        // @ref LLP 0184#a-bounded-direct-row-patch--add-now — these surface
+        // only inside the host-ops `ok: false` envelope (HTTP 200), so retain
+        // the reviewed fail-safe 500 projection if one ever crosses ApiError.
+        "SNAPBACK_DATA_PATCH_APPLY_TOKEN_CONSUMED",
+        "SNAPBACK_DATA_PATCH_APPLY_TOKEN_EXPIRED",
+        "SNAPBACK_DATA_PATCH_APPLY_TOKEN_MISMATCH",
+        "SNAPBACK_DATA_PATCH_APPLY_TOKEN_MISSING",
+        "SNAPBACK_DATA_PATCH_AUTHORITY_INVALID",
+        "SNAPBACK_DATA_PATCH_RESERVED_FIELD",
+        "SNAPBACK_DATA_PATCH_STALE_VERSION",
+        "SNAPBACK_DATA_PATCH_TARGET_REFUSED",
+        "SNAPBACK_DATA_PATCH_UNKNOWN_FIELD",
+        "SNAPBACK_DATA_PATCH_VALIDATION_FAILED",
+        // @ref LLP 0184#c-administrator-ephemeral-entry-delete--add-now — an
+        // impossible removal-message shape is a server invariant on the raw
+        // admin route, not caller input.
+        "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_RECEIPT_INVALID",
         // Reviewed LLP 0158/0163/0164/0165 server-authored state, proof,
         // journal, custody, I/O, and test-crash invariants.
+        "SNAPBACK_BENCH_RANGE_EXHAUSTED",
+        "SNAPBACK_BENCH_STREAM_DIVERGED",
+        "SNAPBACK_BRANCH_ACTION_SETTLEMENT_MISSING",
+        "SNAPBACK_BRANCH_ARTIFACT_IDENTITY_MISSING",
         "SNAPBACK_BRANCH_ARTIFACT_INVALID",
+        "SNAPBACK_BRANCH_CAUSAL_ORDER_INVALID",
+        "SNAPBACK_BRANCH_CUSTODY_FAILED",
+        "SNAPBACK_BRANCH_CUSTODY_INVALID",
+        "SNAPBACK_BRANCH_CUSTODY_PATH_MISMATCH",
+        "SNAPBACK_BRANCH_DIFF_JOURNAL_INCOMPLETE",
         "SNAPBACK_BRANCH_DIFF_DUPLICATE_ROW",
+        "SNAPBACK_BRANCH_DIGEST_WORK_UNACCOUNTED",
+        "SNAPBACK_BRANCH_EFFECT_CAPTURED",
+        "SNAPBACK_BRANCH_EFFECT_CAPTURE_FAILED",
+        "SNAPBACK_BRANCH_EFFECT_CONTEXT_MISSING",
+        "SNAPBACK_BRANCH_EFFECT_LEDGER_INVALID",
+        "SNAPBACK_BRANCH_EFFECT_ORDINAL_REUSED",
+        "SNAPBACK_BRANCH_EFFECT_POLICY_INVALID",
+        "SNAPBACK_BRANCH_EGRESS_MARKER_FAILED",
+        "SNAPBACK_BRANCH_FILE_CUSTODY_REQUIRED",
+        "SNAPBACK_BRANCH_HANDLER_FAILED",
+        "SNAPBACK_BRANCH_OPERATION_JOURNAL_INCOMPLETE",
+        "SNAPBACK_BRANCH_OPERATION_RESERVATION_MISSING",
         "SNAPBACK_BRANCH_PROFILE_MISSING",
         "SNAPBACK_BRANCH_STREAM_MISSING",
         "SNAPBACK_CHECKPOINT_COPY_FAILED",
         "SNAPBACK_CHECKPOINT_COPY_FIDELITY_FAILED",
+        "SNAPBACK_CHECKPOINT_ERASURE_REGISTRY_CORRUPT",
+        "SNAPBACK_CHECKPOINT_ERASURE_TEST_CRASH_CUT",
         "SNAPBACK_CHECKPOINT_EVIDENCE_MISMATCH",
         "SNAPBACK_CHECKPOINT_INCOMPLETE",
         "SNAPBACK_CHECKPOINT_IO_FAILED",
@@ -40332,16 +41965,27 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_FORK_LOAD_FAILED",
         "SNAPBACK_FORK_READY_INVALID",
         "SNAPBACK_FORK_REGISTRY_INVALID",
+        "SNAPBACK_FORK_REGISTRY_STALE",
+        "SNAPBACK_FORK_EXPIRED_REAP_FAILED",
         "SNAPBACK_FORK_STOP_FAILED",
         "SNAPBACK_FORK_STOP_UNVERIFIED",
         "SNAPBACK_HISTORY_CORRUPT",
+        "SNAPBACK_MIGRATION_EXPECTED_ORACLE_FAILED",
+        "SNAPBACK_OPERATION_COVERAGE_INCOMPLETE",
         "SNAPBACK_OPERATION_COVERAGE_MISMATCH",
         "SNAPBACK_OPERATION_JOURNAL_INCOMPLETE",
         "SNAPBACK_OPERATION_LEDGER_INVALID",
+        "SNAPBACK_OPERATION_PENDING_NOT_FOUND",
+        "SNAPBACK_OPERATION_PROTECTED_CUSTODY_INVALID",
+        "SNAPBACK_OPERATION_RECEIPT_INVALID",
+        "SNAPBACK_OPERATION_WRITER_EXCLUDED",
+        "SNAPBACK_OPERATION_WRITER_IDENTITY_MISMATCH",
+        "SNAPBACK_OPERATION_WRITE_AUTHORITY_INVALID",
         "SNAPBACK_PROMOTION_APPROVED_FACTS_INVALID",
         "SNAPBACK_PROMOTION_BASE_DUPLICATE_ROW",
         "SNAPBACK_PROMOTION_BOUNDARY_MISMATCH",
         "SNAPBACK_PROMOTION_ENVELOPE_INVALID",
+        "SNAPBACK_PROMOTION_EFFECT_INTENT_MISSING",
         "SNAPBACK_PROMOTION_SCHEMA_IDENTITY_MISSING",
         "SNAPBACK_PROMOTION_SEAL_KEY_INVALID",
         "SNAPBACK_PROMOTION_WRITES_NOT_CANONICAL",
@@ -40349,6 +41993,11 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_PROOF_DOMAIN_MISMATCH",
         "SNAPBACK_PROOF_EXPECTED_DERIVATION_MISSING",
         "SNAPBACK_PROOF_ROWS_NOT_CANONICAL",
+        "SNAPBACK_PROTECTED_ERASURE_REGISTRY_CORRUPT",
+        "SNAPBACK_PROTECTED_ERASURE_TEST_CRASH_CUT",
+        "SNAPBACK_STORAGE_FIELD_CORRUPT",
+        "SNAPBACK_STORAGE_ROW_ID_CORRUPT",
+        "SNAPBACK_TEST_OPERATION_CRASH_CUT",
         // LLP 0132: these are derived-state/server invariants, including the
         // query-time work limit that the declaration-time corpus proof should
         // make unreachable; none is a blind-client-retry class.
@@ -40402,14 +42051,21 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_FORK_DESTINATION_EXISTS",
         "SNAPBACK_FORK_EGRESS_MARKER_FAILED",
         "SNAPBACK_FORK_EVIDENCE_INCOMPLETE",
+        "SNAPBACK_FORK_ASSET_CUT_INCOMPLETE",
+        "SNAPBACK_FORK_DIFF_ORACLE_MISMATCH",
         "SNAPBACK_FORK_EVIDENCE_MISMATCH",
+        "SNAPBACK_FORK_WRITER_COVERAGE_INVALID",
+        "SNAPBACK_FORK_WRITER_COVERAGE_GAP",
         "SNAPBACK_FORK_IO_FAILED",
         "SNAPBACK_FORK_KEYRING_MINT_FAILED",
         "SNAPBACK_FORK_LINEAGE_INVALID",
         "SNAPBACK_FORK_NESTED_REFUSED",
         "SNAPBACK_FORK_PATH_INVALID",
+        "SNAPBACK_FORK_PUBLICATION_PARTIAL",
         "SNAPBACK_FORK_QUARANTINED",
         "SNAPBACK_FORK_RECEIPT_INVALID",
+        "SNAPBACK_FORK_SIDECAR_MALFORMED",
+        "SNAPBACK_FORK_SIDECAR_MISSING",
         "SNAPBACK_FORK_SIDECAR_COLLISION",
         "SNAPBACK_FORK_TEST_CRASH_CUT",
         // LLP 0080 §2 keyset invariant: the dispatch layer builds boundaries
@@ -40588,7 +42244,6 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_IBEX_GLOBAL_DENY_INCOMPLETE",
         "SNAPBACK_INVOCATION_FUNCTION_MISMATCH",
         "SNAPBACK_INVOCATION_SOURCE_INVALID",
-        "SNAPBACK_JSON_PARSE_FAILED",
         "SNAPBACK_JSON_SERIALIZE_FAILED",
         "SNAPBACK_LIVE_FINALIZE_FAILED",
         "SNAPBACK_LIVE_SERVICE_TERMINAL_OBSERVATION_FAILED",
@@ -40738,7 +42393,9 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_BRANCH_GRANT_STALE",
         "SNAPBACK_CHECKPOINT_INVALID",
         "SNAPBACK_FORK_DIFF_RETENTION_GAP",
+        "SNAPBACK_FORK_SERVER_EXPIRED",
         "SNAPBACK_OPERATION_EPOCH_CLOSED",
+        "SNAPBACK_OPERATION_RESULT_EXPIRED",
         "SNAPBACK_PROMOTION_TICKET_EXPIRED",
     ];
     const ASSET_GONE_DIAGNOSTICS: &[&str] = &["SNAPBACK_ASSET_ATTEMPT_EXPIRED"];
@@ -40827,7 +42484,6 @@ globalThis.__snapbackHandlers = {
             );
         }
     }
-
 
     /// LLP 0032 S5.D10 / ENG-24357 — every diagnostic emitted by the Rust
     /// implementation has a reviewed HTTP result, across every status family.
@@ -41565,6 +43221,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 }],
                 ..SchemaManifest::default()
             })
@@ -41850,6 +43507,7 @@ globalThis.__snapbackHandlers = {
                         search_live_limits: None,
                         membership: None,
                         asset_sharing: None,
+                        history: None,
                     }],
                     ..SchemaManifest::default()
                 })
@@ -42088,7 +43746,213 @@ globalThis.__snapbackHandlers = {
             stream_buffered_bytes: Arc::new(AtomicU64::new(0)),
             stream_buffered_peak: Arc::new(AtomicU64::new(0)),
             automatic_retry_invocation: false,
+            host_operation: HostOperationParentV1::from_action_run(
+                &crate::local::manual_action_metadata("test", "heldAction"),
+            ),
         }
+    }
+
+    #[tokio::test]
+    async fn llp0163_managed_host_action_retries_reuse_one_host_child_envelope() {
+        let mut snapback = LocalSnapback::memory().expect("managed host identity state");
+        let app_id = "operation-carrier-fixture";
+        let inputs_hash = "sha256:carrier-inputs";
+        snapback
+            .apply_schema(SchemaManifest {
+                app_id: app_id.to_owned(),
+                schema_hash: Some("sha256:carrier-schema".to_owned()),
+                inputs_hash: Some(inputs_hash.to_owned()),
+                tables: vec![TableManifest {
+                    name: "items".to_owned(),
+                    fields: vec![FieldManifest {
+                        name: "value".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    }],
+                    indexes: Vec::new(),
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
+                    search_live_limits: None,
+                    membership: None,
+                    asset_sharing: None,
+                    history: None,
+                }],
+                ..SchemaManifest::default()
+            })
+            .expect("apply managed host identity schema");
+        let mut values = BTreeMap::new();
+        values.insert("value".to_owned(), ValueExpr::Literal(json!("carrier")));
+        let mut insert = FunctionDefinition::new(
+            "insertCarrier",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "items".to_owned(),
+                    values,
+                    bind_id_as: None,
+                }],
+                return_value: Some(ReturnValue::ChangedCount),
+            })),
+        );
+        insert.write_set_summary.tables = vec!["items".to_owned()];
+        let mut action = FunctionDefinition::new(
+            "carrierAction",
+            FunctionKind::Action,
+            FunctionRuntime::HostPlan(HandlerPlan::Action(ActionPlan {
+                steps: vec![ActionStep::RunMutation {
+                    name: "insertCarrier".to_owned(),
+                    args: BTreeMap::new(),
+                    bind_result_as: None,
+                }],
+                return_value: Some(ActionReturnValue::ChangedCount),
+            })),
+        );
+        action.write_set_summary.tables = vec!["items".to_owned()];
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            app_id: app_id.to_owned(),
+            bundle_hash: Some("sha256:carrier-functions".to_owned()),
+            inputs_hash: Some(inputs_hash.to_owned()),
+            functions: vec![insert, action],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics.iter().all(|diagnostic| {
+                diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
+            }),
+            "managed host identity functions load: {diagnostics:?}"
+        );
+        snapback
+            .auth_database_mut()
+            .install_operation_coverage_for_test(
+                vec![crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1.to_owned()],
+                crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1
+                    .iter()
+                    .map(|writer| (*writer).to_owned())
+                    .collect(),
+            )
+            .expect("activate test-only host child coverage");
+
+        let prepared = |snapback: &mut LocalSnapback| match snapback
+            .stage_action_invocation("carrierAction")
+            .expect("stage production managed action")
+        {
+            StagedAction::HostPlan(prepared) => prepared,
+            StagedAction::Detached(_) => panic!("HostPlan action must use managed runner"),
+        };
+        let first_prepared = prepared(&mut snapback);
+        let second_prepared = prepared(&mut snapback);
+        let mut first_metadata = crate::local::manual_action_metadata("test", "carrierAction");
+        first_metadata.run_id = "carrier-run-1".to_owned();
+        first_metadata.attempt = 1;
+        let mut retry_metadata = first_metadata.clone();
+        retry_metadata.run_id = "carrier-run-2".to_owned();
+        retry_metadata.attempt = 2;
+        let state = Arc::new(Mutex::new(snapback));
+
+        let first = super::run_managed_host_plan_action(
+            &state,
+            "carrierAction".to_owned(),
+            HandlerInput::default(),
+            first_metadata,
+            first_prepared,
+        )
+        .await
+        .expect("first managed action attempt");
+        let retry = super::run_managed_host_plan_action(
+            &state,
+            "carrierAction".to_owned(),
+            HandlerInput::default(),
+            retry_metadata,
+            second_prepared,
+        )
+        .await
+        .expect("managed action retry replays committed child");
+        assert_eq!(first, retry);
+
+        let mut snapback = state.lock().await;
+        assert_eq!(
+            snapback
+                .auth_database_mut()
+                .scan_table("items", 10, 0)
+                .expect("scan carrier rows")
+                .total,
+            1,
+            "attempt-local run ids must not duplicate a committed child"
+        );
+        let envelopes = snapback
+            .auth_database_mut()
+            .operation_envelopes_for_test()
+            .expect("load retained host envelopes");
+        assert_eq!(envelopes.len(), 1);
+        let envelope = &envelopes[0];
+        assert_eq!(
+            envelope.identity.key.originator_class,
+            crate::commit_envelope::OperationOriginatorClassV1::Host
+        );
+        assert_eq!(
+            envelope.coverage.covered_lanes,
+            vec![crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1.to_owned()]
+        );
+        let crate::commit_envelope::OperationIssuanceV1::HostIncarnation {
+            upstream_identity,
+            commit_ordinal,
+            ..
+        } = &envelope.identity.issuance
+        else {
+            panic!("managed action child must retain host-incarnation issuance");
+        };
+        assert!(upstream_identity.starts_with("host-parent:sha256:"));
+        assert_eq!(*commit_ordinal, 0);
+    }
+
+    #[test]
+    fn llp0163_host_child_inventory_routes_both_action_runtime_tiers() {
+        assert_eq!(
+            crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1,
+            [
+                "LocalDatabase::execute_host_mutation_guarded_with_settlement_time",
+                "LocalDatabase::commit_buffered_host_writes_guarded",
+            ]
+        );
+
+        let server = include_str!("server.rs");
+        let start = server
+            .find("impl IbexActionHost for DetachedActionHost")
+            .expect("production action host remains present");
+        let end = server[start..]
+            .find("\n    fn open_response_stream")
+            .expect("runMutation inventory boundary");
+        let run_mutation = &server[start..start + end];
+        let identity = run_mutation
+            .find("covered_host_child_identity")
+            .expect("action host derives one covered child identity");
+        let host_plan = run_mutation
+            .find("invoke_host_plan_mutation_guarded")
+            .expect("HostPlan production adapter remains inventoried");
+        let buffered = run_mutation
+            .find("commit_detached_ibex_mutation_guarded")
+            .expect("detached Ibex production adapter remains inventoried");
+        assert!(identity < host_plan && identity < buffered);
+
+        let local = include_str!("local.rs");
+        let staged_start = local
+            .find("pub(crate) fn commit_staged_recorded_authorization_mutation")
+            .expect("managed staged writer remains present");
+        let staged_end = local[staged_start..]
+            .find("\n    fn record_mutation_commit(")
+            .expect("managed staged writer inventory boundary");
+        let staged_commit = &local[staged_start..staged_start + staged_end];
+        assert!(
+            staged_commit.contains("execute_host_mutation_guarded_with_settlement_time"),
+            "managed HostPlan children must select the host writer adapter"
+        );
+        assert!(
+            staged_commit.contains("commit_buffered_host_writes_guarded"),
+            "managed Ibex children must select the host buffered adapter"
+        );
     }
 
     #[test]
@@ -48437,9 +50301,12 @@ globalThis.__snapbackHandlers = {
                     );
                 }
                 RouteClass::SystemStatic => {
+                    // The llms.txt convention pins this one system-static guide
+                    // projection to the served root.
                     assert!(
                         route.path.starts_with("/_snapback/admin")
-                            || route.path.starts_with("/_snapback/guide"),
+                            || route.path.starts_with("/_snapback/guide")
+                            || route.path == "/llms.txt",
                         "system-static must be console or guide presentation: {}",
                         route.path
                     );

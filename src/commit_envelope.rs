@@ -109,6 +109,7 @@ pub enum OperationIdentityValidationError {
     EmptyStreamId,
     InvalidOperationId,
     InvalidClientRange,
+    InvalidClientAudience,
     InvalidAuthenticatorDigest,
     InvalidInputFingerprint,
 }
@@ -128,6 +129,35 @@ impl OperationIdentityV1 {
             key: OperationKeyV1 {
                 stream_id: stream_id.into(),
                 originator_class: OperationOriginatorClassV1::Client,
+                operation_id: identity.id.clone(),
+            },
+            issuance,
+            bound_facts: OperationBoundFactsV1 {
+                audience: audience.into(),
+                principal_fingerprint: identity.auth_fingerprint.clone(),
+                authority_instance_id: identity.authority_instance_id.clone(),
+                operation_kind: operation_kind.into(),
+                function_or_command: identity.function.clone(),
+                input_fingerprint: identity.input_fingerprint.clone(),
+            },
+        }
+    }
+
+    /// Widen an internally-authenticated mutation identity into the host
+    /// namespace. Callers must derive `identity.id` from the issuance's
+    /// upstream identity and ordinal before entering this constructor.
+    pub fn from_host_mutation(
+        stream_id: impl Into<String>,
+        audience: impl Into<String>,
+        issuance: OperationIssuanceV1,
+        identity: &ClientMutationIdentity,
+        operation_kind: impl Into<String>,
+    ) -> Self {
+        Self {
+            schema_version: Self::SCHEMA_VERSION,
+            key: OperationKeyV1 {
+                stream_id: stream_id.into(),
+                originator_class: OperationOriginatorClassV1::Host,
                 operation_id: identity.id.clone(),
             },
             issuance,
@@ -186,6 +216,9 @@ impl OperationIdentityV1 {
                 || counter >= range_end_exclusive)
         {
             return Err(OperationIdentityValidationError::InvalidClientRange);
+        }
+        if self.bound_facts.audience.is_empty() {
+            return Err(OperationIdentityValidationError::InvalidClientAudience);
         }
         let authenticator = match &self.issuance {
             OperationIssuanceV1::ClientRange {
@@ -355,6 +388,54 @@ pub struct OperationCoverageManifestV1 {
     pub coverage_digest: String,
 }
 
+pub(crate) fn operation_coverage_activation_schema_version() -> u32 {
+    1
+}
+
+/// The exact target accepted by the v1 coverage-publication command. A closed
+/// enum keeps a future target from inheriting the local SQLite inventory by
+/// string convention.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+pub enum OperationCoverageActivationTargetV1 {
+    #[serde(rename = "local-dev-sqlite-ibex")]
+    LocalDevSqliteIbex,
+}
+
+/// The exact manifest cut published by the v1 command. The name deliberately
+/// says envelope-mapped writers rather than complete target coverage: excluded
+/// app-effective writers remain visible and fail closed after publication.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+pub enum OperationCoverageActivationProfileV1 {
+    #[serde(rename = "local-envelope-mapped-writers.v1")]
+    LocalEnvelopeMappedWritersV1,
+}
+
+/// Explicit operator request for the local target's closed envelope-writer
+/// cut. Publication is never an implicit side effect of database open, range
+/// issuance, or capability inspection.
+///
+/// @ref LLP 0162#acceptance — row 4 requires target-exact coverage and stable
+///   exclusion of every app-effective writer outside the manifest.
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OperationCoverageActivationRequestV1 {
+    #[serde(default = "operation_coverage_activation_schema_version")]
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub target_profile_id: OperationCoverageActivationTargetV1,
+    pub coverage_profile: OperationCoverageActivationProfileV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OperationCoverageActivationResponseV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub target_profile_id: OperationCoverageActivationTargetV1,
+    pub coverage_profile: OperationCoverageActivationProfileV1,
+    pub manifest: OperationCoverageManifestV1,
+}
+
 #[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CommitEnvelopeV1 {
@@ -396,6 +477,45 @@ pub struct ClientIdentityRangeV1 {
     pub expires_at_ms: u64,
     #[schemars(pattern(SHA256_PATTERN))]
     pub authority_authenticator_digest: String,
+}
+
+/// Public issue/refresh request for the finite client identity range. The
+/// live credential remains the authority; the optional descriptor and prior
+/// range are non-authorizing continuity assertions checked against the
+/// server-derived authority before any range is minted.
+///
+/// @ref LLP 0163#contract-summary-normative-details-per-llp-0162-0-2 — range
+///   issuance is bound to the authority incarnation and never grants caller-
+///   selected host namespace access.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OperationIdentityRangeRequestV1 {
+    #[serde(default = "operation_identity_range_schema_version")]
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    #[serde(default)]
+    pub auth: crate::manifest::AuthInput,
+    #[schemars(
+        length(min = 1, max = REPLAY_OPAQUE_ID_MAX_BYTES),
+        pattern(REPLAY_OPAQUE_ID_PATTERN)
+    )]
+    pub client_audience_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub authority_descriptor: Option<crate::manifest::AuthorityDescriptor>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub previous_range: Option<ClientIdentityRangeV1>,
+}
+
+pub(crate) fn operation_identity_range_schema_version() -> u32 {
+    1
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OperationIdentityRangeResponseV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub range: ClientIdentityRangeV1,
 }
 
 impl ClientIdentityRangeV1 {
@@ -468,14 +588,101 @@ pub struct OperationSuppressionRecordV1 {
     pub acknowledged_at_ms: Option<u64>,
 }
 
+/// Immutable P-side lifecycle row for an operation whose application-visible
+/// publication precedes its terminal settlement. `CommitEnvelopeV1` already
+/// has a truthful Pending receipt state; this companion owns the exact lookup
+/// posture without widening or rewriting that v1 envelope.
+///
+/// @ref LLP 0163#implementation-record-2026-08-04-migration-aggregate-settlement-tail
+///   — migration publication retains its original pending truth and terminal
+///   settlement appends a digest-linked supplement.
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PendingOperationLifecycleV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub lane: String,
+    pub identity: OperationIdentityV1,
+    pub publication: StreamQualifiedVersionV1,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub pending_receipt_digest: String,
+    pub pending_payload: Value,
+    pub pending_at_ms: u64,
+}
+
+/// Terminal outcomes for an operation whose truthful v1 publication receipt
+/// was Pending. This additive carrier deliberately does not widen
+/// `OperationTerminalOutcomeV1`, whose existing suppression/tombstone wire
+/// contract remains unchanged.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum PendingOperationTerminalOutcomeV1 {
+    Committed,
+    RolledBack,
+}
+
+/// Terminal supplement for a pending v1 envelope. The transition digest binds
+/// the exact identity, publication P, pending receipt digest, terminal outcome,
+/// and terminal receipt digest, so a finalizer can be replayed exactly but can
+/// never silently rewrite what publication said.
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PendingOperationTerminalSupplementV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub identity: OperationIdentityV1,
+    pub publication: StreamQualifiedVersionV1,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub pending_receipt_digest: String,
+    pub terminal_outcome: PendingOperationTerminalOutcomeV1,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub terminal_receipt_digest: String,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub terminal_write_set_digest: String,
+    pub terminal_write_set_count: u64,
+    pub terminal_at_ms: u64,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub transition_digest: String,
+}
+
+// @ref LLP 0043#dated-c28-lifecycle-reconciliation-2026-08-05 — separate
+// payload-free digests preserve the exact/auth-stale/reused collision split.
+fn nullable_operation_counter_schema(
+    generator: &mut schemars::SchemaGenerator,
+) -> schemars::Schema {
+    generator.subschema_for::<Option<u64>>()
+}
+
+fn deserialize_required_nullable_counter<'de, D>(deserializer: D) -> Result<Option<u64>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Option::<u64>::deserialize(deserializer)
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct OperationIdentityTombstoneV1 {
     #[schemars(range(min = 1, max = 1))]
     pub schema_version: u32,
     pub key: OperationKeyV1,
+    /// Domain-separated digest of the complete retained identity. This is the
+    /// payload-free collision authority after compact-envelope pruning.
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub identity_digest: String,
+    /// Domain-separated digest of audience, principal, and authority facts.
+    /// It preserves the stable auth-stale versus id-reused refusal split
+    /// without retaining those individual identity fields.
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub auth_facts_digest: String,
     pub audience: String,
     pub epoch_id: String,
+    /// Retained SQL projection used to enforce client-range counter
+    /// uniqueness. Keeping the scalar in the closed tombstone lets lookup
+    /// validate SQL/JSON coherence without retaining the identity payload.
+    #[serde(deserialize_with = "deserialize_required_nullable_counter")]
+    #[schemars(required, schema_with = "nullable_operation_counter_schema")]
+    pub counter: Option<u64>,
     pub terminal_outcome: OperationTerminalOutcomeV1,
     #[schemars(pattern(SHA256_PATTERN))]
     pub receipt_digest: String,
@@ -488,6 +695,7 @@ pub enum ExplanationDispositionV1 {
     Complete,
     DetailExpired,
     DetailTruncated,
+    ProtectedCustodyUnavailable,
     JournalExpired,
     AuthorizationUnprovable,
 }
@@ -498,11 +706,14 @@ pub struct OperationExplanationV1 {
     #[schemars(range(min = 1, max = 1))]
     pub schema_version: u32,
     pub key: OperationKeyV1,
-    pub operation_kind: String,
-    pub function_or_command: String,
-    pub principal_fingerprint: String,
-    pub principal_session_or_invocation_id: String,
-    pub snapshot: StreamQualifiedVersionV1,
+    /// Stored-envelope metadata is omitted when current authorization cannot
+    /// be proved. The key is retained because it is the caller-supplied exact
+    /// lookup identity, not a projected retained fact.
+    pub operation_kind: Option<String>,
+    pub function_or_command: Option<String>,
+    pub principal_fingerprint: Option<String>,
+    pub principal_session_or_invocation_id: Option<String>,
+    pub snapshot: Option<StreamQualifiedVersionV1>,
     pub disposition: ExplanationDispositionV1,
     /// Withheld for `authorization-unprovable`; an absent digest is never an
     /// empty-set claim.
@@ -511,6 +722,64 @@ pub struct OperationExplanationV1 {
     pub write_set_digest: Option<String>,
     pub write_set_count: Option<u64>,
     pub detail: Option<Value>,
+}
+
+impl OperationExplanationV1 {
+    pub(crate) fn authorization_unprovable(key: OperationKeyV1) -> Self {
+        Self {
+            schema_version: operation_explanation_schema_version(),
+            key,
+            operation_kind: None,
+            function_or_command: None,
+            principal_fingerprint: None,
+            principal_session_or_invocation_id: None,
+            snapshot: None,
+            disposition: ExplanationDispositionV1::AuthorizationUnprovable,
+            read_set_digest: None,
+            read_set_count: None,
+            write_set_digest: None,
+            write_set_count: None,
+            detail: None,
+        }
+    }
+}
+
+pub(crate) fn operation_explanation_schema_version() -> u32 {
+    1
+}
+
+/// Exact-operation public/admin explanation request. Public transport resolves
+/// `auth` through the normal app-auth middleware; admin transport ignores the
+/// legacy body auth and requires the independent admin credential.
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OperationExplanationRequestV1 {
+    #[serde(default = "operation_explanation_schema_version")]
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    #[serde(default)]
+    pub auth: crate::manifest::AuthInput,
+    /// Public transport derives the opaque operation audience from this
+    /// server-issued client-store identity and the live authority
+    /// incarnation. Admin transport leaves it absent because AdminRead is an
+    /// independent policy boundary.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(
+        length(min = 1, max = REPLAY_OPAQUE_ID_MAX_BYTES),
+        pattern(REPLAY_OPAQUE_ID_PATTERN)
+    )]
+    pub client_audience_id: Option<String>,
+    pub identity: OperationIdentityV1,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub authority_descriptor: Option<crate::manifest::AuthorityDescriptor>,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OperationExplanationResponseV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub explanation: Option<OperationExplanationV1>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -596,6 +865,24 @@ mod tests {
             &shipped,
             "ordinaryMutation",
         )
+    }
+
+    #[test]
+    fn client_range_v1_legacy_shape_decodes_and_round_trips() {
+        let golden = serde_json::json!({
+            "kind": "clientRange",
+            "epoch_id": "epoch-legacy",
+            "counter": 7,
+            "range_start": 0,
+            "range_end_exclusive": 16,
+            "authority_authenticator_digest": sha('a'),
+        });
+        let decoded: OperationIssuanceV1 =
+            serde_json::from_value(golden.clone()).expect("decode pre-carrier v1 issuance");
+        assert_eq!(
+            serde_json::to_value(decoded).expect("encode pre-carrier v1 issuance"),
+            golden,
+        );
     }
 
     fn empty_facts() -> EnvelopeFactSetV1 {

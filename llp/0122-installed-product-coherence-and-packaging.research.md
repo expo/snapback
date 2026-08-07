@@ -5,7 +5,13 @@
 **Systems:** Developer experience, Packaging, Tooling, Client integration, Documentation, Competitive evaluation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-08-02 (decision-sitting propagation: Option 5 and OQ1 are
+**Revised:** 2026-08-06 (closure widens to ten at 0.1.10: sitting #4
+ruling 2 adds `@expo/snapback-expo` to the publishable staging closure —
+inventory/publish script/tests carry ten; the promotion vector stays nine
+until the close-out's first-publication handling, LLP 0041). 2026-08-06 (second fast-path release: the nine-package closure
+is live on npm `latest` at 0.1.9 from `7c16f6d0b8`, carrying the day's six
+agent-efficiency landings; receipts in LLP 0041 §Fast-path pre-consumer
+release). 2026-08-02 (decision-sitting propagation: Option 5 and OQ1 are
 answered in favor of LLP 0074's parallel npm gate, with LLP 0134's maturity
 bar governing the locally provable closure and hosted claims staying separately
 gated; source: `issues/20260802-author-decision-packet.md`). 2026-07-30 (v0.3, round-2 delta corrections — round-2 delta

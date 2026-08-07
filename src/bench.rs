@@ -13,9 +13,10 @@
 //!
 //! @ref LLP 0032#phase-4--measurement — M1.
 
+use std::path::Path;
 use std::time::{Duration, Instant};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::ephemeral::{AuthContext, EphemeralCollection, PublishRequest, Scope, SubscribeRequest};
@@ -82,7 +83,7 @@ impl BenchConfig {
 }
 
 /// Every named metric, each a number with its unit in the field name.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct BenchReport {
     pub iterations: usize,
     /// Per-invocation VM cost: create + eval of a trivial handler that touches
@@ -172,7 +173,7 @@ pub struct BenchReport {
 /// One fixed no-request observation for the step-0 idle guard. The dated
 /// baseline runner records eleven independent five-second observations after
 /// all active measurements finish.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IdleObservation {
     pub duration_ms: u64,
@@ -195,7 +196,7 @@ struct ProcessUsage {
 /// The three helper-splice module shapes the OQ1 measurement compares. Each
 /// variant computes the same civil-date result (the Streak Lab shape that
 /// motivated the mechanism); only the module's splice factoring differs.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct HelperSpliceBench {
     /// The logic inlined in the handler expression — zero-helper emission,
     /// byte-identical to the v1 module shape.
@@ -211,7 +212,7 @@ pub struct HelperSpliceBench {
 /// bytes), per-invocation latency distribution over individually timed fresh
 /// invocations, and the resident-memory delta across the timed loop (KiB via
 /// `ps -o rss`; ~0 expected because every invocation drops its VM).
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct HelperVariantBench {
     pub module_bytes: usize,
     pub invoke_p50_us: f64,
@@ -309,12 +310,40 @@ const HELPER_BENCH_EPOCH_MS: i64 = 1_785_456_000_000;
 
 /// Run the whole harness and return the report.
 pub fn run(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<BenchReport> {
+    run_with_active_covered_lane(config, false)
+}
+
+/// Run the fixed step-0 fixture with the ordinary mutation metric routed
+/// through authenticated client-range issuance and an active coverage
+/// manifest. The paired recorder is the only caller; this does not expose a
+/// runtime profile toggle.
+///
+/// @ref LLP 0162#measurement-gate — comparable candidate evidence exercises
+///   the active public covered lane.
+pub fn run_agent_safe_active_covered(
+    config: &BenchConfig,
+) -> crate::diagnostic::SnapbackResult<BenchReport> {
+    run_with_active_covered_lane(config, true)
+}
+
+fn run_with_active_covered_lane(
+    config: &BenchConfig,
+    active_covered_lane: bool,
+) -> crate::diagnostic::SnapbackResult<BenchReport> {
     let vm_cost_us = measure_vm_cost(config)?;
     let vm_create_us = crate::runtime::bench_runtime_create_us(config.iterations);
     let warm_invoke_us = measure_warm_invoke(config)?;
-    let single_writer = measure_single_writer(config)?;
+    let single_writer = if active_covered_lane {
+        measure_single_writer_active_covered(config)?
+    } else {
+        measure_single_writer(config)?
+    };
     let current_reads = measure_current_reads(config)?;
-    let write_bytes = measure_write_bytes()?;
+    let write_bytes = if active_covered_lane {
+        measure_write_bytes_active_covered()?
+    } else {
+        measure_write_bytes()?
+    };
     let (matcher_skip_us_per_sub, fanout_us_per_affected_sub) = measure_fanout(config)?;
     let fanout_delta_us_per_affected_sub = measure_fanout_delta_projection(config);
     let read_set_validation_us_per_dep = measure_read_set_validation(config)?;
@@ -373,6 +402,7 @@ fn schema() -> SchemaManifest {
     };
     SchemaManifest {
         schema_hash: Some("bench-v0".to_owned()),
+        inputs_hash: Some("bench-inputs-v0".to_owned()),
         tables: vec![
             TableManifest {
                 name: "todos".to_owned(),
@@ -393,6 +423,7 @@ fn schema() -> SchemaManifest {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             },
             TableManifest {
                 name: "others".to_owned(),
@@ -406,6 +437,7 @@ fn schema() -> SchemaManifest {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             },
         ],
         ..SchemaManifest::default()
@@ -462,6 +494,8 @@ fn functions() -> FunctionManifest {
         def
     };
     FunctionManifest {
+        bundle_hash: Some("bench-functions-v0".to_owned()),
+        inputs_hash: Some("bench-inputs-v0".to_owned()),
         functions: vec![
             noop,
             live_query("listTodos", "todos"),
@@ -479,6 +513,106 @@ pub(crate) fn configured() -> crate::diagnostic::SnapbackResult<LocalSnapback> {
     snapback.apply_schema(schema())?;
     snapback.load_functions(functions());
     Ok(snapback)
+}
+
+/// File-backed acceptance twin for the agent-safe active-lane byte and idle
+/// observations. Unlike the feature-gated telemetry fixture below, this is
+/// compiled only as a private input to the dated paired recorder.
+fn configured_file_agent_safe(
+    path: impl AsRef<std::path::Path>,
+) -> crate::diagnostic::SnapbackResult<LocalSnapback> {
+    let mut snapback = LocalSnapback::open(path)?;
+    snapback.apply_schema(schema())?;
+    snapback.load_functions(functions());
+    Ok(snapback)
+}
+
+fn open_configured_file_agent_safe(
+    path: impl AsRef<Path>,
+) -> crate::diagnostic::SnapbackResult<LocalSnapback> {
+    let mut snapback = LocalSnapback::open(path)?;
+    snapback.load_functions(functions());
+    Ok(snapback)
+}
+
+/// One real file-backed ordinary-mutation writer for the dated LLP 0162
+/// contention recorder. Construction installs a distinct server-issued range;
+/// every timed call runs the same issuance-bearing carrier as the paired
+/// active-lane fixture and returns only after its storage transaction commits.
+///
+/// @ref LLP 0162#measurement-gate — contention p99 measures the covered writer,
+///   not a raw SQL stand-in that bypasses envelope and write-authority costs.
+pub struct AgentSafeActiveContentionWriter {
+    snapback: LocalSnapback,
+    range: crate::commit_envelope::ClientIdentityRangeV1,
+    next_counter: u64,
+}
+
+/// Create the shared production-shaped database and return its server-owned
+/// canonical stream. Reservation admission and the writer transaction compare
+/// this exact durable identity; the recorder never substitutes `"canonical"`.
+pub fn prepare_agent_safe_active_contention_database(
+    path: impl AsRef<Path>,
+) -> crate::diagnostic::SnapbackResult<String> {
+    let mut snapback = configured_file_agent_safe(path)?;
+    let (stream_id, _) = snapback.prepare_agent_safe_active_lane_benchmark_for_client(
+        &args(json!({ "title": "contention setup" })),
+        "agent-safe-contention-setup",
+    )?;
+    Ok(stream_id)
+}
+
+impl AgentSafeActiveContentionWriter {
+    pub fn open(
+        path: impl AsRef<Path>,
+        worker: usize,
+        expected_stream_id: &str,
+    ) -> crate::diagnostic::SnapbackResult<Self> {
+        let mut snapback = open_configured_file_agent_safe(path)?;
+        let client_audience_id = format!("agent-safe-contention-worker-{worker}");
+        let (stream_id, range) = snapback.prepare_agent_safe_active_lane_benchmark_for_client(
+            &args(json!({ "title": "contention writer setup" })),
+            &client_audience_id,
+        )?;
+        if stream_id != expected_stream_id {
+            return Err(crate::diagnostic::SnapbackError::error(
+                "SNAPBACK_BENCH_STREAM_DIVERGED",
+                "bench",
+                "concurrent ordinary writer reopened on a different canonical stream",
+            ));
+        }
+        let next_counter = range.range_start;
+        Ok(Self {
+            snapback,
+            range,
+            next_counter,
+        })
+    }
+
+    pub fn commit_next(
+        &mut self,
+        worker: usize,
+        ordinal: usize,
+    ) -> crate::diagnostic::SnapbackResult<()> {
+        let counter = self.next_counter;
+        self.snapback
+            .invoke_agent_safe_active_lane_benchmark_mutation(
+                "createTodo",
+                args(json!({
+                    "title": format!("contention-{worker}-{ordinal}")
+                })),
+                &self.range,
+                counter,
+            )?;
+        self.next_counter = self.next_counter.checked_add(1).ok_or_else(|| {
+            crate::diagnostic::SnapbackError::error(
+                "SNAPBACK_BENCH_RANGE_EXHAUSTED",
+                "bench",
+                "contention benchmark counter overflowed",
+            )
+        })?;
+        Ok(())
+    }
 }
 
 /// File-backed twin used only by the internal telemetry evidence harness.
@@ -575,6 +709,47 @@ fn measure_single_writer(
         let start = Instant::now();
         snapback.invoke_mutation("createTodo", args(json!({ "title": n.to_string() })))?;
         samples.push(start.elapsed().as_secs_f64() * 1_000_000.0);
+    }
+    let elapsed_us = samples.iter().sum::<f64>();
+    samples.sort_by(|left, right| left.total_cmp(right));
+    Ok(SingleWriterBench {
+        mutations_per_sec: if elapsed_us > 0.0 {
+            config.iterations as f64 * 1_000_000.0 / elapsed_us
+        } else {
+            f64::INFINITY
+        },
+        p50_us: percentile_sorted(&samples, 0.50),
+        p95_us: percentile_sorted(&samples, 0.95),
+    })
+}
+
+fn measure_single_writer_active_covered(
+    config: &BenchConfig,
+) -> crate::diagnostic::SnapbackResult<SingleWriterBench> {
+    let mut snapback = configured()?;
+    let input = args(json!({ "title": "warm" }));
+    let range = snapback.prepare_agent_safe_active_lane_benchmark(&input)?;
+    let mut counter = range.range_start;
+    for _ in 0..4 {
+        snapback.invoke_agent_safe_active_lane_benchmark_mutation(
+            "createTodo",
+            input.clone(),
+            &range,
+            counter,
+        )?;
+        counter += 1;
+    }
+    let mut samples = Vec::with_capacity(config.iterations);
+    for n in 0..config.iterations {
+        let started = Instant::now();
+        snapback.invoke_agent_safe_active_lane_benchmark_mutation(
+            "createTodo",
+            args(json!({ "title": n.to_string() })),
+            &range,
+            counter,
+        )?;
+        samples.push(started.elapsed().as_secs_f64() * 1_000_000.0);
+        counter += 1;
     }
     let elapsed_us = samples.iter().sum::<f64>();
     samples.sort_by(|left, right| left.total_cmp(right));
@@ -688,6 +863,36 @@ fn measure_write_bytes() -> crate::diagnostic::SnapbackResult<WriteBytesBench> {
     result
 }
 
+fn measure_write_bytes_active_covered() -> crate::diagnostic::SnapbackResult<WriteBytesBench> {
+    let directory = std::env::temp_dir().join(format!(
+        "snapback-agent-safe-active-write-{}",
+        uuid::Uuid::now_v7()
+    ));
+    std::fs::create_dir(&directory).map_err(bench_io_error)?;
+    let path = directory.join("fixture.sqlite3");
+    let result = (|| {
+        let mut snapback = configured_file_agent_safe(&path)?;
+        let input = args(json!({ "title": "agent-safe active write amplification" }));
+        let range = snapback.prepare_agent_safe_active_lane_benchmark(&input)?;
+        let before = file_family_bytes(&path)?;
+        snapback.invoke_agent_safe_active_lane_benchmark_mutation(
+            "createTodo",
+            input,
+            &range,
+            range.range_start,
+        )?;
+        let during = file_family_bytes(&path)?;
+        drop(snapback);
+        let after = file_family_bytes(&path)?;
+        Ok(WriteBytesBench {
+            allocated: during.saturating_sub(before),
+            retained: after.saturating_sub(before),
+        })
+    })();
+    let _ = std::fs::remove_dir_all(&directory);
+    result
+}
+
 fn file_family_bytes(path: &std::path::Path) -> crate::diagnostic::SnapbackResult<u64> {
     let mut total = std::fs::metadata(path)
         .map(|metadata| metadata.len())
@@ -719,6 +924,58 @@ pub fn measure_idle(duration: Duration) -> crate::diagnostic::SnapbackResult<Idl
         let usage_after = process_usage()?;
         let resident_kb_after = resident_kb();
         let database_family_bytes_after = file_family_bytes(&path)?;
+        drop(database);
+        Ok(IdleObservation {
+            duration_ms: duration.as_millis().try_into().unwrap_or(u64::MAX),
+            cpu_user_us: usage_after.user_us.saturating_sub(usage_before.user_us),
+            cpu_system_us: usage_after.system_us.saturating_sub(usage_before.system_us),
+            output_block_operations: usage_after
+                .output_blocks
+                .saturating_sub(usage_before.output_blocks),
+            resident_kb_before,
+            resident_kb_after,
+            database_family_bytes_before,
+            database_family_bytes_after,
+        })
+    })();
+    let _ = std::fs::remove_dir_all(&directory);
+    result
+}
+
+/// Observe an otherwise-idle file-backed instance after the agent-safe public
+/// carrier has installed real ordinary-mutation coverage and a server-issued
+/// finite client range. The range and coverage state stay live for the entire
+/// interval; setup work is outside the observation window.
+///
+/// @ref LLP 0162#measurement-gate — idle evidence must measure the active
+///   profile, not a dormant manifest or a runtime profile toggle.
+pub fn measure_idle_agent_safe_active_covered(
+    duration: Duration,
+) -> crate::diagnostic::SnapbackResult<IdleObservation> {
+    let directory = std::env::temp_dir().join(format!(
+        "snapback-agent-safe-active-idle-{}",
+        uuid::Uuid::now_v7()
+    ));
+    std::fs::create_dir(&directory).map_err(bench_io_error)?;
+    let path = directory.join("fixture.sqlite3");
+    let result = (|| {
+        let mut snapback = configured_file_agent_safe(&path)?;
+        let input = args(json!({ "title": "agent-safe active idle fixture" }));
+        let range = snapback.prepare_agent_safe_active_lane_benchmark(&input)?;
+        // Range issuance and coverage activation above are the production
+        // setup being qualified. Consume the carrier before sampling so its
+        // asynchronous telemetry flush cannot leak setup CPU/RSS into the
+        // otherwise-idle storage interval. The returned connection remains
+        // armed with the exact durable coverage manifest.
+        let database = snapback.into_agent_safe_active_idle_database();
+        let database_family_bytes_before = file_family_bytes(&path)?;
+        let resident_kb_before = resident_kb();
+        let usage_before = process_usage()?;
+        std::thread::sleep(duration);
+        let usage_after = process_usage()?;
+        let resident_kb_after = resident_kb();
+        let database_family_bytes_after = file_family_bytes(&path)?;
+        std::hint::black_box((&database, &range));
         drop(database);
         Ok(IdleObservation {
             duration_ms: duration.as_millis().try_into().unwrap_or(u64::MAX),
@@ -1503,6 +1760,20 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn agent_safe_active_covered_worker_exercises_issuance_bearing_commits() {
+        let report = run_agent_safe_active_covered(&BenchConfig::smoke())
+            .expect("active covered acceptance worker");
+        assert!(report.single_writer_mutations_per_sec > 0.0);
+        assert!(report.single_writer_mutation_p50_us > 0.0);
+        assert!(report.single_writer_mutation_p95_us > 0.0);
+        assert!(report.allocated_write_bytes_per_operation > 0);
+        let idle = measure_idle_agent_safe_active_covered(Duration::from_millis(5))
+            .expect("active covered idle acceptance worker");
+        assert_eq!(idle.duration_ms, 5);
+        assert!(idle.resident_kb_before > 0.0);
     }
 
     fn run_and_check_smoke() -> Result<(), String> {

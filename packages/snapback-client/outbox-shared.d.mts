@@ -1,6 +1,7 @@
 export declare const OUTBOX_MAX_RECORDS: 1024;
 export declare const OUTBOX_MAX_RECORD_BYTES: 262144;
 export declare const OUTBOX_MAX_PENDING_ACKS: 4096;
+export declare const OUTBOX_QUARANTINE_TOMBSTONE_FORMAT: 'snapback.outbox-quarantine-tombstone.v1';
 
 export interface OutboxError extends Error {
   readonly code: string;
@@ -29,6 +30,27 @@ export interface OutboxRecordInput {
 
 export interface StoredOutboxRecord extends OutboxRecordInput {
   readonly sequence: number;
+  readonly status: 'pending' | 'settled' | 'failed' | 'result-gone' | 'quarantined';
+}
+
+export interface OutboxQuarantineTombstone {
+  readonly format: typeof OUTBOX_QUARANTINE_TOMBSTONE_FORMAT;
+  readonly status: 'quarantined';
+  readonly id: string;
+  readonly clientMutationId: string;
+  readonly function: string;
+  readonly sequence: number;
+  readonly quarantinedAt: number;
+  readonly refusalCode: string;
+  readonly quarantineDisposition:
+    | 'upgrade-required-refusal'
+    | 'dependent'
+    | 'compatibility-unclassified';
+  readonly causeClientMutationId: string;
+  readonly provenance: Readonly<{
+    source: 'server-replay-refusal';
+    payload: 'redacted';
+  }>;
 }
 
 export declare function normalizeOutboxRecordInput(
@@ -46,6 +68,10 @@ export interface OutboxState {
   sequence: number;
   records: Record<string, StoredOutboxRecord>;
   acks: string[];
+  operationIdentityRanges: Record<string, Readonly<{
+    range: Record<string, unknown>;
+    nextCounter: number;
+  }>>;
 }
 
 export declare const emptyOutboxState: () => OutboxState;
@@ -61,9 +87,13 @@ export declare const pendingOutboxRecords: (
   state: OutboxState
 ) => StoredOutboxRecord[];
 
-export declare const allOutboxRecords: (
+export declare const unresolvedOutboxRecords: (
   state: OutboxState
 ) => StoredOutboxRecord[];
+
+export declare const allOutboxRecords: (
+  state: OutboxState
+) => Array<StoredOutboxRecord | OutboxQuarantineTombstone>;
 
 export declare const pendingAcknowledgementsFor: (
   state: OutboxState,

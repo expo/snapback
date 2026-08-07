@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/snapback-expo/membershipsForUser.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "userId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "userId"
+  ],
+  "title": "snapback-expo:membershipsForUser arguments",
+  "type": "object"
+}
