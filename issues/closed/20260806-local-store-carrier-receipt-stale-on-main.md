@@ -52,3 +52,13 @@ While this is stale, any push touching the carrier's pinned sources is refused
 by the pre-push hook. That is correct behaviour, but it means this should be
 cleared promptly. The loud bypass exists for pre-existing drift of this kind
 and the main-side backstop will keep it visible.
+
+## Resolution (2026-08-07)
+
+No longer reproduces. `node tests/acceptance/local-store-carrier-exit-v1.mjs
+--check` reports `17 PASS / 0 GAP / 0 SKIPPED` at `origin/main` (run by the
+pre-push fast core on the LLP 0175 gate-economics landing, `1cc3739c1`) and the
+first scheduled complete backstop run reports `PASS local-store-carrier-receipt`
+at `d0fa8125d`. The carrier was reconciled by a fleet landing after this ticket
+was filed. Closing; the two-hour `com.snapback.drift-backstop` schedule re-arms
+detection and will file a fresh gate-keyed ticket on recurrence.

@@ -50,3 +50,15 @@ node scripts/client-bundle-metrology.mjs --write-rollover-baseline
 
 Commit the reconciled record with the measured change, verify the gate, record
 the resolution here, and move this ticket to `issues/closed/`.
+
+## Resolution (2026-08-07)
+
+No longer reproduces. `node scripts/client-bundle-metrology.mjs --check` passes
+under the pinned Node 24.18.0 at `5ef7950c3`-era `origin/main` (manual run) and
+the first scheduled complete backstop run (`com.snapback.drift-backstop`)
+reports `PASS client-bundle-metrology` at `d0fa8125d`. The record was
+reconciled by a fleet landing after the detection at `fb505c1c`; note the
+detection environment predates the pre-push hook's Node pin, so a toolchain
+mismatch (see issues/closed/20260806-drift-hook-inherits-pusher-toolchain.md)
+may have contributed. Closing; the two-hour scheduled backstop re-arms
+detection.
