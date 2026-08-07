@@ -228,8 +228,7 @@ pub fn ensure_expected_app(app_root: &Path, app_id: &str) -> SnapbackResult<Expe
             let directory = path.parent().expect("app identity has a parent");
             fs::create_dir_all(directory)
                 .map_err(|error| io_error("create app-root identity directory", error))?;
-            write_json_sync(&path, &expected)?;
-            sync_directory(directory)?;
+            install_app_root_identity_sync(&path, &expected)?;
         }
         Err(error) => return Err(io_error("read app-root identity", error)),
     }
@@ -1386,6 +1385,91 @@ fn write_json_sync(path: &Path, value: &impl Serialize) -> SnapbackResult<()> {
         )
     })?;
     replace_bytes_sync(path, &bytes)
+}
+
+/// Install the immutable app-root identity exactly once. A synced temporary
+/// is hard-linked into the final same-directory name so two first writers
+/// cannot both publish different identities successfully; the loser reads and
+/// compares the winning complete bytes instead.
+///
+/// @ref LLP 0158#automation-facing-artifact-inventory-f0b-v1-frozen-2026-08-05
+///   — app-root identity is lifecycle authority, so its first publication is
+///   compare-and-publish rather than replaceable evidence.
+fn install_app_root_identity_sync(path: &Path, expected: &AppRootIdentityV1) -> SnapbackResult<()> {
+    let bytes = serde_json::to_vec(expected).map_err(|error| {
+        fork_error(
+            APP_BINDING_REQUIRED_CODE,
+            format!("app-root identity could not be encoded: {error}"),
+        )
+    })?;
+    let directory = path.parent().unwrap_or_else(|| Path::new("."));
+    let name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| {
+            fork_error(
+                "SNAPBACK_FORK_PATH_INVALID",
+                "app-root identity path needs a UTF-8 file name",
+            )
+        })?;
+    let temporary = directory.join(format!(".{name}.install-{}", Uuid::now_v7()));
+    let result = (|| -> SnapbackResult<()> {
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temporary)
+            .map_err(|error| io_error("create app-root identity temporary", error))?;
+        file.write_all(&bytes)
+            .map_err(|error| io_error("write app-root identity temporary", error))?;
+        file.sync_all()
+            .map_err(|error| io_error("sync app-root identity temporary", error))?;
+        run_json_before_rename_hook(&temporary, path);
+        match fs::hard_link(&temporary, path) {
+            Ok(()) => {
+                fs::remove_file(&temporary)
+                    .map_err(|error| io_error("unlink app-root identity temporary", error))?;
+                sync_directory(directory)
+            }
+            Err(error) if error.kind() == ErrorKind::AlreadyExists => {
+                let comparison = match fs::read(path) {
+                    Ok(winner) => match serde_json::from_slice::<AppRootIdentityV1>(&winner) {
+                        Ok(recorded) if recorded == *expected => Ok(()),
+                        Ok(_) => Err(fork_error(
+                            APP_BINDING_MISMATCH_CODE,
+                            "invoking app root was concurrently bound to a different canonical root or logical app id",
+                        )
+                        .with_details(json!({
+                            "expectedAppRoot": expected.canonical_app_root,
+                            "expectedAppId": expected.app_id,
+                        }))),
+                        Err(error) => Err(fork_error(
+                            APP_BINDING_MISMATCH_CODE,
+                            format!("winning app-root identity is malformed: {error}"),
+                        )),
+                    },
+                    Err(error) => Err(io_error("read winning app-root identity", error)),
+                };
+                let cleanup = fs::remove_file(&temporary)
+                    .map_err(|error| io_error("unlink losing app-root identity temporary", error))
+                    .and_then(|()| sync_directory(directory));
+                match comparison {
+                    Err(error) => {
+                        // A conflicting writer must receive the identity
+                        // refusal even if best-effort loser cleanup also
+                        // encounters an I/O failure.
+                        let _ = cleanup;
+                        Err(error)
+                    }
+                    Ok(()) => cleanup,
+                }
+            }
+            Err(error) => Err(io_error("install app-root identity", error)),
+        }
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary);
+    }
+    result
 }
 
 /// Replace one already-published JSON carrier without exposing truncated
@@ -5190,6 +5274,132 @@ mod tests {
         assert_eq!(
             recorded.canonical_app_root,
             canonical_app_root.display().to_string()
+        );
+    }
+
+    #[test]
+    fn concurrent_same_id_first_writers_compare_and_publish_one_identity() {
+        let directory = tempfile::tempdir().unwrap();
+        let app_root = directory.path().join("app");
+        fs::create_dir(&app_root).unwrap();
+        let install_barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+
+        let outcomes = std::thread::scope(|scope| {
+            let handles = (0..2)
+                .map(|_| {
+                    let app_root = app_root.clone();
+                    let install_barrier = install_barrier.clone();
+                    scope.spawn(move || {
+                        install_json_before_rename_hook(move |_temporary, _published| {
+                            install_barrier.wait();
+                        });
+                        ensure_expected_app(&app_root, "app-a")
+                    })
+                })
+                .collect::<Vec<_>>();
+            handles
+                .into_iter()
+                .map(|handle| handle.join().unwrap())
+                .collect::<Vec<_>>()
+        });
+
+        assert!(outcomes.into_iter().all(|outcome| outcome.is_ok()));
+        let identity_directory = app_root.join(".snapback");
+        let mut files = fs::read_dir(&identity_directory)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name())
+            .collect::<Vec<_>>();
+        files.sort();
+        assert_eq!(files, [std::ffi::OsString::from(APP_ROOT_IDENTITY_FILE)]);
+        let recorded: AppRootIdentityV1 = serde_json::from_slice(
+            &fs::read(identity_directory.join(APP_ROOT_IDENTITY_FILE)).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(recorded.app_id, "app-a");
+    }
+
+    #[test]
+    fn conflicting_first_writers_accept_one_identity_before_mint_or_launch() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let app_root = directory.path().join("app");
+        fs::create_dir(&app_root).unwrap();
+        let install_barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+        let mint_attempts = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let launch_attempts = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+
+        let outcomes = std::thread::scope(|scope| {
+            let handles = ["app-a", "app-b"]
+                .into_iter()
+                .map(|app_id| {
+                    let app_root = app_root.clone();
+                    let source = source.clone();
+                    let destination = directory.path().join(format!("fork-{app_id}"));
+                    let install_barrier = install_barrier.clone();
+                    let mint_attempts = mint_attempts.clone();
+                    let launch_attempts = launch_attempts.clone();
+                    scope.spawn(move || -> SnapbackResult<String> {
+                        install_json_before_rename_hook(move |_temporary, _published| {
+                            install_barrier.wait();
+                        });
+                        let expected = ensure_expected_app(&app_root, app_id)?;
+                        mint_attempts.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                        publish_managed(
+                            &source,
+                            &destination,
+                            &expected,
+                            "parent",
+                            100,
+                            200_000,
+                            false,
+                        )?;
+                        // This is the exact production ordering boundary: CLI
+                        // launch follows a successful mint, so a refusal above
+                        // cannot reach either counter.
+                        launch_attempts.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                        Ok(app_id.to_owned())
+                    })
+                })
+                .collect::<Vec<_>>();
+            handles
+                .into_iter()
+                .map(|handle| handle.join().unwrap())
+                .collect::<Vec<_>>()
+        });
+
+        let accepted = outcomes
+            .iter()
+            .filter_map(|outcome| outcome.as_ref().ok())
+            .collect::<Vec<_>>();
+        assert_eq!(accepted.len(), 1);
+        let refusal = outcomes
+            .iter()
+            .find_map(|outcome| outcome.as_ref().err())
+            .expect("the losing first writer refuses");
+        assert_eq!(refusal.diagnostic.code, APP_BINDING_MISMATCH_CODE);
+        assert_eq!(mint_attempts.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert_eq!(launch_attempts.load(std::sync::atomic::Ordering::SeqCst), 1);
+
+        let identity = app_root.join(".snapback").join(APP_ROOT_IDENTITY_FILE);
+        let recorded: AppRootIdentityV1 =
+            serde_json::from_slice(&fs::read(identity).unwrap()).unwrap();
+        assert_eq!(recorded.app_id, accepted[0].as_str());
+        assert!(
+            directory
+                .path()
+                .join(format!("fork-{}", accepted[0]))
+                .is_dir()
+        );
+        assert!(
+            !directory
+                .path()
+                .join(format!(
+                    "fork-{}",
+                    refusal.diagnostic.details["expectedAppId"]
+                        .as_str()
+                        .unwrap()
+                ))
+                .exists()
         );
     }
 
