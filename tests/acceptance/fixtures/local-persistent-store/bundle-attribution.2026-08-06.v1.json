@@ -2,7 +2,7 @@
   "schemaVersion": "snapback.local-persistent-store.bundle-attribution.v1",
   "date": "2026-08-06",
   "source": {
-    "revision": "938db9b45a47a89bf59d4101fefcd9e9f430328d",
+    "revision": "ce7e3308a2cf28b4b2a724743ee3d0abebd1bdcf",
     "dirty": false,
     "dirtyPaths": [],
     "files": [
@@ -80,7 +80,7 @@
       },
       {
         "path": "demos/_kit/chrome-process.mjs",
-        "sha256": "b0fddcdb0a10d9ca50b0078e2b216aeb54f89a9a5d07a763c28298ca6af164ca"
+        "sha256": "d1fed55986b71878cced2f21316ca2a5022f19ac0ac47e337e49fdba1abded9d"
       },
       {
         "path": "demos/triage-graph/demo.snapback.json",
