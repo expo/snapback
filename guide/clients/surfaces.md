@@ -10,8 +10,8 @@ status: current
 targets: [local]
 maturity: partial
 since: 0.1.11
-reviewed: 2026-08-06
-reviewed-commit: cf47cc3b75172cec3ac6c44428ce40db48d81465
+reviewed: 2026-08-07
+reviewed-commit: 71dde5e667d2a13c42491cef8eb2895326583c33
 ---
 
 # Application surfaces

@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "06a62a02601a720c83072f4fe4f4c5eff296542c"
+    "commit": "06843fc87f76f667af55742da904545aff384d73"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -1966,9 +1966,9 @@
         "demos/expo-golden-path-fixture/tests/g2-falsification.mjs",
         "demos/expo-golden-path-fixture/tests/g3-command.mjs"
       ],
-      "reviewed": "2026-08-06",
-      "reviewedCommit": "cf47cc3b75172cec3ac6c44428ce40db48d81465",
-      "sha256": "9d2bf4ae67a75dda5cd1e8130da7e44774ba040765f99d4f6614bf59e3a5c168",
+      "reviewed": "2026-08-07",
+      "reviewedCommit": "71dde5e667d2a13c42491cef8eb2895326583c33",
+      "sha256": "8d6e6c8b171540c88585a237ee8eff71cff4395ce281bbf1e789ad5605112b0d",
       "snippets": [
         {
           "lang": "js",
@@ -3606,5 +3606,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "0b3ad0dc229b3567feb3d33ef86aaf16ef60901f061558523c76615f9b6e867c"
+  "contentHash": "87ff0ee72c0950976c50139e5832c5cd244dd5736b8ba7689b8b53f41f69c5d6"
 }
