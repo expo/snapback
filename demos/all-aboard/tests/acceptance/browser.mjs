@@ -29,7 +29,10 @@ import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { launchChromeCdp } from '../../../_kit/chrome-process.mjs';
+import {
+  launchChromeCdp,
+  retryChromeResourceExhaustion,
+} from '../../../_kit/chrome-process.mjs';
 import { SnapbackClient } from '../../../_kit/client.mjs';
 import { createSuite, runAcceptance } from '../../../_kit/harness.mjs';
 import {
@@ -159,6 +162,7 @@ async function launchIsolatedPage(userDataPrefix) {
     chromeBin,
     userDataPrefix,
     env: unprivilegedChildEnv(),
+    extraArgs: process.platform === 'linux' ? ['--disable-dev-shm-usage'] : [],
   });
   let connection = null;
   let isolatedPage = null;
@@ -471,9 +475,10 @@ async function main() {
       // Keep the product invariant honest — two simultaneous app windows on
       // the same backend, with the first still live — by giving the second
       // real window its own browser process and resource pool.
-      const isolated = await launchIsolatedPage('aa-browser-second-');
-      const page2 = isolated.page;
-      try {
+      return retryChromeResourceExhaustion(async () => {
+        const isolated = await launchIsolatedPage('aa-browser-second-');
+        const page2 = isolated.page;
+        try {
         // Contract commits are frame-driven. Chrome throttles background tabs,
         // so make the window under test foreground before asking it to boot.
         await page2.activate();
@@ -522,10 +527,11 @@ async function main() {
         const conns = await page.eval('window.allAboard.connections()');
         if (conns.liveTrainStatus !== 'live') throw new Error(`first window degraded: ${JSON.stringify(conns)}`);
         return { second, firstStillLive: conns };
-      } finally {
-        await isolated.close();
-        await page.activate();
-      }
+        } finally {
+          await isolated.close();
+          await page.activate();
+        }
+      });
     });
 
     // Exact LLP 0336 P1: the shared Contract recognizer owns both contiguous
@@ -994,9 +1000,10 @@ async function main() {
       // Use a foreground-only isolated browser for this independent cold open.
       // It avoids both hidden-tab scheduling and stale diagnostics/resources
       // accumulated by the long interactive primary session.
-      const isolated = await launchIsolatedPage('aa-browser-offline-');
-      const offlinePage = isolated.page;
-      try {
+      return retryChromeResourceExhaustion(async () => {
+        const isolated = await launchIsolatedPage('aa-browser-offline-');
+        const offlinePage = isolated.page;
+        try {
         await offlinePage.blockUrls(`${apiUrl}/*`);
         await offlinePage.navigate(`${viteUrl}/?appearance=light`);
         try {
@@ -1022,9 +1029,10 @@ async function main() {
         );
         if (bootChromeVisible) throw new Error('blocking boot chrome shown instead of the board');
         return { stationName, heroMinutes, badge, note };
-      } finally {
-        await isolated.close();
-      }
+        } finally {
+          await isolated.close();
+        }
+      });
     });
   }, { cleanups });
 }
