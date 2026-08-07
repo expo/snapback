@@ -498,6 +498,10 @@ run all-aboard-startup-timing --requires current-binary-readiness -- node demos/
 # gate above.
 run file-drop-install --requires demo-materialization -- bun install --frozen-lockfile --cwd demos/file-drop
 run file-drop-typecheck --requires file-drop-install -- bun run --cwd demos/file-drop typecheck
+# issues/20260807-expo-chat-template-cold-install-coverage.md item 2: keep the
+# golden-path template strict against its exact Expo dependency set.
+run expo-chat-template-install --requires package-test-inventory -- bun install --frozen-lockfile --cwd tests/expo-chat-template-typecheck
+run expo-chat-template-typecheck --requires expo-chat-template-install -- node scripts/check-expo-chat-template-typecheck.mjs
 run file-drop-browser-relay --requires current-binary-readiness,browser-availability,file-drop-typecheck -- node demos/file-drop/tests/acceptance/browser-relay.mjs
 run auth-handshake -- node demos/_kit/tests/auth-handshake.mjs
 run agent-authority-custody -- node demos/_kit/tests/agent-authority-custody.mjs

@@ -2231,6 +2231,16 @@ const runtimePackages = new Map([
 const hostPlatform = `${process.platform}-${process.arch}`;
 const hostRuntime = runtimePackages.get(hostPlatform);
 if (!hostRuntime) fail(`cold-install proof has no runtime package for ${hostPlatform}`);
+const hasExpoPackage = generation.expo !== undefined
+  && Boolean(ledger.packages?.some((entry) => entry.sourceName === generation.expo));
+const hasCreateSnapbackAppPackage = generation.createSnapbackApp !== undefined
+  && Boolean(ledger.packages?.some(
+    (entry) => entry.sourceName === generation.createSnapbackApp,
+  ));
+// The Expo package selects the applicable terminal-name generation; the new
+// creator row distinguishes post-change ledgers from the published 0.1.11
+// identity closure, whose CLI predates this scaffold proof.
+const proveExpoChatScaffold = hasExpoPackage && hasCreateSnapbackAppPackage;
 const allExpectedPackages = [
   ...runtimePackages.values(),
   generation.contract,
@@ -2238,8 +2248,10 @@ const allExpectedPackages = [
   generation.codegen,
   generation.vite,
   generation.react,
+  ...(hasExpoPackage ? [generation.expo] : []),
   generation.appCli,
   generation.cli,
+  ...(hasCreateSnapbackAppPackage ? [generation.createSnapbackApp] : []),
 ];
 let publicEntries = null;
 if (installSource === 'public') {
@@ -2283,8 +2295,10 @@ const expectedPackages = [
   generation.codegen,
   generation.vite,
   generation.react,
+  ...(hasExpoPackage ? [generation.expo] : []),
   generation.appCli,
   generation.cli,
+  ...(hasCreateSnapbackAppPackage ? [generation.createSnapbackApp] : []),
 ];
 for (const name of expectedPackages) {
   if (!exactDependencies[name]) fail(`publication closure omits ${name}`);
@@ -2292,6 +2306,12 @@ for (const name of expectedPackages) {
 
 const temporary = mkdtempSync(join(tmpdir(), 'snapback-package-cold-'));
 const registryTarballs = [];
+const packedArtifactPaths = new Map();
+if (installSource === 'staged') {
+  for (const entry of ledger.packages ?? []) {
+    packedArtifactPaths.set(entry.sourceName, join(ledgerDirectory, entry.tarball));
+  }
+}
 if (installSource === 'public') {
   const downloadRoot = join(temporary, 'registry-tarballs');
   const exactDownloadCache = join(temporary, 'npm-cache-exact-downloads');
@@ -2322,6 +2342,7 @@ if (installSource === 'public') {
       version: entry.version,
       sha256: entry.registrySha256,
     });
+    packedArtifactPaths.set(sourceName, downloaded);
   }
 }
 const stagedRegistry = installSource === 'staged'
@@ -2765,7 +2786,10 @@ await build({
   // @ref LLP 0114#exact-executable-gate — the React release proof installs
   // materialized package tarballs in fresh web and Expo projects. Repository
   // workspaces and source-tree resolution cannot satisfy this gate.
-  const installPackedFixture = async (fixtureRoot, { realBrowser = false } = {}) => {
+  const installPackedFixture = async (
+    fixtureRoot,
+    { realBrowser = false, timeout = 360_000 } = {},
+  ) => {
     const manifestPath = join(fixtureRoot, 'package.json');
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
     for (const name of Object.keys(manifest.dependencies ?? {})) {
@@ -2790,7 +2814,7 @@ await build({
       ...tarballs,
     ], {
       cwd: fixtureRoot,
-      timeout: 360_000,
+      timeout,
     });
     const fixtureSnapbackPackages = [
       generation.client,
@@ -2885,6 +2909,100 @@ await build({
   );
   run('npm', ['run', 'typecheck'], { cwd: expoFixtureRoot });
   run('npm', ['run', 'export:ios'], { cwd: expoFixtureRoot, timeout: 240_000 });
+
+  // @ref LLP 0186#w2--context-injection-surface-owned-here — exercise the
+  // golden-path scaffold through packed artifacts, including its generated
+  // LLP 0179 conversation surface and live starter acceptance.
+  const provePackedExpoChatScaffold = async (chatRoot, label) => {
+    await installPackedFixture(chatRoot, { timeout: 600_000 });
+    run(
+      join(chatRoot, 'node_modules', '.bin', 'snapback'),
+      ['generate', 'snapback', '--json'],
+      { cwd: chatRoot, env: { ...process.env, npm_config_offline: 'true' } },
+    );
+    run('npm', ['run', 'typecheck'], { cwd: chatRoot });
+    run('npm', ['run', 'test:static'], { cwd: chatRoot });
+    assertStarterAcceptanceReceipt(
+      run('npm', ['test'], { cwd: chatRoot, timeout: 180_000 }),
+      `${label} default test`,
+    );
+    const appSource = readFileSync(join(chatRoot, 'App.tsx'), 'utf8');
+    const chatScreenSource = readFileSync(
+      join(chatRoot, 'src', 'screens', 'chat-screen.tsx'),
+      'utf8',
+    );
+    const generatedApiSource = readFileSync(
+      join(chatRoot, 'snapback', 'generated', 'api.mjs'),
+      'utf8',
+    );
+    if (
+      !appSource.includes('SnapbackExpoProvider')
+      || !chatScreenSource.includes('useSurface(')
+      || !generatedApiSource.includes('conversation')
+    ) {
+      fail(`${label} omitted the Expo provider, surface consumer, or generated conversation surface`);
+    }
+  };
+
+  if (proveExpoChatScaffold) {
+    const chatScaffoldRoot = join(appRoot, 'expo-chat');
+    run(
+      developerCli,
+      ['new', chatScaffoldRoot, '--template', 'expo-chat', '--json'],
+      { cwd: appRoot },
+    );
+    await provePackedExpoChatScaffold(chatScaffoldRoot, 'expo-chat');
+  }
+
+  if (hasCreateSnapbackAppPackage) {
+    const createConsumerRoot = join(temporary, 'create-consumer');
+    const createScaffoldRoot = join(createConsumerRoot, 'expo-chat');
+    mkdirSync(createConsumerRoot, { recursive: true });
+    writeFileSync(join(createConsumerRoot, 'package.json'), `${JSON.stringify({
+      name: 'create-snapback-app-clean-consumer',
+      version: '1.0.0',
+      private: true,
+    }, null, 2)}\n`);
+    writeFileSync(
+      join(createConsumerRoot, '.npmrc'),
+      `registry=${PUBLIC_NPM_REGISTRY}\n${generation.publishedScope}:registry=${installRegistry}\n`,
+    );
+    const createTarball = packedArtifactPaths.get(generation.createSnapbackApp);
+    if (!createTarball || !existsSync(createTarball)) {
+      fail('create-snapback-app packed artifact is unavailable');
+    }
+    await runAsyncOrFail('npm', [
+      'install',
+      '--no-audit',
+      '--no-fund',
+      '--registry', PUBLIC_NPM_REGISTRY,
+      createTarball,
+    ], { cwd: createConsumerRoot, timeout: 360_000 });
+    const installedCreatePackage = join(
+      createConsumerRoot,
+      'node_modules',
+      generation.createSnapbackApp,
+    );
+    if (
+      !existsSync(installedCreatePackage)
+      || lstatSync(installedCreatePackage).isSymbolicLink()
+    ) {
+      fail('create-snapback-app is not a materialized tarball install');
+    }
+    const resolvedCreatePackage = realpathSync(installedCreatePackage);
+    if (
+      resolvedCreatePackage.startsWith(join(root, 'packages'))
+      || resolvedCreatePackage.startsWith(join(sourceRoot, 'packages'))
+    ) {
+      fail('create-snapback-app resolved back into the repository source tree');
+    }
+    run(
+      join(createConsumerRoot, 'node_modules', '.bin', 'create-snapback-app'),
+      [createScaffoldRoot, '--json'],
+      { cwd: createConsumerRoot },
+    );
+    await provePackedExpoChatScaffold(createScaffoldRoot, 'create-snapback-app expo-chat');
+  }
 
   run(process.execPath, ['bundle.mjs'], { cwd: appRoot });
   const browserBundle = readFileSync(join(appRoot, 'dist', 'browser-entry.js'), 'utf8');
@@ -2996,6 +3114,8 @@ await build({
       packedReactRealBrowserSeedLiveReload: true,
       browserPrivateSurfaceAbsence: true,
       packedReactExpoTypecheckAndIosExport: true,
+      packedExpoChatScaffoldTypecheckStaticAndLiveAcceptance: proveExpoChatScaffold,
+      packedCreateSnapbackAppScaffoldFromCleanDirectory: hasCreateSnapbackAppPackage,
       packagedViteRelativeVersionedSeedSeam: true,
       browserAdapterBundle: true,
       resolvedDependencyCount: Object.keys(tree.dependencies ?? {}).length,

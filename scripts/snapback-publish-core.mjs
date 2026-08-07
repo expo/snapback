@@ -48,6 +48,7 @@ export const PACKAGE_INVENTORY = Object.freeze([
   ['@expo/snapback-app-cli', '@expo/snapback-app-cli'],
   ['@expo/snapback-cli', '@expo/snapback-cli'],
   ['@expo/snapback-vite', '@expo/snapback-vite'],
+  ['create-snapback-app', 'create-snapback-app'],
 ]);
 
 export const LEGACY_PACKAGE_INVENTORY = Object.freeze([
@@ -72,6 +73,7 @@ export const PROMOTION_PACKAGE_NAMES = Object.freeze([
   '@expo/snapback-react',
   '@expo/snapback-app-cli',
   '@expo/snapback-cli',
+  'create-snapback-app',
 ]);
 
 export const LEGACY_PROMOTION_PACKAGE_NAMES = Object.freeze([
@@ -1473,6 +1475,8 @@ export function validateQualifiedPlatformReceipts({ ledger, records }) {
       || receipt.machine?.separatelyProvisionedCleanMachine !== true
       || receipt.checks?.stagedRegistryAliasResolution !== true
       || receipt.checks?.noSiblingSourceCheckout !== true
+      || receipt.checks?.packedExpoChatScaffoldTypecheckStaticAndLiveAcceptance !== true
+      || receipt.checks?.packedCreateSnapbackAppScaffoldFromCleanDirectory !== true
     ) {
       throw new TypeError('staged platform receipt is not a clean qualified proof');
     }

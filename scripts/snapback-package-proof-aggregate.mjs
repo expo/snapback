@@ -84,8 +84,16 @@ const expectedSourceNames = [
   generation.codegen,
   generation.vite,
   generation.react,
+  ...(generation.expo !== undefined
+    && ledger.packages?.some((row) => row.sourceName === generation.expo)
+    ? [generation.expo]
+    : []),
   generation.appCli,
   generation.cli,
+  ...(generation.createSnapbackApp !== undefined
+    && ledger.packages?.some((row) => row.sourceName === generation.createSnapbackApp)
+    ? [generation.createSnapbackApp]
+    : []),
 ];
 const expectedPlatforms = new Map([
   ['darwin-arm64', generation.platformRuntimes[0]],

@@ -55,6 +55,8 @@ import {
 } from './snapback-promotion-core.mjs';
 import {
   PACKAGE_INVENTORY,
+  PROMOTION_PACKAGE_NAMES,
+  sourceNamesForScopePreset,
   validateColdInstallBrowserEvidence,
   validateInternalDependencyClosure,
   validateQualifiedPlatformReceipts,
@@ -1453,6 +1455,23 @@ test('all dependency classes require direct exact terminal internal versions', (
   );
 });
 
+test('create-snapback-app is the terminal publication row with a closed CLI dependency', () => {
+  assert.deepEqual(PACKAGE_INVENTORY.at(-1), [
+    'create-snapback-app',
+    'create-snapback-app',
+  ]);
+  assert.equal(PROMOTION_PACKAGE_NAMES.at(-1), 'create-snapback-app');
+  const sourceNames = sourceNamesForScopePreset('identity');
+  assert.equal(sourceNames['create-snapback-app'], 'create-snapback-app');
+  assert.equal(Object.values(sourceNames).filter(
+    (name) => name === 'create-snapback-app',
+  ).length, 1);
+  assert.equal(validateInternalDependencyClosure({
+    name: 'create-snapback-app',
+    dependencies: { '@expo/snapback-cli': '0.1.1' },
+  }, '0.1.1'), undefined);
+});
+
 test('public-install ledger validation requires the complete immutable closure', () => {
   const sourceNames = [
     '@expo/snapback-runtime-darwin-arm64',
@@ -1636,6 +1655,8 @@ test('qualified staging bytes require clean proofs from both platforms', () => {
       checks: {
         stagedRegistryAliasResolution: true,
         noSiblingSourceCheckout: true,
+        packedExpoChatScaffoldTypecheckStaticAndLiveAcceptance: true,
+        packedCreateSnapbackAppScaffoldFromCleanDirectory: true,
         ...browserReceiptEvidence(qualified.revision).checks,
       },
       browserJourney: browserJourneyFixture({ sourceRevision: qualified.revision }),
@@ -2117,6 +2138,8 @@ test('final latest-root receipts are candidate- and platform-closed', () => {
       checks: {
         latestRootCandidateClosure: true,
         publicRegistryTarballDigestMatch: true,
+        packedExpoChatScaffoldTypecheckStaticAndLiveAcceptance: true,
+        packedCreateSnapbackAppScaffoldFromCleanDirectory: true,
         ...browserReceiptEvidence(candidate.revision).checks,
       },
       browserJourney: browserJourneyFixture({ sourceRevision: candidate.revision }),
@@ -2239,6 +2262,7 @@ test('aggregate proof requires one public clean receipt for every runtime tuple'
     '@expo/snapback-runtime-linux-x64',
     '@expo/snapback-contract',
     '@expo/snapback-client',
+    '@expo/snapback-expo',
     '@expo/snapback-cli',
   ];
   const ledger = {
@@ -2346,6 +2370,15 @@ test('aggregate proof requires one public clean receipt for every runtime tuple'
   });
   assert.equal(aggregate.claimSatisfied, true);
   assert.equal(aggregate.platforms.length, 2);
+  assert.equal(
+    aggregate.checks.packedExpoChatScaffoldTypecheckStaticAndLiveAcceptanceOnEveryPlatform,
+    false,
+    'an identity ledger without the creator row remains a pre-scaffold-proof closure',
+  );
+  assert.equal(
+    aggregate.checks.packedCreateSnapbackAppScaffoldFromCleanDirectoryOnEveryPlatform,
+    false,
+  );
   assert.equal(
     aggregate.platforms[0].browserPackageTreeSha256,
     receipts[0].receipt.browserJourney.capture.browser.packageTreeSha256,

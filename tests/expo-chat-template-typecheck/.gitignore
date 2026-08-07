@@ -1,0 +1,3 @@
+# Interrupted check runs must not leave a dirty tree; the check script removes
+# its scratch scaffold in a finally block, but a killed process cannot.
+.expo-chat-typecheck-*/

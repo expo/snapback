@@ -654,6 +654,18 @@
       ]
     },
     {
+      "id": "expo-chat-template-typecheck",
+      "groups": [
+        "packaging"
+      ],
+      "files": [
+        "scripts/check-expo-chat-template-typecheck.mjs"
+      ],
+      "prefixes": [
+        "tests/expo-chat-template-typecheck/"
+      ]
+    },
+    {
       "id": "other-tests",
       "disposition": "all",
       "prefixes": [
@@ -887,6 +899,8 @@
         "current-binary-build",
         "current-binary-readiness",
         "create-snapback-app-package",
+        "expo-chat-template-install",
+        "expo-chat-template-typecheck",
         "github-latest-proof-fixtures",
         "local-source-package-closure",
         "package-cold-install-fixtures",

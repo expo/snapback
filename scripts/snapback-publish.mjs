@@ -50,6 +50,7 @@ const commonPackages = [
   'snapback-app-cli',
   'snapback-cli',
   'snapback-vite',
+  'create-snapback-app',
 ];
 const allPackages = [...runtimePackages.values(), ...commonPackages];
 

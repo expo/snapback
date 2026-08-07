@@ -1449,8 +1449,10 @@ export function ledgerNameGeneration(scopePreset) {
     codegen: sourceNames.codegen,
     contract: sourceNames.contract,
     react: sourceNames.react,
+    expo: sourceNames.expo,
     vite: sourceNames.vite,
     appCli: sourceNames['app-cli'],
+    createSnapbackApp: sourceNames['create-snapback-app'],
     platformRuntimes: [
       sourceNames['runtime-darwin-arm64'],
       sourceNames['runtime-linux-x64'],
@@ -1873,6 +1875,11 @@ export function validateFinalLatestReceipts({
     throw new TypeError('final promotion requires two latest-root receipts');
   }
   const generation = ledgerNameGeneration(ledger.scopePreset);
+  const hasCreateSnapbackAppPackage = generation.createSnapbackApp !== undefined
+    && ledger.packages.some((row) => row.sourceName === generation.createSnapbackApp);
+  const requiresExpoChatScaffold = hasCreateSnapbackAppPackage
+    && generation.expo !== undefined
+    && ledger.packages.some((row) => row.sourceName === generation.expo);
   requireExactObjectKeys(githubCollection, [
     'artifacts',
     'authorizedLeaseSha256',
@@ -1956,6 +1963,10 @@ export function validateFinalLatestReceipts({
       || receipt.machine?.separatelyProvisionedCleanMachine !== true
       || receipt.checks?.latestRootCandidateClosure !== true
       || receipt.checks?.publicRegistryTarballDigestMatch !== true
+      || (requiresExpoChatScaffold
+        && receipt.checks?.packedExpoChatScaffoldTypecheckStaticAndLiveAcceptance !== true)
+      || (hasCreateSnapbackAppPackage
+        && receipt.checks?.packedCreateSnapbackAppScaffoldFromCleanDirectory !== true)
       || receipt.githubProof.runId !== String(githubCollection.runId)
       || receipt.githubProof.runAttempt !== String(githubCollection.runAttempt)
       || receipt.githubProof.runHeadSha !== githubCollection.expectedHeadSha
@@ -2157,6 +2168,12 @@ export function aggregatePublicPackageProofs({
   receipts,
 }) {
   const ledgerEntries = validatePublicPublicationLedger(ledger, expectedSourceNames);
+  const generation = ledgerNameGeneration(ledger.scopePreset);
+  const hasCreateSnapbackAppPackage = generation.createSnapbackApp !== undefined
+    && ledgerEntries.has(generation.createSnapbackApp);
+  const requiresExpoChatScaffold = hasCreateSnapbackAppPackage
+    && generation.expo !== undefined
+    && ledgerEntries.has(generation.expo);
   if (!Array.isArray(receipts)) throw new TypeError('platform receipts must be an array');
   const byPlatform = new Map();
   for (const record of receipts) {
@@ -2220,6 +2237,10 @@ export function aggregatePublicPackageProofs({
       || receipt.checks?.packedReactWebTypecheckTestBuildAndLiveAcceptance !== true
       || receipt.checks?.packedReactOneCommandBackendViteJourney !== true
       || receipt.checks?.packedReactExpoTypecheckAndIosExport !== true
+      || (requiresExpoChatScaffold
+        && receipt.checks?.packedExpoChatScaffoldTypecheckStaticAndLiveAcceptance !== true)
+      || (hasCreateSnapbackAppPackage
+        && receipt.checks?.packedCreateSnapbackAppScaffoldFromCleanDirectory !== true)
       || receipt.checks?.packagedViteRelativeVersionedSeedSeam !== true
       || receipt.checks?.browserAdapterBundle !== true
     ) {
@@ -2295,6 +2316,10 @@ export function aggregatePublicPackageProofs({
       completeSupportedRuntimeMatrix: true,
       packagedRuntimeDoctor: true,
       packagedScaffoldGenerateDevTestAndWatch: true,
+      packedExpoChatScaffoldTypecheckStaticAndLiveAcceptanceOnEveryPlatform:
+        requiresExpoChatScaffold,
+      packedCreateSnapbackAppScaffoldFromCleanDirectoryOnEveryPlatform:
+        hasCreateSnapbackAppPackage,
       realBrowserSeedLiveReloadOnEveryPlatform: true,
       browserPrivateSurfaceAbsenceOnEveryPlatform: true,
       noSiblingSourceCheckout: true,
