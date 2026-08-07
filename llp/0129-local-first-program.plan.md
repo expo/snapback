@@ -41,6 +41,19 @@ instance sees the record but needs writer takeover. The scoped recommendation
 is BUILD: preserve global per-origin isolation, inject one stable sidecar store,
 add a fail-closed adoption receipt, and rely on the existing same-database
 settlement identity. See the dated design-spike note and retained PoCs below.)
+2026-08-06 (Phase 2a browser-IR coverage gate FIRST RUN at base commit
+e99d2a328: `tests/acceptance/browser-ir-coverage-v1.mjs` executed the
+pinned 37-case LLP 0051 D5 corpus through the shipped browser IR
+evaluator inside real Chrome 151.0.7922.76 with per-case IndexedDB
+read-back — 37/37 exact, browser==Node byte-identical,
+manifest-digest-chained to the Phase-1 Rust receipt; semantic IR
+coverage stands at 12/13 = 92.3% (PASS ≥90%, carried from the pinned
+assessment classification); the 100%-common-path component is
+INDETERMINATE — the designated common-path mutation set was never
+frozen (`issues/20260806-phase2a-common-path-designation-absent.md`
+routes the designation to the author) — so the whole gate is
+NOT-DECLARABLE and no exit is presented. Receipt:
+`tests/acceptance/fixtures/browser-lane/browser-ir-coverage.2026-08-06.v1.json`.)
 2026-08-06 (OQ9 RESOLVED by the author — Phase 2a browser
 story is IR-only; full-runtime WASM deferred; Phase 2a's falsifiable exit
 is the browser-IR-coverage gate (≥90% semantic + 100% common-path,
@@ -761,6 +774,30 @@ the browser story is pinned.
 > bounded extension review. This dated finding satisfies the named assessment
 > gate; it neither builds a runtime nor settles OQ9's author-owned
 > assessment-versus-implementation exit choice.
+
+> **Browser-IR coverage gate — first run, 2026-08-06 (base commit
+> e99d2a328).** The OQ9-designated gate ran end to end:
+> `tests/acceptance/browser-ir-coverage-v1.mjs` verified the D5 corpus
+> manifest (37/37 SHA-256 exact, drift refuses typed), esbuild-bundled the
+> shipping `@expo/snapback-client/ir-evaluator` closure, and replayed every
+> case in real system Chrome 151.0.7922.76, with each normalized outcome
+> persisted to and read back from IndexedDB before comparison. Results:
+> **exact-D5 component 37/37 PASS**, browser-vs-Node byte-identical
+> normalized outcomes, manifest-digest-chained to the Phase-1 Rust receipt
+> (Option B condition 3 on both evaluators); **semantic IR coverage
+> 12/13 = 92.3% PASS ≥90%**, carried from the pinned dated assessment
+> classification of the frozen corpus; **100%-common-path execution
+> component INDETERMINATE** — no frozen designated-browser-common-path
+> mutation set exists (Option B locates that designation act in
+> `handler-coverage.v1.json`, which was never created), so measuring it
+> would mean inventing the author's designation; the plan-shape M1
+> admission counts over the corpus (22 ready / 10 refused / 5 server-only)
+> are retained in the receipt as evidence only. Receipt and write-up:
+> `tests/acceptance/fixtures/browser-lane/browser-ir-coverage.2026-08-06.v1.{json,md}`;
+> the designation gap is ticketed at
+> `issues/20260806-phase2a-common-path-designation-absent.md`. **No gate
+> PASS, phase exit, or advancement is declared**; per this Plan's standing
+> rule the evidence is recorded here for author presentation.
 
 **Phase 2b — Desktop ladder (independent of 2a).** First the sidecar:
 the packaged native runtime spawned next to the app, carrying
