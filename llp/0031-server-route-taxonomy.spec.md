@@ -5,7 +5,7 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-08-05 (§Server-binary identity: the build-identity dirty
+**Revised:** 2026-08-07 (LLP 0189 alignment sweep: verification-cadence/claim-gating clauses re-scoped or annotated to the LLP 0189 D-3/D-6 defaults). 2026-08-05 (§Server-binary identity: the build-identity dirty
 probe is scoped to the runtime binary's input set — shared pathspec definition
 in `scripts/runtime-build-inputs.txt` — instead of the whole tree, and all
 expected-identity consumers read the same definition; demo/LLP/issue edits no
@@ -773,7 +773,12 @@ additive.
 **Verification is conservative (refuse-when-unverifiable holds).** Binary
 provenance is sound only when the build is pinned to a **clean** commit on *both*
 sides: a dirty or commitless build on the checkout *or* the running server is a
-not-ok verdict, because dirty bytes are not pinned to any commit. In practice this
+not-ok verdict, because dirty bytes are not pinned to any commit. (Known
+LLP 0189 D-3/D-4 friction, 2026-08-07: raw commit equality lets unrelated
+landings demote a still-correct prepared binary out of `verified`; the
+follow-up is to compare the `scripts/runtime-build-inputs.txt` content
+identity — the same scoping the `gitDirty` half already uses — so
+`verified` survives unrelated commits.) In practice this
 earns reuse for clean checkouts (CI) and still refuses a dirty local dev tree — a
 strict shrink of the unverifiable set, never a widening of trust. The
 `startupNonce` is deliberately *not* part of the "is this my binary?" verdict (an

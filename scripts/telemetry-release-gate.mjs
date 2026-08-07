@@ -8,6 +8,9 @@ const refusalCode = 'SNAPBACK_TELEMETRY_RELEASE_GATE_REFUSED';
 // @ref LLP 0154#amendment-2026-08-06-rolling-trailing-head-evidence — release
 // and capability-promotion authority requires exact-current evidence at the
 // frozen candidate revision, distinct from ordinary rolling-main acceptance.
+// @ref LLP 0189#decision — this exact-commit strictness is the named D-7
+// per-claim carve-out (LLP 0175 D2.4), not the repo default; do not copy it
+// into new gates without an author ruling.
 export function enforceTelemetryCurrentGate({
   repoRoot = defaultRepoRoot,
   candidateRevision,

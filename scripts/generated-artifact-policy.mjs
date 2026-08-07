@@ -2,9 +2,11 @@
 
 // Single source of truth for the generated backends and committed projection
 // roots reproduced by scripts/check-generated-artifacts. Publication may
-// consult this registry, but must freeze its exact allowed leaf set at the
+// consult this registry, but must freeze its allowed leaf set at the
 // qualification commit rather than trusting a later manifest or directory
-// prefix.
+// prefix. Exact enumeration applies to non-content-addressed leaves;
+// content-addressed leaves under registered roots may be matched by pattern
+// (LLP 0189: exact enumeration only where the enumerated thing is the claim).
 
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';

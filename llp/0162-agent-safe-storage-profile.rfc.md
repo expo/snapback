@@ -5,7 +5,7 @@
 **Systems:** Storage, Runtime, Sync, Auth, Effects, Migrations, Agent experience, Diagnostics, Testing, Performance
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-03
-**Revised:** 2026-08-07 (v0.49 — R9-2 publication-history hardening: the twelve pre-change rounds remain honestly identified as current-artifact-only legacy entries without fabricated historical digests; every later round carries a strictly increasing frozen artifact-prefix byte length and SHA-256, so later prose appends preserve old attestations while any rewrite inside a frozen prefix refuses. The current-complete-artifact digest and all existing custody rules remain in force.)
+**Revised:** 2026-08-07 (LLP 0189 re-scope: digest test coverage follows D-4 semantic-role scoping; review verdicts bind claim-relevant content per D-5; the narrow-claim row-13 lifecycle ratification is governed by D-3/D-6 while Track B row 13 itself stays the D-7 carve-out). 2026-08-07 (v0.49 — R9-2 publication-history hardening: the twelve pre-change rounds remain honestly identified as current-artifact-only legacy entries without fabricated historical digests; every later round carries a strictly increasing frozen artifact-prefix byte length and SHA-256, so later prose appends preserve old attestations while any rewrite inside a frozen prefix refuses. The current-complete-artifact digest and all existing custody rules remain in force.)
 **Revised:** 2026-08-07 (v0.48 — the derived-fork publication attempt staged at `75b0ec0b4` for qualification commit `fac516e9a` surfaced a second implementation-digest self-cycle: the Rust structural test asserted that the live derived anchor was `withheld`, its carrier digest was null, and its receipt schema was v1, so an otherwise valid publication necessarily failed the digest-covered test and repairing the test necessarily moved C. The mirror now inspects the live chain without selecting a lifecycle state, exercises legacy-withheld and current-v2-published branches from synthetic fixtures, parses the anchor/carrier/receipt through closed `deny_unknown_fields` structs, and checks lifecycle-appropriate digest/schema bindings. The exact positive fork-axis serde spellings now match the lower-camel publication tuple. Independently, the test pins the LLP 0113 target-manifest tuple wholly `Missing`, retains the capability GAP, and proves the compiled derived-publication predicate false for contributor-source and public-package distributions even when a synthetic published chain qualifies structurally. Both checked-in anchors remain withheld; this implementation change requires a new qualification C and regenerated publication bindings.)
 **Revised:** 2026-08-07 (v0.47 — author-directed convergence repair. The governing self-certification invariant is now explicit: an artifact may not be inside the implementation digest that certifies it, and the validator's own fixtures may not depend on live mutable records. `tests` remains covered, while both platform lifecycle receipts and the bounds-ratification record join the closed publication-cycle allowlist and remain canonical-byte- and receipt-digest-bound. The bench emitter now writes the checker's canonical JSON form. The checker attack corpus constructs synthetic review/evidence chains instead of pinning the live round list or commit. The Fable round-6 final paragraph is restored from the transcript's last write; the preserved round-7 and round-8 artifacts are reconciled without changing any verdict into four contiguous v2 histories through round 8. Rounds 4, 7, and 8 were each lost when orchestration reset review worktrees before commit and were recovered from surviving transcripts or `/tmp/review-preserve` copies. Both families record Scope 1 `READY` and Scope 2 `NOT_READY` in rounds 7 and 8. Both anchors remain withheld pending a fresh round from each family against the new qualification C, rebound platform evidence, and new named-author acceptance of the exact heads and implementation digest.)
 **Revised:** 2026-08-06 (v0.46 — round-7 Fable found canonical JSON enforcement applied only to verdict sidecars, leaving every other publication-chain object exposed to duplicate-member last-wins parsing; the derived named-author acceptance could therefore visibly deny acceptance or visibly retain a six-round history while the oracle parsed approval or a fabricated round-1 restart. One closed parser boundary now enforces the invariant that no publication-chain JSON is ever read non-canonically across anchors, carriers, receipts, author acceptances, evidence fixtures, benchmark receipts, and verdict sidecars, with A4/A5 and per-artifact duplicate-member negatives. The transcript-recoverable Codex and Fable round-6 prose is restored verbatim to all four artifacts; all four sidecars are consistently chained v2 histories with rounds 1–6 and the recorded Scope-1 READY / Scope-2 NOT_READY values at `bdc682964`. `reviewArtifactSha256` is stated plainly as a current-state binding with no append-only strength of its own; the author-accepted `(roundCount, headEntrySha256)` is the sole review-history root of trust. Both anchors remain withheld pending fresh round-7 verdicts against the new qualification commit and new named-author acceptance of their exact heads.)
@@ -1909,8 +1909,11 @@ and
 [`instance-fork-lifecycle-bench.2026-08-06.linux-x86_64.v1.json`](../tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.linux-x86_64.v1.json)
 — every ratified median bound passing on both. Row 13 for the narrow claim
 is measurement-complete for those two named environments; receipts must be
-re-run and re-bound if the qualification commit advances. No further
-platform is claimed.
+re-run and re-bound when the qualification commit advances because the
+claim-relevant scoped surface changed (LLP 0189 D-3, 2026-08-07 — this
+narrow-claim lifecycle ratification is governed by the D-3/D-6 default;
+the Track B row 13 storage-engine paired protocol itself remains the
+named D-7 carve-out and is unchanged). No further platform is claimed.
 
 #### Candidate and absolute-operation records — 2026-08-03
 
@@ -2345,9 +2348,14 @@ the receipt, C, and P digests plus every changed in-scope path. That digest's sc
 `PUBLICATION_CYCLE_ALLOWLIST`; a mismatch reports every changed in-scope path
 between C and P. The closed scope obeys one governing rule: **an artifact may
 not be inside the implementation digest that certifies it, and the validator's
-own fixtures may not depend on live mutable records.** Keeping `tests` in
-`IMPLEMENTATION_ROOTS` is mandatory so post-qualification test gutting moves
-the digest. The exception is artifact-specific, not directory-wide: the two
+own fixtures may not depend on live mutable records.** Test coverage in
+`IMPLEMENTATION_ROOTS` follows LLP 0189 D-4 (2026-08-07, superseding the
+original directory-wide "keeping `tests` is mandatory" rule): checkers that
+define the claim's semantics stay in the digest even when wave-shared;
+wave-shared harnesses, metrology, and fixtures may depart only in the same
+change that lands (or names) their LLP 0175-admissible frozen-record drift
+gate, so post-qualification test gutting still moves either the digest or a
+gate — coverage moves, it never vanishes. The exception is artifact-specific, not directory-wide: the two
 platform lifecycle receipts and the bounds-ratification record are evidence
 about a qualified tree, minted or rebound at or after qualification. Their
 canonical bytes are bound by the author acceptance and receipt chain; hashing
@@ -2486,9 +2494,15 @@ recomputing their predecessor chain, and rotating the enclosing receipt chain.
 The named-author accepted `(roundCount, headEntrySha256)` pair remains the root
 of trust against deletion, restart, or replacement of an otherwise internally
 valid history; frozen prefixes add byte-history integrity without weakening
-that custody. The authoritative entry must name the exact
-qualification commit C. The two fixed review pairs must contain distinct Codex
-and Fable families, and the family must match the fixed prose artifact.
+that custody. The authoritative entry names the qualification commit C it
+reviewed; under LLP 0189 D-5 (2026-08-07) the verdict binds the
+claim-relevant content it reviewed, so a later C selected for reasons
+unrelated to the reviewed semantics (rebases, out-of-scope churn, digest
+re-scopes that only move coverage) does not invalidate a standing READY —
+a fresh round is required only when the reviewed semantics or genuinely
+new conflict-resolution work changed. The two fixed review pairs must
+contain distinct Codex and Fable families, and the family must match the
+fixed prose artifact.
 
 The named-author acceptance v2 object additionally has an exact
 `reviewHistoryHeads` map for all four fixed histories. Each value contains the
@@ -2551,11 +2565,14 @@ invented, or renumbered.
 
 Both anchors remain withheld. This convergence repair changes the qualified
 implementation tree, so publication requires a fresh next round from both
-families whose highest entries name the new qualification C and are `READY`
-for their applicable scopes, fresh canonical platform receipts bound to C,
-and Charlie's new v2 named-author acceptance for the exact four history heads
-and implementation digest. Only then may the receipt/carrier be constructed
-and the source anchor be considered for `published`.
+families `READY` for their applicable scopes on the repaired claim-relevant
+content (under LLP 0189 D-5 the round is owed to the changed semantics, and
+its entries name the new qualification C; a still-newer C whose delta is
+outside the reviewed claim surface does not restart this requirement),
+fresh canonical platform receipts bound to C, and Charlie's new v2
+named-author acceptance for the exact four history heads and implementation
+digest. Only then may the receipt/carrier be constructed and the source
+anchor be considered for `published`.
 
 The older `agent_safe_storage_v1` review path has not migrated to these
 structured sidecars. Its compatibility validator still consumes one fixed

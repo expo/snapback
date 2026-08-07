@@ -5,7 +5,7 @@
 **Systems:** React, React/Expo, Client integration, Live Queries, Ephemeral state, Code generation, Sync, Auth, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-06 (descriptor-mode cold retained boot: the existing
+**Revised:** 2026-08-07 (LLP 0189 alignment sweep: verification-cadence/claim-gating clauses re-scoped or annotated to the LLP 0189 D-3/D-6 defaults). 2026-08-06 (descriptor-mode cold retained boot: the existing
 binding receipt now carries a compact admitted deployment projection for an
 exact AppDescriptor, so descriptor preparation reuses the same process-cold
 receipt/RQS machinery and same typed mismatch refusal; no surface cache,
@@ -862,8 +862,10 @@ order is:
 4. add typed hooks and Strict Mode acceptance;
 5. wire RQS preload/registered provenance and bundle integration tests;
 6. migrate the maintained React comparison fixture; and
-7. run LLP review, corpus maintenance, guide checks, and the complete landing
-   proof before changing this Spec's status.
+7. run LLP review, corpus maintenance, and guide checks before changing this
+   Spec's status, with the most recent eligible complete battery green on
+   this Spec's claim-relevant gates (LLP 0189 D-6; unrelated reds ticketed
+   and named) in place of a complete landing proof at one commit.
 
 ## Round-1 author reconciliation: finite React v1
 

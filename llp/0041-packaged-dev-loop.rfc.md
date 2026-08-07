@@ -67,7 +67,7 @@ stable per-boundary codes. Its first real run found and fixed the macOS
 fencing. The packed external proof now requires the full vertical result;
 public npm and independent-machine gates remain open.)
 
-**Revised:** 2026-07-30 (Diary 0039 external-adoption evidence: the rerun
+**Revised:** 2026-08-07 (LLP 0189 alignment sweep: verification-cadence/claim-gating clauses re-scoped or annotated to the LLP 0189 D-3/D-6 defaults). 2026-07-30 (Diary 0039 external-adoption evidence: the rerun
 ran on sibling-checkout imports three days after `0.1.0` went public; the
 `demos/_kit` helpers every arm imports, and the admin client Dispatch's
 acceptance imports, sit outside the nine-package closure — see the new
@@ -430,7 +430,11 @@ byte-bound in the hosted receipt. The public CLI tarball carries the Fly
 driver, hosted schemas, and hosted release packer required to talk to that
 standing service.
 
-Publication is a closed state machine:
+Publication is a closed state machine (its exact-SHA/clean-checkout freezes
+are ceremony-local TOCTOU guards, not completeness preconditions; the
+completeness half is LLP 0189 D-6 — the most recent eligible complete
+battery green on the candidate's claim-relevant gates, unrelated reds
+ticketed and named in the promotion ledger):
 
 1. one clean source SHA produces all nine `0.1.1` tarballs; internal Snapback
    dependencies are rewritten to exact `npm:` aliases at `0.1.1`, never tags

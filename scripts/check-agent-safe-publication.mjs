@@ -161,9 +161,14 @@ export const PUBLICATION_CYCLE_ALLOWLIST = new Set([
   // @ref LLP 0162#source-owned-publication-carrier-amendment--2026-08-04
   // Governing invariant: an artifact may not be inside the implementation
   // digest that certifies it, and the validator's fixtures may not depend on
-  // live mutable records. Tests remain in IMPLEMENTATION_ROOTS; only the
-  // closed evidence minted at or after qualification C is excluded here and
-  // remains canonical-byte- and receipt-digest-bound at publication P.
+  // live mutable records. Closed evidence minted at or after qualification C
+  // is excluded here and remains canonical-byte- and receipt-digest-bound at
+  // publication P.
+  // @ref LLP 0189#decision — digests are scoped to the claim: the checkers
+  // defining the claim's semantics stay in IMPLEMENTATION_ROOTS; wave-shared
+  // proof/metrology/fixture files leave the digest only in the same change
+  // that lands (or names) their qualifying frozen-record drift gate. Digest
+  // re-scope mechanics: issues/20260807-llp-0189-claim-snapshot-implementation.md.
   'tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.macos-aarch64.v1.json',
   'tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.linux-x86_64.v1.json',
   'tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.v1.json',

@@ -89,3 +89,18 @@ umbrella. Do not track the already-landed governed rollover as still missing.
   while retaining 16 independently proven PASS applications. Fleet's fresh
   receipt remains the first open action above; the carrier check itself is
   green.
+
+## Re-scope under LLP 0189 (2026-08-07)
+
+The Fleet Observatory Move-1 receipt above is exactly the failure mode LLP
+0189 D-3/D-4 rule out: it already rotated once because unrelated
+`packages/snapback-client/index.mjs` bytes changed, and "issue the receipt
+against one final tracked source tree" re-creates the HEAD-chasing loop. The
+owner action is re-scoped: bind the controlled-run receipt to its
+claim-relevant surface only (the controlled-run runtime plus the checkers
+defining the Move-1 claim's semantics); departing wave-shared/pinned source
+files leave the binding only in the same change that lands (or names) their
+qualifying frozen-record drift gate; then re-issue the receipt once. Future
+unrelated landings must not rotate it. "One final tracked source tree" and
+"the intended landed commit and its exact readiness-qualified server" are
+superseded by this form; the binary/readiness binding itself is unchanged.

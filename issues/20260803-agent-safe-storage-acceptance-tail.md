@@ -590,7 +590,8 @@ conflated with this acceptance tail.
   substitute for per-component evidence.
 - The closing pass must run `llp-maintain` reconciliation, `ref-check`, guide
   validation, generated-artifact/schema drift checks, and proportional
-  own-correctness after the last `origin/main` reconciliation.
+  own-correctness, bound to the named closing content (LLP 0189 D-5: no
+  re-run solely because `origin/main` advanced afterward).
 
 ## Close when
 
@@ -664,8 +665,11 @@ change at this seam. Full retained proof:
 1 FAIL, 1 dependent BLOCKED (`auth-invalidation-report`), and one CI-only
 not-selected gate. Every independent gate completed.
 
-Owner close condition: make concurrent app-root identity publication atomic
-and rerun the exact 15-test live-server suite plus the complete local proof.
+Owner close condition (re-scoped per LLP 0189 D-6, 2026-08-07): make
+concurrent app-root identity publication atomic, rerun the 15-test
+live-server suite on the fix, and reference the most recent eligible
+complete battery green on the claim-relevant gates — not a bespoke complete
+local proof at an exact commit.
 
 ### Exact-head recurrence — GitHub run 31147355293 (completed 2026-08-07 UTC)
 

@@ -54,6 +54,17 @@ complete proofs at exact commits. Three mechanical pieces implement it:
    runs escalates to the author. Dependent `BLOCKED` results do not file
    tickets.
 
+4. **Capability-maturity validator re-scope (amended LLP 0134).** The
+   2026-08-07 LLP 0189 amendments to LLP 0134 relax the
+   `candidateParentSha == candidateSourceSha` constraint (parent may differ
+   when the intervening range is clear of the id's D-4 scoped surface, and
+   the receipt names the range and the check that cleared it), scope E2 to
+   the id's own corpus plus the D-6 battery reference, and scope E4(a)'s
+   `ref-check` to the claim surface. `scripts/capability-maturity.mjs` and
+   the A5 transition check must follow; until they do, promotions
+   mechanically still meet the stricter pre-amendment form (which remains
+   sufficient, just not necessary).
+
 The derived-fork requalification consumes piece 1+2 (its digest re-scope) and
 should be the first user; do not close this ticket until that requalification
 has landed on the scoped digest and survived at least one subsequent wave

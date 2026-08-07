@@ -54,8 +54,9 @@ existing programs or weakening Snapback's capability honesty.
    work remains a machine-readable GAP.
 4. The program is complete only when every ticket below is closed, the bakeoff
    Snapback arm uses the paved surfaces without casts or repository-relative
-   product imports, the LLP corpus audit is clean, and the complete local proof
-   passes.
+   product imports, the LLP corpus audit is clean, and the most recent
+   eligible complete battery is green on the program's claim-relevant gates
+   (LLP 0189 D-6; unrelated reds ticketed and named, not blocking).
 
 ## Sequencing
 
@@ -107,7 +108,9 @@ is held back by the bakeoff rerun.
   migration, backup/restore, rollback, cost visibility, and explicitly scoped
   ephemeral semantics.
 - `./ref-check --verbose`, `node scripts/check-guide.mjs`, the relevant package
-  suites, the full local proof, and an independent final review pass are green.
+  suites, and an independent final review pass are green, with the most
+  recent eligible complete battery green on the claim-relevant gates
+  (LLP 0189 D-6) in place of a full local proof at one commit.
 
 ## Triage freshness note (2026-08-01 sweep)
 

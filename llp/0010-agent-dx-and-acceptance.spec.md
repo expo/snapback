@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-06 (LLP 0175 D2 selector: every canonical gate is
+**Revised:** 2026-08-07 (LLP 0189 re-scope: release/capability-promotion authority follows the D-6 battery form; the former declared-complete-authority clause is superseded). 2026-08-06 (LLP 0175 D2 selector: every canonical gate is
 classified by a checked path authority; docs/guide can remain fast, affected
 code retains Contract/Exact and admin behavior plus prerequisite closure, and
 unknown/shared inputs fail broad. Push/PR receipts bind the selection while a
@@ -845,9 +845,13 @@ latest-main run retains the complete inventory and coalesces pending heads.
 When Exact/admin behavior is required, the clean runner enters the selected
 frozen surface-install gates before consulting ignored local `node_modules`;
 preexisting surface dependencies are only an optional-local optimization.
-Affected evidence is per-change attribution only: release, capability
-promotion, and any subsystem's complete-corpus rule continue to require their
-declared complete/release authority. This is the landed D1/D2 boundary of
+Affected evidence is per-change attribution only. Release and capability
+promotion require green scoped evidence for exactly what they claim plus the
+most recent eligible complete battery green on the claim-relevant gates,
+with unrelated reds ticketed and named rather than blocking (LLP 0189 D-6,
+2026-08-07, re-scoping the former "declared complete/release authority"
+clause); per-claim exact-commit strictness exists only by explicit author
+ruling (LLP 0189 D-7). This sits on the landed D1/D2 boundary of
 [LLP 0175](./0175-local-proof-economics.rfc.md).
 
 CI also computes the Cargo target headroom verdict before cleaning the test

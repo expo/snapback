@@ -6,7 +6,7 @@
 experience, Developer experience, CLI, Documentation, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-07 (v2 derived-fork publication at qualification C `ad0ad58748981010204b61eb5002e35b887a5093`: the recomputed v2 implementation digest, canonical dual-platform receipts, all four contiguous 12-round dual-family `READY` histories, their accepted heads, and Charlie's exact 2026-08-06 author line close the dated receipt/carrier/anchor chain. The guide row publishes only a partial contributor-source local claim for exactly `macos/aarch64` and `linux/x86_64`; the target-manifest tuple stays wholly `Missing`, and released-binary/npm parity, normal installation, public packages, hosted/Cloudflare/remote targets, promotion/merge-back, and process containment remain open or unclaimed); 2026-08-06 (author-directed narrow local publication: LLPs 0163–0165 accepted after three mutually blind dual-family `READY` rounds; Charlie's exact two-platform release set and authorized acceptance fixture close the nine-item witness; `operating.instance-forks` publishes at local/partial through the guide row for contributor source only. The target-manifest tuple, broader agent-safe-storage aggregate, released-binary/npm parity, normal-installation exit, hosted targets, promotion/merge-back, and process containment remain `Missing` or explicit nonclaims); 2026-08-06 (row-13 concurrent-create hang repair: root admission
+**Revised:** 2026-08-07 (LLP 0189 alignment sweep: verification-cadence/claim-gating clauses re-scoped or annotated to the LLP 0189 D-3/D-6 defaults). 2026-08-07 (v2 derived-fork publication at qualification C `ad0ad58748981010204b61eb5002e35b887a5093`: the recomputed v2 implementation digest, canonical dual-platform receipts, all four contiguous 12-round dual-family `READY` histories, their accepted heads, and Charlie's exact 2026-08-06 author line close the dated receipt/carrier/anchor chain. The guide row publishes only a partial contributor-source local claim for exactly `macos/aarch64` and `linux/x86_64`; the target-manifest tuple stays wholly `Missing`, and released-binary/npm parity, normal installation, public packages, hosted/Cloudflare/remote targets, promotion/merge-back, and process containment remain open or unclaimed); 2026-08-06 (author-directed narrow local publication: LLPs 0163–0165 accepted after three mutually blind dual-family `READY` rounds; Charlie's exact two-platform release set and authorized acceptance fixture close the nine-item witness; `operating.instance-forks` publishes at local/partial through the guide row for contributor source only. The target-manifest tuple, broader agent-safe-storage aggregate, released-binary/npm parity, normal-installation exit, hosted targets, promotion/merge-back, and process containment remain `Missing` or explicit nonclaims); 2026-08-06 (row-13 concurrent-create hang repair: root admission
 now uses a 30-second monotonic nonblocking-acquisition deadline with stable
 `SNAPBACK_FORK_ADMISSION_TIMEOUT`, while detached server exec marks every
 non-stdio inherited descriptor close-on-exec. This closes the macOS concurrent
@@ -1883,7 +1883,9 @@ combined-tree oracle refused instead of extending the old evidence to new
 bytes. The source anchor is now `withheld`, the LLP 0061 capability row is
 target `none`, and the dated receipt/carrier/reviews/benchmarks/author
 acceptance are retained only as historical evidence. No fork runtime
-correctness code changed. Republishing requires a fresh C, both canonical
+correctness code changed. Republishing follows the LLP 0189 §Consequences
+order — digest re-scope with drift gates for departing wave-shared files
+first, then one fresh C against the re-scoped digest — with both canonical
 platform receipts, fresh accepted review heads, and named-author acceptance;
 see `issues/20260807-derived-fork-publication-wave-drift-requalification.md`.
 

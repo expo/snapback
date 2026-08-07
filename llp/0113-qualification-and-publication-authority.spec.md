@@ -5,7 +5,7 @@
 **Systems:** Auth, Wire Protocol, Capability publication, Storage, Realtime, Migrations, Deployment, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-28
-**Revised:** 2026-08-02 (Accepted LLP 0135 owner fold: qualification-family
+**Revised:** 2026-08-07 (LLP 0189 re-scope: landing gates run affected selection, complete corpora move to the battery per D-2/D-6; qualification re-read scoped per D-4). 2026-08-02 (Accepted LLP 0135 owner fold: qualification-family
 registration rule for sequence allocation and snapshot batch); 2026-08-01 (ACCEPTED by author direction — the 2026-08-01
 ballot, verbatim item 4: "accept 0110+0113". Loop state verified before the
 flip: the author-authorized corrective delta round (2026-07-28) ended with
@@ -154,7 +154,10 @@ head, active-generation digest, candidate image, function graph, and package
 ledger. The production schema must still equal the schema in
 `QualificationDataIdentityV1`. Schema or generation drift invalidates the
 candidate and requires a new isolated restore and complete qualification; it
-can never be repaired by copying from the disposable destination.
+can never be repaired by copying from the disposable destination. (The
+re-read set is the claim-relevant surface in the LLP 0189 D-4 sense; an
+unrelated ledger or generation rotation ticketed under D-1 does not by
+itself force a fresh restore.)
 
 Post-CAS public observation may write a schema-valid, idempotent witness row
 through the now-active ordinary mutation route. That row is ordinary
@@ -718,8 +721,11 @@ Acceptance requires committed, rerunnable evidence for:
 
 The implementation must place non-obvious gates and CAS boundaries under
 `@ref LLP 0113` annotations. `./ref-check --verbose`, the generated wire-schema
-gates, capability-registry equality tests, crash injection, and the complete
-LLP 0110/0105 acceptance corpus gate landing.
+gates, capability-registry equality tests, and crash injection run under
+LLP 0175 D2.1/D2.2 affected selection at landing; the complete LLP 0110/0105
+acceptance corpora are carried by the scheduled battery and precondition
+advertisement/promotion per LLP 0189 D-6, not landing (2026-08-07 re-scope
+under LLP 0189 D-2 — no complete corpus gates landing).
 
 ## Status
 

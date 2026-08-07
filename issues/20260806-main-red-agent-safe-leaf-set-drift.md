@@ -131,3 +131,13 @@ legitimately moved from `app.binding.6989200b….mjs` to
 drift pass reviewed that one-for-one replacement, kept the exact-set fixture,
 and advanced only its named leaf. The durable pattern-based follow-up remains
 open and deliberately separate because it widens the accepted filename class.
+
+## Status note under LLP 0189 (2026-08-07)
+
+Both downstream blockers named above are now historical: the first npm
+promotion closed (`issues/closed/20260803-first-npm-latest-promotion.md`),
+and the wave 3 "green named commit" close was re-scoped to the LLP 0189 D-6
+battery form (`issues/20260803-wave3-program.md`). The pattern-based leaf
+matching follow-up below remains live and is explicitly endorsed by LLP 0189
+(Consequences: exact enumeration only where the enumerated thing is the
+claim).

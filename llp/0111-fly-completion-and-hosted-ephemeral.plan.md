@@ -5,7 +5,7 @@
 **Systems:** Deployment, Control plane, Ephemeral state, Realtime, TLS, Auth, Migrations, Backup, Restore, Logs, Inspection, Runtime, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-06 (dated amendment drafted at the author's
+**Revised:** 2026-08-07 (LLP 0189 alignment sweep: verification-cadence/claim-gating clauses re-scoped or annotated to the LLP 0189 D-3/D-6 defaults). 2026-08-06 (dated amendment drafted at the author's
 direction and ratified by the author the same day: continuous-replication
 custody role split per LLP 0188 §5, admissible only with store-enforced
 immutability and jointly with LLP 0072's continuous-replication authority
@@ -80,8 +80,9 @@ capability and the adapter refuses activation.
 
 The 2026-08-02 author decision adopts LLP 0074's parallel npm gate for the
 locally provable nine-package surface. Once that closure satisfies LLP 0134's
-maturity bar and its local publication evidence, it may promote to npm
-`latest` independently of the hosted Fly journey. This supersedes this Plan's
+maturity bar (as re-scoped by LLP 0189 D-6) and its local publication
+evidence, it may promote to npm `latest` independently of the hosted Fly
+journey. This supersedes this Plan's
 serialization of default-channel promotion behind the complete hosted
 qualification, and only that serialization.
 
@@ -466,7 +467,9 @@ cannot satisfy a remote row.
 5. Build/package the Linux release and run the complete real Fly/Tigris journey
    with staging certificate cases before the production persistence witness.
 6. Commit receipts, guide/capability updates, demo diary, and ticket
-   resolutions; run LLP maintenance and full proof.
+   resolutions; run LLP maintenance, referencing the most recent eligible
+   complete battery per LLP 0189 D-6 rather than a full proof at this
+   commit.
 
 ## Non-goals
 

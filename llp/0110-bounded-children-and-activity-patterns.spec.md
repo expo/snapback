@@ -5,7 +5,7 @@
 **Systems:** Application data API, Relational queries, Mutations, Code generation, Authorization, Live Queries, Storage portability, Contract/Exact, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-06 (author ruling: single-table public-package
+**Revised:** 2026-08-07 (LLP 0189 alignment sweep: verification-cadence/claim-gating clauses re-scoped or annotated to the LLP 0189 D-3/D-6 defaults). 2026-08-06 (author ruling: single-table public-package
 advertisement amendment — for `single_table_v1` only, packaged advertisement
 by clean-release build identity + embedded carrier + packaged-closure
 qualification receipt; signed `PackageCapabilityAttestationV1` deferred to
@@ -918,9 +918,12 @@ every claimed target/profile version.
 - Capability and codegen summaries report relation count, per-parent bounds,
   live class, activity patterns, exact/degraded result counts, and direct
   remediation links.
-- `./ref-check --verbose`, Guide checks, schema drift tests, package tests,
-  native tests, the installed comparator acceptance kit, codegen review-surface
-  proof, and the LLP-maintain pre-demo audit are green from a clean checkout.
+- The claim-scoped set — Guide checks for this Spec's rows, schema drift
+  tests, the installed comparator acceptance kit, and codegen review-surface
+  proof — is green from a clean checkout, with the broader set (`./ref-check
+  --verbose`, package tests, native tests, the LLP-maintain pre-demo audit)
+  referenced through the most recent eligible complete battery per LLP 0189
+  D-6 (2026-08-07 re-scope; unrelated reds ticketed and named).
 
 ## Non-goals
 

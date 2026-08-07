@@ -6,7 +6,7 @@
 Hosted execution, Developer experience
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-02
-**Revised:** 2026-08-02 (v0.1, initial draft from the 2026-08-02 landscape
+**Revised:** 2026-08-07 (LLP 0189 alignment sweep: the exact-current release/promotion authority is annotated as the D-7 per-claim carve-out, not the repo default). 2026-08-02 (v0.1, initial draft from the 2026-08-02 landscape
 research pass: PostHog feature decomposition, backend-platform built-ins
 survey, and the codebase substrate map)
 **Revised:** 2026-08-02 (v0.2, author direction: programmatic agent access
@@ -936,7 +936,9 @@ The three claims are now separate and normative:
 3. **Release and promotion authority.** A release or capability promotion
    requires `CURRENT`. Neither a recent historical receipt nor passing
    affected tests can substitute for an exact clean-source full benchmark and
-   idle witness at the frozen candidate revision.
+   idle witness at the frozen candidate revision. (This exact-commit
+   strictness is the per-claim carve-out LLP 0189 D-7 names via LLP 0175
+   D2.4; it stands as written and is not the repo default.)
 
 The executable modes mirror those claims: `validate-history` proves item 1;
 `assess` reports items 1–2 and is the ordinary recurring check; and

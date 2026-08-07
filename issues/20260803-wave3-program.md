@@ -126,8 +126,9 @@ release needed.
 Wave-2 rules carry over, including the current landing policy
 (own-correctness green per landing; drift batched to closing passes) and
 the fleet coordination conventions. Update this ticket at each track
-milestone; wave 3 closes with a **green named commit**, the tracks' exit
-criteria met or honestly re-scoped, and a closing corpus audit (LLP 0016
+milestone; wave 3 closes with a **green named commit** *(superseded — see
+"Close-condition re-scope under LLP 0189 (2026-08-07)" below)*, the tracks'
+exit criteria met or honestly re-scoped, and a closing corpus audit (LLP 0016
 cadence).
 
 **2026-08-06 amendment — "green main" restated as "green named commit"
@@ -140,7 +141,8 @@ indefinitely no matter how much work lands. The same failure mode starved
 the Track B C27–C33 loop of 2026-08-05/06 and is now a standing warning in
 `AGENTS.md`.
 
-The close therefore names one commit and proves *that*:
+*(This 2026-08-06 block is superseded by the LLP 0189 re-scope below; kept
+for history.)* The close therefore names one commit and proves *that*:
 
 1. Pick the closing candidate SHA and record it here, dated.
 2. Run the proof against that exact SHA. Fleet commits landing during the

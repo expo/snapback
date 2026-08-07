@@ -26,14 +26,16 @@ the same logical `appId`, but fresh instance, authorization-stream,
 data-stream, admin-token, and resume-keyring identities.
 
 This is a **partial, unpublished surface**. A contributor-source local claim
-published on 2026-08-07, but later proof-fixture changes inside its qualified
-implementation digest made that evidence inapplicable to the current tree.
-The source anchor is therefore withheld and the capability-index target is
+published on 2026-08-07, but its legacy qualification digest was unscoped —
+it covered wave-shared proof fixtures alongside the fork runtime — so
+ordinary wave landings rotated the digest and the claim was withdrawn. The
+source anchor is therefore withheld and the capability-index target is
 `none`; the
 [dated digest-bound receipt](repo:tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json)
-is retained as historical evidence, not a current claim. Fresh qualification
-on `macos/aarch64` and `linux/x86_64`, fresh review heads, and named-author
-acceptance are required before republishing. The separate
+is retained as historical evidence, not a current claim. Republication
+follows LLP 0189 D-4: re-scope the digest (wave-shared files depart behind
+their own drift gates) first, then fresh qualification on `macos/aarch64`
+and `linux/x86_64`, fresh review heads, and named-author acceptance. The separate
 `agent_safe_derived_deployment_fork_v1` target-manifest tuple remains wholly
 `Missing`. The guide teaches the implemented source workflow; it does not
 claim a packaged, hosted, promotable, or process-sandboxed capability.

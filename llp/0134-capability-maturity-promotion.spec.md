@@ -5,7 +5,15 @@
 **Systems:** Capability publication, Application data API, Relational queries, Code generation, Packaging, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-08-03 (experimental-introduction correction: registration is
+**Revised:** 2026-08-07 (LLP 0189 cadence re-scope: the §4 "no tolerated
+drift" re-declaration rule is superseded — candidates bind their
+qualification commit and re-declare only on claim-relevant scoped-surface
+change; E2 splits into the id's own corpus at the candidate revision plus
+the D-6 battery reference; E4(a)'s `ref-check` is claim-surface-scoped;
+the §6 fast path routes through D-1 tickets and the D-3 demotion window;
+E6's defect corpus counts only claim-relevant D-1 tickets. Validator
+updates ride the LLP 0189 implementation ticket).
+2026-08-03 (experimental-introduction correction: registration is
 now an explicit `unregistered` → `experimental` act with a closed
 `MaturityIntroductionRecordV1`, same-commit records for every future id, and
 an exact four-transition historical backfill. This closes the record-vocabulary
@@ -285,12 +293,16 @@ missing or vacuous item refuses the promotion; there is no partial credit.
   vocabulary in `src/manifest.rs`; LLP 0080's ids stayed experimental
   after its 2026-07-24 acceptance until the Implemented witnesses landed
   2026-07-26).
-- **E2 — Acceptance-corpus breadth.** The complete target-applicable
-  acceptance corpus reruns green at the candidate revision on every target
-  profile — drawn from the closed profile list, codegen's
-  `TARGET_PROFILES` — whose support predicate is true. GAP rows on
-  non-supporting targets are honest GAPs, not breadth; a run inherited
-  from an older revision is not evidence.
+- **E2 — Acceptance-corpus breadth.** The promoted id's own acceptance
+  corpus reruns green at the candidate revision on every target profile —
+  drawn from the closed profile list, codegen's `TARGET_PROFILES` — whose
+  support predicate is true; that scoped rerun is not inheritable from an
+  older revision. Corpus rows unrelated to the promoted id are carried by
+  the scheduled complete battery instead (LLP 0189 D-6, 2026-08-07
+  re-scope): the receipt references the most recent eligible battery green
+  on the id's claim-relevant gates, with unrelated reds ticketed and named
+  in the receipt rather than blocking. GAP rows on non-supporting targets
+  are honest GAPs, not breadth.
 - **E3 — Adversarial fixtures.** The corpus's negative rows rerun green in
   the same run: refusal properties, fail-closed diagnostics, isolation and
   existence-secrecy negatives, and — mandatory — the id's
@@ -307,7 +319,11 @@ missing or vacuous item refuses the promotion; there is no partial credit.
   mutually consistent; the id's experimental references are present and
   current — at this revision the id *is* experimental, so those
   references are required, not stale; no overclaim; `./ref-check
-  --verbose` is green. (b) The promotion-tree audit, on the staged
+  --verbose` is green on the id's claim-relevant surface (LLP 0189 D-4
+  scope — registries, the id's generated artifacts and guide rows, its
+  governing document); whole-repo `ref-check` health is carried by the
+  scheduled battery reference (LLP 0189 D-6), so an unrelated annotation
+  landing elsewhere in the tree does not invalidate the candidate. (b) The promotion-tree audit, on the staged
   promotion tree — the exact tree the promotion commit will carry:
   every authoritative registry, guide, and document statement reflects
   stable and no stale authoritative experimental reference survives,
@@ -382,7 +398,10 @@ missing or vacuous item refuses the promotion; there is no partial credit.
     under `issues/` (not `issues/closed/`), Linear issues in the Exact
     project with the Snapback label naming the id or its governing LLP,
     and the governing LLP's defect ledger where the LLP 0076/0077
-    convention applies. The dated search over exactly these scopes is
+    convention applies. LLP 0189 D-1 battery tickets count only when
+    their failing gate is claim-relevant to the id (D-4 scope), and a
+    D-1 ticket opened and resolved fix-forward inside the window is not
+    a reset. The dated search over exactly these scopes is
     retained as a `MaturityDefectSearchV1` record (*Evidence records*
     below) and bound as `soakEvidence.defectSearchRef`.
   - *Rerun.* At least one full E2+E3 rerun inside the window.
@@ -536,15 +555,22 @@ self-excluding landed-tree digest. Duplicating the receipt digest in a file
 inside that digest domain added a cycle, not evidence. A5 refuses a promotion
 whose `src/manifest.rs` lacks the exact citation marker.
 
-The promotion commit's sole parent must equal `candidateSourceSha`: no
-merge commit, no stacked promotions, exactly one maturity transition per
-`parent..HEAD` range (A5). There is no tolerated drift — if main advances
-past the candidate revision before the landing, the candidate is
-re-declared at the new head and the revision-anchored items (E2, E3, and
-E4's candidate audit) are re-witnessed there. The receipt records the
-parent as `candidateParentSha`, constrained equal to `candidateSourceSha`;
-A5's transition check compares it against the commit's actual parent, so
-the receipt never needs to name its own commit.
+The promotion commit lands as a sole-parent commit: no merge commit, no
+stacked promotions, exactly one maturity transition per `parent..HEAD`
+range (A5). Drift handling is re-scoped by LLP 0189 (2026-08-07,
+superseding this Spec's original "no tolerated drift" rule): the candidate
+binds `candidateSourceSha` as its qualification commit, and `main`
+advancing past that revision before the landing does not by itself
+invalidate the candidate or force re-witnessing. Re-declaration at a new
+head is required only when a claim-relevant change — the promoted id's
+LLP 0189 D-4 scoped surface — lands between `candidateSourceSha` and the
+promotion parent without requalification. The receipt records the actual
+parent as `candidateParentSha`; when it differs from
+`candidateSourceSha`, the receipt names the intervening range and the
+scoped-surface check that cleared it. A5's transition check compares
+`candidateParentSha` against the commit's actual parent, so the receipt
+never needs to name its own commit. (Validator updates for this re-scope
+ride `issues/20260807-llp-0189-claim-snapshot-implementation.md`.)
 
 `MaturityPromotionReceiptV1` is a closed canonical-JSON document:
 
@@ -675,10 +701,12 @@ direction. The split:
   governing-LLP addendum — is the author's adjudication, with one
   objective-trigger fast path: when the regression is witnessed by a
   failing committed gate — the id's mandatory support/conformance suite
-  red at HEAD on a population profile, or A2 finding the promotion
-  receipt cryptographically invalid (a digest or locator mismatch) — the
-  discovering maintainer executes the demotion immediately, with
-  same-day author notification. Subjective triggers — behavioral
+  red on a population profile in the scheduled battery (routed through its
+  LLP 0189 D-1 signature-keyed ticket, which filters transient
+  concurrent-landing reds), or A2 finding the promotion receipt
+  cryptographically invalid (a digest or locator mismatch) — the
+  discovering maintainer executes the demotion within LLP 0189 D-3's
+  one-battery-period window, with same-day author notification. Subjective triggers — behavioral
   divergence, disputed materiality — always escalate and are never
   fast-path.
 

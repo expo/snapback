@@ -112,6 +112,9 @@ Never put that variable in shell startup files. The independent main detector is
 ticket per stale gate and does not duplicate a still-open ticket. The complete
 suite runs every two hours on the `com.snapback.drift-backstop` launchd
 schedule; install or refresh it with `scripts/install-drift-backstop-schedule`.
+(That backstop covers the frozen-record drift registry only; it is not the
+LLP 0189 D-1 complete battery, which is the scheduled complete canonical
+proof inventory of LLP 0175 D2.3.)
 
 The skills sync (and therefore the checkout/merge hooks) initializes only the
 small `vendor/llp` and `vendor/ccheever-skills` submodules. It deliberately does
@@ -135,9 +138,9 @@ silent wedge trap (ENG-22659).
   before landing" — newer commits will land mid-loop and starve it; the
   Track B C27–C33 loop of 2026-08-05/06 is the cautionary case). Prefer
   designs that land promptly after review and run remaining verification
-  against the landed commit, keeping any capability claim gated on the
-  post-landing result. Expect to `git fetch` + rebase right before every
-  push, and to retry.
+  against the landed commit, keeping any capability claim gated on its
+  scoped post-landing evidence plus the LLP 0189 D-6 battery reference.
+  Expect to `git fetch` + rebase right before every push, and to retry.
 - **Verification cadence and claim gating follow LLP 0189.** Landings run
   fast/affected checks only; the complete battery runs on schedule (at least
   twice daily) and its reds become fix-forward tickets, not retroactive
@@ -171,8 +174,10 @@ silent wedge trap (ENG-22659).
   pointer in the file, and close the filesystem ticket rather than tracking the
   same live state in both places. New Linear issues for this repository default
   to the Exact project; add a Snapback label when useful.
-- Run the LLP corpus audit (`llp-maintain`-style) before each demo lands and
-  after each LLP 0032 phase completes (LLP 0016's reconcile cadence).
+- Run the affected-scope LLP corpus audit (`llp-maintain`-style, limited to
+  the docs the demo touches) before each demo lands; the complete corpus
+  audit runs on LLP 0016's reconcile cadence and after each LLP 0032 phase,
+  not as a landing precondition (LLP 0189 D-2).
 - Before running `cargo build`, `cargo test`, or `cargo run` on a clean checkout,
   run `scripts/bootstrap-ibex-runtime`. Snapback links the vendored
   `ibex-runtime` crate, which needs ignored Hermes headers/frameworks and tools.

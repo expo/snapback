@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Packaging, Tooling, Client integration, Documentation, Competitive evaluation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-08-06 (closure widens to ten at 0.1.10: sitting #4
+**Revised:** 2026-08-07 (LLP 0189 alignment sweep: verification-cadence/claim-gating clauses re-scoped or annotated to the LLP 0189 D-3/D-6 defaults). 2026-08-06 (closure widens to ten at 0.1.10: sitting #4
 ruling 2 adds `@expo/snapback-expo` to the publishable staging closure —
 inventory/publish script/tests carry ten; the promotion vector stays nine
 until the close-out's first-publication handling, LLP 0041). 2026-08-06 (second fast-path release: the nine-package closure
@@ -420,8 +420,8 @@ the author's.
 
 **Answered 2026-08-02.** Adopt LLP 0074's parallel gate. The locally
 provable nine-package closure may promote to `latest` when it satisfies LLP
-0134's maturity bar; that promotion does not advertise or qualify any hosted
-capability. LLP 0111's hosted-serialized ordering is superseded on this point
+0134's maturity bar (as re-scoped by LLP 0189 D-6); that promotion does not
+advertise or qualify any hosted capability. LLP 0111's hosted-serialized ordering is superseded on this point
 only, and its hosted evidence gates remain in force. Source:
 `issues/20260802-author-decision-packet.md`.
 
