@@ -1,7 +1,7 @@
 {
   "id": "eas-payments",
   "title": "EAS Payments (engine-first slice)",
-  "description": "A learning/prototype vertical slice of the EAS Payments Engine on Snapback. A store notification is a thin trigger: the action re-fetches authoritative transaction state from a fake local store over ctx.fetch with a granted ctx.secrets credential, then commits through one mutation. entitlementGrants is derived from all of a user's transactions and backs the live query the app gates on. Grants are revoked either by the notification path (applyStoreState) or by a cron sweep once a window closes.",
+  "description": "A learning/prototype vertical slice of the EAS Payments Engine on Snapback. A store notification is a thin trigger: the action re-fetches authoritative transaction state from a fake local store over ctx.fetch with a granted ctx.secrets credential, then commits through one mutation. entitlementGrants is derived from all of a user's transactions and backs the live query the app gates on. The symmetric outbound half is a change feed carrying only { userId, seq } that a developer polls with a keyset cursor before re-reading authoritative entitlements themselves.",
   "artifactSchemaVersion": "snapback.v0",
   "targetProfile": "local-dev-sqlite-ibex",
   "systems": [
@@ -45,7 +45,10 @@
       "user_eve",
       "user_frank",
       "user_hank",
-      "user_ivy"
+      "user_ivy",
+      "user_jo",
+      "user_kit",
+      "user_leo"
     ]
   },
   "surfaces": {
@@ -80,24 +83,32 @@
       "a second product for the same entitlement keeps it alive",
       "a reconcile leaves another user's unrelated entitlement alone",
       "a notification cannot claim another user's transaction",
+      "a grant appends exactly one change the developer can poll",
+      "pollChanges carries no entitlement state",
+      "a no-op reconcile appends nothing to the feed",
+      "notifyDeveloper pings with only userId and seq",
       "the expireGrants cron job is declared against the sweep action",
       "a grant past activeUntil flips off on a scheduler tick",
+      "the expiry sweep participates in the feed, one seq per user",
+      "the feed is monotonic and dense across every writer",
       "an ordinary query is honestly reported as NOT live"
     ]
   },
   "capabilityGaps": [
     "store_adapters_apple_google_stripe",
-    "outbound_webhooks",
+    "real_outbound_webhook_delivery",
+    "atomic_sequence_allocation",
     "per_project_isolation",
     "sessions_auth",
     "offerings_and_merchandising",
     "metering"
   ],
   "notClaiming": [
-    "real store validation — validateReceipt performs a real outbound fetch, but against a fake local store fixture, not Apple/Google/Stripe, and with no signature or JWS verification",
+    "real store validation — validateReceipt and applyStoreState perform real outbound fetches, but against a fake local store fixture, not Apple/Google/Stripe, and with no signature or JWS verification",
     "production auth — the slice runs in dev auth mode; sessions mode is out of scope",
     "system-authority fencing for the reconcile path — reconcileTransaction takes userId as an argument because a store notification carries no session, and dev auth cannot restrict it to system authority",
-    "metering or billing — transactions carry an environment tag so sandbox rows can be excluded later, and nothing consumes it yet",
-    "the outbound entitlement-changed trigger developers poll — that is slice 4"
+    "real outbound webhook delivery — notifyDeveloper records a would-be delivery rather than sending one; the deliverable of slice 4 is the poll read model",
+    "concurrency-safe change-feed sequencing — seq is minted read-max-plus-one inside the mutation, so concurrent commits could mint a duplicate; an atomic allocator is the unpublished scoped-sequences surface",
+    "metering or billing — transactions carry an environment tag so sandbox rows can be excluded later, and nothing consumes it yet"
   ]
 }

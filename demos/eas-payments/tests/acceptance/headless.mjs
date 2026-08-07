@@ -46,15 +46,20 @@ const EVE = 'user_eve';
 const FRANK = 'user_frank';
 const HANK = 'user_hank';
 const IVY = 'user_ivy';
+const JO = 'user_jo';
+const KIT = 'user_kit';
+const LEO = 'user_leo';
 
 const STORE_KEY = 'fake-store-key-slice-2';
 const WRONG_STORE_KEY = 'not-the-store-key';
 
-const suite = createSuite('eas-payments / headless', { expectedChecks: 25 });
+const suite = createSuite('eas-payments / headless', { expectedChecks: 31 });
 const cleanups = [];
 let server = null;
 let db = null;
 let store = null;
+// Set by the cron-expiry check; read by the feed check that inspects that tick.
+let sweepCursor = 0;
 
 // Every outbound call routes to the fake store's OS-assigned port.
 const validate = (args, userId) => db.action(api.validateReceipt, {
@@ -89,6 +94,17 @@ const grantFor = async (userId, entitlementId) => {
   const { rows } = await db.query(api.getEntitlements, { userId });
   return rows.find((row) => row.entitlementId === entitlementId) ?? null;
 };
+// The developer's poll. Cursor semantics are keyset: resume from the last seq
+// you were handed, never from a separately sampled head.
+const pollChanges = async (sinceSeq) => {
+  const { rows } = await db.query(api.pollChanges, { args: { sinceSeq } });
+  return rows;
+};
+const changeCursor = async () => {
+  const rows = await pollChanges(0);
+  return rows.length === 0 ? 0 : rows[rows.length - 1].seq;
+};
+
 // Per-job cron facts live on the AdminRead projection, not the public
 // /inspect one — /inspect carries aggregate posture only (guide/backend/cron).
 const cronJob = async (name) => {
@@ -516,6 +532,80 @@ await runAcceptance(suite, async () => {
     return { code: res.diagnostic?.code ?? null };
   });
 
+  // --- Slice 4: the outbound change feed ---------------------------------------
+
+  await suite.check('a grant appends exactly one change the developer can poll', async () => {
+    const cursor = await changeCursor();
+    await validate({
+      productId: 'plus_monthly',
+      store: 'stripe',
+      receipt: 'receipt_jo_plus',
+      environment: 'sandbox',
+    }, JO);
+    const page = await pollChanges(cursor);
+    assertEqual(page.length, 1, 'exactly one change since the cursor');
+    assertEqual(page[0].userId, JO, 'the change names the user whose access moved');
+    assert(page[0].seq > cursor, 'seq advanced past the cursor');
+
+    // Polling again from the seq we were handed returns nothing.
+    assertEqual(await pollChanges(page[0].seq), [], 'the cursor drains the feed');
+    return { seq: page[0].seq };
+  });
+
+  await suite.check('pollChanges carries no entitlement state', async () => {
+    // The whole point of decision 20: the developer learns WHO changed, then
+    // re-reads our authoritative answer. Anything more here would be state
+    // they could act on stale.
+    const rows = await pollChanges(0);
+    assert(rows.length > 0, 'feed is non-empty, so this check is not vacuous');
+    for (const row of rows) {
+      assertEqual(Object.keys(row).sort(), ['seq', 'userId'], 'change row shape');
+    }
+    // And the read path they are pushed toward still works.
+    assertEqual(await activeEntitlementIds(JO), ['plus'], 'developer re-reads authoritative state');
+    return { rows: rows.length };
+  });
+
+  await suite.check('a no-op reconcile appends nothing to the feed', async () => {
+    const cursor = await changeCursor();
+    // Jo's transaction has not changed at the store, so this reconciles to the
+    // same answer.
+    const first = await notify({ userId: JO, store: 'stripe', storeTxnId: 'stripe:receipt_jo_plus' });
+    assert(first.ok, `applyStoreState failed: ${JSON.stringify(first.diagnostic)}`);
+    assertEqual(first.result.changed, false, 'nothing moved');
+    assertEqual(await pollChanges(cursor), [], 'a no-op reconcile is silent');
+
+    // A real move does append, so the silence above is not just a dead feed.
+    store.setState('stripe:receipt_jo_plus', {
+      status: 'refunded',
+      expiresAt: store.now - 1_000,
+    });
+    const second = await notify({ userId: JO, store: 'stripe', storeTxnId: 'stripe:receipt_jo_plus' });
+    assertEqual(second.result.changed, true, 'the refund moved the grant');
+    const page = await pollChanges(cursor);
+    assertEqual(page.length, 1, 'exactly one change for the real move');
+    assertEqual(page[0].userId, JO, 'named the right user');
+  });
+
+  await suite.check('notifyDeveloper pings with only userId and seq', async () => {
+    const cursor = await changeCursor();
+    const res = await db.action(api.notifyDeveloper, {
+      args: { userId: JO, seq: cursor },
+      userId: JO,
+    });
+    assert(res.ok, `notifyDeveloper failed: ${JSON.stringify(res.diagnostic)}`);
+    assertEqual(res.result.recorded, true, 'the attempt was recorded');
+    assertEqual(res.result.payloadKeys, 'userId,seq', 'the ping body carries no entitlement state');
+
+    const deliveries = await db.query(api.listDeliveries, {});
+    const last = deliveries.rows[deliveries.rows.length - 1];
+    assertEqual(last.userId, JO, 'delivery names the user');
+    assertEqual(last.seq, cursor, 'delivery names the cursor position');
+    // Recording a would-be ping must not itself disturb the feed.
+    assertEqual(await pollChanges(cursor), [], 'notifying is not a change');
+    return { endpoint: last.endpoint, deliveries: deliveries.rows.length };
+  });
+
   await suite.check('the expireGrants cron job is declared against the sweep action', async () => {
     const job = await cronJob('expireGrants');
     assert(job, 'expireGrants present in the cron list projection');
@@ -526,22 +616,34 @@ await runAcceptance(suite, async () => {
   });
 
   await suite.check('a grant past activeUntil flips off on a scheduler tick', async () => {
-    // Ivy's only transaction is one whose window already closed, so the sweep
-    // has something unambiguous to find. (Reusing a user who holds a second,
-    // still-valid transaction for the same entitlement would correctly NOT
-    // expire — grants derive from every transaction, not the latest one.)
-    await db.mutate(api.recordPurchase, {
-      args: {
-        productId: 'pro_monthly',
-        store: 'stripe',
-        storeTxnId: 'stripe:receipt_ivy_expired',
-        status: 'active',
-        environment: 'sandbox',
-        expiresAt: Date.now() - 1_000,
-      },
-      userId: IVY,
-    });
+    // Three users whose windows already closed, so one sweep has something
+    // unambiguous to find and the next check can assert on what it emitted.
+    // (Reusing a user who holds a second, still-valid transaction for the same
+    // entitlement would correctly NOT expire — grants derive from every
+    // transaction, not the latest one.)
+    //
+    // An everyMs job is due exactly once per interval, so the suite gets one
+    // meaningful forced tick per minute of wall clock: this is that tick, and
+    // the feed check below reads its output rather than forcing another.
+    for (const [userId, receipt] of [
+      [IVY, 'receipt_ivy_expired'],
+      [KIT, 'receipt_kit_expired'],
+      [LEO, 'receipt_leo_expired'],
+    ]) {
+      await db.mutate(api.recordPurchase, {
+        args: {
+          productId: 'pro_monthly',
+          store: 'stripe',
+          storeTxnId: `stripe:${receipt}`,
+          status: 'active',
+          environment: 'sandbox',
+          expiresAt: Date.now() - 1_000,
+        },
+        userId,
+      });
+    }
     assertEqual(await activeEntitlementIds(IVY), ['pro'], 'ivy holds pro before the sweep');
+    sweepCursor = await changeCursor();
 
     await db.cronTick();
 
@@ -553,6 +655,30 @@ await runAcceptance(suite, async () => {
     assertEqual(job.lastOutcome, 'Succeeded', 'the scheduler recorded a successful run');
     assert(job.lastRunAtMs > 0, 'the run ledger stamped the run');
     return { lastOutcome: job.lastOutcome, lastRunAtMs: job.lastRunAtMs };
+  });
+
+  await suite.check('the expiry sweep participates in the feed, one seq per user', async () => {
+    // Reads the tick the previous check drove. All three users expired in one
+    // commit; sharing a commit must not mean sharing a cursor position, or a
+    // poller resuming mid-sweep would lose the later users forever.
+    const page = await pollChanges(sweepCursor);
+    assertEqual(page.map((r) => r.userId).sort(), [IVY, KIT, LEO], 'every swept user appears');
+    assertEqual(new Set(page.map((r) => r.seq)).size, page.length, 'distinct seqs within one sweep');
+    assertEqual(await activeEntitlementIds(KIT), [], 'kit expired');
+    assertEqual(await activeEntitlementIds(LEO), [], 'leo expired');
+    return { seqs: page.map((r) => r.seq) };
+  });
+
+  await suite.check('the feed is monotonic and dense across every writer', async () => {
+    // purchase path, notification path, and sweep all mint from one counter.
+    const rows = await pollChanges(0);
+    const seqs = rows.map((r) => r.seq);
+    assert(seqs.length > 0, 'feed is non-empty, so this check is not vacuous');
+    assertEqual(seqs, [...seqs].sort((a, b) => a - b), 'ascending');
+    assertEqual(new Set(seqs).size, seqs.length, 'no duplicate seq');
+    assertEqual(seqs[0], 1, 'the feed starts at 1');
+    assertEqual(seqs[seqs.length - 1], seqs.length, 'dense: every seq accounted for');
+    return { changes: seqs.length };
   });
 
   await suite.check('an ordinary query is honestly reported as NOT live', async () => {

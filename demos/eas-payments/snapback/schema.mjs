@@ -71,4 +71,26 @@ export default defineSchema({
     .index('by_active', ['active'])
     // Declared syncable so getEntitlements can be a real live query.
     .sync(),
+
+  // The outbound change feed (decision 20). One row per reconcile that moved a
+  // user's active set — and nothing else. Deliberately carries NO entitlement
+  // state: a developer polling this learns only that something changed for a
+  // user, then re-reads our authoritative answer. That keeps the feed useless
+  // to an eavesdropper and impossible to act on stale.
+  entitlementChanges: defineTable({
+    userId: v.string(),
+    seq: v.integer(),
+    changedAt: v.integer(),
+  })
+    // by_seq is the keyset cursor a poller walks.
+    .index('by_seq', ['seq']),
+
+  // Slice-4 stub for the outbound ping. Records that a delivery *would* have
+  // been attempted; slice 5 replaces this with a real signed POST.
+  deliveries: defineTable({
+    userId: v.string(),
+    seq: v.integer(),
+    endpoint: v.string(),
+    attemptedAt: v.integer(),
+  }).index('by_seq', ['seq']),
 });

@@ -25,6 +25,7 @@ import {
   defineCron,
   defineJsLiveQuery,
   defineJsMutation,
+  defineJsQuery,
   defineQuery,
   results,
   v,
@@ -183,6 +184,26 @@ async function applyDerivedGrant(ctx, userId, entitlementId) {
   return accessMoved;
 }
 
+// The highest seq the change feed has issued, or 0. Callers add to it
+// themselves rather than calling this once per row: a mutation's writes are
+// buffered, so re-reading the max mid-handler is not guaranteed to observe
+// rows this same handler just inserted.
+//
+// PROTOTYPE CONCURRENCY GAP: two mutations committing concurrently can read
+// the same max and mint the same seq, which would let a poller miss one of
+// them. A real deployment needs an atomic allocator — that is the unpublished
+// scoped-sequences surface (guide/backend/sequences.md), not something to
+// hand-roll further than this.
+async function readMaxChangeSeq(ctx) {
+  const last = await ctx.db
+    .query('entitlementChanges')
+    .withIndex('by_seq')
+    .order('seq', 'desc')
+    .take(1)
+    .collect();
+  return last.length === 0 ? 0 : last[0].seq;
+}
+
 // Recompute every entitlement a product can affect. Returns how many moved.
 async function applyProductEntitlements(ctx, userId, productId) {
   const mappings = await ctx.db
@@ -212,8 +233,8 @@ export const recordPurchase = defineJsMutation({
     environment: v.string(),
     expiresAt: v.optional(v.integer()),
   },
-  reads: ['transactions', 'productEntitlements', 'entitlementGrants'],
-  writes: ['transactions', 'entitlementGrants'],
+  reads: ['transactions', 'productEntitlements', 'entitlementGrants', 'entitlementChanges'],
+  writes: ['transactions', 'entitlementGrants', 'entitlementChanges'],
   result: results.value(v.object({
     transactionId: v.string(),
     deduped: v.boolean(),
@@ -253,6 +274,13 @@ export const recordPurchase = defineJsMutation({
     // Derive, never assign: the new transaction is now one input among the
     // user's transactions, and the grant is recomputed from all of them.
     const granted = await applyProductEntitlements(ctx, userId, args.productId);
+    if (granted > 0) {
+      await ctx.db.insert('entitlementChanges', {
+        userId: userId,
+        seq: (await readMaxChangeSeq(ctx)) + 1,
+        changedAt: ctx.runtime.now(),
+      });
+    }
     return { transactionId: transactionId, deduped: false, grants: granted };
   },
 });
@@ -277,7 +305,7 @@ export const validateReceipt = defineAction({
     storeBaseUrl: v.optional(v.string()),
   },
   uses: ['storeValidation'],
-  writes: ['transactions', 'entitlementGrants'],
+  writes: ['transactions', 'entitlementGrants', 'entitlementChanges'],
   result: results.value(v.object({
     storeTxnId: v.string(),
     status: v.string(),
@@ -371,8 +399,8 @@ export const reconcileTransaction = defineJsMutation({
     environment: v.string(),
     expiresAt: v.optional(v.integer()),
   },
-  reads: ['transactions', 'productEntitlements', 'entitlementGrants'],
-  writes: ['transactions', 'entitlementGrants'],
+  reads: ['transactions', 'productEntitlements', 'entitlementGrants', 'entitlementChanges'],
+  writes: ['transactions', 'entitlementGrants', 'entitlementChanges'],
   result: results.value(v.object({
     changed: v.boolean(),
     entitlementsChanged: v.integer(),
@@ -427,6 +455,15 @@ export const reconcileTransaction = defineJsMutation({
     }
 
     const entitlementsChanged = await applyProductEntitlements(ctx, userId, productId);
+    // Only an actual move in the active set reaches the feed. A redundant
+    // notification updates nothing and says nothing.
+    if (entitlementsChanged > 0) {
+      await ctx.db.insert('entitlementChanges', {
+        userId: userId,
+        seq: (await readMaxChangeSeq(ctx)) + 1,
+        changedAt: ctx.runtime.now(),
+      });
+    }
     return {
       changed: entitlementsChanged > 0,
       entitlementsChanged: entitlementsChanged,
@@ -450,7 +487,7 @@ export const applyStoreState = defineAction({
     storeBaseUrl: v.optional(v.string()),
   },
   uses: ['storeValidation'],
-  writes: ['transactions', 'entitlementGrants'],
+  writes: ['transactions', 'entitlementGrants', 'entitlementChanges'],
   result: results.value(v.object({
     storeTxnId: v.string(),
     status: v.string(),
@@ -514,11 +551,16 @@ export const applyStoreState = defineAction({
 // under system authority, so it is scoped by by_active rather than by_user.
 export const applyGrantExpiry = defineJsMutation({
   args: {},
-  reads: ['entitlementGrants'],
-  writes: ['entitlementGrants'],
+  reads: ['entitlementGrants', 'entitlementChanges'],
+  writes: ['entitlementGrants', 'entitlementChanges'],
   result: results.value(v.object({ expired: v.integer(), now: v.integer() })),
   handler: async (ctx) => {
     const now = ctx.runtime.now();
+    // One sweep can flip many users at once, so the seq base is read once and
+    // then advanced locally — every affected user still gets a distinct cursor
+    // position even though they share a commit.
+    let nextSeq = (await readMaxChangeSeq(ctx)) + 1;
+    const notified = [];
     const live = await ctx.db
       .query('entitlementGrants')
       .withIndex('by_active')
@@ -532,6 +574,17 @@ export const applyGrantExpiry = defineJsMutation({
       if (until !== null && until !== undefined && until <= now) {
         await ctx.db.patch('entitlementGrants', grant._id, { active: false });
         expired += 1;
+        // One feed row per user, not per grant: the developer's question is
+        // "whose access moved", and they re-read the whole answer anyway.
+        if (notified.indexOf(grant.userId) < 0) {
+          notified.push(grant.userId);
+          await ctx.db.insert('entitlementChanges', {
+            userId: grant.userId,
+            seq: nextSeq,
+            changedAt: now,
+          });
+          nextSeq += 1;
+        }
       }
     }
     return { expired: expired, now: now };
@@ -541,7 +594,7 @@ export const applyGrantExpiry = defineJsMutation({
 // Cron targets an action, never a mutation; the action owns the commit call.
 export const expireGrantsSweep = defineAction({
   args: {},
-  writes: ['entitlementGrants'],
+  writes: ['entitlementGrants', 'entitlementChanges'],
   result: results.value(v.object({ expired: v.integer() })),
   handler: async (ctx) => {
     const commit = await ctx.runMutation('applyGrantExpiry', {});
@@ -557,4 +610,92 @@ export const paymentsCron = defineCron({
     schedule: { everyMs: 60_000 },
     action: 'expireGrantsSweep',
   },
+});
+
+// --- Outbound change feed (decision 20) -----------------------------------------
+
+// The developer's poll. This is the mirror image of decision 19: just as we
+// refuse to trust a store's payload, we refuse to hand the developer state in
+// a notification. They learn *who* changed and re-read the authoritative
+// answer themselves through getEntitlements.
+//
+// The result contract is the enforcement, not a convention: `records` of
+// exactly { userId, seq } means adding entitlement state here would fail
+// validation rather than quietly leaking.
+//
+// Cursor semantics are keyset, not "jump to the global max": resume from the
+// last seq you received. With a bounded page, advancing to a global head
+// instead would silently skip everything the page truncated.
+export const pollChanges = defineJsQuery({
+  args: { sinceSeq: v.integer() },
+  reads: ['entitlementChanges'],
+  result: results.records(v.object({ userId: v.string(), seq: v.integer() })),
+  handler: async (ctx, args) => {
+    const since = typeof args.sinceSeq === 'number' ? args.sinceSeq : 0;
+    const rows = await ctx.db
+      .query('entitlementChanges')
+      .withIndex('by_seq')
+      .gt('seq', since)
+      .order('seq', 'asc')
+      .take(100)
+      .collect();
+    return rows.map((row) => ({ userId: row.userId, seq: row.seq }));
+  },
+});
+
+// Slice-4 stub for the outbound ping. Actions have no ctx.db, so the durable
+// record goes through a mutation like every other write.
+export const recordDeliveryAttempt = defineJsMutation({
+  args: { userId: v.string(), seq: v.integer(), endpoint: v.string() },
+  writes: ['deliveries'],
+  result: results.value(v.id('deliveries')),
+  handler: async (ctx, args) => ctx.db.insert('deliveries', {
+    userId: args.userId,
+    seq: args.seq,
+    endpoint: args.endpoint,
+    attemptedAt: ctx.runtime.now(),
+  }),
+});
+
+// The "something changed for this user" ping. Deliberately NOT sent in this
+// slice — the deliverable here is the poll read model, and a fake webhook
+// target would prove nothing the fake store does not already prove.
+//
+// What matters architecturally is the payload shape: { userId, seq } and
+// nothing else, so the developer must come back and read. Slice 5 replaces the
+// recorded attempt below with a real signed POST plus retry.
+export const notifyDeveloper = defineAction({
+  args: {
+    userId: v.string(),
+    seq: v.integer(),
+    endpoint: v.optional(v.string()),
+  },
+  writes: ['deliveries'],
+  result: results.value(v.object({
+    recorded: v.boolean(),
+    endpoint: v.string(),
+    payloadKeys: v.string(),
+  })),
+  handler: async (ctx, args) => {
+    const endpoint = String(args.endpoint ?? '').trim()
+      || 'https://developer.example/webhooks/entitlements';
+    // SLICE 5 goes here:
+    //   await ctx.fetch({ url: endpoint, method: 'POST',
+    //     headers: { 'x-snapback-signature': sign(body) },
+    //     body: JSON.stringify({ userId: args.userId, seq: args.seq }) });
+    await ctx.runMutation('recordDeliveryAttempt', {
+      userId: args.userId,
+      seq: args.seq,
+      endpoint: endpoint,
+    });
+    return { recorded: true, endpoint: endpoint, payloadKeys: 'userId,seq' };
+  },
+});
+
+// What the stub recorded, so a suite can prove the ping carried no state.
+export const listDeliveries = defineQuery({
+  table: 'deliveries',
+  args: {},
+  order: [asc('seq')],
+  index: 'by_seq',
 });

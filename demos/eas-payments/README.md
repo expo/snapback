@@ -80,6 +80,61 @@ a grant goes away, and they are independent:
 A grant with no `activeUntil` (a non-consumable) is perpetual and is never
 swept.
 
+## The outbound change feed
+
+The mirror image of the notification rule. Just as we refuse to trust a store's
+payload, we refuse to hand a developer state in a notification.
+
+`entitlementChanges` gets one row per reconcile that moved a user's active set
+— and only then. A no-op reconcile appends nothing. Each row is
+`{ userId, seq, changedAt }`, and `pollChanges({ sinceSeq })` projects exactly
+`{ userId, seq }`. The result contract is the enforcement, not a convention:
+adding entitlement state to that query would fail validation rather than
+quietly leak.
+
+```
+developer server                    Snapback
+     |  pollChanges({ sinceSeq: 41 })   |
+     |--------------------------------->|
+     |  [{ userId: "u_jo", seq: 42 }]   |
+     |<---------------------------------|
+     |  getEntitlements (as u_jo)       |   <- they re-read the real answer
+     |--------------------------------->|
+```
+
+**Cursor semantics are keyset, not "jump to the head."** Resume from the last
+`seq` you received. The page is bounded at 100; advancing to a separately
+sampled global maximum would silently skip whatever the page truncated. This is
+a deliberate deviation from the brief's "plus the current max seq" — with a
+bounded page, the last returned seq *is* the correct resume point.
+
+All three writers — purchase, notification reconcile, and the expiry sweep —
+mint from one counter, and the acceptance asserts the feed is ascending, dense,
+and duplicate-free across all of them. The sweep can flip several users in one
+commit, and each still gets a distinct `seq`, so a poller resuming mid-sweep
+cannot lose the later users.
+
+`notifyDeveloper` is the outbound ping, and it is **a stub**: it records a
+would-be delivery in `deliveries` instead of sending anything. What it does
+pin down is the payload shape — `{ userId, seq }` and nothing else. Slice 5
+replaces the recorded attempt with a real signed POST plus retry.
+
+## Known prototype gap: change-feed sequence allocation
+
+`seq` is minted by reading the current maximum and adding one, inside the
+mutation. Two mutations committing concurrently can read the same maximum and
+mint the same `seq`, which would let a poller miss one of them. The acceptance
+is sequential, so it never hits this.
+
+A real deployment needs an atomic allocator. That is Snapback's unpublished
+scoped-sequences surface ([`guide/backend/sequences.md`](../../guide/backend/sequences.md)),
+which explicitly warns against hand-rolling one from `ctx.runtime.now()` or
+`ctx.runtime.id()` — so this stops where it is rather than getting cleverer.
+
+Note that `_version` is *not* a substitute here: the expiry sweep writes
+several feed rows in a single commit, and they would all share one commit
+version.
+
 ## Known prototype gap: reconcile authority
 
 `reconcileTransaction` takes `userId` as an argument rather than reading
