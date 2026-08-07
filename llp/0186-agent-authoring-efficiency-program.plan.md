@@ -9,6 +9,7 @@ Error handling, Code generation, Packaging, Client integration, Testing
 **Revised:** 2026-08-06 (e — Accepted by author ruling at revision (d); the super-refine run record in llp/reviews/0186-agent-authoring-efficiency-program.run.md holds the verdict history, incl. that revision (d) was unreviewed)
 **Revised:** 2026-08-06 (f — amendment adding a worked-example tier to W2's Rosetta section, scoped separately from the vocabulary-alias tier; see the dated amendment)
 **Revised:** 2026-08-06 (g — revision of the (f) amendment after one `llp-review` round, two independent families instructed to prioritize generative feedback over compliance nitpicking: `llp/reviews/0186-agent-authoring-efficiency-program.claude.md` and `.gpt-5.md`, round 4. Both reviews converged on the same three defects — an evidence/concept-list mismatch, a closed four-demo source list two of the four concepts can't actually satisfy, and an OQ6 left as a named risk rather than a mechanism — plus the GPT-family review found a fourth, more serious one: the (f) revision's own worked "structural difference" example for Supabase RLS was itself wrong in exactly the way the tier exists to prevent. This revision fixes that bug, replaces the four-card list with a quick-map-plus-deep-journeys shape prioritized by an explicit evidence rubric, opens the source pool beyond the four originally named demos, and answers OQ6 with a generated-projection mechanism instead of naming it as unresolved.)
+**Revised:** 2026-08-07 (h — implementation record: see the dated amendment. All five (g) journeys shipped; `/llms.txt` found already landed by unrelated fleet work with a phasing defect, now corrected.)
 **Related:** LLP 0061 (agent-first guide), LLP 0130 (Convex parity standing
 decisions), LLP 0146 (agentic authoring affordances), LLP 0176 (Expo
 messaging golden-path program), LLP 0178 (generate-time authoring
@@ -661,3 +662,46 @@ combination with the construction check, not on its own — an agent that
 follows a journey's link into the authoritative feature page for more
 depth is succeeding, not failing, so "zero further navigation" is not
 the bar.
+
+## Amendment (2026-08-07): W2 implementation record
+
+**Rosetta tier: all five (g) journeys shipped.** `guide/recipes/coming-from-convex-and-supabase.md`
+now carries the Quick map plus all five deep worked journeys named in the (g) revision —
+protected-live-crud, expo-media-upload, relational-queries, ephemeral-presence, and
+reactive-queries — landed in two batches (`3d7f6eb40`: the first two, as the "small proof" the
+(g) revision's own sequencing called for; `1a4463d76`: the remaining three). The OQ6 mechanism
+(`scripts/check-rosetta.mjs`, wired into `check-guide.mjs`) validates all five records against
+`guide/capabilities.md`'s aliases, hub-page anchors, and feature-page backlinks; `check-guide.mjs`,
+`check-rosetta.mjs`, and `ref-check` are green at both landing commits. Feature-page backlinks
+landed on `auth/sessions-and-principals.md`, `backend/queries.md`, `clients/react.md` (extended
+in place for both `protected-live-crud` and `reactive-queries` rather than duplicated),
+`backend/assets.md`, `backend/relational-queries.md`, and `realtime/ephemeral-state.md`. Six new
+capability aliases and five new `guide/retrieval-eval.md` seed cases (10–14) landed alongside.
+The reactive-queries journey uses `demos/partiful-matrix`'s real, CI-exercised dual-backend
+implementation (`surfaces/react/src/provider.ts` / `convex-direct.ts`, driven by
+`tests/acceptance/convex-realtime-web.mjs`, which records each provider file's content hash) as
+its "if a snippet isn't enough" pointer — real competitor-side code, not a transcribed fragment,
+for the one journey where that source happens to exist.
+
+**`/llms.txt`: found already shipped, phasing defect corrected.** Contrary to this Plan's own W2
+text above ("there is no `/llms.txt`"), unrelated fleet work had already landed a working
+`GET /llms.txt` route (`src/server.rs`, `served_llms_txt`, covered by
+`tests/served_guide_v1.rs` and `tests/route_policy_v1.rs`) by the time this amendment was
+written — the Plan's text was stale, not the repository. The shipped version, however, did not
+match this Plan's own phasing: it listed the complete flat single-file projection
+(`/_snapback/guide/flat.md`, 857 KB and growing) as its *first* link, ahead of the capability
+index, exactly the "pull the whole oversized corpus first" behavior W2's two-stage design exists
+to prevent — `issues/20260806-guide-flat-projection-oversize.md` is still open, so the oversize
+condition this ordering risked is real, not historical. Corrected in `src/server.rs`'s `LLMS_TXT`
+constant to lead with the capability index and list the flat projection last, labeled as a large
+explicit fallback; `guide/index.md`'s description updated to match. The existing test only asserts
+substring presence of both links, not order, so no test needed to change; both still pass.
+**Residual:** the full-projection stage described in W2 ("the full-projection `/llms.txt`
+completes when 0061's projection lands") is therefore not a future addition but a present
+ordering fix plus a still-open size problem — the flat projection itself still needs LLP 0061's
+diet/tier amendment before pointing agents at it first is honest.
+
+**Not yet built:** the published Snapback authoring skill and the `create-snapback-app`
+golden-path scaffold remain open, per the (g)/original W2 text's own gating (the scaffold waits on
+LLP 0176 G2 / LLP 0179 S1; the skill's discriminating success test needs the W1 instrument, which
+remains unbuilt beyond scaffolding).

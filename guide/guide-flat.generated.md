@@ -152,8 +152,11 @@ single-request projection at `GET /_snapback/guide/flat.md`. Those responses
 carry `x-snapback-guide-content-sha256` and
 `x-snapback-server-build-commit`, so a consumer can refuse to combine cached
 guide bytes with a different server build. `GET /llms.txt` at the served root
-provides a convention-standard index pointing to the flat projection and
-capability index. Building Snapback itself is a
+provides a convention-standard index, leading with the capability index
+(within its enforced budget) and listing the flat projection last as an
+explicit large-file fallback while it remains oversized
+(`issues/20260806-guide-flat-projection-oversize.md`). Building Snapback
+itself is a
 different job — that's `AGENTS.md` and the LLP corpus, not this guide.
 
 ## Choose the MCP authority
