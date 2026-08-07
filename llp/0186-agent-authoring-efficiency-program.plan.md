@@ -10,6 +10,7 @@ Error handling, Code generation, Packaging, Client integration, Testing
 **Revised:** 2026-08-06 (f — amendment adding a worked-example tier to W2's Rosetta section, scoped separately from the vocabulary-alias tier; see the dated amendment)
 **Revised:** 2026-08-06 (g — revision of the (f) amendment after one `llp-review` round, two independent families instructed to prioritize generative feedback over compliance nitpicking: `llp/reviews/0186-agent-authoring-efficiency-program.claude.md` and `.gpt-5.md`, round 4. Both reviews converged on the same three defects — an evidence/concept-list mismatch, a closed four-demo source list two of the four concepts can't actually satisfy, and an OQ6 left as a named risk rather than a mechanism — plus the GPT-family review found a fourth, more serious one: the (f) revision's own worked "structural difference" example for Supabase RLS was itself wrong in exactly the way the tier exists to prevent. This revision fixes that bug, replaces the four-card list with a quick-map-plus-deep-journeys shape prioritized by an explicit evidence rubric, opens the source pool beyond the four originally named demos, and answers OQ6 with a generated-projection mechanism instead of naming it as unresolved.)
 **Revised:** 2026-08-07 (h — implementation record: see the dated amendment. All five (g) journeys shipped; `/llms.txt` found already landed by unrelated fleet work with a phasing defect, now corrected.)
+**Revised:** 2026-08-07 (i — implementation record: the W2 published authoring skill shipped as `skills/snapback-authoring/SKILL.md`, with its embedded Rosetta projection checked against the canonical records by `scripts/check-rosetta.mjs`; see the dated amendment. Its paired-lane success test remains gated on the W1 instrument.)
 **Related:** LLP 0061 (agent-first guide), LLP 0130 (Convex parity standing
 decisions), LLP 0146 (agentic authoring affordances), LLP 0176 (Expo
 messaging golden-path program), LLP 0178 (generate-time authoring
@@ -682,6 +683,25 @@ implementation (`surfaces/react/src/provider.ts` / `convex-direct.ts`, driven by
 `tests/acceptance/convex-realtime-web.mjs`, which records each provider file's content hash) as
 its "if a snippet isn't enough" pointer — real competitor-side code, not a transcribed fragment,
 for the one journey where that source happens to exist.
+
+**Authoring skill: shipped (2026-08-07).** `skills/snapback-authoring/SKILL.md` is the published
+Snapback authoring skill for app-building agents (Claude Code / Codex / Cursor discover it through
+the `scripts/sync-agent-skills` mirrors — `.claude/skills`, `.agents/skills`, `.cursor/skills`,
+`.pi/skills`, `.opencode/skills` — which are whole-directory symlinks to `skills/`, so the real
+directory needs no sync-script change). It front-loads the five W2 items: the golden path
+(install → schema → codegen → dev → first query → first upload), seven top traps re-verified
+against main on 2026-08-07 (traps already fixed by W0/W3 landings — the anonymous-upload wall,
+the optional-arg contradiction, TUS CORS, the published offline-retention gate — were deliberately
+excluded rather than carried stale), the `snapback verify` done-oracle with its partial-claim
+honesty, the guide locations (`/_snapback/guide`, `/llms.txt`, capability-index-first,
+`snapback mcp` vs `mcp-control`), and a compact projection of all five Rosetta records between
+`<!-- rosetta:begin/end -->` markers. Per this amendment's sequencing rule the projection is
+checked, not hand-trusted: `scripts/check-rosetta.mjs` now fails if the skill block is missing a
+record's id, title, hub-anchor link, or any record alias, or if the skill names a journey no
+record backs — so the skill and the guide cannot drift apart. The skill's discriminating success
+test (paired lanes on the same brief, with and without the skill, measuring orientation cost and
+Snapback-attributable correction loops) remains gated on the W1 instrument and has **not** been
+run; shipping the skill claims availability, not measured value.
 
 **Same-day review pass (2026-08-07).** A post-landing review corrected four defects in the shipped
 page. (1) The reactive-queries journey's Snapback snippet was `demos/partiful-matrix`'s
