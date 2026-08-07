@@ -24,8 +24,23 @@ export const SUPERVISED_EXCHANGE_FORMAT = 'snapback.expo-supervised-exchange.v1'
 export const SUPERVISED_EXCHANGE_PATH = '/_snapback/expo/v1/bootstrap';
 
 const LOOPBACK_HOST = '127.0.0.1';
+const BROWSER_EXCHANGE_ORIGIN_PREFIXES = Object.freeze([
+  'http://127.0.0.1:',
+  'https://127.0.0.1:',
+  'http://localhost:',
+  'https://localhost:',
+  'http://[::1]:',
+  'https://[::1]:',
+]);
 const DEFAULT_BINDING_TTL_MS = 60 * 60 * 1_000;
 const DEFAULT_EMAIL = 'snapback-dev@localhost.invalid';
+
+export function admittedBrowserExchangeOrigin(originHeader) {
+  if (typeof originHeader !== 'string') return null;
+  return BROWSER_EXCHANGE_ORIGIN_PREFIXES.some((prefix) => originHeader.startsWith(prefix))
+    ? originHeader
+    : null;
+}
 
 function delay(ms) {
   return new Promise((resolveDelay) => setTimeout(resolveDelay, ms));
@@ -802,13 +817,30 @@ async function waitForListenerInventory({
   );
 }
 
-async function startBootstrapExchange(getPayload) {
+export async function startBootstrapExchange(getPayload) {
   const sockets = new Set();
   const server = createHttpServer((request, response) => {
+    const admittedOrigin = admittedBrowserExchangeOrigin(request.headers.origin);
     response.setHeader('cache-control', 'no-store, max-age=0');
     response.setHeader('pragma', 'no-cache');
     response.setHeader('referrer-policy', 'no-referrer');
     response.setHeader('content-type', 'application/json; charset=utf-8');
+
+    // @ref LLP 0176#security-claims-follow-reachability — loopback-only origin
+    // admission, matching src/server.rs local_dev_cors, remains the security
+    // boundary; only the exchange's response headers widen.
+    if (admittedOrigin !== null) {
+      response.setHeader('access-control-allow-origin', admittedOrigin);
+      response.setHeader('vary', 'Origin');
+      response.setHeader('access-control-allow-methods', 'GET, OPTIONS');
+      response.setHeader('access-control-allow-headers', 'accept');
+    }
+    if (request.method === 'OPTIONS' && request.url === SUPERVISED_EXCHANGE_PATH) {
+      response.setHeader('access-control-max-age', '600');
+      response.statusCode = 204;
+      response.end();
+      return;
+    }
     if (request.method !== 'GET' || request.url !== SUPERVISED_EXCHANGE_PATH) {
       response.statusCode = 404;
       response.end(JSON.stringify({ ok: false, code: 'SNAPBACK_EXPO_BOOTSTRAP_ROUTE_NOT_FOUND' }));

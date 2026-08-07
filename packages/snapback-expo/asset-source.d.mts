@@ -1,10 +1,23 @@
 import type {
   AdaptedCommandAssetSource,
-  CommandAssetSourceAdapter,
   PlatformCommandAssetSource,
 } from '@expo/snapback-client';
 
-export type ExpoPickerAssetSource = PlatformCommandAssetSource;
+export type ExpoBlobSource = Readonly<{
+  readonly size: number;
+  readonly name?: string;
+  readonly type?: string;
+  slice(start?: number, end?: number, contentType?: string): ExpoBlobSource;
+} & ({
+  arrayBuffer(): Promise<ArrayBuffer>;
+  bytes?(): Promise<Uint8Array>;
+} | {
+  arrayBuffer?(): Promise<ArrayBuffer>;
+  bytes(): Promise<Uint8Array>;
+})>;
+export type ExpoPickerAssetSource = ExpoBlobSource | (PlatformCommandAssetSource & Readonly<{
+  file?: ExpoBlobSource | null;
+}>);
 export interface ExpoFetchResponseLike {
   readonly ok?: boolean;
   readonly status?: number;
@@ -22,7 +35,9 @@ export function createExpoAssetSourceAdapter(options?: Readonly<{
   fetch?: ((uri: string) => Promise<ExpoFetchResponseLike>) | null;
   fallbackFetch?: ((uri: string) => Promise<ExpoFetchResponseLike>) | null;
   readFileBytes?: ((uri: string) => Promise<Uint8Array>) | null;
-}>): CommandAssetSourceAdapter;
+}>): (
+  source: ExpoPickerAssetSource,
+) => Promise<AdaptedCommandAssetSource>;
 
 export const adaptExpoAssetSource: (
   source: ExpoPickerAssetSource,

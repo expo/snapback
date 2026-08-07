@@ -4,13 +4,13 @@ id: clients.react-expo
 order: 3
 audience: agent-first
 capabilities: [clients.react-expo]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0181-zero-configuration-expo.rfc.md, packages/snapback-cli/expo-dev.mjs, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-expo/app-binding.mjs, packages/snapback-expo/config-plugin.cjs, packages/snapback-expo/index.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo/supervised-environment.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/_kit/eas-stage-build.mjs]
-examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md, demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md, demos/expo-golden-path-fixture/receipts/20260806-g4-external-summary.md, demos/expo-golden-path-fixture/receipts/physical-device-online-checklist.md, demos/partiful-matrix/native/react-expo, packages/snapback-cli/expo-device-forwarding.test.mjs, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-expo/provider.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, scripts/local-source-package-closure.test.mjs, demos/rn-durable-store-witness/probe-App.tsx, demos/tandem-expo-bakeoff/scripts/build-ios-dev-client, demos/_kit/tests/repo-layout-unit.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0181-zero-configuration-expo.rfc.md, packages/snapback-cli/expo-dev.mjs, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-expo/app-binding.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-expo/config-plugin.cjs, packages/snapback-expo/index.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo/supervised-environment.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/_kit/eas-stage-build.mjs]
+examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md, demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md, demos/expo-golden-path-fixture/receipts/20260806-g4-external-summary.md, demos/expo-golden-path-fixture/receipts/physical-device-online-checklist.md, demos/partiful-matrix/native/react-expo, packages/snapback-cli/expo-device-forwarding.test.mjs, packages/snapback-cli/expo-bootstrap-exchange.test.mjs, packages/snapback-expo/asset-source.test.mjs, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-expo/provider.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, scripts/local-source-package-closure.test.mjs, demos/rn-durable-store-witness/probe-App.tsx, demos/tandem-expo-bakeoff/scripts/build-ios-dev-client, demos/_kit/tests/repo-layout-unit.mjs]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-07
-reviewed-commit: f4d4d8c184a8994b747a8e83b1ee74abfcb8a09b
+reviewed-commit: 6a1de382fade55da910e3ab1f40115e1e0cfad48
 ---
 
 # React Expo Online clients
@@ -311,6 +311,43 @@ Supervised binding admission tolerates at most 60 seconds of the host issuer's
 clock running ahead of the simulator/emulator clock. Expiry remains strict; a
 larger skew refuses with `SNAPBACK_APP_BINDING_NOT_YET_VALID`, in which case
 fix the clocks and restart the supervisor.
+
+### Run the supervised loop on Expo web
+
+The supervised flow also serves the Expo **web** carrier (`npx expo start`
+pressing `w`, or `--web`) without app-authored proxies or shims. Three
+package-level paves make this work; each keeps its existing security or
+custody boundary:
+
+- **The bootstrap exchange serves CORS to loopback browser origins only.**
+  A page served from `http://localhost:<port>` (Metro web) can complete the
+  `GET /_snapback/expo/v1/bootstrap` cross-origin: the exchange echoes
+  admitted `Origin` values with `Vary: Origin` and answers `OPTIONS`
+  preflight, scoped exactly like the local dev CORS lane in
+  [`src/server.rs`](repo:src/server.rs). Origin admission stays the
+  boundary — non-loopback origins are never echoed, and the listener itself
+  stays loopback-bound
+  ([`startBootstrapExchange`](repo:packages/snapback-cli/expo-dev.mjs),
+  [CORS coverage](repo:packages/snapback-cli/expo-bootstrap-exchange.test.mjs)).
+- **AppState resolution is web-safe by default.** The provider resolves its
+  lifecycle source through the conditional `#app-state` module: real React
+  Native keeps the deep `react-native/Libraries/AppState` import, web
+  resolves `AppState` from `react-native-web`, and hosts with neither refuse
+  with `SNAPBACK_EXPO_COMPATIBILITY_UNSUPPORTED`. The
+  `createSupervisedExpoEnvironment({ appState })` / `resolveAppState`
+  injection remains the override for advanced shells.
+- **The picker asset adapter accepts browser sources.** A web
+  `expo-image-picker` selection — a `blob:` URI, an asset carrying a `File`,
+  or a direct `File`/`Blob` — reaches the same structural-Blob upload source
+  as the native `content://`/`ph://`/`file://` branches
+  ([adapter tests](repo:packages/snapback-expo/asset-source.test.mjs)).
+
+On web the client store resolves the browser IndexedDB arm (see
+[the React client page](./react.md)); `registerExpoFileSystemRqsFiles` is a
+native-only registration and is unnecessary there. These paves are proven at
+package level (CORS, resolution, and adapter tests named above); a retained
+end-to-end Expo-web supervised receipt is still open
+([`issues/20260807-supervised-expo-web-carrier-unpaved.md`](repo:issues/20260807-supervised-expo-web-carrier-unpaved.md)).
 
 ### Keep the proof boundary visible
 

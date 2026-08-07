@@ -16,6 +16,19 @@ for (const target of targets) {
   assert(files.has(target), `package files must include exported target ${target}`);
 }
 
+assert.deepEqual(Object.keys(manifest.imports), ['#app-state']);
+const appStateImports = manifest.imports?.['#app-state'];
+assert.deepEqual(Object.keys(appStateImports), ['browser', 'react-native', 'default']);
+assert.deepEqual(appStateImports, {
+  browser: './app-state.web.mjs',
+  'react-native': './app-state.native.mjs',
+  default: './app-state.mjs',
+});
+for (const target of Object.values(appStateImports)) {
+  const file = target.replace(/^\.\//u, '');
+  assert(files.has(file), `package files must include imports target ${file}`);
+}
+
 assert.equal(manifest.name, '@expo/snapback-expo');
 assert.equal(manifest.peerDependencies['expo-file-system'], '>=57.0.0 <58.0.0');
 assert.deepEqual(Object.keys(manifest.dependencies).sort(), [

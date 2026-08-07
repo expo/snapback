@@ -63,6 +63,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'comparator-profile.test.mjs',
       'dev-cli-diagnostics.test.mjs',
       'dev-loop.test.mjs',
+      'expo-bootstrap-exchange.test.mjs',
       'expo-device-forwarding.test.mjs',
       'expo-dev-loop.test.mjs',
       'fake-expo-push.test.mjs',
@@ -441,7 +442,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 230,
+  expectedTotal = 231,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -712,6 +713,9 @@ export function checkPackageTestInventories(options = {}) {
 // @expo/snapback-client gains the bounded anonymous connection-open and
 // connection-operation retry suite from
 // issues/20260807-auth-stream-reset-boot-flake.md.
+// 230 -> 231 (2026-08-07, LLP 0176 reachability boundary): @expo/snapback-cli
+// gains scoped browser CORS and preflight coverage for the supervised
+// bootstrap exchange.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

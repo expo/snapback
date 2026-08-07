@@ -1,4 +1,4 @@
-const SUPPORTED_PICKER_URI_SCHEMES = Object.freeze(new Set(['content', 'file', 'ph']));
+const SUPPORTED_PICKER_URI_SCHEMES = Object.freeze(new Set(['blob', 'content', 'file', 'ph']));
 
 function sourceError(code, message, details = {}) {
   const error = new TypeError(message);
@@ -13,23 +13,19 @@ function sourceError(code, message, details = {}) {
   return error;
 }
 
-function pickerSource(source) {
-  if (!source || typeof source !== 'object' || Array.isArray(source)
-    || typeof source.uri !== 'string' || source.uri.length === 0) {
-    throw sourceError(
-      'SNAPBACK_EXPO_ASSET_SOURCE_INVALID',
-      'Expo command image input must be an ImagePicker asset with a URI.',
-    );
-  }
-  const match = /^([a-z][a-z0-9+.-]*):\/\//iu.exec(source.uri);
-  const scheme = match?.[1]?.toLowerCase() ?? null;
-  if (!SUPPORTED_PICKER_URI_SCHEMES.has(scheme)) {
-    throw sourceError(
-      'SNAPBACK_EXPO_ASSET_URI_UNSUPPORTED',
-      'Expo command image input must use a content://, ph://, or file:// picker URI.',
-      { scheme },
-    );
-  }
+function nonEmptyString(value) {
+  return typeof value === 'string' && value.length > 0;
+}
+
+function isBlobCompatible(value) {
+  return value !== null
+    && typeof value === 'object'
+    && typeof value.size === 'number'
+    && typeof value.slice === 'function'
+    && (typeof value.arrayBuffer === 'function' || typeof value.bytes === 'function');
+}
+
+function validatePickerMetadata(source) {
   for (const field of ['fileName', 'mimeType']) {
     if (source[field] !== undefined && source[field] !== null
       && typeof source[field] !== 'string') {
@@ -40,6 +36,36 @@ function pickerSource(source) {
       );
     }
   }
+}
+
+function pickerSource(source) {
+  if (!source || typeof source !== 'object' || Array.isArray(source)) {
+    throw sourceError(
+      'SNAPBACK_EXPO_ASSET_SOURCE_INVALID',
+      'Expo command image input must be a web File/Blob or an ImagePicker asset with a URI or file.',
+    );
+  }
+  if (isBlobCompatible(source.file)) {
+    validatePickerMetadata(source);
+    return { source, scheme: null };
+  }
+  if (!nonEmptyString(source.uri)) {
+    throw sourceError(
+      'SNAPBACK_EXPO_ASSET_SOURCE_INVALID',
+      'Expo command image input must be a web File/Blob or an ImagePicker asset with a URI or file.',
+    );
+  }
+  const match = /^([a-z][a-z0-9+.-]*):\/\//iu.exec(source.uri);
+  const scheme = match?.[1]?.toLowerCase()
+    ?? (/^blob:/iu.test(source.uri) ? 'blob' : null);
+  if (!SUPPORTED_PICKER_URI_SCHEMES.has(scheme)) {
+    throw sourceError(
+      'SNAPBACK_EXPO_ASSET_URI_UNSUPPORTED',
+      'Expo command image input must be a web File/Blob or use a content://, ph://, file://, or blob: picker URI.',
+      { scheme },
+    );
+  }
+  validatePickerMetadata(source);
   return { source, scheme };
 }
 
@@ -108,9 +134,11 @@ function byteBackedBlob(input, type = '') {
   return Object.freeze(blob);
 }
 
-// @ref LLP 0181#native-adapters — the Expo owner converts only the picker URI
-// into the structural source LLP 0044 already accepts. It records transient
-// metadata for the existing task and creates no Expo upload state machine.
+// @ref LLP 0181#native-adapters — the Expo owner converts native picker URIs
+// and keeps browser picker Files/Blobs as structural sources LLP 0044 already
+// accepts, without entering React Native's legacy Blob stores. It records
+// transient metadata for the existing task and creates no Expo upload state
+// machine.
 export function createExpoAssetSourceAdapter({
   fetch: fetchOverride = null,
   fallbackFetch: fallbackFetchOverride = null,
@@ -118,45 +146,81 @@ export function createExpoAssetSourceAdapter({
 } = {}) {
   let fetchPromise = null;
   return async function expoAssetSourceAdapter(input) {
-    const { source } = pickerSource(input);
-    const expoFetch = fetchOverride ?? await (fetchPromise ??= resolveExpoFetch());
+    if (isBlobCompatible(input)) {
+      return Object.freeze({
+        file: input,
+        declaredFilename: nonEmptyString(input.name) ? input.name : null,
+        declaredContentType: nonEmptyString(input.type) ? input.type : null,
+        previewUrl: null,
+      });
+    }
+    const { source, scheme } = pickerSource(input);
+    if (isBlobCompatible(source.file)) {
+      return Object.freeze({
+        file: source.file,
+        declaredFilename: nonEmptyString(source.fileName)
+          ? source.fileName
+          : nonEmptyString(source.file.name) ? source.file.name : null,
+        declaredContentType: nonEmptyString(source.mimeType)
+          ? source.mimeType
+          : nonEmptyString(source.file.type) ? source.file.type : null,
+        previewUrl: nonEmptyString(source.uri) ? source.uri : null,
+      });
+    }
+    let sourceFetch;
+    if (scheme === 'blob') {
+      sourceFetch = fetchOverride ?? globalThis.fetch;
+      if (typeof sourceFetch !== 'function') {
+        throw sourceError(
+          'SNAPBACK_EXPO_ASSET_URI_UNREADABLE',
+          'Expo could not read the selected blob: image URI because browser fetch is unavailable.',
+          { scheme },
+        );
+      }
+    } else {
+      sourceFetch = fetchOverride ?? await (fetchPromise ??= resolveExpoFetch());
+    }
     let response;
     try {
-      response = await expoFetch(source.uri);
+      response = await sourceFetch(source.uri);
     } catch (cause) {
       throw sourceError(
         'SNAPBACK_EXPO_ASSET_URI_UNREADABLE',
         'Expo could not read the selected image URI in this live process.',
-        { scheme: source.uri.slice(0, source.uri.indexOf(':')).toLowerCase(), cause: cause?.message ?? String(cause) },
+        { scheme, cause: cause?.message ?? String(cause) },
+      );
+    }
+    if (scheme === 'blob' && Number(response?.status) >= 400) {
+      throw sourceError(
+        'SNAPBACK_EXPO_ASSET_URI_UNREADABLE',
+        'Expo could not read the selected image URI in this live process.',
+        { scheme, status: response.status },
       );
     }
     // Expo 57's Android file interceptor returns a real HTTP 404 with the
     // literal body "File not found" for some ImagePicker cache URIs that the
     // React Native resource loader can still read. Do not upload that body.
     // The fallback remains local-resource-only and never owns HTTP transport.
-    if (Number(response?.status) >= 400) {
-      const scheme = source.uri.slice(0, source.uri.indexOf(':')).toLowerCase();
-      if (scheme === 'file') {
-        try {
-          const bytes = await (readFileBytesOverride ?? readExpoFileBytes)(source.uri);
-          response = { ok: false, status: 0, bytes: async () => bytes };
-        } catch (cause) {
-          throw sourceError(
-            'SNAPBACK_EXPO_ASSET_URI_UNREADABLE',
-            'Expo could not read the selected image URI in this live process.',
-            { scheme, status: response.status, cause: cause?.message ?? String(cause) },
-          );
-        }
-      }
-    }
-    if (Number(response?.status) >= 400) {
-      const fallbackFetch = fallbackFetchOverride
-        ?? (fetchOverride === null ? globalThis.fetch : null);
-      if (typeof fallbackFetch !== 'function' || fallbackFetch === expoFetch) {
+    if (Number(response?.status) >= 400 && scheme === 'file') {
+      try {
+        const bytes = await (readFileBytesOverride ?? readExpoFileBytes)(source.uri);
+        response = { ok: false, status: 0, bytes: async () => bytes };
+      } catch (cause) {
         throw sourceError(
           'SNAPBACK_EXPO_ASSET_URI_UNREADABLE',
           'Expo could not read the selected image URI in this live process.',
-          { scheme: source.uri.slice(0, source.uri.indexOf(':')).toLowerCase(), status: response.status },
+          { scheme, status: response.status, cause: cause?.message ?? String(cause) },
+        );
+      }
+    }
+    if (scheme !== 'blob' && Number(response?.status) >= 400) {
+      const fallbackFetch = fallbackFetchOverride
+        ?? (fetchOverride === null ? globalThis.fetch : null);
+      if (typeof fallbackFetch !== 'function' || fallbackFetch === sourceFetch) {
+        throw sourceError(
+          'SNAPBACK_EXPO_ASSET_URI_UNREADABLE',
+          'Expo could not read the selected image URI in this live process.',
+          { scheme, status: response.status },
         );
       }
       try {
@@ -165,7 +229,7 @@ export function createExpoAssetSourceAdapter({
         throw sourceError(
           'SNAPBACK_EXPO_ASSET_URI_UNREADABLE',
           'Expo could not read the selected image URI in this live process.',
-          { scheme: source.uri.slice(0, source.uri.indexOf(':')).toLowerCase(), status: response.status, cause: cause?.message ?? String(cause) },
+          { scheme, status: response.status, cause: cause?.message ?? String(cause) },
         );
       }
     }
@@ -194,7 +258,7 @@ export function createExpoAssetSourceAdapter({
         throw sourceError(
           'SNAPBACK_EXPO_ASSET_URI_UNREADABLE',
           'Expo could not read the selected image URI in this live process.',
-          { scheme: source.uri.slice(0, source.uri.indexOf(':')).toLowerCase(), cause: cause?.message ?? String(cause) },
+          { scheme, cause: cause?.message ?? String(cause) },
         );
       }
       blob = byteBackedBlob(bytes, source.mimeType ?? '');
@@ -205,7 +269,7 @@ export function createExpoAssetSourceAdapter({
         throw sourceError(
           'SNAPBACK_EXPO_ASSET_URI_UNREADABLE',
           'Expo could not read the selected image URI in this live process.',
-          { scheme: source.uri.slice(0, source.uri.indexOf(':')).toLowerCase(), cause: cause?.message ?? String(cause) },
+          { scheme, cause: cause?.message ?? String(cause) },
         );
       }
     }

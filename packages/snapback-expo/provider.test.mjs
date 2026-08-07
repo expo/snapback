@@ -9,6 +9,11 @@ import {
   defaultSnapbackExpoEnvironment,
 } from './provider.mjs';
 import { adaptExpoAssetSource } from './asset-source.mjs';
+import { resolveDefaultAppState as resolveWebAppState } from './app-state.web.mjs';
+
+const { resolveDefaultAppState } = await import('#app-state');
+assert.equal(await resolveDefaultAppState(), null);
+assert.equal(await resolveWebAppState(), null);
 
 const generatedRoot = new URL(
   '../../demos/zero-bakeoff/apps/field-notebook/snapback/generated/',
@@ -187,6 +192,32 @@ unsubscribe();
 await boot.dispose();
 assert.equal(appState.count(), 0);
 assert.equal(providerDisposed, 1);
+
+// Node selects the default #app-state arm. An otherwise-working environment
+// without either injection reaches the provider's coded unsupported state
+// instead of crashing while evaluating React Native sources.
+const { appState: unusedAppState, ...environmentWithoutAppStateFields } = environment;
+assert.ok(unusedAppState);
+let unsupportedBindLifecycleCalls = 0;
+const noAppStateBoot = createSnapbackExpoBoot({
+  app,
+  environment: Object.freeze(environmentWithoutAppStateFields),
+  now: () => Date.parse('2026-08-05T20:30:00.000Z'),
+  createProvider: () => fakeProvider,
+  bindLifecycle() {
+    unsupportedBindLifecycleCalls += 1;
+    return { dispose() {} };
+  },
+});
+const noAppState = await noAppStateBoot.start();
+assert.equal(noAppState.status, 'unsupported');
+assert.equal(noAppState.diagnostic.code, 'SNAPBACK_EXPO_COMPATIBILITY_UNSUPPORTED');
+assert.match(
+  noAppState.diagnostic.message,
+  /inject appState .*resolveAppState.*createSupervisedExpoEnvironment/u,
+);
+assert.equal(unsupportedBindLifecycleCalls, 0);
+assert.equal(providerDisposed, 2, 'unsupported lifecycle resolution disposes the prepared provider');
 
 // LLP 0179 S1: the maintained Expo fixture's generated conversation surface
 // passes through the E1 boot owner unchanged and is bindable headlessly from

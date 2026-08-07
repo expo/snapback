@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "06843fc87f76f667af55742da904545aff384d73"
+    "commit": "6a1de382fade55da910e3ab1f40115e1e0cfad48"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -1526,8 +1526,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-07",
-      "reviewedCommit": "cca0db7d8e94c8d4943eb808d4e10238a506c70c",
-      "sha256": "187f4578e9a2b1f51d6bb827e6b00e34e3effab6ed75bcb690d4d9347ac8ffb6",
+      "reviewedCommit": "6a1de382fade55da910e3ab1f40115e1e0cfad48",
+      "sha256": "6ee32604b21abc26ccda8ba13bd82c357d2df2db33fc8711c6e363d87daf6ec4",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1764,6 +1764,7 @@
         "packages/snapback-client/rqs-store-default.mjs",
         "packages/snapback-client/rqs-store-expo.mjs",
         "packages/snapback-expo/app-binding.mjs",
+        "packages/snapback-expo/asset-source.mjs",
         "packages/snapback-expo/config-plugin.cjs",
         "packages/snapback-expo/index.mjs",
         "packages/snapback-expo/provider.mjs",
@@ -1781,6 +1782,8 @@
         "demos/expo-golden-path-fixture/receipts/physical-device-online-checklist.md",
         "demos/partiful-matrix/native/react-expo",
         "packages/snapback-cli/expo-device-forwarding.test.mjs",
+        "packages/snapback-cli/expo-bootstrap-exchange.test.mjs",
+        "packages/snapback-expo/asset-source.test.mjs",
         "packages/snapback-client/webcrypto-fallback.test.mjs",
         "packages/snapback-expo/provider.test.mjs",
         "packages/snapback-react/webcrypto-fallback.test.mjs",
@@ -1792,8 +1795,8 @@
         "demos/_kit/tests/repo-layout-unit.mjs"
       ],
       "reviewed": "2026-08-07",
-      "reviewedCommit": "f4d4d8c184a8994b747a8e83b1ee74abfcb8a09b",
-      "sha256": "b3808e80d06297a01a865caae42403d040ca1d93d6a3932fcf26df905dae5a18",
+      "reviewedCommit": "6a1de382fade55da910e3ab1f40115e1e0cfad48",
+      "sha256": "605137de712cfe2ba6d7f41581199fb8235d1a0fe6436f454568b738b71d8ce2",
       "snippets": [
         {
           "lang": "json",
@@ -1966,9 +1969,9 @@
         "demos/expo-golden-path-fixture/tests/g2-falsification.mjs",
         "demos/expo-golden-path-fixture/tests/g3-command.mjs"
       ],
-      "reviewed": "2026-08-07",
-      "reviewedCommit": "71dde5e667d2a13c42491cef8eb2895326583c33",
-      "sha256": "8d6e6c8b171540c88585a237ee8eff71cff4395ce281bbf1e789ad5605112b0d",
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "cf47cc3b75172cec3ac6c44428ce40db48d81465",
+      "sha256": "e1768c4612e16b62f1f6dbe5cf6491015a938342f3084cafb374c47afd43ae1f",
       "snippets": [
         {
           "lang": "js",
@@ -3216,7 +3219,7 @@
       "examples": [],
       "reviewed": "2026-08-07",
       "reviewedCommit": "30001b8d2902e6c83f74ccda7eb2c19de707f528",
-      "sha256": "735634a326cfc896263213c17792d300172be5e5bd6500aabf0c5ddc5dcd731a",
+      "sha256": "96e3bfe144eec0ee2db02916cebdc7493e13bc7bf9baa2c9cc6ed9f11ac76bbf",
       "snippets": []
     },
     "meta.surface-map": {
@@ -3296,8 +3299,8 @@
         "tests/acceptance/desktop-sidecar-v1.mjs"
       ],
       "reviewed": "2026-08-07",
-      "reviewedCommit": "6a1de382fade55da910e3ab1f40115e1e0cfad48",
-      "sha256": "e626999fbd84aa93694dc07c8c27bcce89f6bd3afb2afde961835ba83a64fff3",
+      "reviewedCommit": "f4d4d8c184a8994b747a8e83b1ee74abfcb8a09b",
+      "sha256": "49c59854add43c4e1d6e54f5f7e06462a712f44f3f500964345fde45c9f2822b",
       "snippets": [
         {
           "lang": "js",
@@ -3606,5 +3609,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "87ff0ee72c0950976c50139e5832c5cd244dd5736b8ba7689b8b53f41f69c5d6"
+  "contentHash": "01f2050866af3df68864d14849bd681b59512da2ad395326cfe33f5820a915f1"
 }

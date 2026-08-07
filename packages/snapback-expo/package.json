@@ -7,6 +7,9 @@
     "app-binding.d.mts",
     "app-binding.mjs",
     "app-binding.schema.json",
+    "app-state.mjs",
+    "app-state.native.mjs",
+    "app-state.web.mjs",
     "asset-source.d.mts",
     "asset-source.mjs",
     "app.plugin.js",
@@ -18,6 +21,13 @@
     "supervised-environment.d.mts",
     "supervised-environment.mjs"
   ],
+  "imports": {
+    "#app-state": {
+      "browser": "./app-state.web.mjs",
+      "react-native": "./app-state.native.mjs",
+      "default": "./app-state.mjs"
+    }
+  },
   "exports": {
     ".": {
       "types": "./index.d.mts",
