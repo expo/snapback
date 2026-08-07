@@ -117,14 +117,14 @@ is in [verify](../../guide/testing/verify.md).
    successor migration yet, so it can cost a manual local-store rollover —
    batch comment churn with real edits
    (`issues/20260805-doc-comment-artifact-mismatch-no-successor-migration.md`).
-8. **The supervised Expo flow is native-first today.** Its web carrier is
-   unpaved — bootstrap CORS, an AppState deep-import that breaks
-   react-native-web, `blob:` picker URIs — see the workarounds in
+8. **The supervised Expo web carrier is paved since `0.1.13`** (bootstrap
+   CORS, web-safe AppState, browser picker sources). On `0.1.12` or older,
+   web needs the workarounds in
    `issues/20260807-supervised-expo-web-carrier-unpaved.md`.
-9. **Surface-bound commands materialize omitted optional inputs as
-   `undefined`**, which the canonical-value gate refuses — split the command
-   per optional shape or call the mutation directly
-   (`issues/20260807-surface-command-optional-input-undefined.md`).
+9. **Omitted optional surface inputs are omitted from composed payloads
+   since `0.1.13`**; explicit `undefined` still refuses (spread-omit
+   conditional values). On older closures, split the command per optional
+   shape or call the mutation directly.
 
 When anything refuses, read the code before searching: every `SNAPBACK_*`
 refusal an authoring agent can trigger is required to name the violated rule
