@@ -1,11 +1,11 @@
 # LLP 0165: Proof domains and checkpoints
 
 **Type:** Spec
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Storage, Migrations, Diagnostics, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-06 (round-2 derived-fork continuity closure — coverage
+**Revised:** 2026-08-06 (accepted by Charlie Cheever after three mutually blind dual-family review rounds converged `READY`; acceptance approves this Spec's proof/checkpoint contract without claiming storage-wide writer completeness, promotion proof, checkpoint publication, the broader agent-safe-storage aggregate, hosted targets, or any positive target-manifest fact); 2026-08-06 (round-2 derived-fork continuity closure — coverage
 activation now creates a monotonic per-stream continuity carrier; arbitrary
 registered-connection DML cannot change the manifest, continuity, journal, or
 version carriers; and every primary or secondary registered writer
@@ -519,3 +519,13 @@ write volume and pin duration. The implementation contract therefore requires
 a declared admission budget, progress accounting, cancellation before budget
 exhaustion, and a stable refusal disposition. This record satisfies the OQ13
 sequencing gate; LLP 0165 implementation and Acceptance rows remain unpassed.
+
+## Status
+
+**Accepted 2026-08-06 (Charlie Cheever).** Three mutually blind rounds of
+Codex- and Fable-family review converged `READY` for this Spec. Acceptance is
+of the proof-domain and checkpoint contract. It does not upgrade the narrow
+local derived fork's registered-connection app-row completeness into
+storage-wide completeness, OS/file containment, promotion proof, or checkpoint
+publication. The broader agent-safe-storage aggregate, hosted targets, and
+every target-manifest predicate remain `Missing` or explicit nonclaims.

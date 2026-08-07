@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "snapback.derived-fork-author-acceptance.v1",
+  "capabilityId": "agent_safe_derived_deployment_fork_v1",
+  "accepted": true,
+  "authorLine": "Charlie Cheever — accepted 2026-08-06",
+  "qualifiedSourceCommit": "0ee1fadc136e837f430556374a5842ac82069004",
+  "implementationTreeSha256": "sha256:2cad36279fbb319c4b828026c1fc0c2ed2d8ac38bffc14bd2ba39b3849eedf33",
+  "candidateFactsSha256": "sha256:b487d69d7a0392626e01f39e7fa81bd85251291c5ed119cd38a6cc30e50bfc88",
+  "qualifiedComponents": [
+    "derivedDeploymentForkSafetyV1"
+  ],
+  "evidenceSha256": {
+    "lifecycleBenchMacos": "sha256:60ba7f2c3f786fe784ba6d6db1ecc3fa780c9009da2af36efb6416ef92d89d0b",
+    "lifecycleBenchLinux": "sha256:c227ff46c97521e6f3a62c9a97fb0028c309cf669ad85a24e721f8b3b4f05f0e",
+    "boundsRatification": "sha256:4c61c8c85a0890484c422a0f87a5e26707ab8419f919095e62861e1d6dbd18e2",
+    "assetLifecycleEvidence": "sha256:222eba70394ac3fa812525766f9d514a88d876386f5413dfc6f4c367bc444ff2",
+    "specReviewCodex": "sha256:24dc3d08a1fb4321c2bc29426ded9fdef40d1a7e4fbdefeb5373a1d84f46cf0d",
+    "specReviewFable": "sha256:f7be6ead40033ec085714a8328453229274efb0576fc40ce1660b9cc08ebee17",
+    "implementationReviewCodex": "sha256:8f3843d89016d1233b38d32609157ae6c0f74e1a2b4299e5f72ea398fa1eb6ee",
+    "implementationReviewFable": "sha256:bb79512ec6b9514a3fab4d8a650fd91ac09a2164435c724beaaf40606d337d10"
+  }
+}

@@ -6,7 +6,7 @@
 experience, Developer experience, CLI, Documentation, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-06 (row-13 concurrent-create hang repair: root admission
+**Revised:** 2026-08-06 (author-directed narrow local publication: LLPs 0163–0165 accepted after three mutually blind dual-family `READY` rounds; Charlie's exact two-platform release set and authorized acceptance fixture close the nine-item witness; `operating.instance-forks` publishes at local/partial through the guide row for contributor source only. The target-manifest tuple, broader agent-safe-storage aggregate, released-binary/npm parity, normal-installation exit, hosted targets, promotion/merge-back, and process containment remain `Missing` or explicit nonclaims); 2026-08-06 (row-13 concurrent-create hang repair: root admission
 now uses a 30-second monotonic nonblocking-acquisition deadline with stable
 `SNAPBACK_FORK_ADMISSION_TIMEOUT`, while detached server exec marks every
 non-stdio inherited descriptor close-on-exec. This closes the macOS concurrent
@@ -1791,9 +1791,10 @@ the local claim carrier, so `agent_safe_derived_deployment_fork_v1` remains
 wholly `Missing` in every target manifest even after that guide row eventually
 publishes the local claim.
 
-The anchor stays `withheld`, with a zero source commit/tree/facts digest, empty
-`qualifiedComponents`, zero evidence digests, and no requirement that the four
-future review files or author fixture exist. In `published`, every digest is
+Before author sign-off, the anchor stayed `withheld`, with a zero source
+commit/tree/facts digest, empty `qualifiedComponents`, zero evidence digests,
+and no requirement that the four future review files or author fixture exist.
+In `published`, every digest is
 nonzero and matches the bytes at its fixed locator; components equal exactly
 `["derivedDeploymentForkSafetyV1"]`; candidate facts equal exactly
 `denyAll / notPromotable / currentHead / hostMediated`; qualification C is a
@@ -1823,6 +1824,26 @@ evidence files, and update the ruled guide/LLP publication records plus the
 anchor/carrier; it may not change executable behavior or widen the evidence
 vocabulary.
 
+**2026-08-06 — author acceptance and narrow local publication.** Charlie
+Cheever accepted LLPs 0163, 0164, and 0165 after their three-round mutually
+blind Codex/Fable `READY` convergence, authorized the exact dated acceptance
+fixture, and confirmed that the complete claimed release-platform set is
+exactly `macos/aarch64` plus `linux/x86_64`, release profile. The fixture's
+SHA-256 closes the ninth receipt binding; the final carrier binds that receipt,
+the exact `denyAll / notPromotable / currentHead / hostMediated` candidate,
+qualification commit `0ee1fadc136e837f430556374a5842ac82069004`, and its
+implementation-tree digest. The source anchor publishes the carrier, and the
+LLP 0061 capability-index row now claims `operating.instance-forks` only for
+the local contributor-source target at partial maturity.
+
+This publication is deliberately narrower than the reserved manifest id.
+`agent_safe_derived_deployment_fork_v1` stays wholly `Missing` in every target
+manifest, and the broader agent-safe-storage aggregate, in-app Track B facts,
+hosted/Cloudflare/remote targets, promotion/merge-back, and process containment
+remain unclaimed. LLP 0185 Phase 6 item 2 (released-binary/npm parity) and the
+normal-installation exit clause also remain open; no public-package claim is
+made.
+
 ## Status
 
 **Accepted 2026-08-06.** F0a, F0b, and F1 implement the local safety
@@ -1834,10 +1855,14 @@ pagination, human projection, operation attribution, broader-domain/storage-
 wide completeness, and F2 hosted work stay open under LLP 0185. The local
 app-row net diff's authorizer-backed completeness slice is recorded above.
 Acceptance records the approved design, the
-same-`appId` derived-deployment amendment, and the landed local substrate. It
-does not advertise a capability: `operating.instance-forks` remains at target
-`none`, and `agent_safe_derived_deployment_fork_v1` remains wholly `Missing`,
-behind their separate qualification/publication gates.
+same-`appId` derived-deployment amendment, and the landed local substrate. The
+2026-08-06 author-directed publication now advertises only the partial local
+contributor-source `operating.instance-forks` claim through the LLP 0061 guide
+row, for exactly the two measured release platforms. The separately reserved
+`agent_safe_derived_deployment_fork_v1` target-manifest predicate remains
+wholly `Missing`; released-binary/npm, normal-installation, hosted,
+promotion/merge-back, process-containment, and broader storage claims remain
+open or explicitly unclaimed.
 The earliest local-only `clonefile` validation and its corrected claim remain
 in §Spike evidence. The same-day 0097 reconciliation narrowed the claimed
 territory. A

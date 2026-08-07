@@ -6,7 +6,7 @@
 experience, Developer experience, CLI, MCP, Documentation, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (execution reconciliation — body dated to the landed implementation: Phase 1 automatic expiry and `fork recover`, Phase 3 renewal and resource limits, Phase 4's completeness upgrade, and Phase 5's live asset lifecycle are marked implemented; stale guide-absent/recovery-unwired/asset-refusal claims corrected. Phase 6 outcome recorded: qualification commit 0ee1fadc1, dual-family READY over three review rounds, dual-platform row-13 receipts and executable suites, a digest-bound nine-item witness chain — but NOT published. `operating.instance-forks` stays target `none` and the manifest tuple stays `Missing` on three author-gated items: 0163/0164/0165 acceptance, the author-acceptance artifact, and the claimed platform set. Released-binary/npm parity remains open Phase 6 work, not re-scoped. Phases 7 and 8 remain deferred.); 2026-08-05 (Phase 0 items 2/6 closed by author ruling: LLP
+**Revised:** 2026-08-06 (author-directed Phase 6 publication result: Charlie accepted LLPs 0163–0165, authorized the exact acceptance fixture, and confirmed exactly `macos/aarch64` plus `linux/x86_64` release profile; the nine-item receipt, final carrier, and source anchor publish only the local/partial contributor-source `operating.instance-forks` guide claim. Item 2 and the normal-installation exit remain open; the target-manifest tuple, public package, hosted targets, promotion/merge-back, process containment, and broader agent-safe-storage facts remain `Missing` or explicit nonclaims); 2026-08-06 (execution reconciliation — body dated to the landed implementation: Phase 1 automatic expiry and `fork recover`, Phase 3 renewal and resource limits, Phase 4's completeness upgrade, and Phase 5's live asset lifecycle are marked implemented; stale guide-absent/recovery-unwired/asset-refusal claims corrected. Phase 6 outcome recorded: qualification commit 0ee1fadc1, dual-family READY over three review rounds, dual-platform row-13 receipts and executable suites, a digest-bound nine-item witness chain — but NOT published. `operating.instance-forks` stays target `none` and the manifest tuple stays `Missing` on three author-gated items: 0163/0164/0165 acceptance, the author-acceptance artifact, and the claimed platform set. Released-binary/npm parity remains open Phase 6 work, not re-scoped. Phases 7 and 8 remain deferred.); 2026-08-05 (Phase 0 items 2/6 closed by author ruling: LLP
 0158's local design is Accepted after its independent review; the Phase 6
 publication mechanism is the LLP 0061 guide capability-index claim, so
 Phase 6 item 1's gate set binds to the capability-index row rather than an
@@ -605,6 +605,30 @@ teaches a source-checkout workflow. They are not re-scoped — they remain
 Phase 6 work for whoever resumes after the author gate.
 The ordered remaining procedure is recorded in
 [`issues/20260806-derived-fork-publication-author-gate.md`](../issues/20260806-derived-fork-publication-author-gate.md).
+
+#### Phase 6 publication result — 2026-08-06
+
+The author supplied all three rulings that gated the outcome above. Charlie
+Cheever accepted LLPs 0163/0164/0165 on the three-round mutually blind
+dual-family `READY` convergence, directly authorized the agent-authored exact
+acceptance fixture recording that act, and confirmed the complete claimed
+release-platform set as exactly `macos/aarch64` plus `linux/x86_64`, release
+profile. The fixture closes the ninth receipt binding. The final carrier and
+anchor publish the LLP 0061 guide capability-index row as
+`operating.instance-forks`, target `local`, maturity `partial`, with the dated
+digest-bound receipt as witness.
+
+The published candidate is exactly finite-TTL, fail-closed `DenyAll`,
+`NotPromotable`, `currentHead`, and `HostMediated`. It claims no process or OS
+containment, no hosted/Cloudflare/remote target, no promotion or merge-back,
+and no public package. Per the Phase 0 ruling,
+`agent_safe_derived_deployment_fork_v1` remains wholly `Missing` in every LLP
+0113 target manifest; the guide row alone carries this narrow source claim.
+
+This result does **not** complete all of Phase 6. Item 2 — released-binary and
+npm-distributed tooling parity — remains open, as does the exit clause that a
+normal installation rather than a source checkout can follow the guide and
+pass the same workflow. Those conditions were not re-scoped by publication.
 
 ### Phase 7 — Expose bounded agent-control operations
 

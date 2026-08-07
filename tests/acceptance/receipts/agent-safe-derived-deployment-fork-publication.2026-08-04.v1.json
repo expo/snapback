@@ -17,6 +17,6 @@
     { "kind": "specReviewFable", "path": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md", "sha256": "sha256:f7be6ead40033ec085714a8328453229274efb0576fc40ce1660b9cc08ebee17" },
     { "kind": "implementationReviewCodex", "path": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md", "sha256": "sha256:8f3843d89016d1233b38d32609157ae6c0f74e1a2b4299e5f72ea398fa1eb6ee" },
     { "kind": "implementationReviewFable", "path": "llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md", "sha256": "sha256:bb79512ec6b9514a3fab4d8a650fd91ac09a2164435c724beaaf40606d337d10" },
-    { "kind": "authorAcceptance", "path": "tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-06.v1.json", "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000" }
+    { "kind": "authorAcceptance", "path": "tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-06.v1.json", "sha256": "sha256:e349b0698a5b42fff14d05a23ab4571b3adabed897b6827915389562ec8fd228" }
   ]
 }

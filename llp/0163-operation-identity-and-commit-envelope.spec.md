@@ -1,11 +1,11 @@
 # LLP 0163: Operation identity and commit envelope
 
 **Type:** Spec
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Storage, Sync, Auth, Diagnostics, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-06 (post-landing row-13 result recorded — landed commit a0852be… preserved a valid paired failure on current-range p95 only; scope corrections: row-9 assertion ceded to LLP 0164/0165, derived-fork net-diff attribution named out of this Spec's acceptance rows; Draft/Missing unchanged); 2026-08-05 (exact C30 review stop and prospective C31 repair — global Host-lease and pending-capacity projection validation plus client-suppression closure symmetry; Draft/Missing unchanged); 2026-08-05 (exact C29 review stop and prospective C30 repair — terminal-supplement retention coherence, automatic sessions ACK custody, closed public explanation lookup, and direct Host writer rollback matrix; Draft/Missing unchanged); 2026-08-05 (merged C28 review stop and prospective C29 repair — automatic sessions range custody, nullable-required Host tombstones, terminal-time coherence, and pending-writer rollback; Draft/Missing unchanged); 2026-08-05 (C27 pre-result abandonment and C28 lifecycle repair — comparison-complete tombstones, contiguous floors, bounded ranges, and transactional writer guards; Draft/Missing unchanged); 2026-08-04 (explicit activation transport — an authenticated,
+**Revised:** 2026-08-06 (accepted by Charlie Cheever after three mutually blind dual-family review rounds converged `READY`; acceptance approves this Spec's contract without publishing the broader agent-safe-storage aggregate, filling Track B rows, or adding operation attribution to the narrow derived-fork receipts — those facts remain `Missing` or explicitly absent); 2026-08-06 (post-landing row-13 result recorded — landed commit a0852be… preserved a valid paired failure on current-range p95 only; scope corrections: row-9 assertion ceded to LLP 0164/0165, derived-fork net-diff attribution named out of this Spec's acceptance rows; Draft/Missing unchanged); 2026-08-05 (exact C30 review stop and prospective C31 repair — global Host-lease and pending-capacity projection validation plus client-suppression closure symmetry; Draft/Missing unchanged); 2026-08-05 (exact C29 review stop and prospective C30 repair — terminal-supplement retention coherence, automatic sessions ACK custody, closed public explanation lookup, and direct Host writer rollback matrix; Draft/Missing unchanged); 2026-08-05 (merged C28 review stop and prospective C29 repair — automatic sessions range custody, nullable-required Host tombstones, terminal-time coherence, and pending-writer rollback; Draft/Missing unchanged); 2026-08-05 (C27 pre-result abandonment and C28 lifecycle repair — comparison-complete tombstones, contiguous floors, bounded ranges, and transactional writer guards; Draft/Missing unchanged); 2026-08-04 (explicit activation transport — an authenticated,
 managed-admission AdminWrite command now accepts only the versioned local
 target/profile pair and publishes the exact four-adapter manifest; it remains
 inactive until an operator invokes it, and independent review, author
@@ -1004,3 +1004,13 @@ Two scope corrections for earlier records in this Spec:
   (`attribution: "absent-v1"`, 2026-08-06). That deferral is owned by LLP 0185
   Phase 4 item 8 ("absence of attribution stays explicit") and is not a gap in
   this Spec's rows.
+
+## Status
+
+**Accepted 2026-08-06 (Charlie Cheever).** Three mutually blind rounds of
+Codex- and Fable-family review converged `READY` for this Spec. Acceptance is
+of the operation-identity and commit-envelope contract. It does not make the
+broader `AgentSafeV1` aggregate, the storage publication, uncovered Track B
+rows, or any target-manifest predicate positive. The narrow local derived-fork
+publication also retains machine-readable `attribution: "absent-v1"`; every
+wider fact remains `Missing` or an explicit nonclaim under its owning record.
