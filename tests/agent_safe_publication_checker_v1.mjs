@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import {
   allowedPublicationChange,
   allowedPublicationPath,
+  assertQualifiedImplementationDigestAtPublication,
   exactCandidate,
   generatedPublicationPathsAt,
   generatedPublicationPathsOnDisk,
@@ -298,6 +299,42 @@ const derivedEvidence = [
 
 function digest(bytes) {
   return `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
+}
+
+function qualifiedImplementationScopeFixture() {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-qualified-implementation-scope-'));
+  execFileSync('git', ['init', '--quiet'], { cwd: scratch });
+  execFileSync('git', ['config', 'user.name', 'Snapback Test'], { cwd: scratch });
+  execFileSync('git', ['config', 'user.email', 'snapback-test@example.invalid'], { cwd: scratch });
+  mkdirSync(join(scratch, 'src'), { recursive: true });
+  writeFileSync(join(scratch, 'src/qualified.rs'), 'pub const QUALIFIED: bool = true;\n');
+  execFileSync('git', ['add', 'src/qualified.rs'], { cwd: scratch });
+  const ibexGitlink = execFileSync('git', ['rev-parse', 'HEAD:vendor/ibex'], {
+    cwd: root,
+    encoding: 'utf8',
+  }).trim();
+  execFileSync('git', [
+    'update-index', '--add', '--cacheinfo', `160000,${ibexGitlink},vendor/ibex`,
+  ], { cwd: scratch });
+  execFileSync('git', ['commit', '--quiet', '-m', 'qualification C'], { cwd: scratch });
+  const qualification = execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd: scratch,
+    encoding: 'utf8',
+  }).trim();
+  return {
+    scratch,
+    qualification,
+    expectedDigest: implementationDigestAt(scratch, qualification),
+  };
+}
+
+function commitFixture(rootPath, message, ...paths) {
+  execFileSync('git', ['add', '--', ...paths], { cwd: rootPath });
+  execFileSync('git', ['commit', '--quiet', '-m', message], { cwd: rootPath });
+  return execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd: rootPath,
+    encoding: 'utf8',
+  }).trim();
 }
 
 function writeJson(rootPath, path, value) {
@@ -782,6 +819,77 @@ test('history digest is deterministic for an immutable qualification commit', ()
   const second = implementationDigestAt(root, head);
   assert.match(first, /^sha256:[0-9a-f]{64}$/u);
   assert.equal(first, second);
+});
+
+test('C-to-P custody permits unrelated demo and LLP churn outside the qualified digest', () => {
+  const { scratch, qualification, expectedDigest } = qualifiedImplementationScopeFixture();
+  mkdirSync(join(scratch, 'demos/unrelated'), { recursive: true });
+  mkdirSync(join(scratch, 'llp'), { recursive: true });
+  writeFileSync(join(scratch, 'demos/unrelated/README.md'), 'concurrent demo change\n');
+  writeFileSync(join(scratch, 'llp/9999-unrelated.explainer.md'), 'concurrent LLP change\n');
+  const publication = commitFixture(
+    scratch,
+    'unrelated publication churn',
+    'demos/unrelated/README.md',
+    'llp/9999-unrelated.explainer.md',
+  );
+
+  assert.equal(assertQualifiedImplementationDigestAtPublication(scratch, {
+    capabilityId: 'fixture_capability_v1',
+    qualificationCommit: qualification,
+    publicationCommit: publication,
+    expectedDigest,
+  }), expectedDigest);
+});
+
+test('C-to-P custody refuses an in-scope byte change with paths and digest mismatch', () => {
+  const { scratch, qualification, expectedDigest } = qualifiedImplementationScopeFixture();
+  writeFileSync(join(scratch, 'src/qualified.rs'), 'pub const QUALIFIED: bool = false;\n');
+  const publication = commitFixture(scratch, 'drift qualified source', 'src/qualified.rs');
+  const actualDigest = implementationDigestAt(scratch, publication);
+
+  assert.throws(
+    () => assertQualifiedImplementationDigestAtPublication(scratch, {
+      capabilityId: 'fixture_capability_v1',
+      qualificationCommit: qualification,
+      publicationCommit: publication,
+      expectedDigest,
+    }),
+    (error) => {
+      assert.match(error.message, /in-scope paths drifted: M:src\/qualified\.rs/u);
+      assert.ok(error.message.includes(`expected ${expectedDigest}`));
+      assert.ok(error.message.includes(`actual ${actualDigest}`));
+      return true;
+    },
+  );
+});
+
+test('C-to-P custody refuses a vendor/ibex gitlink change', () => {
+  const { scratch, qualification, expectedDigest } = qualifiedImplementationScopeFixture();
+  execFileSync('git', [
+    'update-index', '--cacheinfo', `160000,${qualification},vendor/ibex`,
+  ], { cwd: scratch });
+  execFileSync('git', ['commit', '--quiet', '-m', 'drift vendor gitlink'], { cwd: scratch });
+  const publication = execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd: scratch,
+    encoding: 'utf8',
+  }).trim();
+  const actualDigest = implementationDigestAt(scratch, publication);
+
+  assert.throws(
+    () => assertQualifiedImplementationDigestAtPublication(scratch, {
+      capabilityId: 'fixture_capability_v1',
+      qualificationCommit: qualification,
+      publicationCommit: publication,
+      expectedDigest,
+    }),
+    (error) => {
+      assert.match(error.message, /in-scope paths drifted: M:vendor\/ibex/u);
+      assert.ok(error.message.includes(`expected ${expectedDigest}`));
+      assert.ok(error.message.includes(`actual ${actualDigest}`));
+      return true;
+    },
+  );
 });
 
 test('build and checker bind the shared generated-artifact policy', () => {

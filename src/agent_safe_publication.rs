@@ -473,8 +473,9 @@ mod tests {
             }
         }
 
-        // The guide-row witness is independent of the never-ruled manifest
-        // act. Its withheld receipt still has a closed fork-specific shape.
+        // @ref LLP 0162#source-owned-publication-carrier-amendment--2026-08-04
+        // A fully populated receipt remains non-authoritative while its
+        // independent source-owned anchor is withheld.
         assert!(!derived_fork_publication_verified());
         let derived_anchor: LocalAgentSafePublicationAnchorV1 =
             serde_json::from_slice(DERIVED_FORK_ANCHOR_BYTES).unwrap();
@@ -504,21 +505,19 @@ mod tests {
             derived_receipt.evidence.len(),
             DERIVED_FORK_EVIDENCE_LOCATORS.len()
         );
-        for (index, (binding, (kind, path))) in derived_receipt
+        for (binding, (kind, path)) in derived_receipt
             .evidence
             .iter()
             .zip(DERIVED_FORK_EVIDENCE_LOCATORS)
-            .enumerate()
         {
             assert_eq!(binding.kind, kind);
             assert_eq!(binding.path, path);
-            assert!(is_sha256(&binding.sha256));
-            if index + 1 == DERIVED_FORK_EVIDENCE_LOCATORS.len() {
-                assert_eq!(binding.sha256, format!("sha256:{}", "0".repeat(64)));
-            } else {
-                assert_ne!(binding.sha256, format!("sha256:{}", "0".repeat(64)));
-            }
+            assert!(is_nonzero_sha256(&binding.sha256));
         }
+        assert_eq!(
+            derived_receipt.evidence.last().unwrap().sha256,
+            "sha256:e349b0698a5b42fff14d05a23ab4571b3adabed897b6827915389562ec8fd228"
+        );
     }
 
     #[test]

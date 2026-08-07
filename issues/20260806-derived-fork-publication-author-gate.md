@@ -1,6 +1,6 @@
 # Derived-fork publication: author gate
 
-**Status:** Author sign-off recorded; publication authorized
+**Status:** Resolution 2 implemented; publication still withheld
 **Opened:** 2026-08-06
 **Systems:** Instance forks, capability publication, LLP governance
 **Related:** LLP 0158, LLP 0162, LLP 0163, LLP 0164, LLP 0165, LLP 0185
@@ -224,3 +224,32 @@ the anchor stays `withheld`, `guide/capabilities.md` keeps
 unpublished wording — no surface may claim publication while the oracle
 refuses. The full publication candidate (including the guide row and the
 flipped anchor) is retained in the run branch's git stash for reuse.
+
+## Author-authorized resolution 2 — 2026-08-06
+
+Charlie Cheever chose resolution 2 and explicitly authorized narrowing this
+safety check after the publication attempt was blocked by unrelated
+concurrent-session churn. The implemented rule no longer compares the entire
+repository tree at qualification C with publication P. It keeps C-as-ancestor,
+clean-root, and exact clean `vendor/ibex` requirements, then recomputes
+`implementationDigestAt` at P and requires exact equality with the receipt's
+`implementationTreeSha256`.
+
+The covered leaf set is exactly `IMPLEMENTATION_ROOTS` (`Cargo.toml`,
+`Cargo.lock`, `build.rs`, `.gitmodules`, `src`,
+`packages/snapback-codegen`, `packages/snapback-contract`, `tests`, the
+publication checker, and the generated-artifact policy), plus the
+`vendor/ibex` gitlink, minus `PUBLICATION_CYCLE_ALLOWLIST`. A refusal reports
+the changed in-scope paths and the expected and actual digests. This guarantees
+that the qualified implementation bytes and Ibex identity are identical at
+publication. It no longer claims that unrelated demos, guide prose, packages,
+issues, LLPs, or other out-of-scope repository bytes stayed unchanged between
+C and P. That boundary follows AGENTS.md's explicit fast-moving-main
+constraint rather than requiring the repository to remain globally quiet.
+
+The checker and adversarial fixtures now cover out-of-scope demo/LLP churn,
+an in-scope `src/` byte change, and a `vendor/ibex` gitlink change while the
+existing storage-chain semantic checks remain unchanged and green. This
+resolution does not itself publish either capability: both source anchors remain
+`withheld`, the guide claim remains target `none`, and every target-manifest
+projection remains `Missing`.

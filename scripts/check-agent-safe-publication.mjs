@@ -346,15 +346,17 @@ export function allowedPublicationChange(change, generatedPaths, publicationEntr
     && published.mode === expected.mode;
 }
 
-function publicationChangesBetween(root, from, to) {
+export function qualifiedImplementationChangesBetween(root, from, to) {
   const raw = execFileSync('git', [
-    'diff', '--name-status', '--no-renames', '-z', `${from}..${to}`,
+    'diff', '--name-status', '--no-renames', '-z', `${from}..${to}`, '--',
+    ...IMPLEMENTATION_ROOTS, 'vendor/ibex',
   ], { cwd: root });
   const fields = raw.toString().split('\0').filter(Boolean);
-  if (fields.length % 2 !== 0) fail('could not decode P-vs-C changed-path status');
+  if (fields.length % 2 !== 0) fail('could not decode qualified implementation drift');
   const changes = [];
   for (let index = 0; index < fields.length; index += 2) {
-    changes.push({ status: fields[index], path: fields[index + 1] });
+    const change = { status: fields[index], path: fields[index + 1] };
+    if (!PUBLICATION_CYCLE_ALLOWLIST.has(change.path)) changes.push(change);
   }
   return changes;
 }
@@ -533,6 +535,35 @@ export function implementationDigestAt(root, commit) {
   const gitlink = git(root, ['rev-parse', `${commit}:vendor/ibex`]);
   updateTreeDigest(hash, 'vendor/ibex', Buffer.from(gitlink));
   return `sha256:${hash.digest('hex')}`;
+}
+
+// @ref LLP 0162#source-owned-publication-carrier-amendment--2026-08-04
+// Qualification custody covers the implementation digest's exact leaf scope,
+// not unrelated repository history that happens to land between C and P.
+export function assertQualifiedImplementationDigestAtPublication(root, {
+  capabilityId,
+  qualificationCommit,
+  publicationCommit,
+  expectedDigest,
+}) {
+  const actualDigest = implementationDigestAt(root, publicationCommit);
+  if (actualDigest !== expectedDigest) {
+    const changes = qualifiedImplementationChangesBetween(
+      root,
+      qualificationCommit,
+      publicationCommit,
+    );
+    const changedPaths = changes.length > 0
+      ? changes.map(({ status, path }) => `${status}:${path}`).join(',')
+      : 'none detected between C and P (receipt or digest scope is inconsistent)';
+    fail([
+      `${capabilityId} qualified implementation digest mismatch`,
+      `in-scope paths drifted: ${changedPaths}`,
+      `expected ${expectedDigest}`,
+      `actual ${actualDigest}`,
+    ].join('; '));
+  }
+  return actualDigest;
 }
 
 function checkedOutImplementationGitlink(root) {
@@ -1454,27 +1485,20 @@ export function runChecker(root) {
     } catch {
       fail(`${result.id} qualification commit is not an ancestor of publication HEAD`);
     }
-    const carrier = JSON.parse(readFileSync(join(root, RECORDS.find(({ id }) => id === result.id).carrier)));
-    const generatedPaths = generatedPublicationPathsAt(root, result.commit);
-    const publicationEntries = treeEntriesAt(root, publication, [
-      ...REVIEW_CACHE_ROOTS, ...FULLY_COMMITTED_ROOTS, ...ADMIN_GENERATED_ROOTS,
-    ]);
-    const changedAfterQualification = publicationChangesBetween(root, result.commit, publication);
-    const forbidden = changedAfterQualification.filter((change) => (
-      !allowedPublicationChange(change, generatedPaths, publicationEntries)
-    ));
-    if (forbidden.length > 0) {
-      fail(`${result.id} P changed forbidden post-qualification paths: ${forbidden
-        .map(({ status, path }) => `${status}:${path}`).join(',')}`);
-    }
+    const record = RECORDS.find(({ id }) => id === result.id);
+    const receipt = JSON.parse(readFileSync(join(root, record.receipt)));
     validateLocalStorePublicationTransform(root, result.commit);
-    const atQualification = implementationDigestAt(root, result.commit);
-    const atPublication = implementationDigestWorkingTree(root);
-    if (carrier.implementationTreeSha256 !== atQualification
-        || atQualification !== atPublication) {
-      fail(`${result.id} P-vs-C implementation tree drifted`);
+    const atPublication = assertQualifiedImplementationDigestAtPublication(root, {
+      capabilityId: result.id,
+      qualificationCommit: result.commit,
+      publicationCommit: publication,
+      expectedDigest: receipt.implementationTreeSha256,
+    });
+    const workingTreeDigest = implementationDigestWorkingTree(root);
+    if (atPublication !== workingTreeDigest) {
+      fail(`${result.id} publication HEAD and clean working-tree implementation digests differ; `
+        + `expected ${atPublication}; actual ${workingTreeDigest}`);
     }
-    checkedOutImplementationGitlink(root);
   }
   return results;
 }
