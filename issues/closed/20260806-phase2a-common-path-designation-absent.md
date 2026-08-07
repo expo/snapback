@@ -1,6 +1,6 @@
 # Phase 2a browser-IR gate: designated common-path mutation set is not frozen
 
-**Status:** Open
+**Status:** Closed (resolved 2026-08-07; see Resolution)
 **Severity:** P2 (blocks a gate verdict, not any build)
 **Systems:** LLP 0129 Phase 2a, Browser IR lane, Acceptance testing
 **Date:** 2026-08-06
@@ -49,3 +49,30 @@ stand at 12/13 = 92.3% semantic (PASS ≥90%) and 37/37 exact D5 in real Chrome
   requirement, and the receipt's `commonPathExecution` axis becomes a real
   percentage.
 - LLP 0129 §Phases (Phase 2a) records the resulting gate verdict from a rerun.
+
+## Resolution (2026-08-07)
+
+All three done-when conditions are met:
+
+- The author **delegated the designation to the orchestrating agent** at the
+  2026-08-07 gate sitting
+  (`issues/closed/20260807-local-first-author-gate-packet.md` item 3;
+  delegation recorded verbatim in the artifact's provenance). The frozen
+  artifact is
+  `tests/acceptance/fixtures/browser-lane/handler-coverage.v1.json`: 12
+  designated common-path cases over the pinned D5 corpus, every remaining
+  case excluded with a recorded reason (total partition, validated by the
+  runner). None of the three candidate readings above was adopted verbatim;
+  the designation is operation-anchored (toggle/patch/delete/guarded
+  read/expression semantics/validation refusals — everyday agent-app
+  operations).
+- `tests/acceptance/browser-ir-coverage-v1.mjs` now loads the frozen
+  designation (drift-refusing) and measures the axis: **11/12 FAIL**, single
+  named gap `todo-v2-delete-todo` (plain single-row delete, refused
+  `SNAPBACK_PLAN_EFFECT_CEILING`). Receipt:
+  `browser-ir-coverage.2026-08-07.v2.{json,md}`. The gap is ticketed at
+  `issues/20260807-single-row-delete-effect-ceiling.md` — the gate is now
+  measurable and doing its job.
+- LLP 0129 Phase 2a carries the dated designation + rerun note; the phase
+  disposition is owned by the standing orchestration lane, presented to the
+  author by 2026-08-14.

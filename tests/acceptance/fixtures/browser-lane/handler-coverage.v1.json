@@ -1,0 +1,85 @@
+{
+  "schemaVersion": "snapback.browser-common-path-designation.v1",
+  "frozenAt": "2026-08-07",
+  "authority": [
+    "llp/0129-local-first-program.plan.md §Open questions 9 (RESOLVED 2026-08-06, Charlie Cheever) — the browser-IR-coverage gate's 100%-common-path axis names 'the designated browser common-path mutations'",
+    "tests/acceptance/fixtures/browser-lane/wasm-assessment.2026-08-05.v1.md §5 Option B — locates the designation act in this file",
+    "issues/closed/20260807-local-first-author-gate-packet.md item 3 — the designation ruling (delegation)"
+  ],
+  "provenance": {
+    "delegatedBy": "Charlie Cheever (author), 2026-08-07, author gate packet item 3",
+    "delegationVerbatim": "This whole project is about making something right for agents and you know agents better than I do",
+    "designatedBy": "the orchestrating agent (Claude Fable 5), 2026-08-07, under the author's delegation",
+    "rulingRecord": "issues/closed/20260807-local-first-author-gate-packet.md item 3"
+  },
+  "corpus": {
+    "manifestPath": "tests/conformance/data-tier/corpus.manifest.json",
+    "manifestSha256": "sha256:ec6968a66ad7161cd37bdb5059965e08ed071c66cb77344bdb569fa56f98a3e1",
+    "cases": 37,
+    "note": "The designation is expressed over the executable, SHA-256-pinned LLP 0051 D5 conformance corpus — the corpus the coverage runner actually measures. Option B's reference-app framing is carried by the corpus itself: the todo-v2/get/expr/reject cases are the frozen executable projections of the reference-app durable-mutation demands. Every corpus case is either designated below or excluded below with a reason; the partition is total and validated by the runner."
+  },
+  "rationale": "Everyday agent-app operations: field toggle, patch (including missing-row softness), single-row delete, guarded read, null/equality/default/string/conditional/arithmetic expression semantics, and the two argument-validation refusal behaviors agents hit constantly.",
+  "passRule": "100% of the designated cases must be locally admitted (plan-shape classification 'ready') and complete the real-browser suite with browser-vs-Node exact normalized outcomes after IndexedDB read-back. A designated case refused by admission fails this axis — the designation names the OPERATION as common-path; whether the shipped ceiling admits it is exactly what the gate measures.",
+  "designatedCommonPath": [
+    { "name": "todo-v2-set-completed", "operation": "field toggle (Patch)" },
+    { "name": "todo-v2-patch-missing-row-is-soft", "operation": "patch with missing-row softness (Patch)" },
+    { "name": "todo-v2-delete-todo", "operation": "single-row delete (Delete by arg id)" },
+    { "name": "get-else-error", "operation": "guarded read (Get with else-error)" },
+    { "name": "expr-field-null-propagation", "operation": "null-propagation expression semantics" },
+    { "name": "expr-equality-value-model", "operation": "equality expression semantics" },
+    { "name": "expr-truthiness-or-vs-coalesce", "operation": "truthiness/default expression semantics" },
+    { "name": "expr-string-template", "operation": "string-template expression semantics" },
+    { "name": "expr-ternary-comparison", "operation": "conditional (ternary/comparison) expression semantics" },
+    { "name": "expr-arithmetic-three-valued", "operation": "arithmetic (three-valued) expression semantics" },
+    { "name": "reject-strict-arg-missing", "operation": "argument-validation refusal: strict arg missing" },
+    { "name": "reject-unknown-function", "operation": "argument-validation refusal: unknown function" }
+  ],
+  "exclusions": [
+    {
+      "class": "server-owned-create",
+      "reason": "Authoritative-value minting is server-owned per LLP 0129 decision 10, and optimistic creation is Move 4's deliberately-deferred machinery — local IR execution of creates is out of the evaluator's obligation by ratified design.",
+      "cases": ["todo-v2-create-todo", "todo-create-guarded", "todo-create-guarded-empty-title"]
+    },
+    {
+      "class": "auth-guarded-write",
+      "reason": "Prediction is never authority (LLP 0155 P4): auth-guarded writes are adjudicated server-side and are not browser common-path local executions.",
+      "cases": ["get-guard-read-check-write", "get-guard-rejects-non-owner"]
+    },
+    {
+      "class": "power-path",
+      "reason": "Batch/fanout/multi-step machinery held behind deliberate effect ceilings; not everyday agent-app common path.",
+      "cases": [
+        "all-aboard-apply-feed-tick",
+        "all-aboard-apply-feed-tick-first-run",
+        "all-aboard-live-snapshot-fragments",
+        "all-aboard-reset-feed",
+        "let-binding-chain",
+        "delete-where-filtered",
+        "reject-insert-each-non-array",
+        "reject-insert-each-over-fanout",
+        "reject-missing-binding"
+      ]
+    },
+    {
+      "class": "bounds-semantic-depth",
+      "reason": "Bounds and semantic-depth cases are covered by the gate's ≥90% semantic axis; they are conformance depth, not common-path operations.",
+      "cases": [
+        "reject-expr-over-depth-bound",
+        "reject-plan-over-step-bound",
+        "reject-inherited-strict-arg",
+        "expr-array-plus-zero-index",
+        "expr-nonfinite-arithmetic-normalizes-null",
+        "expr-number-concat-boundaries",
+        "expr-own-property-field-access",
+        "expr-pinned-library",
+        "expr-portable-trim-whitespace",
+        "expr-record-proto-key",
+        "expr-unicode-scalar-order"
+      ]
+    }
+  ],
+  "corpusObservations": [
+    "todo-v2-delete-todo inspected 2026-08-07 before freezing: its plan is exactly one Delete step addressing a single row by Arg id with return_value ChangedCount — a plain single-row delete, not a cascade or filtered delete. It is designated as the corpus's single-row-delete operation.",
+    "As of the 2026-08-06 coverage receipt, todo-v2-delete-todo is refused by the shipped plan-shape admission (SNAPBACK_PLAN_EFFECT_CEILING under the M1 Insert/Get/Guard/Patch ceiling). It is designated anyway: the designation names the operation as common-path, and surfacing that ceiling collision is the gate doing its job."
+  ]
+}

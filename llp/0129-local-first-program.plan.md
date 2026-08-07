@@ -5,6 +5,17 @@
 **Systems:** Sync, Storage, Runtime, Client integration, Auth, Wire Protocol, Realtime, Packaging, Testing, Documentation, Competitive evaluation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
+**Revised:** 2026-08-07, later still (Phase 2a common-path designation
+FROZEN under the author's delegation —
+`tests/acceptance/fixtures/browser-lane/handler-coverage.v1.json`, 12
+designated cases over the pinned D5 corpus, every remainder excluded
+with reasons — and the browser-IR coverage gate rerun against it:
+semantic 12/13 PASS, exact-D5 37/37 PASS, common-path 11/12 **FAIL**
+with the single named gap `todo-v2-delete-todo` (a plain single-row
+delete, refused `SNAPBACK_PLAN_EFFECT_CEILING`); receipt
+`browser-ir-coverage.2026-08-07.v2.{json,md}`, gap ticketed at
+`issues/20260807-single-row-delete-effect-ceiling.md`; no exit
+declared, disposition due to the author by 2026-08-14.)
 **Revised:** 2026-08-07, later (author gate packet RULED — all seven items of
 `issues/closed/20260807-local-first-author-gate-packet.md` carry dated
 author rulings, Charlie Cheever, recorded this revision: OQ7's Phase-0
@@ -849,6 +860,33 @@ the browser story is pinned.
 > was **delegated by the author to the orchestrating agent** at the
 > same sitting (packet item 3); the frozen designation and the gate
 > rerun against it land as their own dated note here when executed.
+
+> **Designation frozen + gate rerun — 2026-08-07.** The delegated
+> designation act is executed:
+> `tests/acceptance/fixtures/browser-lane/handler-coverage.v1.json`
+> freezes the 12-case designated browser-common-path set over the
+> pinned D5 corpus (field toggle, patch incl. missing-row softness,
+> single-row delete, guarded read, six expression-semantics cases, and
+> the two argument-validation refusals; every remaining corpus case is
+> excluded with a recorded reason — creates are server-owned per
+> decision 10 with optimistic creation deliberately Move-4-deferred,
+> auth-guarded writes because prediction is never authority (LLP 0155
+> P4), batch/fanout/multi-step power paths behind deliberate effect
+> ceilings, and bounds/semantic-depth cases covered by the 90% axis).
+> The author's delegation is recorded verbatim in the artifact's
+> provenance. The gate is now fully measurable and the runner reran
+> against the frozen designation in real Chrome 151.0.7922.76:
+> **semantic 12/13 = 92.3% PASS; exact-D5 37/37 PASS; common-path
+> 11/12 FAIL — whole gate FAIL** with one named gap:
+> `todo-v2-delete-todo` (inspected before freezing: a plain single-row
+> `Delete` by arg id) is refused by the M1 admission ceiling
+> (`SNAPBACK_PLAN_EFFECT_CEILING`). Nothing was tuned; the gap is the
+> gate doing its job and is ticketed at
+> `issues/20260807-single-row-delete-effect-ceiling.md`. Receipt:
+> `tests/acceptance/fixtures/browser-lane/browser-ir-coverage.2026-08-07.v2.{json,md}`.
+> Phase disposition: owned by the standing orchestration lane,
+> presented to the author by **2026-08-14** (the 2026-08-07
+> owner/timebox ruling above); no exit or advancement is declared.
 
 **Phase 2b — Desktop ladder (independent of 2a).** First the sidecar:
 the packaged native runtime spawned next to the app, carrying

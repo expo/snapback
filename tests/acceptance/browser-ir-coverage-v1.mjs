@@ -10,8 +10,10 @@
 // semantic IR coverage (carried from the dated audited assessment of the
 // frozen corpus, pinned by digest — not re-audited here), exact-D5
 // real-browser execution (measured here), and 100%-common-path execution
-// coverage (INDETERMINATE: no frozen designated-browser-common-path mutation
-// set exists; this runner refuses to invent one).
+// coverage (measured here against the frozen designation in
+// fixtures/browser-lane/handler-coverage.v1.json — the designation act was
+// delegated by the author to the orchestrating agent on 2026-08-07,
+// issues/closed/20260807-local-first-author-gate-packet.md item 3).
 //
 // @ref LLP 0129#open-questions — OQ9 (resolved 2026-08-06): Phase 2a's
 //   falsifiable exit is the browser-IR-coverage gate; advancement remains
@@ -36,7 +38,8 @@ import { replayDataTierCaseInJs } from '../conformance/data-tier/js-d5-harness.m
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(here, '..', '..');
-const RUN_DATE = '2026-08-06';
+const RUN_DATE = '2026-08-07';
+const RECEIPT_VERSION = 'v2';
 const CORPUS_DIR = join(ROOT, 'tests', 'conformance', 'data-tier');
 const MANIFEST_PATH = join(CORPUS_DIR, 'corpus.manifest.json');
 const PAGE_MODULE_PATH = join(here, 'browser-ir-coverage-v1-page.mjs');
@@ -50,7 +53,11 @@ const PHASE1_RUST_RECEIPT_PATH = join(
 );
 const RETAINED_RECEIPT_PATH = join(
   ROOT,
-  `tests/acceptance/fixtures/browser-lane/browser-ir-coverage.${RUN_DATE}.v1.json`,
+  `tests/acceptance/fixtures/browser-lane/browser-ir-coverage.${RUN_DATE}.${RECEIPT_VERSION}.json`,
+);
+const DESIGNATION_PATH = join(
+  ROOT,
+  'tests/acceptance/fixtures/browser-lane/handler-coverage.v1.json',
 );
 // Chrome IndexedDB initialization has failed on this fleet's macOS hosts when
 // the profile lives under os.tmpdir()'s /var/folders spelling; literal /tmp is
@@ -109,6 +116,10 @@ const GATE_DEFINITION = {
     + 'reference-app durable-mutation corpus plus 100% execution coverage for the '
     + 'designated browser common-path mutations, proven by generated artifacts under '
     + 'a real-browser IndexedDB acceptance run with exact LLP 0051 D5 results.',
+  designationAuthority:
+    'tests/acceptance/fixtures/browser-lane/handler-coverage.v1.json — the frozen '
+    + 'designated-browser-common-path mutation set, delegated by the author to the orchestrating '
+    + 'agent 2026-08-07 (issues/closed/20260807-local-first-author-gate-packet.md item 3).',
   optionBPassVerbatim:
     '(1) at least 90% of the frozen corpus is semantically IR-expressible; '
     + '(2) 100% of mutations designated browser common-path carry a generated local '
@@ -329,8 +340,45 @@ async function connectCdp(url) {
   };
 }
 
+async function loadDesignation(manifest, manifestSha256) {
+  if (!existsSync(DESIGNATION_PATH)) {
+    fail('SNAPBACK_BROWSER_IR_COVERAGE_DESIGNATION_MISSING', `frozen designation absent: ${DESIGNATION_PATH}`);
+  }
+  const raw = await readFile(DESIGNATION_PATH);
+  const designation = JSON.parse(raw.toString('utf8'));
+  if (designation.schemaVersion !== 'snapback.browser-common-path-designation.v1') {
+    fail('SNAPBACK_BROWSER_IR_COVERAGE_DESIGNATION_DRIFT', `unknown designation schema: ${designation.schemaVersion}`);
+  }
+  if (designation.corpus?.manifestSha256 !== manifestSha256) {
+    fail(
+      'SNAPBACK_BROWSER_IR_COVERAGE_DESIGNATION_DRIFT',
+      `designation pins corpus ${designation.corpus?.manifestSha256}, but the on-disk manifest is ${manifestSha256}`,
+    );
+  }
+  const corpusNames = new Set(manifest.cases.map((entry) => entry.name));
+  const designated = designation.designatedCommonPath.map(({ name }) => name);
+  const excluded = designation.exclusions.flatMap(({ cases: names }) => names);
+  const partition = [...designated, ...excluded];
+  if (new Set(partition).size !== partition.length) {
+    fail('SNAPBACK_BROWSER_IR_COVERAGE_DESIGNATION_DRIFT', 'designation partition contains duplicates');
+  }
+  for (const name of partition) {
+    if (!corpusNames.has(name)) {
+      fail('SNAPBACK_BROWSER_IR_COVERAGE_DESIGNATION_DRIFT', `designation names unknown corpus case: ${name}`);
+    }
+  }
+  if (partition.length !== corpusNames.size) {
+    fail(
+      'SNAPBACK_BROWSER_IR_COVERAGE_DESIGNATION_DRIFT',
+      `designation partition covers ${partition.length} cases, corpus has ${corpusNames.size}`,
+    );
+  }
+  return { designation, designationSha256: sha256Prefixed(raw), designated };
+}
+
 const { manifestRaw, manifest, cases } = await verifyCorpus();
 const manifestSha256 = sha256Prefixed(manifestRaw);
+const { designation, designationSha256, designated } = await loadDesignation(manifest, manifestSha256);
 const bundle = await bundlePage();
 const { version: esbuildVersion } = await import('esbuild');
 
@@ -378,6 +426,8 @@ if (options.dryRun) {
     bundleBytes: bundle.length,
     esbuild: esbuildVersion,
     rustChain: rustChain.status,
+    designationSha256,
+    designatedCommonPathCases: designated.length,
   })}\n`);
   process.exit(0);
 }
@@ -389,7 +439,7 @@ const gitDirty = execFileSync('git', ['status', '--short'], { cwd: ROOT, encodin
 const databaseName = `snapback-browser-ir-coverage-${randomUUID()}`;
 
 const receipt = {
-  schemaVersion: 'snapback.browser-ir-coverage-receipt.v1',
+  schemaVersion: 'snapback.browser-ir-coverage-receipt.v2',
   runDate: RUN_DATE,
   startedAt: new Date().toISOString(),
   finishedAt: null,
@@ -411,6 +461,13 @@ const receipt = {
       path: 'tests/acceptance/fixtures/browser-lane/wasm-assessment.2026-08-05.v1.md',
       sha256: assessmentSha256,
     },
+  },
+  designation: {
+    path: 'tests/acceptance/fixtures/browser-lane/handler-coverage.v1.json',
+    sha256: designationSha256,
+    frozenAt: designation.frozenAt,
+    designatedCommonPathCases: designated.length,
+    provenance: designation.provenance,
   },
   corpus: {
     manifestPath: 'tests/conformance/data-tier/corpus.manifest.json',
@@ -448,7 +505,7 @@ const receipt = {
   nonclaims: [
     'No Parity, capability, store, settlement, React presentation, or phase-advancement claim: per LLP 0129 advancement is author-presented and none is declared here.',
     'Semantic IR coverage is carried from the dated audited assessment classification of the frozen 13-mutation corpus, pinned by digest; this runner does not re-audit demo sources.',
-    'The plan-shape M1 admission counts over the D5 conformance cases are evidence only; they are NOT the gate’s common-path metric, whose designated mutation set is unfrozen.',
+    'The common-path axis is measured against the frozen designation in handler-coverage.v1.json (delegated by the author 2026-08-07); the plan-shape M1 admission counts over the full corpus remain contextual evidence only.',
   ],
 };
 
@@ -575,35 +632,70 @@ receipt.gate = {
     rustChain,
     result: d5Result,
   },
-  commonPathExecution: {
-    threshold: '100% of designated browser common-path mutations carry a generated local artifact and complete the real-browser suite',
-    result: 'INDETERMINATE',
-    reason:
-      'No frozen designated-browser-common-path mutation set exists in the repository. The assessment’s '
-      + 'Option B locates that designation act in tests/acceptance/fixtures/browser-lane/handler-coverage.v1.json, '
-      + 'which has not been created, and no dated ruling freezes a mutation subset. The designation is '
-      + 'author-owned; measuring this axis against an invented set would not be falsifiable against the '
-      + 'author’s chosen wording. Ticketed: issues/20260806-phase2a-common-path-designation-absent.md.',
-    evidence: {
-      planShapeAdmissionCounts: admissionCounts,
-      label:
-        'classifyLocalMutationIrV1 plan-shape classification of the D5 conformance cases under the '
-        + 'M1 Insert/Get/Guard/Patch ceiling — evidence only, NOT the gate metric.',
-    },
-  },
-  overall: d5Result === 'FAIL'
-    ? {
-        result: 'FAIL',
-        detail: 'A measured component is below threshold: the exact-D5 real-browser component did not pass.',
-      }
-    : {
-        result: 'NOT-DECLARABLE',
-        detail:
-          'Two of three components are measured or carried and pass (semantic 92.3% >= 90%; exact D5 in the '
-          + 'real browser). The 100%-common-path component cannot be measured until the author freezes the '
-          + 'designated browser-common-path mutation set, so no whole-gate PASS is declared.',
+  commonPathExecution: (() => {
+    const rows = designated.map((name) => {
+      const row = receipt.cases.find((entry) => entry.name === name) ?? null;
+      const admitted = row?.admission?.classification === 'ready';
+      const completed = row?.verdict === 'PASS'
+        && row?.browserVsNodeExact === true
+        && row?.indexedDb?.readBack === true;
+      return {
+        name,
+        admitted,
+        admissionCode: row?.admission?.code ?? null,
+        completedRealBrowserSuite: completed,
+        pass: admitted && completed,
+      };
+    });
+    const numerator = rows.filter(({ pass }) => pass).length;
+    const failing = rows.filter(({ pass }) => !pass).map(({ name, admissionCode }) => ({ name, admissionCode }));
+    return {
+      threshold: '100% of designated browser common-path mutations are locally admitted and complete the real-browser suite',
+      designation: {
+        path: 'tests/acceptance/fixtures/browser-lane/handler-coverage.v1.json',
+        sha256: designationSha256,
+        frozenAt: designation.frozenAt,
       },
+      numerator,
+      denominator: rows.length,
+      failing,
+      cases: rows,
+      result: numerator === rows.length ? 'PASS' : 'FAIL',
+      evidence: {
+        planShapeAdmissionCounts: admissionCounts,
+        label:
+          'classifyLocalMutationIrV1 plan-shape classification of the full 37-case D5 corpus under the '
+          + 'M1 Insert/Get/Guard/Patch ceiling — contextual evidence, distinct from the designated-set metric above.',
+      },
+    };
+  })(),
 };
+
+receipt.gate.overall = (() => {
+  const commonPath = receipt.gate.commonPathExecution;
+  if (d5Result === 'FAIL') {
+    return {
+      result: 'FAIL',
+      detail: 'A measured component is below threshold: the exact-D5 real-browser component did not pass.',
+    };
+  }
+  if (commonPath.result === 'FAIL') {
+    return {
+      result: 'FAIL',
+      detail:
+        `The 100%-common-path component measured ${commonPath.numerator}/${commonPath.denominator} against the `
+        + 'frozen designation; the semantic and exact-D5 components pass. Failing designated cases: '
+        + `${commonPath.failing.map(({ name, admissionCode }) => `${name} (${admissionCode})`).join(', ')}. `
+        + 'No tuning was applied; the gap is recorded for author presentation.',
+    };
+  }
+  return {
+    result: 'PASS',
+    detail:
+      'All three components pass against the frozen designation. Per LLP 0129 advancement is '
+      + 'author-presented: this receipt records the measurement and declares no phase exit.',
+  };
+})();
 
 receipt.finishedAt = new Date().toISOString();
 receipt.ok = failure === null
@@ -628,9 +720,10 @@ process.stdout.write(`${JSON.stringify({
   failed: failedCases,
   browserVsNodeExact: browserVsNodeAllExact,
   semanticCoverage: '12/13=92.3%',
-  commonPath: 'INDETERMINATE',
+  commonPath: `${receipt.gate.commonPathExecution.numerator}/${receipt.gate.commonPathExecution.denominator}=${receipt.gate.commonPathExecution.result}`,
+  commonPathFailing: receipt.gate.commonPathExecution.failing,
   overall: receipt.gate.overall.result,
   browser: browserVersion,
   receipt: receiptPath,
 })}\n`);
-if (failure !== null || d5Result !== 'PASS') process.exitCode = 1;
+if (failure !== null || receipt.gate.overall.result !== 'PASS') process.exitCode = 1;
