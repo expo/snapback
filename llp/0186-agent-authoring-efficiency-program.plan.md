@@ -7,6 +7,8 @@ Error handling, Code generation, Packaging, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-05
 **Revised:** 2026-08-06 (e — Accepted by author ruling at revision (d); the super-refine run record in llp/reviews/0186-agent-authoring-efficiency-program.run.md holds the verdict history, incl. that revision (d) was unreviewed)
+**Revised:** 2026-08-06 (f — amendment adding a worked-example tier to W2's Rosetta section, scoped separately from the vocabulary-alias tier; see the dated amendment)
+**Revised:** 2026-08-06 (g — revision of the (f) amendment after one `llp-review` round, two independent families instructed to prioritize generative feedback over compliance nitpicking: `llp/reviews/0186-agent-authoring-efficiency-program.claude.md` and `.gpt-5.md`, round 4. Both reviews converged on the same three defects — an evidence/concept-list mismatch, a closed four-demo source list two of the four concepts can't actually satisfy, and an OQ6 left as a named risk rather than a mechanism — plus the GPT-family review found a fourth, more serious one: the (f) revision's own worked "structural difference" example for Supabase RLS was itself wrong in exactly the way the tier exists to prevent. This revision fixes that bug, replaces the four-card list with a quick-map-plus-deep-journeys shape prioritized by an explicit evidence rubric, opens the source pool beyond the four originally named demos, and answers OQ6 with a generated-projection mechanism instead of naming it as unresolved.)
 **Related:** LLP 0061 (agent-first guide), LLP 0130 (Convex parity standing
 decisions), LLP 0146 (agentic authoring affordances), LLP 0176 (Expo
 messaging golden-path program), LLP 0178 (generate-time authoring
@@ -449,3 +451,213 @@ should say where.
 - **OQ5 — Public benchmark ethics.** When results are published, what
   disclosure (harness, model, briefs, fairness rules, raw diaries) makes
   the comparison credible rather than vendor-benchmark noise?
+- **OQ6 — Rosetta page maintenance authority (answered by the (g)
+  amendment below; residual noted there).** Who keeps the worked examples
+  in sync with guide drift? Answer: a canonical per-concept record that
+  the page, feature-page backlinks, and retrieval-eval seeds are
+  generated or checked from, with the guide owner responsible for
+  Snapback-side accuracy and the W1 benchmark owner responsible for
+  competitor-version pins and scheduled drift checks. The residual risk —
+  competitor API drift between scheduled checks — is accepted as
+  unavoidable and disclosed on every card, not hidden.
+
+## Amendment (2026-08-06): W2 Rosetta section — worked-example tier
+
+The accepted W2 text scopes the "Rosetta section" as vocabulary
+aliases: single competitor-vocabulary strings (`Convex useQuery`,
+`Supabase RLS`) added to the `guide/capabilities.md` Aliases column and
+mirrored as `guide/retrieval-eval.md` seed cases, per LLP 0187 T1's
+outward-facing convention. That closes a **discoverability** gap — a
+competitor-vocabulary grep now lands on the right page — but not a
+**translation** gap: landing on the page still leaves the agent to
+compose the Snapback-shaped implementation from prose, which is exactly
+the "compose from prose" cost this Plan's own W2 scaffold reasoning
+says agents pay dearly for ("agents are far cheaper editing a working
+example than composing from prose"). This amendment adds a worked-example
+tier to W2, additive to and independent of the alias tier — neither
+blocks the other, and the alias tier should ship regardless of this
+tier's pace.
+
+**Revision note (g).** The initial (f) text below was revised after one
+`llp-review` round (two independent families instructed to be generative,
+not just find compliance defects — `llp/reviews/0186-agent-authoring-efficiency-program.claude.md`
+and `.gpt-5.md`, round 4). Both reviews independently verified the same
+three defects by reading the same files (the concept list's stated
+evidence didn't match its content; two of the four named demos don't
+contain what was claimed; the tier deferred its own evidence base's
+highest-signal defect to a later pass), and the GPT-family review found a
+fourth, more serious one: the (f) text's own worked example for Supabase
+RLS was itself wrong, in exactly the way this tier exists to prevent. The
+text below is the corrected version; the (f) text and both full reviews
+remain on record for what changed and why.
+
+**Format.** Not four symbol-substitution cards. One guide page,
+`guide/recipes/coming-from-convex-and-supabase.md` (filed under Recipes,
+matching the existing "topic — distilled from demo" shape of
+`recipes/presence-cursors.md` and `recipes/hidden-hands.md`, rather than
+Getting Started — both reviews independently questioned the original
+placement), structured as:
+
+- A **quick map**: one-line routes needing no code pairing — Convex
+  dashboard / Supabase Studio → the `snapback dev`-printed admin console
+  URL; `convex dev` / Supabase local dev → the generate/dev/verify loop;
+  schema and indexes → `defineSchema`; seed functions / SQL seed →
+  versioned seed and reset; offline cache → retained-query and outbox
+  guarantees.
+- A small number of **deep worked journeys**: each a complete,
+  minimal-but-real slice (every required file, not just the terminal
+  hook/call), pinned to a competitor version and retrieval date, ending
+  with one verification command or behavioral oracle and a link to the
+  authoritative Snapback feature page for depth. Each journey states
+  where it is *not* equivalent rather than forcing a translation.
+
+**Source pool.** Not the closed four-demo list the (f) text named — two
+of those four demos do not actually contain the joins or presence-hook
+code claimed (verified independently by both reviews: joins only exist
+in `demos/competitive-checkpoint`, already what
+`guide/backend/relational-queries.md` transcludes; the presence *hook*
+lives in `demos/messaging-snapback/src/lib/useTyping.ts`, not
+`demos/cursors-web`, which has only the schema-side ephemeral
+declaration). The rule instead: any CI-exercised canonical source,
+preferring the smallest current golden-path witness; a small pinned
+fixture under `benchmarks/fixtures/rosetta/` is the fallback only where
+no witness exists yet.
+
+One source deserves a named preference over transcribing competitor
+documentation: **`demos/partiful-matrix` already contains real,
+CI-verified competitor-side code for the same app.**
+`surfaces/react/src/provider.ts`'s `createMatrixProvider` switches one
+React app (`App.tsx`) between `createSnapbackProvider`,
+`createConvexDirectProvider` (`convex-direct.ts`), and
+`createSupabaseDirectProvider` (`supabase-direct.ts`) — three backends
+implementing the identical `MatrixProvider` interface for the identical
+events/RSVP/wall app, built for LLP 0063's comparative-fairness leg and
+exercised by acceptance tests per backend (`acceptance/results/*.json`).
+Where a journey's competitor side already exists here, use it in place
+of a transcribed-from-docs snippet: it is real, tested code rather than
+a claim about what the competitor's docs say, which removes half of
+OQ6's drift risk for that entry outright. `demos/partiful-matrix` is the
+preferred source for the reactive-query journey below; check it first
+for any future journey before transcribing from external documentation.
+
+**Deep worked journeys**, in evidence-honest priority order (both
+reviews converged on this ranking independently; the (f) list's
+console-3/3 evidence dropped and no-evidence RLS/queries added is not
+repeated):
+
+1. **Protected live CRUD, end to end** — schema, index, live query,
+   mutation, codegen, provider, `useSnapbackQuery` /
+   `useSnapbackMutation`, session custody, and the *complete* protected-
+   data slice: explicit function `auth`, no client-supplied owner
+   argument, the `eq('ownerId', authUserId())` predicate as the actual
+   security boundary (source: `demos/card-game/snapback/functions.mjs`,
+   `demos/card-game/tests/acceptance/authority-scope.mjs`), a supporting
+   index, and `authScopeField` named correctly as declaring the live
+   matcher's principal field for disjoint-subscription reasoning — **not**
+   as an injected filter (`guide/auth/sessions-and-principals.md`,
+   "Queries are scoped by the server, not by arguments"). Includes a
+   two-principal negative proof, not a rename claim. This corrects the
+   (f) text's own bug.
+2. **Reading related data without hand-writing the wrong join** —
+   Convex and Supabase are documented separately (JS-side traversal plus
+   indexed lookups vs. foreign-key-derived nested selection with join
+   modifiers; they are not one source concept) feeding one Snapback
+   decision tree: bounded two-source `defineRelationalQuery`, a durable
+   `defineMaintainedProjection`, or an explicit JS fallback. Source:
+   `demos/competitive-checkpoint/snapback/functions.mjs`.
+3. **Upload and attach an Expo image under ordinary session custody** —
+   the item LLP 0186's own evidence section calls "the single
+   highest-signal defect in the set" (the dev-mode anonymous-upload wall;
+   forced a full app rebuild into sessions mode in one diary), promoted
+   into this wave rather than deferred, since it is the highest
+   cost-to-agent item in the entire evidence base, not merely a
+   replicated miss. Source: the Expo ImagePicker-to-Blob recipe in
+   `guide/backend/assets.md`.
+4. **Ephemeral/presence** — Supabase's own docs steer high-frequency
+   cursor-style state toward Broadcast, not Presence (meant for
+   slower-changing state); the journey therefore separates "typing/online
+   state" (→ `useSnapbackPresence`, `demos/messaging-snapback/src/lib/useTyping.ts`)
+   from cursor-like workloads (→ ephemeral collections,
+   `demos/cursors-web/snapback/schema.mjs`) rather than treating Supabase
+   Presence as the universal source for both.
+5. **Reactive queries** (`Convex useQuery` → `useSnapbackQuery`) — no
+   miss evidence, but foundational; prefer the real dual-backend source
+   named above (`demos/partiful-matrix`'s `convex-direct.ts` next to its
+   `provider.ts` Snapback arm) over a transcribed Convex snippet.
+
+Each journey uses the stable card shape: source intent and literal
+search phrases; "use this translation when…" decision rule; the pinned
+competitor snippet or source (version and retrieval date recorded);
+the smallest complete Snapback slice; structural differences and
+guarantees gained or lost; "not equivalent when…" boundaries and named
+capability GAPs; one verification command or behavioral oracle; links to
+the authoritative Snapback feature pages. One sentence of structural
+difference — the (f) text's shape — is enough for the reactive-query
+journey; it is not enough for auth, joins, or media, which get the fuller
+block.
+
+**Routing.** The alias tier's existing rows (`clients.react` →
+`Convex useQuery`; `auth.scoped-queries` → `Supabase RLS`, both verified
+in `guide/capabilities.md`) point to the canonical feature page
+(`clients/react.md`, `auth/sessions-and-principals.md`), not this page —
+so the (f) text's implicit assumption that the alias tier already routes
+here was wrong. Fix: add an explicit "Coming from Convex/Supabase?"
+pointer at the decision point on each canonical feature page this touches,
+linking to the matching journey here; keep the capability-index alias
+itself pointed at the canonical feature page, not redirected to the
+comparison page.
+
+**Non-goals.** Not a feature-parity claim and not a marketing comparison.
+Where Snapback has no equivalent for a Convex/Supabase primitive already
+tracked as a capability-index GAP row (generic joins beyond the bounded
+relational-query shapes, ANN search maturity), the page says so plainly
+instead of forcing a translation. The page is local-target-only, like
+every Snapback destination it currently names, and does not imply hosted
+parity.
+
+**OQ6 mechanism.** One small canonical record per journey/quick-map entry
+(id, competitor provider/version/source, competitor fixture path where
+one exists, Snapback sources, capabilities, `lastVerified`/`reviewBy`
+dates) that the hub page, feature-page backlinks, and retrieval-eval
+seeds are generated or checked from, rather than four independently
+hand-maintained artifacts that can drift from each other. Authority
+split: the guide owner owns Snapback-side accuracy and page publication
+(the existing `source=`/Freshness convention in `guide/conventions.md`
+already gives mechanical protection against a renamed or removed
+Snapback primitive, for free, once the record lists its Snapback sources
+in the page's `authorities:`/`examples:` frontmatter); the W1 benchmark
+owner owns competitor-version pins and a scheduled (not per-PR) drift
+check comparing the recorded competitor source against its current
+version, failing closed and filing a review item on drift — mirroring how
+Rust's `rustdoc` doctests turn example drift into a build failure rather
+than a documentation claim. A card whose watcher receipt is stale or
+currently drifted is not published. This resolves OQ6 to a residual,
+disclosed risk (competitor API drift between scheduled checks) rather
+than an open question.
+
+**Sequencing.** Same W2 lane as the published authoring skill — ships
+right after W0, since it is cheap and reuses existing demo code, and
+does not wait on the full-projection `/llms.txt` or the golden-path
+scaffold. The skill should embed the generated compact projection of
+each record rather than independently drafting its own translations of
+the same concepts, so the two cannot drift apart. Build a small proof
+first — journeys 1 and 3 above — and run both evals below before
+expanding to the rest.
+
+**Success test — two layers, not one.** *Retrieval*: given competitor
+vocabulary, the agent reaches the exact journey or its feature-page
+backlink within the existing tool budget (widening LLP 0187 T7's
+standing rule: a fixed discoverability miss must add a retrieval-eval
+case proving this, not just that some page loaded). *Construction*: the
+agent completes the journey's own task and passes its oracle — the auth
+journey proves cross-principal denial, the presence journey proves
+expiry without a durable-version advance, the joins journey proves the
+bounded primitive was chosen when its shape fits, the media journey
+proves a real app-path upload. "Named the right primitive" is necessary
+but not sufficient; a cold benchmark lane (LLP 0186 W1) given a brief
+phrased in Convex/Supabase vocabulary reaching for the right primitive
+without extra guide search is a discriminating signal only in
+combination with the construction check, not on its own — an agent that
+follows a journey's link into the authoritative feature page for more
+depth is succeeding, not failing, so "zero further navigation" is not
+the bar.
