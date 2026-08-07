@@ -1,7 +1,7 @@
 # Optimistic layers with a never-true isAuthoritative matcher strand until store teardown
 
 **Date:** 2026-08-04
-**Status:** Open
+**Status:** Resolved (2026-08-07)
 **Area:** Snapback React, optimistic mutations
 **Governing:** LLP 0107
 
@@ -43,6 +43,34 @@ Design options, in rough preference order:
    closes the filtered/deleted class without touching hand-written matchers.
 3. Documentation-only: keep the semantics, expand the recipe trap (done at
    filing time) and surface stranded layers in provider `inspection()`.
+
+## Resolution (2026-08-07)
+
+Charlie ruled option 2 **plus** option 3 (local-first author-gate packet,
+item 5); option 1's timer/delivery-count backstop was explicitly not ruled.
+Implemented in one landing:
+
+- **Option 2** — for the `projectRecordFields` paved path only, a confirmed
+  layer retires when its identified row is absent from an authoritative
+  delivery of the query it projects onto. Scope is carried by a
+  module-private symbol brand on the exact matcher function the helper
+  returns, so overriding `isAuthoritative` — like any hand-written matcher —
+  keeps the ratified complete-receipt semantics unchanged. Absence is
+  conclusive at this surface because authoritative deliveries are complete
+  result sets by construction (DK-3 deltas materialize client-side before
+  delivery); the confirmation-time absence check is gated on
+  `freshness === 'current'` so LLP 0114 Channel B retained frames never key
+  retirement. The third-value strand (row present, field settled to a value
+  differing from both receipt and intent) remains, by the ruling's scope.
+- **Option 3** — provider/registry `inspection()` now reports
+  `optimisticLayers` (installed count) and `confirmedOptimisticLayers`
+  (`{attemptId, mutationId, queryId, confirmedRevision, storeRevision}` per
+  confirmed, unretired layer).
+
+Regression fixtures in `packages/snapback-react/optimistic.test.mjs`; LLP
+0107 amended (Revised 2026-08-07, replay-safety affordances + journal);
+`guide/recipes/optimistic-toggle.md` anti-pattern rescoped to hand-written
+matchers.
 
 ## Related
 

@@ -550,3 +550,327 @@ assert.equal(helperClient.inspection().handles, 0);
 console.warn = originalConsoleWarn;
 
 console.log('optimistic.test.mjs: overlap, rollback, matcher ordering, rebase failure, install refusal, the toggle recipe, the replay advisory, and projectRecordFields pass');
+
+// A confirmed projectRecordFields layer retires when a later authoritative
+// delivery omits its identified row. It cannot consume a provider layer slot
+// or resurrect its projection if the row later returns.
+const absentClient = fakeSurfacesClient({
+  timeline: [{ id: 'absent-target', liked: false, likeCount: 20 }],
+  profilePosts: [],
+});
+const absentBinding = await prepareReactBindingForClient(absentClient, { generatedManifest: likeFunctions });
+const absentProvider = createSnapbackReactProvider(absentBinding, { connectionId: 'optimistic-absent-test' });
+const absentObserver = observeSnapbackQueries(
+  absentProvider,
+  { timeline: { ref: timeline, args: {} } },
+  () => {},
+);
+await flush();
+const absentMutation = invokeSnapbackMutation(
+  absentProvider,
+  toggleLike,
+  { postId: 'absent-target' },
+  {
+    optimistic: {
+      query: timeline,
+      args: {},
+      ...projectRecordFields('absent-target', { liked: true, likeCount: 21 }, { idField: 'id' }),
+    },
+  },
+);
+absentClient.inspection().attempts[0].resolve({ liked: true, likeCount: 21 });
+await absentMutation;
+assert.equal(
+  absentProvider.inspection().confirmedOptimisticLayers.length,
+  1,
+  'the confirmed helper layer remains installed while its row is still present but unmatched',
+);
+const authoritativeWithoutTarget = [{ id: 'other-post', liked: false, likeCount: 4 }];
+absentClient.emit('timeline', authoritativeWithoutTarget);
+assert.deepEqual(
+  absentObserver.snapshot().queries.timeline.data,
+  authoritativeWithoutTarget,
+  'row-absent authority renders exactly the authoritative rows',
+);
+assert.equal(
+  absentProvider.inspection().optimisticLayers,
+  0,
+  'row-absent authority retires the helper layer and releases its provider slot',
+);
+assert.deepEqual(
+  absentProvider.inspection().confirmedOptimisticLayers,
+  [],
+  'row-absent authority leaves no confirmed helper layer pinned',
+);
+absentClient.emit('timeline', [{ id: 'absent-target', liked: false, likeCount: 22 }]);
+assert.deepEqual(
+  absentObserver.snapshot().queries.timeline.data,
+  [{ id: 'absent-target', liked: false, likeCount: 22 }],
+  'a row returning after absence does not resurrect the retired projection',
+);
+absentObserver.dispose();
+await flush();
+await absentProvider.dispose();
+
+// Presence with non-matching fields is not absence evidence: the helper layer
+// remains installed and continues projecting its captured intended values.
+const dippedClient = fakeSurfacesClient({
+  timeline: [{ id: 'dipped-target', liked: false, likeCount: 30 }],
+  profilePosts: [],
+});
+const dippedBinding = await prepareReactBindingForClient(dippedClient, { generatedManifest: likeFunctions });
+const dippedProvider = createSnapbackReactProvider(dippedBinding, { connectionId: 'optimistic-dipped-test' });
+const dippedObserver = observeSnapbackQueries(
+  dippedProvider,
+  { timeline: { ref: timeline, args: {} } },
+  () => {},
+);
+await flush();
+const dippedMutation = invokeSnapbackMutation(
+  dippedProvider,
+  toggleLike,
+  { postId: 'dipped-target' },
+  {
+    optimistic: {
+      query: timeline,
+      args: {},
+      ...projectRecordFields('dipped-target', { liked: true, likeCount: 31 }, { idField: 'id' }),
+    },
+  },
+);
+dippedClient.inspection().attempts[0].resolve({ liked: true, likeCount: 31 });
+await dippedMutation;
+dippedClient.emit('timeline', [{ id: 'dipped-target', liked: false, likeCount: 30 }]);
+assert.deepEqual(
+  dippedObserver.snapshot().queries.timeline.data,
+  [{ id: 'dipped-target', liked: true, likeCount: 31 }],
+  'a present-but-dipped row keeps the helper projection installed',
+);
+assert.equal(
+  dippedProvider.inspection().optimisticLayers,
+  1,
+  'presence without a complete receipt does not trigger the absence backstop',
+);
+assert.equal(
+  dippedProvider.inspection().confirmedOptimisticLayers.length,
+  1,
+  'the present-but-dipped helper layer remains observable as confirmed',
+);
+dippedClient.emit('timeline', [{ id: 'dipped-target', liked: true, likeCount: 31 }]);
+assert.equal(
+  dippedProvider.inspection().optimisticLayers,
+  0,
+  'the present helper layer still retires on its ordinary complete-receipt match',
+);
+dippedObserver.dispose();
+await flush();
+await dippedProvider.dispose();
+
+// Hand-written matchers preserve their complete-receipt semantics, including
+// when they override a matcher obtained by spreading projectRecordFields.
+const customClient = fakeSurfacesClient({
+  timeline: [
+    { id: 'custom-target', liked: false, likeCount: 40 },
+    { id: 'overridden-target', liked: false, likeCount: 50 },
+  ],
+  profilePosts: [],
+});
+const customBinding = await prepareReactBindingForClient(customClient, { generatedManifest: likeFunctions });
+const customProvider = createSnapbackReactProvider(customBinding, { connectionId: 'optimistic-custom-test' });
+const customObserver = observeSnapbackQueries(
+  customProvider,
+  { timeline: { ref: timeline, args: {} } },
+  () => {},
+);
+await flush();
+const customMatcherMutation = invokeSnapbackMutation(
+  customProvider,
+  toggleLike,
+  { postId: 'custom-target' },
+  {
+    optimistic: {
+      query: timeline,
+      args: {},
+      update: (posts) => posts.map((post) => (
+        post.id === 'custom-target' ? { ...post, liked: true, likeCount: 41 } : post
+      )),
+      isAuthoritative: () => false,
+    },
+  },
+);
+customClient.inspection().attempts[0].resolve({ liked: true, likeCount: 41 });
+await customMatcherMutation;
+customClient.emit('timeline', [{ id: 'overridden-target', liked: false, likeCount: 50 }]);
+assert.equal(
+  customProvider.inspection().optimisticLayers,
+  1,
+  'row absence does not retire a confirmed hand-written matcher',
+);
+customClient.emit('timeline', [
+  { id: 'custom-target', liked: false, likeCount: 40 },
+  { id: 'overridden-target', liked: false, likeCount: 50 },
+]);
+assert.deepEqual(
+  customObserver.snapshot().queries.timeline.data[0],
+  { id: 'custom-target', liked: true, likeCount: 41 },
+  'the hand-written matcher layer still projects after an absent delivery',
+);
+
+const overriddenMatcherMutation = invokeSnapbackMutation(
+  customProvider,
+  toggleLike,
+  { postId: 'overridden-target' },
+  {
+    optimistic: {
+      query: timeline,
+      args: {},
+      ...projectRecordFields(
+        'overridden-target',
+        { liked: true, likeCount: 51 },
+        { idField: 'id' },
+      ),
+      isAuthoritative: () => false,
+    },
+  },
+);
+customClient.inspection().attempts[1].resolve({ liked: true, likeCount: 51 });
+await overriddenMatcherMutation;
+customClient.emit('timeline', [{ id: 'custom-target', liked: false, likeCount: 40 }]);
+assert.equal(
+  customProvider.inspection().optimisticLayers,
+  2,
+  'overriding the spread helper matcher prevents the helper brand from traveling',
+);
+customClient.emit('timeline', [
+  { id: 'custom-target', liked: false, likeCount: 40 },
+  { id: 'overridden-target', liked: false, likeCount: 50 },
+]);
+assert.deepEqual(
+  customObserver.snapshot().queries.timeline.data,
+  [
+    { id: 'custom-target', liked: true, likeCount: 41 },
+    { id: 'overridden-target', liked: true, likeCount: 51 },
+  ],
+  'both custom matcher layers continue projecting after their row-absent deliveries',
+);
+
+const customInspection = customProvider.inspection();
+assert.equal(
+  customInspection.confirmedOptimisticLayers.length,
+  2,
+  'inspection reports every installed confirmed layer',
+);
+for (const [index, layerInspection] of customInspection.confirmedOptimisticLayers.entries()) {
+  assert.deepEqual(
+    Object.keys(layerInspection),
+    ['attemptId', 'mutationId', 'queryId', 'confirmedRevision', 'storeRevision'],
+    'inspection exposes the complete confirmed-layer identity and revision shape',
+  );
+  assert.equal(
+    layerInspection.attemptId,
+    customClient.inspection().attempts[index].options.clientMutationId,
+    'inspection attemptId identifies the corresponding dispatched attempt',
+  );
+  assert.equal(
+    layerInspection.mutationId,
+    toggleLike.id,
+    'inspection mutationId identifies the fixture mutation reference',
+  );
+  assert.equal(
+    layerInspection.queryId,
+    timeline.id,
+    'inspection queryId identifies the fixture query reference',
+  );
+  assert.ok(
+    Number.isInteger(layerInspection.confirmedRevision),
+    'inspection includes the authoritative revision captured at confirmation',
+  );
+  assert.equal(
+    layerInspection.storeRevision,
+    customInspection.confirmedOptimisticLayers[0].storeRevision,
+    'inspection reports the current store revision for every layer in that store',
+  );
+  assert.ok(
+    layerInspection.storeRevision >= layerInspection.confirmedRevision,
+    'the inspected store revision is not older than the layer confirmation',
+  );
+  assert.ok(Object.isFrozen(layerInspection), 'each confirmed layer inspection entry is frozen');
+}
+assert.ok(
+  Object.isFrozen(customInspection.confirmedOptimisticLayers),
+  'the confirmed layer inspection collection is frozen',
+);
+customObserver.dispose();
+await flush();
+await customProvider.dispose();
+
+console.log('optimistic.test.mjs: strand backstop, custom matcher preservation, and confirmed-layer inspection pass');
+
+// Query-first ordering uses the same absence proof at confirmation time: the
+// unconfirmed layer survives the delivery, then retires when the response
+// confirms it against the still-current absent result set.
+const queryFirstAbsentClient = fakeSurfacesClient({
+  timeline: [{ id: 'query-first-absent', liked: false, likeCount: 60 }],
+  profilePosts: [],
+});
+const queryFirstAbsentBinding = await prepareReactBindingForClient(
+  queryFirstAbsentClient,
+  { generatedManifest: likeFunctions },
+);
+const queryFirstAbsentProvider = createSnapbackReactProvider(
+  queryFirstAbsentBinding,
+  { connectionId: 'optimistic-query-first-absent-test' },
+);
+const queryFirstAbsentObserver = observeSnapbackQueries(
+  queryFirstAbsentProvider,
+  { timeline: { ref: timeline, args: {} } },
+  () => {},
+);
+await flush();
+const queryFirstAbsentMutation = invokeSnapbackMutation(
+  queryFirstAbsentProvider,
+  toggleLike,
+  { postId: 'query-first-absent' },
+  {
+    optimistic: {
+      query: timeline,
+      args: {},
+      ...projectRecordFields(
+        'query-first-absent',
+        { liked: true, likeCount: 61 },
+        { idField: 'id' },
+      ),
+    },
+  },
+);
+queryFirstAbsentClient.emit('timeline', []);
+assert.equal(
+  queryFirstAbsentProvider.inspection().optimisticLayers,
+  1,
+  'an absent delivery does not retire a helper layer before mutation confirmation',
+);
+queryFirstAbsentClient.inspection().attempts[0].resolve({ liked: true, likeCount: 61 });
+await queryFirstAbsentMutation;
+assert.equal(
+  queryFirstAbsentProvider.inspection().optimisticLayers,
+  0,
+  'confirmation retires a helper layer against a current row-absent delivery',
+);
+assert.deepEqual(
+  queryFirstAbsentProvider.inspection().confirmedOptimisticLayers,
+  [],
+  'query-first row absence releases the confirmed layer pin immediately',
+);
+queryFirstAbsentClient.emit('timeline', [
+  { id: 'query-first-absent', liked: false, likeCount: 62 },
+]);
+assert.deepEqual(
+  queryFirstAbsentObserver.snapshot().queries.timeline.data,
+  [{ id: 'query-first-absent', liked: false, likeCount: 62 }],
+  'query-first retirement prevents later overlay resurrection',
+);
+queryFirstAbsentObserver.dispose();
+await flush();
+await queryFirstAbsentProvider.dispose();
+
+console.log('optimistic.test.mjs: query-first row-absence confirmation pass');

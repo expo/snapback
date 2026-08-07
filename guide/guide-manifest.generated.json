@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "d9d979ee218c8bf5760e3cbba02057e1e5c1b524"
+    "commit": "0984a1e72525f8685a0fa0af2d580d4f1d647ab0"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -3113,9 +3113,9 @@
         "demos/warble",
         "packages/snapback-react/optimistic.test.mjs"
       ],
-      "reviewed": "2026-08-05",
-      "reviewedCommit": "702f82f5bd6b250b24e068f650fa6fca63f7aac7",
-      "sha256": "203002ab2fcbc0c45e2f07641435f51234c98457732606b351ecbaa3d9268793",
+      "reviewed": "2026-08-07",
+      "reviewedCommit": "0984a1e72525f8685a0fa0af2d580d4f1d647ab0",
+      "sha256": "366b669f35e70961972b03198b962c7053cb29da7acba0289801033b703e506e",
       "snippets": [
         {
           "lang": "tsx",
@@ -3614,5 +3614,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "e90b5a41d10a05e1068086e29ce3886b9ffcf4b7680e014710071c8bb3e1309e"
+  "contentHash": "58afbacf07e69cf90705581fa822c551bdfa02b2ee7c43e00fb44f1e044d311d"
 }

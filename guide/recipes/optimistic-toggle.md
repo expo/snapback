@@ -9,8 +9,8 @@ examples: [demos/warble, packages/snapback-react/optimistic.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-05
-reviewed-commit: 702f82f5bd6b250b24e068f650fa6fca63f7aac7
+reviewed: 2026-08-07
+reviewed-commit: 0984a1e72525f8685a0fa0af2d580d4f1d647ab0
 ---
 
 # Recipe: optimistic toggle
@@ -190,7 +190,12 @@ The fixture's rows key on `id`; generated application rows carry the default
 be primitives (`boolean | number | string | null`) — the helper deliberately
 expresses only the capture-and-set shape, so it cannot encode the replay
 hazard. Prefer it over a hand-written reducer whenever the projection is
-"set these fields on this row". In the split cold-retained layout, pass only
+"set these fields on this row". The helper's layers also carry a strand
+backstop hand-written matchers do not get (LLP 0107, 2026-08-07 ruling): once
+confirmed, the layer retires when its identified row is absent from an
+authoritative delivery — a field projection on a row that is not present has
+nothing to project — so a row filtered out or deleted server-side cannot
+strand the layer and its subscription pin until store teardown. In the split cold-retained layout, pass only
 `{ likeCount }`; injecting `liked` into the posts row violates that query's
 generated result contract.
 
@@ -300,10 +305,17 @@ not.
 - **Do not fan one optimistic config out to every store showing the record.**
   v1 targets one canonical query/args pair; sibling surfaces settle through
   their own subscriptions.
-- **Do not write a matcher that may never become true.** A layer with an
-  `isAuthoritative` never uses the fallback next-delivery retirement: if the
-  matched row can be filtered out of the query result, or a matched field
-  can settle to a value differing from both receipt and intent, the
-  confirmed layer stays installed (and keeps its subscription pin) until the
-  store tears down. Match rows the query is guaranteed to keep returning,
-  and match fields the mutation actually settles.
+- **Do not hand-write a matcher that may never become true.** A layer with a
+  supplied `isAuthoritative` never uses the fallback next-delivery
+  retirement: if a matched field can settle to a value differing from both
+  receipt and intent — or, for a hand-written matcher, the matched row can
+  be filtered out of the query result — the confirmed layer stays installed
+  (and keeps its subscription pin) until the store tears down. Match rows
+  the query is guaranteed to keep returning, and match fields the mutation
+  actually settles. `projectRecordFields` layers retire on row-absent
+  authoritative deliveries (the backstop above), and any confirmed layer
+  still installed is visible in `provider.inspection()` as a
+  `confirmedOptimisticLayers` entry naming its mutation/query pair — check
+  there when a subscription refuses to go idle. (Overriding the helper's
+  `isAuthoritative` with your own function is a hand-written matcher: the
+  backstop does not travel.)

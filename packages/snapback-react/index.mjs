@@ -615,7 +615,16 @@ function createRegistry(binding, providerInstanceId, options = {}) {
               immutableClone(layer.result),
             ) === true
           : store.authoritativeRevision > layer.confirmedRevision;
-        if (matched) {
+        // @ref LLP 0107#replay-safety-affordances — 2026-08-07 ruling: a projectRecordFields
+        // layer's claim is moot when its identified row is absent from an authoritative
+        // delivery (field projection on an absent row has nothing to project); custom
+        // matchers keep complete-receipt semantics.
+        const recordAbsent = !matched
+          && layer.recordProjection !== null
+          && !store.authoritativeData.some(
+            (row) => row?.[layer.recordProjection.idField] === layer.recordProjection.recordId,
+          );
+        if (matched || recordAbsent) {
           layer.retired = true;
           releaseLayerPin(store, layer);
         }
@@ -1057,10 +1066,15 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     const frozenArgs = immutableClone(mutationArgs);
     const layer = {
       id,
+      mutationId: admittedMutation.id,
+      queryId: queryReference.id,
       mutationArgs: frozenArgs,
       update: optimistic.update,
       isAuthoritative: typeof optimistic.isAuthoritative === 'function'
         ? optimistic.isAuthoritative
+        : null,
+      recordProjection: typeof optimistic.isAuthoritative === 'function'
+        ? optimistic.isAuthoritative[RECORD_FIELD_PROJECTION] ?? null
         : null,
       result: undefined,
       confirmed: false,
@@ -1130,12 +1144,19 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       layer.confirmedRevision = store.authoritativeRevision;
       store.pendingMutations.delete(id);
       try {
-        if (
-          layer.isAuthoritative?.(
-            immutableClone(store.authoritativeData),
-            immutableClone(result),
-          ) === true
-        ) {
+        const matched = layer.isAuthoritative?.(
+          immutableClone(store.authoritativeData),
+          immutableClone(result),
+        ) === true;
+        // Retained Channel B frames may replace authoritativeData for display,
+        // but only a current authoritative delivery can prove row absence.
+        const recordAbsent = !matched
+          && layer.recordProjection !== null
+          && store.freshness === 'current'
+          && !store.authoritativeData.some(
+            (row) => row?.[layer.recordProjection.idField] === layer.recordProjection.recordId,
+          );
+        if (matched || recordAbsent) {
           layer.retired = true;
           releaseLayerPin(store, layer);
           store.optimisticLayers = store.optimisticLayers.filter((entry) => entry !== layer);
@@ -2327,6 +2348,21 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         custodyPaused: runtimePaused(),
         hostPaused,
         stores: stores.size,
+        optimisticLayers: [...stores.values()].reduce(
+          (sum, store) => sum + store.optimisticLayers.length,
+          0,
+        ),
+        confirmedOptimisticLayers: Object.freeze([...stores.values()].flatMap((store) => (
+          store.optimisticLayers
+            .filter((layer) => layer.confirmed === true)
+            .map((layer) => Object.freeze({
+              attemptId: layer.id,
+              mutationId: layer.mutationId,
+              queryId: layer.queryId,
+              confirmedRevision: layer.confirmedRevision,
+              storeRevision: store.authoritativeRevision,
+            }))
+        ))),
         consumers,
         serverSubscriptions: activeStores().length,
         leases: leases.size,
@@ -2661,6 +2697,8 @@ export function useSnapbackQueries(entries) {
   return useSyncExternalStore(subscribe, read, read);
 }
 
+const RECORD_FIELD_PROJECTION = Symbol('snapback.react.recordFieldProjection');
+
 // @ref LLP 0107#replay-safety-affordances — declarative capture-and-set
 // projection over the records result shape: one declaration derives an
 // idempotent update and a complete-receipt matcher, so the paved toggle
@@ -2691,6 +2729,20 @@ export function projectRecordFields(recordId, fields, { idField = '_id' } = {}) 
   }
   const intended = Object.freeze({ ...fields });
   const matches = (row) => row?.[idField] === recordId;
+  const isAuthoritative = (rows, receipt) => Array.isArray(rows) && rows.some((row) => {
+    if (!matches(row)) return false;
+    return names.every((name) => {
+      const expected = receipt !== null && typeof receipt === 'object' && Object.hasOwn(receipt, name)
+        ? receipt[name]
+        : intended[name];
+      return row[name] === expected;
+    });
+  });
+  Object.defineProperty(isAuthoritative, RECORD_FIELD_PROJECTION, {
+    value: Object.freeze({ recordId, idField }),
+    writable: false,
+    enumerable: false,
+  });
   return Object.freeze({
     update: (rows) => {
       if (!Array.isArray(rows)) {
@@ -2698,15 +2750,7 @@ export function projectRecordFields(recordId, fields, { idField = '_id' } = {}) 
       }
       return rows.map((row) => (matches(row) ? { ...row, ...intended } : row));
     },
-    isAuthoritative: (rows, receipt) => Array.isArray(rows) && rows.some((row) => {
-      if (!matches(row)) return false;
-      return names.every((name) => {
-        const expected = receipt !== null && typeof receipt === 'object' && Object.hasOwn(receipt, name)
-          ? receipt[name]
-          : intended[name];
-        return row[name] === expected;
-      });
-    }),
+    isAuthoritative,
   });
 }
 

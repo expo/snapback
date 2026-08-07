@@ -5,7 +5,14 @@
 **Systems:** React, React/Expo, Ephemeral state, Client integration, Realtime, Auth, Mutation settlement, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-04 (replay-safety affordances: the development-only
+**Revised:** 2026-08-07 (strand backstop, Charlie Cheever's ruling via the
+local-first author-gate packet, item 5 —
+issues/closed/20260804-optimistic-matcher-strand-backstop.md options 2+3: a
+confirmed `projectRecordFields` layer retires when its identified row is
+absent from an authoritative delivery, and installed/confirmed optimistic
+layers are surfaced in provider inspection; see "Replay-safety affordances"
+and the implementation journal).
+2026-08-04 (replay-safety affordances: the development-only
 replay advisory and the declarative `projectRecordFields` projection helper;
 see "Replay-safety affordances" and the implementation journal).
 2026-08-01 (0137 A2 f1/f2 fixes: room readiness is adopted from
@@ -262,12 +269,38 @@ admission, rebase, retirement, or refusal semantics:
   id field itself, or a non-array projection base throw `TypeError`. Receipt
   field presence is own-property presence (`Object.hasOwn`). Because the
   helper always supplies a matcher, the revision-based fallback retirement
-  never applies to its layers: a matcher that can never become true — the
-  identified row absent from that query's result, or a projected field
-  settled to a third value — strands the confirmed layer with its pin until
-  store teardown, the shared hazard of every hand-written matcher
-  (issues/20260804-optimistic-matcher-strand-backstop.md tracks a backstop).
-  The helper claims no new authority and adds no option surface.
+  never applies to its layers. **Row-absence backstop (2026-08-07 ruling,
+  options 2+3 of
+  issues/closed/20260804-optimistic-matcher-strand-backstop.md).** For the
+  paved path only, a confirmed helper layer additionally retires when its
+  identified row (by the layer's `idField`/`recordId`) is absent from an
+  authoritative delivery of the query it projects onto: a field projection
+  on a row that is not present has nothing to project, so absence in an
+  authoritative result is evidence the overlay's claim is moot
+  (filtered-out and server-deleted are deliberately indistinguishable
+  here). Absence is conclusive because every authoritative delivery at
+  this surface is the complete current result set for the exact
+  (query, args) subscription — DK-3 `live_delta` frames are materialized
+  into the full row set client-side before delivery (LLP 0008 §DK-3), and
+  LLP 0114 Channel B retained frames never advance the authoritative
+  revision and never key retirement (the confirmation-time absence check
+  is gated on `freshness === 'current'` for the same reason). The scope is
+  carried by a module-private symbol brand on the exact matcher function
+  the helper returns: a caller who overrides `isAuthoritative` with their
+  own function — like every hand-written matcher — keeps the ratified
+  complete-receipt semantics exactly, with no timer and no delivery-count
+  backstop. A projected field settled to a third value while the row stays
+  present still strands the layer; that residual is visible through the
+  inspection surface below. The helper claims no new authority and adds no
+  option surface.
+
+- **Confirmed-layer inspection.** Registry (and therefore provider)
+  `inspection()` reports `optimisticLayers` (installed layer count across
+  stores) and `confirmedOptimisticLayers` — one frozen
+  `{attemptId, mutationId, queryId, confirmedRevision, storeRevision}`
+  entry per confirmed, not-yet-retired layer — so stranded or long-lived
+  confirmed layers are visible with their mutation/query pair instead of
+  silently holding a store pin against the 256-layer cap.
 
 ## Bounds and diagnostics
 
@@ -291,7 +324,9 @@ refuses before room/grant work with one of:
 - `SNAPBACK_REACT_PRESENCE_PUBLISHER_LIMIT`.
 
 Headless server diagnostics pass through. Inspection reports stores, consumers,
-subscriptions, publishers, timers, late work, resync reasons, and cleanup error.
+subscriptions, publishers, timers, late work, resync reasons, cleanup error,
+and the optimistic-layer surface above (installed count plus confirmed-layer
+mutation/query identification).
 
 ## Package and acceptance
 
@@ -333,6 +368,29 @@ No durable/offline/SSR/history/cross-room/custom-key presence, caller authority
 facts, React-owned transport/cache/ledger, HTTP authority, or hosted inheritance.
 
 ## Implementation journal
+
+2026-08-07 (strand backstop, ruled by Charlie Cheever via the local-first
+author-gate packet item 5 on
+issues/closed/20260804-optimistic-matcher-strand-backstop.md — option 2 plus
+option 3; no timer or delivery-count backstop was ruled): a confirmed layer
+whose matcher is the exact function `projectRecordFields` returned (module-
+private symbol brand carrying `{recordId, idField}`) now retires when the
+identified row is absent from an authoritative delivery, both in the
+per-delivery retirement loop and at mutation-confirmation time — the latter
+gated on `freshness === 'current'` so a retained frame can never key
+retirement. Completeness decision recorded: authoritative deliveries at this
+surface are complete result sets by construction (DK-3 deltas materialize
+client-side before delivery; retained frames never advance the authoritative
+revision), so no partial/windowed-delivery carve-out is needed. Custom
+matchers — including a helper spread whose `isAuthoritative` is overridden —
+are byte-for-byte unchanged. `inspection()` gains `optimisticLayers` and
+`confirmedOptimisticLayers`. Regression fixtures in
+`packages/snapback-react/optimistic.test.mjs`: row-absent authoritative
+delivery retires the helper layer (the pre-ruling strand), present-but-dipped
+rows keep it installed, custom never-true matchers still strand (unchanged
+semantics), and inspection identifies the confirmed layer's mutation/query
+pair. Recipe `guide/recipes/optimistic-toggle.md` updated to scope the
+never-true-matcher anti-pattern to hand-written matchers.
 
 2026-08-04 (replay-safety affordances, from the chirp retrospective ticket
 issues/20260804-optimistic-projection-replay-lint-and-helpers.md): the
