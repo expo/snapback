@@ -1,0 +1,314 @@
+#!/usr/bin/env node
+
+// @ref LLP 0041#qualified-staging-substrate--2026-08-01 — reproduce the
+// native Linux runtime build, identity, and attestation gates outside EAS.
+
+import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import {
+  chmodSync,
+  copyFileSync,
+  createReadStream,
+  existsSync,
+  mkdirSync,
+  writeFileSync,
+} from 'node:fs';
+import { homedir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const scriptPath = fileURLToPath(import.meta.url);
+const repositoryRoot = resolve(dirname(scriptPath), '..');
+
+export const USAGE = `Usage: scripts/build-linux-runtime-release [options]
+
+Build and attest the source-bound Snapback Linux x64 runtime release inputs.
+
+Options:
+  --output-dir <path>  Artifact directory (default: $HOME/snapback-staging/linux)
+  -h, --help           Show this help
+`;
+
+export const ERROR_CODES = Object.freeze({
+  argumentInvalid: 'SNAPBACK_RUNTIME_RELEASE_ARGUMENT_INVALID',
+  commandFailed: 'SNAPBACK_RUNTIME_RELEASE_COMMAND_FAILED',
+  dirtyTree: 'SNAPBACK_RUNTIME_RELEASE_DIRTY_TREE',
+  hermesMissing: 'SNAPBACK_CAPABILITY_IBEX_HERMES_MISSING',
+  hostUnsupported: 'SNAPBACK_IBEX_HOST_UNSUPPORTED',
+});
+
+function codedError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+}
+
+export function parseArgs(argv, { homeDirectory = homedir() } = {}) {
+  const options = {
+    help: false,
+    outputDir: join(homeDirectory, 'snapback-staging', 'linux'),
+  };
+  let outputDirSeen = false;
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index];
+    if (argument === '--help' || argument === '-h') {
+      options.help = true;
+      continue;
+    }
+    if (argument === '--output-dir') {
+      const value = argv[index + 1];
+      if (!value || value.startsWith('-')) {
+        throw codedError(
+          ERROR_CODES.argumentInvalid,
+          '--output-dir requires a path',
+        );
+      }
+      if (outputDirSeen) {
+        throw codedError(
+          ERROR_CODES.argumentInvalid,
+          'duplicate option --output-dir',
+        );
+      }
+      options.outputDir = value;
+      outputDirSeen = true;
+      index += 1;
+      continue;
+    }
+    throw codedError(
+      ERROR_CODES.argumentInvalid,
+      `unknown option ${argument}`,
+    );
+  }
+  return options;
+}
+
+export function checkPlatform({ platform, arch }) {
+  if (platform !== 'linux' || arch !== 'x64') {
+    throw codedError(
+      ERROR_CODES.hostUnsupported,
+      'build-linux-runtime-release requires a linux-x64 host '
+        + `(observed ${platform}-${arch})`,
+    );
+  }
+  return true;
+}
+
+export function checkCleanTree(porcelainOutput, { phase = 'before build' } = {}) {
+  if (typeof porcelainOutput !== 'string') {
+    throw new TypeError('git porcelain output must be a string');
+  }
+  if (porcelainOutput.length !== 0) {
+    throw codedError(
+      ERROR_CODES.dirtyTree,
+      `release source tree must be clean ${phase}; `
+        + 'git status --porcelain --untracked-files=all was non-empty',
+    );
+  }
+  return true;
+}
+
+export function runCommand(command, args, {
+  captureStdout = false,
+  cwd = repositoryRoot,
+  env = process.env,
+} = {}) {
+  const result = spawnSync(command, args, {
+    cwd,
+    env,
+    encoding: captureStdout ? 'utf8' : undefined,
+    stdio: captureStdout ? ['inherit', 'pipe', 'pipe'] : 'inherit',
+    maxBuffer: captureStdout ? 16 * 1024 * 1024 : undefined,
+  });
+  if (result.error || result.status !== 0) {
+    const detail = result.error?.message
+      || result.stderr?.trim()
+      || result.signal
+      || `exit status ${result.status}`;
+    throw codedError(
+      ERROR_CODES.commandFailed,
+      `${command} ${args.join(' ')} failed: ${detail}`,
+    );
+  }
+  return captureStdout ? result.stdout : '';
+}
+
+export function assertCleanTree({
+  phase,
+  runner = runCommand,
+  cwd = repositoryRoot,
+} = {}) {
+  const porcelainOutput = runner(
+    'git',
+    ['status', '--porcelain', '--untracked-files=all'],
+    { captureStdout: true, cwd },
+  );
+  return checkCleanTree(porcelainOutput, { phase });
+}
+
+export async function sha256File(path) {
+  const hash = createHash('sha256');
+  for await (const chunk of createReadStream(path)) hash.update(chunk);
+  return hash.digest('hex');
+}
+
+function shellQuote(value) {
+  return `'${String(value).replaceAll("'", "'\\''")}'`;
+}
+
+function logStep(output, message) {
+  output.stdout.write(`[build-linux-runtime-release] ${message}\n`);
+}
+
+export async function main(
+  argv = process.argv.slice(2),
+  {
+    output = process,
+    platform = process.platform,
+    arch = process.arch,
+    runner = runCommand,
+    cwd = repositoryRoot,
+    environment = process.env,
+  } = {},
+) {
+  const options = parseArgs(argv);
+  if (options.help) {
+    output.stdout.write(USAGE);
+    return 0;
+  }
+
+  checkPlatform({ platform, arch });
+  assertCleanTree({ phase: 'before build', runner, cwd });
+
+  // Capture source authority before bootstrap, link smoke, or either build.
+  const sourceRevision = runner('git', ['rev-parse', 'HEAD'], {
+    captureStdout: true,
+    cwd,
+  }).trim();
+  if (sourceRevision.length === 0) {
+    throw codedError(
+      ERROR_CODES.commandFailed,
+      'git rev-parse HEAD returned an empty source revision',
+    );
+  }
+
+  logStep(output, `source revision ${sourceRevision}`);
+  logStep(output, 'bootstrapping the Ibex runtime');
+  runner(join(cwd, 'scripts', 'bootstrap-ibex-runtime'), [], {
+    cwd,
+    env: {
+      SNAPBACK_BOOTSTRAP_CHECK: '0',
+      ...environment,
+    },
+  });
+
+  logStep(output, 'running the runtime link smoke test');
+  runner(process.execPath, [
+    join(cwd, 'scripts', 'runtime-link-smoke.mjs'),
+    '--timeout-ms', '900000',
+    '--target-dir', join(cwd, 'target'),
+    '--keep-target',
+  ], { cwd, env: environment });
+
+  logStep(output, 'building the public-package release binary');
+  runner('cargo', ['build', '--release', '--bin', 'snapback'], {
+    cwd,
+    env: {
+      ...environment,
+      SNAPBACK_BUILD_DISTRIBUTION: 'public-package',
+    },
+  });
+
+  logStep(output, 'preparing the Linux runtime package');
+  runner(process.execPath, [
+    join(cwd, 'packages', 'snapback-runtime-linux-x64', 'prepare-runtime.mjs'),
+  ], { cwd, env: environment });
+
+  const packageRoot = join(cwd, 'packages', 'snapback-runtime-linux-x64');
+  const packageBinary = join(packageRoot, 'bin', 'snapback');
+  const packageHermes = join(packageRoot, 'lib', 'libhermesvm.so');
+  const packageHermesHeader = join(
+    packageRoot,
+    'include',
+    'hermes',
+    'hermes.h.artifact',
+  );
+  if (!existsSync(packageHermes)) {
+    throw codedError(
+      ERROR_CODES.hermesMissing,
+      `prepared Linux Hermes shared library is missing at ${packageHermes}`,
+    );
+  }
+
+  assertCleanTree({ phase: 'after package preparation', runner, cwd });
+
+  const outputDir = resolve(options.outputDir);
+  mkdirSync(outputDir, { recursive: true });
+  const identityPath = join(outputDir, 'snapback-linux-build-identity.json');
+  const attestationPath = join(outputDir, 'build-attestation.json');
+
+  logStep(output, 'capturing the native build identity');
+  const buildIdentity = runner(packageBinary, ['build-identity'], {
+    captureStdout: true,
+    cwd,
+    env: environment,
+  });
+  writeFileSync(identityPath, buildIdentity, { mode: 0o600 });
+
+  logStep(output, 'minting the runtime artifact attestation');
+  runner(process.execPath, [
+    join(cwd, 'scripts', 'snapback-create-runtime-artifact-attestation.mjs'),
+    '--binary', packageBinary,
+    '--hermes', packageHermes,
+    '--hermes-header', packageHermesHeader,
+    '--identity', identityPath,
+    '--source-revision', sourceRevision,
+    '--out', attestationPath,
+  ], { cwd, env: environment });
+
+  const artifacts = {
+    sourceBinary: join(outputDir, 'snapback'),
+    hermesLibrary: join(outputDir, 'libhermesvm.so'),
+    hermesHeader: join(outputDir, 'hermes.h.artifact'),
+    buildAttestation: attestationPath,
+  };
+  copyFileSync(packageBinary, artifacts.sourceBinary);
+  chmodSync(artifacts.sourceBinary, 0o755);
+  copyFileSync(packageHermes, artifacts.hermesLibrary);
+  copyFileSync(packageHermesHeader, artifacts.hermesHeader);
+
+  const digests = Object.fromEntries(await Promise.all(
+    Object.entries(artifacts).map(async ([name, path]) => [name, await sha256File(path)]),
+  ));
+
+  output.stdout.write(`
+SNAPBACK LINUX X64 RUNTIME RELEASE ARTIFACTS
+source binary: ${artifacts.sourceBinary}
+  sha256: ${digests.sourceBinary}
+Hermes library: ${artifacts.hermesLibrary}
+  sha256: ${digests.hermesLibrary}
+Hermes header: ${artifacts.hermesHeader}
+  sha256: ${digests.hermesHeader}
+build attestation: ${artifacts.buildAttestation}
+  sha256: ${digests.buildAttestation}
+source revision: ${sourceRevision}
+
+export SNAPBACK_RUNTIME_LINUX_X64_SOURCE_BINARY=${shellQuote(artifacts.sourceBinary)}
+export SNAPBACK_RUNTIME_LINUX_X64_HERMES_LIBRARY=${shellQuote(artifacts.hermesLibrary)}
+export SNAPBACK_RUNTIME_LINUX_X64_HERMES_HEADER=${shellQuote(artifacts.hermesHeader)}
+export SNAPBACK_RUNTIME_LINUX_X64_BUILD_ATTESTATION=${shellQuote(artifacts.buildAttestation)}
+export SNAPBACK_RUNTIME_LINUX_X64_SOURCE_REVISION=${shellQuote(sourceRevision)}
+`);
+  return 0;
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().then((status) => {
+    process.exitCode = status;
+  }).catch((error) => {
+    console.error(
+      `${error?.code ?? 'SNAPBACK_RUNTIME_RELEASE_FAILED'}: `
+        + `${error?.message ?? error}`,
+    );
+    process.exitCode = 1;
+  });
+}
