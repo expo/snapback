@@ -276,6 +276,16 @@ const localProof = readFileSync(join(workflowDir, 'local-proof.yml'), 'utf8');
 assert.match(localProof, /SNAPBACK_VERIFY_EXACT:\s*"1"/, 'canonical CI must require Exact/admin checks');
 assert.match(
   localProof,
+  /bun install --frozen-lockfile\s+node scripts\/ensure-workspace-hoist\.mjs/u,
+  'canonical CI must materialize the root workspace links its clean-clone fixtures consume',
+);
+assert.match(
+  localProof,
+  /apt-get install -y[^\n]*\blsof\b/u,
+  'canonical CI must provision the listener inventory tool required by Expo supervision',
+);
+assert.match(
+  localProof,
   /schedule:[\s\S]*cron:[\s\S]*workflow_dispatch:/u,
   'complete local proof must be scheduled and manually dispatchable',
 );

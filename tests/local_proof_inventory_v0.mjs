@@ -26,6 +26,11 @@ test('the canonical proof has named gates and its producer edges are closed', ()
     /cargo clean --profile test/u,
     'cleanup must not manufacture headroom before the decision',
   );
+  assert.match(
+    source,
+    /build_current_binary\(\)[\s\S]*cargo clean -p snapback[\s\S]*cargo build --locked --bin snapback[\s\S]*run current-binary-build[^\n]*build_current_binary/u,
+    'the final acceptance binary must replay its root build-script identity without discarding dependency artifacts',
+  );
 });
 
 test('a newly inventoried real-server test without the binary prerequisite fails closed', () => {

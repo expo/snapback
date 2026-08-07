@@ -360,10 +360,18 @@ true|TRUE|True|1|yes|YES|on|ON)
     not_selected cargo-test-profile-clean "CI-only disk-pressure guard"
     ;;
 esac
-# cargo test builds test harnesses, not the normal server executable. Build it
-# visibly and outside the 60 s runtime-ready deadline; startServer's cargo run
-# sees the same identity stamp and measures startup rather than a cold link.
-run current-binary-build --requires native-runtime-bootstrap -- cargo build --locked --bin snapback
+# cargo test builds test harnesses, not the normal server executable. A restored
+# Cargo cache can retain the root build-script output from the pre-proof
+# bootstrap even after stamp_snapback_build_identity establishes the final
+# clean identity. Remove only the root package's completed artifacts so
+# build.rs must replay that deterministic stamp; dependency and vendored-Ibex
+# artifacts remain warm. Then build visibly and outside the 60 s runtime-ready
+# deadline, so startServer measures startup rather than a cold link.
+build_current_binary() {
+    cargo clean -p snapback
+    cargo build --locked --bin snapback
+}
+run current-binary-build --requires native-runtime-bootstrap -- build_current_binary
 # The early bootstrap proves its own authoritative binary. Cargo tests and the
 # measured cleanup policy may change the later target closure, so qualify the
 # final acceptance binary directly:

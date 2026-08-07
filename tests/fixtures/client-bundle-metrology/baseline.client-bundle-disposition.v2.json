@@ -33,7 +33,7 @@
     },
     {
       "filename": "baseline.s2-commands.v1.json",
-      "sha256": "5191e25e1f80e1002882e0a379d23ba473f80170fef8bdb358fa87c653a156dd",
+      "sha256": "25782921fa9879e53b717fee9d9c4a2005f6ff890099bb5eb1a60fdd8c245b4b",
       "profileIds": [
         "public-subpath-commands",
         "resolved-public-subpath-commands"
