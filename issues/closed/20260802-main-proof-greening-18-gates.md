@@ -1722,3 +1722,18 @@ variable names and three CLI-local receipt-minting diagnostics; none is an
 HTTP-server diagnostic. Their reason-bearing non-HTTP classification and full
 landing attribution are recorded in
 `issues/closed/20260806-packaged-store-diagnostic-inventory-drift.md`.
+
+### Asset-delivery rollover reconciliation — 2026-08-06
+
+Completed main advanced through `c5a18506d` after the exact 137-gate proof.
+The asset-delivery declaration/freeze pair (`5b3380dd4` / `fad3d5392`) had
+correctly frozen a predecessor pointer to main's then-current client-bundle
+disposition v2 record. This wave independently refreshed that v2 record's two
+upstream receipt pointers, so the combined history made the newer rollover's
+predecessor SHA stale even though the branches had no textual file conflict.
+
+The rollover now pins the combined disposition record at SHA-256
+`780120e22d36bf761ee5b5064b8eef5ae3f39dccf80e8f3f8a04c3113c38d9b3`.
+`client-bundle-metrology --check` passes all 56 profiles and its complete
+behavior train on the exact merged candidate. This is a receipt-chain
+reconciliation only; no frozen ceiling or asset-delivery claim changed.
