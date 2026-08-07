@@ -1589,6 +1589,19 @@ invalidation**, under three fail-closed gates:
   a pending/refreshing boundary frame; after it, admission is exactly as
   strict as boot-time preparation, proved against the live deployment.
 
+The complete polling/re-admission engine is a literal development/failure-only
+dynamic runtime (`react-binding-hmr-runtime.mjs`), reached through the React
+arm's existing optional runtime loader only after the synchronous positive
+development and regeneration gates above pass. The strict classifier, active
+generation overlay reads, and the one-write publication seam remain in the
+always-loaded binding module. This boundary is semantic, not a hidden byte
+transfer: a production build can never arm HMR recovery and therefore never
+loads the optional chunk, while a development handoff downloads and executes
+the complete machinery before it can publish a replacement admission view.
+The LLP 0145 metrology gate excludes that literal optional chunk from its
+frozen successful-production entry closure and the package/browser closure
+tests still resolve and bundle the shipped runtime itself.
+
 Renderability during and after the window: unchanged functions re-admit
 immediately (their store keys exclude the generation stamp), so untouched
 queries keep full continuity; changed queries show the brief boundary frame,

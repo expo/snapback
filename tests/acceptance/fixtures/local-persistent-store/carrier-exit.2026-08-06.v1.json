@@ -6,8 +6,8 @@
     "LLP 0166#executable-acceptance",
     "LLP 0166#d9--carriers-storage-profiles-arms-and-the-bundle"
   ],
-  "startedAt": "2026-08-06T20:39:35.490Z",
-  "completedAt": "2026-08-06T20:43:29.655Z",
+  "startedAt": "2026-08-07T00:04:01.850Z",
+  "completedAt": "2026-08-07T00:06:00.784Z",
   "runtime": {
     "node": "v24.18.0",
     "platform": "darwin",
@@ -15,15 +15,9 @@
     "hostnameClass": "local-evidence-machine"
   },
   "source": {
-    "revision": "a32f763bd8be79900d028f1eb25386b688c7eafe",
-    "dirty": true,
-    "dirtyPaths": [
-      "guide/guide-manifest.generated.json",
-      "codex-closure-prompt.md",
-      "codex-fleet-prompt.md",
-      "codex-lane0-prompt.md",
-      "codex-main-prompt.md"
-    ],
+    "revision": "938db9b45a47a89bf59d4101fefcd9e9f430328d",
+    "dirty": false,
+    "dirtyPaths": [],
     "files": [
       {
         "path": "tests/acceptance/local-store-carrier-exit-v1.mjs",
@@ -79,7 +73,7 @@
       },
       {
         "path": "packages/snapback-client/index.mjs",
-        "sha256": "40f0d7a4ac9b7e2010c7f309f8ba95fa84e42f20445bc1b7b83cd4d0d7662e39"
+        "sha256": "688ec4d231dd23e02ea0311d91ec0da89c6659074d0274e282b82e194187c0ae"
       },
       {
         "path": "packages/snapback-client/rqs-store.mjs",
@@ -99,7 +93,7 @@
       },
       {
         "path": "demos/_kit/chrome-process.mjs",
-        "sha256": "88b945747108253fb3c3020560bce59e540aeac0ffb3b945dc7a26e23f9dbb64"
+        "sha256": "b0fddcdb0a10d9ca50b0078e2b216aeb54f89a9a5d07a763c28298ca6af164ca"
       },
       {
         "path": "demos/triage-graph/demo.snapback.json",
@@ -115,19 +109,19 @@
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json",
-        "sha256": "a8b1194f06408c366e06690ac7258211907cd77cbc487568abb60168b7b0abe1"
+        "sha256": "cfd9e65206f6c8db9ffb0ebba742373ee9f5a385b7d069e87a7c50c3d198ed2b"
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
-        "sha256": "0203e1e49d1bececea30a3b61c34b60c6730f0303783d239548354801a66c06a"
+        "sha256": "417655401e10603de3d638322d22c86f700f395076e166320ba8a80748df1527"
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
-        "sha256": "54b094444e08960ddc1c51af16fd678c0daa47b1f6e30f7d45e4e9da19fd9983"
+        "sha256": "4c888b038745d26ac32d1c5e92e7e629b5b2459d566533d3ac27048ef39fc1a0"
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
-        "sha256": "2c33b5743db9c432a736028f89570d86c36d63b7f576f7d5b1859cdefca1cd7f"
+        "sha256": "efeeaeb5037150063074c5f0cbf6253a46ec278f25623688d31522fd6e1f4c09"
       }
     ]
   },
@@ -277,11 +271,11 @@
           2,
           3
         ],
-        "relaunchToReadableMs": 1777.296,
+        "relaunchToReadableMs": 1602.794,
         "browser": {
           "executable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-          "version": "Google Chrome 150.0.7871.187",
-          "executableSha256": "a1d93d90e7ebb90245d225d70334ca6b37b1cbf65ba2f37dd01d3eba0fdd8331"
+          "version": "Google Chrome 151.0.7922.76",
+          "executableSha256": "a995a39f7997f5cf7ecbf514b87bf0c31aed607bf399ab0b723304dbba6f8576"
         },
         "profile": {
           "callerRetained": true,
@@ -290,12 +284,12 @@
         },
         "cleanup": {
           "firstBrowser": {
-            "pid": 48101,
+            "pid": 37681,
             "requestedSignal": "SIGKILL",
             "processTreeExitAttested": true
           },
           "finalBrowser": {
-            "pid": 48470,
+            "pid": 37934,
             "requestedSignal": "SIGTERM",
             "processTreeExitAttested": true
           },
@@ -393,7 +387,7 @@
           {
             "type": "boundary",
             "boundary": "before-rename",
-            "pid": 11608,
+            "pid": 21939,
             "exit": {
               "code": null,
               "signal": "SIGKILL"
@@ -404,7 +398,7 @@
           {
             "type": "boundary",
             "boundary": "after-rename-before-directory-sync",
-            "pid": 11616,
+            "pid": 21957,
             "exit": {
               "code": null,
               "signal": "SIGKILL"
@@ -437,12 +431,12 @@
       "status": "PASS",
       "evidence": {
         "serverBinary": "target/debug/snapback",
-        "serverBinarySha256": "24e4d7ccab87f5bf62b49e919a8f87afb31a4cdd3ee9baa0c989da63806eb65f",
+        "serverBinarySha256": "c023eadd39af126bac364a16e1be9495c4b091110d74fa29d81f644d627cade0",
         "launchRung": "configured",
         "backendStoppedBeforeRelaunch": true,
         "activationPreparation": {
           "format": "snapback.composition-activation-preparation.v1",
-          "activationHash": "sha256:4f1f0288b67c090e7b7a359733c81f8240dac1993c02e0268b48da6a082cfd4a",
+          "activationHash": "sha256:fa5fcfa3f45eb704586c7dfe625c297727c0ad7821dd4a60cf47767e0fc0d4a7",
           "sourceClass": "temporary-backend-source",
           "next": "rerun Snapback codegen for this backend"
         },
@@ -484,7 +478,7 @@
         },
         "materialization": {
           "records": 1,
-          "qmk1": "qmk1.c8lcz6tq8oav-2Lovp_HEzCdOpQ5az0pMl9vn6Kdddg",
+          "qmk1": "qmk1.bCA7pR65eI25rBN61kdABH3xKD9UKyZVdEEUJN-sfRw",
           "freshness": "retained",
           "fragments": 1,
           "leaseCustody": 1
@@ -653,7 +647,7 @@
           "version": 7,
           "token": "sbrt1.carrier-exit.7"
         },
-        "maintenanceMs": 174177.636
+        "maintenanceMs": 92842.563
       }
     },
     {
@@ -728,14 +722,14 @@
           "hydrationAttempts": 1,
           "hydrationRows": 100,
           "hydrationPayloadBytes": 14981,
-          "hydrationElapsedMs": 332.066,
+          "hydrationElapsedMs": 387.905,
           "hydrationCeilingMs": 1000
         },
         "receipts": {
           "budgetFreeze": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json",
-          "budgetFreezeSha256": "a8b1194f06408c366e06690ac7258211907cd77cbc487568abb60168b7b0abe1",
+          "budgetFreezeSha256": "cfd9e65206f6c8db9ffb0ebba742373ee9f5a385b7d069e87a7c50c3d198ed2b",
           "move1Exit": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
-          "move1ExitSha256": "0203e1e49d1bececea30a3b61c34b60c6730f0303783d239548354801a66c06a"
+          "move1ExitSha256": "417655401e10603de3d638322d22c86f700f395076e166320ba8a80748df1527"
         }
       }
     },
@@ -755,14 +749,14 @@
           "hydrationAttempts": 1,
           "hydrationRows": 200,
           "hydrationPayloadBytes": 49652,
-          "hydrationElapsedMs": 366.613,
+          "hydrationElapsedMs": 171.143,
           "hydrationCeilingMs": 1000
         },
         "receipts": {
           "budgetFreeze": "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
-          "budgetFreezeSha256": "54b094444e08960ddc1c51af16fd678c0daa47b1f6e30f7d45e4e9da19fd9983",
+          "budgetFreezeSha256": "4c888b038745d26ac32d1c5e92e7e629b5b2459d566533d3ac27048ef39fc1a0",
           "move1Exit": "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
-          "move1ExitSha256": "2c33b5743db9c432a736028f89570d86c36d63b7f576f7d5b1859cdefca1cd7f"
+          "move1ExitSha256": "efeeaeb5037150063074c5f0cbf6253a46ec278f25623688d31522fd6e1f4c09"
         }
       }
     },
@@ -772,7 +766,7 @@
       "status": "PASS",
       "evidence": {
         "artifact": "tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-06.v1.json",
-        "minifiedBytes": 693410,
+        "minifiedBytes": 693618,
         "measuredModuleOwnBytes": 112243,
         "modules": 9,
         "browserClosureQualification": {

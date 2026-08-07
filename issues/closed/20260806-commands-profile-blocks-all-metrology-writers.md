@@ -1,6 +1,6 @@
 # `commands` subpath landed without its metrology profile, blocking every writer mode
 
-**Status:** Open
+**Status:** Resolved
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 3
@@ -105,3 +105,14 @@ the leg it exists to unblock (minting the blessed growth / the npm capstone's
 precondition 1) still cannot be proven green until the ratchet ticket clears.
 Whoever closes the ratchet ticket should re-run `--check` and close this one
 in the same pass.
+
+## Resolution — final writer and ratchet pass
+
+The guarded rollover writer completed under Node 24.18.0 after running its
+full declared behavior train and minted
+`baseline.e2-command-correctness.v1.json` for exactly the seven remaining
+E2/command/auth profiles. The receipt SHA-256 is
+`72ee7957076b1988aadefc6fbd843b000bb0abb0f29755e3c3a8fd70c7694baf`.
+The ordinary `--check` path now validates both supplemental command profiles,
+all prospective rollovers, and all 56 measured profiles without a writer
+bypass. This discharges the remaining condition above, so the ticket closes.

@@ -132,6 +132,9 @@ ceiling active.)
 token-resume ordering correction across the 15 affected Full/root closures,
 binding the finite-carrier receipt as its immutable predecessor and executing
 the shared memory, file, Expo, and native Channel B suites before freezing.)
+**Revised:** 2026-08-06 (the final G2 descriptor-mode cold-boot repair gains a
+one-profile prospective rollover from the completed-main batch; the earlier
+August receipt and every unrelated ceiling remain immutable.)
 **Related:** LLP 0000, LLP 0005, LLP 0008, LLP 0012, LLP 0041, LLP 0043, LLP 0053,
 LLP 0059, LLP 0060, LLP 0063, LLP 0064, LLP 0077, LLP 0090, LLP 0091,
 LLP 0092, LLP 0093, LLP 0094, LLP 0095, LLP 0096, LLP 0098, LLP 0107, LLP 0108,
@@ -1532,6 +1535,49 @@ measured dependency or package closure therefore remain visible in the output,
 attribution, behavior train, and ceiling comparison. This corrects input
 provenance without loosening a ceiling or permitting a historical ledger to
 change.
+
+#### 2026-08-06 amendment — batched client-capability rollover
+
+Three completed main landings deliberately evolve two disjoint closure
+clusters. `4ac8387f080a2659484fc09916ff22a076dc4ca8` repairs IndexedDB
+binding-receipt persistence through writer election, and
+`6ec40820dc853f79c9207f9c9f008e81242f8348` adds LLP 0081's durable
+tombstone-and-re-entry custody. Together they change the shared outbox and
+retained-query-store profiles and the two React application closures that
+consume the same client graph. LLP 0179 S1 / LLP 0176 G2 landing
+`c7a8b90312ac979830df6948023689af169166a3` separately adds generated surface
+admission and `useSurface` to the two React application workloads. The latter
+17.7 kB minified / 5.9 kB gzip step is new feature mass, not part of the
+earlier Move-3 size ruling.
+
+`baseline.aug6-client-capabilities.v1.json` is one declared prospective batch
+for exactly the eight changed profiles. It SHA-256-binds the independently
+valid Move-3, operation-identity, and operation-lifecycle predecessors,
+records per-landing profile attribution and complete before/after metrics,
+and runs the writer-election, quarantine, client, React surface, Expo
+provider, and generated-descriptor behavior train. Every unrelated active
+ceiling and every predecessor receipt remain immutable. This disposition
+records the cost of the accepted capabilities; it does not weaken the
+separately commissioned static-capability-composition remediation in
+`issues/20260805-static-capability-composition.md`.
+
+The first production write also exposed a bootstrap defect in the instrument:
+after writing a new receipt, its same-process final validation required that
+receipt to already have a reachable Git introduction. The writer now permits
+one narrowly scoped override only for the exact just-written filename and
+committed source `HEAD`; normal `--check` retains the one-reachable-carrier
+requirement. This makes the documented commit-declaration → mint-receipt →
+commit-receipt sequence executable without weakening later validation.
+
+The later G2 descriptor-mode cold-retained-boot repair
+`ec49b1d2784c586f663428224d7b24ce7f33a482` extends LLP 0114's existing React
+binding receipt with the compact server-owned admission facts needed to
+reconstruct the same admitted descriptor view offline. Of the completed-main
+profiles, only `react-external` exceeds its frozen ceiling, and only by one
+gzip byte. `baseline.final-g2-cold-boot.v1.json` therefore rolls forward that
+single profile from `baseline.aug6-client-capabilities.v1.json`, runs the
+client, React package, cold-boot, and surface behavior suites, and leaves the
+earlier batch plus every unrelated active ceiling immutable.
 
 #### 2026-08-04 rowless token-resume ordering rollover
 

@@ -1,6 +1,6 @@
 # `check-generated-artifacts` is red on main — the `CommandAssetSource` split regenerated only a subset of the corpus
 
-**Status:** Open
+**Status:** Resolved
 **Impact:** 4
 **Urgency:** 4
 **Ease:** 4
@@ -79,3 +79,18 @@ than folded into an unrelated push. Same pattern as the metrology profile
 ticket: a landing changed a measured surface and refreshed only part of the
 frozen record, and the failure surfaced to whoever next tried to prove a
 commit.
+
+## Resolution — 2026-08-06 wave-drift batch
+
+The corpus was regenerated once, as a batch, under the repository-pinned Node
+24.18.0 toolchain after the completed `47b4a59ac` command-asset source split
+and the push-seam branch had both settled. The 27 demo review manifests and
+the React conversation fixture show the uniform +254-byte typed descriptor
+change described above. The push-seam fixture additionally rotates its
+content-addressed descriptor/binding pair and capability projections because
+its completed source now declares the outbound action and bounded response
+stream it actually uses.
+
+No source behavior, capability claim, or active push-seam implementation was
+changed by the regeneration. The committed corpus reproduces byte-for-byte
+under `scripts/check-generated-artifacts`.

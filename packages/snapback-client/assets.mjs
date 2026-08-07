@@ -221,6 +221,12 @@ function sha256Base64(bytes) {
   return createHash().update(bytes).digest('base64');
 }
 
+function transferError(status) {
+  const error = new Error(`asset transfer failed: ${status}`);
+  error.diagnostic = { code: 'SNAPBACK_ASSET_TRANSFER_FAILED', status };
+  return error;
+}
+
 /** In-memory default store for persisted resume facts. */
 export function createMemoryAssetTaskStore() {
   const map = new Map();
@@ -606,9 +612,7 @@ export class SnapbackAssetClient {
           },
         );
         if (!head.ok) {
-          throw Object.assign(new Error(`resume HEAD failed: ${head.status}`), {
-            diagnostic: { code: 'SNAPBACK_ASSET_TRANSFER_FAILED', status: head.status },
-          });
+          throw transferError(head.status);
         }
         state.offset = Number(head.headers.get('upload-offset') ?? '0');
         state.wholeHash = createHash('sha256');
@@ -659,9 +663,7 @@ export class SnapbackAssetClient {
           },
         );
         if (!response.ok) {
-          throw Object.assign(new Error(`TUS PATCH failed: ${response.status}`), {
-            diagnostic: { code: 'SNAPBACK_ASSET_TRANSFER_FAILED', status: response.status },
-          });
+          throw transferError(response.status);
         }
         state.wholeHash.update(bytes);
         state.offset = Number(
@@ -755,13 +757,8 @@ export class SnapbackAssetClient {
   }
 
   /** One authorized metadata read. */
-  record(assetId, { userId = null } = {}) {
-    return this.#json(
-      'GET',
-      `/assets/records/${encodeURIComponent(assetId)}`,
-      undefined,
-      { userId },
-    );
+  record(assetId) {
+    return this.#json('GET', `/assets/records/${encodeURIComponent(assetId)}`);
   }
 
   /**

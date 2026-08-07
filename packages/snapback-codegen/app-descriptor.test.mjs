@@ -286,7 +286,6 @@ export const listItems = defineLiveQuery({
   assert.equal(descriptor.identity.functions, functionManifest.bundleHash);
   assert.equal(descriptor.identity.descriptor, appDescriptorDigestV1(descriptor));
   assert.equal(descriptorSource, serializeAppDescriptorV1(descriptor));
-
   // Metro treats URL queries on local module specifiers as literal filename
   // text. The hydration graph stays content-addressed through portable real
   // filenames so Node and Metro resolve the same generated graph.

@@ -507,6 +507,16 @@ publish a capability on its own.
   full upload machinery, and platform copy-behavior measurement beyond the
   dev host; shared/content-addressed custody stays F2/hosted per LLP 0158
   OQ5.
+  **2026-08-05 drift-pass attribution:** strict Clippy at drift candidate
+  `d3742fd6f` found the newly landed live asset-lifecycle fixture referring to
+  `ParentServer.server_url` while the combined branch helper exposed only
+  `child`, `ready`, and `token` (12 `E0609` compile errors). Attribution is the
+  drift lane's earlier mechanical Clippy cleanup `2048ba89f`, which removed
+  the then-unused field, followed by the F0a-owned `2486ddfe1` fixture that
+  began consuming the field. Main's owner-side helper already retained that
+  exact field; the final reconciliation restores the same inert test-helper
+  field and constructor assignment. No fork implementation or correctness
+  seam changed.
 - **Row 8 (resource containment):** create admission (fork-count, per-fork
   bytes, total bytes), diff-work bound, and renewal max-lifetime cap all
   refuse deterministically with observed usage
@@ -630,3 +640,29 @@ SQLite write authority, and crash recovery be executed rather than read:
 | row-13 release bench | pass | pass |
 
 No platform beyond these two is claimed or measured.
+
+### Wave-drift complete-proof recurrence — 2026-08-06
+
+The exact complete KEEP-GOING proof at clean, coded-bootstrap-qualified
+revision `f4438b8da0eba7203b97eaaf70fff779427a89b1` retained one root failure:
+`rust-tests` failed in
+`instance_fork_cli_v1::concurrent_fork_creates_bind_distinct_ports_and_drop_cleanly`.
+One of the three simultaneous `fork create` calls observed
+`.snapback/instance-fork-app-identity.v1.json` as an empty file and refused:
+
+```text
+SNAPBACK_FORK_APP_BINDING_REQUIRED: invoking app-root identity is malformed:
+EOF while parsing a value at line 1 column 0
+```
+
+The test was introduced by F0a landing `9b0acaf3a`; the latest concurrency
+repair `0ee1fadc1` is present in the failing candidate. The result is an
+app-root identity publication/read race in actively owned fork correctness,
+not carrier drift or machine load. The wave-drift pass makes no implementation
+change at this seam. Full retained proof:
+`/tmp/snapback-complete-proof-green.yrVv9v/local-proof.log` — 131 PASS,
+1 FAIL, 1 dependent BLOCKED (`auth-invalidation-report`), and one CI-only
+not-selected gate. Every independent gate completed.
+
+Owner close condition: make concurrent app-root identity publication atomic
+and rerun the exact 15-test live-server suite plus the complete local proof.

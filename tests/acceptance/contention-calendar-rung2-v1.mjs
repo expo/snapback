@@ -16,13 +16,12 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { generate } from '../../packages/snapback-codegen/index.mjs';
 import { SnapbackClient } from '../../packages/snapback-client/index.mjs';
 import { createFileRqsResumeStore } from '../../packages/snapback-client/rqs-store-file.mjs';
 import {
-  importGeneratedModule,
   readGeneratedJson,
 } from '../../demos/_kit/generated-artifacts.mjs';
 import { startServer } from '../../demos/_kit/server-process.mjs';
@@ -48,6 +47,10 @@ const FROZEN_CHECKS = Object.freeze([
   'cc.observer-convergence',
   'cc.cleanup',
 ]);
+let generatedImportNonce = 0;
+const importFreshGeneratedApi = () => import(
+  `${pathToFileURL(join(GENERATED, 'api.mjs')).href}?acceptance=${generatedImportNonce += 1}`
+);
 const SECTION_NAMES = Object.freeze([
   'sourceIdentity',
   'provisionalLifecycle',
@@ -142,15 +145,8 @@ async function waitUntil(predicate, label, timeoutMs = 15_000) {
   assert.fail(`timed out waiting for ${label}`);
 }
 
-function readGeneratedApiSync() {
-  const source = readFileSync(join(GENERATED, 'api.mjs'), 'utf8');
-  const match = source.match(/const references = (\{[\s\S]*\});\nfor \(const reference/u);
-  assert(match, 'generated api reference block is present');
-  return JSON.parse(match[1]);
-}
-
-function staticIdentityEvidence() {
-  const api = readGeneratedApiSync();
+async function staticIdentityEvidence() {
+  const { api } = await importFreshGeneratedApi();
   const reserve = api.reserve;
   assert.equal(reserve.mutationIr.capabilityClass, 'local-executable');
   assert.equal(
@@ -327,7 +323,7 @@ async function runRealExit() {
     const schema = readGeneratedJson(GENERATED, 'schema.manifest.json');
     const functions = readGeneratedJson(GENERATED, 'functions.manifest.json');
     await writeFile(startupArtifacts, `${JSON.stringify({ formatVersion: 1, schema, functions })}\n`);
-    const generated = await importGeneratedModule(GENERATED, 'api.mjs');
+    const generated = await importFreshGeneratedApi();
     const api = generated.api;
     assert.ok(generated.artifacts.trustedCompositionActivation);
 
@@ -685,7 +681,7 @@ async function runRealExit() {
     assert.equal(observerConvergence.transport, 'push');
 
     return {
-      sourceIdentity: staticIdentityEvidence(),
+      sourceIdentity: await staticIdentityEvidence(),
       provisionalLifecycle,
       exactlyOneWinner,
       loserCorrection,
@@ -844,9 +840,10 @@ async function verifyReceipt() {
 
 async function main() {
   if (process.argv.includes('--check')) return verifyReceipt();
+  await rm(join(BACKEND, 'trusted-composition-activation.json'), { force: true });
   const initialGeneration = await generate(BACKEND);
   assert.equal(initialGeneration.ok, true, JSON.stringify(initialGeneration.diagnostics));
-  const identity = staticIdentityEvidence();
+  const identity = await staticIdentityEvidence();
   let real = null;
   let block = null;
   try {

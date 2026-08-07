@@ -830,3 +830,895 @@ The idle interval observed zero storage mutations, zero read bytes, zero write
 bytes, 4/10 allowed CPU ticks (40/100 ms), and zero RSS-page growth. This is
 proof-carrier and declaration drift, not a correctness failure in the actively
 owned PUSH-01 seam or F0a fork code.
+
+### LLP 0184 landing race and final batched carriers — 2026-08-05
+
+Main proof run `31060914481` at `bc65b59006140016131764c4b9650942c6bdd7d7`
+retained four roots: the three pre-merge sidecar roots above plus
+`package-test-inventory`. LLP 0184 Phase 0 landing
+`753191e4601bcba257a9fb5350ba8085d5cd1292` added the packaged
+`agent-setup.test.mjs` acceptance suite and selected it in the CLI package
+script, but omitted it from the canonical package inventory. The real CLI
+package suite passed that test in the same KEEP-GOING proof. The inventory now
+registers 205 package/admin test files.
+
+After the sidecar fix merged, main proof run `31062308864` at
+`01cf40e89c0bb7e1595831e7b039b85cae576356` reduced the summary to exactly
+those two remaining roots: `package-test-inventory` and
+`telemetry-receipt-check`, with five package gates blocked solely by the
+inventory producer and the two expected not-selected gates. Every other
+selected gate passed.
+
+While the first replacement receipt was building, LLP 0184 Phase 1 landed on
+main. Its source changed the telemetry closure and its
+`14e4548fd873f00c0beebc4cd5978be5ec52d294` landing added five negative
+ControlCatalog completeness fixtures without selecting them in local-proof.
+The stale in-flight producer was stopped rather than retained. The final source
+candidate selects those fixtures as `control-catalog-fixtures`.
+
+The same landing's `--check` compared the generated artifact byte-for-byte,
+including a Git identity captured before the carrier commit. A committed
+carrier therefore invalidated itself immediately and no sequence of ordinary
+regenerate/commit operations could make the gate green. The check now schema-
+validates the retained carrier and compares the exact semantic catalog while
+preserving its generation provenance. A source-commit/carrier-commit regression
+joins the original fixture file; all six cases pass.
+
+The 97-entry ControlCatalog carrier is regenerated once for the combined
+candidate `9986c733b1c3d9f929b276ade935ddf026c4bb42`, retaining catalog digest
+`sha256:919b2ba9fea2c3edb02f8311352a2d61c9e2ef07240a9b19b66947735b5a6736`.
+
+The final EPYC producer measured a fresh clean clone at that exact source
+candidate. It used the existing user-owned Node 24.18.0 and Bun 1.3.12
+toolchain, installed the frozen lockfile, and invoked unchanged
+`scripts/verify-telemetry-phase1-proof --full`. The coded bootstrap initialized
+Ibex pin `4c34c831aa087d6783b0d68f281cdb374ed7fc89`, copied compatible prepared
+Hermes artifacts through supported `SNAPBACK_IBEX_CHECKOUT`, and exact
+link/launch/handler-VM-qualified both debug and release identities without an
+administrator change or loader bypass.
+
+The retained receipt has SHA-256
+`e2bcc6e629763ddb3859384d401b4a53ab1cb86383545510412e87de47584d9c`
+and covers 441 proof-source files with digest
+`54440a5795747c51b88872903cfad19f233b2e3ac7fad33f347a1e716c11b5f2`.
+The 1,201-line transcript at
+`/var/cache/expose-build/snapback-telemetry-998.iahL4R/telemetry-full.log`
+has SHA-256
+`36e1a55ad13422499cab3ea4f75a7ceb71b4e1e3dc97318a90e2b202acaef7da`.
+The 120-second idle interval observed zero storage mutations, zero read bytes,
+zero write bytes, 4/10 allowed CPU ticks (40/100 ms), and zero RSS-page growth.
+These are package inventory, proof-suite selection, deployment-identity, and
+telemetry-carrier drift attributable to the LLP 0184 landings, not a
+correctness failure in the actively owned PUSH-01 seam or F0a fork code.
+
+### Managed-dev landing race and replacement telemetry carrier — 2026-08-05
+
+After the batched candidate was pushed, managed-dev repair landing
+`f8a7a1596934ce69d294e88e106c5deee639dc5f` changed
+`packages/snapback-cli/index.mjs`, `load-generated.test.mjs`, and
+`package.test.mjs`. All three belong to the telemetry receipt's reviewed
+441-file source closure, so the retained `9986c733b` measurement correctly
+failed closed as stale. This is a carrier refresh attributable to that landing;
+the managed-dev behavior itself is outside this pass and no PUSH-01 or F0a
+correctness code was changed here.
+
+The replacement EPYC producer measured a new clean detached checkout at exact
+source `fed00a4c5ededde4aad33765c39c786778c1f960`. Checksum-verified, per-run
+Node 24.18.0 and Bun 1.3.12 binaries installed the frozen lockfile. The first
+invocation stopped inside the coded bootstrap before any build because the
+non-login SSH environment omitted the existing user Cargo path (`spawn cargo
+ENOENT`); its 38-line failed transcript is retained at
+`/var/cache/expose-build/snapback-telemetry-fed.ykjVso/telemetry-full-attempt1.log`
+with SHA-256
+`1f3f186edfeca27a46ae6c980c7e4100dc4eeba6555a4f5829748785fd2c1d07`.
+The rerun added only `/home/ccheever/.cargo/bin` to `PATH`, then invoked the
+unchanged `scripts/verify-telemetry-phase1-proof --full`. The coded bootstrap
+reused the supported `SNAPBACK_IBEX_CHECKOUT` path, exact-linked and launched
+the current binary, and qualified its restricted handler VM; no administrator
+change, manual artifact repair, or loader bypass was used.
+
+The resulting retained receipt has SHA-256
+`c54fba2edb19896b159ada14edbba22ca8ed423d3094b016401a9fe259948f54`
+and source-closure digest
+`9ee681f76452c3f0e975c441ce209516988a2b5780418d19ffe4be08ae196ea1`.
+The 1,203-line successful transcript at
+`/var/cache/expose-build/snapback-telemetry-fed.ykjVso/telemetry-full.log`
+has SHA-256
+`9b9be910653ecbd025202bf7b7d4a884fe5b9fd93bef3fe412cc1ef4538c8a6d`.
+The full benchmark passed; the 120-second idle interval observed zero storage
+mutations, zero read bytes, zero write bytes, 3/10 allowed CPU ticks (30/100
+ms), and zero RSS-page growth.
+
+### React HMR landing drift — 2026-08-05
+
+Main then advanced through the ticket/program batch ending at
+`f3c7d9fbb394a413370a9264f22e72b6f151a25e`. Two new proof roots are
+attributed to its React HMR landing
+`8ce5ca33eaba058ac3370cc647da57277b034729`: the landing added
+`hmr-generation-handoff.test.mjs` without registering it in the canonical
+package inventory, and its complete re-admission engine entered every
+successful production React bundle. The two frozen React profiles rose from
+50,114 to 67,458 minified bytes and from 49,943 to 67,283 minified bytes,
+with corresponding gzip/Brotli regressions. No ceiling was loosened.
+
+The inventory now selects 206 package/admin tests. The HMR repair keeps the
+synchronous positive-development/same-app classifier and atomic binding
+overlay in the always-loaded seam, while moving the polling, manifest rebuild,
+result-contract compilation, and controlled-reload helpers behind literal
+development/failure-only runtimes. The HMR regression still proves atomic
+handoff, mutation deferral, controlled reload, and strict production/foreign
+admission. The unchanged LLP 0145 production workload now passes every frozen
+minified, gzip, and Brotli ceiling. This is fix-forward package-proof and
+production-closure debt in the React landing, not correctness work in the
+actively owned PUSH-01 seam or F0a fork code.
+
+### Asset-custody landing drift — 2026-08-05
+
+Main then advanced to `25ac99bcfc9f5bead146cb4065e3e2539925ec69`.
+That landing correctly projected the parent auth/rr offer through the asset
+client and preserved the HTTP status of a failed TUS resume HEAD, but it also
+grew both frozen asset-subpath bundle profiles: `public-subpath-assets` from
+13,860 to 14,096 minified bytes (5,564 to 5,610 gzip; 4,814 to 4,856
+Brotli), and `resolved-public-subpath-assets` from 13,864 to 14,105
+minified bytes (5,555 to 5,614 gzip; 4,817 to 4,852 Brotli).
+
+The fix-forward keeps the parent protocol projection and bearer precedence,
+keeps bare no-custody development requests offerless, and gives both failed
+HEAD and PATCH transfers the same stable diagnostic carrying the actual HTTP
+status. It removes the now-dead per-call custody arguments and shares the
+transfer-error construction. The asset behavior suite passes and both asset
+profiles are again below every frozen minified, gzip, and Brotli ceiling; no
+ceiling or historical measurement was changed. This is client-package and
+proof-closure debt attributable to the asset-custody landing, not correctness
+work in the actively owned PUSH-01 seam or F0a fork code.
+
+### Final batched telemetry carrier — 2026-08-05
+
+The final EPYC producer measured a fresh clean detached checkout at exact
+source `5c9737aaa30a779122217e1946a71d42077d9b96`. Before dispatch the host
+reported zero load, 243.4 GiB available memory, 1,384.5 GiB free disk, and no
+other proof/build process. The retained Node 24.18.0 and Bun 1.3.12 archives
+were copied into the run namespace and rechecked against their retained
+SHA-256 manifests before the frozen Bun install.
+
+The initial read-only doctor reported the expected fresh-checkout
+`SNAPBACK_IBEX_SUBMODULE_UNINITIALIZED` state and explicitly delegated repair
+to the coded bootstrap. The unchanged
+`scripts/verify-telemetry-phase1-proof --full` invocation then initialized
+Ibex pin `4c34c831aa087d6783b0d68f281cdb374ed7fc89`, copied compatible prepared
+Hermes artifacts through supported `SNAPBACK_IBEX_CHECKOUT`, exact-linked and
+launched the candidate, and qualified its restricted no-eval handler VM. No
+administrator change, manual machine repair, loader bypass, or source
+substitution was used.
+
+The locked Rust smoke passed, the release build and readiness issuance passed,
+and the full benchmark remained within every recorded ceiling. The retained
+receipt has SHA-256
+`0c94c1431c199bfee224ff3685f4f2defb2beb04269997d8e70fcd8ce1c10fb1`
+and covers 444 proof-source files with digest
+`e6ba0e5e7d90db02e145954d1d135dfeb295a01ea31dc89021a6473c20128a17`.
+The 1,209-line transcript at
+`/var/cache/expose-build/snapback-telemetry-5c9737.vpY8dT/telemetry-full.log`
+has SHA-256
+`185ffca385e6f739f36271ec419caa26ea3534de41c4bc9bb18e96e2417ecab1`.
+The 120-second idle interval observed zero storage mutations, zero read bytes,
+zero write bytes, 3/10 allowed CPU ticks (30/100 ms), and zero RSS-page growth.
+
+### AppDescriptor landing race and regenerated publication carriers — 2026-08-05
+
+While the `5c9737aaa` Linux producer was running, main advanced to
+`2bb84423b59e81e4afa865339765142ad2769bc2`, the AppDescriptor spine landing.
+The first prospective-merge proof for this pass therefore failed
+`deployment-identity` and `required-surface-builds`: clean-checkout codegen
+materialized the new `app.binding.mjs`, `app.d.ts`, `app.descriptor.json`, and
+`app.mjs` projections, so All Aboard's committed review manifest and the
+other selected review/package projections no longer matched the generator.
+The same landing added `app-descriptor.test.mjs`; after the merge, the
+canonical package inventory correctly selects 207 tests.
+
+This pass regenerated the review manifests for every backend selected by
+`scripts/check-generated-artifacts` and retained the complete AppDescriptor
+projection sets for Team Chat and the packaged comparator and push-seam
+fixtures. The generated-artifact gate reproduces them byte-for-byte; package
+inventory, all 86 typed export subpaths, all 54 frozen bundle profiles and
+their behavior train, deployment identity, both required production surface
+builds, and artifact-path hygiene pass. The tracked cursors-web production
+`dist/` was regenerated from that graph and a second complete surface build
+reproduced the same binary diff digest
+`c0dc03077952fc3244a7d4e91d4050e72e97e508ebe1a7034251b3a4b14fcd94`.
+No generated source definition or push-seam behavior was changed.
+
+Because the AppDescriptor landing changed `packages/snapback-codegen` and the
+retained packaged fixture projections, it also changed the telemetry proof's
+reviewed source closure. The otherwise-green `5c9737aaa` receipt above is
+therefore honestly superseded rather than rebound to the new candidate. This
+is batched publication-carrier, suite-fixture, inventory, and receipt drift
+attributable to `2bb84423b`; it is not a correctness failure in the actively
+owned PUSH-01 seam or F0a fork code.
+
+### Expo/F0a landing train and final drift closure — 2026-08-06
+
+A later clean EPYC run completed the full local proof successfully at source
+`3a6c2cc39f1cc62377cd5a9854b4cde3446b1dcd`, but main advanced through the F0a
+fork and Expo delivery train before its receipt could be retained. That green
+measurement is evidence for its exact source only and is superseded; it is not
+relabelled as evidence for the later merge.
+
+The Expo E0 landing `2b5da1ff6a31f7a8240c7d72af26967b6c34022b` introduced an
+independent host-pause reason in the React registry and thereby raised the two
+compressed React workload profiles. The fix-forward preserves independent
+host/auth pause ownership, removes unreachable duplicate replay-advisory code,
+keeps stable diagnostic codes while tightening their messages, and avoids an
+unnecessary default options allocation in `useSnapbackMutation`. All 54 frozen
+profiles pass without changing a ceiling, and the complete bundle behavior
+train plus the dedicated React lifecycle regression pass.
+
+The same AppDescriptor train exposed a separate packed-consumer failure in the
+Linux runtime-package job: Vite 8/Rolldown parsed a generated queried
+`app.descriptor.json?identity=…` import as JavaScript. The Vite adapter now runs
+its generated-graph resolver before the core resolver, re-verifies nested
+imports against the materialized review graph, and removes only the redundant
+identity query after resolving JSON into the immutable content-addressed cache.
+Semantic queries remain untouched. A real Vite production build of the
+generated typed AppDescriptor now joins the package regression and passes.
+
+Finally, Expo E1 landing `567a8e0fd50d0546550f82cee7bdf41dc502f44f` exposed
+`NodeJS.ProcessEnv` from a published declaration, which failed the dependency-
+clean type consumer. Its two public environment slots now use the package's
+runtime-neutral readonly string map; all 92 published subpaths across 12
+packages compile and match their runtime exports. The client/demo landings
+through `d4ac75595d85e532d9938ea56b8cee03f929eaf4` also invalidated the Notes
+and All Aboard deployment-identity carriers; both were regenerated from that
+combined source. Inventory selects 214 declared tests and generated artifacts
+reproduce byte-for-byte. These are proof, declaration, bundler, and carrier
+debts attributable to their named landings. No correctness failure was found
+or repaired in the actively owned PUSH-01 seam or F0a fork code.
+
+Main then advanced through the Track B acceptance landing at
+`a0852be190d7a908e2419ccaac43f30eee977ee2`. The first operation-identity
+carrier had already frozen its affected profiles before the subsequent review
+tail added the durable `result-gone` projection and tightened lifecycle and
+range validation. Those functional additions legitimately grew the external
+React application, shared outbox, and four retained-query-store bundle
+closures.
+
+The fix-forward adds a second prospective immutable rollover,
+`baseline.operation-lifecycle-review-tail.v1.json`, for only those six
+affected profiles. It preserves each prior carrier as the predecessor, records
+the Track B landing chain and governing LLP authorities, and advances the
+workload identity to `llp-0163-operation-lifecycle-review-tail.v1`. The full
+declared behavior train passed before the carrier and 54-profile current report
+were regenerated. No frozen historical measurement was edited, no unrelated
+profile was rolled over, and no actively owned correctness code was changed.
+
+The first CI run of that exact merge found two further combined-source carrier
+edges. The Track B client closure changed both Cloudflare deployment bundle
+identities, so the Notes and All Aboard identities were regenerated once more.
+Also, moving the Snapback Vite verifier ahead of Rolldown correctly protected
+queried JSON, but meant it now saw extensionless generated imports before
+Vite's normal extension inference. The verifier now performs that inference
+only across manifest-listed extensions and still fails closed for every path
+outside the immutable graph. A package regression and both registry-locked
+production surface builds pass; the tracked Cursors build was refreshed from
+the same combined source. This is publication and bundler integration debt
+from the combined landings, not an actively owned correctness change.
+
+### KEEP-GOING closure after Track B, ZeroBugs, and Expo G1 — 2026-08-06
+
+The completed GitHub KEEP-GOING proof at run `31083229354` reported eleven
+root gates. They reduced to six attributable fix-forward groups rather than
+eleven independent product failures:
+
+- Track B's client closure exported `unresolvedOutboxRecords` without its
+  declaration, and its Rust landings accumulated Rust 1.97 dead-code,
+  complexity, argument-count, and mechanical style findings. The declaration
+  now matches the runtime export; type aliases and behavior-preserving lint
+  repairs close the strict Clippy gate across all targets. Fork code received
+  only mechanical formatting/lint treatment, not a drift-lane correctness
+  change.
+- The relation-activity, sequence-allocation, and local persistent-store
+  carriers were stale after the Track B source changes. Their coded refresh
+  machinery now binds the exact sources. Because generated Triage identity is
+  part of the retained local-store proof, the real 250,000-event Triage run was
+  regenerated first (`8/8 PASS`), followed by the browser-backed carrier run
+  (`16 PASS / 1 declared GAP / 0 SKIPPED`) and the publication chain.
+- The AppDescriptor generator's query-keyed local module imports were valid
+  ESM but not portable to Metro, causing Linux package proof to fail during a
+  real Expo export. The drift lane proved a real hash-in-filename graph with a
+  clean Expo export (588 Metro modules); main's subsequent Expo G1 landing
+  `bd89cebab` independently supplied the stronger stable-alias plus immutable
+  hydration-module form. Merge reconciliation retained that main design and
+  regenerated every selected review/package projection.
+- Expo E1's real-loop tests import `@expo/snapback-react`; the CLI package did
+  not declare that workspace dependency. Adding it closes clean package
+  resolution. The optional-argument codegen regression was an older fixture
+  contradicting LLP 0178's unsuppressible optional-plan rule; the fixture now
+  exercises optional type projection without inventing an omission policy.
+- The app CLI's dev principal selected `anonymous-public` custody after that
+  custody class correctly learned to strip legacy body authority. The fake
+  package server therefore saw no dev user, while a real sessions target
+  refused earlier as unauthenticated. The app-CLI-only internal construction
+  seam now preserves an explicit dev assertion while retaining the v1 offer:
+  dev targets consume it and sessions targets refuse it. The complete package
+  suite and the real served journey's 19 checks pass.
+- The telemetry receipt failed honestly because the reviewed source closure
+  advanced after its measurement. It is not rebound or edited; a fresh full
+  EPYC measurement is required for the exact final candidate.
+
+Package export typing passes 92 subpaths across 12 packages, the canonical
+inventory selects 214 tests, strict Clippy passes, deployment identities match,
+and all regenerated AppDescriptor/package surfaces reproduce. No correctness
+failure was found or repaired in the actively owned PUSH-01 seam or F0a fork
+implementation.
+
+### Exact pre-reconciliation Linux telemetry carrier — 2026-08-06
+
+The replacement EPYC producer measured a clean detached checkout at exact
+source `f51c4b1a9456264b340e0af7b8d66e396b57be38`. Before dispatch the host
+reported 0.00 load, 243 GiB available memory, 874 GiB free disk, and no other
+Snapback, Cargo, Rust, Bun, or Node proof process. The retained Node 24.18.0 and
+Bun 1.3.12 archives were copied into the fresh run namespace and their upstream
+SHA-256 manifests rechecked successfully before the frozen install.
+
+The initial read-only doctor reported only the expected uninitialized Ibex
+submodule and missing fresh-worktree artifacts. The coded bootstrap initialized
+Ibex pin `4c34c831aa087d6783b0d68f281cdb374ed7fc89`, consumed the compatible
+prepared artifact set through supported `SNAPBACK_IBEX_CHECKOUT`, exact-linked
+and launched the candidate, and qualified its restricted no-eval handler VM.
+No administrator change, manual machine repair, loader bypass, or source
+substitution was used.
+
+The locked Rust smoke, clean release build, runtime-readiness issuance, full
+benchmark, and 120-second idle witness all passed. The retained receipt has
+SHA-256 `c70b0c6424c38fc533446a122cb642f33e36b311a20e7b0be1f01a4002060c2e`
+and covers 474 proof-source files with digest
+`a1621ee74a5e1fa32635a535d4cc97b95422924a4664a00c17f41fb655800b28`.
+The 1,205-line transcript at
+`/var/cache/expose-build/snapback-telemetry-f51.i6i9k8/telemetry-full.log`
+has SHA-256
+`0d45b1b91f1a255f440e18a1f995758ce60615460e01ac77fae30dc690100d81`.
+The idle interval observed zero telemetry storage mutations, zero process read
+bytes, zero process write bytes, 3/10 allowed CPU ticks, and zero RSS-page
+growth. This carrier closed the batched drift prerequisite for the `f51c4b1a9`
+candidate; it was a new measurement, not a rebound historical receipt.
+
+Main advanced during that measurement through the IndexedDB writer-election
+and array-field validator landings. Both changed the telemetry proof-source
+closure, so the `f51c4b1a9` receipt above remains evidence for its exact source
+but was superseded rather than rebound. The later deployment-identity and
+required-surface carrier-only commits do not intersect that closure.
+
+### Exact combined-head Linux telemetry carrier — 2026-08-06
+
+The final producer repeated the same clean-host procedure at exact combined
+source `26698baf7d99af3973094aea8ea77d03275cce17`, after merging the completed
+source landings. The read-only doctor, coded bootstrap, locked Rust smoke,
+clean release build, runtime-readiness issuance, full benchmark, and
+120-second idle witness all passed without administrator changes, manual
+machine repair, loader bypasses, or source substitution.
+
+The retained receipt has SHA-256
+`2adadb63184b072d3399258355aa61c65a9b0841c0bfbe475ba657267119ea42`
+and covers 474 proof-source files with digest
+`a6e59f388feabce2a5a7bf4efcb089c036050d9b53c5f399a2d4f409f1adf955`.
+The 1,209-line transcript at
+`/var/cache/expose-build/snapback-telemetry-266.3DYfol/telemetry-full.log`
+has SHA-256
+`3cc1e1dc079d979b16f0a5d05c76e319bcf77c866e47ce52955208d338e29f60`.
+The idle interval again observed zero storage mutations, zero process read
+bytes, zero process write bytes, 3/10 allowed CPU ticks, and zero RSS-page
+growth. Package export typing remains green across 92 subpaths and 12
+packages; the reconciled inventory now selects 215 tests. This fresh carrier,
+not either superseded predecessor, is the evidence for the combined landing.
+
+Main advanced once more before the batch could close, through the served
+`/llms.txt` surface (`593857df5`), anonymous asset-reservation refusal
+(`ddf7ae909`), optional-argument projection (`fd5fb6578`), and their remote
+verification fixes (`50c1434ed`). Those source changes made the `26698baf7`
+carrier honest evidence for its own candidate but not for the final named
+batch. It was therefore superseded, not rebound.
+
+### Exact named-batch Linux telemetry carrier — 2026-08-06
+
+The closing EPYC producer measured exact source
+`90e3157c2e2b66f7b5b80f5244f744b5907d87e8`, the named combined batch after
+those last source landings. The host was re-inspected before the run. An
+unrelated release job was allowed to finish; this producer began only after
+the host was idle. The read-only doctor and the repository's coded bootstrap
+then rebuilt, launched, and restricted-VM-qualified the exact candidate using
+the supported prepared Ibex checkout. No administrator change, manual machine
+repair, loader bypass, or source substitution was used.
+
+The locked Rust smoke selected and passed its one telemetry test (2,156 were
+filtered out). The exact release build, runtime-readiness issuance, full
+benchmark, and 120-second idle witness all passed. The retained receipt has
+SHA-256
+`1acfb605152fea23380336fba902d22f7a52c91783e4e0916fba9058d6654675`
+and covers 474 proof-source files with digest
+`22d1bfc20fce8343d392fdfafbb258108c423038b6367a5cf4c2795894cfc08f`.
+The 675-line transcript at
+`/var/cache/expose-build/snapback-telemetry-90e.aZzhxY/telemetry-full.log`
+has SHA-256
+`97f83244fcb27bc86fbeb8564929dea0aaba15a043f4b4c4e1584cdc2debfa63`.
+The idle interval observed zero storage mutations, zero process read bytes,
+zero process write bytes, 3/10 allowed CPU ticks, and zero RSS-page growth
+against an eight-page ceiling. This new measurement is the retained evidence
+for the exact final wave-drift batch.
+
+The prospective merge then had to reconcile main through `167a9e080` to
+resolve a generated-manifest conflict. That reconciliation includes the
+function-auth advisory landing `459bd5e94`; because
+`packages/snapback-codegen/index.mjs` is in the telemetry proof-source set,
+the `90e3157c2` carrier above remains valid for its named candidate but is
+superseded for the merge-reconciled candidate. The React presence and
+agent-safe leaf-set fixes in the same reconciliation are independently green,
+including all 24 agent-safe publication cases and the reviewed exact leaf set.
+
+### Exact merge-reconciled Linux telemetry carrier — 2026-08-06
+
+The final producer measured exact merge-reconciled source
+`5980c210625cf05592223d7e432f1f71b5da5516`. The first attempt was stopped
+before benchmark or idle measurement when an unrelated 0.1.9 release build
+started after the host inspection. Only this producer's process groups were
+terminated. After the unrelated job completed, the host was re-inspected at
+0.55 one-minute load with 243 GiB available memory and no Cargo, Rust, Bun,
+Node, or Snapback proof process; the clean exact worktree then resumed through
+the coded path.
+
+The retained Node 24.18.0 and Bun 1.3.12 archives were rechecked against their
+upstream SHA-256 manifests. The read-only doctor reported the expected fresh-
+worktree submodule and readiness state. The coded bootstrap initialized the
+vendored Ibex pin, copied the supported prepared artifacts, rebuilt and
+launched the exact binary, and qualified its restricted no-eval handler VM.
+No administrator change, manual machine repair, loader bypass, or source
+substitution was used.
+
+The locked Rust smoke, exact release build, runtime-readiness issuance, full
+benchmark, and 120-second idle witness all passed. The retained receipt has
+SHA-256
+`22b4412bd84076f2bd72a3f1b789ec3555ce86d8aff39d0aefe422bbdf1e8a54`
+and covers 474 proof-source files with digest
+`d6205223a210cbde20946061d7b4d9ca8d0b5f574a0a939defdcd0f2011f831f`.
+The 675-line final transcript at
+`/var/cache/expose-build/snapback-telemetry-598.yzbPDj/telemetry-full.log`
+has SHA-256
+`80cf85476f4c96b0ff5edffe1761ae6c113724562624d6e49886d67d8bdb7c4b`.
+The idle interval observed zero storage mutations, zero process read bytes,
+zero process write bytes, 3/10 allowed CPU ticks, and zero RSS-page growth
+against an eight-page ceiling. This fresh carrier, not any superseded
+predecessor, closes the exact merge-reconciled batch.
+
+### G2/main-wave proof-carrier reconciliation — 2026-08-06
+
+Main advanced through the LLP 0179 conversation surface
+(`c7a8b90312ac979830df6948023689af169166a3`), the IndexedDB binding-receipt
+writer-election repair (`4ac8387f080a2659484fc09916ff22a076dc4ca8`), and LLP
+0081 tombstone-and-re-entry custody
+(`6ec40820dc853f79c9207f9c9f008e81242f8348`). The combined codegen change
+rotated every selected review manifest, the trusted Latency/Triage/Contention
+activations, the packaged push-seam graph, the Expo golden-path review
+manifest, and the All Aboard deployment identity. The real producers passed:
+Latency 5/5, Triage 8/8 over 250,000 events, Contention 8/8 with seven frozen
+checks, and the browser-backed local store carrier 16 PASS / 1 declared GAP /
+0 SKIPPED. Two acceptance fixtures now import the generated API rather than
+parsing a codegen-era-specific source literal, while retaining the same strict
+identity checks. Generated artifacts reproduce byte-for-byte, both deployment
+identities match, and package inventory selects 217 declared tests.
+
+The client bundle ratchet had two overlapping attributable clusters. The
+writer-election and quarantine landings evolved six narrow outbox/RQS
+closures and also flow into the two React application closures; G2 separately
+adds its surface implementation to those React closures. One batched
+prospective carrier, `baseline.aug6-client-capabilities.v1.json`, advances
+exactly those eight profiles while preserving and SHA-binding every
+predecessor. Its complete behavior train passed at committed source
+`b3434f0a1da63430692934b68f0b6baddc7f530a`; receipt SHA-256 is
+`367b50303d8d3dda3876387bb31fab23b91085be0cc897a000689305b4792f29` and
+the 54-profile current report SHA-256 is
+`979fc3b4bea20866a7b582bed5b2287d3fa1c94a26959e8a73d0df35c12254af`.
+The first production write exposed and repaired two instrument fixtures: its
+surface behavior train now materializes the ignored Expo descriptor through
+normal codegen, and its final same-process self-check admits only the exact
+just-written receipt at committed `HEAD`; ordinary checks still require one
+reachable Git carrier.
+
+These are generated/publication, deployment, suite-fixture, inventory, and
+spec-governed bundle-carrier debts attributed to their named landings. No
+correctness change was made to the actively owned PUSH-01 seam or F0a fork
+implementation. Because this carrier and its retained proof sources postdate
+the `5980c2106` telemetry measurement above, that Linux receipt remains valid
+for its own candidate but is superseded for the final batch. A fresh exact
+Linux producer is still required after the receipt itself is committed.
+
+The first Latency regeneration also exposed a fixture-only serialization bug:
+the newly asynchronous generated-module identity reader was returned without
+`await`, so JSON encoded the pending promise as `{}`. Awaiting that evidence
+restored the intended generated-plan identities; the real producer and all
+five retained checks then passed. This changes only the proof fixture, not the
+actively owned push seam or F0a implementation.
+
+The final coded launch then failed closed at capability admission and exposed
+the three remaining publication failures directly. The relation/activity and
+sequence-allocation carriers still pinned the pre-wave `local.rs`,
+`storage.rs`, and `define.mjs` bytes; the persistent-store carrier additionally
+pinned the predecessor local-store and Triage receipts plus the pre-wave
+codegen bytes. The coded publication finalizer accepted the retained 16 PASS /
+1 GAP store receipt and 8/8 Triage receipt, refreshed all three closed digest
+chains, regenerated the Rust-owned projection, and passed their conformance
+checks. This is carrier reconciliation attributable to the combined main wave,
+not a new capability claim or an implementation change.
+
+After those embedded carriers were committed, the coded bootstrap rebuilt and
+handler-VM-qualified source `6a0fd33b4c5a0c89f3dd8de6cbf921c75b456d34`.
+The Latency producer then admitted `single_table_v1` normally and passed 5/5
+against binary SHA-256
+`84bfe5833e64a5f30967fb53abfa19ef1d870c56fbce5e745e3cbad94d3af039`;
+the retained source list binds the generated activation and artifact bytes
+created by that controlled run.
+
+The required-surface matrix then production-built both registry-declared
+Contract surfaces. All Aboard reproduced its committed output; Cursors
+deterministically rolled five tracked client chunks and its HTML entry hash to
+the writer-election/quarantine-era closure already measured by the August
+bundle carrier. The refreshed dist is retained as the delivery artifact for
+that source-attributed rollover.
+
+The final named batch merged `origin/main` through `dac1ea722`, including the
+later G2 cold-retained-boot fix (`ec49b1d27`), the control-plane/data-patch
+wave, and the independently completed 0.1.9 release close-out. The merge
+candidate `45de8206d` passed the coded link, launch, and restricted-VM
+qualification without a dirty checkout. G2 changed the Triage source closure,
+so its real 250,000-event producer was rerun at 8/8 and the browser-backed
+local-store producer was recomposed at 16 PASS / 1 declared GAP / 0 SKIPPED.
+The publication finalizer then refreshed the relation/activity carrier and the
+persistent-store receipt chain; sequence allocation reproduced unchanged.
+These are again batched carrier updates, not per-landing regeneration or an
+actively owned correctness edit.
+
+With those embedded carriers committed, the coded bootstrap qualified exact
+source `f8341b7dbc0baf9b5b9b937a4e6190bf36a8da80`; the final Latency
+producer passed 5/5 on configured binary SHA-256
+`c3385f3b6fa00066568c17540693c8ba8f849129ed6112efdd43a19985a7907d`
+and replaced the stale-main activation that had failed the `dac1ea722` fast
+proof. No capability-admission bypass was used.
+
+The same final G2 client-entry change invalidated Contention only at its
+retained source digest. Its exact real producer on qualified source
+`568b3964acffd138f6ae80325fa3d028560cdad8` passed 8/8, including all seven
+frozen checks, on configured binary SHA-256
+`534db5affed2a25515edcf7fcfab9ccab9e45292eafd90115843b35918d771f8`.
+The rotated activation and generated binding closure are retained with that
+receipt; no widened effect ceiling or correctness edit occurred.
+
+The final G2 cold-retained-boot repair `ec49b1d27` also moved
+`react-external` one byte above its completed-main gzip ceiling (23,355 →
+23,356) while remaining below the frozen minified and Brotli ceilings. The
+second rollover advances that one profile only: minified is unchanged at
+72,784 bytes, gzip is +1 byte, and Brotli improves by 9 bytes. Its source-bound
+receipt was minted from declaration commit `5ebfeefd4`, has SHA-256
+`45d1d91146dae268300adf1e084554ff996f3a58daa28e2f9cc2732b45f0d889`,
+and produced current-report SHA-256
+`5fe511fa881932660c69831abd4b605aaffbf5d2d70c326e73c19ade3da5142b`.
+The first August receipt remains byte-identical and all unrelated ceilings
+remain active.
+
+The next completed-main batch exposed one proof-planning failure before any
+gate ran: landing `8d9d33f28` added the canonical `package-readme-funnel` gate
+without assigning it to the affected-selection policy, so main run
+`31107957203` failed closed with
+`SNAPBACK_LOCAL_PROOF_SELECTION_INVALID: unclassified canonical gates`.
+Because the five-package README/tarball invariant is cheap, global, and
+independent of native setup, it now joins the always-gate inventory. The
+selector fixture pins that even a docs-only plan retains it.
+
+The batch also surfaced the same bookkeeping omission on branch landing
+`9986c733b`: `control-catalog-fixtures` had been registered in the canonical
+proof but not its affected-selection policy. It now travels beside
+`control-catalog` in the publication group, with a selector fixture pinning
+the pair.
+
+The same completed-main batch added
+`packages/snapback-codegen/guide-pointer.test.mjs` in landing `6da170bf1`
+without advancing the canonical package-test inventory. The reviewed list now
+names that suite and advances from 217 to 218 declared tests; the suite itself
+and the inventory checker both pass.
+
+The final carrier reconciliation is attributable to the control-plane
+landings `57aa150db` / `69136b5ac`, which changed the conservatively pinned
+`src/local.rs`, and the `6da170bf1` guide-pointer landing, which changed the
+store carrier's pinned codegen entry. The exact Triage producer passed 8/8
+over 250,000 events (Move-1 receipt SHA-256
+`1a05c520e8e00fccef37eed0946d629dd5bfb2407f80c314db298b70579bd9fb`;
+budget SHA-256
+`e384b75a71319a4f33ba3197bb6f22b87ada95e06b267268eee5414c5be5196a`).
+After a fresh coded bootstrap at `d194976c6`, the full browser-backed store
+producer passed 16 PASS / 1 declared Fleet GAP / 0 SKIPPED with clean-source
+receipt SHA-256
+`3f3f4e8edb9990ab3d65e19a03cbb47e27e3fa09c59b90b51807aa986b2232b2`.
+The mechanical finalizer then produced relation/activity carrier SHA-256
+`9a6d06dd6ecfc6403314542c0574328326e5c606ce8cde2c10f28e3e04a60b8b`
+and persistent-store carrier SHA-256
+`c48e062bdae3455d571a95ec39c1dd921de109096cb53ae53f1fc28d60377423`;
+sequence allocation reproduced unchanged at
+`79498ab71bfec20bb983ca006a7ab48cfcea3529b7f7b2890364c7d4240f16b9`.
+
+With that dependency chain embedded, the remaining S1 application producers
+passed normally. Latency passed 5/5 from qualified source `1b8bd5766` on
+binary SHA-256
+`bd33cda4d568792337c9a71bbf716bd830b1f32234856c22b09720c96b329a2d`;
+its retained receipt SHA-256 is
+`df630dc9706406e71ec47a18b591d25b8b638e9e7ed4bcad5001f0115dc02403`.
+Contention passed 8/8 with all seven frozen checks from source `ec85c4a65` on
+binary SHA-256
+`3ee12a1c9efbfbceeb83c12b7cc621df15cc9aa1bc61a5ba0d4e0ac5d234b9c6`;
+its retained receipt SHA-256 is
+`ebeb76105cd7d92cac22f635e73cca36efb0cbf0e4f35e92cc8c3f0957290662`.
+Neither run widened an effect ceiling or changed an actively owned
+correctness seam.
+
+Strict final-candidate clippy found two completed-main debts. The overlapping
+ephemeral CLI landings `d6bb5e69f` and `69136b5ac` had left the identical
+`HostCommand::Ephemeral` dispatch arm twice after integration, making the
+second arm unreachable. Data-patch landing `42ce63d93` used
+`Result::and_then` to return an unconditional `Ok`, which the pinned toolchain
+rejects in favor of the equivalent `map`. The duplicate arm is removed and
+the data-patch projection uses `map`; neither change alters the reachable
+behavior. The S1 codegen cutoff also deterministically rolled the tracked
+Cursors production dist, which is retained with the source that produced it.
+All three conformance gates, capability maturity, and agent-safe publication
+pass without a capability expansion or actively owned correctness edit.
+
+The final cutoff then merged main through `4b66ac60d`. Its S1 codegen budget
+work (`c7aa4eae5`, `6d6fe7d04`) and intentional activation rebind
+`4d38a23df` invalidated the three retained application receipts plus the
+codegen digest conservatively pinned by the store carrier. The producers were
+run again in dependency order, with the coded bootstrap between source-bound
+commits. Triage passed 8/8 over 250,000 events (receipt SHA-256
+`2da5e1ba2ff6e86233f555f0872a397ef3d90f87a23a8766d28ebb7daddd70ef`;
+budget SHA-256
+`f41d5ac3b33cde091e62bb154344bd560a1d3e44bbdd83f585e571f1bc4111d7`).
+The browser-backed store producer then passed 16 PASS / 1 declared Fleet GAP /
+0 SKIPPED from clean source `b98cdf3b6`, with receipt SHA-256
+`7fc9e3c21d37674c55fc02f5261a82afc6770a13aff30e671eed0f4f09904596`.
+The final store carrier is
+`a092efdcbe0efe1fd344f45a1694ef6416b08c2897c857e335d849321e7bba5a`;
+the relation/activity and sequence carriers reproduce unchanged at
+`9a6d06dd6ecfc6403314542c0574328326e5c606ce8cde2c10f28e3e04a60b8b`
+and
+`79498ab71bfec20bb983ca006a7ab48cfcea3529b7f7b2890364c7d4240f16b9`.
+
+### Final main reconciliation and Linux receipt — 2026-08-05
+
+The closing batch merged main through `7c2a27e0e`. Strict Clippy first exposed
+the config landing `88c1344d6`'s mechanical `needless_return`, two pre-existing
+`host_ops_v0` constructors missing the new inert
+`derived_fork_arm_writer_coverage: false` fixture field, and the drift lane's
+own earlier `2048ba89f` removal of `ParentServer.server_url` before the later
+F0a asset-lifecycle fixture began consuming it. The config expression and test
+fixtures were reconciled without changing the fork implementation, push seam,
+or any effect ceiling. Strict Clippy, the focused config and host-op tests, the
+218-file package inventory, and the complete affected-selector fixture pass.
+
+That main batch changed `src/storage.rs`, so one final batched carrier refresh
+advanced relation/activity to
+`a81a229227ea83109ca5c676ca0cd8c12793c46f7d3fd825e75e32a02c192182`,
+sequence allocation to
+`c5b430e5004814fa606a7040e3db3f01bd93706c19799a5afa8b8803966ac1d0`,
+and persistent store to
+`542eb105f7db899ceac889c98a11ef49ea901d7d41156c8296764581423de076`.
+All three conformance checks, agent-safe publication honesty, generated
+artifacts, deployment identity, 92 declaration surfaces, both required
+production surface builds, capability maturity, the 54-profile bundle
+metrology train, Guide checks, and the LLP reference audit pass.
+
+The exact Linux telemetry source is clean commit
+`73aa2a0778de86798ea248c74e7c98cd7df03c2b`. Before dispatch, the approved
+`expose-builder-pixel` EPYC host reported 0.00 load and 243 GiB available with
+no Cargo, rustc, Snapback, or telemetry verifier process; immediately before
+the producer it still had 240 GiB available and no competing Cargo/rustc
+process. The normal-user job root is
+`/var/cache/expose-build/snapback-telemetry-final.rUU5VC`; the exact bundle was
+verified before transfer, the vendored Ibex commit was
+`4c34c831aa087d6783b0d68f281cdb374ed7fc89`, and the coded doctor/bootstrap
+qualified the restricted no-eval handler VM under Cargo/Rustc 1.97.0, Node
+24.18.0, and Bun 1.3.12. No admin access, host repair, bootstrap bypass, or
+manual runtime substitution was used.
+
+`scripts/verify-telemetry-phase1-proof --full` passed its exact smoke test
+(1/1), built both release binaries in 15m04s, issued release readiness, ran the
+benchmark, observed the required 120-second Linux idle window, and composed
+the retained receipt. Receipt SHA-256 is
+`d4b8137d803164df3cd84dd1dda6a7895abb18944bbfb452231680465973c175`;
+the served release binary is
+`6e367c55fede72c56c376dee46d773b2e67b481e0e84a6c22ebdfbb85cfbda78`,
+the benchmark binary is
+`6c6783428deb8f3693d87b87f08bbce6bb2729e07fd6642e7c79ac220ad495c6`,
+and the complete producer log is
+`dba16ae2b7efdd12db8febfeeb0a07f1340cc59aa7dc6a90f3012f6a15f38255`.
+The retained receipt is committed after its measured source by design; its
+coded historical/currentness checks run against that committed carrier.
+
+### Closing-main merge reconciliation — 2026-08-06
+
+The closing branch then merged `origin/main` through `8d02adf78`. Fork
+publication landing `c5f363cd5` added an eight-argument embedded verification
+helper that is intentionally parallel to the already-reviewed
+`publication_verified_for` helper; strict Clippy therefore carries the same
+local `too_many_arguments` allowance rather than reshaping its evidence tuple.
+That landing also supplied the inert
+`derived_fork_arm_writer_coverage: false` field to two `host_ops_v0` fixtures
+already repaired earlier in this drift branch, so the merge-only duplicate
+initializers were removed. Focused agent-safe publication tests and strict
+workspace/all-target/all-feature Clippy pass; no fork behavior or admission
+predicate changed.
+
+The final main advance `17e7ca8ca` added LLP 0179 S2 command admission and
+two package suites. Its inventory change was reconciled additively with the
+earlier guide-pointer repair: the canonical total is 220 and all entries run.
+The asset-client merge retained the branch's equivalent compact transfer
+diagnostic helper while taking main's newer authority-capture and stale-
+authority refusal intact. The asset, headless-command, and React-command
+suites pass; no command or asset correctness behavior was invented in the
+merge resolution.
+
+The same merge combined the qualified S1 Contention carrier retained by
+`16ef2533a` with `c5f363cd5`'s explicit qualification-C generated-leaf set.
+The checker correctly reported the one-for-one content-addressed replacement:
+the predecessor `app.binding.6989200b….mjs` was missing and the qualified
+`app.binding.ec6d3d94….mjs` was unexpected. The latter remains under the same
+registered fully-committed root and introduces no new path kind, so the
+reviewed exact-set fixture now names the current leaf. The structural
+content-hash-churn follow-up remains recorded in
+`issues/20260806-main-red-agent-safe-leaf-set-drift.md`; this pass does not
+widen its accepted filename class.
+
+The full Linux telemetry receipt above remains `HISTORICAL_VALID` after this
+main merge. Its coded state is honestly `LAGGING`: later source files in the
+post-receipt batches changed, ordinary merge acceptance remains true,
+release/capability-promotion
+acceptance is false, and the rolling full proof is requested. Per this
+ticket's batched-drift rescope, that is not a reason to remint the expensive
+receipt for each landing. This branch is an ordinary proof-greening merge, not
+an npm or capability promotion; no bootstrap bypass, host mutation, or
+release claim is made.
+
+### SBSB2/S2 fan-out reconciliation — 2026-08-06
+
+The branch merged completed `main` through `8743cf3cc`. Its SBSB2 fan-out had
+already regenerated schemas, activations, and package fixtures, while the
+merged wave sources and `17e7ca8ca` S2 command landing left the expected
+batched tail: exact generated-leaf inventory, two new commands metrology
+profiles, four intentional command/asset bundle increases, two mechanical
+SBSB2 test borrows, and the three source-bound publication carriers.
+
+No active push-seam or F0a correctness implementation was changed. The
+conversation closure was reviewed as a suite fixture; strict Clippy's two
+`needless_borrow` findings were confined to the new SBSB2 test helper. The
+metrology writers preserved all historical ledgers, froze the two commands
+profiles (receipt SHA-256
+`f52861c8270a7a512608fa29515ac241862d30bc022cdff3abeea261cebc8c22`),
+and froze the four-profile S2 rollover (receipt SHA-256
+`8bf3e90d1f43c5085c55749a28b968503010a0e2cc4d8460594198bc70e4fb4e`).
+
+The real acceptance dependency chain was rerun without bypass. Triage passed
+8/8 over 250,000 events from source `e7275c544` (receipt SHA-256
+`74c22a2de7a6d4345d42ccba6f65e01712d3d46b8ea6d3fae7ffab61aeaf9704`;
+budget SHA-256
+`db3917debbf9ee080e198e76c3af76477711bb92aa1409c4278d36a33198d69d`).
+After a clean coded bootstrap at `cff30e35d`, the browser-backed store
+producer passed 16 PASS / 1 declared Fleet GAP / 0 SKIPPED with `dirty: false`;
+its final retained receipt SHA-256 is
+`e63751670956c4a32a476090b82bd95cacaf8a3bf1c9d56fa32fd3fe1d6c067b`.
+The finalizer then produced relation/activity carrier SHA-256
+`f4160b9a76056f887cefccbe6ab75ae4f57f6675234be21fc0c98294bfec8af5`,
+sequence carrier SHA-256
+`13b5142f8f1f25cb47a5528e81cb41977343612d7cedb5f6926e857c346b2dac`,
+and persistent-store carrier SHA-256
+`9e03ff3c2c2e47996b02dc7bca9e1b31e53678474db9b26ce023e4a225e080a8`.
+
+The first exact complete-proof plan also caught a selector-inventory omission
+from SBSB2 parity landing `20fd2f753`: its new `snapshot-batch-v2-parity`
+canonical gate had not been assigned to any cadence group. The checked policy
+now classifies it beside v1 parity in both the publication and versioned-seed
+groups. All 134 canonical gates classify, the 12 selector/inventory fixtures
+pass, and an exact complete selection receipt validates before execution.
+
+### Combined wave-drift KEEP-GOING disposition — 2026-08-06
+
+The first exact complete proof for this final batch retained ten root failures
+in `/tmp/snapback-complete-proof.YeS2XN/local-proof.log`: Fleet receipt,
+demo materialization, Clippy, Rust, local-store carrier, the real CLI server
+suite, served app CLI, both fork suites, and the app-CLI package. The blocked
+required-surface, headsign, artifact-hygiene, auth-invalidation, and file-drop
+gates were consequences of those roots rather than additional failures.
+
+The carrier and inventory roots were batched as this ticket requires. The real
+Triage producer passed 8/8 over 250,000 events, Fleet passed 8/8, and the
+browser-backed local-store producer passed 17 PASS / 0 GAP / 0 SKIPPED. The
+mechanical finalizer refreshed relation/activity, sequence allocation, and the
+persistent-store carrier; all three conformance checks pass. Generated
+artifacts, deployment identity, the 226-package-test / 24-demo /
+276-publication-leaf / 60-guide-page inventory, and demo materialization now
+pass. The 56-profile client-bundle current report was refreshed for the
+combined root lockfile and its full behavior train passes without a frozen
+ceiling regression.
+
+Strict all-target Clippy exposed only integration debt: a duplicate ephemeral
+dispatch arm, one needless return, one explicit fork-lock truncate posture,
+and one needless test borrow. Those mechanical repairs pass
+`cargo clippy --all-targets -- -D warnings`; no fork or push behavior changed.
+The first real CLI server timeout did not reproduce: the complete package
+suite, including its managed-backend journey, passes against the exact
+qualified binary. The app-CLI failures belonged to main landing `f8d14ae5b`,
+which had overwritten the already-reviewed LLP 0062 dev assertion option at
+the auth-client construction seam. Restoring that existing option makes the
+package suite and all 20 served-journey checks pass, including the sessions
+target's refusal of the legacy body assertion.
+
+The Rust admin coverage test was already green after the later main merge. The
+remaining diagnostic inventory debt was the F0a landing's three unclassified
+server-invariant codes and now passes after their explicit LLP 0158 500-class
+registration. Both F0a acceptance setups were correctly refusing a foreign
+canonical-root binding: carrier commit `1eb88cc4c` had accidentally tracked
+`demos/todo/.snapback/instance-fork-app-identity.v1.json` with another
+worktree's absolute path. The generated receipt is removed and precisely
+ignored; the fail-closed binding remains unchanged. On the exact qualified
+candidate, `forked-parent` passes 4/4 and `fork-parallel-dispositions` passes
+7/7. The owning ticket is closed with the full attribution and evidence.
+
+The retained Linux telemetry receipt remains honestly `HISTORICAL_VALID` and
+`LAGGING`: accepted for this ordinary proof-greening merge, not accepted for a
+new release or capability-promotion claim, with a rolling full proof requested.
+No host repair, admin access, bootstrap bypass, telemetry remint, npm publish,
+or second capstone run is part of this batch. A complete KEEP-GOING proof on
+the exact committed candidate is the closing gate before this branch lands.
+
+### Final main integration and carrier refresh — 2026-08-06
+
+The closing candidate merged completed `main` through `3d6a23196`. Main had
+independently supplied the remediation-schema external inventory entry and
+the more specific fork binding HTTP classes, so the merge retained those
+newer classifications and removed the wave's two duplicate 500 entries. The
+exact diagnostic inventory, schema inventory, remediation registry, and both
+fork journeys pass after that reconciliation.
+
+The first 135-gate complete KEEP-GOING proof at `f3ba4492c` then had exactly
+one root failure and no blocked gates: the local-store carrier receipt still
+pinned the pre-landing digest of `demos/_kit/chrome-process.mjs`. Its full
+coded recorder reran every browser and file leg against Chrome 151 and the
+qualified native runtime, producing 17 PASS / 0 GAP / 0 SKIPPED from a clean
+source revision. The retained receipt SHA-256 is
+`2b00c62556a6459a76d5953edb763179ea1f0b8b3a4558c4e1d5a3004a299d52`;
+the bundle-attribution receipt SHA-256 is
+`bea628a201de74f913d0f19697b819321b83c1a3337890ac114f3f9745c308d1`.
+The mechanical publication finalizer propagated that receipt into the
+persistent-store carrier SHA-256
+`58d126434325cf9516dea998df6b33076af78acca3d544d30ff719365c4b25db`.
+The retained receipt check, persistent-store conformance check, and both
+agent-safe publication states now pass without changing a capability claim.
+
+### Post-Fleet final integration — 2026-08-06
+
+Completed main advanced again through `a18a1556e` while the closing checks ran.
+The merge retained main's requalified Fleet Move-1 chain (8/8 PASS) and its new
+same-change drift-gate enforcement. That Fleet budget receipt is itself a
+declared input to the local-store carrier, so the local-store check correctly
+became stale rather than silently accepting the newer dependency bytes.
+
+After a clean coded bootstrap at `938db9b45`, the full Chrome-backed recorder
+passed 17 PASS / 0 GAP / 0 SKIPPED. Its retained receipt SHA-256 is
+`41a32f0af2c1d41347aee3d4547f8800d236da228c32d380ea24cdab223a1ae7`;
+the bundle-attribution receipt SHA-256 is
+`5499983e30b409db12c59588073eb8f46ccd6f37d1266c4f17e2b6676f0ed5bb`.
+The finalizer minted persistent-store carrier SHA-256
+`e634c395581f4c3d13b7d1c1857e641c03246aabe6c5d2bd443e7be0704dd601`.
+The retained receipt, all three source publication carriers, both honestly
+withheld agent-safe claims, the Fleet receipt, the 227-file package inventory,
+and the new drift-gate fixtures pass on the combined tree.
+
+The same main batch exposed five package-qualification literals in the broad
+Rust diagnostic inventory. Landing `dbfeee26a` introduced two environment
+variable names and three CLI-local receipt-minting diagnostics; none is an
+HTTP-server diagnostic. Their reason-bearing non-HTTP classification and full
+landing attribution are recorded in
+`issues/closed/20260806-packaged-store-diagnostic-inventory-drift.md`.

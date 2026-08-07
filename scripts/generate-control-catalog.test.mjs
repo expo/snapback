@@ -54,11 +54,52 @@ function runCompiler(repoDir, extraArgs = []) {
   }
 }
 
+function runGit(repoDir, args) {
+  return execFileSync('git', args, {
+    cwd: repoDir,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+}
+
 test('unmodified inputs compile cleanly (positive control)', () => {
   const dir = scratchRepo();
   try {
     const result = runCompiler(dir);
     assert.equal(result.ok, true, `expected clean compile, got:\n${result.output}`);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a committed carrier remains fresh after its source commit', () => {
+  const dir = scratchRepo();
+  try {
+    runGit(dir, ['init', '--quiet']);
+    runGit(dir, ['config', 'user.name', 'Control Catalog Fixture']);
+    runGit(dir, ['config', 'user.email', 'control-catalog-fixture@example.invalid']);
+    runGit(dir, ['add', '.']);
+    runGit(dir, ['commit', '--quiet', '-m', 'source']);
+
+    const generated = runCompiler(dir);
+    assert.equal(generated.ok, true, generated.output);
+    const sourceCommit = runGit(dir, ['rev-parse', 'HEAD']).trim();
+    const carrier = JSON.parse(
+      readFileSync(join(dir, 'control-catalog/generated/control-catalog.v1.json'), 'utf8'),
+    );
+    assert.equal(carrier.generatedAtCommit, sourceCommit);
+    assert.equal(carrier.buildIdentity.sourceCommit, sourceCommit);
+
+    runGit(dir, ['add', 'control-catalog/generated/control-catalog.v1.json']);
+    runGit(dir, ['commit', '--quiet', '-m', 'carrier']);
+    assert.notEqual(runGit(dir, ['rev-parse', 'HEAD']).trim(), sourceCommit);
+
+    const checked = runCompiler(dir, ['--check']);
+    assert.equal(
+      checked.ok,
+      true,
+      `committed carrier must not invalidate itself:\n${checked.output}`,
+    );
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

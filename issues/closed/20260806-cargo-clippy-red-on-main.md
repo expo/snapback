@@ -1,27 +1,39 @@
-# `cargo clippy -D warnings` was red after concurrent Rust landings
+# cargo clippy -D warnings is red on main — 26 lints in recently landed feature code
 
-**Status:** Resolved
+**Status:** Closed
 **Opened:** 2026-08-06
 **Resolved:** 2026-08-06
-**Systems:** Rust, local proof
+**Related:** scripts/verify-local-proof cargo-clippy leg
 
-`cargo clippy --all-targets -- -D warnings` reproduced outside the sweep with
-project errors across fork promotion, publication, operation detail/ledger,
-migration, storage, CLI, host operations, and fork test helpers. The errors
-included unreachable code, dead test-only helpers, complex tuple types,
-needless borrows/closures, suspicious open options, and overly broad function
-signatures.
+`cargo clippy --all-targets -- -D warnings` fails with 26 errors at
+origin/main (b884202e1 base and after). All locations are in files the
+sbsb2 series never touched: src/fork_promotion.rs (2047/2079/3201/3240),
+src/operation_ledger.rs:2272, src/proof_checkpoint.rs:2101,
+src/operation_detail.rs (178/280/684), src/storage.rs
+(2158/2202/5365/6404/6602/6697), src/storage/migration_executor.rs
+(47/954), src/local.rs:14257 — dominated by type_complexity,
+too_many_arguments, needless borrows, and three never-used methods
+(foreclose_branch_operation_admission, retain_committed_branch_mutation,
+create_operator_in_app_branch). These trace to recently landed
+fork-promotion / operation-ledger / migration work whose sessions did not
+run the clippy leg; the proof chain aborts earlier on fresh checkouts
+(see issues/20260806-client-bundle-metrology-red-on-main.md), which is
+how it went unnoticed. Owners of those lanes should clean their lints or
+add scoped allows with justification.
+
+Filed by the sbsb2 implementation session (its own code is clippy-clean;
+verified by file attribution of every error).
 
 ## Resolution
 
-The implementation now removes the duplicate CLI arm and unused wrappers,
-test-gates test-only helpers, names complex row/hook tuples, uses direct and
-derived idioms where semantics are unchanged, and makes the admission-lock
-non-truncation policy explicit. The few transaction/publication seams whose
-independent axes are intentionally explicit retain scoped
-`clippy::too_many_arguments` exceptions with inline reasons; no broad or
-unjustified lint suppression was added.
+The batched wave drift pass absorbed the 26-lint debt in commit `2048ba89f`
+and removed two later SBSB2 needless borrows in commit `cff30e35d`. After the
+S2 carrier and fixture reconciliation, the exact strict command completed
+successfully at `ad8ae1320bf94be786829510c60a0a7b511ffd6c`:
 
-Verification: `cargo clippy --all-targets -- -D warnings` passed. The vendored
-Ibex crate still emits six ordinary dependency warnings, but Snapback has no
-promoted lint error and the exact local-proof command exits zero.
+```sh
+cargo clippy --locked --all-targets -- -D warnings
+```
+
+The vendored `ibex-runtime` dependency still emits its own ordinary warnings;
+Snapback's `-D warnings` surface is green.

@@ -975,8 +975,34 @@ if (completenessErrors.length > 0) {
 const outText = `${JSON.stringify(catalog, null, 2)}\n`;
 
 if (CHECK_ONLY) {
-  const existing = existsSync(outPath) ? readFileSync(outPath, 'utf8') : null;
-  if (existing !== outText) {
+  const existingText = existsSync(outPath) ? readFileSync(outPath, 'utf8') : null;
+  let existing = null;
+  try {
+    existing = existingText === null ? null : JSON.parse(existingText);
+  } catch (error) {
+    fail(`control-catalog/generated/control-catalog.v1.json is not valid JSON: ${error.message}`);
+  }
+  if (existing !== null && !validateCatalog(existing)) {
+    fail([
+      `committed catalog failed schemas/control-catalog.v1.schema.json validation:`,
+      ajv.errorsText(validateCatalog.errors, { separator: '\n  ' }),
+    ]);
+  }
+
+  // @ref LLP 0184#1-controlcatalogv1 — the checked-in catalog is generated
+  // in a carrier commit, so its generation provenance necessarily names the
+  // source commit before that carrier. Freshness is the exact semantic join;
+  // requiring provenance to equal the carrier HEAD creates an impossible
+  // self-invalidating artifact.
+  const semanticProjection = ({
+    buildIdentity: _buildIdentity,
+    generatedAtCommit: _generatedAtCommit,
+    ...value
+  }) => value;
+  const expectedSemantic = JSON.stringify(semanticProjection(catalog));
+  const existingSemantic =
+    existing === null ? null : JSON.stringify(semanticProjection(existing));
+  if (existingSemantic !== expectedSemantic) {
     fail(
       `control-catalog/generated/control-catalog.v1.json is stale. Regenerate with ` +
         '`node scripts/generate-control-catalog.mjs` and commit the result.',

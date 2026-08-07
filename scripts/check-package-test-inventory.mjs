@@ -673,7 +673,7 @@ export function checkPackageTestInventories(options = {}) {
 // generated-surface canonical-store/room, replacement, and cleanup suite.
 // 217 -> 218 (2026-08-06, LLP 0178/LLP 0187 T2): @expo/snapback-codegen's
 // guidePointer remediation-kind suite landed in the configured test script
-// without a canonical inventory entry; registered here.
+// without a canonical inventory entry (`6da170bf1`); registered here.
 // 218 -> 220 (2026-08-06, LLP 0180 / LLP 0179 S2): the client and React
 // packages gain the command phase/outcome and named-projection suites.
 // 220 -> 221 (2026-08-06, LLP 0157 §D8): @expo/snapback-codegen gains the

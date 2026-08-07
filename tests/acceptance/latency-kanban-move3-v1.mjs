@@ -14,12 +14,12 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { generate } from '../../packages/snapback-codegen/index.mjs';
 import { SnapbackClient } from '../../packages/snapback-client/index.mjs';
 import { createFileRqsResumeStore } from '../../packages/snapback-client/rqs-store-file.mjs';
-import { importGeneratedModule, readGeneratedJson } from '../../demos/_kit/generated-artifacts.mjs';
+import { readGeneratedJson } from '../../demos/_kit/generated-artifacts.mjs';
 import { startServer } from '../../demos/_kit/server-process.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -58,6 +58,10 @@ const SERVER_BINARY = resolve(process.env.SNAPBACK_RUNTIME_BINARY || join(ROOT, 
 const SECTION_NAMES = Object.freeze([
   'sourceIdentity', 'localEvaluation', 'settlement', 'observerConvergence', 'lossFreeReload',
 ]);
+let generatedImportNonce = 0;
+const importFreshGeneratedApi = () => import(
+  `${pathToFileURL(join(GENERATED, 'api.mjs')).href}?acceptance=${generatedImportNonce += 1}`
+);
 const VERBS = Object.freeze(['createCard', 'editCard', 'assignCard', 'archiveCard', 'reorderCard']);
 
 const sha256Hex = (bytes) => createHash('sha256').update(bytes).digest('hex');
@@ -77,8 +81,8 @@ async function waitUntil(predicate, label, timeoutMs = 10_000) {
   assert.fail(`timed out waiting for ${label}`);
 }
 
-function staticIdentityEvidence() {
-  const { api } = readGeneratedApiSync();
+async function staticIdentityEvidence() {
+  const { api } = await importFreshGeneratedApi();
   const plans = Object.fromEntries(VERBS.map((name) => {
     const ref = api[name];
     assert.equal(ref.mutationIr.capabilityClass, 'local-executable');
@@ -97,16 +101,6 @@ function staticIdentityEvidence() {
   assert.equal(app.includes('optimisticOperation'), false);
   assert.equal(app.includes('createOptimisticMutationView'), true);
   return { generatedPlans: plans, applicationAuthoredDuplicateTransforms: 0 };
-}
-
-function readGeneratedApiSync() {
-  const url = new URL('../../demos/latency-kanban/snapback/generated/api.mjs', import.meta.url);
-  // Static evidence needs synchronous source parsing only for --check; normal
-  // execution replaces this placeholder with the imported module below.
-  const source = readFileSync(fileURLToPath(url), 'utf8');
-  const match = source.match(/const references = (\{[\s\S]*\});\nfor \(const reference/u);
-  assert(match, 'generated api reference block is present');
-  return { api: JSON.parse(match[1]) };
 }
 
 async function openClient(server, directory, clientStoreId) {
@@ -171,7 +165,7 @@ async function runRealExit() {
     const schema = readGeneratedJson(GENERATED, 'schema.manifest.json');
     const functions = readGeneratedJson(GENERATED, 'functions.manifest.json');
     await writeFile(startupArtifacts, `${JSON.stringify({ formatVersion: 1, schema, functions })}\n`);
-    const generated = await importGeneratedModule(GENERATED, 'api.mjs');
+    const generated = await importFreshGeneratedApi();
     const api = generated.api;
     assert.ok(generated.artifacts.trustedCompositionActivation);
 
@@ -400,7 +394,7 @@ async function runRealExit() {
     assert.equal(reloadRecords.filter((record) => record.id === queued.queued.clientMutationId).length, 1);
 
     return {
-      sourceIdentity: staticIdentityEvidence(),
+      sourceIdentity: await staticIdentityEvidence(),
       localEvaluation: {
         allFivePaintedFromIr: true,
         latencyMs: Object.fromEntries(VERBS.map((name) => [
@@ -549,7 +543,10 @@ async function verifyReceipt() {
 
 async function main() {
   if (process.argv.includes('--check')) return verifyReceipt();
-  const identity = staticIdentityEvidence();
+  await rm(join(BACKEND, 'trusted-composition-activation.json'), { force: true });
+  const initialGeneration = await generate(BACKEND);
+  assert.equal(initialGeneration.ok, true, JSON.stringify(initialGeneration.diagnostics));
+  const identity = await staticIdentityEvidence();
   let real = null;
   let block = null;
   try {
