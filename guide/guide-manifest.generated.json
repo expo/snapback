@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "1a4463d767cf01a1af0bf68ef606c7074824c7fa"
+    "commit": "0d1dde942b0fd0e29406fd5404ee8c753b324d1f"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -2888,12 +2888,13 @@
         "llp/0186-agent-authoring-efficiency-program.plan.md",
         "demos/card-game/snapback/functions.mjs",
         "demos/card-game/tests/acceptance/authority-scope.mjs",
-        "packages/snapback-codegen/asset-upload-authoring.test.mjs",
+        "demos/expo-golden-path-fixture/snapback/schema.mjs",
+        "demos/expo-golden-path-fixture/snapback/functions.mjs",
         "demos/expo-golden-path-fixture/src/screens/chat-screen.tsx",
         "demos/competitive-checkpoint/snapback/functions.mjs",
         "demos/messaging-snapback/src/lib/useTyping.ts",
         "demos/cursors-web/snapback/schema.mjs",
-        "demos/partiful-matrix/native/react-expo/App.js"
+        "packages/snapback-react/exact-result-types.fixture.ts"
       ],
       "examples": [
         "demos/card-game",
@@ -2904,8 +2905,8 @@
         "demos/partiful-matrix"
       ],
       "reviewed": "2026-08-07",
-      "reviewedCommit": "HEAD",
-      "sha256": "46d3a5ad63cbadbbc8e74e3b43c23bf4061a02720b931fcec6f087767b343ae6",
+      "reviewedCommit": "0d1dde942b0fd0e29406fd5404ee8c753b324d1f",
+      "sha256": "511a2c5a87c48907a10c12fced1a3e138eacd949129c7da320a29396960298ee",
       "snippets": [
         {
           "lang": "ts",
@@ -2936,12 +2937,12 @@
         {
           "lang": "js",
           "class": "transcluded",
-          "source": "packages/snapback-codegen/asset-upload-authoring.test.mjs"
+          "source": "demos/expo-golden-path-fixture/snapback/schema.mjs"
         },
         {
           "lang": "js",
           "class": "transcluded",
-          "source": "packages/snapback-codegen/asset-upload-authoring.test.mjs"
+          "source": "demos/expo-golden-path-fixture/snapback/functions.mjs"
         },
         {
           "lang": "tsx",
@@ -2984,9 +2985,9 @@
           "class": "fragment"
         },
         {
-          "lang": "js",
+          "lang": "ts",
           "class": "transcluded",
-          "source": "demos/partiful-matrix/native/react-expo/App.js"
+          "source": "packages/snapback-react/exact-result-types.fixture.ts"
         }
       ]
     },
@@ -3503,5 +3504,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "accc06d3ce304ab52429893f016a0a77069666a9c26afbf5ffe18d6fbca8a5e6"
+  "contentHash": "340b01f90db722fd1e4349d0d5f5c9f87cafda073b50d41679511834e58ff849"
 }

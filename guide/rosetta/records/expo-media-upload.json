@@ -21,7 +21,8 @@
     }
   ],
   "snapbackSources": [
-    "packages/snapback-codegen/asset-upload-authoring.test.mjs",
+    "demos/expo-golden-path-fixture/snapback/schema.mjs",
+    "demos/expo-golden-path-fixture/snapback/functions.mjs",
     "demos/expo-golden-path-fixture/src/screens/chat-screen.tsx"
   ],
   "backlinkPages": [
