@@ -5,6 +5,7 @@
 **Systems:** Storage, Runtime, Sync, Auth, Effects, Migrations, Agent experience, Diagnostics, Testing, Performance
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-03
+**Revised:** 2026-08-06 (v0.46 — round-7 Fable found canonical JSON enforcement applied only to verdict sidecars, leaving every other publication-chain object exposed to duplicate-member last-wins parsing; the derived named-author acceptance could therefore visibly deny acceptance or visibly retain a six-round history while the oracle parsed approval or a fabricated round-1 restart. One closed parser boundary now enforces the invariant that no publication-chain JSON is ever read non-canonically across anchors, carriers, receipts, author acceptances, evidence fixtures, benchmark receipts, and verdict sidecars, with A4/A5 and per-artifact duplicate-member negatives. The transcript-recoverable Codex and Fable round-6 prose is restored verbatim to all four artifacts; all four sidecars are consistently chained v2 histories with rounds 1–6 and the recorded Scope-1 READY / Scope-2 NOT_READY values at `bdc682964`. `reviewArtifactSha256` is stated plainly as a current-state binding with no append-only strength of its own; the author-accepted `(roundCount, headEntrySha256)` is the sole review-history root of trust. Both anchors remain withheld pending fresh round-7 verdicts against the new qualification commit and new named-author acceptance of their exact heads.)
 **Revised:** 2026-08-06 (v0.45 — the round-6 Codex adversarial review found that a complete verdict file could be deleted and restarted at round 1, and that implementation-tree v1 omitted Git mode/object type. Verdict authority is now `snapback.review-verdicts.v2`: every entry hashes the prior entry's canonical bytes, and named-author acceptance binds the exact round count and head-entry digest for all four histories, so truncation, restart, or replacement refuses relative to the accepted chain. The implementation digest is now `snapback:agent-safe-implementation-tree:v2`, hashing mode, object type, path, and bytes for every leaf and the `160000 commit` Ibex gitlink. Carrier, receipt, and author-acceptance contracts name that version explicitly; all v1 digests and artifacts that name them are stale and cannot publish. The stored v1 reviewer artifacts are preserved unmodified, both anchors remain withheld, and fresh v2 histories, a fresh qualification commit, fresh cross-family verdicts, and new named-author acceptance are required.)
 **Revised:** 2026-08-06 (v0.44 — round-6 publication-oracle closure: every fork-review verdict sidecar must equal its canonical `JSON.stringify(parsed, null, 2) + "\\n"` bytes, so duplicate JSON members and every byte-level non-canonical form refuse before shape or verdict interpretation. The per-entry prose digest is explicitly a current-complete-artifact binding, not a historical as-of-round claim; restoring the four transcript-recovered round-4 sections therefore rotates all five entries in each sidecar without changing any verdict. The separate legacy storage-review Markdown path now requires exactly one occurrence of every declared field, so an appended blocking verdict cannot be shadowed by an earlier READY line; it remains a single-document compatibility path with no structured round history, and both publication anchors remain withheld.)
 **Revised:** 2026-08-06 (v0.43 — the round-5 Codex adversarial review proved that v0.42's prose-verdict parser still published through four independent Markdown shapes: a verdict inside a fenced quotation, a lower-numbered historical round appended last, tab-delimited CommonMark headings hiding the actual final round, and a second conflicting Scope-1 table ignored after the first. Review authority is redesigned as four fixed-locator, exact-shape JSON verdict histories beside the still-required prose artifacts. Every entry binds its prose path and digest, family, round, reviewed commit, and typed Scope-1 or Scope-2 value; histories must be contiguous and commit-monotonic, the highest round must name qualification C, the two families must be distinct, and the verdict-file digests join the receipt and author-acceptance chain. Missing, malformed, duplicated, reordered, unknown-field, family-mismatched, commit-mismatched, or non-READY authority refuses. No prose body is parsed for authority. Both anchors remain withheld: at `b08e835f1`, both families record LLP 0163/0164/0165 READY and Scope 2 NOT READY pending this defect, so a fresh structured round at a new qualification commit is required before publication)
@@ -2394,6 +2395,16 @@ Acceptance rows 1–4/13/14, distinct Fable
 and Codex `READY` verdicts, Charlie's scoped acceptance, and every wider fact
 remaining `Missing`.
 
+Every JSON artifact in either publication chain is structured, closed, and
+fail-closed. **No publication-chain JSON is ever read non-canonically.** One
+parser boundary requires an anchor, carrier, receipt, author acceptance,
+evidence fixture, benchmark receipt, or verdict sidecar's complete bytes to
+equal `JSON.stringify(parsed, null, 2) + '\n'` before any shape, value, digest,
+or authority check. This rejects duplicate member names, alternate whitespace
+or line endings, missing or extra final newlines, and every representation that
+does not round-trip to exactly what the checker parsed. There is no weaker
+publication-path JSON reader for a new artifact to select accidentally.
+
 Review verdict authority is structured, closed, and fail-closed. Each of the
 four fixed prose review locators has exactly one fixed adjacent
 `*.verdicts.v1.json` locator (the legacy locator spelling is fixed; publication
@@ -2404,13 +2415,7 @@ authoritative or parsed for a verdict**. Its sidecar has exact top-level keys
 `reviewArtifact`, `reviewArtifactSha256`, `family`, `round`,
 `reviewedCommit`, `previousEntrySha256`, and `verdict`. The typed verdict is either the closed
 Scope-1 map for LLPs 0163/0164/0165 or the closed Scope-2 publication status,
-and its only values are `READY` and `NOT_READY`. Before any shape or value
-check, the checker requires the sidecar's complete bytes to equal
-`JSON.stringify(parsed, null, 2) + '\n'`. This one canonical-form assertion
-applies to all four structured verdict artifacts and rejects duplicate member
-names, alternate whitespace/line endings, missing or extra final newlines, and
-any other representation that does not round-trip to exactly what the checker
-parsed.
+and its only values are `READY` and `NOT_READY`.
 
 Every v2 history starts at round 1 and is stored in strictly increasing,
 contiguous order. Round 1 has `previousEntrySha256: null`; each later entry
@@ -2426,7 +2431,12 @@ claim about the artifact bytes as they existed when that historical round was
 recorded. Consequently appending or restoring prose requires rewriting that
 field in all earlier entries, recomputing their predecessor chain, and rotating
 the enclosing receipt chain; the JSON history is logically ordered but not
-physically append-only. The authoritative entry must name the exact
+physically append-only. It has **no append-only property of its own**: anyone
+able to rewrite all entries can recompute this field and the predecessor chain.
+All review-history strength therefore rests on the named-author accepted
+`(roundCount, headEntrySha256)` pair; that acceptance is the sole root of trust
+against deletion, restart, or replacement of an otherwise internally valid
+history. The authoritative entry must name the exact
 qualification commit C. The two fixed review pairs must contain distinct Codex
 and Fable families, and the family must match the fixed prose artifact.
 
@@ -2474,15 +2484,18 @@ for LLPs 0163/0164/0165 are `READY`, and both Scope-2 verdicts are
 withheld. Since this checker redesign changes the qualified implementation
 tree, publication requires a fresh structured highest round bound to the new
 qualification commit; historical READY prose or sidecars bound to
-`b08e835f1` cannot qualify it. The four checked-in verdict sidecars and the
-derived receipt/acceptance artifact remain unmodified v1 historical records;
-the v2 checker refuses them as publication authority. Publication remains
-blocked until the fixes land in a fresh qualification C, both reviewer families
-write fresh v2 histories whose new highest entries name that C and are `READY`
-for their applicable scopes, the two release-platform receipts are rebound,
-and Charlie provides new v2 named-author acceptance for the exact history
-counts/heads and implementation digest. Only then may a v2 receipt/carrier be
-constructed and the source anchor be considered for `published`.
+`b08e835f1` cannot qualify it. The transcript-recoverable round-6 bodies are now
+restored verbatim in all four prose artifacts, and all four checked-in sidecars
+are v2 histories containing contiguous rounds 1–6. Their recorded round-6
+values are unchanged: both families have Scope 1 `READY` for LLPs
+0163/0164/0165 and Scope 2 `NOT_READY` at `bdc682964`. Publication remains
+blocked until the canonical-reader fix lands in a fresh qualification C, both
+reviewer families append fresh round-7 entries whose highest verdicts name that
+C and are `READY` for their applicable scopes, the two release-platform
+receipts are rebound, and Charlie provides new v2 named-author acceptance for
+the exact history counts/heads and implementation digest. Only then may a v2
+receipt/carrier be constructed and the source anchor be considered for
+`published`.
 
 The older `agent_safe_storage_v1` review path has not migrated to these
 structured sidecars. Its compatibility validator still consumes one fixed

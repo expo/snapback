@@ -5,22 +5,81 @@
   "implementationTreeSha256": "sha256:2cad36279fbb319c4b828026c1fc0c2ed2d8ac38bffc14bd2ba39b3849eedf33",
   "candidateFactsSha256": "sha256:b487d69d7a0392626e01f39e7fa81bd85251291c5ed119cd38a6cc30e50bfc88",
   "qualifiedTargetProfileId": "local-dev-sqlite-ibex",
-  "negativeTargetProfileIds": ["cloudflare-do-sqlite-v8", "remote-service-sqlite-ibex"],
-  "negativeBuildDistributions": ["public-package"],
-  "qualifiedComponents": ["derivedDeploymentForkSafetyV1"],
+  "negativeTargetProfileIds": [
+    "cloudflare-do-sqlite-v8",
+    "remote-service-sqlite-ibex"
+  ],
+  "negativeBuildDistributions": [
+    "public-package"
+  ],
+  "qualifiedComponents": [
+    "derivedDeploymentForkSafetyV1"
+  ],
   "evidence": [
-    { "kind": "lifecycleBenchMacos", "path": "tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.macos-aarch64.v1.json", "sha256": "sha256:60ba7f2c3f786fe784ba6d6db1ecc3fa780c9009da2af36efb6416ef92d89d0b" },
-    { "kind": "lifecycleBenchLinux", "path": "tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.linux-x86_64.v1.json", "sha256": "sha256:c227ff46c97521e6f3a62c9a97fb0028c309cf669ad85a24e721f8b3b4f05f0e" },
-    { "kind": "boundsRatification", "path": "tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.v1.json", "sha256": "sha256:4c61c8c85a0890484c422a0f87a5e26707ab8419f919095e62861e1d6dbd18e2" },
-    { "kind": "assetLifecycleEvidence", "path": "tests/acceptance/asset-lifecycle-v1-evidence.md", "sha256": "sha256:222eba70394ac3fa812525766f9d514a88d876386f5413dfc6f4c367bc444ff2" },
-    { "kind": "specReviewCodex", "path": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.md", "sha256": "sha256:4e5ba5e1585b7a493d46ca0637fdb06539a650ad087b4c30896f41b6986a7bac" },
-    { "kind": "specReviewCodexVerdicts", "path": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.verdicts.v1.json", "sha256": "sha256:6f4b34396005150c3c0510ae9f82df8c1e1469ab5be66b9c31b17a4724165514" },
-    { "kind": "specReviewFable", "path": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md", "sha256": "sha256:c3162fe72452c24ffffd6d1d73804f8b53d7b7f06658380482d60d8c19e2b434" },
-    { "kind": "specReviewFableVerdicts", "path": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.verdicts.v1.json", "sha256": "sha256:00cccccbfc7b1dc798a182530483c2fd64378f035e3bfb5ee51ecf1b1996afe8" },
-    { "kind": "implementationReviewCodex", "path": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md", "sha256": "sha256:3168298b5bff38b569f359d126e3c50b7af074cbff43365a4ceb9285c2393ff5" },
-    { "kind": "implementationReviewCodexVerdicts", "path": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.verdicts.v1.json", "sha256": "sha256:75d840af2916ef3d0cabcfe3e7dc86f1811c35a84c43ec294f2f9d30cfef875c" },
-    { "kind": "implementationReviewFable", "path": "llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md", "sha256": "sha256:4e76b69d176aa83220c7152bdcf2c0e21a92f7a787f7b2c2847295d97a321046" },
-    { "kind": "implementationReviewFableVerdicts", "path": "llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.verdicts.v1.json", "sha256": "sha256:8e445a9ba6595f5a7724e4d94e888d26b4095f02d5d68b0db05c446d4e8a5f1b" },
-    { "kind": "authorAcceptance", "path": "tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-06.v1.json", "sha256": "sha256:38bd61dbaf7abee0ffc33daee59035a92787664343ad0e89e911b8247e92e8ba" }
+    {
+      "kind": "lifecycleBenchMacos",
+      "path": "tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.macos-aarch64.v1.json",
+      "sha256": "sha256:60ba7f2c3f786fe784ba6d6db1ecc3fa780c9009da2af36efb6416ef92d89d0b"
+    },
+    {
+      "kind": "lifecycleBenchLinux",
+      "path": "tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.linux-x86_64.v1.json",
+      "sha256": "sha256:c227ff46c97521e6f3a62c9a97fb0028c309cf669ad85a24e721f8b3b4f05f0e"
+    },
+    {
+      "kind": "boundsRatification",
+      "path": "tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.v1.json",
+      "sha256": "sha256:4c61c8c85a0890484c422a0f87a5e26707ab8419f919095e62861e1d6dbd18e2"
+    },
+    {
+      "kind": "assetLifecycleEvidence",
+      "path": "tests/acceptance/asset-lifecycle-v1-evidence.md",
+      "sha256": "sha256:222eba70394ac3fa812525766f9d514a88d876386f5413dfc6f4c367bc444ff2"
+    },
+    {
+      "kind": "specReviewCodex",
+      "path": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.md",
+      "sha256": "sha256:4e5ba5e1585b7a493d46ca0637fdb06539a650ad087b4c30896f41b6986a7bac"
+    },
+    {
+      "kind": "specReviewCodexVerdicts",
+      "path": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.verdicts.v1.json",
+      "sha256": "sha256:6f4b34396005150c3c0510ae9f82df8c1e1469ab5be66b9c31b17a4724165514"
+    },
+    {
+      "kind": "specReviewFable",
+      "path": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md",
+      "sha256": "sha256:c3162fe72452c24ffffd6d1d73804f8b53d7b7f06658380482d60d8c19e2b434"
+    },
+    {
+      "kind": "specReviewFableVerdicts",
+      "path": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.verdicts.v1.json",
+      "sha256": "sha256:00cccccbfc7b1dc798a182530483c2fd64378f035e3bfb5ee51ecf1b1996afe8"
+    },
+    {
+      "kind": "implementationReviewCodex",
+      "path": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
+      "sha256": "sha256:3168298b5bff38b569f359d126e3c50b7af074cbff43365a4ceb9285c2393ff5"
+    },
+    {
+      "kind": "implementationReviewCodexVerdicts",
+      "path": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.verdicts.v1.json",
+      "sha256": "sha256:75d840af2916ef3d0cabcfe3e7dc86f1811c35a84c43ec294f2f9d30cfef875c"
+    },
+    {
+      "kind": "implementationReviewFable",
+      "path": "llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md",
+      "sha256": "sha256:4e76b69d176aa83220c7152bdcf2c0e21a92f7a787f7b2c2847295d97a321046"
+    },
+    {
+      "kind": "implementationReviewFableVerdicts",
+      "path": "llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.verdicts.v1.json",
+      "sha256": "sha256:8e445a9ba6595f5a7724e4d94e888d26b4095f02d5d68b0db05c446d4e8a5f1b"
+    },
+    {
+      "kind": "authorAcceptance",
+      "path": "tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-06.v1.json",
+      "sha256": "sha256:38bd61dbaf7abee0ffc33daee59035a92787664343ad0e89e911b8247e92e8ba"
+    }
   ]
 }

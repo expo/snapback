@@ -1,7 +1,9 @@
 {
   "schemaVersion": "snapback.local-capability-publication.v1",
   "targetProfileId": "local-dev-sqlite-ibex",
-  "capabilityIds": ["single_table_v1"],
+  "capabilityIds": [
+    "single_table_v1"
+  ],
   "maturity": "experimental",
   "qualificationReceiptSha256": "sha256:41a32f0af2c1d41347aee3d4547f8800d236da228c32d380ea24cdab223a1ae7",
   "supportingReceiptSha256": {

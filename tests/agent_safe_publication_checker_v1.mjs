@@ -385,6 +385,14 @@ function writeJson(rootPath, path, value) {
   return bytes;
 }
 
+function duplicateTopLevelMember(canonicalBytes, key, visibleValue) {
+  const text = canonicalBytes.toString();
+  const needle = `  ${JSON.stringify(key)}: `;
+  assert.ok(text.includes(needle), `missing top-level fixture member ${key}`);
+  const visible = `${needle}${JSON.stringify(visibleValue, null, 2).replaceAll('\n', '\n  ')},\n`;
+  return Buffer.from(text.replace(needle, `${visible}${needle}`));
+}
+
 function derivedReviewBytes(kind, family) {
   const provenance = [
     `**Family:** ${family}`,
@@ -477,14 +485,17 @@ function storageReviewBytes(family, commit, implementationTree) {
 }
 
 function publishedDerivedFixture({
+  acceptMutatedReviewHistories = false,
   omitReview,
   omitAuthor = false,
   zeroAuthorDigest = false,
   mutateMacos,
+  mutateAcceptance,
   notReadyReview,
   malformedVerdict,
   mutateReview,
   mutateVerdict,
+  serializeJson,
   serializeVerdict,
 } = {}) {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-derived-fork-publication-'));
@@ -518,7 +529,10 @@ function publishedDerivedFixture({
       const value = JSON.parse(readFileSync(join(root, path)));
       value.environment.commit = commit;
       if (kind === 'lifecycleBenchMacos') mutateMacos?.(value);
-      bytes = writeJson(scratch, path, value);
+      const canonicalBytes = Buffer.from(`${JSON.stringify(value, null, 2)}\n`);
+      bytes = serializeJson?.(kind, value, canonicalBytes) ?? canonicalBytes;
+      mkdirSync(dirname(join(scratch, path)), { recursive: true });
+      writeFileSync(join(scratch, path), bytes);
     } else if (kind === 'assetLifecycleEvidence') {
       bytes = readFileSync(join(root, path));
       mkdirSync(dirname(join(scratch, path)), { recursive: true });
@@ -535,12 +549,18 @@ function publishedDerivedFixture({
         reviewBytes.get(reviewKind),
         reviewKind !== notReadyReview,
       );
-      acceptedReviewHistoryHeads.set(kind, reviewHistoryHead(value));
+      const originalHistoryHead = reviewHistoryHead(value);
       mutateVerdict?.(kind, value);
+      acceptedReviewHistoryHeads.set(
+        kind,
+        acceptMutatedReviewHistories ? reviewHistoryHead(value) : originalHistoryHead,
+      );
       const canonicalBytes = Buffer.from(`${JSON.stringify(value, null, 2)}\n`);
       bytes = kind === malformedVerdict
         ? Buffer.from('{"schemaVersion":')
-        : serializeVerdict?.(kind, value, canonicalBytes) ?? canonicalBytes;
+        : serializeVerdict?.(kind, value, canonicalBytes)
+          ?? serializeJson?.(kind, value, canonicalBytes)
+          ?? canonicalBytes;
       if (path !== omitReview) {
         mkdirSync(dirname(join(scratch, path)), { recursive: true });
         writeFileSync(join(scratch, path), bytes);
@@ -577,8 +597,13 @@ function publishedDerivedFixture({
     evidenceSha256: Object.fromEntries(bindings.map(({ kind, sha256 }) => [kind, sha256])),
     reviewHistoryHeads: Object.fromEntries(acceptedReviewHistoryHeads),
   };
+  mutateAcceptance?.(acceptance);
   const [authorKind, authorPath] = derivedEvidence.at(-1);
-  const authorBytes = writeJson(scratch, authorPath, acceptance);
+  const canonicalAuthorBytes = Buffer.from(`${JSON.stringify(acceptance, null, 2)}\n`);
+  const authorBytes = serializeJson?.(authorKind, acceptance, canonicalAuthorBytes)
+    ?? canonicalAuthorBytes;
+  mkdirSync(dirname(join(scratch, authorPath)), { recursive: true });
+  writeFileSync(join(scratch, authorPath), authorBytes);
   if (omitAuthor) unlinkSync(join(scratch, authorPath));
   bindings.push({
     kind: authorKind,
@@ -599,7 +624,11 @@ function publishedDerivedFixture({
     qualifiedComponents: [...derived.components],
     evidence: bindings,
   };
-  const receiptBytes = writeJson(scratch, derived.receipt, receipt);
+  const canonicalReceiptBytes = Buffer.from(`${JSON.stringify(receipt, null, 2)}\n`);
+  const receiptBytes = serializeJson?.('receipt', receipt, canonicalReceiptBytes)
+    ?? canonicalReceiptBytes;
+  mkdirSync(dirname(join(scratch, derived.receipt)), { recursive: true });
+  writeFileSync(join(scratch, derived.receipt), receiptBytes);
   const carrier = {
     schemaVersion: 'snapback.local-agent-safe-publication.v2',
     capabilityId: derived.id,
@@ -613,13 +642,22 @@ function publishedDerivedFixture({
     buildProvenanceRequirement: 'known-clean-contributor-source',
     candidateFacts,
   };
-  const carrierBytes = writeJson(scratch, derived.carrier, carrier);
-  writeJson(scratch, derived.anchor, {
+  const canonicalCarrierBytes = Buffer.from(`${JSON.stringify(carrier, null, 2)}\n`);
+  const carrierBytes = serializeJson?.('carrier', carrier, canonicalCarrierBytes)
+    ?? canonicalCarrierBytes;
+  mkdirSync(dirname(join(scratch, derived.carrier)), { recursive: true });
+  writeFileSync(join(scratch, derived.carrier), carrierBytes);
+  const anchor = {
     schemaVersion: 'snapback.local-capability-publication-anchor.v1',
     capabilityId: derived.id,
     state: 'published',
     carrierSha256: digest(carrierBytes),
-  });
+  };
+  const canonicalAnchorBytes = Buffer.from(`${JSON.stringify(anchor, null, 2)}\n`);
+  const anchorBytes = serializeJson?.('anchor', anchor, canonicalAnchorBytes)
+    ?? canonicalAnchorBytes;
+  mkdirSync(dirname(join(scratch, derived.anchor)), { recursive: true });
+  writeFileSync(join(scratch, derived.anchor), anchorBytes);
   return scratch;
 }
 
@@ -645,10 +683,9 @@ function localStoreTransformFixture() {
     encoding: 'utf8',
   }).trim();
   for (const { path } of LOCAL_STORE_PUBLICATION_TRANSFORM.receipts) {
-    writeFileSync(join(scratch, path), Buffer.concat([
-      readFileSync(join(scratch, path)),
-      Buffer.from(' '),
-    ]));
+    const value = JSON.parse(readFileSync(join(scratch, path)));
+    value.publicationTransformTestNonce = 'rotated-canonical-receipt';
+    writeJson(scratch, path, value);
   }
   const expected = expectedLocalStorePublicationTransform(scratch, qualification);
   for (const [path, bytes] of expected) writeFileSync(join(scratch, path), bytes);
@@ -674,7 +711,7 @@ test('withheld anchor cannot smuggle a carrier digest', () => {
   const path = join(scratch, storage.anchor);
   const value = JSON.parse(readFileSync(path));
   value.carrierSha256 = `sha256:${'a'.repeat(64)}`;
-  writeFileSync(path, JSON.stringify(value));
+  writeJson(scratch, storage.anchor, value);
   assert.throws(() => validatePublicationRecord(scratch, storage), /carries authority/u);
 });
 
@@ -688,7 +725,7 @@ test('target, evidence locator, and receipt shape tampering fail before publicat
     const path = join(scratch, storage.receipt);
     const value = JSON.parse(readFileSync(path));
     mutate(value);
-    writeFileSync(path, JSON.stringify(value));
+    writeJson(scratch, storage.receipt, value);
     assert.throws(() => validatePublicationRecord(scratch, storage));
   }
 });
@@ -702,33 +739,42 @@ test('derived receipt rejects storage-evidence substitution while withheld', () 
     path: 'tests/acceptance/fixtures/agent-safe-storage/acceptance-corpus.2026-08-04.v1.json',
     sha256: `sha256:${'0'.repeat(64)}`,
   };
-  writeFileSync(path, JSON.stringify(value));
+  writeJson(scratch, derived.receipt, value);
   assert.throws(() => validatePublicationRecord(scratch, derived), /evidence 0 drifted/u);
 });
 
-test('checked-in v1 verdict histories remain preserved but cannot qualify v2 publication', () => {
-  const qualificationCommit = 'b08e835f112517cf1629a842f5bcae12841ddcf0';
+test('checked-in verdict histories preserve the recovered round 6 as contiguous v2 chains', () => {
+  const qualificationCommit = 'bdc68296499298f634d9aa461e90fb8d1a7d4ab0';
   const contracts = [
-    [5, 'forkSpecConformance'],
-    [7, 'forkSpecConformance'],
-    [9, 'derivedForkPublication'],
-    [11, 'derivedForkPublication'],
+    [5, 'forkSpecConformance', true],
+    [7, 'forkSpecConformance', true],
+    [9, 'derivedForkPublication', false],
+    [11, 'derivedForkPublication', false],
   ];
-  for (const [verdictIndex, expectedKind] of contracts) {
+  for (const [verdictIndex, expectedKind, ready] of contracts) {
     const value = JSON.parse(readFileSync(join(root, derivedEvidence[verdictIndex][1])));
-    assert.equal(value.schemaVersion, 'snapback.review-verdicts.v1');
-    assert.deepEqual(value.verdicts.map(({ round }) => round), [1, 2, 3, 4, 5]);
+    assert.equal(value.schemaVersion, 'snapback.review-verdicts.v2');
+    assert.deepEqual(value.verdicts.map(({ round }) => round), [1, 2, 3, 4, 5, 6]);
     assert.equal(value.verdicts.at(-1).reviewedCommit, qualificationCommit);
-    assert.throws(
-      () => validateDerivedForkReview(root, {
-        reviewIndex: verdictIndex - 1,
-        verdictIndex,
-        expectedKind,
-        qualificationCommit,
-      }),
-      /complete v2 history is required/u,
-    );
+    const validated = validateDerivedForkReview(root, {
+      reviewIndex: verdictIndex - 1,
+      verdictIndex,
+      expectedKind,
+      qualificationCommit,
+    });
+    assert.equal(validated.round, 6);
+    assert.equal(validated.roundCount, 6);
+    assert.equal(validated.ready, ready);
   }
+});
+
+test('publication-chain JSON has one canonical parser boundary and no legacy evidence reader', () => {
+  const source = readFileSync(join(root, 'scripts/check-agent-safe-publication.mjs'), 'utf8');
+  assert.match(source, /no publication-chain JSON is ever read non-canonically/u);
+  assert.doesNotMatch(source, /function readEvidenceJson/u);
+  const parseSites = source.split('\n').filter((line) => line.includes('JSON.parse('));
+  assert.equal(parseSites.length, 3, `unexpected bare JSON.parse site:\n${parseSites.join('\n')}`);
+  assert.ok(parseSites.some((line) => line.includes('value = JSON.parse(text)')));
 });
 
 test('published derived-fork chain accepts final READY after historical NOT READY verdicts', () => {
@@ -935,6 +981,94 @@ test('published derived-fork chain refuses duplicate verdict histories', () => {
     () => validatePublicationRecord(scratch, derived),
     /verdict contract is not canonical JSON/u,
   );
+});
+
+test('A4 refuses a visibly false named-author acceptance with a later duplicate true', () => {
+  const scratch = publishedDerivedFixture({
+    serializeJson: (kind, _value, canonicalBytes) => {
+      if (kind !== 'authorAcceptance') return canonicalBytes;
+      const bytes = duplicateTopLevelMember(canonicalBytes, 'accepted', false);
+      assert.equal(JSON.parse(bytes).accepted, true, 'fixture must exercise JSON last-wins');
+      assert.match(bytes.toString(), /"accepted": false,\n  "accepted": true/u);
+      return bytes;
+    },
+  });
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /derived-fork author acceptance is not canonical JSON/u,
+  );
+});
+
+test('A5 refuses a restarted READY history hidden behind duplicate accepted history heads', () => {
+  const scratch = publishedDerivedFixture({
+    acceptMutatedReviewHistories: true,
+    mutateVerdict: (kind, value) => {
+      if (kind !== 'implementationReviewFableVerdicts') return;
+      const final = value.verdicts.at(-1);
+      value.verdicts = [{
+        reviewArtifact: final.reviewArtifact,
+        reviewArtifactSha256: final.reviewArtifactSha256,
+        family: final.family,
+        round: 1,
+        reviewedCommit: final.reviewedCommit,
+        previousEntrySha256: null,
+        verdict: { kind: 'derivedForkPublication', status: 'READY' },
+      }];
+    },
+    serializeJson: (kind, value, canonicalBytes) => {
+      if (kind !== 'authorAcceptance') return canonicalBytes;
+      const visibleHeads = Object.fromEntries(Object.entries(value.reviewHistoryHeads).map(([
+        historyKind,
+      ]) => [historyKind, {
+        roundCount: 6,
+        headEntrySha256: `sha256:${'a'.repeat(64)}`,
+      }]));
+      const bytes = duplicateTopLevelMember(
+        canonicalBytes,
+        'reviewHistoryHeads',
+        visibleHeads,
+      );
+      assert.equal(
+        JSON.parse(bytes).reviewHistoryHeads.implementationReviewFableVerdicts.roundCount,
+        1,
+        'fixture must parse the hidden restarted history head',
+      );
+      assert.match(bytes.toString(), /"roundCount": 6/u);
+      return bytes;
+    },
+  });
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /derived-fork author acceptance is not canonical JSON/u,
+  );
+});
+
+test('every distinct derived publication-chain JSON artifact rejects duplicate members', () => {
+  const cases = [
+    ['lifecycleBenchMacos', 'schemaVersion', 'visible.invalid'],
+    ['lifecycleBenchLinux', 'schemaVersion', 'visible.invalid'],
+    ['boundsRatification', 'schemaVersion', 'visible.invalid'],
+    ['specReviewCodexVerdicts', 'schemaVersion', 'visible.invalid'],
+    ['specReviewFableVerdicts', 'schemaVersion', 'visible.invalid'],
+    ['implementationReviewCodexVerdicts', 'schemaVersion', 'visible.invalid'],
+    ['implementationReviewFableVerdicts', 'schemaVersion', 'visible.invalid'],
+    ['authorAcceptance', 'accepted', false],
+    ['receipt', 'schemaVersion', 'visible.invalid'],
+    ['carrier', 'schemaVersion', 'visible.invalid'],
+    ['anchor', 'state', 'withheld'],
+  ];
+  for (const [targetKind, key, visibleValue] of cases) {
+    const scratch = publishedDerivedFixture({
+      serializeJson: (kind, _value, canonicalBytes) => kind === targetKind
+        ? duplicateTopLevelMember(canonicalBytes, key, visibleValue)
+        : canonicalBytes,
+    });
+    assert.throws(
+      () => validatePublicationRecord(scratch, derived),
+      /is not canonical JSON/u,
+      targetKind,
+    );
+  }
 });
 
 test('published derived-fork chain refuses byte-level non-canonical verdict forms', () => {

@@ -1435,3 +1435,272 @@ verdict-authority paragraph with the code (R5-7), and add a diagnostic for R5-6.
 Then re-verdict Scope 2 against the resulting commit. The receipt will have to be
 re-minted after that work in any case, because this section changes the bytes of
 two artifacts the current receipt binds.
+
+## Round 6 — 2026-08-06, qualification commit bdc682964
+
+**Family:** fable
+**Provider/runtime:** Anthropic / Claude (Opus 5, Fable family), Claude Code
+agent session
+**Date:** 2026-08-06
+**Redacted:** no
+**Method:** fresh clean-context session; read-only worktree pinned at
+`bdc682964`. I read the committed rounds 1–5 of both families under
+`llp/reviews/` and stayed blind to the codex family's round-6 work — I did not
+open `/Users/ccheever/projects/snapback-review-codex`. I read
+`scripts/check-agent-safe-publication.mjs`, `src/agent_safe_publication.rs` and
+`tests/agent_safe_publication_checker_v1.mjs` at `bdc682964` in full, then
+attacked the checker as a module rather than trusting its self-tests: a 28-case
+adversarial harness that builds throwaway published-fork fixtures in `/tmp` and
+runs the real `validatePublicationRecord` against them, plus a full
+honest-publication dry run that builds a publication commit P on top of C in a
+throwaway `--shared` clone. Cargo was not run: `vendor/ibex` is uninitialized in
+this worktree (gitlink `4c34c831a`, empty directory), which is also why
+`implementationDigestWorkingTree` refuses here. This same section is appended to
+both of my dated fork artifacts; the findings are identical.
+
+### Summary
+
+Commit `bdc682964` moves review authority out of Markdown and into four
+`*.verdicts.v1.json` histories, and that move is real: I confirmed by
+construction that the prose body is never consulted for authority, and 24 of my
+28 attacks were blocked, including every round-4/round-5 prose technique, round
+renumbering, prose detachment, family spoofing and ancestry substitution. The
+two round-4 defects that round 5 called closed stay closed, and I verified the
+digest cycle on the real tree rather than on a fixture: an honest publication P
+built on top of C changes fourteen files and leaves
+`implementationDigestAt(C) == implementationDigestAt(P) ==
+receipt.implementationTreeSha256`, and the checker accepts it.
+
+The gate is nonetheless not closed. The new contract is parsed with
+`JSON.parse`, which resolves duplicate member names last-wins, and nothing
+downstream can see that a duplicate was there — `exactKeys` runs on the parsed
+object, after the collapse. So the defect class rounds 4 and 5 blocked on
+("conflicting duplicates, last wins") survives verbatim; it has only changed
+notation. In its strongest form the whole visible history of a verdict file can
+read `NOT_READY` at every round while the checker reads an appended second
+`"verdicts"` member and publishes. That falsifies the premise the contract rests
+on — that a small typed JSON record is read the same way by the machine and by
+the human auditing it.
+
+Two further facts block an honest publication at this commit independently of
+that: every piece of fork qualification evidence in the tree still names
+`0ee1fadc1`, not C; and the prose/JSON split has already produced a live
+divergence in the checked-in artifacts.
+
+### R6-1 — Duplicate JSON member names defeat the structured verdict gate (Blocking)
+
+`validateDerivedForkReview` reads the contract through `readEvidenceJson`
+(`scripts/check-agent-safe-publication.mjs:1298`, `:647-653`), i.e. `JSON.parse`.
+V8 resolves a repeated member name to the last occurrence and `Object.keys`
+reports it once, so the `exactKeys` guards at `:1299`, `:1308-1311`, `:1339-1341`
+and `:1348` are all structurally blind to it. Three working forms, each verified
+end to end against the real `validatePublicationRecord` on a published fixture:
+
+- **A1** — duplicate `"status"` inside the authoritative verdict object:
+  `{"kind":"derivedForkPublication","status":"NOT_READY","status":"READY"}`
+  parses to `READY` and the chain publishes.
+- **A2** — duplicate `"verdict"` member on the authoritative entry: the blocking
+  verdict object stays in the file, a second `"verdict"` member follows, chain
+  publishes.
+- **A4** — duplicate `"verdicts"` member at the top level. The visible array is
+  a complete history in which *every* round, including the authoritative one,
+  reads `NOT_READY`; a second `"verdicts"` member holding the approving history
+  is appended after it. `exactKeys(value, ['schemaVersion','verdicts'])` at
+  `:1299` passes, the contract validates, `state: published`.
+
+A4 is the round-5 "conflicting duplicate tables" finding with braces instead of
+pipes. It is worse than its Markdown ancestor in one respect: a Markdown table
+is prose and the contract now says prose is not authority, so a reader knows to
+distrust it; the JSON file *is* the authority, so a reader has no reason to
+distrust what it plainly says. `jq`, `git show` and human review of the file all
+report the blocking history.
+
+This is cheap to close, and the fix should not be another key-by-key guard —
+that is how this class has been re-lost four times. Require the file to be its
+own canonical form: read the bytes, and refuse unless
+`JSON.stringify(parsed, null, 2) + '\n'` equals them. That rejects duplicate
+members, hidden members, and any unparsed residue in one comparison, needs no
+vocabulary, and cannot be defeated by a construct nobody has thought of yet,
+because anything that survives the round trip is by definition what the checker
+read. All four checked-in verdict files already satisfy it (verified).
+
+### R6-2 — The prose body is genuinely never consulted, and the detachment is already live (Material)
+
+Confirmed positively, not by reading: attack D3 built a fixture whose four
+review artifacts say `NOT READY` in every section, with the approving JSON
+untouched, and the chain published. `validateDerivedForkReview` reads the prose
+bytes only at `:1292-1297` to hash them; no other call site touches them. The
+round-4/5 prose techniques are therefore dead by construction, which is the
+right shape for the fix.
+
+The cost is that nothing ties the prose to the verdict except a digest, and that
+cost is not hypothetical here. All four checked-in artifacts contain sections for
+rounds 1, 2, 3 and 5 and no round 4 — round 5's own method note records that
+"Round 4 is not committed anywhere in this worktree" — while all four
+`*.verdicts.v1.json` histories assert a round-4 entry with a typed verdict at
+`0b8b0ff71`. Four verdicts of record currently have no prose anywhere in the
+artifact they are bound to. The digest binding cannot detect this, because it
+binds the file, not the claim.
+
+The cheap repair keeps prose out of the authority path: require the prose to
+*contain* the literal heading for the authoritative round and the authoritative
+`reviewedCommit`, as a presence check. That is not verdict interpretation — it
+cannot be steered by quoting a needle — and it makes a round-6 JSON entry
+impossible without a round-6 prose section naming the commit.
+
+### R6-3 — At C, every piece of fork qualification evidence names `0ee1fadc1` (Material)
+
+`validatePublishedDerivedForkEvidenceSemantics` requires both platform benches
+to carry `environment.commit === C` (`:1418-1421` via `:1220-1226`) and the
+author acceptance to carry `qualifiedSourceCommit === C` (`:1386-1391`). In the
+tree at `bdc682964`:
+
+- `tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.macos-aarch64.v1.json`
+  and `…linux-x86_64.v1.json` both record
+  `"commit": "0ee1fadc136e837f430556374a5842ac82069004"`;
+- `tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-06.v1.json`
+  records the same commit and `sha256:2cad3627…`;
+- `tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json`
+  records the same pair.
+
+`implementationDigestAt` at `0ee1fadc1` is `sha256:2cad3627…` — so the receipt is
+internally honest for `0ee1fadc1`, exactly as round 5 found — but at `bdc682964`
+it is `sha256:e6353dc2…`. Meanwhile rounds 4 and 5 of both families are bound to
+`0b8b0ff71` and `b08e835f1`, which are descendants of `0ee1fadc1`, so the
+contract's own monotonicity rule (`:1320-1322`, `:1329-1335`) forbids rewinding
+C to `0ee1fadc1`. The consequence is concrete: **no honest publication can name
+`bdc682964` until both platform lifecycle benches are re-run at `bdc682964` and
+the author re-accepts at `bdc682964`.** Everything here fails closed, so this is
+a precondition rather than a hole — but it means the frozen commit is not
+currently a publishable commit, and a round-6 READY on Scope 2 would not by
+itself unblock anything.
+
+I verified that this precondition is *satisfiable* rather than circular. Dry run:
+throwaway `--shared` clone at C; re-point both benches at C; append an honest
+round-6 entry to all four verdict histories and a round-6 heading to all four
+prose artifacts; regenerate author acceptance, receipt, carrier and anchor;
+commit as P. Result: fourteen files change between C and P,
+`implementationDigestAt(C) == implementationDigestAt(P) == sha256:e6353dc2…`,
+and `validatePublicationRecord` returns `state: published`. The self-referential
+cycle round 4 found is closed on the real tree, not only in the fixture suite.
+
+### R6-4 — The verdict histories are not append-only (Minor)
+
+Every entry must carry `reviewArtifactSha256 === sha256(current prose bytes)`
+(`:1312-1314`), so appending round N forces rewriting the digest field of rounds
+1..N-1. The per-entry digest therefore records nothing historical — it is N
+copies of one value — and any later edit to an early prose section silently
+re-binds the entire history. I had to rewrite all five prior entries in each of
+my two files to append round 6; that is the contract working as written, not a
+violation. If the field is meant to pin what each round actually reviewed, it
+has to be the digest of that round's prose slice, or the file has to record one
+digest at the top; as it stands it is a mandatory-rewrite field that a reviewer
+can only get wrong.
+
+### R6-5 — The same defect class is unfixed on the storage path (Minor, adjacent)
+
+`validateReview` (`:1117-1143`) still gates `agent_safe_storage_v1` on prose,
+through `markdownField` (`:1111-1115`), which returns the **first** match of
+`^\*\*Label:\*\*`. An appended later round that revises `**Verdict:**` to
+`NOT_READY` is shadowed by the round-1 `READY` line — verified. That is the
+round-5 "lower-numbered rounds appended last" defect, alive thirty lines above
+the code that fixed it for forks, in a workflow that demonstrably appends rounds.
+It does not block the fork publication (different capability, `withheld`, and
+both `llp/reviews/0162-…-2026-08-04.{fable,codex}.md` artifacts it names are
+absent from the tree, so that chain fails closed on the missing file first). It
+should not survive the next storage publication attempt.
+
+### R6-6 — What I could not break
+
+For the record, so the next round does not re-spend the budget: schema evasion
+by unknown top-level or verdict fields, `__proto__` inside the verdict,
+`verdicts` as an object, empty `verdicts`, `round` as a string, 0-based rounds,
+duplicated or spliced or reordered rounds, a lower-numbered round appended last,
+`"READY "` with trailing space, a spec-shaped verdict in the publication slot and
+vice versa, a stale digest on any single entry, a verdict pointed at the other
+family's prose artifact, both files claiming one family, a family change
+mid-history, `"Fable"` with a capital F, an authoritative commit on a sibling
+branch, a historical commit on a sibling branch, a nonexistent 40-hex commit, and
+uppercase hex for C. All blocked, each with a specific diagnostic. Truncating
+the blocking tail of a history and declaring an earlier commit as C also
+publishes, but that is outright forgery of the reviewer's record rather than an
+ambiguity the reviewer's own honest artifact permits, and it is defeated
+independently by R6-3's digest binding.
+
+### Scope 1 verdict — LLP 0163 / 0164 / 0165 conformance
+
+**READY at `bdc682964` for all three Specs**, carried forward from rounds 1–5 on
+a verified-inert delta rather than re-derived. What I verified rather than
+assumed:
+
+- `src/instance_fork.rs` and `src/fork_promotion.rs` are byte-identical from
+  `cdc0fe03e` (the round-3 commit) through `bdc682964` — `git diff` over both
+  paths is empty.
+- The fork suites `tests/instance_fork_cli_v1.rs`,
+  `tests/instance_fork_disk_pressure_v1.rs` and
+  `tests/instance_fork_vm_egress_v1.rs` are likewise byte-identical over that
+  span. `tests/instance_fork_bench_v1.rs` is the only fork file that moved
+  (+54/-19) and the diff is entirely `rustfmt` reflow — argument wrapping and a
+  tuple-per-line rewrite of the bounds `checks` array, no bound, metric or
+  assertion changed.
+- The claim that the rest of the delta is publication machinery needs one
+  correction: `cdc0fe03e..bdc682964` is not only publication machinery, because a
+  merge of `origin/main` sits inside it, touching `src/manifest.rs` (three
+  `src/storage.rs` digest constants and two carrier digests rebound) and
+  `src/server.rs` (packaged-store diagnostics added; the two fork app-binding
+  codes moved out of the "never a caller 4xx" list). Both codes are still present
+  at C (`src/server.rs:26319`, `:26340`, `:41017`, `:41452`) and
+  `src/instance_fork.rs` is untouched, so fork behaviour is unchanged; and both
+  changes predate `b08e835f1`, so rounds 4 and 5 reviewed them. From
+  `b08e835f1` to C the only `src/` change is `src/agent_safe_publication.rs`.
+- `node tests/agent_safe_publication_checker_v1.mjs` — 50 pass, 0 fail, 41.2 s.
+- `node scripts/check-agent-safe-publication.mjs` — both records `withheld`.
+
+I did not re-derive spec conformance from the Specs, and I could not execute the
+Rust fork suites in this worktree. This verdict is a delta verdict on an
+unchanged surface; if the surface changes, it does not carry.
+
+### Scope 2 verdict — derived-fork publication
+
+**NOT READY for publication of the narrow local `operating.instance-forks`
+capability at `bdc682964`.** The structured contract is a real improvement and it
+kills the entire Markdown attack surface, but it is parsed by a duplicate-tolerant
+parser, so the specific defect this round exists to close — a verdict file whose
+plain content is blocking and whose effect is approving — still works (R6-1),
+now in the artifact that carries authority rather than in the decoration beside
+it. Independently, nothing in the tree can honestly name C yet (R6-3). I would
+expect one canonical-form check to close R6-1 for good, and a bench re-run plus a
+fresh author acceptance at the publication commit to clear R6-3.
+
+### Verification actually performed
+
+- Read `scripts/check-agent-safe-publication.mjs` (1581 lines),
+  `src/agent_safe_publication.rs` (673 lines) and
+  `tests/agent_safe_publication_checker_v1.mjs` at `bdc682964` in full.
+- 28-case adversarial harness driving the real `validatePublicationRecord`
+  against throwaway published fixtures (`/tmp`, `git init` per case): 24 blocked,
+  A1/A2/A4 published as described in R6-1, C3 published as described in R6-6.
+- Honest-publication dry run in a throwaway `--shared` clone: P on top of C,
+  digest equality confirmed, `validatePublicationRecord` returns `published`.
+- `implementationDigestAt` through the module export at `bdc682964`
+  (`sha256:e6353dc2…`), `b08e835f1` (`sha256:0ef65e5b…`), `cdc0fe03e`
+  (`sha256:3aec8774…`) and `0ee1fadc1` (`sha256:2cad3627…`).
+- `git merge-base --is-ancestor` for all six commits named by the four verdict
+  histories, the bounds-ratification record and the receipt.
+- `git diff` over `IMPLEMENTATION_ROOTS` for `cdc0fe03e..bdc682964` and
+  `b08e835f1..bdc682964`, and over the fork sources and suites specifically.
+- `node tests/agent_safe_publication_checker_v1.mjs` (50/50) and
+  `node scripts/check-agent-safe-publication.mjs`.
+- Not done: `cargo build`/`cargo test` and the Rust fork suites (`vendor/ibex`
+  uninitialized; bootstrapping would dirty the frozen tree), the working-tree
+  digest comparison (same cause), and any de-novo derivation of spec conformance.
+
+### Recommended next step
+
+Close R6-1 with a canonical-form check on the four verdict files — one function,
+one test that fails first on each of A1, A2 and A4. Add R6-2's presence check for
+the authoritative round heading and commit, and backfill or retract the four
+round-4 entries that have no prose. Then re-run both platform lifecycle benches
+at the publication commit and take a fresh author acceptance there (R6-3), and
+re-verdict Scope 2 against that commit. R6-5 can wait for the storage
+publication attempt, but should not survive it.

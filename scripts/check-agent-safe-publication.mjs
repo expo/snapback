@@ -97,15 +97,12 @@ export const LOCAL_STORE_PUBLICATION_TRANSFORM = {
   receipts: [
     {
       path: 'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json',
-      value: (carrier) => carrier.qualificationReceiptSha256,
     },
     {
       path: 'tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json',
-      value: (carrier) => carrier.supportingReceiptSha256?.triageBudgetFreeze,
     },
     {
       path: 'tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json',
-      value: (carrier) => carrier.supportingReceiptSha256?.triageMove1Exit,
     },
   ],
 };
@@ -403,21 +400,22 @@ export function expectedLocalStorePublicationTransform(root, qualificationCommit
     qualificationCommit,
     LOCAL_STORE_PUBLICATION_TRANSFORM.carrier,
   );
-  let carrier;
-  try {
-    carrier = JSON.parse(carrierAtQualification);
-  } catch (error) {
-    fail(`qualification-C local-store carrier is not valid JSON: ${error.message}`);
-  }
+  parseCanonicalPublicationJson(carrierAtQualification, 'qualification-C local-store carrier');
 
+  // After canonical validation, the transitive transform treats the frozen
+  // carrier and anchor as opaque signed bytes and permits only an exact,
+  // single-occurrence substitution of each receipted digest.
   let expectedCarrier = carrierAtQualification;
   for (const receipt of LOCAL_STORE_PUBLICATION_TRANSFORM.receipts) {
-    const recorded = receipt.value(carrier);
     const receiptAtQualification = committedBytes(root, qualificationCommit, receipt.path);
-    if (recorded !== sha256(receiptAtQualification)) {
-      fail(`qualification-C local-store carrier was stale at ${receipt.path}`);
-    }
-    const published = sha256(readFileSync(join(root, receipt.path)));
+    parseCanonicalPublicationJson(
+      receiptAtQualification,
+      `qualification-C local-store receipt ${receipt.path}`,
+    );
+    const recorded = sha256(receiptAtQualification);
+    const publishedReceipt = readFileSync(join(root, receipt.path));
+    parseCanonicalPublicationJson(publishedReceipt, `published local-store receipt ${receipt.path}`);
+    const published = sha256(publishedReceipt);
     expectedCarrier = substituteSinglePinnedDigest(
       expectedCarrier,
       recorded,
@@ -428,8 +426,14 @@ export function expectedLocalStorePublicationTransform(root, qualificationCommit
 
   const carrierDigestAtQualification = sha256(carrierAtQualification);
   const expectedCarrierDigest = sha256(expectedCarrier);
+  const anchorAtQualification = committedBytes(
+    root,
+    qualificationCommit,
+    LOCAL_STORE_PUBLICATION_TRANSFORM.anchor,
+  );
+  parseCanonicalPublicationJson(anchorAtQualification, 'qualification-C local-store anchor');
   const expectedAnchor = substituteSinglePinnedDigest(
-    committedBytes(root, qualificationCommit, LOCAL_STORE_PUBLICATION_TRANSFORM.anchor),
+    anchorAtQualification,
     carrierDigestAtQualification,
     expectedCarrierDigest,
     LOCAL_STORE_PUBLICATION_TRANSFORM.anchor,
@@ -730,16 +734,12 @@ function requireEvidence(condition, message) {
   if (!condition) fail(`published evidence: ${message}`);
 }
 
-function readEvidenceJson(root, path, label) {
-  try {
-    return JSON.parse(readFileSync(join(root, path), 'utf8'));
-  } catch (error) {
-    fail(`${label} is not valid JSON: ${error.message}`);
-  }
-}
-
-function readCanonicalEvidenceJson(root, path, label) {
-  const text = readFileSync(join(root, path), 'utf8');
+// @ref LLP 0162#source-owned-publication-carrier-amendment--2026-08-04
+// Invariant: no publication-chain JSON is ever read non-canonically. This is one closed
+// parser boundary for anchors, carriers, receipts, acceptances, evidence,
+// benches, and verdict histories; callers may not fall back to bare JSON.parse.
+function parseCanonicalPublicationJson(bytes, label) {
+  const text = Buffer.isBuffer(bytes) ? bytes.toString('utf8') : bytes;
   let value;
   try {
     value = JSON.parse(text);
@@ -750,6 +750,10 @@ function readCanonicalEvidenceJson(root, path, label) {
     fail(`${label} is not canonical JSON`);
   }
   return value;
+}
+
+function readCanonicalPublicationJson(root, path, label) {
+  return parseCanonicalPublicationJson(readFileSync(join(root, path), 'utf8'), label);
 }
 
 function closeNumber(left, right) {
@@ -1075,7 +1079,10 @@ export function validatePairedPerformanceArtifact(value, commit) {
 
 function validatePairedPerformance(root, commit) {
   const path = STORAGE_EVIDENCE[1][1];
-  validatePairedPerformanceArtifact(readEvidenceJson(root, path, 'paired performance'), commit);
+  validatePairedPerformanceArtifact(
+    readCanonicalPublicationJson(root, path, 'paired performance'),
+    commit,
+  );
 }
 
 function statistics(values) {
@@ -1168,13 +1175,13 @@ export function validateAbsolutePerformanceArtifact(value, commit) {
 
 function validateAbsolutePerformance(root, commit) {
   const path = STORAGE_EVIDENCE[2][1];
-  const value = readEvidenceJson(root, path, 'absolute performance');
+  const value = readCanonicalPublicationJson(root, path, 'absolute performance');
   validateAbsolutePerformanceArtifact(value, commit);
 }
 
 function validateAcceptanceCorpus(root, commit, implementationTree) {
   const path = STORAGE_EVIDENCE[0][1];
-  const value = readEvidenceJson(root, path, 'acceptance corpus');
+  const value = readCanonicalPublicationJson(root, path, 'acceptance corpus');
   requireEvidence(value.schemaVersion === 'snapback.agent-safe-storage-acceptance-corpus.v1',
     'acceptance corpus schema drifted');
   requireEvidence(value.date === '2026-08-04'
@@ -1248,7 +1255,7 @@ export function validateReview(root, path, family, commit, implementationTree) {
 
 function validateAuthorAcceptance(root, receipt, commit, implementationTree) {
   const path = STORAGE_EVIDENCE[5][1];
-  const value = readEvidenceJson(root, path, 'author acceptance');
+  const value = readCanonicalPublicationJson(root, path, 'author acceptance');
   requireEvidence(value.schemaVersion === 'snapback.agent-safe-storage-author-acceptance.v2'
     && value.date === '2026-08-04'
     && value.author === 'Charlie Cheever'
@@ -1367,7 +1374,11 @@ export function validateDerivedForkLifecycleBenchArtifact(value, commit, os, arc
 }
 
 function validateDerivedForkBoundsRatification(root, commit) {
-  const value = readEvidenceJson(root, DERIVED_FORK_EVIDENCE[2][1], 'fork bounds ratification');
+  const value = readCanonicalPublicationJson(
+    root,
+    DERIVED_FORK_EVIDENCE[2][1],
+    'fork bounds ratification',
+  );
   const ratificationCommit = value.environment?.commit;
   requireEvidence(/^[0-9a-f]{40}$/u.test(ratificationCommit ?? ''),
     'fork bounds ratification commit is invalid');
@@ -1401,7 +1412,7 @@ export function validateDerivedForkReview(root, {
   } catch {
     fail(`published evidence: missing or unreadable review ${reviewPath}`);
   }
-  const value = readCanonicalEvidenceJson(root, verdictPath, `${reviewPath} verdict contract`);
+  const value = readCanonicalPublicationJson(root, verdictPath, `${reviewPath} verdict contract`);
   exactKeys(value, ['schemaVersion', 'verdicts'], `${verdictPath} contract`);
   requireEvidence(value.schemaVersion === REVIEW_HISTORY_SCHEMA_VERSION
     && Array.isArray(value.verdicts)
@@ -1499,7 +1510,7 @@ function validateDerivedForkAuthorAcceptance(
   reviewHistories,
 ) {
   const path = DERIVED_FORK_EVIDENCE.at(-1)[1];
-  const value = readEvidenceJson(root, path, 'derived-fork author acceptance');
+  const value = readCanonicalPublicationJson(root, path, 'derived-fork author acceptance');
   exactKeys(value, [
     'schemaVersion', 'capabilityId', 'accepted', 'authorLine', 'qualifiedSourceCommit',
     'implementationDigestVersion', 'implementationTreeSha256', 'candidateFactsSha256',
@@ -1550,8 +1561,16 @@ export function validatePublishedDerivedForkEvidenceSemantics(root, record, comm
     fail('published evidence: derived-fork qualification commit is not an ancestor of publication HEAD');
   }
   validateDerivedForkBoundsRatification(root, commit);
-  const macos = readEvidenceJson(root, DERIVED_FORK_EVIDENCE[0][1], 'macOS fork lifecycle bench');
-  const linux = readEvidenceJson(root, DERIVED_FORK_EVIDENCE[1][1], 'Linux fork lifecycle bench');
+  const macos = readCanonicalPublicationJson(
+    root,
+    DERIVED_FORK_EVIDENCE[0][1],
+    'macOS fork lifecycle bench',
+  );
+  const linux = readCanonicalPublicationJson(
+    root,
+    DERIVED_FORK_EVIDENCE[1][1],
+    'Linux fork lifecycle bench',
+  );
   validateDerivedForkLifecycleBenchArtifact(macos, commit, 'macos', 'aarch64');
   validateDerivedForkLifecycleBenchArtifact(linux, commit, 'linux', 'x86_64');
   requireEvidence(new Set([
@@ -1606,7 +1625,11 @@ export function validatePublishedDerivedForkEvidenceSemantics(root, record, comm
 }
 
 export function validatePublishedEvidenceSemantics(root, record, commit, receipt = undefined) {
-  const boundReceipt = receipt ?? JSON.parse(readFileSync(join(root, record.receipt)));
+  const boundReceipt = receipt ?? readCanonicalPublicationJson(
+    root,
+    record.receipt,
+    `${record.id} receipt`,
+  );
   if (record.id === 'agent_safe_derived_deployment_fork_v1') {
     validatePublishedDerivedForkEvidenceSemantics(root, record, commit, boundReceipt);
     return;
@@ -1627,9 +1650,9 @@ export function validatePublicationRecord(root, record) {
   const anchorBytes = readFileSync(join(root, record.anchor));
   const carrierBytes = readFileSync(join(root, record.carrier));
   const receiptBytes = readFileSync(join(root, record.receipt));
-  const anchor = JSON.parse(anchorBytes);
-  const carrier = JSON.parse(carrierBytes);
-  const receipt = JSON.parse(receiptBytes);
+  const anchor = parseCanonicalPublicationJson(anchorBytes, `${record.id} anchor`);
+  const carrier = parseCanonicalPublicationJson(carrierBytes, `${record.id} carrier`);
+  const receipt = parseCanonicalPublicationJson(receiptBytes, `${record.id} receipt`);
   exactKeys(anchor, ['schemaVersion', 'capabilityId', 'state', 'carrierSha256'], `${record.id} anchor`);
   if (anchor.schemaVersion !== 'snapback.local-capability-publication-anchor.v1'
       || anchor.capabilityId !== record.id
