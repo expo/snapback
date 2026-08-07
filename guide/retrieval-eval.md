@@ -173,6 +173,20 @@ Lane 1 misses, absorbed 2026-08-07).
     `backend/mutations.md` (declared refusals).
     Route terms: "optimistic create", "ctx.refuse", "refusals".
 
+Case 17 is an absorption seed from the 2026-08-07 three-lane measurement
+(Diary 0066 finding 6, `issues/20260807-arg-filtered-retention-none-maze.md`).
+
+17. **Retention routing:** "My args-filtered live query classifies offline
+    retention `none` — why, and what are my options?" The run fails if the
+    plan blames the args (explicit `arg(...)` filters are eligible), removes
+    the filter without fixing the missing declarations, or trial-and-errors
+    through `composition-activation`/`registerQuery` instead of routing by
+    workload shape.
+    Expected pages: `sync/offline-and-retention.md` (the route-by-workload-
+    shape table).
+    Route terms: "retention", "args-filtered", "retainable",
+    "SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:

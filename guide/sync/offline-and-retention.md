@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-07
-reviewed-commit: f4d4d8c184a8994b747a8e83b1ee74abfcb8a09b
+reviewed-commit: 6a1de382fade55da910e3ab1f40115e1e0cfad48
 ---
 
 # Offline retention and mutation replay
@@ -30,6 +30,61 @@ The Contract adapter can retain the last authoritative query snapshot, render
 derived optimistic changes while offline, and replay a durable mutation outbox
 in order after reconnect. It reports this as `Parity` only when every
 required proof is present; otherwise the surface stays honestly `Online`.
+
+## Route by workload shape: which retention mechanism is yours?
+
+This page covers three retention mechanisms with different survival rules —
+the resume channel (platform cold retention), programmatic registrations, and
+the materialization store. Pick by the shape of the query you want to
+survive, not by trying mechanisms until one stops refusing. The eligibility
+constraints come first because they decide the whole route.
+
+**Platform cold retention (`rqsEligible`) — the constraints, before any
+example.** A live query cold-retains on the JS arm only when ALL of these
+hold:
+
+- it is a **declarative** `defineLiveQuery` over **one table**
+  (`defineJsLiveQuery` handlers are never eligible — an opaque handler
+  cannot carry the closed-inputs proof);
+- it declares **both** `auth: 'public'` and `authorityIndependent: true`
+  (in a sessions-mode app, a query without both is authority-scoped by
+  default and classifies `SNAPBACK_RETENTION_NOT_RETAINABLE` — this is the
+  natural shape of a private chat query, and it is the usual reason a chat
+  app sees no retention);
+- its plan reads no membership, `authUserId()`, time, or randomness inputs.
+
+**Explicit args do not break eligibility.** An args-filtered query — for
+example chat messages filtered by `eq('conversationId',
+arg('conversationId'))` — satisfies the proof exactly like its args-less
+sibling: `arg(...)` values are query identity, not ambient authority, and
+each `(query, args)` pair persists its own retained entry. This is
+receipt-proven, not aspirational: the public-dashboard witness below
+subscribes with `args: { dashboardId: 'ops' }` and asserts
+`retainable: true` plus a minted resume token, and the same args-filtered
+shape was re-verified 2026-08-07 against the published `0.1.12` packages in
+both dev and sessions modes. If your args-filtered query classifies
+retention `none`, the missing declarations or an ineligible plan — never
+the args — are the cause, and the handle's `retention.reason` names which
+layer refused.
+
+| Workload shape | Route | Survival rules |
+| --- | --- | --- |
+| Public single-table live query, args-less **or** filtered by explicit `arg(...)` | Platform retention: declare `auth: 'public'` + `authorityIndependent: true` ([opt-in section](#opt-a-live-query-into-cold-retention-rqseligible)) | Persisted per `(query, args)` in the client store; fresh client re-renders it `freshness: 'retained'`, backend unreachable included; subscribe demand is volatile (dispose releases it); a non-empty outbox withholds resume — retained pre-intent render, full resync first |
+| Public data queried through many argument values, one retained payload wanted | Client-side filter over an args-less (or coarser-keyed) retained query ([viewer-facts section](#retain-public-viewer-facts-by-argument-not-authority)) | Same as platform retention, with one entry instead of one per argument value; derive the per-key fact from canonical rows on the client |
+| Protected or auth-scoped rows — the natural private-chat shape under sessions | **Not cold-retainable on the JS arm** (`SNAPBACK_RETENTION_NOT_RETAINABLE`): use the Contract arm's `retainable: true` lease-backed path ([hidden hands](../recipes/hidden-hands.md)) or stay honestly online-only | Lease custody: rows render retained only under a valid `AuthorizedLease` and are deleted exactly at its deadline; never flip private rows to `public` just to gain JS-arm retention |
+| Owner-scoped generated relational composite | LLP 0166 materialization store + hydration bridge ([store section](#render-retained-rows-proof-validated-after-relaunch-the-materialization-bridge)) | Proof-revalidated `authoritative`/`retained` relaunch answers; demand comes from registrations — a live handle is an `active` registration reaped at restart, `registerQuery` with `retentionRequest: 'durable'` survives restart |
+| Demand that must survive a restart with no mounted handle | `registerQuery` programmatic durable registration ([registration section](#keep-a-generated-query-registered-without-a-live-handle)) | Durable across restarts; owner-admitted — a non-retainable query refuses instead of silently dropping durability; release is idempotent |
+| Snapshot-batch composite (`snapshot-batch.v1`/`v2`) | None — deliberately volatile, retention `none` | Payload removed at the next writer maintenance pass; never infer renderability from stored bytes |
+
+Two dead-ends the maze invites, named so you can skip them:
+`composition-activation-prepare` is step 1 of the controlled store recipe
+below, not a general retention lever — it activates the generated artifact
+graph for the bridge and changes nothing about `rqsEligible`
+classification. And materialization/registration writes are store-writer
+operations: a context without store ownership refuses with
+`SNAPBACK_RQS_STORE_NOT_WRITER` rather than retaining silently, so run
+registration from the store-owning client, not from a second casual client
+over the same directory.
 
 ## The JS/React arm: default persistence and the offline queue
 
@@ -450,7 +505,13 @@ protected retention is the lease machinery's, below),
 `SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE` (the server minted no token: not an
 authority-independent closed-inputs declarative query), and
 `SNAPBACK_RETENTION_STORE_DISABLED` (eligible, but this client opted out of
-persistence).
+persistence). For `SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE`, the fact's `reason`
+names which eligibility layer refused, derived from the generated
+reference's retention classification: the declaration never opted in (no
+retention class — missing `auth: 'public'`/`authorityIndependent`, a JS
+handler, or a non-single-table plan), the class is volatile by design
+(snapshot batches, non-retainable composites), or the declaration is
+eligible but this target did not activate the class.
 
 The authority-scoped refusal is receipt-pinned on the Node carrier — the
 handle names the LLP 0053 boundary and the store stays empty:

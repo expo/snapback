@@ -268,3 +268,36 @@ test('an auth-scoped subscription refuses retention with SNAPBACK_RETENTION_NOT_
   assert.equal((await store.inspection()).entries, 0, 'nothing persisted for the auth-scoped subscription');
   handle.dispose();
 });
+
+// --- Refuse-with-the-failed-rule (issues/20260807-arg-filtered-retention-
+// --- none-maze.md): the NOT_RQS_ELIGIBLE fact derives its reason from the
+// --- generated reference's codegen-derived retention classification, so a
+// --- builder can tell "never opted in" from "class volatile by design" from
+// --- "eligible declaration on a target that did not activate the class".
+test('rqsRetentionIneligibilityReason names the failed eligibility layer from the generated reference', async () => {
+  const { rqsRetentionIneligibilityReason } = await import('./index.mjs');
+  const withRetention = (retention) => ({
+    artifactKind: 'functionReference',
+    composition: { normalizedCompositePlan: { classification: { retention } } },
+  });
+  assert.match(
+    rqsRetentionIneligibilityReason(withRetention('rqs-authority-independent-snapshot-v1')),
+    /retention-eligible \(single_table_v1\).*did not advertise or activate/su,
+    'eligible declaration, inactive target: names the target, not the declaration',
+  );
+  assert.match(
+    rqsRetentionIneligibilityReason(withRetention('none')),
+    /'none' is\s+deliberately volatile/su,
+    'a composition class of none is named volatile-by-design',
+  );
+  assert.match(
+    rqsRetentionIneligibilityReason({ artifactKind: 'functionReference' }),
+    /carries no retention classification.*explicit args are allowed.*JS handlers are never/su,
+    'an unclassified generated declaration names the declaration rules (and that args are fine)',
+  );
+  assert.match(
+    rqsRetentionIneligibilityReason('byNameOnly'),
+    /minted no resume token.*LLP 0090/su,
+    'a by-name reference keeps the generic reason: the client cannot inspect a string',
+  );
+});

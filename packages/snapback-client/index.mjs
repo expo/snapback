@@ -1770,6 +1770,37 @@ const RETAINABLE_QUERY_RETENTION_CLASSES = new Set([
   'rqs-authority-independent-snapshot-v1',
 ]);
 
+// @ref LLP 0092#0c2-the-rqseligible-served-manifest-predicate — refuse with
+// the failed rule, not just the outcome: the generated reference carries the
+// codegen-derived retention classification, so when the server mints no
+// resume token the fact can name WHICH eligibility layer refused (declaration
+// never opted in vs. class volatile-by-design vs. target did not activate an
+// eligible class) instead of one generic sentence.
+export function rqsRetentionIneligibilityReason(ref) {
+  const declaredRetention =
+    ref?.composition?.normalizedCompositePlan?.classification?.retention ?? null;
+  if (declaredRetention === 'rqs-authority-independent-snapshot-v1') {
+    return 'the generated declaration is retention-eligible (single_table_v1), '
+      + 'but this server minted no resume token: the target did not advertise '
+      + 'or activate the class for this query';
+  }
+  if (declaredRetention !== null) {
+    return `the generated retention class '${declaredRetention}' is `
+      + 'deliberately volatile on this arm: only '
+      + 'rqs-authority-independent-snapshot-v1 single-table declarations '
+      + 'cold-retain here';
+  }
+  if (ref !== null && typeof ref === 'object' && ref.artifactKind === 'functionReference') {
+    return 'the generated declaration carries no retention classification: '
+      + 'eligibility requires a declarative defineLiveQuery over one table '
+      + "with auth: 'public' and authorityIndependent: true and no membership "
+      + 'or ambient inputs (explicit args are allowed; JS handlers are never '
+      + 'eligible)';
+  }
+  return 'the server minted no resume token: not an '
+    + 'authority-independent closed-inputs live query (LLP 0090)';
+}
+
 const GRANDFATHERED_PRELOAD_RECEIPT = Object.freeze({
   committed: true,
   added: 0,
@@ -10320,8 +10351,7 @@ export class SnapbackClient {
           handle.retention = Object.freeze({
             retainable: false,
             code: 'SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE',
-            reason: 'the server minted no resume token: not an '
-              + 'authority-independent closed-inputs live query (LLP 0090)',
+            reason: rqsRetentionIneligibilityReason(ref),
             store: client.rqsStoreInfo,
           });
         }
