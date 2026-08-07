@@ -3722,11 +3722,22 @@ impl BoundGrantAuthority {
 
     fn stale_error_at(&self, epoch_now_ms: u64) -> SnapbackError {
         match self {
-            Self::Anonymous { .. } => SnapbackError::error(
-                "SNAPBACK_AUTH_STREAM_RESET",
-                "auth",
-                "the connection authorization stream is no longer current",
-            ),
+            Self::Anonymous { .. } => {
+                // Anonymous authority is re-established by a fresh handshake,
+                // so clients racing the boot-provision reset window may retry
+                // this stream-replacement refusal (issues/20260807-auth-stream-reset-boot-flake.md).
+                // @ref LLP 0059#reset-restore-and-stream-publication — refusal stands; the typed hint only marks anonymous re-establishment as safe.
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_STREAM_RESET",
+                    "auth",
+                    "the connection authorization stream is no longer current",
+                )
+                .with_details(json!({
+                    "authorityDisposition": "carrier",
+                    "retryable": true,
+                    "cause": "stream_replaced"
+                }))
+            }
             Self::Session { publication, .. } => {
                 let disposition = publication
                     .session_terminal_reason(epoch_now_ms, Instant::now())
@@ -10416,11 +10427,22 @@ fn stale_prepared_authority(authority: &PreparedAuthority, epoch_now_ms: u64) ->
                 disposition,
             )
         }
-        _ => SnapbackError::error(
-            "SNAPBACK_AUTH_STREAM_RESET",
-            "auth",
-            "the authorization stream is no longer current",
-        ),
+        _ => {
+            // Anonymous-class authority is re-established by a fresh
+            // handshake, so clients racing the boot-provision reset window
+            // may retry this refusal (issues/20260807-auth-stream-reset-boot-flake.md).
+            // @ref LLP 0059#reset-restore-and-stream-publication — refusal stands; the typed hint only marks anonymous re-establishment as safe.
+            SnapbackError::error(
+                "SNAPBACK_AUTH_STREAM_RESET",
+                "auth",
+                "the authorization stream is no longer current",
+            )
+            .with_details(json!({
+                "authorityDisposition": "carrier",
+                "retryable": true,
+                "cause": "stream_replaced"
+            }))
+        }
     }
 }
 
@@ -45559,6 +45581,24 @@ globalThis.__snapbackHandlers = {
     }
 
     #[test]
+    fn anonymous_stream_reset_refusal_is_retryable_carrier() {
+        let (authorization_stream_incarnation, publication) =
+            FencedPublication::anonymous_for_unmanaged_dev_connection();
+        let error = BoundGrantAuthority::Anonymous {
+            authorization_stream_incarnation,
+            publication,
+        }
+        .stale_error_at(super::now_millis());
+
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_STREAM_RESET");
+        assert_eq!(error.diagnostic.details["retryable"], json!(true));
+        assert_eq!(
+            error.diagnostic.details["authorityDisposition"],
+            json!("carrier")
+        );
+    }
+
+    #[test]
     fn hosted_sender_binding_mints_and_rotates_only_sct2_grants() {
         let state = crate::admin::AppState::detached(
             LocalSnapback::memory().expect("in-memory hosted sender registry state"),
@@ -46436,6 +46476,11 @@ globalThis.__snapbackHandlers = {
             )
             .expect_err("pending stream mutation closes predecessor act");
         assert_eq!(error.0.diagnostic.code, "SNAPBACK_AUTH_STREAM_RESET");
+        assert_eq!(error.0.diagnostic.details["retryable"], json!(true));
+        assert_eq!(
+            error.0.diagnostic.details["authorityDisposition"],
+            json!("carrier")
+        );
         assert!(!ran.load(Ordering::SeqCst));
         let rollback = SnapbackError::error("TEST_ROLLBACK", "test", "known rollback");
         assert_eq!(

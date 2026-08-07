@@ -182,6 +182,14 @@ const isUpgradeRequiredRefusal = (error) => {
     && (DEFAULT_UPGRADE_REQUIRED_CODES.has(code) || /_UPGRADE_REQUIRED$/u.test(code));
 };
 
+const STREAM_RESET_RETRY_DELAY_MS = 250;
+
+const isRetryableStreamResetRefusal = (error) => (
+  error?.status === 401
+  && error?.diagnostic?.code === 'SNAPBACK_AUTH_STREAM_RESET'
+  && error?.diagnostic?.details?.retryable === true
+);
+
 const operationOutcomeFromError = (error) => {
   const outcome = error?.diagnostic?.details?.outcome;
   return outcome === 'committed' || outcome === 'refused' ? outcome : 'unknown';
@@ -3917,7 +3925,19 @@ export class SnapbackClient {
         settleProbe();
       }
     };
-    grant = openWithNegotiation().then(
+    const openWithStreamResetRetry = async () => {
+      try {
+        return await openWithNegotiation();
+      } catch (error) {
+        if (!isRetryableStreamResetRefusal(error)) throw error;
+        // A boot-provision reset can replace anonymous authority between the
+        // open capture and publication. Retry the complete negotiation ladder
+        // once after it settles (issues/20260807-auth-stream-reset-boot-flake.md).
+        await new Promise((resolve) => setTimeout(resolve, STREAM_RESET_RETRY_DELAY_MS));
+        return openWithNegotiation();
+      }
+    };
+    grant = openWithStreamResetRetry().then(
       (granted) => {
         const authorizationInvalidation = granted.authorizationInvalidation == null
           ? null
@@ -3956,8 +3976,8 @@ export class SnapbackClient {
     return grant;
   }
 
-  /// Run one connection-scoped operation; on a token rejection, refresh the
-  /// grant once (server restart recovery) and retry the operation.
+  /// Run one connection-scoped operation; on a refreshable rejection, refresh
+  /// the grant once (server restart/reset recovery) and retry the operation.
   async #withGrant(
     connectionId,
     run,
@@ -3968,7 +3988,13 @@ export class SnapbackClient {
     try {
       return await run(grant);
     } catch (error) {
-      if (error?.diagnostic?.code !== 'SNAPBACK_CONNECTION_TOKEN_INVALID') throw error;
+      if (
+        error?.diagnostic?.code !== 'SNAPBACK_CONNECTION_TOKEN_INVALID'
+        && !isRetryableStreamResetRefusal(error)
+      ) throw error;
+      // An operation may race the same anonymous boot-provision reset window
+      // after its grant opens; refresh once under the existing identity guard
+      // before retrying (issues/20260807-auth-stream-reset-boot-flake.md).
       // Another operation may have refreshed the grant already; only refresh
       // when this operation still holds the rejected one.
       if (this.__connectionGrants.get(connectionId) === cached) {

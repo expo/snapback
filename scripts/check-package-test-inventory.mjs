@@ -102,6 +102,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'bundle.test.mjs',
       'carrier-capability-honesty.test.mjs',
       'commands.test.mjs',
+      'connection-open-stream-reset-retry.test.mjs',
       'demand-broker.test.mjs',
       'ephemeral-room.test.mjs',
       'evaluation-floor.test.mjs',
@@ -440,7 +441,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 229,
+  expectedTotal = 230,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -707,6 +708,10 @@ export function checkPackageTestInventories(options = {}) {
 // `snapback new`, registry-derived help, CLI-owned refusal codes).
 // 228 -> 229 (2026-08-07, LLP 0176 G4): @expo/snapback-expo gains the
 // release-vocabulary repair suite for production export bundles.
+// 229 -> 230 (2026-08-07, auth stream reset boot flake):
+// @expo/snapback-client gains the bounded anonymous connection-open and
+// connection-operation retry suite from
+// issues/20260807-auth-stream-reset-boot-flake.md.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');
