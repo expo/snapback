@@ -7,8 +7,8 @@
     "LLP 0030 attach"
   ],
   "source": {
-    "revision": "fc00370d79b969c659194a98d26643027114769e",
-    "dirty": true,
+    "revision": "e99d2a328e864c0d4021bec750328d861176ebc3",
+    "dirty": false,
     "files": [
       {
         "path": "packages/snapback-sidecar/index.mjs",
@@ -20,11 +20,11 @@
       },
       {
         "path": "packages/snapback-client/index.mjs",
-        "sha256": "eb510de010ddf466aad5d8cb18d30ad3780c165b592c9f8ea61cf721967e13d4"
+        "sha256": "688ec4d231dd23e02ea0311d91ec0da89c6659074d0274e282b82e194187c0ae"
       },
       {
         "path": "packages/snapback-client/index.d.mts",
-        "sha256": "95d79560bf696cda24267676b66b6e7b492e4ed4ceb6caa797135a03ef94687c"
+        "sha256": "ae06a2dbd96d94c4170e1011c4ec70f33d36a6b14591b9a32bd1a439180e5478"
       },
       {
         "path": "tests/acceptance/desktop-sidecar-v1.mjs",
@@ -36,7 +36,7 @@
     "platform": "darwin",
     "architecture": "arm64",
     "binary": "target/debug/snapback",
-    "binarySha256": "f15062ac523d12fc3a0a26a73e7c7e3da5f45aa41526f93ad4d1d52dcbac12ec"
+    "binarySha256": "37e954d77821a3bf7b83dfd874a5bf3f10d1ef278c726a9e501f231f03172b08"
   },
   "sections": {
     "healthyStart": {
@@ -67,10 +67,10 @@
       "status": "PASS",
       "pendingBefore": 1,
       "queuedBy": "same-client transport failure",
-      "clientMutationId": "mut_01kzbjwmr7ee89ef2d7akrt62b",
+      "clientMutationId": "mut_01kzd28g08edjtnt571sktj95q",
       "candidateReplay": {
         "schemaVersion": "snapback.outbox-adoption.v1",
-        "candidateOrigin": "http://127.0.0.1:50864",
+        "candidateOrigin": "http://127.0.0.1:56913",
         "clientStoreId": "desktop-sidecar-acceptance",
         "writer": true,
         "freshSnapshotBarrier": {
@@ -81,9 +81,9 @@
         "artifactGeneration": {
           "schemaVersion": "snapback.v0",
           "appId": "app",
-          "schemaHash": "sha256:f4a89ccec3c43035",
-          "bundleHash": "sha256:e42b77b817b8dad0",
-          "inputsHash": "1a4accf251a5b3715cf8a30059690cf266dcc29c1a2c57100c0c9fd827869b2d"
+          "schemaHash": "sha256:40fe2c13c2c2bbce",
+          "bundleHash": "sha256:af8fcd1fadbc357c",
+          "inputsHash": "9150d57d60f467a4f551fcd418173bcea7f7e5ed4c11e77c361ed641e8a25426"
         },
         "before": {
           "pending": 1,
@@ -106,8 +106,8 @@
         "stopped": false
       },
       "successfulSwapEventEmitted": true,
-      "candidateOrigin": "http://127.0.0.1:50864",
-      "candidateStartupNonce": "019fd72e-5345-77d0-9fb4-58b2936871f5",
+      "candidateOrigin": "http://127.0.0.1:56913",
+      "candidateStartupNonce": "019fda24-405d-79a1-a329-ad3414a8393f",
       "clientStoreId": "desktop-sidecar-acceptance",
       "writer": true,
       "pendingAfter": 0,
@@ -119,7 +119,7 @@
     "emptyOutboxSwap": {
       "status": "PASS",
       "pendingBefore": 0,
-      "reboundUrl": "http://127.0.0.1:50847",
+      "reboundUrl": "http://127.0.0.1:56906",
       "replayedAfterAttach": 0,
       "pendingAfter": 0,
       "outcome": "swapped",

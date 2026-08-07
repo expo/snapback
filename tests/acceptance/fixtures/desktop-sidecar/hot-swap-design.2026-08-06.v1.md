@@ -427,6 +427,37 @@ two-runtime PoC. The script is a bounded outside-sandbox rerun target. The
 design-level conclusion instead rests on the durable same-database settlement
 implementation and LLP 0043/0133 contracts described above.
 
+**2026-08-06 addendum — outside-sandbox rerun, PASS.** The retained script
+above was rerun outside the managed sandbox, in an isolated git worktree at
+origin/main commit `e99d2a328e864c0d4021bec750328d861176ebc3`, against a
+freshly built and qualified `target/debug/snapback`. This time the listener
+bound and both runtimes started:
+
+```json
+{
+  "schemaVersion": "snapback.hot-swap-settlement-poc.v1",
+  "status": "PASS",
+  "databaseShared": true,
+  "old": { "url": "http://127.0.0.1:56833", "pid": 94307 },
+  "candidate": { "url": "http://127.0.0.1:56840", "pid": 94714 },
+  "clientMutationId": "cm_hot_swap_settlement_poc",
+  "firstVersion": 1,
+  "replayedVersion": 1,
+  "rowCount": 1,
+  "sameResult": true,
+  "sameReceipt": true
+}
+```
+
+One application row, byte-identical replayed result and receipt across the
+two sequential runtimes over the shared SQLite database. This is the passing
+two-runtime PoC the earlier record above says the design-level conclusion did
+not need to claim; it now stands as additional confirming evidence alongside
+the durable same-database settlement implementation and LLP 0043/0133
+contracts. The original blocked-attempt record above is retained unedited as
+the sandboxed baseline. Full output:
+`tests/acceptance/fixtures/desktop-sidecar/hot-swap-promotion.2026-08-06.v1.json`.
+
 ## 6. Build acceptance matrix
 
 The implementation should not claim the follow-on until all of these pass:

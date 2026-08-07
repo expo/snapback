@@ -14,6 +14,19 @@ client adoption receipt. Pending replay preserves the original
 writer, freshness, store, and compatibility failures stop the candidate and
 reattach the predecessor. This is pending-work-preserving stop/start, not
 zero-request-downtime.)
+**Revised:** 2026-08-06 (Listener-bound promotion gate run OUTSIDE the
+sandbox in an isolated worktree at origin/main commit `e99d2a328`: the named
+`node --test tests/acceptance/desktop-sidecar-v1.mjs` gate passed 1/1,
+including the pending-drain, duplicate-republish, identity-divergence
+rollback, writer-fence rollback, incompatible-generation rollback, and empty
+swap scenarios; the same-database two-runtime settlement PoC
+(`hot-swap-settlement-poc.2026-08-06.v1.mjs`) also passed
+(`sameResult`/`sameReceipt` true, one settled row), clearing the earlier
+managed-sandbox EPERM block. The Phase-2b hot-swap-with-pending build is now
+evidence-promoted at the first-rung boundary. Dated evidence:
+`tests/acceptance/fixtures/desktop-sidecar/hot-swap-promotion.2026-08-06.v1.json`.
+Honest boundary language is unchanged: still pending-work-preserving
+stop/start, not zero-request-downtime.)
 **Revised:** 2026-08-06 (Phase-2b package-boundary follow-on closed: LLP 0123
 Option 3 now seals binary + Hermes header/runtime digests with the successful
 CV-2 verdict at package production, and the packaged CLI resolver re-verifies
@@ -2208,14 +2221,26 @@ The listener-free sidecar package test and focused client outbox suite pass in
 the managed sandbox. The real-child acceptance now owns the pending drain,
 duplicate republish/unchanged row count, identity-divergence rollback,
 writer-fence rollback, incompatible-generation rollback, and unchanged empty
-swap. Its listener is blocked here, so the dated build is **implemented but not
-evidence-promoted** until the orchestrator runs:
+swap. Its listener was blocked in the managed sandbox, so the dated build was
+**implemented but not evidence-promoted** until the orchestrator ran:
 
 ```sh
 DYLD_FRAMEWORK_PATH=$PWD/vendor/ibex/ios/Frameworks \
 SNAPBACK_RUNTIME_BINARY=$PWD/target/debug/snapback \
 node --test tests/acceptance/desktop-sidecar-v1.mjs
 ```
+
+**2026-08-06 update — evidence-promoted.** This gate ran outside the sandbox
+in an isolated worktree at origin/main commit `e99d2a328`, on a rebuilt
+`target/debug/snapback` qualified by `scripts/bootstrap-ibex-runtime`: 1/1
+suite pass, covering the pending-drain, duplicate-republish,
+identity-divergence rollback, writer-fence rollback, incompatible-generation
+rollback, and empty swap scenarios named above. The same-database
+two-runtime settlement PoC also passed on the same run (see the dated
+addendum in `hot-swap-design.2026-08-06.v1.md` §5). Dated evidence:
+`tests/acceptance/fixtures/desktop-sidecar/hot-swap-promotion.2026-08-06.v1.json`.
+The Phase-2b hot-swap-with-pending build is therefore evidence-promoted at
+the first-rung boundary.
 
 Honest boundary: this is a pending-work-preserving **stop predecessor, start
 candidate** swap. Requests cannot be served during that cut. Literal
