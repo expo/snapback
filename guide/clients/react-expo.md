@@ -137,6 +137,14 @@ source adapter, upload task, asset id, and attachment sequence behind the
 provider-owned client. A client with no real session cannot finish the
 multi-request upload under any intent auth mode.
 
+To render the uploaded image, hand `useSnapbackAssetImage`'s `src` straight
+to a plain `<Image>` — see
+[Render the uploaded image in a plain `<Image>`](../backend/assets.md#render-the-uploaded-image-in-a-plain-image).
+Do not build delivery URLs by hand: that section states the URL-selection
+rule (most-permissive delivery the asset's policy grants), how the hook
+holds the rendition-publication race, and the sessions-mode strict-delivery
+diagnostic for images that would otherwise render empty.
+
 ## Debug the backend before writing another probe
 
 The generated [admin console](../operating/admin-console.md) is the shipped

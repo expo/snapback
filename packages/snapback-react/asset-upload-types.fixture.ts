@@ -1,7 +1,10 @@
 import {
+  type AssetImageDelivery,
+  type AssetImageState,
   type AssetFileLike,
   type AssetTaskSnapshot,
   type AssetUploadTask,
+  useSnapbackAssetImage,
   useSnapbackAssetUpload,
 } from './index.mjs';
 
@@ -36,3 +39,14 @@ declare const weakFile: {
 };
 // @ts-expect-error upload files must provide arrayBuffer-capable slices.
 upload.start(weakFile);
+
+const imageState: AssetImageState = useSnapbackAssetImage({ assetId: 'asset-1' });
+imageState.strictSrc?.toUpperCase();
+if (imageState.delivery === 'pending') {
+  imageState.placeholderSrc?.startsWith('data:');
+}
+const delivery: AssetImageDelivery | null = imageState.delivery;
+void delivery;
+// @ts-expect-error asset image delivery is a closed set, not an arbitrary string.
+const invalidDelivery: AssetImageDelivery = 'arbitrary';
+void invalidDelivery;

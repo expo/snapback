@@ -94,6 +94,16 @@ fixed in the guide, must add a seed case here that would have caught it.
    Expected pages: `clients/react-expo.md`.
    Route terms: "SNAPBACK_APP_BINDING_IDENTITY_MISMATCH", "expo".
 
+9. **Asset rendering:** "My uploaded image renders as an empty `<Image>` on
+   a sessions-mode server." (The replicated 2026-08-06 rematch-bakeoff miss:
+   the working pattern — the public-immutable URL plus handling the
+   rendition-publication race — was found only by reading package source.)
+   The plan must hand `useSnapbackAssetImage`'s `src` to the image tag, not
+   hand-build a delivery route or add an `onError` retry loop.
+   Expected pages: `backend/assets.md`.
+   Route terms: "empty image", "render image", "useSnapbackAssetImage",
+   "strict delivery URL".
+
 Cases 10–14 are Rosetta-tier seeds from the LLP 0186 W2 amendment's
 worked-example journeys (`protected-live-crud`, `expo-media-upload`,
 `relational-queries`, `ephemeral-presence`, `reactive-queries`): a

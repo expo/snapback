@@ -627,11 +627,15 @@ export function useSnapbackAssetUpload(options: Readonly<{
 }>): AssetUploadHook;
 
 export type AssetImagePhase = 'empty' | 'preview' | 'placeholder' | 'rendition';
+export type AssetImageDelivery = 'pending' | 'public' | 'strict';
 
 export interface AssetImageState {
   readonly phase: AssetImagePhase;
   readonly src: string | null;
+  readonly strictSrc: string | null;
+  readonly delivery: AssetImageDelivery | null;
   readonly aspectRatio: number | null;
+  readonly placeholderSrc: string | null;
   readonly record: Record<string, unknown> | null;
 }
 
