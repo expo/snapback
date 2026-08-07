@@ -496,7 +496,7 @@ generated release identities, zero-check refusal self-test) and wrote
 `demos/zerobugs/evidence/snapback-control.zb0.v1.json` (mode 0444; a rerun
 refuses the existing path — remediation sets `ZBUGS_ATTEMPT`).
 
-### Lane 8 status — built and seam-qualified; live large/hot BLOCKED on a P1 runtime finding (2026-08-06)
+### Lane 8 status — live large qualification in progress on the repaired runtime (2026-08-07); originally BLOCKED on a P1 runtime finding (2026-08-06)
 
 The deferred large/hot job (sequencing row 8) is fully built:
 `scripts/build-large-overlay.mts` (manifest §4.3 rules 1–6, real overlay
@@ -528,6 +528,115 @@ parity, protected non-leak at scale, search-epoch refusal, raw timings,
 custody counters, and every hot-profile row remain honest GAPs owned by
 that ticket. Rerun `zb5-large` (`ZBUGS_ATTEMPT=v2`) and `zb5-hot` after
 the runtime repair lands; nothing may backfill the existing receipts.
+
+#### 2026-08-07 — repaired-runtime rerun: P1 fix verified at scale; one seam sizing defect found and fixed
+
+The storage repair (`98e51d3ae`, runtime-owned bounded managed-version
+validation;
+`issues/closed/20260806-buffered-mutation-touched-table-version-scan.md`)
+holds at scale: the full 6,176-batch live ingest ran at a **flat**
+per-batch cost — ~1.9 s/batch through the 1M-row issue table under
+concurrent browser-gate load, dropping to ~0.4–0.55 s/batch once contention
+cleared, with no growth as touched tables passed one million rows (the
+pre-fix curve degraded 2.43 s → 3.69 s inside 150 batches). All 5.5M rows
+committed.
+
+`zb5-large` `v2` is a preserved FAIL — a seam-authoring defect, found only
+at the last ~10 batches: the acceptance seam echoes each batch's committed
+rows through `results.value(v.json())`, whose generated contract carries a
+hard 1 MiB `maxBytes` bound (codegen refuses larger JSON result bounds by
+design), and an `issueSearchDocument` 900-row echo measures ~1.15 MiB —
+those rows carry the concatenated title/description/comment search text.
+The violation surfaced as an opaque root-path contract violation after
+6,041 clean batches; the diagnosis cost is ticketed as
+`issues/20260807-result-contract-violation-names-no-bound.md`. Remediation:
+`largeFixturePlan()` and the loader's batch math now carry a per-table
+`rowCap` (`issueSearchDocument: 500`), keeping the same two-batch,
+6,176-total plan while the largest committed-row echo measures ~630 KiB
+against the frozen overlay. The handler change legitimately rotated the
+generated function/inputs identities; the composition pin was resynced and
+ZB0 re-receipted `v4` PASS 9/9. `zb5-large` reruns as `v3`.
+
+`zb5-large` `v3` — **PASS 14 / GAP 0 / FAIL 0**
+(`snapback-control-large.zb5.v3.json`): all 5,549,113 rows ingested in
+6,176 ledgered batches (65.9 min, zero replays, every committed row
+verified against its source-shaped canonical row before progress
+advanced). Raw single-sample large-profile numbers (loopback, M5 Max,
+file-backed SQLite, no margin claims): authenticated `issueListV2`
+list-ready over the 5.5M-row store returned and validated the complete
+1,000-row W envelope in 1,341 ms (817 KiB response); representative
+100-row window walks averaged ~183 ms forward and ~218 ms backward per
+page across 1,000 rows each way with zero duplicate or skipped rows; the
+observed window digest equals the independent bounded working-set oracle
+digest exactly; the protected internal issue enters the crew working set
+while ordinary/anonymous count-like surfaces disclose nothing; and the
+role-partitioned search scan still refuses with `refreshing` at the
+1,024-row proof boundary at this scale. The earlier `v1` (5/9-GAP) and
+`v2` (FAIL) receipts remain preserved attempt history.
+
+`zb5-hot` `v1` and `v2` are preserved FAILs that isolate one platform
+finding and one gate defect. Both attempts failed
+`fresh-precycle-reset-is-byte-provable` on a stranded SQLite `-wal`
+sidecar after the paused-baseline SIGTERM, so the cycles never ran. `v1`
+was read as the kit's 3 s SIGTERM→SIGKILL grace preempting a slow
+checkpoint; the kit's `startServer` gained an additive `stopGraceMs`
+option threaded to `stopChild` (kit lifecycle suite green) and
+`startScaleServer` passes 600 s. `v2` refuted that reading: with 600 s
+available the server still exited within seconds of SIGTERM leaving the
+`-wal` behind — no kill escalation involved. Small-store SIGTERM shutdown
+provably checkpoints and removes its sidecars (probe recorded), so this is
+a scale-shaped platform finding, filed as
+`issues/20260807-server-sigterm-strands-large-sqlite-wal.md`. Demo-side
+remediation with disclosure: `pauseAndHashBaseline` now folds a stranded
+WAL with an explicit exclusive `wal_checkpoint(TRUNCATE)` before hashing —
+the db+wal pair is one consistent SQLite state, so the fold yields exactly
+the committed bytes — and the receipt's baseline facts carry
+`shutdownWal.shutdownStrandedWal` plus the stranded byte size rather than
+absorbing the strand silently. Gate defect (`v1`): with the cycle stage
+aborted, the per-mutation raw checks consumed empty sample arrays and
+`every()` over an empty array passed them vacuously; they now require
+`samples.length === cycles` (which is why `v2`'s downstream rows fail
+loudly instead). `zb5-hot` `v3` (preserved FAIL) proved the fold works — both sidecar
+asserts passed for the first time — and then exposed the next latent
+scale defect in the same check: `sha256File` read the whole ~12 GiB
+baseline into one buffer and died on `ENOMEM`. The hasher now streams
+(digest-format parity verified against `sha256Bytes` on a small file).
+`zb5-hot` `v4` (preserved FAIL) verified fold, streaming hash, and clone
+at scale, and then found the last missing piece: the sessions auth
+provider keeps its keyring in a db-path-prefixed sibling file
+(`<db>.auth-keyring.json`), so a byte-identical database clone refuses to
+boot with `SNAPBACK_AUTH_PROVIDER_UNAVAILABLE`. Probed and verified in
+isolation (original reboots; clone fails; clone plus copied keyring
+sibling boots) — no prior lane ever booted a second server on a cloned
+sessions store, which is why three receipted attempts and every earlier
+lane missed it. `cloneBaselineDatabase` now clones the keyring sibling
+with the database as part of the durable reset state.
+
+`zb5-hot` `v5` (preserved FAIL) booted the cloned cycle server — keyring
+fix verified at scale — and found the final client gap: streaming
+live-query observers are auth-scoped live work even under
+anonymous-public custody, and the gate's raw anonymous `SnapbackClient`
+carried no `authInvalidationProtocol` declaration
+(`SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED`); the bound-actor
+clients were always covered because `createExternalSessionClient` sets
+the protocol itself, and no earlier lane opened a streaming observer on
+the anonymous client. `createAnonymousClient` now declares `authInvalidationProtocol: 1`.
+
+`zb5-hot` `v6` (preserved FAIL) proved the declaration alone is not
+enough and isolated a shipped client-package defect: the anonymous-public
+custody branch builds request headers from the base offer only, so a
+configured `authInvalidationProtocol` never reached the wire on `/live/`
+paths — the server diagnostic's own remedy ("configure SnapbackClient
+with `authInvalidationProtocol: 1`") was unsatisfiable for anonymous
+streaming clients. Fixed in `packages/snapback-client/index.mjs`
+(`#anonymousPublicHeaders` mirrors the sessions branch's live/ephemeral
+header attachment; 0137 A4-f6 posture otherwise unchanged), with a
+regression case in `demos/_kit/tests/auth-invalidation-client.mjs` and a
+live probe showing the anonymous stream now opens against a real sessions
+server. `zb5-hot` reruns as `v7`; at the million-issue baseline
+`issue.create` is expected to refuse at the portable 1,024 short-id
+allocator bound, taking its predeclared `W-SHORTID-LARGE` GAP branch
+together with the effect-counter row.
 
 ## Workaround and component register (predeclared)
 

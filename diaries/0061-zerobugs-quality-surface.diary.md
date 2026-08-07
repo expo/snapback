@@ -352,3 +352,38 @@ qualified. Codex's headless build got every custody probe right on the
 first live run; the two observation-mechanics defects were only findable in
 real Chrome — the codex-builds/supervisor-runs split keeps paying exactly
 there.
+
+## 2026-08-07 — Lane 8 lands its numbers: the P1 repair holds at 5.5M rows
+
+The rerun on the repaired runtime settles what the killed attempt could
+only project. Ingest of all 5,549,113 rows ran **flat**: ~1.3–1.9 s/batch
+through the heavy million-row issue table, ~0.4–0.55 s/batch elsewhere,
+no growth as touched tables crossed a million rows — against the pre-fix
+curve that degraded from 2.43 s to 3.69 s within 150 batches. Sixty-six
+minutes, 6,176 ledgered batches, zero replays, every batch's committed
+rows verified by inverse remap. The per-table sentinel-index repair is
+real at the scale that exposed the defect.
+
+The rerun also bought one more finding for the platform's honesty file:
+zb5-large `v2` died at batch ~6,165 of 6,176 because the acceptance seam
+echoes committed rows through a `v.json()` result, and codegen hard-caps
+any JSON result value at 1 MiB — a 900-row `issueSearchDocument` echo
+(concatenated search text) measures ~1.15 MiB. Three observations. First,
+the ceiling did its job: an unbounded echo is exactly what LLP 0108 exists
+to refuse, and the fix was to shrink the batch (a per-table 500-row cap
+that keeps the same 6,176-batch plan), not to widen the bound. Second, the
+violation surfaced as `path: "$"` with no named constraint — diagnosing
+"which of seven possible bounds" from a root path took a 1.2 GiB data
+audit that a one-word `constraint: maxBytes` detail would have made a
+five-minute fix (ticketed). Third, the defect hid in the last 0.2% of a
+66-minute run — batch-plan sizing errors are found by the biggest batch,
+not the first one.
+
+With the seam capped, `v3` passed 14/14: list-ready over the 5.5M-row
+store in 1,341 ms for a complete validated 1,000-row envelope, ~180–220 ms
+per 100-row window page with zero duplicates or skips both directions,
+window digest equal to the independent oracle digest, and the protected
+issue held out of every ordinary/anonymous count-like surface at scale.
+Nothing here is a margin claim — single samples, loopback, one machine —
+but the large-profile GAP rows that have trailed this control since Lane 8
+opened are now real numbers in an immutable receipt.

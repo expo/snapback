@@ -1,0 +1,1028 @@
+{
+  "actorIdentity": {
+    "actors": {
+      "assignee": {
+        "principalSha256": "sha256:a09f351e037b57e349d8592fa48a51f9ddc9e9d783faaa42b8e6a96cc8176fe6",
+        "role": "user",
+        "sourceUserID": "usr_0012"
+      },
+      "creator": {
+        "principalSha256": "sha256:7d7bc8733b69ff4e9b0de396d051b260296f57c4414809ed222bb2cd82526291",
+        "role": "user",
+        "sourceUserID": "usr_0011"
+      },
+      "crew-admin": {
+        "principalSha256": "sha256:67a1ce1634dd3884b07a1c0b544e7238431694684194d0196d5f668ce0286a72",
+        "role": "crew",
+        "sourceUserID": "usr_0000"
+      },
+      "ordinary-user": {
+        "principalSha256": "sha256:08acab78b15ebbc026f29beb77641cf95508e8a8fc4fc36bd9dff9eece0f8486",
+        "role": "user",
+        "sourceUserID": "usr_0010"
+      },
+      "removed-member": {
+        "principalSha256": "sha256:eebf35007211c6a20df49f53c4dfccfb20fda8fb711c9c085cf68e9569164cc4",
+        "role": "crew",
+        "sourceUserID": "usr_0001"
+      }
+    },
+    "mode": "fresh large-fixture bindings; raw session carriers excluded"
+  },
+  "arm": "snapback-control-large",
+  "assistance": [
+    {
+      "at": "2026-08-07T13:37:06.144Z",
+      "kind": "governing-design",
+      "purpose": "ZB acceptance and immutable evidence contract",
+      "sequence": 1,
+      "source": "llp/0183-zerobugs-quality-surface.rfc.md"
+    },
+    {
+      "at": "2026-08-07T13:37:06.144Z",
+      "kind": "guide",
+      "purpose": "fresh owned server and non-vacuous check lifecycle",
+      "sequence": 2,
+      "source": "guide/testing/acceptance.md"
+    },
+    {
+      "at": "2026-08-07T13:37:06.144Z",
+      "kind": "landed-lane-evidence",
+      "purpose": "reuse source-oracle, actor, mutation, effect, and adapter checks",
+      "sequence": 3,
+      "source": "demos/zerobugs/control/tests/acceptance/lane2-live.mts..lane6a-live.mts"
+    }
+  ],
+  "attempt": "v3",
+  "browserIdentity": {
+    "mode": "headless generated-client scale driver; no browser launched"
+  },
+  "capabilityFacts": [
+    {
+      "id": "performance.large-fixture",
+      "status": "supported-local-control"
+    },
+    {
+      "bound": "W=1,000",
+      "id": "relational-graph.issue-list.large-W",
+      "status": "supported-local-control"
+    },
+    {
+      "id": "derived-search.large-refusal",
+      "status": "supported-local-control"
+    }
+  ],
+  "checks": {
+    "counts": {
+      "fail": 0,
+      "gap": 0,
+      "missing": 0,
+      "pass": 14
+    },
+    "executed": 14,
+    "expected": 14,
+    "harness": {
+      "expectedChecks": 14,
+      "failed": 0,
+      "ok": true,
+      "passed": 14,
+      "shortfall": null,
+      "skipped": 0,
+      "total": 14
+    },
+    "missing": [],
+    "rows": [
+      {
+        "details": {
+          "arm": "snapback-control-large",
+          "expectedChecks": 14,
+          "overwritesLane7": false,
+          "performancePolicy": "single raw sample per named path; no margins or score",
+          "receipt": "snapback-control-large.zb5.v1.json"
+        },
+        "id": "gate-definition-and-distinct-receipt-arm",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "bytesUsedOnlyAfterAllShardDigestsMatched": true,
+          "fixtureId": "large-seed42-v1",
+          "overallDigest": "sha256:7514938a88bb1b8d77fee15f2cf7a50aa1030be2ebee344c473ef4d263a21c94",
+          "receiptDigest": "sha256:d9dfd4fde488a388502773f569e829746f66826ae0f9f47263d36eef7d625a8a",
+          "shardsVerified": 16
+        },
+        "id": "large-source-shards-match-frozen-receipt",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "collisionAndReferenceChecks": "builder refused before artifact publication on mismatch",
+          "contentDigest": "sha256:39d7758a5a5809abf9fa3b3c6b966ecdf43dd9f5c6cc8b3977a94c17dd4efd73",
+          "overlayId": "large-overlay-v1",
+          "policyIssueFirst": true,
+          "selectedProject": {
+            "id": "OfAwqxYz9GbQfkkFpNpkT",
+            "issueCount": 99943
+          },
+          "workingSetDigest": "sha256:7e3ee7d659ad10e69f4ff681b091980d30525b62991ab4548c547e5240b9e464"
+        },
+        "id": "large-overlay-rules-1-through-6-and-digest",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "loadPlan": {
+            "batchesByTable": {
+              "comment": 2809,
+              "emoji": 2,
+              "issue": 1112,
+              "issueLabel": 2223,
+              "issueLabelRead": 3,
+              "issueListRead": 2,
+              "issueNotifications": 6,
+              "issueSearchDocument": 2,
+              "label": 6,
+              "project": 1,
+              "projectUserRead": 1,
+              "searchEpoch": 1,
+              "user": 1,
+              "userPref": 1,
+              "viewState": 6
+            },
+            "rowsByTable": {
+              "comment": 2527887,
+              "emoji": 1746,
+              "issue": 1000001,
+              "issueLabel": 2000370,
+              "issueLabelRead": 1992,
+              "issueListRead": 1000,
+              "issueNotifications": 5000,
+              "issueSearchDocument": 1000,
+              "label": 4810,
+              "project": 100,
+              "projectUserRead": 100,
+              "searchEpoch": 2,
+              "user": 100,
+              "userPref": 5,
+              "viewState": 5000
+            },
+            "totalBatches": 6176,
+            "totalRows": 5549113
+          },
+          "sourceCounts": {
+            "comment": 2527886,
+            "issue": 1000000,
+            "issueLabel": 2000370,
+            "label": 4810,
+            "project": 100,
+            "total": 5533266,
+            "user": 100
+          }
+        },
+        "id": "large-source-and-overlay-counts",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "digest": "sha256:25034c07339f524d3dd78281c0da953ed6f64e9320f71eec98c89ba7682005b2",
+          "oracleBound": "exactly W; no full 5.5M-row replay claimed",
+          "order": "(modified desc, id desc)",
+          "rows": 1000
+        },
+        "id": "working-set-oracle-is-bounded-and-exact",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "batches": 6176,
+          "checkpoint": "local ignored .snapback carrier; server ledger is authoritative",
+          "elapsedMs": 3954782,
+          "insertedBatches": 6176,
+          "inverseRemap": "every committed or replayed row matched its source-shaped canonical row before progress advanced",
+          "protocol": "zerobugs-large-ingest.v1: one atomic ledger row per deterministic batch; same-digest replay returns status=already-ingested plus aligned ids/rows; final summary reconciles every table; searchEpoch is last",
+          "replayedBatches": 0,
+          "rows": 5549113
+        },
+        "id": "resumable-ingest-and-inverse-remap",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "actorsBoundAfterIngest": 5,
+          "batches": 6176,
+          "rows": 5549113,
+          "rowsByTable": {
+            "comment": 2527887,
+            "emoji": 1746,
+            "issue": 1000001,
+            "issueLabel": 2000370,
+            "issueLabelRead": 1992,
+            "issueListRead": 1000,
+            "issueNotifications": 5000,
+            "issueSearchDocument": 1000,
+            "label": 4810,
+            "project": 100,
+            "projectUserRead": 100,
+            "searchEpoch": 2,
+            "user": 100,
+            "userPref": 5,
+            "viewState": 5000
+          },
+          "selectedProject": {
+            "id": "OfAwqxYz9GbQfkkFpNpkT",
+            "lowerCaseName": "gatewaycore",
+            "name": "GatewayCore"
+          }
+        },
+        "id": "loaded-table-counts-equal-large-profile",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "examined": 1000,
+          "observedDigest": "sha256:25034c07339f524d3dd78281c0da953ed6f64e9320f71eec98c89ba7682005b2",
+          "oracleDigest": "sha256:25034c07339f524d3dd78281c0da953ed6f64e9320f71eec98c89ba7682005b2",
+          "order": "(modified desc, id desc)",
+          "rows": 1000,
+          "total": 1000
+        },
+        "id": "live-list-window-matches-bounded-working-set-oracle",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "actor": "crew-admin",
+          "issueID": "zbav1_internal_issue",
+          "rank": 0,
+          "visibility": "internal"
+        },
+        "id": "protected-internal-issue-enters-working-set",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "anonymous": {
+            "examined": 900,
+            "total": 900
+          },
+          "ordinary": {
+            "examined": 900,
+            "total": 900
+          },
+          "policyIssueContribution": 0,
+          "protectedRowsExcluded": 100,
+          "publicRows": 900
+        },
+        "id": "ordinary-and-anonymous-count-like-surfaces-do-not-leak-protected-issue",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "addedPublicDocuments": 124,
+          "boundary": 1024,
+          "durableTriggerIntents": 124,
+          "initialPublicDocuments": 900,
+          "publicEpoch": 124,
+          "refusal": {
+            "reason": "search-document-bound-or-epoch-missing",
+            "status": "refreshing"
+          }
+        },
+        "id": "search-epoch-refuses-at-1024-partition-boundary",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "end": "complete exact 1,000-row W envelope received and validated",
+          "profile": "local loopback; file-backed SQLite; no margin",
+          "responseByteSamples": [
+            817069
+          ],
+          "samplesMs": [
+            1341.053
+          ],
+          "start": "authenticated generated issueListV2 request issued"
+        },
+        "id": "raw-list-ready-timing",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "backwardResponseByteSamples": [
+            81654,
+            82756,
+            81464,
+            82217,
+            81049,
+            81079,
+            80882,
+            84510,
+            82561,
+            81354
+          ],
+          "backwardRows": 1000,
+          "backwardSamplesMs": [
+            198.418,
+            193.499,
+            186.365,
+            208.978,
+            250.222,
+            272.704,
+            217.521,
+            209.193,
+            223.798,
+            209.111
+          ],
+          "duplicateOrSkippedRows": 0,
+          "forwardResponseByteSamples": [
+            81439,
+            82561,
+            84510,
+            80882,
+            81079,
+            81049,
+            82217,
+            81464,
+            82756,
+            81569
+          ],
+          "forwardRows": 1000,
+          "forwardSamplesMs": [
+            173.439,
+            184.698,
+            182.905,
+            186.734,
+            188.497,
+            181.521,
+            177.751,
+            177.191,
+            184.751,
+            181.128
+          ],
+          "pageSize": 100
+        },
+        "id": "raw-representative-window-walk-timing",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "W": 1000,
+          "boundedReadModelRows": 4094,
+          "browserFacts": 0,
+          "clientInspections": {
+            "anonymous": {
+              "grantCount": 0,
+              "grants": [],
+              "laneConsumers": [],
+              "listeners": 0,
+              "managerCount": 0,
+              "managers": [],
+              "socketDemand": 0,
+              "timers": 0
+            },
+            "assignee": {
+              "grantCount": 0,
+              "grants": [],
+              "laneConsumers": [],
+              "listeners": 0,
+              "managerCount": 0,
+              "managers": [],
+              "socketDemand": 0,
+              "timers": 0
+            },
+            "creator": {
+              "grantCount": 0,
+              "grants": [],
+              "laneConsumers": [],
+              "listeners": 0,
+              "managerCount": 0,
+              "managers": [],
+              "socketDemand": 0,
+              "timers": 0
+            },
+            "crew-admin": {
+              "grantCount": 0,
+              "grants": [],
+              "laneConsumers": [],
+              "listeners": 0,
+              "managerCount": 0,
+              "managers": [],
+              "socketDemand": 0,
+              "timers": 0
+            },
+            "ordinary-user": {
+              "grantCount": 0,
+              "grants": [],
+              "laneConsumers": [],
+              "listeners": 0,
+              "managerCount": 0,
+              "managers": [],
+              "socketDemand": 0,
+              "timers": 0
+            },
+            "removed-member": {
+              "grantCount": 0,
+              "grants": [],
+              "laneConsumers": [],
+              "listeners": 0,
+              "managerCount": 0,
+              "managers": [],
+              "socketDemand": 0,
+              "timers": 0
+            }
+          },
+          "crewVisibleW": 1000,
+          "ledgerBatches": 6176,
+          "ordinaryAndAnonymousVisibleW": 900,
+          "retainedQueryPayloadsClaimed": 0,
+          "searchBoundary": {
+            "addedPublicDocuments": 124,
+            "boundary": 1024,
+            "durableTriggerIntents": 124,
+            "initialPublicDocuments": 900,
+            "publicEpoch": 124,
+            "refusal": {
+              "reason": "search-document-bound-or-epoch-missing",
+              "status": "refreshing"
+            }
+          },
+          "serverRows": 5549113,
+          "serverRowsByTable": {
+            "comment": 2527887,
+            "emoji": 1746,
+            "issue": 1000001,
+            "issueLabel": 2000370,
+            "issueLabelRead": 1992,
+            "issueListRead": 1000,
+            "issueNotifications": 5000,
+            "issueSearchDocument": 1000,
+            "label": 4810,
+            "project": 100,
+            "projectUserRead": 100,
+            "searchEpoch": 2,
+            "user": 100,
+            "userPref": 5,
+            "viewState": 5000
+          },
+          "snapshotResponseBytes": 817069,
+          "walkResponseBytes": 1639052
+        },
+        "id": "large-custody-counters",
+        "status": "PASS"
+      }
+    ]
+  },
+  "cleanup": {
+    "ownership": "Every resource registered through the gate runner was cleaned in reverse ownership order.",
+    "results": [
+      {
+        "label": "ZB5 large anonymous client",
+        "reverseIndex": 0,
+        "status": "PASS",
+        "targets": []
+      },
+      {
+        "label": "ZB5 large actor sessions",
+        "reverseIndex": 1,
+        "status": "PASS",
+        "targets": []
+      },
+      {
+        "label": "Snapback server",
+        "reverseIndex": 2,
+        "status": "PASS",
+        "targets": [
+          {
+            "id": "91469",
+            "kind": "process"
+          }
+        ]
+      },
+      {
+        "label": "zb5-large scratch namespace",
+        "reverseIndex": 3,
+        "status": "PASS",
+        "targets": [
+          {
+            "kind": "directory",
+            "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb5-large-RA7beO"
+          }
+        ]
+      }
+    ],
+    "status": "PASS",
+    "targets": [
+      {
+        "id": "91469",
+        "kind": "process"
+      },
+      {
+        "kind": "directory",
+        "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb5-large-RA7beO"
+      }
+    ]
+  },
+  "completedAt": "2026-08-07T14:43:16.892Z",
+  "componentReleaseIdentities": [
+    {
+      "id": "zerobugs-control-composition",
+      "path": "demos/zerobugs/control/composition/zerobugs-control-composition.v1.json",
+      "runtime": {
+        "entrypoint": "composition/server.mts",
+        "hostEnv": "ZERBUGS_GATEWAY_HOST",
+        "name": "bun",
+        "portEnv": "ZERBUGS_GATEWAY_PORT",
+        "readyFileEnv": "ZERBUGS_GATEWAY_READY_FILE",
+        "version": "1.3.12"
+      },
+      "sha256": "sha256:2e99e33cfbef2c961257399b817a8b749699efcf22720308476576d1aff2513d",
+      "snapbackRelease": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:98195b9448c613209a88afd16a957a1e575220cb92b80332d40a9adc4eeafaff",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:e42e89134ecc7062e6432d81535151898fa57be5f7b917f2cc3198f42c33ab78",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "status": "supported-local-control",
+      "version": 1
+    }
+  ],
+  "custodyAccounting": {
+    "W": 1000,
+    "boundedReadModelRows": 4094,
+    "browserFacts": 0,
+    "clientInspections": {
+      "anonymous": {
+        "grantCount": 0,
+        "grants": [],
+        "laneConsumers": [],
+        "listeners": 0,
+        "managerCount": 0,
+        "managers": [],
+        "socketDemand": 0,
+        "timers": 0
+      },
+      "assignee": {
+        "grantCount": 0,
+        "grants": [],
+        "laneConsumers": [],
+        "listeners": 0,
+        "managerCount": 0,
+        "managers": [],
+        "socketDemand": 0,
+        "timers": 0
+      },
+      "creator": {
+        "grantCount": 0,
+        "grants": [],
+        "laneConsumers": [],
+        "listeners": 0,
+        "managerCount": 0,
+        "managers": [],
+        "socketDemand": 0,
+        "timers": 0
+      },
+      "crew-admin": {
+        "grantCount": 0,
+        "grants": [],
+        "laneConsumers": [],
+        "listeners": 0,
+        "managerCount": 0,
+        "managers": [],
+        "socketDemand": 0,
+        "timers": 0
+      },
+      "ordinary-user": {
+        "grantCount": 0,
+        "grants": [],
+        "laneConsumers": [],
+        "listeners": 0,
+        "managerCount": 0,
+        "managers": [],
+        "socketDemand": 0,
+        "timers": 0
+      },
+      "removed-member": {
+        "grantCount": 0,
+        "grants": [],
+        "laneConsumers": [],
+        "listeners": 0,
+        "managerCount": 0,
+        "managers": [],
+        "socketDemand": 0,
+        "timers": 0
+      }
+    },
+    "crewVisibleW": 1000,
+    "ledgerBatches": 6176,
+    "ordinaryAndAnonymousVisibleW": 900,
+    "retainedQueryPayloadsClaimed": 0,
+    "searchBoundary": {
+      "addedPublicDocuments": 124,
+      "boundary": 1024,
+      "durableTriggerIntents": 124,
+      "initialPublicDocuments": 900,
+      "publicEpoch": 124,
+      "refusal": {
+        "reason": "search-document-bound-or-epoch-missing",
+        "status": "refreshing"
+      }
+    },
+    "serverRows": 5549113,
+    "serverRowsByTable": {
+      "comment": 2527887,
+      "emoji": 1746,
+      "issue": 1000001,
+      "issueLabel": 2000370,
+      "issueLabelRead": 1992,
+      "issueListRead": 1000,
+      "issueNotifications": 5000,
+      "issueSearchDocument": 1000,
+      "label": 4810,
+      "project": 100,
+      "projectUserRead": 100,
+      "searchEpoch": 2,
+      "user": 100,
+      "userPref": 5,
+      "viewState": 5000
+    },
+    "snapshotResponseBytes": 817069,
+    "walkResponseBytes": 1639052
+  },
+  "diagnostics": [],
+  "execution": {
+    "harnessAcceptedCount": true,
+    "setupCompleted": true,
+    "status": "PASS"
+  },
+  "fixtureIdentity": {
+    "baseRowCount": 5533266,
+    "digest": "sha256:7514938a88bb1b8d77fee15f2cf7a50aa1030be2ebee344c473ef4d263a21c94",
+    "extensionIds": [
+      "large-overlay-v1",
+      "policy-extension-v1"
+    ],
+    "id": "large-seed42-v1",
+    "mode": "canonical CSV shards verified before use; W projection bound recorded separately",
+    "overlayDigest": "sha256:39d7758a5a5809abf9fa3b3c6b966ecdf43dd9f5c6cc8b3977a94c17dd4efd73",
+    "rowCount": 5549113
+  },
+  "gate": "zb5",
+  "generatedIdentities": [
+    {
+      "id": "schemaManifest",
+      "path": "demos/zerobugs/control/snapback/generated/schema.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:98195b9448c613209a88afd16a957a1e575220cb92b80332d40a9adc4eeafaff",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:e42e89134ecc7062e6432d81535151898fa57be5f7b917f2cc3198f42c33ab78",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:ded5755121f86e41fae151983fdd7734f85184f745b07415a23bd536bfb658e4"
+    },
+    {
+      "id": "functionManifest",
+      "path": "demos/zerobugs/control/snapback/generated/functions.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:98195b9448c613209a88afd16a957a1e575220cb92b80332d40a9adc4eeafaff",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:e42e89134ecc7062e6432d81535151898fa57be5f7b917f2cc3198f42c33ab78",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:19ae4356e1b7b31030fc1834232a9258becd7fee4ae3fa6fe47ae24fef64e29d"
+    },
+    {
+      "id": "capabilityManifest",
+      "path": "demos/zerobugs/control/snapback/generated/capability.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:98195b9448c613209a88afd16a957a1e575220cb92b80332d40a9adc4eeafaff",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:e42e89134ecc7062e6432d81535151898fa57be5f7b917f2cc3198f42c33ab78",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v0",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:95acfb5fa272a4c7acc7f52d11f1ad0054b98152c45903cf3cb9430b4ab8c286"
+    },
+    {
+      "id": "contractDataManifest",
+      "path": "demos/zerobugs/control/snapback/generated/contract-data.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:98195b9448c613209a88afd16a957a1e575220cb92b80332d40a9adc4eeafaff",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:e42e89134ecc7062e6432d81535151898fa57be5f7b917f2cc3198f42c33ab78",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:cddb4560e94878993016ae36161e29fc96d63a8f16e32342b515c916bdbaee95"
+    },
+    {
+      "id": "artifactIndex",
+      "path": "demos/zerobugs/control/snapback/generated/artifacts.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:98195b9448c613209a88afd16a957a1e575220cb92b80332d40a9adc4eeafaff",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:e42e89134ecc7062e6432d81535151898fa57be5f7b917f2cc3198f42c33ab78",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:91840af6be7d5171405f1e05b672c947c2d1e2ca51ec5f44d60c087cbe4b05e1"
+    }
+  ],
+  "machineIdentity": {
+    "arch": "arm64",
+    "cpuCount": 18,
+    "hostnameSha256": "sha256:4a238cd09cfb162aa54334e6f1b3fba341960951bd6f36b2b01b6e77a72395c0",
+    "platform": "darwin"
+  },
+  "manifest": {
+    "id": "zerobugs-acceptance.v1",
+    "path": "demos/zerobugs/manifest/acceptance.v1.json",
+    "sha256": "sha256:3eb0280a5803da887cea371193f62ff372ac537efa24e7cd53b150afe0d1fc2c"
+  },
+  "network": "owned local loopback server; generated client HTTP/live-query operation paths; no injected delay",
+  "outcome": "PASS",
+  "rawArtifacts": [
+    {
+      "path": "demos/zerobugs/control/PLAN.md",
+      "sha256": "sha256:0f1bae97418560f21ee2f1544f4b1067c00fcfb3a3fb7012e6f7353894271eaa"
+    },
+    {
+      "path": "demos/zerobugs/control/composition/zerobugs-control-composition.v1.json",
+      "sha256": "sha256:2e99e33cfbef2c961257399b817a8b749699efcf22720308476576d1aff2513d"
+    },
+    {
+      "path": "demos/zerobugs/control/scripts/build-large-overlay.mts",
+      "sha256": "sha256:e0b7369049f69cba9bfa784af3c4efae44fe8460043d3c99c4df2ce7cc46f4ff"
+    },
+    {
+      "path": "demos/zerobugs/control/scripts/load-large-fixture.mts",
+      "sha256": "sha256:894b680906bf3de438ac406e85b27586a6d08a1c9cc064abde2a1bd4d47ab185"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/artifacts.json",
+      "sha256": "sha256:91840af6be7d5171405f1e05b672c947c2d1e2ca51ec5f44d60c087cbe4b05e1"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/capability.manifest.json",
+      "sha256": "sha256:95acfb5fa272a4c7acc7f52d11f1ad0054b98152c45903cf3cb9430b4ab8c286"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/contract-data.manifest.json",
+      "sha256": "sha256:cddb4560e94878993016ae36161e29fc96d63a8f16e32342b515c916bdbaee95"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/functions.manifest.json",
+      "sha256": "sha256:19ae4356e1b7b31030fc1834232a9258becd7fee4ae3fa6fe47ae24fef64e29d"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/schema.manifest.json",
+      "sha256": "sha256:ded5755121f86e41fae151983fdd7734f85184f745b07415a23bd536bfb658e4"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/gate-support.mjs",
+      "sha256": "sha256:52e514bc20ab2ac0dfba2639e7e07ac2f38f824836070c3847867afb221f2437"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs",
+      "sha256": "sha256:c8edc8cc7946a3762c482ef3e25a7b1042199100502a0abe90ce9d4b993d58c6"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/gates/zb5-scale-support.mjs",
+      "sha256": "sha256:4186e0ed2e35f1bae199018db57c0bce6c309533a104287b39b8b7829ffbcddc"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/fixtures/fixture-digests.json",
+      "sha256": "sha256:56afa56a74f0edddfd71ac0e7a09f5c12bc1e2eaed9e2be2f2ad6c84c31d38b3"
+    },
+    {
+      "path": "demos/zerobugs/manifest/acceptance.v1.json",
+      "sha256": "sha256:3eb0280a5803da887cea371193f62ff372ac537efa24e7cd53b150afe0d1fc2c"
+    },
+    {
+      "path": "demos/zerobugs/manifest/large-seed42-v1.receipt.json",
+      "sha256": "sha256:d9dfd4fde488a388502773f569e829746f66826ae0f9f47263d36eef7d625a8a"
+    },
+    {
+      "path": "demos/zerobugs/stage0/inventory.v1.json",
+      "sha256": "sha256:0d7233897864c39f99ef5c46946da21ddfc8a404e6f0441c741c02192a43eaa3"
+    },
+    {
+      "path": "guide/testing/acceptance.md",
+      "sha256": "sha256:f8e0c2178f5798b839c41fa1c062ac5b3c8f23ca387699ca9a726be2c6713992"
+    }
+  ],
+  "refusalFacts": [
+    {
+      "blockers": [],
+      "id": "large-ingest-without-idempotent-batch-ledger",
+      "status": "refused"
+    },
+    {
+      "id": "large-full-corpus-readmodel-projection",
+      "owner": "control server/read-model ingestion lane",
+      "status": "gap"
+    },
+    {
+      "id": "performance-unfrozen-margin",
+      "status": "refused"
+    }
+  ],
+  "schemaVersion": "zerobugs-gate-receipt.v1",
+  "sourceAccounting": {
+    "batchMath": {
+      "batchesByTable": {
+        "comment": 2809,
+        "emoji": 2,
+        "issue": 1112,
+        "issueLabel": 2223,
+        "issueLabelRead": 3,
+        "issueListRead": 2,
+        "issueNotifications": 6,
+        "issueSearchDocument": 2,
+        "label": 6,
+        "project": 1,
+        "projectUserRead": 1,
+        "searchEpoch": 1,
+        "user": 1,
+        "userPref": 1,
+        "viewState": 6
+      },
+      "rowsByTable": {
+        "comment": 2527887,
+        "emoji": 1746,
+        "issue": 1000001,
+        "issueLabel": 2000370,
+        "issueLabelRead": 1992,
+        "issueListRead": 1000,
+        "issueNotifications": 5000,
+        "issueSearchDocument": 1000,
+        "label": 4810,
+        "project": 100,
+        "projectUserRead": 100,
+        "searchEpoch": 2,
+        "user": 100,
+        "userPref": 5,
+        "viewState": 5000
+      },
+      "totalBatches": 6176,
+      "totalRows": 5549113
+    },
+    "expectedChecks": 14,
+    "fullListSample": {
+      "elapsedMs": 1341.053,
+      "responseBytes": 817069
+    },
+    "ingest": {
+      "baseDigest": "sha256:7514938a88bb1b8d77fee15f2cf7a50aa1030be2ebee344c473ef4d263a21c94",
+      "batches": 6176,
+      "checkpoint": "local ignored .snapback carrier; server ledger is authoritative",
+      "elapsedMs": 3954782,
+      "fixtureId": "large-seed42-v1",
+      "insertedBatches": 6176,
+      "overlayDigest": "sha256:39d7758a5a5809abf9fa3b3c6b966ecdf43dd9f5c6cc8b3977a94c17dd4efd73",
+      "principal": "sha256:1a4552abded2f46143a1277eb1126bf11d40d9bfe9d6ae4fdef6d2508a202aee",
+      "replayedBatches": 0,
+      "rows": 5549113,
+      "rowsByTable": {
+        "comment": 2527887,
+        "emoji": 1746,
+        "issue": 1000001,
+        "issueLabel": 2000370,
+        "issueLabelRead": 1992,
+        "issueListRead": 1000,
+        "issueNotifications": 5000,
+        "issueSearchDocument": 1000,
+        "label": 4810,
+        "project": 100,
+        "projectUserRead": 100,
+        "searchEpoch": 2,
+        "user": 100,
+        "userPref": 5,
+        "viewState": 5000
+      },
+      "status": "ok"
+    },
+    "oracleBound": "W only",
+    "overlayCounts": {
+      "baseGenerated": 5533266,
+      "boundedProjectionRows": 4094,
+      "comment": 2527887,
+      "emoji": 1746,
+      "issue": 1000001,
+      "issueLabelRead": 1992,
+      "issueListRead": 1000,
+      "issueNotifications": 5000,
+      "issueSearchDocument": 1000,
+      "overlaySourceRows": 11753,
+      "projectUserRead": 100,
+      "searchEpoch": 2,
+      "userPref": 5,
+      "viewState": 5000
+    },
+    "rawSamples": 21,
+    "searchBoundary": {
+      "addedPublicDocuments": 124,
+      "boundary": 1024,
+      "durableTriggerIntents": 124,
+      "initialPublicDocuments": 900,
+      "publicEpoch": 124,
+      "refusal": {
+        "reason": "search-document-bound-or-epoch-missing",
+        "status": "refreshing"
+      }
+    },
+    "sourceCounts": {
+      "comment": 2527886,
+      "issue": 1000000,
+      "issueLabel": 2000370,
+      "label": 4810,
+      "project": 100,
+      "total": 5533266,
+      "user": 100
+    },
+    "windowWalk": {
+      "backward": {
+        "digest": "sha256:09f3a53864ed300620dc5b77ed692568e7cce5519bfed056d312dfa7e49de873",
+        "responseByteSamples": [
+          81654,
+          82756,
+          81464,
+          82217,
+          81049,
+          81079,
+          80882,
+          84510,
+          82561,
+          81354
+        ],
+        "rows": 1000,
+        "samplesMs": [
+          198.418,
+          193.499,
+          186.365,
+          208.978,
+          250.222,
+          272.704,
+          217.521,
+          209.193,
+          223.798,
+          209.111
+        ]
+      },
+      "forward": {
+        "digest": "sha256:7e3ee7d659ad10e69f4ff681b091980d30525b62991ab4548c547e5240b9e464",
+        "responseByteSamples": [
+          81439,
+          82561,
+          84510,
+          80882,
+          81079,
+          81049,
+          82217,
+          81464,
+          82756,
+          81569
+        ],
+        "rows": 1000,
+        "samplesMs": [
+          173.439,
+          184.698,
+          182.905,
+          186.734,
+          188.497,
+          181.521,
+          177.751,
+          177.191,
+          184.751,
+          181.128
+        ]
+      }
+    }
+  },
+  "startedAt": "2026-08-07T13:37:06.144Z",
+  "targetIdentity": {
+    "appId": "zerobugs-control",
+    "bundleHash": "snapback.v1:sessions:function:sha256:98195b9448c613209a88afd16a957a1e575220cb92b80332d40a9adc4eeafaff",
+    "id": "local-dev-sqlite-ibex",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:e42e89134ecc7062e6432d81535151898fa57be5f7b917f2cc3198f42c33ab78",
+    "mode": "fresh local Ibex plus SQLite server",
+    "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+    "schemaVersion": "snapback.v1"
+  },
+  "workarounds": [
+    {
+      "admittedBound": "working set W only",
+      "id": "W-READMODEL-LARGE-FULL-CORPUS",
+      "owner": "control server/read-model ingestion lane",
+      "status": "gap"
+    }
+  ]
+}

@@ -111,6 +111,12 @@ export async function startServer({
   // (LLP 0028 §Scheduler state and run ledger).
   cronDisabled = false,
   startupTimeoutMs = DEFAULT_SERVER_STARTUP_TIMEOUT_MS,
+  // SIGTERM grace before the SIGKILL escalation. The 3 s default fits the
+  // small acceptance databases every demo lived at; a server closing a
+  // multi-GiB SQLite store checkpoints its WAL inside SIGTERM handling
+  // (verified behavior) and needs a scale-appropriate window, or the kill
+  // escalation preempts the checkpoint and leaves a -wal sidecar behind.
+  stopGraceMs = null,
 } = {}) {
   return startServerWithDeps({
     port,
@@ -127,6 +133,7 @@ export async function startServer({
     onUnexpectedExit,
     cronDisabled,
     startupTimeoutMs,
+    stopGraceMs,
   }, {});
 }
 
@@ -153,9 +160,13 @@ async function startServerWithDeps({
   onUnexpectedExit = null,
   cronDisabled = false,
   startupTimeoutMs = DEFAULT_SERVER_STARTUP_TIMEOUT_MS,
+  stopGraceMs = null,
 } = {}, deps = {}) {
   if (bindPortExactly && (!Number.isInteger(port) || port < 1 || port > 65_535)) {
     throw new TypeError('bindPortExactly requires an explicit TCP port from 1 through 65535');
+  }
+  if (stopGraceMs !== null && (!Number.isInteger(stopGraceMs) || stopGraceMs < 0)) {
+    throw new TypeError('stopGraceMs must be a nonnegative integer when provided');
   }
   if (onUnexpectedExit !== null && typeof onUnexpectedExit !== 'function') {
     throw new TypeError('onUnexpectedExit must be a function when provided');
@@ -295,6 +306,7 @@ async function startServerWithDeps({
     captureImpersonationCapability,
     adminToken,
     onUnexpectedExit,
+    stopGraceMs,
   };
   for (let index = 0; index < plans.length; index += 1) {
     const plan = plans[index];
@@ -549,6 +561,7 @@ async function launchServerAttempt(plan, {
   captureImpersonationCapability,
   adminToken,
   onUnexpectedExit = null,
+  stopGraceMs = null,
 }) {
   const readyDir = mkdtempSync(join(tmpdir(), 'snapback-server-'));
   const readyFile = join(readyDir, 'ready.json');
@@ -624,7 +637,10 @@ async function launchServerAttempt(plan, {
   const ownership = ownProcessTree(child, async () => {
     watchState.stopRequested = true;
     try {
-      await stopChild(child, deps.stopOptions);
+      await stopChild(child, {
+        ...deps.stopOptions,
+        ...(stopGraceMs !== null ? {graceMs: stopGraceMs} : {}),
+      });
     } finally {
       cleanup();
     }

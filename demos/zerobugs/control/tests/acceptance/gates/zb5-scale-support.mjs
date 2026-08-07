@@ -95,6 +95,11 @@ export async function startScaleServer(
     serverBinary: process.env.SNAPBACK_SERVER_BINARY
       ?? process.env.SNAPBACK_RUNTIME_BINARY
       ?? null,
+    // SIGTERM shutdown checkpoints the SQLite WAL before exit; over the
+    // multi-GiB large-profile store that checkpoint outlives the kit's 3 s
+    // default grace, and the SIGKILL escalation would strand a -wal sidecar
+    // that breaks the hot gate's byte-provable paused-baseline clone.
+    stopGraceMs: 600_000,
     env: {
       SNAPBACK_OUTBOUND_ACTIONS: '1',
       ZERBUGS_TEST_DEFAULTS: '1',
@@ -169,11 +174,52 @@ export async function startScaleServer(
   });
 }
 
+// Fold a WAL sidecar the server's shutdown stranded. Small-store SIGTERM
+// shutdown provably checkpoints and removes the sidecars; over the multi-GiB
+// large profile the server exits within seconds leaving the -wal behind
+// (issues/20260807-server-sigterm-strands-large-sqlite-wal.md). The db+wal
+// pair is a consistent SQLite state, so an explicit TRUNCATE checkpoint
+// yields exactly the committed bytes; the strand stays disclosed in the
+// returned fact rather than silently absorbed.
+async function foldStrandedWal(databasePath) {
+  const walStat = await stat(`${databasePath}-wal`).catch(error => {
+    if (absentFile(error)) return null;
+    throw error;
+  });
+  if (walStat === null) {
+    await assertNoSqliteSidecars(databasePath);
+    return {shutdownStrandedWal: false, strandedWalBytes: 0};
+  }
+  const {Database} = await import('bun:sqlite');
+  const db = new Database(databasePath);
+  try {
+    db.exec('PRAGMA busy_timeout = 60000;');
+    db.exec('PRAGMA wal_checkpoint(TRUNCATE);');
+  } finally {
+    db.close();
+  }
+  for (const suffix of ['-wal', '-shm']) {
+    const sidecar = `${databasePath}${suffix}`;
+    const sidecarStat = await stat(sidecar).catch(error => {
+      if (absentFile(error)) return null;
+      throw error;
+    });
+    if (sidecarStat !== null) {
+      if (suffix === '-wal' && sidecarStat.size > 0) {
+        throw new Error('stranded WAL did not fold to zero bytes under an exclusive checkpoint');
+      }
+      await rm(sidecar, {force: true});
+    }
+  }
+  await assertNoSqliteSidecars(databasePath);
+  return {shutdownStrandedWal: true, strandedWalBytes: walStat.size};
+}
+
 export async function pauseAndHashBaseline(stack) {
   await stack.server.stop();
   await stat(stack.databasePath);
-  await assertNoSqliteSidecars(stack.databasePath);
-  return await sha256File(stack.databasePath);
+  const shutdownWal = await foldStrandedWal(stack.databasePath);
+  return {digest: await sha256File(stack.databasePath), shutdownWal};
 }
 
 export async function cloneBaselineDatabase(
@@ -183,9 +229,20 @@ export async function cloneBaselineDatabase(
 ) {
   await assertNoSqliteSidecars(baselinePath);
   await copyFile(baselinePath, destinationPath, fsConstants.COPYFILE_FICLONE);
+  // The sessions auth provider keeps its keyring in a db-path-prefixed
+  // sibling file; a database clone without that sibling refuses to boot
+  // (SNAPBACK_AUTH_PROVIDER_UNAVAILABLE — probed and verified). The keyring
+  // is part of the durable state a byte-provable reset must carry.
+  await copyFile(
+    `${baselinePath}.auth-keyring.json`,
+    `${destinationPath}.auth-keyring.json`,
+  );
   const digest = await sha256File(destinationPath);
   assert.equal(digest, expectedDigest, 'cycle database is byte-identical to paused baseline');
-  return Object.freeze({digest, method: 'COPYFILE_FICLONE with platform fallback'});
+  return Object.freeze({
+    digest,
+    method: 'COPYFILE_FICLONE with platform fallback; db-sibling auth keyring cloned alongside',
+  });
 }
 
 export async function bindLargeActors({api, overlay, readyFile, instance}) {
@@ -245,6 +302,12 @@ export function createAnonymousClient(baseUrl, instance) {
     clientStoreId: `zerobugs-${instance}-anonymous`,
     adminToken: null,
     rqsStore: null,
+    // Streaming live-query observers are auth-scoped live work even under
+    // anonymous-public custody; the server refuses the stream without the
+    // exact authorization-invalidation protocol declaration
+    // (SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED). The bound-actor
+    // clients get this from createExternalSessionClient already.
+    authInvalidationProtocol: 1,
   });
 }
 

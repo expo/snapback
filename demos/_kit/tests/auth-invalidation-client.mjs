@@ -613,6 +613,73 @@ try {
   handle.dispose();
   await new Promise((resolve) => setTimeout(resolve, 0));
   console.log('kit authorization invalidation integration: ok');
+
+  // Anonymous-public custody regression: streaming live work is auth-scoped
+  // even without a credential, so a configured authorization-invalidation
+  // offer must reach the wire as the request header on /live/ paths. The
+  // custody branch used to send only the base offer headers, making the
+  // server's SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED remedy
+  // ("configure SnapbackClient with authInvalidationProtocol: 1")
+  // unsatisfiable for anonymous streaming clients (found by the Zerobugs
+  // zb5-hot gate's anonymous observer).
+  {
+    const liveHeaders = [];
+    globalThis.fetch = async (url, init = {}) => {
+      const path = new URL(url).pathname;
+      if (path === '/connection/open') {
+        return response({
+          connectionId: 'granted-anon',
+          connectionToken: 'sct_anon',
+          wireVersion: 'snapback.v1',
+          authorizationInvalidation: {
+            protocolVersion: 1,
+            issuerId,
+            connectionGeneration: 1,
+            authorization,
+            versionStream: 'stream-anon',
+          },
+        });
+      }
+      if (path === '/live/listTodos/subscribe') {
+        liveHeaders.push({ ...(init.headers ?? {}) });
+        return response({
+          subscription_id: 'sub_anon',
+          snapshot: { version: 1, rows: [] },
+          permission_epochs: {},
+        });
+      }
+      if (path === '/live/listTodos/unsubscribe') {
+        return response({ subscription_id: 'sub_anon', disposed: true });
+      }
+      if (path === '/outbox/granted-anon') return response([]);
+      throw new Error(`unexpected anonymous request: ${path}`);
+    };
+    const anonymous = new SnapbackClient('http://stub', {
+      custody: 'anonymous-public',
+      adminToken: null,
+      authInvalidationProtocol: 1,
+      clientStoreId: 'store_anon_invalidation_test',
+    });
+    const anonymousHandle = await anonymous.liveQuery('listTodos', {
+      connectionId: 'anon-connection',
+      args: {},
+      onSnapshot: () => {},
+    });
+    assert(liveHeaders.length > 0, 'anonymous live subscribe was issued');
+    assert.equal(
+      liveHeaders[0]['x-snapback-auth-invalidation-protocol'],
+      '1',
+      'anonymous-public custody sends the authorization-invalidation offer header on /live/ paths',
+    );
+    assert.equal(
+      liveHeaders[0].authorization,
+      undefined,
+      'anonymous-public custody still sends no bearer',
+    );
+    anonymousHandle.dispose();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    console.log('kit anonymous-public live invalidation offer header: ok');
+  }
 } finally {
   globalThis.fetch = originalFetch;
 }

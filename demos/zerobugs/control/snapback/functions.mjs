@@ -58,7 +58,12 @@ function largeFixturePlan() {
     {table: 'projectUserRead', rows: 100, batches: 1},
     {table: 'issueListRead', rows: 1_000, batches: 2},
     {table: 'issueLabelRead', rows: 1_992, batches: 3},
-    {table: 'issueSearchDocument', rows: 1_000, batches: 2},
+    // issueSearchDocument rows carry the concatenated title/description/
+    // comment text, so a 900-row batch echo exceeds the declared 1 MiB
+    // v.json() result ceiling (measured 983 KiB of args alone for rows
+    // 0-899). A 500-row cap keeps the same two-batch plan with the largest
+    // committed-row echo measured at ~630 KiB against the frozen overlay.
+    {table: 'issueSearchDocument', rows: 1_000, batches: 2, rowCap: 500},
     {table: 'searchEpoch', rows: 2, batches: 1},
   ];
 }
@@ -70,9 +75,10 @@ function largeFixtureExpectedBatch(batchIndex) {
     const afterTable = firstBatch + entry.batches;
     if (batchIndex < afterTable) {
       const tableBatch = batchIndex - firstBatch;
+      const cap = entry.rowCap ?? 900;
       const rowCount = tableBatch === entry.batches - 1
-        ? entry.rows - (entry.batches - 1) * 900
-        : 900;
+        ? entry.rows - (entry.batches - 1) * cap
+        : cap;
       return {table: entry.table, rowCount};
     }
     firstBatch = afterTable;

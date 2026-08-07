@@ -739,7 +739,8 @@ async function main() {
           verified,
           overlay.payload.selectedProject.id,
         );
-        baselineDigest = await pauseAndHashBaseline(baseline);
+        const paused = await pauseAndHashBaseline(baseline);
+        baselineDigest = paused.digest;
 
         for (const cyclePlan of operationPlan.plan) {
           const cyclePath = databasePath(namespace, `hot-cycle-${cyclePlan.cycle}`);
@@ -863,6 +864,12 @@ async function main() {
             batches: baselineIngest.batches,
             insertedBatches: baselineIngest.insertedBatches,
             replayedBatches: baselineIngest.replayedBatches,
+            // Disclosed platform finding, not silently absorbed: the server's
+            // SIGTERM shutdown stranded this WAL at multi-GiB scale and the
+            // gate folded it with an explicit exclusive TRUNCATE checkpoint
+            // before hashing (issues/20260807-server-sigterm-strands-large-
+            // sqlite-wal.md).
+            shutdownWal: paused.shutdownWal,
           },
           resetMode: 'paused-baseline SQLite clone into a fresh owned path per cycle',
           full55MReloadPerCycle: false,
@@ -937,8 +944,13 @@ async function main() {
       for (const name of MUTATION_NAMES) {
         const id = rawCheckID(name);
         const samples = samplesFor(cycleRuns, name);
-        const allApplied = samples.every(sample => sample.outcome === 'applied');
+        // An aborted cycle stage leaves samples empty, and every() over an
+        // empty array is vacuously true — these rows must fail, not pass,
+        // when the cycles never ran.
+        const allApplied = samples.length === cycles
+          && samples.every(sample => sample.outcome === 'applied');
         const scaleCreateRefusal = name === 'issue.create'
+          && samples.length === cycles
           && samples.every(sample => (
             sample.outcome === 'refused'
             && sample.error?.message.includes('issue short id allocation reached the portable 1,024-row boundary')

@@ -1,4 +1,5 @@
 import {createHash, randomUUID} from 'node:crypto';
+import {createReadStream} from 'node:fs';
 import {
   chmod,
   link,
@@ -96,7 +97,16 @@ export function sha256Bytes(value) {
 }
 
 export async function sha256File(path) {
-  return sha256Bytes(await readFile(path));
+  // Streamed: the zb5 large/hot baselines are multi-GiB SQLite files, and a
+  // single readFile of one exceeds the engine's buffer allocation limit.
+  const hash = createHash('sha256');
+  await new Promise((resolveDigest, rejectDigest) => {
+    const stream = createReadStream(path);
+    stream.on('data', chunk => hash.update(chunk));
+    stream.on('error', rejectDigest);
+    stream.on('end', resolveDigest);
+  });
+  return `sha256:${hash.digest('hex')}`;
 }
 
 export function machineIdentity() {

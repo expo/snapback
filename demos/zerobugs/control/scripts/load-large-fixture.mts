@@ -38,6 +38,18 @@ const DEFAULT_CHECKPOINT = join(
 );
 
 export const MAX_LARGE_BATCH_ROWS = 900;
+// Per-table row caps below the 900 ceiling. issueSearchDocument rows carry
+// concatenated title/description/comment text, and the seam echoes committed
+// rows back through a v.json() result whose generated contract is bounded at
+// 1 MiB; a 900-row echo measured over that ceiling while 500 rows measure
+// ~630 KiB against the frozen overlay. The handler's largeFixturePlan()
+// carries the same cap — the two declarations must stay in lockstep.
+export const LARGE_BATCH_ROW_CAPS: Partial<Record<string, number>> = {
+  issueSearchDocument: 500,
+};
+export function largeBatchRowCap(table: string): number {
+  return LARGE_BATCH_ROW_CAPS[table] ?? MAX_LARGE_BATCH_ROWS;
+}
 export const LARGE_LOAD_ORDER = [
   'user',
   'project',
@@ -252,7 +264,7 @@ export function largeBatchMath(
   const rowsByTable = rowCounts(envelope, receiptCounts);
   const batchesByTable = Object.fromEntries(LARGE_LOAD_ORDER.map(table => [
     table,
-    Math.ceil(rowsByTable[table] / MAX_LARGE_BATCH_ROWS),
+    Math.ceil(rowsByTable[table] / largeBatchRowCap(table)),
   ])) as Record<LargeTableName, number>;
   return {
     rowsByTable,
@@ -353,10 +365,11 @@ async function* fixtureBatches(
 ): AsyncGenerator<IngestBatch> {
   let batchIndex = 0;
   for (const table of LARGE_LOAD_ORDER) {
+    const rowCap = largeBatchRowCap(table);
     let rows: SourceRow[] = [];
     for await (const row of tableSourceRows(table, shardsByTable, overlay)) {
       rows.push(row);
-      if (rows.length === MAX_LARGE_BATCH_ROWS) {
+      if (rows.length === rowCap) {
         yield {
           batchIndex,
           table,

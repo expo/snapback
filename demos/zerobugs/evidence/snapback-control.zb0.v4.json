@@ -1,0 +1,645 @@
+{
+  "actorIdentity": {
+    "declaredActors": [
+      "anonymous",
+      "ordinary-user",
+      "creator",
+      "assignee",
+      "crew-admin",
+      "removed-member",
+      "attacker"
+    ],
+    "fixtureBindings": {
+      "assignee": {
+        "role": "user",
+        "sourceUserID": "_4MJeHV4T-qZb52fyNwQ9",
+        "userID": "user_47a7fdef09689e6736359a9c"
+      },
+      "creator": {
+        "role": "user",
+        "sourceUserID": "FPEhfZQwiEMgpk3WnEY72",
+        "userID": "user_b8222266f94aa6b36a6b5999"
+      },
+      "crew-admin": {
+        "role": "crew",
+        "sourceUserID": "2wKdbVVF7qtnn5bx92sr9",
+        "userID": "user_804808a3aa5ef7440e34bd42"
+      },
+      "ordinary-user": {
+        "role": "user",
+        "sourceUserID": "9Fw3n6EQS8mzE126AFJxb",
+        "userID": "user_f57940f9cf974984ee36c7b2"
+      },
+      "removed-member": {
+        "role": "crew",
+        "sourceUserID": "Gg4MskWt3M-ttzzlrJ9jn",
+        "userID": "user_37617f38bd751da58ed19276"
+      }
+    },
+    "mode": "frozen-static-bindings; no session or principal minted by ZB0"
+  },
+  "arm": "snapback-control",
+  "assistance": [
+    {
+      "at": "2026-08-07T13:36:57.878Z",
+      "kind": "governing-design",
+      "purpose": "D1 and ZB0 evidence contract",
+      "sequence": 1,
+      "source": "llp/0183-zerobugs-quality-surface.rfc.md"
+    },
+    {
+      "at": "2026-08-07T13:36:57.878Z",
+      "kind": "guide",
+      "purpose": "non-vacuous guide-kit harness lifecycle",
+      "sequence": 2,
+      "source": "guide/testing/acceptance.md"
+    },
+    {
+      "at": "2026-08-07T13:36:57.878Z",
+      "kind": "landed-lane-conventions",
+      "purpose": "check, identity, and cleanup receipt conventions",
+      "sequence": 3,
+      "source": "demos/zerobugs/control/tests/acceptance/lane2-live.mts..lane6b-live.mts"
+    }
+  ],
+  "attempt": "v4",
+  "browserIdentity": {
+    "declaredProfile": {
+      "architecture": "arm64",
+      "exactBuildRequiredForComparativeEvidence": true,
+      "freshProfileForColdPaths": true,
+      "id": "chrome-arm64-v1",
+      "product": "Google Chrome",
+      "version": "150.0.7871.187"
+    },
+    "mode": "not-used-offline-static-gate"
+  },
+  "capabilityFacts": [
+    {
+      "evidence": [
+        "source-pin-coverage",
+        "frozen-inventory-counts",
+        "generated-schema-relation-accounting",
+        "generated-query-registry-accounting",
+        "generated-mutation-route-effect-accounting",
+        "static-route-ui-source-inventory",
+        "declared-workaround-component-register",
+        "generated-release-identities",
+        "zero-check-receipt-refusal"
+      ],
+      "id": "source-fidelity.zb0",
+      "status": "supported",
+      "target": "repo-checkout-static-zb0"
+    },
+    {
+      "id": "release-identity",
+      "status": "supported",
+      "target": "local-dev-sqlite-ibex"
+    }
+  ],
+  "checks": {
+    "counts": {
+      "fail": 0,
+      "gap": 0,
+      "missing": 0,
+      "pass": 9
+    },
+    "executed": 9,
+    "expected": 9,
+    "harness": {
+      "expectedChecks": 9,
+      "failed": 0,
+      "ok": true,
+      "passed": 9,
+      "shortfall": null,
+      "skipped": 0,
+      "total": 9
+    },
+    "missing": [],
+    "rows": [
+      {
+        "details": {
+          "actualPinnedFilesVerified": 10,
+          "commit": "25c2c7308d3eb674d2d895022c9da11ef0c742fb",
+          "contractFiles": 10,
+          "digestAlgorithms": [
+            "sha256"
+          ],
+          "optionalEnvironmentPin": "matched",
+          "pinnedSource": "recorded-source-inventory",
+          "repository": "rocicorp/mono"
+        },
+        "id": "source-pin-coverage",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "effectTriggers": 8,
+          "mutators": 16,
+          "queries": 19,
+          "relations": 22,
+          "routes": 9,
+          "tables": 10
+        },
+        "id": "frozen-inventory-counts",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "declaredSupportTables": 11,
+          "frozenTables": 10,
+          "generatedTables": 21,
+          "staticallyCheckedRelations": 22
+        },
+        "id": "generated-schema-relation-accounting",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "inventoryQueries": 19,
+          "typedRegistryQueries": 19
+        },
+        "id": "generated-query-registry-accounting",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "compositionRoutes": 9,
+          "effectTriggers": 8,
+          "inventoryMutators": 16,
+          "typedRegistryMutators": 16
+        },
+        "id": "generated-mutation-route-effect-accounting",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "bytePinnedAssets": 69,
+          "declaredReplacements": 3,
+          "pinnedFiles": 152,
+          "portedFiles": 160,
+          "typedUiSourcesScanned": 85,
+          "unexplainedOmissions": 0
+        },
+        "id": "static-route-ui-source-inventory",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "staleUsedRows": 0,
+          "totalRows": 15,
+          "usedRows": 15
+        },
+        "id": "declared-workaround-component-register",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "appId": "zerobugs-control",
+          "bundleHash": "snapback.v1:sessions:function:sha256:98195b9448c613209a88afd16a957a1e575220cb92b80332d40a9adc4eeafaff",
+          "componentContractsChecked": 1,
+          "componentRuntime": "bun@1.3.12",
+          "generatedManifestsChecked": 4,
+          "inputsHash": "snapback.v1:sessions:inputs:sha256:e42e89134ecc7062e6432d81535151898fa57be5f7b917f2cc3198f42c33ab78",
+          "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+          "schemaVersion": "snapback.v1",
+          "targetProfileId": "local-dev-sqlite-ibex"
+        },
+        "id": "generated-release-identities",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "code": "ZBUGS_RECEIPT_ZERO_CHECKS",
+          "wroteFile": false
+        },
+        "id": "zero-check-receipt-refusal",
+        "status": "PASS"
+      }
+    ]
+  },
+  "cleanup": {
+    "ownership": "No server, socket, browser, process, credential file, or scratch target was created.",
+    "results": [],
+    "status": "PASS",
+    "targets": []
+  },
+  "completedAt": "2026-08-07T13:36:57.911Z",
+  "componentReleaseIdentities": [
+    {
+      "id": "zerobugs-control-composition",
+      "path": "demos/zerobugs/control/composition/zerobugs-control-composition.v1.json",
+      "runtime": {
+        "entrypoint": "composition/server.mts",
+        "name": "bun",
+        "version": "1.3.12"
+      },
+      "sha256": "sha256:2e99e33cfbef2c961257399b817a8b749699efcf22720308476576d1aff2513d",
+      "snapbackRelease": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:98195b9448c613209a88afd16a957a1e575220cb92b80332d40a9adc4eeafaff",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:e42e89134ecc7062e6432d81535151898fa57be5f7b917f2cc3198f42c33ab78",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "status": "supported-local-control",
+      "version": 1
+    }
+  ],
+  "custodyAccounting": {
+    "browserFactsRetained": 0,
+    "externalSourceBytesCopiedIntoReceipt": 0,
+    "generatedArtifactCustody": {
+      "consumer-committed": 0,
+      "regenerable-cache": 178,
+      "review-manifest": 1
+    },
+    "mode": "static-offline",
+    "rawArtifactCount": 16,
+    "runtimeRowsRetained": 0
+  },
+  "diagnostics": [],
+  "execution": {
+    "harnessAcceptedCount": true,
+    "setupCompleted": true,
+    "status": "PASS"
+  },
+  "fixtureIdentity": {
+    "digest": "sha256:be2eb1f31fe95e0a5c46a5230d98b18d762449e330691cb73e33d578fec276bd",
+    "extensionId": "policy-extension-v1",
+    "id": "normal-seed-v1",
+    "mode": "frozen-static-identity; fixture not loaded by ZB0",
+    "rowCount": 3758
+  },
+  "gate": "zb0",
+  "generatedIdentities": [
+    {
+      "artifactSchemaVersion": "snapback.v1",
+      "id": "schemaManifest",
+      "path": "demos/zerobugs/control/snapback/generated/schema.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:e42e89134ecc7062e6432d81535151898fa57be5f7b917f2cc3198f42c33ab78",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:ded5755121f86e41fae151983fdd7734f85184f745b07415a23bd536bfb658e4"
+    },
+    {
+      "artifactSchemaVersion": "snapback.v1",
+      "id": "functionManifest",
+      "path": "demos/zerobugs/control/snapback/generated/functions.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:98195b9448c613209a88afd16a957a1e575220cb92b80332d40a9adc4eeafaff",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:e42e89134ecc7062e6432d81535151898fa57be5f7b917f2cc3198f42c33ab78",
+        "schemaVersion": "snapback.v1"
+      },
+      "sha256": "sha256:19ae4356e1b7b31030fc1834232a9258becd7fee4ae3fa6fe47ae24fef64e29d"
+    },
+    {
+      "artifactSchemaVersion": "snapback.v0",
+      "id": "capabilityManifest",
+      "path": "demos/zerobugs/control/snapback/generated/capability.manifest.json",
+      "release": {
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:95acfb5fa272a4c7acc7f52d11f1ad0054b98152c45903cf3cb9430b4ab8c286"
+    },
+    {
+      "artifactSchemaVersion": "snapback.v1",
+      "id": "contractDataManifest",
+      "path": "demos/zerobugs/control/snapback/generated/contract-data.manifest.json",
+      "release": {
+        "bundleHash": "snapback.v1:sessions:function:sha256:98195b9448c613209a88afd16a957a1e575220cb92b80332d40a9adc4eeafaff",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:e42e89134ecc7062e6432d81535151898fa57be5f7b917f2cc3198f42c33ab78",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v1"
+      },
+      "sha256": "sha256:cddb4560e94878993016ae36161e29fc96d63a8f16e32342b515c916bdbaee95"
+    },
+    {
+      "artifactSchemaVersion": "snapback.v1",
+      "id": "artifactIndex",
+      "path": "demos/zerobugs/control/snapback/generated/artifacts.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:98195b9448c613209a88afd16a957a1e575220cb92b80332d40a9adc4eeafaff",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:e42e89134ecc7062e6432d81535151898fa57be5f7b917f2cc3198f42c33ab78",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v1"
+      },
+      "sha256": "sha256:91840af6be7d5171405f1e05b672c947c2d1e2ca51ec5f44d60c087cbe4b05e1"
+    }
+  ],
+  "machineIdentity": {
+    "arch": "arm64",
+    "cpuCount": 18,
+    "hostnameSha256": "sha256:4a238cd09cfb162aa54334e6f1b3fba341960951bd6f36b2b01b6e77a72395c0",
+    "platform": "darwin"
+  },
+  "manifest": {
+    "id": "zerobugs-acceptance.v1",
+    "path": "demos/zerobugs/manifest/acceptance.v1.json",
+    "sha256": "sha256:3eb0280a5803da887cea371193f62ff372ac537efa24e7cd53b150afe0d1fc2c"
+  },
+  "network": "loopback-only",
+  "outcome": "PASS",
+  "rawArtifacts": [
+    {
+      "path": "demos/zerobugs/control/PLAN.md",
+      "sha256": "sha256:0f1bae97418560f21ee2f1544f4b1067c00fcfb3a3fb7012e6f7353894271eaa"
+    },
+    {
+      "path": "demos/zerobugs/control/composition/zerobugs-control-composition.v1.json",
+      "sha256": "sha256:2e99e33cfbef2c961257399b817a8b749699efcf22720308476576d1aff2513d"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/artifacts.json",
+      "sha256": "sha256:91840af6be7d5171405f1e05b672c947c2d1e2ca51ec5f44d60c087cbe4b05e1"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/capability.manifest.json",
+      "sha256": "sha256:95acfb5fa272a4c7acc7f52d11f1ad0054b98152c45903cf3cb9430b4ab8c286"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/contract-data.manifest.json",
+      "sha256": "sha256:cddb4560e94878993016ae36161e29fc96d63a8f16e32342b515c916bdbaee95"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/functions.manifest.json",
+      "sha256": "sha256:19ae4356e1b7b31030fc1834232a9258becd7fee4ae3fa6fe47ae24fef64e29d"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/schema.manifest.json",
+      "sha256": "sha256:ded5755121f86e41fae151983fdd7734f85184f745b07415a23bd536bfb658e4"
+    },
+    {
+      "path": "demos/zerobugs/control/source-inventory.v1.json",
+      "sha256": "sha256:e42a627f175f46100b5f88c5afd15bd098b09432f3473e83e09d64c26846816e"
+    },
+    {
+      "path": "demos/zerobugs/control/src/data/mutations.ts",
+      "sha256": "sha256:9b8663e1d8c67c44b913d10dbb53f8b3bac63add50a93c56213758ea660c38e6"
+    },
+    {
+      "path": "demos/zerobugs/control/src/data/queries.ts",
+      "sha256": "sha256:69fefb7148ab049287ccda9061860ca912ce2f15645367820514ac27285a89e1"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/fixtures/fixture-digests.json",
+      "sha256": "sha256:56afa56a74f0edddfd71ac0e7a09f5c12bc1e2eaed9e2be2f2ad6c84c31d38b3"
+    },
+    {
+      "path": "demos/zerobugs/manifest/acceptance.v1.json",
+      "sha256": "sha256:3eb0280a5803da887cea371193f62ff372ac537efa24e7cd53b150afe0d1fc2c"
+    },
+    {
+      "path": "demos/zerobugs/manifest/acceptance.v1.md",
+      "sha256": "sha256:1962d69618a94172a9e07eb36e4334c7d2bfb8c6614bad1588ac075b24c2ce31"
+    },
+    {
+      "path": "demos/zerobugs/scripts/fetch-zerobugs-pin.sh",
+      "sha256": "sha256:8bbdd1d4de21e63a3cab29f0db672eb0fac931e1b6cde2cd285e7655582a5686"
+    },
+    {
+      "path": "demos/zerobugs/stage0/inventory.v1.json",
+      "sha256": "sha256:0d7233897864c39f99ef5c46946da21ddfc8a404e6f0441c741c02192a43eaa3"
+    },
+    {
+      "path": "demos/zerobugs/stage0/source-digests.v1.json",
+      "sha256": "sha256:4729d6e0e364911afaaffa93b227d2677ef031921ea5a0dde0a55918c3be6eca"
+    }
+  ],
+  "refusalFacts": [
+    {
+      "code": "ZBUGS_RECEIPT_ZERO_CHECKS",
+      "id": "zero-check-attempt",
+      "status": "refused",
+      "wroteFile": false
+    }
+  ],
+  "schemaVersion": "zerobugs-gate-receipt.v1",
+  "sourceAccounting": {
+    "frozenCounts": {
+      "effectTriggers": 8,
+      "mutators": 16,
+      "queries": 19,
+      "relations": 22,
+      "routes": 9,
+      "tables": 10
+    },
+    "generatedSchema": {
+      "declaredSupportTables": 11,
+      "frozenTables": 10,
+      "generatedTables": 21,
+      "staticallyCheckedRelations": 22
+    },
+    "register": {
+      "staleUsedRows": 0,
+      "totalRows": 15,
+      "usedRows": 15
+    },
+    "sourceInventory": {
+      "bytePinnedAssets": 69,
+      "declaredReplacements": 3,
+      "pinnedFiles": 152,
+      "portedFiles": 160,
+      "typedUiSourcesScanned": 85,
+      "unexplainedOmissions": 0
+    },
+    "typedMutationsRoutesEffects": {
+      "compositionRoutes": 9,
+      "effectTriggers": 8,
+      "inventoryMutators": 16,
+      "typedRegistryMutators": 16
+    },
+    "typedQueries": {
+      "inventoryQueries": 19,
+      "typedRegistryQueries": 19
+    }
+  },
+  "startedAt": "2026-08-07T13:36:57.878Z",
+  "targetIdentity": {
+    "declaredTargetProfile": "local-dev-sqlite-ibex",
+    "id": "repo-checkout-static-zb0",
+    "mode": "offline-no-server",
+    "release": {
+      "appId": "zerobugs-control",
+      "bundleHash": "snapback.v1:sessions:function:sha256:98195b9448c613209a88afd16a957a1e575220cb92b80332d40a9adc4eeafaff",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:e42e89134ecc7062e6432d81535151898fa57be5f7b917f2cc3198f42c33ab78",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+      "schemaVersion": "snapback.v1",
+      "targetProfileId": "local-dev-sqlite-ibex"
+    }
+  },
+  "workarounds": [
+    {
+      "class": "manual query-group graph join",
+      "id": "W-QGROUP",
+      "plannedFilesAndLines": "Parent-authorized bounded graph loaders and manual projection assembly `snapback/functions.mjs:2322-2439,2552-2736,2922-3379`; route-absence/contract witness `tests/lane3-list-engine.test.mts:153-175`",
+      "raw": "| `W-QGROUP` / manual query-group graph join | Current relational capability is bounded two-source, while issue/list shapes span up to 22 relations. Owner: control data lane. | Parent-authorized bounded graph loaders and manual projection assembly `snapback/functions.mjs:2322-2439,2552-2736,2922-3379`; route-absence/contract witness `tests/lane3-list-engine.test.mts:153-175` | Lane 3's attempted route manifest was removed after runtime admission proved that opaque JS-query arguments cannot supply the schema-derived route bindings. Implemented as parent-authorized typed JS graph loaders called individually by the client; retained through control and explicitly re-evaluated in Lane 6. | Every child query starts only after parent authorization; a bounded child contributes its own completeness fact and no merge infers completeness. | D2 graph/query workstream. |",
+      "reasonAndOwner": "Current relational capability is bounded two-source, while issue/list shapes span up to 22 relations. Owner: control data lane.",
+      "removedBy": "D2 graph/query workstream.",
+      "securityBoundary": "Every child query starts only after parent authorization; a bounded child contributes its own completeness fact and no merge infers completeness.",
+      "statusAndLifecycle": "Lane 3's attempted route manifest was removed after runtime admission proved that opaque JS-query arguments cannot supply the schema-derived route bindings. Implemented as parent-authorized typed JS graph loaders called individually by the client; retained through control and explicitly re-evaluated in Lane 6.",
+      "usedByLandedLane": true
+    },
+    {
+      "class": "denormalized projection",
+      "id": "W-READMODEL",
+      "plannedFilesAndLines": "`snapback/schema.mjs:158-233`; `scripts/build-fixture.mts:511-643`; generated rows in `fixtures/normal-seed-v1/{projectUserRead,issueListRead,issueLabelRead,issueSearchDocument}.json` (complete files); Lane 4 transactional repair `snapback/functions.mjs:600-732,882-1672`; shared read-model predicate and graph hydration `snapback/functions.mjs:2322-2736,2999-3674`; independent raw-source oracle `tests/lane3-oracle.mts:1-164`; generated-handler witness `tests/lane3-list-engine.test.mts:1-354`; live parity harness `tests/acceptance/lane3-live.mts:1-781`",
+      "raw": "| `W-READMODEL` / denormalized projection | All-label membership, project-user existence, wide list order, and comment-derived search do not fit one current live query. Owner: control server lane. | `snapback/schema.mjs:158-233`; `scripts/build-fixture.mts:511-643`; generated rows in `fixtures/normal-seed-v1/{projectUserRead,issueListRead,issueLabelRead,issueSearchDocument}.json` (complete files); Lane 4 transactional repair `snapback/functions.mjs:600-732,882-1672`; shared read-model predicate and graph hydration `snapback/functions.mjs:2322-2736,2999-3674`; independent raw-source oracle `tests/lane3-oracle.mts:1-164`; generated-handler witness `tests/lane3-list-engine.test.mts:1-354`; live parity harness `tests/acceptance/lane3-live.mts:1-781` | Implemented as bounded, rebuildable maintained projections plus source-row hydration. Every exact-bound hit refuses or returns no plausible prefix; all affected Lane 4 mutations repair projections transactionally; query result contracts remain source-shaped. Retained through control. | Visibility is applied before releasing `examined`/`total`; all-label membership is intersection; private rows resolve through the Lane 2 principal binding; per-mutation digest audit covers the projections. | D2 and D6. |",
+      "reasonAndOwner": "All-label membership, project-user existence, wide list order, and comment-derived search do not fit one current live query. Owner: control server lane.",
+      "removedBy": "D2 and D6.",
+      "securityBoundary": "Visibility is applied before releasing `examined`/`total`; all-label membership is intersection; private rows resolve through the Lane 2 principal binding; per-mutation digest audit covers the projections.",
+      "statusAndLifecycle": "Implemented as bounded, rebuildable maintained projections plus source-row hydration. Every exact-bound hit refuses or returns no plausible prefix; all affected Lane 4 mutations repair projections transactionally; query result contracts remain source-shaped. Retained through control.",
+      "usedByLandedLane": true
+    },
+    {
+      "class": "app join/filter/sort",
+      "id": "W-MANUALSET",
+      "plannedFilesAndLines": "Bounded joins/comparators/cursors `snapback/functions.mjs:2255-2439`; set intersection and shared list engine `snapback/functions.mjs:2441-2736`; all 19 typed entry points `snapback/functions.mjs:2760-3674`; independent oracle/cursor witnesses `tests/lane3-oracle.mts:1-164`, `tests/lane3-list-engine.test.mts:1-354`; live source-parity witness `tests/acceptance/lane3-live.mts:1-781`",
+      "raw": "| `W-MANUALSET` / app join/filter/sort | Adapter intersects bounded list/search/label ids and assembles rich rows. Owner: control data lane. | Bounded joins/comparators/cursors `snapback/functions.mjs:2255-2439`; set intersection and shared list engine `snapback/functions.mjs:2441-2736`; all 19 typed entry points `snapback/functions.mjs:2760-3674`; independent oracle/cursor witnesses `tests/lane3-oracle.mts:1-164`, `tests/lane3-list-engine.test.mts:1-354`; live source-parity witness `tests/acceptance/lane3-live.mts:1-781` | Implemented as typed server-side manual merge for Lane 3; never broad/unbounded, and retained through control. The route-argument limitation recorded under `W-QGROUP` prevents moving the rich merge into a multi-child generated group without changing the frozen query arguments. | Inputs are role-partitioned before counts or joins; protected child roots prove the parent first; no protected key or partial prefix crosses the actor boundary. | D2/D3/D6. |",
+      "reasonAndOwner": "Adapter intersects bounded list/search/label ids and assembles rich rows. Owner: control data lane.",
+      "removedBy": "D2/D3/D6.",
+      "securityBoundary": "Inputs are role-partitioned before counts or joins; protected child roots prove the parent first; no protected key or partial prefix crosses the actor boundary.",
+      "statusAndLifecycle": "Implemented as typed server-side manual merge for Lane 3; never broad/unbounded, and retained through control. The route-argument limitation recorded under `W-QGROUP` prevents moving the rich merge into a multi-child generated group without changing the frozen query arguments.",
+      "usedByLandedLane": true
+    },
+    {
+      "class": "manual invalidation",
+      "id": "W-SEARCH-EPOCH",
+      "plannedFilesAndLines": "`snapback/schema.mjs:235-245`; `scripts/build-fixture.mts:625-635`; generated rows in `fixtures/normal-seed-v1/searchEpoch.json:1-14`; transactional repair/bump `snapback/functions.mjs:622-666,882-1672`; role-partitioned maintained-document scan and shared consumer `snapback/functions.mjs:2505-2736,3394-3469`; independent raw title/description/comment oracle `tests/lane3-oracle.mts:91-149`; pure/live search checks `tests/lane3-list-engine.test.mts:176-258`, `tests/acceptance/lane3-live.mts:359-422`",
+      "raw": "| `W-SEARCH-EPOCH` / manual invalidation | Shipped text search is not live, and current opaque handlers cannot invoke/compose a search plan. Owner: control search lane. | `snapback/schema.mjs:235-245`; `scripts/build-fixture.mts:625-635`; generated rows in `fixtures/normal-seed-v1/searchEpoch.json:1-14`; transactional repair/bump `snapback/functions.mjs:622-666,882-1672`; role-partitioned maintained-document scan and shared consumer `snapback/functions.mjs:2505-2736,3394-3469`; independent raw title/description/comment oracle `tests/lane3-oracle.mts:91-149`; pure/live search checks `tests/lane3-list-engine.test.mts:176-258`, `tests/acceptance/lane3-live.mts:359-422` | Implemented exact-corpus workaround: consult the epoch, scan only admitted visibility partitions, and return `refreshing` with no rows when any partition reaches 1,024. Affected mutations repair the document and bump its visibility partition in the source transaction. This is not advertised as shipped live search. Retained through control pending D6. | Epoch reveals no query text/result membership; documents are partitioned by public/internal; non-crew never query the internal partition; no boundary prefix is released. | D6 derived search. |",
+      "reasonAndOwner": "Shipped text search is not live, and current opaque handlers cannot invoke/compose a search plan. Owner: control search lane.",
+      "removedBy": "D6 derived search.",
+      "securityBoundary": "Epoch reveals no query text/result membership; documents are partitioned by public/internal; non-crew never query the internal partition; no boundary prefix is released.",
+      "statusAndLifecycle": "Implemented exact-corpus workaround: consult the epoch, scan only admitted visibility partitions, and return `refreshing` with no rows when any partition reaches 1,024. Affected mutations repair the document and bump its visibility partition in the source transaction. This is not advertised as shipped live search. Retained through control pending D6.",
+      "usedByLandedLane": true
+    },
+    {
+      "class": "complete-program JS fallback",
+      "id": "W-MUTATION-IR",
+      "plannedFilesAndLines": "Source-id/identity/intent helpers `snapback/functions.mjs:443-839`; JS-tier current-IR rows `snapback/functions.mjs:1172-1213,1476-1509`; generated-tier assertion `tests/acceptance/lane4-live.mts:456-475`",
+      "raw": "| `W-MUTATION-IR` / complete-program JS fallback | Inventory classifies `issue.addLabel` and `comment.edit` as current-IR from their base database verbs, but the current authoring surface cannot declare the complete authoritative program. Owner: control server lane. | Source-id/identity/intent helpers `snapback/functions.mjs:443-839`; JS-tier current-IR rows `snapback/functions.mjs:1172-1213,1476-1509`; generated-tier assertion `tests/acceptance/lane4-live.mts:456-475` | Implemented as JS/Ibex while retaining the inventory's **current-ir** classification for the base Get/Guard/Insert or Get/Guard/Patch. Generated `Get` accepts physical `_id`, not the frozen source id; `AuthUserId` is the principal, not its app-owned source-user binding; and current IR cannot include recipient-snapshot intent, read-model repair, or the full body policy. | The same server handler derives the bound actor, rechecks ownership, repairs projections, and commits intent; no client authority is inferred from the preliminary inventory class. | D5 source-key/identity bindings plus transaction-coupled intent/read-model composition. |",
+      "reasonAndOwner": "Inventory classifies `issue.addLabel` and `comment.edit` as current-IR from their base database verbs, but the current authoring surface cannot declare the complete authoritative program. Owner: control server lane.",
+      "removedBy": "D5 source-key/identity bindings plus transaction-coupled intent/read-model composition.",
+      "securityBoundary": "The same server handler derives the bound actor, rechecks ownership, repairs projections, and commits intent; no client authority is inferred from the preliminary inventory class.",
+      "statusAndLifecycle": "Implemented as JS/Ibex while retaining the inventory's **current-ir** classification for the base Get/Guard/Insert or Get/Guard/Patch. Generated `Get` accepts physical `_id`, not the frozen source id; `AuthUserId` is the principal, not its app-owned source-user binding; and current IR cannot include recipient-snapshot intent, read-model repair, or the full body policy.",
+      "usedByLandedLane": true
+    },
+    {
+      "class": "duplicate handwritten reducer",
+      "id": "W-REDUCER",
+      "plannedFilesAndLines": "Lane 4 authoritative baseline `snapback/functions.mjs:443-1672`; typed 16-ref registry and visible facts `src/data/mutations.ts:21-106`; capture-and-set reducers `src/data/mutations.ts:137-623`; overlay/settlement ledger and headless invocation `src/data/mutations.ts:699-840`; pure witnesses `tests/lane6a-mutations.test.mts:1-190`; live actor-paint/settlement/refusal smoke `tests/acceptance/lane6a-live.mts:174-231`",
+      "raw": "| `W-REDUCER` / duplicate handwritten reducer | Current generated optimism cannot express 11 new-verb and some branch/upsert/delete shapes. Owner: Lane 6 control UI lane. | Lane 4 authoritative baseline `snapback/functions.mjs:443-1672`; typed 16-ref registry and visible facts `src/data/mutations.ts:21-106`; capture-and-set reducers `src/data/mutations.ts:137-623`; overlay/settlement ledger and headless invocation `src/data/mutations.ts:699-840`; pure witnesses `tests/lane6a-mutations.test.mts:1-190`; live actor-paint/settlement/refusal smoke `tests/acceptance/lane6a-live.mts:174-231` | Implemented in Lane 6a as one counted app-owned visible-fact projection layer. Success preserves the layer until a matching authoritative graph arrives; refusal drops it and rebases survivors. Lane 6b still owns the pinned component paint. | Visible facts only; protected visibility, hidden recipients/subscriptions, effects, and authority remain server-owned. | D5 lowering/admission. |",
+      "reasonAndOwner": "Current generated optimism cannot express 11 new-verb and some branch/upsert/delete shapes. Owner: Lane 6 control UI lane.",
+      "removedBy": "D5 lowering/admission.",
+      "securityBoundary": "Visible facts only; protected visibility, hidden recipients/subscriptions, effects, and authority remain server-owned.",
+      "statusAndLifecycle": "Implemented in Lane 6a as one counted app-owned visible-fact projection layer. Success preserves the layer until a matching authoritative graph arrives; refusal drops it and rebases survivors. Lane 6b still owns the pinned component paint.",
+      "usedByLandedLane": true
+    },
+    {
+      "class": "server-only pending",
+      "id": "W-PENDING",
+      "plannedFilesAndLines": "Closed pending taxonomy and per-mutator table `src/data/mutations.ts:54-65,155-170,589-645`; presentation ledger `src/data/mutations.ts:724-806`; pure hidden-absence/incomplete-collection witnesses `tests/lane6a-mutations.test.mts:149-169`; refusal smoke `tests/acceptance/lane6a-live.mts:215-231`",
+      "raw": "| `W-PENDING` / server-only pending | Hidden branch/subscription/effect state is not safely locally evaluable. Owner: Lane 6 control UI lane. | Closed pending taxonomy and per-mutator table `src/data/mutations.ts:54-65,155-170,589-645`; presentation ledger `src/data/mutations.ts:724-806`; pure hidden-absence/incomplete-collection witnesses `tests/lane6a-mutations.test.mts:149-169`; refusal smoke `tests/acceptance/lane6a-live.mts:215-231` | Implemented in Lane 6a at the data/presentation boundary. Every Lane B hidden branch remains named pending; no server-only label creation, protected visibility, recipient/effect, absent private upsert, or incomplete two-collection branch is painted as settled. Lane 6b still owns visual treatment. | No speculative protected fact or false settlement. | D5. |",
+      "reasonAndOwner": "Hidden branch/subscription/effect state is not safely locally evaluable. Owner: Lane 6 control UI lane.",
+      "removedBy": "D5.",
+      "securityBoundary": "No speculative protected fact or false settlement.",
+      "statusAndLifecycle": "Implemented in Lane 6a at the data/presentation boundary. Every Lane B hidden branch remains named pending; no server-only label creation, protected visibility, recipient/effect, absent private upsert, or incomplete two-collection branch is painted as settled. Lane 6b still owns visual treatment.",
+      "usedByLandedLane": true
+    },
+    {
+      "class": "app-owned window controller",
+      "id": "W-WINDOW",
+      "plannedFilesAndLines": "State machine/data-source mappings `src/windowing/controller.ts:1-651`; React lifecycle `src/windowing/use-window.ts:1-57`; wouter-compatible history tuple `src/windowing/history-state.ts:1-99`; pure walks/fencing/refusal/spacer/restore witnesses `tests/lane6a-window.test.mts:1-226`; live Lane 3-oracle walk `tests/acceptance/lane6a-live.mts:136-170`",
+      "raw": "| `W-WINDOW` / app-owned window controller | No current source-equivalent `useZeroVirtualizer` primitive. Owner: control UI lane. | State machine/data-source mappings `src/windowing/controller.ts:1-651`; React lifecycle `src/windowing/use-window.ts:1-57`; wouter-compatible history tuple `src/windowing/history-state.ts:1-99`; pure walks/fencing/refusal/spacer/restore witnesses `tests/lane6a-window.test.mts:1-226`; live Lane 3-oracle walk `tests/acceptance/lane6a-live.mts:136-170` | Implemented in Lane 6a as a server-backed D4 controller with canonical query/args/order/bounds identity, generation fencing, bounded forward/backward loads, target permalink loads, source-id dedupe, strict adjacency/cursor checks, known/estimated/unknown totals, measured spacers, and retained-vs-current hydration. Lane 6b still owns its list/comments rendering integration. | Generation-fenced requests; parent policy on comments; honest completeness and totals; never broad-fetch-and-slice. | D4 window workstream. |",
+      "reasonAndOwner": "No current source-equivalent `useZeroVirtualizer` primitive. Owner: control UI lane.",
+      "removedBy": "D4 window workstream.",
+      "securityBoundary": "Generation-fenced requests; parent policy on comments; honest completeness and totals; never broad-fetch-and-slice.",
+      "statusAndLifecycle": "Implemented in Lane 6a as a server-backed D4 controller with canonical query/args/order/bounds identity, generation fencing, bounded forward/backward loads, target permalink loads, source-id dedupe, strict adjacency/cursor checks, known/estimated/unknown totals, measured spacers, and retained-vs-current hydration. Lane 6b still owns its list/comments rendering integration.",
+      "usedByLandedLane": true
+    },
+    {
+      "class": "identity binding table",
+      "id": "W-IDENTITY",
+      "plannedFilesAndLines": "`snapback/schema.mjs:144-156`; closed actor map and reusable guards `snapback/functions.mjs:56-152`; loaded-fixture proof and acceptance surfaces `snapback/functions.mjs:212-440`; receipt harness `scripts/bind-actors.mts:9-235`; runtime-independent witnesses `tests/lane2-functions.test.mts:123-254`; live seven-actor/transition gate `tests/acceptance/lane2-live.mts:46-222`; actor metadata in `fixtures/normal-seed-v1/fixture.json:7-33` and `tests/fixtures/fixture-digests.json:20-46`",
+      "raw": "| `W-IDENTITY` / identity binding table | Snapback principals and frozen source user ids are distinct namespaces. Owner: auth composition. | `snapback/schema.mjs:144-156`; closed actor map and reusable guards `snapback/functions.mjs:56-152`; loaded-fixture proof and acceptance surfaces `snapback/functions.mjs:212-440`; receipt harness `scripts/bind-actors.mts:9-235`; runtime-independent witnesses `tests/lane2-functions.test.mts:123-254`; live seven-actor/transition gate `tests/acceptance/lane2-live.mts:46-222`; actor metadata in `fixtures/normal-seed-v1/fixture.json:7-33` and `tests/fixtures/fixture-digests.json:20-46` | Implemented as an acceptance-only, frozen-five, one-to-one binding bootstrap over supported dev sessions. Rebinding, unknown source users, role mismatches, sixth actors, and binding after closure refuse. `fixtureInspectTable` closes after the first binding. Retained through control; live gate awaits the supervising session. The adopted-bearer harness ends the server session through the shipped `/auth/logout` route (`authLogout` correctly refuses without browser `AuthCoordinator` custody); external user switch uses `replaceBearerToken`, which blanks predecessor state before refetch. | The stored principal is always `ctx.auth.userId`; every private helper resolves principal → binding → source row and accepts no caller user id. The acceptance actor selector is trusted only inside this fixture-gated bootstrap: current handler auth does not expose the verified mint email, so the mutation additionally requires the complete frozen fixture, exact actor/source/role map, one-to-one rows, five-row closure, and gateway omission. | D7 auth profile. |",
+      "reasonAndOwner": "Snapback principals and frozen source user ids are distinct namespaces. Owner: auth composition.",
+      "removedBy": "D7 auth profile.",
+      "securityBoundary": "The stored principal is always `ctx.auth.userId`; every private helper resolves principal → binding → source row and accepts no caller user id. The acceptance actor selector is trusted only inside this fixture-gated bootstrap: current handler auth does not expose the verified mint email, so the mutation additionally requires the complete frozen fixture, exact actor/source/role map, one-to-one rows, five-row closure, and gateway omission.",
+      "statusAndLifecycle": "Implemented as an acceptance-only, frozen-five, one-to-one binding bootstrap over supported dev sessions. Rebinding, unknown source users, role mismatches, sixth actors, and binding after closure refuse. `fixtureInspectTable` closes after the first binding. Retained through control; live gate awaits the supervising session. The adopted-bearer harness ends the server session through the shipped `/auth/logout` route (`authLogout` correctly refuses without browser `AuthCoordinator` custody); external user switch uses `replaceBearerToken`, which blanks predecessor state before refetch.",
+      "usedByLandedLane": true
+    },
+    {
+      "class": "versioned composition gateway",
+      "id": "C-GATEWAY",
+      "plannedFilesAndLines": "Component contract `composition/zerobugs-control-composition.v1.json:1-145`; gateway `composition/server.mts:1-807`; config/identity/unsubscribe functions `snapback/functions.mjs:3776-3865`; exact envelope/token/Markdown helpers `composition/lib/{envelopes,markdown,tokens}.mts` (complete files); pure witnesses `tests/lane5-{envelope,token}.test.mts` (complete files); live route/health/cleanup witness `tests/acceptance/lane5-live.mts:312-511,639-681,812-824`",
+      "raw": "| `C-GATEWAY` / versioned composition gateway | Native Snapback does not own all nine frozen arbitrary routes or GitHub OAuth. Owner: composition lane. | Component contract `composition/zerobugs-control-composition.v1.json:1-145`; gateway `composition/server.mts:1-807`; config/identity/unsubscribe functions `snapback/functions.mjs:3776-3865`; exact envelope/token/Markdown helpers `composition/lib/{envelopes,markdown,tokens}.mts` (complete files); pure witnesses `tests/lane5-{envelope,token}.test.mts` (complete files); live route/health/cleanup witness `tests/acceptance/lane5-live.mts:312-511,639-681,812-824` | Implemented as a formally versioned bespoke D7 companion and supported local control component. All nine demands have exact method/path/input/output/auth bounds; GitHub exchange uses the deterministic local identity fixture, while real public-TLS OAuth remains a named ZB7 GAP. No native arbitrary-route or OAuth claim. | Closed 19-query/16-mutator allowlists; session custody; invalid bearer 401; state/PKCE/redirect fence; one-use purpose token; secrets by name; no `/_snapback/*` proxy; startup refuses non-loopback binding or declared/generated release drift; owned process/port/file cleanup. | D7 routes/auth. |",
+      "reasonAndOwner": "Native Snapback does not own all nine frozen arbitrary routes or GitHub OAuth. Owner: composition lane.",
+      "removedBy": "D7 routes/auth.",
+      "securityBoundary": "Closed 19-query/16-mutator allowlists; session custody; invalid bearer 401; state/PKCE/redirect fence; one-use purpose token; secrets by name; no `/_snapback/*` proxy; startup refuses non-loopback binding or declared/generated release drift; owned process/port/file cleanup.",
+      "statusAndLifecycle": "Implemented as a formally versioned bespoke D7 companion and supported local control component. All nine demands have exact method/path/input/output/auth bounds; GitHub exchange uses the deterministic local identity fixture, while real public-TLS OAuth remains a named ZB7 GAP. No native arbitrary-route or OAuth claim.",
+      "usedByLandedLane": true
+    },
+    {
+      "class": "durable app ledger and worker",
+      "id": "C-NOTIFY",
+      "plannedFilesAndLines": "Intent/attempt schema `snapback/schema.mjs:247-292`; snapshot/idempotency helpers and eight trigger writers `snapback/functions.mjs:449-849,908-1569`; Lane 5 lease/settle/action surface `snapback/functions.mjs:4065-4295`; worker/renderers `composition/effects/{deliver,payloads}.mts` (complete files); pure payload witness `tests/lane5-payload.test.mts`; live trigger/retry/ambiguity/non-trigger witness `tests/acceptance/lane5-live.mts:512-638,762-811`",
+      "raw": "| `C-NOTIFY` / durable app ledger and worker | `backend.notifications` is an explicit GAP; current jobs are local experimental and do not carry the explicit ambiguity reconciliation this control requires. Owner: effect composition. | Intent/attempt schema `snapback/schema.mjs:247-292`; snapshot/idempotency helpers and eight trigger writers `snapback/functions.mjs:449-849,908-1569`; Lane 5 lease/settle/action surface `snapback/functions.mjs:4065-4295`; worker/renderers `composition/effects/{deliver,payloads}.mts` (complete files); pure payload witness `tests/lane5-payload.test.mts`; live trigger/retry/ambiguity/non-trigger witness `tests/acceptance/lane5-live.mts:512-638,762-811` | Implemented for the supported local control: source mutations atomically commit intent; the bounded companion tick leases per-target attempts; host-mediated action egress reaches only authenticated local capture; delivered and ambiguous attempts fence replay. Gateway mutations preserve exact `clientID:mutationID:email`; native-direct calls retain the Lane 4 replay-stable runtime fallback and make no frozen-key claim. Hosted/native notification capability remains GAP. | Source transaction owns intent; frozen gateway injects only settlement identity, never authority; crew-admin lease/settle guard; intent-indexed attempt reads and per-intent bound; declared secret grants; Loops/Discord path allowlist; internal recipient snapshot is crew-only; definite pre-send failures retry; post-send uncertainty is terminal ambiguous. | D7 effects; first-class notification capability. |",
+      "reasonAndOwner": "`backend.notifications` is an explicit GAP; current jobs are local experimental and do not carry the explicit ambiguity reconciliation this control requires. Owner: effect composition.",
+      "removedBy": "D7 effects; first-class notification capability.",
+      "securityBoundary": "Source transaction owns intent; frozen gateway injects only settlement identity, never authority; crew-admin lease/settle guard; intent-indexed attempt reads and per-intent bound; declared secret grants; Loops/Discord path allowlist; internal recipient snapshot is crew-only; definite pre-send failures retry; post-send uncertainty is terminal ambiguous.",
+      "statusAndLifecycle": "Implemented for the supported local control: source mutations atomically commit intent; the bounded companion tick leases per-target attempts; host-mediated action egress reaches only authenticated local capture; delivered and ambiguous attempts fence replay. Gateway mutations preserve exact `clientID:mutationID:email`; native-direct calls retain the Lane 4 replay-stable runtime fallback and make no frozen-key claim. Hosted/native notification capability remains GAP.",
+      "usedByLandedLane": true
+    },
+    {
+      "class": "source URL adapter and attachment metadata",
+      "id": "C-ASSET",
+      "plannedFilesAndLines": "Typed alias schema `snapback/schema.mjs:306-326`; upload/attach/delivery/cleanup functions `snapback/functions.mjs:3866-4022`; gateway adapter `composition/server.mts:540-671`; five-type/size/MIME/CORS/public-delivery/cleanup witness `tests/acceptance/lane5-live.mts:682-761`",
+      "raw": "| `C-ASSET` / source URL adapter and attachment metadata | Native local asset lifecycle differs from S3 presign/Markdown URL source shape. Owner: asset composition. | Typed alias schema `snapback/schema.mjs:306-326`; upload/attach/delivery/cleanup functions `snapback/functions.mjs:3866-4022`; gateway adapter `composition/server.mts:540-671`; five-type/size/MIME/CORS/public-delivery/cleanup witness `tests/acceptance/lane5-live.mts:682-761` | Implemented as supported local Snapback assets plus a bespoke source-shaped key/URL adapter. The native image intent owns four trusted image types; server-validated SVG uses a closed opaque native intent and a sandboxed/nosniff typed delivery alias. Hosted object policy/origin remains GAP. | Authenticated presign; one-hour user/key/MIME/exact-size capability; 10 MiB server ceiling; header and byte-signature/MIME match; native finalize and typed attach before publication; immutable public CORS delivery; cleanup inventory and native reverse-edge/GC ownership; no credential logging. | D7 assets/routes. |",
+      "reasonAndOwner": "Native local asset lifecycle differs from S3 presign/Markdown URL source shape. Owner: asset composition.",
+      "removedBy": "D7 assets/routes.",
+      "securityBoundary": "Authenticated presign; one-hour user/key/MIME/exact-size capability; 10 MiB server ceiling; header and byte-signature/MIME match; native finalize and typed attach before publication; immutable public CORS delivery; cleanup inventory and native reverse-edge/GC ownership; no credential logging.",
+      "statusAndLifecycle": "Implemented as supported local Snapback assets plus a bespoke source-shaped key/URL adapter. The native image intent owns four trusted image types; server-validated SVG uses a closed opaque native intent and a sandboxed/nosniff typed delivery alias. Hosted object policy/origin remains GAP.",
+      "usedByLandedLane": true
+    },
+    {
+      "class": "fixture transformation and bounded loader",
+      "id": "W-FIXTURE",
+      "plannedFilesAndLines": "Normal compiler/loader and focused witness `scripts/build-fixture.mts:1-1115`, `scripts/load-fixture.mts:14-342`, `tests/fixture-loader.test.mts:1-153`; additive Lane 8 receipt/overlay compiler and resumable loader `scripts/build-large-overlay.mts:1-949`, `scripts/load-large-fixture.mts:1-723`; atomic ledger schema `snapback/schema.mjs:247-272`; dual-protocol ingest, full ledger summary, and widened actor admission `snapback/functions.mjs:16-773`; generated normalized normal rows in `fixtures/normal-seed-v1/*.json` plus `fixtures/policy-extension-v1.json:1-162` and `tests/fixtures/fixture-digests.json:1-181`",
+      "raw": "| `W-FIXTURE` / fixture transformation and bounded loader | Frozen relational source ids must become typed prefixed placeholder references and support read models, while handlers may only create server-owned runtime ids and LLP 0109 caps a seed at 1,024 effects. Owner: fixture lane. | Normal compiler/loader and focused witness `scripts/build-fixture.mts:1-1115`, `scripts/load-fixture.mts:14-342`, `tests/fixture-loader.test.mts:1-153`; additive Lane 8 receipt/overlay compiler and resumable loader `scripts/build-large-overlay.mts:1-949`, `scripts/load-large-fixture.mts:1-723`; atomic ledger schema `snapback/schema.mjs:247-272`; dual-protocol ingest, full ledger summary, and widened actor admission `snapback/functions.mjs:16-773`; generated normalized normal rows in `fixtures/normal-seed-v1/*.json` plus `fixtures/policy-extension-v1.json:1-162` and `tests/fixtures/fixture-digests.json:1-181` | Retained normal contract: the same deterministic compiler, 16 bounded ordinary mutation batches, exact 14-user/five-actor gates, sentinel, response shape, and two dynamic unknown boundaries; no `seed.json`. Lane 8 adds only the pinned `large-seed42-v1`/overlay branch: exact 100-user contract, 5,549,113 data rows in 6,176 parent-first batches, one transaction-coupled ledger row per batch, verified `inserted`/`already-ingested` replay with committed rows, and a complete paged ledger summary. Both branches remain acceptance-only and gateway-omitted. | Dev-minted ordinary session; empty/in-progress frozen-user gate; final `searchEpoch` sentinel closes ingestion; gateway omission; exact ids/counts/digests after inverse remap. | D8 fixture/import profile may standardize a resumable authenticated bulk loader. |",
+      "reasonAndOwner": "Frozen relational source ids must become typed prefixed placeholder references and support read models, while handlers may only create server-owned runtime ids and LLP 0109 caps a seed at 1,024 effects. Owner: fixture lane.",
+      "removedBy": "D8 fixture/import profile may standardize a resumable authenticated bulk loader.",
+      "securityBoundary": "Dev-minted ordinary session; empty/in-progress frozen-user gate; final `searchEpoch` sentinel closes ingestion; gateway omission; exact ids/counts/digests after inverse remap.",
+      "statusAndLifecycle": "Retained normal contract: the same deterministic compiler, 16 bounded ordinary mutation batches, exact 14-user/five-actor gates, sentinel, response shape, and two dynamic unknown boundaries; no `seed.json`. Lane 8 adds only the pinned `large-seed42-v1`/overlay branch: exact 100-user contract, 5,549,113 data rows in 6,176 parent-first batches, one transaction-coupled ledger row per batch, verified `inserted`/`already-ingested` replay with committed rows, and a complete paged ledger summary. Both branches remain acceptance-only and gateway-omitted.",
+      "usedByLandedLane": true
+    },
+    {
+      "class": "duplicate closed-domain guard",
+      "id": "W-ENUM",
+      "plannedFilesAndLines": "Compiler guards `scripts/build-fixture.mts:190-203,645-742,758-784,811-865`; ingest guard `snapback/functions.mjs:62-90`; authoritative visibility/subscription/intent guards `snapback/functions.mjs:449-481`; guarded writers `snapback/functions.mjs:560-590,600-632,652-666,812-839,882-1541`; source varchar declarations remain `snapback/schema.mjs:16-20,51-54`",
+      "raw": "| `W-ENUM` / duplicate closed-domain guard | Shipped table field validators do not admit literal unions for the source `role` and `visibility` varchar enums. Owner: schema/mutation lane. | Compiler guards `scripts/build-fixture.mts:190-203,645-742,758-784,811-865`; ingest guard `snapback/functions.mjs:62-90`; authoritative visibility/subscription/intent guards `snapback/functions.mjs:449-481`; guarded writers `snapback/functions.mjs:560-590,600-632,652-666,812-839,882-1541`; source varchar declarations remain `snapback/schema.mjs:16-20,51-54` | Bespoke closed-domain guards cover fixture ingestion and every Lane 4 write that authors or propagates role/visibility/subscription/intent state; schema remains `v.string()`. | Fail closed before storage; query auth never treats an unknown role as crew or visibility as public; no invalid trigger/kind/state pair reaches the ledger. | D5, if generated validation/lowering is extended to portable stored enum domains. |",
+      "reasonAndOwner": "Shipped table field validators do not admit literal unions for the source `role` and `visibility` varchar enums. Owner: schema/mutation lane.",
+      "removedBy": "D5, if generated validation/lowering is extended to portable stored enum domains.",
+      "securityBoundary": "Fail closed before storage; query auth never treats an unknown role as crew or visibility as public; no invalid trigger/kind/state pair reaches the ledger.",
+      "statusAndLifecycle": "Bespoke closed-domain guards cover fixture ingestion and every Lane 4 write that authors or propagates role/visibility/subscription/intent state; schema remains `v.string()`.",
+      "usedByLandedLane": true
+    },
+    {
+      "class": "bounded source identity allocation",
+      "id": "W-SHORTID",
+      "plannedFilesAndLines": "Bounded first-unused allocator and authoritative insert `snapback/functions.mjs:493-509,882-941`; independent oracle `tests/lane4-oracle.mts:131-138,353-361`; production-helper witness `tests/lane4-domain.test.mts:106-125`",
+      "raw": "| `W-SHORTID` / bounded source identity allocation | The pinned PostgreSQL issue table assigns `shortID` from an identity sequence starting at 3000, while current Snapback tables have no numeric identity/default declaration and the mutation arguments correctly omit that field. Owner: control server lane. | Bounded first-unused allocator and authoritative insert `snapback/functions.mjs:493-509,882-941`; independent oracle `tests/lane4-oracle.mts:131-138,353-361`; production-helper witness `tests/lane4-domain.test.mts:106-125` | Implemented for the admitted <1,024 control corpus. It chooses the first unused integer from 3000, so explicit high policy-fixture values do not advance the emulated sequence, and commits that value with the issue/intent. Refuses at the corpus proof boundary; large/hot qualification remains GAP. | Server-only allocation; caller cannot select a permalink id; the surrounding transaction owns the bounded read and insert. | Portable numeric identity/default support. |",
+      "reasonAndOwner": "The pinned PostgreSQL issue table assigns `shortID` from an identity sequence starting at 3000, while current Snapback tables have no numeric identity/default declaration and the mutation arguments correctly omit that field. Owner: control server lane.",
+      "removedBy": "Portable numeric identity/default support.",
+      "securityBoundary": "Server-only allocation; caller cannot select a permalink id; the surrounding transaction owns the bounded read and insert.",
+      "statusAndLifecycle": "Implemented for the admitted <1,024 control corpus. It chooses the first unused integer from 3000, so explicit high policy-fixture values do not advance the emulated sequence, and commits that value with the issue/intent. Refuses at the corpus proof boundary; large/hot qualification remains GAP.",
+      "usedByLandedLane": true
+    }
+  ]
+}
