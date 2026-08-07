@@ -5,7 +5,13 @@
 **Systems:** Testing, CI, Packaging, Documentation, Developer experience, LLP governance
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-07
-**Revised:**
+**Revised:** 2026-08-07 (round-1 dual-family review amendments — mechanism
+tightening only; the cadence ruling is unchanged: D-1 signature-keyed tickets,
+claim cross-references, and escalation; D-3 mandatory demotion window,
+scope-edit rule, and battery-red triage; D-4 semantic-role scoping, gate
+quality bar, and input closure; D-5 semantic-conflict note; D-6 battery
+containment and freshness; D-7 names the telemetry exact-current carve-out;
+LLP 0175 Acceptance #10 and D2.4 re-scoped in the same landing.)
 **Related:** LLP 0005, LLP 0010, LLP 0061, LLP 0154, LLP 0158, LLP 0162, LLP
 0175, LLP 0185,
 issues/20260807-derived-fork-publication-wave-drift-requalification.md,
@@ -63,7 +69,14 @@ Its red results become fix-forward filesystem tickets (one per root failure,
 idempotent per still-open ticket, following the
 `scripts/drift-prone-gates.mjs backstop` pattern) that the fleet fixes
 promptly. A battery red does not retroactively invalidate unrelated landings
-or standing claims; it names work.
+or standing claims; it names work. Tickets key on the root-failure signature,
+not just the gate: a new, distinct failure of an already-ticketed gate files
+or updates a ticket rather than silently coalescing. When a red gate is
+claim-relevant to a standing published claim (its D-4 scoped surface), the
+ticket names that claim and the claim record names the open ticket while it
+stands — "standing, with known red" is a visible state, and it feeds D-3's
+triage. A red persisting across four consecutive scheduled runs escalates to
+the author.
 
 **D-2 — Landing gates stay fast and affected.** Landings run the LLP 0175
 D2.1/D2.2 fast/affected selection plus the same-change frozen-record drift
@@ -78,9 +91,18 @@ binds the qualification commit and the scoped evidence surface it names
 requalification. Unrelated landings — including changes to wave-shared proof
 harnesses, metrology, fixtures, or documentation — never invalidate a claim.
 Withdrawal is warranted only when (a) the scoped surface changed without
-requalification, or (b) the claim is discovered to be factually wrong.
-Requalification then happens on the next natural cycle, not as an emergency
-that races the fleet.
+requalification, or (b) the claim is discovered to be factually wrong. A
+battery red on the claim's own claim-relevant gates is prima facie (b)
+evidence and must be triaged through its cross-referenced ticket (D-1); a red
+anywhere else never touches the claim. When the publication validator detects
+(a), demotion is mandatory, not discretionary: within one battery period the
+claim's advertised state drops to its prior honest tier or gains an explicit
+requalification-pending marker naming the ticket, and that ticket names an
+owner. Editing a published claim's digest scope is itself a scoped-surface
+change: a re-scope takes effect only with requalification or fresh
+named-author acceptance binding the new scope. Requalification then happens
+on the next natural cycle — the claim's normal qualification protocol at the
+next scheduled opportunity — not as an emergency that races the fleet.
 
 **D-4 — Qualification digests are scoped to the claim.** A qualification
 digest covers the claim-relevant surface only: the runtime/implementation of
@@ -91,34 +113,54 @@ LLP 0175 `driftProneGates` registry pattern; the R12-1 per-file gate in
 `issues/20260807-codegen-declaration-has-no-drift-gate.md` is the model).
 Coverage moves; it never vanishes: removing a file from a digest is legal
 only in the same change that adds (or names the existing) drift gate covering
-it.
+it. Scoping is by semantic role, not file category: a checker that defines
+the claim's semantics stays in the digest even when wave-shared, and the
+digest closes over the semantics-affecting inputs of its in-digest checkers,
+pinned by content in the claim record. The scope classification is itself
+part of the claim record the named author accepts. A replacement drift gate
+must meet LLP 0175's admission bar — a genuinely recomputed value compared
+against a committed frozen record; a content-hash pin regenerated alongside
+any edit is presence, not coverage, and does not satisfy this rule.
 
 **D-5 — Reviews bind content, not HEAD.** This generalizes the 2026-08-06
 landing-discipline ruling repo-wide: mutually blind dual-READY verdicts on a
 cut remain valid across normal merges of newer `main`; only genuinely new
-conflict-resolution work needs fresh scrutiny. No process may require
-re-review solely because `main` advanced.
+conflict-resolution work needs fresh scrutiny. Conflict-resolution work
+includes semantic integration — adapting the cut to interface, schema, or
+invariant changes merged from `main` — not only textual conflicts; the lander
+judges which it was and records it. No process may require re-review solely
+because `main` advanced.
 
 **D-6 — Promotion and release preconditions reference the battery, not
 per-commit proofs.** A candidate needs (a) green scoped evidence for exactly
 what it claims, and (b) the most recent scheduled complete battery green on
 its claim-relevant gates, with any unrelated red gates ticketed and named in
-the promotion record rather than blocking it. Existing "green local proof at
-the exact candidate SHA" preconditions are re-scoped to this form.
+the promotion record rather than blocking it. The referenced battery run must
+have tested a revision containing the qualification commit — wait for the
+next scheduled run or invoke the battery on demand; an on-demand complete run
+over the same canonical inventory is eligible, the newest eligible completed
+run controls (a newer red is never trumped by an older green), and a run
+older than two scheduled periods is not "most recent." The claim-relevant
+gate set is derived from the claim record's D-4 scope, not enumerated ad hoc
+at promotion time. Existing "green local proof at the exact candidate SHA"
+preconditions are re-scoped to this form.
 
 **D-7 — Stricter per-claim protocols remain available by explicit author
 ruling.** Where the author has ruled that a specific claim needs exact-commit
-binding (for example, LLP 0162 Track B row 13's paired performance protocol),
-that protocol stands as written until separately amended. The default is this
+binding (for example, LLP 0162 Track B row 13's paired performance protocol,
+and LLP 0175 D2.4's exact-current telemetry authority for frozen release
+candidates under LLP 0154's trust contract), that protocol stands as written
+until separately amended. The default is this
 decision; extra strictness is opt-in per claim, never ambient.
 
 ## Consequences
 
 - The derived-fork requalification
   (`issues/20260807-derived-fork-publication-wave-drift-requalification.md`)
-  proceeds under D-4: select the fresh qualification C once, re-scope the
-  digest with drift gates for the departing wave-shared files, and future
-  wave landings stop rotating it. That ticket's "must not exclude them"
+  proceeds under D-4: select the fresh qualification C once — after the
+  digest re-scope and the two deferred checker-hardening tickets land, per
+  the amended ticket — re-scope the digest with drift gates for the departing
+  wave-shared files, and future wave landings stop rotating it. That ticket's "must not exclude them"
   constraint is superseded by this ruling — exclusion is permitted exactly
   when the same change installs the replacement drift gate.
 - The two deferred checker-hardening tickets
@@ -138,6 +180,9 @@ decision; extra strictness is opt-in per claim, never ambient.
 - Battery-red ticket filing (D-1) extends the existing backstop pattern from
   drift gates to complete-proof root failures; implementation tracked in
   `issues/20260807-llp-0189-claim-snapshot-implementation.md`.
+- Published claims still carrying legacy unscoped digests keep their
+  pre-0189 semantics until re-scoped under D-4; the derived-fork claim is the
+  first re-scope, not a special case.
 
 ## Non-goals and preserved honesty
 
@@ -158,7 +203,9 @@ decision; extra strictness is opt-in per claim, never ambient.
 
 - `AGENTS.md` working guidance — done in this landing.
 - LLP 0175 — Revised pointer to this decision (its D2 cadence design is the
-  substrate D-1/D-2 stand on) — done in this landing.
+  substrate D-1/D-2 stand on), plus body re-scope of Acceptance #10 and the
+  D2.4 release-claim sentence to the D-6 form, with the exact-current
+  telemetry authority explicitly preserved under D-7 — done in this landing.
 - `scripts/check-agent-safe-publication.mjs` digest scoping (D-4) and
   snapshot/withdrawal semantics (D-3), plus battery-red ticket automation
   (D-1) — `issues/20260807-llp-0189-claim-snapshot-implementation.md`.

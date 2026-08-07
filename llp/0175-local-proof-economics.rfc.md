@@ -61,7 +61,10 @@ authority is wired into both real candidate publication and default-tag
 promotion. The shared gate invokes the verifier at the frozen candidate
 revision before registry mutation or promotion lease acquisition and retains
 the assessment in release receipts; capability maturity currently cites and
-consumes no telemetry evidence.)
+consumes no telemetry evidence.) 2026-08-07 (LLP 0189 round-1 review
+amendments: Acceptance #10 and D2.4's release-claim sentence are re-scoped to
+the LLP 0189 D-6 form; D2.4's exact-current telemetry authority is preserved
+under its D-7.)
 **Related:** LLP 0010, LLP 0032, LLP 0109, LLP 0115, LLP 0145, LLP 0154,
 issues/closed/20260802-local-proof-is-cancelled-before-it-can-finish-on-main.md,
 issues/closed/20260802-verify-local-proof-stops-at-the-first-failure.md,
@@ -562,16 +565,18 @@ measurements as corrupt.
 Historical compatibility, clean-machine package installation, expensive
 retained-evidence smoke/full modes, and promised platform tuples run on their
 relevant affected changes and again at nightly or release cadence. Release
-claims remain blocked unless their complete required matrix is recent and
-green.
+claims remain blocked unless the claim-relevant gates of their required
+matrix are recent and green; unrelated red gates are ticketed and named in
+the promotion record rather than blocking it (re-scoped by LLP 0189 D-6).
 
 For retained telemetry evidence, three executable claims are distinct:
 historical validation, rolling-head assessment, and exact-current release /
 capability-promotion authority. The scheduled full producer owns rolling
 health; ordinary merges may proceed with an explicit ancestral
 `LAGGING`/`OVERDUE` receipt. A frozen release candidate is required to pass the
-exact-current mode. Real candidate publication and default-tag promotion now
-invoke `scripts/verify-telemetry-phase1-proof --require-current
+exact-current mode (preserved as a stricter per-claim protocol under LLP 0189
+D-7, not re-scoped by its D-6). Real candidate publication and default-tag
+promotion now invoke `scripts/verify-telemetry-phase1-proof --require-current
 <frozen-candidate-sha>` through the shared release gate before their first
 irreversible effect. Publication runs at the clean candidate checkout after
 qualified-ledger binding and before npm mutation; promotion assesses the
@@ -756,8 +761,10 @@ This RFC is implemented only when all of the following hold:
    never silent skips, when selected;
 9. timing artifacts demonstrate the latency targets over at least ten
    representative runs; and
-10. a complete latest-main proof is green before release or capability
-    promotion.
+10. the most recent eligible complete battery is green on the claim-relevant
+    gates before release or capability promotion, with unrelated reds
+    ticketed and named in the promotion record (re-scoped by LLP 0189 D-6;
+    originally "a complete latest-main proof is green").
 
 ## Non-goals
 
