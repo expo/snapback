@@ -61,3 +61,17 @@ Minor, same area: the `{"DenyAll": true, "CaptureOnly": true}` tampering
 probes now name spellings that no longer exist (still non-vacuous, but the
 comment misdescribes them), and `EffectSettlementCapabilityV1` names two
 different Rust types across the schema namespace.
+
+## Implementation note — 2026-08-07
+
+Implemented on branch `codex/pub-chain-hardening-20260807`; lands with the
+fresh derived-fork requalification cycle. The declaration now projects the
+Rust/schema `ordinaryMutation` and `hostChildMutation` adapter maps and the
+sparse `scopedFacts` explanation list. A Node-only structural gate compares all
+33 `AgentSafe*` enum/object definitions against all four committed schemas and
+runs both from the publication oracle and the DK-7 Rust drift test. Its
+negative fixtures temporarily reintroduce the R11-1 enum casing drift and both
+R12-1 nested-shape drifts and prove each is rejected. The tampering probes now
+use current lower-camel spellings, and the artifact-local
+`EffectSettlementCapabilityV1` name collision is documented at the DK-7
+comparison boundary and in LLP 0037 rather than renamed invasively.

@@ -29,6 +29,7 @@ import {
   LOCAL_STORE_PUBLICATION_TRANSFORM,
   PUBLICATION_CYCLE_ALLOWLIST,
   validateAbsolutePerformanceArtifact,
+  validateAgentSafeCodegenDeclarations,
   validatePairedPerformanceArtifact,
   validatePublicationRecord,
   validateReview,
@@ -831,8 +832,9 @@ test('publication-chain JSON has one canonical parser boundary and no legacy evi
   assert.match(source, /no publication-chain JSON is ever read non-canonically/u);
   assert.doesNotMatch(source, /function readEvidenceJson/u);
   const parseSites = source.split('\n').filter((line) => line.includes('JSON.parse('));
-  assert.equal(parseSites.length, 3, `unexpected bare JSON.parse site:\n${parseSites.join('\n')}`);
+  assert.equal(parseSites.length, 4, `unexpected bare JSON.parse site:\n${parseSites.join('\n')}`);
   assert.ok(parseSites.some((line) => line.includes('value = JSON.parse(text)')));
+  assert.ok(parseSites.some((line) => line.includes('const schema = JSON.parse(')));
 });
 
 test('published derived-fork chain accepts final READY after historical NOT READY verdicts', () => {
@@ -1878,6 +1880,74 @@ test('build and checker bind the shared generated-artifact policy', () => {
   ));
   assert.equal(allowedPublicationPath('scripts/generated-artifact-policy.mjs'), false);
   assert.equal(allowedPublicationPath('scripts/check-generated-artifacts'), false);
+});
+
+function agentSafeDeclarationFixture(mutate) {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-agent-safe-declaration-'));
+  const declarationPath = 'packages/snapback-codegen/index.d.mts';
+  const schemaPaths = [
+    'schemas/capability.manifest.schema.json',
+    'schemas/inspect.schema.json',
+    'schemas/inspect.admin.schema.json',
+    'schemas/inspect.public.schema.json',
+  ];
+  for (const path of [declarationPath, ...schemaPaths]) {
+    mkdirSync(dirname(join(scratch, path)), { recursive: true });
+    writeFileSync(join(scratch, path), readFileSync(join(root, path)));
+  }
+  const declaration = readFileSync(join(scratch, declarationPath), 'utf8');
+  writeFileSync(join(scratch, declarationPath), mutate(declaration));
+  return scratch;
+}
+
+test('AgentSafe codegen declarations match all four Rust-owned schema projections', () => {
+  assert.deepEqual(validateAgentSafeCodegenDeclarations(root), {
+    definitions: 33,
+    schemas: 4,
+  });
+});
+
+test('AgentSafe declaration gate catches the R11-1 enum spelling drift', () => {
+  const scratch = agentSafeDeclarationFixture((declaration) => declaration
+    .replace("'denyAll' | 'captureOnly'", "'DenyAll' | 'CaptureOnly'")
+    .replace("'notPromotable' | 'promotable'", "'NotPromotable' | 'Promotable'"));
+  assert.throws(
+    () => validateAgentSafeCodegenDeclarations(scratch),
+    /AgentSafeForkEgressV1 enum drifted from committed schemas/u,
+  );
+});
+
+test('AgentSafe declaration gate catches both R12-1 nested shape drifts', () => {
+  const envelopeScratch = agentSafeDeclarationFixture((declaration) => declaration.replace(
+    [
+      '  readonly ordinaryMutation: AgentSafeEnvelopeCoverageByAdapterV1;',
+      '  readonly hostChildMutation: AgentSafeEnvelopeCoverageByAdapterV1;',
+    ].join('\n'),
+    [
+      '  readonly ordinaryIbexMutation: AgentSafeEnvelopeCoverageV1;',
+      '  readonly hostPlanSettlement: AgentSafeEnvelopeCoverageV1;',
+    ].join('\n'),
+  ));
+  assert.throws(
+    () => validateAgentSafeCodegenDeclarations(envelopeScratch),
+    /AgentSafeEnvelopeCoverageByScopeV1 object shape drifted from committed schemas/u,
+  );
+
+  const explanationScratch = agentSafeDeclarationFixture((declaration) => declaration.replace(
+    '  readonly scopedFacts: readonly AgentSafeScopedExplanationFactV1[];',
+    [
+      '  readonly ordinaryIbexMutation: AgentSafeExplanationClassV1;',
+      '  readonly hostPlanSettlement: AgentSafeExplanationClassV1;',
+      '  readonly migration: AgentSafeExplanationClassV1;',
+      '  readonly durableBackgroundWork: AgentSafeExplanationClassV1;',
+      '  readonly push: AgentSafeExplanationClassV1;',
+      '  readonly auth: AgentSafeExplanationClassV1;',
+    ].join('\n'),
+  ));
+  assert.throws(
+    () => validateAgentSafeCodegenDeclarations(explanationScratch),
+    /AgentSafeExplanationFactsV1 object shape drifted from committed schemas/u,
+  );
 });
 
 test('generated-artifact registry covers every codegen job exactly once', () => {

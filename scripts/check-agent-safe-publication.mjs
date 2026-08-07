@@ -57,6 +57,12 @@ export const IMPLEMENTATION_DIGEST_VERSION =
 const LEGACY_IMPLEMENTATION_DIGEST_VERSION =
   'snapback:agent-safe-implementation-tree:v1';
 const REVIEW_HISTORY_SCHEMA_VERSION = 'snapback.review-verdicts.v2';
+const AGENT_SAFE_SCHEMA_PATHS = [
+  'schemas/capability.manifest.schema.json',
+  'schemas/inspect.schema.json',
+  'schemas/inspect.admin.schema.json',
+  'schemas/inspect.public.schema.json',
+];
 
 // Rounds 1-12 predate frozen prose-prefix bindings. Their stable review
 // identity is enumerated here so an unbound round cannot be introduced after
@@ -1491,6 +1497,9 @@ export function validateDerivedForkReview(root, {
     requireEvidence(entry.reviewArtifact === reviewPath
       && entry.reviewArtifactSha256 === currentReviewSha256,
     `${verdictPath} round ${index + 1} does not bind its exact prose artifact`);
+    requireEvidence(Number.isSafeInteger(entry.round)
+      && entry.round === index + 1,
+    `${verdictPath} rounds are missing, duplicated, or non-monotonic`);
     if (!legacyCurrentArtifact) {
       requireEvidence(entry.proseHistoryBinding === 'frozen-per-round',
         `${verdictPath} round ${index + 1} must use frozen-per-round prose history binding`);
@@ -1508,9 +1517,6 @@ export function validateDerivedForkReview(root, {
     declaredFamily ??= entry.family;
     requireEvidence(entry.family === declaredFamily,
       `${verdictPath} reviewer family changed between rounds`);
-    requireEvidence(Number.isSafeInteger(entry.round)
-      && entry.round === index + 1,
-    `${verdictPath} rounds are missing, duplicated, or non-monotonic`);
     requireEvidence(entry.previousEntrySha256 === previousEntrySha256,
       `${verdictPath} round ${entry.round} predecessor digest broke; history was truncated, restarted, or replaced`);
     requireEvidence(/^[0-9a-f]{40}$/u.test(entry.reviewedCommit ?? ''),
@@ -1798,7 +1804,102 @@ export function validatePublicationRecord(root, record) {
   };
 }
 
+function canonicalShape(value) {
+  if (Array.isArray(value)) return value.map(canonicalShape);
+  if (value === null || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.entries(value)
+    .filter(([key]) => key !== 'description')
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, member]) => [key, canonicalShape(member)]));
+}
+
+function agentSafeSchemaDefinitions(root) {
+  let authoritative;
+  for (const path of AGENT_SAFE_SCHEMA_PATHS) {
+    const schema = JSON.parse(readFileSync(join(root, path), 'utf8'));
+    const definitions = Object.fromEntries(Object.entries(schema.$defs ?? {})
+      .filter(([name]) => name.startsWith('AgentSafe'))
+      .map(([name, definition]) => [name, canonicalShape(definition)])
+      .sort(([left], [right]) => left.localeCompare(right)));
+    if (authoritative === undefined) {
+      authoritative = definitions;
+    } else if (JSON.stringify(definitions) !== JSON.stringify(authoritative)) {
+      fail(`AgentSafe committed schema definitions drifted across ${AGENT_SAFE_SCHEMA_PATHS.join(', ')}`);
+    }
+  }
+  return authoritative;
+}
+
+function schemaDeclarationType(property, name) {
+  if (typeof property.$ref === 'string') return property.$ref.split('/').at(-1);
+  if (property.type === 'array' && typeof property.items?.$ref === 'string') {
+    return `readonly ${property.items.$ref.split('/').at(-1)}[]`;
+  }
+  fail(`AgentSafe committed schema member ${name} uses an unsupported declaration shape`);
+}
+
+// @ref LLP 0037#decision-ratified-2026-07-02 — Rust is authoritative, the
+// four committed schemas are its toolchain-free projection, and this gate
+// prevents the hand-authored package declaration from becoming a third shape.
+export function validateAgentSafeCodegenDeclarations(root) {
+  const declarationPath = 'packages/snapback-codegen/index.d.mts';
+  const declaration = readFileSync(join(root, declarationPath), 'utf8');
+  const aliasMatches = [...declaration.matchAll(
+    /export type (AgentSafe[A-Za-z0-9]+) =([\s\S]*?);/gu,
+  )];
+  const interfaceMatches = [...declaration.matchAll(
+    /export interface (AgentSafe[A-Za-z0-9]+) \{\n([\s\S]*?)\n\}/gu,
+  )];
+  const aliases = new Map(aliasMatches.map((match) => [match[1], match[2]]));
+  const interfaces = new Map(interfaceMatches.map((match) => [match[1], match[2]]));
+  if (aliases.size !== aliasMatches.length || interfaces.size !== interfaceMatches.length) {
+    fail(`${declarationPath} contains duplicate AgentSafe definitions`);
+  }
+  const definitions = agentSafeSchemaDefinitions(root);
+  const declaredNames = [...aliases.keys(), ...interfaces.keys()].sort();
+  const schemaNames = Object.keys(definitions).sort();
+  if (JSON.stringify(declaredNames) !== JSON.stringify(schemaNames)) {
+    fail(`${declarationPath} AgentSafe definition inventory drifted from committed schemas`);
+  }
+
+  for (const [name, definition] of Object.entries(definitions)) {
+    if (Array.isArray(definition.enum)) {
+      const body = aliases.get(name);
+      if (body === undefined) fail(`${declarationPath} ${name} must be an enum alias`);
+      const values = [...body.matchAll(/'([^']+)'/gu)].map((match) => match[1]);
+      const residue = body.replace(/'[^']+'/gu, '').replace(/[|\s]/gu, '');
+      if (residue !== '' || JSON.stringify(values) !== JSON.stringify(definition.enum)) {
+        fail(`${declarationPath} ${name} enum drifted from committed schemas`);
+      }
+      continue;
+    }
+
+    const body = interfaces.get(name);
+    if (body === undefined) fail(`${declarationPath} ${name} must be an object interface`);
+    const propertyPattern = /^[ \t]*readonly[ \t]+([A-Za-z][A-Za-z0-9]*):[ \t]*([^;]+);[ \t]*$/gmu;
+    const properties = new Map([...body.matchAll(propertyPattern)]
+      .map((match) => [match[1], match[2].replace(/\s+/gu, ' ').trim()]));
+    if (body.replace(propertyPattern, '').trim() !== '') {
+      fail(`${declarationPath} ${name} has an unsupported declaration member`);
+    }
+    const expectedProperties = Object.fromEntries(Object.entries(definition.properties ?? {})
+      .map(([propertyName, property]) => [
+        propertyName,
+        schemaDeclarationType(property, `${name}.${propertyName}`),
+      ]));
+    if (definition.additionalProperties !== false
+        || JSON.stringify([...(definition.required ?? [])].sort())
+          !== JSON.stringify(Object.keys(expectedProperties).sort())
+        || JSON.stringify(Object.fromEntries([...properties].sort()))
+          !== JSON.stringify(Object.fromEntries(Object.entries(expectedProperties).sort()))) {
+      fail(`${declarationPath} ${name} object shape drifted from committed schemas`);
+    }
+  }
+  return { definitions: schemaNames.length, schemas: AGENT_SAFE_SCHEMA_PATHS.length };
+}
+
 export function runChecker(root) {
+  validateAgentSafeCodegenDeclarations(root);
   const results = RECORDS.map((record) => validatePublicationRecord(root, record));
   for (const result of results.filter(({ state }) => state === 'published')) {
     validateLocalStorePublicationTransform(root, result.commit);
@@ -1817,6 +1918,11 @@ if (invoked) {
   const root = rootArg >= 0
     ? resolve(process.argv[rootArg + 1])
     : resolve(dirname(fileURLToPath(import.meta.url)), '..');
-  const results = runChecker(root);
-  process.stdout.write(`${results.map(({ id, state }) => `${id}:${state}`).join('\n')}\n`);
+  if (process.argv.includes('--codegen-declarations-only')) {
+    const result = validateAgentSafeCodegenDeclarations(root);
+    process.stdout.write(`agent-safe-codegen-declarations:ok (${result.definitions} definitions, ${result.schemas} schemas)\n`);
+  } else {
+    const results = runChecker(root);
+    process.stdout.write(`${results.map(({ id, state }) => `${id}:${state}`).join('\n')}\n`);
+  }
 }

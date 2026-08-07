@@ -155,25 +155,79 @@ export function contractCapabilitiesForMutations(
   offlineReplay: boolean;
 }>;
 
-export type AgentSafeEnvelopeCoverageV1 = 'Missing' | 'Covered';
-export type AgentSafeExplanationDetailV1 = 'Missing' | 'DigestOnly' | 'BoundedFacts';
-export type AgentSafeExplanationRetentionV1 = 'Missing' | 'EnvelopeBounded' | 'PolicyBounded';
-export type AgentSafeForkEgressV1 = 'Missing' | 'denyAll' | 'captureOnly';
-export type AgentSafeForkPromotionV1 = 'Missing' | 'notPromotable' | 'promotable';
-export type AgentSafeForkBaseV1 = 'Missing' | 'currentHead' | 'namedCheckpoint';
-export type AgentSafeForkIsolationV1 = 'Missing' | 'hostMediated' | 'endToEnd';
+// @ref LLP 0037#decision-ratified-2026-07-02 — Rust-owned AgentSafe shapes
+// project through the four committed schemas; the publication oracle compares
+// every declaration below against those schemas in the DK-7 proof path.
+export type AgentSafeActionReplayClassV1 = 'Missing' | 'Nondeterministic';
+export type AgentSafeAggregateStateV1 = 'Missing' | 'Supported';
+export type AgentSafeCapabilitySchemaVersion = 'agentSafe.v1';
 export type AgentSafeDiffCoverageV1 = 'Missing' | 'Exact';
+export type AgentSafeEnvelopeCoverageV1 = 'Missing' | 'Covered';
+export type AgentSafeExplanationAccessV1 = 'publicCurrentPolicy' | 'administrative';
+export type AgentSafeExplanationAdapterV1 = 'hostPlan' | 'ibexBuffered';
+export type AgentSafeExplanationDetailV1 = 'Missing' | 'DigestOnly' | 'BoundedFacts';
+export type AgentSafeExplanationLogicalLaneV1 = 'ordinaryMutation' | 'hostChildMutation';
+export type AgentSafeExplanationProfileV1 =
+  | 'generatedOwnedCrudOwnerCreateV1'
+  | 'generatedOwnedCrudOwnerUpdateV1';
+export type AgentSafeExplanationRetentionV1 = 'Missing' | 'EnvelopeBounded' | 'PolicyBounded';
+export type AgentSafeForkBaseV1 = 'Missing' | 'currentHead' | 'namedCheckpoint';
+export type AgentSafeForkEgressV1 = 'Missing' | 'denyAll' | 'captureOnly';
+export type AgentSafeForkIsolationV1 = 'Missing' | 'hostMediated' | 'endToEnd';
+export type AgentSafeForkPromotionV1 = 'Missing' | 'notPromotable' | 'promotable';
+export type AgentSafeHandlerReplayClassV1 = 'Missing' | 'Deterministic';
 export type AgentSafeHistoryClassV1 = 'Missing' | 'BoundedChanges' | 'NamedCheckpoints';
 export type AgentSafeProofClassV1 =
   | 'Missing'
   | 'RecordedInventory'
   | 'verifiedCopyFidelity'
   | 'IndependentBoundaryProof';
-export type AgentSafeAggregateStateV1 = 'Missing' | 'Supported';
+export type AgentSafeResourceBoundClassV1 = 'Missing' | 'AdmissionAndResourceBounds';
+export type AgentSafeSchemaEvolutionClassV1 = 'Missing' | 'ProofsWithoutLens';
+
+export interface AgentSafeAggregateFactsV1 {
+  readonly core: AgentSafeAggregateStateV1;
+  readonly history: AgentSafeAggregateStateV1;
+}
+
+export interface AgentSafeDiffFactsV1 {
+  readonly data: AgentSafeDiffCoverageV1;
+  readonly effects: AgentSafeDiffCoverageV1;
+}
+
+export interface AgentSafeEnvelopeCoverageByAdapterV1 {
+  readonly hostPlan: AgentSafeEnvelopeCoverageV1;
+  readonly ibexBuffered: AgentSafeEnvelopeCoverageV1;
+}
+
+export interface AgentSafeEnvelopeCoverageByScopeV1 {
+  readonly ordinaryMutation: AgentSafeEnvelopeCoverageByAdapterV1;
+  readonly hostChildMutation: AgentSafeEnvelopeCoverageByAdapterV1;
+  readonly migration: AgentSafeEnvelopeCoverageV1;
+  readonly durableBackgroundWork: AgentSafeEnvelopeCoverageV1;
+  readonly push: AgentSafeEnvelopeCoverageV1;
+  readonly auth: AgentSafeEnvelopeCoverageV1;
+}
 
 export interface AgentSafeExplanationClassV1 {
   readonly detail: AgentSafeExplanationDetailV1;
   readonly retention: AgentSafeExplanationRetentionV1;
+}
+
+export interface AgentSafeExplanationScopeV1 {
+  readonly logicalLane: AgentSafeExplanationLogicalLaneV1;
+  readonly adapter: AgentSafeExplanationAdapterV1;
+  readonly access: AgentSafeExplanationAccessV1;
+  readonly profile: AgentSafeExplanationProfileV1;
+}
+
+export interface AgentSafeScopedExplanationFactV1 {
+  readonly scope: AgentSafeExplanationScopeV1;
+  readonly class: AgentSafeExplanationClassV1;
+}
+
+export interface AgentSafeExplanationFactsV1 {
+  readonly scopedFacts: readonly AgentSafeScopedExplanationFactV1[];
 }
 
 export interface AgentSafeForkAxesV1 {
@@ -183,47 +237,31 @@ export interface AgentSafeForkAxesV1 {
   readonly isolation: AgentSafeForkIsolationV1;
 }
 
+export interface AgentSafeForkFactsV1 {
+  readonly inApp: AgentSafeForkAxesV1;
+  readonly derivedDeployment: AgentSafeForkAxesV1;
+}
+
+export interface AgentSafeReplayFactsV1 {
+  readonly handlers: AgentSafeHandlerReplayClassV1;
+  readonly actions: AgentSafeActionReplayClassV1;
+}
+
 export interface AgentSafeCapabilityFactsV1 {
-  readonly envelope: Readonly<{
-    ordinaryIbexMutation: AgentSafeEnvelopeCoverageV1;
-    hostPlanSettlement: AgentSafeEnvelopeCoverageV1;
-    migration: AgentSafeEnvelopeCoverageV1;
-    durableBackgroundWork: AgentSafeEnvelopeCoverageV1;
-    push: AgentSafeEnvelopeCoverageV1;
-    auth: AgentSafeEnvelopeCoverageV1;
-  }>;
-  readonly explanation: Readonly<{
-    ordinaryIbexMutation: AgentSafeExplanationClassV1;
-    hostPlanSettlement: AgentSafeExplanationClassV1;
-    migration: AgentSafeExplanationClassV1;
-    durableBackgroundWork: AgentSafeExplanationClassV1;
-    push: AgentSafeExplanationClassV1;
-    auth: AgentSafeExplanationClassV1;
-  }>;
-  readonly forks: Readonly<{
-    inApp: AgentSafeForkAxesV1;
-    derivedDeployment: AgentSafeForkAxesV1;
-  }>;
-  readonly diff: Readonly<{
-    data: AgentSafeDiffCoverageV1;
-    effects: AgentSafeDiffCoverageV1;
-  }>;
+  readonly envelope: AgentSafeEnvelopeCoverageByScopeV1;
+  readonly explanation: AgentSafeExplanationFactsV1;
+  readonly forks: AgentSafeForkFactsV1;
+  readonly diff: AgentSafeDiffFactsV1;
   readonly history: AgentSafeHistoryClassV1;
   readonly proof: AgentSafeProofClassV1;
-  readonly replay: Readonly<{
-    handlers: 'Missing' | 'Deterministic';
-    actions: 'Missing' | 'Nondeterministic';
-  }>;
-  readonly schemaEvolution: 'Missing' | 'ProofsWithoutLens';
-  readonly resourceBounds: 'Missing' | 'AdmissionAndResourceBounds';
-  readonly aggregate: Readonly<{
-    core: AgentSafeAggregateStateV1;
-    history: AgentSafeAggregateStateV1;
-  }>;
+  readonly replay: AgentSafeReplayFactsV1;
+  readonly schemaEvolution: AgentSafeSchemaEvolutionClassV1;
+  readonly resourceBounds: AgentSafeResourceBoundClassV1;
+  readonly aggregate: AgentSafeAggregateFactsV1;
 }
 
 export interface AgentSafeCapabilityExtensionV1 {
-  readonly schemaVersion: 'agentSafe.v1';
+  readonly schemaVersion: AgentSafeCapabilitySchemaVersion;
   readonly target: AgentSafeCapabilityFactsV1;
   readonly appEffective: AgentSafeCapabilityFactsV1;
 }

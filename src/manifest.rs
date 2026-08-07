@@ -13379,8 +13379,8 @@ mod agent_safe_capability_tests {
 
         let mut conflicting_axis = encoded.clone();
         conflicting_axis["target"]["forks"]["inApp"]["egress"] = json!({
-            "DenyAll": true,
-            "CaptureOnly": true
+            "denyAll": true,
+            "captureOnly": true
         });
         assert!(
             serde_json::from_value::<AgentSafeCapabilityExtensionV1>(conflicting_axis).is_err(),

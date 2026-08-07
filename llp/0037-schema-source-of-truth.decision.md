@@ -5,6 +5,7 @@
 **Systems:** API, Tooling, Client integration, Contract/Exact, Testing, Packaging
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-02
+**Revised:** 2026-08-07 (AgentSafe declaration projection hardening: the hand-authored `packages/snapback-codegen/index.d.mts` AgentSafe block is now structurally compared with all four committed Rust-generated schema projections by a Node-only gate, invoked directly and from the DK-7 Rust drift test. The two artifact-local `EffectSettlementCapabilityV1` definitions are documented as separate `$defs` namespaces rather than one repository-global type.)
 **Revised:** 2026-07-31 (LLP 0044 companion: the asset upload-intent
 reference, attempt/transfer/lifecycle/receipt DTOs, and `SNAPBACK_ASSET_*`
 detail shapes are Rust-owned under this decision, registered through
@@ -297,3 +298,20 @@ types. `snapback-schemagen` emits their committed schemas, and the ordinary
 artifact-schema drift and representative-value gates cover them. Codegen owns
 only canonical construction of `seed.artifact.json`; it cannot redefine a
 server request or receipt.
+
+**AgentSafe declaration projection alignment (2026-08-07).** The public
+`packages/snapback-codegen/index.d.mts` declarations remain a projection, not a
+second authority. `scripts/check-agent-safe-publication.mjs` compares the
+complete `AgentSafe*` definition inventory, every enum value, and every object
+property/reference against the identical AgentSafe definitions in the
+capability-manifest and three inspect schemas. The Node-only gate runs in the
+ordinary publication proof and is also invoked by
+`dk7_committed_schemas_match_rust_types`, closing the Rust → committed-schema →
+TypeScript-declaration chain without requiring schemagen for the final leg.
+
+JSON Schema `$defs` names are artifact-local. The commit-envelope artifact's
+five-value `EffectSettlementCapabilityV1` and the promotion-effect-intent
+artifact's three-value type of the same name are therefore not one merged
+schema definition. The DK-7 checker documents and compares those artifacts
+independently. A future repository-wide schema namespace would require a rename
+or qualified-name rule; this alignment does not invent one retroactively.

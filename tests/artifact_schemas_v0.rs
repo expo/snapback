@@ -612,6 +612,11 @@ fn mutation_replay_bounds_match_the_public_data_tier_profile() {
 /// Drift gate: what the Rust types generate now must equal what is committed.
 #[test]
 fn dk7_committed_schemas_match_rust_types() {
+    // JSON Schema `$defs` names are scoped to one artifact, not one merged
+    // repository namespace. In particular, `EffectSettlementCapabilityV1`
+    // intentionally names the five-value commit-envelope vocabulary in
+    // `commit.envelope-v1` and the three-value promotion intent vocabulary in
+    // `promotion.effect-intent-v1`; this checker compares each independently.
     for SchemaArtifact { file, schema } in artifact_schemas() {
         let on_disk = committed(file);
         assert_eq!(
@@ -620,6 +625,21 @@ fn dk7_committed_schemas_match_rust_types() {
              `cargo run --bin snapback-schemagen` (LLP 0037 / LLP 0032 P3c)"
         );
     }
+
+    let declaration_gate = std::process::Command::new("node")
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .args([
+            "scripts/check-agent-safe-publication.mjs",
+            "--codegen-declarations-only",
+        ])
+        .output()
+        .expect("run the Node-only AgentSafe codegen declaration drift gate");
+    assert!(
+        declaration_gate.status.success(),
+        "AgentSafe codegen declarations drifted from the committed schemas:\n{}{}",
+        String::from_utf8_lossy(&declaration_gate.stdout),
+        String::from_utf8_lossy(&declaration_gate.stderr),
+    );
 }
 
 #[test]
@@ -3286,8 +3306,8 @@ fn agent_safe_capability_schema_rejects_axis_and_extension_tampering() {
     assert_validates("capability.manifest.schema.json", &manifest);
 
     manifest["agentSafe"]["target"]["forks"]["inApp"]["egress"] = json!({
-        "DenyAll": true,
-        "CaptureOnly": true,
+        "denyAll": true,
+        "captureOnly": true,
     });
     assert_rejects("capability.manifest.schema.json", &manifest);
 
