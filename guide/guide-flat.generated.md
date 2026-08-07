@@ -14763,7 +14763,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-07
-reviewed-commit: 0d1dde942b0fd0e29406fd5404ee8c753b324d1f
+reviewed-commit: 386ab3d4a62f3b4f1a8406595729eefea60aa8ef
 ---
 
 # Recipe: coming from Convex and Supabase

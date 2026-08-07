@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "0d1dde942b0fd0e29406fd5404ee8c753b324d1f"
+    "commit": "386ab3d4a62f3b4f1a8406595729eefea60aa8ef"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -2905,8 +2905,8 @@
         "demos/partiful-matrix"
       ],
       "reviewed": "2026-08-07",
-      "reviewedCommit": "0d1dde942b0fd0e29406fd5404ee8c753b324d1f",
-      "sha256": "511a2c5a87c48907a10c12fced1a3e138eacd949129c7da320a29396960298ee",
+      "reviewedCommit": "386ab3d4a62f3b4f1a8406595729eefea60aa8ef",
+      "sha256": "a87664695d4124808811338b98b50656895647d9f9d4d87b72e88f1dfed79059",
       "snippets": [
         {
           "lang": "ts",
@@ -3504,5 +3504,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "340b01f90db722fd1e4349d0d5f5c9f87cafda073b50d41679511834e58ff849"
+  "contentHash": "b48b3798556feedf381667deed851024d2478bcb353f0164a7fcc1aeb9d8d858"
 }
