@@ -2727,7 +2727,7 @@ await build({
   );
   run('git', ['init', '--quiet'], { cwd: scaffoldRoot });
   run('git', [
-    'add', 'package.json', 'package-lock.json', 'acceptance.mjs',
+    'add', '.gitignore', 'package.json', 'package-lock.json', 'acceptance.mjs',
     'acceptance.live.mjs', 'acceptance.static.mjs', 'snapback',
   ], { cwd: scaffoldRoot });
   run('git', [
@@ -2735,6 +2735,7 @@ await build({
     '-c', 'user.email=snapback-package-proof@example.invalid',
     'commit', '--quiet', '-m', 'cold install release fixture',
   ], { cwd: scaffoldRoot });
+  run('git', ['check-ignore', 'node_modules/.bin/snapback'], { cwd: scaffoldRoot });
   const deployBuild = JSON.parse(run(
     join(scaffoldRoot, 'node_modules', '.bin', 'snapback'),
     [
