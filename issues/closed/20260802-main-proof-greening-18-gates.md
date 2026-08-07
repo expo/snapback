@@ -1737,3 +1737,20 @@ The rollover now pins the combined disposition record at SHA-256
 `client-bundle-metrology --check` passes all 56 profiles and its complete
 behavior train on the exact merged candidate. This is a receipt-chain
 reconciliation only; no frozen ceiling or asset-delivery claim changed.
+
+### Derived-fork publication collision — 2026-08-07
+
+Main landing `7cada777b` published the local derived-fork guide claim from
+qualification C `ad0ad5874` while this wave was still open. The branches had
+no textual file conflict, but the publication's v2 implementation digest
+deliberately includes nine proof/checker/metrology files changed by this wave.
+On the combined tree the actual publication oracle refused C digest
+`fc6e3e58453b4700ce06c647aaef87132879e0da336e560eca834d1d42c5459a`
+versus P digest
+`5e6ed9beda2067a7da8dbb6a3a133f91f532bb4323fd6b24805be18d0a74e9ab`.
+
+This is attributed to the landing order between `7cada777b` and the batched
+wave, not to fork runtime correctness. The invalid current claim is withdrawn
+fail-closed; historical evidence is retained, and fresh qualification is
+filed separately rather than weakening the digest boundary or fabricating
+new platform/review/author evidence.

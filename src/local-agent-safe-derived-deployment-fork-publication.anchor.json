@@ -1,6 +1,6 @@
 {
   "schemaVersion": "snapback.local-capability-publication-anchor.v1",
   "capabilityId": "agent_safe_derived_deployment_fork_v1",
-  "state": "published",
-  "carrierSha256": "sha256:173515271ec2982f24ae3af44ac97649ca8f9ee132469cbc07b72396b0ba9cde"
+  "state": "withheld",
+  "carrierSha256": null
 }

@@ -93,7 +93,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | clients.surfaces | Generated application surfaces bind one screen/resource's reads, ordinary mutations, asset-bearing commands, raw assets, and presence around shared params; React and headless projections share canonical owners. The closed command task composes zero/one asset child with one ordinary mutation and reports truthful failure, ambiguity, and residue provenance. | defineSurface, useSurface, observeSnapbackSurface, application surface, screen surface, one hook for a screen, bind query and mutation, surface presence, conversation surface, useSnapbackSurface, defineCommand, useSnapbackCommand, image send, upload then mutate, command task | local | partial | `useSnapbackCommand` in packages/snapback-react/index.d.mts | llp/0179, llp/0180, llp/0114, llp/0176 | clients/surfaces.md |
 | clients.react-expo | React Expo Online; supervised no-URL simulator/emulator boot. G1 receipts prove those routes. Android USB selection plus exact `adb reverse` ownership is headless-proven with a live Online receipt pending; iOS USB honestly refuses because current `devicectl` has no TCP forward and `iproxy` is the wrong direction. Physical-device capability, LAN/tunnel, and release remain unclaimed. | react native, expo, ios, android, physical device, USB device, snapback dev --expo, SnapbackExpoProvider, adb reverse, TCP/IP adb refused, ios udid, iproxy, 10.0.2.2, authority-required, restore lock, .snapback gitignore, copy project | local | shipped | `runExpoDev` in packages/snapback-cli/expo-dev.mjs + packages/snapback-cli/expo-device-forwarding.test.mjs + simulator/emulator receipts | llp/0012, llp/0064, llp/0176, llp/0181 | clients/react-expo.md |
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance; crash detection | run server, ports, bindPortExactly, lifecycle, watchdog, crash, prebuilt binary, seed reset | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010, llp/0030 | testing/acceptance.md |
-| operating.instance-forks | Partial contributor-source local finite-TTL derived-instance CLI with expiry enforcement, bounded renewal, resource-limit admission, recovery, bounded inspection, diff, concurrency-safe cleanup, fork-per-worktree and parallel-suite guidance, and exact drop; published only for exactly `macos/aarch64` and `linux/x86_64`, with fail-closed `deny-all-v1`, non-promotable host-mediated isolation and no process containment; released-binary/npm parity, normal-installation, public-package, hosted/Cloudflare/remote, and merge-back support remain unclaimed | fork, derived instance, fork per worktree, parallel suite, inspect, status, recover, renew, diff, automatic reap, resource limits | local | partial | tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json | llp/0158, llp/0185 | operating/instance-forks.md |
+| operating.instance-forks | Experimental source-only finite-TTL derived-instance CLI with expiry enforcement, bounded renewal, resource-limit admission, recovery, bounded inspection, diff, concurrency-safe cleanup, fork-per-worktree and parallel-suite guidance, and exact drop; the 2026-08-07 local publication is withdrawn because later proof-fixture changes invalidated its qualification digest, so the retained historical evidence is not a current claim | fork, derived instance, fork per worktree, parallel suite, inspect, status, recover, renew, diff, automatic reap, resource limits | none | partial | `ForkCommand` in src/cli.rs + tests/instance_fork_cli_v1.rs + tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json (historical evidence only; public tuple Missing) | llp/0158, llp/0185 | GAP (fresh dual-platform qualification, review heads, named-author acceptance, and publication are required; owner: Charlie, review: 2026-08-31; see issues/20260807-derived-fork-publication-wave-drift-requalification.md and operating/instance-forks.md) |
 | operating.agent-safe-storage | Registered Experimental `agent_safe_storage_v1` identity for the `agentSafe.v1` extension/component-fact vocabulary; it is not the `AgentSafeV1` core aggregate and no target currently supports it | operation envelope, explanation, agent-safe storage, capability facts | none | partial | `AgentSafeCapabilityExtensionV1` in src/manifest.rs (Missing-only public projection) | llp/0162 | GAP (acceptance corpus, review, acceptance, and publication gates; all projections remain Missing; owner: Charlie, review: 2026-08-31) |
 | operating.packaged-dev-loop | Install a native runtime; scaffold, generate, doctor, and watch/load through one CLI. The current packed React/Vite starter and inferred sessions startup pass locally, but the expanded React closure is not yet the byte-verified public `0.1.0` closure. | install, new app, react starter, vite, dev, one command, watch, sessions startup, packaged runtime | local | partial | `runDev` in packages/snapback-cli/index.mjs | llp/0041, llp/0058, llp/0114, llp/0103 | getting-started/the-authoring-loop.md |
 | operating.inspect | Health/inspect projections | status, debug | local | shipped | route /inspect | llp/0017, llp/0031 | getting-started/the-authoring-loop.md |
@@ -13213,15 +13213,18 @@ schema- or function-divergent development against realistic rows. The fork has
 the same logical `appId`, but fresh instance, authorization-stream,
 data-stream, admin-token, and resume-keyring identities.
 
-This is a **partial contributor-source local surface**, published for exactly
-the two measured release platforms, `macos/aarch64` and `linux/x86_64`, by the
-[dated digest-bound receipt](repo:tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json).
-The separate `agent_safe_derived_deployment_fork_v1` target-manifest tuple
-remains wholly `Missing` by the author's ruling; the capability-index row is
-the claim carrier. The guide teaches the implemented source-checkout workflow.
-Released-binary/npm parity and the Phase 6 normal-installation exit remain
-open. This claim includes no public package, hosted/Cloudflare/remote target,
-promotion or merge-back, or process sandbox.
+This is a **partial, unpublished surface**. A contributor-source local claim
+published on 2026-08-07, but later proof-fixture changes inside its qualified
+implementation digest made that evidence inapplicable to the current tree.
+The source anchor is therefore withheld and the capability-index target is
+`none`; the
+[dated digest-bound receipt](repo:tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json)
+is retained as historical evidence, not a current claim. Fresh qualification
+on `macos/aarch64` and `linux/x86_64`, fresh review heads, and named-author
+acceptance are required before republishing. The separate
+`agent_safe_derived_deployment_fork_v1` target-manifest tuple remains wholly
+`Missing`. The guide teaches the implemented source workflow; it does not
+claim a packaged, hosted, promotable, or process-sandboxed capability.
 
 ## Give a worktree its own backend
 
@@ -13620,14 +13623,11 @@ OS/container/filesystem authority boundary for that threat.
   deny-all posture; autonomous workers are also inert.
 - There is no fork promotion or merge-back. Move conclusions or app-level
   changes, not fork storage, into the parent.
-- There is no hosted/Cloudflare/remote fork contract, released-binary/npm
-  parity, normal-installation proof, or public-package claim.
-- Publication artifacts are unsigned and not transparency-logged. A
-  commit-capable actor who fabricates both reviewer histories and the named
-  author acceptance is outside the guarantee. The known weakness that review
-  prose is bound only as a current complete artifact, not frozen per round, is
-  tracked in
-  [`issues/20260807-review-prose-history-not-frozen.md`](repo:issues/20260807-review-prose-history-not-frozen.md).
+- There is no current derived-fork capability publication, hosted fork
+  contract, released-binary/npm parity, normal-installation proof, or
+  public-package claim. The withdrawn publication and required
+  requalification are tracked in
+  [`issues/20260807-derived-fork-publication-wave-drift-requalification.md`](repo:issues/20260807-derived-fork-publication-wave-drift-requalification.md).
 
 ## Anti-patterns
 

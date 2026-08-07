@@ -359,3 +359,21 @@ Still open Phase 6 work, deliberately not re-scoped: item 2
 (released-binary/npm parity) and the "normal installation rather than a
 source checkout" exit clause. The published row and the operating guide both
 say so in their own text.
+
+## Post-close qualification invalidation — 2026-08-07
+
+The wave-drift branch later combined this publication with proof-fixture and
+metrology changes that are inside the v2 implementation digest. The actual
+publication oracle refused honestly: qualification C still digests to
+`sha256:fc6e3e58453b4700ce06c647aaef87132879e0da336e560eca834d1d42c5459a`,
+while the combined publication tree digests to
+`sha256:5e6ed9beda2067a7da8dbb6a3a133f91f532bb4323fd6b24805be18d0a74e9ab`.
+The changed leaves are nine proof/checker/metrology files from the wave, not
+fork runtime correctness code.
+
+The source anchor and guide claim are withdrawn rather than weakening the
+digest boundary or rewriting author/reviewer provenance. The historical
+receipt, carrier, reviews, benchmarks, and acceptance remain byte-retained.
+Fresh dual-platform qualification, review heads, and named-author acceptance
+are tracked in
+`issues/20260807-derived-fork-publication-wave-drift-requalification.md`.
