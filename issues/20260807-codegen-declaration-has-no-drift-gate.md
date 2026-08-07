@@ -1,0 +1,63 @@
+# `packages/snapback-codegen/index.d.mts` is digest-covered but has no drift gate
+
+**Status:** Open
+**Opened:** 2026-08-07
+**Systems:** Codegen, Publication, Testing
+**Related:** LLP 0162; `issues/20260807-review-prose-history-not-frozen.md`
+
+Found as R12-1 by the Fable round-12 review of the derived-fork publication
+chain, which also bounded it.
+
+## The asymmetry
+
+`packages/snapback-codegen/index.d.mts` hand-declares TypeScript types
+against Rust types it cannot see. It is inside `IMPLEMENTATION_ROOTS`, so it
+is covered by the qualification digest — but **nothing gates it**. Meanwhile
+`schemas/`, which sits *outside* the roots, has a byte-exact drift gate
+(`dk7_committed_schemas_match_rust_types`).
+
+The protection is on the wrong file. That asymmetry produced two separate
+findings in two consecutive rounds from two different reviewer families:
+
+- **R11-1** (both families, independently): a serde rename to
+  `denyAll`/`captureOnly`/`notPromotable`/`promotable` updated neither the
+  schemas nor this declaration. The schema half was caught by its gate; the
+  declaration half was caught only because a reviewer went looking.
+- **R12-1** (this ticket): `AgentSafeCapabilityFactsV1.envelope` and
+  `.explanation` have been declared in a shape the Rust abandoned at
+  `b6a668a74` (2026-08-04). That commit reshaped both members and
+  regenerated all four schemas without touching the declaration. `envelope`
+  should be `{ordinaryMutation, hostChildMutation, …}` with the first two as
+  `{hostPlan, ibexBuffered}` objects, not scalars named
+  `ordinaryIbexMutation`/`hostPlanSettlement`; `explanation` should be
+  `{scopedFacts: […]}`, not a six-key per-lane map. The dead key names
+  appear nowhere else in the repo.
+
+## Bound
+
+The reviewer bounded the damage rather than leaving it open: **exactly these
+two members, no third.** It compared all 198 enum definitions across all 242
+committed schemas against every `JsonSchema` Rust enum (194 compared, 0
+mismatches), all 11 union aliases in the declaration against the schemas (0
+mismatches), and every `AgentSafe*` interface key set nested and top-level.
+
+The fork tuple itself is correct, which is why this did not block the
+derived-fork publication: the drift is three days old, lives in the LLP 0162
+storage vocabulary, is outside the fork surface, and breaks no gate.
+
+## Fix
+
+Two parts, and the second matters more than the first:
+
+1. Correct the two drifted members.
+2. **Add a drift gate for this file** so it cannot silently disagree with the
+   Rust again. The reviewer notes the check is roughly 20 lines of Node,
+   needs no Rust toolchain, and would have caught both R11-1 and R12-1.
+
+Deferred because the fix rotates the qualification digest — land it with the
+next cycle that needs a new C anyway rather than spending one on it alone.
+
+Minor, same area: the `{"DenyAll": true, "CaptureOnly": true}` tampering
+probes now name spellings that no longer exist (still non-vacuous, but the
+comment misdescribes them), and `EffectSettlementCapabilityV1` names two
+different Rust types across the schema namespace.
