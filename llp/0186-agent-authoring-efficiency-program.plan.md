@@ -683,6 +683,25 @@ implementation (`surfaces/react/src/provider.ts` / `convex-direct.ts`, driven by
 its "if a snippet isn't enough" pointer — real competitor-side code, not a transcribed fragment,
 for the one journey where that source happens to exist.
 
+**Same-day review pass (2026-08-07).** A post-landing review corrected four defects in the shipped
+page. (1) The reactive-queries journey's Snapback snippet was `demos/partiful-matrix`'s
+harness-local hook (`@partitime/snapback-react`, `provider`/`userId`/`authority` parameters)
+presented as the canonical shape — exactly the wrong-shape translation this tier exists to
+prevent; replaced with the canonical `useSnapbackQuery(ref, args)` snippet from
+`packages/snapback-react/exact-result-types.fixture.ts` (the same source `clients/react.md`
+pins), with partiful-matrix repositioned as the dual-backend seam pointer only. (2) The
+media-upload journey's backend snippets came from the codegen authoring test (PDF media types,
+an `avatarUpload` the client snippet never referenced); replaced with
+`demos/expo-golden-path-fixture`'s own `messages` schema field and `messageImageUpload` intent,
+making the slice one coherent demo whose intent accepts images and visibly declares
+`location: 'strip'`. (3) The ephemeral journey overstated the expiry-model contrast ("expires by
+its declared `ttlMs` lease — not a side effect of the transport noticing a disconnect");
+`realtime/ephemeral-state.md` itself states disconnect normally emits remove deltas with TTL as
+the backstop, so the paragraph was rewritten to match, and the false "reconnects within that
+window sees its own stale entry" claim (wrong for connection-keyed collections) was dropped.
+(4) `reviewed-commit: HEAD` was pinned, per the convention that `HEAD` is permitted only in the
+landing change. The two affected rosetta records' `snapbackSources` were updated to match.
+
 **`/llms.txt`: found already shipped, phasing defect corrected.** Contrary to this Plan's own W2
 text above ("there is no `/llms.txt`"), unrelated fleet work had already landed a working
 `GET /llms.txt` route (`src/server.rs`, `served_llms_txt`, covered by

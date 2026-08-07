@@ -1291,11 +1291,14 @@ vice versa, a stale digest on any single entry, a verdict pointed at the other
 family's prose artifact, both files claiming one family, a family change
 mid-history, `"Fable"` with a capital F, an authoritative commit on a sibling
 branch, a historical commit on a sibling branch, a nonexistent 40-hex commit, and
-uppercase hex for C. All blocked, each with a specific diagnostic. Truncating
-the blocking tail of a history and declaring an earlier commit as C also
-publishes, but that is outright forgery of the reviewer's record rather than an
-ambiguity the reviewer's own honest artifact permits, and it is defeated
-independently by R6-3's digest binding.
+uppercase hex for C. All blocked, each with a specific diagnostic. One case
+published that I am not counting as a defeat: deleting the blocking rounds from
+the tail of a history and flipping the remaining last round to `READY`. Nothing
+in the contract makes a history append-only, so that works — but it is outright
+deletion of the reviewer's record, indistinguishable from writing `READY`
+outright, and no oracle without an external signature can prevent it. R6-1 is a
+different animal: there the reviewer's blocking record is still fully present in
+the file.
 
 ### Scope 1 verdict — LLP 0163 / 0164 / 0165 conformance
 
@@ -1374,3 +1377,729 @@ round-4 entries that have no prose. Then re-run both platform lifecycle benches
 at the publication commit and take a fresh author acceptance there (R6-3), and
 re-verdict Scope 2 against that commit. R6-5 can wait for the storage
 publication attempt, but should not survive it.
+
+## Round 7 — 2026-08-06, qualification commit 2a5a6291a
+
+**Family:** fable
+**Provider/runtime:** Anthropic / Claude (Fable 5), Claude Code agent session
+**Date:** 2026-08-06
+**Redacted:** no
+**Method:** fresh clean-context session; read-only worktree pinned at
+`2a5a6291a`, blind to the codex family's round-7 work (I did not open its
+worktree). Declared **delta round**, bounded to the publication machinery, plus
+an explicit re-verification of the standing claim that the fork surface has been
+inert since rounds 1-3 rather than an assumption of it. I read the committed
+rounds 1-5 of both families under `llp/reviews/`; no round-6 prose section and
+no round-6 verdict entry exists anywhere in this tree, so for the round-6
+defect statement I worked from my brief and the v0.44/v0.45 `Revised` entries in
+`llp/0162-agent-safe-storage-profile.rfc.md` (see F7-2). I read
+`scripts/check-agent-safe-publication.mjs`, `build.rs`,
+`src/agent_safe_publication.rs`, `tests/agent_safe_publication_checker_v1.mjs`,
+and the v0.45 amendment to LLP 0162 in full at `2a5a6291a`. Executed: the
+shipped checker; its self-test suite (60 pass, 0 fail, 45.7 s); and a six-case
+adversarial harness that constructs a *real* publication P on top of the *real*
+qualification C in a throwaway `git clone --shared --no-checkout` and drives the
+shipped `validatePublicationRecord` against it, so every result below is the
+shipped oracle's own verdict on a real tree, not a lifted copy. Cargo was not
+run — `vendor/ibex` is uninitialized here — so `implementationDigestWorkingTree`
+and the Rust mirror were reviewed by reading rather than execution. This same
+section is appended to both of my dated fork artifacts; the findings are
+identical. Every cite is file:line at `2a5a6291a`.
+
+### Summary
+
+Publication is satisfiable again, and I verified that by construction rather
+than by argument: an honest v2 publication naming `2a5a6291a` validates
+end-to-end through the shipped oracle. The round-5 state in which no commit
+admitted an honest receipt is genuinely closed. Four of the five round-6
+closures hold under attack. The fifth does not. The canonical-bytes rule that
+closed the duplicate-JSON-member defect was applied to exactly one of the
+chain's eight JSON artifacts, and the artifact it was not applied to is the
+named-author acceptance — the object that, as of v0.45, carries the accepted
+round counts and head digests on which the entire new history-chain guarantee
+rests. Using one duplicate member in that file I published a tree whose fable
+Scope-2 verdict history had been deleted and restarted at round 1: exactly the
+defect round 6 closed, reopened one artifact over, through the fix that closed
+it. Separately, the four verdict histories at C are still `v1` five-entry
+records with no round 6 recorded anywhere, so the "complete history" contract
+fails its first real use. Scope 2 stays blocked. Scope 1 is unchanged and clear.
+
+### Satisfiability — CONFIRMED (the round-5 unsatisfiable state is closed)
+
+I did not assume this. I cloned the repository at C into a throwaway shared
+clone, built an honest publication P on top of it — v2 receipt, v2 carrier,
+published anchor, benches renamed to C, four v2 chained histories, a v2
+named-author acceptance binding all four `(roundCount, headEntrySha256)` pairs —
+and ran the shipped `validatePublicationRecord`:
+
+```
+C = 2a5a6291a137ca3df41cfc826017e4de324b65a5
+v2 implementation digest = sha256:017bbd2675f31b68f0fd959b555588a1b6ccaf5ea4d89f68f2dc7d1ea86177a6
+in-scope drift C..P = []
+RESULT: ACCEPTED -> {"state":"published","commit":"2a5a6291a...","implementationDigest":"sha256:017bbd26..."}
+```
+
+The arithmetic closes because every artifact that must name C is either outside
+`IMPLEMENTATION_ROOTS` (`llp/reviews/**`, both prose artifacts and both verdict
+sidecars) or inside `PUBLICATION_CYCLE_ALLOWLIST` (both benches, the bounds
+ratification, the author acceptance, the receipt, the carrier, the anchor:
+`scripts/check-agent-safe-publication.mjs:61-92`). `implementationDigestAt(C)`
+is stable at `sha256:017bbd26…` and does not move when any of them is written.
+The v1 digest the shipped receipt still names — `sha256:2cad3627…`, minted at
+`0ee1fadc1` under the v1 algorithm — is correctly stale and refuses with a
+version-specific diagnostic (`:595-602`, `:697-708`).
+
+### The five round-6 closures, item by item
+
+**1. Duplicate JSON members — CLOSED for the four verdict sidecars, REOPENED one
+artifact over. See F7-1.** `readCanonicalEvidenceJson` (`:741-753`) requires
+`text === JSON.stringify(parsed, null, 2) + '\n'` before any shape or value
+check, which is the right shape of rule: it refuses duplicate members, key
+reordering, `\r\n`, alternate escapes, and every other non-round-tripping form
+in one predicate, and it refuses *before* interpretation rather than after. I
+reproduced the round-6 attack against it and it refused:
+
+```
+A1 duplicate JSON member in fable Scope-2 verdict history
+RESULT: REFUSED -> ... verdict contract is not canonical JSON
+```
+
+But `readCanonicalEvidenceJson` has exactly one call site — `:1404`, the verdict
+sidecar. Every other JSON artifact in the chain still goes through
+`readEvidenceJson` (`:733-739`), which is a bare `JSON.parse`: the two benches
+(`:1553-1554`), the bounds ratification (`:1370`), the storage corpus and both
+performance records (`:1078`, `:1171`, `:1177`), the storage author acceptance
+(`:1251`), and — the one that matters — the derived-fork named-author acceptance
+(`:1502`). The receipt, carrier, and anchor are likewise plain `JSON.parse`
+(`:1630-1632`).
+
+**2. Storage-path first-match verdict parsing — CLOSED.** `markdownField`
+(`:1211-1219`) collects all matches and returns `undefined` unless there is
+exactly one, and every caller compares against a required literal, so a missing
+or duplicated declared field fails closed rather than resolving to the first
+occurrence. This path is reachable only for `agent_safe_storage_v1`, whose
+anchor remains `withheld`; it cannot be reached by the fork record at all
+(`:1608-1616`). I could not construct a shadowing case.
+
+**3. Non-append-only `reviewArtifactSha256` — DOCUMENTED, and the documentation
+is accurate.** The code says what it is (`:1420-1421`) and LLP 0162 v0.45 says
+it too. I accept the disposition; see F7-3 for the consequence it now carries
+that it did not carry before v0.45.
+
+**4. History deletion / renumbering — CLOSED *conditionally*, and the condition
+is the artifact F7-1 leaves unprotected.** The per-entry chain is real: entry
+digests are `sha256(JSON.stringify(entry, null, 2) + '\n')` (`:1465`), rounds
+must satisfy `entry.round === index + 1` (`:1431`), and `previousEntrySha256`
+must match the predecessor (`:1433`). Two attacks against it refused:
+
+```
+A2 delete-and-restart fable Scope-2 history at round 1
+RESULT: REFUSED -> ... implementationReviewFableVerdicts history does not match
+                       the named-author accepted complete history
+A3 non-contiguous round number (round 7 appended as the sixth entry)
+RESULT: REFUSED -> ... rounds are missing, duplicated, or non-monotonic
+```
+
+A3 refuses on contiguity alone. A2 — the attack that matters — refuses only
+because of `reviewHistoryHeads` in the named-author acceptance (`:1526-1536`):
+the restarted history is internally perfectly valid, correctly chained, and
+names C. The chain by itself proves nothing, because appending
+prose rotates `reviewArtifactSha256` in every entry and therefore rehashes the
+whole chain — an actor rewriting history is already rewriting every entry. All
+of the strength is in the accepted `(roundCount, headEntrySha256)` pair. That
+pair lives in the one artifact F7-1 shows is not canonicalized. A5 below
+composes the two.
+
+**5. Mode/type-aware implementation digest v2 — CLOSED, and it is sound.**
+`updateTreeDigest` (`:525-536`) frames each leaf as
+`mode \0 type \0 path \0 u64be(len) \0? bytes`; git modes and object types
+contain no NUL, git paths contain no NUL, paths are unique and sorted, and the
+content is length-prefixed, so the framing is injective and prefix-free — two
+distinct trees cannot collide by re-partitioning the digest input. The version
+string is hashed first (`:588`). `implementationEntriesAt` (`:565-582`) requires
+`vendor/ibex` to be present as exactly one `160000 commit` entry and hashes the
+gitlink oid as its content (`:561`). `build.rs:387-484` mirrors the same
+algorithm from `git ls-tree -r HEAD` with the same v2 label, the same cycle-path
+exclusion (`build.rs:516-548`), and the same gitlink typing, and refuses rather
+than guessing on any entry it cannot parse (`build.rs:493-514`). The Rust
+publication mirror now requires `snapback.local-agent-safe-publication.v2`,
+`snapback.agent-safe-publication-receipt.v2`, and an explicit
+`snapback:agent-safe-implementation-tree:v2` on both carrier and receipt
+(`src/agent_safe_publication.rs:369-386`). The shipped suite covers the
+executable-bit-only change, the file-to-symlink type swap, the gitlink change,
+and the explicit v1 refusal, and all four pass. I could not find a mode or type
+mutation the v2 framing misses.
+
+### F7-1 (High) — the duplicate-member fix is one artifact wide, and the artifact it misses is the named-author acceptance
+
+The derived-fork named-author acceptance is read with `readEvidenceJson` at
+`:1502`, so `JSON.parse` last-wins semantics apply. I built an otherwise
+completely honest publication at C whose acceptance file begins:
+
+```json
+{
+  "schemaVersion": "snapback.derived-fork-author-acceptance.v2",
+  "capabilityId": "agent_safe_derived_deployment_fork_v1",
+  "accepted": false,
+  "accepted": true,
+  ...
+```
+
+```
+A4 duplicate JSON member in named-author acceptance
+RESULT: ACCEPTED -> {"state":"published", ...}
+```
+
+The single artifact whose entire purpose is to record that a named human
+accepted this capability reads `"accepted": false` on its face, in the committed
+tree, in the diff a reviewer would look at, and the capability publishes. This
+is the round-6 defect with one file substituted.
+
+It is not the interesting half of the finding. Since v0.45 this same
+non-canonicalized object is the anchor of the history-chain guarantee, so the
+same primitive reopens closure 4 outright. A5 restarts the fable Scope-2 history
+at round 1 — deleting rounds 1-5 and every recorded `NOT_READY` — and hides the
+restart behind a duplicate `reviewHistoryHeads` member:
+
+```
+tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-06.v1.json
+  line 27  "reviewHistoryHeads": {          <- visible; roundCount 6, head sha256:876f1032...
+  line 45  "reviewHistoryHeads": {          <- parsed;  roundCount 1, head sha256:618fa4e9...
+```
+
+```
+A5 restart fable Scope-2 history + duplicate reviewHistoryHeads
+RESULT: ACCEPTED -> {"state":"published", ...}
+```
+
+The published tree's authoritative fable Scope-2 history is one entry, round 1,
+`previousEntrySha256: null`, `READY`. Everything a human inspects — the visible
+`reviewHistoryHeads`, the prose artifact with its five rounds and its two
+recorded `NOT_READY` verdicts — says a six-round history was accepted. This is
+outside the stated non-claim: the non-claim covers an actor who *fabricates*
+both the reviewer history and the acceptance, and here the acceptance is not
+fabricated in any way a reader can see. A fabrication that survives reading is a
+different and worse thing than one that does not.
+
+The fix is one line of reuse: route every publication-chain JSON artifact
+through `readCanonicalEvidenceJson`, starting with the two author-acceptance
+files, the receipt, the carrier, and the anchor. The predicate already exists
+and is already correct; it is simply not applied. The class does not close
+artifact by artifact — it closes when the codebase can no longer read a
+publication-chain JSON file non-canonically. I would state that as the invariant
+in LLP 0162 rather than enumerating which files are covered today.
+
+### F7-2 (High) — round 6 is not in the record, the histories are still v1, and an honest round-7 entry cannot be recorded
+
+At `2a5a6291a` all four verdict histories are still
+`"schemaVersion": "snapback.review-verdicts.v1"`, five entries each, rounds 1-5,
+no `previousEntrySha256` field. `grep -c '"round"'` returns 5 for all four; the
+string `previousEntrySha256` does not occur in any of them. No `## Round 6`
+heading exists in any of the four prose artifacts. Commit `59f18a9a0`, whose
+message is "Close round-6 publication review findings", changes those four
+sidecars only by rotating `reviewArtifactSha256` to bind the restored round-4
+prose; it adds no round-6 entry. So the round-6 verdicts described to me — both
+families, Scope 1 `READY`, Scope 2 `NOT_READY` — exist nowhere in the record
+that v0.45 declares authoritative, while three commits of remediation cite them.
+
+This is not bookkeeping. The v2 contract's headline property is that the history
+is complete and that deletion is detectable, and the corpus it governs is
+already missing a round at the moment the contract ships. The contiguity rule
+then makes the loss self-perpetuating: with five entries present, the next
+appended entry must be `round: 6`. A3 above is exactly this case and the oracle
+refuses it. So at this commit an honest round-7 reviewer has three choices, and
+all three are bad:
+
+1. record `round: 6` — which writes a false round number into the authoritative
+   record and silently absorbs the missing round, i.e. performs by hand the
+   deletion the v2 chain was built to prevent;
+2. record `round: 7` — truthful, and the oracle refuses the history with
+   "rounds are missing, duplicated, or non-monotonic", which is a correct
+   statement about the corpus;
+3. fabricate a round-6 entry for a review I did not perform.
+
+**I chose (2).** My round-7 entries in
+`llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.verdicts.v1.json`
+and
+`llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.verdicts.v1.json`
+carry `"round": 7`. I migrated those two files to
+`"schemaVersion": "snapback.review-verdicts.v2"` and added the
+`previousEntrySha256` chain over the five preserved entries — no recorded
+verdict was altered, added, or removed — and I updated `reviewArtifactSha256` in
+every entry to the digest of the appended prose, as the current-state binding
+requires. I did not touch the codex family's two sidecars. The resulting
+histories therefore fail closed with an accurate diagnostic, which is the
+correct behavior for a corpus that has lost a round, and which costs nothing
+here because my Scope 2 verdict is `NOT_READY` in any case.
+
+Whoever reconciles this must decide, on the record, what happened to round 6:
+recover the two families' round-6 verdicts and insert them, or state in LLP 0162
+and in the gate issue that round 6 was conducted and its verdicts were not
+recorded, and start a fresh v2 history whose round 1 says so. Renumbering my
+round to 6 is the one option that must not be taken silently.
+
+### F7-3 (Medium, advisory) — the chain's strength is entirely in the accepted head, and that should be said plainly
+
+`reviewArtifactSha256` is a current-state binding, so appending or restoring
+prose rewrites it in every entry and rehashes the entire chain (`:1422-1424`,
+`:1465`). The chain therefore has no append-only property of its own: any actor
+who can rewrite one entry can rewrite all of them and re-chain, and the file
+will validate. Its only real anchor is the `(roundCount, headEntrySha256)` pair
+the named author accepted. LLP 0162 v0.45 says the mechanism is "logically
+ordered but not physically append-only", which is true but reads as a caveat;
+what it now implies is stronger and load-bearing — **the acceptance artifact is
+the sole root of trust for review history, so its integrity requirements must be
+at least as strict as the sidecars' are.** Today they are strictly weaker
+(F7-1). Nothing else needs to change for this finding alone; it should be
+written down so a future reader does not mistake the chain for the guarantee.
+
+### Confirmations, stated as such
+
+- **The prose body is genuinely never consulted for authority.**
+  `validateDerivedForkReview` reads the prose only to hash it (`:1398-1411`);
+  the bytes are never parsed, matched, or searched. The seven historical
+  Markdown bypasses are structurally unreachable for the fork record, and the
+  shipped suite still exercises four of them as regressions.
+- **Family and locator spoofing are closed by construction.** The four
+  `(reviewIndex, verdictIndex, expectedKind)` triples are hard-coded
+  (`:1562-1585`) and the resulting families are then asserted literally
+  (`:1586-1595`), so the `family` field cannot move a verdict to the wrong
+  artifact and a same-family pair refuses.
+- **Fail-closed on missing/malformed input.** Missing prose, missing sidecar,
+  truncated JSON, unknown or absent fields, non-40-hex commits, a final entry
+  that does not name C, and non-ancestral reviewed commits all refuse; I
+  re-ran the shipped cases and added no counterexample.
+- **The allowlist is still self-protecting.** `PUBLICATION_CYCLE_ALLOWLIST` and
+  `IMPLEMENTATION_ROOTS` both live in the checker, which is itself an
+  implementation root and is not allowlisted, so widening the allowlist at P
+  moves `digest(P)` and fails the three-way equality first. My round-5 note
+  that this is an accident of the roots list rather than a stated invariant
+  still stands; v0.45 did not write it down.
+
+### The fork implementation surface at this commit — verified, not assumed
+
+`git diff --name-status cdc0fe03e..2a5a6291a` over `IMPLEMENTATION_ROOTS` plus
+`vendor/ibex` (`cdc0fe03e` is the rounds 1-3 convergence commit; it is an
+ancestor of C, and `0ee1fadc1` is an ancestor of it) touches no fork
+implementation file. `src/instance_fork.rs`, `src/fork_promotion.rs`,
+`src/branches.rs`, `src/storage/write_authority.rs` and `src/operation_ledger.rs`
+are unchanged; the most recent commit touching any of them, `d2bd5fbbd`, is an
+ancestor of `cdc0fe03e`. The `src` delta is three files: `agent_safe_publication.rs`
+(the publication mirror, reviewed above), `manifest.rs` (unrelated
+relation-activity / sequence-allocation / local-store digest literals), and
+`server.rs` (diagnostic vocabulary — five packaged-store codes added, and
+`SNAPBACK_FORK_APP_BINDING_REQUIRED` / `_MISMATCH` moved out of the
+never-a-caller-4xx list at `src/server.rs:42046` while remaining defined at
+`src/instance_fork.rs:44-45` and classified at `src/server.rs:26319,26340`).
+That last change is fork-adjacent, landed in `1048d97d6`, which is inside the
+`0ee1fadc1..0b8b0ff71` range round 4 reviewed; it is a diagnostic
+classification and does not touch any of the four published facts
+(`egress: denyAll`, `promotion: notPromotable`, `base: currentHead`,
+`isolation: hostMediated`). `vendor/ibex` is unchanged. The rounds 1-3
+conclusions carry forward on the merits.
+
+### Scope 1 verdict
+
+**READY for LLP 0163, LLP 0164, and LLP 0165 at `2a5a6291a`.** The conformance
+surface those three Specs govern is byte-identical to the tree that converged
+dual-family `READY` at `cdc0fe03e`, and I verified that rather than inheriting
+it. Nothing in the v0.45 publication work touches it.
+
+### Scope 2 verdict
+
+**NOT READY for publication of the narrow local `operating.instance-forks`
+capability at `2a5a6291a`.** F7-1 lets a duplicate JSON member in the
+named-author acceptance publish a capability whose acceptance record visibly
+reads `"accepted": false`, and — composed with a history restart — publish a
+tree whose accepted six-round review history has been replaced by a single
+fabricated `READY` round while every human-readable surface still shows six.
+That is the round-6 defect and the round-6 history-deletion defect, both live,
+reached through the artifact the round-6 fix did not cover. F7-2 additionally
+means the record this gate exists to protect has already lost a round and cannot
+currently accept an honest one. The fork implementation is not implicated in
+either; it remains inert and sound.
+
+### Verification actually performed
+
+- Read at `2a5a6291a`, in full: `scripts/check-agent-safe-publication.mjs`
+  (1726 lines), `build.rs` publication region, `src/agent_safe_publication.rs`,
+  `tests/agent_safe_publication_checker_v1.mjs`, the v0.45 amendment to
+  `llp/0162-agent-safe-storage-profile.rfc.md`, and
+  `issues/20260806-derived-fork-publication-author-gate.md`.
+- `node scripts/check-agent-safe-publication.mjs` — both records `withheld`.
+- `node tests/agent_safe_publication_checker_v1.mjs` — 60 pass, 0 fail, 45.7 s.
+- `implementationDigestAt` at C through the module's own export:
+  `sha256:017bbd2675f31b68f0fd959b555588a1b6ccaf5ea4d89f68f2dc7d1ea86177a6`.
+- Six end-to-end cases against the shipped `validatePublicationRecord`, each a
+  real publication commit built on the real C in a throwaway shared clone:
+  honest baseline (ACCEPTED), A1 duplicate sidecar member (REFUSED), A2 history
+  restart (REFUSED), A3 non-contiguous round (REFUSED), A4 duplicate
+  `"accepted"` member in the author acceptance (**ACCEPTED**), A5 history
+  restart hidden behind a duplicate `reviewHistoryHeads` member (**ACCEPTED**).
+- `git diff --name-status` and `git log` over `IMPLEMENTATION_ROOTS` for
+  `cdc0fe03e..2a5a6291a` and `b08e835f1..2a5a6291a`; ancestry checks on all
+  reviewed commits; `git log -- ` on the five fork implementation files.
+- Round/schema census of all four verdict sidecars and all four prose artifacts.
+- Not done: cargo build or test, `implementationDigestWorkingTree` execution,
+  and the Rust mirror's runtime behavior (`vendor/ibex` uninitialized); no
+  re-review of the fork implementation internals beyond the delta check above.
+
+### Recommended next step
+
+Route every publication-chain JSON artifact through `readCanonicalEvidenceJson`
+— author acceptances first, then receipt, carrier, anchor, benches and storage
+evidence — and state the invariant in LLP 0162 as "no publication-chain JSON is
+ever read non-canonically" rather than as a list of covered files, with a test
+that fails first for the author acceptance. Then decide and record what happened
+to round 6, and reconcile the four sidecars to v2 accordingly. Both are bounded.
+Neither touches the fork implementation, which has now been READY for five
+consecutive rounds.
+## Round 8 — 2026-08-06, qualification commit 0e778b9a8
+
+**Family:** fable
+**Provider/runtime:** Anthropic / Claude (Opus 5, Fable family), Claude Code
+agent session
+**Date:** 2026-08-06
+**Redacted:** no
+**Method:** fresh clean-context session; read-only worktree pinned at
+`0e778b9a8`. I read the committed rounds 1–6 of both families under
+`llp/reviews/` and stayed blind to the codex family's round-8 work — I did not
+open `/Users/ccheever/projects/snapback-review-codex` and did not read
+`codex-review-r8-stream.log`. I read `scripts/check-agent-safe-publication.mjs`
+(1749 lines), `src/agent_safe_publication.rs` (684 lines), the publication half
+of `build.rs`, and `tests/agent_safe_publication_checker_v1.mjs` at `0e778b9a8`
+in full. I then attacked the shipped module rather than trusting its self-tests:
+a 27-case harness that builds throwaway published-fork fixtures and runs the
+real `validatePublicationRecord` against them, plus a full honest-publication
+dry run that builds a publication commit P on top of C in a throwaway `--shared`
+clone. For the two record-integrity questions I worked from primary sources —
+the round-6 reviewer's own session transcript and the codex round-6 session
+stream log — not from the committed text. Cargo was not run: `vendor/ibex` is
+uninitialized here (gitlink `4c34c831a`, empty directory), which is also why
+`implementationDigestWorkingTree` refuses in this worktree. This same section is
+appended to both of my dated fork artifacts; the findings are identical.
+
+### Summary
+
+The F7-1 fix is real and, as far as I can break it, complete. Every
+publication-chain JSON object now passes through one canonical reader
+(`:741-757`), the A4 and A5 publications my family demonstrated in round 7 both
+refuse at that boundary, and I could not find a chain read that bypasses it. All
+27 of my attacks landed where they should.
+
+The gate is nonetheless not closed, for three reasons that are all about the
+record and the evidence rather than the parser:
+
+1. **Round 7 is missing from all four artifacts** — the same defect as F7-2, one
+   round later, and this time the tree's own design record cites the round it
+   omits. The contiguity rule then makes an honest round-8 entry invalid, which
+   is exactly what my appended entry is.
+2. **The round-6 restoration is not verbatim in the two Fable artifacts.** It
+   restores the reviewer's superseded draft; the correction that reviewer made
+   before appending — which stated plainly that one attack published — is gone,
+   replaced by wording that says the attack is "defeated independently".
+3. **Three of the thirteen bound fork evidence artifacts are not canonical JSON
+   at C**, so the new reader refuses them. One of the three is outside
+   `PUBLICATION_CYCLE_ALLOWLIST` and inside the implementation-digest scope, so
+   repairing it rotates the digest and unmakes C. No publication can name this
+   commit. The self-tests do not see this because the fixtures re-serialize the
+   real evidence canonically before using it.
+
+### F8-1 — Round 7 exists in the design record and nowhere in the review record (Blocking)
+
+All four `*.verdicts.v1.json` histories end at round 6 (`bdc682964`), and all
+four prose artifacts end at `## Round 6`. There is no round-7 section and no
+round-7 entry anywhere in the tree. But `llp/0162-agent-safe-storage-profile.rfc.md:8`
+(v0.46, added by this very commit) says: "round-7 Fable found canonical JSON
+enforcement applied only to verdict sidecars…", and the same paragraph closes
+with "Both anchors remain withheld pending fresh **round-7** verdicts". The tree
+therefore simultaneously credits a round-7 review for the defect this commit
+fixes and denies that any round 7 happened.
+
+It did happen, for both families, and the artifacts survive outside the
+repository:
+
+- `…/scratchpad/round7-section.md` (22 361 bytes, written 2026-08-06 23:50) is
+  the Fable round-7 section, headed `## Round 7 — 2026-08-06, qualification
+  commit 2a5a6291a`, recording **Scope 1 READY** and **Scope 2 NOT READY**;
+- `…/scratchpad/codex-review-r7-final.md` records the codex round-7 result —
+  "Scope 1 is `READY`; Scope 2 is `NOT_READY`" — and notes that codex wrote its
+  sidecars as rounds `[1,2,3,4,5,7]` precisely so the gap would fail closed.
+
+Neither family's round-7 append was landed. `git log bdc682964..0e778b9a8`
+contains three commits; the only review-artifact change in them is this commit's
+round-6 restoration. The loss is not recorded anywhere: the gate issue
+`issues/20260806-derived-fork-publication-author-gate.md:257-266` records the
+round-4 repair and says nothing about rounds 6 or 7.
+
+The consequence is mechanical. `validateDerivedForkReview` requires
+`entry.round === index + 1` (`scripts/check-agent-safe-publication.mjs:1441-1443`).
+My round-8 entry is the seventh entry in a history whose last recorded round is
+6, so the history now reads `[1,2,3,4,5,6,8]` and refuses with "rounds are
+missing, duplicated, or non-monotonic". I verified the refusal by construction
+before writing it (attack G2, below): appending a round 8 to a contiguous 1..6
+history in a published fixture refuses. I am recording it anyway, with the
+number this round actually has. Renumbering it to 7 would be a false statement
+about which review produced these findings, and it would bury a second lost
+round in the same file that already lost one.
+
+The repair is to restore both families' round-7 sections and entries from the
+surviving artifacts, exactly as round 6 was restored — and this time to record
+the loss in the gate issue.
+
+### F8-2 — The round-6 Fable restoration is not verbatim (Blocking)
+
+The claim under test is the brief's and the RFC's: round-6 prose was "restored
+verbatim… nothing reconstructed or paraphrased". For the codex pair it holds.
+For the Fable pair it does not.
+
+The Fable round-6 reviewer ran as a subagent whose transcript is
+`~/.claude/projects/-Users-ccheever-projects-snapback/77cb79d3-…/subagents/agent-a1fb2c13d8caa32fa.jsonl`.
+Three consecutive tool calls settle it:
+
+- record 127, `2026-08-07T05:37:48.586Z` — `Write` of the round-6 section to the
+  scratchpad staging file. Its `R6-6` paragraph reads "Truncating the blocking
+  tail of a history and declaring an earlier commit as C also publishes, but
+  that is outright forgery of the reviewer's record… and it is defeated
+  independently by R6-3's digest binding."
+- record 132, `2026-08-07T05:38:08.223Z` — `Edit` of that same file, replacing
+  that paragraph with: "One case published that I am not counting as a defeat:
+  deleting the blocking rounds from the tail of a history and flipping the
+  remaining last round to `READY`. Nothing in the contract makes a history
+  append-only, so that works — but it is outright deletion of the reviewer's
+  record… and no oracle without an external signature can prevent it."
+- record 135, `2026-08-07T05:38:14.460Z` — a `Bash` call that reads that file
+  and appends it to both Fable artifacts. It ran *after* the edit, so what the
+  round-6 reviewer actually appended was the corrected text.
+
+The text committed at `0e778b9a8` is the pre-correction draft. I diffed the
+committed section against the reviewer's staging file: they differ in exactly
+one paragraph, the one above (`git show 0e778b9a8` vs
+`…/scratchpad/round6-section.md`; 16 375 vs 16 593 bytes).
+
+This is not a formatting difference. The reviewer's final text says an attack
+*published* and that no oracle without an external signature can stop it; the
+committed text says the same attack is "defeated independently by R6-3's digest
+binding" — a defence that reviewer explicitly declined to claim. The record now
+understates a working attack, in a document whose entire purpose is to be the
+record. Every other line of the Fable round-6 section is byte-identical to the
+reviewer's write, and no verdict value was touched.
+
+For the codex pair I checked the opposite direction and found nothing wrong: all
+29 distinctive lines of the committed codex round-6 section appear verbatim in
+`…/scratchpad/codex-review-r6-stream.log`, and the only near-miss variants in
+that log belong to earlier rounds' text being read back.
+
+### F8-3 — Three bound fork evidence artifacts are not canonical at C, and one of them cannot be fixed at C (Blocking)
+
+I built an honest publication P on top of C in a throwaway `--shared` clone:
+re-pointed both platform benches at C, appended rounds 7 and 8 to all four
+histories, regenerated the author acceptance, receipt, carrier and anchor, and
+committed. `implementationDigestAt(C) == implementationDigestAt(P) ==
+sha256:b77879fa08cb71a943b7f17aecdd03b290da7bd429e68426859161faab09a725`, so the
+cycle break still works. The checker then refused:
+
+```
+agent-safe-publication: fork bounds ratification is not canonical JSON
+```
+
+Checking all nineteen JSON artifacts in both chains on disk at C, three fail the
+canonical form and they are all fork bench receipts:
+
+- `tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.macos-aarch64.v1.json`
+- `tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.linux-x86_64.v1.json`
+- `tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.v1.json` (the
+  author's bounds-ratification record, evidence #3 of 13)
+
+Two causes, both in every file: the ratified bounds are serialized as
+`"createColdSmallParentMs": 2000.0` where `JSON.stringify` writes `2000`, and
+there is no final newline. The producer is Rust —
+`tests/instance_fork_bench_v1.rs:403-431` builds the receipt with `f64` bound
+constants and prints `serde_json::to_string_pretty` — so **re-running the
+benches cannot produce canonical bytes either**. The canonical rule as written
+is unsatisfiable by any `serde_json` producer that emits a whole-valued float.
+
+The two platform benches are in `PUBLICATION_CYCLE_ALLOWLIST`, so rewriting them
+does not disturb the digest. The bounds-ratification record is not
+(`PUBLICATION_CYCLE_ALLOWLIST.has(…2026-08-06.v1.json) === false`, verified
+through the module export) and it lives under `tests/`, inside
+`IMPLEMENTATION_ROOTS`. Canonicalizing it therefore rotates
+`implementationDigestAt` and C stops being the commit the receipt, the reviews
+and the acceptance name. So: **no publication can honestly name `0e778b9a8`**,
+and the fix has to land as a new qualification commit C′ with fresh benches and
+a fresh round from each family. That is the same shape round 5 found and round 6
+cleared; the F7-1 fix reintroduced it by tightening a rule without checking the
+evidence the rule now governs.
+
+Why no test caught it: `publishedDerivedFixture` reads each real bench with
+`JSON.parse` and re-serializes it canonically before writing the fixture
+(`tests/agent_safe_publication_checker_v1.mjs:529-533`), so the suite never
+observes the committed bytes. A cheap permanent guard is a test that asserts
+every path in `DERIVED_FORK_EVIDENCE` and `STORAGE_EVIDENCE` ending in `.json`
+equals its canonical form on disk.
+
+### F8-4 — The committed self-test pins the histories, so recording a round unmakes C (Material)
+
+`tests/agent_safe_publication_checker_v1.mjs:746-770` hardcodes
+`assert.deepEqual(value.verdicts.map(({ round }) => round), [1, 2, 3, 4, 5, 6])`
+and `qualificationCommit = 'bdc68296…'` against the *live* repository artifacts.
+Any honest new round breaks it — after appending my round 8 the suite drops from
+64/64 to 63/64, and the one failure is that test (verified). Repairing the test edits
+`tests/`, which is inside `IMPLEMENTATION_ROOTS`, which rotates the
+implementation digest, which invalidates C.
+
+This is the same trap codex reported in round 7, when the test pinned v1/rounds
+1–5; the fix re-pinned it to v2/rounds 1–6 rather than removing the coupling. As
+long as the assertion names specific round numbers and a specific commit, the
+act of recording a review invalidates the qualification the review is about. The
+test should assert the *properties* it cares about — v2 schema, contiguity from
+1, head naming whatever the sidecars name, distinct families — not the literal
+history at one instant.
+
+### What I could not break
+
+27 cases against the real `validatePublicationRecord`, each on a complete
+published fixture. Three published, all expected; 24 refused.
+
+- **A4 rerun** — author acceptance whose visible `"accepted"` is `false` with a
+  later duplicate `true`: refused, "derived-fork author acceptance is not
+  canonical JSON". This is the exact publication my family demonstrated in
+  round 7.
+- **A5 rerun** — one family's history replaced by a single fabricated `READY`
+  round, with the acceptance's visible `reviewHistoryHeads` still showing a
+  multi-round history and a duplicate member carrying the matching heads:
+  refused at the same boundary.
+- **Duplicate top-level member in every artifact kind** — anchor, carrier,
+  receipt, author acceptance, both platform benches, the bounds ratification,
+  and all four verdict sidecars: eleven separate cases, all refused before any
+  shape or value check.
+- **Duplicate member nested inside the authoritative verdict object**
+  (`"status": "NOT_READY", "status": "READY"`): refused.
+- **Byte-level non-canonical forms** — minified acceptance, CRLF sidecar,
+  carrier without a final newline, receipt with an extra one, 4-space-indented
+  anchor, `"accepted"` as an escaped key, UTF-8 BOM, trailing `//` comment
+  after a bench: all eight refused.
+- **History shape** — a `[1,2,4]` gap and an appended round 8 after a contiguous
+  1..6 history: both refused on contiguity.
+- Expected to publish, and did: the honest fixture, and (S1) a fixture whose
+  four prose bodies read `NOT READY` in every section while the JSON says
+  `READY`. The prose body is genuinely never consulted; round 6 established
+  this and it still holds.
+- Expected to publish, and did: (A5c) a fabricated single-round history whose
+  heads the author acceptance also names. That is the stated residual — an actor
+  who forges both the reviewer histories and the named-author acceptance is
+  outside the guarantee — and I did not widen it.
+
+I looked for a chain read that bypasses the canonical boundary and found none.
+Every JSON read reachable from `runChecker` goes through
+`parseCanonicalPublicationJson`/`readCanonicalPublicationJson`
+(`:741-757`, anchors/carriers/receipts at `:1653-1655`, storage evidence at
+`:1083`/`:1178`/`:1184`/`:1258`, benches at `:1377`/`:1564-1573`, verdict
+sidecars at `:1415`, the derived acceptance at `:1513`, the local-store
+transform at `:403`/`:413`/`:417`/`:434`). The two bare `JSON.parse` calls that
+remain (`:236`, `:319`) decode `artifacts.json` review manifests inside
+`generatedPublicationPathsAt`/`OnDisk`, which `runChecker` never calls; they feed
+`scripts/update-agent-safe-publication-leaf-set.mjs` and the inventory test.
+They are not publication authority, but they are the last place a future author
+could add one, and the invariant comment at `:737-740` would read as broken to
+anyone who grep-checks it.
+
+Two adjacent surfaces I checked and am not counting as findings:
+
+- The Rust reader (`src/agent_safe_publication.rs:307-397`) does not enforce
+  canonical bytes, but all three structs are `deny_unknown_fields` and serde's
+  derive rejects duplicate fields, the carrier's facts are reconstructed in Rust
+  and compared exactly, and `derived_fork_publication_verified_for_distribution`
+  returns `false` unconditionally (`:255-263`). Nothing it accepts is wider than
+  what the checker accepts.
+- The storage path still takes its verdict from prose via `markdownField`
+  (`:1218-1226`, `:1228-1254`). Duplicate declared fields now fail closed, as
+  round 7 reports, but a single verdict line inside a fenced quotation would
+  still be read as authority. `agent_safe_storage_v1` is withheld and both
+  `llp/reviews/0162-…-2026-08-04.{fable,codex}.md` artifacts are absent from the
+  tree, so that chain fails closed on the missing file first. Unchanged since
+  R6-5; it should not survive the next storage publication attempt.
+
+### Scope 1 verdict — LLP 0163 / 0164 / 0165 conformance
+
+**READY at `0e778b9a8` for all three Specs**, carried forward from rounds 1–3 on
+a delta I verified rather than assumed:
+
+- `src/instance_fork.rs` and `src/fork_promotion.rs` are byte-identical from
+  `cdc0fe03e` (the round-3 dual-family READY commit) through C — `git diff` over
+  both paths is empty.
+- `tests/instance_fork_cli_v1.rs`, `tests/instance_fork_disk_pressure_v1.rs` and
+  `tests/instance_fork_vm_egress_v1.rs` are byte-identical over the same span.
+  `tests/instance_fork_bench_v1.rs` is the only fork file that moved
+  (+54/−19) and I read the whole diff: it is `rustfmt` reflow — argument
+  wrapping and a tuple-per-line rewrite of the bounds `checks` array. No bound,
+  metric or assertion changed.
+- The `vendor/ibex` gitlink is `4c34c831a` at `cdc0fe03e`, `bdc682964` and C.
+- From `b08e835f1` to C the only in-scope `src/` changes are `build.rs`,
+  `src/agent_safe_publication.rs` and publication JSON; from `bdc682964` to C
+  the in-scope delta is the checker, its suite, `build.rs`,
+  `src/agent_safe_publication.rs` and publication records. Nothing touches fork
+  behaviour.
+
+I did not re-derive spec conformance from the Specs and could not execute the
+Rust fork suites here. This is a delta verdict on an unchanged surface; if the
+surface changes it does not carry.
+
+### Scope 2 verdict — derived-fork publication
+
+**NOT READY for publication of the narrow local `operating.instance-forks`
+capability at `0e778b9a8`.** The canonicalization fix does what it claims and
+the parser surface is, as far as I can attack it, closed. But the record this
+gate exists to protect lost a second round (F8-1) and mis-restored part of a
+third (F8-2), and the evidence the new rule governs does not satisfy it, in a
+way that cannot be repaired at this commit (F8-3). A `READY` here would certify
+a publication that the shipped checker itself refuses.
+
+### Verification actually performed
+
+- Read `scripts/check-agent-safe-publication.mjs` (1749 lines),
+  `src/agent_safe_publication.rs` (684 lines),
+  `tests/agent_safe_publication_checker_v1.mjs` and the publication half of
+  `build.rs` at `0e778b9a8` in full.
+- 27-case adversarial harness driving the real `validatePublicationRecord`
+  against throwaway published fixtures: 24 refused, 3 published as expected.
+- Honest-publication dry run in a throwaway `--shared` clone: P on top of C,
+  three-way digest equality confirmed at
+  `sha256:b77879fa08cb…`, checker refused on the bounds-ratification canonical
+  form.
+- Canonical-form audit of all nineteen publication-chain JSON artifacts on disk
+  at C: sixteen canonical, three fork bench receipts not.
+- `implementationDigestAt` through the module export at `0ee1fadc1`
+  (`sha256:03eb0bb6…`), `cdc0fe03e` (`sha256:291c1c39…`), `b08e835f1`
+  (`sha256:f493b354…`), `bdc682964` (`sha256:0bb5803e…`), `2a5a6291a`
+  (`sha256:017bbd26…`) and C (`sha256:b77879fa…`). The `2a5a6291a` value matches
+  the digest codex independently reported in round 7.
+- Verdict-value audit: every entry of all four sidecars compared across
+  `bdc682964`, `59f18a9a0` and `0e778b9a8`. No family, round, reviewed commit or
+  verdict value was altered or renumbered; round 6 was appended with the values
+  the round-6 reviewers themselves recorded (the Fable pair confirmed against
+  that session's own sidecar-writing command, record 138).
+- Primary-source comparison of all four restored round-6 sections
+  (F8-2 above).
+- `git diff` over the fork sources and suites for `cdc0fe03e..C` and over
+  `IMPLEMENTATION_ROOTS` for `bdc682964..C` and `b08e835f1..C`.
+- `node scripts/check-agent-safe-publication.mjs` — both records `withheld`.
+- `node --test tests/agent_safe_publication_checker_v1.mjs` — 64/64 before my
+  append, 63/64 after it, the single failure being the pinned-history test
+  (F8-4).
+- Not done: `cargo build`/`cargo test` and the Rust fork suites (`vendor/ibex`
+  uninitialized; bootstrapping would dirty the frozen tree), the working-tree
+  digest comparison (same cause), and any de-novo derivation of spec
+  conformance.
+
+### Recommended next step
+
+None of this needs a new parser. In order: restore both families' round-7
+sections and entries from the surviving artifacts and record the loss in the
+gate issue; restore the Fable round-6 paragraph the reviewer actually wrote;
+change `tests/instance_fork_bench_v1.rs` to emit canonical bytes (integer bounds
+and a final newline), re-run both platform benches and re-emit the
+bounds-ratification record; decouple the self-test from the literal history; add
+an on-disk canonical-form assertion for every bound JSON artifact. Those edits
+land inside `IMPLEMENTATION_ROOTS`, so the result is a new qualification commit
+C′ that needs a fresh round from each family before anything can publish.

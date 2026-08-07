@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-05
-reviewed-commit: HEAD
+reviewed-commit: 702f82f5bd6b250b24e068f650fa6fca63f7aac7
 ---
 
 # Recipe: optimistic toggle

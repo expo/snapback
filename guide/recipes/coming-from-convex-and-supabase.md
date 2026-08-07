@@ -4,13 +4,13 @@ id: recipes.coming-from-convex-and-supabase
 order: 4
 audience: agent-first
 capabilities: [backend.functions, auth.scoped-queries, clients.react, backend.assets, backend.relational-queries, realtime.ephemeral]
-authorities: [llp/0186-agent-authoring-efficiency-program.plan.md, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs, packages/snapback-codegen/asset-upload-authoring.test.mjs, demos/expo-golden-path-fixture/src/screens/chat-screen.tsx, demos/competitive-checkpoint/snapback/functions.mjs, demos/messaging-snapback/src/lib/useTyping.ts, demos/cursors-web/snapback/schema.mjs, demos/partiful-matrix/native/react-expo/App.js]
+authorities: [llp/0186-agent-authoring-efficiency-program.plan.md, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs, demos/expo-golden-path-fixture/snapback/schema.mjs, demos/expo-golden-path-fixture/snapback/functions.mjs, demos/expo-golden-path-fixture/src/screens/chat-screen.tsx, demos/competitive-checkpoint/snapback/functions.mjs, demos/messaging-snapback/src/lib/useTyping.ts, demos/cursors-web/snapback/schema.mjs, packages/snapback-react/exact-result-types.fixture.ts]
 examples: [demos/card-game, demos/expo-golden-path-fixture, demos/competitive-checkpoint, demos/messaging-snapback, demos/cursors-web, demos/partiful-matrix]
 status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-07
-reviewed-commit: HEAD
+reviewed-commit: 386ab3d4a62f3b4f1a8406595729eefea60aa8ef
 ---
 
 # Recipe: coming from Convex and Supabase
@@ -88,12 +88,13 @@ const hand = useQuery(api.hands.myHand, { gameId });
 In Supabase, the scoping lives in a Postgres Row Level Security policy on
 the table, evaluated against the caller's JWT, and the client just selects:
 
-```ts fragment reason="illustrative Supabase/js snippet, not CI-run"
--- SQL, once, on the `hands` table
+```sql fragment reason="illustrative Supabase policy, not CI-run"
+-- once, on the `hands` table
 create policy "own_hand" on hands
   for select using (auth.uid() = owner_id);
+```
 
-// client
+```ts fragment reason="illustrative Supabase/js snippet, not CI-run"
 const { data: hand } = await supabase
   .from("hands")
   .select("*")
@@ -128,8 +129,7 @@ same sense the RLS policy is for Supabase. `authScopeField` (used on the
 live-query definition) is a *different* thing: it tells the live matcher
 which result field represents the principal, so it can reason about
 disjoint subscriptions when rows move in or out of the result set live.
-It does not inject a filter and does not scope anything by itself — an
-earlier draft of this page got that wrong. See
+It does not inject a filter and does not scope anything by itself. See
 [sessions and principals — "Queries are scoped by the server, not by
 arguments"](../auth/sessions-and-principals.md#queries-are-scoped-by-the-server-not-by-arguments)
 for the full statement.
@@ -203,31 +203,51 @@ await supabase
 ```
 
 Snapback declares the upload as a typed intent and the attaching field as
-a typed `v.assetRef()`, not a bare string:
+a typed `v.assetRef()`, not a bare string. The whole slice below is one
+demo (`demos/expo-golden-path-fixture`): the schema field, the upload
+intent it names, and the client flow. First the attaching field:
 
-```js source=packages/snapback-codegen/asset-upload-authoring.test.mjs
-export default defineSchema({
-  profiles: defineTable({
-    ownerId: v.principal(),
-    avatar: v.optional(v.assetRef({ upload: 'avatarUpload' })),
-    attachment: v.assetRef(),
-  })
-    .assetSharing({ kind: 'owner', field: 'ownerId' })
-    .sync(),
-});
+```js source=demos/expo-golden-path-fixture/snapback/schema.mjs
+    messages: defineTable({
+      conversationId: v.id('conversations'),
+      senderId: v.id('users'),
+      kind: v.string(),
+      text: v.optional(v.string()),
+      image: v.optional(v.assetRef({ upload: 'messageImageUpload' })),
+      replyToId: v.optional(v.id('messages')),
+      sentAt: v.integer(),
+    })
+      .index('by_conversation_sent', ['conversationId', 'sentAt'])
+      // @ref LLP 0044#asset-read-authorization — this test-persona fixture is
+      // intentionally public-read; production chat derives byte authority
+      // from admitted conversation membership.
+      .assetSharing({ kind: 'public-read' })
+      .sync(),
 ```
 
-```js source=packages/snapback-codegen/asset-upload-authoring.test.mjs
-export const avatarUpload = defineAssetUpload({
+Then the upload intent that field names — note the declared media-type
+allowlist, the size ceiling, and the image pipeline's explicit
+`location: 'strip'`:
+
+```js source=demos/expo-golden-path-fixture/snapback/functions.mjs
+export const messageImageUpload = defineAssetUpload({
   args: {},
   auth: 'authenticated',
-  reads: ['profiles'],
-  accept: { mediaTypes: ['application/pdf', 'application/octet-stream'], maxBytes: 10_000_000 },
-  delivery: { kind: 'private-strict' },
+  accept: { mediaTypes: ['image/jpeg', 'image/png', 'image/webp'], maxBytes: 12_000_000 },
+  delivery: { kind: 'public-immutable' },
   access: { read: 'via-references' },
+  image: {
+    location: 'strip',
+    variants: [{ key: 'chat', width: 1440, required: true }],
+  },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 ```
+
+(This fixture deliberately shares bytes `public-read` because its chat
+personas are test users; the owner-scoped equivalent of a Supabase
+Storage RLS policy is `.assetSharing({ kind: 'owner', field: ... })` —
+see [assets](../backend/assets.md) for the sharing kinds.)
 
 On the client, application code hands the picker's own asset straight to
 a generated command — no manual `fetch`, no raw upload, no asset id
@@ -273,11 +293,14 @@ transcoding — the [asset capability](../capabilities.md) is explicit that
 those remain non-claims here; the pipeline strips location metadata and
 produces declared renditions, it does not back up or transcode.
 
-**Verify it yourself:**
-`packages/snapback-codegen/asset-upload-authoring.test.mjs` (schema/intent
-authoring rules) and the G3 image-command flow in
-`demos/expo-golden-path-fixture/src/screens/chat-screen.tsx`, exercised by
-that fixture's acceptance run.
+**Verify it yourself:** the golden-path fixture's acceptance run
+exercises this exact slice end to end — schema
+(`demos/expo-golden-path-fixture/snapback/schema.mjs`), upload intent
+(`demos/expo-golden-path-fixture/snapback/functions.mjs`), and the G3
+image-command flow in
+`demos/expo-golden-path-fixture/src/screens/chat-screen.tsx`.
+`packages/snapback-codegen/asset-upload-authoring.test.mjs` pins the
+schema/intent authoring rules.
 
 **Read next:** [assets](../backend/assets.md).
 
@@ -489,22 +512,24 @@ collection's declared budget, not a different API:
 **Structural difference worth naming — this is the one that actually
 matters, not a rename.** Supabase's two primitives differ in *expiry model*
 as much as frequency: Presence state disappears when the client's realtime
-connection drops (a connection-driven event), while Broadcast has no state at
-all to expire. A Snapback ephemeral entry expires by its declared `ttlMs`
-lease — a structural fact, not a side effect of the transport noticing a
-disconnect. That is why one mechanism covers both cases here: TTL is the
-knob that makes an entry behave "presence-like" (long TTL, low publish rate)
-or "broadcast-like" (short TTL, high publish rate), rather than needing two
-different wire protocols.
+connection drops, while Broadcast has no state at all to expire. Snapback's
+one mechanism declares both behaviors explicitly: a connection-keyed entry is
+reclaimed on disconnect (the removal normally arrives as a delta, much like a
+Presence leave), and every entry additionally carries a required `ttlMs`
+lease — there is no immortal entry — that bounds how long it can linger if
+that remove delta is lost. TTL plus the declared publish budget
+(`publishRate`, `delivery`) are the knobs that make one collection behave
+"presence-like" (longer TTL, low publish rate — the `typing` collection
+above) or "broadcast-like" (short TTL, high-frequency latest-state delivery —
+`webCursors`), rather than needing two different wire protocols.
 
-**Not equivalent when** you are relying on Presence's specific
-connection-drop-fires-immediately semantics: a Snapback entry can outlive a
-dropped connection for up to its `ttlMs`, and a client that reconnects within
-that window sees its own stale entry still present rather than a clean
-resync. Naming this once is enough — see
-[ephemeral realtime state](../realtime/ephemeral-state.md) for TTL bounds
-and the `needs_resync` recovery path, not a claim of feature-for-feature
-Presence/Broadcast parity.
+**Not equivalent when** you are relying on removal being
+guaranteed-immediate: a remove delta can be lost, and until the `ttlMs`
+lease expires peers may still see the stale entry — the lease, not the
+disconnect, is the hard staleness bound. Naming this once is enough — see
+[ephemeral realtime state](../realtime/ephemeral-state.md) for TTL bounds,
+key modes, and the `needs_resync` recovery path, not a claim of
+feature-for-feature Presence/Broadcast parity.
 
 **Verify it yourself:** `demos/messaging-snapback/tests/acceptance/headless.mjs`
 exercises the typing collection; `demos/cursors-web/tests/acceptance/react-browser.mjs`
@@ -536,18 +561,21 @@ Convex's idiomatic call is one line, auto-reactive:
 const data = useQuery(api.foo.bar, { arg: 1 });
 ```
 
-Snapback's is a generated reference bound the same way, subscribed with
-`useSnapbackQuery`:
+Snapback's call site is the same one-hook shape — a generated operation
+reference plus its exact arguments:
 
-```js source=demos/partiful-matrix/native/react-expo/App.js
-  const query = useSnapbackQuery({ provider, name: 'listEvents', args: {}, userId, authority: userId });
+```ts source=packages/snapback-react/exact-result-types.fixture.ts
+const query = useSnapbackQuery(todos, { owner: 'ada' });
 ```
 
-Same one-hook-call shape at the call site; the difference is what backs it —
-`api.foo.bar` is Convex's query function reference, while `listEvents` here
-is a generated reference into a backend-declared live query, resolved
-through an explicit `provider` (see [the React client](../clients/react.md)
-for what `provider` owns).
+Same one-hook-call shape at the call site; the difference is what backs it.
+`api.foo.bar` is Convex's query-function reference resolved against a global
+client, while `todos` is a generated reference into a backend-declared live
+query, and reactivity comes from the mounted `SnapbackProvider` — the
+provider owns canonical query identity, subscription lifecycle, and auth
+custody, so the hook itself takes no client, provider, or identity
+arguments. See [the React client](../clients/react.md) for the
+prepare-binding/provider setup that precedes the first hook call.
 
 **If a snippet isn't enough:** `demos/partiful-matrix` is a real,
 CI-exercised app — events, RSVPs, and a message wall — built for LLP 0063's
@@ -560,7 +588,9 @@ comparison gateway in between), and
 `tests/acceptance/convex-realtime-web.mjs` drives both a real Snapback and a
 real Convex deployment through the identical rendered app, recording each
 provider file's content hash as a `sourceInputs` entry. This is provider
-implementation code, not a tutorial — read it as "here is the whole seam,
+implementation code, not a tutorial — its surfaces subscribe through the
+harness's own provider seam (`@partitime/snapback-react`), not the canonical
+`@expo/snapback-react` hooks above — so read it as "here is the whole seam,
 for both backends, actually running," not as application code to copy.
 
 **Read next:** [Protected live CRUD, end to end](#protected-live-crud),

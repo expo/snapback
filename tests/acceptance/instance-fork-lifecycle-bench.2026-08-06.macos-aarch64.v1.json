@@ -6,73 +6,73 @@
     "arch": "aarch64",
     "cpus": 18,
     "profile": "release",
-    "commit": "0ee1fadc136e837f430556374a5842ac82069004"
+    "commit": "f355083b9692f09108090b1f6c2e7dd5210d06e2"
   },
   "measurements": {
     "createColdSmallParent": {
       "samples": 5,
-      "minMs": 288.981417,
-      "medianMs": 314.787459,
-      "maxMs": 3007.69725
+      "minMs": 152.758333,
+      "medianMs": 158.790167,
+      "maxMs": 1291.5999160000001
     },
     "createColdLargeParent32MiB": {
       "samples": 3,
-      "minMs": 580.7465000000001,
-      "medianMs": 583.005125,
-      "maxMs": 647.377834
+      "minMs": 277.59970899999996,
+      "medianMs": 281.561,
+      "maxMs": 282.718791
     },
     "createLiveParent": {
       "samples": 3,
-      "minMs": 291.10858299999995,
-      "medianMs": 314.9755,
-      "maxMs": 339.63370799999996
+      "minMs": 152.06245800000002,
+      "medianMs": 155.57150000000001,
+      "maxMs": 161.0545
     },
     "dropSmall": {
       "samples": 5,
-      "minMs": 76.837708,
-      "medianMs": 83.438833,
-      "maxMs": 111.617458
+      "minMs": 52.882125,
+      "medianMs": 56.91720900000001,
+      "maxMs": 59.974875
     },
     "dropLarge": {
       "samples": 3,
-      "minMs": 95.293958,
-      "medianMs": 103.95450000000001,
-      "maxMs": 106.26216600000001
+      "minMs": 57.902916999999995,
+      "medianMs": 58.727583,
+      "maxMs": 59.73275
     },
     "dropLive": {
       "samples": 3,
-      "minMs": 86.825416,
-      "medianMs": 90.681209,
-      "maxMs": 97.56325000000001
+      "minMs": 53.996375,
+      "medianMs": 54.962334,
+      "maxMs": 58.136125
     },
     "attributedDiff10kRows": {
       "samples": 3,
-      "minMs": 73.187,
-      "medianMs": 73.437,
-      "maxMs": 87.449625
+      "minMs": 39.432417,
+      "medianMs": 39.584958,
+      "maxMs": 41.373417
     },
     "netDiff10kRows": {
       "samples": 3,
-      "minMs": 97.986875,
-      "medianMs": 100.857958,
-      "maxMs": 118.847792
+      "minMs": 52.676333,
+      "medianMs": 54.637333000000005,
+      "maxMs": 56.476625000000006
     },
     "reapThreeExpiredForks": {
       "samples": 1,
-      "medianMs": 102.043792
+      "medianMs": 60.464542
     },
-    "concurrentCreate3WallMs": 666.209709,
-    "sequentialCreateMedianMs": 314.787459
+    "concurrentCreate3WallMs": 478.242208,
+    "sequentialCreateMedianMs": 158.790167
   },
   "ratifiedBounds": {
     "ratifiedBy": "LLP 0162 author (Charlie), 2026-08-06",
-    "createColdSmallParentMs": 2000.0,
-    "createColdLargeParent32MiBMs": 3000.0,
-    "createLiveParentMs": 2000.0,
-    "dropMs": 1000.0,
-    "attributedDiff10kRowsMs": 500.0,
-    "netDiff10kRowsMs": 750.0,
-    "reapSweepMs": 1000.0,
+    "createColdSmallParentMs": 2000,
+    "createColdLargeParent32MiBMs": 3000,
+    "createLiveParentMs": 2000,
+    "dropMs": 1000,
+    "attributedDiff10kRowsMs": 500,
+    "netDiff10kRowsMs": 750,
+    "reapSweepMs": 1000,
     "concurrentCreate3WallMs": "<= 3x the sequential create bound"
   },
   "notes": [

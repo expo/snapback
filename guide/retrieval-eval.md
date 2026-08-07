@@ -9,8 +9,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
+reviewed: 2026-08-07
+reviewed-commit: cca0db7d8e94c8d4943eb808d4e10238a506c70c
 ---
 
 # Retrieval eval protocol
@@ -104,6 +104,22 @@ correct Snapback security boundary, not a plausible-sounding guess.
     and `recipes/coming-from-convex-and-supabase.md`. The run fails if the
     plan claims Snapback's hook is identical to Convex's auto-reactive
     model without naming the backend-declares/client-subscribes split.
+
+Cases 15–16 are absorption seeds from the 2026-08-01 optimistic-create/app-error
+and 2026-08-05 large-fixture guide-gap tickets (LLP 0138 bakeoff and LLP 0183
+Lane 1 misses, absorbed 2026-08-07).
+
+15. **Large fixtures:** "Load a deterministic 5,000-row acceptance fixture —
+    the seed refuses with `SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED`." Expected
+    pages: `testing/large-fixtures.md`. The run fails if the plan tries to
+    raise or dodge the seed ceiling, or reinvents an ungated import mutation
+    without the sentinel-closed bootstrap gating.
+16. **Domain errors and optimistic create:** "Show 'card is locked' copy when
+    a mutation is rejected, and optimistically create a row whose ID the
+    server mints." Expected pages: `clients/react.md` (both new sections) and
+    `backend/mutations.md` (declared refusals). The run fails if the plan
+    parses `SNAPBACK_HANDLER_FAILED` message text, or forges a provisional
+    generated row ID instead of the intent-keyed pending sidecar.
 
 ## Budget
 

@@ -514,6 +514,10 @@ fn parse_agent_safe_tree_entry(record: &str) -> Option<AgentSafeTreeEntry> {
 }
 
 fn agent_safe_publication_cycle_path(path: &str) -> bool {
+    // @ref LLP 0162#source-owned-publication-carrier-amendment--2026-08-04
+    // Evidence about qualification C cannot be a leaf of the implementation
+    // digest that certifies it. Keep tests covered, but exclude the exact
+    // canonical, receipt-bound publication-cycle artifacts mirrored here.
     matches!(
         path,
         "src/local-agent-safe-storage-publication.anchor.json"
@@ -528,6 +532,7 @@ fn agent_safe_publication_cycle_path(path: &str) -> bool {
             | "tests/acceptance/fixtures/agent-safe-storage/author-acceptance.2026-08-04.v1.json"
             | "tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.macos-aarch64.v1.json"
             | "tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.linux-x86_64.v1.json"
+            | "tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.v1.json"
             | "tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-06.v1.json"
             | "tests/acceptance/fixtures/latency-kanban/move3-exit.2026-08-04.r2.v1.json"
             | "tests/acceptance/latency-kanban-move3-v1-evidence.md"

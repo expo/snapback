@@ -91,6 +91,33 @@ open. The ruled ceremony reached
 `m1 = 112/7/4` and `m2 = 112/7/4`; the dated 0.1.11 receipts retain the exact
 timing and bakeoff asymmetry.
 
+## Guide absorption — 2026-08-07
+
+The guide-gap half of this ticket is absorbed (verified against main
+`f4d4d8c18`); the remaining acceptance items are release engineering, so the
+ticket stays open. What the guide now covers:
+
+- `guide/clients/react-expo.md` documents the complete public
+  `npx expo install` command with the coherent `^0.1.11` vector, the sibling
+  `snapback new --template react` scaffold-and-copy flow (named as a known
+  limitation, not a hidden `snapback init`), the external tsconfig include
+  boundary — now naming the literal `@exact/contract/exports` specifier so
+  the blank-scaffold tsc failure greps — the "Published 0.1.11 boundary"
+  banner (runtime-capability/ImagePicker repairs in 0.1.11; adb `host-16`
+  transport-label refusal via `SNAPBACK_EXPO_ADB_REVERSE_FAILED`; the EAS
+  `"@expo/snapback-expo/app.plugin"` subpath spelling; release exports still
+  retaining supervised endpoint vocabulary), the
+  `SNAPBACK_APP_BINDING_IDENTITY_MISMATCH` diagnosis section, and the
+  restore-lock/`.snapback/` ignore rule.
+- `guide/retrieval-eval.md` seed 8 pins the binding-identity diagnostic
+  search so the discoverability fix cannot silently regress.
+
+Still open here (not docs): publish one successor package vector carrying
+the adb transport-label repair and the CommonJS config-plugin root, make
+release exports free of supervisor origin/bootstrap symbols, rerun the
+frozen ceremony, then close with the successor G4 receipts. The three split
+tickets track their own repairs.
+
 ## Acceptance
 
 - Publish one coherent package vector containing the `single_table_v1`

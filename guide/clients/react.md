@@ -9,8 +9,8 @@ examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-06
-reviewed-commit: 4ac8387f080a2659484fc09916ff22a076dc4ca8
+reviewed: 2026-08-07
+reviewed-commit: cca0db7d8e94c8d4943eb808d4e10238a506c70c
 ---
 
 # The React client
@@ -306,6 +306,87 @@ whose result diverges when replayed over its own output logs one
 `SNAPBACK_REACT_OPTIMISTIC_REPLAY_DIVERGENT` warning per (mutation, query)
 site; production builds skip the check.
 
+## Optimistically create a row the server will name
+
+The `optimistic:` projection **updates rows that already exist** in the
+authoritative store. It cannot fabricate a new row for a create mutation
+whose canonical `_id` the server mints: the projected rows are validated
+against the generated result contract, and the row identity is a branded
+generated ID that only the server produces — TypeScript refuses a forged
+provisional ID, and that refusal is deliberate (a fake ID could leak into
+mutation arguments and durable state). An append-shaped reducer
+(`rows => [...rows, capturedRow]`) is also not idempotent over its own
+output, so it trips the development replay advisory above.
+
+The current paved shape is a **component-local pending sidecar keyed by an
+app-generated intent key** — never a forged row ID:
+
+```tsx fragment reason="illustrative pending-sidecar shape; row fields come from the application schema"
+const [pending, setPending] = useState<Array<{ intentKey: string; title: string }>>([]);
+const createTask = useSnapbackMutation(api.createTask);
+
+async function submit(title: string) {
+  const intentKey = crypto.randomUUID(); // app-local presentation key only
+  setPending((rows) => [...rows, { intentKey, title }]);
+  try {
+    await createTask({ title });
+  } finally {
+    // Success or rejection: remove exactly this pending item. The canonical
+    // row (with its server-minted ID) arrives by live delivery.
+    setPending((rows) => rows.filter((row) => row.intentKey !== intentKey));
+  }
+}
+```
+
+Render the pending items beside the query rows, marked as unsettled. On
+rejection, only the corresponding pending item disappears; on success the
+authoritative row replaces it through the ordinary live update. The
+contention-calendar bakeoff arm
+([diary 0044](repo:diaries/0044-contention-calendar-zero-bakeoff.diary.md))
+is the witness for this shape — and for the type system correctly refusing
+the forgery.
+
+This is honestly less composable than a provider-owned optimistic insert: the
+pending row does not participate in the query store's filtering, sorting, or
+counting. A first-class typed intent-ID optimistic create — a provisional row
+in the provider's store that reconciles one intent to one canonical row under
+ambiguous retry — is an explicit GAP
+(`clients.optimistic-create` in the [capability index](../capabilities.md);
+issue
+[20260801-optimistic-create-and-app-error-guide-gap](repo:issues/20260801-optimistic-create-and-app-error-guide-gap.md)).
+
+## Show stable application errors through rollback
+
+When a mutation is rejected for a *domain* reason (a locked card, a taken
+seat), do not parse the failure message. A handler that throws a bare
+`Error` surfaces as the platform code `SNAPBACK_HANDLER_FAILED`, and its
+message text is deliberately not a stable public contract. Declare the
+domain codes on the backend instead and throw with `ctx.refuse` — see
+[declared application refusals](../backend/mutations.md#consume-the-structured-result).
+The rejection then arrives typed: the mutation promise rejects with
+`SNAPBACK_APP_REFUSAL` carrying the declared `appCode` and `appDetails` in
+its diagnostic details, while the optimistic layer for that attempt — and
+only that layer — is removed and every newer layer recomputes over the
+authoritative base:
+
+```ts fragment reason="refusal codes and copy come from the application's declared refusals"
+try {
+  await reserveSlot({ slotKey, resourceId });
+} catch (error) {
+  const diagnostic = (error as { diagnostic?: { code?: string; details?: { appCode?: string } } }).diagnostic;
+  if (diagnostic?.code === 'SNAPBACK_APP_REFUSAL' && diagnostic.details?.appCode === 'SLOT_TAKEN') {
+    showSlotTakenBanner(slotKey); // stable declared code, not message text
+  } else {
+    throw error;
+  }
+}
+```
+
+The declared code is safe to key product copy on precisely because the host
+admits it only when the invoked function declared it; an undeclared or forged
+code folds to `SNAPBACK_HANDLER_FAILED` and drops the app payload, so
+internal exception text never becomes UI copy by accident.
+
 ## Publish and observe ephemeral presence
 
 `useSnapbackPresence` is the React hook for generated **ephemeral**
@@ -431,6 +512,12 @@ no-work refusal, and exact provider/client/server cleanup with zero skips.
   instead ([optimistic toggle recipe](../recipes/optimistic-toggle.md)).
 - **Do not toggle or increment inside an optimistic `update`.** The
   projection replays during rebase; capture the intended outcome and set it.
+- **Do not forge a provisional row ID to make an optimistic create
+  typecheck.** The branded generated ID is the server's to mint; keep the
+  provisional item in a pending sidecar under an app-local intent key.
+- **Do not parse `SNAPBACK_HANDLER_FAILED` message text for domain
+  rejections.** Declare the code in the function's `refusals`, throw with
+  `ctx.refuse`, and switch on the structured `appCode`.
 - **Do not create presence heartbeat intervals in application code.** Pass
   managed intent to `useSnapbackPresence`; the provider owns admission,
   refresh, disconnect, and teardown.
