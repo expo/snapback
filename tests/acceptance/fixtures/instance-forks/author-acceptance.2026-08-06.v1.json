@@ -14,13 +14,13 @@
     "lifecycleBenchLinux": "sha256:c227ff46c97521e6f3a62c9a97fb0028c309cf669ad85a24e721f8b3b4f05f0e",
     "boundsRatification": "sha256:4c61c8c85a0890484c422a0f87a5e26707ab8419f919095e62861e1d6dbd18e2",
     "assetLifecycleEvidence": "sha256:222eba70394ac3fa812525766f9d514a88d876386f5413dfc6f4c367bc444ff2",
-    "specReviewCodex": "sha256:1da98b47ac35a57aa065f4f8805fe098956d98550d3c08cd4a603cc2c93045af",
-    "specReviewCodexVerdicts": "sha256:d2b419d76b14f7bbe2a0b47c9ed7bce10a85543a19b1d379e1372380bcc76605",
-    "specReviewFable": "sha256:4a6a7978fe58df0661d6ac7c8ad211910beba599ebac84fcebbd60c309ecc437",
-    "specReviewFableVerdicts": "sha256:c3291438d252c8677830ede7c2c76a3c6ecc3db09f60f70871274da3182a8848",
-    "implementationReviewCodex": "sha256:81a17ab627f0cccc34afab39a8e06d351d59fadd536168511639b510adfe1db0",
-    "implementationReviewCodexVerdicts": "sha256:c560c884ffdd5d7f0a8bac285bf6f2a85b7578d212e31f719aebe3c002f45beb",
-    "implementationReviewFable": "sha256:d4e638cbc480ad84d727eb1f86f9b79ffd9cddd40c18d3a7dfffe6b25692d58a",
-    "implementationReviewFableVerdicts": "sha256:48d918d14feb05b87768eb596fa1deebb2538efa12f16d1009e1eb1ac044ba12"
+    "specReviewCodex": "sha256:4e5ba5e1585b7a493d46ca0637fdb06539a650ad087b4c30896f41b6986a7bac",
+    "specReviewCodexVerdicts": "sha256:6f4b34396005150c3c0510ae9f82df8c1e1469ab5be66b9c31b17a4724165514",
+    "specReviewFable": "sha256:c3162fe72452c24ffffd6d1d73804f8b53d7b7f06658380482d60d8c19e2b434",
+    "specReviewFableVerdicts": "sha256:00cccccbfc7b1dc798a182530483c2fd64378f035e3bfb5ee51ecf1b1996afe8",
+    "implementationReviewCodex": "sha256:3168298b5bff38b569f359d126e3c50b7af074cbff43365a4ceb9285c2393ff5",
+    "implementationReviewCodexVerdicts": "sha256:75d840af2916ef3d0cabcfe3e7dc86f1811c35a84c43ec294f2f9d30cfef875c",
+    "implementationReviewFable": "sha256:4e76b69d176aa83220c7152bdcf2c0e21a92f7a787f7b2c2847295d97a321046",
+    "implementationReviewFableVerdicts": "sha256:8e445a9ba6595f5a7724e4d94e888d26b4095f02d5d68b0db05c446d4e8a5f1b"
   }
 }

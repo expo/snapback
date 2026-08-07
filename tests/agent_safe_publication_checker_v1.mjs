@@ -24,6 +24,7 @@ import {
   validateDerivedForkReview,
   validatePairedPerformanceArtifact,
   validatePublicationRecord,
+  validateReview,
   validateLocalStorePublicationTransform,
 } from '../scripts/check-agent-safe-publication.mjs';
 import {
@@ -401,6 +402,23 @@ function derivedVerdictContract(kind, family, commit, reviewPath, reviewBytes, r
   };
 }
 
+function storageReviewBytes(family, commit, implementationTree) {
+  return Buffer.from([
+    `**Reviewer family:** ${family}`,
+    '**Verdict:** READY',
+    `**Reviewed commit:** ${commit}`,
+    `**Implementation tree SHA-256:** ${implementationTree}`,
+    '**Qualified capability:** agent_safe_storage_v1',
+    `**Qualified components:** ${storage.components.join(', ')}`,
+    '**Derived capability:** WITHHELD (Missing)',
+    '**Broader capability facts:** Missing',
+    '**Reviewed LLPs:** 0158, 0163, 0164, 0165',
+    '**Status recommendation:** Accepted',
+    '**LLP 0158 OQ9 disposition:** READY (in-document amendment pattern sufficient)',
+    '',
+  ].join('\n'));
+}
+
 function publishedDerivedFixture({
   omitReview,
   omitAuthor = false,
@@ -410,6 +428,7 @@ function publishedDerivedFixture({
   malformedVerdict,
   mutateReview,
   mutateVerdict,
+  serializeVerdict,
 } = {}) {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-derived-fork-publication-'));
   execFileSync('git', ['init', '--quiet'], { cwd: scratch });
@@ -459,9 +478,10 @@ function publishedDerivedFixture({
         reviewKind !== notReadyReview,
       );
       mutateVerdict?.(kind, value);
+      const canonicalBytes = Buffer.from(`${JSON.stringify(value, null, 2)}\n`);
       bytes = kind === malformedVerdict
         ? Buffer.from('{"schemaVersion":')
-        : Buffer.from(`${JSON.stringify(value, null, 2)}\n`);
+        : serializeVerdict?.(kind, value, canonicalBytes) ?? canonicalBytes;
       if (path !== omitReview) {
         mkdirSync(dirname(join(scratch, path)), { recursive: true });
         writeFileSync(join(scratch, path), bytes);
@@ -796,6 +816,114 @@ test('published derived-fork chain refuses malformed verdict JSON', () => {
   assert.throws(
     () => validatePublicationRecord(scratch, derived),
     /verdict contract is not valid JSON/u,
+  );
+});
+
+test('published derived-fork chain refuses duplicate status members', () => {
+  const scratch = publishedDerivedFixture({
+    serializeVerdict: (kind, _value, canonicalBytes) => {
+      if (kind !== 'implementationReviewCodexVerdicts') return canonicalBytes;
+      const text = canonicalBytes.toString();
+      const ready = '        "status": "READY"';
+      assert.ok(text.includes(ready));
+      return Buffer.from(text.replace(
+        ready,
+        '        "status": "NOT_READY",\n        "status": "READY"',
+      ));
+    },
+  });
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /verdict contract is not canonical JSON/u,
+  );
+});
+
+test('published derived-fork chain refuses duplicate verdict members', () => {
+  const scratch = publishedDerivedFixture({
+    serializeVerdict: (kind, _value, canonicalBytes) => {
+      if (kind !== 'implementationReviewCodexVerdicts') return canonicalBytes;
+      const text = canonicalBytes.toString();
+      const ready = [
+        '      "verdict": {',
+        '        "kind": "derivedForkPublication",',
+        '        "status": "READY"',
+        '      }',
+      ].join('\n');
+      const blocking = [
+        '      "verdict": {',
+        '        "kind": "derivedForkPublication",',
+        '        "status": "NOT_READY"',
+        '      }',
+      ].join('\n');
+      assert.ok(text.includes(ready));
+      return Buffer.from(text.replace(ready, `${blocking},\n${ready}`));
+    },
+  });
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /verdict contract is not canonical JSON/u,
+  );
+});
+
+test('published derived-fork chain refuses duplicate verdict histories', () => {
+  const scratch = publishedDerivedFixture({
+    serializeVerdict: (kind, value, canonicalBytes) => {
+      if (kind !== 'implementationReviewCodexVerdicts') return canonicalBytes;
+      const visiblyBlocking = structuredClone(value.verdicts);
+      visiblyBlocking.forEach((entry) => { entry.verdict.status = 'NOT_READY'; });
+      const indent = (candidate) => JSON.stringify(candidate, null, 2).replaceAll('\n', '\n  ');
+      return Buffer.from([
+        '{',
+        `  "schemaVersion": ${JSON.stringify(value.schemaVersion)},`,
+        `  "verdicts": ${indent(visiblyBlocking)},`,
+        `  "verdicts": ${indent(value.verdicts)}`,
+        '}',
+        '',
+      ].join('\n'));
+    },
+  });
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /verdict contract is not canonical JSON/u,
+  );
+});
+
+test('published derived-fork chain refuses byte-level non-canonical verdict forms', () => {
+  const serializers = [
+    (_value, canonicalBytes) => Buffer.from(canonicalBytes.toString().trim()),
+    (_value, canonicalBytes) => Buffer.concat([Buffer.from(' '), canonicalBytes]),
+    (_value, canonicalBytes) => Buffer.from(canonicalBytes.toString().replaceAll('\n', '\r\n')),
+    (value) => Buffer.from(`${JSON.stringify(value)}\n`),
+  ];
+  for (const serialize of serializers) {
+    const scratch = publishedDerivedFixture({
+      serializeVerdict: (kind, value, canonicalBytes) => (
+        kind === 'implementationReviewFableVerdicts'
+          ? serialize(value, canonicalBytes)
+          : canonicalBytes
+      ),
+    });
+    assert.throws(
+      () => validatePublicationRecord(scratch, derived),
+      /verdict contract is not canonical JSON/u,
+    );
+  }
+});
+
+test('storage review refuses duplicate fields instead of shadowing a later blocker', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-storage-review-'));
+  const path = 'review.md';
+  const commit = 'a'.repeat(40);
+  const implementationTree = `sha256:${'b'.repeat(64)}`;
+  writeFileSync(join(scratch, path), storageReviewBytes('Fable', commit, implementationTree));
+  validateReview(scratch, path, 'Fable', commit, implementationTree);
+  writeFileSync(join(scratch, path), Buffer.concat([
+    readFileSync(join(scratch, path)),
+    Buffer.from('**Verdict:** NOT_READY\n'),
+  ]));
+  assert.throws(
+    () => validateReview(scratch, path, 'Fable', commit, implementationTree),
+    /review is not READY/u,
   );
 });
 

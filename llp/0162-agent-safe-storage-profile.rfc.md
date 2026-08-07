@@ -5,6 +5,7 @@
 **Systems:** Storage, Runtime, Sync, Auth, Effects, Migrations, Agent experience, Diagnostics, Testing, Performance
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-03
+**Revised:** 2026-08-06 (v0.44 — round-6 publication-oracle closure: every fork-review verdict sidecar must equal its canonical `JSON.stringify(parsed, null, 2) + "\\n"` bytes, so duplicate JSON members and every byte-level non-canonical form refuse before shape or verdict interpretation. The per-entry prose digest is explicitly a current-complete-artifact binding, not a historical as-of-round claim; restoring the four transcript-recovered round-4 sections therefore rotates all five entries in each sidecar without changing any verdict. The separate legacy storage-review Markdown path now requires exactly one occurrence of every declared field, so an appended blocking verdict cannot be shadowed by an earlier READY line; it remains a single-document compatibility path with no structured round history, and both publication anchors remain withheld.)
 **Revised:** 2026-08-06 (v0.43 — the round-5 Codex adversarial review proved that v0.42's prose-verdict parser still published through four independent Markdown shapes: a verdict inside a fenced quotation, a lower-numbered historical round appended last, tab-delimited CommonMark headings hiding the actual final round, and a second conflicting Scope-1 table ignored after the first. Review authority is redesigned as four fixed-locator, exact-shape JSON verdict histories beside the still-required prose artifacts. Every entry binds its prose path and digest, family, round, reviewed commit, and typed Scope-1 or Scope-2 value; histories must be contiguous and commit-monotonic, the highest round must name qualification C, the two families must be distinct, and the verdict-file digests join the receipt and author-acceptance chain. Missing, malformed, duplicated, reordered, unknown-field, family-mismatched, commit-mismatched, or non-READY authority refuses. No prose body is parsed for authority. Both anchors remain withheld: at `b08e835f1`, both families record LLP 0163/0164/0165 READY and Scope 2 NOT READY pending this defect, so a fresh structured round at a new qualification commit is required before publication)
 **Revised:** 2026-08-06 (v0.42 — the mutually blind Codex and Fable round-4 re-qualification reviews of LLP 0158 independently found two High publication-oracle defects in v0.41: an allowlisted receipt could rotate its implementation digest to P without ever matching the qualified tree at C, and the verdict parser could accept `NOT READY` or quoted READY prose as `READY`; Fable additionally found that qualification-specific commit/tree/facts/evidence literals in the in-scope Rust mirror recreated the source-digest cycle and made an honest receipt unsatisfiable. The Rust mirror now asserts only closed structural shape, publication requires committed `implementationDigestAt(C) == receipt == implementationDigestAt(P)`, author acceptance binds the receipt's implementation-tree digest, the checker reconstructs the exact candidate-facts digest, and only anchored authoritative verdict cells/statements in the final review round count; both anchors remain withheld)
 **Revised:** 2026-08-06 (v0.41 — Charlie Cheever authorized narrowing the C-to-P custody rule to the exact implementation-digest scope after unrelated concurrent-session churn made the whole-repository rule unsatisfiable under AGENTS.md's fast-moving-main constraint; publication now directly compares the receipt digest with the implementation digest at P, preserving exact qualified-byte, ancestry, clean-worktree, and vendor-gitlink guarantees without asserting that out-of-scope repository bytes are unchanged; both anchors remain withheld)
@@ -2372,16 +2373,28 @@ authoritative or parsed for a verdict**. Its sidecar has exact top-level keys
 `reviewArtifact`, `reviewArtifactSha256`, `family`, `round`,
 `reviewedCommit`, and `verdict`. The typed verdict is either the closed
 Scope-1 map for LLPs 0163/0164/0165 or the closed Scope-2 publication status,
-and its only values are `READY` and `NOT_READY`.
+and its only values are `READY` and `NOT_READY`. Before any shape or value
+check, the checker requires the sidecar's complete bytes to equal
+`JSON.stringify(parsed, null, 2) + '\n'`. This one canonical-form assertion
+applies to all four structured verdict artifacts and rejects duplicate member
+names, alternate whitespace/line endings, missing or extra final newlines, and
+any other representation that does not round-trip to exactly what the checker
+parsed.
 
 Every history starts at round 1 and is stored in strictly increasing,
 contiguous order. A missing, duplicated, or reordered round refuses; the
 highest numbered entry is therefore unambiguously authoritative. Every entry
-binds the same fixed prose path and its exact SHA-256, retains one recognized
-family throughout the history, and names a 40-hex reviewed commit whose
-history is ancestry-monotonic. The authoritative entry must name the exact
-qualification commit C. The two fixed review pairs must contain distinct
-Codex and Fable families, and the family must match the fixed prose artifact.
+binds the same fixed prose path and the exact SHA-256 of the **current complete
+prose artifact**, retains one recognized family throughout the history, and
+names a 40-hex reviewed commit whose history is ancestry-monotonic.
+`reviewArtifactSha256` is deliberately a current-state tamper binding, not a
+claim about the artifact bytes as they existed when that historical round was
+recorded. Consequently appending or restoring prose requires rewriting that
+field in all earlier entries and rotating the enclosing receipt chain; the
+JSON history is logically ordered but not physically append-only. The
+authoritative entry must name the exact qualification commit C. The two fixed
+review pairs must contain distinct Codex and Fable families, and the family
+must match the fixed prose artifact.
 Missing or malformed JSON, any unknown field, an unknown status or family, a
 prose-digest/path mismatch, a commit mismatch, an inconsistent history, a
 same-family pair, or any authoritative `NOT_READY` refuses. The receipt and
@@ -2408,6 +2421,19 @@ withheld. Since this checker redesign changes the qualified implementation
 tree, publication requires a fresh structured highest round bound to the new
 qualification commit; historical READY prose or sidecars bound to
 `b08e835f1` cannot qualify it.
+
+The older `agent_safe_storage_v1` review path has not migrated to these
+structured sidecars. Its compatibility validator still consumes one fixed
+Markdown document per family, but now requires **exactly one** occurrence of
+every declared `**Label:**` field. A missing field or any duplicate — including
+an appended later `**Verdict:** NOT_READY` after an earlier READY field —
+refuses instead of selecting the first match. This closes the shadowing defect
+without pretending the storage artifacts have round/history semantics. What
+remains is explicit: the storage path has no authoritative append-only round
+record, its two expected dated review artifacts are absent, and its anchor is
+withheld. A future storage review workflow that appends rounds must migrate its
+fixed locators, receipt bindings, author acceptance, and validator to a closed
+structured history before publication.
 
 The reviewed generated-publication leaf registry remains a separate,
 fail-closed inventory check: it freezes each review manifest, its tracked

@@ -6,7 +6,7 @@
   "qualifiedSourceCommit": "0ee1fadc136e837f430556374a5842ac82069004",
   "implementationTreeSha256": "sha256:2cad36279fbb319c4b828026c1fc0c2ed2d8ac38bffc14bd2ba39b3849eedf33",
   "candidateFactsSha256": "sha256:b487d69d7a0392626e01f39e7fa81bd85251291c5ed119cd38a6cc30e50bfc88",
-  "qualificationReceiptSha256": "sha256:fc9a744016fce57d0ca107b480558c01ef8c53261cfd187f207d0c52007674d7",
+  "qualificationReceiptSha256": "sha256:054b4c5090ad40bd5edca9984bddf679417741a1aa81018b09d3718d13f03e7e",
   "buildProvenanceRequirement": "known-clean-contributor-source",
   "candidateFacts": {
     "envelope": {

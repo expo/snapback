@@ -253,3 +253,14 @@ existing storage-chain semantic checks remain unchanged and green. This
 resolution does not itself publish either capability: both source anchors remain
 `withheld`, the guide claim remains target `none`, and every target-manifest
 projection remains `Missing`.
+
+## Round-4 prose provenance repair — 2026-08-06
+
+All four round-4 prose sections were lost when the review worktrees were reset
+with `git checkout -- .` before those appends had been committed. They were
+restored verbatim, in original round order, from the surviving session
+transcripts: both Fable bodies from `/tmp/r4recover/fable_blocks.json`, and both
+Codex bodies from the most complete `+`-prefixed unified-diff hunks in
+`codex-review-r4-stream.log`. No recorded verdict was changed and no new
+review verdict was added; the structured histories' current-prose digests were
+rotated only to bind the restored complete artifacts.

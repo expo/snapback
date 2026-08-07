@@ -652,6 +652,20 @@ function readEvidenceJson(root, path, label) {
   }
 }
 
+function readCanonicalEvidenceJson(root, path, label) {
+  const text = readFileSync(join(root, path), 'utf8');
+  let value;
+  try {
+    value = JSON.parse(text);
+  } catch (error) {
+    fail(`${label} is not valid JSON: ${error.message}`);
+  }
+  if (text !== `${JSON.stringify(value, null, 2)}\n`) {
+    fail(`${label} is not canonical JSON`);
+  }
+  return value;
+}
+
 function closeNumber(left, right) {
   return Number.isFinite(left) && Number.isFinite(right)
     && Math.abs(left - right) <= 1e-9 * Math.max(1, Math.abs(left), Math.abs(right));
@@ -1110,11 +1124,15 @@ function validateAcceptanceCorpus(root, commit, implementationTree) {
 
 function markdownField(text, label) {
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-  const match = text.match(new RegExp(`^\\*\\*${escaped}:\\*\\*\\s+(.+)$`, 'mu'));
-  return match?.[1].replaceAll('`', '').trim();
+  const matches = [...text.matchAll(new RegExp(
+    `^\\*\\*${escaped}:\\*\\*\\s+(.+)$`,
+    'gmu',
+  ))];
+  if (matches.length !== 1) return undefined;
+  return matches[0][1].replaceAll('`', '').trim();
 }
 
-function validateReview(root, path, family, commit, implementationTree) {
+export function validateReview(root, path, family, commit, implementationTree) {
   const text = readFileSync(join(root, path), 'utf8');
   requireEvidence(markdownField(text, 'Reviewer family') === family,
     `${family} review family drifted`);
@@ -1295,13 +1313,14 @@ export function validateDerivedForkReview(root, {
   } catch {
     fail(`published evidence: missing or unreadable review ${reviewPath}`);
   }
-  const value = readEvidenceJson(root, verdictPath, `${reviewPath} verdict contract`);
+  const value = readCanonicalEvidenceJson(root, verdictPath, `${reviewPath} verdict contract`);
   exactKeys(value, ['schemaVersion', 'verdicts'], `${verdictPath} contract`);
   requireEvidence(value.schemaVersion === 'snapback.review-verdicts.v1'
     && Array.isArray(value.verdicts)
     && value.verdicts.length > 0,
   `${verdictPath} contract identity or verdict population drifted`);
 
+  const currentReviewSha256 = sha256(reviewBytes);
   let previousCommit;
   let declaredFamily;
   for (const [index, entry] of value.verdicts.entries()) {
@@ -1309,8 +1328,10 @@ export function validateDerivedForkReview(root, {
       'reviewArtifact', 'reviewArtifactSha256', 'family', 'round', 'reviewedCommit',
       'verdict',
     ], `${verdictPath} round ${index + 1}`);
+    // This is deliberately a current-state binding, not a claim about the
+    // prose bytes as they existed when a historical verdict was recorded.
     requireEvidence(entry.reviewArtifact === reviewPath
-      && entry.reviewArtifactSha256 === sha256(reviewBytes),
+      && entry.reviewArtifactSha256 === currentReviewSha256,
     `${verdictPath} round ${index + 1} does not bind its exact prose artifact`);
     requireEvidence(entry.family === 'codex' || entry.family === 'fable',
       `${verdictPath} round ${index + 1} reviewer family is unrecognized`);

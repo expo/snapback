@@ -845,6 +845,275 @@ where reading is least sufficient. File one `issues/` ticket carrying R3-3
 through R3-6 plus the two suggestions; none of them blocks the narrow claim as
 scoped.
 
+## Round 4 — 2026-08-06, re-qualification delta 0ee1fadc1..0b8b0ff71
+
+**Family:** fable
+**Provider/runtime:** Anthropic / Claude (Fable 5), Claude Code agent session
+**Date:** 2026-08-06
+**Redacted:** no
+**Method:** fresh clean-context session; read-only worktree pinned at
+`0b8b0ff71`, blind to the codex family's round-4 work (I did not open their
+worktree). Declared **bounded delta round**: I read rounds 1-3 of both
+families under `llp/reviews/`, then read only the in-scope diff
+`0ee1fadc1..0b8b0ff71 -- Cargo.toml Cargo.lock build.rs .gitmodules src
+packages/snapback-codegen packages/snapback-contract tests
+scripts/check-agent-safe-publication.mjs scripts/generated-artifact-policy.mjs`
+and the files it lands in. I did not re-review the fork implementation from
+scratch. I imported `implementationDigestAt` from the checker itself and ran
+it read-only (git-only, no build) at both commits to check the digest
+arithmetic; nothing was built or committed (`vendor/ibex` uninitialized, no
+`target/`). Every cite is file:line at `0b8b0ff71`.
+
+### Do the rounds 1-3 verdicts carry forward?
+
+**On the fork implementation: yes, unchanged.** The delta does not touch a
+single line of derived-fork behavior. `src/fork_promotion.rs`,
+`src/branches.rs`, `src/storage/write_authority.rs`, `src/operation_ledger.rs`
+and `src/cli.rs` — the files the write authority, the registered-connection
+completeness class, the continuity carrier and the diff receipts actually live
+in — are **not in the delta at all** (`git diff --name-only
+0ee1fadc1..0b8b0ff71 -- src` lists 13 paths; none of those five is among them).
+
+I read `src/storage.rs` line by line as instructed. Its entire delta is
+clippy-shaped and provably behavior-preserving:
+
+- `captured_effect_intents` gains `#[cfg(test)]` (`src/storage.rs:2164`). Its
+  only caller is `src/local.rs:58720`, inside `mod tests` which opens at
+  `src/local.rs:30958`. The production readers of captured intents go through
+  `crate::fork_promotion::captured_effect_intents` directly
+  (`src/fork_promotion.rs:2147,3651,4963`), which is untouched. No production
+  path loses a reader.
+- Two `LocalDatabase` pass-throughs are deleted —
+  `foreclose_branch_operation_admission` and
+  `retain_committed_branch_mutation`. Both were dead wrappers: at
+  `0b8b0ff71` the only remaining references are the free functions
+  `src/fork_promotion.rs:2378,2463` and their callers. Admission foreclosure
+  and committed-mutation retention are unchanged.
+- Two `if a { if let Some(x) = f()? {} }` bodies collapse to `if a && let
+  Some(x) = f()?` (`src/storage.rs:5443-5450`, `:6782-6789`). Let-chains
+  short-circuit identically, so `strict_current_data_version_stream` is still
+  only evaluated when `enforce_canonical_promotion_reservation` holds, and the
+  `?` propagates the same. `enforce_canonical_mutation_admission_in` is called
+  under exactly the same conditions.
+- Two `#[allow(clippy::too_many_arguments, reason = …)]` attributes on
+  `commit_buffered_writes_for_lane` and
+  `apply_buffered_writes_with_lifecycle_gated`. Attributes only.
+
+Nothing in that list touches the completeness class's foundations. The rest
+of the Rust delta is the same shape: `.truncate(false)` made explicit on the
+fork admission lock (`src/instance_fork.rs:3365` — a no-op, `truncate` already
+defaults to `false`, and the accompanying comment is accurate: no caller
+writes through that handle), a `&`-borrow fix in an
+`instance_fork.rs` test, `#[cfg(test)]` on the *convenience* wrapper
+`create_operator_in_app_branch` (`src/local.rs:6616`) whose production
+counterpart `create_operator_in_app_branch_with_policy` remains live and is
+still what `src/host_ops.rs:1557` calls, `reason =` strings on three existing
+`too_many_arguments` allows, and refreshed contributor-chain hashes in
+`src/manifest.rs` (I recomputed both: `src/storage.rs` is
+`975d8201…` and `src/local.rs` is `a9878184…`, matching
+`src/manifest.rs:10639,10645,10707,10846,10851` exactly).
+
+The one substantive `src/server.rs` change is a *strengthening*:
+`SNAPBACK_FORK_WRITER_COVERAGE_GAP` is added to the server-invariant 500 class
+(`src/server.rs:42058`). The code itself already existed at
+`src/instance_fork.rs:43` and I discussed it in round 3; this only closes the
+"missing from the reviewed HTTP table" ticket. Five
+`SNAPBACK_PACKAGED_STORE_QUALIFICATION_*` entries are added to the
+never-emitted-by-HTTP diagnostic registry — packaging, not forks.
+
+So: **isolation, credential scrubbing, egress quarantine, asset custody,
+TTL/renewal, resource admission, the registered-connection completeness class
+and the diff receipts are all byte-identical to the tree I marked READY in
+round 3.** My round-3 implementation verdict carries forward on the code.
+
+**On the publication act: no.** The narrowing itself, plus what landed
+alongside it inside the digest's own scope, has a blocking defect.
+
+### R4-1 (BLOCKING, Scope 2) — the delta re-creates the source-digest cycle the design explicitly breaks, making an honest re-qualification unsatisfiable
+
+`build.rs:295-300` and `src/agent_safe_publication.rs:283-286` both state the
+governing invariant in as many words: *"the receipt is outside the qualified
+implementation tree, breaking the source-digest cycle while its hash is still
+bound by the carrier."* The anchor, carrier and receipt are excluded from
+`implementationDigestAt` (via `PUBLICATION_CYCLE_ALLOWLIST`,
+`scripts/check-agent-safe-publication.mjs:51-82`, applied at `:524` and
+`:590`) precisely so that a qualification cycle can rewrite them without
+changing the digest it is recording.
+
+This delta puts three cycle-dependent values *back inside* the digest, as
+literals in `src/agent_safe_publication.rs` — a file that is in `src/` and
+therefore in the digest:
+
+- `:488-490` — `derived_receipt.qualified_source_commit ==
+  "0ee1fadc136e837f430556374a5842ac82069004"`
+- `:491-494` — `derived_receipt.implementation_tree_sha256 ==
+  "sha256:2cad36279fbb319c4b828026c1fc0c2ed2d8ac38bffc14bd2ba39b3849eedf33"`
+- `:517-520` — `derived_receipt.evidence.last().unwrap().sha256 ==
+  "sha256:e349b0698a5b42fff14d05a23ab4571b3adabed897b6827915389562ec8fd228"`
+  (the `authorAcceptance` binding — I confirmed that is the last locator,
+  `src/agent_safe_publication.rs:62` + the receipt's own evidence list, and
+  that the digest is today's
+  `tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-06.v1.json`)
+
+Before the delta these were structural: zeroed commit, empty component list,
+`sha256:0…0` bindings. The per-binding loop still uses the structural form
+(`is_nonzero_sha256`, `:515`); only these three were converted to exact
+values.
+
+I ran the checker's own digest function at both commits:
+
+    implementationDigestAt(0ee1fadc1) = sha256:2cad3627…9eedf33
+    implementationDigestAt(0b8b0ff71) = sha256:332db79e5974b23bbe74d9180335624f5e0941b563858e81f584515ee5c9480e
+
+So the receipt at HEAD names `2cad3627…`, the tree at HEAD digests to
+`332db79e…`, and the new assertion at
+`scripts/check-agent-safe-publication.mjs:1491-1496` correctly refuses. That
+is the re-qualification this round exists to authorize. But re-qualification
+at `0b8b0ff71` (C = P) requires:
+
+1. the receipt to carry `implementationTreeSha256 = 332db79e…` (it is
+   allowlisted, so writing it does not move the digest — good), **and**
+2. `src/agent_safe_publication.rs:492` to carry the same literal, so the unit
+   test `embedded_anchors_are_valid_and_storage_may_publish_independently`
+   passes.
+
+(2) changes a file inside the digest, so the digest is no longer `332db79e…`,
+so (1) must be rewritten, so (2) must be rewritten. Satisfying it means
+finding `L` such that `L = sha256(tree containing L)`. The same argument
+applies to `qualified_source_commit` (the tree at C would have to contain C's
+own commit hash) and to the `authorAcceptance` digest (the author acceptance
+records the qualified commit and tree, so re-signing it changes its sha256,
+which is pinned inside the digest). **There is no C at which an honest
+derived-fork receipt satisfies this tree.**
+
+There is exactly one satisfying assignment, and it is the dishonest one:
+author the receipt so that `implementationTreeSha256` names the *publication*
+tree rather than the *qualified* tree, with C strictly before P. The checker
+would accept it — see R4-2 — and the receipt would then assert that a tree
+nobody benchmarked, reviewed or accepted is the qualified implementation.
+A gate whose only satisfying solution is a false receipt is worse than no
+gate.
+
+The fix is small and does not weaken anything: revert those three assertions
+to the structural form the rest of the test already uses (`is_source_commit`,
+`is_sha256`/`is_nonzero_sha256`, non-empty components), or move the
+exact-value pinning into a `PUBLICATION_CYCLE_ALLOWLIST` fixture. The exact
+values belong in the checker, which reads the allowlisted files at P and is
+outside the digest — it already does this correctly at
+`scripts/check-agent-safe-publication.mjs:1456-1474`.
+
+### R4-2 (MATERIAL, Scope 2) — the narrowing dropped the C-side digest assertion, so the surviving assertion can be self-satisfying
+
+The old rule asserted a three-way equality (pre-delta `runChecker`):
+`carrier.implementationTreeSha256 == implementationDigestAt(C) ==
+implementationDigestWorkingTree()`. The new rule asserts
+`implementationDigestAt(P) == receipt.implementationTreeSha256`
+(`scripts/check-agent-safe-publication.mjs:1491-1496`) and then
+`digestAt(P) == workingTree` (`:1497-1501`). The `== digestAt(C)` conjunct is
+gone, and nothing else restores it: `implementationDigestAt(root, C)` is still
+computed at `:1402`/`:1415`, but it is only compared to the *author
+acceptance* fixture (`:1358`), never to the receipt or carrier.
+
+The residual guarantee therefore holds **only if the receipt is honest about
+C**. If it is, `digestAt(P) == receipt.tree == digestAt(C)` and no in-scope
+byte can drift — which is what the narrowing advertises, and what its three
+new fixture tests demonstrate (`tests/agent_safe_publication_checker_v1.mjs`
+`:824`, `:844`, `:867` — unrelated `demos/`+`llp/` churn permitted, in-scope
+byte change refused with the path named, `vendor/ibex` gitlink change
+refused). If the receipt instead names P's tree, the assertion compares a
+value to itself and *every* in-scope path may drift silently between C and P
+while the benches, both review artifacts and the author acceptance still
+describe C.
+
+I want to be precise about what is and is not verified here. The rest of the
+chain is intact and I checked it: anchor → carrier by sha256 (`:1448`),
+carrier → receipt by sha256 and field-by-field (`:1456-1462`), every evidence
+binding re-hashed from P's bytes (`:1469-1474`), so the reviews, benches and
+author acceptance cannot drift between C and P. `vendor/ibex` is genuinely in
+scope — the gitlink is folded into the digest at `:535-536`, and
+`checkedOutImplementationGitlink` (which also refuses a dirty root or a dirty
+submodule) is still reached through `implementationDigestWorkingTree`
+`:584-585`, so dropping its standalone call from `runChecker` lost nothing.
+The publication allowlist genuinely cannot smuggle implementation files
+through any more: `allowedPublicationChange` is no longer consulted for
+in-scope paths at all, and the only `src/`- or `tests/`-rooted paths excluded
+from the digest are the `PUBLICATION_CYCLE_ALLOWLIST` carriers/receipts/
+fixtures, each of which is separately pinned — the store carriers by the
+`SHA256` constants embedded in `src/manifest.rs:10231,10237` (in the digest),
+and the fork receipt by `carrier.qualificationReceiptSha256`.
+
+So R4-2 is one missing conjunct, not a structural failure. Add
+`|| receipt.implementationTreeSha256 !== implementationDigestAt(root, result.commit)`
+to `runChecker` (or fold it into `assertQualifiedImplementationDigestAtPublication`
+as an assertion on `qualificationCommit`) and the narrowing becomes exactly
+what it claims to be. Without it, R4-1's only escape hatch stays open.
+
+### R4-3 (MINOR, Scope 2) — the review-verdict oracle moved from exact-field equality to substring matching, and would accept "NOT READY"
+
+`reviewFamily` and the two new verdict readers now slice to the last
+`## Round N` heading (`:1264-1268`) — correct, and it means this round-4
+section is what the oracle will read. But the verdict test itself was
+loosened from `markdownField(text, 'Verdict') === 'READY'` to:
+
+- `finalSpecReviewVerdictsAreReady` (`:1308-1316`): a table row matching
+  `^\| LLP 0163 \|[^\n]*\bREADY\b[^\n]*\|$`. My own round-3 row is
+  `| LLP 0165 | READY (fable) / NOT READY (codex) | **READY** — …`
+  (`llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md:535`)
+  — a row containing the literal text `NOT READY` that this regex accepts.
+  That is not hypothetical; it is the artifact the oracle is being fitted to.
+- `finalReviewVerdictIsReady` (`:1298-1306`): `String.includes` on two prose
+  phrases beginning ``**READY for publication of the narrow local
+  `operating.instance-forks``.
+
+Both fallback branches exist to accept the real artifacts' prose, and neither
+is exercised by the fixture tests — `publishedDerivedFixture` now emits
+`**Verdict:** READY` for *every* review (`tests/agent_safe_publication_checker_v1.mjs:396`),
+so only the exact-equality branch is covered. The branches that will actually
+run against the real reviews are untested and substring-shaped. Anchoring the
+row match on the verdict cell (e.g. `\| \*\*?READY\*\*? [^|]*\|$`) and adding
+a negative fixture that emits `NOT READY` in the same shapes would make the
+oracle mean what it says.
+
+### Everything else in the delta is inert to this surface
+
+`tests/instance_fork_bench_v1.rs` is rustfmt-only (no bound, no measurement,
+no assertion changed — I diffed the `checks` array element by element).
+`tests/drift_prone_gates_v0.mjs`, `tests/local_proof_selection_v0.mjs`,
+`packages/snapback-codegen/app-descriptor.test.mjs` and the browser-IR
+coverage files are unrelated proof-lane infrastructure. The populated
+`src/local-agent-safe-derived-deployment-fork-publication.carrier.json`
+candidate facts are correct and correctly narrow — `derivedDeployment` is
+`denyAll` / `notPromotable` / `currentHead` / `hostMediated`, every other axis
+including `inApp` is `Missing` — and the anchor is still `withheld`, so no
+authority is minted at this commit. The store/relation/sequence carrier
+refreshes are allowlisted and their `src/manifest.rs` pins match the files on
+disk.
+
+### Verdict for the re-qualified tree
+
+**Scope 2 (implementation/security, narrow local `operating.instance-forks`):
+NOT READY at `0b8b0ff71`.**
+
+To be unambiguous about what that does and does not say: the *fork
+implementation* keeps my round-3 READY without qualification — the delta is
+provably inert to it, and I would re-issue that verdict against these bytes
+today. What is not ready is the *publication act at this commit*. R4-1 makes
+an honest re-qualification at `0b8b0ff71` unsatisfiable, and R4-2 leaves open
+the one dishonest assignment that would satisfy it. Both are small, local
+fixes in `src/agent_safe_publication.rs` and `runChecker`; neither requires
+re-opening the fork surface, and neither costs a review round beyond
+confirming the two edits. With R4-1 and R4-2 fixed, and the receipt/carrier/
+benches/author-acceptance re-stamped at the new C, I would expect to sign the
+re-qualified tree READY on a re-read of those two files alone.
+
+### Recommended next step
+
+Fix R4-1 (structural assertions, or move the exact literals into an
+allowlisted fixture) and R4-2 (restore the C-side conjunct) in one commit,
+then re-qualify at that commit. R4-3 can ride the same commit or a ticket.
+The round-1/2/3 fork findings and suggestions are unchanged and none of them
+blocks.
+
 ## Round 5 — 2026-08-06, oracle-defect closure at b08e835f1
 
 **Family:** fable

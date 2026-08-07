@@ -3,7 +3,7 @@
   "verdicts": [
     {
       "reviewArtifact": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.md",
-      "reviewArtifactSha256": "sha256:1da98b47ac35a57aa065f4f8805fe098956d98550d3c08cd4a603cc2c93045af",
+      "reviewArtifactSha256": "sha256:4e5ba5e1585b7a493d46ca0637fdb06539a650ad087b4c30896f41b6986a7bac",
       "family": "codex",
       "round": 1,
       "reviewedCommit": "7c2a27e0e90cf1d19b57825a187cb3be041ab92f",
@@ -16,7 +16,7 @@
     },
     {
       "reviewArtifact": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.md",
-      "reviewArtifactSha256": "sha256:1da98b47ac35a57aa065f4f8805fe098956d98550d3c08cd4a603cc2c93045af",
+      "reviewArtifactSha256": "sha256:4e5ba5e1585b7a493d46ca0637fdb06539a650ad087b4c30896f41b6986a7bac",
       "family": "codex",
       "round": 2,
       "reviewedCommit": "96fd0ad1c38109aa524e4cbc39439c8982e18766",
@@ -29,7 +29,7 @@
     },
     {
       "reviewArtifact": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.md",
-      "reviewArtifactSha256": "sha256:1da98b47ac35a57aa065f4f8805fe098956d98550d3c08cd4a603cc2c93045af",
+      "reviewArtifactSha256": "sha256:4e5ba5e1585b7a493d46ca0637fdb06539a650ad087b4c30896f41b6986a7bac",
       "family": "codex",
       "round": 3,
       "reviewedCommit": "cdc0fe03e8d75c4a1d1d25f79fe820f20b772ef7",
@@ -42,7 +42,7 @@
     },
     {
       "reviewArtifact": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.md",
-      "reviewArtifactSha256": "sha256:1da98b47ac35a57aa065f4f8805fe098956d98550d3c08cd4a603cc2c93045af",
+      "reviewArtifactSha256": "sha256:4e5ba5e1585b7a493d46ca0637fdb06539a650ad087b4c30896f41b6986a7bac",
       "family": "codex",
       "round": 4,
       "reviewedCommit": "0b8b0ff71bfc3eaa968b53a694a61f8a472ee295",
@@ -55,7 +55,7 @@
     },
     {
       "reviewArtifact": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.md",
-      "reviewArtifactSha256": "sha256:1da98b47ac35a57aa065f4f8805fe098956d98550d3c08cd4a603cc2c93045af",
+      "reviewArtifactSha256": "sha256:4e5ba5e1585b7a493d46ca0637fdb06539a650ad087b4c30896f41b6986a7bac",
       "family": "codex",
       "round": 5,
       "reviewedCommit": "b08e835f112517cf1629a842f5bcae12841ddcf0",

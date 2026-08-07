@@ -3,7 +3,7 @@
   "verdicts": [
     {
       "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md",
-      "reviewArtifactSha256": "sha256:d4e638cbc480ad84d727eb1f86f9b79ffd9cddd40c18d3a7dfffe6b25692d58a",
+      "reviewArtifactSha256": "sha256:4e76b69d176aa83220c7152bdcf2c0e21a92f7a787f7b2c2847295d97a321046",
       "family": "fable",
       "round": 1,
       "reviewedCommit": "7c2a27e0e90cf1d19b57825a187cb3be041ab92f",
@@ -14,7 +14,7 @@
     },
     {
       "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md",
-      "reviewArtifactSha256": "sha256:d4e638cbc480ad84d727eb1f86f9b79ffd9cddd40c18d3a7dfffe6b25692d58a",
+      "reviewArtifactSha256": "sha256:4e76b69d176aa83220c7152bdcf2c0e21a92f7a787f7b2c2847295d97a321046",
       "family": "fable",
       "round": 2,
       "reviewedCommit": "96fd0ad1c38109aa524e4cbc39439c8982e18766",
@@ -25,7 +25,7 @@
     },
     {
       "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md",
-      "reviewArtifactSha256": "sha256:d4e638cbc480ad84d727eb1f86f9b79ffd9cddd40c18d3a7dfffe6b25692d58a",
+      "reviewArtifactSha256": "sha256:4e76b69d176aa83220c7152bdcf2c0e21a92f7a787f7b2c2847295d97a321046",
       "family": "fable",
       "round": 3,
       "reviewedCommit": "cdc0fe03e8d75c4a1d1d25f79fe820f20b772ef7",
@@ -36,7 +36,7 @@
     },
     {
       "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md",
-      "reviewArtifactSha256": "sha256:d4e638cbc480ad84d727eb1f86f9b79ffd9cddd40c18d3a7dfffe6b25692d58a",
+      "reviewArtifactSha256": "sha256:4e76b69d176aa83220c7152bdcf2c0e21a92f7a787f7b2c2847295d97a321046",
       "family": "fable",
       "round": 4,
       "reviewedCommit": "0b8b0ff71bfc3eaa968b53a694a61f8a472ee295",
@@ -47,7 +47,7 @@
     },
     {
       "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md",
-      "reviewArtifactSha256": "sha256:d4e638cbc480ad84d727eb1f86f9b79ffd9cddd40c18d3a7dfffe6b25692d58a",
+      "reviewArtifactSha256": "sha256:4e76b69d176aa83220c7152bdcf2c0e21a92f7a787f7b2c2847295d97a321046",
       "family": "fable",
       "round": 5,
       "reviewedCommit": "b08e835f112517cf1629a842f5bcae12841ddcf0",

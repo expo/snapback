@@ -690,6 +690,100 @@ both writer construction and receipt time), and 0165's revised text is accurate
 modulo one clause. R3-1, R3-2, and R3-7 are all one-paragraph or one-fixture
 items that can ride the next dated touch; none of them blocks acceptance.
 
+## Round 4 — 2026-08-06, re-qualification delta 0ee1fadc1..0b8b0ff71
+
+**Family:** fable
+**Provider/runtime:** Anthropic / Claude (Fable 5), Claude Code agent session
+**Date:** 2026-08-06
+**Redacted:** no
+**Method:** fresh clean-context session; read-only worktree pinned at
+`0b8b0ff71`, blind to the codex family's round-4 work. Declared **bounded
+delta round**: I read rounds 1-3 of both families, then read only the in-scope
+diff `0ee1fadc1..0b8b0ff71` over the qualification digest's own scope
+(`Cargo.toml Cargo.lock build.rs .gitmodules src packages/snapback-codegen
+packages/snapback-contract tests scripts/check-agent-safe-publication.mjs
+scripts/generated-artifact-policy.mjs`). Nothing was built or committed. Every
+cite is file:line at `0b8b0ff71`. My companion Scope-2 artifact
+(`0158-instance-forking.implementation-2026-08-06.fable.md`) carries the full
+delta analysis; this section states only what bears on 0163/0164/0165.
+
+### The delta does not reach the specifications
+
+No LLP text changed in the in-scope diff — `llp/` is not in
+`IMPLEMENTATION_ROOTS` at all
+(`scripts/check-agent-safe-publication.mjs:38-49`), and I confirmed that
+0163, 0164 and 0165 are byte-identical between the two commits.
+
+More importantly, the code these specs govern is also byte-identical.
+`src/fork_promotion.rs`, `src/branches.rs`, `src/storage/write_authority.rs`,
+`src/operation_ledger.rs` and `src/cli.rs` do not appear in `git diff
+--name-only 0ee1fadc1..0b8b0ff71 -- src`. The operation-identity and
+commit-envelope surface (0163), the fork/promotion surface (0164), and the
+proof-domain, checkpoint and continuity-carrier surface (0165) are unchanged.
+
+I read `src/storage.rs` closely, since the write authority and the
+registered-connection completeness class sit on it. Its whole delta is
+clippy-shaped and behavior-preserving: `#[cfg(test)]` on
+`captured_effect_intents` (`:2164`, sole caller is inside `mod tests`, which
+opens at `src/local.rs:30958`; production readers use
+`fork_promotion::captured_effect_intents` directly), deletion of two dead
+`LocalDatabase` pass-throughs to `foreclose_branch_operation_admission` /
+`retain_committed_branch_mutation` (the free functions and their callers are
+untouched), two `if a { if let … }` → `if a && let …` collapses at
+`:5443-5450` and `:6782-6789` (identical short-circuit; the canonical-mutation
+admission call is reached under exactly the same conditions), and two
+`#[allow(clippy::too_many_arguments, reason = …)]` attributes. Nothing the
+completeness class depends on moved.
+
+The one fork-adjacent behavioral line in the delta strengthens 0165 rather
+than weakening it: `SNAPBACK_FORK_WRITER_COVERAGE_GAP` — the refusal 0165 §
+requires of a registered writer that observes a discontinuous boundary — is
+added to the server-invariant 500 class at `src/server.rs:42058`. The constant
+and its producer already existed (`src/instance_fork.rs:43`); this closes a
+"missing from the reviewed HTTP table" gap, so the code's projection now
+matches the spec's vocabulary.
+
+### Re-verdicts
+
+| Document | Round 3 | Round 4 (re-qualified tree at `0b8b0ff71`) |
+| --- | --- | --- |
+| LLP 0163 | READY | **READY** (carries forward unchanged; neither the spec nor `src/operation_ledger.rs` is in the delta) |
+| LLP 0164 | READY | **READY** (carries forward unchanged; `src/fork_promotion.rs` and `src/branches.rs` are not in the delta) |
+| LLP 0165 | READY | **READY** (carries forward; the only fork-adjacent change registers `SNAPBACK_FORK_WRITER_COVERAGE_GAP` in the server refusal table, which brings the code closer to the spec) |
+
+The round-3 nits R3-1, R3-2 and R3-7 are untouched by this delta and remain
+open as one-paragraph items; none of them blocks.
+
+### One Scope-1-adjacent note
+
+The publication oracle now reads review verdicts from the *final* `## Round N`
+section only (`scripts/check-agent-safe-publication.mjs:1264-1268`), and
+accepts a spec verdict as a table row matching `^\| LLP 0163
+\|[^\n]*\bREADY\b[^\n]*\|$` (`:1308-1316`). My round-3 row for 0165 is
+`| LLP 0165 | READY (fable) / NOT READY (codex) | **READY** — …` (`:535` of
+this file) — a row containing the literal text `NOT READY` that the regex
+accepts. The oracle should anchor on the verdict cell rather than matching
+`READY` anywhere in the row. Filed in full as R4-3 in my Scope-2 artifact;
+it does not change any verdict above.
+
+### Verdict
+
+**Scope 1: READY for LLP 0163, LLP 0164 and LLP 0165 at `0b8b0ff71` — the
+rounds 1-3 spec verdicts carry forward unchanged.**
+
+The re-qualification blocker I found lives entirely in the publication chain
+(the derived-fork receipt literals now embedded inside the qualified
+implementation digest, and the dropped C-side digest conjunct in the narrowed
+oracle), not in these three specifications or the code they govern. See
+`llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md`
+round 4, findings R4-1 and R4-2.
+
+### Recommended next step
+
+Keep 0163/0164/0165 Accepted. Nothing in this delta asks for a spec
+amendment. Land the two publication-chain fixes and re-qualify; these three
+documents need no further review round for that to proceed.
+
 ## Round 5 — 2026-08-06, oracle-defect closure at b08e835f1
 
 **Family:** fable
