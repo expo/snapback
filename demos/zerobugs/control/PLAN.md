@@ -447,6 +447,45 @@ The ZB4 v2 check now pins the documented contract: inspect refuses
 untrusted callers, `config/status` never discloses a configured secret
 value, and `config/set` refuses the untrusted write.
 
+#### 2026-08-07 — ZB2 v2 absorbs the real-Chrome custody rows
+
+When `CHROME_BIN` is present, ZB2 now extends its unchanged headless
+classification with the shared Lane 6b/Stage C browser lifecycle. One owned
+`/tmp` profile logs in through the pinned UI, proves the authenticated ordinary
+list, records exactly one exchange, then survives an entire owned Chrome
+process-tree `SIGKILL`: a successor Chrome process reuses the same profile,
+adopts authenticated IndexedDB custody with zero further exchanges, and paints
+the same oracle-visible online list. The check labels its render carrier
+explicitly as online server-backed after restart; it makes no retained-read or
+offline-render claim.
+
+The successor Chrome then opens a second authenticated tab with zero exchanges.
+In-page facts identify the one long-held IndexedDB RQS Web Locks writer while
+also proving settled AuthCoordinator custody in both tabs (the coordinator's
+own lock is operation-scoped, so no persistent auth-lock owner is invented).
+After the actual owner tab closes, the surviving tab reports the writer-lock
+handoff, submits a pinned-UI comment through the required
+mousedown/click/mouseup activation, and paints the authoritative settlement
+without another exchange. If `CHROME_BIN` is absent, both rows retain their
+original ZB5 owner and GAP reasons. `adapter-retained-label`, all 19
+`retained-query.*` rows, all 16 `queued-intent.*` rows, and
+`authorized-lease-expiry-retirement` remain GAP; retained query payloads,
+durable queued intents, and retained browser facts all remain zero.
+
+The supervising live runs (real Chrome 150, fresh server per attempt):
+`v2` FAIL preserved — a gate-authoring defect in the settlement proof, not a
+product defect: the wait polled the live presentation ledger for
+`confirmed`, but the ledger drops a confirmed attempt once the authoritative
+graph is adopted, and the paint assertion assumed the settled comment row
+would sit inside the virtualized comments window at the submit position
+(the restart custody check itself passed on that attempt). `v3` — PASS 5 /
+GAP 37 / FAIL 0: settlement is read from the installed trace history and
+paint is proved through the same comment-permalink hydration with a
+visible-rect check that Lane 6b qualified. Both browser custody rows now
+PASS with exactly one auth exchange consumed across login, full-process
+restart, second tab, writer handoff, mutation, and permalink paint; every
+retained/queued row remains an honest GAP.
+
 `tests/acceptance/receipt.mjs` (immutable writer with secret/zero-check/
 unsafe-cleanup refusal), `tests/acceptance/zbgate.mjs` (non-vacuous gate
 runner), and `tests/acceptance/gates/zb0.mjs` are implemented. The

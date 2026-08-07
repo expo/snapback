@@ -350,10 +350,11 @@
       "type": "string"
     },
     "AgentSafeForkEgressV1": {
+      "description": "@ref LLP 0158#capability-registry-record — positive derived-fork axes use\nthe exact lower-camel spellings bound by the publication candidate.",
       "enum": [
         "Missing",
-        "DenyAll",
-        "CaptureOnly"
+        "denyAll",
+        "captureOnly"
       ],
       "type": "string"
     },
@@ -384,8 +385,8 @@
     "AgentSafeForkPromotionV1": {
       "enum": [
         "Missing",
-        "NotPromotable",
-        "Promotable"
+        "notPromotable",
+        "promotable"
       ],
       "type": "string"
     },

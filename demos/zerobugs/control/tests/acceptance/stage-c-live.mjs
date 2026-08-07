@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
 import {createServer as createNetServer} from 'node:net';
-import {readdir, rm, stat} from 'node:fs/promises';
+import {mkdtemp, readdir, rm, stat} from 'node:fs/promises';
 import {join} from 'node:path';
 
 import {launchChromeCdp} from '../../../../_kit/chrome-process.mjs';
@@ -184,21 +184,49 @@ export async function startStageCVite(gate, stack, gateway, gateName, {
   return Object.freeze({origin, port: resolvedPort, buildDurationMs, output: owned.output});
 }
 
-export async function launchStageCChrome(gate, gateName, {env = process.env} = {}) {
+/**
+ * Allocate a caller-owned Chrome profile under literal /tmp. Registering the
+ * directory before either browser process makes reverse cleanup stop every
+ * launch before deleting the shared restart carrier.
+ */
+export async function createStageCChromeProfile(gate, gateName) {
+  const profilePath = await mkdtemp(join('/tmp', `${gateName}-profile-`));
+  gate.registerCleanup({
+    label: `${gateName} shared Chrome profile`,
+    targets: [{kind: 'directory', path: profilePath}],
+    run: () => rm(profilePath, {recursive: true, force: true}),
+  });
+  return profilePath;
+}
+
+export async function launchStageCChrome(gate, gateName, {
+  env = process.env,
+  userDataDir = null,
+  stopSignal = 'SIGTERM',
+} = {}) {
   const chromeBin = process.env.CHROME_BIN
     ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+  // A SIGKILL restart leaves Chrome's old CDP locator behind. It is process
+  // metadata, not profile custody, and must not be mistaken for the successor
+  // endpoint while the same caller-owned profile is relaunched.
+  if (userDataDir !== null) {
+    await rm(join(userDataDir, 'DevToolsActivePort'), {force: true});
+  }
   const chrome = await launchChromeCdp({
     chromeBin,
     userDataPrefix: `${gateName}-`,
-    tempRoot: '/tmp',
+    ...(userDataDir === null ? {tempRoot: '/tmp'} : {userDataDir}),
     env,
+    stopSignal,
     extraArgs: ['--disable-background-networking'],
   });
   gate.registerCleanup({
-    label: `${gateName} Chrome process/profile`,
+    label: userDataDir === null
+      ? `${gateName} Chrome process/profile`
+      : `${gateName} Chrome process`,
     targets: [
       {kind: 'process', id: String(chrome.pid ?? 'owned-child')},
-      {kind: 'directory', path: chrome.profilePath},
+      ...(userDataDir === null ? [{kind: 'directory', path: chrome.profilePath}] : []),
     ],
     run: () => chrome.stop(),
   });
@@ -274,6 +302,9 @@ export async function connectCdpPage(gate, browserWs, label) {
   const send = (method, params = {}, sessionId) => {
     const id = nextId++;
     trace(`-> id=${id} ${method}`);
+    if (socket.readyState !== WebSocket.OPEN) {
+      return Promise.reject(new Error(`CDP socket closed before command: ${method}`));
+    }
     socket.send(JSON.stringify(sessionId ? {id, method, params, sessionId} : {id, method, params}));
     return new Promise((resolveCommand, rejectCommand) => {
       const timer = setTimeout(() => {
@@ -307,13 +338,16 @@ export async function connectCdpPage(gate, browserWs, label) {
   const closeTarget = async () => {
     if (targetClosed) return;
     targetClosed = true;
+    if (socket.readyState !== WebSocket.OPEN) return;
     await send('Target.closeTarget', {targetId}).catch(() => undefined);
   };
   const close = async () => {
     if (closed) return;
     closed = true;
     await closeTarget();
-    socket.close();
+    if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+      socket.close();
+    }
   };
   gate.registerCleanup({
     label: `${label} CDP target/socket`,
@@ -335,10 +369,10 @@ export async function connectCdpPage(gate, browserWs, label) {
       throw new Error(`${waitLabel} timed out; last=${JSON.stringify(last)}; url=${await evaluate('location.href')}; body=${await evaluate('document.body.innerText.slice(0,400)')}`);
     },
     click(selector) {
-      return evaluate(`(() => {const element=document.querySelector(${JSON.stringify(selector)});if(!element)throw new Error('missing ${selector}');element.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,button:0,buttons:1,detail:1}));element.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,button:0,buttons:0,detail:1}));element.click();return true})()`);
+      return evaluate(`(() => {const element=document.querySelector(${JSON.stringify(selector)});if(!element)throw new Error('missing ${selector}');element.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,button:0,buttons:1,detail:1}));element.click();element.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,button:0,buttons:0,detail:1}));return true})()`);
     },
     clickText(text, scope = 'document') {
-      return evaluate(`(() => {const root=${scope};const element=[...root.querySelectorAll('button,a,[role="option"]')].find(value=>value.textContent.trim()===${JSON.stringify(text)});if(!element)throw new Error('missing text ${text}');element.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,button:0,buttons:1,detail:1}));element.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,button:0,buttons:0,detail:1}));element.click();return true})()`);
+      return evaluate(`(() => {const root=${scope};const element=[...root.querySelectorAll('button,a,[role="option"]')].find(value=>value.textContent.trim()===${JSON.stringify(text)});if(!element)throw new Error('missing text ${text}');element.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,button:0,buttons:1,detail:1}));element.click();element.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,button:0,buttons:0,detail:1}));return true})()`);
     },
     setValue(selector, value) {
       return evaluate(`(() => {const element=document.querySelector(${JSON.stringify(selector)});if(!element)throw new Error('missing ${selector}');const setter=Object.getOwnPropertyDescriptor(element instanceof HTMLTextAreaElement?HTMLTextAreaElement.prototype:HTMLInputElement.prototype,'value').set;setter.call(element,${JSON.stringify(value)});element.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:${JSON.stringify(value)}}));element.dispatchEvent(new Event('change',{bubbles:true}));return true})()`);
@@ -392,6 +426,53 @@ export async function browserStorageInventory(page) {
       transferBytes:resources.reduce((sum,row)=>sum+Number(row.transferSize??0),0),
       decodedBodyBytes:resources.reduce((sum,row)=>sum+Number(row.decodedBodySize??0),0),
       visibleIssueRows:document.querySelectorAll('[data-issue-id]').length
+    };
+  })()`);
+}
+
+const isAuthRequestPath = path => (
+  path.startsWith('/__snapback/auth/')
+  || path.startsWith('/api/login/github')
+  || path === '/api/auth/bootstrap'
+);
+
+/** Pure accounting over the bounded CDP loopback request inventory. */
+export function authNetworkRequestFacts(events) {
+  const requests = events.filter(event => event.direction === 'request');
+  return Object.freeze({
+    authRequests: requests.filter(event => isAuthRequestPath(String(event.path ?? ''))).length,
+    exchangeRequests: requests.filter(event => event.path === '/__snapback/auth/exchange').length,
+    bootstrapRequests: requests.filter(event => event.path === '/api/auth/bootstrap').length,
+    oauthLoginRequests: requests.filter(event => (
+      String(event.path ?? '').startsWith('/api/login/github')
+    )).length,
+  });
+}
+
+/**
+ * Read the app's actual same-origin browser custody state. AuthCoordinator's
+ * Web Lock is deliberately operation-scoped, while the RQS IndexedDB store
+ * holds the persistent single-writer Web Lock that can hand off across tabs.
+ */
+export async function browserCustodyOwnershipFacts(page) {
+  return await page.eval(`(async()=>{
+    const app=await import('/src/data/snapback.ts');
+    const lockSnapshot=typeof navigator.locks?.query==='function'
+      ? await navigator.locks.query()
+      : {held:[],pending:[]};
+    const databases=typeof indexedDB.databases==='function'
+      ? await indexedDB.databases()
+      : [];
+    const lockRows=rows=>(rows??[]).map(row=>({name:row.name,mode:row.mode}));
+    return {
+      indexedDb:typeof indexedDB?.open==='function',
+      webLocks:typeof navigator.locks?.request==='function',
+      authCoordinatorPhase:app.authCoordinator.phase,
+      authCustodyDatabasePresent:databases.some(row=>row.name==='snapback-auth-custody'),
+      rqsStore:{...app.client.rqsStoreInfo},
+      rqsWriter:app.client.rqsStore?.isWriter?.()??null,
+      heldLocks:lockRows(lockSnapshot.held),
+      pendingLocks:lockRows(lockSnapshot.pending)
     };
   })()`);
 }

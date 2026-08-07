@@ -1,0 +1,1531 @@
+{
+  "actorIdentity": {
+    "declaredActors": [
+      "ordinary-user",
+      "creator",
+      "assignee",
+      "crew-admin",
+      "removed-member"
+    ],
+    "mode": "fresh bound sessions verified by landed lane setup checks"
+  },
+  "arm": "snapback-control",
+  "assistance": [
+    {
+      "at": "2026-08-07T12:35:03.522Z",
+      "kind": "governing-design",
+      "purpose": "ZB acceptance and immutable evidence contract",
+      "sequence": 1,
+      "source": "llp/0183-zerobugs-quality-surface.rfc.md"
+    },
+    {
+      "at": "2026-08-07T12:35:03.522Z",
+      "kind": "guide",
+      "purpose": "fresh owned server and non-vacuous check lifecycle",
+      "sequence": 2,
+      "source": "guide/testing/acceptance.md"
+    },
+    {
+      "at": "2026-08-07T12:35:03.522Z",
+      "kind": "landed-lane-evidence",
+      "purpose": "reuse source-oracle, actor, mutation, effect, and adapter checks",
+      "sequence": 3,
+      "source": "demos/zerobugs/control/tests/acceptance/lane2-live.mts..lane6a-live.mts"
+    }
+  ],
+  "attempt": "v3",
+  "browserIdentity": {
+    "mode": "real-headless-chrome-full-process-restart",
+    "product": "Chrome/151.0.7922.76",
+    "profileCleanupAttested": true,
+    "profileCleanupRegistered": true,
+    "profileReusedAcrossProcessDeath": true,
+    "profileRoot": "/tmp",
+    "protocolVersion": "1.3",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
+    "v8Version": "15.1.206.10"
+  },
+  "capabilityFacts": [
+    {
+      "admittedQueries": 0,
+      "id": "retained-read",
+      "inventoriedQueries": 19,
+      "owner": "D3",
+      "status": "gap"
+    },
+    {
+      "admittedMutations": 0,
+      "id": "durable-queued-intent",
+      "inventoriedMutations": 16,
+      "owner": "D3/D5",
+      "status": "gap"
+    },
+    {
+      "id": "auth-transition-client-barrier",
+      "status": "supported-local-control"
+    },
+    {
+      "id": "browser.auth-custody.restart-and-two-tab",
+      "renderCarrier": "online server-backed after restart; no Zerobugs query admits a retention carrier",
+      "retainedQueryPayloads": 0,
+      "status": "supported-local-control"
+    }
+  ],
+  "checks": {
+    "counts": {
+      "fail": 0,
+      "gap": 37,
+      "missing": 0,
+      "pass": 5
+    },
+    "executed": 42,
+    "expected": 42,
+    "harness": {
+      "expectedChecks": 42,
+      "failed": 0,
+      "ok": true,
+      "passed": 5,
+      "shortfall": null,
+      "skipped": 37,
+      "total": 42
+    },
+    "missing": [],
+    "rows": [
+      {
+        "details": {
+          "carrier": "online server-backed adapter",
+          "label": "current"
+        },
+        "id": "adapter-current-label",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "behavior": "retained data remains unavailable rather than being relabeled current",
+          "owner": "D3 projected-facts/local-evaluation workstream",
+          "reason": "The adapter can preserve a retained freshness label, but no Zerobugs query has an admitted retention carrier; ZB2 therefore does not synthesize retained bytes to make that path pass."
+        },
+        "id": "adapter-retained-label",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "disposition": "predecessor blanked synchronously before successor publication",
+          "lane": "lane6a",
+          "sourceCheck": "session-switch-blanks-predecessor-before-successor",
+          "sourceExpectedChecks": 6,
+          "sourceReceipt": "zerobugs-lane6a-live.v1"
+        },
+        "id": "auth-transition-invalidates-predecessor",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "admittedRetainableQueries": 0,
+          "inventoriedQueries": 19,
+          "widenedQueries": 0
+        },
+        "id": "no-widened-retention",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "behavior": "online server-backed only; stored bytes are never presented as an offline answer",
+          "owner": "D3 projected-facts/local-evaluation workstream",
+          "query": "allLabels",
+          "reason": "The current control declares no rqsEligible, relational-retainable, or snapshot-batch carrier for this opaque JavaScript query."
+        },
+        "id": "retained-query.allLabels",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "online server-backed only; stored bytes are never presented as an offline answer",
+          "owner": "D3 projected-facts/local-evaluation workstream",
+          "query": "allUsers",
+          "reason": "The current control declares no rqsEligible, relational-retainable, or snapshot-batch carrier for this opaque JavaScript query."
+        },
+        "id": "retained-query.allUsers",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "online server-backed only; stored bytes are never presented as an offline answer",
+          "owner": "D3 projected-facts/local-evaluation workstream",
+          "query": "allProjects",
+          "reason": "The current control declares no rqsEligible, relational-retainable, or snapshot-batch carrier for this opaque JavaScript query."
+        },
+        "id": "retained-query.allProjects",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "online server-backed only; stored bytes are never presented as an offline answer",
+          "owner": "D3 projected-facts/local-evaluation workstream",
+          "query": "user",
+          "reason": "The current control declares no rqsEligible, relational-retainable, or snapshot-batch carrier for this opaque JavaScript query."
+        },
+        "id": "retained-query.user",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "online server-backed only; stored bytes are never presented as an offline answer",
+          "owner": "D3 projected-facts/local-evaluation workstream",
+          "query": "crewUser",
+          "reason": "The current control declares no rqsEligible, relational-retainable, or snapshot-batch carrier for this opaque JavaScript query."
+        },
+        "id": "retained-query.crewUser",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "online server-backed only; stored bytes are never presented as an offline answer",
+          "owner": "D3 projected-facts/local-evaluation workstream",
+          "query": "labels",
+          "reason": "The current control declares no rqsEligible, relational-retainable, or snapshot-batch carrier for this opaque JavaScript query."
+        },
+        "id": "retained-query.labels",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "online server-backed only; stored bytes are never presented as an offline answer",
+          "owner": "D3 projected-facts/local-evaluation workstream",
+          "query": "labelsOrderByName",
+          "reason": "The current control declares no rqsEligible, relational-retainable, or snapshot-batch carrier for this opaque JavaScript query."
+        },
+        "id": "retained-query.labelsOrderByName",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "online server-backed only; stored bytes are never presented as an offline answer",
+          "owner": "D3 projected-facts/local-evaluation workstream",
+          "query": "issuePreloadV2",
+          "reason": "The current control declares no rqsEligible, relational-retainable, or snapshot-batch carrier for this opaque JavaScript query."
+        },
+        "id": "retained-query.issuePreloadV2",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "online server-backed only; stored bytes are never presented as an offline answer",
+          "owner": "D3 projected-facts/local-evaluation workstream",
+          "query": "userPref",
+          "reason": "The current control declares no rqsEligible, relational-retainable, or snapshot-batch carrier for this opaque JavaScript query."
+        },
+        "id": "retained-query.userPref",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "online server-backed only; stored bytes are never presented as an offline answer",
+          "owner": "D3 projected-facts/local-evaluation workstream",
+          "query": "usersForProject",
+          "reason": "The current control declares no rqsEligible, relational-retainable, or snapshot-batch carrier for this opaque JavaScript query."
+        },
+        "id": "retained-query.usersForProject",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "online server-backed only; stored bytes are never presented as an offline answer",
+          "owner": "D3 projected-facts/local-evaluation workstream",
+          "query": "commentsPage",
+          "reason": "The current control declares no rqsEligible, relational-retainable, or snapshot-batch carrier for this opaque JavaScript query."
+        },
+        "id": "retained-query.commentsPage",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "online server-backed only; stored bytes are never presented as an offline answer",
+          "owner": "D3 projected-facts/local-evaluation workstream",
+          "query": "comment",
+          "reason": "The current control declares no rqsEligible, relational-retainable, or snapshot-batch carrier for this opaque JavaScript query."
+        },
+        "id": "retained-query.comment",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "online server-backed only; stored bytes are never presented as an offline answer",
+          "owner": "D3 projected-facts/local-evaluation workstream",
+          "query": "issueDetail",
+          "reason": "The current control declares no rqsEligible, relational-retainable, or snapshot-batch carrier for this opaque JavaScript query."
+        },
+        "id": "retained-query.issueDetail",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "online server-backed only; stored bytes are never presented as an offline answer",
+          "owner": "D3 projected-facts/local-evaluation workstream",
+          "query": "issueListV2",
+          "reason": "The current control declares no rqsEligible, relational-retainable, or snapshot-batch carrier for this opaque JavaScript query."
+        },
+        "id": "retained-query.issueListV2",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "online server-backed only; stored bytes are never presented as an offline answer",
+          "owner": "D3 projected-facts/local-evaluation workstream",
+          "query": "listIssueByID",
+          "reason": "The current control declares no rqsEligible, relational-retainable, or snapshot-batch carrier for this opaque JavaScript query."
+        },
+        "id": "retained-query.listIssueByID",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "online server-backed only; stored bytes are never presented as an offline answer",
+          "owner": "D3 projected-facts/local-evaluation workstream",
+          "query": "emojiChange",
+          "reason": "The current control declares no rqsEligible, relational-retainable, or snapshot-batch carrier for this opaque JavaScript query."
+        },
+        "id": "retained-query.emojiChange",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "online server-backed only; stored bytes are never presented as an offline answer",
+          "owner": "D3 projected-facts/local-evaluation workstream",
+          "query": "prevNext",
+          "reason": "The current control declares no rqsEligible, relational-retainable, or snapshot-batch carrier for this opaque JavaScript query."
+        },
+        "id": "retained-query.prevNext",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "online server-backed only; stored bytes are never presented as an offline answer",
+          "owner": "D3 projected-facts/local-evaluation workstream",
+          "query": "issueList",
+          "reason": "The current control declares no rqsEligible, relational-retainable, or snapshot-batch carrier for this opaque JavaScript query."
+        },
+        "id": "retained-query.issueList",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "online server-backed only; stored bytes are never presented as an offline answer",
+          "owner": "D3 projected-facts/local-evaluation workstream",
+          "query": "userPicker",
+          "reason": "The current control declares no rqsEligible, relational-retainable, or snapshot-batch carrier for this opaque JavaScript query."
+        },
+        "id": "retained-query.userPicker",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "honest unavailable offline; no queued success is fabricated",
+          "mutation": "issue.create",
+          "owner": "D3/D5 offline-intent integration",
+          "reason": "The control mutation adapter deliberately calls client.mutate with queue:false and exposes no disconnected-write surface."
+        },
+        "id": "queued-intent.issue.create",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "honest unavailable offline; no queued success is fabricated",
+          "mutation": "issue.update",
+          "owner": "D3/D5 offline-intent integration",
+          "reason": "The control mutation adapter deliberately calls client.mutate with queue:false and exposes no disconnected-write surface."
+        },
+        "id": "queued-intent.issue.update",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "honest unavailable offline; no queued success is fabricated",
+          "mutation": "issue.delete",
+          "owner": "D3/D5 offline-intent integration",
+          "reason": "The control mutation adapter deliberately calls client.mutate with queue:false and exposes no disconnected-write surface."
+        },
+        "id": "queued-intent.issue.delete",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "honest unavailable offline; no queued success is fabricated",
+          "mutation": "issue.addLabel",
+          "owner": "D3/D5 offline-intent integration",
+          "reason": "The control mutation adapter deliberately calls client.mutate with queue:false and exposes no disconnected-write surface."
+        },
+        "id": "queued-intent.issue.addLabel",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "honest unavailable offline; no queued success is fabricated",
+          "mutation": "issue.removeLabel",
+          "owner": "D3/D5 offline-intent integration",
+          "reason": "The control mutation adapter deliberately calls client.mutate with queue:false and exposes no disconnected-write surface."
+        },
+        "id": "queued-intent.issue.removeLabel",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "honest unavailable offline; no queued success is fabricated",
+          "mutation": "notification.update",
+          "owner": "D3/D5 offline-intent integration",
+          "reason": "The control mutation adapter deliberately calls client.mutate with queue:false and exposes no disconnected-write surface."
+        },
+        "id": "queued-intent.notification.update",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "honest unavailable offline; no queued success is fabricated",
+          "mutation": "emoji.addToIssue",
+          "owner": "D3/D5 offline-intent integration",
+          "reason": "The control mutation adapter deliberately calls client.mutate with queue:false and exposes no disconnected-write surface."
+        },
+        "id": "queued-intent.emoji.addToIssue",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "honest unavailable offline; no queued success is fabricated",
+          "mutation": "emoji.addToComment",
+          "owner": "D3/D5 offline-intent integration",
+          "reason": "The control mutation adapter deliberately calls client.mutate with queue:false and exposes no disconnected-write surface."
+        },
+        "id": "queued-intent.emoji.addToComment",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "honest unavailable offline; no queued success is fabricated",
+          "mutation": "emoji.remove",
+          "owner": "D3/D5 offline-intent integration",
+          "reason": "The control mutation adapter deliberately calls client.mutate with queue:false and exposes no disconnected-write surface."
+        },
+        "id": "queued-intent.emoji.remove",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "honest unavailable offline; no queued success is fabricated",
+          "mutation": "comment.add",
+          "owner": "D3/D5 offline-intent integration",
+          "reason": "The control mutation adapter deliberately calls client.mutate with queue:false and exposes no disconnected-write surface."
+        },
+        "id": "queued-intent.comment.add",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "honest unavailable offline; no queued success is fabricated",
+          "mutation": "comment.edit",
+          "owner": "D3/D5 offline-intent integration",
+          "reason": "The control mutation adapter deliberately calls client.mutate with queue:false and exposes no disconnected-write surface."
+        },
+        "id": "queued-intent.comment.edit",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "honest unavailable offline; no queued success is fabricated",
+          "mutation": "comment.remove",
+          "owner": "D3/D5 offline-intent integration",
+          "reason": "The control mutation adapter deliberately calls client.mutate with queue:false and exposes no disconnected-write surface."
+        },
+        "id": "queued-intent.comment.remove",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "honest unavailable offline; no queued success is fabricated",
+          "mutation": "label.create",
+          "owner": "D3/D5 offline-intent integration",
+          "reason": "The control mutation adapter deliberately calls client.mutate with queue:false and exposes no disconnected-write surface."
+        },
+        "id": "queued-intent.label.create",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "honest unavailable offline; no queued success is fabricated",
+          "mutation": "label.createAndAddToIssue",
+          "owner": "D3/D5 offline-intent integration",
+          "reason": "The control mutation adapter deliberately calls client.mutate with queue:false and exposes no disconnected-write surface."
+        },
+        "id": "queued-intent.label.createAndAddToIssue",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "honest unavailable offline; no queued success is fabricated",
+          "mutation": "viewState.set",
+          "owner": "D3/D5 offline-intent integration",
+          "reason": "The control mutation adapter deliberately calls client.mutate with queue:false and exposes no disconnected-write surface."
+        },
+        "id": "queued-intent.viewState.set",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "behavior": "honest unavailable offline; no queued success is fabricated",
+          "mutation": "userPref.set",
+          "owner": "D3/D5 offline-intent integration",
+          "reason": "The control mutation adapter deliberately calls client.mutate with queue:false and exposes no disconnected-write surface."
+        },
+        "id": "queued-intent.userPref.set",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "actorStable": true,
+          "authExchanges": {
+            "additionalAfterRestart": 0,
+            "afterRestart": 0,
+            "initialLogin": 1
+          },
+          "authenticatedList": {
+            "actor": "KeKs0r",
+            "projectIssueCount": "516",
+            "rows": [
+              "HdpMkgbHpK3_OcOIiQOuW",
+              "A6JEvOx1Lpj5qQgiy0_R-",
+              "dSHOxE86nkbGafajdd1ew",
+              "Fv76FHJw6xEfMDZfRd0uv",
+              "_6cIk1pH24n6nmJ5sI6Ar",
+              "oGP3NonM-zTtvcZ1ibD60",
+              "gW4A4-tVeA0e0YrSsYLqX",
+              "jdZuxcMAcF22nwLZ2-wI6",
+              "Wh3BGUvDYTfCdTKsUm4aw",
+              "y1MUdMqchAamKfMC-6aFU",
+              "EXpLtXkeB--ideoLqoopz",
+              "wXojICEjDrM2vZK7SXBSI",
+              "GgpFqe8eiV-A3d6_AEMk5",
+              "02kEEyJGmES9OjXXAkyBA",
+              "IFSSd3eg8K3Sr9Pli5xiI",
+              "2_l4gdyWVihEYEY3qwL2W",
+              "s7nKQH4tFZB6n0Y-UaVXE",
+              "oMXXm_O2ekVt9C8koCkou",
+              "SihBUomWCf-ksK8hBvy6p",
+              "AuiUsUv4Q9XFVqfbGlx9U",
+              "HEQKdh59ynsn-lscZfHAr",
+              "LzMGiIAzW4_sGY1Eq4mL3",
+              "1YIoRcTwfwaxnGtAg8Luj",
+              "Aoa5PXN4vkXX5z_Wb9M5W",
+              "WnlHcMY3_QYYPJYKfvLOZ",
+              "M7AYjBEI0o2ou09qiMklf",
+              "-f91Mdf0XQuX8XPPi9swV",
+              "QE2eFvZrV3g9bN9hUzalE",
+              "859py59MYOCv4BPBfdL_y",
+              "AHrj7iDzz_Vo8YRsq8uz4",
+              "8yCQ65_2H0D80hgfMlZHc",
+              "Yfoz9WZxoQFBshtfKs-0g",
+              "zWTHSpDpcGeNMapE40Id6",
+              "v2ed6dz-Na0p9ZmloZBir",
+              "u-lfNFiLXJRj2_E5XmoLk",
+              "H1CChLY9exEX7igHpZMaX",
+              "X3l7WaurF55GePP0sLJmh",
+              "THQZZNKQcXBKWFHL_cis7",
+              "v5A83jMmbjIminWCA9I9U",
+              "a7fP1sZUkwWCBki6j7WRe"
+            ]
+          },
+          "firstBrowserTermination": {
+            "processTreeExitAttested": true,
+            "requestedSignal": "SIGKILL",
+            "scope": "entire owned detached Chrome process tree"
+          },
+          "renderCarrier": "online server-backed after restart; no Zerobugs query admits a retention carrier",
+          "retainedQueryPayloads": 0,
+          "sameOwnedProfile": true,
+          "sessionPhase": "authenticated",
+          "storage": {
+            "afterLogin": {
+              "databaseCount": 2,
+              "databases": [
+                {
+                  "name": "snapback-auth-custody",
+                  "stores": [
+                    {
+                      "count": 1,
+                      "name": "custody"
+                    },
+                    {
+                      "count": 0,
+                      "name": "leases"
+                    }
+                  ],
+                  "version": 1
+                },
+                {
+                  "name": "snapback-rqs-store.v1",
+                  "stores": [
+                    {
+                      "count": 0,
+                      "name": "entries"
+                    },
+                    {
+                      "count": 0,
+                      "name": "materializations"
+                    },
+                    {
+                      "count": 0,
+                      "name": "memberships"
+                    },
+                    {
+                      "count": 0,
+                      "name": "outbox"
+                    },
+                    {
+                      "count": 0,
+                      "name": "pageSets"
+                    },
+                    {
+                      "count": 1,
+                      "name": "storeMeta"
+                    }
+                  ],
+                  "version": 3
+                }
+              ],
+              "decodedBodyBytes": 17749434,
+              "localStorageEntries": 1,
+              "objectStoreCount": 8,
+              "readableCookieNames": 0,
+              "recordCount": 2,
+              "resourceCount": 186,
+              "sessionStorageEntries": 0,
+              "storageEstimate": {
+                "quota": 10737438156,
+                "usage": 19916
+              },
+              "transferBytes": 329932,
+              "visibleIssueRows": 40
+            },
+            "afterRestart": {
+              "databaseCount": 2,
+              "databases": [
+                {
+                  "name": "snapback-auth-custody",
+                  "stores": [
+                    {
+                      "count": 1,
+                      "name": "custody"
+                    },
+                    {
+                      "count": 0,
+                      "name": "leases"
+                    }
+                  ],
+                  "version": 1
+                },
+                {
+                  "name": "snapback-rqs-store.v1",
+                  "stores": [
+                    {
+                      "count": 0,
+                      "name": "entries"
+                    },
+                    {
+                      "count": 0,
+                      "name": "materializations"
+                    },
+                    {
+                      "count": 0,
+                      "name": "memberships"
+                    },
+                    {
+                      "count": 1,
+                      "name": "outbox"
+                    },
+                    {
+                      "count": 0,
+                      "name": "pageSets"
+                    },
+                    {
+                      "count": 1,
+                      "name": "storeMeta"
+                    }
+                  ],
+                  "version": 3
+                }
+              ],
+              "decodedBodyBytes": 17749672,
+              "localStorageEntries": 0,
+              "objectStoreCount": 8,
+              "readableCookieNames": 0,
+              "recordCount": 3,
+              "resourceCount": 185,
+              "sessionStorageEntries": 0,
+              "storageEstimate": {
+                "quota": 10737441210,
+                "usage": 22970
+              },
+              "transferBytes": 325348,
+              "visibleIssueRows": 40
+            }
+          }
+        },
+        "id": "browser-restart-retained-render",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "authExchanges": {
+            "afterRestart": 0,
+            "initialLogin": 1,
+            "postHandoffMutation": 0,
+            "secondTab": 0,
+            "total": 1
+          },
+          "durableQueuedIntents": 0,
+          "mutation": {
+            "carrier": "online server-backed comment mutation and commentsPage settlement paint",
+            "fact": {
+              "id": "zbugs-comment.add-1-C5vsq6D_bcQYEOIIJa4EM",
+              "name": "comment.add",
+              "painted": true,
+              "result": {
+                "authoritativeTime": 1786106133936,
+                "outcome": "applied"
+              },
+              "status": "confirmed"
+            },
+            "interaction": "pinned UI mousedown + click + mouseup",
+            "paintProof": "comment-permalink window hydration with visible-rect check (virtualized window)"
+          },
+          "ownership": {
+            "after": {
+              "authCoordinatorPhase": "settled",
+              "authCustodyDatabasePresent": true,
+              "heldLocks": [
+                {
+                  "mode": "exclusive",
+                  "name": "snapback:rqs-store:snapback-rqs-store.v1"
+                }
+              ],
+              "indexedDb": true,
+              "pendingLocks": [],
+              "rqsStore": {
+                "durable": true,
+                "implementation": "indexeddb",
+                "reason": null,
+                "source": "default"
+              },
+              "rqsWriter": true,
+              "webLocks": true
+            },
+            "authCoordinatorLockScope": "operation-scoped; no persistent auth-lock holder is claimed",
+            "before": {
+              "first": {
+                "authCoordinatorPhase": "settled",
+                "authCustodyDatabasePresent": true,
+                "heldLocks": [
+                  {
+                    "mode": "exclusive",
+                    "name": "snapback:rqs-store:snapback-rqs-store.v1"
+                  }
+                ],
+                "indexedDb": true,
+                "pendingLocks": [
+                  {
+                    "mode": "exclusive",
+                    "name": "snapback:rqs-store:snapback-rqs-store.v1"
+                  }
+                ],
+                "rqsStore": {
+                  "durable": true,
+                  "implementation": "indexeddb",
+                  "reason": null,
+                  "source": "default"
+                },
+                "rqsWriter": true,
+                "webLocks": true
+              },
+              "second": {
+                "authCoordinatorPhase": "settled",
+                "authCustodyDatabasePresent": true,
+                "heldLocks": [
+                  {
+                    "mode": "exclusive",
+                    "name": "snapback:rqs-store:snapback-rqs-store.v1"
+                  }
+                ],
+                "indexedDb": true,
+                "pendingLocks": [
+                  {
+                    "mode": "exclusive",
+                    "name": "snapback:rqs-store:snapback-rqs-store.v1"
+                  }
+                ],
+                "rqsStore": {
+                  "durable": true,
+                  "implementation": "indexeddb",
+                  "reason": null,
+                  "source": "default"
+                },
+                "rqsWriter": false,
+                "webLocks": true
+              }
+            },
+            "ownerClosed": "restarted tab",
+            "persistentWriterCarrier": "snapback:rqs-store:snapback-rqs-store.v1",
+            "probe": "in-page AuthCoordinator phase plus shipped IndexedDB RQS store and navigator.locks facts"
+          },
+          "retainedQueryPayloads": 0,
+          "storageAfterHandoff": {
+            "databaseCount": 2,
+            "databases": [
+              {
+                "name": "snapback-auth-custody",
+                "stores": [
+                  {
+                    "count": 1,
+                    "name": "custody"
+                  },
+                  {
+                    "count": 0,
+                    "name": "leases"
+                  }
+                ],
+                "version": 1
+              },
+              {
+                "name": "snapback-rqs-store.v1",
+                "stores": [
+                  {
+                    "count": 0,
+                    "name": "entries"
+                  },
+                  {
+                    "count": 0,
+                    "name": "materializations"
+                  },
+                  {
+                    "count": 0,
+                    "name": "memberships"
+                  },
+                  {
+                    "count": 1,
+                    "name": "outbox"
+                  },
+                  {
+                    "count": 0,
+                    "name": "pageSets"
+                  },
+                  {
+                    "count": 1,
+                    "name": "storeMeta"
+                  }
+                ],
+                "version": 3
+              }
+            ],
+            "decodedBodyBytes": 17729038,
+            "localStorageEntries": 0,
+            "objectStoreCount": 8,
+            "readableCookieNames": 0,
+            "recordCount": 3,
+            "resourceCount": 224,
+            "sessionStorageEntries": 0,
+            "storageEstimate": {
+              "quota": 10737447052,
+              "usage": 28812
+            },
+            "transferBytes": 314036,
+            "visibleIssueRows": 0
+          },
+          "tabsAuthenticatedFromOneExchange": 2
+        },
+        "id": "two-tab-writer-handoff",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "owner": "D3 retained protected-query admission",
+          "reason": "No protected Zerobugs query is admitted for retention, so no AuthorizedLease is acquired or claimed by the control."
+        },
+        "id": "authorized-lease-expiry-retirement",
+        "status": "GAP"
+      }
+    ]
+  },
+  "cleanup": {
+    "ownership": "Every resource registered through the gate runner was cleaned in reverse ownership order.",
+    "results": [
+      {
+        "label": "ZB2 second tab CDP target/socket",
+        "reverseIndex": 0,
+        "status": "PASS",
+        "targets": [
+          {
+            "id": "41E8E423DA5D60E912E8BED7F40F4603",
+            "kind": "browser-target"
+          }
+        ]
+      },
+      {
+        "label": "ZB2 restarted tab CDP target/socket",
+        "reverseIndex": 1,
+        "status": "PASS",
+        "targets": [
+          {
+            "id": "3BBACB4A2CCDA1F37C058297E5D81836",
+            "kind": "browser-target"
+          }
+        ]
+      },
+      {
+        "label": "zerobugs-zb2-after-restart Chrome process",
+        "reverseIndex": 2,
+        "status": "PASS",
+        "targets": [
+          {
+            "id": "11047",
+            "kind": "process"
+          }
+        ]
+      },
+      {
+        "label": "ZB2 pre-restart tab CDP target/socket",
+        "reverseIndex": 3,
+        "status": "PASS",
+        "targets": [
+          {
+            "id": "E153434FC667339B8D44B8564711D351",
+            "kind": "browser-target"
+          }
+        ]
+      },
+      {
+        "label": "zerobugs-zb2-before-restart Chrome process",
+        "reverseIndex": 4,
+        "status": "PASS",
+        "targets": [
+          {
+            "id": "5810",
+            "kind": "process"
+          }
+        ]
+      },
+      {
+        "label": "zerobugs-zb2 shared Chrome profile",
+        "reverseIndex": 5,
+        "status": "PASS",
+        "targets": [
+          {
+            "kind": "directory",
+            "path": "/tmp/zerobugs-zb2-profile-tcUEeq"
+          }
+        ]
+      },
+      {
+        "label": "zb2 Vite dev relay",
+        "reverseIndex": 6,
+        "status": "PASS",
+        "targets": [
+          {
+            "id": "5389",
+            "kind": "process"
+          }
+        ]
+      },
+      {
+        "label": "zb2 gateway",
+        "reverseIndex": 7,
+        "status": "PASS",
+        "targets": [
+          {
+            "id": "3348",
+            "kind": "process"
+          },
+          {
+            "kind": "file",
+            "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb2-h5csu7/zb2-gateway.ready.json"
+          },
+          {
+            "kind": "directory",
+            "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb2-h5csu7/zb2-captures"
+          }
+        ]
+      },
+      {
+        "label": "Snapback server",
+        "reverseIndex": 8,
+        "status": "PASS",
+        "targets": [
+          {
+            "id": "93130",
+            "kind": "process"
+          }
+        ]
+      },
+      {
+        "label": "ZB2 scratch namespace",
+        "reverseIndex": 9,
+        "status": "PASS",
+        "targets": [
+          {
+            "kind": "directory",
+            "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb2-h5csu7"
+          }
+        ]
+      }
+    ],
+    "status": "PASS",
+    "targets": [
+      {
+        "id": "41E8E423DA5D60E912E8BED7F40F4603",
+        "kind": "browser-target"
+      },
+      {
+        "id": "3BBACB4A2CCDA1F37C058297E5D81836",
+        "kind": "browser-target"
+      },
+      {
+        "id": "11047",
+        "kind": "process"
+      },
+      {
+        "id": "E153434FC667339B8D44B8564711D351",
+        "kind": "browser-target"
+      },
+      {
+        "id": "5810",
+        "kind": "process"
+      },
+      {
+        "kind": "directory",
+        "path": "/tmp/zerobugs-zb2-profile-tcUEeq"
+      },
+      {
+        "id": "5389",
+        "kind": "process"
+      },
+      {
+        "id": "3348",
+        "kind": "process"
+      },
+      {
+        "kind": "file",
+        "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb2-h5csu7/zb2-gateway.ready.json"
+      },
+      {
+        "kind": "directory",
+        "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb2-h5csu7/zb2-captures"
+      },
+      {
+        "id": "93130",
+        "kind": "process"
+      },
+      {
+        "kind": "directory",
+        "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb2-h5csu7"
+      }
+    ]
+  },
+  "completedAt": "2026-08-07T12:35:34.942Z",
+  "componentReleaseIdentities": [
+    {
+      "id": "zerobugs-control-composition",
+      "path": "demos/zerobugs/control/composition/zerobugs-control-composition.v1.json",
+      "runtime": {
+        "entrypoint": "composition/server.mts",
+        "hostEnv": "ZERBUGS_GATEWAY_HOST",
+        "name": "bun",
+        "portEnv": "ZERBUGS_GATEWAY_PORT",
+        "readyFileEnv": "ZERBUGS_GATEWAY_READY_FILE",
+        "version": "1.3.12"
+      },
+      "sha256": "sha256:f5c232abe1ec9a4ef72f9ca3479ff556b340f38ec48319e8d5946fecfd949de6",
+      "snapbackRelease": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:7e1e6aaff8c68371de8bf55c0e02b332232627c507ebfb98138b4514d2d4179e",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:6947b605efaf9c4ee08ae9243eeb39ee1587e85e911ee329eaddd4d9114e63ae",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "status": "supported-local-control",
+      "version": 1
+    }
+  ],
+  "custodyAccounting": {
+    "authorityTransitionsChecked": 1,
+    "browserAuthFacts": {
+      "login": {
+        "authRequests": 11,
+        "bootstrapRequests": 1,
+        "exchangeRequests": 1,
+        "oauthLoginRequests": 2
+      },
+      "permalinkPaintProof": {
+        "authRequests": 2,
+        "bootstrapRequests": 0,
+        "exchangeRequests": 0,
+        "oauthLoginRequests": 0
+      },
+      "postHandoffMutation": {
+        "authRequests": 1,
+        "bootstrapRequests": 0,
+        "exchangeRequests": 0,
+        "oauthLoginRequests": 0
+      },
+      "restart": {
+        "authRequests": 6,
+        "bootstrapRequests": 1,
+        "exchangeRequests": 0,
+        "oauthLoginRequests": 0
+      },
+      "secondTab": {
+        "authRequests": 6,
+        "bootstrapRequests": 1,
+        "exchangeRequests": 0,
+        "oauthLoginRequests": 0
+      }
+    },
+    "browserFactsRetained": 0,
+    "browserStorageFacts": {
+      "afterHandoff": {
+        "databaseCount": 2,
+        "databases": [
+          {
+            "name": "snapback-auth-custody",
+            "stores": [
+              {
+                "count": 1,
+                "name": "custody"
+              },
+              {
+                "count": 0,
+                "name": "leases"
+              }
+            ],
+            "version": 1
+          },
+          {
+            "name": "snapback-rqs-store.v1",
+            "stores": [
+              {
+                "count": 0,
+                "name": "entries"
+              },
+              {
+                "count": 0,
+                "name": "materializations"
+              },
+              {
+                "count": 0,
+                "name": "memberships"
+              },
+              {
+                "count": 1,
+                "name": "outbox"
+              },
+              {
+                "count": 0,
+                "name": "pageSets"
+              },
+              {
+                "count": 1,
+                "name": "storeMeta"
+              }
+            ],
+            "version": 3
+          }
+        ],
+        "decodedBodyBytes": 17729038,
+        "localStorageEntries": 0,
+        "objectStoreCount": 8,
+        "readableCookieNames": 0,
+        "recordCount": 3,
+        "resourceCount": 224,
+        "sessionStorageEntries": 0,
+        "storageEstimate": {
+          "quota": 10737447052,
+          "usage": 28812
+        },
+        "transferBytes": 314036,
+        "visibleIssueRows": 0
+      },
+      "afterLogin": {
+        "databaseCount": 2,
+        "databases": [
+          {
+            "name": "snapback-auth-custody",
+            "stores": [
+              {
+                "count": 1,
+                "name": "custody"
+              },
+              {
+                "count": 0,
+                "name": "leases"
+              }
+            ],
+            "version": 1
+          },
+          {
+            "name": "snapback-rqs-store.v1",
+            "stores": [
+              {
+                "count": 0,
+                "name": "entries"
+              },
+              {
+                "count": 0,
+                "name": "materializations"
+              },
+              {
+                "count": 0,
+                "name": "memberships"
+              },
+              {
+                "count": 0,
+                "name": "outbox"
+              },
+              {
+                "count": 0,
+                "name": "pageSets"
+              },
+              {
+                "count": 1,
+                "name": "storeMeta"
+              }
+            ],
+            "version": 3
+          }
+        ],
+        "decodedBodyBytes": 17749434,
+        "localStorageEntries": 1,
+        "objectStoreCount": 8,
+        "readableCookieNames": 0,
+        "recordCount": 2,
+        "resourceCount": 186,
+        "sessionStorageEntries": 0,
+        "storageEstimate": {
+          "quota": 10737438156,
+          "usage": 19916
+        },
+        "transferBytes": 329932,
+        "visibleIssueRows": 40
+      },
+      "afterRestart": {
+        "databaseCount": 2,
+        "databases": [
+          {
+            "name": "snapback-auth-custody",
+            "stores": [
+              {
+                "count": 1,
+                "name": "custody"
+              },
+              {
+                "count": 0,
+                "name": "leases"
+              }
+            ],
+            "version": 1
+          },
+          {
+            "name": "snapback-rqs-store.v1",
+            "stores": [
+              {
+                "count": 0,
+                "name": "entries"
+              },
+              {
+                "count": 0,
+                "name": "materializations"
+              },
+              {
+                "count": 0,
+                "name": "memberships"
+              },
+              {
+                "count": 1,
+                "name": "outbox"
+              },
+              {
+                "count": 0,
+                "name": "pageSets"
+              },
+              {
+                "count": 1,
+                "name": "storeMeta"
+              }
+            ],
+            "version": 3
+          }
+        ],
+        "decodedBodyBytes": 17749672,
+        "localStorageEntries": 0,
+        "objectStoreCount": 8,
+        "readableCookieNames": 0,
+        "recordCount": 3,
+        "resourceCount": 185,
+        "sessionStorageEntries": 0,
+        "storageEstimate": {
+          "quota": 10737441210,
+          "usage": 22970
+        },
+        "transferBytes": 325348,
+        "visibleIssueRows": 40
+      }
+    },
+    "durableQueuedIntents": 0,
+    "mode": "headless classification + real-Chrome restart/two-tab custody legs",
+    "retainedQueryPayloads": 0
+  },
+  "diagnostics": [],
+  "execution": {
+    "harnessAcceptedCount": true,
+    "setupCompleted": true,
+    "status": "PASS"
+  },
+  "fixtureIdentity": {
+    "digest": "sha256:be2eb1f31fe95e0a5c46a5230d98b18d762449e330691cb73e33d578fec276bd",
+    "extensionId": "policy-extension-v1",
+    "id": "normal-seed-v1",
+    "mode": "fresh normal fixture plus policy extension; load verified by gate checks",
+    "rowCount": 3758,
+    "seedVersion": "normal-seed-v1.policy-extension-v1"
+  },
+  "gate": "zb2",
+  "generatedIdentities": [
+    {
+      "id": "schemaManifest",
+      "path": "demos/zerobugs/control/snapback/generated/schema.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:7e1e6aaff8c68371de8bf55c0e02b332232627c507ebfb98138b4514d2d4179e",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:6947b605efaf9c4ee08ae9243eeb39ee1587e85e911ee329eaddd4d9114e63ae",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:beff7f5e99aef868060d9fcbddf8f111f0b2f49278ca48c9c53433901f10c179"
+    },
+    {
+      "id": "functionManifest",
+      "path": "demos/zerobugs/control/snapback/generated/functions.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:7e1e6aaff8c68371de8bf55c0e02b332232627c507ebfb98138b4514d2d4179e",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:6947b605efaf9c4ee08ae9243eeb39ee1587e85e911ee329eaddd4d9114e63ae",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:539b30d277a9c280a11cd2074a6208e068daf239ab90807066648d6c1edd3b6b"
+    },
+    {
+      "id": "capabilityManifest",
+      "path": "demos/zerobugs/control/snapback/generated/capability.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:7e1e6aaff8c68371de8bf55c0e02b332232627c507ebfb98138b4514d2d4179e",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:6947b605efaf9c4ee08ae9243eeb39ee1587e85e911ee329eaddd4d9114e63ae",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v0",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:95acfb5fa272a4c7acc7f52d11f1ad0054b98152c45903cf3cb9430b4ab8c286"
+    },
+    {
+      "id": "contractDataManifest",
+      "path": "demos/zerobugs/control/snapback/generated/contract-data.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:7e1e6aaff8c68371de8bf55c0e02b332232627c507ebfb98138b4514d2d4179e",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:6947b605efaf9c4ee08ae9243eeb39ee1587e85e911ee329eaddd4d9114e63ae",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:8b9adc1269dc73e1a530fddbb7fbfa63a4eecf01bb2695cacdc866610fa04839"
+    },
+    {
+      "id": "artifactIndex",
+      "path": "demos/zerobugs/control/snapback/generated/artifacts.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:7e1e6aaff8c68371de8bf55c0e02b332232627c507ebfb98138b4514d2d4179e",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:6947b605efaf9c4ee08ae9243eeb39ee1587e85e911ee329eaddd4d9114e63ae",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:48dd8f7e7a87dce75e1d3d9dc6249b10a49739eb4bc29abb6509fd64089cdf51"
+    }
+  ],
+  "machineIdentity": {
+    "arch": "arm64",
+    "cpuCount": 18,
+    "hostnameSha256": "sha256:4a238cd09cfb162aa54334e6f1b3fba341960951bd6f36b2b01b6e77a72395c0",
+    "platform": "darwin"
+  },
+  "manifest": {
+    "id": "zerobugs-acceptance.v1",
+    "path": "demos/zerobugs/manifest/acceptance.v1.json",
+    "sha256": "sha256:3eb0280a5803da887cea371193f62ff372ac537efa24e7cd53b150afe0d1fc2c"
+  },
+  "network": "loopback-only; one UI login exchange, then zero on full Chrome restart, second-tab adoption, and post-handoff mutation",
+  "outcome": "GAP",
+  "rawArtifacts": [
+    {
+      "path": "demos/zerobugs/control/PLAN.md",
+      "sha256": "sha256:6466c0ee1d1950fd515dfe56eee3bfd81ea47d5ef4df2766e1679bbb5420f507"
+    },
+    {
+      "path": "demos/zerobugs/control/composition/zerobugs-control-composition.v1.json",
+      "sha256": "sha256:f5c232abe1ec9a4ef72f9ca3479ff556b340f38ec48319e8d5946fecfd949de6"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/artifacts.json",
+      "sha256": "sha256:48dd8f7e7a87dce75e1d3d9dc6249b10a49739eb4bc29abb6509fd64089cdf51"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/capability.manifest.json",
+      "sha256": "sha256:95acfb5fa272a4c7acc7f52d11f1ad0054b98152c45903cf3cb9430b4ab8c286"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/contract-data.manifest.json",
+      "sha256": "sha256:8b9adc1269dc73e1a530fddbb7fbfa63a4eecf01bb2695cacdc866610fa04839"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/functions.manifest.json",
+      "sha256": "sha256:539b30d277a9c280a11cd2074a6208e068daf239ab90807066648d6c1edd3b6b"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/schema.manifest.json",
+      "sha256": "sha256:beff7f5e99aef868060d9fcbddf8f111f0b2f49278ca48c9c53433901f10c179"
+    },
+    {
+      "path": "demos/zerobugs/control/src/data/mutations.ts",
+      "sha256": "sha256:9b8663e1d8c67c44b913d10dbb53f8b3bac63add50a93c56213758ea660c38e6"
+    },
+    {
+      "path": "demos/zerobugs/control/src/data/queries.ts",
+      "sha256": "sha256:69fefb7148ab049287ccda9061860ca912ce2f15645367820514ac27285a89e1"
+    },
+    {
+      "path": "demos/zerobugs/control/src/data/snapback.ts",
+      "sha256": "sha256:b8443e31993ba49946af4aa127b4d4d350210c4c88512d875261ff8c9c87b6fc"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/gate-support.mjs",
+      "sha256": "sha256:52e514bc20ab2ac0dfba2639e7e07ac2f38f824836070c3847867afb221f2437"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/gates/zb2.mjs",
+      "sha256": "sha256:c0130a9057e7f64c44b97ce1b211d9794634f70920418e63be170b32f825857b"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/lane6a-live.mts",
+      "sha256": "sha256:348652cbaead3881914be60853a566ea35e17d5ae3da26e0800e22dbf16440ee"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/lane6b-live.mts",
+      "sha256": "sha256:b36d5e64e5f3761462e6699be077663277f8c2fcdba598a9094d1f31862bd994"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/stage-c-live.mjs",
+      "sha256": "sha256:0ba0153707f2fa503862db6e4b6e6cf40ca8e2a4c4114f775f5f26b56c084c5f"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/fixtures/fixture-digests.json",
+      "sha256": "sha256:56afa56a74f0edddfd71ac0e7a09f5c12bc1e2eaed9e2be2f2ad6c84c31d38b3"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/lane3-oracle.mts",
+      "sha256": "sha256:f78af83676f250ddace928cd1bdb52a77561ae7e19f309b4f6ac9925a7df8f85"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/lane6a-adapter.test.mts",
+      "sha256": "sha256:1a59364733ca31a8c55fae75be778488fb7c0ed1b281617d4dde240638d0fc0a"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/stage-c-live.test.mts",
+      "sha256": "sha256:62fd200cb5fcf5833afb5fea4c4f00249bb5f42d662c19515236f20edfa9e2b5"
+    },
+    {
+      "path": "demos/zerobugs/manifest/acceptance.v1.json",
+      "sha256": "sha256:3eb0280a5803da887cea371193f62ff372ac537efa24e7cd53b150afe0d1fc2c"
+    },
+    {
+      "path": "demos/zerobugs/stage0/inventory.v1.json",
+      "sha256": "sha256:0d7233897864c39f99ef5c46946da21ddfc8a404e6f0441c741c02192a43eaa3"
+    }
+  ],
+  "refusalFacts": [
+    {
+      "admittedRetainableQueries": 0,
+      "id": "widened-retention",
+      "status": "refused"
+    }
+  ],
+  "schemaVersion": "zerobugs-gate-receipt.v1",
+  "sourceAccounting": {
+    "admittedQueuedMutations": 0,
+    "admittedRetainableQueries": 0,
+    "browserAuthFacts": {
+      "login": {
+        "authRequests": 11,
+        "bootstrapRequests": 1,
+        "exchangeRequests": 1,
+        "oauthLoginRequests": 2
+      },
+      "permalinkPaintProof": {
+        "authRequests": 2,
+        "bootstrapRequests": 0,
+        "exchangeRequests": 0,
+        "oauthLoginRequests": 0
+      },
+      "postHandoffMutation": {
+        "authRequests": 1,
+        "bootstrapRequests": 0,
+        "exchangeRequests": 0,
+        "oauthLoginRequests": 0
+      },
+      "restart": {
+        "authRequests": 6,
+        "bootstrapRequests": 1,
+        "exchangeRequests": 0,
+        "oauthLoginRequests": 0
+      },
+      "secondTab": {
+        "authRequests": 6,
+        "bootstrapRequests": 1,
+        "exchangeRequests": 0,
+        "oauthLoginRequests": 0
+      }
+    },
+    "browserChecks": 2,
+    "lane6aExpectedChecks": 6,
+    "queryMatrixRows": 19,
+    "queuedIntentMatrixRows": 16
+  },
+  "startedAt": "2026-08-07T12:35:03.522Z",
+  "targetIdentity": {
+    "appId": "zerobugs-control",
+    "bundleHash": "snapback.v1:sessions:function:sha256:7e1e6aaff8c68371de8bf55c0e02b332232627c507ebfb98138b4514d2d4179e",
+    "id": "local-dev-sqlite-ibex",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:6947b605efaf9c4ee08ae9243eeb39ee1587e85e911ee329eaddd4d9114e63ae",
+    "mode": "fresh local Ibex plus SQLite server",
+    "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+    "schemaVersion": "snapback.v1"
+  },
+  "workarounds": [
+    {
+      "id": "W-WINDOW",
+      "status": "online server-backed only"
+    },
+    {
+      "id": "W-PENDING",
+      "status": "offline mutation controls remain unavailable rather than falsely settled"
+    }
+  ]
+}
