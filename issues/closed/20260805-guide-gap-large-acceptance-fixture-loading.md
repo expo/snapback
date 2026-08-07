@@ -29,4 +29,21 @@ null/absent canonical form; plus a capability-index row pointing at it.
 
 ## Resolution
 
-(open)
+**Absorbed 2026-08-07** (LLP 0061 §5). Added
+`guide/testing/large-fixtures.md` ("Loading large deterministic fixtures"),
+covering all four folklore items in one intent-indexed page: the ≤900-row
+batch-ingest mutation (transcluded from
+`demos/zero-bakeoff/apps/fleet-observatory/snapback/functions.mjs`), the
+sessions-app acceptance gating (empty-of-source refusal + completion
+sentinel + session requirement, transcluded from
+`demos/zerobugs/control/snapback/functions.mjs`), loader session minting via
+the readiness descriptor's `adminTokenFile` carrier (transcluded from
+`demos/zerobugs/control/scripts/load-fixture.mts`), and the null/absent
+canonical form (verified against `src/storage.rs`: an unset optional field
+is stored and returned as explicit `null`). Linked from the guide index, from
+`backend/versioned-seeds.md` at the `SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED`
+refusal, and from `backend/mutations.md` §Bound and resume bulk work. Added
+capability-index row `testing.large-fixtures` (witness: `fixtureLoadPlan` in
+the loader script) with the grep vocabulary (`large fixture`, `bulk load`,
+`seed ceiling`, `ingestFixtureBatch`, `SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED`),
+and retrieval-eval seed case 15.

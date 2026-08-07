@@ -18,7 +18,12 @@ export const GUIDE_MCP_FLAT_URI = 'snapback-guide://flat';
 export const GUIDE_MCP_PAGE_URI_PREFIX = 'snapback-guide://page/';
 const CLASSED_LANGS = new Set(['js', 'mjs', 'ts', 'tsx', 'json', 'contract']);
 const MATURITY_RANK = { 'design-only': 0, partial: 1, shipped: 2 };
-const CAPABILITIES_SIZE_BUDGET_BYTES = 43008;
+// 32 KiB at Phase 1; raised as rows accrued (40 KiB in 7486d25e4, 42 KiB in
+// 1a890492a, 44 KiB on 2026-08-07 with the testing.large-fixtures and
+// clients.optimistic-create rows). Raise only alongside genuinely new rows —
+// the budget exists to force alias/wording discipline, not to be outgrown
+// silently.
+const CAPABILITIES_SIZE_BUDGET_BYTES = 45056;
 const SURFACE_MAP_SIZE_BUDGET_BYTES = 16384;
 // Vacuous-pass guards for the source scans: extraction returning fewer
 // entries than these floors means the scan broke, not that surface shrank.

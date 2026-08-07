@@ -15,7 +15,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-07
-reviewed-commit: f4d4d8c184a8994b747a8e83b1ee74abfcb8a09b
+reviewed-commit: cca0db7d8e94c8d4943eb808d4e10238a506c70c
 ---
 
 # Capability index
@@ -32,7 +32,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | backend.schema | Declare tables, fields, indexes, sync | schema, tables, model, field validators, v.json | local | shipped | `defineSchema` in packages/snapback-codegen/define.mjs | llp/0037, llp/0004 | getting-started/your-first-backend.md |
 | backend.structured-stored-fields | Native stored arrays and unions with write-time element validation, portable indexing, and sync semantics | table array, array field, v.array table field, structured storage, stored arrays, array validator | none | design-only | llp/0115-convex-parity-course-corrections.plan.md (CV-4b; no shipped witness) | llp/0115 | GAP (owner: LLP 0115 CV-4b, review: 2026-08-31); getting-started/your-first-backend.md |
-| backend.functions | Queries, live queries, mutations, and actions; declarative plans or colocated JS handlers with same-file helpers; explicit document/record/value result contracts including result-side `v.doc(table)` schema references; manifest-derived handler/helper `ctx.db` types with a query-read/mutation-write split; generated exact client references and runtime egress validation | query, mutation, endpoint, api, inline handler, result contract, results.documents, results.records, v.doc, GeneratedHandler, GeneratedQueryDatabase | local | shipped | packages/snapback-codegen/define.mjs | llp/0004, llp/0009, llp/0101, llp/0108, llp/0127 | backend/queries.md |
+| backend.functions | Queries, live queries, mutations, and actions; declarative plans or colocated JS handlers with same-file helpers; explicit document/record/value result contracts including result-side `v.doc(table)` schema references; manifest-derived handler/helper `ctx.db` types with a query-read/mutation-write split; generated exact client references and runtime egress validation | query, mutation, endpoint, api, inline handler, result contract, results.documents, results.records, v.doc, GeneratedHandler, GeneratedQueryDatabase, ctx.refuse, refusals, application error code, domain error, app refusal | local | shipped | packages/snapback-codegen/define.mjs | llp/0004, llp/0009, llp/0101, llp/0108, llp/0127 | backend/queries.md |
 | backend.runtime-values | Derive deterministic per-invocation time and fresh identifiers inside JavaScript handlers | server time, server clock, timestamp, generated id, UUID, Date.now, Math.random | local | shipped | `runtime.now` in packages/snapback-harness/ctx-bootstrap.js | llp/0051, llp/0065 | backend/trusted-runtime-values.md |
 | backend.standard-patterns | Generate owner CRUD, unique lookup, owner/membership keyset pages | CRUD generator, pagination, callable pagination, membership pages, trusted defaults | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065, llp/0100 | backend/standard-patterns.md |
 | backend.relational-queries | Bounded two-source equi-joins with explicit visibility, closed projections, and transactionally maintained projection tables (`defineRelationalQuery`, `defineMaintainedProjection`, stable capability since 2026-07-26) | joins, relational queries, denormalized reads, materialized views, conversation membership, message sender, chat joins, defineRelationalQuery, defineMaintainedProjection, Convex joins, Supabase joins | local | partial | `defineRelationalQuery` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
@@ -88,7 +88,8 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | clients.contract-keyed-scopes | Binding-time keyed Contract queries with dedup, refcounts, and authority fencing | dynamic query, query args, dedup, selection | local | shipped | `createKeyedSnapbackContractProvider` in packages/snapback-contract/keyed-provider.mjs | llp/0034, llp/0063 | clients/contract-adapter.md |
 | clients.mutation-outcomes | Raw provider settlement facts plus Exact three-fact mutation projection | mutation state, timeout, retry, receipt, ambiguity | local | shipped | `partitime.step1-mutation-projection.v1` in demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs | llp/0043, llp/0063 | clients/contract-adapter.md |
 | clients.optimistic-overlays | Derived optimistic mutations + reconciliation | optimistic, overlays, latency | local | shipped | `deriveOptimisticReducer` in packages/snapback-contract/index.mjs | llp/0052 | clients/contract-adapter.md |
-| clients.react | Prepared React provider over one headless store/transport seam: exact generated single/grouped live queries, capability-gated all-live and mixed-route references with one-commit register-mode adoption, explicit per-child registered-live/read-only boot provenance, honest weakest aggregate connection state, explicit live fallback, attach-deadline recovery, sessions authorization adoption, result-validated optimistic mutation rebase/rollback, local managed connection-keyed presence, per-query `freshness`/`retention` offline facts with the `useSnapbackOutbox` queued-intent projection, Strict Mode/HMR sharing, complete cleanup, and retained Signal Desk receipts | react, hooks, useSyncExternalStore, useSnapbackQuery, Convex useQuery, result inference, typed mutation, optimistic rollback, replay advisory, projectRecordFields, optimistic toggle helper, presence, ephemeral hook, useSnapbackPresence, typing indicator, query groups, mixed route, read-only snapshot, bundle prime, registered bundle, hmr, offline freshness, outbox badge | local | shipped | `useSnapbackPresence` in packages/snapback-react/index.d.mts | llp/0012, llp/0064, llp/0074, llp/0090, llp/0101, llp/0114, llp/0106, llp/0107, llp/0129, llp/0157 | clients/react.md |
+| clients.react | Prepared React provider over one headless store/transport seam: exact generated single/grouped live queries, capability-gated all-live and mixed-route references with one-commit register-mode adoption, explicit per-child registered-live/read-only boot provenance, honest weakest aggregate connection state, explicit live fallback, attach-deadline recovery, sessions authorization adoption, result-validated optimistic mutation rebase/rollback, local managed connection-keyed presence, per-query `freshness`/`retention` offline facts with the `useSnapbackOutbox` queued-intent projection, Strict Mode/HMR sharing, complete cleanup, and retained Signal Desk receipts | react, hooks, useSyncExternalStore, useSnapbackQuery, Convex useQuery, result inference, typed mutation, optimistic rollback, replay advisory, projectRecordFields, optimistic toggle helper, presence, ephemeral hook, useSnapbackPresence, typing indicator, query groups, mixed route, read-only snapshot, bundle prime, registered bundle, hmr, offline freshness, outbox badge, pending sidecar, application error, app refusal, appCode | local | shipped | `useSnapbackPresence` in packages/snapback-react/index.d.mts | llp/0012, llp/0064, llp/0074, llp/0090, llp/0101, llp/0114, llp/0106, llp/0107, llp/0129, llp/0157 | clients/react.md |
+| clients.optimistic-create | First-class typed optimistic create when the server mints the row ID — an intent-ID provisional row in the provider's query store, one intent → one canonical row under ambiguous retry; current paved shape is the pending sidecar in clients/react.md | optimistic create, optimistic insert, provisional row, pending row, intent id, client-generated id, temporary id, server-minted id | none | design-only | diaries/0044-contention-calendar-zero-bakeoff.diary.md (no shipped witness) | llp/0107, llp/0138 | GAP (owner: ccheever, review: 2026-09-30; issue: issues/20260801-optimistic-create-and-app-error-guide-gap.md); clients/react.md |
 | clients.surfaces | Generated application surfaces bind one screen/resource's reads, ordinary mutations, asset-bearing commands, raw assets, and presence around shared params; React and headless projections share canonical owners. The closed command task composes zero/one asset child with one ordinary mutation and reports truthful failure, ambiguity, and residue provenance. | defineSurface, useSurface, observeSnapbackSurface, application surface, screen surface, one hook for a screen, bind query and mutation, surface presence, conversation surface, useSnapbackSurface, defineCommand, useSnapbackCommand, image send, upload then mutate, command task | local | partial | `useSnapbackCommand` in packages/snapback-react/index.d.mts | llp/0179, llp/0180, llp/0114, llp/0176 | clients/surfaces.md |
 | clients.react-expo | React Expo Online; supervised no-URL simulator/emulator boot. G1 receipts prove those routes. Android USB selection plus exact `adb reverse` ownership is headless-proven with a live Online receipt pending; iOS USB honestly refuses because current `devicectl` has no TCP forward and `iproxy` is the wrong direction. Physical-device capability, LAN/tunnel, and release remain unclaimed. | react native, expo, ios, android, physical device, USB device, snapback dev --expo, SnapbackExpoProvider, adb reverse, TCP/IP adb refused, ios udid, iproxy, 10.0.2.2, authority-required, restore lock, .snapback gitignore, copy project | local | shipped | `runExpoDev` in packages/snapback-cli/expo-dev.mjs + packages/snapback-cli/expo-device-forwarding.test.mjs + simulator/emulator receipts | llp/0012, llp/0064, llp/0176, llp/0181 | clients/react-expo.md |
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance; crash detection | run server, ports, bindPortExactly, lifecycle, watchdog, crash, prebuilt binary, seed reset | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010, llp/0030 | testing/acceptance.md |
@@ -108,6 +109,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | operating.served-guide | Server embeds guide pages + hash-bound flat.md and serves the root /llms.txt index | docs endpoint, llms.txt, served docs | all | shipped | route /llms.txt | llp/0061 | index.md |
 | operating.guide-mcp | Read-only MCP resources for the build-bound guide corpus | mcp docs, guide resources | all | shipped | `run_stdio` in src/guide_mcp.rs | llp/0061 | index.md |
 | testing.acceptance | Headless-first acceptance harness and package-owned backend comparator profile | tests, acceptance, harness, comparator, backend bake-off, native push receipt | local | shipped | `runComparatorAcceptance` in packages/snapback-cli/comparator-profile.mjs | llp/0010, llp/0012, llp/0013, llp/0034 | testing/acceptance.md |
+| testing.large-fixtures | Load a deterministic acceptance fixture past the 1,024-effect seed ceiling: gated ≤900-row batch-ingest mutation, loader session mint from the readiness descriptor, digest verification under the null/absent canonical form | large fixture, bulk load, bulk import, batch ingest, ingestFixtureBatch, seed ceiling, SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED, fixture loader, load test data | local | shipped | `fixtureLoadPlan` in demos/zerobugs/control/scripts/load-fixture.mts | llp/0109, llp/0183 | testing/large-fixtures.md |
 | deploy.release-build | Target-neutral immutable release build, scan, content identity, and read-back verification | deploy build, release artifact, dirty preview, release digest | all | partial | `buildRelease` in packages/snapback-cli/index.mjs | llp/0072 | deploying/releases.md |
 | deploy.target-control | Descriptor-first no-follow/single-link authority I/O; owner-only target registration; a content-addressed provider/storage/TLS/supervisor/log/credential/cost drill plan before provisioning; digest-pinned inspection; content-addressed deploy/backup/code-only-rollback/destructive-restore planning; lease/generation-fenced apply; paused restore plus explicit activation; bounded redacted logs; authenticated inspection; read-back-verified backups; receipts; fail-closed hash-chained control audit; positive hosted-auth/qualification/prepared-release artifact producers; and a MAC-authenticated hosted-startup admission consumer/sealer/producer contract. Fly observation/lease and a separately packed sentinel-owned supervisor now have real provider evidence, including scoped credential custody and SQLite → immutable Tigris mirror → conditional external-anchor restart recovery. The public lifecycle train, target registration/channel, online admissions, served inspection, migration/activation/rollback, and complete packed product receipt remain GAPs; no hosted capability is advertised | target add, target doctor, remote drill plan, deploy plan, deploy apply, deploy rollback, deploy status, backup create, backup list, backup verify, restore plan, restore apply, restore verify, restore activate, hosted admission, qualification, prepared release, logs, inspect, audit verify | single-instance-container-vm | partial | `applyDeployPlan` in packages/snapback-cli/deployment-control.mjs | llp/0072, llp/0105 | deploying/releases.md |
 | deploy.cloudflare | The hosted Cloudflare target, as far as it is real | deploy, hosting, production | cloudflare | partial | cloudflare/test/local-suite.mjs | llp/0014, llp/0040, llp/0049 | deploying/cloudflare.md |
@@ -131,8 +133,8 @@ examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-06
-reviewed-commit: 850427c31b9a668d55b46995e08389cd13a2c9b6
+reviewed: 2026-08-07
+reviewed-commit: cca0db7d8e94c8d4943eb808d4e10238a506c70c
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -345,6 +347,10 @@ you never build around a feature because you didn't know it existed.
 - [Verify the declared app contract](./testing/verify.md) — compose artifact,
   runtime, D1 coverage, capabilities, and registered acceptance into one
   identity-bound partial done-oracle receipt.
+- [Loading large deterministic fixtures](./testing/large-fixtures.md) — load
+  past the 1,024-effect seed ceiling with a gated batch-ingest mutation,
+  loader session minting from the readiness descriptor, and digest
+  verification under the null/absent canonical form.
 
 ### Operating
 - [Discover agent controls](./operating/agent-controls.md) — search the
@@ -888,8 +894,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
+reviewed: 2026-08-07
+reviewed-commit: cca0db7d8e94c8d4943eb808d4e10238a506c70c
 ---
 
 # Retrieval eval protocol
@@ -983,6 +989,22 @@ correct Snapback security boundary, not a plausible-sounding guess.
     and `recipes/coming-from-convex-and-supabase.md`. The run fails if the
     plan claims Snapback's hook is identical to Convex's auto-reactive
     model without naming the backend-declares/client-subscribes split.
+
+Cases 15–16 are absorption seeds from the 2026-08-01 optimistic-create/app-error
+and 2026-08-05 large-fixture guide-gap tickets (LLP 0138 bakeoff and LLP 0183
+Lane 1 misses, absorbed 2026-08-07).
+
+15. **Large fixtures:** "Load a deterministic 5,000-row acceptance fixture —
+    the seed refuses with `SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED`." Expected
+    pages: `testing/large-fixtures.md`. The run fails if the plan tries to
+    raise or dodge the seed ceiling, or reinvents an ungated import mutation
+    without the sentinel-closed bootstrap gating.
+16. **Domain errors and optimistic create:** "Show 'card is locked' copy when
+    a mutation is rejected, and optimistically create a row whose ID the
+    server mints." Expected pages: `clients/react.md` (both new sections) and
+    `backend/mutations.md` (declared refusals). The run fails if the plan
+    parses `SNAPBACK_HANDLER_FAILED` message text, or forges a provisional
+    generated row ID instead of the intent-keyed pending sidecar.
 
 ## Budget
 
@@ -2591,8 +2613,8 @@ examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-05
-reviewed-commit: 4a6000ac6f17a8c94bc2aecf573c0654e850b758
+reviewed: 2026-08-07
+reviewed-commit: cca0db7d8e94c8d4943eb808d4e10238a506c70c
 ---
 
 # Mutations
@@ -2839,6 +2861,11 @@ Build large jobs from the ordinary bounded primitives:
    completed cursor or stable key.
 4. Read that checkpoint before the next page. After interruption, resume after
    the committed checkpoint rather than replaying every earlier page.
+
+For the specific case of loading a deterministic acceptance fixture larger
+than one seed or one mutation allows, the paved recipe — gated batch-ingest
+mutation, loader session, digest verification — is
+[loading large deterministic fixtures](../testing/large-fixtures.md).
 
 Each page is its own atomic commit; the whole multi-page job is not one
 transaction. Make each page idempotent under the application's business key or
@@ -3625,8 +3652,8 @@ examples: [demos/party-wall]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-07
+reviewed-commit: cca0db7d8e94c8d4943eb808d4e10238a506c70c
 ---
 
 # Versioned seeds
@@ -3787,7 +3814,10 @@ it — mint personas *after* the install, and never seed captured principal ids
 - `SNAPBACK_SEED_OPERATION_HISTORICAL`: obtain a fresh predecessor stream and
   operation id.
 - `SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED`: keep total direct plus changed
-  maintained-projection outputs at or below 1,024.
+  maintained-projection outputs at or below 1,024. An acceptance fixture that
+  genuinely needs more rows does not belong in a seed — load it through the
+  gated batch-ingest recipe in
+  [loading large deterministic fixtures](../testing/large-fixtures.md).
 - `SNAPBACK_CLIENT_SEED_PROTOCOL_UNSUPPORTED`: the selected target does not
   advertise the required protocol; there is no compatibility fallback.
 
@@ -7643,8 +7673,8 @@ examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-06
-reviewed-commit: 4ac8387f080a2659484fc09916ff22a076dc4ca8
+reviewed: 2026-08-07
+reviewed-commit: cca0db7d8e94c8d4943eb808d4e10238a506c70c
 ---
 
 # The React client
@@ -7940,6 +7970,87 @@ whose result diverges when replayed over its own output logs one
 `SNAPBACK_REACT_OPTIMISTIC_REPLAY_DIVERGENT` warning per (mutation, query)
 site; production builds skip the check.
 
+## Optimistically create a row the server will name
+
+The `optimistic:` projection **updates rows that already exist** in the
+authoritative store. It cannot fabricate a new row for a create mutation
+whose canonical `_id` the server mints: the projected rows are validated
+against the generated result contract, and the row identity is a branded
+generated ID that only the server produces — TypeScript refuses a forged
+provisional ID, and that refusal is deliberate (a fake ID could leak into
+mutation arguments and durable state). An append-shaped reducer
+(`rows => [...rows, capturedRow]`) is also not idempotent over its own
+output, so it trips the development replay advisory above.
+
+The current paved shape is a **component-local pending sidecar keyed by an
+app-generated intent key** — never a forged row ID:
+
+```tsx fragment reason="illustrative pending-sidecar shape; row fields come from the application schema"
+const [pending, setPending] = useState<Array<{ intentKey: string; title: string }>>([]);
+const createTask = useSnapbackMutation(api.createTask);
+
+async function submit(title: string) {
+  const intentKey = crypto.randomUUID(); // app-local presentation key only
+  setPending((rows) => [...rows, { intentKey, title }]);
+  try {
+    await createTask({ title });
+  } finally {
+    // Success or rejection: remove exactly this pending item. The canonical
+    // row (with its server-minted ID) arrives by live delivery.
+    setPending((rows) => rows.filter((row) => row.intentKey !== intentKey));
+  }
+}
+```
+
+Render the pending items beside the query rows, marked as unsettled. On
+rejection, only the corresponding pending item disappears; on success the
+authoritative row replaces it through the ordinary live update. The
+contention-calendar bakeoff arm
+([diary 0044](repo:diaries/0044-contention-calendar-zero-bakeoff.diary.md))
+is the witness for this shape — and for the type system correctly refusing
+the forgery.
+
+This is honestly less composable than a provider-owned optimistic insert: the
+pending row does not participate in the query store's filtering, sorting, or
+counting. A first-class typed intent-ID optimistic create — a provisional row
+in the provider's store that reconciles one intent to one canonical row under
+ambiguous retry — is an explicit GAP
+(`clients.optimistic-create` in the [capability index](../capabilities.md);
+issue
+[20260801-optimistic-create-and-app-error-guide-gap](repo:issues/20260801-optimistic-create-and-app-error-guide-gap.md)).
+
+## Show stable application errors through rollback
+
+When a mutation is rejected for a *domain* reason (a locked card, a taken
+seat), do not parse the failure message. A handler that throws a bare
+`Error` surfaces as the platform code `SNAPBACK_HANDLER_FAILED`, and its
+message text is deliberately not a stable public contract. Declare the
+domain codes on the backend instead and throw with `ctx.refuse` — see
+[declared application refusals](../backend/mutations.md#consume-the-structured-result).
+The rejection then arrives typed: the mutation promise rejects with
+`SNAPBACK_APP_REFUSAL` carrying the declared `appCode` and `appDetails` in
+its diagnostic details, while the optimistic layer for that attempt — and
+only that layer — is removed and every newer layer recomputes over the
+authoritative base:
+
+```ts fragment reason="refusal codes and copy come from the application's declared refusals"
+try {
+  await reserveSlot({ slotKey, resourceId });
+} catch (error) {
+  const diagnostic = (error as { diagnostic?: { code?: string; details?: { appCode?: string } } }).diagnostic;
+  if (diagnostic?.code === 'SNAPBACK_APP_REFUSAL' && diagnostic.details?.appCode === 'SLOT_TAKEN') {
+    showSlotTakenBanner(slotKey); // stable declared code, not message text
+  } else {
+    throw error;
+  }
+}
+```
+
+The declared code is safe to key product copy on precisely because the host
+admits it only when the invoked function declared it; an undeclared or forged
+code folds to `SNAPBACK_HANDLER_FAILED` and drops the app payload, so
+internal exception text never becomes UI copy by accident.
+
 ## Publish and observe ephemeral presence
 
 `useSnapbackPresence` is the React hook for generated **ephemeral**
@@ -8065,6 +8176,12 @@ no-work refusal, and exact provider/client/server cleanup with zero skips.
   instead ([optimistic toggle recipe](../recipes/optimistic-toggle.md)).
 - **Do not toggle or increment inside an optimistic `update`.** The
   projection replays during rebase; capture the intended outcome and set it.
+- **Do not forge a provisional row ID to make an optimistic create
+  typecheck.** The branded generated ID is the server's to mint; keep the
+  provisional item in a pending sidecar under an app-local intent key.
+- **Do not parse `SNAPBACK_HANDLER_FAILED` message text for domain
+  rejections.** Declare the code in the function's `refusals`, throw with
+  `ctx.refuse`, and switch on the structured `appCode`.
 - **Do not create presence heartbeat intervals in application code.** Pass
   managed intent to `useSnapbackPresence`; the provider owns admission,
   refresh, disconnect, and teardown.
@@ -16664,3 +16781,245 @@ set. It does not claim that a live target admitted those bytes, does not
 implement `acceptance.run`, does not prove product completeness, and does not
 perform or custody CV-14 semantic review. Build acceptance profiles with the
 headless-first discipline in [Acceptance testing](acceptance.md).
+
+---
+
+<!-- snapback-guide-source: guide/testing/large-fixtures.md -->
+---
+title: Loading large deterministic fixtures
+id: testing.large-fixtures
+order: 3
+audience: agent-first
+capabilities: [testing.large-fixtures]
+authorities: [llp/0109-versioned-seed-evolution.spec.md, llp/0183-zerobugs-quality-surface.rfc.md, demos/zerobugs/control/scripts/load-fixture.mts, demos/zerobugs/control/snapback/functions.mjs, demos/zero-bakeoff/apps/fleet-observatory/snapback/functions.mjs, src/seed_identity.rs, src/storage.rs]
+examples: [demos/zerobugs/control, demos/zero-bakeoff/apps/fleet-observatory]
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-08-07
+reviewed-commit: cca0db7d8e94c8d4943eb808d4e10238a506c70c
+---
+
+# Loading large deterministic fixtures
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+A [versioned seed](../backend/versioned-seeds.md) installs at most **1,024
+effects** — direct rows plus changed maintained-projection outputs — and
+refuses a larger fixture with `SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED`. A single
+mutation has the same order of ceiling: at most **1,024 buffered writes**
+(`SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED`; see
+[bound and resume bulk work](../backend/mutations.md#bound-and-resume-bulk-work)).
+Both ceilings are deliberate. When an acceptance suite needs a deterministic
+fixture bigger than that — thousands of rows across many tables — do not
+fight the seed protocol. Load through an **app-authored, acceptance-only
+batch-ingest mutation**, driven in bounded batches by a loader script, and
+verify the loaded state by content digest.
+
+This page distills the paved shape from two CI-exercised sources: the minimal
+loader in the fleet-observatory bakeoff app
+([functions](repo:demos/zero-bakeoff/apps/fleet-observatory/snapback/functions.mjs),
+driven by its own acceptance suite) and the hardened sessions-app loader in
+the zerobugs control
+([functions](repo:demos/zerobugs/control/snapback/functions.mjs) +
+[loader script](repo:demos/zerobugs/control/scripts/load-fixture.mts), whose
+compiled-plan/handler/digest pipeline runs under the demo's
+`bun run test:fixture` suite and whose live path runs in its `test:lane*:live`
+acceptance lanes).
+
+## Declare a batch-ingest mutation
+
+The minimal shape is one JS mutation that takes a table name and a bounded
+array of rows, refuses anything outside its closed table set, and returns a
+count receipt:
+
+```js source=demos/zero-bakeoff/apps/fleet-observatory/snapback/functions.mjs
+export const ingestFixtureBatch = defineJsMutation({
+  args: {kind: v.string(), rows: v.json()}, writes: ['fleets', 'fleetMemberships', 'owners', 'devices', 'events'], result: results.value(v.integer()),
+  handler: async (ctx, args) => {
+    if (!Array.isArray(args.rows) || args.rows.length > 900) throw new Error('fixture batch must contain at most 900 rows');
+    if (!['fleets', 'fleetMemberships', 'owners', 'devices', 'events'].includes(args.kind)) throw new Error('unknown fixture table');
+    for (const row of args.rows) await ctx.db.insert(args.kind, row);
+    return args.rows.length;
+  },
+});
+```
+
+The **≤900-row batch bound is headroom, not superstition**: the 1,024 ceiling
+counts every write expanded into the same commit, including maintained
+projections and membership commands, so a batch sized at the ceiling breaks
+the moment a table gains a projection. Size batches so direct rows plus
+generated effects stay comfortably under 1,024.
+
+Each batch is its own atomic commit — the whole fixture load is **not** one
+transaction. That is fine for a fixture: batches are deterministic, ordered,
+and verified as a whole at the end (below).
+
+## Gate the loader in a sessions app
+
+An ungated ingest mutation is a general data-import API wearing a test badge.
+The zerobugs control gates its loader three ways — `auth: 'authenticated'`
+(the loader mints a real dev session, below), refusal of caller-authored
+system fields, and a **bootstrap window** that closes the mutation forever
+once the fixture is complete:
+
+```js source=demos/zerobugs/control/snapback/functions.mjs
+async function requireFixtureBootstrapWindow(db) {
+  // @ref LLP 0109#155-quantitative-and-acceptance-closure — this fixture is a
+  // sequence of ordinary bounded commits, not a partially installed seed.
+  // `searchEpoch` is deliberately last in the frozen load order and therefore
+  // acts as the completion sentinel: any later ingest attempt fails closed.
+  const completed = await db.query('searchEpoch').take(1).collect();
+  if (completed.length !== 0) {
+    throw new Error('fixture ingestion is closed after fixture completion');
+  }
+
+  // Bootstrap is circular: the fixture creates the source users that a later
+  // identityBinding maps to session principals. While the sentinel is absent,
+  // only the frozen user population may exist. A foreign source user closes
+  // the acceptance loader rather than widening this into a general import API.
+  const expected = fixtureUserRoles();
+  const users = await db.query('user').take(15).collect();
+  if (
+    users.length > 14
+    || users.some(user => (
+      user.role === 'crew'
+        ? !expected.crew.includes(user.id)
+        : user.role !== 'user' || !expected.user.includes(user.id)
+    ))
+  ) {
+    throw new Error('fixture ingestion found source users outside the frozen fixture');
+  }
+}
+```
+
+The pattern generalizes: pick the table that is **last** in your frozen load
+order as the completion sentinel (any row in it means the load finished, so
+further ingest refuses), and refuse ingestion whenever data outside the frozen
+fixture already exists (the empty-of-source refusal). Together they make the
+loader a one-shot bootstrap channel, not an import surface.
+
+## Mint the loader's session from the readiness descriptor
+
+In a sessions-mode app the loader needs a real bearer. `snapback session mint`
+is an **admin-gated host operation**; the dev server's readiness descriptor
+(`.snapback/dev.ready.json`, schema
+[host-ready](repo:schemas/host-ready.schema.json)) names the managed
+admin-token carrier in its `adminTokenFile` field — the same owner-only
+sidecar described in
+[acceptance testing](./acceptance.md#bootstrap-a-backend-without-the-js-kit).
+Given `--ready-file`, the CLI discovers that auto-minted token itself when the
+declared carrier is the descriptor's mechanical sibling; a loader can also
+read the carrier explicitly, as the zerobugs loader does, instead of asking
+the caller to export secrets:
+
+```ts source=demos/zerobugs/control/scripts/load-fixture.mts
+  const command = process.env.SNAPBACK_RUNTIME_BINARY
+    ?? join(CONTROL_ROOT, 'node_modules/.bin/snapback');
+  // `session mint` is an admin-gated host-op: it requires the dev server's
+  // admin token (SNAPBACK_ADMIN_TOKEN or --token). The readiness descriptor
+  // names the managed token carrier; read it here rather than requiring the
+  // caller to export secrets.
+  const adminTokenFile = ready.adminTokenFile;
+  const mintEnv = {...process.env};
+  if (!mintEnv.SNAPBACK_ADMIN_TOKEN && typeof adminTokenFile === 'string') {
+    mintEnv.SNAPBACK_ADMIN_TOKEN = (await readFile(adminTokenFile, 'utf8')).trim();
+  }
+  const {stdout} = await execFileAsync(
+    command,
+    ['session', 'mint', '--email', email, '--ready-file', readyFile],
+    {cwd: CONTROL_ROOT, env: mintEnv, maxBuffer: 1024 * 1024},
+  );
+```
+
+The mint envelope carries `data.token` (the bearer) and
+`data.session.userId` (the principal); check `ok === true` before trusting
+either. Drive the loader's mutations through
+`createExternalSessionClient(baseUrl, { bearerToken })` — see
+[native-app auth](../auth/native-apps.md) for that client's contract.
+
+## Batch in frozen order, map the minted IDs
+
+Fixture rows on disk carry **placeholder** identities; the server mints the
+real row `_id` at insert. Split each table into ≤900-row batches in one frozen
+load order (references only ever point at already-loaded tables):
+
+```ts source=demos/zerobugs/control/scripts/load-fixture.mts
+export function fixtureLoadPlan(
+  tables: FixtureTables,
+): Array<{table: TableName; rows: FixtureRow[]}> {
+  const plan: Array<{table: TableName; rows: FixtureRow[]}> = [];
+  for (const table of LOAD_ORDER) {
+    const rows = tables[table];
+    for (let offset = 0; offset < rows.length; offset += MAX_FIXTURE_BATCH_ROWS) {
+      plan.push({table, rows: rows.slice(offset, offset + MAX_FIXTURE_BATCH_ROWS)});
+    }
+  }
+  return plan;
+}
+```
+
+Have the ingest mutation return the minted IDs in input order (the zerobugs
+`fixtureIngestBatch` returns `{inserted, ids}`), and maintain the
+placeholder↔runtime maps as each batch's receipt arrives; rewrite reference
+fields in later batches through that map before sending them. Refuse duplicate
+mappings — one placeholder must map to exactly one runtime ID.
+
+## Verify by digest under the null/absent canonical form
+
+After loading, read every table back through the ordinary query surface and
+compare a canonical digest against the fixture's compiled contract. One
+runtime fact matters here: **an unset optional field is stored — and returned —
+as an explicit `null`**. The query surface does not distinguish `null` from
+absent, so canonicalization must fold them into one form before digesting (the
+zerobugs loader drops nulls, strips server-owned system fields, and maps
+runtime IDs back to placeholders):
+
+```ts source=demos/zerobugs/control/scripts/load-fixture.mts
+    const normalized: Record<string, JsonValue> = {_id: placeholder};
+    for (const [field, value] of Object.entries(row)) {
+      if (field === '_id' || field === '_version' || field === '_createdAt' || field === '_updatedAt') {
+        continue;
+      }
+      // Canonical form: unset optional fields are omitted. The runtime's query
+      // surface returns them as explicit null and does not distinguish null
+      // from absent, so nulls are dropped before digesting.
+      if (value === null) {
+        continue;
+      }
+      if (REFERENCE_FIELDS[table].includes(field) && typeof value === 'string') {
+        const reference = actualToPlaceholder.get(value);
+        if (!reference) fail(`${table}.${field} returned unknown runtime id ${value}`);
+        normalized[field] = reference;
+      } else {
+        normalized[field] = value;
+      }
+    }
+```
+
+Digest the normalized, identity-sorted rows with a key-sorted canonical JSON
+encoding and compare per-table counts and digests, plus one overall digest,
+against the checked-in contract. Any mismatch is a hard failure naming the
+first differing row — determinism is the whole point of the fixture.
+
+## Anti-patterns
+
+- **Do not fight `SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED` by chaining seeds or
+  reset-installs.** The versioned-seed protocol is fixture *identity*, not
+  bulk transport; over-ceiling fixtures belong to bounded ordinary mutations.
+- **Do not size batches at the 1,024 ceiling.** The ceiling counts expanded
+  writes (maintained projections, membership commands), not just your rows;
+  ≤900 direct rows is the proven headroom.
+- **Do not leave the ingest mutation open.** Require a session, refuse
+  caller-authored system fields, and close the bootstrap window with a
+  completion sentinel plus an empty-of-source refusal — otherwise you have
+  shipped a general import API.
+- **Do not compare observed rows to fixture bytes raw.** Strip `_version`/
+  `_createdAt`/`_updatedAt`, map minted IDs back to placeholders, and fold
+  explicit `null` and absent optional fields into one canonical form first.
+- **Do not ask callers to export admin secrets.** The readiness descriptor
+  already names the managed `adminTokenFile` carrier; discover it (or let
+  `--ready-file` discovery do it) instead of pasting tokens into shells or CI
+  configuration.
