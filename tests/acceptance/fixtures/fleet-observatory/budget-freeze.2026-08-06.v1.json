@@ -39,8 +39,8 @@
       "firstUsefulRows": 100,
       "rowsInstalled": 200,
       "payloadBytes": 49652,
-      "firstUsefulMs": 347.455,
-      "authoritativeCompleteMs": 347.455
+      "firstUsefulMs": 171.143,
+      "authoritativeCompleteMs": 171.143
     }
   },
   "frozenCeilings": {

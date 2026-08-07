@@ -30,7 +30,24 @@ Contract and harness owners select their direct fixtures; telemetry
 exact-current release/promotion wiring is recorded honestly as an open
 blocker; obsolete cadence prose removed; main-push affected runs use
 commit-unique concurrency so a replaced pending run cannot create an uncovered
-diff gap.)
+diff gap.) 2026-08-06 (same-change frozen-record coupling: a tracked pre-push
+hook runs only selector-registered drift gates for committed pushed paths;
+unknown/shared authority fans out to the full drift registry, a loud emergency
+bypass remains observable, and an independent latest-main detector files one
+idempotent filesystem ticket per still-open drift.) 2026-08-06 (isolated gate
+execution becomes environment-faithful: every installed `node_modules` tree
+at a tracked project directory is mirrored without dirtying the checkout,
+declared external modules and ignored prepared inputs are preflighted, prepared
+native state is reused when available, and setup/unavailability exits as infrastructure rather than
+misreporting a stale record. Refusal diagnostics print the regeneration command
+before best-effort worktree inspection, so loss of Git context cannot hide the
+repair path. Repository-local `GIT_*` variables inherited by hooks are removed
+from nested Git and gate commands so a non-HEAD pushed commit is evaluated in
+its detached checkout, not against the caller's index and HEAD.) 2026-08-06
+(dependency isolation economics: a lock/manifests-keyed, atomically published
+link-scaffold cache uses APFS clonefile with a portable fallback; workspace
+links remain revision-relative, and only gates declaring a submodule pay its
+initialization cost.)
 **Related:** LLP 0010, LLP 0032, LLP 0109, LLP 0115, LLP 0145, LLP 0154,
 issues/closed/20260802-local-proof-is-cancelled-before-it-can-finish-on-main.md,
 issues/closed/20260802-verify-local-proof-stops-at-the-first-failure.md,
@@ -299,6 +316,127 @@ guide inputs add generated-artifact and guide closure checks. The selector
 emits its exact chosen and `NOT_SELECTED` inventories even when no affected
 group is needed.
 
+##### Same-change frozen-record coupling
+
+The checked selection policy also owns a narrow `driftProneGates` registry.
+An entry is admitted only when its canonical gate recomputes a value from
+source and compares that value with a committed frozen record. Each entry names
+the record, exact regeneration command, and fine-grained trigger rules. The
+fine-grained rules refine the broader affected-proof groups for this local
+latency boundary; path classification and fail-closed behavior still come from
+the same selector.
+
+The registered set is:
+
+| Gate | Committed record checked against recomputation |
+|---|---|
+| `agent-safe-publication-fixtures` | reviewed generated-publication leaf set in `tests/agent_safe_publication_checker_v1.mjs` |
+| `client-bundle-metrology` | active bundle profiles, baselines, and `current.v1.json` |
+| `generated-artifacts` | codegen review manifests and committed projections |
+| `contract-meta` | non-generated Contract pure-parameter sidecars |
+| `guide` | generated Guide manifest and flat projection |
+| `telemetry-receipt-check` | retained Phase-1 telemetry receipt |
+| `auth-invalidation-report` | recomputed composed authorization-invalidation receipt |
+| `control-catalog` | generated catalog JSON and generated Guide blocks |
+| `deployment-identity` | the two Cloudflare deployment-identity JSON records |
+| `result-transform-ship-gate` | result-transform retained ship receipt |
+| `relation-activity-publication` | source-pinned relation-activity carrier and readers |
+| `sequence-allocation-publication` | source-pinned sequence-allocation carrier and readers |
+| `local-store-publication` | persistent-store carrier and anchor |
+| `local-store-carrier-receipt` | carrier-exit and bundle-attribution receipts |
+
+The tracked `.githooks/pre-push` consumes Git's ref-update stream, computes the
+union of paths in every committed landing being introduced (plus the net diff
+for a rewritten update), and asks `selectDriftProneGates` for the registered
+checks. It never selects from working-tree-only edits. A known path with no
+drift trigger runs zero drift gates; a path classified `all`, or a path with no
+classification, runs every registered drift gate. A failure names the stale
+record, canonical check, and exact regeneration command.
+
+The agent-safe publication checker's own file has an explicit publication rule
+ahead of the broad `tests/` fallback. Changing that trigger/record therefore
+runs its owning drift gate without converting an otherwise known path into a
+full-registry environment probe; genuinely unknown test paths still fail broad.
+
+When the requested revision cannot run in the invoking worktree, the hook's
+detached checkout is created beside it so sibling repositories retain their
+normal resolution. It mirrors every installed `node_modules` tree below a
+tracked project directory into a real ignored directory (linking the entries,
+not the directory itself), initializes an already-available Ibex submodule,
+and reuses explicit or locally prepared native caches. Registry entries declare
+non-built-in Node modules and required ignored/prepared paths, which are
+resolved or projected before the gate starts. Missing modules or prepared
+paths, failed prepare commands, missing executables, signals, and stable
+bootstrap/environment diagnostics are exit-2 infrastructure errors: they make
+no stale-record claim and file no backstop ticket.
+
+The auth-invalidation report declares the ignored Todo and RBAC generated
+manifests compiled by its Rust receipt tests. They are environment inputs, not
+the auth frozen record; absence in a detached checkout is therefore an
+infrastructure failure, while a prepared checkout projects the exact bytes
+from the invoking environment.
+
+#### Dependency mirror cache
+
+Detached checks reuse a dependency-link scaffold keyed by SHA-256 over the
+root `bun.lock`, every tracked package manifest, the cache schema, platform,
+and architecture. The scaffold contains directories and links, not a second
+mutable package installation. Repository-local workspace links are written
+relative to their repository position, so copying the scaffold into a detached
+checkout resolves them to that checkout's packages rather than the invoking
+worktree. External dependency links retain the prepared dependency tree as
+their source, matching the pre-cache isolation contract.
+
+Cache publication is staged under a unique directory and renamed into the
+content-addressed destination only after its receipt and complete payload have
+been written. Concurrent builders may duplicate the bounded first-build work,
+but only one complete directory wins; losers validate and reuse that winner.
+An existing malformed entry is an infrastructure failure rather than a stale-
+record conclusion. A changed lockfile or tracked package manifest selects a
+new destination and cannot reuse the old scaffold.
+
+On macOS the scaffold is materialized with `cp -cR -P`, preserving symlinks
+while asking APFS for clonefile copies. If that command or filesystem does not
+support cloning, Node's recursive copy with `COPYFILE_FICLONE` falls back
+safely to an ordinary copy. The scaffold contains no dependency payload bytes,
+so the portable path does not byte-copy installed package trees.
+
+Submodules are likewise explicit gate inputs rather than universal isolation
+setup. The auth-invalidation report declares `vendor/ibex` because its
+bootstrap needs the vendored Cargo dependency; JavaScript-only gates do not
+clone Ibex merely because the invoking worktree has initialized it. Required
+submodule absence or initialization failure remains an exit-2 infrastructure
+error.
+
+Git's repository-local hook environment (`GIT_DIR`, `GIT_WORK_TREE`, index,
+object-directory, prefix, and related variables) is stripped from every nested
+Git and gate process. Connection and author identity variables remain. This is
+required when the pushed local revision is not the invoking worktree's current
+HEAD: cwd, not the hook caller's exported repository state, must select the
+detached revision.
+
+On a genuine refusal, record identity, check command, and regeneration command
+are printed before optional working-tree-diff inspection. Diff inspection is
+best-effort and non-fatal; even a checker that invalidates its Git context
+cannot suppress the developer's repair command. Captured JavaScript checker
+diagnostics retain their assertion and diff text but omit stack frames; an
+infrastructure failure retains its complete diagnostic output.
+
+`SNAPBACK_DRIFT_GATES_BYPASS=1` is the sole bypass. Any other value refuses;
+the accepted value prints a conspicuous banner and the skipped gates. The
+bypass does not disarm `node scripts/drift-prone-gates.mjs backstop`: that
+command checks the registered set independently of path selection at the
+selected `main` revision, attributes drift from the most recent green record
+epoch along first parent when possible, and files one
+`issues/YYYYMMDD-main-drift-<gate>.md` ticket. The open-ticket `Drift gate`
+marker is the idempotency key; moving a resolved ticket to `issues/closed/`
+rearms the detector.
+
+Telemetry keeps D2.4's distinct semantics: its same-change check proves the
+retained receipt is historically valid, but an ancestral `LAGGING` or
+`OVERDUE` receipt remains legal on ordinary `main`. Exact-current telemetry is
+still a release/promotion obligation, not a pre-push requirement.
+
 #### D2.2 Affected proof
 
 Run on every PR and `main` push for the subsystem(s) selected by a checked
@@ -320,7 +458,7 @@ lockfile, toolchain pins, common harnesses, workflow definitions, and the path
 map itself deliberately fan out to all affected suites.
 
 The authority now lives beside the runner in
-`scripts/local-proof-selection-policy.v1.json`. It classifies all 131 stable
+`scripts/local-proof-selection-policy.v1.json`. It classifies all 134 stable
 canonical gates into fast/affected groups; `scripts/select-local-proof.mjs`
 binds the base/head diff, policy bytes, parsed gate inventory, selected groups,
 prerequisite closure, and heavyweight-tool requirements into one reopenable

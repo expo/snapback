@@ -249,3 +249,44 @@ the published versions.
   not stage tarballs, create a 0.1.11 ledger, publish or move any dist-tag, or
   run public-registry/G4 smoke proofs. A landed fixture/lineage reconciliation
   and fresh complete green candidate proof are required before retry.
+
+- **2026-08-06 — 0.1.11 successor attempt 5 BLOCKED before staging; nothing
+  published.** The attempt fetched and pinned clean `origin/main`
+  `cdc0fe03e8d75c4a1d1d25f79fe820f20b772ef7`, confirmed npm authentication
+  as `ccheever`, and observed `latest: 0.1.10` with no 0.1.11 on all ten
+  names. The complete 134-gate proof selected Exact and ran fail-fast under
+  repository-pinned Node 24.18.0. Twenty-one gates passed, including the
+  repaired capability-maturity and agent-safe-publication gates and governed
+  client-bundle metrology (56 profiles, no frozen-ceiling regressions), before
+  `relation-activity-publication` failed: all three governed publication
+  carriers name `src/storage.rs` digest `1c2a8eef...`, while the candidate's
+  tracked file hashes to `975d8201...`. Focused checks confirmed the same
+  mismatch at `sequence-allocation-publication` and
+  `local-persistent-store-publication`. The batch commit `d2bd5fbbd` refreshed
+  the carriers against an intermediate tree and then changed `src/storage.rs`
+  again in the same commit. The recurrence is reopened at
+  `issues/20260806-publication-carrier-lineage-drift.md`. Per this log's
+  central-gate rule, the attempt did not stage tarballs, create a 0.1.11
+  ledger, publish or move any dist-tag, or run public-registry/G4 smoke proofs.
+  A landed carrier rebind and fresh complete green candidate proof are required
+  before retry.
+
+- **2026-08-06 — 0.1.11 successor attempt 6 BLOCKED before staging; nothing
+  published.** The attempt fetched and pinned clean `origin/main`
+  `1250b7a6a8e918bb3ca3fe3b2f50da45aec5e9f8`, confirmed npm authentication
+  as `ccheever`, and observed `latest: 0.1.10` with no `0.1.11` on all ten
+  names. The complete 134-gate proof selected Exact and ran fail-fast under
+  repository-pinned Node 24.18.0. Twenty-six gates passed, including the
+  repaired capability-maturity and agent-safe-publication gates, governed
+  client-bundle metrology (56 profiles, no frozen-ceiling regressions), and
+  all three refreshed publication carriers. The proof then failed
+  `fleet-observatory-move1-receipt`: its retained source manifest binds
+  `packages/snapback-client/index.mjs` to SHA-256 `40f0d7a4...`, while the
+  candidate's tracked file hashes to `688ec4d2...`. The existing Fleet owner
+  action is updated at
+  `issues/20260806-main-red-post-fleet-landing-sweep.md`. Per this log's
+  central-gate rule, the attempt did not stage tarballs, create a 0.1.11
+  ledger, publish or move any dist-tag, or run public-registry/G4 smoke
+  proofs. A fresh owner-issued Fleet receipt against one final tracked source
+  tree and its readiness-qualified binary, followed by a complete green
+  candidate proof, is required before retry.

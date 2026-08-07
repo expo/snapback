@@ -48,11 +48,13 @@ export function validateSelectionPolicy(policy, calls) {
   const groupNames = Object.keys(policy.groups ?? {}).sort();
   assert(groupNames.length > 0, 'selection groups exist');
   const declared = new Set();
+  const grouped = new Set();
   validateGateList(policy.alwaysGates, 'always gates', canonicalSet, declared);
   for (const name of groupNames) {
     const group = policy.groups[name];
     assert(group?.lane === 'fast' || group?.lane === 'affected', `group ${name} lane`);
     validateGateList(group.gates, `group ${name} gates`, canonicalSet, declared);
+    for (const gate of group.gates) grouped.add(gate);
   }
   assert(
     canonicalGates.every((gate) => declared.has(gate)),
@@ -92,6 +94,80 @@ export function validateSelectionPolicy(policy, calls) {
   for (const [name, markers] of Object.entries(policy.workflowRequirementMarkers ?? {})) {
     validateUniqueStrings(markers, `workflow requirement ${name}`);
     for (const gate of markers) assert(canonicalSet.has(gate), `workflow marker ${name}:${gate}`);
+  }
+  const driftEntries = Object.entries(policy.driftProneGates ?? {});
+  assert(driftEntries.length > 0, 'drift-prone gate registry exists');
+  for (const [gate, metadata] of driftEntries) {
+    assert(canonicalSet.has(gate), `drift-prone gate ${gate}`);
+    assert(grouped.has(gate), `drift-prone gate ${gate} belongs to an affected path group`);
+    validateUniqueStrings(metadata?.records, `drift-prone gate ${gate} records`);
+    validateUniqueStrings(metadata?.recordPaths, `drift-prone gate ${gate} record paths`);
+    for (const path of metadata.recordPaths) {
+      assert(validRepositoryPath(path), `drift-prone gate ${gate} record path ${path}`);
+    }
+    const triggerMatchers = ['files', 'prefixes', 'suffixes']
+      .flatMap((key) => metadata?.triggerRules?.[key] ?? []);
+    validateUniqueStrings(triggerMatchers, `drift-prone gate ${gate} trigger rules`);
+    assert(triggerMatchers.length > 0, `drift-prone gate ${gate} has trigger rules`);
+    for (const matcher of triggerMatchers) {
+      assert(validRepositoryPath(matcher), `drift-prone gate ${gate} trigger ${matcher}`);
+    }
+    assert(
+      typeof metadata.regenerateCommand === 'string' && metadata.regenerateCommand.length > 0,
+      `drift-prone gate ${gate} regenerate command`,
+    );
+    if (metadata.blessedRegenerateCommand !== undefined) {
+      assert(
+        typeof metadata.blessedRegenerateCommand === 'string'
+          && metadata.blessedRegenerateCommand.length > 0,
+        `drift-prone gate ${gate} blessed regenerate command`,
+      );
+    }
+    if (metadata.prepareCommand !== undefined) {
+      assert(
+        typeof metadata.prepareCommand === 'string' && metadata.prepareCommand.length > 0,
+        `drift-prone gate ${gate} prepare command`,
+      );
+    }
+    if (metadata.requiredModules !== undefined) {
+      validateUniqueStrings(metadata.requiredModules, `drift-prone gate ${gate} required modules`);
+      for (const module of metadata.requiredModules) {
+        assert(
+          /^[A-Za-z0-9@][A-Za-z0-9@._/-]*$/u.test(module) && !module.includes('..'),
+          `drift-prone gate ${gate} required module ${module}`,
+        );
+      }
+    }
+    if (metadata.requiredEnvironmentPaths !== undefined) {
+      validateUniqueStrings(
+        metadata.requiredEnvironmentPaths,
+        `drift-prone gate ${gate} required environment paths`,
+      );
+      for (const path of metadata.requiredEnvironmentPaths) {
+        assert(
+          validRepositoryPath(path),
+          `drift-prone gate ${gate} required environment path ${path}`,
+        );
+      }
+    }
+    if (metadata.requiredSubmodules !== undefined) {
+      validateUniqueStrings(
+        metadata.requiredSubmodules,
+        `drift-prone gate ${gate} required submodules`,
+      );
+      for (const path of metadata.requiredSubmodules) {
+        assert(
+          validRepositoryPath(path),
+          `drift-prone gate ${gate} required submodule ${path}`,
+        );
+      }
+    }
+    if (metadata.sameChangeSemantics !== undefined) {
+      assert(
+        metadata.sameChangeSemantics === 'historical-validity-only-per-llp-0175',
+        `drift-prone gate ${gate} same-change semantics`,
+      );
+    }
   }
 
   return { canonicalGates, groupNames };
@@ -165,6 +241,21 @@ export function selectChangedPaths(changedFiles, context = loadSelectionContext(
       privateRoot: requires('privateRoot'),
     },
   };
+}
+
+export function selectDriftProneGates(changedFiles, context = loadSelectionContext()) {
+  const selection = selectChangedPaths(changedFiles, context);
+  const driftGateIds = new Set(Object.keys(context.policy.driftProneGates));
+  const selectedDriftProneGates = context.inventory.canonicalGates.filter((gate) => (
+    driftGateIds.has(gate)
+      && (
+        selection.selectionClass === 'FAIL_CLOSED_FULL'
+          || changedFiles.some((path) => (
+            matchesRule(path, context.policy.driftProneGates[gate].triggerRules)
+          ))
+      )
+  ));
+  return { ...selection, selectedDriftProneGates };
 }
 
 export function completeSelection(context = loadSelectionContext()) {

@@ -47,6 +47,380 @@
       "snapback-cli-real-server"
     ]
   },
+  "driftProneGates": {
+    "agent-safe-publication-fixtures": {
+      "records": [
+        "tests/agent_safe_publication_checker_v1.mjs (reviewed generated-publication leaf set)"
+      ],
+      "recordPaths": [
+        "tests/agent_safe_publication_checker_v1.mjs"
+      ],
+      "triggerRules": {
+        "files": [
+          "scripts/generated-artifact-policy.mjs",
+          "tests/agent_safe_publication_checker_v1.mjs"
+        ],
+        "prefixes": [
+          "admin-ui/generated/",
+          "demos/",
+          "packages/snapback-cli/fixtures/",
+          "packages/snapback-codegen/",
+          "packages/snapback-react/fixtures/"
+        ]
+      },
+      "regenerateCommand": "node scripts/update-agent-safe-publication-leaf-set.mjs"
+    },
+    "client-bundle-metrology": {
+      "records": [
+        "tests/fixtures/client-bundle-metrology/current.v1.json and its active profile/baseline ledgers"
+      ],
+      "recordPaths": [
+        "tests/fixtures/client-bundle-metrology"
+      ],
+      "triggerRules": {
+        "files": [
+          "scripts/client-bundle-metrology.mjs"
+        ],
+        "prefixes": [
+          "packages/snapback-client/",
+          "packages/snapback-contract/",
+          "packages/snapback-react/",
+          "tests/fixtures/client-bundle-metrology/"
+        ]
+      },
+      "regenerateCommand": "node scripts/client-bundle-metrology.mjs --write-current",
+      "blessedRegenerateCommand": "node scripts/client-bundle-metrology.mjs --write-rollover-baseline",
+      "requiredModules": [
+        "esbuild"
+      ]
+    },
+    "generated-artifacts": {
+      "records": [
+        "committed review manifests and projections selected by scripts/generated-artifact-policy.mjs"
+      ],
+      "recordPaths": [
+        "admin-ui/generated",
+        "demos",
+        "packages/snapback-cli/fixtures",
+        "packages/snapback-react/fixtures"
+      ],
+      "triggerRules": {
+        "files": [
+          "admin-ui/generate-contract-bindings.mjs",
+          "scripts/check-generated-artifacts",
+          "scripts/generated-artifact-policy.mjs",
+          "scripts/verify-generated-review-surface.mjs"
+        ],
+        "prefixes": [
+          "admin-ui/generated/",
+          "demos/",
+          "packages/snapback-cli/fixtures/",
+          "packages/snapback-codegen/",
+          "packages/snapback-react/fixtures/"
+        ]
+      },
+      "regenerateCommand": "scripts/check-generated-artifacts"
+    },
+    "contract-meta": {
+      "records": [
+        "non-generated demos/**/*.contract-meta.ts pure-parameter mirrors"
+      ],
+      "recordPaths": [
+        "demos"
+      ],
+      "triggerRules": {
+        "files": [
+          "scripts/check-contract-meta.mjs",
+          "scripts/update-contract-meta.mjs"
+        ],
+        "prefixes": [
+          "demos/"
+        ]
+      },
+      "regenerateCommand": "node scripts/update-contract-meta.mjs",
+      "requiredModules": [
+        "typescript"
+      ]
+    },
+    "guide": {
+      "records": [
+        "guide/guide-manifest.generated.json",
+        "guide/guide-flat.generated.md"
+      ],
+      "recordPaths": [
+        "guide/guide-manifest.generated.json",
+        "guide/guide-flat.generated.md"
+      ],
+      "triggerRules": {
+        "prefixes": [
+          "guide/",
+          "scripts/check-guide",
+          "scripts/generate-guide",
+          "scripts/guide-"
+        ]
+      },
+      "regenerateCommand": "node scripts/generate-guide-manifest.mjs",
+      "requiredEnvironmentPaths": [
+        "demos/competitive-checkpoint/snapback/generated/operations/startReply.args.schema.json",
+        "demos/todo-v2/snapback/generated/contract/runtime-links.ts",
+        "demos/todo-v2/snapback/generated/contract/setCompleted.mutation.ts"
+      ]
+    },
+    "telemetry-receipt-check": {
+      "records": [
+        "tests/acceptance/telemetry-phase1-evidence.v1.json"
+      ],
+      "recordPaths": [
+        "tests/acceptance/telemetry-phase1-evidence.v1.json"
+      ],
+      "triggerRules": {
+        "prefixes": [
+          "scripts/telemetry-phase1-",
+          "scripts/verify-telemetry-phase1-proof",
+          "tests/acceptance/telemetry-phase1-"
+        ]
+      },
+      "regenerateCommand": "scripts/verify-telemetry-phase1-proof --full",
+      "sameChangeSemantics": "historical-validity-only-per-llp-0175"
+    },
+  "auth-invalidation-report": {
+      "records": [
+        "tests/acceptance/auth-invalidation-v1-composed-receipt.json"
+      ],
+      "recordPaths": [
+        "tests/acceptance/auth-invalidation-v1-composed-receipt.json"
+      ],
+      "triggerRules": {
+        "files": [
+          "packages/snapback-contract/client-store.mjs",
+          "packages/snapback-contract/query-authorization.mjs",
+          "src/ephemeral.rs",
+          "src/local.rs",
+          "src/local/auth_room_kick_acceptance.rs",
+          "src/local/authorization_acceptance.rs",
+          "src/storage.rs",
+          "src/storage/auth_invalidation.rs",
+          "tests/acceptance/auth-invalidation-v1-composed-receipt.json",
+          "tests/acceptance/auth-invalidation-v1-property-corpus.json",
+          "tests/acceptance/auth-invalidation-v1-report.mjs"
+        ],
+        "prefixes": [
+          "src/auth/"
+        ]
+      },
+    "prepareCommand": "scripts/bootstrap-ibex-runtime",
+    "requiredSubmodules": [
+      "vendor/ibex"
+    ],
+    "requiredEnvironmentPaths": [
+      "demos/rbac/snapback/generated/schema.manifest.json",
+      "demos/todo/snapback/generated/functions.manifest.json",
+      "demos/todo/snapback/generated/schema.manifest.json"
+    ],
+    "regenerateCommand": "node tests/acceptance/auth-invalidation-v1-report.mjs --print > tests/acceptance/auth-invalidation-v1-composed-receipt.json"
+    },
+    "control-catalog": {
+      "records": [
+        "control-catalog/generated/control-catalog.v1.json",
+        "generated control-catalog blocks in guide/operating/host-ops.md and guide/reference/control-catalog.md"
+      ],
+      "recordPaths": [
+        "control-catalog/generated/control-catalog.v1.json",
+        "guide/operating/host-ops.md",
+        "guide/reference/control-catalog.md"
+      ],
+      "triggerRules": {
+        "files": [
+          "cloudflare/gateway-paths.inventory.json",
+          "cloudflare/hosted-adapter-manifest.json",
+          "guide/operating/host-ops.md",
+          "guide/reference/control-catalog.md",
+          "scripts/generate-control-catalog.mjs"
+        ],
+        "prefixes": [
+          "control-catalog/",
+          "packages/snapback-cli/"
+        ]
+      },
+      "regenerateCommand": "node scripts/generate-control-catalog.mjs",
+      "requiredModules": [
+        "ajv"
+      ]
+    },
+    "deployment-identity": {
+      "records": [
+        "cloudflare/generated/deployment-identity.notes.json",
+        "cloudflare/generated/deployment-identity.all-aboard.json"
+      ],
+      "recordPaths": [
+        "cloudflare/generated/deployment-identity.notes.json",
+        "cloudflare/generated/deployment-identity.all-aboard.json"
+      ],
+      "triggerRules": {
+        "files": [
+          "packages/snapback-harness/compat.json"
+        ],
+        "prefixes": [
+          "cloudflare/",
+          "demos/all-aboard/",
+          "packages/snapback-client/",
+          "packages/snapback-contract/",
+          "packages/snapback-harness/",
+          "packages/snapback-vite/"
+        ]
+      },
+      "prepareCommand": "env SNAPBACK_OUTBOUND_ACTIONS=1 node packages/snapback-codegen/index.mjs demos/all-aboard/snapback",
+      "regenerateCommand": "node cloudflare/scripts/generate-deployment-identity.mjs",
+      "requiredModules": [
+        "esbuild"
+      ]
+    },
+    "result-transform-ship-gate": {
+      "records": [
+        "tests/conformance/result-transform-ship-gate-v1.receipt.json"
+      ],
+      "recordPaths": [
+        "tests/conformance/result-transform-ship-gate-v1.receipt.json"
+      ],
+      "triggerRules": {
+        "files": [
+          "packages/snapback-client/canonical-client-value.mjs",
+          "packages/snapback-client/result-transform.mjs",
+          "tests/conformance/result-transform-ship-gate-v1.mjs",
+          "tests/conformance/result-transform-ship-gate-v1.receipt.json"
+        ],
+        "prefixes": [
+          "tests/conformance/data-tier/result-transform-v1/"
+        ]
+      },
+      "regenerateCommand": "SNAPBACK_RESULT_TRANSFORM_RUST_OUTCOMES_PATH=/private/tmp/snapback-result-transform-rust-outcomes.json cargo test --test result_transform_corpus_v1 && SNAPBACK_RESULT_TRANSFORM_RUST_OUTCOMES_PATH=/private/tmp/snapback-result-transform-rust-outcomes.json node tests/conformance/result-transform-ship-gate-v1.mjs --write"
+    },
+    "relation-activity-publication": {
+      "records": [
+        "src/local-relation-activity-publication.v1.json and its pinned readers"
+      ],
+      "recordPaths": [
+        "src/local-relation-activity-publication.v1.json",
+        "tests/conformance/relation-activity-publication-v1.mjs",
+        "src/manifest.rs"
+      ],
+      "triggerRules": {
+        "files": [
+          "packages/snapback-codegen/define.mjs",
+          "scripts/refresh-publication-carrier.mjs",
+          "src/local-relation-activity-publication.v1.json",
+          "src/local.rs",
+          "src/manifest.rs",
+          "src/storage.rs",
+          "tests/conformance/relation-activity-publication-v1.receipt.json",
+          "tests/conformance/relation-activity-publication-v1.mjs"
+        ]
+      },
+      "regenerateCommand": "node scripts/refresh-publication-carrier.mjs"
+    },
+    "sequence-allocation-publication": {
+      "records": [
+        "src/local-sequence-allocation-publication.v1.json and its pinned readers"
+      ],
+      "recordPaths": [
+        "src/local-sequence-allocation-publication.v1.json",
+        "tests/conformance/sequence-allocation-publication-v1.mjs",
+        "tests/conformance/sequence-allocation-publication-v1.receipt.json",
+        "src/manifest.rs"
+      ],
+      "triggerRules": {
+        "files": [
+          "packages/snapback-codegen/define.mjs",
+          "packages/snapback-contract/derived-overlay.mjs",
+          "packages/snapback-contract/index.mjs",
+          "scripts/refresh-publication-carrier.mjs",
+          "src/local-sequence-allocation-publication.v1.json",
+          "src/manifest.rs",
+          "src/runtime.rs",
+          "src/storage.rs",
+          "tests/conformance/sequence-allocation-publication-v1.mjs",
+          "tests/conformance/sequence-allocation-publication-v1.receipt.json"
+        ]
+      },
+      "regenerateCommand": "node scripts/refresh-publication-carrier.mjs"
+    },
+    "local-store-publication": {
+      "records": [
+        "src/local-persistent-store-publication.v1.json and src/local-persistent-store-publication.anchor.v1.json"
+      ],
+      "recordPaths": [
+        "src/local-persistent-store-publication.v1.json",
+        "src/local-persistent-store-publication.anchor.v1.json"
+      ],
+      "triggerRules": {
+        "files": [
+          "packages/snapback-client/local-read-admission.mjs",
+          "packages/snapback-client/materialization-bridge.mjs",
+          "packages/snapback-client/materialization-store.mjs",
+          "packages/snapback-client/materialization-store-runtime.mjs",
+          "packages/snapback-client/rqs-preload-core.mjs",
+          "packages/snapback-client/store-runtime.mjs",
+          "packages/snapback-codegen/index.mjs",
+          "schemas/capability.manifest.local-dev-sqlite-ibex.json",
+          "src/local-persistent-store-publication.anchor.v1.json",
+          "src/local-persistent-store-publication.v1.json",
+          "src/local.rs",
+          "src/storage.rs",
+          "tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json",
+          "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json",
+          "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json"
+        ],
+        "prefixes": [
+          "scripts/finalize-local-persistent-store-publication"
+        ]
+      },
+      "regenerateCommand": "scripts/finalize-local-persistent-store-publication"
+    },
+    "local-store-carrier-receipt": {
+      "records": [
+        "tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json",
+        "tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json"
+      ],
+      "recordPaths": [
+        "tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json",
+        "tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json"
+      ],
+      "triggerRules": {
+        "files": [
+          "demos/_kit/chrome-process.mjs",
+          "demos/triage-graph/demo.snapback.json",
+          "demos/triage-graph/snapback/functions.mjs",
+          "demos/triage-graph/snapback/schema.mjs",
+          "packages/snapback-client/answer-classes.mjs",
+          "packages/snapback-client/demand-broker.mjs",
+          "packages/snapback-client/evaluation-floor.mjs",
+          "packages/snapback-client/index.mjs",
+          "packages/snapback-client/lease-convergence.mjs",
+          "packages/snapback-client/materialization-bridge.mjs",
+          "packages/snapback-client/materialization-store.mjs",
+          "packages/snapback-client/materialization-store-runtime.mjs",
+          "packages/snapback-client/registration-ledger.mjs",
+          "packages/snapback-client/rqs-preload-core.mjs",
+          "packages/snapback-client/rqs-store.mjs",
+          "packages/snapback-client/rqs-store-file.mjs",
+          "packages/snapback-client/rqs-store-meta.mjs",
+          "packages/snapback-client/store-policy.mjs",
+          "packages/snapback-client/store-runtime.mjs",
+          "packages/snapback-contract/auth-coordinator.mjs",
+          "packages/snapback-contract/client-store.mjs",
+          "tests/acceptance/local-store-carrier-exit-v1.mjs"
+        ],
+        "prefixes": [
+          "tests/acceptance/fixtures/local-persistent-store/",
+          "tests/acceptance/fixtures/triage-graph/"
+        ]
+      },
+      "regenerateCommand": "node tests/acceptance/local-store-carrier-exit-v1.mjs",
+      "requiredModules": [
+        "esbuild"
+      ]
+    }
+  },
   "pathRules": [
     {
       "id": "selector-authority",
@@ -261,6 +635,24 @@
       ]
     },
     {
+      "id": "drift-enforcement-tests",
+      "groups": [
+        "drift-enforcement"
+      ],
+      "files": [
+        "tests/drift_prone_gates_v0.mjs"
+      ]
+    },
+    {
+      "id": "agent-safe-publication-trigger",
+      "groups": [
+        "publication"
+      ],
+      "files": [
+        "tests/agent_safe_publication_checker_v1.mjs"
+      ]
+    },
+    {
       "id": "other-tests",
       "disposition": "all",
       "prefixes": [
@@ -328,6 +720,12 @@
     }
   ],
   "groups": {
+    "drift-enforcement": {
+      "lane": "fast",
+      "gates": [
+        "drift-prone-gate-fixtures"
+      ]
+    },
     "guide": {
       "lane": "fast",
       "gates": [

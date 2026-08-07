@@ -41,8 +41,13 @@ function exportedFunctionParams(sourceText, fileName) {
 }
 
 function mirroredPureParams(metaText, fileName) {
+  return new Map(mirroredPureParamEntries(metaText, fileName)
+    .map(({ name, params }) => [name, params]));
+}
+
+function mirroredPureParamEntries(metaText, fileName) {
   const source = ts.createSourceFile(fileName, metaText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
-  const result = new Map();
+  const result = [];
   const visit = (node) => {
     if (
       ts.isExportAssignment(node)
@@ -61,9 +66,14 @@ function mirroredPureParams(metaText, fileName) {
           ts.isPropertyAssignment(candidate) && propertyName(candidate.name) === 'params'
         );
         if (!paramsProperty || !ts.isPropertyAssignment(paramsProperty) || !ts.isArrayLiteralExpression(paramsProperty.initializer)) continue;
-        result.set(name, paramsProperty.initializer.elements.map((element) =>
-          ts.isStringLiteral(element) ? element.text : null
-        ));
+        result.push({
+          name,
+          params: paramsProperty.initializer.elements.map((element) =>
+            ts.isStringLiteral(element) ? element.text : null
+          ),
+          start: paramsProperty.initializer.getStart(source),
+          end: paramsProperty.initializer.end,
+        });
       }
     }
     ts.forEachChild(node, visit);
@@ -130,11 +140,37 @@ function discoverSidecars(root) {
   return found.sort();
 }
 
+export function discoverContractMetaPairs(root = ROOT) {
+  return discoverSidecars(root).map((metaPath) => ({
+    metaPath,
+    sourcePath: metaPath.replace(/\.contract-meta\.ts$/, '.ts'),
+  })).filter(({ sourcePath }) => existsSync(sourcePath));
+}
+
+export function refreshContractMetaPair(sourcePath, metaPath) {
+  const sourceText = readFileSync(sourcePath, 'utf8');
+  const metaText = readFileSync(metaPath, 'utf8');
+  const sourceParams = exportedFunctionParams(sourceText, sourcePath);
+  const replacements = [];
+  for (const entry of mirroredPureParamEntries(metaText, metaPath)) {
+    const actual = sourceParams.get(entry.name);
+    if (!actual || actual.some((param) => param === null) || entry.params.some((param) => param === null)) {
+      continue;
+    }
+    if (JSON.stringify(actual) !== JSON.stringify(entry.params)) {
+      replacements.push({ start: entry.start, end: entry.end, text: JSON.stringify(actual) });
+    }
+  }
+  let next = metaText;
+  for (const replacement of replacements.toSorted((left, right) => right.start - left.start)) {
+    next = `${next.slice(0, replacement.start)}${replacement.text}${next.slice(replacement.end)}`;
+  }
+  return { changed: replacements.length > 0, source: next };
+}
+
 export function checkContractMetaCorpus(root = ROOT) {
   const diagnostics = [];
-  for (const metaPath of discoverSidecars(root)) {
-    const sourcePath = metaPath.replace(/\.contract-meta\.ts$/, '.ts');
-    if (!existsSync(sourcePath)) continue;
+  for (const { sourcePath, metaPath } of discoverContractMetaPairs(root)) {
     diagnostics.push(...checkContractMetaPair(sourcePath, metaPath));
   }
   return diagnostics;
