@@ -32,8 +32,8 @@ declared+blessed rollover naming the causal landing or a byte reduction.
 
 ## Resolution — 2026-08-07
 
-Absorbed by the declared 
-rollover (workload ), covering
+Absorbed by the declared `baseline.dispatch-degrade-and-omission.v1.json`
+rollover (workload `dispatch-degrade-and-omission.2026-08-07.v1`), covering
 both react profiles for the three Charlie-directed diary-0066 defect fixes
 (25e9674b0 dispatch degrade, 37af8f9aa bounded stream-reset retry,
-16a0e140c omission semantics).  green under pinned node 24.18.0.
+16a0e140c omission semantics). `--check` green under pinned node 24.18.0.
