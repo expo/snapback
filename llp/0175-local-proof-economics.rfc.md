@@ -27,8 +27,9 @@ historical defect diffs. Push/PR runs use affected selection; six-hour/manual
 runs retain the complete inventory.) 2026-08-06 (ship-review corrections:
 required Exact mode reaches frozen surface installs from a clean checkout;
 Contract and harness owners select their direct fixtures; telemetry
-exact-current release/promotion wiring is recorded honestly as an open
-blocker; obsolete cadence prose removed; main-push affected runs use
+exact-current release/promotion wiring is recorded as the dated follow-up
+resolved by the 2026-08-07 amendment below; obsolete cadence prose removed;
+main-push affected runs use
 commit-unique concurrency so a replaced pending run cannot create an uncovered
 diff gap.) 2026-08-06 (same-change frozen-record coupling: a tracked pre-push
 hook runs only selector-registered drift gates for committed pushed paths;
@@ -55,7 +56,12 @@ than HEAD.) 2026-08-07 (author ruling restructures the local drift-gate
 economics: fail-closed pushes pay a measured fast core, per-gate baseline
 failures are non-blocking pre-existing staleness, the hook pins Node without
 wrapping gate exits, and a two-hour dedicated-clone backstop runs the complete
-registry and files fix-forward tickets.)
+registry and files fix-forward tickets.) 2026-08-07 (exact-current telemetry
+authority is wired into both real candidate publication and default-tag
+promotion. The shared gate invokes the verifier at the frozen candidate
+revision before registry mutation or promotion lease acquisition and retains
+the assessment in release receipts; capability maturity currently cites and
+consumes no telemetry evidence.)
 **Related:** LLP 0010, LLP 0032, LLP 0109, LLP 0115, LLP 0145, LLP 0154,
 issues/closed/20260802-local-proof-is-cancelled-before-it-can-finish-on-main.md,
 issues/closed/20260802-verify-local-proof-stops-at-the-first-failure.md,
@@ -564,10 +570,17 @@ historical validation, rolling-head assessment, and exact-current release /
 capability-promotion authority. The scheduled full producer owns rolling
 health; ordinary merges may proceed with an explicit ancestral
 `LAGGING`/`OVERDUE` receipt. A frozen release candidate is required to pass the
-exact-current mode, but no repository release/promotion caller invokes that
-mode yet. Telemetry therefore cannot authorize either operation until
-`issues/20260806-telemetry-currentness-not-wired-to-release-promotion.md` is
-resolved. LLP 0154's 2026-08-06 amendment is the normative trust contract.
+exact-current mode. Real candidate publication and default-tag promotion now
+invoke `scripts/verify-telemetry-phase1-proof --require-current
+<frozen-candidate-sha>` through the shared release gate before their first
+irreversible effect. Publication runs at the clean candidate checkout after
+qualified-ledger binding and before npm mutation; promotion assesses the
+candidate ledger's frozen `revision`, not its possibly newer checkout, before
+authority acquisition or dist-tag mutation. Their candidate ledger and
+promotion receipt retain the assessment. No current capability-maturity record
+cites telemetry and its validator consumes none; any future telemetry-backed
+maturity record must use the same exact-current path. LLP 0154's 2026-08-06
+amendment is the normative trust contract.
 
 No test is moved to nightly merely because it is slow. Its cadence follows the
 risk it covers: a seed change still runs seed compatibility before landing; an
@@ -836,8 +849,8 @@ executable code:
   receipt mismatch rebuild normally;
 - the telemetry slice of Phase 2 has a scheduled/on-demand latest-main Linux
   producer, while ordinary receipt checks separate historical validity from
-  rolling lag; its exact-current validator exists, but release/promotion
-  wiring remains an explicit blocker; and
+  rolling lag; its exact-current validator now gates real candidate publication
+  and default-tag promotion at the frozen candidate revision; and
 - CI decides whether target cleanup is required before deleting test artifacts;
   measured-safe headroom preserves them for the final build and versioned-seed
   witnesses, while low or unmeasurable headroom still cleans fail-safe;
@@ -854,8 +867,8 @@ No test, assertion, platform obligation, capability gate, or receipt claim was
 removed. The measured 7.5-minute doctor saving and bootstrap savings remain
 projections until a green integrated CI run produces the new timing artifact.
 D3.4–D3.6, D4 experiments, the complete D5 ownership/risk metadata, ten-run
-latency evidence, exact-current telemetry release/promotion wiring, and the
-final release/promotion green-history condition remain open. The next
+latency evidence, and the final release/promotion green-history condition
+remain open. The next
 recommended move is to observe affected-selection and complete-latest-main
 artifacts long enough to validate the latency targets before pursuing D3.4
 predecessor caching or D3.5 behavior deduplication.

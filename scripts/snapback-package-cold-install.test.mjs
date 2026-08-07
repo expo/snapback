@@ -1510,6 +1510,24 @@ function closedCandidateFixture() {
       { platform: 'darwin-arm64', sha256: '3'.repeat(64) },
       { platform: 'linux-x64', sha256: '4'.repeat(64) },
     ],
+    telemetryCurrentness: {
+      schemaVersion: 'snapback.telemetry-phase1-evidence-assessment.v1',
+      valid: true,
+      evidenceState: 'HISTORICAL_VALID',
+      state: 'CURRENT',
+      sourceRevision: revision,
+      headRevision: revision,
+      sourceDigest: '5'.repeat(64),
+      currentDigest: '5'.repeat(64),
+      ageHours: 1,
+      maxAgeHours: 24,
+      changedSourceFileCount: 0,
+      changedSourceFiles: [],
+      changedSourceFilesTruncated: false,
+      acceptedForOrdinaryMerge: true,
+      acceptedForReleaseOrCapabilityPromotion: true,
+      rollingFullProofRequested: false,
+    },
     packages: PACKAGE_INVENTORY.map(([sourceName, name], publicationOrder) => ({
       publicationOrder,
       sourceName,
@@ -1695,6 +1713,15 @@ test('candidate ledger validation binds its non-default tag and self-digest', ()
   assert.throws(
     () => validatePublicPublicationLedger(unverified, sourceNames),
     /candidate tag was not verified/u,
+  );
+  const staleTelemetry = structuredClone(candidate);
+  staleTelemetry.telemetryCurrentness.state = 'LAGGING';
+  staleTelemetry.telemetryCurrentness.acceptedForReleaseOrCapabilityPromotion = false;
+  const { candidateLedgerSha256: _staleDigest, ...staleWithoutDigest } = staleTelemetry;
+  staleTelemetry.candidateLedgerSha256 = sha256Hex(canonicalJcs(staleWithoutDigest));
+  assert.throws(
+    () => validatePublicPublicationLedger(staleTelemetry, sourceNames),
+    /telemetry evidence is not exact-current/u,
   );
   const open = structuredClone(candidate);
   open.unreviewed = true;

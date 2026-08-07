@@ -49,8 +49,15 @@ case "$PROOF_MODE" in
         ;;
     --require-current)
         # This is the exact-source boundary release and capability-promotion
-        # callers must use. No repository caller is wired yet; the blocking
-        # follow-up is issues/20260806-telemetry-currentness-not-wired-to-release-promotion.md.
+        # boundary used by snapback-publish.mjs and snapback-promote.mjs.
+        if [ "$#" -gt 2 ]; then
+            printf 'usage: scripts/verify-telemetry-phase1-proof --require-current [<sha>]\n' >&2
+            exit 2
+        fi
+        if [ "$#" -eq 2 ]; then
+            exec node "$PROOF_ROOT/scripts/telemetry-phase1-evidence.mjs" \
+                require-current "$PROOF_RECEIPT" --at "$2"
+        fi
         exec node "$PROOF_ROOT/scripts/telemetry-phase1-evidence.mjs" require-current "$PROOF_RECEIPT"
         ;;
     --smoke)
@@ -91,7 +98,7 @@ case "$PROOF_MODE" in
             --output "$PROOF_RECEIPT"
         ;;
     *)
-        printf 'usage: scripts/verify-telemetry-phase1-proof [--check|--history|--require-current|--smoke|--full]\n' >&2
+        printf 'usage: scripts/verify-telemetry-phase1-proof [--check|--history|--require-current [<sha>]|--smoke|--full]\n' >&2
         exit 2
         ;;
 esac

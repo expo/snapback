@@ -240,9 +240,13 @@ coalesced latest-head full-proof lane without weakening any benchmark, idle,
 or clean-source requirement.)
 **Revised:** 2026-08-06 (LLP 0175 selector reconciliation: receipt-only changes
 retain fast validation, telemetry/native source changes select feature smoke,
-and full remint plus the exact-current validator remain separate. The validator
-is not yet wired into release/promotion authority, so that claim remains
-blocked and is tracked explicitly.)
+and full remint plus the exact-current validator remain separate. The dated
+authority-wiring follow-up is resolved by the 2026-08-07 amendment below.)
+**Revised:** 2026-08-07 (exact-current release authority lands: real candidate
+publication gates the clean qualified candidate revision before registry
+mutation, and default-tag promotion gates the candidate ledger's frozen
+revision before authority acquisition. Both durable receipts retain the
+assessment; capability-maturity records still consume no telemetry evidence.)
 **Related:** LLP 0000 (root explainer; points the shipped local Phase-1
 surface here), LLP 0003 (storage core; app write lane), LLP 0010 (inspect
 loop; explicitly defers production observability), LLP 0012 (headless
@@ -936,13 +940,25 @@ The three claims are now separate and normative:
 
 The executable modes mirror those claims: `validate-history` proves item 1;
 `assess` reports items 1–2 and is the ordinary recurring check; and
-`require-current`, when invoked, enforces item 3. The repository does not yet
-invoke that mode from its release or capability-promotion authority; until
-that blocking follow-up lands, telemetry evidence cannot authorize either
-operation. The old `validate` spelling remains a historical-integrity alias,
-not an exact-current gate. Assessment output includes both digests, age,
-bounded changed-source detail, and separate ordinary-merge versus
-release/promotion dispositions.
+`require-current` enforces item 3. The two repository release authorities now
+invoke `scripts/verify-telemetry-phase1-proof --require-current
+<frozen-candidate-sha>` through the shared fail-closed release gate. Real
+`scripts/snapback-publish.mjs --publish` runs it after the qualified ledger is
+bound to the clean checkout revision and before any npm publication;
+`scripts/snapback-promote.mjs` runs it against the candidate ledger's frozen
+`revision`, not the possibly newer promotion checkout, before publication-
+authority acquisition or any dist-tag operation. Both the candidate
+publication ledger and promotion receipt retain the returned assessment. The
+old `validate` spelling remains a historical-integrity alias, not an exact-
+current gate. Assessment output includes both digests, age, bounded changed-
+source detail, and separate ordinary-merge versus release/promotion
+dispositions.
+
+No current record under `tests/acceptance/maturity/` cites telemetry evidence,
+and the capability-maturity validator consumes no telemetry receipt. If a
+future maturity record cites telemetry evidence, that authority must route the
+record through the same frozen-revision exact-current mode before promotion;
+ordinary `assess` output is not sufficient.
 
 A Linux `telemetry-latest-main` workflow runs every six hours and on demand.
 Its concurrency group finishes the one running source snapshot while retaining
@@ -959,9 +975,9 @@ collapsing them. A retained-receipt-only change selects historical/rolling
 validation in the fast lane. Telemetry policy, producer, runtime, or native
 source changes select the feature smoke and its native prerequisite closure.
 The separate `telemetry-latest-main` producer retains full remint cadence. Its
-candidate does not authorize release or promotion; wiring `require-current`
-into those authorities remains the blocking follow-up recorded in
-`issues/20260806-telemetry-currentness-not-wired-to-release-promotion.md`.
+candidate alone does not authorize release or promotion; the publish and
+promotion authorities independently reopen it through `require-current` at
+the frozen candidate revision before their first irreversible effect.
 Selector/shared-authority changes fail broad into the complete canonical
 inventory.
 

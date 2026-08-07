@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import {
   assessReceiptCurrentness,
   digestSourceInputs,
+  digestSourceInputsAtRevision,
   validateReceipt,
   validateSourceInputs,
 } from './telemetry-phase1-evidence.mjs';
@@ -61,6 +62,17 @@ test('retained evidence validates against its measured Git tree after main drift
     /measured input file set/,
     'historical validation must reject an omitted measured source path',
   );
+});
+
+test('revision-scoped source digest reproduces the retained measured closure', () => {
+  const receipt = JSON.parse(readFileSync(
+    join(repoRoot, 'tests', 'acceptance', 'telemetry-phase1-evidence.v1.json'),
+    'utf8',
+  ));
+  const measured = digestSourceInputsAtRevision(receipt.sourceRevision);
+  assert.deepEqual(measured.files, receipt.sourceInputs.files);
+  assert.equal(measured.algorithm, receipt.sourceInputs.algorithm);
+  assert.equal(measured.digest, receipt.sourceInputs.digest);
 });
 
 test('rolling assessment separates current, lagging, overdue, and diverged evidence', () => {

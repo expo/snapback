@@ -42,6 +42,7 @@ import {
 import {
   validatePriorDefaultClosureReceipt,
 } from './snapback-prior-default-closure.mjs';
+import { enforceTelemetryCurrentGate } from './telemetry-release-gate.mjs';
 import {
   fetchPublicationAuthorityJson,
 } from '../packages/snapback-publication-authority/request.mjs';
@@ -182,6 +183,15 @@ try {
   validateCandidateLedger(ledger);
 } catch (error) {
   fail(`candidate ledger refused: ${error.message}`);
+}
+let telemetryCurrentness;
+try {
+  telemetryCurrentness = enforceTelemetryCurrentGate({
+    repoRoot: repositoryRoot,
+    candidateRevision: ledger.revision,
+  });
+} catch (error) {
+  fail(error.message);
 }
 const candidateLedgerSha256 = ledger.candidateLedgerSha256;
 const authorityPublicKey = readFileSync(options.publicKey);
@@ -643,6 +653,7 @@ const receipt = {
   defaultTag: lease.defaultTag,
   startedAt: new Date().toISOString(),
   status: 'running',
+  telemetryCurrentness,
   priorDefaultClosurePreflight: priorDefaultClosure,
   events: [],
 };

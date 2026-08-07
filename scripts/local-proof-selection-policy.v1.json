@@ -187,6 +187,7 @@
       "triggerRules": {
         "prefixes": [
           "scripts/telemetry-phase1-",
+          "scripts/telemetry-release-gate",
           "scripts/verify-telemetry-phase1-proof",
           "tests/acceptance/telemetry-phase1-"
         ]
@@ -484,6 +485,8 @@
         "scripts/telemetry-phase1-evidence.mjs",
         "scripts/telemetry-phase1-evidence.test.mjs",
         "scripts/telemetry-phase1-idle-proof.mjs",
+        "scripts/telemetry-release-gate.mjs",
+        "scripts/telemetry-release-gate.test.mjs",
         "scripts/verify-telemetry-phase1-proof",
         "tests/acceptance/telemetry-phase1-benchmark-baseline.v1.json",
         "tests/acceptance/telemetry-phase1-evidence-policy.v1.json"
@@ -771,6 +774,7 @@
       "lane": "fast",
       "gates": [
         "telemetry-evidence-fixtures",
+        "telemetry-release-gate-fixtures",
         "telemetry-receipt-check"
       ]
     },
@@ -1031,6 +1035,7 @@
       "lane": "affected",
       "gates": [
         "telemetry-evidence-fixtures",
+        "telemetry-release-gate-fixtures",
         "telemetry-receipt-check",
         "telemetry-smoke",
         "native-runtime-bootstrap"

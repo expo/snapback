@@ -163,7 +163,7 @@ const QUALIFIED_LEDGER_KEYS = [
   'tag',
   'version',
 ];
-const CANDIDATE_LEDGER_KEYS = [
+const LEGACY_CANDIDATE_LEDGER_KEYS = [
   'candidateLedgerSha256',
   'mode',
   'packages',
@@ -177,6 +177,28 @@ const CANDIDATE_LEDGER_KEYS = [
   'sourceDirty',
   'tag',
   'version',
+];
+const CANDIDATE_LEDGER_KEYS = [
+  ...LEGACY_CANDIDATE_LEDGER_KEYS,
+  'telemetryCurrentness',
+];
+const TELEMETRY_CURRENTNESS_KEYS = [
+  'acceptedForOrdinaryMerge',
+  'acceptedForReleaseOrCapabilityPromotion',
+  'ageHours',
+  'changedSourceFileCount',
+  'changedSourceFiles',
+  'changedSourceFilesTruncated',
+  'currentDigest',
+  'evidenceState',
+  'headRevision',
+  'maxAgeHours',
+  'rollingFullProofRequested',
+  'schemaVersion',
+  'sourceDigest',
+  'sourceRevision',
+  'state',
+  'valid',
 ];
 const QUALIFIED_PACKAGE_KEYS = [
   'dependencies',
@@ -1046,6 +1068,51 @@ function validateCommonLedger(ledger) {
   }
 }
 
+function validateTelemetryCurrentness(assessment, revision) {
+  requireExactKeys(
+    assessment,
+    TELEMETRY_CURRENTNESS_KEYS,
+    'candidate telemetry currentness assessment',
+  );
+  if (
+    assessment.schemaVersion !== 'snapback.telemetry-phase1-evidence-assessment.v1'
+    || assessment.valid !== true
+    || assessment.evidenceState !== 'HISTORICAL_VALID'
+    || assessment.state !== 'CURRENT'
+    || assessment.acceptedForOrdinaryMerge !== true
+    || assessment.acceptedForReleaseOrCapabilityPromotion !== true
+    || assessment.rollingFullProofRequested !== false
+    || assessment.headRevision !== revision
+    || !/^[0-9a-f]{40}$/u.test(assessment.sourceRevision ?? '')
+  ) {
+    throw new TypeError('candidate telemetry evidence is not exact-current');
+  }
+  assertSha256(assessment.sourceDigest, 'telemetry sourceDigest');
+  assertSha256(assessment.currentDigest, 'telemetry currentDigest');
+  if (
+    assessment.sourceDigest !== assessment.currentDigest
+    || !Number.isFinite(assessment.ageHours)
+    || assessment.ageHours < 0
+    || !Number.isFinite(assessment.maxAgeHours)
+    || assessment.maxAgeHours <= 0
+    || !Number.isSafeInteger(assessment.changedSourceFileCount)
+    || assessment.changedSourceFileCount < 0
+    || !Array.isArray(assessment.changedSourceFiles)
+    || assessment.changedSourceFiles.length > 50
+    || assessment.changedSourceFiles.length > assessment.changedSourceFileCount
+    || typeof assessment.changedSourceFilesTruncated !== 'boolean'
+    || assessment.changedSourceFiles.some((file) => (
+      typeof file !== 'string'
+      || file.length === 0
+      || file.startsWith('/')
+      || file.includes('\n')
+      || file.split('/').includes('..')
+    ))
+  ) {
+    throw new TypeError('candidate telemetry currentness detail is invalid');
+  }
+}
+
 export function validateQualifiedStagingLedger(ledger) {
   requireExactKeys(ledger, QUALIFIED_LEDGER_KEYS, 'qualified staging ledger');
   if (
@@ -1067,7 +1134,12 @@ export function validateQualifiedStagingLedger(ledger) {
 }
 
 export function validateCandidateLedger(ledger) {
-  requireExactKeys(ledger, CANDIDATE_LEDGER_KEYS, 'candidate ledger');
+  const carriesTelemetryCurrentness = Object.hasOwn(ledger, 'telemetryCurrentness');
+  requireExactKeys(
+    ledger,
+    carriesTelemetryCurrentness ? CANDIDATE_LEDGER_KEYS : LEGACY_CANDIDATE_LEDGER_KEYS,
+    'candidate ledger',
+  );
   if (
     ledger.schemaVersion !== 'snapback.package-candidate-ledger.v1'
     || ledger.mode !== 'publish'
@@ -1075,6 +1147,9 @@ export function validateCandidateLedger(ledger) {
     throw new TypeError('unsupported candidate ledger');
   }
   validateCommonLedger(ledger);
+  if (carriesTelemetryCurrentness) {
+    validateTelemetryCurrentness(ledger.telemetryCurrentness, ledger.revision);
+  }
   validatePackageRows(
     ledger,
     CANDIDATE_PACKAGE_KEYS,

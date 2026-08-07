@@ -37,6 +37,8 @@ const proofSourcePathspecs = [
   'scripts/telemetry-phase1-idle-proof.mjs',
   'scripts/telemetry-phase1-evidence.mjs',
   'scripts/telemetry-phase1-evidence.test.mjs',
+  'scripts/telemetry-release-gate.mjs',
+  'scripts/telemetry-release-gate.test.mjs',
   'scripts/verify-telemetry-phase1-proof',
   'scripts/verify-local-proof',
   'tests/acceptance/telemetry-phase1-benchmark-baseline.v1.json',
@@ -87,11 +89,22 @@ function main() {
     );
   } else if (command === 'assess' || command === 'require-current') {
     const receiptPath = args[0];
-    if (!receiptPath || args.length !== 1) usage();
+    const atRevision = command === 'require-current' && args[1] === '--at'
+      ? args[2]
+      : null;
+    if (
+      !receiptPath
+      || (command === 'assess' && args.length !== 1)
+      || (command === 'require-current' && ![1, 3].includes(args.length))
+      || (args.length === 3 && atRevision === null)
+    ) usage();
+    if (atRevision !== null) assertRevision(atRevision, 'target revision');
     const receipt = readJson(receiptPath);
     validateReceipt(receipt);
     validateRetainedCarrier(receiptPath);
-    const assessment = assessReceiptCurrentness(receipt);
+    const assessment = atRevision === null
+      ? assessReceiptCurrentness(receipt)
+      : assessReceiptCurrentnessAtRevision(receipt, atRevision);
     process.stdout.write(`${JSON.stringify(assessment)}\n`);
     if (assessment.state === 'DIVERGED') process.exitCode = 1;
     if (command === 'require-current') {
@@ -349,6 +362,41 @@ function changedSourceFilesSince(revision, measuredFiles) {
   return [...changed].sort();
 }
 
+function assessReceiptCurrentnessAtRevision(receipt, revision) {
+  const currentInputs = digestSourceInputsAtRevision(revision);
+  const ancestor = isAncestor(receipt.sourceRevision, revision);
+  return assessReceiptCurrentness(receipt, {
+    headRevision: revision,
+    currentInputs,
+    ancestor,
+    changedFiles: ancestor
+      ? changedSourceFilesBetweenRevisions(
+        receipt.sourceRevision,
+        revision,
+        receipt.sourceInputs.files,
+        currentInputs.files,
+      )
+      : [],
+  });
+}
+
+function changedSourceFilesBetweenRevisions(fromRevision, toRevision, fromFiles, toFiles) {
+  const files = [...new Set([...fromFiles, ...toFiles])].sort();
+  if (files.length === 0) return [];
+  const output = execFileSync(
+    'git',
+    ['diff', '--name-only', '-z', fromRevision, toRevision, '--', ...files],
+    { cwd: repoRoot, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+  );
+  const changed = new Set(output.split('\0').filter(Boolean));
+  const fromSet = new Set(fromFiles);
+  const toSet = new Set(toFiles);
+  for (const file of files) {
+    if (fromSet.has(file) !== toSet.has(file)) changed.add(file);
+  }
+  return [...changed].sort();
+}
+
 function evidencePolicy() {
   const policy = readJson(evidencePolicyPath);
   assert(
@@ -469,6 +517,14 @@ export function digestSourceInputs(
   };
 }
 
+export function digestSourceInputsAtRevision(revision) {
+  assertRevision(revision, 'source input revision');
+  const files = trackedProofSourceFilesAtRevision(revision);
+  const algorithm = 'sha256-length-framed-v1';
+  const sources = sourceInputsAtRevision(revision, { algorithm, files });
+  return digestSourceInputs((file) => sources.get(file), files);
+}
+
 export function validateSourceInputs(
   sourceInputs,
   readSource = undefined,
@@ -501,6 +557,6 @@ function assert(condition, label) {
 
 function usage() {
   throw new Error(
-    'usage: telemetry-phase1-evidence.mjs compose --benchmark FILE --idle FILE --output FILE | validate-history RECEIPT | assess RECEIPT | require-current RECEIPT | source-inputs',
+    'usage: telemetry-phase1-evidence.mjs compose --benchmark FILE --idle FILE --output FILE | validate-history RECEIPT | assess RECEIPT | require-current RECEIPT [--at SHA] | source-inputs',
   );
 }

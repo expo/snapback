@@ -33,6 +33,7 @@ import {
   validateInternalDependencyClosure,
 } from './snapback-publish-core.mjs';
 import { sha256TarEntry } from './snapback-tar-entry.mjs';
+import { enforceTelemetryCurrentGate } from './telemetry-release-gate.mjs';
 import { verifyRuntimePackageSeal } from '../packages/snapback-cli/runtime-readiness.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -423,6 +424,7 @@ if (options.publish) {
 let qualifiedLedger = null;
 let qualifiedPlatformReceipts = null;
 let qualifiedRoot = null;
+let telemetryCurrentness = null;
 let rows;
 if (options.publish) {
   qualifiedLedger = readBoundedJsonFile(options.qualifiedLedger, 'qualified publication ledger');
@@ -468,6 +470,14 @@ if (options.publish) {
     registryIntegrity: null,
     registryShasum: null,
   }));
+  try {
+    telemetryCurrentness = enforceTelemetryCurrentGate({
+      repoRoot: root,
+      candidateRevision: revision,
+    });
+  } catch (error) {
+    fail(error.message);
+  }
 } else {
   rows = stage(options);
 }
@@ -488,6 +498,7 @@ const ledger = options.publish ? {
   runtimePlatforms: [...qualifiedLedger.runtimePlatforms],
   qualifiedLedgerSha256: qualifiedLedger.stagedLedgerSha256,
   qualifiedPlatformReceipts,
+  telemetryCurrentness,
   packages: rows,
   candidateLedgerSha256: null,
 } : {

@@ -308,6 +308,7 @@ run ibex-bootstrap-fixtures -- node tests/ibex_bootstrap_v0.mjs
 # validator's transitive-closure regression, and exercise the nondefault proof
 # feature at smoke scale until LLP 0175's affected selector owns that cadence.
 run telemetry-evidence-fixtures -- node --test scripts/telemetry-phase1-evidence.test.mjs
+run telemetry-release-gate-fixtures -- node --test scripts/telemetry-release-gate.test.mjs
 run telemetry-receipt-check -- scripts/verify-telemetry-phase1-proof --check
 run telemetry-smoke --requires native-runtime-bootstrap -- \
     scripts/verify-telemetry-phase1-proof --smoke
