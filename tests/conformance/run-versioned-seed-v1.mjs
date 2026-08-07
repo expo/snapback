@@ -15,24 +15,20 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
+import { readCheckoutRuntimeIdentity } from '../../packages/snapback-cli/runtime-recovery.mjs';
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 // @ref LLP 0109#166-the-manifest-is-an-executable-advertisement-gate —
 // conformance evidence is meaningful only when the exercised binary is bound
-// to the exact source revision that invoked the closed dispatcher.
-const sourceRevision = spawnSync('git', ['rev-parse', 'HEAD'], {
-  cwd: root,
-  encoding: 'utf8',
-});
-const sourceStatus = spawnSync('git', ['status', '--porcelain'], {
-  cwd: root,
-  encoding: 'utf8',
-});
-const sourceGitCommit = sourceRevision.stdout.trim();
-const sourceGitDirty = sourceStatus.stdout.length > 0;
+// to the exact source revision and runtime-input dirtiness fact that invoked
+// the closed dispatcher. Use the shared scoped definition that stamps the
+// binary; whole-tree authoring dirt cannot change the executable's bytes.
+const sourceIdentity = readCheckoutRuntimeIdentity(root);
+const sourceGitCommit = sourceIdentity.gitCommit;
+const sourceGitDirty = sourceIdentity.gitDirty;
 if (
-  sourceRevision.status !== 0
-  || sourceStatus.status !== 0
-  || !/^[0-9a-f]{40}$/u.test(sourceGitCommit)
+  !/^[0-9a-f]{40}$/u.test(sourceGitCommit ?? '')
+  || typeof sourceGitDirty !== 'boolean'
 ) {
   throw new Error('SNAPBACK_SEED_CONFORMANCE_REVISION_UNAVAILABLE');
 }

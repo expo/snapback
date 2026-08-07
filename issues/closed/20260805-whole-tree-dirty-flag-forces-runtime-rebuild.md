@@ -113,7 +113,9 @@ single shared definition:
     kit's prebuilt rung and `verifyBinaryProvenance`),
   - `packages/snapback-cli/runtime-recovery.mjs`
     (`readCheckoutRuntimeIdentity`, feeding doctor/link-smoke expected
-    stamps).
+    stamps), and
+  - `tests/conformance/run-versioned-seed-v1.mjs` (the exact-binary binding
+    in the closed LLP 0109 dispatcher).
 - Hardening: when the input set IS dirty, `verify-local-proof` and the
   bootstrap reuse gate log exactly which paths made it dirty, so a genuine
   runtime edit is distinguishable from a scoping bug.
@@ -156,3 +158,15 @@ rebuild; the bootstrap reuse gate reuses the receipt with demo dirt present
 and logs the dirty paths when `src` is edited. Docs updated in the same
 change: LLP 0031 §Server-binary identity, LLP 0186 W4,
 `guide/operating/diagnostics.md`.
+
+## Exact-head recurrence — GitHub run 31150398178
+
+The original audit missed the LLP 0109 versioned-seed dispatcher. On the PR
+merge checkout, its whole-tree `git status` disagreed with the already
+qualified binary's runtime-input-scoped `gitDirty: false`, so all 20 behavioral
+cases passed but the dispatcher correctly refused the mismatched revision.
+The dispatcher now consumes the shared `readCheckoutRuntimeIdentity` fact.
+Its suite also no longer runs an unrelated root `cargo build` when the caller
+supplies an explicit staged binary; that build had overwritten the qualified
+root target and turned the one binding refusal into six later readiness/link
+timeout failures. No identity or readiness check was weakened.

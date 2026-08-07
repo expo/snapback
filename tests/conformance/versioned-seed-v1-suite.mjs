@@ -210,12 +210,21 @@ function writeGeneratedBackend(directory, schema, functions, artifact, capabilit
 }
 
 const temporaryRoot = mkdtempSync(join(tmpdir(), 'snapback-seed-conformance-'));
-const currentBinary = resolve(process.env.SNAPBACK_BINARY ?? join(root, 'target/debug/snapback'));
-const build = spawnSync('cargo', ['build', '--quiet', '--bin', 'snapback'], {
-  cwd: root,
-  encoding: 'utf8',
-});
-if (build.status !== 0) throw new Error(`current binary build failed:\n${build.stderr}`);
+const explicitCurrentBinary = process.env.SNAPBACK_BINARY;
+const currentBinary = resolve(explicitCurrentBinary ?? join(root, 'target/debug/snapback'));
+// The canonical proof supplies a staged, readiness-qualified package binary.
+// Rebuilding the root target here would neither produce that path nor improve
+// its evidence; it would overwrite target/debug/snapback after readiness was
+// issued and make every later real-server consumer reject the prepared binary.
+if (!explicitCurrentBinary) {
+  const build = spawnSync('cargo', ['build', '--quiet', '--bin', 'snapback'], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+  if (build.status !== 0) throw new Error(`current binary build failed:\n${build.stderr}`);
+} else if (!existsSync(currentBinary)) {
+  throw new Error(`SNAPBACK_SEED_CONFORMANCE_BINARY_MISSING: ${currentBinary}`);
+}
 chmodSync(currentBinary, 0o755);
 
 const rustProof = spawnSync(
