@@ -7,6 +7,12 @@ Error handling, Code generation, Packaging, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-05
 **Revised:** 2026-08-06 (e — Accepted by author ruling at revision (d); the super-refine run record in llp/reviews/0186-agent-authoring-efficiency-program.run.md holds the verdict history, incl. that revision (d) was unreviewed)
+**Revised:** 2026-08-06 (f — amendment adding a worked-example tier to W2's Rosetta section, scoped separately from the vocabulary-alias tier; see the dated amendment)
+**Revised:** 2026-08-06 (g — revision of the (f) amendment after one `llp-review` round, two independent families instructed to prioritize generative feedback over compliance nitpicking: `llp/reviews/0186-agent-authoring-efficiency-program.claude.md` and `.gpt-5.md`, round 4. Both reviews converged on the same three defects — an evidence/concept-list mismatch, a closed four-demo source list two of the four concepts can't actually satisfy, and an OQ6 left as a named risk rather than a mechanism — plus the GPT-family review found a fourth, more serious one: the (f) revision's own worked "structural difference" example for Supabase RLS was itself wrong in exactly the way the tier exists to prevent. This revision fixes that bug, replaces the four-card list with a quick-map-plus-deep-journeys shape prioritized by an explicit evidence rubric, opens the source pool beyond the four originally named demos, and answers OQ6 with a generated-projection mechanism instead of naming it as unresolved.)
+**Revised:** 2026-08-07 (h — implementation record: see the dated amendment. All five (g) journeys shipped; `/llms.txt` found already landed by unrelated fleet work with a phasing defect, now corrected.)
+**Revised:** 2026-08-07 (i — implementation record: the W2 published authoring skill shipped as `skills/snapback-authoring/SKILL.md`, with its embedded Rosetta projection checked against the canonical records by `scripts/check-rosetta.mjs`; see the dated amendment. Its paired-lane success test remains gated on the W1 instrument.)
+**Revised:** 2026-08-07 (j — W2 golden-path scaffold shipped v1 as the `expo-chat` template in `snapback new`; see the dated amendment paragraph.)
+**Revised:** 2026-08-07 (k — the `create-snapback-app` ecosystem entry point named by W2 now exists in-repo as a thin wrapper package delegating to the `snapback new` scaffold mechanism; npm publication rides the next promotion. See the dated amendment paragraph.)
 **Related:** LLP 0061 (agent-first guide), LLP 0130 (Convex parity standing
 decisions), LLP 0146 (agentic authoring affordances), LLP 0176 (Expo
 messaging golden-path program), LLP 0178 (generate-time authoring
@@ -449,3 +455,329 @@ should say where.
 - **OQ5 — Public benchmark ethics.** When results are published, what
   disclosure (harness, model, briefs, fairness rules, raw diaries) makes
   the comparison credible rather than vendor-benchmark noise?
+- **OQ6 — Rosetta page maintenance authority (answered by the (g)
+  amendment below; residual noted there).** Who keeps the worked examples
+  in sync with guide drift? Answer: a canonical per-concept record that
+  the page, feature-page backlinks, and retrieval-eval seeds are
+  generated or checked from, with the guide owner responsible for
+  Snapback-side accuracy and the W1 benchmark owner responsible for
+  competitor-version pins and scheduled drift checks. The residual risk —
+  competitor API drift between scheduled checks — is accepted as
+  unavoidable and disclosed on every card, not hidden.
+
+## Amendment (2026-08-06): W2 Rosetta section — worked-example tier
+
+The accepted W2 text scopes the "Rosetta section" as vocabulary
+aliases: single competitor-vocabulary strings (`Convex useQuery`,
+`Supabase RLS`) added to the `guide/capabilities.md` Aliases column and
+mirrored as `guide/retrieval-eval.md` seed cases, per LLP 0187 T1's
+outward-facing convention. That closes a **discoverability** gap — a
+competitor-vocabulary grep now lands on the right page — but not a
+**translation** gap: landing on the page still leaves the agent to
+compose the Snapback-shaped implementation from prose, which is exactly
+the "compose from prose" cost this Plan's own W2 scaffold reasoning
+says agents pay dearly for ("agents are far cheaper editing a working
+example than composing from prose"). This amendment adds a worked-example
+tier to W2, additive to and independent of the alias tier — neither
+blocks the other, and the alias tier should ship regardless of this
+tier's pace.
+
+**Revision note (g).** The initial (f) text below was revised after one
+`llp-review` round (two independent families instructed to be generative,
+not just find compliance defects — `llp/reviews/0186-agent-authoring-efficiency-program.claude.md`
+and `.gpt-5.md`, round 4). Both reviews independently verified the same
+three defects by reading the same files (the concept list's stated
+evidence didn't match its content; two of the four named demos don't
+contain what was claimed; the tier deferred its own evidence base's
+highest-signal defect to a later pass), and the GPT-family review found a
+fourth, more serious one: the (f) text's own worked example for Supabase
+RLS was itself wrong, in exactly the way this tier exists to prevent. The
+text below is the corrected version; the (f) text and both full reviews
+remain on record for what changed and why.
+
+**Format.** Not four symbol-substitution cards. One guide page,
+`guide/recipes/coming-from-convex-and-supabase.md` (filed under Recipes,
+matching the existing "topic — distilled from demo" shape of
+`recipes/presence-cursors.md` and `recipes/hidden-hands.md`, rather than
+Getting Started — both reviews independently questioned the original
+placement), structured as:
+
+- A **quick map**: one-line routes needing no code pairing — Convex
+  dashboard / Supabase Studio → the `snapback dev`-printed admin console
+  URL; `convex dev` / Supabase local dev → the generate/dev/verify loop;
+  schema and indexes → `defineSchema`; seed functions / SQL seed →
+  versioned seed and reset; offline cache → retained-query and outbox
+  guarantees.
+- A small number of **deep worked journeys**: each a complete,
+  minimal-but-real slice (every required file, not just the terminal
+  hook/call), pinned to a competitor version and retrieval date, ending
+  with one verification command or behavioral oracle and a link to the
+  authoritative Snapback feature page for depth. Each journey states
+  where it is *not* equivalent rather than forcing a translation.
+
+**Source pool.** Not the closed four-demo list the (f) text named — two
+of those four demos do not actually contain the joins or presence-hook
+code claimed (verified independently by both reviews: joins only exist
+in `demos/competitive-checkpoint`, already what
+`guide/backend/relational-queries.md` transcludes; the presence *hook*
+lives in `demos/messaging-snapback/src/lib/useTyping.ts`, not
+`demos/cursors-web`, which has only the schema-side ephemeral
+declaration). The rule instead: any CI-exercised canonical source,
+preferring the smallest current golden-path witness; a small pinned
+fixture under `benchmarks/fixtures/rosetta/` is the fallback only where
+no witness exists yet.
+
+One source deserves a named preference over transcribing competitor
+documentation: **`demos/partiful-matrix` already contains real,
+CI-verified competitor-side code for the same app.**
+`surfaces/react/src/provider.ts`'s `createMatrixProvider` switches one
+React app (`App.tsx`) between `createSnapbackProvider`,
+`createConvexDirectProvider` (`convex-direct.ts`), and
+`createSupabaseDirectProvider` (`supabase-direct.ts`) — three backends
+implementing the identical `MatrixProvider` interface for the identical
+events/RSVP/wall app, built for LLP 0063's comparative-fairness leg and
+exercised by acceptance tests per backend (`acceptance/results/*.json`).
+Where a journey's competitor side already exists here, use it in place
+of a transcribed-from-docs snippet: it is real, tested code rather than
+a claim about what the competitor's docs say, which removes half of
+OQ6's drift risk for that entry outright. `demos/partiful-matrix` is the
+preferred source for the reactive-query journey below; check it first
+for any future journey before transcribing from external documentation.
+
+**Deep worked journeys**, in evidence-honest priority order (both
+reviews converged on this ranking independently; the (f) list's
+console-3/3 evidence dropped and no-evidence RLS/queries added is not
+repeated):
+
+1. **Protected live CRUD, end to end** — schema, index, live query,
+   mutation, codegen, provider, `useSnapbackQuery` /
+   `useSnapbackMutation`, session custody, and the *complete* protected-
+   data slice: explicit function `auth`, no client-supplied owner
+   argument, the `eq('ownerId', authUserId())` predicate as the actual
+   security boundary (source: `demos/card-game/snapback/functions.mjs`,
+   `demos/card-game/tests/acceptance/authority-scope.mjs`), a supporting
+   index, and `authScopeField` named correctly as declaring the live
+   matcher's principal field for disjoint-subscription reasoning — **not**
+   as an injected filter (`guide/auth/sessions-and-principals.md`,
+   "Queries are scoped by the server, not by arguments"). Includes a
+   two-principal negative proof, not a rename claim. This corrects the
+   (f) text's own bug.
+2. **Reading related data without hand-writing the wrong join** —
+   Convex and Supabase are documented separately (JS-side traversal plus
+   indexed lookups vs. foreign-key-derived nested selection with join
+   modifiers; they are not one source concept) feeding one Snapback
+   decision tree: bounded two-source `defineRelationalQuery`, a durable
+   `defineMaintainedProjection`, or an explicit JS fallback. Source:
+   `demos/competitive-checkpoint/snapback/functions.mjs`.
+3. **Upload and attach an Expo image under ordinary session custody** —
+   the item LLP 0186's own evidence section calls "the single
+   highest-signal defect in the set" (the dev-mode anonymous-upload wall;
+   forced a full app rebuild into sessions mode in one diary), promoted
+   into this wave rather than deferred, since it is the highest
+   cost-to-agent item in the entire evidence base, not merely a
+   replicated miss. Source: the Expo ImagePicker-to-Blob recipe in
+   `guide/backend/assets.md`.
+4. **Ephemeral/presence** — Supabase's own docs steer high-frequency
+   cursor-style state toward Broadcast, not Presence (meant for
+   slower-changing state); the journey therefore separates "typing/online
+   state" (→ `useSnapbackPresence`, `demos/messaging-snapback/src/lib/useTyping.ts`)
+   from cursor-like workloads (→ ephemeral collections,
+   `demos/cursors-web/snapback/schema.mjs`) rather than treating Supabase
+   Presence as the universal source for both.
+5. **Reactive queries** (`Convex useQuery` → `useSnapbackQuery`) — no
+   miss evidence, but foundational; prefer the real dual-backend source
+   named above (`demos/partiful-matrix`'s `convex-direct.ts` next to its
+   `provider.ts` Snapback arm) over a transcribed Convex snippet.
+
+Each journey uses the stable card shape: source intent and literal
+search phrases; "use this translation when…" decision rule; the pinned
+competitor snippet or source (version and retrieval date recorded);
+the smallest complete Snapback slice; structural differences and
+guarantees gained or lost; "not equivalent when…" boundaries and named
+capability GAPs; one verification command or behavioral oracle; links to
+the authoritative Snapback feature pages. One sentence of structural
+difference — the (f) text's shape — is enough for the reactive-query
+journey; it is not enough for auth, joins, or media, which get the fuller
+block.
+
+**Routing.** The alias tier's existing rows (`clients.react` →
+`Convex useQuery`; `auth.scoped-queries` → `Supabase RLS`, both verified
+in `guide/capabilities.md`) point to the canonical feature page
+(`clients/react.md`, `auth/sessions-and-principals.md`), not this page —
+so the (f) text's implicit assumption that the alias tier already routes
+here was wrong. Fix: add an explicit "Coming from Convex/Supabase?"
+pointer at the decision point on each canonical feature page this touches,
+linking to the matching journey here; keep the capability-index alias
+itself pointed at the canonical feature page, not redirected to the
+comparison page.
+
+**Non-goals.** Not a feature-parity claim and not a marketing comparison.
+Where Snapback has no equivalent for a Convex/Supabase primitive already
+tracked as a capability-index GAP row (generic joins beyond the bounded
+relational-query shapes, ANN search maturity), the page says so plainly
+instead of forcing a translation. The page is local-target-only, like
+every Snapback destination it currently names, and does not imply hosted
+parity.
+
+**OQ6 mechanism.** One small canonical record per journey/quick-map entry
+(id, competitor provider/version/source, competitor fixture path where
+one exists, Snapback sources, capabilities, `lastVerified`/`reviewBy`
+dates) that the hub page, feature-page backlinks, and retrieval-eval
+seeds are generated or checked from, rather than four independently
+hand-maintained artifacts that can drift from each other. Authority
+split: the guide owner owns Snapback-side accuracy and page publication
+(the existing `source=`/Freshness convention in `guide/conventions.md`
+already gives mechanical protection against a renamed or removed
+Snapback primitive, for free, once the record lists its Snapback sources
+in the page's `authorities:`/`examples:` frontmatter); the W1 benchmark
+owner owns competitor-version pins and a scheduled (not per-PR) drift
+check comparing the recorded competitor source against its current
+version, failing closed and filing a review item on drift — mirroring how
+Rust's `rustdoc` doctests turn example drift into a build failure rather
+than a documentation claim. A card whose watcher receipt is stale or
+currently drifted is not published. This resolves OQ6 to a residual,
+disclosed risk (competitor API drift between scheduled checks) rather
+than an open question.
+
+**Sequencing.** Same W2 lane as the published authoring skill — ships
+right after W0, since it is cheap and reuses existing demo code, and
+does not wait on the full-projection `/llms.txt` or the golden-path
+scaffold. The skill should embed the generated compact projection of
+each record rather than independently drafting its own translations of
+the same concepts, so the two cannot drift apart. Build a small proof
+first — journeys 1 and 3 above — and run both evals below before
+expanding to the rest.
+
+**Success test — two layers, not one.** *Retrieval*: given competitor
+vocabulary, the agent reaches the exact journey or its feature-page
+backlink within the existing tool budget (widening LLP 0187 T7's
+standing rule: a fixed discoverability miss must add a retrieval-eval
+case proving this, not just that some page loaded). *Construction*: the
+agent completes the journey's own task and passes its oracle — the auth
+journey proves cross-principal denial, the presence journey proves
+expiry without a durable-version advance, the joins journey proves the
+bounded primitive was chosen when its shape fits, the media journey
+proves a real app-path upload. "Named the right primitive" is necessary
+but not sufficient; a cold benchmark lane (LLP 0186 W1) given a brief
+phrased in Convex/Supabase vocabulary reaching for the right primitive
+without extra guide search is a discriminating signal only in
+combination with the construction check, not on its own — an agent that
+follows a journey's link into the authoritative feature page for more
+depth is succeeding, not failing, so "zero further navigation" is not
+the bar.
+
+## Amendment (2026-08-07): W2 implementation record
+
+**Rosetta tier: all five (g) journeys shipped.** `guide/recipes/coming-from-convex-and-supabase.md`
+now carries the Quick map plus all five deep worked journeys named in the (g) revision —
+protected-live-crud, expo-media-upload, relational-queries, ephemeral-presence, and
+reactive-queries — landed in two batches (`3d7f6eb40`: the first two, as the "small proof" the
+(g) revision's own sequencing called for; `1a4463d76`: the remaining three). The OQ6 mechanism
+(`scripts/check-rosetta.mjs`, wired into `check-guide.mjs`) validates all five records against
+`guide/capabilities.md`'s aliases, hub-page anchors, and feature-page backlinks; `check-guide.mjs`,
+`check-rosetta.mjs`, and `ref-check` are green at both landing commits. Feature-page backlinks
+landed on `auth/sessions-and-principals.md`, `backend/queries.md`, `clients/react.md` (extended
+in place for both `protected-live-crud` and `reactive-queries` rather than duplicated),
+`backend/assets.md`, `backend/relational-queries.md`, and `realtime/ephemeral-state.md`. Six new
+capability aliases and five new `guide/retrieval-eval.md` seed cases (10–14) landed alongside.
+The reactive-queries journey uses `demos/partiful-matrix`'s real, CI-exercised dual-backend
+implementation (`surfaces/react/src/provider.ts` / `convex-direct.ts`, driven by
+`tests/acceptance/convex-realtime-web.mjs`, which records each provider file's content hash) as
+its "if a snippet isn't enough" pointer — real competitor-side code, not a transcribed fragment,
+for the one journey where that source happens to exist.
+
+**Authoring skill: shipped (2026-08-07).** `skills/snapback-authoring/SKILL.md` is the published
+Snapback authoring skill for app-building agents (Claude Code / Codex / Cursor discover it through
+the `scripts/sync-agent-skills` mirrors — `.claude/skills`, `.agents/skills`, `.cursor/skills`,
+`.pi/skills`, `.opencode/skills` — which are whole-directory symlinks to `skills/`, so the real
+directory needs no sync-script change). It front-loads the five W2 items: the golden path
+(install → schema → codegen → dev → first query → first upload), seven top traps re-verified
+against main on 2026-08-07 (traps already fixed by W0/W3 landings — the anonymous-upload wall,
+the optional-arg contradiction, TUS CORS, the published offline-retention gate — were deliberately
+excluded rather than carried stale), the `snapback verify` done-oracle with its partial-claim
+honesty, the guide locations (`/_snapback/guide`, `/llms.txt`, capability-index-first,
+`snapback mcp` vs `mcp-control`), and a compact projection of all five Rosetta records between
+`<!-- rosetta:begin/end -->` markers. Per this amendment's sequencing rule the projection is
+checked, not hand-trusted: `scripts/check-rosetta.mjs` now fails if the skill block is missing a
+record's id, title, hub-anchor link, or any record alias, or if the skill names a journey no
+record backs — so the skill and the guide cannot drift apart. The skill's discriminating success
+test (paired lanes on the same brief, with and without the skill, measuring orientation cost and
+Snapback-attributable correction loops) remains gated on the W1 instrument and has **not** been
+run; shipping the skill claims availability, not measured value.
+
+**Same-day review pass (2026-08-07).** A post-landing review corrected four defects in the shipped
+page. (1) The reactive-queries journey's Snapback snippet was `demos/partiful-matrix`'s
+harness-local hook (`@partitime/snapback-react`, `provider`/`userId`/`authority` parameters)
+presented as the canonical shape — exactly the wrong-shape translation this tier exists to
+prevent; replaced with the canonical `useSnapbackQuery(ref, args)` snippet from
+`packages/snapback-react/exact-result-types.fixture.ts` (the same source `clients/react.md`
+pins), with partiful-matrix repositioned as the dual-backend seam pointer only. (2) The
+media-upload journey's backend snippets came from the codegen authoring test (PDF media types,
+an `avatarUpload` the client snippet never referenced); replaced with
+`demos/expo-golden-path-fixture`'s own `messages` schema field and `messageImageUpload` intent,
+making the slice one coherent demo whose intent accepts images and visibly declares
+`location: 'strip'`. (3) The ephemeral journey overstated the expiry-model contrast ("expires by
+its declared `ttlMs` lease — not a side effect of the transport noticing a disconnect");
+`realtime/ephemeral-state.md` itself states disconnect normally emits remove deltas with TTL as
+the backstop, so the paragraph was rewritten to match, and the false "reconnects within that
+window sees its own stale entry" claim (wrong for connection-keyed collections) was dropped.
+(4) `reviewed-commit: HEAD` was pinned, per the convention that `HEAD` is permitted only in the
+landing change. The two affected rosetta records' `snapbackSources` were updated to match.
+
+**`/llms.txt`: found already shipped, phasing defect corrected.** Contrary to this Plan's own W2
+text above ("there is no `/llms.txt`"), unrelated fleet work had already landed a working
+`GET /llms.txt` route (`src/server.rs`, `served_llms_txt`, covered by
+`tests/served_guide_v1.rs` and `tests/route_policy_v1.rs`) by the time this amendment was
+written — the Plan's text was stale, not the repository. The shipped version, however, did not
+match this Plan's own phasing: it listed the complete flat single-file projection
+(`/_snapback/guide/flat.md`, 857 KB and growing) as its *first* link, ahead of the capability
+index, exactly the "pull the whole oversized corpus first" behavior W2's two-stage design exists
+to prevent — `issues/20260806-guide-flat-projection-oversize.md` is still open, so the oversize
+condition this ordering risked is real, not historical. Corrected in `src/server.rs`'s `LLMS_TXT`
+constant to lead with the capability index and list the flat projection last, labeled as a large
+explicit fallback; `guide/index.md`'s description updated to match. The existing test only asserts
+substring presence of both links, not order, so no test needed to change; both still pass.
+**Residual:** the full-projection stage described in W2 ("the full-projection `/llms.txt`
+completes when 0061's projection lands") is therefore not a future addition but a present
+ordering fix plus a still-open size problem — the flat projection itself still needs LLP 0061's
+diet/tier amendment before pointing agents at it first is honest.
+
+**Golden-path scaffold: shipped v1 (2026-08-07).** With its stated gate satisfied (LLP 0176
+G2+G3 completed 2026-08-06; LLP 0179 S1 shipped), the scaffold landed as a third template in the
+existing `snapback new` mechanism rather than a separate `create-snapback-app` tool:
+`snapback new <name> --template expo-chat`
+(`packages/snapback-cli/templates/expo-chat/`). It carries the LLP 0176 conversation surface as
+runnable code derived from `demos/expo-golden-path-fixture`: a `messages` table with an image
+`assetRef` field, the `messageImageUpload` intent (strip + required variant), public live queries,
+the generated `conversation` surface (reads, bound `sendText` mutation, the composed `send`
+command with optional image upload, typing presence, the raw asset lane), seeded personas, and an
+Expo/React Native chat screen driving everything through `useSurface` — plus the starter
+acceptance pair (`acceptance.mjs` live receipt, `acceptance.static.mjs` coherence) and an
+`AGENTS.md` funnel per LLP 0187 T4. It deliberately omits the fixture's G2/G3 emit probes and
+witness reporting, the inbox/memberships/reactions/replies breadth, and sessions auth (the
+template keeps the dev auth profile with an explicit pointer to the auth guide; the fixture
+remains the full sessions-mode surface). CI coverage: `packages/snapback-cli/package.test.mjs`
+scaffolds the template, runs codegen over it (asserting zero degraded results and that the
+`conversation` surface generates), and executes its static acceptance; the live acceptance was
+verified against a real runtime at landing time. The out-of-repo packaged proof
+(`scripts/snapback-package-cold-install.mjs`) does not yet exercise this template — ticketed as a
+follow-on (`issues/20260807-expo-chat-template-cold-install-coverage.md`). With the authoring
+skill shipped the same day (revision (i) above), every W2 lane now has a landed artifact; the
+skill's paired-lane success test remains gated on the W1 instrument.
+
+**Ecosystem scaffold entry point: in-repo (2026-08-07).** The `create-snapback-app` package this
+Plan names (`packages/create-snapback-app/`) now exists, so the ecosystem-standard invocations —
+`npm create snapback-app my-chat`, `npx create-snapback-app my-chat`, and the bun/pnpm
+equivalents — resolve to the same scaffold once published. It is deliberately a thin wrapper,
+not a second scaffolder: one file parses `<target-dir>`/`--template` (default `expo-chat`),
+calls `scaffoldApp` from `@expo/snapback-cli` programmatically, derives `--help`'s template list
+from the CLI's packaged template directory via the new `listTemplates()` export, and prints the
+template's next steps (`cd` / `bun install` / `bun run dev`). Its package suite asserts
+file-list-identical output against `snapback new` for `expo-chat` and `react`, the CLI-owned
+`SNAPBACK_NEW_TEMPLATE_UNKNOWN`/`SNAPBACK_NEW_NAME_REQUIRED` refusals, and registry-derived
+help; it is registered in the canonical package-test inventory, the local-proof rung set, and
+the README funnel. **Not yet published:** the package is outside the qualified ten-package
+closure (`scripts/snapback-publish-core.mjs` `PACKAGE_INVENTORY`); adding it there requires the
+promotion lane's receipts, so publication is ticketed for the next promotion sweep
+(`issues/20260807-create-snapback-app-publication.md`, alongside the expo-chat cold-install
+ticket above).

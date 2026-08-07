@@ -67,7 +67,7 @@ const generatedManifest = Object.freeze({
   functions: Object.freeze([reference('feed')]),
 });
 
-function createFakeClient() {
+function createFakeClient(activeMode = 'dev') {
   const barriers = [];
   const client = {
     authProtocols: {},
@@ -86,7 +86,7 @@ function createFakeClient() {
         },
       };
     },
-    async authSession() { return { activeMode: 'dev' }; },
+    async authSession() { return { activeMode }; },
     registerAuthBarrierParticipant(participant) {
       barriers.push(participant);
       return async () => {};
@@ -189,8 +189,8 @@ const file = Object.freeze({
   slice: () => ({ arrayBuffer: async () => new ArrayBuffer(10) }),
 });
 
-async function harness() {
-  const { client, barriers } = createFakeClient();
+async function harness({ activeMode = 'dev' } = {}) {
+  const { client, barriers } = createFakeClient(activeMode);
   const binding = await prepareReactBindingForClient(client, { generatedManifest });
   const assets = createFakeAssets();
   const provider = createSnapbackReactProvider(binding, { assets });
@@ -338,6 +338,8 @@ function renderHook(provider, hook) {
     output.current.src,
     'http://fixture/assets/records/asset-9/bytes/best?maxWidth=256',
   );
+  assert.equal(output.current.delivery, 'strict');
+  assert.equal(output.current.strictSrc, output.current.src);
 
   // Blanking (denial/deletion) empties the ladder.
   act(() => { assets.emitWatch({ status: 'blank', record: null, mode: 'live' }); });
@@ -373,8 +375,180 @@ function renderHook(provider, hook) {
   });
   assert.equal(output.current.phase, 'rendition');
   assert.equal(output.current.src, 'http://fixture/assets/public/asset-public/chat');
+  assert.equal(output.current.delivery, 'public');
+  assert.equal(
+    output.current.strictSrc,
+    'http://fixture/assets/records/asset-public/bytes/best?maxWidth=760',
+  );
   act(() => { renderer.unmount(); });
   console.log('public-immutable renderer chooses one concrete ready rendition URL: ok');
+}
+
+{
+  const { provider, assets } = await harness();
+  const previewUrl = 'blob:public-pending-preview';
+  const { output, renderer } = renderHook(
+    provider,
+    () => useSnapbackAssetImage({
+      assetId: 'asset-public-pending',
+      previewUrl,
+      maxWidth: 480,
+    }),
+  );
+  await act(async () => { await flush(); });
+  act(() => {
+    assets.emitWatch({
+      status: 'ready',
+      record: {
+        assetId: 'asset-public-pending',
+        availability: 'ready',
+        deliveryProfile: 'public-immutable',
+        renditions: [
+          { variant: 'primary', ready: false, width: 1200 },
+          { variant: 'feed', ready: false, width: 480 },
+        ],
+      },
+      mode: 'live',
+    });
+  });
+  assert.equal(output.current.phase, 'preview');
+  assert.equal(output.current.src, previewUrl);
+  assert.equal(output.current.delivery, 'pending');
+  assert.equal(
+    output.current.strictSrc,
+    'http://fixture/assets/records/asset-public-pending/bytes/best?maxWidth=480',
+  );
+  assert.notEqual(output.current.src, output.current.strictSrc);
+
+  act(() => {
+    assets.emitWatch({
+      status: 'ready',
+      record: {
+        assetId: 'asset-public-pending',
+        availability: 'ready',
+        deliveryProfile: 'public-immutable',
+        renditions: [
+          { variant: 'primary', ready: false, width: 1200 },
+          { variant: 'feed', ready: true, width: 480 },
+        ],
+      },
+      mode: 'live',
+    });
+  });
+  assert.equal(output.current.phase, 'rendition');
+  assert.equal(output.current.delivery, 'public');
+  assert.equal(
+    output.current.src,
+    'http://fixture/assets/public/asset-public-pending/feed',
+  );
+  act(() => { renderer.unmount(); });
+
+  const emptyHarness = await harness();
+  const empty = renderHook(
+    emptyHarness.provider,
+    () => useSnapbackAssetImage({ assetId: 'asset-public-pending-empty', maxWidth: 320 }),
+  );
+  await act(async () => { await flush(); });
+  act(() => {
+    emptyHarness.assets.emitWatch({
+      status: 'ready',
+      record: {
+        assetId: 'asset-public-pending-empty',
+        availability: 'ready',
+        deliveryProfile: 'public-immutable',
+        renditions: [{ variant: 'feed', ready: false, width: 320 }],
+      },
+      mode: 'live',
+    });
+  });
+  assert.equal(empty.output.current.phase, 'empty');
+  assert.equal(empty.output.current.src, null);
+  assert.equal(empty.output.current.delivery, 'pending');
+  assert.equal(
+    empty.output.current.strictSrc,
+    'http://fixture/assets/records/asset-public-pending-empty/bytes/best?maxWidth=320',
+  );
+  act(() => { empty.renderer.unmount(); });
+  console.log('public-immutable renderer holds underlay during rendition publication: ok');
+}
+
+{
+  const { provider, assets } = await harness();
+  const { output, renderer } = renderHook(
+    provider,
+    () => useSnapbackAssetImage({ assetId: 'asset-public-widthless', maxWidth: 640 }),
+  );
+  await act(async () => { await flush(); });
+  act(() => {
+    assets.emitWatch({
+      status: 'ready',
+      record: {
+        assetId: 'asset-public-widthless',
+        availability: 'ready',
+        deliveryProfile: 'public-immutable',
+        renditions: [{ variant: 'mystery-size', ready: true }],
+      },
+      mode: 'live',
+    });
+  });
+  assert.equal(output.current.phase, 'rendition');
+  assert.equal(output.current.delivery, 'public');
+  assert.equal(
+    output.current.src,
+    'http://fixture/assets/public/asset-public-widthless/mystery-size',
+  );
+  assert.notEqual(output.current.src, output.current.strictSrc);
+  act(() => { renderer.unmount(); });
+  console.log('public-immutable renderer accepts a ready widthless rendition: ok');
+}
+
+{
+  const warnings = [];
+  const originalWarn = console.warn;
+  console.warn = (...args) => { warnings.push(args); };
+  try {
+    const sessions = await harness({ activeMode: 'sessions' });
+    const sessionImage = renderHook(
+      sessions.provider,
+      () => useSnapbackAssetImage({ assetId: 'asset-sessions-strict', maxWidth: 256 }),
+    );
+    await act(async () => { await flush(); });
+    const strictRecord = {
+      status: 'ready',
+      record: { assetId: 'asset-sessions-strict', availability: 'ready' },
+      mode: 'live',
+    };
+    act(() => { sessions.assets.emitWatch(strictRecord); });
+    assert.equal(sessionImage.output.current.delivery, 'strict');
+    assert.equal(warnings.length, 1);
+    assert.equal(warnings[0].length, 1);
+    assert.match(warnings[0][0], /SNAPBACK_REACT_ASSET_STRICT_DELIVERY_SESSIONS/);
+    assert.match(warnings[0][0], /asset-sessions-strict/);
+    act(() => { sessions.assets.emitWatch(strictRecord); });
+    assert.equal(warnings.length, 1);
+    act(() => { sessionImage.renderer.unmount(); });
+
+    warnings.length = 0;
+    const dev = await harness();
+    const devImage = renderHook(
+      dev.provider,
+      () => useSnapbackAssetImage({ assetId: 'asset-dev-strict', maxWidth: 256 }),
+    );
+    await act(async () => { await flush(); });
+    act(() => {
+      dev.assets.emitWatch({
+        status: 'ready',
+        record: { assetId: 'asset-dev-strict', availability: 'ready' },
+        mode: 'live',
+      });
+    });
+    assert.equal(devImage.output.current.delivery, 'strict');
+    assert.equal(warnings.length, 0);
+    act(() => { devImage.renderer.unmount(); });
+  } finally {
+    console.warn = originalWarn;
+  }
+  console.log('sessions strict-delivery diagnostic warns once per provider asset: ok');
 }
 
 {

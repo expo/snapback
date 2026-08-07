@@ -20,9 +20,10 @@ reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 > [auth/targets](../auth/targets.md).
 
 A live query is an ordinary query definition that clients can subscribe
-to: subscribers get an authoritative initial snapshot **with** the
-subscription (never a prime race), then server-pushed updates over the
-durable lane as commits change the result.
+to — the paved road to a live-updating list or view: subscribers get an
+authoritative initial snapshot **with** the subscription (never a prime
+race), then server-pushed updates over the durable lane as commits change
+the result.
 
 ## Define one
 

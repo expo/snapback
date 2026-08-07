@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-05
-reviewed-commit: HEAD
+reviewed-commit: 6f7cfdfa1c1ab675b5a3fe8d193328e8a4d7e870
 ---
 
 # Acceptance testing

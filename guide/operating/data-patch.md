@@ -11,7 +11,7 @@ targets: [local]
 maturity: shipped
 since: 0.1.10
 reviewed: 2026-08-06
-reviewed-commit: HEAD
+reviewed-commit: d6222e7f24a0ac0009c68fd1b8f7df17a17ca480
 ---
 
 # Patch one existing row safely

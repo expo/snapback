@@ -9,8 +9,8 @@ examples: [demos/party-wall]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-07
+reviewed-commit: cca0db7d8e94c8d4943eb808d4e10238a506c70c
 ---
 
 # Versioned seeds
@@ -171,7 +171,10 @@ it — mint personas *after* the install, and never seed captured principal ids
 - `SNAPBACK_SEED_OPERATION_HISTORICAL`: obtain a fresh predecessor stream and
   operation id.
 - `SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED`: keep total direct plus changed
-  maintained-projection outputs at or below 1,024.
+  maintained-projection outputs at or below 1,024. An acceptance fixture that
+  genuinely needs more rows does not belong in a seed — load it through the
+  gated batch-ingest recipe in
+  [loading large deterministic fixtures](../testing/large-fixtures.md).
 - `SNAPBACK_CLIENT_SEED_PROTOCOL_UNSUPPORTED`: the selected target does not
   advertise the required protocol; there is no compatibility fallback.
 

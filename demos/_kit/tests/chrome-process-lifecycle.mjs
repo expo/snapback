@@ -20,6 +20,7 @@ import {
   diagnoseChromeRuntimeError,
   launchChromeCdp,
   NO_PRIMARY_FAILURE,
+  retryChromeResourceExhaustion,
   throwRunAndCleanupFailures,
 } from '../chrome-process.mjs';
 
@@ -106,6 +107,7 @@ async function runLifecycleProof() {
     await provesSpawnErrorCleanup(scratch);
     await provesFailedAttestationPreservesProfile(scratch);
     provesIndexedDbRuntimeDiagnostic(scratch);
+    await provesBoundedChromeResourceRetry();
     provesRunAndCleanupFailureComposition();
     provesRepositoryInventory();
     assert.deepEqual(
@@ -117,6 +119,76 @@ async function runLifecycleProof() {
     rmSync(scratch, { recursive: true, force: true });
   }
   console.log('PASS shared Chrome process-tree lifecycle and launcher inventory');
+}
+
+async function provesBoundedChromeResourceRetry() {
+  const delays = [];
+  let attempts = 0;
+  const value = await retryChromeResourceExhaustion(async () => {
+    attempts += 1;
+    if (attempts < 3) {
+      throw new AggregateError([
+        new Error('raw module load failed', {
+          cause: new Error('net::ERR_INSUFFICIENT_RESOURCES'),
+        }),
+      ], 'isolated Chrome acceptance failed');
+    }
+    return 'recovered';
+  }, {
+    maxAttempts: 3,
+    delayMs: 10,
+    sleepImpl: async (delay) => { delays.push(delay); },
+  });
+  assert.equal(value, 'recovered');
+  assert.equal(attempts, 3, 'the exact Chrome resource diagnostic gets a bounded retry');
+  assert.deepEqual(delays, [10, 20], 'retry delay remains bounded and deterministic');
+
+  const productFailure = new Error('second window re-provisioned');
+  attempts = 0;
+  await assert.rejects(
+    retryChromeResourceExhaustion(async () => {
+      attempts += 1;
+      throw productFailure;
+    }, {
+      maxAttempts: 3,
+      sleepImpl: async () => assert.fail('product failures must not sleep or retry'),
+    }),
+    (error) => error === productFailure,
+  );
+  assert.equal(attempts, 1, 'a product failure is attempted exactly once');
+
+  const cleanupFailure = new Error('process-tree exit was not attested');
+  cleanupFailure.code = 'SNAPBACK_PROCESS_TREE_CLEANUP_FAILED';
+  attempts = 0;
+  await assert.rejects(
+    retryChromeResourceExhaustion(async () => {
+      attempts += 1;
+      throw new AggregateError([
+        new Error('net::ERR_INSUFFICIENT_RESOURCES'),
+        cleanupFailure,
+      ], 'run and cleanup both failed');
+    }, {
+      maxAttempts: 3,
+      sleepImpl: async () => assert.fail('cleanup failures must not sleep or retry'),
+    }),
+    (error) => error instanceof AggregateError && error.errors[1] === cleanupFailure,
+  );
+  assert.equal(attempts, 1, 'a cleanup failure prevents resource retry');
+
+  const exhausted = new Error('net::ERR_INSUFFICIENT_RESOURCES after clean relaunch');
+  attempts = 0;
+  await assert.rejects(
+    retryChromeResourceExhaustion(async () => {
+      attempts += 1;
+      throw exhausted;
+    }, {
+      maxAttempts: 2,
+      delayMs: 0,
+      sleepImpl: async () => {},
+    }),
+    (error) => error === exhausted,
+  );
+  assert.equal(attempts, 2, 'resource exhaustion rethrows unchanged at the attempt bound');
 }
 
 function launchFixture(scratch, mode, overrides = {}) {
@@ -542,6 +614,17 @@ function provesRepositoryInventory() {
   assert.ok(
     updateEconomy.lastIndexOf('throwRunAndCleanupFailures') < updateEconomy.lastIndexOf('process.exit(0)'),
     'update-economy may force exit 0 only after the failure combiner returns cleanly',
+  );
+  const allAboard = readFileSync(join(repoRoot, launchers[1]), 'utf8');
+  assert.match(
+    allAboard,
+    /retryChromeResourceExhaustion/,
+    'All Aboard isolated cold opens must use the diagnostic-specific retry',
+  );
+  assert.match(
+    allAboard,
+    /--disable-dev-shm-usage/,
+    'All Aboard isolated Linux Chrome processes must avoid the constrained shared-memory mount',
   );
 
   const remoteDebuggingFlag = '--remote-debugging-' + 'port=0';

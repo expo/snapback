@@ -1,0 +1,33 @@
+{
+  "id": "expo-media-upload",
+  "title": "Upload and attach an Expo image under session custody",
+  "anchor": "expo-media-upload",
+  "capabilities": ["backend.assets"],
+  "aliases": ["Supabase Storage", "Convex generateUploadUrl"],
+  "competitor": [
+    {
+      "provider": "Convex",
+      "concept": "generateUploadUrl — a mutation-callable action that mints a short-lived signed URL; the client POSTs the raw file bytes to that URL to obtain a storage ID, then a second mutation writes that storage ID onto a document field (typically v.id('_storage')) to attach it.",
+      "version": "1.24.8",
+      "sourceUrl": "https://docs.convex.dev/file-storage/upload-files",
+      "retrievedAt": "2026-08-07"
+    },
+    {
+      "provider": "Supabase",
+      "concept": "Supabase Storage — supabase.storage.from(bucket).upload(path, file) uploads a file directly to a bucket from the client (authorized by Storage RLS policies on storage.objects), returning a path that is then stored as a plain string column on a table row to associate it with a record.",
+      "version": "2.45.4 (supabase-js)",
+      "sourceUrl": "https://supabase.com/docs/guides/storage",
+      "retrievedAt": "2026-08-07"
+    }
+  ],
+  "snapbackSources": [
+    "demos/expo-golden-path-fixture/snapback/schema.mjs",
+    "demos/expo-golden-path-fixture/snapback/functions.mjs",
+    "demos/expo-golden-path-fixture/src/screens/chat-screen.tsx"
+  ],
+  "backlinkPages": [
+    "guide/backend/assets.md"
+  ],
+  "lastVerified": "2026-08-07",
+  "reviewBy": "2026-11-07"
+}

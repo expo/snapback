@@ -30,7 +30,7 @@
   },
   "inputs": {
     "profilesSha256": "700b03e0101540cc209f25e0e61835783323a1e4ab727962dbbfeef81b4203ab",
-    "lockfileSha256": "b417f685c10348238e63e527c3b54fcc8695c5a1115f1b11c07243de525e107e"
+    "lockfileSha256": "ad8a98cbad65849cc8e496a471b0c1ddb7bbf7a6292dd4cceb27a77339ab480d"
   },
   "behaviorCommands": [
     "node packages/snapback-client/package.test.mjs",
@@ -42,7 +42,7 @@
       "filename": "baseline.push-registry.v1.json",
       "inputs": {
         "profilesSha256": "5d1b24cc923e06fae40d466f5f80cff3ab3f9a50af7f4fe9b402bad060797cf4",
-        "lockfileSha256": "b417f685c10348238e63e527c3b54fcc8695c5a1115f1b11c07243de525e107e"
+        "lockfileSha256": "ad8a98cbad65849cc8e496a471b0c1ddb7bbf7a6292dd4cceb27a77339ab480d"
       },
       "behaviorCommands": [
         "node packages/snapback-client/push-registry.test.mjs"
@@ -52,7 +52,7 @@
       "filename": "baseline.push-installation-expo.v1.json",
       "inputs": {
         "profilesSha256": "2d473301b61aeffd323e71c68fa9e1697b44e47118a97b8eb07a751fd678420b",
-        "lockfileSha256": "b417f685c10348238e63e527c3b54fcc8695c5a1115f1b11c07243de525e107e"
+        "lockfileSha256": "ad8a98cbad65849cc8e496a471b0c1ddb7bbf7a6292dd4cceb27a77339ab480d"
       },
       "behaviorCommands": [
         "node packages/snapback-client/push-registry.test.mjs"
@@ -62,7 +62,7 @@
       "filename": "baseline.vector-search.v1.json",
       "inputs": {
         "profilesSha256": "2d473301b61aeffd323e71c68fa9e1697b44e47118a97b8eb07a751fd678420b",
-        "lockfileSha256": "b417f685c10348238e63e527c3b54fcc8695c5a1115f1b11c07243de525e107e"
+        "lockfileSha256": "ad8a98cbad65849cc8e496a471b0c1ddb7bbf7a6292dd4cceb27a77339ab480d"
       },
       "behaviorCommands": [
         "node packages/snapback-client/package.test.mjs"
@@ -72,7 +72,7 @@
       "filename": "baseline.result-transform.v1.json",
       "inputs": {
         "profilesSha256": "2d473301b61aeffd323e71c68fa9e1697b44e47118a97b8eb07a751fd678420b",
-        "lockfileSha256": "b417f685c10348238e63e527c3b54fcc8695c5a1115f1b11c07243de525e107e"
+        "lockfileSha256": "ad8a98cbad65849cc8e496a471b0c1ddb7bbf7a6292dd4cceb27a77339ab480d"
       },
       "behaviorCommands": [
         "node packages/snapback-client/ir-evaluator.test.mjs",
@@ -86,7 +86,7 @@
       "filename": "baseline.micro-phase-b.v1.json",
       "inputs": {
         "profilesSha256": "247ad02d4d08b89057e1fbc99372a7f951423da12200174e5eda8080070cc6a2",
-        "lockfileSha256": "b417f685c10348238e63e527c3b54fcc8695c5a1115f1b11c07243de525e107e"
+        "lockfileSha256": "ad8a98cbad65849cc8e496a471b0c1ddb7bbf7a6292dd4cceb27a77339ab480d"
       },
       "behaviorCommands": [
         "node packages/snapback-client/micro.test.mjs",
@@ -97,7 +97,7 @@
       "filename": "baseline.ir-evaluator.v1.json",
       "inputs": {
         "profilesSha256": "2d473301b61aeffd323e71c68fa9e1697b44e47118a97b8eb07a751fd678420b",
-        "lockfileSha256": "b417f685c10348238e63e527c3b54fcc8695c5a1115f1b11c07243de525e107e"
+        "lockfileSha256": "ad8a98cbad65849cc8e496a471b0c1ddb7bbf7a6292dd4cceb27a77339ab480d"
       },
       "behaviorCommands": [
         "node packages/snapback-client/ir-evaluator.test.mjs"
@@ -107,7 +107,7 @@
       "filename": "baseline.local-sync-absence.v1.json",
       "inputs": {
         "profilesSha256": "2d473301b61aeffd323e71c68fa9e1697b44e47118a97b8eb07a751fd678420b",
-        "lockfileSha256": "b417f685c10348238e63e527c3b54fcc8695c5a1115f1b11c07243de525e107e"
+        "lockfileSha256": "ad8a98cbad65849cc8e496a471b0c1ddb7bbf7a6292dd4cceb27a77339ab480d"
       },
       "behaviorCommands": [
         "node packages/snapback-client/package.test.mjs",
@@ -118,7 +118,7 @@
       "filename": "baseline.s2-commands.v1.json",
       "inputs": {
         "profilesSha256": "9e64a1124786b5806d90ad04801dae14366e582b915ca40afd5d332d1f93fb1c",
-        "lockfileSha256": "b417f685c10348238e63e527c3b54fcc8695c5a1115f1b11c07243de525e107e"
+        "lockfileSha256": "ad8a98cbad65849cc8e496a471b0c1ddb7bbf7a6292dd4cceb27a77339ab480d"
       },
       "behaviorCommands": [
         "node packages/snapback-client/commands.test.mjs",
@@ -132,7 +132,7 @@
       "workloadVersion": "llp-0166-local-persistent-store.v1",
       "inputs": {
         "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
-        "lockfileSha256": "b417f685c10348238e63e527c3b54fcc8695c5a1115f1b11c07243de525e107e"
+        "lockfileSha256": "ad8a98cbad65849cc8e496a471b0c1ddb7bbf7a6292dd4cceb27a77339ab480d"
       },
       "behaviorCommands": [
         "node packages/snapback-client/package.test.mjs",
@@ -151,7 +151,7 @@
       "workloadVersion": "llp-0166-integrated-review-fixes.2026-08-04.v1",
       "inputs": {
         "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
-        "lockfileSha256": "b417f685c10348238e63e527c3b54fcc8695c5a1115f1b11c07243de525e107e"
+        "lockfileSha256": "ad8a98cbad65849cc8e496a471b0c1ddb7bbf7a6292dd4cceb27a77339ab480d"
       },
       "behaviorCommands": [
         "node packages/snapback-client/store-runtime-wiring.test.mjs",
@@ -164,7 +164,7 @@
       "workloadVersion": "llp-0155-move3-phase1.v1",
       "inputs": {
         "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
-        "lockfileSha256": "b417f685c10348238e63e527c3b54fcc8695c5a1115f1b11c07243de525e107e"
+        "lockfileSha256": "ad8a98cbad65849cc8e496a471b0c1ddb7bbf7a6292dd4cceb27a77339ab480d"
       },
       "behaviorCommands": [
         "node packages/snapback-client/package.test.mjs",
@@ -186,7 +186,7 @@
       "workloadVersion": "llp-0155-generated-mutation-ir.v1",
       "inputs": {
         "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
-        "lockfileSha256": "b417f685c10348238e63e527c3b54fcc8695c5a1115f1b11c07243de525e107e"
+        "lockfileSha256": "ad8a98cbad65849cc8e496a471b0c1ddb7bbf7a6292dd4cceb27a77339ab480d"
       },
       "behaviorCommands": [
         "node packages/snapback-client/package.test.mjs",
@@ -203,7 +203,7 @@
       "workloadVersion": "llp-0166-offline-unavailable.v1",
       "inputs": {
         "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
-        "lockfileSha256": "b417f685c10348238e63e527c3b54fcc8695c5a1115f1b11c07243de525e107e"
+        "lockfileSha256": "ad8a98cbad65849cc8e496a471b0c1ddb7bbf7a6292dd4cceb27a77339ab480d"
       },
       "behaviorCommands": [
         "node packages/snapback-client/package.test.mjs",
@@ -218,7 +218,7 @@
       "workloadVersion": "llp-0093-0094-finite-carrier-completeness.v1",
       "inputs": {
         "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
-        "lockfileSha256": "b417f685c10348238e63e527c3b54fcc8695c5a1115f1b11c07243de525e107e"
+        "lockfileSha256": "ad8a98cbad65849cc8e496a471b0c1ddb7bbf7a6292dd4cceb27a77339ab480d"
       },
       "behaviorCommands": [
         "node packages/snapback-client/package.test.mjs",
@@ -232,7 +232,7 @@
       "workloadVersion": "llp-0091-rowless-rqs-resume-ordering.v1",
       "inputs": {
         "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
-        "lockfileSha256": "b417f685c10348238e63e527c3b54fcc8695c5a1115f1b11c07243de525e107e"
+        "lockfileSha256": "ad8a98cbad65849cc8e496a471b0c1ddb7bbf7a6292dd4cceb27a77339ab480d"
       },
       "behaviorCommands": [
         "node packages/snapback-client/package.test.mjs",
@@ -249,7 +249,7 @@
       "workloadVersion": "move3-single-table-lifecycle.v1",
       "inputs": {
         "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
-        "lockfileSha256": "b417f685c10348238e63e527c3b54fcc8695c5a1115f1b11c07243de525e107e"
+        "lockfileSha256": "ad8a98cbad65849cc8e496a471b0c1ddb7bbf7a6292dd4cceb27a77339ab480d"
       },
       "behaviorCommands": [
         "node packages/snapback-client/ir-evaluator.test.mjs",
@@ -268,7 +268,7 @@
       "workloadVersion": "llp-0163-operation-identity-carrier.v1",
       "inputs": {
         "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
-        "lockfileSha256": "b417f685c10348238e63e527c3b54fcc8695c5a1115f1b11c07243de525e107e"
+        "lockfileSha256": "ad8a98cbad65849cc8e496a471b0c1ddb7bbf7a6292dd4cceb27a77339ab480d"
       },
       "behaviorCommands": [
         "node packages/snapback-client/package.test.mjs",
@@ -282,7 +282,7 @@
       "workloadVersion": "client-bundle-ratchet-disposition.2026-08-06.v1",
       "inputs": {
         "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
-        "lockfileSha256": "b417f685c10348238e63e527c3b54fcc8695c5a1115f1b11c07243de525e107e"
+        "lockfileSha256": "ad8a98cbad65849cc8e496a471b0c1ddb7bbf7a6292dd4cceb27a77339ab480d"
       },
       "behaviorCommands": [
         "node packages/snapback-client/package.test.mjs",
@@ -303,7 +303,7 @@
       "workloadVersion": "client-bundle-ratchet-disposition.2026-08-06.v2",
       "inputs": {
         "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
-        "lockfileSha256": "b417f685c10348238e63e527c3b54fcc8695c5a1115f1b11c07243de525e107e"
+        "lockfileSha256": "ad8a98cbad65849cc8e496a471b0c1ddb7bbf7a6292dd4cceb27a77339ab480d"
       },
       "behaviorCommands": [
         "node packages/snapback-client/package.test.mjs",
@@ -318,6 +318,18 @@
         "node packages/snapback-expo/package.test.mjs",
         "node packages/snapback-expo/asset-source.test.mjs",
         "node packages/snapback-expo/provider.test.mjs"
+      ]
+    },
+    {
+      "filename": "baseline.asset-delivery-selection.v1.json",
+      "workloadVersion": "asset-delivery-selection.2026-08-07.v1",
+      "inputs": {
+        "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
+        "lockfileSha256": "ad8a98cbad65849cc8e496a471b0c1ddb7bbf7a6292dd4cceb27a77339ab480d"
+      },
+      "behaviorCommands": [
+        "node packages/snapback-react/package.test.mjs",
+        "node packages/snapback-react/assets.test.mjs"
       ]
     }
   ],
@@ -1079,15 +1091,15 @@
       "externals": [
         "react"
       ],
-      "minifiedBytes": 92630,
-      "gzipBytes": 28756,
-      "brotliBytes": 25100,
-      "outputSha256": "d25768d012d4fd4b0149f3d696839061821fb619d052a8e1b76b2198691e44ca",
+      "minifiedBytes": 92716,
+      "gzipBytes": 28792,
+      "brotliBytes": 25104,
+      "outputSha256": "eafa013a1863930001ebe4bb8f7fc4e5c1874e49c3facdb078f4b8bc33abf522",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-react",
-            "bytes": 49652
+            "bytes": 49738
           },
           {
             "name": "@expo/snapback-client",
@@ -1106,7 +1118,7 @@
           {
             "module": "packages/snapback-react/index.mjs",
             "package": "@expo/snapback-react",
-            "bytes": 49652
+            "bytes": 49738
           },
           {
             "module": "packages/snapback-client/assets.mjs",
@@ -1650,7 +1662,7 @@
             "imports": []
           },
           "packages/snapback-react/index.mjs": {
-            "bytes": 136442,
+            "bytes": 139434,
             "imports": [
               {
                 "path": "./react-runtime.mjs",
@@ -1710,7 +1722,7 @@
           }
         },
         "output": {
-          "bytes": 92630,
+          "bytes": 92716,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/external-react-application.fixture.mjs",
           "imports": [
             {
@@ -1781,7 +1793,7 @@
               "bytesInOutput": 232
             },
             "packages/snapback-react/index.mjs": {
-              "bytesInOutput": 49652
+              "bytesInOutput": 49738
             },
             "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/external-react-application.fixture.mjs": {
               "bytesInOutput": 177
@@ -1790,9 +1802,9 @@
         }
       },
       "savings": {
-        "minifiedBytes": 134,
-        "gzipBytes": 36,
-        "brotliBytes": 18
+        "minifiedBytes": 48,
+        "gzipBytes": 0,
+        "brotliBytes": 14
       }
     },
     {
@@ -16469,15 +16481,15 @@
       "externals": [
         "react"
       ],
-      "minifiedBytes": 92455,
-      "gzipBytes": 28715,
-      "brotliBytes": 25004,
-      "outputSha256": "e26014b34268dd81a5807bce410db0609345ee670e2ad0a9625f1d93423580de",
+      "minifiedBytes": 92541,
+      "gzipBytes": 28751,
+      "brotliBytes": 25034,
+      "outputSha256": "24e45c6c9e47fe833a3da4fdad94af03daac33ff0aca371c096926e0999a25ec",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-react",
-            "bytes": 49499
+            "bytes": 49585
           },
           {
             "name": "@expo/snapback-client",
@@ -16496,7 +16508,7 @@
           {
             "module": "packages/snapback-react/index.mjs",
             "package": "@expo/snapback-react",
-            "bytes": 49499
+            "bytes": 49585
           },
           {
             "module": "packages/snapback-client/assets.mjs",
@@ -17040,7 +17052,7 @@
             "imports": []
           },
           "packages/snapback-react/index.mjs": {
-            "bytes": 136442,
+            "bytes": 139434,
             "imports": [
               {
                 "path": "./react-runtime.mjs",
@@ -17100,7 +17112,7 @@
           }
         },
         "output": {
-          "bytes": 92455,
+          "bytes": 92541,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/react-external.fixture.mjs",
           "imports": [
             {
@@ -17171,7 +17183,7 @@
               "bytesInOutput": 232
             },
             "packages/snapback-react/index.mjs": {
-              "bytesInOutput": 49499
+              "bytesInOutput": 49585
             },
             "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/react-external.fixture.mjs": {
               "bytesInOutput": 155
@@ -17180,9 +17192,9 @@
         }
       },
       "savings": {
-        "minifiedBytes": 134,
-        "gzipBytes": 24,
-        "brotliBytes": 24
+        "minifiedBytes": 0,
+        "gzipBytes": 0,
+        "brotliBytes": 0
       }
     },
     {
@@ -18037,6 +18049,7 @@
     "baseline.move3-single-table-lifecycle.v1.json",
     "baseline.operation-identity-carrier.v1.json",
     "baseline.client-bundle-disposition.v1.json",
-    "baseline.client-bundle-disposition.v2.json"
+    "baseline.client-bundle-disposition.v2.json",
+    "baseline.asset-delivery-selection.v1.json"
   ]
 }

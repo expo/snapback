@@ -158,8 +158,8 @@ export function contractCapabilitiesForMutations(
 export type AgentSafeEnvelopeCoverageV1 = 'Missing' | 'Covered';
 export type AgentSafeExplanationDetailV1 = 'Missing' | 'DigestOnly' | 'BoundedFacts';
 export type AgentSafeExplanationRetentionV1 = 'Missing' | 'EnvelopeBounded' | 'PolicyBounded';
-export type AgentSafeForkEgressV1 = 'Missing' | 'DenyAll' | 'CaptureOnly';
-export type AgentSafeForkPromotionV1 = 'Missing' | 'NotPromotable' | 'Promotable';
+export type AgentSafeForkEgressV1 = 'Missing' | 'denyAll' | 'captureOnly';
+export type AgentSafeForkPromotionV1 = 'Missing' | 'notPromotable' | 'promotable';
 export type AgentSafeForkBaseV1 = 'Missing' | 'currentHead' | 'namedCheckpoint';
 export type AgentSafeForkIsolationV1 = 'Missing' | 'hostMediated' | 'endToEnd';
 export type AgentSafeDiffCoverageV1 = 'Missing' | 'Exact';

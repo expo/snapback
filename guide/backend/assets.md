@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-06
-reviewed-commit: HEAD
+reviewed-commit: 3d7f6eb4075c9aeebda35640a574e2667195972a
 ---
 
 # Assets
@@ -252,6 +252,69 @@ This adapter is transient live-process custody. It does not prove background
 upload, restart recovery, offline source custody or settlement, or attempt
 grants. Use the raw `useSnapbackAssetUpload`/`assets.start` seam for workflows
 that do not fit the one-optional-asset command grammar.
+
+> **Coming from Convex/Supabase?** See
+> [Upload and attach an Expo image under session custody](../recipes/coming-from-convex-and-supabase.md#expo-media-upload)
+> for the worked translation of Supabase Storage or Convex
+> `generateUploadUrl` — including why ownership is never anonymous even when
+> attempt creation is public, and why GPS/EXIF stripping happens server-side
+> at trusted finalization rather than client-side.
+
+## Render the uploaded image in a plain `<Image>`
+
+`useSnapbackAssetImage` (from `@expo/snapback-react`) is the renderer
+ladder — local preview → ThumbHash placeholder → delivered rendition — and
+its `src` goes straight into a plain `<img>` or React Native `<Image>`. Do
+not build delivery URLs by hand and do not read package source to pick a
+route:
+
+```tsx source=demos/expo-golden-path-fixture/src/screens/chat-screen.tsx
+function NativeAssetImage({ assetId, userId, onRendered }: Readonly<{
+  assetId: string;
+  userId: Id<'users'>;
+  onRendered(src: string): void;
+}>) {
+  // The shared convenience component is intentionally DOM-only. Expo uses
+  // the same canonical delivery ladder through its hook, then hands the URL
+  // to React Native's image loader.
+  const image = useSnapbackAssetImage({ assetId, maxWidth: 760, userId });
+  if (!image.src) return <ActivityIndicator color={palette.accent} style={styles.imageLoader} />;
+  return (
+    <Image
+      accessibilityLabel="Shared photo"
+      onLoad={() => { if (image.phase === 'rendition' && image.src) onRendered(image.src); }}
+      resizeMode="cover"
+      source={{ uri: image.src }}
+      style={[styles.image, image.aspectRatio ? { aspectRatio: image.aspectRatio } : null]}
+      testID={`asset-image-${assetId}`}
+    />
+  );
+```
+
+<!-- since: 0.1.12 -->
+
+Three facts make this the whole recipe — there is no workaround to learn:
+
+- **`src` is the most-permissive delivery URL the asset's declared policy
+  actually grants.** An intent with `delivery: { kind: 'public-immutable' }`
+  gets the pasteable public rendition URL (`/assets/public/{id}/{variant}`);
+  the strict route becomes `src` only when nothing more permissive exists.
+  This is URL selection, not authorization — the server still decides every
+  request under Deliver's rules below.
+- **The rendition-publication race is held for you.** Optional renditions
+  publish asynchronously after `ready`. While a public-immutable asset has
+  no ready rendition yet, `delivery` reports `'pending'` and the hook keeps
+  the preview/placeholder underlay instead of emitting a URL that would 404
+  or render an empty image. The live record projection flips the hook to the
+  rendition on its own — no `onError` retry loop.
+- **`strictSrc` always carries the header-authorized strict route**, for
+  consumers that fetch bytes with the authenticated client. On a
+  sessions-mode server a plain `<img>`/`<Image>` cannot send the required
+  `x-snapback-auth-client-protocol` header (see Deliver below), so when only
+  strict delivery exists there the hook warns once per asset with
+  `SNAPBACK_REACT_ASSET_STRICT_DELIVERY_SESSIONS` instead of leaving empty
+  image bubbles undiagnosed. Declare public-immutable delivery on the
+  upload intent when the image must render in a plain image tag.
 
 ## Run lifecycle callbacks
 

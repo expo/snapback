@@ -71,6 +71,25 @@ the normal query store, which made the missing Snapback path especially clear.
   the optimistic-create path, either teach the advisory to tolerate the
   paved append shape or have the paved helper mark its layers exempt — do
   not just tell authors to ignore the warning.
+- **2026-08-07 — docs-only honest part absorbed; remains open for the
+  CI-verified paved example.** `guide/clients/react.md` gained two sections:
+  "Optimistically create a row the server will name" (documents why the
+  branded-ID forgery refusal is deliberate, teaches the intent-keyed pending
+  sidecar as the current paved shape, and notes an append-shaped reducer also
+  trips the replay advisory) and "Show stable application errors through
+  rollback" (routes to the `refusals`/`ctx.refuse` → `SNAPBACK_APP_REFUSAL`
+  `appCode` channel that landed in 0.1.9 and is documented in
+  `backend/mutations.md` — this closes the ticket's item 2 mechanism; what it
+  needed at filing time now exists first-class). Capability index: new
+  explicit GAP row `clients.optimistic-create` (owner: ccheever, review
+  2026-09-30, pointing at this ticket) plus grep aliases on `clients.react`
+  and `backend.functions`; retrieval-eval seed case 16 added. Still open:
+  this ticket's acceptance — a Guide-led, CI-verified demo example of
+  intent-ID optimistic create with one-intent/one-row settlement under
+  ambiguous retry (and its interaction with the replay advisory, per the
+  2026-08-04 note), which is demo build work plus possibly a first-class
+  provider API, not prose. The sidecar section documents the workaround; the
+  GAP row keeps the missing capability visible.
 - **2026-08-03 — triaged in the guide re-verification pass; remains open.**
   This ticket's acceptance needs a new CI-verified demo example (intent-ID
   optimistic create + structured application-error survival through

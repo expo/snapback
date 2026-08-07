@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "snapback.derived-fork-author-acceptance.v2",
+  "capabilityId": "agent_safe_derived_deployment_fork_v1",
+  "accepted": true,
+  "authorLine": "Charlie Cheever — accepted 2026-08-06",
+  "qualifiedSourceCommit": "ad0ad58748981010204b61eb5002e35b887a5093",
+  "implementationDigestVersion": "snapback:agent-safe-implementation-tree:v2",
+  "implementationTreeSha256": "sha256:fc6e3e58453b4700ce06c647aaef87132879e0da336e560eca834d1d42c5459a",
+  "candidateFactsSha256": "sha256:b487d69d7a0392626e01f39e7fa81bd85251291c5ed119cd38a6cc30e50bfc88",
+  "qualifiedComponents": [
+    "derivedDeploymentForkSafetyV1"
+  ],
+  "evidenceSha256": {
+    "lifecycleBenchMacos": "sha256:47c20cd5b05b4bdd5158d6cb1e3a651fc94611293afcc38df9b14c112999c38d",
+    "lifecycleBenchLinux": "sha256:e79d33fe1fdfe54aac823916145fad6528e5930c02a903dfbac0222ed12cdf1a",
+    "boundsRatification": "sha256:bf73b3a6f09032fb166c25eea646c9f5170aab7301c43431ffe4eb21de886e4f",
+    "assetLifecycleEvidence": "sha256:222eba70394ac3fa812525766f9d514a88d876386f5413dfc6f4c367bc444ff2",
+    "specReviewCodex": "sha256:cec6fe82ad68c3622781c78c20b430336f285c563cd26d9c3cd4b3def2831219",
+    "specReviewCodexVerdicts": "sha256:856b7d552bc97b995ab47ba6eb0e8cae9d816fd060186e5e8326b06eb8b8a37f",
+    "specReviewFable": "sha256:9320ca74f8d4ead2ce379d73e66ea02331942d272e2925515b77c6197fa9fb89",
+    "specReviewFableVerdicts": "sha256:f1dd27dd4134696cba845e3cd5b73beccbd3354691a05451de2a90fc5b7e8e75",
+    "implementationReviewCodex": "sha256:4b016dff615b427c012b22c17f6ebdf5c753bf2c02aba9159182c40895941334",
+    "implementationReviewCodexVerdicts": "sha256:3ac40b72228c95f6f625a0247568536395a78c5c9b8370356b05cb5b2737094c",
+    "implementationReviewFable": "sha256:800711477e7ff7b0907ade8119c6f2ecdbb203cbde65ce7fe4d878f77162cf15",
+    "implementationReviewFableVerdicts": "sha256:46d106094dcd3b4819375adf27ef9db68470fe04e2e126579f3a39f99b512400"
+  },
+  "reviewHistoryHeads": {
+    "specReviewCodexVerdicts": {
+      "roundCount": 12,
+      "headEntrySha256": "sha256:d2df12bad3ea9deaa7361901c045c51333c1df59ef8ee29f487359d0e63bc8c2"
+    },
+    "specReviewFableVerdicts": {
+      "roundCount": 12,
+      "headEntrySha256": "sha256:600d12e410a9a74b2e337189954d12d50216ec54743c8b1be9ebab8dde887c84"
+    },
+    "implementationReviewCodexVerdicts": {
+      "roundCount": 12,
+      "headEntrySha256": "sha256:04995b4792c79edaddc622da4b9fbbbd0bfafc2042da6e283752dfc94833de5d"
+    },
+    "implementationReviewFableVerdicts": {
+      "roundCount": 12,
+      "headEntrySha256": "sha256:faebc247c509675a5cbf7f48ffd29ebdc8b366074940494d14d6fe7abfebb5e7"
+    }
+  }
+}

@@ -1,11 +1,12 @@
 # LLP 0176 G4 external-consumer ceremony metric — frozen before measurement
 
 **Frozen:** 2026-08-06 12:12:11 PDT (epoch `1786043531`)  
-**Status:** proposed metric, author sign-off pending  
+**Status:** ruled by the author in LLP 0176 OQ5 on 2026-08-06 (originally
+frozen here as a proposed metric before measurement).
 **Measurement target:** a clean external repository created after this receipt
 at `/Users/ccheever/projects/snapback-g4-external`  
-**Authority:** LLP 0176 §G4 and OQ5; this receipt proposes a measurement shape
-but does not settle OQ5.
+**Authority:** LLP 0176 §G4 and ruled OQ5. The definition below is unchanged
+from the pre-measurement freeze; the later author ruling adopted it.
 
 At freeze time the target directory has not been created and no G4 install,
 scaffold, source authoring, generation, or runtime command has been run. This
@@ -98,7 +99,8 @@ the pre-`t0` orientation commands themselves.
 
 ## Claim boundary
 
-This receipt freezes only a proposed measurement method. It makes no claim
-that published 0.1.10 contains the documented surface/command shape, that G4
+The definition was frozen here before the original 0.1.10 measurement and was
+later ruled without changing its terms. It makes no claim by itself that a
+published vector contains the documented surface/command shape, that G4
 passes, that an EAS build ran, that an Expo release artifact was produced, or
-that LLP 0064 is satisfied.
+that LLP 0064 is satisfied; those facts belong to the dated run receipts.

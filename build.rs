@@ -411,11 +411,13 @@ fn agent_safe_implementation_tree_sha256(manifest_dir: &Path) -> Option<String> 
         return None;
     }
 
-    let listed = git_output(
+    let listed = git_output_bytes(
         manifest_dir,
         &[
-            "ls-files",
+            "ls-tree",
+            "-r",
             "-z",
+            "HEAD",
             "--",
             "Cargo.toml",
             "Cargo.lock",
@@ -429,33 +431,93 @@ fn agent_safe_implementation_tree_sha256(manifest_dir: &Path) -> Option<String> 
             "scripts/generated-artifact-policy.mjs",
         ],
     )?;
-    let mut paths = listed
+    let mut entries = String::from_utf8(listed)
+        .ok()?
         .split('\0')
-        .filter(|path| !path.is_empty())
-        .filter(|path| !agent_safe_publication_cycle_path(path))
-        .collect::<Vec<_>>();
-    paths.sort_unstable();
-    if paths.is_empty() {
+        .filter(|entry| !entry.is_empty())
+        .map(parse_agent_safe_tree_entry)
+        .collect::<Option<Vec<_>>>()?;
+    entries.retain(|entry| !agent_safe_publication_cycle_path(&entry.path));
+    let ibex_entries = String::from_utf8(git_output_bytes(
+        manifest_dir,
+        &["ls-tree", "-z", "HEAD", "--", "vendor/ibex"],
+    )?)
+    .ok()?
+    .split('\0')
+    .filter(|entry| !entry.is_empty())
+    .map(parse_agent_safe_tree_entry)
+    .collect::<Option<Vec<_>>>()?;
+    if ibex_entries.len() != 1
+        || ibex_entries[0].path != "vendor/ibex"
+        || ibex_entries[0].mode != "160000"
+        || ibex_entries[0].object_type != "commit"
+        || ibex_entries[0].oid != parent_ibex_gitlink
+    {
+        return None;
+    }
+    entries.push(ibex_entries.into_iter().next()?);
+    entries.sort_unstable_by(|left, right| left.path.cmp(&right.path));
+    if entries.len() == 1 {
         return None;
     }
 
     let mut digest = Sha256::new();
-    digest.update(b"snapback:agent-safe-implementation-tree:v1\n");
-    for relative in paths {
-        let bytes = fs::read(manifest_dir.join(relative)).ok()?;
-        digest.update(relative.as_bytes());
+    digest.update(b"snapback:agent-safe-implementation-tree:v2\n");
+    for entry in entries {
+        let bytes = if entry.object_type == "blob" {
+            git_output_bytes(manifest_dir, &["cat-file", "blob", &entry.oid])?
+        } else if entry.object_type == "commit" && entry.mode == "160000" {
+            entry.oid.as_bytes().to_vec()
+        } else {
+            return None;
+        };
+        digest.update(entry.mode.as_bytes());
+        digest.update([0]);
+        digest.update(entry.object_type.as_bytes());
+        digest.update([0]);
+        digest.update(entry.path.as_bytes());
         digest.update([0]);
         digest.update((bytes.len() as u64).to_be_bytes());
         digest.update(bytes);
     }
-    digest.update(b"vendor/ibex");
-    digest.update([0]);
-    digest.update((parent_ibex_gitlink.len() as u64).to_be_bytes());
-    digest.update(parent_ibex_gitlink.as_bytes());
     Some(format!("sha256:{:x}", digest.finalize()))
 }
 
+struct AgentSafeTreeEntry {
+    mode: String,
+    object_type: String,
+    oid: String,
+    path: String,
+}
+
+fn parse_agent_safe_tree_entry(record: &str) -> Option<AgentSafeTreeEntry> {
+    let (header, path) = record.split_once('\t')?;
+    let mut fields = header.split_whitespace();
+    let mode = fields.next()?;
+    let object_type = fields.next()?;
+    let oid = fields.next()?;
+    if fields.next().is_some()
+        || mode.len() != 6
+        || !mode.bytes().all(|byte| byte.is_ascii_digit())
+        || !matches!(object_type, "blob" | "commit")
+        || !matches!(oid.len(), 40 | 64)
+        || !oid.bytes().all(|byte| byte.is_ascii_hexdigit())
+    {
+        return None;
+    }
+    Some(AgentSafeTreeEntry {
+        mode: mode.to_owned(),
+        object_type: object_type.to_owned(),
+        oid: oid.to_owned(),
+        path: path.to_owned(),
+    })
+}
+
 fn agent_safe_publication_cycle_path(path: &str) -> bool {
+    // @ref LLP 0162#source-owned-publication-carrier-amendment--2026-08-04
+    // Evidence about qualification C cannot be a leaf of the implementation
+    // digest that certifies it. Keep tests covered, but exclude the exact
+    // canonical, receipt-bound publication-cycle artifacts mirrored here.
     matches!(
         path,
         "src/local-agent-safe-storage-publication.anchor.json"
@@ -470,6 +532,7 @@ fn agent_safe_publication_cycle_path(path: &str) -> bool {
             | "tests/acceptance/fixtures/agent-safe-storage/author-acceptance.2026-08-04.v1.json"
             | "tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.macos-aarch64.v1.json"
             | "tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.linux-x86_64.v1.json"
+            | "tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.v1.json"
             | "tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-06.v1.json"
             | "tests/acceptance/fixtures/latency-kanban/move3-exit.2026-08-04.r2.v1.json"
             | "tests/acceptance/latency-kanban-move3-v1-evidence.md"
@@ -518,16 +581,17 @@ fn runtime_input_pathspecs(manifest_dir: &Path) -> Option<Vec<String>> {
 /// `git status --porcelain` on a clean tree). `None` means only "the command
 /// failed or git is unavailable" (ENG-23419).
 fn git_output(dir: &Path, args: &[&str]) -> Option<String> {
+    let text = String::from_utf8(git_output_bytes(dir, args)?).ok()?;
+    Some(text.trim().to_owned())
+}
+
+fn git_output_bytes(dir: &Path, args: &[&str]) -> Option<Vec<u8>> {
     let output = Command::new("git")
         .current_dir(dir)
         .args(args)
         .output()
         .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let text = String::from_utf8(output.stdout).ok()?;
-    Some(text.trim().to_owned())
+    output.status.success().then_some(output.stdout)
 }
 
 /// Run `git <args>` in `dir`, returning trimmed stdout only when non-empty —

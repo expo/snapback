@@ -6,7 +6,7 @@
 experience, Developer experience, CLI, Documentation, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-06 (row-13 concurrent-create hang repair: root admission
+**Revised:** 2026-08-07 (v2 derived-fork publication at qualification C `ad0ad58748981010204b61eb5002e35b887a5093`: the recomputed v2 implementation digest, canonical dual-platform receipts, all four contiguous 12-round dual-family `READY` histories, their accepted heads, and Charlie's exact 2026-08-06 author line close the dated receipt/carrier/anchor chain. The guide row publishes only a partial contributor-source local claim for exactly `macos/aarch64` and `linux/x86_64`; the target-manifest tuple stays wholly `Missing`, and released-binary/npm parity, normal installation, public packages, hosted/Cloudflare/remote targets, promotion/merge-back, and process containment remain open or unclaimed); 2026-08-06 (author-directed narrow local publication: LLPs 0163–0165 accepted after three mutually blind dual-family `READY` rounds; Charlie's exact two-platform release set and authorized acceptance fixture close the nine-item witness; `operating.instance-forks` publishes at local/partial through the guide row for contributor source only. The target-manifest tuple, broader agent-safe-storage aggregate, released-binary/npm parity, normal-installation exit, hosted targets, promotion/merge-back, and process containment remain `Missing` or explicit nonclaims); 2026-08-06 (row-13 concurrent-create hang repair: root admission
 now uses a 30-second monotonic nonblocking-acquisition deadline with stable
 `SNAPBACK_FORK_ADMISSION_TIMEOUT`, while detached server exec marks every
 non-stdio inherited descriptor close-on-exec. This closes the macOS concurrent
@@ -1782,8 +1782,10 @@ at
 now reserves, in exact order, the macOS/aarch64 lifecycle receipt, the
 Linux/x86_64 lifecycle receipt, the author-ratified original bounds record,
 the local asset-lifecycle evidence map, Codex- and Fable-family reviews of LLPs
-0163–0165, Codex- and Fable-family final implementation reviews of LLP 0158,
-and Charlie's author-acceptance fixture. This is the dated, digest-bound
+0163–0165 each followed by its structured verdict history, Codex- and
+Fable-family final implementation reviews of LLP 0158 each followed by its
+structured verdict history, and Charlie's author-acceptance fixture. This is
+the dated, digest-bound
 **witness** LLP 0185 Phase 6 says the `operating.instance-forks` capability
 row must point at. It is not an LLP 0113/0134 manifest publication act: the
 author's Phase 0 item-6 ruling makes the LLP 0061 guide capability-index row
@@ -1791,37 +1793,99 @@ the local claim carrier, so `agent_safe_derived_deployment_fork_v1` remains
 wholly `Missing` in every target manifest even after that guide row eventually
 publishes the local claim.
 
-The anchor stays `withheld`, with a zero source commit/tree/facts digest, empty
-`qualifiedComponents`, zero evidence digests, and no requirement that the four
-future review files or author fixture exist. In `published`, every digest is
+Before author sign-off, the anchor stayed `withheld`, with a zero source
+commit/tree/facts digest, empty `qualifiedComponents`, zero evidence digests,
+and no requirement that the four future review files, four verdict histories,
+or author fixture exist.
+In `published`, every digest is
 nonzero and matches the bytes at its fixed locator; components equal exactly
 `["derivedDeploymentForkSafetyV1"]`; candidate facts equal exactly
 `denyAll / notPromotable / currentHead / hostMediated`; qualification C is a
 40-hex ancestor of publication HEAD; both platform receipts name C, retain the
 closed `macos/aarch64` and `linux/x86_64` release identities, reproduce the
 2026-08-06 author-ratified bounds, and keep every lifecycle median within its
-bound. The original bounds record remains a frozen ancestor of C. Each review
-must carry LLP 0005's five-field provenance header, the Codex and Fable
-families must remain distinct, and both final implementation verdict lines
-must be exactly `READY`. The author fixture has the closed
+bound. The original bounds record remains a frozen ancestor of C. Each prose
+review remains required and digest-bound, but its body is never parsed for
+authority. Its fixed exact-shape JSON history binds the prose path and digest,
+family, contiguous round number, and reviewed commit; the highest round must
+name C and record `READY`. The Codex and Fable families must remain distinct.
+The author fixture has the closed
 `snapback.derived-fork-author-acceptance.v1` shape, the exact line
 `Charlie Cheever — accepted 2026-08-06`, the C/tree/facts/component identity,
-and an exact `evidenceSha256` map for the eight non-self evidence bindings;
+and an exact `evidenceSha256` map for the twelve non-self evidence bindings;
 the receipt binds the author fixture's own digest and closes that intentional
 self-cycle break.
 
 C-versus-P custody follows necessity, not directory. The ratified original
 bounds record and the asset evidence map already exist and stay frozen in C.
 The two platform receipts must be rebound to the final C, the four independent
-reviews can happen only after C freezes, and named-author acceptance comes
-last; those seven locators are publication-only. Of those, the two platform
+reviews and their four structured verdict histories can happen only after C
+freezes, and named-author acceptance comes last; those eleven locators are
+publication-only. Of those, the two platform
 JSON receipts and author fixture sit under the implementation-tree roots, so
 they are also explicitly excluded from C's self-digest. The checker, Rust
 mirror, fixed receipt shape/locator order, and all executable behavior must
-already be in C. P may fill the fixed receipt bindings, add those seven
+already be in C. P may fill the fixed receipt bindings, add those eleven
 evidence files, and update the ruled guide/LLP publication records plus the
 anchor/carrier; it may not change executable behavior or widen the evidence
 vocabulary.
+
+**2026-08-06 — author acceptance and narrow local publication.** Charlie
+Cheever accepted LLPs 0163, 0164, and 0165 after their three-round mutually
+blind Codex/Fable `READY` convergence, authorized the exact dated acceptance
+fixture, and confirmed that the complete claimed release-platform set is
+exactly `macos/aarch64` plus `linux/x86_64`, release profile. The fixture's
+SHA-256 closes the ninth receipt binding; the final carrier binds that receipt,
+the exact `denyAll / notPromotable / currentHead / hostMediated` candidate,
+qualification commit `0ee1fadc136e837f430556374a5842ac82069004`, and its
+implementation-tree digest. The source anchor publishes the carrier, and the
+LLP 0061 capability-index row now claims `operating.instance-forks` only for
+the local contributor-source target at partial maturity.
+
+This publication is deliberately narrower than the reserved manifest id.
+`agent_safe_derived_deployment_fork_v1` stays wholly `Missing` in every target
+manifest, and the broader agent-safe-storage aggregate, in-app Track B facts,
+hosted/Cloudflare/remote targets, promotion/merge-back, and process containment
+remain unclaimed. LLP 0185 Phase 6 item 2 (released-binary/npm parity) and the
+normal-installation exit clause also remain open; no public-package claim is
+made.
+
+**2026-08-07 — v2 qualification publication.** Qualification commit
+`ad0ad58748981010204b61eb5002e35b887a5093` has implementation digest version
+`snapback:agent-safe-implementation-tree:v2` and recomputed digest
+`sha256:fc6e3e58453b4700ce06c647aaef87132879e0da336e560eca834d1d42c5459a`.
+The canonical lifecycle receipts bind exactly `macos/aarch64` and
+`linux/x86_64`, both release profile. Each of the Codex- and Fable-family Spec
+and implementation verdict histories is contiguous through round 12; all four
+round-12 heads name C and are `READY`. Charlie's v2 acceptance uses the exact
+line `Charlie Cheever — accepted 2026-08-06` and binds the four 12-round heads,
+the complete non-self evidence digest set, the v2 implementation digest, and
+the exact `denyAll / notPromotable / currentHead / hostMediated` candidate.
+The dated receipt, carrier, and source anchor therefore publish the LLP 0061
+`operating.instance-forks` guide row at target `local`, maturity `partial`.
+
+The published claim is contributor-source local, finite-TTL, fail-closed,
+non-promotable, and host-mediated without process or OS containment. It makes
+no hosted, Cloudflare, remote, merge-back, public-package, released-binary/npm,
+or normal-installation claim. LLP 0185 Phase 6 item 2 and its normal-installation
+exit clause remain open. Per the author's Phase 0 ruling,
+`agent_safe_derived_deployment_fork_v1` remains wholly `Missing` in every LLP
+0113 target manifest; the guide row is the claim carrier. The artifacts are
+unsigned and not transparency-logged, so a commit-capable actor fabricating
+both reviewer histories and the named-author acceptance is outside the
+guarantee. The current-state-only prose binding weakness remains disclosed in
+`issues/20260807-review-prose-history-not-frozen.md`.
+
+**2026-08-07 — publication withdrawn after wave drift.** The publication at
+`7cada777b` was valid for qualification C's exact implementation digest. The
+later wave changes nine covered proof/checker/metrology leaves, so the
+combined-tree oracle refused instead of extending the old evidence to new
+bytes. The source anchor is now `withheld`, the LLP 0061 capability row is
+target `none`, and the dated receipt/carrier/reviews/benchmarks/author
+acceptance are retained only as historical evidence. No fork runtime
+correctness code changed. Republishing requires a fresh C, both canonical
+platform receipts, fresh accepted review heads, and named-author acceptance;
+see `issues/20260807-derived-fork-publication-wave-drift-requalification.md`.
 
 ## Status
 
@@ -1834,10 +1898,14 @@ pagination, human projection, operation attribution, broader-domain/storage-
 wide completeness, and F2 hosted work stay open under LLP 0185. The local
 app-row net diff's authorizer-backed completeness slice is recorded above.
 Acceptance records the approved design, the
-same-`appId` derived-deployment amendment, and the landed local substrate. It
-does not advertise a capability: `operating.instance-forks` remains at target
-`none`, and `agent_safe_derived_deployment_fork_v1` remains wholly `Missing`,
-behind their separate qualification/publication gates.
+same-`appId` derived-deployment amendment, and the landed local substrate. The
+2026-08-07 publication was withdrawn after covered wave drift, so the current
+LLP 0061 `operating.instance-forks` row is target `none` pending fresh
+qualification and acceptance. The separately reserved
+`agent_safe_derived_deployment_fork_v1` target-manifest predicate remains
+wholly `Missing`; released-binary/npm, normal-installation, hosted,
+promotion/merge-back, process-containment, and broader storage claims remain
+open or explicitly unclaimed.
 The earliest local-only `clonefile` validation and its corrected claim remain
 in §Spike evidence. The same-day 0097 reconciliation narrowed the claimed
 territory. A

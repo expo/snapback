@@ -1,7 +1,7 @@
 {
   "schemaVersion": "snapback.client-bundle-metrology-supplemental-baseline.v1",
   "source": {
-    "revision": "c7433d34cb8a1de0297eefa3381a5cfb9e99ec7f",
+    "revision": "9884a820c66f4c6abd624641400ca5663eaef3c4",
     "packageTrees": {
       "packages/snapback-client": "27d790ddbed768b78bd787fa0feebc7294161833",
       "packages/snapback-contract": "b0dbfecd7e674b574d423cf16e8d566d4f804273",

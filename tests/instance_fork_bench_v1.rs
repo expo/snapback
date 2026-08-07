@@ -68,6 +68,59 @@ fn stats(samples: &[f64]) -> Value {
     })
 }
 
+fn normalize_integral_json_numbers(value: &mut Value) {
+    match value {
+        Value::Array(values) => {
+            for value in values {
+                normalize_integral_json_numbers(value);
+            }
+        }
+        Value::Object(values) => {
+            for value in values.values_mut() {
+                normalize_integral_json_numbers(value);
+            }
+        }
+        Value::Number(number) if number.is_f64() => {
+            let value = number.as_f64().expect("JSON float");
+            if value.fract() == 0.0 && value >= i64::MIN as f64 && value <= i64::MAX as f64 {
+                *number = serde_json::Number::from(value as i64);
+            }
+        }
+        _ => {}
+    }
+}
+
+// @ref LLP 0162#source-owned-publication-carrier-amendment--2026-08-04 —
+// publication-chain JSON must equal JSON.stringify(parsed, null, 2) plus one
+// newline. Normalize f64 integral values before serde's two-space pretty
+// encoding so JavaScript will not rewrite `2000.0` to `2000`.
+fn canonical_receipt_json(value: &Value) -> Vec<u8> {
+    let mut canonical = value.clone();
+    normalize_integral_json_numbers(&mut canonical);
+    let mut bytes = serde_json::to_vec_pretty(&canonical).expect("serialize bench receipt");
+    bytes.push(b'\n');
+    bytes
+}
+
+#[test]
+fn emitted_receipt_json_is_checker_canonical() {
+    let directory = tempfile::tempdir().expect("canonical receipt fixture");
+    let path = directory.path().join("receipt.json");
+    let receipt = json!({
+        "integralBound": 2_000.0,
+        "fractionalMeasurement": 12.5,
+        "nested": { "integralMedian": 750.0 },
+    });
+    std::fs::write(&path, canonical_receipt_json(&receipt)).expect("write canonical receipt");
+    let bytes = std::fs::read(&path).expect("read canonical receipt");
+    let parsed: Value = serde_json::from_slice(&bytes).expect("parse canonical receipt");
+
+    assert!(bytes.ends_with(b"\n"));
+    assert!(String::from_utf8_lossy(&bytes).contains("  \"integralBound\": 2000,"));
+    assert!(!String::from_utf8_lossy(&bytes).contains("2000.0"));
+    assert_eq!(bytes, canonical_receipt_json(&parsed));
+}
+
 fn parent_with_schema(directory: &Path, ballast_mb: u64) -> PathBuf {
     let source = directory.join("parent.sqlite3");
     let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -426,9 +479,10 @@ fn fork_lifecycle_row13_bench() {
         std::env::consts::OS,
         std::env::consts::ARCH,
     ));
-    std::fs::write(&out, serde_json::to_vec_pretty(&receipt).unwrap()).unwrap();
+    let receipt_bytes = canonical_receipt_json(&receipt);
+    std::fs::write(&out, &receipt_bytes).unwrap();
     println!("receipt written: {}", out.display());
-    println!("{}", serde_json::to_string_pretty(&receipt).unwrap());
+    print!("{}", String::from_utf8(receipt_bytes).unwrap());
 
     // The ratified gate: the receipt above persists either way, so a bound
     // failure is inspectable rather than silent.

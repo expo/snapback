@@ -14,6 +14,19 @@ client adoption receipt. Pending replay preserves the original
 writer, freshness, store, and compatibility failures stop the candidate and
 reattach the predecessor. This is pending-work-preserving stop/start, not
 zero-request-downtime.)
+**Revised:** 2026-08-06 (Listener-bound promotion gate run OUTSIDE the
+sandbox in an isolated worktree at origin/main commit `e99d2a328`: the named
+`node --test tests/acceptance/desktop-sidecar-v1.mjs` gate passed 1/1,
+including the pending-drain, duplicate-republish, identity-divergence
+rollback, writer-fence rollback, incompatible-generation rollback, and empty
+swap scenarios; the same-database two-runtime settlement PoC
+(`hot-swap-settlement-poc.2026-08-06.v1.mjs`) also passed
+(`sameResult`/`sameReceipt` true, one settled row), clearing the earlier
+managed-sandbox EPERM block. The Phase-2b hot-swap-with-pending build is now
+evidence-promoted at the first-rung boundary. Dated evidence:
+`tests/acceptance/fixtures/desktop-sidecar/hot-swap-promotion.2026-08-06.v1.json`.
+Honest boundary language is unchanged: still pending-work-preserving
+stop/start, not zero-request-downtime.)
 **Revised:** 2026-08-06 (Phase-2b package-boundary follow-on closed: LLP 0123
 Option 3 now seals binary + Hermes header/runtime digests with the successful
 CV-2 verdict at package production, and the packaged CLI resolver re-verifies
@@ -28,6 +41,19 @@ instance sees the record but needs writer takeover. The scoped recommendation
 is BUILD: preserve global per-origin isolation, inject one stable sidecar store,
 add a fail-closed adoption receipt, and rely on the existing same-database
 settlement identity. See the dated design-spike note and retained PoCs below.)
+2026-08-06 (Phase 2a browser-IR coverage gate FIRST RUN at base commit
+e99d2a328: `tests/acceptance/browser-ir-coverage-v1.mjs` executed the
+pinned 37-case LLP 0051 D5 corpus through the shipped browser IR
+evaluator inside real Chrome 151.0.7922.76 with per-case IndexedDB
+read-back — 37/37 exact, browser==Node byte-identical,
+manifest-digest-chained to the Phase-1 Rust receipt; semantic IR
+coverage stands at 12/13 = 92.3% (PASS ≥90%, carried from the pinned
+assessment classification); the 100%-common-path component is
+INDETERMINATE — the designated common-path mutation set was never
+frozen (`issues/20260806-phase2a-common-path-designation-absent.md`
+routes the designation to the author) — so the whole gate is
+NOT-DECLARABLE and no exit is presented. Receipt:
+`tests/acceptance/fixtures/browser-lane/browser-ir-coverage.2026-08-06.v1.json`.)
 2026-08-06 (OQ9 RESOLVED by the author — Phase 2a browser
 story is IR-only; full-runtime WASM deferred; Phase 2a's falsifiable exit
 is the browser-IR-coverage gate (≥90% semantic + 100% common-path,
@@ -748,6 +774,30 @@ the browser story is pinned.
 > bounded extension review. This dated finding satisfies the named assessment
 > gate; it neither builds a runtime nor settles OQ9's author-owned
 > assessment-versus-implementation exit choice.
+
+> **Browser-IR coverage gate — first run, 2026-08-06 (base commit
+> e99d2a328).** The OQ9-designated gate ran end to end:
+> `tests/acceptance/browser-ir-coverage-v1.mjs` verified the D5 corpus
+> manifest (37/37 SHA-256 exact, drift refuses typed), esbuild-bundled the
+> shipping `@expo/snapback-client/ir-evaluator` closure, and replayed every
+> case in real system Chrome 151.0.7922.76, with each normalized outcome
+> persisted to and read back from IndexedDB before comparison. Results:
+> **exact-D5 component 37/37 PASS**, browser-vs-Node byte-identical
+> normalized outcomes, manifest-digest-chained to the Phase-1 Rust receipt
+> (Option B condition 3 on both evaluators); **semantic IR coverage
+> 12/13 = 92.3% PASS ≥90%**, carried from the pinned dated assessment
+> classification of the frozen corpus; **100%-common-path execution
+> component INDETERMINATE** — no frozen designated-browser-common-path
+> mutation set exists (Option B locates that designation act in
+> `handler-coverage.v1.json`, which was never created), so measuring it
+> would mean inventing the author's designation; the plan-shape M1
+> admission counts over the corpus (22 ready / 10 refused / 5 server-only)
+> are retained in the receipt as evidence only. Receipt and write-up:
+> `tests/acceptance/fixtures/browser-lane/browser-ir-coverage.2026-08-06.v1.{json,md}`;
+> the designation gap is ticketed at
+> `issues/20260806-phase2a-common-path-designation-absent.md`. **No gate
+> PASS, phase exit, or advancement is declared**; per this Plan's standing
+> rule the evidence is recorded here for author presentation.
 
 **Phase 2b — Desktop ladder (independent of 2a).** First the sidecar:
 the packaged native runtime spawned next to the app, carrying
@@ -2208,14 +2258,26 @@ The listener-free sidecar package test and focused client outbox suite pass in
 the managed sandbox. The real-child acceptance now owns the pending drain,
 duplicate republish/unchanged row count, identity-divergence rollback,
 writer-fence rollback, incompatible-generation rollback, and unchanged empty
-swap. Its listener is blocked here, so the dated build is **implemented but not
-evidence-promoted** until the orchestrator runs:
+swap. Its listener was blocked in the managed sandbox, so the dated build was
+**implemented but not evidence-promoted** until the orchestrator ran:
 
 ```sh
 DYLD_FRAMEWORK_PATH=$PWD/vendor/ibex/ios/Frameworks \
 SNAPBACK_RUNTIME_BINARY=$PWD/target/debug/snapback \
 node --test tests/acceptance/desktop-sidecar-v1.mjs
 ```
+
+**2026-08-06 update — evidence-promoted.** This gate ran outside the sandbox
+in an isolated worktree at origin/main commit `e99d2a328`, on a rebuilt
+`target/debug/snapback` qualified by `scripts/bootstrap-ibex-runtime`: 1/1
+suite pass, covering the pending-drain, duplicate-republish,
+identity-divergence rollback, writer-fence rollback, incompatible-generation
+rollback, and empty swap scenarios named above. The same-database
+two-runtime settlement PoC also passed on the same run (see the dated
+addendum in `hot-swap-design.2026-08-06.v1.md` §5). Dated evidence:
+`tests/acceptance/fixtures/desktop-sidecar/hot-swap-promotion.2026-08-06.v1.json`.
+The Phase-2b hot-swap-with-pending build is therefore evidence-promoted at
+the first-rung boundary.
 
 Honest boundary: this is a pending-work-preserving **stop predecessor, start
 candidate** swap. Requests cannot be served during that cut. Literal

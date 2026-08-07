@@ -9,8 +9,8 @@ examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-05
-reviewed-commit: 4a6000ac6f17a8c94bc2aecf573c0654e850b758
+reviewed: 2026-08-07
+reviewed-commit: cca0db7d8e94c8d4943eb808d4e10238a506c70c
 ---
 
 # Mutations
@@ -257,6 +257,11 @@ Build large jobs from the ordinary bounded primitives:
    completed cursor or stable key.
 4. Read that checkpoint before the next page. After interruption, resume after
    the committed checkpoint rather than replaying every earlier page.
+
+For the specific case of loading a deterministic acceptance fixture larger
+than one seed or one mutation allows, the paved recipe — gated batch-ingest
+mutation, loader session, digest verification — is
+[loading large deterministic fixtures](../testing/large-fixtures.md).
 
 Each page is its own atomic commit; the whole multi-page job is not one
 transaction. Make each page idempotent under the application's business key or

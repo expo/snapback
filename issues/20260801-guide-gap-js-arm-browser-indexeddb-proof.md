@@ -67,3 +67,21 @@ landing change and close this ticket.
   ordered settlement, observer convergence, and protected/opaque refusal
   remain for the resolution witness above. The capability row and guide prose
   now make this narrower evidence split explicit.
+- **2026-08-07 — third-half interim receipt confirmed; guide corrected to
+  match; resolution witness still open.** The "third half" already has the
+  interim Node-carrier receipt this ticket asked for: commit `a5d609e32`
+  (2026-08-01, Backlog Lane C) added
+  `packages/snapback-client/rqs-resume.test.mjs` — "an auth-scoped
+  subscription refuses retention with SNAPBACK_RETENTION_NOT_RETAINABLE and
+  persists nothing" — which drives the real client over a scripted wire and
+  asserts the refusal code, a lease-naming reason, and zero persisted store
+  entries. It runs in the `snapback-client` package test script (CI). The
+  guide's offline page (`guide/sync/offline-and-retention.md`) still said the
+  refusal was "asserted by no test on any carrier"; corrected today
+  (base `f4d4d8c18`) to name the receipt, transclude its assertions, and
+  narrow the remaining refusal GAP to the browser carrier. The
+  `sync.offline-js-arm` capability row's witness column now names the
+  receipt too. Everything else in the resolution witness — browser
+  React/server end-to-end retained/current labeling, full-resync-before-
+  replay, ordered settlement, observer convergence, and the browser-carrier
+  refusal proof — remains engineering work, so this ticket stays open.

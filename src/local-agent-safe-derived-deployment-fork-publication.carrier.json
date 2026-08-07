@@ -1,12 +1,61 @@
 {
-  "schemaVersion": "snapback.local-agent-safe-publication.v1",
+  "schemaVersion": "snapback.local-agent-safe-publication.v2",
   "capabilityId": "agent_safe_derived_deployment_fork_v1",
   "targetProfileId": "local-dev-sqlite-ibex",
   "maturity": "experimental",
-  "qualifiedSourceCommit": "0000000000000000000000000000000000000000",
-  "implementationTreeSha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-  "candidateFactsSha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-  "qualificationReceiptSha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "qualifiedSourceCommit": "ad0ad58748981010204b61eb5002e35b887a5093",
+  "implementationDigestVersion": "snapback:agent-safe-implementation-tree:v2",
+  "implementationTreeSha256": "sha256:fc6e3e58453b4700ce06c647aaef87132879e0da336e560eca834d1d42c5459a",
+  "candidateFactsSha256": "sha256:b487d69d7a0392626e01f39e7fa81bd85251291c5ed119cd38a6cc30e50bfc88",
+  "qualificationReceiptSha256": "sha256:12a5630da0f8ab9d82f7506752c9c2c5a9d434f4d2eae4ca743eeb43a756dc96",
   "buildProvenanceRequirement": "known-clean-contributor-source",
-  "candidateFacts": null
+  "candidateFacts": {
+    "envelope": {
+      "ordinaryMutation": {
+        "hostPlan": "Missing",
+        "ibexBuffered": "Missing"
+      },
+      "hostChildMutation": {
+        "hostPlan": "Missing",
+        "ibexBuffered": "Missing"
+      },
+      "migration": "Missing",
+      "durableBackgroundWork": "Missing",
+      "push": "Missing",
+      "auth": "Missing"
+    },
+    "explanation": {
+      "scopedFacts": []
+    },
+    "forks": {
+      "inApp": {
+        "egress": "Missing",
+        "promotion": "Missing",
+        "base": "Missing",
+        "isolation": "Missing"
+      },
+      "derivedDeployment": {
+        "egress": "denyAll",
+        "promotion": "notPromotable",
+        "base": "currentHead",
+        "isolation": "hostMediated"
+      }
+    },
+    "diff": {
+      "data": "Missing",
+      "effects": "Missing"
+    },
+    "history": "Missing",
+    "proof": "Missing",
+    "replay": {
+      "handlers": "Missing",
+      "actions": "Missing"
+    },
+    "schemaEvolution": "Missing",
+    "resourceBounds": "Missing",
+    "aggregate": {
+      "core": "Missing",
+      "history": "Missing"
+    }
+  }
 }

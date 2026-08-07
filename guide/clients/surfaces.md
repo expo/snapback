@@ -11,7 +11,7 @@ targets: [local]
 maturity: partial
 since: 0.1.11
 reviewed: 2026-08-06
-reviewed-commit: HEAD
+reviewed-commit: cf47cc3b75172cec3ac6c44428ce40db48d81465
 ---
 
 # Application surfaces

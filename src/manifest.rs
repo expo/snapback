@@ -11269,17 +11269,23 @@ pub enum AgentSafeExplanationRetentionV1 {
     PolicyBounded,
 }
 
+/// @ref LLP 0158#capability-registry-record — positive derived-fork axes use
+/// the exact lower-camel spellings bound by the publication candidate.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum AgentSafeForkEgressV1 {
     Missing,
+    #[serde(rename = "denyAll")]
     DenyAll,
+    #[serde(rename = "captureOnly")]
     CaptureOnly,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum AgentSafeForkPromotionV1 {
     Missing,
+    #[serde(rename = "notPromotable")]
     NotPromotable,
+    #[serde(rename = "promotable")]
     Promotable,
 }
 

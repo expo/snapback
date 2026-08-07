@@ -9,8 +9,8 @@ examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-06
-reviewed-commit: 850427c31b9a668d55b46995e08389cd13a2c9b6
+reviewed: 2026-08-07
+reviewed-commit: cca0db7d8e94c8d4943eb808d4e10238a506c70c
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -30,8 +30,11 @@ single-request projection at `GET /_snapback/guide/flat.md`. Those responses
 carry `x-snapback-guide-content-sha256` and
 `x-snapback-server-build-commit`, so a consumer can refuse to combine cached
 guide bytes with a different server build. `GET /llms.txt` at the served root
-provides a convention-standard index pointing to the flat projection and
-capability index. Building Snapback itself is a
+provides a convention-standard index, leading with the capability index
+(within its enforced budget) and listing the flat projection last as an
+explicit large-file fallback while it remains oversized
+(`issues/20260806-guide-flat-projection-oversize.md`). Building Snapback
+itself is a
 different job — that's `AGENTS.md` and the LLP corpus, not this guide.
 
 ## Choose the MCP authority
@@ -220,6 +223,10 @@ you never build around a feature because you didn't know it existed.
 - [Verify the declared app contract](./testing/verify.md) — compose artifact,
   runtime, D1 coverage, capabilities, and registered acceptance into one
   identity-bound partial done-oracle receipt.
+- [Loading large deterministic fixtures](./testing/large-fixtures.md) — load
+  past the 1,024-effect seed ceiling with a gated batch-ingest mutation,
+  loader session minting from the readiness descriptor, and digest
+  verification under the null/absent canonical form.
 
 ### Operating
 - [Discover agent controls](./operating/agent-controls.md) — search the
@@ -270,6 +277,9 @@ you never build around a feature because you didn't know it existed.
   count: atomic two-field projection, replayable capture-and-set reducers,
   complete-receipt matching, and the one-canonical-store rule across query
   surfaces.
+- [Coming from Convex/Supabase?](./recipes/coming-from-convex-and-supabase.md)
+  — worked-example translations of common Convex/Supabase journeys into
+  Snapback, CI-verified against real demo sources (LLP 0186 W2).
 
 ### Meta
 - [Capability index](./capabilities.md) — everything Snapback has, covered

@@ -1,0 +1,149 @@
+{
+  "schemaVersion": "snapback.review-verdicts.v2",
+  "verdicts": [
+    {
+      "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
+      "reviewArtifactSha256": "sha256:4b016dff615b427c012b22c17f6ebdf5c753bf2c02aba9159182c40895941334",
+      "family": "codex",
+      "round": 1,
+      "reviewedCommit": "7c2a27e0e90cf1d19b57825a187cb3be041ab92f",
+      "previousEntrySha256": null,
+      "verdict": {
+        "kind": "derivedForkPublication",
+        "status": "NOT_READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
+      "reviewArtifactSha256": "sha256:4b016dff615b427c012b22c17f6ebdf5c753bf2c02aba9159182c40895941334",
+      "family": "codex",
+      "round": 2,
+      "reviewedCommit": "96fd0ad1c38109aa524e4cbc39439c8982e18766",
+      "previousEntrySha256": "sha256:08c87d4f713d5b8bb322631ac55d56256d520be1346a68c519febdafd49311cc",
+      "verdict": {
+        "kind": "derivedForkPublication",
+        "status": "NOT_READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
+      "reviewArtifactSha256": "sha256:4b016dff615b427c012b22c17f6ebdf5c753bf2c02aba9159182c40895941334",
+      "family": "codex",
+      "round": 3,
+      "reviewedCommit": "cdc0fe03e8d75c4a1d1d25f79fe820f20b772ef7",
+      "previousEntrySha256": "sha256:eadbda7de15d3cb1a85df118ed60856c59970de1999cb5242bb8aa7d84c30b19",
+      "verdict": {
+        "kind": "derivedForkPublication",
+        "status": "READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
+      "reviewArtifactSha256": "sha256:4b016dff615b427c012b22c17f6ebdf5c753bf2c02aba9159182c40895941334",
+      "family": "codex",
+      "round": 4,
+      "reviewedCommit": "0b8b0ff71bfc3eaa968b53a694a61f8a472ee295",
+      "previousEntrySha256": "sha256:e3bc7a460ed3fe3f4c3103f3d3824abb298a741a4f7a06c212f59ab39fec88ee",
+      "verdict": {
+        "kind": "derivedForkPublication",
+        "status": "NOT_READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
+      "reviewArtifactSha256": "sha256:4b016dff615b427c012b22c17f6ebdf5c753bf2c02aba9159182c40895941334",
+      "family": "codex",
+      "round": 5,
+      "reviewedCommit": "b08e835f112517cf1629a842f5bcae12841ddcf0",
+      "previousEntrySha256": "sha256:e5ac00e7059f5e1c7c8bc80142bf28cd4448ee70d61c06306ce1726cc5706403",
+      "verdict": {
+        "kind": "derivedForkPublication",
+        "status": "NOT_READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
+      "reviewArtifactSha256": "sha256:4b016dff615b427c012b22c17f6ebdf5c753bf2c02aba9159182c40895941334",
+      "family": "codex",
+      "round": 6,
+      "reviewedCommit": "bdc68296499298f634d9aa461e90fb8d1a7d4ab0",
+      "previousEntrySha256": "sha256:fed9d28aac9707ced67f64bf5fa8e2587b84327dc3647b8b3c8d5f4f8c82b5de",
+      "verdict": {
+        "kind": "derivedForkPublication",
+        "status": "NOT_READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
+      "reviewArtifactSha256": "sha256:4b016dff615b427c012b22c17f6ebdf5c753bf2c02aba9159182c40895941334",
+      "family": "codex",
+      "round": 7,
+      "reviewedCommit": "2a5a6291a137ca3df41cfc826017e4de324b65a5",
+      "previousEntrySha256": "sha256:68f73ff0a54326bfd89e7e5161b6e178106d4217736218090850fdd79b259af7",
+      "verdict": {
+        "kind": "derivedForkPublication",
+        "status": "NOT_READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
+      "reviewArtifactSha256": "sha256:4b016dff615b427c012b22c17f6ebdf5c753bf2c02aba9159182c40895941334",
+      "family": "codex",
+      "round": 8,
+      "reviewedCommit": "0e778b9a85f26c45df8af0068979e355893baaa3",
+      "previousEntrySha256": "sha256:0f61a41f6f517783178d129510b50dc95312135a7e17437da0b1c1d5c07391a0",
+      "verdict": {
+        "kind": "derivedForkPublication",
+        "status": "NOT_READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
+      "reviewArtifactSha256": "sha256:4b016dff615b427c012b22c17f6ebdf5c753bf2c02aba9159182c40895941334",
+      "family": "codex",
+      "round": 9,
+      "reviewedCommit": "42f699749699f416b0015781a6bb729414db4464",
+      "previousEntrySha256": "sha256:616558ab6375e6a46b627655b2025cd63e7ced0a5f6620c18ffc86c69d891612",
+      "verdict": {
+        "kind": "derivedForkPublication",
+        "status": "READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
+      "reviewArtifactSha256": "sha256:4b016dff615b427c012b22c17f6ebdf5c753bf2c02aba9159182c40895941334",
+      "family": "codex",
+      "round": 10,
+      "reviewedCommit": "fac516e9aaa83fda398ca684285f45a57192e826",
+      "previousEntrySha256": "sha256:53b901fd2100283a1a46b188c7baa294fab1b22b10b523d303eaf9af48420026",
+      "verdict": {
+        "kind": "derivedForkPublication",
+        "status": "READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
+      "reviewArtifactSha256": "sha256:4b016dff615b427c012b22c17f6ebdf5c753bf2c02aba9159182c40895941334",
+      "family": "codex",
+      "round": 11,
+      "reviewedCommit": "a127e9b474dd5bedb31c73afa57022f4d8b82aed",
+      "previousEntrySha256": "sha256:9ad9e4f39ea4e3c61783aaa9af6315ad902cef4bf60d268344a5a2c3b3f3b081",
+      "verdict": {
+        "kind": "derivedForkPublication",
+        "status": "NOT_READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
+      "reviewArtifactSha256": "sha256:4b016dff615b427c012b22c17f6ebdf5c753bf2c02aba9159182c40895941334",
+      "family": "codex",
+      "round": 12,
+      "reviewedCommit": "ad0ad58748981010204b61eb5002e35b887a5093",
+      "previousEntrySha256": "sha256:cabe0a8152564e15506dc9d3142fb965c22c9e5ad55bbd61eaac1483bd3d9eec",
+      "verdict": {
+        "kind": "derivedForkPublication",
+        "status": "READY"
+      }
+    }
+  ]
+}

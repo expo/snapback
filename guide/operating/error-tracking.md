@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-04
-reviewed-commit: HEAD
+reviewed-commit: eed1203d844d59ce98f10d80f8d166b46462b3b5
 ---
 
 # Backend error tracking

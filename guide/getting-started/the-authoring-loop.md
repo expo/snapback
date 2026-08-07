@@ -4,13 +4,13 @@ id: getting-started.the-authoring-loop
 order: 2
 audience: agent-first
 capabilities: [backend.codegen, operating.packaged-dev-loop, testing.acceptance, operating.inspect]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0041-packaged-dev-loop.rfc.md, packages/snapback-cli/index.mjs, packages/snapback-codegen/index.mjs, scripts/snapback-package-cold-install.mjs, scripts/verify-local-proof]
-examples: [packages/snapback-cli/templates/todo-contract, packages/snapback-cli/templates/react, packages/snapback-cli/sessions-dev-loop.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/todo/surfaces/headless/run.mjs]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0041-packaged-dev-loop.rfc.md, packages/create-snapback-app/cli.mjs, packages/snapback-cli/index.mjs, packages/snapback-codegen/index.mjs, scripts/snapback-package-cold-install.mjs, scripts/verify-local-proof]
+examples: [packages/snapback-cli/templates/todo-contract, packages/snapback-cli/templates/react, packages/snapback-cli/templates/expo-chat, packages/snapback-cli/sessions-dev-loop.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/todo/surfaces/headless/run.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-05
-reviewed-commit: 4a6000ac6f17a8c94bc2aecf573c0654e850b758
+reviewed: 2026-08-07
+reviewed-commit: 15b97f358d112c72d475049cc6757648a91b505f
 ---
 
 # The authoring loop
@@ -34,6 +34,40 @@ cd my-app
 bun install
 bun run dev
 ```
+
+<!-- since: 0.1.12 -->
+
+Three templates ship in the packaged CLI: `todo-contract` (headless
+backend + generated client references), `react` (the React/Vite web
+starter above), and `expo-chat` — the golden-path Expo starter carrying
+the LLP 0176 conversation surface as runnable code: a `messages` table
+with an image `assetRef` field, the `messageImageUpload` intent, live
+queries, the generated `conversation` surface (reads, a bound `sendText`
+mutation, the composed `send` command with optional image upload, and
+typing presence), and a React Native chat screen driving all of it
+through `useSurface`. Scaffold it with
+`snapback new my-chat --template expo-chat` and edit the working example
+instead of composing that wiring from prose. The starter deliberately
+keeps the dev auth profile and seeded personas; a production chat adopts
+sessions auth and derives sender identity from the adopted session
+([auth](../auth/sessions-and-principals.md)).
+
+The same scaffold is also reachable through the ecosystem-standard entry
+point, the `create-snapback-app` package (in-repo now; its npm publication
+rides the next promotion sweep):
+
+```sh
+npm create snapback-app my-chat
+# equivalently: npx create-snapback-app my-chat
+#               bun create snapback-app my-chat
+#               pnpm create snapback-app my-chat
+```
+
+It is a thin wrapper — argument parsing and next-step output only — that
+delegates to the same `snapback new` scaffold mechanism and template
+registry in `@expo/snapback-cli`. Its default template is `expo-chat`;
+`create-snapback-app --help` lists every template the installed CLI ships,
+and `--template <name>` selects one.
 
 The generated `dev` script is one supervisor:
 `snapback dev snapback --client . --client-command vite`. It generates the

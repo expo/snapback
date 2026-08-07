@@ -46,10 +46,20 @@ import { fileURLToPath } from 'node:url';
 import { findGitAncestor } from './repo-layout.mjs';
 
 // Any path segment matching one of these is excluded at every depth: install
-// output, bundler caches, and prior build artifacts are reproduced inside the
-// stage (bun install) or by EAS itself, and a nested `.git` would recreate
-// exactly the root-resolution problem the stage escapes.
-export const DEFAULT_EXCLUDED_SEGMENTS = ['node_modules', '.expo', '.git', 'dist'];
+// output, bundler caches, prior build artifacts, and Snapback's host-pinned
+// local state are reproduced inside the stage (bun install / generation) or
+// by EAS itself. A nested `.git` would recreate exactly the root-resolution
+// problem the stage escapes.
+// @ref LLP 0176#g4--external-distribution-proof — an external EAS archive must
+// contain consumer source and registry inputs, never local supervisor residue.
+export const DEFAULT_EXCLUDED_SEGMENTS = [
+  'node_modules',
+  '.expo',
+  '.git',
+  'dist',
+  '.snapback',
+  '.snapback.snapback.restore.lock',
+];
 
 // Copy the app tree into an out-of-checkout staging directory and prove the
 // escape. Returns { stageDir, fileCount, totalBytes }.
@@ -83,12 +93,16 @@ export function stageAppForEas(appDir, {
     );
   }
   const excluded = new Set(excludedSegments);
+  const segmentIsExcluded = (segment) => (
+    excluded.has(segment)
+    || (excluded.has('dist') && segment.startsWith('dist-'))
+  );
   cpSync(source, destination, {
     recursive: true,
     filter: (from) => {
       const rel = relative(source, from);
       if (rel === '' || rel === '.') return true;
-      return !rel.split(sep).some((segment) => excluded.has(segment));
+      return !rel.split(sep).some(segmentIsExcluded);
     },
   });
   let fileCount = 0;

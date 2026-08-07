@@ -1,0 +1,25 @@
+{
+  "id": "reactive-queries",
+  "title": "Reactive queries: useQuery vs. declare-then-subscribe",
+  "anchor": "reactive-queries",
+  "capabilities": ["clients.react"],
+  "aliases": ["Convex useQuery"],
+  "competitor": [
+    {
+      "provider": "Convex",
+      "concept": "useQuery(api.foo.bar, args) — a React hook that both names the query function and subscribes to it in one call; the component automatically re-renders whenever the underlying data the query read changes, with no separate declaration step.",
+      "version": "1.24.8",
+      "sourceUrl": "https://docs.convex.dev/client/react",
+      "retrievedAt": "2026-08-07"
+    }
+  ],
+  "snapbackSources": [
+    "packages/snapback-react/exact-result-types.fixture.ts",
+    "demos/partiful-matrix/surfaces/react/src/provider.ts"
+  ],
+  "backlinkPages": [
+    "guide/clients/react.md"
+  ],
+  "lastVerified": "2026-08-07",
+  "reviewBy": "2026-11-07"
+}

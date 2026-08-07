@@ -23,7 +23,7 @@
   "predecessors": [
     {
       "filename": "baseline.client-bundle-disposition.v1.json",
-      "sha256": "44273aaaf355a35869e6ca37abf6be74d642d34c736a816e23cb5e7fa0c27304",
+      "sha256": "2f5c4c7b0e2ac675da6dc081446190a4e52c5aadd473eadc1090213f6e80dbb5",
       "profileIds": [
         "external-react-application",
         "public-subpath-assets",
@@ -33,7 +33,7 @@
     },
     {
       "filename": "baseline.s2-commands.v1.json",
-      "sha256": "5191e25e1f80e1002882e0a379d23ba473f80170fef8bdb358fa87c653a156dd",
+      "sha256": "25782921fa9879e53b717fee9d9c4a2005f6ff890099bb5eb1a60fdd8c245b4b",
       "profileIds": [
         "public-subpath-commands",
         "resolved-public-subpath-commands"

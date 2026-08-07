@@ -316,3 +316,22 @@ the published versions.
   proofs. A fresh owner-issued Fleet receipt against one final tracked source
   tree and its readiness-qualified binary, followed by a complete green
   candidate proof, is required before retry.
+
+- **2026-08-06 — 0.1.11 successor attempt 7 STOPPED on concurrent publish;
+  this lane made no npm mutation.** During the attempt's preflight, another
+  authorized lane published 0.1.11 while this lane was still checking the
+  candidate. The registry transition was treated as an ownership stop, not an
+  invitation to race or repeat any write. This lane did not stage a second
+  vector, create a competing ledger, publish a package, or move a dist-tag.
+
+  *Same-day reconciliation:* all ten 0.1.11 package names are now live on npm
+  `latest`, published from clean revision
+  `281eb17c785f5ca82185fd34ad5de8049e852bf5` under the same LLP 0041
+  pre-consumer fast-path disposition used for 0.1.10. The retained ledger is
+  `~/snapback-release-ledgers/fastpath-ledger-0.1.11-281eb17c78.json`; a
+  read-only registry re-download byte-verified all ten public tarballs against
+  its SHA-256 vector. The orchestrator records the candidate's then-current
+  post-revision delta as four proof-fixture repairs that do not ship in these
+  packages. LLP 0176 G4 may therefore consume the live 0.1.11 vector by
+  citing this reconciliation without reopening the fast-path ruling or
+  attributing any npm mutation to attempt 7.

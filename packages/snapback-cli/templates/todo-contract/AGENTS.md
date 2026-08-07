@@ -15,3 +15,7 @@ generated client or `snapback run` → `bun run test`.
 Use `snapback guide` for the served Guide, flat projection, and MCP entry
 points. Load the relevant Guide page before using a feature area; do not infer
 that a capability is missing until you have checked the capability index.
+
+This app ships the `snapback-authoring` agent skill at
+`.claude/skills/snapback-authoring/SKILL.md` (mirrored under `.agents/`,
+`.cursor/`, and `.opencode/`); load it before building.
