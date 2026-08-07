@@ -666,3 +666,13 @@ not-selected gate. Every independent gate completed.
 
 Owner close condition: make concurrent app-root identity publication atomic
 and rerun the exact 15-test live-server suite plus the complete local proof.
+
+### Exact-head recurrence — GitHub run 31147355293 (completed 2026-08-07 UTC)
+
+The PR #18 exact-head KEEP-GOING proof reproduced the same F0a-owned race in
+`instance_fork_cli_v1::concurrent_fork_creates_bind_distinct_ports_and_drop_cleanly`.
+One concurrent `fork create` again read the app-root identity as an empty JSON
+file and refused with `SNAPBACK_FORK_APP_BINDING_REQUIRED` / `EOF while parsing
+a value at line 1 column 0`; the other 14 live-server fork cases passed. This
+drift lane records the recurrence and makes no fork-code correctness change.
+Owner close condition remains unchanged.

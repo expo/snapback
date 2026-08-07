@@ -1,7 +1,7 @@
 {
   "schemaVersion": "snapback.client-bundle-metrology-rollover-baseline.v1",
   "source": {
-    "revision": "7c5728ae5ac2d57b9b1f50d97c814fade3294502",
+    "revision": "9884a820c66f4c6abd624641400ca5663eaef3c4",
     "packageTrees": {
       "packages/snapback-client": "27d790ddbed768b78bd787fa0feebc7294161833",
       "packages/snapback-contract": "b0dbfecd7e674b574d423cf16e8d566d4f804273",

@@ -28,8 +28,13 @@ test('the canonical proof has named gates and its producer edges are closed', ()
   );
   assert.match(
     source,
-    /build_current_binary\(\)[\s\S]*cargo clean -p snapback[\s\S]*cargo build --locked --bin snapback[\s\S]*run current-binary-build[^\n]*build_current_binary/u,
-    'the final acceptance binary must replay its root build-script identity without discarding dependency artifacts',
+    /build_current_binary\(\)[\s\S]*cargo clean -p snapback[\s\S]*env[\s\S]*SNAPBACK_BUILD_GIT_COMMIT="\$SNAPBACK_BUILD_GIT_COMMIT"[\s\S]*SNAPBACK_BUILD_GIT_DIRTY="\$SNAPBACK_BUILD_GIT_DIRTY"[\s\S]*cargo build --locked --bin snapback[\s\S]*SNAPBACK_BUILD_IDENTITY_MISMATCH[\s\S]*run current-binary-build[^\n]*build_current_binary/u,
+    'the final acceptance binary must replay and verify its explicit proof identity without discarding dependency artifacts',
+  );
+  assert.match(
+    source,
+    /run generated-artifacts[^\n]*[\s\S]*run drift-prone-gate-fixtures --requires generated-artifacts/u,
+    'committed-history fixtures must run after their ignored generated inputs are produced',
   );
 });
 

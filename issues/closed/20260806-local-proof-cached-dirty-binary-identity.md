@@ -3,7 +3,8 @@
 **Status:** Closed — fixed forward 2026-08-06
 **Opened:** 2026-08-06
 **Systems:** CI, Native runtime identity, Acceptance harness
-**Related:** LLP 0010, LLP 0031, GitHub Actions run `31142327486`, PR #18
+**Related:** LLP 0010, LLP 0031, GitHub Actions runs `31142327486` and
+`31147355293`, PR #18
 
 ## Failure
 
@@ -30,6 +31,19 @@ refused reuse.
 Immediately before the final acceptance build, the proof now removes only the
 root `snapback` package artifacts with `cargo clean -p snapback`, preserving all
 dependency and vendored-Ibex artifacts. The following locked build must replay
-`build.rs` under the final commit/dirty environment before the digest-bound
-readiness receipt is issued. Provenance checks and source fallbacks remain
-strict; no binary-identity bypass was added.
+`build.rs` under explicit final commit/dirty environment variables. It then
+executes `snapback build-identity` and refuses immediately with
+`SNAPBACK_BUILD_IDENTITY_MISMATCH` unless the compiled identity exactly matches
+both proof facts, before the digest-bound readiness receipt is issued.
+Provenance checks and source fallbacks remain strict; no binary-identity bypass
+was added.
+
+## Exact-head recurrence — GitHub run 31147355293
+
+The first fix removed and rebuilt the root package but did not bind or inspect
+the final Cargo subprocess explicitly. Its readiness receipt again qualified a
+binary reporting the exact merge commit with `gitDirty: true`; versioned-seed
+therefore passed all 20 behavioral cases but correctly rejected the revision,
+and later harnesses refused the same binary. The revised producer now owns the
+stamp on the exact build invocation and checks the result before readiness, so
+this class cannot escape into downstream acceptance rows again.
