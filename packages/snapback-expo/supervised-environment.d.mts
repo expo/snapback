@@ -20,6 +20,19 @@ export type SupervisedAuthorityRefreshResult =
       remediations: readonly TypedRemediation[];
     }>;
 
+export type SupervisedBindingCacheRecord = Readonly<{
+  formatVersion: 1;
+  binding: AppBindingV1;
+  publicFacts: PublicAuthorityFacts;
+  savedAt: number;
+}>;
+
+export interface SupervisedBindingCache {
+  load(): Promise<SupervisedBindingCacheRecord | null>;
+  save(record: SupervisedBindingCacheRecord): Promise<void>;
+  clear(): Promise<void>;
+}
+
 export interface SupervisedSnapbackExpoEnvironmentV1 extends SnapbackExpoEnvironmentV1 {
   refreshAuthority(input: Readonly<{
     app: AppDescriptorV1Like;
@@ -35,6 +48,7 @@ export function createSupervisedExpoEnvironment(options?: Readonly<{
   resolveAppState?: () => AppStateSource | Promise<AppStateSource>;
   developmentSync?: false | Readonly<Record<string, unknown>>;
   clientOptions?: SnapbackClientOptions;
+  bindingCache?: SupervisedBindingCache | null;
   onDiagnostic?: (diagnostic: SnapbackDiagnostic) => void;
 }>): SupervisedSnapbackExpoEnvironmentV1;
 

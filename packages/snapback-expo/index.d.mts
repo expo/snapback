@@ -139,6 +139,7 @@ export type ExpoBootState =
       status: 'ready';
       binding: PublicBindingFacts;
       authority: PublicAuthorityFacts;
+      preparation: Readonly<{ source: 'deployment' | 'persisted-receipt' }>;
     }>
   | Readonly<{
       status: 'authority-required';
@@ -286,5 +287,7 @@ export {
 } from './supervised-environment.mjs';
 export type {
   SupervisedAuthorityRefreshResult,
+  SupervisedBindingCache,
+  SupervisedBindingCacheRecord,
   SupervisedSnapbackExpoEnvironmentV1,
 } from './supervised-environment.mjs';

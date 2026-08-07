@@ -1,4 +1,9 @@
-import { createExternalSessionClient } from '@expo/snapback-client';
+import {
+  SnapbackClient,
+  createExternalSessionClient,
+} from '@expo/snapback-client';
+
+import { createDefaultSupervisedBindingCache } from './supervised-binding-cache.mjs';
 
 export const SUPERVISED_EXCHANGE_FORMAT = 'snapback.expo-supervised-exchange.v1';
 export const SUPERVISED_EXCHANGE_PATH = supervisedExchangePath();
@@ -195,6 +200,35 @@ function publicAuthorityFacts(session) {
   });
 }
 
+function validCachedBindingRecord(record, app) {
+  if (
+    !exactObject(record)
+    || record.formatVersion !== 1
+    || !Number.isFinite(record.savedAt)
+    || !exactObject(record.binding)
+    || record.binding.format !== 'snapback.app-binding.v1'
+    || record.binding.source !== 'supervised-dev'
+    || !exactObject(record.publicFacts)
+    || record.publicFacts.kind !== 'session'
+    || !nonEmptyString(record.publicFacts.authMode)
+  ) return null;
+  const descriptorIdentity = app?.identity?.descriptor;
+  if (
+    nonEmptyString(descriptorIdentity)
+    && record.binding.descriptorIdentity !== descriptorIdentity
+  ) return null;
+  return record;
+}
+
+async function clearClientAuthority(client) {
+  if (typeof client?.replaceBearerToken === 'function') {
+    try { await client.replaceBearerToken(null); } catch { /* best-effort custody release */ }
+  }
+  if (typeof client?.closeAuth === 'function') {
+    try { await client.closeAuth(); } catch { /* best-effort client release */ }
+  }
+}
+
 // @ref LLP 0181#provider — the common-path provider resolves its non-secret
 // rendezvous from supervised runtime injection, then receives the AppBinding
 // and ordinary session through one transient no-store exchange. Neither value
@@ -209,10 +243,43 @@ export function createSupervisedExpoEnvironment({
   resolveAppState,
   developmentSync,
   clientOptions = {},
+  bindingCache = createDefaultSupervisedBindingCache(),
   onDiagnostic,
 } = {}) {
   const exchanges = new Map();
+  const offlineFallbacks = new Map();
   let adopted = null;
+
+  const loadCachedBinding = async (app) => {
+    // @ref LLP 0114#offline-binding-receipt-dated-amendment-2026-08-01 — the
+    // supervised fallback only gets boot to the existing digest-bound client
+    // receipt owner; it does not replace that owner's complete admission.
+    if (process.env.NODE_ENV !== 'production' && typeof bindingCache?.load === 'function') {
+      try {
+        return validCachedBindingRecord(await bindingCache.load(), app);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  };
+
+  const saveCachedBinding = (binding, publicFacts) => {
+    if (process.env.NODE_ENV !== 'production' && typeof bindingCache?.save === 'function') {
+      let saving;
+      try {
+        saving = bindingCache.save(Object.freeze({
+          formatVersion: 1,
+          binding,
+          publicFacts,
+          savedAt: Date.now(),
+        }));
+      } catch {
+        return;
+      }
+      void Promise.resolve(saving).catch(() => {});
+    }
+  };
 
   const fetchExchange = async (signal) => {
     const origin = normalizedExchangeOrigin(exchangeOrigin);
@@ -272,8 +339,24 @@ export function createSupervisedExpoEnvironment({
     ...(resolveAppState === undefined ? {} : { resolveAppState }),
     ...(developmentSync === undefined ? {} : { developmentSync }),
     ...(onDiagnostic === undefined ? {} : { onDiagnostic }),
-    async resolveBinding({ signal }) {
-      const exchange = await fetchExchange(signal);
+    async resolveBinding({ app, signal }) {
+      let exchange;
+      try {
+        exchange = await fetchExchange(signal);
+      } catch (error) {
+        if (error?.code !== 'SNAPBACK_EXPO_BOOTSTRAP_UNAVAILABLE') throw error;
+        const cached = await loadCachedBinding(app);
+        if (cached === null) throw error;
+        offlineFallbacks.set(bindingKey(cached.binding), cached);
+        return Object.freeze({
+          binding: cached.binding,
+          admission: Object.freeze({
+            productionCondition: false,
+            delivery: Object.freeze({ channel: 'local-supervised-ipc' }),
+          }),
+        });
+      }
+      offlineFallbacks.delete(bindingKey(exchange.binding));
       exchanges.set(bindingKey(exchange.binding), exchange);
       return Object.freeze({
         binding: exchange.binding,
@@ -285,7 +368,35 @@ export function createSupervisedExpoEnvironment({
     },
     async adoptAuthority({ binding, signal }) {
       const key = bindingKey(binding);
-      const exchange = exchanges.get(key) ?? await fetchExchange(signal);
+      const storedExchange = exchanges.get(key);
+      const cached = storedExchange === undefined ? offlineFallbacks.get(key) : null;
+      if (cached !== null && cached !== undefined) {
+        offlineFallbacks.delete(key);
+        const client = new SnapbackClient(binding.target.origin, {
+          ...clientOptions,
+          bearerToken: null,
+          clientStoreId: clientOptions.clientStoreId
+            ?? `snapback-expo-${binding.provenance.supervisorGeneration}`,
+        });
+        adopted = {
+          binding,
+          client,
+          token: null,
+          publicFacts: cached.publicFacts,
+          offline: true,
+        };
+        return Object.freeze({
+          status: 'ready',
+          client,
+          publicFacts: cached.publicFacts,
+          offline: true,
+          async dispose() {
+            if (adopted?.client === client) adopted = null;
+            await clearClientAuthority(client);
+          },
+        });
+      }
+      const exchange = storedExchange ?? await fetchExchange(signal);
       exchanges.delete(key);
       const required = authorityRequired(exchange);
       if (required) return required;
@@ -307,8 +418,7 @@ export function createSupervisedExpoEnvironment({
         const session = await client.authSession({ force: true });
         facts = publicAuthorityFacts(session);
       } catch (error) {
-        await client.replaceBearerToken(null).catch(() => {});
-        await client.closeAuth?.().catch(() => {});
+        await clearClientAuthority(client);
         throw error;
       }
       adopted = {
@@ -316,15 +426,16 @@ export function createSupervisedExpoEnvironment({
         client,
         token: exchange.authority.token,
         publicFacts: facts,
+        offline: false,
       };
+      saveCachedBinding(exchange.binding, facts);
       return Object.freeze({
         status: 'ready',
         client,
         publicFacts: facts,
         async dispose() {
           if (adopted?.client === client) adopted = null;
-          await client.replaceBearerToken(null).catch(() => {});
-          await client.closeAuth?.().catch(() => {});
+          await clearClientAuthority(client);
         },
       });
     },
@@ -349,22 +460,35 @@ export function createSupervisedExpoEnvironment({
       }
       const required = authorityRequired(exchange);
       if (required) {
-        await adopted.client.replaceBearerToken(null);
+        if (typeof adopted.client.replaceBearerToken === 'function') {
+          await adopted.client.replaceBearerToken(null);
+        }
         adopted.token = null;
         adopted.publicFacts = null;
         return required;
       }
       try {
         if (exchange.authority.token !== adopted.token) {
+          if (typeof adopted.client.replaceBearerToken !== 'function') {
+            throw codedError(
+              'SNAPBACK_EXPO_COMPATIBILITY_UNSUPPORTED',
+              'The adopted Snapback client cannot replace ordinary-session authority.',
+            );
+          }
           await adopted.client.replaceBearerToken(exchange.authority.token);
           adopted.token = exchange.authority.token;
         }
         const session = await adopted.client.authSession({ force: true });
         const facts = publicAuthorityFacts(session);
+        adopted.binding = exchange.binding;
         adopted.publicFacts = facts;
+        adopted.offline = false;
+        saveCachedBinding(exchange.binding, facts);
         return Object.freeze({ status: 'ready', publicFacts: facts });
       } catch (error) {
-        await adopted.client.replaceBearerToken(null).catch(() => {});
+        if (typeof adopted.client.replaceBearerToken === 'function') {
+          try { await adopted.client.replaceBearerToken(null); } catch { /* preserve refresh error */ }
+        }
         adopted.token = null;
         adopted.publicFacts = null;
         throw error;

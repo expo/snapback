@@ -173,6 +173,7 @@ export function createSnapbackExpoBoot({
   let admittedBinding = null;
   let admittedBindingFacts = null;
   let authorityFacts = null;
+  let preparation = null;
   let refreshPromise = null;
   const listeners = new Set();
   const controller = new AbortController();
@@ -292,6 +293,7 @@ export function createSnapbackExpoBoot({
           ? {}
           : { developmentSync: environment.developmentSync }),
       });
+      preparation = Object.freeze({ source: prepared.source ?? 'deployment' });
       if (disposed) return state;
       reactProvider = createProvider(prepared, {
         // @ref LLP 0181#native-adapters — provider construction registers the
@@ -312,6 +314,7 @@ export function createSnapbackExpoBoot({
         status: 'ready',
         binding: admittedBindingFacts,
         authority: authorityFacts,
+        preparation,
       }));
       return state;
     } catch (error) {
@@ -383,6 +386,7 @@ export function createSnapbackExpoBoot({
             status: 'ready',
             binding: admittedBindingFacts,
             authority: authorityFacts,
+            preparation,
           }));
           return state;
         } catch (error) {
