@@ -1894,7 +1894,8 @@ fn stale_registry_partial_cleanup_never_wedges_list_reap_or_create() {
 #[cfg(unix)]
 #[test]
 fn detached_fork_server_closes_unrelated_inherited_descriptors_on_exec() {
-    use std::os::fd::{AsRawFd as _, FromRawFd as _};
+    use std::os::fd::AsRawFd as _;
+    use std::os::unix::fs::OpenOptionsExt as _;
     use std::os::unix::process::CommandExt as _;
 
     let directory = tempfile::tempdir().expect("descriptor inheritance fixture");
@@ -1903,17 +1904,23 @@ fn detached_fork_server_closes_unrelated_inherited_descriptors_on_exec() {
     std::fs::create_dir(&app_root).unwrap();
     let fork_root = directory.path().join("forks");
 
-    let mut descriptors = [-1; 2];
-    assert_eq!(unsafe { libc::pipe(descriptors.as_mut_ptr()) }, 0);
-    for descriptor in descriptors {
-        assert_eq!(
-            unsafe { libc::fcntl(descriptor, libc::F_SETFD, libc::FD_CLOEXEC) },
-            0
-        );
-    }
-    let mut reader = unsafe { File::from_raw_fd(descriptors[0]) };
-    let writer = unsafe { File::from_raw_fd(descriptors[1]) };
-    let writer_fd = writer.as_raw_fd();
+    // Open with O_CLOEXEC in the creating syscall. libc::pipe followed by
+    // F_SETFD has a process-wide fork race: another parallel test can inherit
+    // the writer during that gap and make this test blame the target server
+    // for a descriptor held by an unrelated process.
+    let caller_lease = std::fs::OpenOptions::new()
+        .create_new(true)
+        .read(true)
+        .write(true)
+        .custom_flags(libc::O_CLOEXEC)
+        .open(directory.path().join("unrelated-caller-descriptor.lock"))
+        .expect("open caller descriptor lease");
+    assert_eq!(
+        unsafe { libc::flock(caller_lease.as_raw_fd(), libc::LOCK_EX) },
+        0,
+        "hold the caller-only descriptor lease"
+    );
+    let caller_lease_fd = caller_lease.as_raw_fd();
     const INHERITED_CALLER_FD: i32 = 198;
 
     let mut command = snapback();
@@ -1931,15 +1938,17 @@ fn detached_fork_server_closes_unrelated_inherited_descriptors_on_exec() {
     ]);
     unsafe {
         command.pre_exec(move || {
-            if libc::dup2(writer_fd, INHERITED_CALLER_FD) < 0 {
+            if libc::dup2(caller_lease_fd, INHERITED_CALLER_FD) < 0 {
                 return Err(std::io::Error::last_os_error());
             }
             Ok(())
         });
     }
     command.stdout(Stdio::piped()).stderr(Stdio::piped());
-    let child = command.spawn().expect("spawn fork create with inherited pipe");
-    drop(writer);
+    let child = command
+        .spawn()
+        .expect("spawn fork create with inherited descriptor");
+    drop(caller_lease);
     let output = child
         .wait_with_output()
         .expect("fork create exits after detached readiness");
@@ -1951,14 +1960,25 @@ fn detached_fork_server_closes_unrelated_inherited_descriptors_on_exec() {
         fork_ids: vec![fork_id(&created).to_owned()],
     };
 
-    let flags = unsafe { libc::fcntl(reader.as_raw_fd(), libc::F_GETFL) };
-    assert!(flags >= 0);
-    assert_eq!(
-        unsafe { libc::fcntl(reader.as_raw_fd(), libc::F_SETFL, flags | libc::O_NONBLOCK) },
-        0
-    );
-    let mut byte = [0_u8; 1];
-    let reached_eof = matches!(reader.read(&mut byte), Ok(0));
+    let probe = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .custom_flags(libc::O_CLOEXEC)
+        .open(directory.path().join("unrelated-caller-descriptor.lock"))
+        .expect("open caller descriptor probe");
+    let probe_result = unsafe { libc::flock(probe.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) };
+    let retained_by_server = if probe_result == 0 {
+        assert_eq!(unsafe { libc::flock(probe.as_raw_fd(), libc::LOCK_UN) }, 0);
+        false
+    } else {
+        let error = std::io::Error::last_os_error();
+        assert_eq!(
+            error.kind(),
+            std::io::ErrorKind::WouldBlock,
+            "descriptor probe failed for an unexpected reason: {error}"
+        );
+        true
+    };
 
     let fork_id = cleanup.fork_ids.pop().unwrap();
     let output = snapback()
@@ -1975,7 +1995,7 @@ fn detached_fork_server_closes_unrelated_inherited_descriptors_on_exec() {
         .expect("drop descriptor inheritance fixture");
     assert_success(&output, "drop descriptor inheritance fixture");
     assert!(
-        reached_eof,
+        !retained_by_server,
         "the detached server retained an unrelated caller descriptor after the create CLI exited"
     );
 }

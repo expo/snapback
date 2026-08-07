@@ -9980,6 +9980,76 @@ mod tests {
         ));
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn detached_child_configuration_closes_an_inherited_descriptor_on_exec() {
+        use std::os::fd::AsRawFd as _;
+        use std::os::unix::fs::OpenOptionsExt as _;
+
+        const CHILD_ENV: &str = "SNAPBACK_TEST_DETACHED_CHILD_FD_CHILD";
+        if std::env::var_os(CHILD_ENV).is_none() {
+            // The fixture deliberately creates one non-CLOEXEC descriptor in
+            // its process. Isolate it so no parallel test spawn can inherit
+            // the descriptor before this assertion owns the cleanup.
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "cli::tests::detached_child_configuration_closes_an_inherited_descriptor_on_exec",
+                    "--nocapture",
+                ])
+                .env(CHILD_ENV, "1")
+                .output()
+                .expect("run isolated descriptor child");
+            assert!(
+                output.status.success(),
+                "isolated descriptor child failed\nstdout:\n{}\nstderr:\n{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            return;
+        }
+
+        let directory = tempfile::tempdir().unwrap();
+        let lease_path = directory.path().join("caller-descriptor.lock");
+        let lease = std::fs::OpenOptions::new()
+            .create_new(true)
+            .read(true)
+            .write(true)
+            .custom_flags(libc::O_CLOEXEC)
+            .open(&lease_path)
+            .unwrap();
+        assert_eq!(unsafe { libc::flock(lease.as_raw_fd(), libc::LOCK_EX) }, 0);
+        let lease_fd = lease.as_raw_fd();
+        const INHERITED_CALLER_FD: i32 = 198;
+        assert_eq!(
+            unsafe { libc::dup2(lease_fd, INHERITED_CALLER_FD) },
+            INHERITED_CALLER_FD
+        );
+
+        let mut command = std::process::Command::new("/bin/sleep");
+        command.arg("5");
+        super::configure_detached_child(&mut command);
+        let mut child = command.spawn().unwrap();
+        assert_eq!(unsafe { libc::close(INHERITED_CALLER_FD) }, 0);
+        drop(lease);
+
+        let probe = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .custom_flags(libc::O_CLOEXEC)
+            .open(&lease_path)
+            .unwrap();
+        let probe_result = unsafe { libc::flock(probe.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) };
+        let probe_error = (probe_result != 0).then(std::io::Error::last_os_error);
+        let _ = child.kill();
+        let _ = child.wait();
+        assert_eq!(
+            probe_result,
+            0,
+            "the exec'd detached child retained the caller descriptor: {probe_error:?}"
+        );
+    }
+
     #[test]
     fn fork_create_refuses_when_automatic_sweep_cannot_prove_stop() {
         let directory = tempfile::tempdir().unwrap();
