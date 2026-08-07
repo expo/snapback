@@ -687,6 +687,15 @@
       ]
     },
     {
+      "id": "linux-runtime-release-script",
+      "groups": [
+        "packaging"
+      ],
+      "prefixes": [
+        "scripts/build-linux-runtime-release"
+      ]
+    },
+    {
       "id": "other-scripts",
       "disposition": "all",
       "prefixes": [
