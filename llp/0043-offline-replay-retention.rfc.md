@@ -5,7 +5,18 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-06 (JS-arm sessions-custody queue implemented: per-record descriptor/principal/fence capture, strand/delete reconciliation, explicit recovery affordances, and card-game acceptance witness; commit 55564b1018eb); 2026-08-05 (C28 lifecycle reconciliation — two-digest tombstones, contiguous closed-prefix floors, and four-range/1,024-identity client epoch capacity); 2026-08-04 (author decision sitting #3
+**Revised:** 2026-08-07 (ownership acceptance — LLP 0129 owner-landing
+ledger row 4, speculative/settlement receipt shapes ("receipt
+projection"), assigned to this RFC by the 2026-08-07 author gate packet
+ruling, item 7
+(`issues/closed/20260807-local-first-author-gate-packet.md`). This RFC
+accepts ownership: speculative receipts carry the content address plus
+captured environment, settlement receipts bind them to the
+authoritative commit version, and a locally executed result is never
+presented as settlement; the design lands here as a dated section when
+built, with LLP 0034/0093 as collaborators. Until it lands, LLP 0129's
+ledger row 4 continues to bar any `Parity`-by-construction claim.)
+2026-08-06 (JS-arm sessions-custody queue implemented: per-record descriptor/principal/fence capture, strand/delete reconciliation, explicit recovery affordances, and card-game acceptance witness; commit 55564b1018eb); 2026-08-05 (C28 lifecycle reconciliation — two-digest tombstones, contiguous closed-prefix floors, and four-range/1,024-identity client epoch capacity); 2026-08-04 (author decision sitting #3
 (`issues/closed/20260804-author-decision-sitting-3.md`): the JS-arm
 sessions-custody queue recorded design is **RATIFIED** — all four open
 points ruled: (1) v1 stays server-refusal-only, no LLP 0053

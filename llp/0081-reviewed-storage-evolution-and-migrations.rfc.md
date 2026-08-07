@@ -5,7 +5,19 @@
 **Systems:** Schema evolution, Migrations, Storage portability, Deployment, Backup and restore, Code generation, CLI, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-08-06 (client tombstone-and-re-entry implementation: the JS
+**Revised:** 2026-08-07 (ownership acceptance — LLP 0129 owner-landing
+ledger row 3, schema-at-capture versus schema-at-settle skew
+("schema/identity fencing"), assigned to this RFC by the 2026-08-07
+author gate packet ruling, item 7
+(`issues/closed/20260807-local-first-author-gate-packet.md`). This RFC
+accepts ownership of the capture policy — a mutation executed locally
+against schema S1 and settled after migration to S2, the case the
+execution-identity tuple's element 5 exists for — as the natural
+extension of its shipped quarantine/resync-before-replay seam; LLP
+0127's "proposed home" is settled. The policy lands here as a dated
+section when built; until then LLP 0129's ledger row 3 continues to bar
+any `Parity`-by-construction claim.)
+2026-08-06 (client tombstone-and-re-entry implementation: the JS
 client outbox now recognizes the sidecar's upgrade-required refusal family,
 atomically quarantines every pending intent under the first-cut
 compatibility-unclassified posture, exposes only stable redacted v1

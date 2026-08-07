@@ -5,6 +5,25 @@
 **Systems:** Sync, Storage, Runtime, Client integration, Auth, Wire Protocol, Realtime, Packaging, Testing, Documentation, Competitive evaluation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
+**Revised:** 2026-08-07, later (author gate packet RULED — all seven items of
+`issues/closed/20260807-local-first-author-gate-packet.md` carry dated
+author rulings, Charlie Cheever, recorded this revision: OQ7's Phase-0
+gate split extends — the Node/file/public and browser/public halves are
+landed, the authenticated/authorized half stays open on M1 lease custody,
+and SD-5 keys off the split disposition; the Phase-0 remainder and the
+Phase-2a disposition are assigned to the standing orchestration lane,
+each presented by 2026-08-14; the Phase-2a common-path designation is
+delegated by the author to the orchestrating agent; the decision lab is
+explicitly DEFERRED with a verbatim reopen trigger, so Move 4 stays
+parked by decision, not drift; the LLP 0107 strand backstop is ruled
+options 2+3, with the amendment landing in a separate lane; zerobugs
+§13's durable-disconnected-intent candidate is RATIFIED; and Phase-1
+governance is ruled — the owner-landing ledger governs the claims, the
+2026-08-04 EXIT note's "OQ8's mechanisms shipped" wording carries a
+dated correction, `Parity` labeling stays barred until ledger rows 2–4
+land, and rows 2–4 get owners: partial-read admission retained here with
+the orchestration lane implementing, schema/identity fencing → LLP 0081,
+receipt projection → LLP 0043.)
 **Revised:** 2026-08-07 (§Open questions items 8, 10, and 11 stamped
 inline with the 2026-08-06 author sitting #4 rulings, matching item 9's
 convention; question bodies retained. The consolidated author-gate packet
@@ -12,7 +31,8 @@ for the remaining open decisions — OQ7, phase owners/timeboxes, the
 Phase 2a common-path designation, decision-lab scheduling, the LLP 0107
 strand backstop, zerobugs §13 ratification, and the Phase-1 end-to-end
 governing-artifact question — is filed at
-`issues/20260807-local-first-author-gate-packet.md`.)
+`issues/closed/20260807-local-first-author-gate-packet.md` (filed open;
+ruled and closed 2026-08-07 — see the later entry above).)
 **Revised:** 2026-08-06 (Phase-2b pending-work follow-on BUILT, with the
 listener-bound promotion gate still awaiting its outside-sandbox run: the
 sidecar now carries an explicit shared-store handoff, candidate URL + startup
@@ -714,6 +734,19 @@ the chosen arm (0126 option A's gate).
 > lease-custody ticket also carries unbounded per-origin
 > default-store blob accumulation.
 
+> **Gate split + owner/timebox (2026-08-07, Charlie Cheever — author
+> gate packet items 1 and 2).** The §Open questions 7 split disposition
+> now extends: the Node/file/public half **and** the browser/public
+> half are recorded landed (browser public witness `5ef7950c3`, 8/8
+> legs in real Chrome against the real runtime; the Node/file evidence
+> is the acceptance cited above), and the authenticated/authorized
+> conjunction half remains the phase's open remainder, gated on M1
+> lease custody. The remainder is owned by the standing orchestration
+> lane (Charlie Cheever as deciding author, executing through the
+> orchestrated fleet lane under session supervision), with its evidence
+> presented to the author by **2026-08-14** — see the dated ruling at
+> §Open questions 5.
+
 **Phase 1 — The shared IR rung.** *Staging confirmed by decision 2;
 IR-rung-first resourcing puts this phase before either ladder
 continues.* The LLP 0051 D2 mutation-IR evaluator as the local
@@ -806,6 +839,16 @@ the browser story is pinned.
 > `issues/20260806-phase2a-common-path-designation-absent.md`. **No gate
 > PASS, phase exit, or advancement is declared**; per this Plan's standing
 > rule the evidence is recorded here for author presentation.
+
+> **Owner/timebox (2026-08-07, Charlie Cheever — author gate packet
+> item 2).** Phase 2a's disposition is owned by the standing
+> orchestration lane (Charlie Cheever as deciding author, executing
+> through the orchestrated fleet lane under session supervision), with
+> the disposition presented to the author by **2026-08-14**; see the
+> dated ruling at §Open questions 5. The common-path designation itself
+> was **delegated by the author to the orchestrating agent** at the
+> same sitting (packet item 3); the frozen designation and the gate
+> rerun against it land as their own dated note here when executed.
 
 **Phase 2b — Desktop ladder (independent of 2a).** First the sidecar:
 the packaged native runtime spawned next to the app, carrying
@@ -906,19 +949,31 @@ designed but unbuilt. Proposed owners are proposals (constraint 7).
    it. 0127 move 6 proposes the bounded-profile grammar
    (LLP 0080/0110) as the admission artifact — 0127's answer to 0126
    OQ4, which poses it as a question; the design pass lands in the
-   move 6 owners.
+   move 6 owners. **OWNER ASSIGNED (2026-08-07, author gate packet
+   item 7): retained in this Plan (LLP 0129), with the standing
+   orchestration lane as implementer.** The row stays here rather than
+   moving to a proposed owner; it remains a bar on any
+   `Parity`-by-construction claim until it lands.
 3. **Schema-at-capture versus schema-at-settle skew.** A mutation
    executed locally against schema S1 and settled after migration to
    S2; the content hash does not name a schema era (tuple element 5
    exists precisely because of this). LLP 0081 — owner of the shipped
    quarantine/resync-before-replay seam for queued intent — is 0127's
    *proposed* home for the capture policy, explicitly proposed, not
-   settled.
+   settled. **OWNER ASSIGNED (2026-08-07, author gate packet item 7):
+   LLP 0081 accepts ownership** (dated acceptance note in LLP 0081's
+   header); the proposal above is settled. The row remains a bar on any
+   `Parity`-by-construction claim until the capture policy lands there.
 4. **Speculative/settlement receipt shapes.** Speculative receipts
    carry content address plus captured environment; settlement
    receipts bind them to the authoritative commit version (receipts
    already carry `snapshotVersion`); a locally executed result is
    never presented as settlement. Proposed owners: LLP 0043/0034/0093.
+   **OWNER ASSIGNED (2026-08-07, author gate packet item 7): LLP 0043
+   accepts ownership** of the receipt-projection design (dated
+   acceptance note in LLP 0043's header); 0034/0093 remain
+   collaborators, not owners. The row remains a bar on any
+   `Parity`-by-construction claim until the receipt shapes land there.
 5. **The execution-identity tuple itself** as an owned, versioned
    artifact. Proposed owners: LLP 0051 for the semantics elements
    (D5's conformance-corpus version pins element 3; D1's ctx-answer
@@ -1261,7 +1316,20 @@ dated revision here or a single repository filesystem ticket, following §Open
 questions 5. Evidence will live under
 `demos/local-first-option-c-decision/`, with digests and environment identity
 in the retained run capsules; chronological experience goes in newly numbered
-`diaries/` entries. **§Open questions 8 must be answered before the lab is
+`diaries/` entries.
+
+> **DEFERRED (2026-08-07, Charlie Cheever — author gate packet item
+> 4).** The decision lab is explicitly deferred. Reopen trigger,
+> verbatim: "schedule the lab when a real application (zerobugs-class
+> or a customer app) hits an expressiveness wall attributable to
+> Candidate A, or when Move 4 becomes commercially wanted." Move 4
+> remains parked **by decision, not drift**. Sitting #4's rulings
+> stand: OQ8's scheduling bar is lifted and the lab stays capped at
+> Outcomes 0/1 until a concrete Candidate B arrives with a named
+> adjudicating owner; nothing here detects the OQ4 trigger or admits
+> Option C.
+
+**§Open questions 8 must be answered before the lab is
 scheduled** (v0.5): until the shared substrate Candidate A depends on is
 either landed or explicitly bounded, a Candidate A failure cannot be
 attributed to the IR rung, and the prerequisites above are the list as of
@@ -1891,6 +1959,16 @@ scope; both were adjudicated 2026-07-30 and no longer gate this Plan
    > document's machinery**: no phase is open; opening Phase 2 is a
    > future author act with its own owner/timebox ruling.
    >
+   > **Dated correction (2026-08-07, Charlie Cheever — author gate
+   > packet item 7): the owner-landing ledger governs the CLAIMS.**
+   > Phase 1 exited its evaluator/conformance slice legitimately, but
+   > the sentence "OQ8's mechanisms shipped inside the program" above is
+   > corrected as **overstated**: the core machinery landed, while
+   > ledger rows 2–4 (partial-read admission, schema/identity fencing,
+   > receipt projection) remain, and `Parity` labeling stays barred
+   > until rows 2–4 land. Row owners are assigned in §The owner-landing
+   > ledger (dated 2026-08-07 assignments on rows 2–4).
+   >
    > **Dated ruling (2026-08-04, Charlie Cheever) — write rung 2 only.**
    > Recorded from `issues/20260804-0129-write-rung2-ruling.md`. This
    > ruling opens exactly LLP 0155 write rung 2 (Move 4's entry point)
@@ -1951,6 +2029,21 @@ scope; both were adjudicated 2026-07-30 and no longer gate this Plan
    > return to this document's machinery: no write-lane phase is open,
    > and opening one is a future author act with its own owner/timebox
    > ruling (OQ10/OQ11 remain the lab's open prerequisites).
+   >
+   > **Dated ruling (2026-08-07, Charlie Cheever) — Phase 0 remainder
+   > and Phase 2a disposition.** Recorded from
+   > `issues/closed/20260807-local-first-author-gate-packet.md` item 2.
+   > Both are assigned to the **standing orchestration lane**: Charlie
+   > Cheever as deciding author, executing through the orchestrated
+   > fleet lane under session supervision — the same formula as the
+   > Phase-1 ruling
+   > (`issues/closed/20260803-p0-0129-phase1-ruling.md`). Timebox ~one
+   > week each: the Phase-0-remainder evidence (M1 lease custody + the
+   > authenticated conjunction witness) is presented to the author by
+   > **2026-08-14**; the Phase 2a disposition is presented by
+   > **2026-08-14**. Per this Plan's standing rule, advancement remains
+   > author-presented, and a missed timebox returns here for a fresh
+   > dated ruling rather than sliding silently.
 6. **The ephemeral no-sync pin.** Does the proposed LLP 0013
    amendment (0126 OQ8; constraint 4) land with Phase 0 or
    independently, and who writes it?
@@ -1974,6 +2067,17 @@ scope; both were adjudicated 2026-07-30 and no longer gate this Plan
    witness remains an explicit open remainder
    (`issues/20260801-guide-gap-js-arm-browser-indexeddb-proof.md`).
    SD-5's self-advancing rule keys off this split reading.
+   **RULED 2026-08-07 — author gate packet item 1
+   (`issues/closed/20260807-local-first-author-gate-packet.md`): the
+   split extends.** *Ruling:* Phase 0's evidence gate splits into a
+   Node/file/public half and a browser/public half, both recorded as
+   **landed** — the browser public witness landed at `5ef7950c3` (8/8
+   legs in real Chrome against the real runtime), joining the earlier
+   Node/file evidence already cited in this Plan — while the
+   authenticated/authorized conjunction half remains **open** and gates
+   on M1 lease custody
+   (`issues/20260731-js-arm-lease-custody-and-sessions-outbox.md`
+   leg 1). SD-5 keys off this split disposition.
 8. **Is Phase 1's gate sufficient for what Phase 1 promises? — RULED
    (2026-08-06, author sitting #4, ruling #8; raised OPEN at v0.4 by
    round 2).** *Ruling:* the gate **splits** into an
@@ -1982,7 +2086,10 @@ scope; both were adjudicated 2026-07-30 and no longer gate this Plan
    (`issues/closed/20260806-author-decision-sitting-4.md`). The tension
    between this item's pre-ruling body below and the 2026-08-04 Phase-1
    EXIT note's shipped-claim is routed to the author in
-   `issues/20260807-local-first-author-gate-packet.md` item 7. Original
+   `issues/closed/20260807-local-first-author-gate-packet.md` item 7 —
+   **ruled 2026-08-07: the owner-landing ledger governs the claims**;
+   see the dated correction at item 5's Phase-1 EXIT note and the dated
+   2026-08-07 owner assignments on ledger rows 2–4. Original
    question: Phase 1's named gate is the
    IR-evaluator sizing spike plus the LLP 0051 D5 corpus passing on
    both sides. But the phase promises local optimistic overlays and

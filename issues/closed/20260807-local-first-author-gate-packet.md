@@ -1,6 +1,6 @@
 # Local-first program — author gate packet (sitting request)
 
-**Status:** Open
+**Status:** Closed (ruled 2026-08-07 by Charlie Cheever; see Resolution)
 **Severity:** P1 (program-blocking decisions)
 **Systems:** Sync, Storage, Client integration, Realtime, Testing, Governance
 **Date:** 2026-08-07
@@ -119,3 +119,64 @@ Program state the decisions sit on (all on `main`):
 Each numbered item has a dated ruling recorded in its owning document (or
 an explicit deferral recorded here), and this ticket moves to
 `issues/closed/` with pointers to those rulings.
+
+## Resolution (2026-08-07)
+
+Charlie Cheever ruled on all seven items on 2026-08-07. In every case the
+ruling is **"recommendation accepted as stated"**, except item 3, whose
+designation was **delegated to the orchestrating agent**. Dispositions and
+landing locations:
+
+1. **OQ7 — SPLIT.** Phase 0's evidence gate splits: the Node/file/public
+   half and the browser/public half are recorded landed (browser public
+   witness `5ef7950c3`, 8/8; the earlier Node/file evidence already cited
+   in the Plan), and the authenticated/authorized half remains open,
+   gating on M1 lease custody. SD-5 keys off this split disposition.
+   Recorded: LLP 0129 §Open questions 7 (RULED 2026-08-07 stamp) and the
+   Phase 0 §Phases dated note.
+2. **Owners/timeboxes — ASSIGNED.** Phase 0's remainder (M1 lease custody
+   + authenticated conjunction witness) and Phase 2a's disposition are
+   both assigned to the standing orchestration lane (Charlie Cheever as
+   deciding author, executing through the orchestrated fleet lane under
+   session supervision — the Phase-1 formula,
+   `issues/closed/20260803-p0-0129-phase1-ruling.md`), timebox ~one week
+   each: Phase-0-remainder evidence presented by **2026-08-14**; Phase 2a
+   disposition presented by **2026-08-14**. Recorded: LLP 0129 §Open
+   questions 5 dated ruling, plus the Phase 0 / Phase 2a §Phases notes.
+3. **Common-path designation — DELEGATED.** Delegated by the author to
+   the orchestrating agent: "This whole project is about making something
+   right for agents and you know agents better than I do." The frozen
+   designation lands as the Option-B artifact
+   (`tests/acceptance/fixtures/browser-lane/handler-coverage.v1.json`)
+   with the delegation recorded verbatim in its provenance, and the
+   coverage gate reruns against it in the same landing sequence.
+4. **Decision lab — explicitly DEFERRED.** Reopen trigger, verbatim:
+   "schedule the lab when a real application (zerobugs-class or a
+   customer app) hits an expressiveness wall attributable to Candidate A,
+   or when Move 4 becomes commercially wanted." Move 4 remains parked by
+   decision, not drift. Recorded: LLP 0129 §Option-C empirical decision
+   protocol, "When the lab can run" dated note.
+5. **LLP 0107 strand backstop — options 2 + 3 RULED.** Absence-evidence
+   retirement on the `projectRecordFields` path plus inspection
+   surfacing. Recorded **here only** by design: a separate lane lands the
+   LLP 0107 amendment together with the code, so neither `llp/0107` nor
+   client code is touched by this packet's landing.
+6. **Zerobugs §13 — RATIFIED.** Durable-disconnected-intent is the
+   ratified primary-improvement candidate. Recorded:
+   `demos/zerobugs/manifest/acceptance.v1.md` §13 dated ratification note
+   (author: Charlie Cheever, 2026-08-07, via this packet); the remaining
+   authorized/revocation leg rides the Phase-0-remainder lane (item 2).
+7. **Phase-1 governance — the ledger governs the CLAIMS.** Phase 1 exited
+   its evaluator/conformance slice legitimately; the 2026-08-04 EXIT
+   note's "OQ8's mechanisms shipped" wording carries a dated correction
+   (overstated; core machinery landed, ledger rows 2–4 remain); `Parity`
+   labeling stays barred until rows 2–4 land. Row owners: receipt
+   projection → LLP 0043 (dated acceptance in its header);
+   schema/identity fencing → LLP 0081 (dated acceptance in its header);
+   partial-read admission → retained in LLP 0129 with the orchestration
+   lane as implementer. Recorded: LLP 0129 §The owner-landing ledger rows
+   2–4 dated assignments + the Phase-1 EXIT dated correction at §Open
+   questions 5, and the LLP 0043/0081 header notes.
+
+All rulings are summarized in LLP 0129's consolidated 2026-08-07
+"author gate packet RULED" Revised entry.
