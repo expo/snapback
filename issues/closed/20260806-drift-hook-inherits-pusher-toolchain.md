@@ -1,6 +1,6 @@
 # snapback-drift pre-push hook inherits the pusher's shell toolchain
 
-**Status:** Open
+**Status:** Resolved
 **Impact:** 2
 **Urgency:** 2
 **Ease:** 3
@@ -30,3 +30,17 @@ method record) instead of trusting the pusher's PATH, or at minimum
 diagnose the node-version mismatch explicitly rather than reporting the
 record as stale. There is no `volta` field in package.json — adding one may
 be the simplest durable pin, if the repo owners want every tool pinned.
+
+## Resolution
+
+Resolved 2026-08-07. `.githooks/pre-push` now reads the repository's
+`.node-version` and, when the ambient runtime differs, prepends the matching
+Volta image bin directory to `PATH` (with a Volta resolution fallback). The
+runner and every gate therefore inherit the pinned Node runtime without a
+wrapper.
+
+The implementation deliberately does not use `volta run` around the runner or
+gate commands: Volta can translate a child's ordinary exit 1 into exit 126,
+which the drift runner classifies as command-unavailable infrastructure. PATH
+prepending preserves the gate's real exit status and fixes the original
+toolchain mismatch.

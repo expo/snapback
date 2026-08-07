@@ -1,0 +1,135 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# @ref LLP 0175#same-change-frozen-record-coupling — the complete registry runs
+# periodically in a dedicated clone and files fix-forward tickets on main.
+backstop_home="${SNAPBACK_BACKSTOP_HOME:-${HOME}/.snapback-drift-backstop}"
+config_file="$backstop_home/config"
+default_source="/Users/ccheever/projects/snapback"
+mkdir -p "$backstop_home"
+
+backstop_source="${SNAPBACK_BACKSTOP_SOURCE:-}"
+if [ -z "$backstop_source" ] && [ -f "$config_file" ]; then
+  IFS= read -r backstop_source < "$config_file" || true
+fi
+backstop_source="${backstop_source:-$default_source}"
+backstop_repo="$backstop_home/repo"
+
+if ! git -C "$backstop_source" rev-parse --show-toplevel >/dev/null 2>&1; then
+  printf '[snapback-drift-schedule] source is not a Git checkout: %s\n' "$backstop_source" >&2
+  exit 2
+fi
+origin_url="$(git -C "$backstop_source" remote get-url origin)"
+
+if [ ! -d "$backstop_repo/.git" ]; then
+  printf '[snapback-drift-schedule] cloning %s into %s\n' "$backstop_source" "$backstop_repo"
+  git clone "$backstop_source" "$backstop_repo"
+  git -C "$backstop_repo" remote set-url origin "$origin_url"
+fi
+
+if ! git -C "$backstop_repo" diff --quiet \
+  || ! git -C "$backstop_repo" diff --cached --quiet; then
+  printf '[snapback-drift-schedule] REFUSED: dedicated clone has dirty tracked files: %s\n' \
+    "$backstop_repo" >&2
+  git -C "$backstop_repo" status --short --untracked-files=no >&2
+  exit 2
+fi
+
+git -C "$backstop_repo" fetch origin
+git -C "$backstop_repo" checkout -B snapback-drift-backstop origin/main
+
+pin_node_path() {
+  local repo="$1"
+  local pinned running volta_bin resolved
+  pinned="$(tr -d '[:space:]' < "$repo/.node-version")"
+  running="$(node -v 2>/dev/null || true)"
+  if [ "${running#v}" = "$pinned" ]; then
+    return
+  fi
+  volta_bin="${HOME}/.volta/tools/image/node/$pinned/bin"
+  if [ -x "$volta_bin/node" ]; then
+    PATH="$volta_bin:$PATH"
+    export PATH
+    return
+  fi
+  if command -v volta >/dev/null 2>&1; then
+    resolved="$(volta run --node "$pinned" sh -c 'command -v node' 2>/dev/null || true)"
+    if [ -n "$resolved" ] && [ -x "$resolved" ]; then
+      PATH="$(dirname "$resolved"):$PATH"
+      export PATH
+      return
+    fi
+  fi
+  printf '[snapback-drift-schedule] WARNING: pinned Node %s is unavailable; using ambient %s\n' \
+    "$pinned" "${running:-unavailable}" >&2
+}
+
+pin_node_path "$backstop_repo"
+
+if command -v bun >/dev/null 2>&1; then
+  if ! (cd "$backstop_repo" && bun install --frozen-lockfile); then
+    printf '[snapback-drift-schedule] prerequisite warning: bun install failed; continuing to classified gate results\n' >&2
+  fi
+else
+  printf '[snapback-drift-schedule] prerequisite warning: bun is unavailable; continuing to classified gate results\n' >&2
+fi
+
+if [ -d "$backstop_source/vendor/ibex" ]; then
+  if ! SNAPBACK_IBEX_CHECKOUT="$backstop_source/vendor/ibex" \
+    "$backstop_repo/scripts/bootstrap-ibex-runtime"; then
+    printf '[snapback-drift-schedule] prerequisite warning: Ibex bootstrap failed; affected gates should report INFRASTRUCTURE\n' >&2
+  fi
+elif ! "$backstop_repo/scripts/bootstrap-ibex-runtime"; then
+  printf '[snapback-drift-schedule] prerequisite warning: Ibex bootstrap failed; affected gates should report INFRASTRUCTURE\n' >&2
+fi
+
+for demo in \
+  demos/todo/snapback \
+  demos/rbac/snapback \
+  demos/todo-v2/snapback \
+  demos/competitive-checkpoint/snapback
+do
+  if ! (cd "$backstop_repo" && node packages/snapback-codegen/index.mjs "$demo"); then
+    printf '[snapback-drift-schedule] prerequisite warning: codegen failed for %s; affected gates should report INFRASTRUCTURE\n' \
+      "$demo" >&2
+  fi
+done
+
+backstop_status=0
+(
+  cd "$backstop_repo"
+  node scripts/drift-prone-gates.mjs backstop --head origin/main
+) || backstop_status=$?
+
+issue_changes="$(git -C "$backstop_repo" status --porcelain --untracked-files=all -- ':(glob)issues/*.md')"
+if [ -n "$issue_changes" ]; then
+  git -C "$backstop_repo" add -- ':(glob)issues/*.md'
+  git -C "$backstop_repo" \
+    -c user.name='Snapback drift backstop' \
+    -c user.email='noreply@anthropic.com' \
+    commit \
+    -m 'chore(backstop): file main drift ticket(s) from scheduled run' \
+    -m 'Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>'
+
+  pushed=0
+  for attempt in 1 2 3; do
+    printf '[snapback-drift-schedule] push attempt %s of 3\n' "$attempt"
+    git -C "$backstop_repo" fetch origin
+    if ! git -C "$backstop_repo" rebase origin/main; then
+      git -C "$backstop_repo" rebase --abort >/dev/null 2>&1 || true
+      printf '[snapback-drift-schedule] rebase attempt %s failed; retrying\n' "$attempt" >&2
+      continue
+    fi
+    if git -C "$backstop_repo" push origin HEAD:main; then
+      pushed=1
+      break
+    fi
+    printf '[snapback-drift-schedule] push attempt %s raced main; retrying\n' "$attempt" >&2
+  done
+  if [ "$pushed" -ne 1 ]; then
+    printf '[snapback-drift-schedule] ERROR: could not push drift ticket commit after 3 attempts\n' >&2
+    exit 2
+  fi
+fi
+
+exit "$backstop_status"

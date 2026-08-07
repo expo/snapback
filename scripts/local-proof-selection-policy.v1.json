@@ -47,6 +47,17 @@
       "snapback-cli-real-server"
     ]
   },
+  "driftFailClosedCoreGates": [
+    "contract-meta",
+    "guide",
+    "telemetry-receipt-check",
+    "control-catalog",
+    "relation-activity-publication",
+    "sequence-allocation-publication",
+    "local-store-publication",
+    "result-transform-ship-gate",
+    "local-store-carrier-receipt"
+  ],
   "driftProneGates": {
     "agent-safe-publication-fixtures": {
       "records": [

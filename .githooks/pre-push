@@ -7,6 +7,28 @@ if [ -z "$root" ] || [ ! -f "$root/scripts/drift-prone-gates.mjs" ]; then
   exit 2
 fi
 
+pinned_node="$(tr -d '[:space:]' < "$root/.node-version")"
+running_node="$(node -v 2>/dev/null || true)"
+if [ "${running_node#v}" != "$pinned_node" ]; then
+  volta_node_bin="${HOME:-}/.volta/tools/image/node/$pinned_node/bin"
+  if [ -n "${HOME:-}" ] && [ -x "$volta_node_bin/node" ]; then
+    PATH="$volta_node_bin:$PATH"
+    export PATH
+  elif command -v volta >/dev/null 2>&1; then
+    resolved_node="$(volta run --node "$pinned_node" sh -c 'command -v node' 2>/dev/null || true)"
+    if [ -n "$resolved_node" ] && [ -x "$resolved_node" ]; then
+      PATH="$(dirname "$resolved_node"):$PATH"
+      export PATH
+    else
+      printf '[snapback-drift] WARNING: could not resolve pinned Node %s via volta; using ambient %s\n' \
+        "$pinned_node" "${running_node:-unavailable}" >&2
+    fi
+  else
+    printf '[snapback-drift] WARNING: pinned Node %s is unavailable; using ambient %s\n' \
+      "$pinned_node" "${running_node:-unavailable}" >&2
+  fi
+fi
+
 # @ref LLP 0175#same-change-frozen-record-coupling — the tracked hook
 # delegates Git's exact ref-update stream to the checked selector-backed gate.
 exec node "$root/scripts/drift-prone-gates.mjs" pre-push --remote "$1"

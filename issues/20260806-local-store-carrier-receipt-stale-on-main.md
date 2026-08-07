@@ -7,6 +7,7 @@
 **Confidence:** 5
 **Systems:** Testing, Packaging, Storage
 **Date:** 2026-08-06
+**Drift gate:** `local-store-carrier-receipt`
 **Related:** `issues/20260806-main-red-agent-safe-leaf-set-drift.md`,
 `issues/20260806-commands-profile-blocks-all-metrology-writers.md`,
 LLP 0166 (local persistent store), LLP 0175 (local-proof economics)

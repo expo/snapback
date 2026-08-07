@@ -5,7 +5,7 @@
 // filesystem ticket.
 //
 // @ref LLP 0175#same-change-frozen-record-coupling — only registered
-// frozen-record gates run pre-push; unknown paths fail closed to the registry.
+// frozen-record gates run pre-push; unknown paths fail closed to the fast core.
 
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -38,6 +38,7 @@ const ROOT = resolve(import.meta.dirname, '..');
 const ZERO_SHA = /^0{40}$/u;
 const SHA = /^[0-9a-f]{40}$/u;
 const BYPASS_ENV = 'SNAPBACK_DRIFT_GATES_BYPASS';
+const FULL_ENV = 'SNAPBACK_DRIFT_GATES_FULL';
 const DEPENDENCY_MIRROR_SCHEMA = 'snapback.drift-dependency-mirror.v1';
 const DEFAULT_TICKET_DATE = () => new Date().toISOString().slice(0, 10);
 const INFRASTRUCTURE_OUTPUT = /(?:ERR_MODULE_NOT_FOUND|MODULE_NOT_FOUND|Cannot find package|command not found|couldn't read .*No such file or directory|this operation must be run in a work tree|SNAPBACK_(?:CAPABILITY_IBEX|IBEX)_[A-Z0-9_]+)/u;
@@ -118,7 +119,13 @@ export function changedPathsForUpdate(root, update, remoteName) {
   return [...paths].sort();
 }
 
-export function planPrePush(updates, remoteName, context = loadSelectionContext(), root = ROOT) {
+export function planPrePush(
+  updates,
+  remoteName,
+  context = loadSelectionContext(),
+  root = ROOT,
+  { failClosedDisposition = 'core' } = {},
+) {
   const byRevision = new Map();
   for (const update of updates) {
     if (ZERO_SHA.test(update.localSha)) continue;
@@ -127,7 +134,11 @@ export function planPrePush(updates, remoteName, context = loadSelectionContext(
       refs: [],
       changedPaths: new Set(),
     };
-    entry.refs.push({ localRef: update.localRef, remoteRef: update.remoteRef });
+    entry.refs.push({
+      localRef: update.localRef,
+      remoteRef: update.remoteRef,
+      remoteSha: update.remoteSha,
+    });
     for (const path of changedPathsForUpdate(root, update, remoteName)) {
       entry.changedPaths.add(path);
     }
@@ -135,7 +146,11 @@ export function planPrePush(updates, remoteName, context = loadSelectionContext(
   }
   return [...byRevision.values()].map((entry) => {
     const changedPaths = [...entry.changedPaths].sort();
-    const selection = selectDriftProneGates(changedPaths, context);
+    const selection = selectDriftProneGates(
+      changedPaths,
+      context,
+      { failClosedDisposition },
+    );
     return {
       revision: entry.revision,
       refs: entry.refs,
@@ -175,12 +190,23 @@ export function runPrePush({
 }) {
   const started = performance.now();
   const bypass = env[BYPASS_ENV] ?? '';
+  const full = env[FULL_ENV] ?? '';
   if (bypass !== '' && bypass !== '1') {
     console.error(`[snapback-drift] REFUSED: ${BYPASS_ENV} must be exactly 1 when used`);
     return 2;
   }
+  if (full !== '' && full !== '1') {
+    console.error(`[snapback-drift] REFUSED: ${FULL_ENV} must be exactly 1 when used`);
+    return 2;
+  }
   const updates = parsePrePushUpdates(input);
-  const plans = planPrePush(updates, remoteName, context, root);
+  const plans = planPrePush(
+    updates,
+    remoteName,
+    context,
+    root,
+    { failClosedDisposition: full === '1' ? 'full' : 'core' },
+  );
   const changedPathCount = new Set(plans.flatMap((plan) => plan.changedPaths)).size;
   const selected = [...new Set(plans.flatMap((plan) => plan.gates))];
 
@@ -204,6 +230,7 @@ export function runPrePush({
     return 0;
   }
 
+  const preExistingGates = new Set();
   for (const plan of plans) {
     if (plan.gates.length === 0) continue;
     const short = plan.revision.slice(0, 12);
@@ -218,7 +245,12 @@ export function runPrePush({
       ];
       console.error(
         `[snapback-drift] FAIL-CLOSED selection: ${reasons.join(', ')}; `
-          + 'running every registered drift-prone gate',
+          + `running fail-closed ${plan.selection.driftFailClosedDisposition.toUpperCase()} tier `
+          + `(${plan.gates.length} of ${Object.keys(context.policy.driftProneGates).length} `
+          + 'registered gates)'
+          + (plan.selection.driftFailClosedDisposition === 'core'
+            ? `; ${FULL_ENV}=1 runs the complete registry`
+            : ''),
       );
     }
     const requiredSubmodules = [...new Set(plan.gates.flatMap((gate) => (
@@ -253,8 +285,66 @@ export function runPrePush({
               return 2;
             }
             writeCapturedOutput(execution, { stripJavaScriptStack: true });
-            printRefusal({ gate, revision: plan.revision, metadata, cwd, command });
-            return 1;
+            const baseline = baselineRevisionsForPlan(root, plan);
+            if (baseline.error) {
+              console.error(
+                `[snapback-drift] attribution unavailable: ${baseline.error}; blocking fail-closed`,
+              );
+              printRefusal({ gate, revision: plan.revision, metadata, cwd, command });
+              return 1;
+            }
+            let preExisting = true;
+            for (const revision of baseline.revisions) {
+              console.error(
+                `[snapback-drift] ATTRIBUTION CHECK ${gate} at baseline ${revision.slice(0, 12)}`,
+              );
+              let baselineExecution;
+              try {
+                baselineExecution = runGateAtRevision(
+                  root,
+                  revision,
+                  gate,
+                  command,
+                  metadata,
+                  env,
+                );
+              } catch (error) {
+                console.error(
+                  `[snapback-drift] attribution baseline ${revision.slice(0, 12)} `
+                    + `could not be evaluated: ${error?.message ?? error}`,
+                );
+                preExisting = false;
+                break;
+              }
+              writeCapturedOutput(baselineExecution, { stripJavaScriptStack: true });
+              if (baselineExecution.ok) {
+                console.error(
+                  `[snapback-drift] attribution baseline ${revision.slice(0, 12)} passes ${gate}; `
+                    + 'the pushed revision introduced the staleness',
+                );
+                preExisting = false;
+                break;
+              }
+              if (baselineExecution.infrastructureReason) {
+                console.error(
+                  `[snapback-drift] attribution baseline ${revision.slice(0, 12)} could not `
+                    + `faithfully run ${gate}: ${baselineExecution.infrastructureReason}`,
+                );
+                preExisting = false;
+                break;
+              }
+            }
+            if (!preExisting) {
+              printRefusal({ gate, revision: plan.revision, metadata, cwd, command });
+              return 1;
+            }
+            printPreExistingStaleness({
+              gate,
+              baselines: baseline.revisions,
+              root,
+            });
+            preExistingGates.add(gate);
+            continue;
           }
           writeCapturedOutput(execution);
           console.log(`[snapback-drift] PASS ${gate} (${elapsed(gateStarted)})`);
@@ -264,11 +354,74 @@ export function runPrePush({
     );
     if (result !== 0) return result;
   }
+  if (preExistingGates.size > 0) {
+    console.error(
+      `[snapback-drift] ALLOWED WITH PRE-EXISTING STALENESS: ${preExistingGates.size} `
+        + `gate(s) stale on the baseline; see issues/ tickets (${elapsed(started)})`,
+    );
+    return 0;
+  }
   console.log(
     `[snapback-drift] ALLOWED: ${selected.length} selected drift-prone gate(s) passed `
       + `(${elapsed(started)})`,
   );
   return 0;
+}
+
+function baselineRevisionsForPlan(root, plan) {
+  const revisions = new Set();
+  for (const ref of plan.refs) {
+    let target = ref.remoteSha;
+    if (ZERO_SHA.test(target)) {
+      try {
+        target = defaultMainRef(root);
+      } catch (error) {
+        return { revisions: [], error: error?.message ?? `${error}` };
+      }
+    }
+    let baseline;
+    try {
+      baseline = git(root, ['merge-base', plan.revision, target]).trim();
+    } catch (error) {
+      return {
+        revisions: [],
+        error: `merge-base ${plan.revision.slice(0, 12)} ${target} did not resolve `
+          + `(${error?.message ?? error})`,
+      };
+    }
+    if (!SHA.test(baseline)) {
+      return { revisions: [], error: `merge-base against ${target} was not a commit` };
+    }
+    if (baseline === plan.revision) {
+      return {
+        revisions: [],
+        error: `baseline equals pushed revision ${plan.revision.slice(0, 12)}`,
+      };
+    }
+    revisions.add(baseline);
+  }
+  if (revisions.size === 0) return { revisions: [], error: 'no baseline revision resolved' };
+  return { revisions: [...revisions], error: null };
+}
+
+function printPreExistingStaleness({ gate, baselines, root }) {
+  console.error('[snapback-drift] !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+  for (const baseline of baselines) {
+    console.error(
+      `[snapback-drift] PRE-EXISTING STALE ${gate}: also fails at baseline `
+        + `${baseline.slice(0, 12)} (not caused by this push)`,
+    );
+  }
+  const ticket = findOpenTicket(join(root, 'issues'), gate);
+  if (ticket) {
+    console.error(`[snapback-drift] open backstop ticket: ${relative(root, ticket)}`);
+  } else {
+    console.error(
+      '[snapback-drift] no open backstop ticket found; the scheduled complete backstop will file one',
+    );
+  }
+  console.error('[snapback-drift] continuing with the remaining selected gates');
+  console.error('[snapback-drift] !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
 }
 
 function announceBypass(plans, changedPathCount) {
@@ -1040,10 +1193,10 @@ function safeIssuesRoot(root, issuesDir) {
   return path;
 }
 
-function defaultMainRef() {
+function defaultMainRef(root = ROOT) {
   for (const ref of ['refs/remotes/origin/main', 'refs/heads/main']) {
     try {
-      resolveCommit(ROOT, ref);
+      resolveCommit(root, ref);
       return ref;
     } catch {}
   }

@@ -31,7 +31,8 @@ import {
 // real tracked pre-push hook. A working-tree-only edit is deliberately never
 // used as evidence for selection or enforcement.
 // @ref LLP 0175#same-change-frozen-record-coupling — committed-history
-// integration fixtures prove refusal, reconciliation, bypass, and backstop.
+// integration fixtures prove refusal, reconciliation, bypass, baseline
+// attribution, fail-closed tiering, and the scheduled backstop contract.
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const IMPLEMENTATION_FILES = [
@@ -189,16 +190,25 @@ function setupCommittedClone() {
   return { scratch, repo };
 }
 
-test('drift selection is narrow for known paths and fail-closed for unknown paths', () => {
+test('drift selection preserves mapped triggers and tiers fail-closed paths', () => {
   const context = loadSelectionContext();
+  const registered = context.inventory.canonicalGates.filter((gate) => (
+    Object.hasOwn(context.policy.driftProneGates, gate)
+  ));
+  const core = context.inventory.canonicalGates.filter((gate) => (
+    context.policy.driftFailClosedCoreGates.includes(gate)
+  ));
+  assert.ok(context.policy.driftFailClosedCoreGates.length > 0);
+  for (const gate of context.policy.driftFailClosedCoreGates) {
+    assert.ok(Object.hasOwn(context.policy.driftProneGates, gate), gate);
+  }
   assert.deepEqual(
     selectDriftProneGates(['README.md'], context).selectedDriftProneGates,
     [],
   );
-  assert.deepEqual(
-    selectDriftProneGates(['guide/index.md'], context).selectedDriftProneGates,
-    ['guide'],
-  );
+  const mapped = selectDriftProneGates(['guide/index.md'], context);
+  assert.deepEqual(mapped.selectedDriftProneGates, ['guide']);
+  assert.equal(mapped.driftFailClosedDisposition, null);
   assert.deepEqual(
     selectDriftProneGates([
       'tests/agent_safe_publication_checker_v1.mjs',
@@ -207,10 +217,26 @@ test('drift selection is narrow for known paths and fail-closed for unknown path
   );
   const unknown = selectDriftProneGates(['unclassified-drift-probe.xyz'], context);
   assert.equal(unknown.selectionClass, 'FAIL_CLOSED_FULL');
+  assert.equal(unknown.driftFailClosedDisposition, 'core');
+  assert.deepEqual(unknown.selectedDriftProneGates, core);
+
+  const full = selectDriftProneGates(
+    ['unclassified-drift-probe.xyz'],
+    context,
+    { failClosedDisposition: 'full' },
+  );
+  assert.equal(full.driftFailClosedDisposition, 'full');
+  assert.deepEqual(full.selectedDriftProneGates, registered);
+
+  const mappedAndUnknown = selectDriftProneGates([
+    'tests/agent_safe_publication_checker_v1.mjs',
+    'unclassified-drift-probe.xyz',
+  ], context);
   assert.deepEqual(
-    unknown.selectedDriftProneGates,
+    mappedAndUnknown.selectedDriftProneGates,
     context.inventory.canonicalGates.filter((gate) => (
-      Object.hasOwn(context.policy.driftProneGates, gate)
+      gate === 'agent-safe-publication-fixtures'
+        || context.policy.driftFailClosedCoreGates.includes(gate)
     )),
   );
 });
@@ -347,6 +373,33 @@ test('same-change hook and main backstop operate on committed pushes', { timeout
     assert.match(bypass.output, /BYPASS ALLOWED: skipped 1 selected gate\(s\): guide/u);
     console.log(`DEMO (d) explicit bypass -> allowed and loud\n${relevantLines(bypass.output)}`);
 
+    appendFileSync(join(repo, 'guide/index.md'), '\n<!-- committed pre-existing drift probe -->\n');
+    commitAll(repo, 'test: guide remains stale after its baseline');
+    const preExisting = run(repo, 'git', ['push', 'origin', 'HEAD:refs/heads/main'], { env });
+    assert.equal(preExisting.status, 0, preExisting.output);
+    assert.match(preExisting.output, /PRE-EXISTING STALE guide: also fails at baseline [0-9a-f]{12}/u);
+    assert.match(preExisting.output, /ALLOWED WITH PRE-EXISTING STALENESS: 1 gate\(s\)/u);
+    console.log(
+      `DEMO (e) baseline-stale gate -> allowed with attribution\n`
+        + relevantLines(preExisting.output),
+    );
+
+    appendFileSync(join(repo, 'unclassified-drift-probe.xyz'), 'core tier integration probe\n');
+    commitAll(repo, 'test: unknown path selects the fail-closed core');
+    const coreTier = run(repo, 'git', ['push', 'origin', 'HEAD:refs/heads/main'], { env });
+    assert.equal(coreTier.status, 0, coreTier.output);
+    assert.match(
+      coreTier.output,
+      /FAIL-CLOSED selection: .*running fail-closed CORE tier \(9 of 14 registered gates\)/u,
+    );
+    assert.doesNotMatch(coreTier.output, /RUN client-bundle-metrology:/u);
+    assert.doesNotMatch(coreTier.output, /RUN auth-invalidation-report:/u);
+    assert.doesNotMatch(coreTier.output, /RUN deployment-identity:/u);
+    console.log(
+      `DEMO (f) unknown committed path -> fail-closed core tier\n`
+        + relevantLines(coreTier.output),
+    );
+
     const firstBackstop = run(repo, process.execPath, [
       'scripts/drift-prone-gates.mjs', 'backstop', '--head', 'HEAD', '--gate', 'guide',
     ], { env });
@@ -371,7 +424,7 @@ test('same-change hook and main backstop operate on committed pushes', { timeout
       .filter((name) => name.includes('main-drift-guide'));
     assert.deepEqual(ticketsAfterSecond, ticketsAfterFirst);
     console.log(
-      `DEMO (e) backstop -> one ticket, second run idempotent\n`
+      `DEMO (g) backstop -> one ticket, second run idempotent\n`
         + `${relevantLines(firstBackstop.output)}\n${causalLanding}\n`
         + `${relevantLines(secondBackstop.output)}`,
     );

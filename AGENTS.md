@@ -103,11 +103,15 @@ them after normal checkout/merge operations in this local clone.
 Activate the tracked hooks with `git config core.hooksPath .githooks` (a
 relative path keeps each linked worktree on its own checked-out hook). The
 pre-push hook runs only frozen-record gates selected by the committed paths
-being pushed. A deliberate emergency bypass must be exact and loud:
-`SNAPBACK_DRIFT_GATES_BYPASS=1 git push ...`. Never put that variable in shell
-startup files. The independent main detector is
+being pushed; broad or unknown paths add a fast fail-closed core tier, while
+`SNAPBACK_DRIFT_GATES_FULL=1` opts into the complete registry. Baseline-proven
+pre-existing staleness is reported but does not block. A deliberate emergency
+bypass must be exact and loud: `SNAPBACK_DRIFT_GATES_BYPASS=1 git push ...`.
+Never put that variable in shell startup files. The independent main detector is
 `node scripts/drift-prone-gates.mjs backstop`; it files one open `issues/`
-ticket per stale gate and does not duplicate a still-open ticket.
+ticket per stale gate and does not duplicate a still-open ticket. The complete
+suite runs every two hours on the `com.snapback.drift-backstop` launchd
+schedule; install or refresh it with `scripts/install-drift-backstop-schedule`.
 
 The skills sync (and therefore the checkout/merge hooks) initializes only the
 small `vendor/llp` and `vendor/ccheever-skills` submodules. It deliberately does

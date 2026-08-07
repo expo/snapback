@@ -51,7 +51,11 @@ initialization cost.) 2026-08-07 (LLP 0189 extends this document's cadence
 design from CI to claim/publication gating: the scheduled complete battery is
 the authoritative verdict, landing gates stay fast/affected, claims are
 snapshots with scoped qualification digests, and reviews bind content rather
-than HEAD.)
+than HEAD.) 2026-08-07 (author ruling restructures the local drift-gate
+economics: fail-closed pushes pay a measured fast core, per-gate baseline
+failures are non-blocking pre-existing staleness, the hook pins Node without
+wrapping gate exits, and a two-hour dedicated-clone backstop runs the complete
+registry and files fix-forward tickets.)
 **Related:** LLP 0010, LLP 0032, LLP 0109, LLP 0115, LLP 0145, LLP 0154,
 issues/closed/20260802-local-proof-is-cancelled-before-it-can-finish-on-main.md,
 issues/closed/20260802-verify-local-proof-stops-at-the-first-failure.md,
@@ -349,13 +353,57 @@ The registered set is:
 | `local-store-publication` | persistent-store carrier and anchor |
 | `local-store-carrier-receipt` | carrier-exit and bundle-attribution receipts |
 
+> **Author ruling — 2026-08-07 (Charlie Cheever).** Seven concurrent lanes on
+> 2026-08-07 each paid one to three complete fail-closed runs of the 14-gate
+> registry, about 11 minutes per run. Those complete runs caught zero defects
+> introduced by the push under test. Three lanes ultimately needed the
+> all-or-nothing `SNAPBACK_DRIFT_GATES_BYPASS=1` because unrelated state was
+> already red: `client-bundle-metrology`
+> ([ticket](../issues/20260807-main-drift-client-bundle-metrology.md)),
+> `local-store-carrier-receipt`
+> ([ticket](../issues/20260806-local-store-carrier-receipt-stale-on-main.md)),
+> and `auth-invalidation-report` infrastructure failures in fresh worktrees.
+> Skipping all selected gates was worse than a targeted attribution waiver.
+>
+> Trigger-matched gates therefore always run, while a broad or unknown path
+> supplements them with the measured fast core: `contract-meta`, `guide`,
+> `telemetry-receipt-check`, `control-catalog`,
+> `relation-activity-publication`, `sequence-allocation-publication`,
+> `local-store-publication`, `result-transform-ship-gate`, and
+> `local-store-carrier-receipt`. Each measured at no more than 1.5 seconds on
+> the ruling machine and the tier measured about 3 seconds in aggregate.
+> `SNAPBACK_DRIFT_GATES_FULL=1` opts a release-critical push into the complete
+> registry.
+>
+> The complete registry runs every two hours under the
+> `com.snapback.drift-backstop` launchd service against fresh `origin/main` in
+> a dedicated clone. It uses the existing idempotent backstop ticket mechanism;
+> `scripts/install-drift-backstop-schedule` installs the service. Moving the
+> complete sweep from fail-closed pushes to the backstop is honest because the
+> backstop is now actually scheduled.
+>
+> Staleness attribution is per gate. When a selected gate fails at the pushed
+> revision, the hook re-runs that gate at the update's merge-base baseline. A
+> non-infrastructure failure at both revisions is loudly reported as
+> `PRE-EXISTING`, points to its open ticket when one exists, and does not block
+> the push; a green baseline, an unavailable baseline, or infrastructure
+> ambiguity still blocks. The loud bypass remains for emergencies.
+>
+> The hook also reads `.node-version` and prepends the matching Volta image bin
+> directory to `PATH`, so method-pinned gates inherit Node 24.18.0. It must
+> never wrap the runner or gate command in `volta run`: Volta can translate a
+> child's exit 1 into exit 126, which this runner correctly classifies as an
+> unavailable-command infrastructure error.
+
 The tracked `.githooks/pre-push` consumes Git's ref-update stream, computes the
 union of paths in every committed landing being introduced (plus the net diff
 for a rewritten update), and asks `selectDriftProneGates` for the registered
 checks. It never selects from working-tree-only edits. A known path with no
-drift trigger runs zero drift gates; a path classified `all`, or a path with no
-classification, runs every registered drift gate. A failure names the stale
-record, canonical check, and exact regeneration command.
+drift trigger runs zero drift gates. A path classified `all`, or a path with no
+classification, runs its trigger-matched gates plus the fast fail-closed core;
+the explicit full-tier environment variable adds every registered gate. A new
+failure names the stale record, canonical check, and exact regeneration
+command, while baseline-proven pre-existing staleness is reported and allowed.
 
 The agent-safe publication checker's own file has an explicit publication rule
 ahead of the broad `tests/` fallback. Changing that trigger/record therefore

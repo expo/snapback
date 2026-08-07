@@ -169,6 +169,12 @@ export function validateSelectionPolicy(policy, calls) {
       );
     }
   }
+  validateUniqueStrings(policy.driftFailClosedCoreGates, 'drift fail-closed core gates');
+  assert(policy.driftFailClosedCoreGates.length > 0, 'drift fail-closed core gates are non-empty');
+  const driftGateIds = new Set(driftEntries.map(([gate]) => gate));
+  for (const gate of policy.driftFailClosedCoreGates) {
+    assert(driftGateIds.has(gate), `drift fail-closed core gate ${gate}`);
+  }
 
   return { canonicalGates, groupNames };
 }
@@ -243,19 +249,35 @@ export function selectChangedPaths(changedFiles, context = loadSelectionContext(
   };
 }
 
-export function selectDriftProneGates(changedFiles, context = loadSelectionContext()) {
+export function selectDriftProneGates(
+  changedFiles,
+  context = loadSelectionContext(),
+  { failClosedDisposition = 'core' } = {},
+) {
+  assert(
+    failClosedDisposition === 'core' || failClosedDisposition === 'full',
+    `drift fail-closed disposition ${failClosedDisposition}`,
+  );
   const selection = selectChangedPaths(changedFiles, context);
   const driftGateIds = new Set(Object.keys(context.policy.driftProneGates));
+  const selected = new Set();
+  for (const gate of driftGateIds) {
+    if (changedFiles.some((path) => (
+      matchesRule(path, context.policy.driftProneGates[gate].triggerRules)
+    ))) selected.add(gate);
+  }
+  const driftFailClosedDisposition = selection.selectionClass === 'FAIL_CLOSED_FULL'
+    ? failClosedDisposition
+    : null;
+  if (driftFailClosedDisposition === 'full') {
+    for (const gate of driftGateIds) selected.add(gate);
+  } else if (driftFailClosedDisposition === 'core') {
+    for (const gate of context.policy.driftFailClosedCoreGates) selected.add(gate);
+  }
   const selectedDriftProneGates = context.inventory.canonicalGates.filter((gate) => (
-    driftGateIds.has(gate)
-      && (
-        selection.selectionClass === 'FAIL_CLOSED_FULL'
-          || changedFiles.some((path) => (
-            matchesRule(path, context.policy.driftProneGates[gate].triggerRules)
-          ))
-      )
+    selected.has(gate)
   ));
-  return { ...selection, selectedDriftProneGates };
+  return { ...selection, driftFailClosedDisposition, selectedDriftProneGates };
 }
 
 export function completeSelection(context = loadSelectionContext()) {
