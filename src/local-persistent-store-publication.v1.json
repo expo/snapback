@@ -3,7 +3,7 @@
   "targetProfileId": "local-dev-sqlite-ibex",
   "capabilityIds": ["single_table_v1"],
   "maturity": "experimental",
-  "qualificationReceiptSha256": "sha256:41a32f0af2c1d41347aee3d4547f8800d236da228c32d380ea24cdab223a1ae7",
+  "qualificationReceiptSha256": "sha256:1fd1194237eaf1062b838d8395106bb845a63f70694e330c3e98cb3930e70268",
   "supportingReceiptSha256": {
     "triageBudgetFreeze": "sha256:cfd9e65206f6c8db9ffb0ebba742373ee9f5a385b7d069e87a7c50c3d198ed2b",
     "triageMove1Exit": "sha256:417655401e10603de3d638322d22c86f700f395076e166320ba8a80748df1527"
