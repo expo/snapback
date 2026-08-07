@@ -40,9 +40,22 @@ The credential reaches the request through
 all, and a wrong credential fails the action with no write.
 
 **Entitlements are derived from transactions.** `transactions` holds raw store
-facts; `entitlementGrants` is the answer computed from them via
-`productEntitlements`. The app asks `getEntitlements`, never `listProducts`,
-when deciding whether a user may do something.
+facts; `entitlementGrants` is the answer computed from *all* of a user's
+transactions via `productEntitlements`. The app asks `getEntitlements`, never
+`listProducts`, when deciding whether a user may do something.
+
+Derivation is not per-purchase assignment, and the difference is observable:
+`pro_monthly` and `pro_annual` both grant `pro`, so a user holding both keeps
+`pro` when one expires. One same-file helper (`deriveGrant`) computes this, and
+both the purchase path and the notification path call it, so they cannot drift
+into two different answers.
+
+**A notification is a thin trigger.** `applyStoreState` takes
+`{ userId, store, storeTxnId }` — no status, no expiry, no entitlement. It asks
+the store what is true *now* and reconciles. That is what makes a replayed,
+delayed, reordered, or forged-payload notification harmless: none of them can
+assert state. Reconciling twice over the same store state writes nothing and
+reports `changed: false`.
 
 **Products carry per-platform ids and transactions carry an environment.**
 `appleId` / `googleId` / `stripePriceId` live on the product; every transaction
@@ -55,10 +68,27 @@ without a backfill. Nothing consumes the tag yet.
 notification finds the existing row and grants nothing a second time. The
 acceptance proves this both at the mutation and through a replayed action.
 
-`entitlementGrants.activeUntil` is the subscription window. The `expireGrants`
-cron job runs `expireGrantsSweep`, which calls `applyGrantExpiry` — a mutation
-that scans `by_active` and flips closed windows off. A grant with no
-`activeUntil` (a non-consumable) is perpetual and is never swept.
+`entitlementGrants.activeUntil` is the subscription window. There are two ways
+a grant goes away, and they are independent:
+
+- **The notification path** (`applyStoreState`) — the store says the
+  transaction is now `expired` or `refunded`, and the reconcile revokes
+  immediately. No scheduler involved.
+- **The cron sweep** (`expireGrants` → `expireGrantsSweep` →
+  `applyGrantExpiry`) — a window simply ran out and no notification arrived.
+
+A grant with no `activeUntil` (a non-consumable) is perpetual and is never
+swept.
+
+## Known prototype gap: reconcile authority
+
+`reconcileTransaction` takes `userId` as an argument rather than reading
+`ctx.auth.userId`, because a store notification arrives with no user session
+attached. Under dev auth that makes it callable for any user id. It does refuse
+to rewrite a transaction that belongs to someone else, but that is a
+consistency check, not an authority fence. A real deployment must restrict this
+mutation to system authority; the authoring surface offers only
+`public | optional-user | authenticated` today.
 
 ## Run it
 

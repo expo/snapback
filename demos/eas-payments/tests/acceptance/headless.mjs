@@ -43,20 +43,29 @@ const ADA = 'user_ada';
 const GRACE = 'user_grace';
 const DANA = 'user_dana';
 const EVE = 'user_eve';
+const FRANK = 'user_frank';
+const HANK = 'user_hank';
+const IVY = 'user_ivy';
 
 const STORE_KEY = 'fake-store-key-slice-2';
 const WRONG_STORE_KEY = 'not-the-store-key';
 
-const suite = createSuite('eas-payments / headless', { expectedChecks: 19 });
+const suite = createSuite('eas-payments / headless', { expectedChecks: 25 });
 const cleanups = [];
 let server = null;
 let db = null;
 let store = null;
 
-// Every validateReceipt call routes to the fake store's OS-assigned port.
+// Every outbound call routes to the fake store's OS-assigned port.
 const validate = (args, userId) => db.action(api.validateReceipt, {
   args: { storeBaseUrl: store.baseUrl, ...args },
   userId,
+});
+// The notification path. Note what is NOT here: no status, no expiry, no
+// entitlement. The trigger says only which transaction moved.
+const notify = ({ userId, store: storeName, storeTxnId }, callerId) => db.action(api.applyStoreState, {
+  args: { userId, store: storeName, storeTxnId, storeBaseUrl: store.baseUrl },
+  userId: callerId ?? userId,
 });
 
 const setStoreKey = async (value) => {
@@ -138,6 +147,8 @@ await runAcceptance(suite, async () => {
       'listProducts',
       'recordPurchase',
       'validateReceipt',
+      'reconcileTransaction',
+      'applyStoreState',
       'applyGrantExpiry',
       'expireGrantsSweep',
     ]) {
@@ -146,6 +157,13 @@ await runAcceptance(suite, async () => {
     assertEqual(api.getEntitlements.kind, 'LiveQuery', 'getEntitlements is a live query');
     assertEqual(api.recordPurchase.kind, 'Mutation', 'recordPurchase is a mutation');
     assertEqual(api.validateReceipt.kind, 'Action', 'validateReceipt is an action');
+    assertEqual(api.applyStoreState.kind, 'Action', 'applyStoreState is an action');
+    // The notification trigger carries no state: only who and which txn.
+    assertEqual(
+      Object.keys(api.applyStoreState.argumentSchema.properties).sort(),
+      ['store', 'storeBaseUrl', 'storeTxnId', 'userId'],
+      'applyStoreState takes a trigger, not a payload',
+    );
     return { functions: names };
   });
 
@@ -157,9 +175,14 @@ await runAcceptance(suite, async () => {
     await db.reset();
     await db.seed(seed);
     const products = await db.query(api.listProducts, {});
-    assertEqual(products.rows.map((r) => r.productId), ['pro_monthly'], 'seeded products');
-    assertEqual(products.rows[0].kind, 'subscription', 'product kind');
-    assertEqual(products.rows[0].appleId, 'com.example.app.pro.monthly', 'per-platform apple id');
+    assertEqual(
+      products.rows.map((r) => r.productId),
+      ['plus_monthly', 'pro_annual', 'pro_monthly'],
+      'seeded products',
+    );
+    const proMonthly = products.rows.find((r) => r.productId === 'pro_monthly');
+    assertEqual(proMonthly.kind, 'subscription', 'product kind');
+    assertEqual(proMonthly.appleId, 'com.example.app.pro.monthly', 'per-platform apple id');
     return { products: products.rows.length };
   });
 
@@ -356,6 +379,143 @@ await runAcceptance(suite, async () => {
     assertEqual(await activeEntitlementIds(DANA), before, 'a rejected purchase grants nothing');
   });
 
+  // --- Slice 3: the notification path ------------------------------------------
+
+  await suite.check('applyStoreState re-fetches instead of trusting its trigger', async () => {
+    // Frank buys pro_monthly the ordinary way.
+    await validate({
+      productId: 'pro_monthly',
+      store: 'apple',
+      receipt: 'receipt_frank_1',
+      environment: 'sandbox',
+    }, FRANK);
+    assertEqual(await activeEntitlementIds(FRANK), ['pro'], 'frank holds pro');
+
+    const before = store.requests.length;
+    const res = await notify({ userId: FRANK, store: 'apple', storeTxnId: 'apple:receipt_frank_1' });
+    assert(res.ok, `applyStoreState failed: ${JSON.stringify(res.diagnostic)}`);
+
+    // The action learned the status by asking, not from its arguments.
+    const calls = store.requests.slice(before);
+    assertEqual(calls.length, 1, 'exactly one outbound lookup');
+    assertEqual(calls[0].method, 'GET', 'read the transaction back');
+    assertEqual(calls[0].path, '/transactions/apple:receipt_frank_1', 'looked up the named transaction');
+    assertEqual(res.result.status, 'active', 'store still reports active');
+    assertEqual(res.result.changed, false, 'nothing moved, so nothing changed');
+    return { calls: calls.length };
+  });
+
+  await suite.check('a store flip to expired revokes through the notification, not the cron', async () => {
+    // The store changes its mind out of band. Nothing tells Snapback what the
+    // new state is — the notification only names the transaction.
+    store.setState('apple:receipt_frank_1', {
+      status: 'expired',
+      expiresAt: store.now - 1_000,
+    });
+    const res = await notify({ userId: FRANK, store: 'apple', storeTxnId: 'apple:receipt_frank_1' });
+    assert(res.ok, `applyStoreState failed: ${JSON.stringify(res.diagnostic)}`);
+    assertEqual(res.result.status, 'expired', 'store now reports expired');
+    assertEqual(res.result.changed, true, 'the grant moved');
+    assertEqual(await activeEntitlementIds(FRANK), [], 'pro revoked without a scheduler tick');
+
+    // Prove the cron had nothing to do with it.
+    const job = await cronJob('expireGrants');
+    assertEqual(job.lastRunAtMs, null, 'no scheduler run has happened yet');
+    return { status: res.result.status };
+  });
+
+  await suite.check('applyStoreState twice over the same state is a no-op', async () => {
+    const first = await notify({ userId: FRANK, store: 'apple', storeTxnId: 'apple:receipt_frank_1' });
+    assert(first.ok, 'repeat applyStoreState failed');
+    assertEqual(first.result.changed, false, 'second reconcile changes nothing');
+    const second = await notify({ userId: FRANK, store: 'apple', storeTxnId: 'apple:receipt_frank_1' });
+    assert(second.ok, 'third applyStoreState failed');
+    assertEqual(second.result.changed, false, 'third reconcile changes nothing');
+    assertEqual(await activeEntitlementIds(FRANK), [], 'still revoked');
+  });
+
+  await suite.check('a second product for the same entitlement keeps it alive', async () => {
+    // Hank holds pro through BOTH pro_monthly and pro_annual. Losing one must
+    // not lose the entitlement — that is the whole point of deriving grants
+    // from transactions rather than assigning them per purchase.
+    await validate({
+      productId: 'pro_monthly',
+      store: 'apple',
+      receipt: 'receipt_hank_monthly',
+      environment: 'sandbox',
+    }, HANK);
+    await validate({
+      productId: 'pro_annual',
+      store: 'apple',
+      receipt: 'receipt_hank_annual',
+      environment: 'sandbox',
+    }, HANK);
+    assertEqual(await activeEntitlementIds(HANK), ['pro'], 'one entitlement from two products');
+
+    store.setState('apple:receipt_hank_monthly', {
+      status: 'expired',
+      expiresAt: store.now - 1_000,
+    });
+    const res = await notify({ userId: HANK, store: 'apple', storeTxnId: 'apple:receipt_hank_monthly' });
+    assert(res.ok, `applyStoreState failed: ${JSON.stringify(res.diagnostic)}`);
+    assertEqual(res.result.changed, false, 'the annual subscription still justifies pro');
+    assertEqual(await activeEntitlementIds(HANK), ['pro'], 'pro survives losing one of its products');
+
+    // Now take the other one away.
+    store.setState('apple:receipt_hank_annual', {
+      status: 'expired',
+      expiresAt: store.now - 1_000,
+    });
+    const second = await notify({ userId: HANK, store: 'apple', storeTxnId: 'apple:receipt_hank_annual' });
+    assert(second.ok, 'second applyStoreState failed');
+    assertEqual(second.result.changed, true, 'losing the last justification moves the grant');
+    assertEqual(await activeEntitlementIds(HANK), [], 'pro gone once nothing justifies it');
+  });
+
+  await suite.check("a reconcile leaves another user's unrelated entitlement alone", async () => {
+    // Grace holds plus. Frank's and Hank's reconciles above must not have
+    // touched it, and neither must the next one.
+    await validate({
+      productId: 'plus_monthly',
+      store: 'stripe',
+      receipt: 'receipt_grace_plus',
+      environment: 'sandbox',
+    }, GRACE);
+    const graceBefore = await activeEntitlementIds(GRACE);
+    assertEqual(graceBefore, ['plus', 'pro'], 'grace holds plus alongside pro');
+    const graceGrantBefore = await grantFor(GRACE, 'plus');
+
+    await validate({
+      productId: 'pro_monthly',
+      store: 'apple',
+      receipt: 'receipt_frank_2',
+      environment: 'sandbox',
+    }, FRANK);
+    store.setState('apple:receipt_frank_2', {
+      status: 'refunded',
+      expiresAt: store.now - 1_000,
+    });
+    const res = await notify({ userId: FRANK, store: 'apple', storeTxnId: 'apple:receipt_frank_2' });
+    assert(res.ok, `applyStoreState failed: ${JSON.stringify(res.diagnostic)}`);
+    assertEqual(await activeEntitlementIds(FRANK), [], 'refund revoked frank');
+
+    const graceGrantAfter = await grantFor(GRACE, 'plus');
+    assertEqual(await activeEntitlementIds(GRACE), graceBefore, "grace's entitlements untouched");
+    assertEqual(graceGrantAfter._version, graceGrantBefore._version, "grace's plus grant was not rewritten");
+    return { graceVersion: graceGrantAfter._version };
+  });
+
+  await suite.check('a notification cannot claim another user\'s transaction', async () => {
+    // Dana legitimately holds pro from her own purchase; the point is that
+    // naming Frank's transaction changes nothing for her either way.
+    const before = await activeEntitlementIds(DANA);
+    const res = await notify({ userId: DANA, store: 'apple', storeTxnId: 'apple:receipt_frank_1' });
+    assertEqual(res.ok, false, 'a mismatched userId must be refused');
+    assertEqual(await activeEntitlementIds(DANA), before, 'the claimant gains nothing');
+    assertEqual(await activeEntitlementIds(FRANK), [], 'the owner is unaffected too');
+    return { code: res.diagnostic?.code ?? null };
+  });
+
   await suite.check('the expireGrants cron job is declared against the sweep action', async () => {
     const job = await cronJob('expireGrants');
     assert(job, 'expireGrants present in the cron list projection');
@@ -366,24 +526,26 @@ await runAcceptance(suite, async () => {
   });
 
   await suite.check('a grant past activeUntil flips off on a scheduler tick', async () => {
-    // Commit a grant whose window already closed, then let the scheduler run
-    // the sweep: tick -> action -> mutation -> derived read model.
+    // Ivy's only transaction is one whose window already closed, so the sweep
+    // has something unambiguous to find. (Reusing a user who holds a second,
+    // still-valid transaction for the same entitlement would correctly NOT
+    // expire — grants derive from every transaction, not the latest one.)
     await db.mutate(api.recordPurchase, {
       args: {
         productId: 'pro_monthly',
         store: 'stripe',
-        storeTxnId: 'stripe:receipt_dana_expired',
+        storeTxnId: 'stripe:receipt_ivy_expired',
         status: 'active',
         environment: 'sandbox',
         expiresAt: Date.now() - 1_000,
       },
-      userId: DANA,
+      userId: IVY,
     });
-    assertEqual(await activeEntitlementIds(DANA), ['pro'], 'dana holds pro before the sweep');
+    assertEqual(await activeEntitlementIds(IVY), ['pro'], 'ivy holds pro before the sweep');
 
     await db.cronTick();
 
-    assertEqual(await activeEntitlementIds(DANA), [], 'the expired grant is gone from the read model');
+    assertEqual(await activeEntitlementIds(IVY), [], 'the expired grant is gone from the read model');
     assertEqual(await activeEntitlementIds(ADA), ['pro'], 'an unexpired grant survives the same sweep');
     // The run ledger must record a real run, so a tick that silently did
     // nothing cannot pass this check on the strength of the reads above.

@@ -84,11 +84,125 @@ export const listProducts = defineQuery({
   index: 'by_product',
 });
 
+// --- Derivation ---------------------------------------------------------------
+
+// "Entitlements are derived from transactions" is only true if there is one
+// derivation. These are same-file function declarations, so codegen resolves
+// and splices them into every handler that calls them — the purchase path and
+// the notification path cannot drift into two different answers.
+//
+// @ref LLP 0108#same-file-helper-sharing--2026-07-31-normative — statically
+//   reachable same-file declarations are spliced with the calling handler;
+//   imports and outer consts still are not captured.
+
+// What the user's transactions currently justify for one entitlement. Pure
+// read: several products can grant the same entitlement (pro_monthly and
+// pro_annual both grant `pro`), so losing one does not necessarily lose it.
+async function deriveGrant(ctx, userId, entitlementId) {
+  const mappings = await ctx.db
+    .query('productEntitlements')
+    .withIndex('by_entitlement')
+    .eq('entitlementId', entitlementId)
+    .collect();
+  const productIds = mappings.map((mapping) => mapping.productId);
+  const transactions = await ctx.db
+    .query('transactions')
+    .withIndex('by_user')
+    .eq('userId', userId)
+    .collect();
+
+  let active = false;
+  let perpetual = false;
+  let maxUntil = -1;
+  let source = '';
+  for (const txn of transactions) {
+    if (txn.status !== 'active') continue;
+    if (productIds.indexOf(txn.productId) < 0) continue;
+    active = true;
+    const until = txn.expiresAt === undefined || txn.expiresAt === null ? null : txn.expiresAt;
+    if (until === null) {
+      // A non-consumable outranks any dated window.
+      if (!perpetual) {
+        perpetual = true;
+        source = txn.storeTxnId;
+      }
+    } else if (until > maxUntil) {
+      maxUntil = until;
+      if (!perpetual) source = txn.storeTxnId;
+    }
+  }
+  const activeUntil = perpetual || maxUntil < 0 ? null : maxUntil;
+  return { active: active, activeUntil: activeUntil, source: source };
+}
+
+// Write the derived answer, and report whether it actually moved. The boolean
+// is load-bearing: a reconcile that changes nothing must stay silent, which is
+// what makes repeated notifications safe.
+async function applyDerivedGrant(ctx, userId, entitlementId) {
+  const derived = await deriveGrant(ctx, userId, entitlementId);
+  const existing = await ctx.db
+    .query('entitlementGrants')
+    .withIndex('by_user')
+    .eq('userId', userId)
+    .eq('entitlementId', entitlementId)
+    .collect();
+
+  if (existing.length === 0) {
+    // Nothing justified and nothing recorded: do not create an inactive row
+    // just to say "no".
+    if (!derived.active) return false;
+    await ctx.db.insert('entitlementGrants', {
+      userId: userId,
+      entitlementId: entitlementId,
+      active: true,
+      activeUntil: derived.activeUntil,
+      source: derived.source,
+    });
+    return true;
+  }
+
+  const current = existing[0];
+  const currentUntil = current.activeUntil === undefined ? null : current.activeUntil;
+  // Going inactive keeps the last transaction that justified the grant, so the
+  // row still says why it was ever on.
+  const nextSource = derived.source === '' ? current.source : derived.source;
+
+  // What counts as a change is (active, activeUntil) — the answer the app
+  // gates on. `source` is provenance: when one of two products backing the
+  // same entitlement expires, the surviving one becomes the justification, and
+  // the row should say so, but the user's access never moved. Writing that
+  // without reporting a change is what keeps a redundant notification quiet.
+  const accessMoved = current.active !== derived.active || currentUntil !== derived.activeUntil;
+  const sourceMoved = current.source !== nextSource;
+  if (!accessMoved && !sourceMoved) return false;
+  await ctx.db.patch('entitlementGrants', current._id, {
+    active: derived.active,
+    activeUntil: derived.activeUntil,
+    source: nextSource,
+  });
+  return accessMoved;
+}
+
+// Recompute every entitlement a product can affect. Returns how many moved.
+async function applyProductEntitlements(ctx, userId, productId) {
+  const mappings = await ctx.db
+    .query('productEntitlements')
+    .withIndex('by_product')
+    .eq('productId', productId)
+    .collect();
+  let changed = 0;
+  for (const mapping of mappings) {
+    const moved = await applyDerivedGrant(ctx, userId, mapping.entitlementId);
+    if (moved) changed += 1;
+  }
+  return changed;
+}
+
 // --- Write path ---------------------------------------------------------------
 
-// The one place durable payment state is written. Idempotent on the store's
-// own transaction id, so a re-delivered notification is a no-op rather than a
-// second grant.
+// The one place a *new* purchase is written. Idempotent on the store's own
+// transaction id, so a re-delivered notification is a no-op rather than a
+// second grant. `grants` counts entitlement grants that actually moved.
 export const recordPurchase = defineJsMutation({
   args: {
     productId: v.string(),
@@ -136,39 +250,9 @@ export const recordPurchase = defineJsMutation({
       expiresAt: expiresAt,
     });
 
-    // Derive entitlements from the product. A bundle product maps to several
-    // rows here and every one of them upserts.
-    const mappings = await ctx.db
-      .query('productEntitlements')
-      .withIndex('by_product')
-      .eq('productId', args.productId)
-      .collect();
-    const active = args.status === 'active';
-    let granted = 0;
-    for (const mapping of mappings) {
-      const existing = await ctx.db
-        .query('entitlementGrants')
-        .withIndex('by_user')
-        .eq('userId', userId)
-        .eq('entitlementId', mapping.entitlementId)
-        .collect();
-      if (existing.length > 0) {
-        await ctx.db.patch('entitlementGrants', existing[0]._id, {
-          active: active,
-          activeUntil: expiresAt,
-          source: storeTxnId,
-        });
-      } else {
-        await ctx.db.insert('entitlementGrants', {
-          userId: userId,
-          entitlementId: mapping.entitlementId,
-          active: active,
-          activeUntil: expiresAt,
-          source: storeTxnId,
-        });
-      }
-      granted += 1;
-    }
+    // Derive, never assign: the new transaction is now one input among the
+    // user's transactions, and the grant is recomputed from all of them.
+    const granted = await applyProductEntitlements(ctx, userId, args.productId);
     return { transactionId: transactionId, deduped: false, grants: granted };
   },
 });
@@ -262,6 +346,164 @@ export const validateReceipt = defineAction({
       environment: environment,
       expiresAt: expiresAt,
       deduped: commit.deduped === true,
+    };
+  },
+});
+
+// --- Notification path ---------------------------------------------------------
+
+// Commit one store-authoritative transaction state and recompute what it
+// affects. The caller is an action that just fetched this state; the mutation
+// itself trusts only its typed arguments and the database.
+//
+// PROTOTYPE AUTHORITY GAP: userId is an argument rather than ctx.auth.userId,
+// because a store notification arrives with no user session attached. In dev
+// auth that makes this mutation callable for any user id. A real deployment
+// must fence it to system authority; the authoring surface has no
+// system-only requirement today (public | optional-user | authenticated).
+export const reconcileTransaction = defineJsMutation({
+  args: {
+    userId: v.string(),
+    productId: v.string(),
+    store: v.string(),
+    storeTxnId: v.string(),
+    status: v.string(),
+    environment: v.string(),
+    expiresAt: v.optional(v.integer()),
+  },
+  reads: ['transactions', 'productEntitlements', 'entitlementGrants'],
+  writes: ['transactions', 'entitlementGrants'],
+  result: results.value(v.object({
+    changed: v.boolean(),
+    entitlementsChanged: v.integer(),
+    transactionChanged: v.boolean(),
+  })),
+  handler: async (ctx, args) => {
+    const storeTxnId = String(args.storeTxnId ?? '').trim();
+    if (!storeTxnId) throw new Error('storeTxnId is required');
+    if (args.environment !== 'sandbox' && args.environment !== 'production') {
+      throw new Error('environment must be sandbox or production');
+    }
+    const nextUntil = args.expiresAt === undefined ? null : args.expiresAt;
+
+    const seen = await ctx.db
+      .query('transactions')
+      .withIndex('by_storeTxn')
+      .eq('storeTxnId', storeTxnId)
+      .collect();
+
+    let userId = args.userId;
+    let productId = args.productId;
+    let transactionChanged = false;
+    if (seen.length === 0) {
+      // A notification may be the first time we hear about a transaction.
+      await ctx.db.insert('transactions', {
+        userId: userId,
+        productId: productId,
+        store: args.store,
+        storeTxnId: storeTxnId,
+        status: args.status,
+        environment: args.environment,
+        expiresAt: nextUntil,
+      });
+      transactionChanged = true;
+    } else {
+      const row = seen[0];
+      // The stored row owns the identity, not the notification. A payload
+      // claiming someone else's transaction is a hard error, not a rewrite.
+      if (row.userId !== userId) {
+        throw new Error('storeTxnId belongs to a different user');
+      }
+      userId = row.userId;
+      productId = row.productId;
+      const rowUntil = row.expiresAt === undefined ? null : row.expiresAt;
+      if (row.status !== args.status || rowUntil !== nextUntil) {
+        await ctx.db.patch('transactions', row._id, {
+          status: args.status,
+          expiresAt: nextUntil,
+        });
+        transactionChanged = true;
+      }
+    }
+
+    const entitlementsChanged = await applyProductEntitlements(ctx, userId, productId);
+    return {
+      changed: entitlementsChanged > 0,
+      entitlementsChanged: entitlementsChanged,
+      transactionChanged: transactionChanged,
+    };
+  },
+});
+
+// Decision 19, directly: the notification is a thin trigger. Its arguments say
+// only "something happened to this transaction" — no status, no expiry, no
+// entitlement. The action asks the store what is true now, and reconciles.
+//
+// This is what makes a replayed, delayed, reordered, or forged-payload
+// notification harmless: none of them can assert state.
+export const applyStoreState = defineAction({
+  args: {
+    userId: v.string(),
+    store: v.string(),
+    storeTxnId: v.string(),
+    // Testing seam, as on validateReceipt.
+    storeBaseUrl: v.optional(v.string()),
+  },
+  uses: ['storeValidation'],
+  writes: ['transactions', 'entitlementGrants'],
+  result: results.value(v.object({
+    storeTxnId: v.string(),
+    status: v.string(),
+    changed: v.boolean(),
+  })),
+  handler: async (ctx, args) => {
+    const storeTxnId = String(args.storeTxnId ?? '').trim();
+    if (!storeTxnId) throw new Error('storeTxnId is required');
+    const baseUrl = String(args.storeBaseUrl ?? '').trim();
+    if (!baseUrl) throw new Error('storeBaseUrl is required until real store adapters land');
+
+    // Store transaction ids are opaque but path-safe in this prototype
+    // (`apple:receipt_1`); a real adapter needs percent-encoding here.
+    const response = await ctx.fetch({
+      url: baseUrl + '/transactions/' + storeTxnId,
+      method: 'GET',
+      headers: {
+        authorization: ctx.secrets.get('storeValidation').asBearer(),
+      },
+    });
+    if (!response.ok) {
+      throw new Error('store lookup refused: ' + response.status);
+    }
+
+    const state = JSON.parse(response.bodyText);
+    const status = String(state.status ?? '');
+    const environment = String(state.environment ?? '');
+    const productId = String(state.productId ?? '');
+    const expiresAt = state.expiresAt;
+    if (status !== 'active' && status !== 'expired' && status !== 'refunded') {
+      throw new Error('store returned an unknown status: ' + status);
+    }
+    if (environment !== 'sandbox' && environment !== 'production') {
+      throw new Error('store returned an unknown environment: ' + environment);
+    }
+    if (!productId) throw new Error('store returned no productId');
+    if (typeof expiresAt !== 'number' || Math.floor(expiresAt) !== expiresAt) {
+      throw new Error('store returned a non-integer expiresAt');
+    }
+
+    const commit = await ctx.runMutation('reconcileTransaction', {
+      userId: args.userId,
+      productId: productId,
+      store: args.store,
+      storeTxnId: storeTxnId,
+      status: status,
+      environment: environment,
+      expiresAt: expiresAt,
+    });
+    return {
+      storeTxnId: storeTxnId,
+      status: status,
+      changed: commit.changed === true,
     };
   },
 });

@@ -9,13 +9,34 @@
         "appleId": "com.example.app.pro.monthly",
         "googleId": "pro_monthly",
         "stripePriceId": "price_pro_monthly"
+      },
+      {
+        "_id": "seed_product_pro_annual",
+        "productId": "pro_annual",
+        "title": "Pro (annual)",
+        "kind": "subscription",
+        "appleId": "com.example.app.pro.annual",
+        "googleId": "pro_annual",
+        "stripePriceId": "price_pro_annual"
+      },
+      {
+        "_id": "seed_product_plus_monthly",
+        "productId": "plus_monthly",
+        "title": "Plus (monthly)",
+        "kind": "subscription",
+        "appleId": "com.example.app.plus.monthly",
+        "googleId": "plus_monthly",
+        "stripePriceId": "price_plus_monthly"
       }
     ],
     "entitlements": [
-      { "_id": "seed_entitlement_pro", "entitlementId": "pro", "title": "Pro features" }
+      { "_id": "seed_entitlement_pro", "entitlementId": "pro", "title": "Pro features" },
+      { "_id": "seed_entitlement_plus", "entitlementId": "plus", "title": "Plus features" }
     ],
     "productEntitlements": [
-      { "_id": "seed_map_pro_monthly_pro", "productId": "pro_monthly", "entitlementId": "pro" }
+      { "_id": "seed_map_pro_monthly_pro", "productId": "pro_monthly", "entitlementId": "pro" },
+      { "_id": "seed_map_pro_annual_pro", "productId": "pro_annual", "entitlementId": "pro" },
+      { "_id": "seed_map_plus_monthly_plus", "productId": "plus_monthly", "entitlementId": "plus" }
     ]
   }
 }

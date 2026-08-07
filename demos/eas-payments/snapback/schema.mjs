@@ -28,12 +28,17 @@ export default defineSchema({
     title: v.string(),
   }).index('by_entitlement', ['entitlementId']),
 
-  // The product -> entitlement mapping. Many-to-many by construction so a
-  // bundle product can grant several entitlements later.
+  // The product -> entitlement mapping. Many-to-many by construction: a bundle
+  // product can grant several entitlements, and several products can grant the
+  // same one (pro_monthly and pro_annual both grant `pro`).
   productEntitlements: defineTable({
     productId: v.string(),
     entitlementId: v.string(),
-  }).index('by_product', ['productId']),
+  })
+    .index('by_product', ['productId'])
+    // by_entitlement is the reverse direction the reconcile needs: given an
+    // entitlement, which products can currently justify it.
+    .index('by_entitlement', ['entitlementId']),
 
   // Raw store facts. `environment` ('sandbox' | 'production') rides every row
   // so metering can exclude test transactions later without a backfill.
