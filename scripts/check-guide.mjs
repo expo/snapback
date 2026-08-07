@@ -69,6 +69,18 @@ if (runAll || flags.has('--consistency')) {
     const detail = `${error.stdout ?? ''}${error.stderr ?? ''}`.trim();
     errors.push(`Rosetta record check failed${detail ? `:\n${detail}` : ''}`);
   }
+  // Static half of guide/retrieval-eval.md: expected pages exist, every
+  // seed case has a lexical route, rosetta aliases are mirrored as seeds.
+  try {
+    execFileSync(
+      process.execPath,
+      [join(root, 'scripts/check-retrieval-eval.mjs'), '--check'],
+      { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+  } catch (error) {
+    const detail = `${error.stdout ?? ''}${error.stderr ?? ''}`.trim();
+    errors.push(`retrieval-eval static routing check failed${detail ? `:\n${detail}` : ''}`);
+  }
 }
 
 if (runAll && index) {

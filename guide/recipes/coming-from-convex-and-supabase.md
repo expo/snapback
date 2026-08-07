@@ -56,7 +56,8 @@ Routes that need no code at all — go straight there:
 ### Protected live CRUD, end to end
 
 **Find this page by:** "Convex useQuery", "Supabase RLS", "row level
-security", "per-user query", "scoped query", "hidden data", "row security".
+security", "row-level security", "per-user query", "scoped query",
+"hidden data", "row security".
 
 **Use this when** you have a table of per-user rows and need a query that
 returns only the signed-in caller's own rows — live, and rejecting any
@@ -307,10 +308,10 @@ schema/intent authoring rules.
 <a id="relational-queries"></a>
 ### Reading related data without hand-writing the wrong join
 
-**Find this page by:** "Convex joins", "Supabase joins", "joins", "relational
-queries", "denormalized reads", "materialized views", "conversation
-membership", "message sender", "chat joins", "defineRelationalQuery",
-"defineMaintainedProjection".
+**Find this page by:** "Convex joins", "Supabase joins", "nested joins",
+"joins", "relational queries", "denormalized reads", "materialized views",
+"conversation membership", "message sender", "chat joins",
+"defineRelationalQuery", "defineMaintainedProjection".
 
 **Use this when** a read is "each row plus its one related row" — a
 conversation joined to its model, a message joined to its sender — and you

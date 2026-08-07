@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "99141117bbde0383b400bce4ca9b27a0c824d30a"
+    "commit": "c5baeea3326369ab24b8068324b3930c25cdcdfa"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -2203,13 +2203,14 @@
       "examples": [
         "packages/snapback-cli/templates/todo-contract",
         "packages/snapback-cli/templates/react",
+        "packages/snapback-cli/templates/expo-chat",
         "packages/snapback-cli/sessions-dev-loop.test.mjs",
         "demos/todo/tests/acceptance/headless.mjs",
         "demos/todo/surfaces/headless/run.mjs"
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "4a6000ac6f17a8c94bc2aecf573c0654e850b758",
-      "sha256": "52d065c8229acfe3aea5a2ec91ba3b0b77a00cb5ef1f73f1a796d73eff29f1e8",
+      "sha256": "a6867a93767b3f55740f0ab288f023182b2ea83e7670b266ba282acd88c5aff4",
       "snippets": []
     },
     "getting-started.your-first-backend": {
@@ -2821,7 +2822,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "a566ee04e4dddc4487bf58d79af40afd7a330182ba38e1cd5a98dc8b8204faa9",
+      "sha256": "a0adf68f865a6fbb982785166fddbe9befd7b516bf9c39b3715c22cf4700c9af",
       "snippets": [
         {
           "lang": "js",
@@ -2937,7 +2938,7 @@
       ],
       "reviewed": "2026-08-07",
       "reviewedCommit": "386ab3d4a62f3b4f1a8406595729eefea60aa8ef",
-      "sha256": "a87664695d4124808811338b98b50656895647d9f9d4d87b72e88f1dfed79059",
+      "sha256": "d3406af85635f6d5f42ba4ec0adcfbb24787dda554272c5b8a567f6705d1ca9e",
       "snippets": [
         {
           "lang": "ts",
@@ -3208,8 +3209,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-07",
-      "reviewedCommit": "cca0db7d8e94c8d4943eb808d4e10238a506c70c",
-      "sha256": "0079bb0e88276ccc10c9f7cbf8295771521c49c92ff787472c321387989fdacf",
+      "reviewedCommit": "30001b8d2902e6c83f74ccda7eb2c19de707f528",
+      "sha256": "e131f1075e3720899cf415920e3c874e4c54fda9a5bff25d0900d8174f834c0a",
       "snippets": []
     },
     "meta.surface-map": {
@@ -3599,5 +3600,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "1abfe39730725976a839d11eae8c30e00c927dfc2666f1964ef4db8277a49a53"
+  "contentHash": "ff34f69d4dd640419ca33a43f19946646081f4b833a5161e1596b4d87a9e45a0"
 }

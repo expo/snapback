@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Snapback Chat",
+    "slug": "snapback-chat",
+    "version": "1.0.0",
+    "platforms": ["ios", "android"],
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "plugins": ["@expo/snapback-expo"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.example.snapbackchat",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      }
+    },
+    "android": {
+      "package": "com.example.snapbackchat"
+    }
+  }
+}

@@ -209,6 +209,49 @@ console.log(JSON.stringify({
   assert.match(reactAcceptanceSource, /observeSnapbackQueries/u);
   assert.match(reactAcceptanceSource, /invokeSnapbackMutation/u);
 
+  // @ref LLP 0186#w2--context-injection-surface-owned-here — the golden-path scaffold
+  // carries the LLP 0176 conversation surface (messages + image upload intent
+  // + live queries + command + typing presence) as runnable template code.
+  const chatProject = join(root, 'expo-chat');
+  const chatScaffold = scaffoldApp(chatProject, { template: 'expo-chat' });
+  assert.equal(chatScaffold.ok, true);
+  const chatManifest = JSON.parse(readFileSync(join(chatProject, 'package.json'), 'utf8'));
+  assert.match(chatManifest.dependencies['@expo/snapback-expo'], /^\^\d+\.\d+\.\d+/);
+  assert.match(chatManifest.dependencies['@expo/snapback-cli'], /^\^\d+\.\d+\.\d+/);
+  assert.equal(chatManifest.scripts.test, 'node acceptance.mjs');
+  assert.equal(chatManifest.scripts['test:static'], 'node acceptance.static.mjs');
+  assert.equal(chatManifest.scripts['test:live'], chatManifest.scripts.test);
+  const chatAgentInstructions = readFileSync(join(chatProject, 'AGENTS.md'), 'utf8');
+  assert.match(chatAgentInstructions, /capability index first/u);
+  assert.match(chatAgentInstructions, /snapback guide <query>/u);
+  assert.match(chatAgentInstructions, /snapback mcp/u);
+  const generatedChat = await generateApp(join(chatProject, 'snapback'));
+  assert.equal(generatedChat.ok, true, JSON.stringify(generatedChat.diagnostics));
+  assert.equal(
+    generatedChat.summary.counts.degradedResults,
+    0,
+    `the untouched expo-chat starter must generate without degraded-result advisories: ${JSON.stringify(generatedChat.summary.degradedResults)}`,
+  );
+  const chatDescriptor = await import(join(chatProject, 'snapback', 'generated', 'api.mjs'));
+  assert.ok(
+    chatDescriptor.app.surfaces?.conversation,
+    'the expo-chat starter must generate the LLP 0179 conversation surface',
+  );
+  assert.match(readFileSync(join(chatProject, 'App.tsx'), 'utf8'), /SnapbackExpoProvider/);
+  assert.match(
+    readFileSync(join(chatProject, 'src', 'screens', 'chat-screen.tsx'), 'utf8'),
+    /useSurface\(/,
+  );
+  const chatStatic = spawnSync(process.execPath, ['acceptance.static.mjs'], {
+    cwd: chatProject,
+    encoding: 'utf8',
+  });
+  assert.equal(chatStatic.status, 0, chatStatic.stderr);
+  const chatAcceptanceSource = readFileSync(join(chatProject, 'acceptance.mjs'), 'utf8');
+  assert.match(chatAcceptanceSource, /snapback\.starter-acceptance\.v1/u);
+  assert.match(chatAcceptanceSource, /observeSnapbackSurface/u);
+  assert.match(chatAcceptanceSource, /client\.mutate\(api\.sendMessage/u);
+
   const git = (...args) => {
     const result = spawnSync('git', ['-C', project, ...args], { encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
