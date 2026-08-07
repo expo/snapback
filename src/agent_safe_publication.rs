@@ -484,20 +484,40 @@ mod tests {
         let derived_receipt: AgentSafePublicationReceiptV1 =
             serde_json::from_slice(DERIVED_FORK_RECEIPT_BYTES).unwrap();
         assert_eq!(derived_receipt.capability_id, DERIVED_FORK_ID);
-        assert_eq!(derived_receipt.qualified_source_commit, "0".repeat(40));
-        assert!(derived_receipt.qualified_components.is_empty());
+        assert_eq!(
+            derived_receipt.qualified_source_commit,
+            "0ee1fadc136e837f430556374a5842ac82069004"
+        );
+        assert_eq!(
+            derived_receipt.implementation_tree_sha256,
+            "sha256:2cad36279fbb319c4b828026c1fc0c2ed2d8ac38bffc14bd2ba39b3849eedf33"
+        );
+        assert_eq!(
+            derived_receipt.candidate_facts_sha256,
+            "sha256:b487d69d7a0392626e01f39e7fa81bd85251291c5ed119cd38a6cc30e50bfc88"
+        );
+        assert_eq!(
+            derived_receipt.qualified_components,
+            DERIVED_FORK_COMPONENTS.map(str::to_owned)
+        );
         assert_eq!(
             derived_receipt.evidence.len(),
             DERIVED_FORK_EVIDENCE_LOCATORS.len()
         );
-        for (binding, (kind, path)) in derived_receipt
+        for (index, (binding, (kind, path))) in derived_receipt
             .evidence
             .iter()
             .zip(DERIVED_FORK_EVIDENCE_LOCATORS)
+            .enumerate()
         {
             assert_eq!(binding.kind, kind);
             assert_eq!(binding.path, path);
-            assert_eq!(binding.sha256, format!("sha256:{}", "0".repeat(64)));
+            assert!(is_sha256(&binding.sha256));
+            if index + 1 == DERIVED_FORK_EVIDENCE_LOCATORS.len() {
+                assert_eq!(binding.sha256, format!("sha256:{}", "0".repeat(64)));
+            } else {
+                assert_ne!(binding.sha256, format!("sha256:{}", "0".repeat(64)));
+            }
         }
     }
 
