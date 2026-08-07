@@ -5,6 +5,7 @@
 **Systems:** Storage, Runtime, Sync, Auth, Effects, Migrations, Agent experience, Diagnostics, Testing, Performance
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-03
+**Revised:** 2026-08-07 (v0.48 — the derived-fork publication attempt staged at `75b0ec0b4` for qualification commit `fac516e9a` surfaced a second implementation-digest self-cycle: the Rust structural test asserted that the live derived anchor was `withheld`, its carrier digest was null, and its receipt schema was v1, so an otherwise valid publication necessarily failed the digest-covered test and repairing the test necessarily moved C. The mirror now inspects the live chain without selecting a lifecycle state, exercises legacy-withheld and current-v2-published branches from synthetic fixtures, parses the anchor/carrier/receipt through closed `deny_unknown_fields` structs, and checks lifecycle-appropriate digest/schema bindings. The exact positive fork-axis serde spellings now match the lower-camel publication tuple. Independently, the test pins the LLP 0113 target-manifest tuple wholly `Missing`, retains the capability GAP, and proves the compiled derived-publication predicate false for contributor-source and public-package distributions even when a synthetic published chain qualifies structurally. Both checked-in anchors remain withheld; this implementation change requires a new qualification C and regenerated publication bindings.)
 **Revised:** 2026-08-07 (v0.47 — author-directed convergence repair. The governing self-certification invariant is now explicit: an artifact may not be inside the implementation digest that certifies it, and the validator's own fixtures may not depend on live mutable records. `tests` remains covered, while both platform lifecycle receipts and the bounds-ratification record join the closed publication-cycle allowlist and remain canonical-byte- and receipt-digest-bound. The bench emitter now writes the checker's canonical JSON form. The checker attack corpus constructs synthetic review/evidence chains instead of pinning the live round list or commit. The Fable round-6 final paragraph is restored from the transcript's last write; the preserved round-7 and round-8 artifacts are reconciled without changing any verdict into four contiguous v2 histories through round 8. Rounds 4, 7, and 8 were each lost when orchestration reset review worktrees before commit and were recovered from surviving transcripts or `/tmp/review-preserve` copies. Both families record Scope 1 `READY` and Scope 2 `NOT_READY` in rounds 7 and 8. Both anchors remain withheld pending a fresh round from each family against the new qualification C, rebound platform evidence, and new named-author acceptance of the exact heads and implementation digest.)
 **Revised:** 2026-08-06 (v0.46 — round-7 Fable found canonical JSON enforcement applied only to verdict sidecars, leaving every other publication-chain object exposed to duplicate-member last-wins parsing; the derived named-author acceptance could therefore visibly deny acceptance or visibly retain a six-round history while the oracle parsed approval or a fabricated round-1 restart. One closed parser boundary now enforces the invariant that no publication-chain JSON is ever read non-canonically across anchors, carriers, receipts, author acceptances, evidence fixtures, benchmark receipts, and verdict sidecars, with A4/A5 and per-artifact duplicate-member negatives. The transcript-recoverable Codex and Fable round-6 prose is restored verbatim to all four artifacts; all four sidecars are consistently chained v2 histories with rounds 1–6 and the recorded Scope-1 READY / Scope-2 NOT_READY values at `bdc682964`. `reviewArtifactSha256` is stated plainly as a current-state binding with no append-only strength of its own; the author-accepted `(roundCount, headEntrySha256)` is the sole review-history root of trust. Both anchors remain withheld pending fresh round-7 verdicts against the new qualification commit and new named-author acceptance of their exact heads.)
 **Revised:** 2026-08-06 (v0.45 — the round-6 Codex adversarial review found that a complete verdict file could be deleted and restarted at round 1, and that implementation-tree v1 omitted Git mode/object type. Verdict authority is now `snapback.review-verdicts.v2`: every entry hashes the prior entry's canonical bytes, and named-author acceptance binds the exact round count and head-entry digest for all four histories, so truncation, restart, or replacement refuses relative to the accepted chain. The implementation digest is now `snapback:agent-safe-implementation-tree:v2`, hashing mode, object type, path, and bytes for every leaf and the `160000 commit` Ibex gitlink. Carrier, receipt, and author-acceptance contracts name that version explicitly; all v1 digests and artifacts that name them are stale and cannot publish. The stored v1 reviewer artifacts are preserved unmodified, both anchors remain withheld, and fresh v2 histories, a fresh qualification commit, fresh cross-family verdicts, and new named-author acceptance are required.)
@@ -2390,18 +2391,38 @@ Fable's round-4 review also caught a cycle inside the Rust structural mirror:
 its test pinned C's exact commit, implementation-tree digest, candidate-facts
 digest, and author-acceptance evidence digest as literals in `src/`, which is
 itself in `IMPLEMENTATION_ROOTS`. Those qualification-specific assertions are
-removed. The mirror still requires the receipt schema, capability, source-
-commit shape, nonzero digest shapes, exact target and negative profiles,
-component list, and ordered evidence locator kinds/paths. Exact cycle-dependent
-values live only in the receipt/carrier/anchor and author-acceptance records in
-`PUBLICATION_CYCLE_ALLOWLIST`, where the JS checker binds them. Consequently a
-candidate's implementation digest is stable when those publication records are
-added or rotated, so the receipt can honestly name the commit that qualified
-it. The checker self-test remains inside the digest but constructs its review,
-verdict-history, benchmark, acceptance, receipt, carrier, and anchor fixtures
-synthetically. It never opens the live `llp/reviews/*` histories or pins their
-round population or commit, so appending an honest review round needs no test
-edit and cannot rotate the implementation digest for that reason.
+removed. The mirror still requires lifecycle-appropriate carrier and receipt
+schemas, capability, source-commit shape, digest shapes, exact target and
+negative profiles, component list, and ordered evidence locator kinds/paths.
+Exact cycle-dependent values live only in the receipt/carrier/anchor and
+author-acceptance records in `PUBLICATION_CYCLE_ALLOWLIST`, where the JS checker
+binds them. Consequently a candidate's implementation digest is stable when
+those publication records are added or rotated, so the receipt can honestly
+name the commit that qualified it. The checker self-test remains inside the
+digest but constructs its review, verdict-history, benchmark, acceptance,
+receipt, carrier, and anchor fixtures synthetically. It never opens the live
+`llp/reviews/*` histories or pins their round population or commit, so appending
+an honest review round needs no test edit and cannot rotate the implementation
+digest for that reason.
+
+The 2026-08-07 publication attempt at `75b0ec0b4`, using qualification commit
+`fac516e9a`, is credited with surfacing the same structural class in the Rust
+mirror's remaining live-artifact assertions. The test still required the live
+derived anchor to be `withheld`, required `carrierSha256: null`, and pinned the
+live receipt to v1. Flipping the allowlisted publication records to their valid
+v2 `published` form therefore made the implementation-digest-covered test fail;
+editing the test then changed the digest the records certified. The repaired
+mirror parses all three live records without requiring either lifecycle state.
+Synthetic legacy-withheld and v2-published chains exercise both branches; only
+published binds the anchor to the carrier bytes and the carrier to the receipt
+bytes, while withheld retains the documented null anchor digest and inert
+carrier. Both schemas retain closed parsing and v1 remains acceptable only
+behind a withheld anchor. The test separately reconstructs the target manifest
+and requires the derived tuple to stay wholly `Missing`, with the capability GAP
+present and the compiled distribution predicate false for every supported
+distribution. The attempt also exposed that the Rust positive fork-axis enums
+did not accept the receipt contract's exact `denyAll` and `notPromotable` wire
+spellings; their serde names now match that already-documented tuple.
 It recomputes every paired regression, bootstrap interval, idle gate,
 absolute median/MAD/range, and contention percentile from the retained raw
 observations before accepting the reported passed paired and absolute gates,
