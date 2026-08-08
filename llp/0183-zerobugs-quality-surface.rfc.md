@@ -837,3 +837,18 @@ ruling; and the LLP 0005 review loop scaled to foundational product work
 is commissioned now, with Stage 0.5's receipts as evidence — acceptance
 follows the loop. Independent mechanisms are still reviewed in their owner
 documents rather than accreting implementation detail here.
+
+2026-08-08: the hot profile qualified at its predeclared boundary
+(`snapback-control-hot.zb5.v10.json`, PASS 21 / GAP 3 / FAIL 0) after the
+runtime invalidation repair, closing Stage 0.5 completely. The learnings
+sweep converted the control's remaining recorded friction into filed
+tickets — the minutes-scale live-query re-evaluation cost under fan-out
+(D2/D4 evidence), the sessions-store copy/keyring-sibling semantics, the
+handler settlement-identity seam (D5/D7), numeric identity columns and
+stored enum domains (W-SHORTID/W-ENUM removal paths), route-group
+argument lowering (W-QGROUP root), and three guide-gaps (declared-refusal
+discoverability, principal↔app-identity binding, the SVG asset adapter) —
+see `issues/20260808-*`. These tickets plus the round-1 dual-family
+review concerns (`llp/reviews/0183-zerobugs-quality-surface.{claude,gpt-5}.md`,
+both revise-and-stay-Draft) are the queued inputs to the commissioned
+revision round.

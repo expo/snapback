@@ -5,7 +5,16 @@
 **Systems:** Zerobugs, Local sync, Offline sync, Query retention, Relational queries, Client SDK, React, Auth, Testing
 **Author:** Codex (gpt-5.6-sol) / Claude Fable 5 (supervision) — owner-Spec author naming per the 2026-08-07 ruling
 **Date:** 2026-08-07
-**Revised:**
+**Revised:** 2026-08-07 (evidence addendum, Claude Fable 5: zb5-hot v10
+closed the hot profile with two facts this Spec must design against —
+mutation settle latency under six concurrent 1,000-row streaming observers
+at the 5.5M-row store measured 111 ms–148 s with a median near 74 s
+(`snapback-control-hot.zb5.v10.json`), making local facts the only path to
+interactive reads under write fan-out until D2/D4 land incremental deltas
+(`issues/20260808-live-query-reevaluation-cost-at-scale.md`); and a
+quarantined-or-lapsed stream now has a proven fail-closed client posture
+whose user-visible rendering is exactly the retained-fact degradation
+story in §6)
 **Related:** LLP 0008, LLP 0043, LLP 0053, LLP 0090, LLP 0129, LLP 0130, LLP 0135, LLP 0155, LLP 0157, LLP 0166, LLP 0183, LLP 0189
 
 ## Summary
