@@ -385,3 +385,12 @@ No Cargo command, persistent server, or git commit was run for OQ2; the Expo
 probe skipped before app-server startup when its loopback preflight was denied.
 Changes and this execution log are intentionally left in the working tree for
 the orchestrator.
+
+## Landing note — 2026-08-08 (orchestrator)
+
+OQ2 implementation landed at dd4126140: registry now 41 modules / 885
+symbols with the 38 ctx type-only symbols included; duplicate-ownership
+check active; bootstrap page retired. Acceptance status: 1-4 complete;
+5 remains PARTIAL only on the not-yet-deployed LLP 0195 public
+projection (D1 ruled publish-soon) — flip LLP 0194 to Implemented when
+the public surface serves the same identities.
