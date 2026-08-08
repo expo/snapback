@@ -65,7 +65,7 @@ use crate::storage::auth_mode::{DurableModeCommit, NetworkDeploymentCommit, Netw
 use crate::storage::{
     BufferedCommitPayload, CapturedReadDependency, CapturedReadKind, CapturedWriteDependency,
     ChangedRow, ClientMutationIdentity, DbRead, LocalDatabase, MutationCommit, ReaderPool,
-    SettlementTimePolicy, StorageInfo, TableScan,
+    SettlementTimePolicy, ShutdownCheckpointReport, StorageInfo, TableScan,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
@@ -4117,6 +4117,10 @@ impl LocalSnapback {
     // @ref LLP 0057#concurrency-locks-and-linearization — provider coordination precedes the outer app/database lock.
     pub(crate) fn auth_database_mut(&mut self) -> &mut LocalDatabase {
         &mut self.db
+    }
+
+    pub fn shutdown_checkpoint(&self, bound: Duration) -> ShutdownCheckpointReport {
+        self.db.shutdown_checkpoint(bound)
     }
 
     /// Publish the exact local operation-coverage cut and invalidate the RQS

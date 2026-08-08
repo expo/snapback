@@ -24,10 +24,11 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, File, OpenOptions};
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Arc, Mutex};
 #[cfg(test)]
 use std::sync::{OnceLock, mpsc};
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 pub(crate) const SEQUENCE_MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
@@ -1065,6 +1066,51 @@ pub struct LocalDatabase {
     sequence_declarations: Arc<BTreeMap<String, crate::manifest::SequenceDeclaration>>,
 }
 
+#[derive(Debug, Clone)]
+pub struct ShutdownCheckpointReport {
+    pub applicable: bool,
+    pub complete: bool,
+    pub busy_frames: Option<i64>,
+    pub wal_frames: Option<i64>,
+    pub checkpointed_frames: Option<i64>,
+    pub residual_wal_bytes: Option<u64>,
+    pub residual_shm_bytes: Option<u64>,
+    pub reader_errors: Vec<String>,
+    pub errors: Vec<String>,
+}
+
+impl ShutdownCheckpointReport {
+    pub fn summary(&self) -> String {
+        if !self.applicable {
+            return "not applicable to an in-memory store".to_owned();
+        }
+        format!(
+            "complete={}, busy={}, wal_frames={}, checkpointed_frames={}, residual_wal_bytes={}, residual_shm_bytes={}, reader_errors={}, errors={}",
+            self.complete,
+            self.busy_frames
+                .map_or_else(|| "unknown".to_owned(), |value| value.to_string()),
+            self.wal_frames
+                .map_or_else(|| "unknown".to_owned(), |value| value.to_string()),
+            self.checkpointed_frames
+                .map_or_else(|| "unknown".to_owned(), |value| value.to_string()),
+            self.residual_wal_bytes
+                .map_or_else(|| "absent".to_owned(), |value| value.to_string()),
+            self.residual_shm_bytes
+                .map_or_else(|| "absent".to_owned(), |value| value.to_string()),
+            if self.reader_errors.is_empty() {
+                "none".to_owned()
+            } else {
+                self.reader_errors.join(" | ")
+            },
+            if self.errors.is_empty() {
+                "none".to_owned()
+            } else {
+                self.errors.join(" | ")
+            },
+        )
+    }
+}
+
 fn reset_and_seed_transaction(
     tx: &Transaction<'_>,
     schema: &SchemaManifest,
@@ -1974,6 +2020,129 @@ impl LocalDatabase {
     /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L6.
     pub fn reader_pool(&self) -> Option<Arc<ReaderPool>> {
         self.reader_pool.clone()
+    }
+
+    /// @ref LLP 0003#server-responsibilities — the server owes a checkpointed
+    /// single-file store on graceful shutdown when file-backed. Pooled
+    /// read-only connections outlive the writable one in `LocalDatabase`'s
+    /// field order, so SQLite's close-time checkpoint never runs; drain the
+    /// pool first, then checkpoint under an explicit bound.
+    pub fn shutdown_checkpoint(&self, bound: Duration) -> ShutdownCheckpointReport {
+        let Some(path) = self.path.as_ref() else {
+            return ShutdownCheckpointReport {
+                applicable: false,
+                complete: true,
+                busy_frames: None,
+                wal_frames: None,
+                checkpointed_frames: None,
+                residual_wal_bytes: None,
+                residual_shm_bytes: None,
+                reader_errors: Vec::new(),
+                errors: Vec::new(),
+            };
+        };
+
+        let reader_errors = self
+            .reader_pool
+            .as_ref()
+            .map_or_else(Vec::new, |pool| pool.close_for_shutdown());
+        let mut report = ShutdownCheckpointReport {
+            applicable: true,
+            complete: false,
+            busy_frames: None,
+            wal_frames: None,
+            checkpointed_frames: None,
+            residual_wal_bytes: None,
+            residual_shm_bytes: None,
+            reader_errors,
+            errors: Vec::new(),
+        };
+
+        let shutdown_maintenance = match self.writer_authority.enter_shutdown_maintenance() {
+            Ok(token) => Some(token),
+            Err(error) => {
+                report.errors.push(format!(
+                    "failed to enter shutdown maintenance authority: {error}"
+                ));
+                None
+            }
+        };
+
+        // `Connection::busy_timeout` is the direct sqlite3_busy_timeout form
+        // of `PRAGMA busy_timeout`; unlike preparing the pragma, it does not
+        // needlessly widen the connection authorizer. rusqlite 0.32 accepts an
+        // i32 millisecond bound, so clamp before constructing the Duration.
+        let timeout_ms = bound.as_millis().min(i32::MAX as u128) as u64;
+        if let Err(error) = self.conn.busy_timeout(Duration::from_millis(timeout_ms)) {
+            report
+                .errors
+                .push(format!("failed to set shutdown busy timeout: {error}"));
+        }
+
+        match self
+            .conn
+            .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+            }) {
+            Ok((busy, wal, checkpointed)) => {
+                report.busy_frames = Some(busy);
+                report.wal_frames = Some(wal);
+                report.checkpointed_frames = Some(checkpointed);
+                if busy == 0 {
+                    // DELETE mode releases the WAL and SHM while the writable
+                    // connection is still open. The next file-backed open
+                    // automatically re-enters WAL in `LocalDatabase::configure`.
+                    match self
+                        .conn
+                        .query_row("PRAGMA journal_mode = DELETE", [], |row| {
+                            row.get::<_, String>(0)
+                        }) {
+                        Ok(mode) if mode.eq_ignore_ascii_case("delete") => {}
+                        Ok(mode) => report.errors.push(format!(
+                            "shutdown journal mode remained {mode:?} instead of DELETE"
+                        )),
+                        Err(error) => report.errors.push(format!(
+                            "failed to switch shutdown journal mode to DELETE: {error}"
+                        )),
+                    }
+                } else {
+                    report.errors.push(format!(
+                        "checkpoint reported {busy} busy frame(s); journal_mode switch skipped"
+                    ));
+                }
+            }
+            Err(error) => report
+                .errors
+                .push(format!("shutdown WAL checkpoint failed: {error}")),
+        }
+        drop(shutdown_maintenance);
+
+        let inspect_sidecar = |suffix: &str, errors: &mut Vec<String>| {
+            let mut sidecar = path.as_os_str().to_os_string();
+            sidecar.push(suffix);
+            let sidecar = PathBuf::from(sidecar);
+            match fs::metadata(&sidecar) {
+                Ok(metadata) => (Some(metadata.len()), true),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => (None, false),
+                Err(error) => {
+                    errors.push(format!(
+                        "failed to inspect shutdown sidecar {}: {error}",
+                        sidecar.display()
+                    ));
+                    (None, true)
+                }
+            }
+        };
+        let (residual_wal_bytes, wal_exists) = inspect_sidecar("-wal", &mut report.errors);
+        let (residual_shm_bytes, shm_exists) = inspect_sidecar("-shm", &mut report.errors);
+        report.residual_wal_bytes = residual_wal_bytes;
+        report.residual_shm_bytes = residual_shm_bytes;
+        report.complete = report.busy_frames == Some(0)
+            && !wal_exists
+            && !shm_exists
+            && report.reader_errors.is_empty()
+            && report.errors.is_empty();
+        report
     }
 
     pub(crate) fn derived_fork(&self) -> Option<&crate::instance_fork::DerivedForkRuntime> {
@@ -11110,6 +11279,7 @@ pub(crate) fn open_registered_system_writer_v1(
 pub struct ReaderPool {
     path: PathBuf,
     idle: Mutex<Vec<Connection>>,
+    closing: AtomicBool,
 }
 
 impl ReaderPool {
@@ -11117,7 +11287,28 @@ impl ReaderPool {
         Self {
             path,
             idle: Mutex::new(Vec::new()),
+            closing: AtomicBool::new(false),
         }
+    }
+
+    pub fn close_for_shutdown(&self) -> Vec<String> {
+        self.closing.store(true, AtomicOrdering::Release);
+        let connections = {
+            let mut idle = self
+                .idle
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            idle.drain(..).collect::<Vec<_>>()
+        };
+        connections
+            .into_iter()
+            .enumerate()
+            .filter_map(|(index, conn)| {
+                conn.close().err().map(|(_conn, error)| {
+                    format!("failed to close idle reader {index} for shutdown: {error}")
+                })
+            })
+            .collect()
     }
 
     pub fn checkout(&self) -> SnapbackResult<PooledReader<'_>> {
@@ -11179,6 +11370,11 @@ impl ReaderPool {
             .idle
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if self.closing.load(AtomicOrdering::Acquire) {
+            drop(idle);
+            let _ = conn.close();
+            return;
+        }
         if idle.len() < READER_POOL_RETAINED {
             idle.push(conn);
         }

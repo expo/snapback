@@ -303,6 +303,7 @@ struct WriterAuthorityState {
     active_writer: Option<LocalWriterLaneV1>,
     active_depth: usize,
     internal_schema_maintenance: bool,
+    shutdown_maintenance: bool,
 }
 
 impl WriterAuthorityState {
@@ -346,6 +347,19 @@ impl WriterAuthorityState {
             || (pragma_name.eq_ignore_ascii_case("wal_checkpoint")
                 && pragma_value.is_some_and(|value| value.eq_ignore_ascii_case("FULL"))
                 && self.active_writer == Some(LocalWriterLaneV1::BranchRegistry))
+            || (self.shutdown_maintenance
+                && ((pragma_name.eq_ignore_ascii_case("wal_checkpoint")
+                    && pragma_value.is_some_and(|value| {
+                        ["PASSIVE", "FULL", "RESTART", "TRUNCATE"]
+                            .iter()
+                            .any(|allowed| value.eq_ignore_ascii_case(allowed))
+                    }))
+                    || (pragma_name.eq_ignore_ascii_case("journal_mode")
+                        && pragma_value.is_some_and(|value| {
+                            ["DELETE", "WAL"]
+                                .iter()
+                                .any(|allowed| value.eq_ignore_ascii_case(allowed))
+                        }))))
     }
 }
 
@@ -512,6 +526,22 @@ impl WriterAuthorityV1 {
         })
     }
 
+    /// Admit only the LLP 0003 graceful-shutdown checkpoint pragmas. This
+    /// maintenance token can never authorize application DML.
+    pub(super) fn enter_shutdown_maintenance(&self) -> SnapbackResult<ShutdownMaintenanceTokenV1> {
+        let mut state = self.lock()?;
+        if state.shutdown_maintenance || state.active_writer.is_some() {
+            return Err(authority_invalid(
+                "shutdown maintenance cannot overlap another writer",
+            ));
+        }
+        state.shutdown_maintenance = true;
+        drop(state);
+        Ok(ShutdownMaintenanceTokenV1 {
+            state: Arc::clone(&self.state),
+        })
+    }
+
     pub(super) fn inventory(
         &self,
         database: &LocalDatabase,
@@ -662,6 +692,10 @@ pub(super) struct InternalSchemaMaintenanceTokenV1 {
     state: Arc<Mutex<WriterAuthorityState>>,
 }
 
+pub(super) struct ShutdownMaintenanceTokenV1 {
+    state: Arc<Mutex<WriterAuthorityState>>,
+}
+
 impl Drop for InternalSchemaMaintenanceTokenV1 {
     fn drop(&mut self) {
         let Ok(mut state) = self.state.lock() else {
@@ -669,6 +703,16 @@ impl Drop for InternalSchemaMaintenanceTokenV1 {
         };
         debug_assert!(state.internal_schema_maintenance);
         state.internal_schema_maintenance = false;
+    }
+}
+
+impl Drop for ShutdownMaintenanceTokenV1 {
+    fn drop(&mut self) {
+        let Ok(mut state) = self.state.lock() else {
+            return;
+        };
+        debug_assert!(state.shutdown_maintenance);
+        state.shutdown_maintenance = false;
     }
 }
 

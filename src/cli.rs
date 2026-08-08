@@ -19,7 +19,7 @@ use std::io::{self, ErrorKind, IsTerminal, Read as _};
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 use uuid::Uuid;
@@ -8138,7 +8138,7 @@ async fn run_composed(
     });
     let maintenance_worker = server::spawn_maintenance_worker(app_state);
     let auth_maintenance_worker = crate::auth::runtime::spawn_auth_gc_worker(
-        state,
+        state.clone(),
         auth_runtime.clone(),
         auth_coordinator.clone(),
         auth_terminal_sink,
@@ -8187,6 +8187,35 @@ async fn run_composed(
         worker.abort();
     }
     auth_expiry_worker.abort();
+
+    // @ref LLP 0003#server-responsibilities — graceful shutdown drains WAL
+    // readers and checkpoints the file-backed store before releasing its
+    // process lock. SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS overrides the
+    // 30-second default; zero and unparseable values retain the default.
+    let checkpoint_bound = std::env::var("SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .filter(|value| *value > 0)
+        .map_or_else(|| Duration::from_millis(30_000), Duration::from_millis);
+    // A task aborted a moment ago can still hold the writer mutex until its
+    // future is dropped, so bound the acquisition too: a shutdown that cannot
+    // reach the connection must say so, never hang holding SIGTERM open.
+    match tokio::time::timeout(checkpoint_bound, state.lock()).await {
+        Ok(snapback) => {
+            let report = startup_blocking(|| snapback.shutdown_checkpoint(checkpoint_bound));
+            if report.applicable && !report.complete {
+                eprintln!(
+                    "SNAPBACK_SHUTDOWN_WAL_CHECKPOINT_INCOMPLETE: {}",
+                    report.summary()
+                );
+            }
+        }
+        Err(_) => eprintln!(
+            "SNAPBACK_SHUTDOWN_WAL_CHECKPOINT_INCOMPLETE: the writer connection stayed locked for \
+             {}ms; the store keeps its WAL sidecar",
+            checkpoint_bound.as_millis()
+        ),
+    }
     drop(database_lock);
     if let Some(target) = ready_target.as_ref() {
         let _ = target.remove_impersonation_capability();
