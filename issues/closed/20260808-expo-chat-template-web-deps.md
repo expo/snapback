@@ -37,3 +37,11 @@ Verified with:
 - `bun install --frozen-lockfile --cwd tests/expo-chat-template-typecheck`
 - `node scripts/check-expo-chat-template-typecheck.mjs`
 - `node packages/snapback-cli/package.test.mjs`
+
+## Addendum — 2026-08-08 (lane-0196-templates, landed separately)
+
+A concurrent LLP 0196 lane hit one more package-level blocker the static
+export surfaced: `@expo/snapback-expo`'s web AppState arm imported the
+React Native package root, which Metro rejects as native-only on web.
+The lane changed it to resolve React Native Web's AppState export
+directly (with a DOM guard), landed with the T3 prove-command work.

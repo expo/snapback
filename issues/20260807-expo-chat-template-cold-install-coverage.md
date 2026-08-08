@@ -69,3 +69,13 @@ equivalent packaged proof includes the template.
   the guide fence before the cold-install leg first executes. Ticket now
   stays open until a staged qualification run (or the next promotion's
   proof) actually executes the expo-chat leg end to end.
+
+## Progress 2026-08-08 (LLP 0196 T3/T0 lane)
+
+The existing `provePackedExpoChatScaffold` leg now also fails closed unless
+the packed scaffold contains the one `snapback verify` proof command, Expo web
+platform, web script, and all three web dependencies. The recurring in-repo
+template harness likewise asserts those facts and now performs a no-server
+static Expo web export in addition to codegen, static acceptance, and strict
+typecheck. The monolithic packed qualification was not executed in this lane,
+so the ticket remains open under its existing end-to-end criterion.
