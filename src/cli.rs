@@ -4548,7 +4548,8 @@ fn resolve_http_target_for_operation(
         };
         // For capability-bearing operations the branch above has verified the
         // live startup nonce before either local sibling is read. Ordinary
-        // host operations retain the established ready-file admin-token flow.
+        // host operations use the same storage-mode-aware minted-token
+        // discovery as the admin console and secret-read mint path.
         let minted_token =
             discover_minted_token_pinned(&ready_target, &canonical_ready, &descriptor);
         return Ok(ResolvedHttpTarget {
@@ -6434,13 +6435,7 @@ fn discover_admin_console_token(
     descriptor: &HostReadyDescriptor,
 ) -> Option<String> {
     let declared = PathBuf::from(descriptor.admin_token_file.as_deref()?);
-    let expected = match descriptor.database.mode.as_str() {
-        "file" => {
-            crate::admin::admin_token_sibling(Path::new(descriptor.database.path.as_deref()?))
-        }
-        "memory" => crate::admin::admin_token_sibling(ready_file),
-        _ => return None,
-    };
+    let expected = expected_minted_admin_token_path(ready_file, descriptor)?;
     if declared != expected {
         return None;
     }
@@ -6452,6 +6447,33 @@ fn discover_admin_console_token(
     let token = String::from_utf8(bytes).ok()?;
     let token = token.trim();
     (!token.is_empty()).then(|| token.to_owned())
+}
+
+fn expected_minted_admin_token_path(
+    ready_file: &Path,
+    descriptor: &HostReadyDescriptor,
+) -> Option<PathBuf> {
+    match descriptor.database.mode.as_str() {
+        "file" => Some(crate::admin::admin_token_sibling(Path::new(
+            descriptor.database.path.as_deref()?,
+        ))),
+        "memory" => Some(crate::admin::admin_token_sibling(ready_file)),
+        _ => None,
+    }
+}
+
+#[cfg(unix)]
+fn minted_admin_token_has_owner_only_mode(path: &Path) -> bool {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    std::fs::symlink_metadata(path).ok().is_some_and(|metadata| {
+        metadata.file_type().is_file() && metadata.permissions().mode() & 0o077 == 0
+    })
+}
+
+#[cfg(not(unix))]
+fn minted_admin_token_has_owner_only_mode(_path: &Path) -> bool {
+    true
 }
 
 fn valid_console_credential(value: &str) -> bool {
@@ -6512,17 +6534,21 @@ fn open_admin_browser(url: &str) -> anyhow::Result<()> {
 }
 
 /// Minted-token discovery (ENG-23443): when the caller passed no explicit
-/// token, read the auto-minted token file the server points at — via the
-/// readiness descriptor's `adminTokenFile`. The path must be the mechanical
-/// sibling of the trusted descriptor itself; a remote `--url` target can never
-/// name a local path for the CLI to read. Being able to read both owner-only
-/// files as this user is what makes the CLI local admin (LLP 0036 D3).
+/// token, read the auto-minted token file the server points at via the
+/// readiness descriptor's `adminTokenFile`. The declared path must be the
+/// database sibling for file mode or the trusted ready-file sibling for memory
+/// mode; a remote `--url` target can never name a local path for the CLI to
+/// read. Being able to read both owner-only files as this user is what makes
+/// the CLI local admin (LLP 0036 D3).
 /// Discovery failing just means the request goes out tokenless and surfaces
 /// the server's structured refusal.
 fn discover_minted_token(ready_file: &Path, descriptor: &HostReadyDescriptor) -> Option<String> {
     let declared = PathBuf::from(descriptor.admin_token_file.as_deref()?);
-    let expected = crate::admin::admin_token_sibling(ready_file);
+    let expected = expected_minted_admin_token_path(ready_file, descriptor)?;
     if declared != expected {
+        return None;
+    }
+    if !minted_admin_token_has_owner_only_mode(&declared) {
         return None;
     }
     let token = String::from_utf8(crate::secure_file::read_owner_only(&declared).ok()?).ok()?;
@@ -6536,11 +6562,19 @@ fn discover_minted_token_pinned(
     descriptor: &HostReadyDescriptor,
 ) -> Option<String> {
     let declared = PathBuf::from(descriptor.admin_token_file.as_deref()?);
-    let expected = crate::admin::admin_token_sibling(ready_file);
+    let expected = expected_minted_admin_token_path(ready_file, descriptor)?;
     if declared != expected {
         return None;
     }
-    let token = String::from_utf8(target.read_owner_only_sibling(&declared).ok()?).ok()?;
+    if !minted_admin_token_has_owner_only_mode(&declared) {
+        return None;
+    }
+    let bytes = if declared.parent() == ready_file.parent() {
+        target.read_owner_only_sibling(&declared).ok()?
+    } else {
+        crate::secure_file::read_owner_only(&declared).ok()?
+    };
+    let token = String::from_utf8(bytes).ok()?;
     let token = token.trim();
     (!token.is_empty()).then(|| token.to_owned())
 }
@@ -9773,7 +9807,7 @@ mod tests {
         path_with_filename_suffix,
         prepare_database_path, prepare_database_path_for_startup, quiet_stop_fork,
         reject_misdirected_serve_flags, render_guide_command, resolve_http_target,
-        resolve_startup_nonce,
+        resolve_http_target_for_operation, resolve_startup_nonce,
         runtime_auth_program_readiness, search_guide_sections_in, validate_path_disjointness,
         validated_console_origin, validated_secret_read_root_path, write_ready_file_atomic,
         write_ready_file_atomic_protected,
@@ -11775,6 +11809,96 @@ mod tests {
                 "args": { "email": "x@example.com" },
             })
         );
+    }
+
+    #[test]
+    fn session_mint_ready_file_attaches_file_database_minted_admin_token() {
+        let ready_dir = tempfile::tempdir().unwrap();
+        let database_dir = tempfile::tempdir().unwrap();
+        let ready = ready_dir.path().join("ready.json");
+        let canonical_ready = std::fs::canonicalize(ready_dir.path())
+            .unwrap()
+            .join("ready.json");
+        let database = std::fs::canonicalize(database_dir.path())
+            .unwrap()
+            .join("app.sqlite3");
+        let admin_token_file = crate::admin::admin_token_sibling(&database);
+        let minted_admin_token = "sbat_file_database_session_mint";
+        crate::secure_file::write_owner_only(&admin_token_file, minted_admin_token.as_bytes())
+            .unwrap();
+
+        let sidecar =
+            crate::admin_impersonation::impersonation_capability_sibling(&canonical_ready).unwrap();
+        let (_registry, operator) =
+            crate::admin_impersonation::ImpersonationCapabilityRegistry::generate(
+                "nonce-file-session-mint".to_owned(),
+                &crate::auth::crypto::OsRandom,
+            )
+            .unwrap();
+        operator
+            .publish_with(&canonical_ready, |path, bytes| {
+                crate::secure_file::write_owner_only(path, bytes)
+            })
+            .unwrap();
+
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let mut requests = Vec::new();
+            for index in 0..2 {
+                let (mut stream, _) = listener.accept().unwrap();
+                let request = read_http_request(&mut stream);
+                let body = if index == 0 {
+                    health_with_nonce("nonce-file-session-mint")
+                } else {
+                    json!({
+                        "ok": true,
+                        "operation": "auth.mintSession",
+                        "data": { "tokenType": "Bearer", "token": "sbss_ordinary" },
+                    })
+                };
+                write_http_json(&mut stream, &body);
+                requests.push(request);
+            }
+            requests
+        });
+
+        let mut descriptor = stop_descriptor(Some("nonce-file-session-mint"));
+        descriptor.server_url = format!("http://{address}");
+        descriptor.target.server_url = Some(descriptor.server_url.clone());
+        descriptor.database.mode = "file".to_owned();
+        descriptor.database.path = Some(database.display().to_string());
+        descriptor.admin_token_file = Some(admin_token_file.display().to_string());
+        descriptor.impersonation_capability_file = Some(sidecar.display().to_string());
+        crate::secure_file::write_owner_only(&ready, &serde_json::to_vec(&descriptor).unwrap())
+            .unwrap();
+
+        let target = TargetArgs {
+            url: None,
+            ready_file: Some(ready),
+            token: None,
+            impersonation_capability_stdin: false,
+        };
+        super::post_host_op(
+            &target,
+            super::mint_session_request("x@example.com".to_owned()),
+        )
+        .unwrap();
+
+        let expected_admin_token = std::env::var("SNAPBACK_ADMIN_TOKEN")
+            .ok()
+            .filter(|token| !token.is_empty())
+            .unwrap_or_else(|| minted_admin_token.to_owned());
+        let requests = server.join().unwrap();
+        assert!(requests[0].starts_with("GET /health "));
+        assert!(requests[1].starts_with("POST /_snapback/api/host-ops "));
+        assert!(requests[1].lines().any(|line| {
+            let Some((name, value)) = line.split_once(':') else {
+                return false;
+            };
+            name.eq_ignore_ascii_case("x-snapback-admin-token")
+                && value.trim() == expected_admin_token
+        }));
     }
 
     #[test]
@@ -13817,6 +13941,126 @@ mod tests {
         );
     }
 
+    fn resolve_ready_file_minted_token(
+        ready: &Path,
+        descriptor: &crate::host_ops::HostReadyDescriptor,
+    ) -> Option<String> {
+        crate::secure_file::write_owner_only(ready, &serde_json::to_vec(descriptor).unwrap())
+            .unwrap();
+        let target = TargetArgs {
+            url: None,
+            ready_file: Some(ready.to_path_buf()),
+            token: None,
+            impersonation_capability_stdin: false,
+        };
+        resolve_http_target_for_operation(&target, false)
+            .unwrap()
+            .minted_token
+    }
+
+    #[test]
+    fn minted_token_discovery_uses_file_database_sibling_across_and_within_directories() {
+        let ready_dir = tempfile::tempdir().unwrap();
+        let database_dir = tempfile::tempdir().unwrap();
+        let ready = std::fs::canonicalize(ready_dir.path())
+            .unwrap()
+            .join("ready.json");
+        let database = std::fs::canonicalize(database_dir.path())
+            .unwrap()
+            .join("app.sqlite3");
+        let token_file = crate::admin::admin_token_sibling(&database);
+        crate::secure_file::write_owner_only(&token_file, b"sbat_different_directory\n").unwrap();
+
+        let mut descriptor = stop_descriptor(Some("nonce"));
+        descriptor.database.mode = "file".to_owned();
+        descriptor.database.path = Some(database.display().to_string());
+        descriptor.admin_token_file = Some(token_file.display().to_string());
+        assert_eq!(
+            resolve_ready_file_minted_token(&ready, &descriptor).as_deref(),
+            Some("sbat_different_directory")
+        );
+
+        let same_directory_database = ready
+            .parent()
+            .unwrap()
+            .join("same-directory.sqlite3");
+        let same_directory_token = crate::admin::admin_token_sibling(&same_directory_database);
+        crate::secure_file::write_owner_only(&same_directory_token, b"sbat_same_directory\n")
+            .unwrap();
+        descriptor.database.path = Some(same_directory_database.display().to_string());
+        descriptor.admin_token_file = Some(same_directory_token.display().to_string());
+        assert_eq!(
+            resolve_ready_file_minted_token(&ready, &descriptor).as_deref(),
+            Some("sbat_same_directory")
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn minted_token_discovery_refuses_world_readable_file_database_sibling() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let ready_dir = tempfile::tempdir().unwrap();
+        let database_dir = tempfile::tempdir().unwrap();
+        let ready = std::fs::canonicalize(ready_dir.path())
+            .unwrap()
+            .join("ready.json");
+        let database = std::fs::canonicalize(database_dir.path())
+            .unwrap()
+            .join("app.sqlite3");
+        let token_file = crate::admin::admin_token_sibling(&database);
+        std::fs::write(&token_file, b"sbat_world_readable\n").unwrap();
+        std::fs::set_permissions(&token_file, std::fs::Permissions::from_mode(0o644)).unwrap();
+
+        let mut descriptor = stop_descriptor(Some("nonce"));
+        descriptor.database.mode = "file".to_owned();
+        descriptor.database.path = Some(database.display().to_string());
+        descriptor.admin_token_file = Some(token_file.display().to_string());
+        assert_eq!(resolve_ready_file_minted_token(&ready, &descriptor), None);
+        assert_eq!(
+            std::fs::metadata(token_file).unwrap().permissions().mode() & 0o777,
+            0o644,
+            "refused discovery must not expose or repair a permissive token file"
+        );
+    }
+
+    #[test]
+    fn minted_token_discovery_refuses_nonmechanical_file_database_path() {
+        let ready_dir = tempfile::tempdir().unwrap();
+        let database_dir = tempfile::tempdir().unwrap();
+        let ready = std::fs::canonicalize(ready_dir.path())
+            .unwrap()
+            .join("ready.json");
+        let database = std::fs::canonicalize(database_dir.path())
+            .unwrap()
+            .join("app.sqlite3");
+        let unrelated = database_dir.path().join("unrelated.admin-token");
+        crate::secure_file::write_owner_only(&unrelated, b"sbat_unrelated\n").unwrap();
+
+        let mut descriptor = stop_descriptor(Some("nonce"));
+        descriptor.database.mode = "file".to_owned();
+        descriptor.database.path = Some(database.display().to_string());
+        descriptor.admin_token_file = Some(unrelated.display().to_string());
+        assert_eq!(resolve_ready_file_minted_token(&ready, &descriptor), None);
+    }
+
+    #[test]
+    fn minted_token_discovery_keeps_memory_ready_file_sibling() {
+        let ready_dir = tempfile::tempdir().unwrap();
+        let ready = std::fs::canonicalize(ready_dir.path())
+            .unwrap()
+            .join("ready.json");
+        let token_file = crate::admin::admin_token_sibling(&ready);
+        crate::secure_file::write_owner_only(&token_file, b"sbat_memory\n").unwrap();
+
+        let mut descriptor = stop_descriptor(Some("nonce"));
+        descriptor.admin_token_file = Some(token_file.display().to_string());
+        assert_eq!(
+            resolve_ready_file_minted_token(&ready, &descriptor).as_deref(),
+            Some("sbat_memory")
+        );
+    }
+
     #[test]
     fn ready_file_token_discovery_accepts_only_its_owner_only_sibling() {
         let dir = tempfile::tempdir().unwrap();
@@ -13826,8 +14070,8 @@ mod tests {
             .join("ready.json");
         let sibling = crate::admin::admin_token_sibling(&canonical_ready);
         let arbitrary = dir.path().join("arbitrary-secret");
-        std::fs::write(&sibling, b"sbat_expected\n").unwrap();
-        std::fs::write(&arbitrary, b"sbat_attacker_chosen\n").unwrap();
+        crate::secure_file::write_owner_only(&sibling, b"sbat_expected\n").unwrap();
+        crate::secure_file::write_owner_only(&arbitrary, b"sbat_attacker_chosen\n").unwrap();
 
         let target = TargetArgs {
             url: None,
