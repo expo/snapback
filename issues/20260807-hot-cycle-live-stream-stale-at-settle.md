@@ -66,3 +66,48 @@ keyring sibling, anonymous live protocol header, vacuous-pass hardening,
 and this stream lapse), §4.4 hot rows remain GAP owned by this ticket,
 and the rerun (`ZBUGS_ATTEMPT=v9`) uses the recipe in the program memory
 after the repair lands. Nothing backfills the existing receipts.
+
+## Diagnosis — 2026-08-07 (instrumented run against the persistent baseline)
+
+The ticket's two original hypotheses are both **refuted**. Instrumented
+trace (`demos/zerobugs/fixtures-local/hot-diag-baseline/diag-run1.jsonl`,
+1,913 records; instrument `demos/zerobugs/control/scripts/diag-hot-stream.mts`;
+3 cycles × 16 mutations, 180 s observation windows):
+
+- **Sockets never dropped.** Manager events are exactly the six
+  connecting/open pairs at startup — no loss, no backoff, nothing to
+  regain. Server delta starvation of the transport did not occur.
+- **The client never attempted a resubscribe because none was ever
+  warranted.** Exactly six subscribe attempt/result pairs, all at initial
+  open, all successful.
+- **The actual mechanism is an authorization-invalidation protocol
+  conflict.** Deliveries flowed normally (676 update/boundary frames,
+  ~100–160 per observer), then each observer hit
+  `SNAPBACK_AUTH_INVALIDATION_CORRUPT: one acknowledgement token or scope
+  revision named conflicting resolution frames` (32 occurrences total;
+  first at t≈65 s, five observers within 3 s of each other, the sixth at
+  t≈209 s) and was **quarantined** — the client's fail-closed path
+  (`reportAuthorizationError` → `authorizationDisposition: 'quarantine'`
+  → connection `'stale'`), which by design never self-recovers without an
+  authority transition. Authoritative polls kept converging exactly
+  throughout.
+
+Client-side detection site: the applied-resolution bookkeeping rejects a
+resolution whose ack-token key matches an already-applied resolution but
+whose frame identity (stable JSON of obligation + resolution + snapshot)
+differs (`packages/snapback-client/index.mjs`,
+`conflictingAuthorizationResolutionError`). The refusal is correct
+LLP 0146/0157 fail-closed behavior. The defect is therefore
+**server-side: under concurrent mutation fan-out at the 5.5M-row store,
+the invalidation stream reuses an acknowledgement token or scope revision
+with conflicting resolution-frame content.** Repair is runtime-owned
+(invalidation frame/ack-token minting under overlapping obligations), in
+the same class as the P1 version-scan finding.
+
+Reproduction is now cheap: the persistent baseline + live server recipe
+in this ticket reproduces the conflict within ~65 s of a cycle start,
+every run. After the runtime repair: rerun the instrument (expect zero
+`authorization_error` records and six live streams at settle), then
+`zb5-hot` `ZBUGS_ATTEMPT=v9`. The zb5-hot settle change (bounded 30 s
+recovery + disclosure) remains correct — a quarantined stream will keep
+failing the gate honestly until the server fix lands, as it should.
