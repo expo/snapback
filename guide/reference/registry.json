@@ -2,8 +2,8 @@
   "schemaVersion": "snapback-symbol-registry.v1",
   "generatedBy": "scripts/generate-symbol-registry.mjs",
   "buildIdentity": {
-    "commit": "eac098a99fb89b07e67cb72430106117b7fee86b",
-    "sourceDigest": "sha256:e2480c27a4719a217bd42ec4feac6eb51295cedfae7165118d009790980b0704",
+    "commit": "108e83427fabb33530e5f4d3132b1b2281d3a720",
+    "sourceDigest": "sha256:f8d69f9a1b65a781d997a42e86beaac79dcc0a1b5c1692583ffdb4fb30baac4a",
     "packageVersions": {
       "@expo/snapback-cli": "0.1.0",
       "@expo/snapback-client": "0.1.0",
@@ -76701,16 +76701,16 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 63,
+        "line": 64,
         "column": 1,
-        "endLine": 63
+        "endLine": 64
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 63,
+          "line": 64,
           "column": 1,
-          "endLine": 63
+          "endLine": 64
         }
       ],
       "publicDeclaration": {
@@ -76749,16 +76749,16 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 59,
+        "line": 60,
         "column": 1,
-        "endLine": 59
+        "endLine": 60
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 59,
+          "line": 60,
           "column": 1,
-          "endLine": 59
+          "endLine": 60
         }
       ],
       "publicDeclaration": {
@@ -76797,16 +76797,16 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 57,
+        "line": 58,
         "column": 1,
-        "endLine": 57
+        "endLine": 58
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 57,
+          "line": 58,
           "column": 1,
-          "endLine": 57
+          "endLine": 58
         }
       ],
       "publicDeclaration": {
@@ -76845,16 +76845,16 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 56,
+        "line": 57,
         "column": 1,
-        "endLine": 56
+        "endLine": 57
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 56,
+          "line": 57,
           "column": 1,
-          "endLine": 56
+          "endLine": 57
         }
       ],
       "publicDeclaration": {
@@ -76893,16 +76893,16 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 58,
+        "line": 59,
         "column": 1,
-        "endLine": 58
+        "endLine": 59
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 58,
+          "line": 59,
           "column": 1,
-          "endLine": 58
+          "endLine": 59
         }
       ],
       "publicDeclaration": {
@@ -76941,16 +76941,16 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 61,
+        "line": 62,
         "column": 1,
-        "endLine": 61
+        "endLine": 62
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 61,
+          "line": 62,
           "column": 1,
-          "endLine": 61
+          "endLine": 62
         }
       ],
       "publicDeclaration": {
@@ -76989,16 +76989,16 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 60,
+        "line": 61,
         "column": 1,
-        "endLine": 60
+        "endLine": 61
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 60,
+          "line": 61,
           "column": 1,
-          "endLine": 60
+          "endLine": 61
         }
       ],
       "publicDeclaration": {
@@ -77037,16 +77037,16 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 62,
+        "line": 63,
         "column": 1,
-        "endLine": 62
+        "endLine": 63
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 62,
+          "line": 63,
           "column": 1,
-          "endLine": 62
+          "endLine": 63
         }
       ],
       "publicDeclaration": {
@@ -77085,16 +77085,16 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 64,
+        "line": 65,
         "column": 1,
-        "endLine": 64
+        "endLine": 65
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 64,
+          "line": 65,
           "column": 1,
-          "endLine": 64
+          "endLine": 65
         }
       ],
       "publicDeclaration": {
@@ -77120,7 +77120,7 @@
         "exportNames": [],
         "conditions": []
       },
-      "signature": "export interface StarterVerifyProfileOptions {\n  readonly id: string;\n  readonly title?: string;\n  readonly acceptanceFile: string | URL;\n  readonly requiredCapabilities?: readonly string[];\n  readonly paths?: readonly {\n    readonly id: string;\n    readonly kind: VerifyPathKind;\n    readonly targetProfileId: string;\n    readonly functionId?: string | null;\n  }[];\n  readonly timeoutMs?: number;\n}",
+      "signature": "export interface StarterVerifyProfileOptions {\n  readonly id: string;\n  readonly title?: string;\n  readonly acceptanceFile: string | URL;\n  readonly additionalTestFiles?: readonly (string | URL)[];\n  readonly requiredCapabilities?: readonly string[];\n  readonly paths?: readonly {\n    readonly id: string;\n    readonly kind: VerifyPathKind;\n    readonly targetProfileId: string;\n    readonly functionId?: string | null;\n  }[];\n  readonly timeoutMs?: number;\n}",
       "overloads": [],
       "members": [
         {
@@ -77181,6 +77181,25 @@
           ]
         },
         {
+          "identity": "npm:@expo/snapback-cli/verify#StarterVerifyProfileOptions.additionalTestFiles",
+          "name": "additionalTestFiles",
+          "kind": "property",
+          "signature": "readonly additionalTestFiles?: readonly (string | URL)[];",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-cli/verify.d.mts",
+              "line": 43,
+              "column": 3,
+              "endLine": 43
+            }
+          ]
+        },
+        {
           "identity": "npm:@expo/snapback-cli/verify#StarterVerifyProfileOptions.requiredCapabilities",
           "name": "requiredCapabilities",
           "kind": "property",
@@ -77193,9 +77212,9 @@
           "sources": [
             {
               "file": "packages/snapback-cli/verify.d.mts",
-              "line": 43,
+              "line": 44,
               "column": 3,
-              "endLine": 43
+              "endLine": 44
             }
           ]
         },
@@ -77212,9 +77231,9 @@
           "sources": [
             {
               "file": "packages/snapback-cli/verify.d.mts",
-              "line": 44,
+              "line": 45,
               "column": 3,
-              "endLine": 49
+              "endLine": 50
             }
           ]
         },
@@ -77231,9 +77250,9 @@
           "sources": [
             {
               "file": "packages/snapback-cli/verify.d.mts",
-              "line": 50,
+              "line": 51,
               "column": 3,
-              "endLine": 50
+              "endLine": 51
             }
           ]
         }
@@ -77246,14 +77265,14 @@
         "file": "packages/snapback-cli/verify.d.mts",
         "line": 39,
         "column": 1,
-        "endLine": 51
+        "endLine": 52
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
           "line": 39,
           "column": 1,
-          "endLine": 51
+          "endLine": 52
         }
       ],
       "publicDeclaration": {
@@ -77292,16 +77311,16 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 65,
+        "line": 66,
         "column": 1,
-        "endLine": 65
+        "endLine": 66
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 65,
+          "line": 66,
           "column": 1,
-          "endLine": 65
+          "endLine": 66
         }
       ],
       "publicDeclaration": {
@@ -77340,16 +77359,16 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 53,
+        "line": 54,
         "column": 14,
-        "endLine": 53
+        "endLine": 54
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 53,
+          "line": 54,
           "column": 14,
-          "endLine": 53
+          "endLine": 54
         }
       ],
       "publicDeclaration": {
@@ -77388,16 +77407,16 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 54,
+        "line": 55,
         "column": 14,
-        "endLine": 54
+        "endLine": 55
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 54,
+          "line": 55,
           "column": 14,
-          "endLine": 54
+          "endLine": 55
         }
       ],
       "publicDeclaration": {
@@ -77436,16 +77455,16 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 55,
+        "line": 56,
         "column": 14,
-        "endLine": 55
+        "endLine": 56
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 55,
+          "line": 56,
           "column": 14,
-          "endLine": 55
+          "endLine": 56
         }
       ],
       "publicDeclaration": {
@@ -77948,16 +77967,16 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 66,
+        "line": 67,
         "column": 1,
-        "endLine": 66
+        "endLine": 67
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 66,
+          "line": 67,
           "column": 1,
-          "endLine": 66
+          "endLine": 67
         }
       ],
       "publicDeclaration": {
@@ -84423,6 +84442,9 @@
         "npm:@expo/snapback-cli/verify#StarterVerifyProfileOptions"
       ],
       "StarterVerifyProfileOptions.acceptanceFile": [
+        "npm:@expo/snapback-cli/verify#StarterVerifyProfileOptions"
+      ],
+      "StarterVerifyProfileOptions.additionalTestFiles": [
         "npm:@expo/snapback-cli/verify#StarterVerifyProfileOptions"
       ],
       "StarterVerifyProfileOptions.requiredCapabilities": [
