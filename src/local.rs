@@ -1424,24 +1424,120 @@ impl EnsureAppInput {
 // they are schema-governed wire shapes now, generated into
 // `schemas/live.envelope.schema.json` and drift-gated.
 
-/// The merged, not-yet-delivered data fan-out for one or more deferred commit
-/// frames. Holds only committed change rows (data) plus subscription *ids*
-/// whose membership went stale, never subscription references, so
-/// subscriptions may come and go while a frame is pending.
-///
-/// @ref LLP 0008#dated-decision--post-commit-fan-out-coalescing-2026-08-08 —
-/// a coalesced flush is semantically one multi-write commit frame: the delta
-/// classifier collapses to the last change per row id and the replace lane
-/// re-queries current state.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PendingLiveLane {
+    Authority,
+    Refresh,
+    Data,
+}
+
+#[derive(Debug)]
+enum PendingLiveWork {
+    AuthorityRestore {
+        min_commit_version: u64,
+        membership_declarations: Vec<String>,
+    },
+    PermissionResync {
+        scope: String,
+        epoch: u64,
+        frame_version: u64,
+    },
+    Refresh,
+    Data,
+}
+
+/// One subscription's latest-value obligation. Commits merge into these
+/// entries while the scheduler is between turns; the generation-stamped lane
+/// queues make superseded entries cheap to skip without queue surgery.
 struct PendingLiveFanout {
+    lane: PendingLiveLane,
+    work: PendingLiveWork,
     changes: Vec<ChangedRow>,
-    /// Subscriptions that received a full resync (permission/authorization)
-    /// while this frame was pending: their captured membership is newer than
-    /// parts of `changes`, so at flush they must take the honest
-    /// re-query/replace lane, never the op-log delta lane.
-    force_replace: BTreeSet<String>,
+    force_replace: bool,
     frames: u64,
+    coverage_through: u64,
     first_deferred_at: Instant,
+    generation: u64,
+}
+
+#[derive(Default)]
+struct PendingLiveScheduler {
+    entries: BTreeMap<String, PendingLiveFanout>,
+    authority: VecDeque<(String, u64)>,
+    refresh: VecDeque<(String, u64)>,
+    data: VecDeque<(String, u64)>,
+    next_generation: u64,
+}
+
+impl PendingLiveScheduler {
+    fn next_generation(&mut self) -> u64 {
+        self.next_generation = self.next_generation.wrapping_add(1).max(1);
+        self.next_generation
+    }
+
+    fn push(&mut self, subscription_id: String, mut pending: PendingLiveFanout) {
+        let generation = self.next_generation();
+        pending.generation = generation;
+        let lane = pending.lane;
+        self.entries.insert(subscription_id.clone(), pending);
+        match lane {
+            PendingLiveLane::Authority => self.authority.push_back((subscription_id, generation)),
+            PendingLiveLane::Refresh => self.refresh.push_back((subscription_id, generation)),
+            PendingLiveLane::Data => self.data.push_back((subscription_id, generation)),
+        }
+    }
+
+    fn peek(&mut self) -> Option<String> {
+        self.discard_stale_fronts();
+        self.authority
+            .front()
+            .or_else(|| self.refresh.front())
+            .or_else(|| self.data.front())
+            .map(|(subscription_id, _)| subscription_id.clone())
+    }
+
+    fn pop(&mut self, subscription_id: &str) -> Option<PendingLiveFanout> {
+        self.discard_stale_fronts();
+        let pending = self.entries.get(subscription_id)?;
+        let front = match pending.lane {
+            PendingLiveLane::Authority => self.authority.front(),
+            PendingLiveLane::Refresh => self.refresh.front(),
+            PendingLiveLane::Data => self.data.front(),
+        }?;
+        if front.0 != subscription_id || front.1 != pending.generation {
+            return None;
+        }
+        match pending.lane {
+            PendingLiveLane::Authority => self.authority.pop_front(),
+            PendingLiveLane::Refresh => self.refresh.pop_front(),
+            PendingLiveLane::Data => self.data.pop_front(),
+        };
+        self.entries.remove(subscription_id)
+    }
+
+    fn discard_stale_fronts(&mut self) {
+        Self::discard_stale_front(
+            &self.entries,
+            PendingLiveLane::Authority,
+            &mut self.authority,
+        );
+        Self::discard_stale_front(&self.entries, PendingLiveLane::Refresh, &mut self.refresh);
+        Self::discard_stale_front(&self.entries, PendingLiveLane::Data, &mut self.data);
+    }
+
+    fn discard_stale_front(
+        entries: &BTreeMap<String, PendingLiveFanout>,
+        lane: PendingLiveLane,
+        queue: &mut VecDeque<(String, u64)>,
+    ) {
+        while queue.front().is_some_and(|(subscription_id, generation)| {
+            !entries
+                .get(subscription_id)
+                .is_some_and(|pending| pending.lane == lane && pending.generation == *generation)
+        }) {
+            queue.pop_front();
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -3107,11 +3203,8 @@ pub struct LocalSnapback {
     // task; when absent (unit tests, embedders that opt out) every commit
     // fans out inline exactly as before.
     live_coalescer: Option<Arc<crate::live_coalesce::LiveFanoutCoalescer>>,
-    pending_live_fanout: Option<PendingLiveFanout>,
-    // Measured wall cost of the most recent data fan-out frame and when it
-    // finished: the backlog signal for the coalescing decision.
-    live_fanout_recent_cost: Duration,
-    live_fanout_last_finished: Option<Instant>,
+    pending_live_fanout: PendingLiveScheduler,
+    live_evaluation_timeout_streaks: BTreeMap<String, u8>,
     live_coalesce_stats: crate::live_coalesce::LiveCoalesceStats,
     recent_diagnostics: VecDeque<Diagnostic>,
     cron_tick_errors: u64,
@@ -3906,6 +3999,9 @@ enum DeltaFanout {
     Delivered,
     /// The commit did not change this subscription's result — nothing to send.
     NoChange,
+    /// The delivery-time authority gate discarded a frame resolved under a
+    /// predecessor authorization version.
+    Discarded,
     /// The delta could not be serialized (reported as a fan-out failure).
     Failed(SnapbackError),
 }
@@ -5639,6 +5735,13 @@ impl LocalSnapback {
             subscription.observation.finish(200, None, "reset");
         }
         self.subscriptions.clear();
+        self.pending_live_fanout = PendingLiveScheduler::default();
+        self.live_evaluation_timeout_streaks.clear();
+        if let Some(coalescer) = &self.live_coalescer {
+            for subscription in &dropped_subscriptions {
+                coalescer.retire_subscription(&subscription.id);
+            }
+        }
         self.refresh_auth_scoped_live_connections();
         // The authenticated issuer names the pre-reset authorization
         // incarnation. Reset terminates those scopes; coordinated server reset
@@ -6228,12 +6331,11 @@ impl LocalSnapback {
                     };
                     if seed_outcome == NetworkSeedOutcome::Seeded {
                         let frame_version = self.db.current_version()?;
-                        self.notify_live_subscriptions_in_frame(
+                        self.dispatch_live_data_fanout(
                             &[],
                             &already_resynced,
                             frame_version,
                             admission,
-                            &BTreeSet::new(),
                         )?;
                     }
                     Ok(())
@@ -8913,13 +9015,14 @@ impl LocalSnapback {
         };
         let read_dependencies = query.read_dependencies.clone();
         match self.deliver_authorization_snapshot(subscription, query, "replace", true, admission) {
-            Ok(()) => {
+            Ok(true) => {
                 if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
                     stored.read_dependencies = read_dependencies;
                 }
                 self.live_delivery.total_deliveries += 1;
                 self.live_delivery.last_deliveries += 1;
             }
+            Ok(false) => {}
             Err(error) => self.fail_subscription_fanout(
                 subscription,
                 "authorization_invalidation_failed",
@@ -14729,10 +14832,9 @@ impl LocalSnapback {
                     // they never touch OCC/projection/search consumers, which
                     // read `commit.changes` upstream of here.
                     //
-                    // The dispatch may defer this frame's data fan-out into
-                    // the coalesced pending frame when fan-out is backlogged
-                    // (LLP 0008 fan-out coalescing); the permission resyncs
-                    // and authorization events above always ran inline.
+                    // Serving commits enqueue this data behind any permission
+                    // or authority work above. An absent scheduler retains the
+                    // legacy inline order.
                     if commit.job_changes.is_empty() {
                         self.dispatch_live_data_fanout(
                             &commit.changes,
@@ -17803,7 +17905,7 @@ impl LocalSnapback {
             episode,
         ) {
             Ok(query) => {
-                self.deliver_authorization_snapshot(
+                let _ = self.deliver_authorization_snapshot(
                     &subscription,
                     query,
                     "manual_retry",
@@ -20603,6 +20705,16 @@ impl LocalSnapback {
         }
     }
 
+    fn authorize_live_delivery(
+        &self,
+        subscription: &LiveSubscription,
+        resolved: &crate::storage::AuthorizationVersion,
+    ) -> bool {
+        self.live_coalescer
+            .as_ref()
+            .is_none_or(|coalescer| coalescer.authorize_delivery(&subscription.id, resolved))
+    }
+
     /// Admit one real commit once, then let every frame it produces clone the
     /// same live-lane carrier. `Some(None)` is intentional: it suppresses the
     /// result-readiness fallback for a commit observed under `normal`.
@@ -21135,9 +21247,8 @@ impl LocalSnapback {
             permission_epochs: BTreeMap::new(),
             live_delivery: LiveDeliveryStats::default(),
             live_coalescer: None,
-            pending_live_fanout: None,
-            live_fanout_recent_cost: Duration::ZERO,
-            live_fanout_last_finished: None,
+            pending_live_fanout: PendingLiveScheduler::default(),
+            live_evaluation_timeout_streaks: BTreeMap::new(),
             live_coalesce_stats: crate::live_coalesce::LiveCoalesceStats::default(),
             recent_diagnostics,
             cron_tick_errors: 0,
@@ -22707,11 +22818,9 @@ impl LocalSnapback {
         self.cron_state_writes
     }
 
-    /// Install the process-wide coalescing gate. The installer owns the
-    /// backstop flusher that answers `request_flush` signals by calling
-    /// [`Self::flush_pending_live_fanout`]; installing a coalescer without
-    /// running that flusher risks a deferred frame waiting for the next
-    /// commit (bounded by the tunables' `max_hold`, but still late).
+    /// Install the process-wide evaluation scheduler. Presence is also the
+    /// compatibility boundary: without it, direct callers and kill-switched
+    /// serving processes retain the legacy inline fan-out path exactly.
     pub fn install_live_fanout_coalescer(
         &mut self,
         coalescer: Arc<crate::live_coalesce::LiveFanoutCoalescer>,
@@ -22723,77 +22832,179 @@ impl LocalSnapback {
         &self.live_coalesce_stats
     }
 
-    /// Whether this commit frame's data fan-out should be merged into the
-    /// pending frame instead of re-evaluating every affected subscription now.
-    ///
-    /// The signal is backlog, measured entirely from within: the previous
-    /// frame's evaluation cost was `live_fanout_recent_cost`, and a commit
-    /// arriving less than one evaluation-cost after that frame finished means
-    /// commits are arriving at least as fast as fan-out can drain (under the
-    /// global writer lock the queued commits literally waited behind that
-    /// evaluation). Cheap frames (below `min_eval_cost`) never defer, so
-    /// per-commit delivery is fully preserved wherever re-evaluation is not
-    /// the bottleneck. Refresh signals (empty `changes`) never defer.
-    ///
-    /// @ref LLP 0008#dated-decision--post-commit-fan-out-coalescing-2026-08-08 —
-    /// deferral is a scheduling decision only; every deferral signals the
-    /// backstop flusher, and the starvation bounds below force an inline
-    /// flush when the pending frame grows too old or too large.
-    fn should_defer_live_fanout(&self, changes: &[ChangedRow]) -> bool {
-        if changes.is_empty() {
-            return false;
-        }
-        let Some(coalescer) = &self.live_coalescer else {
-            return false;
+    fn enqueue_live_data_fanout(
+        &mut self,
+        changes: &[ChangedRow],
+        already_resynced: &BTreeSet<String>,
+        frame_version: u64,
+    ) {
+        let Some(coalescer) = self.live_coalescer.clone() else {
+            return;
         };
-        if self.subscriptions.is_empty() {
-            return false;
+        let subscription_ids = self.subscriptions.keys().cloned().collect::<Vec<_>>();
+        let is_refresh = changes.is_empty();
+        let mut enqueued = false;
+        for subscription_id in subscription_ids {
+            if already_resynced.contains(&subscription_id) {
+                continue;
+            }
+            if self
+                .pending_live_fanout
+                .entries
+                .get(&subscription_id)
+                .is_some_and(|pending| {
+                    matches!(
+                        pending.lane,
+                        PendingLiveLane::Authority | PendingLiveLane::Refresh
+                    )
+                })
+            {
+                continue;
+            }
+            if is_refresh {
+                self.pending_live_fanout.push(
+                    subscription_id,
+                    PendingLiveFanout {
+                        lane: PendingLiveLane::Refresh,
+                        work: PendingLiveWork::Refresh,
+                        changes: Vec::new(),
+                        force_replace: true,
+                        frames: 1,
+                        coverage_through: frame_version,
+                        first_deferred_at: Instant::now(),
+                        generation: 0,
+                    },
+                );
+                enqueued = true;
+                continue;
+            }
+            if let Some(pending) = self.pending_live_fanout.entries.get_mut(&subscription_id) {
+                enqueued = true;
+                debug_assert_eq!(pending.lane, PendingLiveLane::Data);
+                pending.changes.extend_from_slice(changes);
+                pending.frames = pending.frames.saturating_add(1);
+                pending.coverage_through = frame_version;
+                if pending.frames >= coalescer.tunables().max_frames
+                    || pending.changes.len() >= coalescer.tunables().max_changes
+                    || pending.first_deferred_at.elapsed() >= coalescer.tunables().max_hold
+                {
+                    let first_deferred_at = pending.first_deferred_at;
+                    self.pending_live_fanout.push(
+                        subscription_id,
+                        PendingLiveFanout {
+                            lane: PendingLiveLane::Refresh,
+                            work: PendingLiveWork::Refresh,
+                            changes: Vec::new(),
+                            force_replace: true,
+                            frames: 1,
+                            coverage_through: frame_version,
+                            first_deferred_at,
+                            generation: 0,
+                        },
+                    );
+                }
+            } else {
+                self.pending_live_fanout.push(
+                    subscription_id,
+                    PendingLiveFanout {
+                        lane: PendingLiveLane::Data,
+                        work: PendingLiveWork::Data,
+                        changes: changes.to_vec(),
+                        force_replace: false,
+                        frames: 1,
+                        coverage_through: frame_version,
+                        first_deferred_at: Instant::now(),
+                        generation: 0,
+                    },
+                );
+                enqueued = true;
+            }
         }
-        let Some(finished) = self.live_fanout_last_finished else {
-            return false;
-        };
-        let tunables = coalescer.tunables();
-        let window = self.live_fanout_recent_cost.max(tunables.min_window);
-        if window < tunables.min_eval_cost {
-            return false;
+        if !enqueued {
+            return;
         }
-        if finished.elapsed() >= window {
-            return false;
-        }
-        if let Some(pending) = &self.pending_live_fanout
-            && (pending.frames >= tunables.max_frames
-                || pending.changes.len() >= tunables.max_changes
-                || pending.first_deferred_at.elapsed() >= tunables.max_hold)
-        {
-            return false;
-        }
-        true
+        self.live_coalesce_stats.deferred_commits =
+            self.live_coalesce_stats.deferred_commits.saturating_add(1);
+        coalescer.request_flush();
     }
 
-    /// Merge one commit frame's data fan-out into the pending frame and
-    /// signal the backstop flusher. Resynced subscription ids are recorded so
-    /// the flush routes them to the replace lane (their membership snapshot
-    /// is newer than the older merged changes).
-    fn defer_live_data_fanout(&mut self, changes: &[ChangedRow], resynced: &BTreeSet<String>) {
-        let pending = self
+    fn enqueue_permission_resync(
+        &mut self,
+        subscription_id: String,
+        scope: String,
+        epoch: u64,
+        frame_version: u64,
+    ) {
+        let Some(coalescer) = self.live_coalescer.clone() else {
+            return;
+        };
+        if self
             .pending_live_fanout
-            .get_or_insert_with(|| PendingLiveFanout {
-                changes: Vec::new(),
-                force_replace: BTreeSet::new(),
-                frames: 0,
-                first_deferred_at: Instant::now(),
-            });
-        pending.changes.extend_from_slice(changes);
-        pending.force_replace.extend(resynced.iter().cloned());
-        pending.frames += 1;
-        self.live_coalesce_stats.deferred_commits += 1;
-        if let Some(coalescer) = &self.live_coalescer {
-            coalescer.request_flush();
+            .entries
+            .get(&subscription_id)
+            .is_some_and(|pending| pending.lane == PendingLiveLane::Authority)
+        {
+            return;
         }
+        self.pending_live_fanout.push(
+            subscription_id,
+            PendingLiveFanout {
+                lane: PendingLiveLane::Refresh,
+                work: PendingLiveWork::PermissionResync {
+                    scope,
+                    epoch,
+                    frame_version,
+                },
+                changes: Vec::new(),
+                force_replace: true,
+                frames: 1,
+                coverage_through: frame_version,
+                first_deferred_at: Instant::now(),
+                generation: 0,
+            },
+        );
+        coalescer.request_flush();
     }
 
-    /// Either defer this commit frame's data fan-out (backlogged) or run it
-    /// now, merged with any pending deferred frames.
+    fn enqueue_authority_restoration(
+        &mut self,
+        subscription_id: String,
+        min_commit_version: u64,
+        membership_declarations: Vec<String>,
+    ) {
+        let Some(coalescer) = self.live_coalescer.clone() else {
+            return;
+        };
+        let first_deferred_at = self
+            .pending_live_fanout
+            .entries
+            .get(&subscription_id)
+            .map_or_else(Instant::now, |pending| pending.first_deferred_at);
+        self.pending_live_fanout.push(
+            subscription_id,
+            PendingLiveFanout {
+                lane: PendingLiveLane::Authority,
+                work: PendingLiveWork::AuthorityRestore {
+                    min_commit_version,
+                    membership_declarations,
+                },
+                changes: Vec::new(),
+                force_replace: true,
+                frames: 1,
+                coverage_through: min_commit_version,
+                first_deferred_at,
+                generation: 0,
+            },
+        );
+        coalescer.request_flush();
+    }
+
+    /// Complete the commit turn at the enqueue-complete frontier when the
+    /// serving scheduler is installed. Legacy direct/kill-switched callers
+    /// retain the exact inline path below.
+    ///
+    /// @ref LLP 0200#22-fan-out-leaves-the-write-turn — durable visibility and
+    /// change-list enqueue share this one Local critical section.
     fn dispatch_live_data_fanout(
         &mut self,
         changes: &[ChangedRow],
@@ -22801,18 +23012,15 @@ impl LocalSnapback {
         frame_version: u64,
         admission: &AdmissionLease,
     ) -> SnapbackResult<()> {
-        if self.should_defer_live_fanout(changes) {
-            self.defer_live_data_fanout(changes, already_resynced);
+        if self.live_coalescer.is_some() {
+            self.enqueue_live_data_fanout(changes, already_resynced, frame_version);
             return Ok(());
         }
         self.run_live_data_fanout_frame(changes, already_resynced, frame_version, admission)
     }
 
-    /// Run one data fan-out frame at `frame_version`, folding in any pending
-    /// deferred frames. An empty `changes` list is the refresh signal: it
-    /// re-queries and replaces every subscription from current state, which
-    /// strictly supersedes the deferred deltas (the delta lane requires
-    /// non-empty changes), so a pending frame is simply discarded.
+    /// Legacy inline fan-out. Scheduler-backed serving never calls this from a
+    /// commit turn.
     fn run_live_data_fanout_frame(
         &mut self,
         changes: &[ChangedRow],
@@ -22820,73 +23028,331 @@ impl LocalSnapback {
         frame_version: u64,
         admission: &AdmissionLease,
     ) -> SnapbackResult<()> {
-        let mut force_replace = BTreeSet::new();
-        let mut merged: Option<Vec<ChangedRow>> = None;
-        let mut merged_frames = 0u64;
-        if let Some(pending) = self.pending_live_fanout.take() {
-            merged_frames = pending.frames;
-            if !changes.is_empty() {
-                let mut all = pending.changes;
-                all.extend_from_slice(changes);
-                merged = Some(all);
-                force_replace = pending.force_replace;
-            }
-        }
-        let frame_changes: &[ChangedRow] = merged.as_deref().unwrap_or(changes);
-        let started = Instant::now();
-        let result = self.notify_live_subscriptions_in_frame(
-            frame_changes,
+        self.notify_live_subscriptions_in_frame(
+            changes,
             already_resynced,
             frame_version,
             admission,
-            &force_replace,
-        );
-        self.live_fanout_recent_cost = started.elapsed();
-        self.live_fanout_last_finished = Some(Instant::now());
-        if merged_frames > 0 {
-            self.live_coalesce_stats.coalesced_flushes += 1;
-            self.live_coalesce_stats.last_flush_merged_frames =
-                merged_frames + u64::from(!changes.is_empty());
-        }
-        result
+            &BTreeSet::new(),
+            None,
+            None,
+        )
     }
 
-    /// Deliver the pending coalesced frame now (the backstop flusher's entry
-    /// point; also usable by embedders driving their own flush schedule).
-    /// Returns whether a pending frame existed and was delivered.
-    pub fn flush_pending_live_fanout(&mut self) -> bool {
-        let Some(pending) = self.pending_live_fanout.take() else {
+    pub fn next_pending_live_subscription(&mut self) -> Option<String> {
+        self.pending_live_fanout.peek()
+    }
+
+    /// Execute exactly one subscription turn. The serving scheduler releases
+    /// the instance lock after this call, allowing a commit to interleave
+    /// before it selects the next subscription.
+    pub fn run_pending_live_subscription(
+        &mut self,
+        subscription_id: &str,
+        control: Arc<crate::live_coalesce::LiveEvaluationControl>,
+    ) -> bool {
+        // Selection and removal are one priority-preserving Local-locked cut.
+        // The serving loop may have observed this id before a commit inserted
+        // authority work; in that race it yields and reselects instead of
+        // letting stale data jump the authority lane.
+        if self.pending_live_fanout.peek().as_deref() != Some(subscription_id) {
             return false;
-        };
+        }
         let Ok(admission) = self.admission.admit() else {
-            // Shutting down: nobody can receive the frame anymore.
+            // A mode transition can close admission between the scheduler's
+            // outside-lock observation and this turn. Keep the obligation in
+            // place; the transition's enqueue notification re-drives it after
+            // successor admission is published.
             return false;
         };
+        let Some(mut pending) = self.pending_live_fanout.pop(subscription_id) else {
+            return false;
+        };
+        if !self.subscriptions.contains_key(subscription_id) {
+            self.live_evaluation_timeout_streaks.remove(subscription_id);
+            if let Some(coalescer) = &self.live_coalescer {
+                coalescer.retire_subscription(subscription_id);
+            }
+            return true;
+        }
         let frame_version = match self.db.current_version() {
             Ok(version) => version,
             Err(error) => {
                 self.record_attached_diagnostics(vec![error.diagnostic]);
-                return false;
+                return true;
             }
         };
-        self.live_coalesce_stats.backstop_flushes += 1;
-        self.live_coalesce_stats.coalesced_flushes += 1;
-        self.live_coalesce_stats.last_flush_merged_frames = pending.frames;
+
+        if pending.first_deferred_at.elapsed()
+            >= self
+                .live_coalescer
+                .as_ref()
+                .map(|coalescer| coalescer.tunables().max_hold)
+                .unwrap_or(Duration::MAX)
+        {
+            pending.work = PendingLiveWork::Refresh;
+            pending.lane = PendingLiveLane::Refresh;
+            pending.force_replace = true;
+            pending.changes.clear();
+        }
+        if pending.lane == PendingLiveLane::Data {
+            // @ref LLP 0200#22-fan-out-leaves-the-write-turn — sampling the
+            // head and draining this subscription's complete pending list are
+            // one Local-locked cut. A delta stamp can never outrun coverage.
+            assert_eq!(
+                pending.coverage_through, frame_version,
+                "live delta coverage cut did not reach its stamped store version"
+            );
+        }
+
         self.begin_live_commit_egress(Instant::now());
-        self.begin_live_delivery_frame(self.subscriptions.len());
-        let started = Instant::now();
-        let result = self.notify_live_subscriptions_in_frame(
-            &pending.changes,
-            &BTreeSet::new(),
-            frame_version,
-            &admission,
-            &pending.force_replace,
-        );
-        self.live_fanout_recent_cost = started.elapsed();
-        self.live_fanout_last_finished = Some(Instant::now());
+        self.begin_live_delivery_frame(1);
+        let result = match pending.work {
+            PendingLiveWork::AuthorityRestore {
+                min_commit_version,
+                membership_declarations,
+            } => self.run_authority_restoration_turn(
+                subscription_id,
+                min_commit_version,
+                &membership_declarations,
+                &admission,
+                &control,
+            ),
+            PendingLiveWork::PermissionResync {
+                scope,
+                epoch,
+                frame_version,
+            } => self.run_permission_resync_turn(
+                subscription_id,
+                scope,
+                epoch,
+                frame_version,
+                &admission,
+                &control,
+            ),
+            PendingLiveWork::Refresh | PendingLiveWork::Data => {
+                let force_replace = pending
+                    .force_replace
+                    .then(|| BTreeSet::from([subscription_id.to_owned()]))
+                    .unwrap_or_default();
+                self.notify_live_subscriptions_in_frame(
+                    &pending.changes,
+                    &BTreeSet::new(),
+                    frame_version,
+                    &admission,
+                    &force_replace,
+                    Some(subscription_id),
+                    Some(&control),
+                )
+            }
+        };
         self.end_live_commit_egress();
+
+        if control.is_abandoned() {
+            self.handle_live_evaluation_timeout(subscription_id, frame_version, &admission);
+        } else {
+            self.live_evaluation_timeout_streaks.remove(subscription_id);
+        }
         if let Err(error) = result {
             self.record_attached_diagnostics(vec![error.diagnostic]);
+        }
+        self.live_coalesce_stats.coalesced_flushes =
+            self.live_coalesce_stats.coalesced_flushes.saturating_add(1);
+        self.live_coalesce_stats.backstop_flushes =
+            self.live_coalesce_stats.backstop_flushes.saturating_add(1);
+        self.live_coalesce_stats.last_flush_merged_frames = pending.frames;
+        true
+    }
+
+    fn run_permission_resync_turn(
+        &mut self,
+        subscription_id: &str,
+        scope: String,
+        epoch: u64,
+        frame_version: u64,
+        admission: &AdmissionLease,
+        control: &crate::live_coalesce::LiveEvaluationControl,
+    ) -> SnapbackResult<()> {
+        let Some(subscription) = self.subscriptions.get(subscription_id).cloned() else {
+            return Ok(());
+        };
+        if !control.begin_publication() {
+            return Ok(());
+        }
+        let payload = serde_json::to_vec(&LiveEnvelope::ResyncRequired {
+            network_profile: None,
+            reason: "permission_epoch_changed".to_owned(),
+            subscription_id: Some(subscription.id.clone()),
+            scope: Some(scope),
+            epoch: Some(epoch),
+            clear_retained: true,
+        })
+        .map_err(|error| {
+            SnapbackError::error(
+                "SNAPBACK_LIVE_UPDATE_SERIALIZE_FAILED",
+                "realtime",
+                "live resync message could not be serialized",
+            )
+            .with_details(json!({ "error": error.to_string() }))
+        })?;
+        let _publication = admission.effect_guard("permission resync publication")?;
+        let enqueue = self.enqueue_subscription_durable(&subscription, payload);
+        if enqueue.overflowed_now {
+            let _ = self.raise_connection_overflow(&subscription.connection_id, frame_version);
+        }
+        self.live_delivery.total_deliveries += 1;
+        self.live_delivery.last_deliveries += 1;
+        Ok(())
+    }
+
+    fn run_authority_restoration_turn(
+        &mut self,
+        subscription_id: &str,
+        min_commit_version: u64,
+        membership_declarations: &[String],
+        admission: &AdmissionLease,
+        control: &crate::live_coalesce::LiveEvaluationControl,
+    ) -> SnapbackResult<()> {
+        let Some(subscription) = self.subscriptions.get(subscription_id).cloned() else {
+            return Ok(());
+        };
+        let floor = self
+            .auth_invalidation
+            .as_ref()
+            .map(|state| state.witness(min_commit_version))
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                    "auth",
+                    "authority restoration requires invalidation state",
+                )
+            })?;
+        let query = match self.invoke_authorization_resolution(&subscription, floor, admission) {
+            Ok(query) => query,
+            Err(failure) => {
+                if control.begin_publication() {
+                    self.fail_subscription_fanout_with_retry(
+                        &subscription,
+                        "authorization_refresh_failed",
+                        failure.error,
+                        failure.retry_episode_id,
+                        Some(min_commit_version),
+                        admission,
+                    );
+                }
+                return Ok(());
+            }
+        };
+        if !control.begin_publication() {
+            return Ok(());
+        }
+        if self.deliver_authorization_snapshot(
+            &subscription,
+            query,
+            "authorization",
+            false,
+            admission,
+        )? {
+            self.live_delivery.total_deliveries += 1;
+            self.live_delivery.last_deliveries += 1;
+            self.live_delivery
+                .authorization_blast_radius
+                .for_event(membership_declarations, |counters| {
+                    counters.resnapshots += 1
+                });
+        }
+        Ok(())
+    }
+
+    fn handle_live_evaluation_timeout(
+        &mut self,
+        subscription_id: &str,
+        frame_version: u64,
+        admission: &AdmissionLease,
+    ) {
+        let streak = self
+            .live_evaluation_timeout_streaks
+            .entry(subscription_id.to_owned())
+            .or_default();
+        *streak = streak.saturating_add(1);
+        let consecutive = *streak;
+        self.record_attached_diagnostics(vec![
+            Diagnostic::warning(
+                "SNAPBACK_LIVE_EVALUATION_TIMEOUT",
+                "realtime",
+                "live scheduler evaluation turn exceeded max_eval_turn",
+            )
+            .with_details(json!({
+                "subscriptionId": subscription_id,
+                "consecutiveTimeouts": consecutive,
+                "frameVersion": frame_version,
+            })),
+        ]);
+        if consecutive == 1 {
+            if self.subscriptions.contains_key(subscription_id) {
+                self.pending_live_fanout.push(
+                    subscription_id.to_owned(),
+                    PendingLiveFanout {
+                        lane: PendingLiveLane::Refresh,
+                        work: PendingLiveWork::Refresh,
+                        changes: Vec::new(),
+                        force_replace: true,
+                        frames: 1,
+                        coverage_through: frame_version,
+                        first_deferred_at: Instant::now(),
+                        generation: 0,
+                    },
+                );
+                if let Some(coalescer) = &self.live_coalescer {
+                    coalescer.request_flush();
+                }
+            }
+            return;
+        }
+        let Some(subscription) = self.subscriptions.remove(subscription_id) else {
+            return;
+        };
+        if let Ok(_publication) = admission.effect_guard("live timeout teardown publication")
+            && let Ok(payload) = serde_json::to_vec(&LiveEnvelope::ResyncRequired {
+                network_profile: None,
+                reason: "SNAPBACK_LIVE_EVALUATION_TIMEOUT".to_owned(),
+                subscription_id: Some(subscription.id.clone()),
+                scope: Some(String::new()),
+                epoch: Some(0),
+                clear_retained: true,
+            })
+        {
+            self.enqueue_subscription_durable(&subscription, payload);
+        }
+        subscription.observation.finish(
+            500,
+            Some("SNAPBACK_LIVE_EVALUATION_TIMEOUT"),
+            "evaluation_timeout",
+        );
+        if let Some(coalescer) = &self.live_coalescer {
+            coalescer.retire_subscription(subscription_id);
+        }
+        self.pending_live_fanout.entries.remove(subscription_id);
+        self.live_evaluation_timeout_streaks.remove(subscription_id);
+        self.refresh_auth_scoped_live_connections();
+        self.refresh_cron_active();
+    }
+
+    /// Synchronous embedder/test drain. Serving uses one turn per lock
+    /// acquisition through `spawn_live_fanout_backstop`.
+    pub fn flush_pending_live_fanout(&mut self) -> bool {
+        let mut flushed = false;
+        while let Some(subscription_id) = self.next_pending_live_subscription() {
+            if !self.run_pending_live_subscription(
+                &subscription_id,
+                Arc::new(crate::live_coalesce::LiveEvaluationControl::default()),
+            ) {
+                break;
+            }
+            flushed = true;
+        }
+        if !flushed {
+            return false;
         }
         true
     }
@@ -22903,11 +23369,6 @@ impl LocalSnapback {
         if changes.is_empty() && self.subscriptions.is_empty() {
             return;
         }
-        if self.should_defer_live_fanout(changes) {
-            self.defer_live_data_fanout(changes, &BTreeSet::new());
-            return;
-        }
-
         let Ok(admission) = self.admission.admit() else {
             return;
         };
@@ -22926,7 +23387,7 @@ impl LocalSnapback {
         self.begin_live_commit_egress(Instant::now());
         self.begin_live_delivery_frame(self.subscriptions.len());
         let result =
-            self.run_live_data_fanout_frame(changes, &BTreeSet::new(), frame_version, &admission);
+            self.dispatch_live_data_fanout(changes, &BTreeSet::new(), frame_version, &admission);
         self.end_live_commit_egress();
         if let Err(error) = result {
             self.record_attached_diagnostics(vec![error.diagnostic]);
@@ -23169,7 +23630,7 @@ impl LocalSnapback {
         cause_label: &str,
         raise_cause: bool,
         admission: &AdmissionLease,
-    ) -> SnapbackResult<()> {
+    ) -> SnapbackResult<bool> {
         let _publication = admission.effect_guard("authorization snapshot publication")?;
         let authorization = subscription.authorization.as_ref().ok_or_else(|| {
             SnapbackError::error(
@@ -23186,6 +23647,23 @@ impl LocalSnapback {
             rows: query.output.rows,
         };
         let snapshot_identity = authorization_resolution_snapshot_identity(&snapshot)?;
+        let proof = self
+            .auth_invalidation
+            .as_ref()
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                    "auth",
+                    "authorization invalidation is not installed",
+                )
+            })?
+            .witness(snapshot_version);
+        // @ref LLP 0200#24-the-authorization-lane-splits-in-two--by-declared-classification —
+        // every auth-scoped content frame is checked at its final publication
+        // boundary against the latest monotone server-side fence.
+        if !self.authorize_live_delivery(subscription, &proof.authorization) {
+            return Ok(false);
+        }
         let (projection, proof) = {
             let state = self.auth_invalidation.as_mut().ok_or_else(|| {
                 SnapbackError::error(
@@ -23194,7 +23672,6 @@ impl LocalSnapback {
                     "authorization invalidation is not installed",
                 )
             })?;
-            let witness = state.witness(snapshot_version);
             if raise_cause {
                 let cause = state.reserve_cause_sequence()?;
                 state.obligations.raise(
@@ -23202,14 +23679,14 @@ impl LocalSnapback {
                     cause,
                     format!("{cause_label}:{cause}"),
                     InvalidationDisposition::Quarantine,
-                    witness.clone(),
+                    proof.clone(),
                     None,
                 )?;
             }
             state.obligations.issue_resolution(
                 &authorization.scope_id,
                 ResolutionKind::Snapshot,
-                witness.clone(),
+                proof.clone(),
                 &snapshot_identity,
             )?;
             (
@@ -23217,7 +23694,7 @@ impl LocalSnapback {
                     .obligations
                     .projection(&authorization.scope_id)
                     .expect("a just-raised obligation has a projection"),
-                witness,
+                proof,
             )
         };
         // The durable episode closes only after its proof has transferred to
@@ -23247,7 +23724,7 @@ impl LocalSnapback {
         if enqueue.overflowed_now {
             self.raise_connection_overflow(&subscription.connection_id, snapshot_version)?;
         }
-        Ok(())
+        Ok(true)
     }
 
     fn raise_connection_overflow(
@@ -23710,6 +24187,16 @@ impl LocalSnapback {
         if subscriptions.is_empty() {
             return Ok(BTreeSet::new());
         }
+        let scheduled_coalescer = self.live_coalescer.clone();
+        if let Some(coalescer) = &scheduled_coalescer {
+            // @ref LLP 0200#24-the-authorization-lane-splits-in-two--by-declared-classification —
+            // fence every affected subscription before any fallible obligation
+            // bookkeeping; projection failure may leave it quarantined but can
+            // never leave predecessor-authority delivery enabled.
+            for subscription in &subscriptions {
+                coalescer.fence_authority(&subscription.id, authorization.version.clone());
+            }
+        }
 
         let mut preprojected = Vec::with_capacity(subscriptions.len());
         for subscription in &subscriptions {
@@ -23753,10 +24240,29 @@ impl LocalSnapback {
                 counters.quarantined_subscriptions += preprojected.len() as u64;
             },
         );
-        let handled = preprojected
+        let mut handled = preprojected
             .iter()
             .map(|(subscription, _)| subscription.id.clone())
             .collect::<BTreeSet<_>>();
+        if scheduled_coalescer.is_some() {
+            // The commit turn performs only registry/obligation bookkeeping
+            // and authority-lane enqueue; re-resolution/VM work is off-turn.
+            // Activation still fails closed on preprojection errors above,
+            // before its caller can reopen successor admission.
+            handled.extend(
+                subscriptions
+                    .iter()
+                    .map(|subscription| subscription.id.clone()),
+            );
+            for subscription in &subscriptions {
+                self.enqueue_authority_restoration(
+                    subscription.id.clone(),
+                    min_commit_version,
+                    authorization.membership_declarations.clone(),
+                );
+            }
+            return Ok(handled);
+        }
         for (subscription, projection) in preprojected {
             if let Ok(payload) = serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
                 projection.obligation,
@@ -23802,7 +24308,7 @@ impl LocalSnapback {
                     false,
                     admission,
                 ) {
-                    Ok(()) => {
+                    Ok(true) => {
                         self.live_delivery.total_deliveries += 1;
                         self.live_delivery.last_deliveries += 1;
                         self.live_delivery.authorization_blast_radius.for_event(
@@ -23812,6 +24318,7 @@ impl LocalSnapback {
                             },
                         );
                     }
+                    Ok(false) => {}
                     Err(error) => self.fail_subscription_fanout(
                         &subscription,
                         "authorization_invalidation_failed",
@@ -23967,6 +24474,8 @@ impl LocalSnapback {
         // always an honest superset.
         // @ref LLP 0008#dated-decision--post-commit-fan-out-coalescing-2026-08-08.
         force_replace: &BTreeSet<String>,
+        only_subscription: Option<&str>,
+        turn_control: Option<&crate::live_coalesce::LiveEvaluationControl>,
     ) -> SnapbackResult<()> {
         // Cheap affected prefilter over borrowed subscriptions: only the
         // survivors are cloned for the mutable delivery loop below (ENG-23334
@@ -24003,6 +24512,9 @@ impl LocalSnapback {
         // and app tables whose commit frames differ.)
         let mut asset_record_subscriptions: Vec<LiveSubscription> = Vec::new();
         for subscription in self.subscriptions.values() {
+            if only_subscription.is_some_and(|only| subscription.id != only) {
+                continue;
+            }
             if already_resynced.contains(&subscription.id) {
                 continue;
             }
@@ -24086,6 +24598,9 @@ impl LocalSnapback {
             if let Err(error) =
                 self.prepare_live_rerun_authority(&subscription.authority, admission.clone())
             {
+                if turn_control.is_some_and(|control| !control.begin_publication()) {
+                    continue;
+                }
                 self.fail_subscription_fanout(
                     &subscription,
                     "live_authority_ended",
@@ -24103,6 +24618,7 @@ impl LocalSnapback {
                     frame_version,
                     admission,
                     &mut resume_mint_cache,
+                    turn_control,
                 ) {
                     Ok(delta) => delta,
                     Err(error) => {
@@ -24127,6 +24643,7 @@ impl LocalSnapback {
                         self.live_delivery.last_skipped += 1;
                         continue;
                     }
+                    Some(DeltaFanout::Discarded) => continue,
                     Some(DeltaFanout::Failed(error)) => {
                         self.fail_subscription_fanout(
                             &subscription,
@@ -24150,6 +24667,9 @@ impl LocalSnapback {
                 match self.invoke_authorization_resolution(&subscription, floor, admission) {
                     Ok(query) => query,
                     Err(failure) => {
+                        if turn_control.is_some_and(|control| !control.begin_publication()) {
+                            continue;
+                        }
                         self.fail_subscription_fanout_with_retry(
                             &subscription,
                             "live_refresh_failed",
@@ -24174,6 +24694,9 @@ impl LocalSnapback {
                     }) {
                     Ok(query) => query,
                     Err(error) => {
+                        if turn_control.is_some_and(|control| !control.begin_publication()) {
+                            continue;
+                        }
                         self.fail_subscription_fanout(
                             &subscription,
                             "live_refresh_failed",
@@ -24185,6 +24708,9 @@ impl LocalSnapback {
                     }
                 }
             };
+            if turn_control.is_some_and(|control| !control.begin_publication()) {
+                continue;
+            }
             if subscription.authorization.is_some() {
                 match self.deliver_authorization_snapshot(
                     &subscription,
@@ -24193,10 +24719,11 @@ impl LocalSnapback {
                     true,
                     admission,
                 ) {
-                    Ok(()) => {
+                    Ok(true) => {
                         self.live_delivery.total_deliveries += 1;
                         self.live_delivery.last_deliveries += 1;
                     }
+                    Ok(false) => {}
                     Err(error) => self.fail_subscription_fanout(
                         &subscription,
                         "authorization_invalidation_failed",
@@ -24300,6 +24827,9 @@ impl LocalSnapback {
             self.live_delivery.last_deliveries += 1;
         }
         for subscription in asset_record_subscriptions {
+            if turn_control.is_some_and(|control| !control.begin_publication()) {
+                continue;
+            }
             if subscription.authorization.is_some() {
                 // Sessions-mode (auth-scoped) reserved subscriptions never
                 // receive a plain unwitnessed replace: recompute natively for
@@ -24371,6 +24901,7 @@ impl LocalSnapback {
         frame_version: u64,
         admission: &AdmissionLease,
         resume_mint_cache: &mut HashMap<(String, String, u64, String), Option<ResumeWire>>,
+        turn_control: Option<&crate::live_coalesce::LiveEvaluationControl>,
     ) -> SnapbackResult<Option<DeltaFanout>> {
         // The subscription must carry a captured Query dependency (its current
         // result membership); a subscription established before this change, or
@@ -24415,6 +24946,24 @@ impl LocalSnapback {
                 .any(|operation| operation.kind == LiveDeltaKind::Remove)
         {
             return Ok(None);
+        }
+        if turn_control.is_some_and(|control| !control.begin_publication()) {
+            return Ok(Some(DeltaFanout::NoChange));
+        }
+        let resolved_authorization = subscription.authorization.as_ref().map(|_| {
+            self.auth_invalidation
+                .as_ref()
+                .expect("auth-scoped live delta requires installed invalidation state")
+                .obligations
+                .expectation()
+                .authorization
+                .clone()
+        });
+        if resolved_authorization
+            .as_ref()
+            .is_some_and(|resolved| !self.authorize_live_delivery(subscription, resolved))
+        {
+            return Ok(Some(DeltaFanout::Discarded));
         }
 
         let wire_ops: Vec<LiveDeltaWireOp> = ops
@@ -24524,15 +25073,11 @@ impl LocalSnapback {
                 state.digest = digest;
             }
             if subscription.authorization.is_some() {
-                let authorization = self
-                    .auth_invalidation
-                    .as_ref()
-                    .expect("auth-scoped live delta requires installed invalidation state")
-                    .obligations
-                    .expectation()
-                    .authorization
-                    .clone();
-                self.enqueue_subscription_authorized_durable(subscription, payload, authorization)
+                self.enqueue_subscription_authorized_durable(
+                    subscription,
+                    payload,
+                    resolved_authorization.expect("auth-scoped delta sampled authorization"),
+                )
             } else {
                 self.enqueue_subscription_durable(subscription, payload)
             }
@@ -24810,6 +25355,14 @@ impl LocalSnapback {
                 continue;
             };
             stale.push((subscription.clone(), scope.clone(), *epoch));
+        }
+
+        if self.live_coalescer.is_some() {
+            for (subscription, scope, epoch) in stale {
+                resynced.insert(subscription.id.clone());
+                self.enqueue_permission_resync(subscription.id, scope, epoch, frame_version);
+            }
+            return Ok(resynced);
         }
 
         for (subscription, scope, epoch) in stale {
@@ -53182,6 +53735,116 @@ globalThis.__snapbackHandlers = {
         assert_eq!(blast_radius.global.quarantined_subscriptions, 1);
         assert_eq!(blast_radius.global.resnapshots, 1);
         assert!(blast_radius.membership_declarations.is_empty());
+    }
+
+    #[test]
+    fn scheduler_authority_fence_discards_pretransition_proof_then_restores() {
+        let (mut schema, mut functions) = sessions_activation_pair('b', false);
+        schema.tables[0].permission_backing = true;
+        functions.functions.push(FunctionDefinition::new(
+            "insertItem",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "items".to_owned(),
+                    values: BTreeMap::from([(
+                        "value".to_owned(),
+                        ValueExpr::Arg("value".to_owned()),
+                    )]),
+                    bind_id_as: None,
+                }],
+                return_value: Some(ReturnValue::ChangedCount),
+            })),
+        ));
+        let mut snapback = settled_sessions_activation_snapback(schema, functions);
+        let connection = install_test_invalidation(&mut snapback);
+        let subscribed = snapback
+            .subscribe_live_with_invalidation(
+                "listItems",
+                LiveSubscribeInput {
+                    connection_id: "session-scheduler-fence".to_owned(),
+                    input: HandlerInput::default(),
+                    authorization_namespace: Some(test_authorization_namespace(21)),
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+                LiveInvalidationAdmission {
+                    session_mode: true,
+                    connection: Some(connection),
+                    effect_fence: None,
+                },
+            )
+            .expect("auth-scoped subscription");
+        let pretransition = snapback
+            .auth_invalidation_expectation_for_test()
+            .expect("pre-transition authorization proof");
+        let coalescer = Arc::new(crate::live_coalesce::LiveFanoutCoalescer::new());
+        snapback.install_live_fanout_coalescer(coalescer.clone());
+
+        // Model an evaluation that already captured its authorization proof,
+        // then let the real permissionBacking commit cross the scheduler
+        // fence before that frame reaches delivery.
+        invoke_test_session_mutation(
+            &mut snapback,
+            "insertItem",
+            HandlerInput {
+                args: json!({ "value": "post-transition" }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("permission-backing authority transition");
+        assert!(
+            coalescer.authority_is_stale(&subscribed.subscription_id),
+            "the commit-time fence is visible before restoration evaluation"
+        );
+        assert!(
+            !coalescer.authorize_delivery(&subscribed.subscription_id, &pretransition),
+            "a frame resolved before the authority transition is discarded"
+        );
+        assert!(
+            snapback
+                .drain_live_stream("session-scheduler-fence")
+                .is_empty(),
+            "the authority commit performs no inline evaluation or publication"
+        );
+
+        assert_eq!(
+            snapback.next_pending_live_subscription().as_deref(),
+            Some(subscribed.subscription_id.as_str())
+        );
+        snapback
+            .admission
+            .admit()
+            .expect("scheduler can admit a Sessions evaluation turn");
+        assert!(snapback.flush_pending_live_fanout());
+        let frames = drain_live_stream_through_test_sink(&mut snapback, "session-scheduler-fence");
+        let restored = frames
+            .iter()
+            .filter_map(|frame| serde_json::from_str::<Value>(frame).ok())
+            .find(|frame| {
+                frame["kind"] == "authorization_invalidation" && frame.get("snapshot").is_some()
+            })
+            .unwrap_or_else(|| {
+                panic!(
+                    "post-transition authority restoration: frames={frames:?}, diagnostics={:?}",
+                    snapback.recent_diagnostics,
+                )
+            });
+        assert_eq!(
+            restored["obligation"]["witness"]["authorization"]["epoch"],
+            pretransition.epoch + 1
+        );
+        let restored_rows = restored["snapshot"]["rows"].as_array().unwrap();
+        assert_eq!(restored_rows.len(), 2);
+        assert!(
+            restored_rows
+                .iter()
+                .any(|row| row["value"] == "post-transition")
+        );
+        assert!(
+            !coalescer.authority_is_stale(&subscribed.subscription_id),
+            "an exact post-transition proof restores the server-side fence"
+        );
     }
 
     #[test]

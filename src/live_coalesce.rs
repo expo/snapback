@@ -14,6 +14,10 @@
 //! @ref LLP 0008#dated-decision--post-commit-fan-out-coalescing-2026-08-08 —
 //! the deferral rule, the flush guarantees, and the starvation bounds.
 
+use crate::storage::AuthorizationVersion;
+use std::collections::BTreeMap;
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::time::Duration;
 
 use tokio::sync::Notify;
@@ -22,22 +26,24 @@ use tokio::sync::Notify;
 /// tests construct explicit tunables for deterministic scheduling.
 #[derive(Clone, Debug)]
 pub struct LiveCoalesceTunables {
-    /// Frames cheaper than this never defer: per-commit delivery is preserved
-    /// for every workload where re-evaluation is not the bottleneck (all
-    /// small stores, and the delta fast path).
+    /// Retained compatibility knob from the predecessor coalescer. The
+    /// evaluation scheduler is unconditionally off-turn and does not consult
+    /// its old cost heuristic.
     pub min_eval_cost: Duration,
-    /// Floor on the backlog window (the window is otherwise the measured cost
-    /// of the previous fan-out frame). Zero in production — a nonzero floor
-    /// makes deferral deterministic for tests.
+    /// Retained compatibility knob from the predecessor backlog window. It is
+    /// inert once this value installs the evaluation scheduler.
     pub min_window: Duration,
-    /// Starvation bound: a pending frame that has absorbed this many commit
-    /// frames is flushed inline by the next commit instead of deferring again.
+    /// A pending delta absorbing this many commits collapses to one refresh
+    /// obligation; it never re-enters a commit turn for inline evaluation.
     pub max_frames: u64,
-    /// Starvation/memory bound on the merged `ChangedRow` list.
+    /// Memory bound on the merged `ChangedRow` list before refresh collapse.
     pub max_changes: usize,
-    /// Absolute age bound on a pending frame. The backstop task normally
-    /// flushes far sooner; this keeps liveness even if it cannot run.
+    /// Absolute age bound before a pending delta collapses to refresh.
     pub max_hold: Duration,
+    /// Hard wall-clock bound for one subscription evaluation turn. The
+    /// scheduler abandons a timed-out waiter and converts the subscription to
+    /// one refresh retry; a second consecutive timeout tears it down.
+    pub max_eval_turn: Duration,
 }
 
 impl Default for LiveCoalesceTunables {
@@ -48,22 +54,71 @@ impl Default for LiveCoalesceTunables {
             max_frames: 4096,
             max_changes: 25_000,
             max_hold: Duration::from_secs(5),
+            max_eval_turn: Duration::from_secs(30),
         }
     }
+}
+
+const TURN_RUNNING: u8 = 0;
+const TURN_ABANDONED: u8 = 1;
+const TURN_PUBLISHING: u8 = 2;
+
+/// Cross-thread handshake between the scheduler waiter and one blocking
+/// evaluation turn. A timeout can abandon computation until publication
+/// begins; once publication wins the CAS, the scheduler waits for that narrow
+/// terminal section instead of reporting a timeout after bytes became visible.
+#[derive(Debug, Default)]
+pub struct LiveEvaluationControl {
+    state: AtomicU8,
+}
+
+impl LiveEvaluationControl {
+    pub fn abandon(&self) -> bool {
+        self.state
+            .compare_exchange(
+                TURN_RUNNING,
+                TURN_ABANDONED,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            )
+            .is_ok()
+    }
+
+    pub fn begin_publication(&self) -> bool {
+        self.state
+            .compare_exchange(
+                TURN_RUNNING,
+                TURN_PUBLISHING,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            )
+            .is_ok()
+            || self.state.load(Ordering::Acquire) == TURN_PUBLISHING
+    }
+
+    pub fn is_abandoned(&self) -> bool {
+        self.state.load(Ordering::Acquire) == TURN_ABANDONED
+    }
+}
+
+#[derive(Clone, Debug)]
+struct AuthorityFence {
+    version: AuthorizationVersion,
+    stale: bool,
 }
 
 /// Installed by the serving process (which also owns the backstop flusher
 /// task) into `LocalSnapback`. When absent — unit tests, CLI one-shots,
 /// embedders that opt out — every commit fans out inline exactly as before.
 ///
-/// Correctness never depends on the deferral heuristics: any deferral
-/// requests a backstop flush, and the flush requests are sticky (a permit is
-/// stored when no flusher is waiting), so a deferred frame is always
-/// delivered even when no further commit arrives.
+/// Every enqueue requests the scheduler, and requests are sticky (a permit is
+/// stored when no scheduler is waiting), so pending work is observed even
+/// when no further commit arrives.
 #[derive(Debug, Default)]
 pub struct LiveFanoutCoalescer {
     tunables: LiveCoalesceTunables,
     flush_requested: Notify,
+    authority_fences: Mutex<BTreeMap<String, AuthorityFence>>,
 }
 
 impl LiveFanoutCoalescer {
@@ -75,6 +130,7 @@ impl LiveFanoutCoalescer {
         Self {
             tunables,
             flush_requested: Notify::new(),
+            authority_fences: Mutex::new(BTreeMap::new()),
         }
     }
 
@@ -82,16 +138,87 @@ impl LiveFanoutCoalescer {
         &self.tunables
     }
 
-    /// Record that a commit frame was deferred and the backstop flusher (if
-    /// one is waiting or will wait) must flush. `notify_one` stores a permit,
-    /// so a request made while the flusher is mid-flush is never lost.
+    /// Wake the scheduler. `notify_one` stores a permit, so a request made
+    /// while it is evaluating a subscription is never lost.
     pub fn request_flush(&self) {
         self.flush_requested.notify_one();
     }
 
-    /// Await the next flush request (backstop task's wait point).
+    /// Await the next scheduler request.
     pub async fn flush_requested(&self) {
         self.flush_requested.notified().await;
+    }
+
+    /// Apply the server-side fail-closed fence without entering evaluation or
+    /// VM work. Commit order is already serialized; the same-incarnation epoch
+    /// guard makes repeated/late markings idempotent and monotone.
+    ///
+    /// @ref LLP 0200#24-the-authorization-lane-splits-in-two--by-declared-classification —
+    /// authority transitions fence registry state before restoration runs.
+    pub fn fence_authority(&self, subscription_id: &str, version: AuthorizationVersion) {
+        let mut fences = self
+            .authority_fences
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        match fences.get_mut(subscription_id) {
+            Some(current)
+                if current.version.incarnation == version.incarnation
+                    && current.version.epoch > version.epoch => {}
+            Some(current) => {
+                current.version = version;
+                current.stale = true;
+            }
+            None => {
+                fences.insert(
+                    subscription_id.to_owned(),
+                    AuthorityFence {
+                        version,
+                        stale: true,
+                    },
+                );
+            }
+        }
+    }
+
+    /// Delivery-time authority gate. Exact equality is intentional: a frame
+    /// resolved under either a predecessor epoch or predecessor incarnation is
+    /// stale. A current proof simultaneously restores the server-side fence.
+    ///
+    /// @ref LLP 0200#24-the-authorization-lane-splits-in-two--by-declared-classification —
+    /// an in-flight pre-transition frame is discarded after a newer fence.
+    pub fn authorize_delivery(
+        &self,
+        subscription_id: &str,
+        resolved: &AuthorizationVersion,
+    ) -> bool {
+        let mut fences = self
+            .authority_fences
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let Some(fence) = fences.get_mut(subscription_id) else {
+            return true;
+        };
+        if &fence.version != resolved {
+            return false;
+        }
+        fence.stale = false;
+        true
+    }
+
+    pub fn retire_subscription(&self, subscription_id: &str) {
+        self.authority_fences
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .remove(subscription_id);
+    }
+
+    #[doc(hidden)]
+    pub fn authority_is_stale(&self, subscription_id: &str) -> bool {
+        self.authority_fences
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .get(subscription_id)
+            .is_some_and(|fence| fence.stale)
     }
 }
 

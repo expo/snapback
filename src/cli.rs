@@ -8288,23 +8288,42 @@ async fn run_composed(
                     ),
             )
         });
-    // Post-commit fan-out coalescing engages only in a serving process that
-    // also runs this backstop flusher (they install together; LLP 0008
-    // fan-out coalescing). The env switch preserves strict per-commit
-    // inline fan-out for A/B measurement.
-    let live_fanout_backstop = ((auth_mode_state.app_data_availability
+    // The evaluation scheduler subsumes the old coalescing backstop. Either
+    // compatibility switch leaves the scheduler absent, which is the exact
+    // legacy-inline boundary used by direct callers and A/B runs.
+    let live_scheduler_enabled = (auth_mode_state.app_data_availability
         == crate::auth::mode::AppDataAvailability::Available)
         && !server::live_coalesce_disabled(
             std::env::var("SNAPBACK_LIVE_COALESCE_DISABLED")
                 .ok()
                 .as_deref(),
-        ))
-    .then(|| {
-        server::spawn_live_fanout_backstop(
-            state.clone(),
-            std::sync::Arc::new(crate::live_coalesce::LiveFanoutCoalescer::new()),
         )
-    });
+        && !server::live_scheduler_disabled(
+            std::env::var("SNAPBACK_LIVE_SCHEDULER_DISABLED")
+                .ok()
+                .as_deref(),
+        );
+    let live_fanout_backstop = if live_scheduler_enabled {
+        let tunables = crate::live_coalesce::LiveCoalesceTunables {
+            max_eval_turn: server::live_max_eval_turn(
+                std::env::var("SNAPBACK_LIVE_MAX_EVAL_TURN_MS")
+                    .ok()
+                    .as_deref(),
+            ),
+            ..crate::live_coalesce::LiveCoalesceTunables::default()
+        };
+        let coalescer = std::sync::Arc::new(
+            crate::live_coalesce::LiveFanoutCoalescer::with_tunables(tunables),
+        );
+        let installed = coalescer.clone();
+        server::with_snapback(&state, move |snapback| {
+            snapback.install_live_fanout_coalescer(installed);
+        })
+        .await;
+        Some(server::spawn_live_fanout_backstop(state.clone(), coalescer))
+    } else {
+        None
+    };
     let maintenance_worker = server::spawn_maintenance_worker(app_state);
     let auth_maintenance_worker = crate::auth::runtime::spawn_auth_gc_worker(
         state.clone(),

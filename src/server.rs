@@ -344,7 +344,21 @@ where
     T: Send + 'static,
     U: Send + 'static,
 {
-    let mut guard = lock_managed_snapback(state).await;
+    let guard = lock_managed_snapback(state).await;
+    with_locked_snapback_then(guard, work, after).await
+}
+
+async fn with_locked_snapback_then<T, U, F, A>(
+    mut guard: tokio::sync::OwnedMutexGuard<LocalSnapback>,
+    work: F,
+    after: A,
+) -> U
+where
+    F: FnOnce(&mut LocalSnapback) -> T + Send + 'static,
+    A: FnOnce(T) -> U + Send + 'static,
+    T: Send + 'static,
+    U: Send + 'static,
+{
     tokio::task::spawn_blocking(move || {
         let _sanction = crate::exec_guard::BlockingSanction::acquire();
         let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
@@ -17184,26 +17198,27 @@ pub fn live_coalesce_disabled(value: Option<&str>) -> bool {
     matches!(value, Some("1") | Some("true"))
 }
 
-/// How long the backstop waits after a flush request before taking the
-/// global lock. The wait lets a commit burst keep merging into the pending
-/// frame; the lock acquisition then queues FIFO behind already-waiting
-/// writers, so by the time the flush runs it delivers the whole drain in one
-/// re-evaluation per subscription.
-const LIVE_FANOUT_BACKSTOP_DELAY: Duration = Duration::from_millis(10);
+/// `SNAPBACK_LIVE_SCHEDULER_DISABLED=1` restores the legacy inline fan-out
+/// path. The coalescing switch remains an independent compatibility control;
+/// either switch prevents scheduler installation.
+pub fn live_scheduler_disabled(value: Option<&str>) -> bool {
+    matches!(value, Some("1") | Some("true"))
+}
 
-/// Install the live fan-out coalescer and run its backstop flusher.
+pub fn live_max_eval_turn(value: Option<&str>) -> Duration {
+    value
+        .and_then(|value| value.parse::<u64>().ok())
+        .filter(|milliseconds| *milliseconds > 0)
+        .map(Duration::from_millis)
+        .unwrap_or(Duration::from_secs(30))
+}
+
+/// Install the evaluation scheduler (which subsumes the old backstop). Each
+/// loop iteration acquires Local for exactly one subscription, then releases
+/// it so queued commits can settle before the next subscription turn.
 ///
-/// Deferral inside `LocalSnapback` is only a scheduling decision; this task
-/// is the delivery guarantee. Every deferral signals `request_flush` (sticky
-/// — a permit is stored if this task is mid-flush), so a deferred frame is
-/// flushed within roughly `LIVE_FANOUT_BACKSTOP_DELAY` plus one lock queue
-/// even if no further commit ever arrives. Under a sustained write stream
-/// the fair FIFO lock gives this task a turn each drain cycle, which is the
-/// no-starvation bound: deliveries happen at least once per evaluation-cost
-/// interval.
-///
-/// @ref LLP 0008#dated-decision--post-commit-fan-out-coalescing-2026-08-08 —
-/// coalescer and backstop install together or not at all.
+/// @ref LLP 0200#22-fan-out-leaves-the-write-turn — one subscription per
+/// lock turn is the settlement-isolation boundary.
 pub fn spawn_live_fanout_backstop(
     state: SharedSnapback,
     coalescer: Arc<crate::live_coalesce::LiveFanoutCoalescer>,
@@ -17215,11 +17230,71 @@ pub fn spawn_live_fanout_backstop(
             .install_live_fanout_coalescer(coalescer.clone());
         loop {
             coalescer.flush_requested().await;
-            tokio::time::sleep(LIVE_FANOUT_BACKSTOP_DELAY).await;
-            with_snapback(&state, |snapback| {
-                snapback.flush_pending_live_fanout();
-            })
-            .await;
+            loop {
+                // Lock queueing is not evaluation time. Acquire first, then
+                // select and run the turn under this exact guard so the
+                // max_eval_turn clock covers only the lock-held evaluator.
+                let mut guard = lock_managed_snapback(&state).await;
+                let next = guard.next_pending_live_subscription();
+                let Some(subscription_id) = next else {
+                    drop(guard);
+                    break;
+                };
+                let control = Arc::new(crate::live_coalesce::LiveEvaluationControl::default());
+                let turn_control = control.clone();
+                let turn_subscription_id = subscription_id.clone();
+                let mut turn = tokio::spawn(async move {
+                    with_locked_snapback_then(
+                        guard,
+                        move |snapback| {
+                            snapback
+                                .run_pending_live_subscription(&turn_subscription_id, turn_control)
+                        },
+                        |output| output,
+                    )
+                    .await
+                });
+                match tokio::time::timeout(coalescer.tunables().max_eval_turn, &mut turn).await {
+                    Ok(Ok(true)) => {}
+                    Ok(Ok(false)) => break,
+                    Ok(Err(error)) => {
+                        eprintln!(
+                            "{}",
+                            json!({
+                                "kind": "live_scheduler_health",
+                                "code": "SNAPBACK_LIVE_EVALUATION_TASK_FAILED",
+                                "subscriptionId": subscription_id,
+                                "error": error.to_string(),
+                            })
+                        );
+                    }
+                    Err(_) if control.abandon() => {
+                        eprintln!(
+                            "{}",
+                            json!({
+                                "kind": "live_scheduler_health",
+                                "code": "SNAPBACK_LIVE_EVALUATION_TIMEOUT",
+                                "subscriptionId": subscription_id,
+                                "maxEvalTurnMs": coalescer.tunables().max_eval_turn.as_millis(),
+                            })
+                        );
+                        // Dropping the JoinHandle abandons only this waiter;
+                        // the blocking turn observes the control flag before
+                        // publication and schedules the one permitted retry.
+                    }
+                    Err(_) => {
+                        // Publication already started at the timeout edge. It
+                        // is safer to await that narrow terminal section than
+                        // to report a timeout after bytes became visible.
+                        let _ = turn.await;
+                    }
+                }
+                // Make the lock release between turns observable to ready
+                // request tasks before this scheduler queues for another
+                // subscription. Mutex FIFO then gives an already-ready commit
+                // the enqueue-complete turn promised by the scheduling model.
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
         }
     })
 }
@@ -40886,6 +40961,22 @@ globalThis.__snapbackHandlers = {
         (
             "SNAPBACK_LIVE_COALESCE_DISABLED",
             "environment variable restoring strict per-commit live fan-out (no coalescing) for A/B measurement (LLP 0008 fan-out coalescing)",
+        ),
+        (
+            "SNAPBACK_LIVE_SCHEDULER_DISABLED",
+            "environment variable restoring legacy inline live fan-out for settlement-isolation A/B measurement (LLP 0200 Phase 1)",
+        ),
+        (
+            "SNAPBACK_LIVE_MAX_EVAL_TURN_MS",
+            "positive millisecond bound for one scheduled live subscription evaluation turn (default 30000; LLP 0200 Phase 1)",
+        ),
+        (
+            "SNAPBACK_LIVE_EVALUATION_TASK_FAILED",
+            "scheduler-health structured-log code; it is never emitted in an HTTP response",
+        ),
+        (
+            "SNAPBACK_LIVE_EVALUATION_TIMEOUT",
+            "scheduler-health structured-log and live resync reason; it is never emitted as an HTTP diagnostic",
         ),
         (
             "SNAPBACK_JOB_ATTEMPTS_EXHAUSTED",
