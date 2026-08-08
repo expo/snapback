@@ -43,3 +43,6 @@ than scanning all of `sqlite_master`.
 
 High on mechanics (grammar and sweep both verified directly); medium on
 real-world frequency of such user table names.
+
+## Resolution (2026-08-08)
+Fixed on main (Lane A). Verified: cargo build; migration_executor suite 29 pass; projection activation 3 pass; new regression tests pass; ref-check clean.

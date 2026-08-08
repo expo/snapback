@@ -58,3 +58,6 @@ PRAGMAs; exact-shape validation fails closed) — consistency hardening only.
 
 High on all mechanics; the P3s are latent (in-repo callers currently compensate)
 but are exactly the API shapes that fail a future reviewer.
+
+## Progress (2026-08-08)
+P2 checkpoint-retention item fixed on main (Lane A): operation checkpoint rows are deleted in the released/rolled-back cleanup transaction. The P3 branches.rs atomicity items (create_branch, allocate_child_version, cross-table copy resume, PRAGMA quoting) remain open for a later lane.

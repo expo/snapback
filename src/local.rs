@@ -5001,19 +5001,29 @@ impl LocalSnapback {
         //   so the §5 oracle holds from the first active commit version. A
         //   refused rebuild (existing-data fan-out, invariant breach) fails
         //   the whole activation.
+        let mut rebuilt_projection_ids = Vec::new();
         for plan in &manifest.projections {
             match self.db.rebuild_projection_if_stale(plan, "activation") {
-                Ok(Some(receipt)) => preflight.push(Diagnostic::info(
-                    "SNAPBACK_PROJECTION_REBUILT",
-                    "storage",
-                    format!(
-                        "projection {} rebuilt at activation: {} rows, generation {}, {}",
-                        plan.id, receipt.row_count, receipt.generation, receipt.content_digest
-                    ),
-                )),
+                Ok(Some(receipt)) => {
+                    rebuilt_projection_ids.push(plan.id.clone());
+                    preflight.push(Diagnostic::info(
+                        "SNAPBACK_PROJECTION_REBUILT",
+                        "storage",
+                        format!(
+                            "projection {} rebuilt at activation: {} rows, generation {}, {}",
+                            plan.id, receipt.row_count, receipt.generation, receipt.content_digest
+                        ),
+                    ));
+                }
                 Ok(None) => {}
                 Err(error) => {
                     preflight.push(error.diagnostic);
+                    if let Err(cleanup_error) = self
+                        .db
+                        .clear_projection_plan_digests(&rebuilt_projection_ids)
+                    {
+                        preflight.push(cleanup_error.diagnostic);
+                    }
                     self.record_attached_diagnostics(preflight.clone());
                     return preflight;
                 }
@@ -5025,6 +5035,12 @@ impl LocalSnapback {
             .install_sequence_declarations(sequence_declarations, false)
         {
             preflight.push(error.diagnostic);
+            if let Err(cleanup_error) = self
+                .db
+                .clear_projection_plan_digests(&rebuilt_projection_ids)
+            {
+                preflight.push(cleanup_error.diagnostic);
+            }
             self.record_attached_diagnostics(preflight.clone());
             return preflight;
         }
@@ -5208,19 +5224,29 @@ impl LocalSnapback {
         });
 
         let mut diagnostics = Vec::new();
+        let mut rebuilt_projection_ids = Vec::new();
         for plan in &manifest.projections {
             match self.db.rebuild_projection_if_stale(plan, "activation") {
-                Ok(Some(receipt)) => diagnostics.push(Diagnostic::info(
-                    "SNAPBACK_PROJECTION_REBUILT",
-                    "storage",
-                    format!(
-                        "projection {} rebuilt at activation: {} rows, generation {}, {}",
-                        plan.id, receipt.row_count, receipt.generation, receipt.content_digest
-                    ),
-                )),
+                Ok(Some(receipt)) => {
+                    rebuilt_projection_ids.push(plan.id.clone());
+                    diagnostics.push(Diagnostic::info(
+                        "SNAPBACK_PROJECTION_REBUILT",
+                        "storage",
+                        format!(
+                            "projection {} rebuilt at activation: {} rows, generation {}, {}",
+                            plan.id, receipt.row_count, receipt.generation, receipt.content_digest
+                        ),
+                    ));
+                }
                 Ok(None) => {}
                 Err(error) => {
                     diagnostics.push(error.diagnostic);
+                    if let Err(cleanup_error) = self
+                        .db
+                        .clear_projection_plan_digests(&rebuilt_projection_ids)
+                    {
+                        diagnostics.push(cleanup_error.diagnostic);
+                    }
                     self.record_diagnostics_at_boundary(diagnostics.clone(), diagnostic_boundary);
                     return diagnostics;
                 }
@@ -5231,6 +5257,12 @@ impl LocalSnapback {
             .install_sequence_declarations(sequence_declarations, trusted_active_generation)
         {
             diagnostics.push(error.diagnostic);
+            if let Err(cleanup_error) = self
+                .db
+                .clear_projection_plan_digests(&rebuilt_projection_ids)
+            {
+                diagnostics.push(cleanup_error.diagnostic);
+            }
             self.record_diagnostics_at_boundary(diagnostics.clone(), diagnostic_boundary);
             return diagnostics;
         }
@@ -47190,6 +47222,135 @@ globalThis.__snapbackHandlers = {
             )
             .expect_err("a refused activation must not install the manifest");
         assert_eq!(error.diagnostic.code, "SNAPBACK_UNKNOWN_FUNCTION");
+    }
+
+    // @ref LLP 0080#5-transactionally-maintained-projections — a rebuild
+    //   digest becomes authoritative only with the function generation that
+    //   owns it; failed multi-plan activation clears earlier rebuild pins so
+    //   retry cannot skip a materialization changed under the old posture.
+    #[test]
+    fn failed_projection_activation_retry_rebuilds_earlier_materialization() {
+        let (mut schema, mut functions, first_plan) = projection_fixture(5);
+        let mut second_output = schema
+            .tables
+            .iter()
+            .find(|table| table.name == "bookSummaries")
+            .expect("first output table")
+            .clone();
+        second_output.name = "bookSummariesStrict".to_owned();
+        schema.tables.push(second_output);
+        let mut second_plan = first_plan;
+        second_plan.id = "book-summaries-strict".to_owned();
+        second_plan.output_table = "bookSummariesStrict".to_owned();
+        second_plan.fan_out_limit = 1;
+        functions.projections.push(second_plan);
+
+        let mut snapback = LocalSnapback::memory().expect("memory activation retry fixture");
+        snapback.apply_schema(schema).expect("apply schema");
+        let row = |fields: Value| fields.as_object().cloned().expect("seed row");
+        snapback
+            .seed(crate::manifest::SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "books".to_owned(),
+                        vec![
+                            row(json!({ "title": "alpha", "slug": "s-alpha", "authorSlug": "ada", "ownerId": "user-a" })),
+                            row(json!({ "title": "beta", "slug": "s-beta", "authorSlug": "ada", "ownerId": "user-a" })),
+                        ],
+                    ),
+                    (
+                        "authors".to_owned(),
+                        vec![row(json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }))],
+                    ),
+                ]),
+            })
+            .expect("seed pre-activation data");
+
+        let failed = snapback.load_functions(functions.clone());
+        assert!(
+            failed
+                .iter()
+                .any(|diagnostic| diagnostic.code == "SNAPBACK_PROJECTION_FANOUT_EXCEEDED"),
+            "the second rebuild must refuse activation: {failed:?}"
+        );
+        let first_receipt = snapback
+            .db
+            .projection_rebuild_receipt("book-summaries")
+            .expect("first receipt read")
+            .expect("first projection rebuilt before the refusal");
+        assert_eq!(first_receipt.generation, 1);
+
+        let beta_id = snapback
+            .db
+            .query(
+                &QueryPlan {
+                    table: "books".to_owned(),
+                    filters: vec![FilterExpr {
+                        field: "title".to_owned(),
+                        op: FilterOp::Eq,
+                        value: ValueExpr::Literal(json!("beta")),
+                    }],
+                    membership_filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                },
+                &HandlerInput::default(),
+            )
+            .expect("find beta before retry")
+            .rows[0]["_id"]
+            .as_str()
+            .expect("beta id")
+            .to_owned();
+        snapback
+            .db
+            .execute_mutation(
+                &MutationPlan {
+                    steps: vec![MutationStep::Delete {
+                        table: "books".to_owned(),
+                        id: ValueExpr::Literal(json!(beta_id)),
+                    }],
+                    return_value: None,
+                },
+                &HandlerInput::default(),
+            )
+            .expect("make the strict projection admissible before retry");
+        let retried = snapback.load_functions(functions);
+        assert!(
+            retried.iter().all(|diagnostic| diagnostic.severity
+                != crate::diagnostic::DiagnosticSeverity::Error),
+            "retry must activate: {retried:?}"
+        );
+        assert!(
+            retried.iter().any(|diagnostic| {
+                diagnostic.code == "SNAPBACK_PROJECTION_REBUILT"
+                    && diagnostic.message.contains("book-summaries rebuilt")
+            }),
+            "the earlier projection must rebuild again on retry: {retried:?}"
+        );
+        let retried_receipt = snapback
+            .db
+            .projection_rebuild_receipt("book-summaries")
+            .expect("retried receipt read")
+            .expect("retried receipt exists");
+        assert_eq!(retried_receipt.generation, 2);
+        let rows = snapback
+            .db
+            .query(
+                &QueryPlan {
+                    table: "bookSummaries".to_owned(),
+                    filters: Vec::new(),
+                    membership_filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                },
+                &HandlerInput::default(),
+            )
+            .expect("read retried materialization")
+            .rows;
+        assert_eq!(rows.len(), 1, "retry removed the stale beta projection row");
+        assert_eq!(rows[0]["title"], json!("alpha"));
     }
 
     // @ref LLP 0080#5-transactionally-maintained-projections — activation

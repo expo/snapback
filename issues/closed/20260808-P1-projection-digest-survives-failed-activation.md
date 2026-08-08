@@ -44,3 +44,6 @@ mutation-time maintenance never touches the digest); medium on frequency. The
 nearby `@ref` covers rebuild *refusal*, not digest survival across an aborted
 activation. Related: this is the seam the P0 rollback bug also lives on — an
 explicit activation-transaction type would harden both.
+
+## Resolution (2026-08-08)
+Fixed on main (Lane A). Verified: cargo build; migration_executor suite 29 pass; projection activation 3 pass; new regression tests pass; ref-check clean.

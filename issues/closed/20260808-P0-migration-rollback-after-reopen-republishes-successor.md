@@ -74,3 +74,6 @@ reopen-loads-successor behavior (code comment + test), the absence of any
 schema-identity guard on the rollback path, the CLI's fresh-handle entry, and
 that only the hash (not the bytes) is persisted. A live reproduction should be
 the first step of the fix.
+
+## Resolution (2026-08-08)
+Fixed on main (Lane A). Verified: cargo build; migration_executor suite 29 pass; projection activation 3 pass; new regression tests pass; ref-check clean.

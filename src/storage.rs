@@ -9221,6 +9221,33 @@ impl LocalDatabase {
             None => None,
         })
     }
+
+    /// Compensate a function-generation activation that rebuilt one or more
+    /// projections but failed before installing that generation. The output
+    /// bytes may subsequently be maintained by the still-active predecessor
+    /// plan, so the successor digest cannot remain a rebuild-skip oracle.
+    pub(crate) fn clear_projection_plan_digests(
+        &mut self,
+        plan_ids: &[String],
+    ) -> SnapbackResult<()> {
+        if plan_ids.is_empty() {
+            return Ok(());
+        }
+        let _writer_token = self
+            .writer_authority
+            .enter(write_authority::LocalWriterLaneV1::ProjectionRebuild)?;
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        for plan_id in plan_ids.iter().collect::<BTreeSet<_>>() {
+            tx.execute(
+                "DELETE FROM _snapback_meta WHERE key = ?1",
+                params![digest_key_for_projection(plan_id)],
+            )?;
+        }
+        tx.commit()?;
+        Ok(())
+    }
 }
 
 fn digest_key_for_projection(plan_id: &str) -> String {

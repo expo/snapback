@@ -574,6 +574,7 @@ fn ensure_migration_tables(tx: &Transaction<'_>) -> SnapbackResult<()> {
            operation_id TEXT PRIMARY KEY,
            audience_json TEXT NOT NULL,
            plan_digest TEXT NOT NULL,
+           predecessor_schema_json TEXT,
            state_json TEXT NOT NULL,
            lease_epoch INTEGER NOT NULL,
            cancel_requested INTEGER NOT NULL DEFAULT 0,
@@ -611,7 +612,11 @@ fn ensure_migration_tables(tx: &Transaction<'_>) -> SnapbackResult<()> {
         Err(error) if error.to_string().contains("duplicate column name") => {}
         Err(error) => return Err(error.into()),
     }
-    for column in ["approval_digest TEXT", "aggregate_identity_json TEXT"] {
+    for column in [
+        "approval_digest TEXT",
+        "aggregate_identity_json TEXT",
+        "predecessor_schema_json TEXT",
+    ] {
         match tx.execute(
             &format!("ALTER TABLE _snapback_migration_ops ADD COLUMN {column}"),
             [],
@@ -1430,6 +1435,58 @@ pub fn schema_identity(manifest: &SchemaManifest) -> SnapbackResult<String> {
         .map_err(|_| journal_corrupt("schema manifest is not canonicalizable".to_owned()))
 }
 
+fn rollback_predecessor_schema(
+    conn: &Connection,
+    operation_id: &str,
+    expected_identity: &str,
+    live_schema: &SchemaManifest,
+) -> SnapbackResult<SchemaManifest> {
+    let persisted: Option<String> = conn
+        .query_row(
+            "SELECT predecessor_schema_json FROM _snapback_migration_ops \
+             WHERE operation_id = ?1",
+            params![operation_id],
+            |row| row.get(0),
+        )
+        .optional()?
+        .flatten();
+    let (schema, source) = match persisted {
+        Some(raw) => (
+            serde_json::from_str::<SchemaManifest>(&raw).map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_MIGRATION_PREDECESSOR_SCHEMA_UNAVAILABLE",
+                    "storage",
+                    "the journaled predecessor manifest bytes do not parse; rollback refuses \
+                     before changing physical storage",
+                )
+            })?,
+            "journaled predecessor manifest",
+        ),
+        None => (live_schema.clone(), "live in-memory manifest fallback"),
+    };
+    let actual_identity = schema_identity(&schema).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_MIGRATION_PREDECESSOR_SCHEMA_UNAVAILABLE",
+            "storage",
+            format!(
+                "the {source} has no valid schema identity; rollback refuses before changing \
+                 physical storage"
+            ),
+        )
+    })?;
+    if actual_identity != expected_identity {
+        return Err(SnapbackError::error(
+            "SNAPBACK_MIGRATION_PREDECESSOR_SCHEMA_UNAVAILABLE",
+            "storage",
+            format!(
+                "the {source} identity {actual_identity} does not match the plan's predecessor \
+                 schema {expected_identity}; rollback refuses before changing physical storage"
+            ),
+        ));
+    }
+    Ok(schema)
+}
+
 impl LocalDatabase {
     /// Admit and execute one approved migration under the local exclusive
     /// barrier. Resumable: re-running the same `operationId` resumes from
@@ -1715,12 +1772,14 @@ impl LocalDatabase {
             let approval_digest_value = approval_digest(approval)?;
             let aggregate_identity_json = serde_json::to_string(&aggregate_identity)
                 .map_err(|_| journal_corrupt("aggregate identity serialize".to_owned()))?;
+            let predecessor_schema_json = serde_json::to_string(&predecessor_schema)
+                .map_err(|_| journal_corrupt("predecessor schema serialize".to_owned()))?;
             if !resuming {
                 tx.execute(
                     "INSERT INTO _snapback_migration_ops(operation_id, audience_json, \
                      plan_digest, state_json, lease_epoch, cancel_requested, rehearsal, \
-                     approval_digest, aggregate_identity_json) \
-                     VALUES(?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8)",
+                     approval_digest, aggregate_identity_json, predecessor_schema_json) \
+                     VALUES(?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, ?9)",
                     params![
                         approval.operation_id,
                         audience_json,
@@ -1731,6 +1790,7 @@ impl LocalDatabase {
                         i64::from(rehearsal.is_some()),
                         approval_digest_value,
                         aggregate_identity_json,
+                        predecessor_schema_json,
                     ],
                 )?;
             } else {
@@ -2087,8 +2147,10 @@ impl LocalDatabase {
                 input_version,
                 host_operation_identity: OnceCell::new(),
             };
+            let cleanup_inventory = cleanup_table_inventory(artifact);
             journal.append(JournalAppend {
                 output_version: Some(publication_version),
+                verification: Some(&cleanup_inventory),
                 at_ms: at,
                 barrier_elapsed_ms: Some(elapsed(at)),
                 ..JournalAppend::of(&MigrationExecState::PublishedHeld)
@@ -2396,11 +2458,16 @@ impl LocalDatabase {
 
         ensure_migration_host_authority(&mut self.conn, now_ms)?;
 
-        let predecessor_schema = self.schema.clone();
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         ensure_migration_tables(&tx)?;
+        let predecessor_schema = rollback_predecessor_schema(
+            &tx,
+            &approval.operation_id,
+            &artifact.body.predecessor_schema_hash,
+            &self.schema,
+        )?;
         let aggregate_identity = migration_aggregate_identity_in(&tx, artifact, approval, now_ms)?;
         let lease_epoch = current_lease_epoch(&tx)? + 1;
         upsert_meta(&tx, META_MIGRATION_LEASE_EPOCH, &lease_epoch.to_string())?;
@@ -2630,6 +2697,7 @@ impl LocalDatabase {
             now_ms,
         )?;
         tx.commit()?;
+        self.schema = predecessor_schema.clone();
         kill_point_check("rollback-response");
         // The rollback's cleanup tail: the republished predecessor is
         // authoritative, so orphaned staged successor generations drop.
@@ -2645,7 +2713,7 @@ impl LocalDatabase {
             &context,
             CleanupTerminal::RolledBack,
             &[],
-            &self.schema.clone(),
+            &predecessor_schema,
         );
         Ok(rollback_receipt)
     }
@@ -3040,6 +3108,69 @@ impl LocalDatabase {
     }
 }
 
+fn cleanup_table_inventory(artifact: &MigrationPlanArtifactV1) -> Value {
+    let mut released = BTreeSet::new();
+    let mut rolled_back = BTreeSet::new();
+    for record in &artifact.body.steps {
+        if let MigrationStep::StageTableGeneration { table, generation } = &record.step {
+            released.insert(retired_table_name(
+                table,
+                artifact.body.predecessor_generation,
+            ));
+            rolled_back.insert(staged_table_name(table, *generation));
+        }
+    }
+    json!({
+        "cleanupTables": {
+            "released": released,
+            "rolledBack": rolled_back,
+        }
+    })
+}
+
+fn cleanup_tables_for_operation(
+    conn: &Connection,
+    operation_id: &str,
+    terminal: CleanupTerminal,
+) -> SnapbackResult<Vec<String>> {
+    let entries = journal_entries_on(conn, operation_id)?;
+    let Some(verification) = entries.iter().rev().find_map(|entry| {
+        matches!(entry.state, MigrationExecState::PublishedHeld)
+            .then_some(entry.verification.as_ref())
+            .flatten()
+    }) else {
+        // Legacy operations did not journal an owned cleanup inventory.
+        // Leaving their residue for inspection is safer than inferring
+        // ownership from ambient sqlite_master names.
+        return Ok(Vec::new());
+    };
+    let key = match terminal {
+        CleanupTerminal::Released => "released",
+        CleanupTerminal::RolledBack => "rolledBack",
+    };
+    let Some(value) = verification
+        .get("cleanupTables")
+        .and_then(|tables| tables.get(key))
+    else {
+        return Ok(Vec::new());
+    };
+    let Some(values) = value.as_array() else {
+        return Err(journal_corrupt(format!(
+            "published-held cleanup inventory {key} is not an array"
+        )));
+    };
+    let mut names = BTreeSet::new();
+    for value in values {
+        let Some(name) = value.as_str() else {
+            return Err(journal_corrupt(format!(
+                "published-held cleanup inventory {key} contains a non-string table"
+            )));
+        };
+        names.insert(name.to_owned());
+    }
+    Ok(names.into_iter().collect())
+}
+
 /// The physical cleanup tail (LLP 0081 §3/§4): logical retirements keep
 /// their storage through the rollback window, and §6's fast rollback exists
 /// only in `published-held` — so once the journal reaches `released` the
@@ -3049,9 +3180,9 @@ impl LocalDatabase {
 /// Two durable cuts: `cleanup-pending` commits before any physical work, so
 /// a crash inside the tail resumes from the journal at reopen; every drop
 /// is idempotent; and the tail closes back into the same terminal it
-/// extends. Crash-resume needs no artifact: the parked/staged names are
-/// system-owned patterns no schema manifest can declare, so the physical
-/// inventory is self-describing.
+/// extends. Crash-resume needs no artifact: publication journals the exact
+/// parked/staged names owned by this operation, so cleanup never infers
+/// ownership from an ambient sqlite_master name pattern.
 pub(crate) struct CleanupContext {
     pub operation_id: String,
     pub plan_id: String,
@@ -3113,35 +3244,13 @@ fn cleanup_sweep(
     let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
     let mut dropped_tables: Vec<String> = Vec::new();
     let mut dropped_columns: Vec<String> = Vec::new();
-    let physical: Vec<String> = {
-        let mut statement = tx.prepare(
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
-        )?;
-        let rows = statement.query_map([], |row| row.get::<_, String>(0))?;
-        rows.collect::<Result<Vec<_>, _>>()?
-    };
-    for name in &physical {
-        let garbage = match terminal {
-            // The rollback window is closed: parked predecessor
-            // generations go.
-            CleanupTerminal::Released => name.contains("__retired_g"),
-            // The rollback republished the predecessor: orphaned staged
-            // successor generations go.
-            CleanupTerminal::RolledBack => {
-                !name.contains("__retired_g")
-                    && name.rsplit_once("__g").is_some_and(|(base, generation)| {
-                        !base.is_empty()
-                            && !generation.is_empty()
-                            && generation.chars().all(|c| c.is_ascii_digit())
-                    })
-            }
-        };
-        if garbage {
+    for name in cleanup_tables_for_operation(&tx, &context.operation_id, terminal)? {
+        if super::sqlite_table_exists(&tx, &name)? {
             tx.execute_batch(&format!(
                 "DROP TABLE IF EXISTS {}",
-                crate::storage::quote_ident(name)?
+                crate::storage::quote_ident(&name)?
             ))?;
-            dropped_tables.push(name.clone());
+            dropped_tables.push(name);
         }
     }
     if matches!(terminal, CleanupTerminal::Released) {
@@ -3171,6 +3280,10 @@ fn cleanup_sweep(
             }
         }
     }
+    tx.execute(
+        "DELETE FROM _snapback_migration_checkpoint WHERE operation_id = ?1",
+        params![context.operation_id],
+    )?;
     let summary = json!({
         "droppedTables": dropped_tables,
         "droppedColumns": dropped_columns,
@@ -3228,34 +3341,34 @@ pub(crate) fn resume_pending_cleanup(
         }
         // A crash in the pending transition's interior loses the pending
         // row itself (the kill fires before the append commits), so a
-        // terminal journal with system-owned garbage still resumes: the
-        // inventory is self-describing, and an empty inventory skips
-        // without journal noise.
+        // terminal journal resumes when its operation-scoped table inventory
+        // or checkpoint rows still contain cleanup work.
         MigrationExecState::Released | MigrationExecState::RolledBack => {
             let terminal = match entry.state {
                 MigrationExecState::Released => CleanupTerminal::Released,
                 _ => CleanupTerminal::RolledBack,
             };
-            let garbage_exists = {
-                let mut statement = conn.prepare(
-                    "SELECT name FROM sqlite_master WHERE type = 'table' \
-                     AND name NOT LIKE 'sqlite_%'",
-                )?;
-                let rows = statement.query_map([], |row| row.get::<_, String>(0))?;
-                let names = rows.collect::<Result<Vec<_>, _>>()?;
-                names.iter().any(|name| match terminal {
-                    CleanupTerminal::Released => name.contains("__retired_g"),
-                    CleanupTerminal::RolledBack => {
-                        !name.contains("__retired_g")
-                            && name.rsplit_once("__g").is_some_and(|(base, generation)| {
-                                !base.is_empty()
-                                    && !generation.is_empty()
-                                    && generation.chars().all(|c| c.is_ascii_digit())
-                            })
-                    }
-                })
+            let cleanup_tables =
+                cleanup_tables_for_operation(conn, &context.operation_id, terminal)?;
+            let table_cleanup_exists = cleanup_tables
+                .iter()
+                .try_fold(false, |found, name| {
+                    Ok::<_, SnapbackError>(found || super::sqlite_table_exists(conn, name)?)
+                })?;
+            let checkpoint_cleanup_exists = if super::sqlite_table_exists(
+                conn,
+                "_snapback_migration_checkpoint",
+            )? {
+                conn.query_row(
+                    "SELECT EXISTS(SELECT 1 FROM _snapback_migration_checkpoint \
+                     WHERE operation_id = ?1)",
+                    params![context.operation_id],
+                    |row| row.get::<_, bool>(0),
+                )?
+            } else {
+                false
             };
-            if !garbage_exists {
+            if !table_cleanup_exists && !checkpoint_cleanup_exists {
                 return Ok(None);
             }
             run_cleanup_tail(conn, &context, terminal, &[], schema).map(Some)
@@ -5995,6 +6108,101 @@ mod tests {
         assert!(reopened.migration_fence().expect("fence read").is_none());
     }
 
+    #[test]
+    fn published_held_reopen_rollback_republishes_the_journaled_predecessor_manifest() {
+        let temp = tempfile::tempdir().expect("temporary database directory");
+        let path = temp.path().join("published-held-rollback.sqlite");
+        let mut db = LocalDatabase::open(&path).expect("open file-backed database");
+        db.apply_schema(predecessor_schema())
+            .expect("apply predecessor schema");
+        db.seed(SeedData {
+            tables: BTreeMap::from([(
+                "items".to_owned(),
+                vec![json!({ "title": "one" })
+                    .as_object()
+                    .cloned()
+                    .expect("seed object")],
+            )]),
+        })
+        .expect("seed predecessor");
+        let plan = staged_plan(Some(PUBLICATION_TS + 1));
+        let approval = approval_for(&plan, now_millis());
+        arm_migration_kill_point("released", 0);
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            staged_apply(&mut db, &plan, &approval)
+        }));
+        disarm_migration_kill_point();
+        assert!(outcome.is_err(), "release kill point must fire");
+        drop(db);
+
+        let mut reopened = LocalDatabase::open(&path).expect("reopen published-held database");
+        assert_eq!(reopened.schema(), &staged_successor_schema());
+        let (_, resolved) = audience();
+        reopened
+            .migrate_rollback(&plan, &approval, &resolved, now_millis())
+            .expect("fresh handle rolls back from journaled predecessor bytes");
+        assert_eq!(reopened.schema(), &predecessor_schema());
+        drop(reopened);
+
+        let reopened_again = LocalDatabase::open(&path).expect("reopen rolled-back database");
+        assert_eq!(
+            reopened_again.schema(),
+            &predecessor_schema(),
+            "the live published manifest is the predecessor, never the successor"
+        );
+    }
+
+    #[test]
+    fn published_held_reopen_without_predecessor_manifest_bytes_fails_closed() {
+        let temp = tempfile::tempdir().expect("temporary database directory");
+        let path = temp.path().join("legacy-published-held-rollback.sqlite");
+        let mut db = LocalDatabase::open(&path).expect("open file-backed database");
+        db.apply_schema(predecessor_schema())
+            .expect("apply predecessor schema");
+        db.seed(SeedData {
+            tables: BTreeMap::from([(
+                "items".to_owned(),
+                vec![json!({ "title": "one" })
+                    .as_object()
+                    .cloned()
+                    .expect("seed object")],
+            )]),
+        })
+        .expect("seed predecessor");
+        let plan = staged_plan(Some(PUBLICATION_TS + 1));
+        let approval = approval_for(&plan, now_millis());
+        arm_migration_kill_point("released", 0);
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            staged_apply(&mut db, &plan, &approval)
+        }));
+        disarm_migration_kill_point();
+        assert!(outcome.is_err(), "release kill point must fire");
+        db.conn
+            .execute(
+                "UPDATE _snapback_migration_ops SET predecessor_schema_json = NULL \
+                 WHERE operation_id = ?1",
+                params![approval.operation_id],
+            )
+            .expect("simulate a legacy operation row");
+        drop(db);
+
+        let mut reopened = LocalDatabase::open(&path).expect("reopen published-held database");
+        assert_eq!(reopened.schema(), &staged_successor_schema());
+        let (_, resolved) = audience();
+        let error = reopened
+            .migrate_rollback(&plan, &approval, &resolved, now_millis())
+            .expect_err("legacy reopen cannot guess predecessor bytes from the successor handle");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MIGRATION_PREDECESSOR_SCHEMA_UNAVAILABLE"
+        );
+        assert_eq!(reopened.schema(), &staged_successor_schema());
+        assert!(matches!(
+            latest_state_for_test(&reopened, &approval.operation_id).expect("state read"),
+            Some(MigrationExecState::PublishedHeld)
+        ));
+    }
+
     // @ref LLP 0081#4-execution-journaling-and-crash-recovery — a resume
     //   derives physical staging authority from the exact AddField journal
     //   transaction, never from the operation/fence row alone.
@@ -7698,6 +7906,104 @@ mod tests {
                 .kind(),
             "released",
         );
+    }
+
+    #[test]
+    fn rollback_cleanup_preserves_unrelated_generation_shaped_user_table() {
+        let mut db = seeded_db();
+        db.conn
+            .execute_batch(
+                "CREATE TABLE logs__g2 (message TEXT NOT NULL); \
+                 INSERT INTO logs__g2(message) VALUES ('keep me')",
+            )
+            .expect("create unrelated user table");
+        let plan = staged_plan(Some(PUBLICATION_TS + 1));
+        let approval = approval_for(&plan, now_millis());
+        let (_, resolved) = audience();
+        arm_migration_kill_point("released", 0);
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            staged_apply(&mut db, &plan, &approval)
+        }));
+        disarm_migration_kill_point();
+        assert!(outcome.is_err(), "release kill point must fire");
+
+        db.migrate_rollback(&plan, &approval, &resolved, now_millis())
+            .expect("rollback unrelated migration");
+        let retained: String = db
+            .conn
+            .query_row("SELECT message FROM logs__g2", [], |row| row.get(0))
+            .expect("unrelated table and row survive cleanup");
+        assert_eq!(retained, "keep me");
+    }
+
+    #[test]
+    fn terminal_cleanup_purges_only_the_operations_migration_checkpoints() {
+        let mut released = seeded_db();
+        let release_plan = fixture_plan(
+            &predecessor_schema(),
+            &successor_schema(),
+            default_ceilings(),
+        );
+        let release_approval = approval_for(&release_plan, now_millis());
+        apply_fixture(&mut released, &release_plan, &release_approval).expect("release migration");
+        let release_checkpoints: u64 = released
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM _snapback_migration_checkpoint \
+                 WHERE operation_id = ?1",
+                params![release_approval.operation_id],
+                |row| row.get(0),
+            )
+            .expect("released checkpoint count");
+        assert_eq!(release_checkpoints, 0);
+
+        let mut rolled_back = seeded_db();
+        let rollback_plan = staged_plan(Some(PUBLICATION_TS + 1));
+        let rollback_approval = approval_for(&rollback_plan, now_millis());
+        arm_migration_kill_point("released", 0);
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            staged_apply(&mut rolled_back, &rollback_plan, &rollback_approval)
+        }));
+        disarm_migration_kill_point();
+        assert!(outcome.is_err(), "release kill point must fire");
+        rolled_back
+            .conn
+            .execute(
+                "INSERT INTO _snapback_migration_checkpoint( \
+                 operation_id, table_name, row_id, version, updated_at) \
+                 VALUES(?1, 'items', 'cleanup-proof', 1, 1)",
+                params![rollback_approval.operation_id],
+            )
+            .expect("install rolled-back cleanup checkpoint proof row");
+        let held_checkpoints: u64 = rolled_back
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM _snapback_migration_checkpoint \
+                 WHERE operation_id = ?1",
+                params![rollback_approval.operation_id],
+                |row| row.get(0),
+            )
+            .expect("held checkpoint count");
+        assert!(held_checkpoints > 0);
+        let (_, resolved) = audience();
+        rolled_back
+            .migrate_rollback(
+                &rollback_plan,
+                &rollback_approval,
+                &resolved,
+                now_millis(),
+            )
+            .expect("rollback migration");
+        let rollback_checkpoints: u64 = rolled_back
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM _snapback_migration_checkpoint \
+                 WHERE operation_id = ?1",
+                params![rollback_approval.operation_id],
+                |row| row.get(0),
+            )
+            .expect("rolled-back checkpoint count");
+        assert_eq!(rollback_checkpoints, 0);
     }
 
     //   needs a fresh preview), seals the rollback receipt, and replays
