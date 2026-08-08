@@ -306,6 +306,7 @@ export interface ActionOutput<Result> {
 
 export const SNAPBACK_QUERY_OFFLINE_UNAVAILABLE: 'SNAPBACK_QUERY_OFFLINE_UNAVAILABLE';
 export const SNAPBACK_STORE_RUNTIME_LOAD_FAILED: 'SNAPBACK_STORE_RUNTIME_LOAD_FAILED';
+export function rqsRetentionIneligibilityReason(ref: unknown): string;
 
 export interface SnapbackQueryOfflineUnavailableDiagnostic {
   readonly schemaVersion: 'snapback.client-diagnostic.v1';

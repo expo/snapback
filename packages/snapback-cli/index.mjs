@@ -89,6 +89,7 @@ import {
   runVerify,
   writeVerifyReceipt,
 } from './verify.mjs';
+import { formatGuideReferenceLookup, lookupGuideReference } from './reference-lookup.mjs';
 import {
   createHostedPlan,
   HOSTED_LIFECYCLE_VERBS,
@@ -2946,6 +2947,12 @@ function printResult(result, json) {
 // established host operations remain delegated to the native CLI.
 export const PACKAGED_CLI_COMMANDS = Object.freeze([
   {
+    name: 'guide', usage: 'snapback guide <ExactSymbolName|module> [--slice <n>] [--json]',
+    description: 'Return a build-bound exact API symbol or bounded module slice; fuzzy queries delegate to the native Guide search.', lifecycle: 'one-shot/read-only',
+    output: 'snapback.guide-symbol-lookup.v1 for exact registry hits; native Guide output otherwise', exits: '0 matched; native Guide status for fuzzy fallback; 1 invalid slice or identity mismatch',
+    recovery: 'Use the emitted next command for truncated slices, or regenerate the Guide when registry identity mismatches.',
+  },
+  {
     name: 'new', usage: 'snapback new <name> [--template todo-contract|react|expo-chat] [--json]',
     description: 'Scaffold a Snapback application from a packaged template.', lifecycle: 'one-shot',
     output: 'snapback.new.v1 JSON with --json; concise success text otherwise', exits: '0 success; 1 structured CLI/scaffold refusal',
@@ -3225,6 +3232,13 @@ export async function runCli(argv, options = {}) {
   if (json) args.splice(args.indexOf('--json'), 1);
   const auditActorId = takeFlag(args, '--audit-actor');
   if (auditActorId !== null) options = { ...options, auditActorId };
+  if (command === 'guide') {
+    const lookup = lookupGuideReference(args, options);
+    if (lookup !== null) {
+      console.log(json ? JSON.stringify(lookup, null, 2) : formatGuideReferenceLookup(lookup));
+      return 0;
+    }
+  }
   if (command === 'doctor') {
     const result = await doctor(options);
     printResult(result, json);

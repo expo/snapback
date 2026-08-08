@@ -75,6 +75,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'package.test.mjs',
       'packaged-store-qualification.test.mjs',
       'reset-dev-fresh.test.mjs',
+      'reference-lookup.test.mjs',
       'sessions-dev-loop.test.mjs',
       'verify.test.mjs',
     ],
@@ -448,7 +449,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 237,
+  expectedTotal = 238,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -739,6 +740,8 @@ export function checkPackageTestInventories(options = {}) {
 // lifecycle-refusal acceptance suite.
 // 236 -> 237 (2026-08-08, stored literal-union enums):
 // @expo/snapback-codegen gains end-to-end stored enum authoring coverage.
+// 237 -> 238 (2026-08-08, LLP 0194): @expo/snapback-cli gains build-bound,
+// budgeted exact symbol and module-slice Guide lookup coverage.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

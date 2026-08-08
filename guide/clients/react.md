@@ -140,6 +140,10 @@ if (query.status === 'ready' || query.status === 'refreshing') {
 }
 ```
 
+The generated [`QueryState` fact type](../reference/expo-snapback-react.md#symbol-querystate-8e4feba927)
+is the declaration-exact contract and carries the same stable identity
+returned by `snapback guide QueryState`.
+
 `useSnapbackQuery` returns:
 
 - `status`: `pending | ready | refreshing | error | skipped`;
@@ -468,7 +472,8 @@ persisted rows with `freshness: 'retained'` and `status: 'refreshing'`
 ```
 
 `useSnapbackOutbox()` projects the durable queued-intent state
-(LLP 0043 M2): `{ status, supported, pending, failed, replaying }` plus a
+([`SnapbackOutboxState` exact type](../reference/expo-snapback-react.md#symbol-snapbackoutboxstate-904e9d7007),
+LLP 0043 M2): `{ status, supported, pending, failed, replaying }` plus a
 `replay()` action that drains through the client's single-flight
 `replayQueuedMutations()`. Render a queued-changes badge from it next to
 retained rows — the retained rows themselves stay **pre-intent** (this arm

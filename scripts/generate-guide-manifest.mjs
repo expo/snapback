@@ -3,6 +3,7 @@
 // guide projection (MCP, admin console, CLI) consumes instead of re-parsing
 // the tree. Never hand-edit the output.
 // @ref LLP 0061#4-distribution-and-discovery — the guide manifest.
+import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
@@ -19,6 +20,11 @@ import {
 } from './guide-lib.mjs';
 
 const root = repoRoot();
+// @ref LLP 0194#design — registry and Markdown projection regenerate as one Guide pipeline.
+execFileSync(process.execPath, [join(root, 'scripts/generate-symbol-registry.mjs')], {
+  cwd: root,
+  stdio: 'inherit',
+});
 const { errors, pageInfo, pageBodies } = loadCorpus(root);
 const snippetRecords = checkSnippets(root, pageBodies, errors);
 const index = parseCapabilityIndex(root, errors);

@@ -122,7 +122,8 @@ exit 97
 
   const guideHelp = spawnSync(process.execPath, [cli, 'guide', '--help'], { encoding: 'utf8', env });
   assert.equal(guideHelp.status, 0, guideHelp.stderr);
-  assert.match(guideHelp.stdout, /Native help for guide/);
+  assert.match(guideHelp.stdout, /^Usage: snapback guide <ExactSymbolName\|module> \[--slice <n>\] \[--json\]$/m);
+  assert.match(guideHelp.stdout, /fuzzy queries delegate to the native Guide search/);
   assert.doesNotMatch(`${guideHelp.stdout}\n${guideHelp.stderr}`, /EXECUTED/);
 
   const jsonHelp = spawnSync(process.execPath, [cli, 'dev', '--help', '--json'], { encoding: 'utf8', env });

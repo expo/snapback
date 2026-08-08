@@ -13,6 +13,7 @@ export const CAPABILITIES_PATH = join(GUIDE_DIR, 'capabilities.md');
 export const SURFACE_MAP_PATH = join(GUIDE_DIR, 'surface-map.md');
 export const INDEX_PATH = join(GUIDE_DIR, 'index.md');
 export const PUBLISHED_CLOSURE_PATH = join(GUIDE_DIR, 'published-closure.json');
+export const SYMBOL_REGISTRY_PATH = join(GUIDE_DIR, 'reference', 'registry.json');
 export const GUIDE_MCP_MANIFEST_URI = 'snapback-guide://manifest';
 export const GUIDE_MCP_FLAT_URI = 'snapback-guide://flat';
 export const GUIDE_MCP_PAGE_URI_PREFIX = 'snapback-guide://page/';
@@ -71,6 +72,20 @@ export function checkGuideMcpProjection(root, manifest, errors) {
   }
   if (resources.length !== pages.length + 2) {
     errors.push('guide MCP projection must contain exactly manifest + flat + every manifest page');
+  }
+  for (const [id, resource] of Object.entries(manifest?.resources ?? {})) {
+    const absolute = join(root, resource.path ?? '');
+    if (!existsSync(absolute)) {
+      errors.push(`guide manifest resource ${id} references missing ${resource.path}`);
+      continue;
+    }
+    const bytes = readFileSync(absolute);
+    if (createHash('sha256').update(bytes).digest('hex') !== resource.sha256) {
+      errors.push(`guide manifest resource ${id} does not match its sha256`);
+    }
+    if (bytes.byteLength !== resource.bytes) {
+      errors.push(`guide manifest resource ${id} does not match its byte count`);
+    }
   }
   return resources;
 }
@@ -679,6 +694,8 @@ export function buildManifest(root, pageInfo, snippetRecords, index, surfaces) {
   } catch {
     // buildIdentity stays 'unknown' outside a git checkout.
   }
+  const registryBytes = readFileSync(join(root, SYMBOL_REGISTRY_PATH));
+  const registry = JSON.parse(registryBytes);
   const manifest = {
     schemaVersion: 'snapback-guide.v1',
     generatedBy: 'scripts/generate-guide-manifest.mjs',
@@ -689,11 +706,34 @@ export function buildManifest(root, pageInfo, snippetRecords, index, surfaces) {
     },
     nav: Object.fromEntries([...nav.entries()].sort()),
     pages,
+    // @ref LLP 0194#design — non-Markdown reference bytes participate in the
+    // same manifest and build identity without pretending native MCP support
+    // before its resource catalog learns manifest resources.
+    resources: {
+      'reference.symbol-registry': {
+        path: SYMBOL_REGISTRY_PATH,
+        title: 'Build-bound public API symbol registry',
+        mediaType: 'application/json',
+        bytes: registryBytes.byteLength,
+        sha256: createHash('sha256').update(registryBytes).digest('hex'),
+        uri: 'snapback-guide://reference/registry',
+        servedPath: '/_snapback/guide/reference/registry.json',
+        projections: { http: true, mcp: false, llms: false },
+        schemaVersion: registry.schemaVersion,
+        sourceDigest: registry.buildIdentity?.sourceDigest,
+        modules: registry.modules?.length ?? 0,
+        symbols: registry.symbols?.length ?? 0,
+      },
+    },
     capabilities: { covered: covered.sort(), gaps: gaps.sort() },
     surfaces,
   };
   manifest.contentHash = createHash('sha256')
     .update(buildFlatGuide(root, manifest, pageInfo))
+    .update('\0guide-resource\0')
+    .update(SYMBOL_REGISTRY_PATH)
+    .update('\0')
+    .update(registryBytes)
     .digest('hex');
   return manifest;
 }
@@ -755,7 +795,19 @@ export function auditGuideManifestInventory({
   root = repoRoot(),
   readGeneratedFile = (path) => readFileSync(join(root, path), 'utf8'),
 } = {}) {
+  const registryErrors = [];
+  try {
+    execFileSync(
+      process.execPath,
+      [join(root, 'scripts/generate-symbol-registry.mjs'), '--check'],
+      { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+  } catch (error) {
+    const detail = `${error.stdout ?? ''}${error.stderr ?? ''}`.trim();
+    registryErrors.push(`symbol-registry inventory failed${detail ? `: ${detail}` : ''}`);
+  }
   const { errors, pagePaths, pageInfo, pageBodies } = loadCorpus(root);
+  errors.push(...registryErrors);
   const snippetRecords = checkSnippets(root, pageBodies, errors);
   const index = parseCapabilityIndex(root, errors);
   const surfaces = checkCapabilityIndex(root, index, pageInfo, errors);

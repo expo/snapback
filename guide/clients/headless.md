@@ -31,6 +31,12 @@ class while keeping optional agent-custody and external-store package exports
 out of consumers that did not select them. Use the root entry when those
 additional exports are required.
 
+For declaration-exact constructor options and method signatures, use the
+generated [`SnapbackClient`](../reference/expo-snapback-client.md#symbol-snapbackclient-cabf32a88f)
+and [`SnapbackClientOptions`](../reference/expo-snapback-client.md#symbol-snapbackclientoptions-715941730d)
+entries. Those anchors and `snapback guide SnapbackClient` resolve the same
+build-bound registry identity.
+
 When something breaks behind this client, open the
 [admin console](../operating/admin-console.md) before writing another probe:
 `snapback admin --ready-file .snapback/dev.ready.json` opens the shipped

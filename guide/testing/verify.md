@@ -125,6 +125,10 @@ partial coverage and is never labeled conformant.
 every complete class observation for the function stays non-empty, which preserves a table
 used only on a conditional path.
 
+The generated [`VerifyConfig` reference](../reference/expo-snapback-cli--verify.md#symbol-verifyconfig-181f105dc0)
+is the declaration-exact config contract; `snapback guide VerifyConfig`
+returns the same symbol identity without loading this whole page.
+
 The package-owned `snapback.verify-receipt.v1` schema binds the profile-set
 identity, digest of the config and actual test bytes, artifact target, data,
 authority, seed, all five stage verdicts, and ordered `next[]` actions.

@@ -224,6 +224,9 @@ core `ctx.db` surface: `ctx.db.query(table).withIndex(name).eq(field, value)`
 `ctx.db.patch(table, id, values)`, `ctx.db.delete(table, id)`, and
 `ctx.auth.userId` — the server-derived identity
 ([never client-asserted](../auth/sessions-and-principals.md)).
+Until the published handler-context declaration lands, the explicitly fenced
+[`ctx.db` bootstrap reference](../reference/ctx-db-bootstrap.md) is the compact
+verb and read/write-split lookup; it states its own retirement trigger.
 
 Inline v1 is deliberately self-contained: it does not capture imports,
 sibling helpers, or outer constants, so put all application logic and locals

@@ -29,7 +29,23 @@ import {
 const flags = new Set(process.argv.slice(2));
 const runAll = flags.size === 0;
 const root = repoRoot();
+const preflightErrors = [];
+if (runAll || flags.has('--consistency')) {
+  // @ref LLP 0194#acceptance — declaration/runtime parity and generated
+  // projections are part of the Guide consistency gate.
+  try {
+    execFileSync(
+      process.execPath,
+      [join(root, 'scripts/generate-symbol-registry.mjs'), '--check'],
+      { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+  } catch (error) {
+    const detail = `${error.stdout ?? ''}${error.stderr ?? ''}`.trim();
+    preflightErrors.push(`symbol-registry check failed${detail ? `:\n${detail}` : ''}`);
+  }
+}
 const { errors, warnings, infos, pagePaths, pageInfo, pageBodies } = loadCorpus(root);
+errors.push(...preflightErrors);
 
 let snippetRecords = new Map();
 if (runAll || flags.has('--snippets')) {
@@ -81,9 +97,19 @@ if (runAll || flags.has('--consistency')) {
     const detail = `${error.stdout ?? ''}${error.stderr ?? ''}`.trim();
     errors.push(`retrieval-eval static routing check failed${detail ? `:\n${detail}` : ''}`);
   }
+  try {
+    execFileSync(
+      process.execPath,
+      [join(root, 'tests/generated-api-reference-v1.mjs')],
+      { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+  } catch (error) {
+    const detail = `${error.stdout ?? ''}${error.stderr ?? ''}`.trim();
+    errors.push(`generated API cold signature acceptance failed${detail ? `:\n${detail}` : ''}`);
+  }
 }
 
-if (runAll && index) {
+if (runAll && index && preflightErrors.length === 0) {
   const expected = buildManifest(root, pageInfo, snippetRecords, index, surfaces);
   const expectedFlat = buildFlatGuide(root, expected, pageInfo);
   let manifestStale = false;

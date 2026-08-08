@@ -22,6 +22,10 @@ scales to zero and back up: schema and functions, server-authoritative
 data, live queries, ephemeral realtime, auth, and the client arms — taught
 intent-first, with code that ran in CI.
 
+Need an exact exported signature? Start with the build-bound
+[generated API reference](./reference/index.md), or run
+`snapback guide <ExactSymbolName>` for a budgeted symbol lookup.
+
 **Audience:** agents (primarily) and humans (secondarily) building on
 Snapback. In a checkout, read this corpus directly. Outside a checkout, a
 running Snapback server exposes the same build-bound corpus at
