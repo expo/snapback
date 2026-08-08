@@ -52,3 +52,6 @@ so any committed `dist/` leaf selects both the checker and its fixture.
 
 High. Both the production checker and its fixture reproduce under pinned Node
 24, and the offending bytes are in clean committed files.
+
+## Blocked (2026-08-08 review-fixes)
+Not fixable as a mechanical proof-green step: the five committed dist trees (partiful-matrix contract/react/vanilla, todo + todo-v2 contract dist/web) embed absolute checkout paths and must be REBUILT with the portable-artifact toolchain, but those demos pin Exact 0.1.6/0.1.2 while portable generation needs Exact 0.1.7+. Rebuilding requires authorizing the Exact dependency-pin upgrade + frozen installs first, then rebuilding all five surfaces. Sequence that dep upgrade before this ticket can close.

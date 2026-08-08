@@ -105,7 +105,7 @@ export const LOCAL_SUITES = Object.freeze([
   {
     id: 'acceptance-rqs',
     file: 'cloudflare/test/acceptance.rqs.mjs',
-    evidence: ['cloudflare rqs acceptance: 39/39 checks passed'],
+    evidence: ['cloudflare rqs acceptance: 42/42 checks passed'],
   },
   {
     id: 'acceptance-secrets',

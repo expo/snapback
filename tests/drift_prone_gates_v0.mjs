@@ -388,9 +388,19 @@ test('same-change hook and main backstop operate on committed pushes', { timeout
     commitAll(repo, 'test: unknown path selects the fail-closed core');
     const coreTier = run(repo, 'git', ['push', 'origin', 'HEAD:refs/heads/main'], { env });
     assert.equal(coreTier.status, 0, coreTier.output);
+    const context = loadSelectionContext();
+    const selectedCoreCount = selectDriftProneGates(
+      ['unclassified-drift-probe.xyz'],
+      context,
+    ).selectedDriftProneGates.length;
+    const registeredCount = Object.keys(context.policy.driftProneGates).length;
     assert.match(
       coreTier.output,
-      /FAIL-CLOSED selection: .*running fail-closed CORE tier \(9 of 14 registered gates\)/u,
+      new RegExp(
+        `FAIL-CLOSED selection: .*running fail-closed CORE tier `
+          + `\\(${selectedCoreCount} of ${registeredCount} registered gates\\)`,
+        'u',
+      ),
     );
     assert.doesNotMatch(coreTier.output, /RUN client-bundle-metrology:/u);
     assert.doesNotMatch(coreTier.output, /RUN auth-invalidation-report:/u);

@@ -81,3 +81,6 @@ whose underlying behavior completed successfully:
 
 These four failures currently make `scripts/verify-local-proof --complete
 --keep-going` red independently of the product defects elsewhere in the proof.
+
+## Progress (2026-08-08 review-fixes)
+Three complete-proof reds fixed on main (Lane I): cloudflare RQS sentinel 39->42, tests/drift_prone_gates_v0.mjs count now derived from the registry (not hardcoded 9/14), and snapback-vite package.test.mjs cleanup ENOTEMPTY now uses bounded rmSync retries. Still open: the broader flake-hardening (absolute-latency ceilings, vacuous-pass windows, shared spawn/child-guard harness) and the drift_prone_gates full-fixture red (its disposable baseline carries pre-existing guide/symbol-registry drift needing guide-publication judgment).
