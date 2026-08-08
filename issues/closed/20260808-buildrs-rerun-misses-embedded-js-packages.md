@@ -42,3 +42,6 @@ binary's inputs" collapse to one.
 
 High — verified the rerun set and the include_str! sites directly. Clearly
 unintentional.
+
+## Resolution (2026-08-08)
+Fixed on main (Lane G). Verified: bash -n / node --check on edited scripts; cargo verify-project OK.

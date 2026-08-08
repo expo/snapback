@@ -254,10 +254,16 @@ fn emit_build_identity() {
     // without these an incremental rebuild after a source edit recompiled the
     // crate with the previous build's commit/dirty pair — a binary containing
     // uncommitted code that self-reported the old clean commit (ENG-23365).
-    // Directory paths are scanned recursively by cargo.
-    println!("cargo:rerun-if-changed=Cargo.toml");
-    println!("cargo:rerun-if-changed=Cargo.lock");
-    println!("cargo:rerun-if-changed=src");
+    // Directory paths are scanned recursively by cargo. Derive this set from
+    // the same source used by the dirty probe so newly embedded runtime inputs
+    // cannot silently miss build-script invalidation.
+    if let Some(pathspecs) = runtime_input_pathspecs(&manifest_dir) {
+        for pathspec in pathspecs {
+            println!("cargo:rerun-if-changed={pathspec}");
+        }
+    }
+
+    // These additional paths feed the agent-safe implementation digest below.
     println!("cargo:rerun-if-changed=packages/snapback-codegen");
     println!("cargo:rerun-if-changed=packages/snapback-contract");
     println!("cargo:rerun-if-changed=tests");

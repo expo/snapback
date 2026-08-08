@@ -19,6 +19,11 @@ run() {
 # The shared policy is also consumed by the agent-safe P-vs-C checker. Keep the
 # jobs and their diff-custody roots in one registry so a regenerated backend
 # cannot silently fall outside either gate.
+CODEGEN_JOBS="$(node scripts/generated-artifact-policy.mjs jobs)"
+if [ -z "$CODEGEN_JOBS" ]; then
+    echo "[check-generated-artifacts] FAIL: generated-artifact policy returned no codegen jobs" >&2
+    exit 1
+fi
 while IFS=$'\t' read -r outbound_actions target_profile backend_root; do
     codegen=(node packages/snapback-codegen/index.mjs "$backend_root")
     if [ "$target_profile" != "-" ]; then
@@ -29,13 +34,15 @@ while IFS=$'\t' read -r outbound_actions target_profile backend_root; do
     else
         run "${codegen[@]}"
     fi
-done < <(node scripts/generated-artifact-policy.mjs jobs)
+done <<< "$CODEGEN_JOBS"
 run node admin-ui/generate-contract-bindings.mjs
 
 REVIEW_ROOTS=()
+REVIEW_CACHE_ROOTS="$(node scripts/generated-artifact-policy.mjs review-cache-roots)"
 while IFS= read -r generated_root; do
+    [ -n "$generated_root" ] || continue
     REVIEW_ROOTS+=("$generated_root")
-done < <(node scripts/generated-artifact-policy.mjs review-cache-roots)
+done <<< "$REVIEW_CACHE_ROOTS"
 
 REVIEW_PATHS=()
 REVIEW_OUTPUT="$(node scripts/verify-generated-review-surface.mjs --check-index "${REVIEW_ROOTS[@]}")"
@@ -44,14 +51,18 @@ while IFS= read -r path; do
         REVIEW_PATHS+=("$path")
     fi
 done <<< "$REVIEW_OUTPUT"
+ADMIN_GENERATED_ROOTS="$(node scripts/generated-artifact-policy.mjs admin-generated-roots)"
 while IFS= read -r generated_root; do
+    [ -n "$generated_root" ] || continue
     REVIEW_PATHS+=("$generated_root")
-done < <(node scripts/generated-artifact-policy.mjs admin-generated-roots)
+done <<< "$ADMIN_GENERATED_ROOTS"
 # Team Chat and the packaged fixtures commit complete generated closures rather
 # than only the review manifest and policy-selected consumer projections.
+FULLY_COMMITTED_ROOTS="$(node scripts/generated-artifact-policy.mjs fully-committed-roots)"
 while IFS= read -r generated_root; do
+    [ -n "$generated_root" ] || continue
     REVIEW_PATHS+=("$generated_root")
-done < <(node scripts/generated-artifact-policy.mjs fully-committed-roots)
+done <<< "$FULLY_COMMITTED_ROOTS"
 
 if ! git diff --exit-code -- "${REVIEW_PATHS[@]}"; then
     echo "[check-generated-artifacts] FAIL: committed review manifests or policy projections are stale" >&2

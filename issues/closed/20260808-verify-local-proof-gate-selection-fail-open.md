@@ -37,3 +37,6 @@ exit ≥2 or a missing selection file as a **hard error**, not "not selected".
 High — the fixed path and grep-status conflation are verifiable in the script,
 and the results paths being namespaceable shows the omission is inconsistency,
 not intent.
+
+## Resolution (2026-08-08)
+Fixed on main (Lane G). Verified: bash -n / node --check on edited scripts; cargo verify-project OK.

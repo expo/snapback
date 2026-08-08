@@ -41,7 +41,8 @@ const BYPASS_ENV = 'SNAPBACK_DRIFT_GATES_BYPASS';
 const FULL_ENV = 'SNAPBACK_DRIFT_GATES_FULL';
 const DEPENDENCY_MIRROR_SCHEMA = 'snapback.drift-dependency-mirror.v1';
 const DEFAULT_TICKET_DATE = () => new Date().toISOString().slice(0, 10);
-const INFRASTRUCTURE_OUTPUT = /(?:ERR_MODULE_NOT_FOUND|MODULE_NOT_FOUND|Cannot find package|command not found|couldn't read .*No such file or directory|this operation must be run in a work tree|SNAPBACK_(?:CAPABILITY_IBEX|IBEX)_[A-Z0-9_]+)/u;
+const INFRASTRUCTURE_TICKET_THRESHOLD = 3;
+const INFRASTRUCTURE_OUTPUT = /^(?:Error \[(?:ERR_MODULE_NOT_FOUND|MODULE_NOT_FOUND)\]: Cannot find (?:package|module)[^\r\n]*|Error: Cannot find module[^\r\n]*|error: couldn't read [^\r\n]*: No such file or directory(?: \(os error \d+\))?|fatal: this operation must be run in a work tree|\[(?:snapback-bootstrap|runtime-link-smoke|ibex-doctor)\] (?:error: |ERROR )?SNAPBACK_(?:CAPABILITY_IBEX|IBEX)_[A-Z0-9_]+[^\r\n]*)$/mu;
 // Git exports these repository-local variables to hooks. They must not leak
 // into commands whose cwd is a detached revision worktree, or Git will keep
 // resolving the hook caller's index/HEAD instead of the isolated checkout.
@@ -491,6 +492,7 @@ export function runBackstop({
   }
   const ticketRoot = safeIssuesRoot(root, issuesDir);
   mkdirSync(ticketRoot, { recursive: true });
+  const infrastructureStreaks = readInfrastructureStreaks(root);
   let failures = 0;
   let infrastructureFailures = 0;
   for (const gateId of gates) {
@@ -498,19 +500,46 @@ export function runBackstop({
     const metadata = context.policy.driftProneGates[gateId];
     const execution = runGateAtRevision(root, revision, gateId, command, metadata, env);
     if (execution.ok) {
+      delete infrastructureStreaks[gateId];
       console.log(`[snapback-drift-backstop] PASS ${gateId}`);
       continue;
     }
     if (execution.infrastructureReason) {
       infrastructureFailures += 1;
+      const streak = (infrastructureStreaks[gateId] ?? 0) + 1;
+      infrastructureStreaks[gateId] = streak;
       writeCapturedOutput(execution);
       console.error(
         `[snapback-drift-backstop] INFRASTRUCTURE ERROR ${gateId} at ${revision}: `
           + execution.infrastructureReason,
       );
       console.error('[snapback-drift-backstop] no stale-record ticket was filed');
+      console.error(
+        `[snapback-drift-backstop] infrastructure classification ${streak}`
+          + ` of ${INFRASTRUCTURE_TICKET_THRESHOLD} before self-health ticketing`,
+      );
+      if (streak >= INFRASTRUCTURE_TICKET_THRESHOLD) {
+        const existing = findOpenInfrastructureTicket(ticketRoot, gateId);
+        if (existing) {
+          console.error(
+            `[snapback-drift-backstop] existing self-health ticket ${relative(root, existing)}; `
+              + 'not filing a duplicate',
+          );
+        } else {
+          const ticket = fileInfrastructureTicket({
+            ticketRoot,
+            gate: gateId,
+            command,
+            headRevision: revision,
+            reason: execution.infrastructureReason,
+            date: env.SNAPBACK_DRIFT_TICKET_DATE ?? DEFAULT_TICKET_DATE(),
+          });
+          console.error(`[snapback-drift-backstop] FILED ${relative(root, ticket)}`);
+        }
+      }
       continue;
     }
+    delete infrastructureStreaks[gateId];
     failures += 1;
     console.error(`[snapback-drift-backstop] STALE ${gateId} at ${revision}`);
     writeCapturedOutput(execution);
@@ -543,6 +572,7 @@ export function runBackstop({
     });
     console.error(`[snapback-drift-backstop] FILED ${relative(root, ticket)}`);
   }
+  writeInfrastructureStreaks(root, infrastructureStreaks);
   if (infrastructureFailures > 0) return 2;
   return failures === 0 ? 0 : 1;
 }
@@ -709,6 +739,93 @@ function findOpenTicket(ticketRoot, gate) {
     if (readFileSync(path, 'utf8').includes(marker)) return path;
   }
   return null;
+}
+
+function readInfrastructureStreaks(root) {
+  const path = join(root, 'target', 'drift-backstop-infrastructure-streaks.v1.json');
+  if (!existsSync(path)) return {};
+  try {
+    const parsed = JSON.parse(readFileSync(path, 'utf8'));
+    if (parsed?.schemaVersion !== 'snapback.drift-backstop-infrastructure-streaks.v1'
+      || typeof parsed.streaks !== 'object' || parsed.streaks === null) return {};
+    return Object.fromEntries(Object.entries(parsed.streaks).filter(([gate, count]) => (
+      /^[a-z0-9-]+$/u.test(gate) && Number.isSafeInteger(count) && count > 0
+    )));
+  } catch {
+    return {};
+  }
+}
+
+function writeInfrastructureStreaks(root, streaks) {
+  const path = join(root, 'target', 'drift-backstop-infrastructure-streaks.v1.json');
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, `${JSON.stringify({
+    schemaVersion: 'snapback.drift-backstop-infrastructure-streaks.v1',
+    streaks,
+  }, null, 2)}\n`);
+}
+
+function findOpenInfrastructureTicket(ticketRoot, gate) {
+  if (!existsSync(ticketRoot)) return null;
+  const marker = `**Infrastructure gate:** \`${gate}\``;
+  for (const name of readdirSync(ticketRoot).sort()) {
+    const path = join(ticketRoot, name);
+    if (!name.endsWith('.md') || !lstatSync(path).isFile()) continue;
+    if (readFileSync(path, 'utf8').includes(marker)) return path;
+  }
+  return null;
+}
+
+function fileInfrastructureTicket({
+  ticketRoot,
+  gate,
+  command,
+  headRevision,
+  reason,
+  date,
+}) {
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(date)) fail(`invalid ticket date ${date}`);
+  const compactDate = date.replaceAll('-', '');
+  let path = join(ticketRoot, `${compactDate}-drift-backstop-infrastructure-${gate}.md`);
+  if (existsSync(path)) path = join(
+    ticketRoot,
+    `${compactDate}-drift-backstop-infrastructure-${gate}-${headRevision.slice(0, 8)}.md`,
+  );
+  const body = `# drift backstop self-health: ${gate} is repeatedly unavailable
+
+**Status:** Open
+**Impact:** 5
+**Urgency:** 5
+**Ease:** 4
+**Confidence:** 5
+**Systems:** Testing, Tooling, CI
+**Date:** ${date}
+**Infrastructure gate:** \`${gate}\`
+**Detected at:** \`${headRevision}\`
+**Related:** LLP 0175 §D2.1
+
+## Summary
+
+The frozen-record backstop classified \`${gate}\` as infrastructure for at
+least ${INFRASTRUCTURE_TICKET_THRESHOLD} consecutive runs. During that streak
+the backstop could not determine whether the gate's committed record was
+current, so its scheduled self-health needs repair.
+
+Latest infrastructure reason: \`${reason}\`
+
+## Reproduce and repair
+
+Run the canonical check in the scheduled backstop environment:
+
+\`\`\`sh
+${command}
+\`\`\`
+
+Repair the environment or classifier, verify a backstop run can classify the
+gate, record the resolution here, and move this ticket to \`issues/closed/\`.
+`;
+  writeFileSync(path, body);
+  return path;
 }
 
 function commandForGate(context, gate) {

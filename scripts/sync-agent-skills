@@ -32,8 +32,18 @@ link() {
   local target="$1"
   local path="$2"
   mkdir -p "$(dirname "$path")"
-  if [ -L "$path" ] || [ -e "$path" ]; then
-    rm -rf "$path"
+  if [ -L "$path" ]; then
+    rm -f "$path"
+  elif [ -d "$path" ]; then
+    if ! rmdir "$path" 2>/dev/null; then
+      printf 'warning: refusing to replace populated skill directory %s; leaving it unchanged\n' \
+        "$path" >&2
+      return 0
+    fi
+  elif [ -e "$path" ]; then
+    printf 'warning: refusing to replace non-symlink skill path %s; leaving it unchanged\n' \
+      "$path" >&2
+    return 0
   fi
   ln -s "$target" "$path"
 }

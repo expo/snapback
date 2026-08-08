@@ -31,3 +31,6 @@ linking.
 
 High on behavior. The symlink normalization is deliberate; the destructive
 handling of a non-symlink directory with unknown content is not guarded.
+
+## Resolution (2026-08-08)
+Fixed on main (Lane G). Verified: bash -n / node --check on edited scripts; cargo verify-project OK.

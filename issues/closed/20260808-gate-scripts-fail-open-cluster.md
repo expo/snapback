@@ -47,3 +47,6 @@ N consecutive infrastructure classifications.
 
 Medium on each (both need a specific failure to bite); neither pattern is a
 deliberate fail-open. Both live at the least-observable (backstop) tier.
+
+## Resolution (2026-08-08)
+Fixed on main (Lane G). Verified: bash -n / node --check on edited scripts; cargo verify-project OK.
