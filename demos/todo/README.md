@@ -1,5 +1,13 @@
 # Todo demo
 
+> **Legacy authoring form on purpose — do not copy this shape into new work.**
+> This demo deliberately keeps the historical bundled-handler form
+> (`defineJsLiveQuery({ source: 'handlers.mjs', … })` in
+> `snapback/functions.mjs`, imported through the `demos/_kit` shim) as a floor
+> witness. Start a new app from `demos/todo-v2` or the scaffold templates
+> (`snapback new` / `npm create snapback-app`), which model the current
+> authoring surface.
+
 The floor reference app from [LLP 0000](../../llp/0000-snapback.explainer.md) and
 the first demo in [LLP 0015](../../llp/0015-demo-application-suite.plan.md):
 single-table CRUD, a user-scoped syncable-live query, realtime updates,

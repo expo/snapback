@@ -63,9 +63,8 @@
       }
     },
     "react": {
-      "requirement": "blocked",
-      "expectedDiagnostic": "REACT_ADAPTER_NOT_BUILT",
-      "note": "React/Expo adapter is a capability gap in v0; the headless SnapbackClient is the framework-neutral core a React adapter would bind over."
+      "requirement": "absent",
+      "note": "Historical scoping (2026-Q1, snapback.v0): this demo predates the React/Expo adapter and deliberately ships no React surface. The first-party adapter has since shipped — see guide/capabilities.md (clients.react, clients.react-expo) and packages/snapback-cli/templates/react; the headless SnapbackClient remains the framework-neutral core it binds over."
     }
   },
   "acceptanceChecks": {
@@ -115,6 +114,7 @@
     "react_adapter",
     "contract_design_mode_authoring"
   ],
+  "capabilityGapsNote": "Frozen at demo-scoping time (2026-Q1, snapback.v0): entries record what this demo does not exercise, not current platform capability. Several have since shipped or partially shipped — react_adapter (clients.react shipped), assets (backend.assets partial), cron (backend.cron shipped), notifications (backend.expo-push-seam shipped; first-class backend.notifications remains a GAP), external_auth (auth.external-identity-broker partial). guide/capabilities.md is the current capability truth.",
   "notClaiming": [
     "offline-first / local handler replay (this is an Online-class integration)",
     "Partiful-scale throughput (this is a demo shape, not a benchmark)",
