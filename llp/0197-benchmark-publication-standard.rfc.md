@@ -5,12 +5,14 @@
 **Systems:** Competitive evaluation, Publishing, Documentation
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (r2) — r2 applies the full round-1 revision set that r1 header claimed but (reviser error, caught by the round-2 delta reviews) did not contain, plus round-2 finds: preregistration in rule 1, rules 4a/4b, publication-safe schema in rule 6, reproducibility manifest, diary-0058 citation, series restated 2.91x→2.24x. 2026-08-08 (r1) — super-refine round-1 revision against the
+**Revised:** 2026-08-08 (r4) — round-3 fixes: 0194 verify-config declaration path + scope ordering; 0197 aid symmetry beyond templates, no cross-vendor numbers in the history narrative, success counts on ratio charts, Related enumerated; slug-precision citations (0193); 0196 N=1 caveat. 2026-08-08 (r2) — r2 applies the full round-1 revision set that r1 header claimed but (reviser error, caught by the round-2 delta reviews) did not contain, plus round-2 finds: preregistration in rule 1, rules 4a/4b, publication-safe schema in rule 6, reproducibility manifest, diary-0058 citation, series restated 2.91x→2.24x. 2026-08-08 (r1) — super-refine round-1 revision against the
 dual-family cluster reviews (llp/reviews/0193-*.{claude,gpt-5}.md):
 unretained/incorrect quantitative claims corrected to retained-artifact
 citations; see the review artifacts for the concern ledger.
 **Related:** LLP 0186 (OQ5 — this RFC develops it), benchmarks/
-(harness, records), LLP 0195 (public surface), diaries 0058-0069
+(harness, records), LLP 0195 (public surface), diaries
+0058/0065/0066/0068/0069 (measurement runs; 0058 by filename
+`0058-relay-room-expo-backend-bakeoff`, a colliding number exists)
 
 ## Summary
 
@@ -61,20 +63,25 @@ A published Snapback benchmark claim requires:
    unequal-bar table may be published alongside with the asymmetry
    stated (competitor lanes' own-words caveats quoted, not
    paraphrased).
-   4a. **Starter symmetry:** where a Snapback lane uses a shipped
-   template, the scenario is labeled template-assisted; competitor
-   lanes get the same predeclared public-availability and selection
-   criteria for their ecosystems' starters; general
-   authoring-efficiency claims use held-out brief variants no template
-   was designed against (LLP 0196's exit criteria adopt this); where no
-   equivalent starter exists, template-assisted and bare-start
-   configurations publish separately.
+   4a. **Aid symmetry (all vendor-authored benchmark-targeted
+   artifacts):** the rule covers every vendor-authored aid a lane can
+   reach — templates, published example apps (including any benchmark
+   lane apps LLP 0195 publishes), recipes, and skill content — not
+   templates alone. Where a Snapback lane uses any such aid, the
+   scenario is labeled aid-assisted; competitor lanes get the same
+   predeclared public-availability and selection criteria for their
+   ecosystems' aids; general authoring-efficiency claims use held-out
+   brief variants no vendor-authored aid was designed against
+   (LLP 0196's exit criteria adopt this); where no equivalent aid
+   exists, aid-assisted and bare-start configurations publish
+   separately.
    4b. **Equal-proof-bar failure protocol (preregistered):** identical
    budgets and stopping rules per lane; every failed attempt retained
    and reported as a capability failure — never converted to a timeout
    duration, silently excluded, or substituted with a weaker result;
    efficiency ratios computed only across runs meeting the identical
-   bar, with the capability-failure table published beside them.
+   bar, with the capability-failure table published beside them and
+   per-lane success counts stated on the ratio chart itself.
 5. **Version pinning:** every run names the exact closure and
    competitor versions; claims age out when either moves materially.
 6. **Self-report symmetry, publication-safe:** lane reports and
@@ -93,14 +100,14 @@ A published Snapback benchmark claim requires:
 
 ## What publishing looks like
 
-A benchmarks page on the LLP 0195 site: the historical series chart as
-a dated narrative annotation, exempt from rule 1 because it makes no
-controlled-comparison claim (the early losing runs included — the
-26m03s-vs-11m15s origin, diary 0058, is part of the story), the current
-N≥3 medians as the only comparative claims, links to briefs/records/
-prompts, a "run it yourself" section stating expected run cost, and the
-reproducibility manifest per record. No superlatives that a record link
-cannot back.
+A benchmarks page on the LLP 0195 site: a program-history narrative
+that contains NO cross-vendor numbers or ratios — the single-run era
+(including the losing origin run, diary 0058) is told as dated prose
+with links to the raw records, because a comparative chart communicates
+a comparison whatever its label; the current N≥3 medians as the only
+comparative presentation; links to briefs/records/prompts; a "run it
+yourself" section stating expected run cost; and the reproducibility
+manifest per record. No superlatives that a record link cannot back.
 
 ## Author decisions required
 

@@ -5,7 +5,7 @@
 **Systems:** Guide, Documentation, Client packages, Types, Build
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (r3) — pre-round-3 minors (citation precision, diary enumeration, OQ2-contingency marking). 2026-08-08 (r2) — r2 also resolves the OQ2 hand-written-interim contradiction (named exclusion until a declaration file lands). 2026-08-08 (r1) — super-refine round-1 revision against the
+**Revised:** 2026-08-08 (r4) — round-3 fixes: 0194 verify-config declaration path + scope ordering; 0197 aid symmetry beyond templates, no cross-vendor numbers in the history narrative, success counts on ratio charts, Related enumerated; slug-precision citations; 0196 N=1 caveat. 2026-08-08 (r3) — pre-round-3 minors (citation precision, diary enumeration, OQ2-contingency marking). 2026-08-08 (r2) — r2 also resolves the OQ2 hand-written-interim contradiction (named exclusion until a declaration file lands). 2026-08-08 (r1) — super-refine round-1 revision against the
 dual-family cluster reviews (llp/reviews/0193-*.{claude,gpt-5}.md):
 unretained/incorrect quantitative claims corrected to retained-artifact
 citations; see the review artifacts for the concern ledger.
@@ -50,10 +50,11 @@ requires opening `node_modules`.
    source), `snapback-react` hooks and fact types, `snapback-expo`.
    The `ctx` handler surface and the CLI verify/config contracts have
    no declaration source today; they JOIN the reference when their
-   declaration files land (OQ2 proposes shipping one for `ctx`, which
-   also gives consumers editor types) — until then they are named
-   exclusions, not hand-written pages, so the no-hand-written rule and
-   the completeness claim stay true together.
+   declaration sources land (OQ2 proposes both: a `ctx` declaration
+   file and a verify-config types/schema export) and are ordered
+   immediately after the initial package scope — until then they are
+   named exclusions, not hand-written pages, so the no-hand-written
+   rule and the completeness claim stay true together.
 
 ## What this kills
 
@@ -77,12 +78,16 @@ fraction is claimed; the diaries do not decompose the bucket.)
   reference is therefore EXCLUDED from `flat.md` unless that ticket's
   diet/tier design lands first, and per-module splitting rules are
   needed regardless.
-- OQ2: The `ctx` handler surface (db verbs, assets, refuse) is a runtime
-  contract, not a package `.d.mts` — it joins the reference only via a
-  published declaration file (which also gives consumers editor types).
-  No hand-written interim section: until the declaration lands, `ctx`
-  remains a named exclusion per Design 5, documented in the intent
-  guide as today.
+- OQ2: Declaration sources for the two contingent surfaces. The `ctx`
+  handler surface (db verbs, assets, refuse) joins only via a published
+  declaration file (which also gives consumers editor types); the
+  verify-config contract joins only via a published machine-readable
+  source (a types export or schema from `@expo/snapback-cli`'s verify
+  module). No hand-written interim sections: until each source lands,
+  its surface remains a named exclusion per Design 5, documented in the
+  intent guide as today. The two most expensive measured excursions sit
+  behind these exclusions, so Design 5 orders them immediately after
+  the initial package scope rather than leaving them unscheduled.
 - OQ3: Whether doc comments in `.d.mts` are complete enough to render
   useful prose, and whether improving them (which rotates artifact
   identity — the doc-comment lesson) batches with releases.

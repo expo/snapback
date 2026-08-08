@@ -5,7 +5,7 @@
 **Systems:** Templates, CLI, Guide, Testing, Agent experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (r2) — r2 applies the full round-1 revision set that r1 header claimed but (reviser error, caught by the round-2 delta reviews) did not contain: capability-surface wording, T5 two-gate split, template-assisted labeling + held-out-brief rule. 2026-08-08 (r1) — super-refine round-1 revision against the
+**Revised:** 2026-08-08 (r4) — round-3 fixes: 0194 verify-config declaration path + scope ordering; 0197 aid symmetry beyond templates, no cross-vendor numbers in the history narrative, success counts on ratio charts, Related enumerated; slug-precision citations (0193); 0196 N=1 caveat. 2026-08-08 (r2) — r2 applies the full round-1 revision set that r1 header claimed but (reviser error, caught by the round-2 delta reviews) did not contain: capability-surface wording, T5 two-gate split, template-assisted labeling + held-out-brief rule. 2026-08-08 (r1) — super-refine round-1 revision against the
 dual-family cluster reviews (llp/reviews/0193-*.{claude,gpt-5}.md):
 unretained/incorrect quantitative claims corrected to retained-artifact
 citations; see the review artifacts for the concern ledger.
@@ -21,8 +21,10 @@ unanimously the cheapest). Knowledge moved into template defaults
 (0.1.15's sessions mode, offline registration, upload wiring) produced
 the largest improvement of any release whose changes were
 knowledge-placement rather than defect fixes — bare lane 41m32s→29m35s
-(diaries 0068/0069; the larger 80m→41m step at 0.1.13 came from the
-seven-defect fix layer, a different mechanism). This Plan extends the portfolio
+(diaries 0068/0069 — a single N=1 step inside the series' demonstrated
+±30% variance, used here as plan motivation, not as a publishable
+claim; the larger 80m→41m step at 0.1.13 came from the seven-defect
+fix layer, a different mechanism). This Plan extends the portfolio
 along the measured demand: two new templates exercising the capability
 surfaces of the committed benchmark briefs, proof machinery registered by default, and the recipe
 list the diaries priced.

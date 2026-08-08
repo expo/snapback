@@ -5,7 +5,7 @@
 **Systems:** Diagnostics, Error handling, Guide, Agent experience, CI
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (r3) — pre-round-3 minors (citation precision, diary enumeration). 2026-08-08 (r1) — super-refine round-1 revision against the
+**Revised:** 2026-08-08 (r4) — round-3 fixes: 0194 verify-config declaration path + scope ordering; 0197 aid symmetry beyond templates, no cross-vendor numbers in the history narrative, success counts on ratio charts, Related enumerated; slug-precision citations; 0196 N=1 caveat. 2026-08-08 (r3) — pre-round-3 minors (citation precision, diary enumeration). 2026-08-08 (r1) — super-refine round-1 revision against the
 dual-family cluster reviews (llp/reviews/0193-*.{claude,gpt-5}.md):
 unretained/incorrect quantitative claims corrected to retained-artifact
 citations; see the review artifacts for the concern ledger.
@@ -16,7 +16,7 @@ diaries 0065/0066/0068/0069
 ## Summary
 
 Across the retained measurement series, refusal-quality incidents
-resolved fastest when the refusal named its own fix — diary 0048's
+resolved fastest when the refusal named its own fix — diary 0048's (`0048-upload-bakeoff-faceplate`)
 `SNAPBACK_ASSET_IMAGE_DECODE_FAILED` carrying the exact upstream parser
 error, and the anonymous-upload refusal naming `snapback assets put
 --user` (diary 0065's tickets) are retained exemplars — while several of
@@ -37,7 +37,7 @@ bar structural, so it can never regress.
 - The retained record shows the mechanism in both directions: refusals
   that named remediations (`snapback assets put --user`, diary 0048's
   decode diagnostic, the seed-recovery messages) cost near-zero;
-  refusals that did not each cost a bisection session — diary 0058's
+  refusals that did not each cost a bisection session — diary 0058's (`0058-relay-room-expo-backend-bakeoff`)
   "host-ops error response was not JSON" (in-checkout era;
   `issues/closed/20260805-managed-dev-multi-json-load.md`) and the
   SHA-256-hashed field path
