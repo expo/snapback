@@ -3,9 +3,9 @@ title: Sessions and principals
 id: auth.sessions-and-principals
 order: 1
 audience: agent-first
-capabilities: [auth.sessions, auth.scoped-queries]
-authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0172-explicit-function-authorization.rfc.md, packages/snapback-codegen/index.mjs, src/auth/mode.rs, src/auth/provider.rs, src/host_ops.rs, src/server.rs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, demos/_kit/server-process.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
-examples: [demos/card-game, demos/party-wall]
+capabilities: [auth.sessions, auth.browser-session-custody, auth.scoped-queries]
+authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, packages/snapback-codegen/index.mjs, src/auth/mode.rs, src/auth/provider.rs, src/host_ops.rs, src/server.rs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+examples: [demos/browser-auth, demos/card-game, demos/party-wall]
 status: current
 targets: [local]
 maturity: shipped
@@ -211,11 +211,13 @@ bundle). What a web author actually does today is one of these:
   client-passed `userId`, no sign-in UI at all.
 - **Test personas** for acceptance suites — the mailbox loop above, driven
   by the suite's server-side harness, never by page code.
-- **The broker seam** for a product-shaped flow — a trusted server-side
-  component authenticates the user through its own front door, mints the
-  session (`auth.mintSession`), and the browser adopts the bearer; the
-  mechanics on [authenticate a native app](./native-apps.md) apply to a web
-  client unchanged.
+- **The trusted-server seam** for a product-shaped flow — a server-side
+  component authenticates the user through its own front door. For a browser,
+  prefer staging a one-use challenge/code that the ordinary `authExchange`
+  path adopts into `AuthCoordinator`; the executable
+  [browser sign-in recipe](../recipes/browser-auth.md) demonstrates it. A
+  direct external bearer uses separate headless custody and is not the same
+  reload-persistent browser composition.
 - **The supervised Expo dev loop's web carrier** — `snapback dev --expo`
   auto-mints an ordinary session for the Expo web app through its
   loopback-only bootstrap exchange
@@ -224,23 +226,35 @@ bundle). What a web author actually does today is one of these:
 Whichever entry path delivers the credential, a browser client under sessions
 constructs an `AuthCoordinator` (from `@expo/snapback-contract`) and passes it
 as `authCoordinator:`; the coordinator owns custody, refresh, and the logout
-barrier. The CI-executed construction from the persona witness:
+barrier. Use the shipped IndexedDB adapter for a browser that must survive a
+full reload:
 
-```js source=demos/party-wall/tests/acceptance/headless.mjs
-    const coordinator = new AuthCoordinator({
-      appId,
-      storage: createMemoryAuthCustodyStorage({ state: { custody: {} } }),
-      broadcastChannelFactory: null,
-      hintStorage: null,
-    });
+```js source=demos/browser-auth/surfaces/web/main.mjs
+export const authCoordinator = new AuthCoordinator({
+  appId: APP_ID,
+  storage: createIndexedDbAuthCustodyStorage(),
+});
+
+export const client = new SnapbackClient('/__snapback', {
+  authCoordinator,
+  authInvalidationProtocol: 1,
+  authorityDescriptorProtocol: 1,
+  authorizedLeaseProtocol: 1,
+  clientStoreId: 'browser-auth-recipe-web',
+  rqsStore: null,
+});
 ```
 
-That test uses the volatile memory custody adapter, which does not survive a
-full-page navigation. A real browser app substitutes the shipped
-`createIndexedDbAuthCustodyStorage()` (same package) as `storage:` so custody
-persists across reloads; everything else is identical. A worked
-real-auth sign-in recipe beyond test personas is queued as LLP 0196 T4 work
-([LLP 0196](repo:llp/0196-template-and-recipe-portfolio.plan.md)).
+`createMemoryAuthCustodyStorage()` is volatile and appropriate for tests or a
+document-lifetime flow. It can survive an SPA route change because the same
+JavaScript process remains alive, but not a full-page reload. The registered
+browser recipe reconstructs the page in real Chrome and asserts that neither
+the bootstrap nor `/auth/exchange` count advances while the protected identity
+returns from IndexedDB.
+
+The recipe remains local and partial. It does not turn its signed-assertion
+fixture into Draft LLP 0151's generic OIDC/first-party provider contract and
+does not claim production delivery or hosted auth.
 
 ## Read public data anonymously
 

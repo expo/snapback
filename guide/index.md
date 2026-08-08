@@ -191,6 +191,9 @@ you never build around a feature because you didn't know it existed.
 ### Auth
 - [Sessions and principals](./auth/sessions-and-principals.md) — the server
   derives who you are; scoped queries; logout barriers.
+- [Browser sign-in and reload custody](./recipes/browser-auth.md) — local
+  trusted-server identity verification, immutable app-user binding,
+  IndexedDB restoration, protected rows, and logout without a hosted claim.
 - [Bind a principal to your app's user identity](./auth/app-identity-binding.md)
   — the principal↔app-user table every ported app needs first: the broker
   pattern for production, the frozen-actor-map bootstrap for acceptance.
@@ -283,6 +286,9 @@ you never build around a feature because you didn't know it existed.
   Aboard on the honest partial hosted profile; explicit supported subset and gaps.
 
 ### Recipes
+- [Browser sign-in and reload custody](./recipes/browser-auth.md) — verified
+  external assertion seam, principal↔app-user binding, durable IndexedDB
+  custody, protected rows, and revoking logout (local product-shaped recipe).
 - [Presence cursors](./recipes/presence-cursors.md) — ephemeral rooms, TTL,
   publish budgets (the cursors-web demo, distilled).
 - [Hidden hands](./recipes/hidden-hands.md) — per-principal secrecy, logout

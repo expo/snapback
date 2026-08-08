@@ -293,7 +293,7 @@ Case 26 absorbs the duplicated native-lane simulator setup recorded in
     Route terms: "headless simulator", "plistlib", "Expo Go onboarding",
     "simctl openurl", "deep-link drive channel".
 
-Cases 27–30 absorb the paged-list, server-minted optimistic-create,
+Cases 27–31 absorb the paged-list, server-minted optimistic-create,
 structured route-argument, and mutation-settlement guide gaps closed or
 narrowed on 2026-08-08.
 
@@ -335,6 +335,23 @@ narrowed on 2026-08-08.
     `backend/trusted-runtime-values.md`.
     Route terms: "ctx.mutation.settlement", "settlementId",
     "replay-stable effect", "provider idempotency key".
+
+Case 31 absorbs the browser-custody and real-sign-in recipe gaps recorded in
+`issues/closed/20260806-guide-gap-browser-auth-custody-indexeddb-adapter.md`
+and LLP 0196 T4.
+
+31. **Browser external sign-in and reload:** "Connect my browser app's
+    existing external identity to Snapback, bind it to my users table, keep
+    protected data signed in across a full reload, and log out safely." The
+    run fails if it uses memory custody, gives mailbox/admin/impersonation
+    material to page code, exposes a caller-selectable binding mutation,
+    keys identity by email, hands a raw external bearer to page state and
+    calls that coordinator custody, or claims the local fixture is hosted
+    production/OIDC support.
+    Expected pages: `recipes/browser-auth.md` and
+    `auth/app-identity-binding.md`.
+    Route terms: "browser auth reload", "IndexedDB auth custody",
+    "createIndexedDbAuthCustodyStorage", "issuer subject".
 
 ## Static routing check
 

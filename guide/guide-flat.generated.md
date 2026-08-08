@@ -73,7 +73,8 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | sync.offline-js-arm-protected | Lease-bounded protected retention (LLP 0043 M1 custody) on the JS/React arm — the Contract arm ships it; this arm does not yet | offline auth browser, lease js | none | design-only | llp/0129-local-first-program.plan.md (Phase 0 status note; no shipped witness) | llp/0043, llp/0053, llp/0129 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260731-js-arm-lease-custody-and-sessions-outbox.md) |
 | sync.settlement-bounded-skew | `settlement.bounded_skew`: a mutation-declared, structurally direct `runtimeNow()` field may accept a lane-L captured time only within its declared bound; mixed sinks stay server-derived and lane Q remains unbounded replay-accept. The server path and receipt fact ship, while local capture/execution remains outside this slice. | bounded skew, local settlement, runtimeNow, claim ledger | local | partial | src/local.rs | llp/0133 | GAP (local capture/executor; owner: LLP 0155 Stage 2, review: 2026-08-31) |
 | auth.sessions | Server-minted sessions; email-code login; server-derived principals | login, signin, identity, session, principal binding, app user table, identityBinding | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
-| auth.external-identity-broker | Adopt a session minted by a trusted server-side identity broker; dev/test/demo host operation only | native login, external identity, broker, adopted bearer | local | partial | `createExternalSessionClient` in packages/snapback-client/index.mjs | llp/0024, llp/0057, llp/0096 | auth/native-apps.md |
+| auth.external-identity-broker | Local bridges: adopted bearer for headless/native, or trusted-server one-use exchange into browser coordinator custody; mint/capture remain dev/test/demo only | native login, external identity, broker, adopted bearer, browser external sign-in, signed assertion, issuer subject | local | partial | `createExternalSessionClient` in packages/snapback-client/index.mjs + demos/browser-auth/tests/acceptance/browser-auth.mjs | llp/0024, llp/0057, llp/0096, llp/0151 | recipes/browser-auth.md |
+| auth.browser-session-custody | Bearer-v1 custody through AuthCoordinator + IndexedDB/Web Locks, with reload restoration and logout replacement; XSS-readable and not sender-constrained | durable browser auth, browser auth reload, IndexedDB auth custody, createIndexedDbAuthCustodyStorage, reload session, persistent login | local | shipped | `createIndexedDbAuthCustodyStorage` in packages/snapback-contract/auth-custody-indexeddb.mjs + demos/browser-auth/tests/acceptance/browser-auth.mjs | llp/0059, llp/0060 | recipes/browser-auth.md |
 | auth.scoped-queries | Per-principal query scoping via authScopeField | hidden data, per-user, row security, Supabase RLS | local | shipped | `authScopeField` in packages/snapback-codegen/define.mjs | llp/0039, llp/0053 | auth/sessions-and-principals.md |
 | auth.invalidation-barrier | Authorization invalidation; logout blanking | logout, revoke, invalidation | local | shipped | route /live/authorization-invalidation/acknowledge | llp/0053 | auth/protecting-data.md |
 | auth.authorized-leases | Lease-bounded offline retention of authorized reads | offline auth, lease, retained | local | shipped | route /query/{name}/authorized-lease | llp/0059 | auth/protecting-data.md |
@@ -96,12 +97,12 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | clients.contract-keyed-scopes | Binding-time keyed Contract queries with dedup, refcounts, and authority fencing | dynamic query, query args, dedup, selection | local | shipped | `createKeyedSnapbackContractProvider` in packages/snapback-contract/keyed-provider.mjs | llp/0034, llp/0063 | clients/contract-adapter.md |
 | clients.mutation-outcomes | Raw provider settlement facts plus Exact three-fact mutation projection | mutation state, timeout, retry, receipt, ambiguity | local | shipped | `partitime.step1-mutation-projection.v1` in demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs | llp/0043, llp/0063 | clients/contract-adapter.md |
 | clients.optimistic-overlays | Derived optimistic mutations + reconciliation | optimistic, overlays, latency | local | shipped | `deriveOptimisticReducer` in packages/snapback-contract/index.mjs | llp/0052 | clients/contract-adapter.md |
-| clients.react | Prepared React provider over one headless store/transport seam: exact generated single/grouped live queries, capability-gated all-live and mixed-route references with one-commit register-mode adoption, explicit per-child registered-live/read-only boot provenance, honest weakest aggregate connection state, explicit live fallback, attach-deadline recovery, sessions authorization adoption, result-validated optimistic mutation rebase/rollback, local managed connection-keyed presence, per-query `freshness`/`retention` offline facts with the `useSnapbackOutbox` queued-intent projection, Strict Mode/HMR sharing, complete cleanup, and retained Signal Desk receipts | react, hooks, useSyncExternalStore, useSnapbackQuery, Convex useQuery, result inference, typed mutation, optimistic rollback, replay advisory, projectRecordFields, optimistic toggle helper, presence, ephemeral hook, useSnapbackPresence, typing indicator, query groups, mixed route, read-only snapshot, bundle prime, registered bundle, hmr, offline freshness, outbox badge, pending sidecar, application error, app refusal, appCode | local | shipped | `useSnapbackPresence` in packages/snapback-react/index.d.mts | llp/0012, llp/0064, llp/0074, llp/0090, llp/0101, llp/0114, llp/0106, llp/0107, llp/0129, llp/0157 | clients/react.md |
+| clients.react | React provider over one headless store/transport: generated live/group/mixed-route reads with provenance, fallback, and recovery; session adoption; validated optimistic rebase/rollback; managed presence; freshness/retention/outbox facts; Strict Mode/HMR sharing and cleanup | react, hooks, useSyncExternalStore, useSnapbackQuery, Convex useQuery, result inference, typed mutation, optimistic rollback, replay advisory, projectRecordFields, optimistic toggle helper, presence, ephemeral hook, useSnapbackPresence, typing indicator, query groups, mixed route, read-only snapshot, bundle prime, registered bundle, hmr, offline freshness, outbox badge, pending sidecar, application error, app refusal, appCode | local | shipped | `useSnapbackPresence` in packages/snapback-react/index.d.mts | llp/0012, llp/0064, llp/0074, llp/0090, llp/0101, llp/0114, llp/0106, llp/0107, llp/0129, llp/0157 | clients/react.md |
 | clients.react-paged-list | React load-more: unique raw keyset, whole-result merge, volatile archive; protected cursors stay headless | paginated list, load more, infinite scroll, whole-result replacement, retained pages, pageKey | local | shipped | packages/snapback-cli/templates/media-feed/acceptance.mjs | llp/0100, llp/0114, llp/0196 | recipes/paged-list.md |
 | clients.optimistic-mutation-view | Generated-IR optimistic create: durable intent, typed provisional row, logical-mint mapping, ambiguous retry | createOptimisticMutationView, optimistic create, server-minted ID, logical mint, idMap, ambiguous retry, response loss | local | shipped | `createOptimisticMutationView` in packages/snapback-client/index.d.mts | llp/0133, llp/0155 | recipes/optimistic-create.md |
 | clients.optimistic-create | First-class React-provider optimistic insert directly in a canonical `useSnapbackQuery` store; lower-level substrate ships separately | React optimistic create, useSnapbackMutation insert, optimistic insert hook, provider provisional row, pending row, intent id, temporary id | none | design-only | issues/20260808-first-class-react-optimistic-create.md (no provider/hook witness) | llp/0107, llp/0133, llp/0155 | GAP (owner: ccheever, review: 2026-09-30; issue: issues/20260808-first-class-react-optimistic-create.md); recipes/optimistic-create.md |
 | clients.surfaces | Generated application surfaces bind one screen/resource's reads, ordinary mutations, asset-bearing commands, raw assets, and presence around shared params; React and headless projections share canonical owners. The closed command task composes zero/one asset child with one ordinary mutation and reports truthful failure, ambiguity, and residue provenance. | defineSurface, useSurface, observeSnapbackSurface, application surface, screen surface, one hook for a screen, bind query and mutation, surface presence, conversation surface, useSnapbackSurface, defineCommand, useSnapbackCommand, image send, upload then mutate, command task | local | partial | `useSnapbackCommand` in packages/snapback-react/index.d.mts | llp/0179, llp/0180, llp/0114, llp/0176 | clients/surfaces.md |
-| clients.react-expo | React Expo Online; supervised no-URL simulator/emulator boot. G1 receipts prove those routes. The Expo web carrier is paved at package level (loopback-scoped bootstrap CORS + preflight, web-safe `#app-state` resolution, browser `File`/`Blob`/`blob:` picker sources); an end-to-end Expo-web receipt is still open. Cold boot with the supervisor stopped falls back to the cached non-secret binding plus the digest-bound persisted receipt (`preparation.source: 'persisted-receipt'`; admission/expiry unchanged, bearer never persisted). Android USB selection plus exact `adb reverse` ownership is headless-proven with a live Online receipt pending; iOS USB honestly refuses because current `devicectl` has no TCP forward and `iproxy` is the wrong direction. Physical-device capability, LAN/tunnel, and release remain unclaimed. | react native, expo, ios, android, expo web, react-native-web, bootstrap CORS, blob picker, physical device, USB device, snapback dev --expo, SnapbackExpoProvider, adb reverse, TCP/IP adb refused, ios udid, iproxy, 10.0.2.2, authority-required, restore lock, .snapback gitignore, copy project | local | shipped | `runExpoDev` in packages/snapback-cli/expo-dev.mjs + packages/snapback-cli/expo-bootstrap-exchange.test.mjs + packages/snapback-cli/expo-device-forwarding.test.mjs + simulator/emulator receipts | llp/0012, llp/0064, llp/0176, llp/0181 | clients/react-expo.md |
+| clients.react-expo | Expo provider + supervised no-URL simulator/emulator boot. The package-level web carrier ships; its end-to-end receipt remains open. Cold supervisor boot uses cached non-secret binding plus a digest-bound persisted receipt, never a bearer. Android USB `adb reverse` is proven; iOS USB, LAN/tunnel, and release remain unclaimed. | react native, expo, ios, android, expo web, react-native-web, bootstrap CORS, blob picker, physical device, USB device, snapback dev --expo, SnapbackExpoProvider, adb reverse, TCP/IP adb refused, ios udid, iproxy, 10.0.2.2, authority-required, restore lock, .snapback gitignore, copy project | local | shipped | `runExpoDev` in packages/snapback-cli/expo-dev.mjs + packages/snapback-cli/expo-bootstrap-exchange.test.mjs + packages/snapback-cli/expo-device-forwarding.test.mjs + simulator/emulator receipts | llp/0012, llp/0064, llp/0176, llp/0181 | clients/react-expo.md |
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance; crash detection | run server, ports, bindPortExactly, lifecycle, watchdog, crash, prebuilt binary, seed reset | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010, llp/0030 | testing/acceptance.md |
 | operating.instance-forks | Experimental source-only finite-TTL derived-instance CLI with expiry enforcement, bounded renewal, resource-limit admission, recovery, bounded inspection, diff, concurrency-safe cleanup, fork-per-worktree and parallel-suite guidance, and exact drop; the 2026-08-07 local publication is withdrawn pending the LLP 0189 D-4 digest re-scope and requalification; the retained historical evidence is not a current claim | fork, derived instance, fork per worktree, parallel suite, inspect, status, recover, renew, diff, automatic reap, resource limits | none | partial | `ForkCommand` in src/cli.rs + tests/instance_fork_cli_v1.rs + tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json (historical evidence only; public tuple Missing) | llp/0158, llp/0185 | GAP (fresh dual-platform qualification, review heads, named-author acceptance, and publication are required; owner: Charlie, review: 2026-08-31; see issues/20260807-derived-fork-publication-wave-drift-requalification.md and operating/instance-forks.md) |
 | operating.store-durable-state | Contributor-source declared registry of a file-backed store's complete durable state (database, folded WAL/SHM/journal, auth keyring, config, operation-detail and completeness-proof keyrings, asset blobs, admin token, console credentials, resume keyring, plus instance-local and refuse classes) via `snapback store describe`, and the WAL-consistent atomic `snapback store export` copy verb publishing a directly bootable directory plus a `store-export.json` manifest. Push-token bytes are scrubbed (LLP 0143); managed-branch and derived-fork stores refuse; not yet in a published closure | backup, restore, copy database, clone database, move store, snapshot, disaster recovery, cp app.sqlite3, sqlite backup, WAL, auth-keyring.json, missing keyring, SNAPBACK_AUTH_PROVIDER_UNAVAILABLE, store describe, store export, durable state, sidecar, sibling files | local | partial | `durable_state_members` in src/store_state.rs + `StoreCommand` in src/cli.rs | llp/0192, llp/0057, llp/0143 | operating/backup-and-copy.md |
@@ -326,6 +327,9 @@ you never build around a feature because you didn't know it existed.
 ### Auth
 - [Sessions and principals](./auth/sessions-and-principals.md) — the server
   derives who you are; scoped queries; logout barriers.
+- [Browser sign-in and reload custody](./recipes/browser-auth.md) — local
+  trusted-server identity verification, immutable app-user binding,
+  IndexedDB restoration, protected rows, and logout without a hosted claim.
 - [Bind a principal to your app's user identity](./auth/app-identity-binding.md)
   — the principal↔app-user table every ported app needs first: the broker
   pattern for production, the frozen-actor-map bootstrap for acceptance.
@@ -418,6 +422,9 @@ you never build around a feature because you didn't know it existed.
   Aboard on the honest partial hosted profile; explicit supported subset and gaps.
 
 ### Recipes
+- [Browser sign-in and reload custody](./recipes/browser-auth.md) — verified
+  external assertion seam, principal↔app-user binding, durable IndexedDB
+  custody, protected rows, and revoking logout (local product-shaped recipe).
 - [Presence cursors](./recipes/presence-cursors.md) — ephemeral rooms, TTL,
   publish budgets (the cursors-web demo, distilled).
 - [Hidden hands](./recipes/hidden-hands.md) — per-principal secrecy, logout
@@ -1208,7 +1215,7 @@ Case 26 absorbs the duplicated native-lane simulator setup recorded in
     Route terms: "headless simulator", "plistlib", "Expo Go onboarding",
     "simctl openurl", "deep-link drive channel".
 
-Cases 27–30 absorb the paged-list, server-minted optimistic-create,
+Cases 27–31 absorb the paged-list, server-minted optimistic-create,
 structured route-argument, and mutation-settlement guide gaps closed or
 narrowed on 2026-08-08.
 
@@ -1250,6 +1257,23 @@ narrowed on 2026-08-08.
     `backend/trusted-runtime-values.md`.
     Route terms: "ctx.mutation.settlement", "settlementId",
     "replay-stable effect", "provider idempotency key".
+
+Case 31 absorbs the browser-custody and real-sign-in recipe gaps recorded in
+`issues/closed/20260806-guide-gap-browser-auth-custody-indexeddb-adapter.md`
+and LLP 0196 T4.
+
+31. **Browser external sign-in and reload:** "Connect my browser app's
+    existing external identity to Snapback, bind it to my users table, keep
+    protected data signed in across a full reload, and log out safely." The
+    run fails if it uses memory custody, gives mailbox/admin/impersonation
+    material to page code, exposes a caller-selectable binding mutation,
+    keys identity by email, hands a raw external bearer to page state and
+    calls that coordinator custody, or claims the local fixture is hosted
+    production/OIDC support.
+    Expected pages: `recipes/browser-auth.md` and
+    `auth/app-identity-binding.md`.
+    Route terms: "browser auth reload", "IndexedDB auth custody",
+    "createIndexedDbAuthCustodyStorage", "issuer subject".
 
 ## Static routing check
 
@@ -1310,9 +1334,9 @@ title: Sessions and principals
 id: auth.sessions-and-principals
 order: 1
 audience: agent-first
-capabilities: [auth.sessions, auth.scoped-queries]
-authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0172-explicit-function-authorization.rfc.md, packages/snapback-codegen/index.mjs, src/auth/mode.rs, src/auth/provider.rs, src/host_ops.rs, src/server.rs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, demos/_kit/server-process.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
-examples: [demos/card-game, demos/party-wall]
+capabilities: [auth.sessions, auth.browser-session-custody, auth.scoped-queries]
+authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, packages/snapback-codegen/index.mjs, src/auth/mode.rs, src/auth/provider.rs, src/host_ops.rs, src/server.rs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+examples: [demos/browser-auth, demos/card-game, demos/party-wall]
 status: current
 targets: [local]
 maturity: shipped
@@ -1518,11 +1542,13 @@ bundle). What a web author actually does today is one of these:
   client-passed `userId`, no sign-in UI at all.
 - **Test personas** for acceptance suites — the mailbox loop above, driven
   by the suite's server-side harness, never by page code.
-- **The broker seam** for a product-shaped flow — a trusted server-side
-  component authenticates the user through its own front door, mints the
-  session (`auth.mintSession`), and the browser adopts the bearer; the
-  mechanics on [authenticate a native app](./native-apps.md) apply to a web
-  client unchanged.
+- **The trusted-server seam** for a product-shaped flow — a server-side
+  component authenticates the user through its own front door. For a browser,
+  prefer staging a one-use challenge/code that the ordinary `authExchange`
+  path adopts into `AuthCoordinator`; the executable
+  [browser sign-in recipe](../recipes/browser-auth.md) demonstrates it. A
+  direct external bearer uses separate headless custody and is not the same
+  reload-persistent browser composition.
 - **The supervised Expo dev loop's web carrier** — `snapback dev --expo`
   auto-mints an ordinary session for the Expo web app through its
   loopback-only bootstrap exchange
@@ -1531,23 +1557,35 @@ bundle). What a web author actually does today is one of these:
 Whichever entry path delivers the credential, a browser client under sessions
 constructs an `AuthCoordinator` (from `@expo/snapback-contract`) and passes it
 as `authCoordinator:`; the coordinator owns custody, refresh, and the logout
-barrier. The CI-executed construction from the persona witness:
+barrier. Use the shipped IndexedDB adapter for a browser that must survive a
+full reload:
 
-```js source=demos/party-wall/tests/acceptance/headless.mjs
-    const coordinator = new AuthCoordinator({
-      appId,
-      storage: createMemoryAuthCustodyStorage({ state: { custody: {} } }),
-      broadcastChannelFactory: null,
-      hintStorage: null,
-    });
+```js source=demos/browser-auth/surfaces/web/main.mjs
+export const authCoordinator = new AuthCoordinator({
+  appId: APP_ID,
+  storage: createIndexedDbAuthCustodyStorage(),
+});
+
+export const client = new SnapbackClient('/__snapback', {
+  authCoordinator,
+  authInvalidationProtocol: 1,
+  authorityDescriptorProtocol: 1,
+  authorizedLeaseProtocol: 1,
+  clientStoreId: 'browser-auth-recipe-web',
+  rqsStore: null,
+});
 ```
 
-That test uses the volatile memory custody adapter, which does not survive a
-full-page navigation. A real browser app substitutes the shipped
-`createIndexedDbAuthCustodyStorage()` (same package) as `storage:` so custody
-persists across reloads; everything else is identical. A worked
-real-auth sign-in recipe beyond test personas is queued as LLP 0196 T4 work
-([LLP 0196](repo:llp/0196-template-and-recipe-portfolio.plan.md)).
+`createMemoryAuthCustodyStorage()` is volatile and appropriate for tests or a
+document-lifetime flow. It can survive an SPA route change because the same
+JavaScript process remains alive, but not a full-page reload. The registered
+browser recipe reconstructs the page in real Chrome and asserts that neither
+the bootstrap nor `/auth/exchange` count advances while the protected identity
+returns from IndexedDB.
+
+The recipe remains local and partial. It does not turn its signed-assertion
+fixture into Draft LLP 0151's generic OIDC/first-party provider contract and
+does not claim production delivery or hosted auth.
 
 ## Read public data anonymously
 
@@ -1711,8 +1749,8 @@ id: auth.app-identity-binding
 order: 2
 audience: agent-first
 capabilities: [auth.sessions, auth.external-identity-broker]
-authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0183-zerobugs-quality-surface.rfc.md, packages/snapback-client/index.mjs, src/cli.rs, demos/zerobugs/control/snapback/schema.mjs, demos/zerobugs/control/snapback/functions.mjs]
-examples: [demos/zerobugs/control]
+authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0183-zerobugs-quality-surface.rfc.md, packages/snapback-client/index.mjs, src/cli.rs, demos/browser-auth/server/gateway.mjs, demos/browser-auth/snapback/schema.mjs, demos/browser-auth/snapback/functions.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/zerobugs/control/snapback/schema.mjs, demos/zerobugs/control/snapback/functions.mjs]
+examples: [demos/browser-auth, demos/zerobugs/control]
 status: current
 targets: [local]
 maturity: partial
@@ -1861,11 +1899,11 @@ query scoping, those compare against the **principal**, not the app user row.
 Store the principal on rows you want scoped by the declarative surface, and
 use the binding for everything that must reach the app's own user record.
 
-## Pattern A — production: bind in the trusted identity broker
+## Pattern A — product-shaped local bridge: bind in trusted server code
 
-This is the answer for a real product. Snapback's supported production-shaped
-seam is the [external identity broker](./native-apps.md): a trusted
-server-side component authenticates the user through your existing front door
+This is the strongest executable shape today, not a hosted-production claim.
+Snapback's local external-identity seam uses a trusted server-side component
+that authenticates the user through your existing front door
 (OAuth, your own login), calls the `auth.mintSession` host operation for that
 verified identity, and hands the resulting bearer back to that same user.
 
@@ -1879,11 +1917,12 @@ written, before the bearer is released:
 const verified = await myIdentityProvider.verify(request);      // your front door
 const appUser = await myUsers.findBySubject(verified.subject);  // your user row
 const minted = await hostOps.auth.mintSession({ email: verified.email });
+const session = createExternalSessionClient(baseUrl, { bearerToken: minted.token });
 
 // Only now — knowing both sides — write the binding under privileged authority,
 // then release the bearer to this user and nobody else.
-await privilegedClient.mutate(api.bindPrincipal, {
-  args: { principal: minted.session.userId, sourceUserID: appUser.id },
+await session.mutate(api.bindVerifiedIdentity, {
+  args: { issuer: verified.issuer, subject: verified.subject },
 });
 return { bearerToken: minted.token };
 ```
@@ -1903,6 +1942,14 @@ The client then adopts the bearer with
 `createExternalSessionClient(baseUrl, { bearerToken })` and carries it
 normally; rotation goes through `replaceBearerToken`. Both halves are covered
 in [authenticate a native app](./native-apps.md).
+
+For a browser that needs durable coordinator custody, do not stop at that
+external-bearer client. The registered
+[browser sign-in and reload recipe](../recipes/browser-auth.md) stages a
+one-use challenge/code and lets ordinary `authExchange` move the bearer into
+`AuthCoordinator`'s IndexedDB record. It proves the private binder's gateway
+omission, full-page restoration without another exchange, logout revocation,
+and cross-subject protected-data isolation in real Chrome.
 
 **Honest boundary:** `auth.mintSession` is a dev/test/demo host operation
 requiring the admin token, the process-bound impersonation capability, and
@@ -2018,8 +2065,10 @@ claims readable by a handler, or a declared privileged provisioning path for
 binding rows — would let an app write the binding inside Snapback instead of
 in a broker. That is an open platform ask, tracked in
 [the identity-binding guide gap](repo:issues/20260808-guide-gap-principal-to-app-identity-binding.md);
-until it exists, Pattern A is the production answer and this section is the
-honest statement of the boundary.
+until it exists, Pattern A is the local product-shaped bridge and this section
+is the honest statement of the boundary. Draft LLP 0151 separately owns the
+future provider identity/lifecycle substrate; this app-level join does not
+pretend to implement it.
 
 ## Anti-patterns
 
@@ -2111,6 +2160,13 @@ client must offer `auth/rr`; auth-scoped live work must additionally offer
 `auth/live`, create an authorization namespace, process invalidation snapshots,
 and acknowledge them after apply. The first-party JS factory and Swift client
 do this.
+
+A browser that must restore sign-in after a full-page reload needs a different
+last mile: stage a one-use challenge/code and call ordinary `authExchange` on a
+client backed by `createIndexedDbAuthCustodyStorage()`. See the executable
+[browser sign-in and reload recipe](../recipes/browser-auth.md). Returning an
+external bearer to page state or `createExternalSessionClient` does not become
+`AuthCoordinator` custody merely because the caller is a browser.
 
 Replacing or clearing a bearer is an authority transition. In JavaScript use
 `await client.replaceBearerToken(nextBearer)` (or `null` to clear): it releases
@@ -18034,6 +18090,213 @@ would be a separate client feature.
 - Do not feed a raw boundary to a standard-pattern cursor argument.
 - Do not keep protected accumulated rows across logout, membership loss, or
   another authority partition change.
+
+---
+
+<!-- snapback-guide-source: guide/recipes/browser-auth.md -->
+---
+title: "Recipe: browser sign-in and reload custody"
+id: recipes.browser-auth
+order: 5
+audience: agent-first
+capabilities: [auth.sessions, auth.external-identity-broker, auth.browser-session-custody, auth.scoped-queries, auth.invalidation-barrier]
+authorities: [llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0060-hosted-auth-security.rfc.md, llp/0151-first-party-identity-integrations.rfc.md, demos/browser-auth/snapback/schema.mjs, demos/browser-auth/snapback/functions.mjs, demos/browser-auth/server/gateway.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs]
+examples: [demos/browser-auth]
+status: current
+targets: [local]
+maturity: partial
+reviewed: 2026-08-08
+reviewed-commit: HEAD
+---
+
+# Recipe: browser sign-in and reload custody
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+Use this recipe when a browser app already has an identity front door and
+app-owned user rows. The registered [`browser-auth` demo](repo:demos/browser-auth)
+proves the complete local composition in real Chrome:
+
+1. an app-owned trusted server verifies an external assertion;
+2. immutable `(issuer, subject)` selects the app user;
+3. the server binds the resulting Snapback principal before releasing a
+   one-use browser exchange;
+4. `AuthCoordinator` stores the bearer in IndexedDB;
+5. a full reload restores the protected user without another exchange; and
+6. logout blanks protected data, revokes the session, and leaves reload
+   anonymous.
+
+This is a **product-shaped local recipe**, not hosted or production-ready
+authentication. Its signed-assertion identity provider and capture mailbox are
+hermetic fixtures. Draft LLP 0151's first-party provider and completion
+protocol are larger unimplemented surfaces, described under
+[the boundary](#know-exactly-where-this-stops).
+
+## Bind the immutable identity, not email
+
+Provider email and display name can change. The durable external identity key
+is `(issuer, subject)`, and every side of the app-level join is unique:
+
+```js source=demos/browser-auth/snapback/schema.mjs
+  identityBindings: defineTable({
+    principal: v.principal(),
+    appUserId: v.id('appUsers'),
+    externalIssuer: v.string(),
+    externalSubject: v.string(),
+  })
+    .index('by_principal', ['principal'], { unique: true })
+    .index('by_app_user', ['appUserId'], { unique: true })
+    .index('by_external_identity', ['externalIssuer', 'externalSubject'], { unique: true }),
+```
+
+The trusted server verifies the assertion first, derives a stable opaque local
+email from issuer + subject for the shipped email-code provider, and invokes
+the private binder through a direct server-side client. It stages a second,
+one-use challenge/code for the browser. The browser never receives the admin
+token, impersonation capability, mailbox reader, provider assertion, private
+backend origin, or a bearer in a redirect URL.
+
+Do not expose the binder merely because `/mutation/{name}` is generally an app
+route. The demo's app gateway uses an exact method + route allowlist:
+
+```js source=demos/browser-auth/server/gateway.mjs
+const PUBLIC_ROUTES = Object.freeze(new Set([
+  'GET /auth/session',
+  'POST /auth/exchange',
+  'POST /auth/refresh',
+  'POST /auth/logout',
+  'POST /query/viewer',
+]));
+```
+
+Both `brokerBindPrincipal` and its closed fixture setup mutation are absent.
+The acceptance suite requests them through the public origin and requires an
+allowlist refusal before Snapback sees the request.
+
+For the rationale and the frozen-fixture alternative, read
+[bind a principal to your app's user identity](../auth/app-identity-binding.md).
+
+## Let the server-derived principal select protected data
+
+The protected query takes no user, email, issuer, or subject argument. It
+starts at `ctx.auth.userId`, follows the private binding, and returns exactly
+that app user's row:
+
+```js source=demos/browser-auth/snapback/functions.mjs
+export const viewer = defineJsQuery({
+  auth: 'authenticated',
+  args: {},
+  reads: ['appUsers', 'identityBindings'],
+  result: results.records(v.object({
+    principal: v.principal(),
+    externalIssuer: v.string(),
+    externalSubject: v.string(),
+    displayName: v.string(),
+    privateNote: v.string(),
+  }), { minItems: 1, maxItems: 1 }),
+  handler: async (ctx) => {
+    const { appUser, binding } = await requireBoundUser(ctx);
+    return [{
+      principal: ctx.auth.userId,
+      externalIssuer: binding.externalIssuer,
+      externalSubject: binding.externalSubject,
+      displayName: appUser.displayName,
+      privateNote: appUser.privateNote,
+    }];
+  },
+});
+```
+
+This is application-level identity binding. It does not replace the future
+platform-owned `_auth_identities` lifecycle in Draft LLP 0151.
+
+## Put browser custody in IndexedDB
+
+Construct exactly one coordinator with the generated app id and the shipped
+IndexedDB adapter, then pass it to the client:
+
+```js source=demos/browser-auth/surfaces/web/main.mjs
+export const authCoordinator = new AuthCoordinator({
+  appId: APP_ID,
+  storage: createIndexedDbAuthCustodyStorage(),
+});
+
+export const client = new SnapbackClient('/__snapback', {
+  authCoordinator,
+  authInvalidationProtocol: 1,
+  authorityDescriptorProtocol: 1,
+  authorizedLeaseProtocol: 1,
+  clientStoreId: 'browser-auth-recipe-web',
+  rqsStore: null,
+});
+```
+
+`createMemoryAuthCustodyStorage()` is useful for headless tests and
+document-lifetime flows, but it cannot prove browser reload custody. A SPA
+route change does not reconstruct the JavaScript process; use a true page
+reload as the distinguishing acceptance check.
+
+The callback redirects to `/?login=complete`. Only that boot consumes the
+one-use challenge/code and calls `authExchange`; it then removes the marker
+from browser history. An ordinary reload finds no bootstrap and lets the
+coordinator restore its settled session from IndexedDB. The acceptance suite
+asserts that neither the bootstrap-consumption count nor `/auth/exchange`
+count advances on reload.
+
+Bearer-v1 IndexedDB custody survives reload, but page JavaScript can still use
+the credential. It is not XSS-resistant or sender constrained — see
+[target claims](../auth/targets.md).
+
+## Treat logout as a visibility barrier
+
+Remove app-visible protected state before awaiting logout, then let
+`authLogout()` perform the coordinator's revocation transition. The acceptance
+gateway deliberately holds the `/auth/logout` request while Chrome proves the
+private row is absent. After release it requires anonymous durable custody,
+protected-query refusal, and an anonymous full reload.
+
+Do not implement logout by deleting an app variable or IndexedDB row yourself.
+That skips server revocation and the coordinator barrier.
+
+## Run the witness
+
+```sh
+cd demos/browser-auth
+SNAPBACK_RUNTIME_BINARY=/path/to/qualified/snapback bun run prove
+```
+
+The witness also changes the fixture email and requires the same principal and
+app-user binding, then signs in a second subject and proves it cannot see the
+first user's private note.
+
+## Know exactly where this stops
+
+The recipe deliberately does **not** claim:
+
+- a shared broker or broker-issued identity namespace;
+- a generic OIDC adapter or any first-party Google/Apple/GitHub/Expo provider;
+- Draft LLP 0151's discovery, JWKS rotation, PKCE/state/mix-up, sender-
+  constrained completion-code, provider config/secrets, and two-arm matrix;
+- production challenge delivery — the local capture mailbox is
+  admin + impersonation gated; or
+- an admitted hosted auth target.
+
+Draft LLP 0151 chooses app-owned provider credentials as the paved production
+direction and keeps a shared Google relay preview-only and conditional. A real
+provider integration must wait for that RFC's implementing completion/lifecycle
+specs; do not generalize this fixture into those contracts.
+
+## Anti-patterns
+
+- Do not expose the private binding mutation through the browser app gateway.
+- Do not key identity by email or auto-link across providers by matching email.
+- Do not return a broker-minted bearer to browser app state and call it
+  coordinator custody.
+- Do not put mailbox/admin/impersonation material in browser code or logs.
+- Do not use memory custody and claim reload persistence.
+- Do not label this local fixture hosted, OIDC-complete, or production-ready.
 
 ---
 

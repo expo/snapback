@@ -4,8 +4,8 @@ id: auth.app-identity-binding
 order: 2
 audience: agent-first
 capabilities: [auth.sessions, auth.external-identity-broker]
-authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0183-zerobugs-quality-surface.rfc.md, packages/snapback-client/index.mjs, src/cli.rs, demos/zerobugs/control/snapback/schema.mjs, demos/zerobugs/control/snapback/functions.mjs]
-examples: [demos/zerobugs/control]
+authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0183-zerobugs-quality-surface.rfc.md, packages/snapback-client/index.mjs, src/cli.rs, demos/browser-auth/server/gateway.mjs, demos/browser-auth/snapback/schema.mjs, demos/browser-auth/snapback/functions.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/zerobugs/control/snapback/schema.mjs, demos/zerobugs/control/snapback/functions.mjs]
+examples: [demos/browser-auth, demos/zerobugs/control]
 status: current
 targets: [local]
 maturity: partial
@@ -154,11 +154,11 @@ query scoping, those compare against the **principal**, not the app user row.
 Store the principal on rows you want scoped by the declarative surface, and
 use the binding for everything that must reach the app's own user record.
 
-## Pattern A — production: bind in the trusted identity broker
+## Pattern A — product-shaped local bridge: bind in trusted server code
 
-This is the answer for a real product. Snapback's supported production-shaped
-seam is the [external identity broker](./native-apps.md): a trusted
-server-side component authenticates the user through your existing front door
+This is the strongest executable shape today, not a hosted-production claim.
+Snapback's local external-identity seam uses a trusted server-side component
+that authenticates the user through your existing front door
 (OAuth, your own login), calls the `auth.mintSession` host operation for that
 verified identity, and hands the resulting bearer back to that same user.
 
@@ -172,11 +172,12 @@ written, before the bearer is released:
 const verified = await myIdentityProvider.verify(request);      // your front door
 const appUser = await myUsers.findBySubject(verified.subject);  // your user row
 const minted = await hostOps.auth.mintSession({ email: verified.email });
+const session = createExternalSessionClient(baseUrl, { bearerToken: minted.token });
 
 // Only now — knowing both sides — write the binding under privileged authority,
 // then release the bearer to this user and nobody else.
-await privilegedClient.mutate(api.bindPrincipal, {
-  args: { principal: minted.session.userId, sourceUserID: appUser.id },
+await session.mutate(api.bindVerifiedIdentity, {
+  args: { issuer: verified.issuer, subject: verified.subject },
 });
 return { bearerToken: minted.token };
 ```
@@ -196,6 +197,14 @@ The client then adopts the bearer with
 `createExternalSessionClient(baseUrl, { bearerToken })` and carries it
 normally; rotation goes through `replaceBearerToken`. Both halves are covered
 in [authenticate a native app](./native-apps.md).
+
+For a browser that needs durable coordinator custody, do not stop at that
+external-bearer client. The registered
+[browser sign-in and reload recipe](../recipes/browser-auth.md) stages a
+one-use challenge/code and lets ordinary `authExchange` move the bearer into
+`AuthCoordinator`'s IndexedDB record. It proves the private binder's gateway
+omission, full-page restoration without another exchange, logout revocation,
+and cross-subject protected-data isolation in real Chrome.
 
 **Honest boundary:** `auth.mintSession` is a dev/test/demo host operation
 requiring the admin token, the process-bound impersonation capability, and
@@ -311,8 +320,10 @@ claims readable by a handler, or a declared privileged provisioning path for
 binding rows — would let an app write the binding inside Snapback instead of
 in a broker. That is an open platform ask, tracked in
 [the identity-binding guide gap](repo:issues/20260808-guide-gap-principal-to-app-identity-binding.md);
-until it exists, Pattern A is the production answer and this section is the
-honest statement of the boundary.
+until it exists, Pattern A is the local product-shaped bridge and this section
+is the honest statement of the boundary. Draft LLP 0151 separately owns the
+future provider identity/lifecycle substrate; this app-level join does not
+pretend to implement it.
 
 ## Anti-patterns
 

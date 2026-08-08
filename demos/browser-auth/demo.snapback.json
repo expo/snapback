@@ -1,0 +1,59 @@
+{
+  "id": "browser-auth",
+  "title": "Local browser sign-in, identity binding, and reload custody",
+  "description": "A local-only product-shaped auth recipe proving an app-owned external assertion seam, immutable issuer/subject binding, protected app data, IndexedDB session restoration, logout, and public gateway omission.",
+  "artifactSchemaVersion": "snapback.v1",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["Auth", "Identity", "React web", "Client integration", "Testing"],
+  "requiredCapabilities": {
+    "storageEngine": "sqlite",
+    "runtimeEngine": "ibex",
+    "authMode": "sessions",
+    "authInvalidationProtocol": 1,
+    "authorityDescriptorProtocol": 1,
+    "authorizedLeaseProtocol": 1
+  },
+  "backend": {
+    "source": "snapback/schema.mjs + snapback/functions.mjs",
+    "codegen": "node packages/snapback-codegen/index.mjs demos/browser-auth/snapback",
+    "generated": ["snapback/generated/artifacts.json"],
+    "stalenessPolicy": "regenerate with codegen; freshness tracked by artifacts.json inputsHash"
+  },
+  "seed": {
+    "profile": "two deterministic app-owned users; the sessions witness installs the same closed rows through its private setup operation",
+    "file": "snapback/seed.json",
+    "rows": { "appUsers": 2, "identityBindings": 0 }
+  },
+  "surfaces": {
+    "browser-auth-witness": {
+      "requirement": "integration",
+      "buildTargets": ["web"],
+      "runner": "node demos/browser-auth/tests/acceptance/browser-auth.mjs",
+      "toolchain": "node>=24, Vite, a qualified Snapback runtime, and system Chrome"
+    }
+  },
+  "acceptanceChecks": {
+    "browser-auth-witness": [
+      "a replaceable server-side verifier accepts a signed external assertion and refuses tampering and nonce mismatch",
+      "the trusted server binds immutable issuer plus subject to exactly one app user before staging a browser exchange",
+      "the browser reaches only an exact route allowlist that omits fixture setup, principal binding, mailbox, and host operations",
+      "the protected viewer query takes no user selector and resolves the app user only from ctx.auth.userId",
+      "AuthCoordinator with createIndexedDbAuthCustodyStorage restores the authenticated viewer after a full page reload with no second bootstrap or auth exchange",
+      "logout blanks protected data while revocation is held, settles anonymous custody, and stays anonymous across reload",
+      "changing the fixture email preserves issuer-subject identity while a second external subject cannot read the predecessor private note",
+      "admin token, impersonation capability, private backend origin, provider assertion, and Snapback bearer never cross the browser bundle or URL boundary"
+    ]
+  },
+  "capabilityGaps": [
+    "Draft LLP 0151's first-party provider adapter and sender-constrained OAuth completion protocol",
+    "production challenge delivery and an admitted hosted auth target",
+    "a platform-owned verified issuer/subject projection or privileged provisioning API"
+  ],
+  "notClaiming": [
+    "a shared identity broker, generic OIDC implementation, or first-party provider integration",
+    "hosted or production-ready authentication",
+    "production email delivery; the witness uses the local capture mailbox",
+    "production auth.mintSession; this recipe does not invoke that host operation",
+    "XSS-resistant or sender-constrained browser custody"
+  ]
+}

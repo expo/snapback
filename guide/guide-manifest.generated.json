@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "f6304ba5550617bc31e52cf16b938c77aa6cd868"
+    "commit": "7a013c2a310e59198c4358791a09c3ba17c8bd4e"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -339,6 +339,11 @@
         "title": "Recipe: paginated and load-more lists"
       },
       {
+        "id": "recipes.browser-auth",
+        "order": 5,
+        "title": "Recipe: browser sign-in and reload custody"
+      },
+      {
         "id": "recipes.optimistic-create",
         "order": 5,
         "title": "Recipe: optimistic create with a server-minted ID"
@@ -633,19 +638,26 @@
       "authorities": [
         "llp/0039-auth-vertical-slice.rfc.md",
         "llp/0057-auth-provider-protocol.spec.md",
+        "llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md",
         "llp/0096-auth-profiles-for-protocol-clients.spec.md",
+        "llp/0151-first-party-identity-integrations.rfc.md",
         "llp/0183-zerobugs-quality-surface.rfc.md",
         "packages/snapback-client/index.mjs",
         "src/cli.rs",
+        "demos/browser-auth/server/gateway.mjs",
+        "demos/browser-auth/snapback/schema.mjs",
+        "demos/browser-auth/snapback/functions.mjs",
+        "demos/browser-auth/tests/acceptance/browser-auth.mjs",
         "demos/zerobugs/control/snapback/schema.mjs",
         "demos/zerobugs/control/snapback/functions.mjs"
       ],
       "examples": [
+        "demos/browser-auth",
         "demos/zerobugs/control"
       ],
       "reviewed": "2026-08-08",
       "reviewedCommit": "eac098a99fb89b07e67cb72430106117b7fee86b",
-      "sha256": "75cdc091e02e5251fe7c35531eaa472805938d2c509c04be4913675537ddf713",
+      "sha256": "646c3d465d2c34d29f49ce6dd6802599082746a6e96973e713fc299f6ea56b3f",
       "snippets": [
         {
           "lang": "js",
@@ -705,7 +717,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedCommit": "eac098a99fb89b07e67cb72430106117b7fee86b",
-      "sha256": "6b324a454b52558ca2d2242a380446ca983e55c64407988b6ed79d48b0b4bfb4",
+      "sha256": "523736e75709c0c0824c2e404f585f879090369ded3013843b0c7d5f916856ea",
       "snippets": []
     },
     "auth.protecting-data": {
@@ -854,6 +866,7 @@
       "maturity": "shipped",
       "capabilities": [
         "auth.sessions",
+        "auth.browser-session-custody",
         "auth.scoped-queries"
       ],
       "authorities": [
@@ -861,6 +874,7 @@
         "llp/0057-auth-provider-protocol.spec.md",
         "llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md",
         "llp/0059-session-projection-and-client-barrier.spec.md",
+        "llp/0151-first-party-identity-integrations.rfc.md",
         "llp/0172-explicit-function-authorization.rfc.md",
         "packages/snapback-codegen/index.mjs",
         "src/auth/mode.rs",
@@ -870,16 +884,19 @@
         "packages/snapback-client/index.mjs",
         "packages/snapback-contract/index.mjs",
         "demos/_kit/server-process.mjs",
+        "demos/browser-auth/surfaces/web/main.mjs",
+        "demos/browser-auth/tests/acceptance/browser-auth.mjs",
         "demos/card-game/snapback/functions.mjs",
         "demos/card-game/tests/acceptance/authority-scope.mjs"
       ],
       "examples": [
+        "demos/browser-auth",
         "demos/card-game",
         "demos/party-wall"
       ],
       "reviewed": "2026-08-08",
       "reviewedCommit": "eac098a99fb89b07e67cb72430106117b7fee86b",
-      "sha256": "c2c10c9dffdde4592299fcc9f5aa69265758128af150b08a0ccfcf2e8569f1bd",
+      "sha256": "d8e93d76302af7531a7b56dc12c7c3ae0f0c836b5b127f00dc3e1dfd14011557",
       "snippets": [
         {
           "lang": "js",
@@ -907,7 +924,7 @@
         {
           "lang": "js",
           "class": "transcluded",
-          "source": "demos/party-wall/tests/acceptance/headless.mjs"
+          "source": "demos/browser-auth/surfaces/web/main.mjs"
         },
         {
           "lang": "js",
@@ -2033,7 +2050,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedCommit": "HEAD",
-      "sha256": "6e0a39620b8f850b02288fe5ff33e8ae2db0e46f38314e9cd2adb7969c23e5b5",
+      "sha256": "d2d64fca09c15f1d81d2cea27b155e316cb8c5b884f0224e6cc0f64c143d605f",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2876,7 +2893,7 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedCommit": "HEAD",
-      "sha256": "948e245863c94d8dfffca533996323fce4f8e777769d84ab686384b97934a0e6",
+      "sha256": "d665a9d64800158ab91d20b5be171f4cc47966e3b087a52fafc5af8f64986ee9",
       "snippets": [
         {
           "lang": "json",
@@ -3484,6 +3501,63 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/public-dashboard/tests/acceptance/headless.mjs"
+        }
+      ]
+    },
+    "recipes.browser-auth": {
+      "path": "guide/recipes/browser-auth.md",
+      "title": "Recipe: browser sign-in and reload custody",
+      "order": 5,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "auth.sessions",
+        "auth.external-identity-broker",
+        "auth.browser-session-custody",
+        "auth.scoped-queries",
+        "auth.invalidation-barrier"
+      ],
+      "authorities": [
+        "llp/0057-auth-provider-protocol.spec.md",
+        "llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md",
+        "llp/0059-session-projection-and-client-barrier.spec.md",
+        "llp/0060-hosted-auth-security.rfc.md",
+        "llp/0151-first-party-identity-integrations.rfc.md",
+        "demos/browser-auth/snapback/schema.mjs",
+        "demos/browser-auth/snapback/functions.mjs",
+        "demos/browser-auth/server/gateway.mjs",
+        "demos/browser-auth/surfaces/web/main.mjs",
+        "demos/browser-auth/tests/acceptance/browser-auth.mjs"
+      ],
+      "examples": [
+        "demos/browser-auth"
+      ],
+      "reviewed": "2026-08-08",
+      "reviewedCommit": "HEAD",
+      "sha256": "13d765e9d55e489eff6173ff96a54fe4647f0d328d764ccf72c6e2819acd92a1",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/browser-auth/snapback/schema.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/browser-auth/server/gateway.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/browser-auth/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/browser-auth/surfaces/web/main.mjs"
         }
       ]
     },
@@ -8373,7 +8447,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedCommit": "HEAD",
-      "sha256": "ca7ce25ae530eed0438079552d06bc3ba9c7c27c93d166e53dd9b06233f85a15",
+      "sha256": "b685f3713e28bd9ff9a44366181157e93e30e9b0ab1deee1a403fa2e17ba3031",
       "snippets": []
     },
     "meta.surface-map": {
@@ -8711,6 +8785,7 @@
     "covered": [
       "auth.agent-principals",
       "auth.authorized-leases",
+      "auth.browser-session-custody",
       "auth.external-identity-broker",
       "auth.invalidation-barrier",
       "auth.scoped-queries",
@@ -8811,5 +8886,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "6a60a6999df5492c3ac744ed4a95b98dcee3572b35a24928889990804c5a1b14"
+  "contentHash": "744d89be8bca1a74314ea414915d79452abf650a05d0c7e5a692fdbacfcb63b0"
 }
