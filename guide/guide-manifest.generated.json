@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "dcc3bd2a6192f5b6c9964786e9e5e0cdd185c219"
+    "commit": "64fe36207834756a71ef0a813b05878b4705f563"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -2049,8 +2049,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "dcc3bd2a6192f5b6c9964786e9e5e0cdd185c219",
-      "sha256": "791613b85204ff808cd5f9f934b12faf0fdcf7c1bc91493266caa9c331a2214f",
+      "reviewedCommit": "d851167d7492a7303e2e84dc4317bdc32c4e5797",
+      "sha256": "13aec9e7392401e585be043699fd6510ea007ccc03aaef33e2224a7a5e94c907",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2244,8 +2244,8 @@
         "demos/partiful-matrix/surfaces/vanilla"
       ],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "dcc3bd2a6192f5b6c9964786e9e5e0cdd185c219",
-      "sha256": "cf39dfccc0f1ed17342080ee6876ea0c990777297eef0a96deb17ac264346e2e",
+      "reviewedCommit": "d851167d7492a7303e2e84dc4317bdc32c4e5797",
+      "sha256": "b70939d288b4b550fd2f44cd7104754a4361f40214bf283fb7082dfe12631f0e",
       "snippets": [
         {
           "lang": "js",
@@ -2421,8 +2421,8 @@
         "packages/snapback-react/exact-result-types.fixture.ts"
       ],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "dcc3bd2a6192f5b6c9964786e9e5e0cdd185c219",
-      "sha256": "a9cae9bc666a41719dab92c338059e15d94178c967ca1ace82ea8bfd2c66b561",
+      "reviewedCommit": "d851167d7492a7303e2e84dc4317bdc32c4e5797",
+      "sha256": "a9b25333ba8c96471bb6a05bdb53c9577c9445dae77161f929b093ca668470cb",
       "snippets": [
         {
           "lang": "ts",
@@ -2892,8 +2892,8 @@
         "demos/expo-golden-path-fixture"
       ],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "dcc3bd2a6192f5b6c9964786e9e5e0cdd185c219",
-      "sha256": "50b196c2d20843575be35693019630d8e992716459159bd261c76d29105171ba",
+      "reviewedCommit": "d851167d7492a7303e2e84dc4317bdc32c4e5797",
+      "sha256": "bf992f92d678ae54af6a66d7cf557a758617a06b3c4af62a202dea25039ab9d8",
       "snippets": [
         {
           "lang": "json",
@@ -3536,8 +3536,8 @@
         "demos/browser-auth"
       ],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "dcc3bd2a6192f5b6c9964786e9e5e0cdd185c219",
-      "sha256": "be5a087476c035efc59c9c9314ed9a1c7adfdb44cedb667b7aefecdaf5c97068",
+      "reviewedCommit": "d851167d7492a7303e2e84dc4317bdc32c4e5797",
+      "sha256": "96d6fbcac7ebc815c9f51ee4ac6ba5f853c257e628eadce92bbbedc3f2ac93c6",
       "snippets": [
         {
           "lang": "js",
@@ -3765,8 +3765,8 @@
         "tests/acceptance/contention-calendar-rung2-v1.mjs"
       ],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "dcc3bd2a6192f5b6c9964786e9e5e0cdd185c219",
-      "sha256": "2d5a26989a9154f374ace46b9fb39c952e381fcd566fc3f28446d94c43c6e15b",
+      "reviewedCommit": "d851167d7492a7303e2e84dc4317bdc32c4e5797",
+      "sha256": "a0ef7ca9d9a302753d5c3179005be4e080a77088da6b96b2ec9bb72db15a9fcc",
       "snippets": [
         {
           "lang": "js",
@@ -3892,8 +3892,8 @@
         "packages/snapback-cli/templates/media-feed"
       ],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "dcc3bd2a6192f5b6c9964786e9e5e0cdd185c219",
-      "sha256": "ed9a86a2e95612c791911bf7fbac3f6a44bd9062ad2492ee764ee3768f64e2ff",
+      "reviewedCommit": "d851167d7492a7303e2e84dc4317bdc32c4e5797",
+      "sha256": "e870147d2c1e4ed4dd9f1bf24423f62cf7c3762e0ca1fb99572397f7edab6471",
       "snippets": [
         {
           "lang": "js",
@@ -8446,8 +8446,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "dcc3bd2a6192f5b6c9964786e9e5e0cdd185c219",
-      "sha256": "c3ad2511bd44a030e0bc3528e98518d86ac82e97c54311c0434f1b131ea29d01",
+      "reviewedCommit": "d851167d7492a7303e2e84dc4317bdc32c4e5797",
+      "sha256": "203470b123f5506cda16c7f336705c6ce50f407d0e1f8fcd17a9706a0e45528a",
       "snippets": []
     },
     "meta.surface-map": {
@@ -8886,5 +8886,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "8e1d6e558f98e68f90ca97b976a9e0d264d7f24d9c28fed464da7795ff3fa245"
+  "contentHash": "6a58c3631cf8ebf102915c65c965ee17893b8b31033e93f43e392e946376fd45"
 }
