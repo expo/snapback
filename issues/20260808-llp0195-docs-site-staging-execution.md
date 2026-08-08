@@ -169,3 +169,17 @@ proposals and need explicit confirmation before or at first deploy.
   own recommendation and 0197's standard — publishing a comparison
   before its published gates pass would violate the standard the site
   itself documents).
+
+## Publication execution — 2026-08-08 (post-ruling)
+
+Deployed per D1: Cloudflare Pages project `snapback-docs`, live at
+<https://snapback-docs.pages.dev> (all routes verified 200; llms.txt,
+capability index, reference projection, site-manifest). Site content
+digest `sha256:fc802536dab0…` (regenerated with publicationStatus
+`published-d1-ruled-2026-08-08`), bound to closure 0.1.15 + Guide
+digest 8f37f0a5…. Remaining: wire `docs.snapback.dev` — the stored
+Cloudflare token lacks Zone:Read (zones list empty), so the custom
+domain needs an author-minted token with Zone+Pages scope or
+confirmation of where the domain lives. D2 (examples repo), D3
+(snapshot paths /v/<closure>/), and the D4 benchmarks gate remain
+follow-ons.
