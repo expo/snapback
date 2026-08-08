@@ -5,7 +5,10 @@
 **Systems:** Product, Application data API, Relational queries, Client SDK, React, Local sync, Offline sync, Optimistic updates, Auth, HTTP surface, Search, Notifications, Assets, Storage, Deployment, Performance, Developer experience, Testing
 **Author:** Codex (gpt-5.6-sol) / Charlie Cheever
 **Date:** 2026-08-05
-**Revised:** 2026-08-05 (Stage 0 execution, Codex gpt-5.6-sol / Claude Fable
+**Revised:** 2026-08-07 (Stage 0.5 completion + author rulings, Claude Fable
+5: records the control's receipted completion, the OQ13/D3/§13-ratification/
+review-loop rulings, and the ratification artifact pointer) · 2026-08-05
+(Stage 0 execution, Codex gpt-5.6-sol / Claude Fable
 5: narrows the D5 `Date.now()` replacement claim to the issue create/update,
 emoji add, and comment add server overrides after pin re-verification) ·
 2026-08-05 (authorial review, Codex gpt-5.6-sol: narrows this to an umbrella RFC; replaces unsupported fixed performance margins with a pre-implementation freeze protocol; makes projected-fact reuse a staged candidate rather than an admitted capability; defines production edges as a supported composition profile; corrects the client-value comparison; and lets the current-surface control report rather than predetermine outcomes) · 2026-08-05 (design-partner revision, Claude Fable 5: adds the current-surface control arm, staged projected-fact investigation, server-backed windowing, authoring-delta evidence, and refusal-union ownership) · 2026-08-05 (initial draft)
@@ -814,12 +817,23 @@ acceptance manifest is frozen with performance margins explicitly deferred to
 (`demos/zerobugs/manifest/acceptance.v1.md`); the exact demand inventory and
 workstream owner/dependency/timebox plan are recorded
 (`demos/zerobugs/stage0/inventory.v1.md`,
-`demos/zerobugs/stage0/program-plan.v1.md`). Author decisions still open:
-OQ13 orchestration ownership, the proposed durable-disconnected-intent
-primary-improvement candidate (manifest §13), and owner-Spec authors for
-D2/D3/D4/D6. Next, author feedback should settle the benchmark/claim contract
-and name owners for D1–D8. Because the program touches query semantics, protected
-client state, browser writes, production identity, effects, and hosting, the
-RFC should receive an LLP 0005 review loop scaled to foundational product work
-before acceptance. Its independent mechanisms should be reviewed in their
-owner documents rather than accreting implementation detail here.
+`demos/zerobugs/stage0/program-plan.v1.md`). Stage 0.5 (the D1
+current-surface control) completed on 2026-08-07: all eight ZB gates carry
+immutable receipts with honest PASS/GAP/FAIL rows, the large profile is
+qualified at 5.5M rows on the repaired runtime, ZB2's browser rows run in
+real Chrome, and the hot profile's attempt ladder is receipted
+(`demos/zerobugs/control/PLAN.md` §Lane F / §Lane 8 hold the ledger).
+
+Author rulings (Charlie, 2026-08-07, recorded in
+`demos/zerobugs/manifest/ratification-13.v1.md`): OQ13 — the current
+orchestration pattern continues (supervising agent sessions orchestrate
+lanes end to end; the author gates rulings, acceptances, and owner-Spec
+naming at sittings); the durable-disconnected-intent primary-improvement
+candidate is ratified as proposed before results are known, contingent on
+the Stage 2 / D3–D5 offline-intent integration (the control shows zero
+queued intent in this application shape today); D3 is the first
+workstream, its owner-Spec author named at start per the sitting #4
+ruling; and the LLP 0005 review loop scaled to foundational product work
+is commissioned now, with Stage 0.5's receipts as evidence — acceptance
+follows the loop. Independent mechanisms are still reviewed in their owner
+documents rather than accreting implementation detail here.
