@@ -131,6 +131,12 @@ silent wedge trap (ENG-22659).
   the areas they cover.
 - Landings that add test files, metadata-declared demos, or generated
   publication leaves run `node scripts/check-inventories.mjs` before pushing.
+- **Publication posture (author ruling 2026-08-08, recorded in LLP
+  0041):** publish to npm rapidly and often — whenever `main` carries
+  meaningful surface changes and the qualified publication path passes.
+  No current users depend on stability; expected users are agents who
+  read the docs. Do not batch changes waiting for a big release; treat
+  landed-but-unpublished surface fixes as a liability.
 - **`main` moves fast — often continuously for days.** Many concurrent agent
   sessions push to it around the clock. Do not design processes, gates, or
   qualification loops that depend on `main` being quiet for hours at a time
