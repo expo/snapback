@@ -42195,6 +42195,11 @@ globalThis.__snapbackHandlers = {
         // deliberately not a request-path 4xx; if it ever crosses ApiError,
         // the fail-safe HTTP projection remains 500.
         "SNAPBACK_AUTH_BACKUP_INVALID",
+        // @ref LLP 0192#d-2-the-store-export-verb — whole-store export refuses
+        // offline under the instance lock, in the same operator plane as auth
+        // backup. No HTTP producer exists; the fail-safe projection stays 500.
+        "SNAPBACK_STORE_EXPORT_INVALID",
+        "SNAPBACK_STORE_EXPORT_REFUSED",
         "SNAPBACK_AUTH_HOSTED_ADMISSION_EXPIRED",
         "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
         // LLP 0098 §3.1 hosted-edge adapter refusals. Like the backup/restore

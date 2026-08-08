@@ -744,7 +744,7 @@ fn require_canonical_path_binding(
     Ok(sqlite)
 }
 
-fn managed_branch_root(canonical_path: &Path) -> SnapbackResult<PathBuf> {
+pub(crate) fn managed_branch_root(canonical_path: &Path) -> SnapbackResult<PathBuf> {
     let file_name = canonical_path.file_name().ok_or_else(|| {
         error(
             "SNAPBACK_BRANCH_CUSTODY_INVALID",

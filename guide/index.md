@@ -238,6 +238,9 @@ you never build around a feature because you didn't know it existed.
 - [Local instance forks](./operating/instance-forks.md) — give each worktree a
   finite-TTL, quarantined copy of realistic local state; run fork-aware
   acceptance and retain bounded app-row diff receipts (partial/unpublished).
+- [Back up, copy, and move a store](./operating/backup-and-copy.md) — a store
+  is not one file: the declared durable-state set, the WAL-consistent
+  `snapback store export` copy verb, and how copy, restore, and fork differ.
 - [Secrets and deployment config](./operating/secrets-and-config.md) —
   declare, set, verify, grant, and consume write-only values.
 - [Host operations](./operating/host-ops.md) — the complete CLI/HTTP

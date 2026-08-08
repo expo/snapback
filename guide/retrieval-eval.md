@@ -218,6 +218,20 @@ tickets (declared refusals, principal↔app-identity binding, SVG assets).
     Route terms: "SVG", "image/svg+xml",
     "SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED", "nosniff".
 
+Case 21 is an absorption seed from the 2026-08-07 zerobugs `zb5-hot` `v4`
+attempt (`issues/20260808-sessions-store-copy-needs-auth-keyring-sibling.md`):
+a full receipted gate run was burned discovering that a database copy is not a
+store copy, and nothing in the guide named the sibling.
+
+21. **Store copy and backup:** "Copy a running Snapback store somewhere else
+    and boot on the copy." The run fails if the plan `cp`s the `.sqlite3`
+    (with or without a `*` glob), hand-derives the sibling list, waits for a
+    clean shutdown to make a `cp` safe, or reaches for `snapback auth backup`
+    expecting a bootable directory.
+    Expected pages: `operating/backup-and-copy.md`.
+    Route terms: "backup", "copy database", "clone database",
+    "auth-keyring.json", "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:

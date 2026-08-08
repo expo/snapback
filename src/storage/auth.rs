@@ -1397,6 +1397,26 @@ impl LocalDatabase {
         })
     }
 
+    /// Auth backup's catalog-readiness wrapper around the generic image copy.
+    /// The auth unit asserts an exact recognized catalog on both sides of the
+    /// copy; whole-store export shares the capture but makes no such claim,
+    /// because a store with a dormant catalog is still a copyable store.
+    /// @ref LLP 0192#d-2-the-store-export-verb — the shared capture is
+    /// catalog-agnostic; only this wrapper adds the auth-unit proof.
+    pub(crate) fn backup_auth_catalog_into(&self, image: &File) -> SnapbackResult<()> {
+        require_ready_on(&self.conn)?;
+        self.backup_database_image_into(image)?;
+        // Prove the normalized image reopens standalone and still carries an
+        // exact recognized catalog, again without touching any pathname.
+        let check = open_backup_image_connection(image, true)?;
+        if !inspect_auth_catalog_on(&check)?.is_ready() {
+            return Err(backup_invalid(
+                "backup database image is not an exact recognized auth catalog",
+            ));
+        }
+        Ok(())
+    }
+
     /// Produce a complete database image with SQLite's online-backup API into
     /// a caller-created staging descriptor. The caller owns the exclusive
     /// maintenance boundary, the retained keyring bytes, and the pinned
@@ -1407,8 +1427,7 @@ impl LocalDatabase {
     /// @ref LLP 0057#consistent-backup — the staged image stays the exact
     /// secure unit created by the command; no page is copied through a
     /// pathname an attacker could redirect.
-    pub(crate) fn backup_auth_catalog_into(&self, image: &File) -> SnapbackResult<()> {
-        require_ready_on(&self.conn)?;
+    pub(crate) fn backup_database_image_into(&self, image: &File) -> SnapbackResult<()> {
         // Derive the export scrub from physical custody, not the in-memory
         // manifest projection. A crashed or tampered schema transition must
         // fail toward removing a protected table, never toward exporting it.
@@ -1499,14 +1518,13 @@ impl LocalDatabase {
         image
             .sync_all()
             .map_err(|_| backup_invalid("could not sync the backup database image"))?;
-        // Prove the normalized image reopens standalone and still carries an
-        // exact recognized catalog, again without touching any pathname.
+        // Prove the normalized image reopens standalone and reads its own
+        // schema, again without touching any pathname. Catalog-shape claims
+        // belong to the callers that actually make them.
         let check = open_backup_image_connection(image, true)?;
-        if !inspect_auth_catalog_on(&check)?.is_ready() {
-            return Err(backup_invalid(
-                "backup database image is not an exact recognized auth catalog",
-            ));
-        }
+        check.query_row("SELECT COUNT(*) FROM sqlite_schema", [], |row| {
+            row.get::<_, i64>(0)
+        })?;
         Ok(())
     }
 

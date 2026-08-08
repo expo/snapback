@@ -899,6 +899,11 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: AuthCommand,
     },
+    /// Inspect or atomically export the complete file-backed store state.
+    Store {
+        #[command(subcommand)]
+        command: StoreCommand,
+    },
     /// Create and operate finite-TTL, non-promotable local derived deployments.
     /// Lifecycle: create -> inspect/list -> diff -> drop/reap/recover.
     Fork {
@@ -1660,7 +1665,25 @@ pub enum AuthCommand {
 }
 
 #[derive(clap::Subcommand)]
-#[command(after_help = "Lifecycle examples:\n  snapback fork create --from parent.ready.json --ttl 2h --app-root .\n  snapback fork inspect <fork-id> --app-root .\n  snapback fork diff <fork-id> --app-root .\n  snapback fork drop <fork-id> --app-root .\n  snapback fork reap --now-ms <unix-ms> --app-root .\n  snapback fork recover <destination> --app-root .")]
+pub enum StoreCommand {
+    /// Describe every database-derived durable-state member without locking it.
+    Describe {
+        #[arg(long)]
+        db: PathBuf,
+    },
+    /// Publish a WAL-consistent, directly bootable store directory.
+    Export {
+        #[arg(long)]
+        db: PathBuf,
+        #[arg(long)]
+        output: PathBuf,
+    },
+}
+
+#[derive(clap::Subcommand)]
+#[command(
+    after_help = "Lifecycle examples:\n  snapback fork create --from parent.ready.json --ttl 2h --app-root .\n  snapback fork inspect <fork-id> --app-root .\n  snapback fork diff <fork-id> --app-root .\n  snapback fork drop <fork-id> --app-root .\n  snapback fork reap --now-ms <unix-ms> --app-root .\n  snapback fork recover <destination> --app-root ."
+)]
 pub enum ForkCommand {
     /// Sweep expired managed forks first, then materialize, scrub/mint, boot,
     /// and return a finite-lived ready derived deployment.
@@ -2448,6 +2471,10 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             AuthCommand::Backup { db, output } => auth_backup(&db, &output).await,
             AuthCommand::Restore { from, db } => auth_restore(&from, &db),
         },
+        Some(HostCommand::Store { command }) => match command {
+            StoreCommand::Describe { db } => store_describe(&db),
+            StoreCommand::Export { db, output } => store_export(&db, &output).await,
+        },
         Some(HostCommand::Fork { command }) => fork_command(command).await,
         Some(HostCommand::Controls { command }) => controls_command(command),
         Some(HostCommand::Guide { query }) => guide_command(&query),
@@ -2696,6 +2723,129 @@ async fn auth_backup_inner(
         crate::auth::backup::create_backup(
             snapback.auth_database_mut(),
             maintenance.keyring(),
+            output_directory,
+            created_at_ms,
+            &crate::auth::crypto::OsRandom,
+        )
+        .map_err(anyhow::Error::new)
+    })
+}
+
+fn store_describe(database_path: &Path) -> anyhow::Result<()> {
+    let database_path = resolve_database_path(database_path)?;
+    let members = crate::store_state::durable_state_members(&database_path)?;
+    let members = members
+        .into_iter()
+        .map(|member| {
+            json!({
+                "id": member.id,
+                "path": member.path,
+                "disposition": member.disposition,
+                "kind": member.kind,
+                "present": std::fs::symlink_metadata(&member.path).is_ok(),
+                "description": member.description,
+            })
+        })
+        .collect::<Vec<_>>();
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&json!({
+            "ok": true,
+            "operation": "store.describe",
+            "database": database_path,
+            "members": members,
+        }))?
+    );
+    Ok(())
+}
+
+// @ref LLP 0192#d-2-the-store-export-verb — store export takes the same
+// instance and auth-maintenance exclusion boundary as physical auth backup.
+async fn store_export(database_path: &Path, output_directory: &Path) -> anyhow::Result<()> {
+    let result = store_export_inner(database_path, output_directory).await;
+    match result {
+        Ok(outcome) => {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({
+                    "ok": true,
+                    "operation": "store.export",
+                    "output": output_directory,
+                    "publicationState": outcome.publication_state,
+                    "manifest": outcome.manifest,
+                }))?
+            );
+            Ok(())
+        }
+        Err(error) => {
+            let diagnostic = error
+                .downcast_ref::<crate::diagnostic::SnapbackError>()
+                .map(|error| error.diagnostic.clone())
+                .unwrap_or_else(|| {
+                    crate::diagnostic::Diagnostic::error(
+                        "SNAPBACK_STORE_EXPORT_INVALID",
+                        "store-export",
+                        error.to_string(),
+                    )
+                    .with_details(json!({ "publicationState": "Unpublished" }))
+                });
+            let publication_state = diagnostic
+                .details
+                .get("publicationState")
+                .cloned()
+                .unwrap_or_else(|| json!("Unpublished"));
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({
+                    "ok": false,
+                    "operation": "store.export",
+                    "output": output_directory,
+                    "publicationState": publication_state,
+                    "diagnostics": [diagnostic],
+                }))?
+            );
+            Err(error)
+        }
+    }
+}
+
+async fn store_export_inner(
+    database_path: &Path,
+    output_directory: &Path,
+) -> anyhow::Result<crate::store_state::StoreExportOutcome> {
+    let (database_path, _instance_lock, provider) = startup_blocking(|| {
+        let database_path = resolve_database_path(database_path)?;
+        anyhow::ensure!(
+            database_path.is_file(),
+            "SNAPBACK_STORE_EXPORT_INVALID: source database does not exist"
+        );
+        let instance_lock = DatabaseInstanceLock::acquire(&database_path)?;
+        let keyring = Arc::new(crate::auth::keyring::AuthKeyringStore::file_for_database(
+            &database_path,
+        ));
+        let provider = Arc::new(
+            crate::auth::provider::AuthProvider::new(
+                crate::auth::provider::AuthProviderProfile::Test,
+                keyring,
+            )
+            .map_err(crate::auth::provider::ProviderError::into_snapback_error)?,
+        );
+        Ok::<_, anyhow::Error>((database_path, instance_lock, provider))
+    })?;
+    let maintenance = provider.exclusive_maintenance().await;
+    let created_at_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|elapsed| elapsed.as_millis().min(9_007_199_254_740_991) as u64)
+        .unwrap_or(0);
+    // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — the online
+    // image and recursive member copy are blocking pre-bind work beneath the
+    // Tokio CLI entrypoint.
+    startup_blocking(|| {
+        let mut snapback = LocalSnapback::open(&database_path)?;
+        crate::store_state::export_store(
+            snapback.auth_database_mut(),
+            maintenance.keyring(),
+            &database_path,
             output_directory,
             created_at_ms,
             &crate::auth::crypto::OsRandom,
@@ -8465,12 +8615,12 @@ async fn shutdown_signal() {
 }
 
 #[derive(Clone, Debug)]
-struct ManagedPath {
-    label: &'static str,
-    path: PathBuf,
+pub(crate) struct ManagedPath {
+    pub(crate) label: &'static str,
+    pub(crate) path: PathBuf,
 }
 
-fn managed_startup_paths(
+pub(crate) fn managed_startup_paths(
     database: Option<&Path>,
     ready_file: Option<&Path>,
 ) -> anyhow::Result<Vec<ManagedPath>> {
@@ -8505,7 +8655,7 @@ fn managed_startup_paths(
         ] {
             paths.push(ManagedPath {
                 label,
-                path: path_with_filename_suffix(&telemetry, suffix)?,
+                path: crate::store_state::path_with_filename_suffix(&telemetry, suffix)?,
             });
         }
         paths.push(ManagedPath {
@@ -8523,7 +8673,7 @@ fn managed_startup_paths(
         ] {
             paths.push(ManagedPath {
                 label,
-                path: path_with_filename_suffix(database, suffix)?,
+                path: crate::store_state::path_with_filename_suffix(database, suffix)?,
             });
         }
     }
@@ -8548,15 +8698,6 @@ fn managed_startup_paths(
         });
     }
     Ok(paths)
-}
-
-fn path_with_filename_suffix(path: &Path, suffix: &str) -> anyhow::Result<PathBuf> {
-    let mut name = path
-        .file_name()
-        .context("managed path must include a file name")?
-        .to_os_string();
-    name.push(suffix);
-    Ok(path.with_file_name(name))
 }
 
 fn resolve_candidate_path(path: &Path) -> anyhow::Result<PathBuf> {
@@ -9847,22 +9988,23 @@ mod tests {
         AuthCoordinatorReadinessReceipt, AuthProgramConstructionReceipts,
         BEFORE_STARTUP_TARGET_RESERVATION, Cli, ConfigCommand, ConnectionsCommand, ControlsCommand,
         CronCommand, DataCommand, DataPatchArgs, DebugCommand, EphemeralCommand, ErrorsCommand,
-        ForkCommand, HostCommand, JobsCommand,
-        ManagedPath, NetworkProfileCommand, ReadyFileTarget, ResolvedHttpTarget, SessionCommand,
-        TargetArgs, TelemetryCommand, automatic_reap_before_create, bind_first_available,
-        bind_listener, console_claim_fragment_url, console_fragment_url, fork_secret_disposition,
+        ForkCommand, HostCommand, JobsCommand, ManagedPath, NetworkProfileCommand, ReadyFileTarget,
+        ResolvedHttpTarget, SessionCommand, StoreCommand, TargetArgs, TelemetryCommand,
+        automatic_reap_before_create, bind_first_available, bind_listener,
+        console_claim_fragment_url, console_fragment_url, fork_secret_disposition,
         managed_startup_paths, mint_secret_read_via_http, parse_fork_ttl,
         parse_network_profile_selection, parse_run_args, path_segment_escape,
-        path_with_filename_suffix,
         prepare_database_path, prepare_database_path_for_startup, quiet_stop_fork,
         reject_misdirected_serve_flags, render_guide_command, resolve_http_target,
         resolve_http_target_for_operation, resolve_startup_nonce,
-        runtime_auth_program_readiness, search_guide_sections_in, validate_path_disjointness,
-        validated_console_origin, validated_secret_read_root_path, write_ready_file_atomic,
+        runtime_auth_program_readiness, search_guide_sections_in,
+        validate_path_disjointness, validated_console_origin,
+        validated_secret_read_root_path, write_ready_file_atomic,
         write_ready_file_atomic_protected,
     };
     use crate::guide::EmbeddedGuideFile;
     use crate::instance_lock::TargetInstanceReservation;
+    use crate::store_state::path_with_filename_suffix;
     use clap::{CommandFactory, Parser};
     use serde_json::json;
     use std::io::{Read as _, Write as _};
@@ -11453,6 +11595,33 @@ mod tests {
             ])
             .is_err()
         );
+    }
+
+    #[test]
+    fn store_describe_and_export_have_closed_cli_spellings() {
+        let describe = Cli::parse_from(["snapback", "store", "describe", "--db", "app.sqlite3"]);
+        assert!(matches!(
+            describe.command,
+            Some(HostCommand::Store {
+                command: StoreCommand::Describe { .. }
+            })
+        ));
+
+        let export = Cli::parse_from([
+            "snapback",
+            "store",
+            "export",
+            "--db",
+            "app.sqlite3",
+            "--output",
+            "copy",
+        ]);
+        assert!(matches!(
+            export.command,
+            Some(HostCommand::Store {
+                command: StoreCommand::Export { .. }
+            })
+        ));
     }
 
     #[test]
@@ -13157,7 +13326,7 @@ mod tests {
             "preflight must reject before creating the colliding parent"
         );
 
-        let wal = super::path_with_filename_suffix(&db, "-wal").unwrap();
+        let wal = path_with_filename_suffix(&db, "-wal").unwrap();
         let dotdot_ready = wal.join("transient").join("..").join("ready.json");
         assert!(
             validate_path_disjointness(

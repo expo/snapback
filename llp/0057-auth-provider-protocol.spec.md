@@ -5,7 +5,10 @@
 **Systems:** Auth, Storage, Security, API, Admin API, Backup/restore, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-08-06 (dated amendment drafted at the author's
+**Revised:** 2026-08-08 (dated amendment: the operator-locus startup
+`SNAPBACK_AUTH_PROVIDER_UNAVAILABLE` diagnostic names the missing
+`<db>.auth-keyring.json` sidecar path and cause class, while the request-path
+503 stays redacted — see LLP 0192 D-4 and the dated amendment). 2026-08-06 (dated amendment drafted at the author's
 direction and ratified by the author the same day: LTX-boundary capture
 discipline as a second admissible physical-capture form for the auth
 unit, per LLP 0188). 2026-08-01 (LLP 0148 prefixed identifiers: the four catalog object
@@ -82,7 +85,7 @@ compatibility, and reserved-source name reachability) as defect obligations;
 pinned the **`generation` domain** and the JS-safe **timestamp schema bound**;
 and softened the **no-ready-file impersonation stdin** path to a named
 obligation. Full triage in §Review triage.) 2026-07-14 (ENG-24996 review gate: archived the GPT-family review artifact at `reviews/0057-auth-provider-protocol.codex.md` and applied its editorial corrections — composed credential-response example, address-exposure wording, future-import incarnation rule, and Related links; material findings remain for author triage). 2026-07-14 (ENG-24981 backup-staging audit: bind the SQLite backup image to its exact descriptor-created inode, pin the staging directory and every staged child inode, and revalidate them immediately before and after publication so a replaced or symlinked staging path fails closed before any source page is copied). 2026-07-14 (implementation-vs-review reconciliation: ENG-24596/item 3 and its executable evidence have landed, while this security-sensitive Spec remains Draft pending author ratification and an appropriately scaled review). 2026-07-13 (ENG-24596 restore audit: serialize every supported file-backed startup with restore, carry the target-directory identity through database open, and bind staged children plus publication/cleanup to their exact inodes); 2026-07-13 (ENG-24596 final audit: enforced rescue's frozen dev/test-only profile and reconciled the LLP 0045 handoff boundary); 2026-07-13 (ENG-24596 implementation reconciliation: aligned owning LLPs, review findings, restore exclusion, redaction/ACL/GC hardening, and executable evidence); 2026-07-13 (implementation review: separate due key rotation from request admission; pin public no-store classification)
-**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0036, LLP 0037, LLP 0039, LLP 0045, LLP 0051, LLP 0053, LLP 0055, LLP 0058, LLP 0059, LLP 0060
+**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0036, LLP 0037, LLP 0039, LLP 0045, LLP 0051, LLP 0053, LLP 0055, LLP 0058, LLP 0059, LLP 0060, LLP 0192
 
 ## Summary
 
@@ -653,9 +656,12 @@ ring available. Retired keys remain for at least 24 hours and until no retained
 challenge references them. Pruning is another atomic replacement. Keys are
 never returned by an API, diagnostic, receipt, or backup manifest.
 
-For `ReadyV1`, startup validates the keyring before bind and emits one redacted
+For `ReadyV1`, startup validates the keyring before bind and emits one
 `SNAPBACK_AUTH_PROVIDER_UNAVAILABLE` startup diagnostic plus an
-`authProvider: unavailable` health fact when it is missing or corrupt. Existing
+`authProvider: unavailable` health fact when it is missing or corrupt. That
+startup diagnostic is operator-locus and names the exact sidecar path and cause
+class — see the 2026-08-08 dated amendment; the request-path 503 carrying the
+same code stays redacted. Existing
 session resolution remains available because it needs no keyring, but
 request-code/exchange refuse without mutation until a valid ring is restored;
 startup never silently mints a replacement for a marked catalog.
@@ -1855,6 +1861,42 @@ any gap.
   purge, `--restored-from-backup`), exactly as LLP 0188 §6 already
   requires. The "undeclared restore can resurrect backed-up sessions"
   residual gains no new surface.
+
+## Dated amendment: the startup diagnostic names the missing sidecar (2026-08-08)
+
+[LLP 0192](./0192-store-durable-state-set.decision.md) (Accepted 2026-08-08)
+declares the complete durable-state set of a file-backed store and adds a
+supported copy verb. Its D-4 changes one behavior this Spec pins, so it is
+recorded here rather than left to drift.
+
+**What prompted it.** A byte-identical copy of a sessions-mode database, taken
+without `<db>.auth-keyring.json`, boots with a `Ready` catalog and refuses every
+provider operation with `SNAPBACK_AUTH_PROVIDER_UNAVAILABLE` naming nothing. The
+zerobugs `zb5-hot` gate burned a complete receipted attempt (`v4`, 2026-08-07)
+probing in isolation to learn which file was missing
+(`issues/20260808-sessions-store-copy-needs-auth-keyring-sibling.md`).
+
+**What changes.** The code has two audiences and now two shapes:
+
+- The **request-path 503** returned to HTTP clients is unchanged — no path, no
+  `"keyring"` string, no details. §Security and redaction governs it and it
+  reaches unauthenticated callers.
+- The **startup/operator diagnostic** recorded at inspect time carries
+  `{durableStateMember, path, cause, remedy}`: the exact
+  `<db>.auth-keyring.json` path, whether it is `missing` / `corrupt` /
+  `unavailable`, and a pointer to `snapback store export`. It carries no key id
+  and no key material — §Security and redaction's secret list is unchanged, and
+  a filesystem path is not on it. §Diagnostics' "details may include … object
+  kind/name where the operator must repair schema" is read to include the
+  path-bound sidecar the operator must repair.
+
+**What does not change.** Startup still never mints a replacement ring for a
+marked catalog, session resolution stays keyring-independent, and the health
+fact stays `authProvider: unavailable`. `snapback auth backup` / `auth restore`
+keep their neutral layout and destructive declared-restore semantics;
+LLP 0192's `snapback store export` is a separate, non-revoking, directly
+bootable copy that reuses this Spec's descriptor-bound capture and three-state
+publication contract.
 
 ## Open questions
 

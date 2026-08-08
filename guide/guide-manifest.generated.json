@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "d2536037e34dfcc26c5ff2dc034519461a6dc318"
+    "commit": "36d675e6d956255e352a60bdb3de6b3de2c95387"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -276,6 +276,11 @@
         "id": "operating.data-patch",
         "order": 8,
         "title": "Patch one existing row safely"
+      },
+      {
+        "id": "operating.backup-and-copy",
+        "order": 9,
+        "title": "Back up, copy, and move a store"
       }
     ],
     "protocol": [
@@ -1645,7 +1650,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedCommit": "effa2773760fd0d740c49f06990b3fde5e82a66b",
-      "sha256": "9c139a36965cba0dd54411d31e9f80e18ccfd162df0c3fcb675e79491808a5ac",
+      "sha256": "e6a04fddaf1fddc61ae8f35847459e2cec9e4b640025768488afa3e8ae6a5604",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2467,7 +2472,7 @@
       ],
       "reviewed": "2026-08-07",
       "reviewedCommit": "cca0db7d8e94c8d4943eb808d4e10238a506c70c",
-      "sha256": "917172d07f00274740dab072684c93fb083eb7f5f5a458417c75a8ba6eb411cb",
+      "sha256": "31ac7adbd6f135b6bfc6c5cd5435940d88f9852c6af6c1ba7b8c58a6d7f71a9f",
       "snippets": [
         {
           "lang": "json",
@@ -2542,6 +2547,39 @@
       "reviewedCommit": "2715951cf",
       "sha256": "c793b72ec46a8dd763cb5722dbcb089d7f05e29cd850320929167bcf6a7cd0e3",
       "snippets": []
+    },
+    "operating.backup-and-copy": {
+      "path": "guide/operating/backup-and-copy.md",
+      "title": "Back up, copy, and move a store",
+      "order": 9,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "operating.store-durable-state"
+      ],
+      "authorities": [
+        "llp/0192-store-durable-state-set.decision.md",
+        "llp/0057-auth-provider-protocol.spec.md",
+        "src/store_state.rs",
+        "src/cli.rs",
+        "src/auth/backup.rs",
+        "src/auth/runtime.rs"
+      ],
+      "examples": [
+        "src/store_state.rs"
+      ],
+      "reviewed": "2026-08-08",
+      "reviewedCommit": "36d675e6d956255e352a60bdb3de6b3de2c95387",
+      "sha256": "c36f908ddcfb9c6f93a81885fc015d530462ab9fe53c6b06e8119c239271889d",
+      "snippets": [
+        {
+          "lang": "json",
+          "class": "fragment"
+        }
+      ]
     },
     "operating.data-patch": {
       "path": "guide/operating/data-patch.md",
@@ -3339,7 +3377,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedCommit": "effa2773760fd0d740c49f06990b3fde5e82a66b",
-      "sha256": "0787486c1a650af149c44c4777043ab0090591127db244719c6e2fbeb9e87f3f",
+      "sha256": "3655a7943f2ada3024e8ef196197c6285a1fd750775c078f06cafb73cd203d95",
       "snippets": []
     },
     "meta.surface-map": {
@@ -3700,6 +3738,7 @@
       "operating.secrets-config",
       "operating.served-guide",
       "operating.server-lifecycle",
+      "operating.store-durable-state",
       "operating.verify",
       "realtime.durable-push",
       "realtime.ephemeral",
@@ -3732,5 +3771,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "abea66e679f488b0b7cba581273962be791deedb2d85fce8c8c51c5b33c251d8"
+  "contentHash": "286554c1e8372653992834b027fd3396e3ef834032c89982b2e47c6d60b8e80c"
 }

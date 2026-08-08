@@ -156,6 +156,8 @@ pub mod snapshot_batch_cursor_v2;
 #[doc(hidden)]
 pub mod storage;
 #[doc(hidden)]
+pub mod store_state;
+#[doc(hidden)]
 pub mod stream_attempt;
 #[doc(hidden)]
 pub mod telemetry;

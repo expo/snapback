@@ -1924,10 +1924,17 @@ pub struct AssetFsStore {
 pub const ASSET_STORE_LOCAL_FS: &str = "local-fs";
 
 impl AssetFsStore {
+    pub(crate) fn staging_directory(instance_dir: &Path) -> PathBuf {
+        instance_dir.join("assets").join("staging")
+    }
+
+    pub(crate) fn blobs_directory(instance_dir: &Path) -> PathBuf {
+        instance_dir.join("assets").join("blobs")
+    }
+
     pub fn open(instance_dir: &Path) -> SnapbackResult<Self> {
-        let root = instance_dir.join("assets");
-        let staging_dir = root.join("staging");
-        let blobs_dir = root.join("blobs");
+        let staging_dir = Self::staging_directory(instance_dir);
+        let blobs_dir = Self::blobs_directory(instance_dir);
         for dir in [&staging_dir, &blobs_dir] {
             std::fs::create_dir_all(dir).map_err(|error| {
                 SnapbackError::error(

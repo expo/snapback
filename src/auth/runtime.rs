@@ -23,7 +23,7 @@ use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 
 use super::coordinator::AuthCoordinator;
-use super::keyring::AuthKeyringStore;
+use super::keyring::{AuthKeyringStore, KeyringError};
 use super::lifecycle::AUTH_GC_INTERVAL;
 use super::provider::{
     AuthGcPass, AuthProvider, AuthProviderProfile, AuthProviderReadiness, ProviderError,
@@ -224,7 +224,8 @@ impl AuthRuntime {
             None => AuthKeyringStore::in_memory(),
         });
         let provider = Arc::new(
-            AuthProvider::new(profile, keyring).map_err(ProviderError::into_snapback_error)?,
+            AuthProvider::new(profile, keyring.clone())
+                .map_err(ProviderError::into_snapback_error)?,
         );
         let catalog = match snapback.auth_database_mut().inspect_auth_catalog() {
             Ok(catalog) => catalog,
@@ -240,7 +241,17 @@ impl AuthRuntime {
             AuthCatalogState::Uninitialized => None,
             AuthCatalogState::ReadyV1 | AuthCatalogState::ReadyV2 => match provider.readiness() {
                 AuthProviderReadiness::Available => None,
-                AuthProviderReadiness::Unavailable => Some(provider_unavailable_diagnostic()),
+                AuthProviderReadiness::Unavailable => Some(match database_path {
+                    Some(database_path) => {
+                        let error = match keyring.load_existing() {
+                            Err(error) => error,
+                            Ok(_) => KeyringError::Unavailable,
+                        };
+                        let keyring_path = AuthKeyringStore::keyring_path(database_path);
+                        startup_provider_unavailable_diagnostic(&keyring_path, error)
+                    }
+                    None => provider_unavailable_diagnostic(),
+                }),
             },
         };
         Ok(Self {
@@ -654,6 +665,32 @@ fn provider_unavailable_diagnostic() -> Diagnostic {
     )
 }
 
+// @ref LLP 0057#diagnostics — the operator-locus startup diagnostic names the missing path-bound sibling; the request-path 503 stays redacted.
+fn startup_provider_unavailable_diagnostic(path: &Path, error: KeyringError) -> Diagnostic {
+    let (cause, message) = match error {
+        KeyringError::Missing => (
+            "missing",
+            "email-code auth provider is unavailable: the auth keyring sidecar is missing",
+        ),
+        KeyringError::Corrupt | KeyringError::MissingKey => (
+            "corrupt",
+            "email-code auth provider is unavailable: the auth keyring sidecar is corrupt",
+        ),
+        KeyringError::Unavailable => (
+            "unavailable",
+            "email-code auth provider is unavailable: the auth keyring sidecar could not be read",
+        ),
+    };
+    Diagnostic::error("SNAPBACK_AUTH_PROVIDER_UNAVAILABLE", "auth", message).with_details(
+        serde_json::json!({
+            "durableStateMember": "authKeyring",
+            "path": path.display().to_string(),
+            "cause": cause,
+            "remedy": "a store copy must carry every path-bound sibling of the database; copy the whole durable-state set with `snapback store export`",
+        }),
+    )
+}
+
 /// Profile conversion stays explicit so production capture cannot be enabled
 /// by a lossy boolean or a default branch.
 pub(crate) fn provider_profile(profile: crate::admin::ServerProfile) -> AuthProviderProfile {
@@ -899,7 +936,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn marked_catalog_with_missing_keyring_is_redacted_and_keeps_session_resolution() {
+    async fn marked_catalog_with_missing_keyring_names_sidecar_and_keeps_session_resolution() {
         let directory = tempfile::tempdir().unwrap();
         let database_path = directory.path().join("app.sqlite3");
         let (mut snapback, _) = activate_file_catalog(&database_path, 1_000);
@@ -934,6 +971,17 @@ mod tests {
             })
             .unwrap();
         let keyring_path = AuthKeyringStore::keyring_path(&database_path);
+        let keyring_json: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&keyring_path).unwrap()).unwrap();
+        let active_key_id = keyring_json["active_key_id"].as_str().unwrap().to_owned();
+        let active_key_material = keyring_json["keys"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|entry| entry["id"].as_str() == Some(active_key_id.as_str()))
+            .and_then(|entry| entry["material"].as_str())
+            .unwrap()
+            .to_owned();
         std::fs::remove_file(&keyring_path).unwrap();
 
         let runtime = AuthRuntime::inspect(
@@ -946,9 +994,24 @@ mod tests {
         assert!(runtime.catalog_ready());
         let diagnostic = runtime.startup_diagnostic().unwrap();
         assert_eq!(diagnostic.code, "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE");
+        assert_eq!(
+            diagnostic.details["path"],
+            serde_json::json!(keyring_path.display().to_string())
+        );
+        assert_eq!(diagnostic.details["cause"], serde_json::json!("missing"));
+        assert_eq!(
+            diagnostic.details["durableStateMember"],
+            serde_json::json!("authKeyring")
+        );
         let serialized = serde_json::to_string(diagnostic).unwrap();
-        assert!(!serialized.contains("keyring"));
-        assert!(!serialized.contains(database_path.to_string_lossy().as_ref()));
+        assert!(!serialized.contains(&active_key_id));
+        assert!(!serialized.contains(&active_key_material));
+
+        let request_diagnostic = provider_unavailable_diagnostic();
+        assert_eq!(request_diagnostic.details, serde_json::json!({}));
+        let request_serialized = serde_json::to_string(&request_diagnostic).unwrap();
+        assert!(!request_serialized.contains(database_path.to_string_lossy().as_ref()));
+        assert!(!request_serialized.contains("keyring"));
         assert_eq!(
             serde_json::to_value(runtime.health()).unwrap(),
             serde_json::json!("unavailable")
@@ -961,7 +1024,7 @@ mod tests {
                 .filter(|entry| entry.code == "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE")
                 .count(),
             1,
-            "startup retains exactly one redacted unavailable diagnostic"
+            "startup retains exactly one unavailable diagnostic"
         );
         assert!(
             !keyring_path.exists(),
@@ -974,6 +1037,33 @@ mod tests {
             .expect("session digest resolution is keyring-independent");
         assert_eq!(resolved.session_id, "session-1");
         assert!(!keyring_path.exists());
+    }
+
+    #[test]
+    fn marked_catalog_with_corrupt_keyring_reports_corrupt_sidecar() {
+        let directory = tempfile::tempdir().unwrap();
+        let database_path = directory.path().join("app.sqlite3");
+        let (mut snapback, _) = activate_file_catalog(&database_path, 1_000);
+        let keyring_path = AuthKeyringStore::keyring_path(&database_path);
+        std::fs::write(&keyring_path, b"{not-json").unwrap();
+
+        let runtime = AuthRuntime::inspect(
+            &mut snapback,
+            Some(&database_path),
+            AuthProviderProfile::Test,
+        )
+        .unwrap();
+        let diagnostic = runtime.startup_diagnostic().unwrap();
+
+        assert_eq!(diagnostic.details["cause"], serde_json::json!("corrupt"));
+        assert_eq!(
+            diagnostic.details["path"],
+            serde_json::json!(keyring_path.display().to_string())
+        );
+        assert_eq!(
+            diagnostic.details["durableStateMember"],
+            serde_json::json!("authKeyring")
+        );
     }
 
     #[tokio::test]
