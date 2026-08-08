@@ -2812,8 +2812,13 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     }
                     _ => crate::stream_attempt::StreamAttemptCause::Failed,
                 };
-                crate::stream_attempt::global_stream_attempt_registry()
-                    .terminalize_invocation(&stream_runner, terminal_cause);
+                let attempt_registry = crate::stream_attempt::global_stream_attempt_registry();
+                attempt_registry.terminalize_invocation(&stream_runner, terminal_cause);
+                // The worker itself is done: release its attempt references
+                // so durably flushed terminals can be reaped (registry
+                // retention). Anything terminalize just dirtied is reaped by
+                // the flush below instead.
+                attempt_registry.release_invocation(&stream_runner);
                 host.flush_stream_attempts_trusted();
                 let mut result = fenced
                     // This is the earliest common envelope boundary and
@@ -2848,11 +2853,14 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
         Ok(Ok(result)) => result,
         Ok(Err(_closed)) => {
             // The worker died without publishing a result; its attempts
-            // still need a durable winner.
-            crate::stream_attempt::global_stream_attempt_registry().terminalize_invocation(
+            // still need a durable winner. The dead worker can no longer
+            // consult them, so its references are released as well.
+            let attempt_registry = crate::stream_attempt::global_stream_attempt_registry();
+            attempt_registry.terminalize_invocation(
                 &stream_runner,
                 crate::stream_attempt::StreamAttemptCause::Failed,
             );
+            attempt_registry.release_invocation(&stream_runner);
             Err(SnapbackError::error(
                 "SNAPBACK_ACTION_THREAD_FAILED",
                 "runtime",
@@ -2891,7 +2899,10 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
             // abandonment leg: abandonment is linearized under the commit
             // gate above, so no progress commit can land after this settle
             // writes the durable winner. The hung worker's own completion
-            // settle then loses the compare-and-set and observes this row.
+            // settle then loses the compare-and-set and observes this row —
+            // which is why this leg terminalizes but does NOT release the
+            // invocation's registry references; the worker's own completion
+            // leg releases them once it can no longer consult the record.
             crate::stream_attempt::global_stream_attempt_registry().terminalize_invocation(
                 &stream_runner,
                 crate::stream_attempt::StreamAttemptCause::TimedOut,

@@ -265,6 +265,18 @@ impl RegistryInner {
             !tokens.is_empty()
         });
     }
+
+    /// Whether any invocation this process still tracks holds the token. A
+    /// referencing invocation may yet consult the record process-live: the
+    /// per-read attempt-to-cursor cancellation signal, and `settle` returning
+    /// the committed winner verbatim (including a hung worker observing the
+    /// watchdog's terminal after abandonment), both require the record until
+    /// the last referencing invocation is released.
+    fn referenced_by_any_invocation(&self, token: &str) -> bool {
+        self.by_invocation
+            .values()
+            .any(|tokens| tokens.contains(token))
+    }
 }
 
 /// Identity of one detached action invocation as the control plane sees it:
@@ -452,9 +464,16 @@ impl StreamAttemptRegistry {
     }
 
     /// Acknowledge the exact snapshots that committed. A concurrent registry
-    /// update remains dirty; an exact terminal snapshot is no longer needed
-    /// process-live because the durable row is authoritative on the next
-    /// client-key lookup.
+    /// update remains dirty; a flushed terminal snapshot is reaped once no
+    /// live invocation still references it (the durable row is authoritative
+    /// on the next client-key lookup). While an invocation still holds the
+    /// token, the record stays process-live: the per-read cancellation signal
+    /// (`cursor_attempt_terminal`) and the settle CAS returning the committed
+    /// winner verbatim both read it.
+    // @ref LLP 0076#authority-and-lifecycle — terminal settlement must stay
+    //   observable to the cursor's reader and to later settle calls until the
+    //   referencing invocations end; retention reaps at release, not at the
+    //   first durable flush.
     pub fn clear_flushed(&self, snapshots: &[PersistedStreamAttempt]) {
         let mut inner = self.lock();
         for snapshot in snapshots {
@@ -462,8 +481,33 @@ impl StreamAttemptRegistry {
                 continue;
             }
             inner.dirty.remove(&snapshot.token);
-            if snapshot.terminal.is_some() {
+            if snapshot.terminal.is_some() && !inner.referenced_by_any_invocation(&snapshot.token) {
                 inner.reap_terminal(&snapshot.token);
+            }
+        }
+    }
+
+    /// Release one invocation's interest in its attempts once that invocation
+    /// can no longer consult them (its worker completed or died — NOT the
+    /// watchdog leg, where a hung worker may still observe the winner). Any
+    /// released terminal record nobody else references is reaped immediately
+    /// when its durable row is current, or by the next flush's
+    /// `clear_flushed` when it is still dirty — this is the retention point
+    /// that keeps the registry bounded on streaming-action workloads.
+    pub fn release_invocation(&self, runner: &StreamRunnerIdentity) {
+        let mut inner = self.lock();
+        let Some(tokens) = inner.by_invocation.remove(&runner.invocation_id) else {
+            return;
+        };
+        for token in tokens {
+            if inner
+                .by_token
+                .get(&token)
+                .is_some_and(|record| record.terminal.is_some())
+                && !inner.dirty.contains(&token)
+                && !inner.referenced_by_any_invocation(&token)
+            {
+                inner.reap_terminal(&token);
             }
         }
     }
@@ -853,8 +897,43 @@ mod tests {
         assert!(snapshots[0].terminal.is_some());
         registry.clear_flushed(&snapshots);
 
+        // The holder invocation still references the attempt: the flushed
+        // terminal must stay observable (per-read cancellation signal, settle
+        // returning the winner verbatim) — only the dirty flag clears.
+        assert!(
+            registry.terminal(&started.attempt_token).is_some(),
+            "a referenced terminal attempt survives its durable flush"
+        );
+        assert!(registry.cursor_attempt_terminal("cursor-reap"));
+        assert_eq!(registry.index_counts().4, 0, "the dirty flag clears");
+
+        // Releasing the last referencing invocation reaps the durably
+        // flushed terminal record from every index.
+        registry.release_invocation(&holder);
         assert_eq!(registry.index_counts(), (0, 0, 0, 0, 0));
         assert_eq!(registry.terminal(&started.attempt_token), None);
+    }
+
+    #[test]
+    fn release_of_a_dirty_terminal_attempt_defers_reap_to_the_next_flush() {
+        let registry = registry();
+        let holder = runner();
+        let started = registry
+            .start(1, "reap-dirty", &holder, None)
+            .expect("start");
+        registry
+            .settle(&started.attempt_token, StreamAttemptCause::Failed, &holder)
+            .expect("settle");
+
+        // Released before the terminal row was durably flushed: the record
+        // must survive (the pending write still needs a flush point).
+        registry.release_invocation(&holder);
+        assert!(registry.terminal(&started.attempt_token).is_some());
+
+        let snapshots = registry.dirty_snapshots(1);
+        assert_eq!(snapshots.len(), 1);
+        registry.clear_flushed(&snapshots);
+        assert_eq!(registry.index_counts(), (0, 0, 0, 0, 0));
     }
 
     #[test]
