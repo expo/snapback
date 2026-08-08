@@ -660,9 +660,10 @@ in the middle.
 
 ## Open questions
 
-- **OQ1 — Operations posture.** Which P4 option — hosted
-  productization, new preregistered scorecard, or accept-the-deficit?
-  Author decision; the P4 evidence leg proceeds regardless.
+- **OQ1 — Operations posture.** RULED 2026-08-08 (author): run the P4
+  deploy-and-operate evidence leg first, then choose among the three
+  options on the measured cost table. The posture choice itself remains
+  open pending that evidence.
 - **OQ2 — Identity-provider onboarding.** The trust-boundary brief
   prices security outcomes vendor-neutrally; does *onboarding* ceremony
   (provider setup, credentials, account flows) deserve its own priced

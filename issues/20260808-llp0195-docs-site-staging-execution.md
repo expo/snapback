@@ -1,6 +1,6 @@
 # LLP 0195 execution: staged docs-site generator (public publication author-gated)
 
-**Status:** Open — STAGED COMPLETE; D1–D4 author decisions remain
+**Status:** Open — STAGED COMPLETE; D1–D4 RULED 2026-08-08 (below); publication execution underway
 **Impact:** 4
 **Urgency:** 3
 **Ease:** 3
@@ -151,3 +151,21 @@ author-held; the staged artifact and generator are ready. D2 (example
 licensing), D3 (snapshot policy), D4 (benchmarks on site) were not
 explicitly ruled this turn — the memo's recommendations stand as
 proposals and need explicit confirmation before or at first deploy.
+
+## Author rulings — 2026-08-08 (Charlie Cheever, "publish everything")
+
+- **D1 — RULED: publish.** The generated projection publishes at a
+  dedicated docs origin (`docs.snapback.dev` per the recommendation;
+  interim hosting URL acceptable until DNS lands). Repository
+  visibility remains a separate, unruled decision.
+- **D2 — RULED: MIT** for generated example code with provenance/NOTICE
+  metadata and one separately generated `snapback-examples` repository,
+  per the recommendation.
+- **D3 — RULED: immutable per-release snapshots** at `/v/<closure>/`
+  with `/latest/` as an alias, per the recommendation.
+- **D4 — RULED: benchmarks excluded from first publication**, admitted
+  as a `/benchmarks/` projection only when LLP 0197's requirements
+  pass (the author's "publish everything" is read against the memo's
+  own recommendation and 0197's standard — publishing a comparison
+  before its published gates pass would violate the standard the site
+  itself documents).
