@@ -14,3 +14,5 @@
 sibling admin-token discovery (the 20260803-ready-file-admin-token ticket's
 convenience path) could supply it. Extend the same discovery to `session
 mint`. Acceptance: minting works from a ready file alone in a dev loop.
+
+- **Claimed 2026-08-08:** session 86767887 (the diary-0068 orchestrator) is executing this ticket now; sibling sessions should not duplicate.

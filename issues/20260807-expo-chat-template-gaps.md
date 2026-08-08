@@ -26,3 +26,5 @@ Two gaps in the flagship messaging template, both hit by measurement lanes:
 Acceptance: a scaffolded expo-chat app reaches offline retained render and
 an in-app upload with zero dependency or mode edits, or the template
 comments state the required step at the exact point of use.
+
+- **Claimed 2026-08-08:** session 86767887 (the diary-0068 orchestrator) is executing this ticket now; sibling sessions should not duplicate.

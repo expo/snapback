@@ -24,3 +24,5 @@ session re-mint, one readiness report. Keep every individual refusal
 unchanged for partial operations. Acceptance: after arbitrary schema/seed
 edits, one command returns a supervised Expo loop to a booting, seeded,
 authenticated state with no manual sequence.
+
+- **Claimed 2026-08-08:** session 86767887 (the diary-0068 orchestrator) is executing this ticket now; sibling sessions should not duplicate.

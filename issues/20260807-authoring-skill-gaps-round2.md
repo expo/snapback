@@ -21,3 +21,5 @@ the guide anchor; (5) sessions-mode non-session clients need
 `snapback dev --expo` supervises but never launches a device/simulator —
 launching is the author's job. One or two lines each; sync the packaged
 copy (byte-match test enforces).
+
+- **Claimed 2026-08-08:** session 86767887 (the diary-0068 orchestrator) is executing this ticket now; sibling sessions should not duplicate.

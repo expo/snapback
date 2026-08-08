@@ -16,3 +16,5 @@ iteration (one refusal names each half, neither names both). State the
 combination in guide/auth/sessions-and-principals.md's client-construction
 section, and consider having `SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED`
 name the complete option set.
+
+- **Claimed 2026-08-08:** session 86767887 (the diary-0068 orchestrator) is executing this ticket now; sibling sessions should not duplicate.

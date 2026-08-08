@@ -20,3 +20,5 @@ private tmpdir). Cold agents repeatedly misattribute the staleness to
 their own code first — the most expensive misattribution shape.
 Acceptance: a supervised loop started with CI=1 or under /private/tmp
 prints the warning in its readiness stream.
+
+- **Claimed 2026-08-08:** session 86767887 (the diary-0068 orchestrator) is executing this ticket now; sibling sessions should not duplicate.

@@ -31,3 +31,5 @@ LLP 0186 W1 owns this; commission the committed form:
 Acceptance: a fresh orchestrating agent can execute a full run from
 benchmarks/ alone, producing a comparable run record, without reading any
 diary.
+
+- **Claimed 2026-08-08:** session 86767887 (the diary-0068 orchestrator) is executing this ticket now; sibling sessions should not duplicate.
