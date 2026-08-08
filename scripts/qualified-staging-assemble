@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# @ref LLP 0041#nine-package-candidate-promotion--2026-07-28 — bind both
+# independently built runtimes into one exact source-revision closure.
+# @ref LLP 0166#public-package-advertisement-amendment--2026-08-06 — the
+# second pass co-installs each platform's packaged-store qualification receipt.
+
+: "${RELEASE_VERSION:?RELEASE_VERSION is required}"
+: "${SNAPBACK_STAGING_LINUX_ARTIFACT:?SNAPBACK_STAGING_LINUX_ARTIFACT is required}"
+: "${SNAPBACK_STAGING_DARWIN_ARTIFACT:?SNAPBACK_STAGING_DARWIN_ARTIFACT is required}"
+: "${SNAPBACK_PACKAGE_OUT:?SNAPBACK_PACKAGE_OUT is required}"
+
+node -e '
+  const version = process.env.RELEASE_VERSION;
+  if (!/^[0-9]+[.][0-9]+[.][0-9]+$/.test(version)) {
+    throw new Error("qualified staging requires an exact stable semver");
+  }
+'
+
+test -d "$SNAPBACK_STAGING_LINUX_ARTIFACT"
+test -d "$SNAPBACK_STAGING_DARWIN_ARTIFACT"
+
+darwin_receipt_set="${SNAPBACK_DARWIN_STORE_RECEIPT+x}"
+linux_receipt_set="${SNAPBACK_LINUX_STORE_RECEIPT+x}"
+if [[ "$darwin_receipt_set" != "$linux_receipt_set" ]]; then
+  echo "SNAPBACK_DARWIN_STORE_RECEIPT and SNAPBACK_LINUX_STORE_RECEIPT must be provided together" >&2
+  exit 1
+fi
+
+source_revision="$(git rev-parse HEAD)"
+artifact_root="$HOME/snapback-staging"
+mkdir -p "$artifact_root/linux" "$artifact_root/darwin"
+cp -R "$SNAPBACK_STAGING_LINUX_ARTIFACT/." "$artifact_root/linux/"
+cp -R "$SNAPBACK_STAGING_DARWIN_ARTIFACT/." "$artifact_root/darwin/"
+
+darwin_identity="$("$artifact_root/darwin/bin/snapback" build-identity)"
+DARWIN_IDENTITY="$darwin_identity" SOURCE_REVISION="$source_revision" node -e '
+  const identity = JSON.parse(process.env.DARWIN_IDENTITY);
+  if (identity?.binary?.gitCommit !== process.env.SOURCE_REVISION
+      || identity.binary.gitDirty !== false
+      || identity.binary.buildProfile !== "release"
+      || identity.buildDistribution !== "public-package") {
+    throw new Error("transported macOS runtime identity drifted");
+  }
+'
+
+if [[ -n "$darwin_receipt_set" ]]; then
+  : "${SNAPBACK_DARWIN_STORE_RECEIPT:?SNAPBACK_DARWIN_STORE_RECEIPT must name a receipt}"
+  : "${SNAPBACK_LINUX_STORE_RECEIPT:?SNAPBACK_LINUX_STORE_RECEIPT must name a receipt}"
+  test -f "$SNAPBACK_DARWIN_STORE_RECEIPT"
+  test -f "$SNAPBACK_LINUX_STORE_RECEIPT"
+  cp "$SNAPBACK_DARWIN_STORE_RECEIPT" \
+    "$artifact_root/darwin/bin/packaged-store-qualification.receipt.json"
+  linux_receipt_directory="$(cd "$(dirname "$SNAPBACK_LINUX_STORE_RECEIPT")" && pwd -P)"
+  export SNAPBACK_RUNTIME_LINUX_X64_QUALIFICATION_RECEIPT="$linux_receipt_directory/$(basename "$SNAPBACK_LINUX_STORE_RECEIPT")"
+  unset SNAPBACK_ALLOW_MISSING_STORE_RECEIPTS
+else
+  rm -f "$artifact_root/darwin/bin/packaged-store-qualification.receipt.json"
+  unset SNAPBACK_RUNTIME_LINUX_X64_QUALIFICATION_RECEIPT
+  export SNAPBACK_ALLOW_MISSING_STORE_RECEIPTS=1
+fi
+
+candidate_tag="bakeoff-${RELEASE_VERSION//./-}-${source_revision:0:12}"
+export SNAPBACK_PACKAGE_OUT
+export SNAPBACK_RUNTIME_SOURCE_BINARY="$artifact_root/darwin/bin/snapback"
+export SNAPBACK_RUNTIME_HERMES_FRAMEWORK="$artifact_root/darwin/Frameworks/hermesvm.framework"
+export SNAPBACK_RUNTIME_HERMES_HEADER="$artifact_root/darwin/include/hermes/hermes.h.artifact"
+export SNAPBACK_RUNTIME_LINUX_X64_SOURCE_BINARY="$artifact_root/linux/snapback"
+export SNAPBACK_RUNTIME_LINUX_X64_HERMES_LIBRARY="$artifact_root/linux/libhermesvm.so"
+export SNAPBACK_RUNTIME_LINUX_X64_HERMES_HEADER="$artifact_root/linux/hermes.h.artifact"
+export SNAPBACK_RUNTIME_LINUX_X64_BUILD_ATTESTATION="$artifact_root/linux/build-attestation.json"
+export SNAPBACK_RUNTIME_LINUX_X64_SOURCE_REVISION="$source_revision"
+
+node scripts/snapback-publish.mjs \
+  --scope-preset identity \
+  --runtime-platforms all \
+  --version "$RELEASE_VERSION" \
+  --tag "$candidate_tag" \
+  --out "$SNAPBACK_PACKAGE_OUT"
+SOURCE_REVISION="$source_revision" CANDIDATE_TAG="$candidate_tag" \
+  node scripts/qualified-staging-ledger-check.mjs
+test -z "$(git status --porcelain --untracked-files=all)"

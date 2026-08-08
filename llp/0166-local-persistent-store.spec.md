@@ -2392,3 +2392,13 @@ That proof receipt binds the qualification closure, not a published one; the
 closure and release binaries (per platform) and ship each minted receipt as
 `packaged-store-qualification.receipt.json` inside the runtime package,
 adjacent to the binary, where the CLI loader forwards it.
+
+**Qualified-staging closure — 2026-08-07.** The first execution of the
+qualified-staging lane (EAS run `019fdeb1-6d46-72a2-ace6-c52d06a9825b`)
+caught that its assembled public runtimes lacked those receipts and therefore
+honestly withheld `single_table_v1`. The workflow now owns the required
+per-platform mint and restage as a two-pass assembly: pass one supplies the
+platform-installable qualification closures, each platform mints against its
+own runtime, and pass two packages both receipts. Its qualified-ledger check
+fails closed unless every runtime tarball contains a correctly typed receipt;
+only the explicitly marked pass-one closure may omit them.

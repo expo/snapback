@@ -3,6 +3,7 @@ name: qualified-package-staging
 # @ref LLP 0041#nine-package-candidate-promotion--2026-07-28 — build both
 # native runtimes independently at one clean revision, assemble one immutable
 # full-closure candidate, then prove those exact tarballs on both platforms.
+# LLP 0166's 2026-08-06 amendment: mint per-platform receipts, then restage.
 
 on:
   push:
@@ -148,92 +149,119 @@ jobs:
           path: .eas-artifacts/snapback-darwin-runtime.tar.gz
 
   assemble:
-    name: Assemble qualified closure
     needs: [linux_runtime, darwin_runtime]
     runs_on: macos-medium
     steps:
       - uses: eas/checkout
 
       - name: Remove checkout authority
-        run: |
-          git remote set-url origin https://github.com/expo/snapback.git
-          scripts/check-checkout-credentials
+        run: git remote set-url origin https://github.com/expo/snapback.git && scripts/check-checkout-credentials
 
       - uses: eas/install_node_modules
 
-      - id: linux_artifact
+      - id: linux
         uses: eas/download_artifact
         with:
           name: snapback-linux-runtime
 
-      - id: darwin_artifact
+      - id: darwin
         uses: eas/download_artifact
         with:
           name: snapback-darwin-runtime
 
-      - name: Bind, assemble, and dry-run the exact public closure
-        run: |
-          source_revision="$(git rev-parse HEAD)"
-          RELEASE_VERSION=${{ inputs.version || '0.1.1' }}
-          export RELEASE_VERSION
-          node -e '
-            const version = process.env.RELEASE_VERSION;
-            if (!/^[0-9]+[.][0-9]+[.][0-9]+$/.test(version)) {
-              throw new Error("this workflow requires an exact stable semver");
-            }
-          '
-          artifact_root="$HOME/snapback-staging"
-          mkdir -p "$artifact_root/linux" "$artifact_root/darwin"
-          mkdir -p .eas-artifacts
-          linux_runtime=${{ steps.linux_artifact.outputs.artifact_path }}
-          darwin_runtime=${{ steps.darwin_artifact.outputs.artifact_path }}
-          test -d "$linux_runtime"
-          test -d "$darwin_runtime"
-          cp -R "$linux_runtime/." "$artifact_root/linux/"
-          cp -R "$darwin_runtime/." "$artifact_root/darwin/"
+      - name: Assemble receiptless closure
+        env:
+          RELEASE_VERSION: ${{ inputs.version || '0.1.1' }}
+          SNAPBACK_STAGING_LINUX_ARTIFACT: ${{ steps.linux.outputs.artifact_path }}
+          SNAPBACK_STAGING_DARWIN_ARTIFACT: ${{ steps.darwin.outputs.artifact_path }}
+        run: export SNAPBACK_PACKAGE_OUT="$HOME/snapback-qualification" && mkdir -p .eas-artifacts && scripts/qualified-staging-assemble && tar -czf .eas-artifacts/qualification.tar.gz -C "$SNAPBACK_PACKAGE_OUT" .
 
-          darwin_identity="$($artifact_root/darwin/bin/snapback build-identity)"
-          DARWIN_IDENTITY="$darwin_identity" SOURCE_REVISION="$source_revision" node -e '
-            const identity = JSON.parse(process.env.DARWIN_IDENTITY);
-            if (identity?.binary?.gitCommit !== process.env.SOURCE_REVISION
-                || identity.binary.gitDirty !== false
-                || identity.binary.buildProfile !== "release"
-                || identity.buildDistribution !== "public-package") {
-              throw new Error("transported macOS runtime identity drifted");
-            }
-          '
+      - name: Mint the macOS packaged-store receipt
+        run: node scripts/qualified-staging-store-qualification.mjs --staged-dir "$HOME/snapback-qualification" --platform darwin-arm64 --out .eas-artifacts/darwin-store.json
 
-          candidate_tag="bakeoff-${RELEASE_VERSION//./-}-${source_revision:0:12}"
-          export SNAPBACK_PACKAGE_OUT="$HOME/snapback-qualified"
-          export SNAPBACK_RUNTIME_SOURCE_BINARY="$artifact_root/darwin/bin/snapback"
-          export SNAPBACK_RUNTIME_HERMES_FRAMEWORK="$artifact_root/darwin/Frameworks/hermesvm.framework"
-          export SNAPBACK_RUNTIME_HERMES_HEADER="$artifact_root/darwin/include/hermes/hermes.h.artifact"
-          export SNAPBACK_RUNTIME_LINUX_X64_SOURCE_BINARY="$artifact_root/linux/snapback"
-          export SNAPBACK_RUNTIME_LINUX_X64_HERMES_LIBRARY="$artifact_root/linux/libhermesvm.so"
-          export SNAPBACK_RUNTIME_LINUX_X64_HERMES_HEADER="$artifact_root/linux/hermes.h.artifact"
-          export SNAPBACK_RUNTIME_LINUX_X64_BUILD_ATTESTATION="$artifact_root/linux/build-attestation.json"
-          export SNAPBACK_RUNTIME_LINUX_X64_SOURCE_REVISION="$source_revision"
-          node scripts/snapback-publish.mjs \
-            --scope-preset identity \
-            --runtime-platforms all \
-            --version "$RELEASE_VERSION" \
-            --tag "$candidate_tag" \
-            --out "$SNAPBACK_PACKAGE_OUT"
-          SOURCE_REVISION="$source_revision" CANDIDATE_TAG="$candidate_tag" \
-            node scripts/qualified-staging-ledger-check.mjs
-          test -z "$(git status --porcelain --untracked-files=all)"
-          tar -czf .eas-artifacts/snapback-qualified-tarballs.tar.gz \
-            -C "$SNAPBACK_PACKAGE_OUT" .
+      - uses: eas/upload_artifact
+        with:
+          type: other
+          name: snapback-qualification-tarballs
+          path: .eas-artifacts/qualification.tar.gz
+
+      - uses: eas/upload_artifact
+        with:
+          type: other
+          name: snapback-darwin-store-receipt
+          path: .eas-artifacts/darwin-store.json
+
+  linux_store_qualification:
+    needs: [assemble]
+    runs_on: linux-medium
+    steps:
+      - uses: eas/checkout
+
+      - name: Remove checkout authority
+        run: git remote set-url origin https://github.com/expo/snapback.git && scripts/check-checkout-credentials
+
+      - id: closure
+        uses: eas/download_artifact
+        with:
+          name: snapback-qualification-tarballs
+
+      - run: mkdir -p .eas-artifacts && node scripts/qualified-staging-store-qualification.mjs --staged-dir "${{ steps.closure.outputs.artifact_path }}" --platform linux-x64 --out .eas-artifacts/linux-store.json
+
+      - uses: eas/upload_artifact
+        with:
+          type: other
+          name: snapback-linux-store-receipt
+          path: .eas-artifacts/linux-store.json
+
+  reassemble:
+    needs: [linux_store_qualification]
+    runs_on: macos-medium
+    steps:
+      - uses: eas/checkout
+
+      - name: Remove checkout authority
+        run: git remote set-url origin https://github.com/expo/snapback.git && scripts/check-checkout-credentials
+
+      - uses: eas/install_node_modules
+
+      - id: linux
+        uses: eas/download_artifact
+        with:
+          name: snapback-linux-runtime
+
+      - id: darwin
+        uses: eas/download_artifact
+        with:
+          name: snapback-darwin-runtime
+
+      - id: linux_receipt
+        uses: eas/download_artifact
+        with:
+          name: snapback-linux-store-receipt
+
+      - id: darwin_receipt
+        uses: eas/download_artifact
+        with:
+          name: snapback-darwin-store-receipt
+
+      - name: Restage qualified closure
+        env:
+          RELEASE_VERSION: ${{ inputs.version || '0.1.1' }}
+          SNAPBACK_STAGING_LINUX_ARTIFACT: ${{ steps.linux.outputs.artifact_path }}
+          SNAPBACK_STAGING_DARWIN_ARTIFACT: ${{ steps.darwin.outputs.artifact_path }}
+          SNAPBACK_LINUX_STORE_RECEIPT: ${{ steps.linux_receipt.outputs.artifact_path }}
+          SNAPBACK_DARWIN_STORE_RECEIPT: ${{ steps.darwin_receipt.outputs.artifact_path }}
+        run: export SNAPBACK_PACKAGE_OUT="$HOME/snapback-qualified" && mkdir -p .eas-artifacts && scripts/qualified-staging-assemble && tar -czf .eas-artifacts/qualified.tar.gz -C "$SNAPBACK_PACKAGE_OUT" .
 
       - uses: eas/upload_artifact
         with:
           type: other
           name: snapback-qualified-tarballs
-          path: .eas-artifacts/snapback-qualified-tarballs.tar.gz
+          path: .eas-artifacts/qualified.tar.gz
 
   darwin_staged_proof:
     name: Prove macOS staged closure
-    needs: [assemble]
+    needs: [reassemble]
     runs_on: macos-medium
     env:
       RUNNER_ENVIRONMENT: eas-hosted
@@ -243,9 +271,7 @@ jobs:
       - uses: eas/checkout
 
       - name: Remove checkout authority
-        run: |
-          git remote set-url origin https://github.com/expo/snapback.git
-          scripts/check-checkout-credentials
+        run: git remote set-url origin https://github.com/expo/snapback.git && scripts/check-checkout-credentials
 
       - id: qualified_artifact
         uses: eas/download_artifact
@@ -272,7 +298,7 @@ jobs:
 
   linux_staged_proof:
     name: Prove Linux staged closure
-    needs: [assemble]
+    needs: [reassemble]
     runs_on: linux-medium
     env:
       RUNNER_ENVIRONMENT: eas-hosted
@@ -282,9 +308,7 @@ jobs:
       - uses: eas/checkout
 
       - name: Remove checkout authority
-        run: |
-          git remote set-url origin https://github.com/expo/snapback.git
-          scripts/check-checkout-credentials
+        run: git remote set-url origin https://github.com/expo/snapback.git && scripts/check-checkout-credentials
 
       - id: qualified_artifact
         uses: eas/download_artifact
