@@ -145,3 +145,70 @@ The document's own implicit ordering is compatible with this; the one thing I wo
 Every decision the document asks Charlie to ratify is, in my judgment, the right decision or repairable at Spec time — the six framings are evidence-true, the ladder is the historically validated path, and the ownership assignments are correct. The single MATERIAL concern is an evidence-integrity defect with an easy repair that does not change any decision's direction, but under this document's own immutable-citation ground rule it must be repaired before the decisions are commissioned from it.
 
 VERDICT: NOT READY
+
+## Round 2 (delta round) — 2026-08-08
+
+**Provenance.** Reviewer: Claude Fable 5, fresh general-purpose subagent,
+context-blind. Orchestrator/reviser: Claude Fable 5 session (did not
+author this review). Lens: design-partner, delta round — IN-DELTA vs
+PRE-EXISTING classification required. Target revision: commit
+`a340e02ebac3d0bdb811b9109bf117f8fe49ddf7`, target blob
+`6b54db12bcedf11652e7cb028f84b3f28b8e4bf5`. Capsule: detached worktree at
+that commit with `llp/reviews/0191*` removed post-checkout and
+`DELTA-0191.diff` (458 lines) embedded. Instructions: `brief-r2.md`
+sha256[0:16] `360674bbfed7f3ba`, identical to both families. Runtime:
+472 s, 29 tool uses. Received and recorded verbatim 2026-08-08.
+
+**Verdict: NOT READY** (C1 IN-DELTA MATERIAL — the reviser's
+burst-vs-paced reconciliation misreads the open-loop receipt; no
+PRE-EXISTING MATERIAL found).
+
+**Orchestrator adjudication notes (not part of the review):** two
+concerns the capsule could not settle were byte-verified against the
+local traces after receipt: `diag-run1.jsonl` contains 676 `update` and
+676 `authorization_boundary` records (C2's "plus 676" is trace-true);
+`diag-run2.jsonl` contains 48 `mutation_dispatch` records (the run2
+workload was 48 dispatches, not the 1-cycle default the reviewer
+hypothesized). Both claims are retained in the r3 revision with the
+local-trace label.
+
+### Verbatim review
+
+# LLP 0191 round-2 delta review — design-partner lens (verification round)
+
+Verification basis: the target document, `DELTA-0191.diff`, and the capsule artifacts. I recomputed the receipt claims directly from `demos/zerobugs/evidence/snapback-control-hot.zb5.v10.json` (521 total deliveries across `custodyAccounting.perCycle`; per-observer per-cycle counts 23–33; 48 latency samples 110.88 ms – 147,702.6 ms; median 72.8 s; 521/(48×6) ≈ 1.81), from `snapback-control-large.zb5.v3.json` (`raw-list-ready-timing` sample 1341.053 ms), from the control PLAN (15 workaround-register rows, PLAN line 416; 11 dated guide-gap bullets; 5,549,113 rows / 6,176 batches / 65.9 min), and from the cited tickets, LLP 0158 (`copy`/`scrub`/`rotate`/`share`/`refuse` manifest, scrub-and-mint), LLP 0190 (Candidates A and D, OQ1, 74 s in the Revised header), and LLP 0183 (D2–D8 charters, ZB6). The local traces are absent from the capsule as the brief anticipated; I treat the brief's byte-verified counts (run1: 1,913 records / 676 update frames; run2: 439 records / 12 update frames) as ground truth for exactly those counts and nothing more.
+
+## 1. Delta faithfulness
+
+**Most of the revision is a genuine repair, and a good one.** The evidence-base section now explicitly demotes the traces to "local diagnostics, not immutable receipts" and the labeling discipline is honored in §1. The five-rung ladder is a real improvement: precision (rung 2) was a missing lever, the rung-3 rewrite correctly identifies principal/policy as ambient query inputs and kills the unsound evaluate-once-project-later version, rung 4's "legitimate stable resting point" framing is honest, and the settlement-isolation addition is the best new design content in the document — the receipt times `client.mutate()` settlement, so "why does subscriber work hold up settlement at all" is the right architectural question, and it is framed as a question for the D4 contract rather than asserted as diagnosis. The §2 two-consumer split of 0190's OQ1 (Candidate D serves quarantine degradation, removes no evaluation; Candidate A serves scaling, needs the full replica machinery) matches what 0190 actually contains and is stated without overclaim, including the load-bearing condition that a tactical Candidate D must reuse the eventual identity/authority envelope. §3's trust-domain decomposition, the sequence-vs-gapless-counter reasoning (which correctly connects gaplessness to a write-serialization cliff at exactly W-SHORTID's scale), the `(issuer, subject)` binding, and the namespaced settlement identity all check against the three tickets. §4's operation-specific custody manifest is verified against 0158's actual disposition vocabulary, and the backup-carries-keyring / fork-scrubs-keyring asymmetry is exactly what the probed boot refusal plus 0158's scrub-and-mint ruling jointly require; grounding the consistent cut in the SQLite backup API rather than shutdown checkpoints is correct. §5's two-cause stacking is confirmed verbatim by PLAN's W-MANUALSET row. §6's reassignment (storage-side protocol owner; D8 qualifies targets rather than owning semantics) is a defensible improvement over the register's tentative "D8 may standardize" note, and the physical/logical envelope seam against §4 is well drawn.
+
+**But the centerpiece repair introduces a new evidence misread.** The revised third bullet states the acceptance receipt "paces the same 48 mutations across three cycles awaiting each settle" and explains the 521-vs-12 discrepancy as "a paced workload gives supersession nothing to collapse." The immutable receipt says otherwise about itself: it carries a PASS check `open-loop-arrivals-use-fixed-nonadaptive-offsets` with `arrivalOffsetsMs: [0, 25, …, 375]` and the scheduling rule "dispatch deadline is cycleStart + inventoryIndex*25ms; **no prior response is awaited to choose an arrival**," a refusal fact `adaptive-arrival-rate: refused`, and a network summary of "fixed open-loop arrivals." The diagnosis instrument (`demos/zerobugs/control/scripts/diag-hot-stream.mts`) uses the identical `ARRIVAL_INTERVAL_MS = 25`. Both workloads are per-cycle open-loop bursts of 16 at 25 ms offsets; neither paces arrivals on settle. And the document's own second bullet describes the same receipt as "sixteen mutations dispatched over 400 ms … the queue drains at evaluation speed" — with 74 s median settles against a 400 ms dispatch span, v10 had *massive* queueing, so "nothing to collapse" cannot be the explanation for 521 deliveries (~1.8 frames per mutation per observer, *more* than one frame per mutation under heavy queueing). Two subsidiary problems compound it: (a) "post-fix the same burst delivered 12" — run2 has 439 records versus run1's 1,913, and the instrument's default is `--cycles 1`, so run2 plausibly ran 16 mutations, not "the same" 48; the capsule cannot confirm the workload equivalence the sentence asserts; (b) "676 update frames plus 676 authorization boundaries" — the summary ticket says "676 update/boundary frames, ~100–160 per observer" (6 × ~113 ≈ 676 combined), and the brief byte-verifies only the 676 update-frame count, so the additional 676 boundaries claim is uncorroborated and arithmetically in tension with the ticket's per-observer range. The honest state of the evidence is: two instruments with different frame-accounting universes and possibly different cycle counts produced numbers that remain unreconciled, and the inference drawn from the pair — "the delivery machinery already expresses 'latest wins' when work queues up" — is not established (v10's queueing with 521 deliveries points the other way, or at a metric mismatch). This does not weaken the case for rung 1 or the spike — if anything an unexplained discrepancy strengthens the spike's urgency — but a verification round cannot pass a bullet whose whole purpose is "two metrics that must not be conflated" when its reconciling mechanism contradicts the receipt it cites. The fix is narrow: state both numbers, state what each instrument counts and dispatched (open-loop 16×25 ms cycles in both; cycle counts per artifact), and declare the discrepancy an open measurement question the OQ4 spike's predeclared counters resolve — and re-key OQ4's metric axis from "burst vs paced" to arrival discipline plus frame-kind accounting.
+
+Beyond that bullet I found no new broken cross-reference or decision that fails to follow: every ticket, LLP, disposition-table, candidate, and workstream citation added by the delta resolves correctly in the capsule.
+
+## 2. Pre-existing text
+
+No MATERIAL concern found. I verified the carried-over load-bearing numbers against the capsule: ~1.3 s (1341.053 ms, zb5-large.v3), the 111 ms–148 s span (110.88–147,702.6 ms), ~96 = 16×6, 400 ms = 16×25 ms, 15 register rows, 11 guide-gap entries, 5,549,113 rows / 6,176 batches / 65.9 min, the ~43-gap ZB2–ZB4 cluster (0190 lines 31/144), and the v1–v8 FAIL-ladder narrative in the closed stream ticket. Minor pre-existing items are in the register: the "~74 s" median is 72.8 s computed from the receipt (rounding inherited from the ticket and 0190; within "~"); "burned two full receipted attempts (v1–v4)" reads as four attempts until the reader learns only two (WAL strand, keyring/v4) were envelope discoveries; "§13" has corpus currency via 0183's own Revised header but 0183's in-file headings are unnumbered; the Convex/Firestore comparator characterizations are unevidenced in-corpus and should stay non-load-bearing.
+
+## 3. Open questions
+
+The five questions are, with one inherited flaw, stated fairly, and the two fault lines are the real remaining decisions. OQ2's fault line (single implementation owner versus vocabulary-decision-plus-distributed-amendments) is exactly the tension §3's own trust-domain paragraph creates, both horns are argued rather than strawmanned, and the shared floor (one coordinating document, one acceptance corpus, LLP 0129 keeping mutation-IR admission — confirmed against 0183's D5 row) is right. OQ3 correctly narrows to pure placement after the structural agreement, and either placement is livable given §4's content, which is what a well-posed placement ruling looks like. OQ5's head sequence is sound and the tail divergence is honestly a judgment call for the author. OQ1 I would sign as written. OQ4 I would sign in substance — measurement spike, not a landing; predeclared counters including frame kinds and bytes and the commit-ack/settlement/convergence separation; hypothesis not estimate — but not in its current wording: "burst vs paced" as the predeclared workload axis inherits the §1 misread (both existing workloads are open-loop fixed-offset arrivals), and since the spike is explicitly framed as "repairing this document's own round-1 evidence defect at the source," the axis must be the true one — arrival discipline (open-loop fixed offsets vs settle-gated) crossed with an explicit frame-kind accounting — or the spike will re-measure the same conflation with better instruments.
+
+## Concern register
+
+| # | Concern | Class | Severity |
+|---|---------|-------|----------|
+| C1 | §1 bullet 3: the v10 receipt is described as "paces … awaiting each settle" and the 521-vs-12 discrepancy attributed to pacing, but the receipt records open-loop fixed 25 ms arrivals (`open-loop-arrivals-use-fixed-nonadaptive-offsets` PASS; `adaptive-arrival-rate` refused) identical to the diag instrument's `ARRIVAL_INTERVAL_MS = 25`; "the same burst delivered 12" is unverified (run2's 439 records match the instrument's 1-cycle default, not 48 mutations); the inference that supersession "already expresses latest-wins when work queues up" is contradicted by v10's own heavy queueing with ~1.8 frames/mutation/observer. The discrepancy is real but unreconciled; the offered reconciliation misreads the immutable receipt. Propagates into OQ4's "burst vs paced" metric axis. | IN-DELTA | MATERIAL |
+| C2 | "676 update frames plus 676 authorization boundaries": the boundary count is uncorroborated by the summary ticket ("676 update/boundary frames, ~100–160 per observer") and unverifiable in the capsule; verify against trace bytes or drop the "plus 676." | IN-DELTA | minor |
+| C3 | §6 decision names "the storage/import-export owner," an owner the 0183 D-structure does not provide, while the Summary promises owners "the LLP 0183 workstream structure already provides." Name the owner concretely at commissioning. | IN-DELTA | minor |
+| C4 | Rung 1 + settlement isolation assigned as "D4-side scheduling/lifecycle work," but 0183's D4 charter is the headless windowed-query controller (client window lifecycle); the P1 ticket already uses this seam, but the commissioning should confirm D4's charter extends to server-side evaluation scheduling or name the runtime owner. | IN-DELTA | minor |
+| C5 | "median ~74 s" — receipt-computed median is 72.8 s; rounding inherited from the ticket/0190. | PRE-EXISTING | minor |
+| C6 | "burned two full receipted attempts (v1–v4)" — the parenthetical range names four attempts; say which two (WAL strand; keyring, v4). | PRE-EXISTING | minor |
+| C7 | "ratified §13 protocol" — 0183's headings are unnumbered in-file; cite by section name for robustness. | PRE-EXISTING | minor |
+| C8 | Convex ("deliberately stopped there") and Firestore ("ships exactly this") characterizations are external, unevidenced in-corpus; keep non-load-bearing. | PRE-EXISTING | minor |
+
+Implementation-phase detail items (not blocking, listed per brief): C3, C4, C6, C7 are commissioning-time wording/ownership cleanups; C5 is a rounding footnote; C8 is a prose hedge.
+
+C1 is a misread of the immutable receipt at the exact point round 1 was commissioned to repair, with spillover into OQ4's predeclared metric definition. The fix is narrow (restate both workloads as what the artifacts record, declare the discrepancy open, re-key OQ4's axis), but under this brief's definition it is a MATERIAL in-delta defect, so the document is one targeted revision away, not ready as written.
+
+VERDICT: NOT READY

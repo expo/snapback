@@ -258,3 +258,79 @@ The known best form here is a staged, authenticated, manifest-bound transfer ses
 This ordering deliberately lands quick scheduler and schema evidence early while preventing the expensive IVM program from designing around opaque handlers, an unsound cross-principal cache, or an undefined local authority envelope.
 
 VERDICT: NOT READY
+## Round 2 (delta round) — 2026-08-08
+
+**Provenance.** Reviewer: Codex CLI 0.146.1, model `gpt-5.6-sol`, xhigh,
+read-only sandbox, `codex exec` non-interactive. Orchestrator/reviser:
+Claude Fable 5 session (did not author this review). Lens: design-partner,
+delta round — IN-DELTA vs PRE-EXISTING classification required. Target
+revision: commit `a340e02ebac3d0bdb811b9109bf117f8fe49ddf7`, target blob
+`6b54db12bcedf11652e7cb028f84b3f28b8e4bf5`. Capsule: detached worktree at
+that commit with `llp/reviews/0191*` removed post-checkout (structural
+exclusion verified) and the full delta embedded as `DELTA-0191.diff`
+(458 lines, `dcd12ba5d..a340e02eb`). Instructions: `brief-r2.md`
+sha256[0:16] `360674bbfed7f3ba`, identical to both families. Received and
+recorded verbatim 2026-08-08.
+
+**Verdict: NOT READY** (C1 IN-DELTA MATERIAL — reviser-introduced
+workload mischaracterization; C2 PRE-EXISTING MATERIAL — current
+architecture misdescribed as table-only invalidation).
+
+### Verbatim review
+
+## 1. Delta faithfulness
+
+The central evidence defect is not repaired faithfully.
+
+The immutable v10 receipt classifies its workload as open-loop: sixteen mutations per cycle at fixed 25 ms offsets over 375 ms, with “no prior response … awaited.” The revised §1 instead calls it paced, says it awaits each settle, and concludes that pacing leaves supersession nothing to collapse. Both the acceptance gate and diagnosis harness dispatch bursts; their meaningful differences include fresh server/observer state versus persistent observers and their settlement/observation procedures—not burst versus paced. Therefore the explanation for **521 deliveries versus 12 update frames** remains unproved. **[C1 — IN-DELTA, MATERIAL]**
+
+The revision also converts delivery counts into an evaluation claim: “each mutation still costs a full evaluation per subscriber.” The receipt records callbacks/deliveries, not evaluation queue/start/finish/cancel events. OQ4 correctly asks the spike to add those counters, confirming that the present evidence cannot yet establish this causal claim. The same applies to settlement isolation: separating commit acknowledgement, settlement, and convergence is an excellent design requirement, but subscriber work holding settlement should remain the hypothesis being tested.
+
+The five-rung ladder is otherwise a strong design decomposition:
+
+1. Coalescing is correctly recognized as latest-value semantics, not merely optimization.
+2. Precision is the right independent lever.
+3. Same-authority sharing first, with cross-principal sharing gated on an authority-independent base, preserves the trust model.
+4. IVM is appropriately limited to admitted shapes.
+5. Delta-fed replicas correctly identify the convergence point with D3.
+
+The settlement-isolation addition is sound, provided its causal language is weakened pending the spike.
+
+The revised §§2–6 decisions are also sound:
+
+- The tactical exact-result-retention versus strategic maintained-fact portfolio is honest.
+- Identity coordination no longer incorrectly collapses three trust domains into one implementation owner.
+- Operation-specific custody profiles repair the envelope proposal without regressing LLP 0158’s scrub-and-mint boundary.
+- Schema/compiler improvements are correctly separated from D2’s architectural graph work.
+- Bulk import is properly owned as a logical protocol rather than a D8 target-specific workaround.
+
+One commissioning inconsistency remains: §1 assigns D2/D4 rungs 1–4 and D3 local consumption, while OQ1 asks D2/D4 owner-Specs to carry the entire five-rung ladder. Rung 5 needs an explicit D2–D3 interface owner or should be described as referenced D3 scope rather than D2/D4 required content. **[C3 — IN-DELTA, minor]**
+
+## 2. Pre-existing text
+
+The carried-over description of current live-query architecture is materially inaccurate. It says every subscription whose declared tables intersect a commit is re-evaluated, but `src/live_matcher.rs` already uses captured row/query dependencies and predicate/window-boundary matching to skip provably disjoint changes, falling back conservatively where proof is unavailable. The new rung 2 acknowledges that machinery, creating an internal contradiction.
+
+This matters to the decision: the commissioned work should extend and measure the existing matcher’s coverage and fallbacks, not proceed from an assumed table-only invalidation model. The spike must record which subscriptions matched, skipped, or fell back before attributing the hot result to 96 full evaluations. **[C2 — PRE-EXISTING, MATERIAL]**
+
+Two provenance descriptions also remain inaccurate: “all” cited artifacts cannot be rewritten contradicts the explicit statement that the local traces are not immutable, and “one receipt and one trace” actually introduces two receipts and two traces. The per-number labels now largely protect the reasoning, so this is non-blocking cleanup. **[C4 — PRE-EXISTING, minor]**
+
+## 3. Open questions
+
+The identity-ownership fault line is fair. I would sign the convergence on one coordinating architecture document, shared vocabulary, and one Zerobugs acceptance corpus. My design preference is distributed implementation authority across schema, auth/D7, and D5/effects, because their admission and failure boundaries differ.
+
+The envelope-placement fault line is also real, though lower-stakes than its structural decisions. I would sign the agreed operation-specific profiles and LLP 0158’s retained ownership of fork semantics; companion versus standalone placement can be ruled either way without changing the trust contract.
+
+I would sign OQ4’s immediate measurement spike emphatically, but not its current “burst versus paced” wording. It should name the workloads actually present—fresh-cycle open-loop bursts and persistent repeated open-loop bursts—and add a genuinely paced/sustained workload as a new experimental arm.
+
+I would sign OQ5’s sequencing head. I would not sign OQ1 exactly as written until C1 and C2 repair the ladder’s evidence basis and C3 clarifies rung-5 ownership.
+
+## Concern register
+
+| ID | Classification | Concern | Required resolution |
+| --- | --- | --- | --- |
+| C1 | IN-DELTA · MATERIAL | v10 is falsely described as paced/awaiting each settle; the 521-versus-12 causal explanation and per-mutation evaluation claim do not follow. | Describe the frozen workloads exactly, separate delivery from evaluation metrics, and leave causality to the instrumented spike. |
+| C2 | PRE-EXISTING · MATERIAL | The current architecture is misdescribed as table-only despite existing captured-dependency matching and conservative fallbacks. | Document the actual fast path/fallback model and measure matcher decisions for the hot workload. |
+| C3 | IN-DELTA · minor | OQ1 assigns all five rungs to D2/D4 while §1 assigns retained/local consumption to D3. | Name rung 5’s D2–D3 interface ownership or scope it as referenced D3 content. |
+| C4 | PRE-EXISTING · minor | Evidence provenance/counting says immutable “one receipt and one trace” despite local mutable traces and multiple artifacts. | Correct the evidence-base framing. |
+
+VERDICT: NOT READY
