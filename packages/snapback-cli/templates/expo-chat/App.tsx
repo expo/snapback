@@ -1,4 +1,7 @@
-import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Platform, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import * as FileSystem from 'expo-file-system';
+import * as Crypto from 'expo-crypto';
+import { registerExpoFileSystemRqsFiles } from '@expo/snapback-client';
 import { SnapbackExpoProvider } from '@expo/snapback-expo';
 import type { ExpoBootState } from '@expo/snapback-expo';
 
@@ -11,6 +14,14 @@ import { palette } from './src/palette';
 // your own navigation and session-derived identity as the app grows.
 const CONVERSATION_ID = 'conversation_engine_room' as Id<'conversations'>;
 const ACTIVE_USER_ID = 'user_ada' as Id<'users'>;
+
+// Durable offline retention: register the on-device file store once, at the
+// root, before any client is constructed. Native only — expo-file-system
+// throws on web at module scope, and the web persistence ladder already
+// resolves the browser IndexedDB arm without this registration.
+if (Platform.OS !== 'web') {
+  registerExpoFileSystemRqsFiles(FileSystem, { crypto: Crypto });
+}
 
 function BootFallback({ state }: Readonly<{ state: ExpoBootState }>) {
   const diagnostic = 'diagnostic' in state ? state.diagnostic : null;

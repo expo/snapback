@@ -18,7 +18,11 @@ with an image `assetRef` field, the `messageImageUpload` intent, live queries,
 the `conversation` surface (reads + bound mutations + the `send` command +
 typing presence), and an Expo chat screen driving all of it through
 `useSurface`. Edit this working example rather than composing the wiring from
-prose.
+prose. The starter runs in Sessions auth mode (`auth: { mode: 'sessions' }` in
+`snapback/schema.mjs`), and the supervised dev loop mints its session
+automatically; that is what makes the in-app image upload work out of the box.
+The root `registerExpoFileSystemRqsFiles` registration in `App.tsx` gives
+retained offline rendering.
 
 Use `snapback guide` for the served Guide, flat projection, and MCP entry
 points. Load the relevant Guide page before using a feature area; do not infer

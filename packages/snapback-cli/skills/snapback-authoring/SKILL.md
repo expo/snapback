@@ -60,9 +60,10 @@ Local target; hosted targets make deliberately weaker claims
 6. **First upload.** Generated upload intents, trusted SHA-256 finalization,
    typed `v.assetRef` attachment, under ordinary session custody — the Expo
    ImagePicker-to-Blob recipe is in [assets](../../guide/backend/assets.md).
-   App-side uploads require sessions mode and scaffolds default to dev mode:
-   flip the schema to `{ auth: { mode: 'sessions' } }` **before** building
-   upload UI.
+   App-side uploads require sessions mode. The `expo-chat` scaffold already
+   defaults to sessions mode; `react` and `todo-contract` default to dev mode,
+   so flip those schemas to `{ auth: { mode: 'sessions' } }` **before**
+   building upload UI.
 
 ## The done-oracle
 

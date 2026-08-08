@@ -9,6 +9,7 @@ const functions = JSON.parse(readFileSync(
   new URL('./snapback/generated/functions.manifest.json', import.meta.url),
   'utf8',
 ));
+const schemaSource = readFileSync(new URL('./snapback/schema.mjs', import.meta.url), 'utf8');
 const appSource = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
 const chatScreen = readFileSync(new URL('./src/screens/chat-screen.tsx', import.meta.url), 'utf8');
 const runtimeAcceptance = readFileSync(new URL('./acceptance.mjs', import.meta.url), 'utf8');
@@ -21,6 +22,8 @@ assert.deepEqual(
   functions.assetUploadIntents.map((intent) => intent.exportedName),
   ['messageImageUpload'],
 );
+assert.match(schemaSource, /auth:\s*\{\s*mode:\s*'sessions'\s*\}/);
+assert.match(appSource, /registerExpoFileSystemRqsFiles\(/);
 assert.match(appSource, /SnapbackExpoProvider/);
 assert.match(chatScreen, /useSurface\(/);
 assert.match(chatScreen, /conversation\.commands\.send\(/);

@@ -30,6 +30,11 @@ export default defineSchema(
       .sync(),
   },
   {
+    // Sessions lets `bun run dev` → `snapback dev snapback --expo` mint an
+    // ordinary session automatically, so authenticated send/upload works
+    // with zero edits. App-side uploads require sessions custody and cannot
+    // work in dev mode.
+    auth: { mode: 'sessions' },
     ephemeral: defineEphemeral({ typing }),
   },
 );

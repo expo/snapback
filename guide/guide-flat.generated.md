@@ -9934,8 +9934,9 @@ custody boundary:
 On web the client store resolves the browser IndexedDB arm (see
 [the React client page](./react.md)); `registerExpoFileSystemRqsFiles` is a
 native-only registration and is unnecessary there. These paves are proven at
-package level (CORS, resolution, and adapter tests named above); the
-end-to-end Expo-web supervised receipt landed and closed the carrier ticket
+package level (CORS, resolution, and adapter tests named above), and the
+diary 0068 web lanes collected the end-to-end Expo-web supervised receipt
+from the published packages
 ([`issues/closed/20260807-supervised-expo-web-carrier-unpaved.md`](repo:issues/closed/20260807-supervised-expo-web-carrier-unpaved.md)).
 
 ### Keep the proof boundary visible
@@ -10068,6 +10069,9 @@ import { registerExpoFileSystemRqsFiles } from '@expo/snapback-client';
 
 registerExpoFileSystemRqsFiles(FileSystem, { crypto: Crypto });
 ```
+
+The `expo-chat` scaffold (`snapback new --template expo-chat`) ships this root
+registration with the `expo-crypto` and `expo-file-system` dependencies wired.
 
 After that root registration, the default persistence ladder (explicit option → env
 kill switch → browser IndexedDB → **React Native registered files** → node

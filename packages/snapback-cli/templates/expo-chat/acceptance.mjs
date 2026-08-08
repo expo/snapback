@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-import { SnapbackClient } from '@expo/snapback-client';
+import { createExternalSessionClient } from '@expo/snapback-client';
 import {
   createSnapbackReactProvider,
   observeSnapbackSurface,
@@ -62,6 +62,43 @@ let childSpawnError = null;
 
 const appendBounded = (current, chunk) =>
   `${current}${chunk.toString('utf8')}`.slice(-MAX_CHILD_OUTPUT_BYTES);
+
+const mintOrdinarySession = async (adminToken) => {
+  const mint = spawn(executable, [
+    'session', 'mint',
+    '--email', 'acceptance@expo-chat.test',
+    '--ready-file', readyFile,
+  ], {
+    cwd: root,
+    env: { ...process.env, SNAPBACK_ADMIN_TOKEN: adminToken },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let mintStdout = '';
+  let mintStderr = '';
+  mint.stdout.on('data', (chunk) => { mintStdout = appendBounded(mintStdout, chunk); });
+  mint.stderr.on('data', (chunk) => { mintStderr = appendBounded(mintStderr, chunk); });
+  const exit = await new Promise((resolveExit, reject) => {
+    mint.once('error', reject);
+    mint.once('close', (code, signal) => resolveExit({ code, signal }));
+  });
+  if (exit.code !== 0) {
+    throw new Error(`ordinary session mint failed (${exit.code ?? exit.signal})`);
+  }
+  let envelope;
+  try {
+    envelope = JSON.parse(mintStdout);
+  } catch {
+    throw new Error('ordinary session mint did not return one hostOpsResult JSON document');
+  }
+  if (envelope?.ok !== true
+    || envelope?.operation !== 'auth.mintSession'
+    || envelope?.data?.tokenType !== 'Bearer'
+    || typeof envelope?.data?.token !== 'string'
+    || envelope.data.token.length === 0) {
+    throw new Error('ordinary session mint returned an invalid hostOpsResult envelope');
+  }
+  return Object.freeze({ token: envelope.data.token });
+};
 
 child.stdout.on('data', (chunk) => {
   const text = chunk.toString('utf8');
@@ -132,8 +169,9 @@ try {
   });
 
   const adminToken = readFileSync(ready.adminTokenFile, 'utf8').trim();
-  client = new SnapbackClient(ready.serverUrl, {
-    adminToken,
+  const minted = await mintOrdinarySession(adminToken);
+  client = createExternalSessionClient(ready.serverUrl, {
+    bearerToken: minted.token,
     rqsStore: null,
     offlineQueue: false,
   });
@@ -169,13 +207,12 @@ try {
     userRows: latest.data.users?.length ?? 0,
   });
 
-  // The dev auth profile trusts the declared userId. sendMessage is the same
-  // generated function the surface's send command commits through; the live
-  // echo below is observed through the surface, not re-queried.
+  // Sessions mode derives caller identity from the minted session. sendMessage
+  // is the same generated function the surface's send command commits through;
+  // the live echo below is observed through the surface, not re-queried.
   const text = `Generated acceptance ${process.pid}`;
   const mutation = await client.mutate(api.sendMessage, {
     args: { conversationId: CONVERSATION_ID, senderId: 'user_ada', body: text },
-    userId: 'user_ada',
     clientMutationId: `generated-acceptance-${process.pid}`,
   });
   assert.equal(typeof mutation.result, 'string');
