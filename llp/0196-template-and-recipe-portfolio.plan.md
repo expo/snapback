@@ -5,7 +5,7 @@
 **Systems:** Templates, CLI, Guide, Testing, Agent experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (r1) — super-refine round-1 revision against the
+**Revised:** 2026-08-08 (r2) — r2 applies the full round-1 revision set that r1 header claimed but (reviser error, caught by the round-2 delta reviews) did not contain: capability-surface wording, T5 two-gate split, template-assisted labeling + held-out-brief rule. 2026-08-08 (r1) — super-refine round-1 revision against the
 dual-family cluster reviews (llp/reviews/0193-*.{claude,gpt-5}.md):
 unretained/incorrect quantitative claims corrected to retained-artifact
 citations; see the review artifacts for the concern ledger.
@@ -14,25 +14,30 @@ citations; see the review artifacts for the concern ledger.
 
 ## Summary
 
-The five-run series established the knowledge ladder empirically:
-**scaffold beats guide beats package source** — knowledge moved into
-template defaults (0.1.15's sessions mode, offline registration, upload
-wiring) produced the largest single-release wall-clock improvement of
-the program (bare lane 41.5→29.6 min). This Plan extends the portfolio
-along the measured demand: two new templates matching the committed
-benchmark briefs, proof machinery registered by default, and the recipe
+The measurement diaries repeatedly rank knowledge placement:
+**scaffold beats guide beats package source** (every lane's
+knowledge-source ladder ends in package source; the scaffold is
+unanimously the cheapest). Knowledge moved into template defaults
+(0.1.15's sessions mode, offline registration, upload wiring) produced
+the largest improvement of any release whose changes were
+knowledge-placement rather than defect fixes — bare lane 41m32s→29m35s
+(diaries 0068/0069; the larger 80m→41m step at 0.1.13 came from the
+seven-defect fix layer, a different mechanism). This Plan extends the portfolio
+along the measured demand: two new templates exercising the capability
+surfaces of the committed benchmark briefs, proof machinery registered by default, and the recipe
 list the diaries priced.
 
 ## Program
 
-**T1 — CRUD-dashboard template** (`--template crud-dashboard`), matching
-`benchmarks/briefs/crud.md`: tables/list/detail/edit shapes, relational
+**T1 — CRUD-dashboard template** (`--template crud-dashboard`),
+exercising the same capability surface as `benchmarks/briefs/crud.md`
+(not authored against the brief document): tables/list/detail/edit shapes, relational
 query profile in the default path, sessions default, acceptance suite +
 **registered verify profile** included. Most agent tasks are CRUD-shaped;
 this becomes the default recommendation for generic briefs.
 
-**T2 — media-feed template** (`--template media-feed`), matching
-`briefs/media.md`: typed upload intents with renditions in the main
+**T2 — media-feed template** (`--template media-feed`), exercising the
+same capability surface as `briefs/media.md`: typed upload intents with renditions in the main
 path, delivery-profile selection demonstrated (the strict-vs-public
 lesson), infinite-scroll list over retained queries.
 
@@ -50,10 +55,14 @@ supervisor-origin recipe (ticketed), verify-config authoring (ticketed).
 Recipes graduate into template code where a template naturally exercises
 them — the ladder says code placement beats prose.
 
-**T5 — template freshness gate:** templates cold-install and pass their
-suites against the *published* closure in CI (the staging lane covers
-tarball shape; this covers registry reality), so a template can never
-teach a drifted surface.
+**T5 — template freshness, two gates:** (a) pre-release and blocking:
+templates cold-install and pass their suites against the exact
+*candidate staged tarballs* during release qualification, so a release
+cannot ship with a template failing against its own closure; (b)
+post-release canary: the same suites re-run against the *published*
+registry closure, alerting (not blocking) on drift the staging
+environment cannot see, with the release owner holding
+rollback/fix-forward escalation. Neither alone suffices.
 
 ## Sequencing
 
@@ -67,8 +76,14 @@ release checklist when T1 lands.
 - A cold agent given a CRUD or media brief scaffolds the matching
   template and reaches all proofs with zero template-gap loops.
 - `snapback verify` is non-vacuous on every fresh scaffold.
-- The next benchmark run on the CRUD brief uses T1 and its lane report
-  cites no template gaps.
+- The next benchmark run on the CRUD brief uses T1 with no template-gap
+  loops — measured and labeled as a **template-assisted scenario**.
+  Templates deliberately cover benchmark-brief capability surfaces, so
+  template-assisted results are never published as general
+  authoring-efficiency claims: portfolio-level claims require success
+  on a held-out brief variant not used to design any template, and
+  competitor lanes get a symmetric starter-availability policy
+  (LLP 0197 rules 4a/4b govern).
 
 ## Open questions
 

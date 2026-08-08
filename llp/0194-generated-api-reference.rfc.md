@@ -5,7 +5,7 @@
 **Systems:** Guide, Documentation, Client packages, Types, Build
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (r1) — super-refine round-1 revision against the
+**Revised:** 2026-08-08 (r2) — r2 also resolves the OQ2 hand-written-interim contradiction (named exclusion until a declaration file lands). 2026-08-08 (r1) — super-refine round-1 revision against the
 dual-family cluster reviews (llp/reviews/0193-*.{claude,gpt-5}.md):
 unretained/incorrect quantitative claims corrected to retained-artifact
 citations; see the review artifacts for the concern ledger.
@@ -75,9 +75,11 @@ fraction is claimed; the diaries do not decompose the bucket.)
   diet/tier design lands first, and per-module splitting rules are
   needed regardless.
 - OQ2: The `ctx` handler surface (db verbs, assets, refuse) is a runtime
-  contract, not a package `.d.mts` — it needs either a published
-  declaration file (preferable: consumers get editor types too) or a
-  hand-fenced reference section until one exists.
+  contract, not a package `.d.mts` — it joins the reference only via a
+  published declaration file (which also gives consumers editor types).
+  No hand-written interim section: until the declaration lands, `ctx`
+  remains a named exclusion per Design 5, documented in the intent
+  guide as today.
 - OQ3: Whether doc comments in `.d.mts` are complete enough to render
   useful prose, and whether improving them (which rotates artifact
   identity — the doc-comment lesson) batches with releases.

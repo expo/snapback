@@ -23,3 +23,68 @@ Blindness: structural for repo review artifacts (none exist for these
 stems at launch; capsule directory contains only the six files above).
 Reviewer instructions hash:
 4aa10eb48d797301f8102a287c602350b839ce1c6cc1a70d6d1addcbb5c24452  /tmp/sr-review-instructions.txt
+
+## Round 2 (delta round) — launched 2026-08-08, targets at revision 601f867da
+
+Capsule sha256:
+035c9368be5c2baf592bab574472bf8260559b3ca1927e8c9f1388ac0e910c93  /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r2/0193-errors-as-docs-completeness.plan.md
+652c11d5e00f78f663130f3de7a7e3d890d3c37513e91a542ca86427a0735199  /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r2/0194-generated-api-reference.rfc.md
+e7c611e3a5cb1e8f25ebbc5b134b5e9a56dcb7d7aa357b79df96fabe41c3e5dd  /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r2/0195-public-documentation-and-training-surface.rfc.md
+9702b4da011b802190c327b518c54ca7a53c8c050b61ab89af0645326e6eff95  /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r2/0196-template-and-recipe-portfolio.plan.md
+3f58aa2abc896a81944010b692bd413707604b462696b0b9ba523ab9a96b4a71  /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r2/0197-benchmark-publication-standard.rfc.md
+d42ee554e3eb9c599f9c1c6ee7c9b08d75c5d4a69e841cd420abf4866a23fc75  /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r2/CONTEXT.md
+Topology unchanged; fresh reviewers both families; delta enumerated in
+instructions; concerns must classify IN-DELTA vs PRE-EXISTING.
+
+## Round 2 results and close-out — 2026-08-08
+
+Verdicts at capsule revision 601f867da:
+- claude: 0193 READY, 0194 READY, 0195 READY, 0196 NOT READY (1,2,3),
+  0197 NOT READY (4,5,6); SET NOT READY.
+- gpt-5: 0193 READY, 0194 NOT READY (1), 0195 READY, 0196 NOT READY
+  (3,4), 0197 NOT READY (5-12); SET NOT READY.
+
+Incident (recorded per honesty rules): the r1 revision script failed
+mid-run at a pattern assertion; the 0196/0197 body edits after the
+failure point never executed, while the header-stamping step ran for all
+five — r1 headers on 0196/0197 claimed corrections their bodies did not
+contain. Both round-2 reviewers caught it independently (claude 1/4,
+gpt-5's 0196/0197 blocks). Reviser error, orchestrating session.
+
+r2 revision (applied after round 2; UNREVIEWED by any family):
+- 0194: OQ2 hand-written-interim contradiction resolved (named
+  exclusion until a declaration file lands) — gpt-5 r2 #1.
+- 0196: the full intended r1 set (capability-surface wording ×3, T5
+  two-gate split with blocking/canary/ownership, template-assisted
+  labeling + held-out-brief rule) — claude r2 1-3, gpt-5 r2 3-4.
+- 0197: the full intended r1 set plus round-2 finds: summary restated
+  (2.91x→2.24x, directional caveat, not-itself-publishable), rule 1
+  preregistration (gpt-5 r2 #12, PRE-EXISTING), rules 4a/4b (starter
+  symmetry incl. no-equivalent-starter split reporting; failure
+  protocol with budgets/stopping/retention), rule 6 publication-safe
+  schema (redaction reason codes, retained hashes, human
+  disclosure-authority review), reproducibility manifest + reserved
+  "reproduced", series chart exempted from rule 1 as dated narrative,
+  26m03s-vs-11m15s cited to diary 0058 (disposing gpt-5 r2 #11
+  PRE-EXISTING: the figure is retained; the capsule context lacked
+  diary 0058's numbers).
+- Pre-existing minors NOT applied this round (dispositioned to the
+  next touch): claude r2 #8 (host-ops quote/era precision; enumerate
+  0065/0066/0068/0069 instead of the 0065-0069 range), #9 (hashed
+  field path pointer — retained in issues/closed/
+  20260805-result-contract-violation-hashes-field-path.md; add the
+  pointer), gpt-5 r2 #2 [minor list not blocking], claude r2 #7 (mark
+  OQ2-contingent entries in 0194's kills list).
+
+Convergence status at loop end (budget 2 rounds, author-set):
+- 0193: dual-READY at 601f867da. CONVERGED.
+- 0195: dual-READY at 601f867da. CONVERGED.
+- 0194: claude READY / gpt-5 NOT READY at 601f867da; the single
+  blocking concern is resolved in the r2 revision, which is UNREVIEWED.
+- 0196, 0197: both families NOT READY at 601f867da (dominated by the
+  unapplied-revision incident); the r2 revision applies the full
+  intended set plus round-2 finds and is UNREVIEWED.
+Final verdicts bind to 601f867da; the r2 revision (this commit) is
+unreviewed by any family. Proposed next step: all five stay Review; an
+optional third delta round on 0194/0196/0197 would close the unreviewed
+gap; acceptance is the author's.
