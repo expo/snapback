@@ -726,7 +726,6 @@ export function checkPackageTestInventories(options = {}) {
 // 232 -> 233 (2026-08-06, LLP 0043 sessions-custody queue):
 // @expo/snapback-client gains the custody matrix, cold replay, recovery,
 // privacy deletion, and zerobugs regression suite.
-<<<<<<< HEAD
 // 233 -> 234 (2026-08-08, supervisor Metro watch-inertness advisory):
 // @expo/snapback-cli gains the pure CI/watcher-blind-root assessment suite
 // (issues/20260808-supervisor-warn-metro-watch-blind.md).
@@ -734,11 +733,9 @@ export function checkPackageTestInventories(options = {}) {
 // issues/20260807-client-root-export-createassetclient.md): @expo/snapback-client
 // gains the general declared-vs-runtime export parity check across every typed
 // export entry.
-=======
-// 233 -> 234 (2026-08-08, reset --dev-fresh): @expo/snapback-cli gains the
+// 235 -> 236 (2026-08-08, reset --dev-fresh): @expo/snapback-cli gains the
 // standalone/supervised deterministic reset, auth-boundary, delegation, and
 // lifecycle-refusal acceptance suite.
->>>>>>> 9d2ffaa06 (feat(cli): snapback reset --dev-fresh — one-shot deterministic dev reset)
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');
