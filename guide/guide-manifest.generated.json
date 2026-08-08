@@ -3402,7 +3402,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedCommit": "effa2773760fd0d740c49f06990b3fde5e82a66b",
-      "sha256": "725a13267085356af66634e7bb0973a13c1c6ffd7c3135c9d2348c0efc4dc5ff",
+      "sha256": "222de4524df9d6bf9a49336ac2c7f3aabb8e9c7391812e61a6cf720fe3c6d67a",
       "snippets": []
     },
     "meta.surface-map": {
@@ -3689,16 +3689,30 @@
       "authorities": [
         "llp/0010-agent-dx-and-acceptance.spec.md",
         "llp/0146-agentic-authoring-affordances.rfc.md",
+        "packages/snapback-cli/package.json",
         "packages/snapback-cli/verify.mjs",
         "packages/snapback-cli/verify-receipt.schema.json"
       ],
       "examples": [
-        "packages/snapback-cli/verify.test.mjs"
+        "packages/snapback-cli/verify.test.mjs",
+        "packages/snapback-cli/fixtures/verify/snapback.verify.config.mjs",
+        "packages/snapback-cli/fixtures/verify/minimal-profile.mjs"
       ],
       "reviewed": "2026-08-04",
       "reviewedCommit": "dab2410b6793ffa5685069a0a4054f0e2b21608a",
-      "sha256": "597f438bf61fadb1cf7a1b47a983c56ed914e9537f19eb03de5ae8a5024f842b",
-      "snippets": []
+      "sha256": "f32456d79664a31d2972cb322f76c6ee0b9b4cfe30a836c80045c15f578eb842",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-cli/fixtures/verify/snapback.verify.config.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-cli/fixtures/verify/minimal-profile.mjs"
+        }
+      ]
     }
   },
   "capabilities": {
@@ -3798,5 +3812,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "2c4bd75e4ea4dfa79b964a603e90ae3d2048abbd70db3826cf5b938db30c8b45"
+  "contentHash": "bb608bcdd2afecc4d64b9f952eeed3482579dfd232c82afc441df5c0f1776350"
 }

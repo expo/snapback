@@ -1149,6 +1149,18 @@ Case 23 absorbs the repeated headless-call-shape miss recorded in
     Route terms: "args nesting", "nested args",
     "SNAPBACK_ARGUMENT_VALIDATION_FAILED", "liveQuery args".
 
+Case 24 absorbs the repeated verifier-config source-reading detour recorded in
+`issues/20260808-verify-config-authoring-guide-anchor.md`.
+
+24. **Verify config authoring:** "Register my headless acceptance suite with
+    `snapback verify`, including its execution identities and read/write
+    conformance evidence." The run fails if it reaches into an unpublished
+    source file instead of a package export, omits the profile's test bytes or
+    paths, or returns no target/data/authority/seed context.
+    Expected pages: `testing/verify.md`.
+    Route terms: "snapback.verify.config.mjs", "defineVerifyConfig",
+    "@expo/snapback-cli/verify", "acceptance profile".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:
@@ -18178,8 +18190,8 @@ id: testing.verify
 order: 2
 audience: agent-first
 capabilities: [operating.verify]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0146-agentic-authoring-affordances.rfc.md, packages/snapback-cli/verify.mjs, packages/snapback-cli/verify-receipt.schema.json]
-examples: [packages/snapback-cli/verify.test.mjs]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0146-agentic-authoring-affordances.rfc.md, packages/snapback-cli/package.json, packages/snapback-cli/verify.mjs, packages/snapback-cli/verify-receipt.schema.json]
+examples: [packages/snapback-cli/verify.test.mjs, packages/snapback-cli/fixtures/verify/snapback.verify.config.mjs, packages/snapback-cli/fixtures/verify/minimal-profile.mjs]
 status: current
 targets: [local]
 maturity: partial
@@ -18204,13 +18216,94 @@ snapback runtime-qualify --persist
 snapback verify ./snapback --config ./snapback.verify.config.mjs --receipt ./.snapback/verify-receipt.json --json
 ```
 
-A config default-exports `defineVerifyConfig({ schemaVersion:
-'snapback.verify-config.v1', ... })`. Each profile names the actual test files,
-required capabilities, and every expected path with a closed kind (`success`,
-`failure`, `action`, `relational`, `search`, or `snapshot-bundle`) and target
-profile. Its runner returns `ok`, the target/data/authority/seed identity in
-force, and one six-field D1 conformance report per path. Missing registered
-path evidence and non-empty `missingReads`/`missingWrites` fail coverage.
+## Author `snapback.verify.config.mjs`
+
+Prefer the dedicated `@expo/snapback-cli/verify` subpath. The package root
+currently re-exports the same helpers for compatibility, but the subpath keeps
+verifier-only imports explicit and matches the package's dedicated export.
+Default-export one `defineVerifyConfig(...)` value. Paths in
+`backendDirectory` and `testFiles` are relative to the config file:
+
+```js source=packages/snapback-cli/fixtures/verify/snapback.verify.config.mjs
+import { defineVerifyConfig } from '@expo/snapback-cli/verify';
+
+import { runMinimalProfile } from './minimal-profile.mjs';
+
+export default defineVerifyConfig({
+  schemaVersion: 'snapback.verify-config.v1',
+  backendDirectory: './snapback',
+  profiles: [{
+    id: 'local-headless',
+    title: 'local headless acceptance',
+    testFiles: ['./minimal-profile.mjs'],
+    requiredCapabilities: ['result_contract_v1'],
+    paths: [{
+      id: 'list-success',
+      kind: 'success',
+      targetProfileId: 'local-dev-sqlite-ibex',
+      functionId: 'app:list',
+    }],
+    run: runMinimalProfile,
+  }],
+});
+```
+
+Each profile lists every file whose bytes define the acceptance run, every
+capability it needs, and every expected path. Path `kind` is one of `success`,
+`failure`, `action`, `relational`, `search`, or `snapshot-bundle`;
+`targetProfileId` names the target actually exercised; `functionId` binds D1
+read/write evidence to a declared function when the path has one.
+
+The runner receives `{ artifact, backendDirectory, generatedDirectory,
+profileId }`. It returns boolean `ok`, the exact target/data/authority/seed
+identity in force, optional diagnostics, and one six-field D1 conformance
+report for every registered path:
+
+```js source=packages/snapback-cli/fixtures/verify/minimal-profile.mjs
+// This package fixture proves the authoring contract without claiming that it
+// observed an application's reads or writes. Replace this body with the real
+// headless acceptance run and report complete provenance only when measured.
+export async function runMinimalProfile({ artifact, profileId }) {
+  if (profileId !== 'local-headless' || typeof artifact?.identity?.inputsHash !== 'string') {
+    throw new Error('minimal verify profile received the wrong execution context');
+  }
+  return {
+    ok: true,
+    context: {
+      target: { kind: 'local-generated-artifact', identity: artifact.identity.inputsHash },
+      data: {
+        kind: 'sqlite-fixture',
+        identity: 'sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+      },
+      authority: { kind: 'dev-asserted', identity: 'user_ada', principalClass: 'dev' },
+      seed: artifact.seedIdentity,
+    },
+    conformance: [{
+      pathId: 'list-success',
+      status: 'observed',
+      report: {
+        missingReads: [],
+        missingWrites: [],
+        extraReads: [],
+        extraWrites: [],
+        readProvenance: 'unsupported',
+        writeProvenance: 'unsupported',
+      },
+    }],
+  };
+}
+```
+
+Replace the fixture identities with facts from the run. `target.identity`,
+`data.identity`, and `authority.identity` must be non-null;
+`authority.principalClass` must be named; and `seed.kind` must say what was
+exercised rather than `not-exercised`. This minimal shape deliberately reports
+both D1 provenance classes as `unsupported`, so it proves registration and
+identity plumbing without claiming authoritative read/write coverage. A real
+runner reports `complete` only from measured evidence.
+
+Missing registered path evidence and non-empty
+`missingReads`/`missingWrites` fail coverage.
 Those deltas are authoritative only for a class whose provenance is
 `complete`; an observed `incomplete` or `unsupported` class stays visible as
 partial coverage and is never labeled conformant.

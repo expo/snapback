@@ -254,6 +254,18 @@ Case 23 absorbs the repeated headless-call-shape miss recorded in
     Route terms: "args nesting", "nested args",
     "SNAPBACK_ARGUMENT_VALIDATION_FAILED", "liveQuery args".
 
+Case 24 absorbs the repeated verifier-config source-reading detour recorded in
+`issues/20260808-verify-config-authoring-guide-anchor.md`.
+
+24. **Verify config authoring:** "Register my headless acceptance suite with
+    `snapback verify`, including its execution identities and read/write
+    conformance evidence." The run fails if it reaches into an unpublished
+    source file instead of a package export, omits the profile's test bytes or
+    paths, or returns no target/data/authority/seed context.
+    Expected pages: `testing/verify.md`.
+    Route terms: "snapback.verify.config.mjs", "defineVerifyConfig",
+    "@expo/snapback-cli/verify", "acceptance profile".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:

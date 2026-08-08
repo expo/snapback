@@ -17,6 +17,7 @@ import {
   VERIFY_RECEIPT_SCHEMA_VERSION,
   aggregateConformance,
   defaultVerifyConfig,
+  loadVerifyConfig,
   probeAdmission,
   probeArtifactFreshness,
   runVerify,
@@ -104,6 +105,24 @@ const passOptions = (overrides = {}) => ({
 });
 
 let cases = 0;
+
+{
+  const loaded = await loadVerifyConfig(fileURLToPath(
+    new URL('./fixtures/verify/snapback.verify.config.mjs', import.meta.url),
+  ));
+  const receipt = await runVerify(loaded, passOptions());
+  assert.equal(receipt.ok, true);
+  assert.equal(receipt.acceptanceProfiles[0].profileId, 'local-headless');
+  assert.equal(receipt.acceptanceProfiles[0].status, 'passed');
+  assert.equal(receipt.acceptanceProfiles[0].context.target.identity, 'inputs-1');
+  assert.equal(
+    receipt.acceptanceProfiles[0].context.data.identity,
+    `sha256:${'d'.repeat(64)}`,
+  );
+  assert.equal(receipt.stages[2].evidence.conformance.status, 'partial');
+  assert.equal(receipt.stages[2].evidence.conformance.pathEvidence[0].status, 'unsupported');
+  cases += 1;
+}
 
 {
   const receipt = await runVerify(config(), passOptions());

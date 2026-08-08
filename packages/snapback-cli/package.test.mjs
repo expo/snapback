@@ -60,6 +60,10 @@ try {
     'utf8',
   ));
   assert.ok(cliPackageManifest.files.includes('skills'), 'the published CLI package must include skills');
+  assert.ok(
+    cliPackageManifest.files.includes('fixtures/verify'),
+    'the published CLI package must include the copyable verify-config fixture',
+  );
 
   const expectedSkillFiles = [
     '.claude/skills/snapback-authoring/SKILL.md',

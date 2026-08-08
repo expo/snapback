@@ -19,6 +19,7 @@
     "fixtures/comparator/app/snapback",
     "fixtures/comparator/green.config.mjs",
     "fixtures/push-seam/app/snapback",
+    "fixtures/verify",
     "hosted-admission-producer.d.mts",
     "hosted-admission-producer.mjs",
     "hosted-control.d.mts",
