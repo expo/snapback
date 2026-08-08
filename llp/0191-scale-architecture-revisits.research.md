@@ -5,7 +5,12 @@
 **Systems:** Live queries, Local sync, Storage, Auth, Schema, Relational queries, Client SDK, Effects, Deployment, Performance
 **Author:** Claude Fable 5 (analysis and synthesis; commissioned by Charlie Cheever, 2026-08-08)
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (rounds 1–2 super-refine revisions, design-partner
+**Revised:** 2026-08-08 (§1 dated note: a production rung-1 coalescing
+lane landed the same day via the ticket sweep under LLP 0008's dated
+decision, behind `SNAPBACK_LIVE_COALESCE_DISABLED` as the A/B control arm,
+with synthetic reduced-scale evidence; the OQ4 measurement spike with its
+predeclared axes, the 5.5M-row A/B rerun, and rungs 2–5 remain open).
+Same day, earlier (rounds 1–2 super-refine revisions, design-partner
 lens. Round 1: ladder revised to five rungs; settlement isolation added;
 §§3–6 decisions restructured on the trust-domain and ownership boundaries
 the two review families converged on; open questions carry the
@@ -215,6 +220,25 @@ D4's charter to server-side evaluation scheduling explicitly or name
 the runtime owner. Measure each rung with the existing instrument (`diag-hot-stream.mts` iterates in minutes against
 the persistent baseline) before committing to the next. Ticket:
 `issues/20260808-live-query-reevaluation-cost-at-scale.md`.
+
+**Dated note (2026-08-08):** the coalescing half of rung 1 was built the
+same day via the ticket sweep, as ticket work ahead of the OQ4 ruling:
+backlog-triggered fan-out coalescing with a backstop flusher and explicit
+starvation bounds landed under LLP 0008 §"Dated decision — post-commit
+fan-out coalescing (2026-08-08)", which records the latest-value delivery
+semantics (subject to the D4-lineage owner-Spec absorbing or refining that
+contract), behind `SNAPBACK_LIVE_COALESCE_DISABLED=1` as the strict
+per-commit control arm. Synthetic reduced-scale evidence (30k rows, six
+ordered 1,000-row windows, 16-mutation open-loop burst — the replace-lane
+shape at reduced scale): 96 → 6 delivered frames, 15.6× wall, in
+`tests/live_coalesce_v0.rs`. This is a landing with a kill-switch, not the
+OQ4 measurement spike and not the de facto D4 design: the spike's
+predeclared axes (frame-kind accounting resolving the 521-vs-12
+discrepancy, matcher and evaluation counters, commit-ack vs settlement vs
+convergence timed separately, the 5.5M-row A/B arms) remain to be run, and
+rungs 2–5, settlement isolation, and evaluation cancellation remain open
+with the D2/D4 owner-Specs. The ticket stays open as the workstream
+anchor.
 
 ## 2. Local facts as a read path (retention is not just offline)
 

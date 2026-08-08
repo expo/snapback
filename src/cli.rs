@@ -8119,6 +8119,23 @@ async fn run_composed(
                     ),
             )
         });
+    // Post-commit fan-out coalescing engages only in a serving process that
+    // also runs this backstop flusher (they install together; LLP 0008
+    // fan-out coalescing). The env switch preserves strict per-commit
+    // inline fan-out for A/B measurement.
+    let live_fanout_backstop = ((auth_mode_state.app_data_availability
+        == crate::auth::mode::AppDataAvailability::Available)
+        && !server::live_coalesce_disabled(
+            std::env::var("SNAPBACK_LIVE_COALESCE_DISABLED")
+                .ok()
+                .as_deref(),
+        ))
+    .then(|| {
+        server::spawn_live_fanout_backstop(
+            state.clone(),
+            std::sync::Arc::new(crate::live_coalesce::LiveFanoutCoalescer::new()),
+        )
+    });
     let maintenance_worker = server::spawn_maintenance_worker(app_state);
     let auth_maintenance_worker = crate::auth::runtime::spawn_auth_gc_worker(
         state,
@@ -8161,6 +8178,9 @@ async fn run_composed(
     }
     if let Some(runner) = asset_runner {
         runner.abort();
+    }
+    if let Some(backstop) = live_fanout_backstop {
+        backstop.abort();
     }
     maintenance_worker.abort();
     if let Some(worker) = auth_maintenance_worker {

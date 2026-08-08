@@ -17177,6 +17177,53 @@ pub fn spawn_asset_maintenance_loop(state: SharedSnapback, disabled: bool) -> Jo
     })
 }
 
+/// `SNAPBACK_LIVE_COALESCE_DISABLED=1` keeps the serving process on strict
+/// per-commit inline fan-out (the pre-coalescing behavior) — the A/B switch
+/// for hot-profile measurement.
+pub fn live_coalesce_disabled(value: Option<&str>) -> bool {
+    matches!(value, Some("1") | Some("true"))
+}
+
+/// How long the backstop waits after a flush request before taking the
+/// global lock. The wait lets a commit burst keep merging into the pending
+/// frame; the lock acquisition then queues FIFO behind already-waiting
+/// writers, so by the time the flush runs it delivers the whole drain in one
+/// re-evaluation per subscription.
+const LIVE_FANOUT_BACKSTOP_DELAY: Duration = Duration::from_millis(10);
+
+/// Install the live fan-out coalescer and run its backstop flusher.
+///
+/// Deferral inside `LocalSnapback` is only a scheduling decision; this task
+/// is the delivery guarantee. Every deferral signals `request_flush` (sticky
+/// — a permit is stored if this task is mid-flush), so a deferred frame is
+/// flushed within roughly `LIVE_FANOUT_BACKSTOP_DELAY` plus one lock queue
+/// even if no further commit ever arrives. Under a sustained write stream
+/// the fair FIFO lock gives this task a turn each drain cycle, which is the
+/// no-starvation bound: deliveries happen at least once per evaluation-cost
+/// interval.
+///
+/// @ref LLP 0008#dated-decision--post-commit-fan-out-coalescing-2026-08-08 —
+/// coalescer and backstop install together or not at all.
+pub fn spawn_live_fanout_backstop(
+    state: SharedSnapback,
+    coalescer: Arc<crate::live_coalesce::LiveFanoutCoalescer>,
+) -> JoinHandle<()> {
+    tokio::spawn(async move {
+        state
+            .lock()
+            .await
+            .install_live_fanout_coalescer(coalescer.clone());
+        loop {
+            coalescer.flush_requested().await;
+            tokio::time::sleep(LIVE_FANOUT_BACKSTOP_DELAY).await;
+            with_snapback(&state, |snapback| {
+                snapback.flush_pending_live_fanout();
+            })
+            .await;
+        }
+    })
+}
+
 pub fn spawn_cron_scheduler(state: SharedSnapback, autonomy_disabled: bool) -> JoinHandle<()> {
     tokio::spawn(async move {
         // @ref LLP 0028#scheduler-state-and-run-ledger — SNAPBACK_CRON_DISABLED
@@ -40782,6 +40829,10 @@ globalThis.__snapbackHandlers = {
         (
             "SNAPBACK_JOBS_DISABLED",
             "environment variable disabling the autonomous one-off jobs worker; the admin forced drain still claims due jobs (LLP 0070 first slice)",
+        ),
+        (
+            "SNAPBACK_LIVE_COALESCE_DISABLED",
+            "environment variable restoring strict per-commit live fan-out (no coalescing) for A/B measurement (LLP 0008 fan-out coalescing)",
         ),
         (
             "SNAPBACK_JOB_ATTEMPTS_EXHAUSTED",

@@ -39,3 +39,66 @@ measurement spike runs immediately
 owner-Specs are commissioned with the five-rung ladder, drafted after
 spike data (`20260808-d2-d4-owner-specs-commission.md`). This ticket
 remains the evidence anchor.
+
+## Progress 2026-08-08 — rung-1 coalescing lane landed (ticket sweep)
+
+LLP 0191 §1's ladder rung 1 — **re-evaluation coalescing, scheduling only** —
+is implemented and tested. Design and semantics: LLP 0008 §"Dated decision —
+post-commit fan-out coalescing (2026-08-08)". Mechanism: when a commit's
+fan-out dispatch detects backlog (previous frame's measured evaluation cost ≥
+25 ms and this commit arrived within one evaluation-cost of that frame
+finishing), its changed rows merge into one pending frame; a backstop flusher
+task (installed with the coalescer by the serving process; sticky signals;
+10 ms delay + FIFO lock queue) delivers the merged frame once at the latest
+version. Starvation bounds (frame count / merged-row count / absolute hold
+age) force an inline flush if the backstop cannot run. Exclusions: permission
+resyncs, authorization events, and refresh signals always run inline;
+subscriptions resynced during a pending window are pinned to the replace lane
+at flush. `SNAPBACK_LIVE_COALESCE_DISABLED=1` restores strict per-commit
+fan-out for A/B runs.
+
+Evidence (synthetic, zb5-hot shape at reduced scale —
+`tests/live_coalesce_v0.rs`, `bench_synthetic_burst_coalescing`, run with
+`--ignored --nocapture`): 30k rows, six ordered 1,000-row-window observers
+(replace/re-query lane), 16-mutation burst:
+
+- coalescing OFF: 1.846 s total, 96 delivered frames (16 × 6)
+- coalescing ON: 0.119 s total, 6 delivered frames (1 × 6), 16 commits
+  deferred — 15.6× wall, 16× frames
+
+Correctness suite (same file, non-ignored, CI-run): burst→one-frame +
+exact convergence, mixed create/update/leave/delete/create-then-delete
+convergence, starvation-bound inline flush, refresh supersession, coalescer
+absent ⇒ byte-identical legacy behavior, and the backstop task end to end.
+
+**Expected effect at the measured scale:** the 74 s median was evaluation ×
+observers × queue-depth; coalescing bounds it at ~one evaluation per observer
+per drain cycle (~1.3 s × 6 ≈ 8 s per cycle at 5.5M rows), so settle should
+collapse from minutes to single-digit-seconds. The zb5-hot gate (~80 min) has
+**not** been rerun here; requalify per LLP 0189 when the hot profile next
+runs, ideally A/B via `SNAPBACK_LIVE_COALESCE_DISABLED`.
+
+**Remaining (this ticket stays open; rung numbering follows LLP 0191 §1's
+revised five-rung ladder):**
+
+- The OQ4 measurement spike (now commissioned:
+  `20260808-oq4-coalescing-measurement-spike.md`) with its predeclared
+  axes — this landing is not that spike and not the de facto D4 design;
+  the spike should run its A/B arms against this landed lane via
+  `SNAPBACK_LIVE_COALESCE_DISABLED`.
+- Rung 1 remainder — evaluation cancellation and the settlement-isolation
+  contract (commit ack must not queue behind an in-progress flush's
+  evaluation turn).
+- Rung 2 — affected-read precision (extend the captured-dependency matcher
+  vocabulary; record match/skip/fallback decisions).
+- Rung 3 — authority-partitioned shared evaluation (trust answer shared
+  with LLP 0190 §4).
+- Rung 4 — incremental view maintenance for admitted D2 graph shapes;
+  rung 5 — delta-fed local replicas (D3 via the shared interface).
+- zb5-hot A/B rerun at 5.5M rows as the acceptance instrument
+  (`SNAPBACK_LIVE_COALESCE_DISABLED=1` as the control arm).
+- Coalescing counters (`LiveCoalesceStats`) are deliberately not yet on the
+  serialized inspect surface (would rotate drift-gated inspect schemas);
+  expose them when the D4 Spec lands its observability section.
+- The force-replace-after-resync lane has reasoning + conservative-direction
+  coverage but no direct automated test (needs an auth-scoped harness).

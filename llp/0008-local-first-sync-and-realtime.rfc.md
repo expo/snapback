@@ -5,7 +5,12 @@
 **Systems:** Sync, Realtime, Storage, API, Auth, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-05 (DK-9 diagnostic-spelling reconciliation: the LLP 0166
+**Revised:** 2026-08-08 (post-commit fan-out coalescing: backlogged commits'
+data fan-out may be merged into one pending frame delivered once at the
+latest version — LLP 0191 §1 rung 1, evidence-driven by the zb5-hot 74 s
+median; see the dated decision section for the deferral rule, exclusions,
+and starvation bounds; resyncs/authorization events and cheap frames stay
+per-commit inline.) 2026-08-05 (DK-9 diagnostic-spelling reconciliation: the LLP 0166
 successor RQS store keeps `SNAPBACK_RQS_STORE_LOCK_UNAVAILABLE` as its
 authoritative emitted code; DK-9's generic
 `SNAPBACK_CLIENT_STORE_LOCK_UNAVAILABLE` text is the owner-level semantic alias
@@ -910,6 +915,84 @@ incremental fan-out for that case. Role-gated live replacement does not imply
 retained eligibility: retained role-gated queries remain refused in v1 until
 the authorized-lease proof can bind the membership dependency and expiry
 floor.
+
+## Dated decision — post-commit fan-out coalescing (2026-08-08)
+
+**Problem measured.** The Zerobugs control (LLP 0183 Stage 0.5 /
+LLP 0191 §1) put a number on this RFC's "fan-out ceiling" unknown: at a
+5.5M-row store with six streaming observers, one full re-evaluation frame
+costs ~1.3 s per observer, and a 16-mutation burst produced settle latencies
+of 111 ms–148 s (median ~74 s) because every backlogged commit re-ran every
+observer's handler — evaluation × subscribers × queue-depth
+(`snapback-control-hot.zb5.v10.json`;
+`issues/20260808-live-query-reevaluation-cost-at-scale.md`).
+
+**Decision.** The server may coalesce the *data* fan-out of backlogged
+commits: when a commit's fan-out dispatch detects backlog (the previous
+frame's measured evaluation cost exceeded a floor, currently 25 ms, and this
+commit arrived within one evaluation-cost of that frame finishing — under
+the fair-FIFO global writer lock that means the commit literally queued
+behind the evaluation), the commit's changed rows are merged into one
+pending frame instead of evaluated immediately. A later flush delivers the
+pending frame once, at the latest committed version. This is rung 1 of
+LLP 0191 §1's ladder — scheduling only: no query-shape change, no wire
+change.
+
+**Why semantics hold.** A coalesced flush is exactly one multi-write commit
+frame, a shape the delivery machinery already handles:
+
+- The affected-gate is a union: a subscription affected by any merged commit
+  is included in the flush frame.
+- The `live_delta` classifier collapses to the last change per row id before
+  classifying against the subscription's current membership (the DK-3
+  finding-B rule for a single commit that touches one row twice), so merged
+  change lists classify to the same final ops a per-commit delivery sequence
+  converges to. Whole-document deltas keep application idempotent.
+- The `live_replace` lane re-queries current state, which is always the
+  latest post-merge truth.
+- Ordering stays monotonic: the flush frame carries a version ≥ every merged
+  commit's version, and this section's contract has always been ordered
+  changesets with idempotent application plus honest resnapshot — clients
+  were never promised one frame per commit (the change-notification seam
+  above already "coalesces and tolerates spurious wakeups").
+- Elided intermediate frames are exactly the redundant re-resolutions the
+  invalidation-repair evidence showed carry no information (676 → 12 frames
+  for the same workload).
+
+**Exclusions (never deferred).** Permission resyncs and authorization
+invalidation events always run inline per commit (LLP 0053/0058 own those
+obligations). Refresh signals (empty change list — seed, auth activation,
+protected-record erasure) always run inline; a refresh frame re-queries and
+replaces every subscription from current state, so it strictly supersedes
+and discards any pending deferred frame (the delta lane requires non-empty
+changes). A subscription resynced *while* a frame is pending is pinned to
+the replace lane at flush — its captured membership is newer than the older
+merged changes, so deltas computed against them could mistype an op; replace
+is the honest superset.
+
+**Delivery guarantee and starvation bounds.** Deferral is a scheduling
+decision only; correctness never depends on the heuristics. Every deferral
+signals a backstop flusher task (installed together with the coalescer by
+the serving process — one does not exist without the other), whose requests
+are sticky, so a deferred frame is flushed within a small delay (currently
+10 ms) plus one lock queue even if no further commit arrives. Under a
+sustained write stream the fair FIFO lock gives the flusher a turn each
+drain cycle, so deliveries happen at least once per evaluation-cost
+interval; explicit bounds (pending frame count, merged-row count, absolute
+hold age) additionally force an inline flush on the next commit if the
+backstop cannot run. Cheap frames (below the cost floor) never defer, so
+per-commit delivery is fully preserved wherever re-evaluation is not the
+bottleneck — including the delta fast path and every small store.
+`SNAPBACK_LIVE_COALESCE_DISABLED=1` restores strict per-commit fan-out for
+A/B measurement. Observation-honesty note (LLP 0167): all frames of one
+coalesced flush share one commit-egress basis admitted at flush time, the
+same "frames from one real commit share the basis" rule applied to the
+merged frame.
+
+**What this does not claim.** Rungs 2 and 3 of LLP 0191 §1 (shared
+evaluation across same-query observers; incremental view maintenance for
+admitted shapes) remain the D2/D4 owner-Spec work — coalescing bounds the
+cost at one evaluation per observer per drain cycle, not below it.
 
 ## Status
 

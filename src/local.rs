@@ -76,7 +76,7 @@ use std::path::Path;
 use std::sync::Mutex as StdMutex;
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering};
 use std::sync::{Arc, PoisonError, RwLock, Weak};
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 const MAX_RECENT_DIAGNOSTICS: usize = 100;
 const MAINTENANCE_DIAGNOSTIC_MIN_INTERVAL_MS: u64 = 60_000;
@@ -1423,6 +1423,26 @@ impl EnsureAppInput {
 // `resync_required`) moved to `crate::live_wire` (LLP 0051 D4 / ENG-23891):
 // they are schema-governed wire shapes now, generated into
 // `schemas/live.envelope.schema.json` and drift-gated.
+
+/// The merged, not-yet-delivered data fan-out for one or more deferred commit
+/// frames. Holds only committed change rows (data) plus subscription *ids*
+/// whose membership went stale, never subscription references, so
+/// subscriptions may come and go while a frame is pending.
+///
+/// @ref LLP 0008#dated-decision--post-commit-fan-out-coalescing-2026-08-08 —
+/// a coalesced flush is semantically one multi-write commit frame: the delta
+/// classifier collapses to the last change per row id and the replace lane
+/// re-queries current state.
+struct PendingLiveFanout {
+    changes: Vec<ChangedRow>,
+    /// Subscriptions that received a full resync (permission/authorization)
+    /// while this frame was pending: their captured membership is newer than
+    /// parts of `changes`, so at flush they must take the honest
+    /// re-query/replace lane, never the op-log delta lane.
+    force_replace: BTreeSet<String>,
+    frames: u64,
+    first_deferred_at: Instant,
+}
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
@@ -3075,6 +3095,17 @@ pub struct LocalSnapback {
     pending_local_live_effects: BTreeMap<String, PendingLocalLiveEffectRegistration>,
     permission_epochs: BTreeMap<String, u64>,
     live_delivery: LiveDeliveryStats,
+    // @ref LLP 0008#dated-decision--post-commit-fan-out-coalescing-2026-08-08 —
+    // installed by the serving process together with its backstop flusher
+    // task; when absent (unit tests, embedders that opt out) every commit
+    // fans out inline exactly as before.
+    live_coalescer: Option<Arc<crate::live_coalesce::LiveFanoutCoalescer>>,
+    pending_live_fanout: Option<PendingLiveFanout>,
+    // Measured wall cost of the most recent data fan-out frame and when it
+    // finished: the backlog signal for the coalescing decision.
+    live_fanout_recent_cost: Duration,
+    live_fanout_last_finished: Option<Instant>,
+    live_coalesce_stats: crate::live_coalesce::LiveCoalesceStats,
     recent_diagnostics: VecDeque<Diagnostic>,
     cron_tick_errors: u64,
     asset_runner_errors: u64,
@@ -6122,6 +6153,7 @@ impl LocalSnapback {
                             &already_resynced,
                             frame_version,
                             admission,
+                            &BTreeSet::new(),
                         )?;
                     }
                     Ok(())
@@ -14568,8 +14600,13 @@ impl LocalSnapback {
                     // declared job-status subscription observes its enqueue;
                     // they never touch OCC/projection/search consumers, which
                     // read `commit.changes` upstream of here.
+                    //
+                    // The dispatch may defer this frame's data fan-out into
+                    // the coalesced pending frame when fan-out is backlogged
+                    // (LLP 0008 fan-out coalescing); the permission resyncs
+                    // and authorization events above always ran inline.
                     if commit.job_changes.is_empty() {
-                        self.notify_live_subscriptions_in_frame(
+                        self.dispatch_live_data_fanout(
                             &commit.changes,
                             &resynced,
                             frame_version,
@@ -14578,7 +14615,7 @@ impl LocalSnapback {
                     } else {
                         let mut frame_changes = commit.changes.clone();
                         frame_changes.extend(commit.job_changes.iter().cloned());
-                        self.notify_live_subscriptions_in_frame(
+                        self.dispatch_live_data_fanout(
                             &frame_changes,
                             &resynced,
                             frame_version,
@@ -20141,7 +20178,7 @@ impl LocalSnapback {
                 Ok(frame_version) => {
                     self.begin_live_commit_egress(committed_at);
                     self.begin_live_delivery_frame(self.subscriptions.len());
-                    let result = self.notify_live_subscriptions_in_frame(
+                    let result = self.dispatch_live_data_fanout(
                         std::slice::from_ref(&changed_row),
                         &BTreeSet::new(),
                         frame_version,
@@ -20943,6 +20980,11 @@ impl LocalSnapback {
             pending_local_live_effects: BTreeMap::new(),
             permission_epochs: BTreeMap::new(),
             live_delivery: LiveDeliveryStats::default(),
+            live_coalescer: None,
+            pending_live_fanout: None,
+            live_fanout_recent_cost: Duration::ZERO,
+            live_fanout_last_finished: None,
+            live_coalesce_stats: crate::live_coalesce::LiveCoalesceStats::default(),
             recent_diagnostics,
             cron_tick_errors: 0,
             asset_runner_errors: 0,
@@ -22511,6 +22553,190 @@ impl LocalSnapback {
         self.cron_state_writes
     }
 
+    /// Install the process-wide coalescing gate. The installer owns the
+    /// backstop flusher that answers `request_flush` signals by calling
+    /// [`Self::flush_pending_live_fanout`]; installing a coalescer without
+    /// running that flusher risks a deferred frame waiting for the next
+    /// commit (bounded by the tunables' `max_hold`, but still late).
+    pub fn install_live_fanout_coalescer(
+        &mut self,
+        coalescer: Arc<crate::live_coalesce::LiveFanoutCoalescer>,
+    ) {
+        self.live_coalescer = Some(coalescer);
+    }
+
+    pub fn live_coalesce_stats(&self) -> &crate::live_coalesce::LiveCoalesceStats {
+        &self.live_coalesce_stats
+    }
+
+    /// Whether this commit frame's data fan-out should be merged into the
+    /// pending frame instead of re-evaluating every affected subscription now.
+    ///
+    /// The signal is backlog, measured entirely from within: the previous
+    /// frame's evaluation cost was `live_fanout_recent_cost`, and a commit
+    /// arriving less than one evaluation-cost after that frame finished means
+    /// commits are arriving at least as fast as fan-out can drain (under the
+    /// global writer lock the queued commits literally waited behind that
+    /// evaluation). Cheap frames (below `min_eval_cost`) never defer, so
+    /// per-commit delivery is fully preserved wherever re-evaluation is not
+    /// the bottleneck. Refresh signals (empty `changes`) never defer.
+    ///
+    /// @ref LLP 0008#dated-decision--post-commit-fan-out-coalescing-2026-08-08 —
+    /// deferral is a scheduling decision only; every deferral signals the
+    /// backstop flusher, and the starvation bounds below force an inline
+    /// flush when the pending frame grows too old or too large.
+    fn should_defer_live_fanout(&self, changes: &[ChangedRow]) -> bool {
+        if changes.is_empty() {
+            return false;
+        }
+        let Some(coalescer) = &self.live_coalescer else {
+            return false;
+        };
+        if self.subscriptions.is_empty() {
+            return false;
+        }
+        let Some(finished) = self.live_fanout_last_finished else {
+            return false;
+        };
+        let tunables = coalescer.tunables();
+        let window = self.live_fanout_recent_cost.max(tunables.min_window);
+        if window < tunables.min_eval_cost {
+            return false;
+        }
+        if finished.elapsed() >= window {
+            return false;
+        }
+        if let Some(pending) = &self.pending_live_fanout
+            && (pending.frames >= tunables.max_frames
+                || pending.changes.len() >= tunables.max_changes
+                || pending.first_deferred_at.elapsed() >= tunables.max_hold)
+        {
+            return false;
+        }
+        true
+    }
+
+    /// Merge one commit frame's data fan-out into the pending frame and
+    /// signal the backstop flusher. Resynced subscription ids are recorded so
+    /// the flush routes them to the replace lane (their membership snapshot
+    /// is newer than the older merged changes).
+    fn defer_live_data_fanout(&mut self, changes: &[ChangedRow], resynced: &BTreeSet<String>) {
+        let pending = self
+            .pending_live_fanout
+            .get_or_insert_with(|| PendingLiveFanout {
+                changes: Vec::new(),
+                force_replace: BTreeSet::new(),
+                frames: 0,
+                first_deferred_at: Instant::now(),
+            });
+        pending.changes.extend_from_slice(changes);
+        pending.force_replace.extend(resynced.iter().cloned());
+        pending.frames += 1;
+        self.live_coalesce_stats.deferred_commits += 1;
+        if let Some(coalescer) = &self.live_coalescer {
+            coalescer.request_flush();
+        }
+    }
+
+    /// Either defer this commit frame's data fan-out (backlogged) or run it
+    /// now, merged with any pending deferred frames.
+    fn dispatch_live_data_fanout(
+        &mut self,
+        changes: &[ChangedRow],
+        already_resynced: &BTreeSet<String>,
+        frame_version: u64,
+        admission: &AdmissionLease,
+    ) -> SnapbackResult<()> {
+        if self.should_defer_live_fanout(changes) {
+            self.defer_live_data_fanout(changes, already_resynced);
+            return Ok(());
+        }
+        self.run_live_data_fanout_frame(changes, already_resynced, frame_version, admission)
+    }
+
+    /// Run one data fan-out frame at `frame_version`, folding in any pending
+    /// deferred frames. An empty `changes` list is the refresh signal: it
+    /// re-queries and replaces every subscription from current state, which
+    /// strictly supersedes the deferred deltas (the delta lane requires
+    /// non-empty changes), so a pending frame is simply discarded.
+    fn run_live_data_fanout_frame(
+        &mut self,
+        changes: &[ChangedRow],
+        already_resynced: &BTreeSet<String>,
+        frame_version: u64,
+        admission: &AdmissionLease,
+    ) -> SnapbackResult<()> {
+        let mut force_replace = BTreeSet::new();
+        let mut merged: Option<Vec<ChangedRow>> = None;
+        let mut merged_frames = 0u64;
+        if let Some(pending) = self.pending_live_fanout.take() {
+            merged_frames = pending.frames;
+            if !changes.is_empty() {
+                let mut all = pending.changes;
+                all.extend_from_slice(changes);
+                merged = Some(all);
+                force_replace = pending.force_replace;
+            }
+        }
+        let frame_changes: &[ChangedRow] = merged.as_deref().unwrap_or(changes);
+        let started = Instant::now();
+        let result = self.notify_live_subscriptions_in_frame(
+            frame_changes,
+            already_resynced,
+            frame_version,
+            admission,
+            &force_replace,
+        );
+        self.live_fanout_recent_cost = started.elapsed();
+        self.live_fanout_last_finished = Some(Instant::now());
+        if merged_frames > 0 {
+            self.live_coalesce_stats.coalesced_flushes += 1;
+            self.live_coalesce_stats.last_flush_merged_frames =
+                merged_frames + u64::from(!changes.is_empty());
+        }
+        result
+    }
+
+    /// Deliver the pending coalesced frame now (the backstop flusher's entry
+    /// point; also usable by embedders driving their own flush schedule).
+    /// Returns whether a pending frame existed and was delivered.
+    pub fn flush_pending_live_fanout(&mut self) -> bool {
+        let Some(pending) = self.pending_live_fanout.take() else {
+            return false;
+        };
+        let Ok(admission) = self.admission.admit() else {
+            // Shutting down: nobody can receive the frame anymore.
+            return false;
+        };
+        let frame_version = match self.db.current_version() {
+            Ok(version) => version,
+            Err(error) => {
+                self.record_attached_diagnostics(vec![error.diagnostic]);
+                return false;
+            }
+        };
+        self.live_coalesce_stats.backstop_flushes += 1;
+        self.live_coalesce_stats.coalesced_flushes += 1;
+        self.live_coalesce_stats.last_flush_merged_frames = pending.frames;
+        self.begin_live_commit_egress(Instant::now());
+        self.begin_live_delivery_frame(self.subscriptions.len());
+        let started = Instant::now();
+        let result = self.notify_live_subscriptions_in_frame(
+            &pending.changes,
+            &BTreeSet::new(),
+            frame_version,
+            &admission,
+            &pending.force_replace,
+        );
+        self.live_fanout_recent_cost = started.elapsed();
+        self.live_fanout_last_finished = Some(Instant::now());
+        self.end_live_commit_egress();
+        if let Err(error) = result {
+            self.record_attached_diagnostics(vec![error.diagnostic]);
+        }
+        true
+    }
+
     /// Fan a committed changeset out to live subscriptions. The mutation has
     /// already committed by the time this runs, so a single subscription's
     /// re-run or serialization failure must never fail the mutation or abort
@@ -22521,6 +22747,10 @@ impl LocalSnapback {
     /// @ref LLP 0003#realtime-pipeline — post-commit fan-out error contract.
     fn notify_live_subscriptions(&mut self, changes: &[ChangedRow]) {
         if changes.is_empty() && self.subscriptions.is_empty() {
+            return;
+        }
+        if self.should_defer_live_fanout(changes) {
+            self.defer_live_data_fanout(changes, &BTreeSet::new());
             return;
         }
 
@@ -22541,12 +22771,8 @@ impl LocalSnapback {
         //   from one real commit share the commit basis and jitter sample.
         self.begin_live_commit_egress(Instant::now());
         self.begin_live_delivery_frame(self.subscriptions.len());
-        let result = self.notify_live_subscriptions_in_frame(
-            changes,
-            &BTreeSet::new(),
-            frame_version,
-            &admission,
-        );
+        let result =
+            self.run_live_data_fanout_frame(changes, &BTreeSet::new(), frame_version, &admission);
         self.end_live_commit_egress();
         if let Err(error) = result {
             self.record_attached_diagnostics(vec![error.diagnostic]);
@@ -23581,6 +23807,12 @@ impl LocalSnapback {
         already_resynced: &BTreeSet<String>,
         frame_version: u64,
         admission: &AdmissionLease,
+        // Subscriptions that must skip the op-log delta lane this frame
+        // because their captured membership was resynced *after* some of the
+        // (coalesced) changes were committed; the re-query/replace lane is
+        // always an honest superset.
+        // @ref LLP 0008#dated-decision--post-commit-fan-out-coalescing-2026-08-08.
+        force_replace: &BTreeSet<String>,
     ) -> SnapbackResult<()> {
         // Cheap affected prefilter over borrowed subscriptions: only the
         // survivors are cloned for the mutable delivery loop below (ENG-23334
@@ -23658,6 +23890,7 @@ impl LocalSnapback {
                 // unique lookup) would otherwise qualify.
                 FunctionRuntime::HostPlan(HandlerPlan::Query(plan))
                     if !changes.is_empty()
+                        && !force_replace.contains(&subscription.id)
                         && plan.membership_filters.is_empty()
                         && function.standard_pattern.is_none()
                         // The incremental lane publishes committed storage rows

@@ -108,6 +108,8 @@ pub mod instance_fork;
 pub mod instance_lock;
 #[doc(hidden)]
 pub mod jobs;
+pub mod live_coalesce;
+
 pub(crate) mod live_matcher;
 #[doc(hidden)]
 pub mod live_wire;

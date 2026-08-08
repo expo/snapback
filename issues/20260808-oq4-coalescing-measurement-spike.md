@@ -29,3 +29,16 @@ median settle into single-digit seconds. A successful spike sizes rung 1
 for the D4 Spec; it does not become the de facto design.
 
 Parent evidence ticket: `20260808-live-query-reevaluation-cost-at-scale.md`.
+
+**Dated note (2026-08-08, ticket-sweep landing):** the sweep concurrently
+landed a production rung-1 coalescing lane (LLP 0008 §"Dated decision —
+post-commit fan-out coalescing (2026-08-08)"; `src/live_coalesce.rs`,
+dispatch in `src/local.rs`, backstop in `src/server.rs`). The spike
+therefore has a real implementation to measure instead of a prototype:
+run the coalescing arm on the landed lane and the control arm with
+`SNAPBACK_LIVE_COALESCE_DISABLED=1`. The spike's no-landing rule is
+unaffected — its job is now to size the landed lane at 5.5M rows on the
+predeclared axes (and the lane's `LiveCoalesceStats` counters partially
+cover the evaluation-counter axis: deferred/coalesced/backstop
+flush counts are exposed via `LocalSnapback::live_coalesce_stats`, not
+yet on the inspect surface).
