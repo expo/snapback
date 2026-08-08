@@ -84,7 +84,7 @@ claim. Register real acceptance profiles with the headless-first discipline in
 [acceptance testing](../../guide/testing/acceptance.md); the receipt contract
 is in [verify](../../guide/testing/verify.md).
 
-## Top traps (verified against main, 2026-08-07)
+## Top traps (verified against main, 2026-08-08)
 
 1. **No `v.array()` on table fields.** Stored arrays/unions are a named GAP
    (`backend.structured-stored-fields`, design-only). Use `v.json()` for
@@ -121,11 +121,30 @@ is in [verify](../../guide/testing/verify.md).
 8. **The supervised Expo web carrier is paved since `0.1.13`** (bootstrap
    CORS, web-safe AppState, browser picker sources). On `0.1.12` or older,
    web needs the workarounds in
-   `issues/20260807-supervised-expo-web-carrier-unpaved.md`.
+   `issues/closed/20260807-supervised-expo-web-carrier-unpaved.md`.
 9. **Omitted optional surface inputs are omitted from composed payloads
    since `0.1.13`**; explicit `undefined` still refuses (spread-omit
    conditional values). On older closures, split the command per optional
    shape or call the mutation directly.
+10. **Headless generated command invocation lives at `app.commands.*`**, not
+    on the `api` export — `createCommandClient(client).start(app.commands.<name>, …)`
+    ([headless client](../../guide/clients/headless.md)).
+11. **`createAssetClient` is declared by the root types but not exported by
+    the root `.mjs`** — import it from the `@expo/snapback-client/assets`
+    subpath (`issues/20260807-client-root-export-createassetclient.md`).
+12. **The supervisor reclaims Metro/bootstrap when the backend dies.** A
+    "stop the backend, keep the client" proof needs the cached-binding
+    cold-boot lane plus `EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN`.
+13. **The `snapback.verify.config.mjs` profile shape is identity-bound**,
+    defined by `defineVerifyConfig` in `@expo/snapback-cli`'s `verify.mjs`;
+    the receipt contract is in [verify](../../guide/testing/verify.md).
+14. **A non-session (admin/inspection) client on a sessions-mode server needs
+    both `authClientProtocol: 1` and `custody: 'anonymous-public'`** — each
+    refusal names one half
+    ([sessions and principals](../../guide/auth/sessions-and-principals.md)).
+15. **`snapback dev --expo` supervises but never launches a device or
+    simulator** — launching (Expo Go, a dev client, `expo run:ios|android`)
+    is the author's job.
 
 When anything refuses, read the code before searching: every `SNAPBACK_*`
 refusal an authoring agent can trigger is required to name the violated rule
