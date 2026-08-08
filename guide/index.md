@@ -181,6 +181,9 @@ you never build around a feature because you didn't know it existed.
 ### Auth
 - [Sessions and principals](./auth/sessions-and-principals.md) — the server
   derives who you are; scoped queries; logout barriers.
+- [Bind a principal to your app's user identity](./auth/app-identity-binding.md)
+  — the principal↔app-user table every ported app needs first: the broker
+  pattern for production, the frozen-actor-map bootstrap for acceptance.
 - [Authenticate a native app](./auth/native-apps.md) — local email-code or
   the supported external identity-broker seam, exact bearer carriage, and
   the production boundary.

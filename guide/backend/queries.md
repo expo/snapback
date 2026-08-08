@@ -233,6 +233,16 @@ handlers are server-derived. For sessions-mode details, see
 > for a complete worked translation of a Supabase RLS policy or a
 > Convex-style ownership check into a Snapback query filter.
 
+## Refuse with a declared application code
+
+A query has the same typed refusal channel a mutation has: declare
+`refusals: ['CODE']` on the function and raise it with
+`ctx.refuse(code, details?)` so the caller receives a stable application
+error code instead of an opaque `SNAPBACK_HANDLER_FAILED`. The complete rule
+— when a domain error deserves a code, the declaration/fold contract, and how
+plan `elseError` differs — is
+[refuse with a declared code](./mutations.md#refuse-with-a-declared-code-not-a-bare-throw).
+
 ## Make a query live only when needed
 
 `defineQuery` is callable but not subscribable. `defineLiveQuery` and

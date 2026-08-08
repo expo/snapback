@@ -14,8 +14,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-07
-reviewed-commit: 6a1de382fade55da910e3ab1f40115e1e0cfad48
+reviewed: 2026-08-08
+reviewed-commit: effa2773760fd0d740c49f06990b3fde5e82a66b
 ---
 
 # Capability index
@@ -49,7 +49,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
 | backend.sequences | Experimental incarnation-scoped dense sequences through handler `ctx.sequence.allocate(counterName, scopeId)` and generated `AllocateSequence`, with abort-disclosure, commit-order/contention, exact replay, incarnation restart, exhaustion, Relay, Campfire, and mutation-atomic lane-Q qualification. Only the exact contributor-source local target publishes `sequence_allocation_v1`; public packages and hosted targets remain structured GAPs | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | local | partial | src/local-sequence-allocation-publication.v1.json + tests/conformance/sequence-allocation-publication-v1.receipt.json | llp/0135, llp/0128, llp/0113, llp/0157 | GAP (public-package attestation and hosted target qualification/publication; owner: Charlie, review: 2026-09-30); backend/sequences.md |
 | backend.actions | Actions with gated outbound fetch: global `fetch` and target-portable host-mediated `ctx.fetch`, in closed-script module handlers or the inline form | action, fetch, ctx.fetch, side effects, notification, webhook | local | shipped | route /action/{name} | llp/0004, llp/0009, llp/0049 | backend/actions-and-fetch.md |
-| backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks (including sessions execution under the per-app `asset-callbacks` service principal), deletion/GC, receipts, logical consistent-cut export with refuse-partial validation, and instance-wide signing-key rotation (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); the paved browser path (stock `@expo/snapback-vite` relay over the `/assets/*` family, sessions custody, typed generated upload references) is CI-verified; byte-level backup, transcoding, and hosted targets remain nonclaims | files, images, video, object storage, media, browser upload, native upload, Expo ImagePicker, expo/fetch, useSnapbackAssetUpload, useSnapbackAssetImage, render image, strict delivery URL, empty image, session mint, vite relay, asset export, logical backup, signing key rotation, Supabase Storage, Convex generateUploadUrl | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids plus `assets.export.cutExport`/`importValidation`) + src/assets.rs + src/assets_cut.rs + src/assets_image.rs + src/assets_video.rs suites + tests/acceptance/asset-conformance-v1.mjs (native CLI export/refuse-partial/rotation; sessions callback authority) + demos/file-drop/tests/acceptance/browser-relay.mjs (browser relay path) | llp/0044 | backend/assets.md |
+| backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks (including sessions execution under the per-app `asset-callbacks` service principal), deletion/GC, receipts, logical consistent-cut export with refuse-partial validation, and instance-wide signing-key rotation (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); the paved browser path (stock `@expo/snapback-vite` relay over the `/assets/*` family, sessions custody, typed generated upload references) is CI-verified; byte-level backup, transcoding, and hosted targets remain nonclaims | files, images, video, object storage, media, browser upload, native upload, SVG, image/svg+xml, Expo ImagePicker, expo/fetch, useSnapbackAssetUpload, useSnapbackAssetImage, render image, strict delivery URL, empty image, session mint, vite relay, asset export, logical backup, signing key rotation, Supabase Storage, Convex generateUploadUrl | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids plus `assets.export.cutExport`/`importValidation`) + src/assets.rs + src/assets_cut.rs + src/assets_image.rs + src/assets_video.rs suites + tests/acceptance/asset-conformance-v1.mjs (native CLI export/refuse-partial/rotation; sessions callback authority) + demos/file-drop/tests/acceptance/browser-relay.mjs (browser relay path) | llp/0044 | backend/assets.md |
 | backend.expo-push-seam | Shipped local Expo integration seam: session-bound token custody, atomic rotation and retirement, declaration-checked/host-authorized and paced `ctx.push.send`, crash-safe intent/batch/message ledger, safe pre-transmit recovery, bounded ticket/receipt maintenance, a privacy-bounded generated ledger query, explicit ambiguous redrive risk, structured `notifications.expoPushSeam` facts, and a retained physical-device `ok` receipt witness. The complete hosted conjunction remains a GAP; this is not first-class notification delivery. | device token, expo push token, installation, ctx.push.send, handoff receipt, DeviceNotRegistered | local | shipped | schemas/capability.manifest.local-dev-sqlite-ibex.outbound-actions.json (`expoPushSeam`) + packages/snapback-cli/fake-expo-push.test.mjs + `fake_expo_acceptance_covers_tickets_receipts_dedupe_ambiguity_and_authorization` in src/push.rs + LLP 0143 implementation record (2026-08-03 physical-device witness) | llp/0143, llp/0057, llp/0059, llp/0070 | backend/expo-push.md |
 | backend.notifications | First-class notification and effect delivery; application-authored table ledgers are not this product capability | notifications, push, email, delivery, effects | none | design-only | schemas/capability.manifest.local-dev-sqlite-ibex.json (`notifications: false`; explicit `notifications` gap) | llp/0045 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260728-guide-gap-assets-and-notifications-capability-rows.md) |
 | backend.observability-v1 | Shipped local Phase-1 backend telemetry with a generation-bound sibling store, operation-class spans, bounded retention and rollups, typed agent-facing queries, Health/Logs projections, and retained clean-release idle/benchmark evidence; hosted arms and declared product analytics remain later capabilities | telemetry, observability, health, logs, metrics, traces | local | shipped | tests/acceptance/telemetry-phase1-evidence.v1.json | llp/0154 | operating/observability.md |
@@ -67,7 +67,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | sync.local-persistent-store | LLP 0166 store + hydration bridge: one v3 store domain per clientStoreId, registration-led establishment from the generated trusted activation only, completeness-proof plus applicable lease validation before page commit, public programmatic and manifest-derived preload registrations, and proof-revalidated relaunch answers. Writer maintenance derives custody from registrations: active demand is restart-volatile, durable programmatic demand survives, `none` release compacts immediately, and every retained address exposes one StorePolicyInspectionV1 reason. The D7 result-transform gate is fired on durable IndexedDB and Node/file; memory and Expo report volatile and refuse durable fragments with a structured GAP. Authority-independent `single_table_v1@1` needs no lease but keeps every proof/fence check. The contributor-source local manifest publishes the experimental class from a retained 2026-08-06 carrier exit at 17 PASS / 0 GAP / 0 skipped plus Triage and Fleet at 8/8 each; remote-service and Cloudflare manifests remain nonclaims | retained render, materialization, completeness proof, qmk1, hydration bridge, programmatic registration, preload, maintenance, custody inspection, relaunch, result transform, answer class, carrier honesty | local | partial | src/local-persistent-store-publication.v1.json + tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json + tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json + tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json + tests/conformance/result-transform-ship-gate-v1.receipt.json (56/56 Rust/JavaScript, two claiming + two refusing carriers) | llp/0166, llp/0157, llp/0135, llp/0110, llp/0094 | sync/offline-and-retention.md |
 | sync.offline-js-arm-protected | Lease-bounded protected retention (LLP 0043 M1 custody) on the JS/React arm — the Contract arm ships it; this arm does not yet | offline auth browser, lease js | none | design-only | llp/0129-local-first-program.plan.md (Phase 0 status note; no shipped witness) | llp/0043, llp/0053, llp/0129 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260731-js-arm-lease-custody-and-sessions-outbox.md) |
 | sync.settlement-bounded-skew | `settlement.bounded_skew`: a mutation-declared, structurally direct `runtimeNow()` field may accept a lane-L captured time only within its declared bound; mixed sinks stay server-derived and lane Q remains unbounded replay-accept. The server path and receipt fact ship, while local capture/execution remains outside this slice. | bounded skew, local settlement, runtimeNow, claim ledger | local | partial | src/local.rs | llp/0133 | GAP (local capture/executor; owner: LLP 0155 Stage 2, review: 2026-08-31) |
-| auth.sessions | Server-minted sessions; email-code login; server-derived principals | login, signin, identity, session | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
+| auth.sessions | Server-minted sessions; email-code login; server-derived principals | login, signin, identity, session, principal binding, app user table, identityBinding | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
 | auth.external-identity-broker | Adopt a session minted by a trusted server-side identity broker; dev/test/demo host operation only | native login, external identity, broker, adopted bearer | local | partial | `createExternalSessionClient` in packages/snapback-client/index.mjs | llp/0024, llp/0057, llp/0096 | auth/native-apps.md |
 | auth.scoped-queries | Per-principal query scoping via authScopeField | hidden data, per-user, row security, Supabase RLS | local | shipped | `authScopeField` in packages/snapback-codegen/define.mjs | llp/0039, llp/0053 | auth/sessions-and-principals.md |
 | auth.invalidation-barrier | Authorization invalidation; logout blanking | logout, revoke, invalidation | local | shipped | route /live/authorization-invalidation/acknowledge | llp/0053 | auth/protecting-data.md |
@@ -306,6 +306,9 @@ you never build around a feature because you didn't know it existed.
 ### Auth
 - [Sessions and principals](./auth/sessions-and-principals.md) — the server
   derives who you are; scoped queries; logout barriers.
+- [Bind a principal to your app's user identity](./auth/app-identity-binding.md)
+  — the principal↔app-user table every ported app needs first: the broker
+  pattern for production, the frozen-actor-map bootstrap for acceptance.
 - [Authenticate a native app](./auth/native-apps.md) — local email-code or
   the supported external identity-broker seam, exact bearer carriage, and
   the production boundary.
@@ -895,8 +898,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-07
-reviewed-commit: 30001b8d2902e6c83f74ccda7eb2c19de707f528
+reviewed: 2026-08-08
+reviewed-commit: effa2773760fd0d740c49f06990b3fde5e82a66b
 ---
 
 # Retrieval eval protocol
@@ -1072,6 +1075,37 @@ Case 17 is an absorption seed from the 2026-08-07 three-lane measurement
     shape table).
     Route terms: "retention", "args-filtered", "retainable",
     "SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE".
+
+Cases 18–20 are absorption seeds from the 2026-08-08 Zerobugs-control guide-gap
+tickets (declared refusals, principal↔app-identity binding, SVG assets).
+
+18. **Declared refusals:** "My mutation rejects a duplicate seat reservation,
+    but the client only sees `SNAPBACK_HANDLER_FAILED` — how do I give the
+    caller a reason it can act on?" (The replicated miss: the Zerobugs control
+    shipped every application-semantic refusal as a bare `throw` through ten
+    receipted gate attempts.) The run fails if the plan parses the failure
+    message, invents an `{ ok: false, error }` success envelope, or reuses a
+    platform `SNAPBACK_*` code as the domain code.
+    Expected pages: `backend/mutations.md`.
+    Route terms: "declared refusal", "ctx.refuse", "SNAPBACK_APP_REFUSAL",
+    "appCode".
+
+19. **Principal to app identity:** "My app has its own users table with OAuth
+    ids — how do I connect Snapback's `ctx.auth.userId` to it?" The run fails
+    if the plan writes a mutation that takes the app user id (or an email) as
+    an argument and binds it to the caller's principal, or seeds binding rows
+    with captured principal ids.
+    Expected pages: `auth/app-identity-binding.md`.
+    Route terms: "bind a principal", "identityBinding", "identity broker",
+    "app user row".
+
+20. **SVG assets:** "Uploading an `image/svg+xml` file fails even though I
+    listed it in the intent's `accept.mediaTypes`." The run fails if the plan
+    tries to widen the trusted image detector, treats the refusal as a bug, or
+    serves SVG through an app alias without `nosniff` plus a sandbox CSP.
+    Expected pages: `backend/assets.md`.
+    Route terms: "SVG", "image/svg+xml",
+    "SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED", "nosniff".
 
 ## Static routing check
 
@@ -2319,6 +2353,337 @@ token in its returned result.
 
 ---
 
+<!-- snapback-guide-source: guide/auth/app-identity-binding.md -->
+---
+title: Bind a principal to your app's user identity
+id: auth.app-identity-binding
+order: 5
+audience: agent-first
+capabilities: [auth.sessions, auth.external-identity-broker]
+authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0183-zerobugs-quality-surface.rfc.md, packages/snapback-client/index.mjs, demos/zerobugs/control/snapback/schema.mjs, demos/zerobugs/control/snapback/functions.mjs]
+examples: [demos/zerobugs/control]
+status: current
+targets: [local]
+maturity: partial
+reviewed: 2026-08-08
+reviewed-commit: effa2773760fd0d740c49f06990b3fde5e82a66b
+---
+
+# Bind a principal to your app's user identity
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](./targets.md).
+
+Almost every app ported onto Snapback already has its own user identity: a
+`users` table with a `sourceUserID` from an OAuth provider, roles, a display
+name, rows that point at it. Snapback gives you a different thing —
+`ctx.auth.userId`, a **server-minted principal id**. Making an existing app
+work means building the join between them: a principal↔app-user table, and a
+trustworthy way to populate it.
+
+This page is that recipe. It is the first thing a port needs and the easiest
+thing to get wrong, because the obvious approach — a mutation that takes the
+app's user id as an argument and binds it to the caller's principal — is a
+complete authentication bypass.
+
+## Why an in-handler claim cannot prove the binding
+
+`ctx.auth` gives a handler the resolved principal and nothing else. It does
+**not** carry the verified email or external subject the session was minted
+from. So a handler has no way to check that the caller who says "I am
+`sourceUserID: 9Fw3n…`" actually is. Any mutation shaped like
+`bindMe({ sourceUserID })` lets any authenticated principal claim any app
+identity, including an administrator's.
+
+The consequence is structural, not stylistic:
+
+> **The binding row must be written by code that already knows both sides
+> — the verified external identity *and* the principal it minted.** Only two
+> places can know both: a trusted server-side broker, or a closed acceptance
+> bootstrap over a frozen fixture.
+
+## Declare the binding table
+
+Whichever way you populate it, the table itself is the same shape: one row
+per principal, uniquely indexed on **every** side so the mapping cannot fan
+out. The Zerobugs control's declaration:
+
+```js source=demos/zerobugs/control/snapback/schema.mjs
+export const identityBinding = defineTable({
+  principal: v.principal(),
+  userID: v.id('user'),
+  sourceUserID: v.string(),
+})
+  .index('by_principal', ['principal'], { unique: true })
+  .index('by_user', ['userID'], { unique: true })
+  .index('by_source_user_id', ['sourceUserID'], { unique: true });
+```
+
+Three unique indexes, not one. `by_principal` stops a principal owning two
+app identities; `by_user` and `by_source_user_id` stop one app identity being
+claimed by two principals. The storage constraint is the backstop that
+survives a bug in the handler logic — see
+[declare structural uniqueness](../backend/mutations.md#declare-structural-uniqueness).
+
+Keep the physical reference (`v.id('user')`) *and* the external id
+(`sourceUserID`) as separate fields: the typed id is what private rows join
+on, and the external string is what a provider lookup or an audit trail needs.
+
+## Resolve the principal in every protected handler
+
+Once the row exists, no handler ever accepts a caller-supplied identity again.
+Every private read and write starts by resolving principal → binding → app
+row, and re-verifies the binding still names the same row it did at write
+time:
+
+```js source=demos/zerobugs/control/snapback/functions.mjs
+export async function requireSourceUser(ctx) {
+  requireFixtureSession(ctx);
+  const principal = ctx.auth.userId;
+  const binding = await ctx.db
+    .query('identityBinding')
+    .withIndex('by_principal')
+    .eq('principal', principal)
+    .first();
+  if (!binding) {
+    throw new Error('session principal is not bound to a source user');
+  }
+  const user = await ctx.db.get('user', binding.userID);
+  if (
+    !user
+    || user.id !== binding.sourceUserID
+    || (user.role !== 'crew' && user.role !== 'user')
+  ) {
+    throw new Error('session principal has an invalid source user binding');
+  }
+  return user;
+}
+```
+
+Roles come from the resolved app row, never from a mint argument or a request
+body:
+
+```js source=demos/zerobugs/control/snapback/functions.mjs
+export async function requireCrew(ctx) {
+  const user = await requireSourceUser(ctx);
+  if (user.role !== 'crew') {
+    throw new Error('source user is not authorized');
+  }
+  return user;
+}
+```
+
+Expose the caller's own binding as a query taking **no arguments** — the
+absence of an identity selector is the point, and it is worth asserting in a
+test that the generated args schema is empty:
+
+```js source=demos/zerobugs/control/snapback/functions.mjs
+export const acceptanceActorBindingSelf = defineJsQuery({
+  auth: 'authenticated',
+  args: {},
+  reads: ['identityBinding', 'user'],
+  result: results.records(v.object({
+    principal: v.string(),
+    sourceUserID: v.string(),
+    userID: v.id('user'),
+    role: v.string(),
+  })),
+  handler: async (ctx) => {
+    const user = await requireSourceUser(ctx);
+    return [{
+      principal: ctx.auth.userId,
+      sourceUserID: user.id,
+      userID: user._id,
+      role: user.role,
+    }];
+  },
+});
+```
+
+If your app also uses [scoped roles](./scoped-roles.md) or `authScopeField`
+query scoping, those compare against the **principal**, not the app user row.
+Store the principal on rows you want scoped by the declarative surface, and
+use the binding for everything that must reach the app's own user record.
+
+## Pattern A — production: bind in the trusted identity broker
+
+This is the answer for a real product. Snapback's supported production-shaped
+seam is the [external identity broker](./native-apps.md): a trusted
+server-side component authenticates the user through your existing front door
+(OAuth, your own login), calls the `auth.mintSession` host operation for that
+verified identity, and hands the resulting bearer back to that same user.
+
+The broker is the only place that holds all three facts at once — the
+verified external identity, the app user row it maps to, and the principal
+`auth.mintSession` just returned. So the broker is where the binding row gets
+written, before the bearer is released:
+
+```js fragment reason="broker-side shape; the mint host-op authorities and the adopt-bearer half are the subject of auth/native-apps.md"
+// Trusted server-side broker (never in an app bundle):
+const verified = await myIdentityProvider.verify(request);      // your front door
+const appUser = await myUsers.findBySubject(verified.subject);  // your user row
+const minted = await hostOps.auth.mintSession({ email: verified.email });
+
+// Only now — knowing both sides — write the binding under privileged authority,
+// then release the bearer to this user and nobody else.
+await privilegedClient.mutate(api.bindPrincipal, {
+  args: { principal: minted.session.userId, sourceUserID: appUser.id },
+});
+return { bearerToken: minted.token };
+```
+
+Two properties make this safe, and both are load-bearing:
+
+- **The binding mutation is privileged, not public.** It is invoked with the
+  broker's authority, is idempotent per principal, and refuses a principal or
+  app user that is already bound. It must not be reachable from an ordinary
+  client session; if your app has a public gateway or function allowlist,
+  leave it out of the allowlist (see the omission technique below).
+- **The bearer is released only to the authenticated caller.** A generic
+  "mint a session for this email" endpoint with no front door is the same
+  bypass in a different place.
+
+The client then adopts the bearer with
+`createExternalSessionClient(baseUrl, { bearerToken })` and carries it
+normally; rotation goes through `replaceBearerToken`. Both halves are covered
+in [authenticate a native app](./native-apps.md).
+
+**Honest boundary:** `auth.mintSession` is a dev/test/demo host operation
+requiring the admin token, the process-bound impersonation capability, and
+active sessions mode. LLP 0045's production email delivery adapter is unbuilt
+and the Cloudflare arm exposes no sessions routes, so this page does not claim
+hosted production identity. The *pattern* is the production shape; the
+current mint mechanism is local.
+
+## Pattern B — acceptance harness: a frozen actor map
+
+An acceptance suite has a different problem. It needs several real principals
+bound to specific fixture users so it can assert per-actor visibility, and
+principal ids are freshly minted every run — so nothing can be seeded. But the
+suite also has something a product does not: a **frozen fixture**, whose exact
+user population is known in advance.
+
+The Zerobugs control uses that to build a bootstrap that is safe *because*
+it is closed. Five properties, all of them necessary:
+
+1. **A frozen actor map.** The mutation's argument is an actor *name* from a
+   closed set (`'creator'`, `'crew-admin'`, …), not a source user id. It
+   selects one member of a hard-coded map; anything else refuses.
+2. **A complete-fixture precondition.** Binding refuses unless exactly the
+   frozen fixture is loaded — the right user count, the right ids, the right
+   roles, the completion sentinel present.
+3. **One-to-one refusal on both sides.**
+4. **Set closure.** After the last actor is bound, the mutation refuses
+   permanently.
+5. **Gateway omission.** The bootstrap operations are absent from the app's
+   function allowlist, so they are reachable only over the direct client the
+   harness drives — never over the product's HTTP surface.
+
+```js source=demos/zerobugs/control/snapback/functions.mjs
+    const principal = ctx.auth.userId;
+    const existingPrincipal = await ctx.db
+      .query('identityBinding')
+      .withIndex('by_principal')
+      .eq('principal', principal)
+      .first();
+    if (existingPrincipal) {
+      throw new Error('session principal is already bound');
+    }
+
+    const existingBindings = await ctx.db.query('identityBinding').take(6).collect();
+    if (existingBindings.length >= 5) {
+      throw new Error('actor binding is closed after the frozen actor set is complete');
+    }
+
+    const [existingUser, existingSource] = await Promise.all([
+      ctx.db
+        .query('identityBinding')
+        .withIndex('by_user')
+        .eq('userID', sourceUser._id)
+        .first(),
+      ctx.db
+        .query('identityBinding')
+        .withIndex('by_source_user_id')
+        .eq('sourceUserID', sourceUser.id)
+        .first(),
+    ]);
+    if (existingUser || existingSource) {
+      throw new Error('source user is already bound');
+    }
+```
+
+The suite drives it by minting one session per actor (see
+[mint test personas](./sessions-and-principals.md#mint-test-personas-the-complete-local-recipe)),
+calling the binding mutation once per persona, and then proving the mapping
+by reading `acceptanceActorBindingSelf` back. A rerun against an
+already-bound instance must observe the refusal and then prove the existing
+row is the same one-to-one mapping — that is what makes the harness idempotent
+without weakening the refusal.
+
+The same closure technique gates the fixture loader itself; see
+[loading large deterministic fixtures](../testing/large-fixtures.md#gate-the-loader-in-a-sessions-app).
+
+**This is a harness pattern, not a product answer.** Its safety comes
+entirely from the frozen fixture and the closed actor set. Do not lift it
+into an application: without those, the actor argument is a caller-selected
+identity again.
+
+**Evidence:** the control's binding surface is exercised by its own
+`bun run test:lane2` (runtime-independent witnesses) and `test:lane2:live`
+(a seven-actor live gate), and by the retained ZB gate receipts under
+[`demos/zerobugs/evidence`](repo:demos/zerobugs/evidence). It is not part of
+the repository's CI proof; treat the snippets as a reviewed reference
+implementation whose behavior is receipt-witnessed at a point in time.
+
+## Reset reissues principals; it does not reissue app rows
+
+`app.reset` advances the auth boundary: existing bearers stop working and the
+same email remints to a **different** `userId`
+([reset invalidates sessions](./sessions-and-principals.md#reset-invalidates-sessions-and-reissues-principals)).
+Your app user rows, if they are seeded, survive. So every binding row is stale
+after a reset and must be rebuilt.
+
+Two rules follow:
+
+- **Never seed a binding row with a captured principal id.** Seed the app
+  users; bind after the reset, once real principals exist.
+- **Order the bootstrap: reset → load fixture → mint principals → bind.**
+  The dependency is circular by nature (the fixture creates the users a later
+  binding maps to), which is exactly why the loader and the binder each carry
+  their own closure sentinel.
+
+## What Snapback does not give you yet
+
+Handler auth exposes the resolved principal, not the verified identity claims
+the session was minted from. A first-class surface — verified email/subject
+claims readable by a handler, or a declared privileged provisioning path for
+binding rows — would let an app write the binding inside Snapback instead of
+in a broker. That is an open platform ask, tracked in
+[the identity-binding guide gap](repo:issues/20260808-guide-gap-principal-to-app-identity-binding.md);
+until it exists, Pattern A is the production answer and this section is the
+honest statement of the boundary.
+
+## Anti-patterns
+
+- **Do not accept an app user id as a mutation argument and bind it to the
+  caller's principal.** That is the bypass this whole page exists to prevent;
+  the caller controls the argument.
+- **Do not derive the app identity from anything the client sends** — not an
+  email in the body, not a header, not a JWT the client hands you. If the
+  handler did not mint it, the handler cannot verify it.
+- **Do not index only `by_principal`.** Without unique indexes on the app-user
+  and external-id sides, one app identity can be bound by two principals.
+- **Do not seed binding rows.** Principal ids are minted per run and reissued
+  by reset; a seeded binding points at an identity that no longer exists.
+- **Do not leave the bootstrap binding mutation in your public function
+  allowlist.** Reachability from an ordinary client session turns a closed
+  bootstrap back into an identity-selection API.
+- **Do not read app roles from the session.** Resolve the binding and read
+  the role off the app row.
+
+---
+
 <!-- snapback-guide-source: guide/auth/native-apps.md -->
 ---
 title: Authenticate a native app
@@ -2654,6 +3019,16 @@ handlers are server-derived. For sessions-mode details, see
 > for a complete worked translation of a Supabase RLS policy or a
 > Convex-style ownership check into a Snapback query filter.
 
+## Refuse with a declared application code
+
+A query has the same typed refusal channel a mutation has: declare
+`refusals: ['CODE']` on the function and raise it with
+`ctx.refuse(code, details?)` so the caller receives a stable application
+error code instead of an opaque `SNAPBACK_HANDLER_FAILED`. The complete rule
+— when a domain error deserves a code, the declaration/fold contract, and how
+plan `elseError` differs — is
+[refuse with a declared code](./mutations.md#refuse-with-a-declared-code-not-a-bare-throw).
+
 ## Make a query live only when needed
 
 `defineQuery` is callable but not subscribable. `defineLiveQuery` and
@@ -2693,13 +3068,13 @@ id: backend.mutations
 order: 2
 audience: agent-first
 capabilities: [backend.query-semantics]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0174-authoring-incidents-at-security-fences.research.md, src/server.rs, src/result_contract.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0174-authoring-incidents-at-security-fences.research.md, src/server.rs, src/runtime.rs, src/result_contract.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/refusal-tracking-authoring.test.mjs, tests/conformance/twin-corpus.handlers.js, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
 examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-07
-reviewed-commit: cca0db7d8e94c8d4943eb808d4e10238a506c70c
+reviewed: 2026-08-08
+reviewed-commit: effa2773760fd0d740c49f06990b3fde5e82a66b
 ---
 
 # Mutations
@@ -2769,6 +3144,12 @@ export const createIncident = defineJsMutation({
   },
 });
 ```
+
+Those two bare `throw`s are the minimum: they reject the write, but the caller
+receives only a generic handler failure. As soon as a caller could *act* on
+the reason — retry with a different value, be shown copy — declare the code
+instead; see
+[refuse with a declared code](#refuse-with-a-declared-code-not-a-bare-throw).
 
 The handler writes only through `ctx.db`. Server-owned ids, row versions, and
 storage timestamps are never authored by the handler. An inline handler
@@ -2843,20 +3224,89 @@ settle it without guessing. A confirmed receipt always carries a non-null
 durable `snapshotVersion`; `null` is allowed only for a rejected invocation
 whose durable cursor could not be read safely.
 
+## Refuse with a declared code, not a bare throw
+
 <!-- since: 0.1.9 -->
 
-Application-semantic refusals get typed codes instead of message prose. A
-handler declares a closed set — `refusals: ['STALE_MOVE']` (uppercase
-`A-Z0-9_`, never the reserved `SNAPBACK_` prefix, at most 64 per function) —
-and throws with `ctx.refuse(code, details?)`. The refusal arrives as the
-platform code `SNAPBACK_APP_REFUSAL` with `appCode` and `appDetails` in its
-diagnostic details; it never masks a platform denial, and a refusing mutation
-commits nothing. The host admits the claimed code only when the invoked
-function declared it and folds anything else — undeclared, forged, or bare —
-to `SNAPBACK_HANDLER_FAILED`, dropping the app payload. Queries and actions
-have the same `ctx.refuse` channel. To make a declared code issue-eligible,
-opt it into `trackedRefusals` — see
-[error tracking](../operating/error-tracking.md).
+**The rule: if a caller could act on the reason, declare it.** Write the
+refusal code at the moment you write the guard — not after a test discovers
+that the client cannot tell your business rule from a crash.
+
+A bare `throw new Error('seat is taken')` reaches the caller as the platform
+code `SNAPBACK_HANDLER_FAILED`, and the message text is deliberately *not* a
+public contract — it is withheld precisely so internal exception text cannot
+leak. So the client sees "the handler failed" and nothing else. That is the
+security posture working as designed, and it is also why refusal-first is a
+habit rather than a polish step: the Zerobugs control shipped every
+application-semantic refusal as a plain `throw` through ten receipted gate
+attempts, and only adopted the channel when a gate assertion caught that a
+short-id boundary refusal was invisible to the client
+([issue](repo:issues/20260808-guide-gap-declared-refusals-discoverability.md)).
+
+Declare a closed set of codes on the function:
+
+```js source=packages/snapback-codegen/refusal-tracking-authoring.test.mjs
+  export const moveTodo = defineJsMutation({
+    args: { id: v.id('todos') },
+    writes: ['todos'],
+    refusals: ['INVITE_CONSUMED', 'STALE_MOVE'],
+    trackedRefusals: ['STALE_MOVE'],
+    handler: async () => null,
+  });
+```
+
+Then throw one of them with `ctx.refuse(code, details?)`. The declaration is
+what types the throw — an undeclared code is *not* a smaller version of a
+declared one, it is the generic failure:
+
+```js source=tests/conformance/twin-corpus.handlers.js
+  async declaredAppRefusal(ctx, args) {
+    ctx.refuse('STALE_MOVE', { expected: 1, actual: args.revision });
+  },
+  async undeclaredAppRefusal(ctx) {
+    ctx.refuse('SOMETHING_ELSE', { hidden: 'must-not-cross-admission' });
+  },
+```
+
+Codes are uppercase `A-Z0-9_`, 1–64 characters, never the reserved
+`SNAPBACK_` prefix, and at most 64 per function; codegen refuses a violation
+with `FUNCTION_REFUSAL_DECLARATION_INVALID`. A declared refusal arrives as
+the platform code `SNAPBACK_APP_REFUSAL` carrying `appCode` and `appDetails`
+in `diagnostic.details`; it never masks a platform denial, and a refusing
+mutation commits nothing. The host admits the claimed code only when the
+invoked function declared it, and folds anything else — undeclared, forged,
+or a bare `SNAPBACK_APP_REFUSAL` claim — to `SNAPBACK_HANDLER_FAILED` with
+the app payload dropped. `ctx.refuse` returns `never`, so it needs no
+`throw` at the call site, and queries and actions have exactly the same
+channel.
+
+### Decide what deserves a code
+
+Ask what the caller would do with the answer:
+
+| Reason | Channel |
+| --- | --- |
+| The caller can retry differently, pick another value, or be shown copy ("seat taken", "invite already used", "stale revision") | **Declare it.** `refusals: [...]` + `ctx.refuse` |
+| The caller must reconcile a concurrent write | Already typed: `SNAPBACK_MUTATION_CONFLICT` |
+| The caller is not allowed to do this | Already typed: the auth codes, e.g. `SNAPBACK_AUTH_PERMISSION_DENIED` |
+| A bug, an impossible state, or an invariant the caller cannot influence | Leave it a bare `throw`; the generic fold is correct |
+
+Refusal codes are your product's vocabulary, so keep them stable: they end up
+in UI copy switches and in tests. To make one issue-eligible in
+[error tracking](../operating/error-tracking.md), also list it in
+`trackedRefusals` (a narrowing of `refusals`, never an admission by itself).
+
+The consuming side — matching `appCode` through optimistic rollback rather
+than parsing message text — is
+[show stable application errors](../clients/react.md#show-stable-application-errors-through-rollback).
+
+**Declarative host-plan mutations are a different channel.** `elseError` on
+`get(...)` and the code on `guard(...)` are plan refusals: that code arrives
+as `diagnostic.code` itself, not wrapped in `SNAPBACK_APP_REFUSAL` with an
+`appCode`. Codegen does not cross-check plan codes against `refusals`, so
+declaring the same string in both places documents intent but changes
+nothing. Match plan refusals on `diagnostic.code` and JS-handler refusals on
+`details.appCode`; do not write one client branch expecting both shapes.
 
 ## Preserve invariants with read sets
 
@@ -2978,6 +3428,14 @@ that needs its successor fails before writing with
   read sets are conflict detection, not a substitute for structural uniqueness.
 - **Do not swallow `SNAPBACK_MUTATION_CONFLICT`.** Reconcile or ask the user;
   blind retry may violate the invariant that caused the read.
+- **Do not signal an application-semantic refusal with a bare `throw`.** The
+  message is not a public contract and the caller receives only
+  `SNAPBACK_HANDLER_FAILED`; declare the code in `refusals` and raise it with
+  `ctx.refuse`.
+- **Do not invent an ad-hoc `{ ok: false, error }` result shape** to carry a
+  domain error past the result contract. A refusal is a rejection: it commits
+  nothing and settles the client's optimistic layer correctly, which a
+  successful-looking envelope does not.
 - **Do not count `SNAPBACK_AUTH_RESERVATION_STALE` as an authorization-rule
   denial.** Let the standard client retry the exact effect-free refusal, then
   assert the rule's exact code.
@@ -3919,13 +4377,13 @@ id: backend.assets
 order: 9
 audience: agent-first
 capabilities: [backend.assets]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0181-zero-configuration-expo.rfc.md, src/assets.rs, src/assets_cut.rs, src/cli.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-react/index.d.mts, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
-examples: [demos/party-wall, demos/file-drop, demos/tandem-expo-bakeoff, demos/expo-golden-path-fixture]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0181-zero-configuration-expo.rfc.md, src/assets.rs, src/assets_cut.rs, src/cli.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-react/index.d.mts, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md, demos/zerobugs/control/snapback/functions.mjs, demos/zerobugs/control/composition/server.mts]
+examples: [demos/party-wall, demos/file-drop, demos/tandem-expo-bakeoff, demos/expo-golden-path-fixture, demos/zerobugs/control]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-06
-reviewed-commit: 3d7f6eb4075c9aeebda35640a574e2667195972a
+reviewed: 2026-08-08
+reviewed-commit: effa2773760fd0d740c49f06990b3fde5e82a66b
 ---
 
 # Assets
@@ -4467,6 +4925,160 @@ export const clipUpload = defineAssetUpload({
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 ```
+
+## SVG: why the image intent refuses it, and the safe adapter
+
+SVG is not an image to the asset pipeline — it is a document that can carry
+script. Two deliberate mechanisms mean **you cannot simply add
+`image/svg+xml` to an image intent's `accept.mediaTypes`**:
+
+- **Trusted detection is byte-based and has no SVG entry.** Finalization
+  names the content type from the bytes, not from the client's declaration.
+  There is no SVG magic number, so an SVG body detects as
+  `application/octet-stream`. Finalization then compares the *detected* type
+  against the intent's accept list and fails the attempt with
+  `SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED` — the declaration was admitted at
+  attempt-create and refused at the trusted boundary, which is confusing
+  until you know why.
+- **Delivery force-attaches active content.** `image/svg+xml` (with
+  `text/html`, the XML types, JavaScript, and unrecognized
+  `application/octet-stream`) is on the never-inline list under every
+  delivery profile, so a stored SVG cannot become a same-origin script lane.
+
+So the platform's answer for SVG is "opaque bytes, never rendered inline by
+us". If your app genuinely needs SVG — a frozen source contract, an existing
+corpus — the paved shape is an **application-owned adapter** in four steps.
+The Zerobugs control implements it end to end (`C-ASSET` in its
+[PLAN](repo:demos/zerobugs/control/PLAN.md)).
+
+### 1. Validate exactly, server-side, before any upload starts
+
+Your code — not the platform — is now the type authority, so the check must
+be exact and it must run somewhere the client cannot reach. Match the
+declared MIME against the declared length **and** against the actual bytes:
+
+```ts source=demos/zerobugs/control/composition/server.mts
+function mimeMatches(contentType: string, bytes: Uint8Array): boolean {
+  const ascii = new TextDecoder('utf-8', {fatal: false}).decode(bytes.slice(0, 512));
+  if (contentType === 'image/jpeg') return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  if (contentType === 'image/png') return bytes.length >= 8 && [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((v, i) => bytes[i] === v);
+  if (contentType === 'image/gif') return ascii.startsWith('GIF87a') || ascii.startsWith('GIF89a');
+  if (contentType === 'image/webp') return ascii.startsWith('RIFF') && ascii.slice(8, 12) === 'WEBP';
+  if (contentType === 'image/svg+xml') return /^(?:\uFEFF|\s)*(?:<\?xml[^>]*>\s*)?<svg(?:\s|>)/iu.test(ascii);
+  return false;
+}
+```
+
+A signature test is a *shape* test, not a safety proof — an SVG that starts
+with `<svg` may still contain script. That is why the delivery step below is
+non-optional: the adapter's safety comes from the sandbox, and the signature
+check only keeps non-SVG bytes out of the SVG lane.
+
+### 2. Route SVG to a separately named opaque intent
+
+Declare two intents, not one widened intent. The ordinary image intent keeps
+the four detectable image types and the image pipeline; SVG gets its own
+intent that accepts `application/octet-stream` and declares **no `image`
+block** — no renditions, no ThumbHash, no width ladder:
+
+```js source=demos/zerobugs/control/snapback/functions.mjs
+// Native trusted MIME detection deliberately classifies active SVG as opaque.
+// The gateway admits this intent only after its own exact SVG signature/type/
+// length policy and serves the typed alias with the source MIME.
+export const zerobugsSvgUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  reads: ['identityBinding', 'user'],
+  accept: {mediaTypes: ['application/octet-stream'], maxBytes: 10 * 1024 * 1024},
+  delivery: {kind: 'public-immutable'},
+  access: {read: 'via-references'},
+  authorize: async (ctx) => {
+    await requireSourceUser(ctx);
+    return {owner: ctx.auth.userId};
+  },
+});
+```
+
+Upload the bytes under that intent with an octet-stream declaration, so the
+declared type and the detected type agree:
+
+```ts source=demos/zerobugs/control/composition/server.mts
+            const svgOpaque = contentType === 'image/svg+xml';
+            const upload = createAssetClient(session.client).start({
+              upload: (svgOpaque ? api.zerobugsSvgUpload : api.zerobugsImageUpload) as never,
+              file: new Blob([bytes], {type: svgOpaque ? 'application/octet-stream' : contentType}),
+              declaredFilename: `${capability.key}.${extensionFor(contentType)}`,
+              declaredContentType: svgOpaque ? 'application/octet-stream' : contentType,
+            });
+```
+
+Two named intents is the point: an audit can see which assets went through
+the trusted image detector and which went through your validator, and the
+`authorize` boundary stays per-intent.
+
+### 3. Attach through the typed `v.assetRef`, re-checking the pairing
+
+The row keeps the real source MIME beside the typed reference. Because the
+field must accept both intents, spell it `v.assetRef({ upload: null })` — the
+explicit unrestricted, handler-attach-only form — and re-assert MIME↔intent
+inside the attaching mutation so a caller cannot pair an SVG content type
+with the trusted image intent:
+
+```js source=demos/zerobugs/control/snapback/functions.mjs
+    if (
+      (args.contentType === 'image/svg+xml' && args.uploadKind !== 'svg-opaque')
+      || (args.contentType !== 'image/svg+xml' && args.uploadKind !== 'image')
+    ) throw new Error('asset upload intent was refused');
+```
+
+```js source=demos/zerobugs/control/snapback/functions.mjs
+    const asset = args.uploadKind === 'svg-opaque'
+      ? await ctx.assets.attach(args.assetID, {upload: 'zerobugsSvgUpload'})
+      : await ctx.assets.attach(args.assetID, {upload: 'zerobugsImageUpload'});
+```
+
+### 4. Serve through your own alias with `nosniff` and a sandbox CSP
+
+The native byte routes will not serve SVG inline, so the app owns a delivery
+alias that reads the native bytes and re-labels them with the stored source
+MIME. That re-labelling is what makes the sandbox headers mandatory — and
+the CSP is applied only to the SVG type, not to every asset:
+
+```ts source=demos/zerobugs/control/composition/server.mts
+            return new Response(native.body, {
+              status: 200,
+              headers: {
+                'content-type': String(row.contentType),
+                ...(native.headers.get('content-length')
+                  ? {'content-length': native.headers.get('content-length') as string}
+                  : {}),
+                'cache-control': 'public, max-age=31536000, immutable',
+                'access-control-allow-origin': '*',
+                'cross-origin-resource-policy': 'cross-origin',
+                'x-content-type-options': 'nosniff',
+                ...(row.contentType === 'image/svg+xml'
+                  ? {'content-security-policy': "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:"}
+                  : {}),
+              },
+            });
+```
+
+`sandbox` with `default-src 'none'` is what neutralizes script inside the
+document; `nosniff` stops a browser re-deciding the type. Serve the alias
+from an origin that holds nothing worth stealing if the sandbox is ever
+bypassed.
+
+**What this recipe is and is not.** It is an application adapter that keeps
+SVG inside the typed asset lifecycle (owned uploads, typed references,
+reference GC, deletion refusal while referenced). It is **not** native SVG
+support: there is no image pipeline for these assets — no declared variants,
+no `width=` ladder, no ThumbHash placeholder, no dimension or dominant-color
+facts — and no sanitizer. You own the validator, the alias route, and its
+headers. The control's implementation is witnessed by its own
+`test:lane5:live` route check and the retained ZB4/ZB7 receipts under
+[`demos/zerobugs/evidence`](repo:demos/zerobugs/evidence), not by repository
+CI. If you do not have a hard requirement, rasterize to PNG at the edge and
+use the ordinary image intent.
 
 ## Operate
 

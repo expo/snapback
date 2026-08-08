@@ -9,8 +9,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-07
-reviewed-commit: 30001b8d2902e6c83f74ccda7eb2c19de707f528
+reviewed: 2026-08-08
+reviewed-commit: effa2773760fd0d740c49f06990b3fde5e82a66b
 ---
 
 # Retrieval eval protocol
@@ -186,6 +186,37 @@ Case 17 is an absorption seed from the 2026-08-07 three-lane measurement
     shape table).
     Route terms: "retention", "args-filtered", "retainable",
     "SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE".
+
+Cases 18–20 are absorption seeds from the 2026-08-08 Zerobugs-control guide-gap
+tickets (declared refusals, principal↔app-identity binding, SVG assets).
+
+18. **Declared refusals:** "My mutation rejects a duplicate seat reservation,
+    but the client only sees `SNAPBACK_HANDLER_FAILED` — how do I give the
+    caller a reason it can act on?" (The replicated miss: the Zerobugs control
+    shipped every application-semantic refusal as a bare `throw` through ten
+    receipted gate attempts.) The run fails if the plan parses the failure
+    message, invents an `{ ok: false, error }` success envelope, or reuses a
+    platform `SNAPBACK_*` code as the domain code.
+    Expected pages: `backend/mutations.md`.
+    Route terms: "declared refusal", "ctx.refuse", "SNAPBACK_APP_REFUSAL",
+    "appCode".
+
+19. **Principal to app identity:** "My app has its own users table with OAuth
+    ids — how do I connect Snapback's `ctx.auth.userId` to it?" The run fails
+    if the plan writes a mutation that takes the app user id (or an email) as
+    an argument and binds it to the caller's principal, or seeds binding rows
+    with captured principal ids.
+    Expected pages: `auth/app-identity-binding.md`.
+    Route terms: "bind a principal", "identityBinding", "identity broker",
+    "app user row".
+
+20. **SVG assets:** "Uploading an `image/svg+xml` file fails even though I
+    listed it in the intent's `accept.mediaTypes`." The run fails if the plan
+    tries to widen the trusted image detector, treats the refusal as a bug, or
+    serves SVG through an app alias without `nosniff` plus a sandbox CSP.
+    Expected pages: `backend/assets.md`.
+    Route terms: "SVG", "image/svg+xml",
+    "SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED", "nosniff".
 
 ## Static routing check
 

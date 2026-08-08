@@ -4,13 +4,13 @@ id: backend.mutations
 order: 2
 audience: agent-first
 capabilities: [backend.query-semantics]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0174-authoring-incidents-at-security-fences.research.md, src/server.rs, src/result_contract.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0174-authoring-incidents-at-security-fences.research.md, src/server.rs, src/runtime.rs, src/result_contract.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/refusal-tracking-authoring.test.mjs, tests/conformance/twin-corpus.handlers.js, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
 examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-07
-reviewed-commit: cca0db7d8e94c8d4943eb808d4e10238a506c70c
+reviewed: 2026-08-08
+reviewed-commit: effa2773760fd0d740c49f06990b3fde5e82a66b
 ---
 
 # Mutations
@@ -80,6 +80,12 @@ export const createIncident = defineJsMutation({
   },
 });
 ```
+
+Those two bare `throw`s are the minimum: they reject the write, but the caller
+receives only a generic handler failure. As soon as a caller could *act* on
+the reason — retry with a different value, be shown copy — declare the code
+instead; see
+[refuse with a declared code](#refuse-with-a-declared-code-not-a-bare-throw).
 
 The handler writes only through `ctx.db`. Server-owned ids, row versions, and
 storage timestamps are never authored by the handler. An inline handler
@@ -154,20 +160,89 @@ settle it without guessing. A confirmed receipt always carries a non-null
 durable `snapshotVersion`; `null` is allowed only for a rejected invocation
 whose durable cursor could not be read safely.
 
+## Refuse with a declared code, not a bare throw
+
 <!-- since: 0.1.9 -->
 
-Application-semantic refusals get typed codes instead of message prose. A
-handler declares a closed set — `refusals: ['STALE_MOVE']` (uppercase
-`A-Z0-9_`, never the reserved `SNAPBACK_` prefix, at most 64 per function) —
-and throws with `ctx.refuse(code, details?)`. The refusal arrives as the
-platform code `SNAPBACK_APP_REFUSAL` with `appCode` and `appDetails` in its
-diagnostic details; it never masks a platform denial, and a refusing mutation
-commits nothing. The host admits the claimed code only when the invoked
-function declared it and folds anything else — undeclared, forged, or bare —
-to `SNAPBACK_HANDLER_FAILED`, dropping the app payload. Queries and actions
-have the same `ctx.refuse` channel. To make a declared code issue-eligible,
-opt it into `trackedRefusals` — see
-[error tracking](../operating/error-tracking.md).
+**The rule: if a caller could act on the reason, declare it.** Write the
+refusal code at the moment you write the guard — not after a test discovers
+that the client cannot tell your business rule from a crash.
+
+A bare `throw new Error('seat is taken')` reaches the caller as the platform
+code `SNAPBACK_HANDLER_FAILED`, and the message text is deliberately *not* a
+public contract — it is withheld precisely so internal exception text cannot
+leak. So the client sees "the handler failed" and nothing else. That is the
+security posture working as designed, and it is also why refusal-first is a
+habit rather than a polish step: the Zerobugs control shipped every
+application-semantic refusal as a plain `throw` through ten receipted gate
+attempts, and only adopted the channel when a gate assertion caught that a
+short-id boundary refusal was invisible to the client
+([issue](repo:issues/20260808-guide-gap-declared-refusals-discoverability.md)).
+
+Declare a closed set of codes on the function:
+
+```js source=packages/snapback-codegen/refusal-tracking-authoring.test.mjs
+  export const moveTodo = defineJsMutation({
+    args: { id: v.id('todos') },
+    writes: ['todos'],
+    refusals: ['INVITE_CONSUMED', 'STALE_MOVE'],
+    trackedRefusals: ['STALE_MOVE'],
+    handler: async () => null,
+  });
+```
+
+Then throw one of them with `ctx.refuse(code, details?)`. The declaration is
+what types the throw — an undeclared code is *not* a smaller version of a
+declared one, it is the generic failure:
+
+```js source=tests/conformance/twin-corpus.handlers.js
+  async declaredAppRefusal(ctx, args) {
+    ctx.refuse('STALE_MOVE', { expected: 1, actual: args.revision });
+  },
+  async undeclaredAppRefusal(ctx) {
+    ctx.refuse('SOMETHING_ELSE', { hidden: 'must-not-cross-admission' });
+  },
+```
+
+Codes are uppercase `A-Z0-9_`, 1–64 characters, never the reserved
+`SNAPBACK_` prefix, and at most 64 per function; codegen refuses a violation
+with `FUNCTION_REFUSAL_DECLARATION_INVALID`. A declared refusal arrives as
+the platform code `SNAPBACK_APP_REFUSAL` carrying `appCode` and `appDetails`
+in `diagnostic.details`; it never masks a platform denial, and a refusing
+mutation commits nothing. The host admits the claimed code only when the
+invoked function declared it, and folds anything else — undeclared, forged,
+or a bare `SNAPBACK_APP_REFUSAL` claim — to `SNAPBACK_HANDLER_FAILED` with
+the app payload dropped. `ctx.refuse` returns `never`, so it needs no
+`throw` at the call site, and queries and actions have exactly the same
+channel.
+
+### Decide what deserves a code
+
+Ask what the caller would do with the answer:
+
+| Reason | Channel |
+| --- | --- |
+| The caller can retry differently, pick another value, or be shown copy ("seat taken", "invite already used", "stale revision") | **Declare it.** `refusals: [...]` + `ctx.refuse` |
+| The caller must reconcile a concurrent write | Already typed: `SNAPBACK_MUTATION_CONFLICT` |
+| The caller is not allowed to do this | Already typed: the auth codes, e.g. `SNAPBACK_AUTH_PERMISSION_DENIED` |
+| A bug, an impossible state, or an invariant the caller cannot influence | Leave it a bare `throw`; the generic fold is correct |
+
+Refusal codes are your product's vocabulary, so keep them stable: they end up
+in UI copy switches and in tests. To make one issue-eligible in
+[error tracking](../operating/error-tracking.md), also list it in
+`trackedRefusals` (a narrowing of `refusals`, never an admission by itself).
+
+The consuming side — matching `appCode` through optimistic rollback rather
+than parsing message text — is
+[show stable application errors](../clients/react.md#show-stable-application-errors-through-rollback).
+
+**Declarative host-plan mutations are a different channel.** `elseError` on
+`get(...)` and the code on `guard(...)` are plan refusals: that code arrives
+as `diagnostic.code` itself, not wrapped in `SNAPBACK_APP_REFUSAL` with an
+`appCode`. Codegen does not cross-check plan codes against `refusals`, so
+declaring the same string in both places documents intent but changes
+nothing. Match plan refusals on `diagnostic.code` and JS-handler refusals on
+`details.appCode`; do not write one client branch expecting both shapes.
 
 ## Preserve invariants with read sets
 
@@ -289,6 +364,14 @@ that needs its successor fails before writing with
   read sets are conflict detection, not a substitute for structural uniqueness.
 - **Do not swallow `SNAPBACK_MUTATION_CONFLICT`.** Reconcile or ask the user;
   blind retry may violate the invariant that caused the read.
+- **Do not signal an application-semantic refusal with a bare `throw`.** The
+  message is not a public contract and the caller receives only
+  `SNAPBACK_HANDLER_FAILED`; declare the code in `refusals` and raise it with
+  `ctx.refuse`.
+- **Do not invent an ad-hoc `{ ok: false, error }` result shape** to carry a
+  domain error past the result contract. A refusal is a rejection: it commits
+  nothing and settles the client's optimistic layer correctly, which a
+  successful-looking envelope does not.
 - **Do not count `SNAPBACK_AUTH_RESERVATION_STALE` as an authorization-rule
   denial.** Let the standard client retry the exact effect-free refusal, then
   assert the rule's exact code.

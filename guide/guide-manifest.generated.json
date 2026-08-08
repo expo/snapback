@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "fa65ff8c36784841bd0036bb302b4e9ec4167d14"
+    "commit": "effa2773760fd0d740c49f06990b3fde5e82a66b"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -61,6 +61,11 @@
         "id": "auth.agent-principals",
         "order": 4,
         "title": "Agent principals and scoped grants"
+      },
+      {
+        "id": "auth.app-identity-binding",
+        "order": 5,
+        "title": "Bind a principal to your app's user identity"
       },
       {
         "id": "auth.native-apps",
@@ -374,6 +379,66 @@
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
       "sha256": "33b1a24f50a0a386826281c2ee5ca7e7f312e941946d2c34205bc7ffbad706a4",
       "snippets": []
+    },
+    "auth.app-identity-binding": {
+      "path": "guide/auth/app-identity-binding.md",
+      "title": "Bind a principal to your app's user identity",
+      "order": 5,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "auth.sessions",
+        "auth.external-identity-broker"
+      ],
+      "authorities": [
+        "llp/0039-auth-vertical-slice.rfc.md",
+        "llp/0057-auth-provider-protocol.spec.md",
+        "llp/0096-auth-profiles-for-protocol-clients.spec.md",
+        "llp/0183-zerobugs-quality-surface.rfc.md",
+        "packages/snapback-client/index.mjs",
+        "demos/zerobugs/control/snapback/schema.mjs",
+        "demos/zerobugs/control/snapback/functions.mjs"
+      ],
+      "examples": [
+        "demos/zerobugs/control"
+      ],
+      "reviewed": "2026-08-08",
+      "reviewedCommit": "effa2773760fd0d740c49f06990b3fde5e82a66b",
+      "sha256": "90cce418ae8addbb66e8ed939b580b8352b6d13476bef5c0d86aafc4ca962ac0",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/zerobugs/control/snapback/schema.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/zerobugs/control/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/zerobugs/control/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/zerobugs/control/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "fragment"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/zerobugs/control/snapback/functions.mjs"
+        }
+      ]
     },
     "auth.native-apps": {
       "path": "guide/auth/native-apps.md",
@@ -760,17 +825,20 @@
         "packages/snapback-expo/asset-source.mjs",
         "packages/snapback-react/index.d.mts",
         "packages/snapback-vite/allowlist.mjs",
-        "tests/acceptance/asset-lifecycle-v1-evidence.md"
+        "tests/acceptance/asset-lifecycle-v1-evidence.md",
+        "demos/zerobugs/control/snapback/functions.mjs",
+        "demos/zerobugs/control/composition/server.mts"
       ],
       "examples": [
         "demos/party-wall",
         "demos/file-drop",
         "demos/tandem-expo-bakeoff",
-        "demos/expo-golden-path-fixture"
+        "demos/expo-golden-path-fixture",
+        "demos/zerobugs/control"
       ],
-      "reviewed": "2026-08-06",
-      "reviewedCommit": "3d7f6eb4075c9aeebda35640a574e2667195972a",
-      "sha256": "3a4d0555b5ea68091f26abff61f128f667cb6fb54b1451a0fe9e599c32fa4339",
+      "reviewed": "2026-08-08",
+      "reviewedCommit": "effa2773760fd0d740c49f06990b3fde5e82a66b",
+      "sha256": "321ba48a6a81e514d3e3321946d40acc58882170b6f8ae4bd9ed08183790c6fa",
       "snippets": [
         {
           "lang": "js",
@@ -852,6 +920,36 @@
           "lang": "js",
           "class": "transcluded",
           "source": "packages/snapback-codegen/asset-upload-authoring.test.mjs"
+        },
+        {
+          "lang": "ts",
+          "class": "transcluded",
+          "source": "demos/zerobugs/control/composition/server.mts"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/zerobugs/control/snapback/functions.mjs"
+        },
+        {
+          "lang": "ts",
+          "class": "transcluded",
+          "source": "demos/zerobugs/control/composition/server.mts"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/zerobugs/control/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/zerobugs/control/snapback/functions.mjs"
+        },
+        {
+          "lang": "ts",
+          "class": "transcluded",
+          "source": "demos/zerobugs/control/composition/server.mts"
         },
         {
           "lang": "js",
@@ -1012,11 +1110,16 @@
         "llp/0007-storage-portability.spec.md",
         "llp/0059-session-projection-and-client-barrier.spec.md",
         "llp/0108-inline-handlers-and-result-contracts.spec.md",
+        "llp/0144-declared-app-refusal-codes.rfc.md",
         "llp/0174-authoring-incidents-at-security-fences.research.md",
         "src/server.rs",
+        "src/runtime.rs",
         "src/result_contract.rs",
         "schemas/mutation.output.schema.json",
         "packages/snapback-codegen/define.mjs",
+        "packages/snapback-harness/ctx-bootstrap.js",
+        "packages/snapback-codegen/refusal-tracking-authoring.test.mjs",
+        "tests/conformance/twin-corpus.handlers.js",
         "demos/signal-desk/snapback/functions.mjs",
         "demos/todo/tests/acceptance/headless.mjs"
       ],
@@ -1025,9 +1128,9 @@
         "demos/todo-v2",
         "demos/signal-desk"
       ],
-      "reviewed": "2026-08-07",
-      "reviewedCommit": "cca0db7d8e94c8d4943eb808d4e10238a506c70c",
-      "sha256": "ef8457aa4fee09cf340412afdaed559951a5b8a54b55cbe23a7e8868a774fa9c",
+      "reviewed": "2026-08-08",
+      "reviewedCommit": "effa2773760fd0d740c49f06990b3fde5e82a66b",
+      "sha256": "864a715bfb084fab1f66f47236b4465f1b328af526c668a3c833bf62b9034c18",
       "snippets": [
         {
           "lang": "js",
@@ -1038,6 +1141,16 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/todo/tests/acceptance/headless.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/refusal-tracking-authoring.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "tests/conformance/twin-corpus.handlers.js"
         },
         {
           "lang": "js",
@@ -1083,7 +1196,7 @@
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "5944b2eefebc149f34f24742f030b23925e5e5ea7678e9ad07991de93299463c",
+      "sha256": "227c5b21f7112a50b41a59f0c41f34069ec1cb0dfee84d3668f57d077d2f8da7",
       "snippets": [
         {
           "lang": "js",
@@ -1525,9 +1638,9 @@
         "packages/snapback-react/index.mjs"
       ],
       "examples": [],
-      "reviewed": "2026-08-07",
-      "reviewedCommit": "6a1de382fade55da910e3ab1f40115e1e0cfad48",
-      "sha256": "89c39d70a69447c47658080a5bd7361368682f4d35e08b22cb74fa1b45638715",
+      "reviewed": "2026-08-08",
+      "reviewedCommit": "effa2773760fd0d740c49f06990b3fde5e82a66b",
+      "sha256": "9c139a36965cba0dd54411d31e9f80e18ccfd162df0c3fcb675e79491808a5ac",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2349,7 +2462,7 @@
       ],
       "reviewed": "2026-08-07",
       "reviewedCommit": "cca0db7d8e94c8d4943eb808d4e10238a506c70c",
-      "sha256": "90b2c312628437807b6e8c7fa56534ae47ee4ec36c8d473774dd0c23435b677a",
+      "sha256": "917172d07f00274740dab072684c93fb083eb7f5f5a458417c75a8ba6eb411cb",
       "snippets": [
         {
           "lang": "json",
@@ -3219,9 +3332,9 @@
         "llp/0061-agent-first-snapback-guide.rfc.md"
       ],
       "examples": [],
-      "reviewed": "2026-08-07",
-      "reviewedCommit": "30001b8d2902e6c83f74ccda7eb2c19de707f528",
-      "sha256": "735634a326cfc896263213c17792d300172be5e5bd6500aabf0c5ddc5dcd731a",
+      "reviewed": "2026-08-08",
+      "reviewedCommit": "effa2773760fd0d740c49f06990b3fde5e82a66b",
+      "sha256": "0787486c1a650af149c44c4777043ab0090591127db244719c6e2fbeb9e87f3f",
       "snippets": []
     },
     "meta.surface-map": {
@@ -3614,5 +3727,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "86a88ddbac5719648751e33aee8e3b0c7ea69d8ba351a23099a1068c0c36ebb9"
+  "contentHash": "89c38f28eb2eacd70249b8ee033f0239eacb4409bf5b4ab56fd979905f5bc504"
 }

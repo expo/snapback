@@ -4,13 +4,13 @@ id: backend.assets
 order: 9
 audience: agent-first
 capabilities: [backend.assets]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0181-zero-configuration-expo.rfc.md, src/assets.rs, src/assets_cut.rs, src/cli.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-react/index.d.mts, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
-examples: [demos/party-wall, demos/file-drop, demos/tandem-expo-bakeoff, demos/expo-golden-path-fixture]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0181-zero-configuration-expo.rfc.md, src/assets.rs, src/assets_cut.rs, src/cli.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-react/index.d.mts, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md, demos/zerobugs/control/snapback/functions.mjs, demos/zerobugs/control/composition/server.mts]
+examples: [demos/party-wall, demos/file-drop, demos/tandem-expo-bakeoff, demos/expo-golden-path-fixture, demos/zerobugs/control]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-06
-reviewed-commit: 3d7f6eb4075c9aeebda35640a574e2667195972a
+reviewed: 2026-08-08
+reviewed-commit: effa2773760fd0d740c49f06990b3fde5e82a66b
 ---
 
 # Assets
@@ -552,6 +552,160 @@ export const clipUpload = defineAssetUpload({
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 ```
+
+## SVG: why the image intent refuses it, and the safe adapter
+
+SVG is not an image to the asset pipeline — it is a document that can carry
+script. Two deliberate mechanisms mean **you cannot simply add
+`image/svg+xml` to an image intent's `accept.mediaTypes`**:
+
+- **Trusted detection is byte-based and has no SVG entry.** Finalization
+  names the content type from the bytes, not from the client's declaration.
+  There is no SVG magic number, so an SVG body detects as
+  `application/octet-stream`. Finalization then compares the *detected* type
+  against the intent's accept list and fails the attempt with
+  `SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED` — the declaration was admitted at
+  attempt-create and refused at the trusted boundary, which is confusing
+  until you know why.
+- **Delivery force-attaches active content.** `image/svg+xml` (with
+  `text/html`, the XML types, JavaScript, and unrecognized
+  `application/octet-stream`) is on the never-inline list under every
+  delivery profile, so a stored SVG cannot become a same-origin script lane.
+
+So the platform's answer for SVG is "opaque bytes, never rendered inline by
+us". If your app genuinely needs SVG — a frozen source contract, an existing
+corpus — the paved shape is an **application-owned adapter** in four steps.
+The Zerobugs control implements it end to end (`C-ASSET` in its
+[PLAN](repo:demos/zerobugs/control/PLAN.md)).
+
+### 1. Validate exactly, server-side, before any upload starts
+
+Your code — not the platform — is now the type authority, so the check must
+be exact and it must run somewhere the client cannot reach. Match the
+declared MIME against the declared length **and** against the actual bytes:
+
+```ts source=demos/zerobugs/control/composition/server.mts
+function mimeMatches(contentType: string, bytes: Uint8Array): boolean {
+  const ascii = new TextDecoder('utf-8', {fatal: false}).decode(bytes.slice(0, 512));
+  if (contentType === 'image/jpeg') return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  if (contentType === 'image/png') return bytes.length >= 8 && [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((v, i) => bytes[i] === v);
+  if (contentType === 'image/gif') return ascii.startsWith('GIF87a') || ascii.startsWith('GIF89a');
+  if (contentType === 'image/webp') return ascii.startsWith('RIFF') && ascii.slice(8, 12) === 'WEBP';
+  if (contentType === 'image/svg+xml') return /^(?:\uFEFF|\s)*(?:<\?xml[^>]*>\s*)?<svg(?:\s|>)/iu.test(ascii);
+  return false;
+}
+```
+
+A signature test is a *shape* test, not a safety proof — an SVG that starts
+with `<svg` may still contain script. That is why the delivery step below is
+non-optional: the adapter's safety comes from the sandbox, and the signature
+check only keeps non-SVG bytes out of the SVG lane.
+
+### 2. Route SVG to a separately named opaque intent
+
+Declare two intents, not one widened intent. The ordinary image intent keeps
+the four detectable image types and the image pipeline; SVG gets its own
+intent that accepts `application/octet-stream` and declares **no `image`
+block** — no renditions, no ThumbHash, no width ladder:
+
+```js source=demos/zerobugs/control/snapback/functions.mjs
+// Native trusted MIME detection deliberately classifies active SVG as opaque.
+// The gateway admits this intent only after its own exact SVG signature/type/
+// length policy and serves the typed alias with the source MIME.
+export const zerobugsSvgUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  reads: ['identityBinding', 'user'],
+  accept: {mediaTypes: ['application/octet-stream'], maxBytes: 10 * 1024 * 1024},
+  delivery: {kind: 'public-immutable'},
+  access: {read: 'via-references'},
+  authorize: async (ctx) => {
+    await requireSourceUser(ctx);
+    return {owner: ctx.auth.userId};
+  },
+});
+```
+
+Upload the bytes under that intent with an octet-stream declaration, so the
+declared type and the detected type agree:
+
+```ts source=demos/zerobugs/control/composition/server.mts
+            const svgOpaque = contentType === 'image/svg+xml';
+            const upload = createAssetClient(session.client).start({
+              upload: (svgOpaque ? api.zerobugsSvgUpload : api.zerobugsImageUpload) as never,
+              file: new Blob([bytes], {type: svgOpaque ? 'application/octet-stream' : contentType}),
+              declaredFilename: `${capability.key}.${extensionFor(contentType)}`,
+              declaredContentType: svgOpaque ? 'application/octet-stream' : contentType,
+            });
+```
+
+Two named intents is the point: an audit can see which assets went through
+the trusted image detector and which went through your validator, and the
+`authorize` boundary stays per-intent.
+
+### 3. Attach through the typed `v.assetRef`, re-checking the pairing
+
+The row keeps the real source MIME beside the typed reference. Because the
+field must accept both intents, spell it `v.assetRef({ upload: null })` — the
+explicit unrestricted, handler-attach-only form — and re-assert MIME↔intent
+inside the attaching mutation so a caller cannot pair an SVG content type
+with the trusted image intent:
+
+```js source=demos/zerobugs/control/snapback/functions.mjs
+    if (
+      (args.contentType === 'image/svg+xml' && args.uploadKind !== 'svg-opaque')
+      || (args.contentType !== 'image/svg+xml' && args.uploadKind !== 'image')
+    ) throw new Error('asset upload intent was refused');
+```
+
+```js source=demos/zerobugs/control/snapback/functions.mjs
+    const asset = args.uploadKind === 'svg-opaque'
+      ? await ctx.assets.attach(args.assetID, {upload: 'zerobugsSvgUpload'})
+      : await ctx.assets.attach(args.assetID, {upload: 'zerobugsImageUpload'});
+```
+
+### 4. Serve through your own alias with `nosniff` and a sandbox CSP
+
+The native byte routes will not serve SVG inline, so the app owns a delivery
+alias that reads the native bytes and re-labels them with the stored source
+MIME. That re-labelling is what makes the sandbox headers mandatory — and
+the CSP is applied only to the SVG type, not to every asset:
+
+```ts source=demos/zerobugs/control/composition/server.mts
+            return new Response(native.body, {
+              status: 200,
+              headers: {
+                'content-type': String(row.contentType),
+                ...(native.headers.get('content-length')
+                  ? {'content-length': native.headers.get('content-length') as string}
+                  : {}),
+                'cache-control': 'public, max-age=31536000, immutable',
+                'access-control-allow-origin': '*',
+                'cross-origin-resource-policy': 'cross-origin',
+                'x-content-type-options': 'nosniff',
+                ...(row.contentType === 'image/svg+xml'
+                  ? {'content-security-policy': "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:"}
+                  : {}),
+              },
+            });
+```
+
+`sandbox` with `default-src 'none'` is what neutralizes script inside the
+document; `nosniff` stops a browser re-deciding the type. Serve the alias
+from an origin that holds nothing worth stealing if the sandbox is ever
+bypassed.
+
+**What this recipe is and is not.** It is an application adapter that keeps
+SVG inside the typed asset lifecycle (owned uploads, typed references,
+reference GC, deletion refusal while referenced). It is **not** native SVG
+support: there is no image pipeline for these assets — no declared variants,
+no `width=` ladder, no ThumbHash placeholder, no dimension or dominant-color
+facts — and no sanitizer. You own the validator, the alias route, and its
+headers. The control's implementation is witnessed by its own
+`test:lane5:live` route check and the retained ZB4/ZB7 receipts under
+[`demos/zerobugs/evidence`](repo:demos/zerobugs/evidence), not by repository
+CI. If you do not have a hard requirement, rasterize to PNG at the edge and
+use the ordinary image intent.
 
 ## Operate
 
