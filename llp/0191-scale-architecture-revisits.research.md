@@ -5,11 +5,13 @@
 **Systems:** Live queries, Local sync, Storage, Auth, Schema, Relational queries, Client SDK, Effects, Deployment, Performance
 **Author:** Claude Fable 5 (analysis and synthesis; commissioned by Charlie Cheever, 2026-08-08)
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (§1 dated note: a production rung-1 coalescing
+**Revised:** 2026-08-08 (§1 dated notes: a production rung-1 coalescing
 lane landed the same day via the ticket sweep under LLP 0008's dated
 decision, behind `SNAPBACK_LIVE_COALESCE_DISABLED` as the A/B control arm,
-with synthetic reduced-scale evidence; the OQ4 measurement spike with its
-predeclared axes, the 5.5M-row A/B rerun, and rungs 2–5 remain open).
+with synthetic reduced-scale evidence; later the same day the OQ4
+measurement spike ran all predeclared axes at 5.5M rows — hypothesis not
+confirmed, settlement isolation ranked as the dominant lever, 521-vs-12
+resolved — unblocking the D2/D4 owner-Specs; rungs 2–5 remain open).
 Same day, earlier (rounds 1–2 super-refine revisions, design-partner
 lens. Round 1: ladder revised to five rungs; settlement isolation added;
 §§3–6 decisions restructured on the trust-domain and ownership boundaries
@@ -239,6 +241,32 @@ convergence timed separately, the 5.5M-row A/B arms) remain to be run, and
 rungs 2–5, settlement isolation, and evaluation cancellation remain open
 with the D2/D4 owner-Specs. The ticket stays open as the workstream
 anchor.
+
+**Dated note (2026-08-08, OQ4 spike results):** the commissioned spike ran
+the same day — twelve A/B arms over the predeclared axes at 5.5M rows
+(artifacts: branch `spike/oq4-coalescing-measurement`; full disposition:
+`issues/closed/20260808-oq4-coalescing-measurement-spike.md`). The
+single-digit-seconds hypothesis for rung 1 was **not confirmed** (burst
+trigger p50 23.6 s coalescing-on vs 33.2 s off; N=1 per arm, shape
+evidence): the frame-kind counters show ~90% of delivered evaluation
+frames at this store shape ride the authorization lane, which the landed
+coalescer excludes by design, so the synthetic 15.6× replace-lane result
+does not transfer. The decomposition answers this section's
+settlement-isolation question empirically: with zero observers the
+48-mutation inventory settles at ~0.2 s; with observers, commits are
+durable early but mutate responses wait up to ~10.7 s behind subscriber
+evaluation — including refused, commit-free mutations — and sustained
+4/s writes are throughput-bound at ≈0.85 settles/s with or without
+coalescing. Matcher counters recorded 0 conservative fallbacks with skips
+matching the trigger partition (rung 2 is not the binding constraint on
+this inventory; the two predeclared-relevance disagreements were
+predeclaration errors), and six same-partition observers cost the same as
+six mixed (rung 3 memoization has ~6× measured headroom). The 521-vs-12
+delivery discrepancy is resolved as a unit-and-lifecycle accounting
+difference, not evidence of delivery coalescing. The D2/D4 owner-Specs
+(commissioned, now unblocked) should rank settlement isolation first in
+rung 1's remainder and either include the authorization lane in
+coalescing's scope or justify its exclusion.
 
 ## 2. Local facts as a read path (retention is not just offline)
 

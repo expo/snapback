@@ -102,3 +102,27 @@ revised five-rung ladder):**
   expose them when the D4 Spec lands its observability section.
 - The force-replace-after-resync lane has reasoning + conservative-direction
   coverage but no direct automated test (needs an auth-scoped harness).
+
+## OQ4 spike results (2026-08-08) — hypothesis not confirmed; settlement isolation is the lever
+
+The commissioned spike ran all predeclared axes (twelve A/B arms at 5.5M
+rows; full numbers and disposition in the closed ticket
+`issues/closed/20260808-oq4-coalescing-measurement-spike.md`; artifacts on
+branch `spike/oq4-coalescing-measurement`). Headlines for this anchor:
+
+- Coalescing did **not** produce single-digit-second burst settles
+  (trigger p50 23.6 s on vs 33.2 s off; whole-inventory median 23.0 s vs
+  17.8 s): ~90% of delivered evaluation frames ride the authorization
+  lane, which the landed rung-1 lane excludes by design.
+- **Settlement isolation dominates**: zero observers → whole inventory
+  settles at ~0.2 s; commits are durable early but responses wait up to
+  ~10.7 s behind subscriber evaluation — refused, commit-free mutations
+  included. Settle p50 scales ~0.2 s → ~8 s → ~20–40 s at 0/1/6 observers.
+- Sustained 4/s writes are **throughput-bound at ≈0.85 settles/s with or
+  without coalescing** (both arms settled ~105/480 in-window).
+- Matcher: 0 conservative fallbacks, 0 delta-lane deliveries; skip rate
+  matches the trigger partition — rung 2 is not the binding constraint on
+  this inventory. Same-partition six observers cost the same as mixed six —
+  rung 3 memoization has ~6× measured headroom.
+- The 521-vs-12 delivery discrepancy is resolved as a
+  unit-and-lifecycle accounting difference (see the closed spike ticket §7).

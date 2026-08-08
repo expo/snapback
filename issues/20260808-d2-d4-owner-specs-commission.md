@@ -2,6 +2,14 @@
 
 **Opened:** 2026-08-08 · **Ruling:** LLP 0191 "Author rulings" #1, Charlie Cheever 2026-08-08 · **Gate:** drafting starts after the OQ4 spike reports (`20260808-oq4-coalescing-measurement-spike.md`)
 
+**Gate cleared (2026-08-08):** the OQ4 spike ran and reported; results and
+Spec-facing disposition are in
+`issues/closed/20260808-oq4-coalescing-measurement-spike.md` (headline:
+hypothesis not confirmed; rank settlement isolation first in the D4 rung-1
+remainder, and scope coalescing's authorization-lane exclusion explicitly;
+rung 2 is not the binding constraint; rung 3 has ~6× measured headroom).
+Drafting is unblocked.
+
 Two separable owner-Specs, per LLP 0191 §1's revised ladder:
 
 **D4-side (scheduling/lifecycle Spec):** rung 1 — coalescing,
