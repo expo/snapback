@@ -20,6 +20,7 @@ import { fileURLToPath } from 'node:url';
 import {
   BARRIER_STABILITY_RESERVE_MS,
   CURRENT_LEASE_SCHEMA_VERSION,
+  LEASE_ISSUED_AT_SKEW_ALLOWANCE_MS,
   LEASE_LIFETIME_MS,
   MODELED_TAG_MOVE_PHASE_MS,
   PROMOTION_ROLLBACK_RESERVE_MS,
@@ -195,7 +196,14 @@ export function buildLatestProofPlan({
   ) {
     throw new Error('authorized lease has an unsupported generation or lifetime');
   }
-  if (!Number.isFinite(now) || now < issuedAt || now >= expiresAt) {
+  // Same bounded authority-ahead skew allowance as validatePublicationLease:
+  // plan generation can run within milliseconds of issuance, so the local
+  // clock may still trail the authority's issuedAt stamp. Expiry stays strict.
+  if (
+    !Number.isFinite(now)
+    || now < issuedAt - LEASE_ISSUED_AT_SKEW_ALLOWANCE_MS
+    || now >= expiresAt
+  ) {
     throw new Error('authorized lease is not current');
   }
   if (lease?.candidateLedgerSha256 !== ledger.candidateLedgerSha256) {
