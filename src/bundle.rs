@@ -816,6 +816,62 @@ pub fn function_route_arg_types(
         .collect()
 }
 
+/// Declaration-derived decode types for object-reachable route parameters.
+/// The argument-contract root contributes paths of length one, and only
+/// `Object` nodes extend a path; every non-scalar leaf fails closed.
+///
+/// @ref LLP 0092#dated-amendment-structured-route-group-arguments-2026-08-08
+///   — LLP 0131's carried `argsContract` invalidated step 3's "no
+///   manifest-carried arg schema" premise for nested positions, while
+///   depth-1 positions deliberately keep [`function_route_arg_types`].
+pub fn function_nested_route_arg_types(
+    function: &crate::manifest::FunctionDefinition,
+) -> BTreeMap<Vec<String>, RouteParamType> {
+    use crate::manifest::{ResultObjectFieldContract, ResultValueContract};
+
+    fn collect(
+        fields: &[ResultObjectFieldContract],
+        path: &mut Vec<String>,
+        types: &mut BTreeMap<Vec<String>, RouteParamType>,
+    ) {
+        for field in fields {
+            path.push(field.name.clone());
+            let inferred = match &field.value {
+                ResultValueContract::String { .. }
+                | ResultValueContract::Principal
+                | ResultValueContract::AssetRef
+                | ResultValueContract::Id { .. } => Some(RouteParamType::String),
+                ResultValueContract::Integer { .. } => Some(RouteParamType::Integer),
+                ResultValueContract::FiniteReal { .. } => Some(RouteParamType::Number),
+                ResultValueContract::Boolean => Some(RouteParamType::Boolean),
+                ResultValueContract::Object { fields, .. } => {
+                    collect(fields, path, types);
+                    None
+                }
+                ResultValueContract::Null
+                | ResultValueContract::Literal { .. }
+                | ResultValueContract::Json { .. }
+                | ResultValueContract::Array { .. }
+                | ResultValueContract::Tuple { .. }
+                | ResultValueContract::Vector { .. }
+                | ResultValueContract::Union { .. }
+                | ResultValueContract::PlatformSchemaRef { .. } => None,
+            };
+            if let Some(inferred) = inferred {
+                types.insert(path.clone(), inferred);
+            }
+            path.pop();
+        }
+    }
+
+    let Some(contract) = function.args_contract.as_ref() else {
+        return BTreeMap::new();
+    };
+    let mut types = BTreeMap::new();
+    collect(&contract.fields, &mut Vec::new(), &mut types);
+    types
+}
+
 /// Decode one percent-decoded route-param segment string by its target type
 /// (LLP 0092 §0E.6 per-request substitution): `string` as-is; `number` by
 /// strict decimal parse refused unless the value round-trips under the JCS
@@ -853,11 +909,10 @@ pub fn decode_route_param(value: &str, target: RouteParamType) -> Result<Value, 
 /// `params-v1` substitution (LLP 0092 §0E.6): the mapping is a JSON value
 /// mirroring the args shape where every node is either a literal or a
 /// `{"$param": "name"}` reference. References decode by their target arg's
-/// schema-driven type ([`function_route_arg_types`]); a reference whose
-/// target arg has no inferred type refuses (fail closed — §0E.6's "any other
-/// referenced type refuses the entry"). References are typable only at
-/// top-level arg positions in v1; a reference nested inside an array or
-/// object literal has no schema-typed target and refuses.
+/// schema-driven type. Depth-1 positions use [`function_route_arg_types`]
+/// unchanged; deeper object-reachable positions use
+/// [`function_nested_route_arg_types`]. References inside arrays and at the
+/// mapping root remain untypable and refuse.
 ///
 /// Request params must exactly cover the pattern's names: a request naming
 /// a missing or extra param refuses `SNAPBACK_BUNDLE_PARAMS_INVALID`.
@@ -865,64 +920,71 @@ pub fn substitute_params_v1(
     mapping: &Value,
     params: &BTreeMap<String, String>,
     arg_types: &BTreeMap<String, RouteParamType>,
+    nested_arg_types: &BTreeMap<Vec<String>, RouteParamType>,
 ) -> Result<Value, &'static str> {
-    let decode_reference = |map: &serde_json::Map<String, Value>,
-                            target: Option<RouteParamType>|
-     -> Result<Value, &'static str> {
-        // A `$param` key alongside other keys, or with a non-string
-        // value, is refused (LLP 0092 §0E.6's unambiguity rule).
-        if map.len() != 1 {
-            return Err(code::PARAMS_INVALID);
-        }
-        let Some(Value::String(name)) = map.get("$param") else {
-            return Err(code::PARAMS_INVALID);
-        };
-        let value = params.get(name).ok_or(code::PARAMS_INVALID)?;
-        let target = target.ok_or(code::PARAMS_INVALID)?;
-        decode_route_param(value, target)
-    };
-    fn substitute_literal(mapping: &Value) -> Result<Value, &'static str> {
-        match mapping {
+    fn substitute(
+        value: &Value,
+        params: &BTreeMap<String, String>,
+        arg_types: &BTreeMap<String, RouteParamType>,
+        nested_arg_types: &BTreeMap<Vec<String>, RouteParamType>,
+        path: &mut Vec<String>,
+        inside_array: bool,
+    ) -> Result<Value, &'static str> {
+        match value {
             Value::Object(map) => {
                 if map.contains_key("$param") {
-                    // Nested references have no schema-typed target in v1.
-                    return Err(code::PARAMS_INVALID);
+                    // The root has no named arg target, and array interiors
+                    // remain literal-only even when they contain objects.
+                    if path.is_empty() || inside_array || map.len() != 1 {
+                        return Err(code::PARAMS_INVALID);
+                    }
+                    let Some(Value::String(name)) = map.get("$param") else {
+                        return Err(code::PARAMS_INVALID);
+                    };
+                    let raw = params.get(name).ok_or(code::PARAMS_INVALID)?;
+                    let target = if path.len() == 1 {
+                        arg_types.get(path[0].as_str())
+                    } else {
+                        nested_arg_types.get(path)
+                    }
+                    .copied()
+                    .ok_or(code::PARAMS_INVALID)?;
+                    return decode_route_param(raw, target);
                 }
-                let mut substituted = serde_json::Map::new();
+                let mut output = serde_json::Map::new();
                 for (key, inner) in map {
-                    substituted.insert(key.clone(), substitute_literal(inner)?);
+                    path.push(key.clone());
+                    let inner = substitute(
+                        inner,
+                        params,
+                        arg_types,
+                        nested_arg_types,
+                        path,
+                        inside_array,
+                    )?;
+                    path.pop();
+                    output.insert(key.clone(), inner);
                 }
-                Ok(Value::Object(substituted))
+                Ok(Value::Object(output))
             }
             Value::Array(items) => Ok(Value::Array(
                 items
                     .iter()
-                    .map(substitute_literal)
+                    .map(|item| substitute(item, params, arg_types, nested_arg_types, path, true))
                     .collect::<Result<Vec<_>, _>>()?,
             )),
             literal => Ok(literal.clone()),
         }
     }
-    match mapping {
-        Value::Object(map) => {
-            if map.contains_key("$param") {
-                // A bare top-level reference has no named arg to type against.
-                return Err(code::PARAMS_INVALID);
-            }
-            let mut substituted = serde_json::Map::new();
-            for (key, inner) in map {
-                let value = match inner {
-                    Value::Object(inner_map) if inner_map.contains_key("$param") => {
-                        decode_reference(inner_map, arg_types.get(key.as_str()).copied())?
-                    }
-                    other => substitute_literal(other)?,
-                };
-                substituted.insert(key.clone(), value);
-            }
-            Ok(Value::Object(substituted))
-        }
-        other => substitute_literal(other),
-    }
+
+    substitute(
+        mapping,
+        params,
+        arg_types,
+        nested_arg_types,
+        &mut Vec::new(),
+        false,
+    )
 }
 
 /// Validate that the request's params exactly match the route pattern's
@@ -963,56 +1025,41 @@ fn validate_mapping_references(
     mapping: &Value,
     pattern_params: &[String],
 ) -> Result<(), &'static str> {
-    // Literal portions may not contain `$param` anywhere: references are
-    // typable only at top-level arg positions in v1 (schema-driven decode has
-    // no target type for a reference nested inside a literal), so a nested
-    // reference refuses at admission rather than substituting untyped.
-    fn assert_literal(value: &Value) -> Result<(), &'static str> {
+    fn validate(
+        value: &Value,
+        pattern_params: &[String],
+        at_root: bool,
+        inside_array: bool,
+    ) -> Result<(), &'static str> {
         match value {
             Value::Object(map) => {
                 if map.contains_key("$param") {
-                    return Err(code::PARAMS_INVALID);
+                    if at_root || inside_array || map.len() != 1 {
+                        return Err(code::PARAMS_INVALID);
+                    }
+                    let Some(Value::String(name)) = map.get("$param") else {
+                        return Err(code::PARAMS_INVALID);
+                    };
+                    if !pattern_params.iter().any(|param| param == name) {
+                        return Err(code::PARAMS_INVALID);
+                    }
+                    return Ok(());
                 }
                 for inner in map.values() {
-                    assert_literal(inner)?;
+                    validate(inner, pattern_params, false, inside_array)?;
                 }
                 Ok(())
             }
             Value::Array(items) => {
                 for item in items {
-                    assert_literal(item)?;
+                    validate(item, pattern_params, false, true)?;
                 }
                 Ok(())
             }
             _ => Ok(()),
         }
     }
-    match mapping {
-        Value::Object(map) => {
-            if map.contains_key("$param") {
-                // A bare top-level reference has no named arg position.
-                return Err(code::PARAMS_INVALID);
-            }
-            for inner in map.values() {
-                match inner {
-                    Value::Object(inner_map) if inner_map.contains_key("$param") => {
-                        if inner_map.len() != 1 {
-                            return Err(code::PARAMS_INVALID);
-                        }
-                        let Some(Value::String(name)) = inner_map.get("$param") else {
-                            return Err(code::PARAMS_INVALID);
-                        };
-                        if !pattern_params.iter().any(|param| param == name) {
-                            return Err(code::PARAMS_INVALID);
-                        }
-                    }
-                    other => assert_literal(other)?,
-                }
-            }
-            Ok(())
-        }
-        other => assert_literal(other),
-    }
+    validate(mapping, pattern_params, true, false)
 }
 
 /// The replay-validity tuple of the LLP 0031 dated amendment: (authority,
@@ -1654,35 +1701,63 @@ mod tests {
             [("board".to_owned(), RouteParamType::String)]
                 .into_iter()
                 .collect();
+        let nested_types: BTreeMap<Vec<String>, RouteParamType> = [(
+            vec!["context".to_owned(), "board".to_owned()],
+            RouteParamType::String,
+        )]
+        .into_iter()
+        .collect();
         let mapping = json!({ "board": { "$param": "boardId" }, "limit": 5, "tags": ["a", "b"] });
         assert_eq!(
-            substitute_params_v1(&mapping, &params, &types).unwrap(),
+            substitute_params_v1(&mapping, &params, &types, &nested_types).unwrap(),
             json!({ "board": "b-7", "limit": 5, "tags": ["a", "b"] })
         );
-        // A reference nested inside a literal has no schema-typed target.
+        assert_eq!(
+            substitute_params_v1(
+                &json!({ "context": { "board": { "$param": "boardId" } } }),
+                &params,
+                &types,
+                &nested_types,
+            )
+            .unwrap(),
+            json!({ "context": { "board": "b-7" } })
+        );
+        // Array interiors remain literal-only.
         assert_eq!(
             substitute_params_v1(
                 &json!({ "tags": ["a", { "$param": "boardId" }] }),
                 &params,
-                &types
+                &types,
+                &nested_types,
             ),
             Err(code::PARAMS_INVALID)
         );
         // $param alongside other keys / non-string reference / unknown param /
         // untyped target arg.
         assert_eq!(
-            substitute_params_v1(&json!({ "$param": "boardId", "x": 1 }), &params, &types),
+            substitute_params_v1(
+                &json!({ "$param": "boardId", "x": 1 }),
+                &params,
+                &types,
+                &nested_types,
+            ),
             Err(code::PARAMS_INVALID)
         );
         assert_eq!(
-            substitute_params_v1(&json!({ "board": { "$param": 3 } }), &params, &types),
+            substitute_params_v1(
+                &json!({ "board": { "$param": 3 } }),
+                &params,
+                &types,
+                &nested_types,
+            ),
             Err(code::PARAMS_INVALID)
         );
         assert_eq!(
             substitute_params_v1(
                 &json!({ "board": { "$param": "missing" } }),
                 &params,
-                &types
+                &types,
+                &nested_types,
             ),
             Err(code::PARAMS_INVALID)
         );
@@ -1690,7 +1765,8 @@ mod tests {
             substitute_params_v1(
                 &json!({ "untyped": { "$param": "boardId" } }),
                 &params,
-                &types
+                &types,
+                &nested_types,
             ),
             Err(code::PARAMS_INVALID)
         );

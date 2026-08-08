@@ -9,12 +9,15 @@
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
+use sha2::{Digest as _, Sha256};
 use snapback::admin::AppState;
+use snapback::bundle::{BundleQuerySpec, BundleRouteEntry, RoutesManifest};
 use snapback::local::LocalSnapback;
 use snapback::manifest::{
-    AuthRequirement, FieldManifest, FieldType, FilterExpr, FilterOp, FunctionDefinition,
-    FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IndexManifest,
-    MutationPlan, MutationStep, QueryPlan, ReturnValue, SchemaManifest, TableManifest, ValueExpr,
+    AuthRequirement, FieldManifest, FieldType, FilterExpr, FilterOp, FunctionArgsContract,
+    FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan,
+    IbexModule, IndexManifest, MutationPlan, MutationStep, QueryPlan, ResultObjectFieldContract,
+    ResultValueContract, ReturnValue, SchemaManifest, TableManifest, ValueExpr,
 };
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
@@ -173,6 +176,124 @@ fn configured_memory() -> LocalSnapback {
     snapback
 }
 
+fn nested_args_contract_hash(contract: &FunctionArgsContract) -> String {
+    let value = serde_json::to_value(contract).expect("args contract serializes");
+    let canonical = snapback::rqs::jcs(&value).expect("args contract is canonical");
+    let mut hash = Sha256::new();
+    hash.update(b"snapback:function-args:v2\n");
+    hash.update(canonical.as_bytes());
+    format!("sha256:{:x}", hash.finalize())
+}
+
+fn nested_bundle_function() -> FunctionDefinition {
+    let contract = FunctionArgsContract {
+        fields: vec![ResultObjectFieldContract {
+            name: "context".to_owned(),
+            required: true,
+            value: ResultValueContract::Object {
+                fields: vec![
+                    ResultObjectFieldContract {
+                        name: "boardId".to_owned(),
+                        required: true,
+                        value: ResultValueContract::String { max_bytes: 256 },
+                    },
+                    ResultObjectFieldContract {
+                        name: "count".to_owned(),
+                        required: false,
+                        value: ResultValueContract::Integer {
+                            min: -9_007_199_254_740_991,
+                            max: 9_007_199_254_740_991,
+                        },
+                    },
+                ],
+                allow_extra: false,
+            },
+        }],
+    };
+    let mut function = FunctionDefinition::new(
+        "nestedContext",
+        FunctionKind::Query,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: r#"
+globalThis.__snapbackHandlers = {
+  nestedContext(_ctx, args) {
+    return [{
+      boardId: args.context.boardId,
+      count: args.context.count === undefined ? null : args.context.count,
+    }];
+  },
+};
+"#
+            .to_owned(),
+            export: "nestedContext".to_owned(),
+        }),
+    );
+    function.args_contract_hash = Some(nested_args_contract_hash(&contract));
+    function.args_contract = Some(contract);
+    function.required_capabilities = vec!["args_contract_v1".to_owned()];
+    function
+}
+
+fn nested_bundle_routes() -> RoutesManifest {
+    let route = |route: &str, args: Value| BundleRouteEntry {
+        route: route.to_owned(),
+        queries: vec![BundleQuerySpec {
+            function: "nestedContext".to_owned(),
+            args,
+        }],
+        persist: None,
+        register_group_eligible: false,
+        mixed_group_eligible: false,
+        mixed_profile: None,
+    };
+    RoutesManifest {
+        format_version: 1,
+        app: "nested-bundle".to_owned(),
+        routes: vec![
+            route(
+                "/board/:boardId",
+                json!({ "context": { "boardId": { "$param": "boardId" } } }),
+            ),
+            route(
+                "/count/:count",
+                json!({
+                    "context": {
+                        "boardId": "fixed",
+                        "count": { "$param": "count" }
+                    }
+                }),
+            ),
+        ],
+    }
+}
+
+fn nested_configured_memory() -> LocalSnapback {
+    let mut snapback = LocalSnapback::memory().expect("in-memory instance");
+    let mut schema = bundle_schema();
+    schema.app_id = "nested-bundle".to_owned();
+    schema.schema_hash = Some("nested-bundle-schema-v1".to_owned());
+    snapback.apply_schema(schema).expect("nested schema");
+    let functions = FunctionManifest {
+        app_id: "nested-bundle".to_owned(),
+        bundle_hash: Some("nested-bundle-functions-v1".to_owned()),
+        acknowledged_experimental_capabilities: vec!["args_contract_v1".to_owned()],
+        functions: vec![nested_bundle_function()],
+        ..FunctionManifest::default()
+    };
+    let diagnostics = snapback.load_functions(functions);
+    assert!(
+        diagnostics.iter().all(|diagnostic| {
+            diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE"
+                || diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED"
+        }),
+        "unexpected nested function diagnostics: {diagnostics:?}"
+    );
+    snapback
+        .install_routes_manifest(nested_bundle_routes())
+        .expect("nested routes manifest");
+    snapback
+}
+
 fn input(args: Value, user_id: &str) -> HandlerInput {
     HandlerInput {
         args,
@@ -260,6 +381,67 @@ async fn send(app: &AppState, request: Request<Body>) -> (StatusCode, Value) {
 
 fn diagnostic_code(body: &Value) -> &str {
     body["diagnostic"]["code"].as_str().unwrap_or("")
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn nested_route_params_reach_ibex_handler_and_decode_integer() {
+    let snapback = tokio::task::spawn_blocking(|| {
+        let _sanction = snapback::exec_guard::BlockingSanction::acquire();
+        nested_configured_memory()
+    })
+    .await
+    .expect("nested setup");
+    let app = AppState::detached(snapback);
+
+    let (status, body) = send(
+        &app,
+        post_json(
+            "/app/bundle",
+            json!({
+                "route": "/board/:boardId",
+                "params": { "boardId": "wall" },
+                "auth": { "user_id": "user_1" }
+            }),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "nested string bundle: {body}");
+    assert_eq!(
+        body["entries"][0]["args"],
+        json!({ "context": { "boardId": "wall" } })
+    );
+    assert_eq!(body["entries"][0]["rows"][0]["boardId"], "wall");
+
+    let (status, body) = send(
+        &app,
+        post_json(
+            "/app/bundle",
+            json!({
+                "route": "/count/:count",
+                "params": { "count": "42" },
+                "auth": { "user_id": "user_1" }
+            }),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "nested integer bundle: {body}");
+    assert_eq!(body["entries"][0]["args"]["context"]["count"], 42);
+    assert_eq!(body["entries"][0]["rows"][0]["count"], 42);
+
+    let (status, body) = send(
+        &app,
+        post_json(
+            "/app/bundle",
+            json!({
+                "route": "/count/:count",
+                "params": { "count": "not-decimal" },
+                "auth": { "user_id": "user_1" }
+            }),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(diagnostic_code(&body), "SNAPBACK_BUNDLE_PARAMS_INVALID");
 }
 
 /// Decode a drained outbox body: durable envelopes carry their payload as

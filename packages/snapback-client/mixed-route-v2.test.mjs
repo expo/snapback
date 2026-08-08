@@ -23,15 +23,16 @@ import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({ todos: defineTable({ title: v.string() }).sync() });
 `);
 writeFileSync(join(app, 'functions.mjs'), `
-import { defineLiveQuery, defineQuery } from '${defineUrl}';
-export const plainTodos = defineQuery({ table: 'todos', args: {} });
-export const liveTodos = defineLiveQuery({ table: 'todos', args: {} });
+import { defineLiveQuery, defineQuery, v } from '${defineUrl}';
+const args = { context: v.object({ boardId: v.string() }) };
+export const plainTodos = defineQuery({ table: 'todos', args });
+export const liveTodos = defineLiveQuery({ table: 'todos', args });
 `);
 writeFileSync(join(app, 'routes.mjs'), `
-import { defineRoutes } from '${defineUrl}';
-export default defineRoutes([{ route: '/mixed', queries: [
-  { function: 'plainTodos', args: {} },
-  { function: 'liveTodos', args: {} },
+import { defineRoutes, routeParam } from '${defineUrl}';
+export default defineRoutes([{ route: '/mixed/:boardId', queries: [
+  { function: 'plainTodos', args: { context: { boardId: routeParam('boardId') } } },
+  { function: 'liveTodos', args: { context: { boardId: routeParam('boardId') } } },
 ] }]);
 `);
 
@@ -39,10 +40,12 @@ const generatedGroup = (async () => {
   const result = await generate(app);
   assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
   const api = await import(`${pathToFileURL(join(app, 'generated', 'api.mjs')).href}?client-mixed`);
-  return api.groups['/mixed'];
+  return api.groups['/mixed/:boardId'];
 })();
 
 after(() => rmSync(root, { recursive: true, force: true }));
+
+const mixedParams = { boardId: 'wall' };
 
 function bundleFor(reference) {
   const commitVersion = 17;
@@ -51,7 +54,7 @@ function bundleFor(reference) {
     const live = child.liveness.kind === 'admitted';
     return {
       function: child.ref.name,
-      args: {},
+      args: { context: { boardId: mixedParams.boardId } },
       rows: [{ position }],
       resume: null,
       ...(live ? { subscriptionId: `sub-${++subscription}` } : {}),
@@ -95,7 +98,12 @@ test('0157-A3 byte-identical plans classify only from bound liveness', async () 
     ['none', 'admitted'],
   );
 
-  const registry = createRqsRegisteredRegistry(bundleFor(reference), reference, {});
+  assert.throws(
+    () => createRqsRegisteredRegistry(bundleFor(reference), reference, {}),
+    (error) => error?.code === 'SNAPBACK_RQS_MIXED_GROUP_INVALID',
+    'a nested unresolved route parameter refuses mixed materialization',
+  );
+  const registry = createRqsRegisteredRegistry(bundleFor(reference), reference, mixedParams);
   assert.equal(registry.formatVersion, 2);
   assert.equal(registry.profile, 'mixed-route.v2');
   assert.deepEqual(registry.aggregate, {
@@ -105,8 +113,9 @@ test('0157-A3 byte-identical plans classify only from bound liveness', async () 
     readOnlyChildren: 1,
   });
 
-  const plain = registry.lookup('plainTodos', {});
-  const live = registry.lookup('liveTodos', {});
+  const materializedArgs = { context: { boardId: 'wall' } };
+  const plain = registry.lookup('plainTodos', materializedArgs);
+  const live = registry.lookup('liveTodos', materializedArgs);
   assert.deepEqual(plain, {
     bootDelivery: 'read-only',
     subscriptionId: null,
@@ -119,8 +128,12 @@ test('0157-A3 byte-identical plans classify only from bound liveness', async () 
   assert.equal(live.bootDelivery, 'registered-live');
   assert.equal(live.subscriptionId, 'sub-1');
   assert.equal(live.freshness, undefined);
-  assert.equal(registry.consume('plainTodos', {}), plain);
-  assert.equal(registry.consume('plainTodos', {}), null, 'ordinary results are one-shot');
+  assert.equal(registry.consume('plainTodos', materializedArgs), plain);
+  assert.equal(
+    registry.consume('plainTodos', materializedArgs),
+    null,
+    'ordinary results are one-shot',
+  );
 
   const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: null });
   await assert.rejects(
@@ -139,29 +152,29 @@ test('mixed consumption refuses unknown versions, open records, and shape infere
   const bundle = bundleFor(reference);
 
   assert.throws(
-    () => createRqsRegisteredRegistry({ ...bundle, formatVersion: 3 }, reference, {}),
+    () => createRqsRegisteredRegistry({ ...bundle, formatVersion: 3 }, reference, mixedParams),
     (error) => error?.code === 'SNAPBACK_RQS_MIXED_GROUP_VERSION_UNSUPPORTED',
   );
   assert.throws(
-    () => createRqsRegisteredRegistry(bundle, { ...reference, formatVersion: 3 }, {}),
+    () => createRqsRegisteredRegistry(bundle, { ...reference, formatVersion: 3 }, mixedParams),
     (error) => error?.code === 'SNAPBACK_RQS_MIXED_GROUP_VERSION_UNSUPPORTED',
   );
   assert.throws(
-    () => createRqsRegisteredRegistry({ ...bundle, futureField: true }, reference, {}),
+    () => createRqsRegisteredRegistry({ ...bundle, futureField: true }, reference, mixedParams),
     (error) => error?.code === 'SNAPBACK_RQS_MIXED_GROUP_INVALID',
     'the v2 bundle root is closed',
   );
   const openArtifact = structuredClone(reference);
   openArtifact.queries[0].futureField = true;
   assert.throws(
-    () => createRqsRegisteredRegistry(bundle, openArtifact, {}),
+    () => createRqsRegisteredRegistry(bundle, openArtifact, mixedParams),
     (error) => error?.code === 'SNAPBACK_RQS_MIXED_GROUP_INVALID',
     'each generated v2 child record is closed',
   );
   const openEntry = structuredClone(bundle);
   openEntry.entries[0].futureField = true;
   assert.throws(
-    () => createRqsRegisteredRegistry(openEntry, reference, {}),
+    () => createRqsRegisteredRegistry(openEntry, reference, mixedParams),
     (error) => error?.code === 'SNAPBACK_RQS_MIXED_GROUP_INVALID',
     'each v2 response entry is closed',
   );
@@ -170,7 +183,7 @@ test('mixed consumption refuses unknown versions, open records, and shape infere
   delete inferredFromReferenceKind.queries[1].liveness;
   assert.equal(inferredFromReferenceKind.queries[1].ref.kind, 'LiveQuery');
   assert.throws(
-    () => createRqsRegisteredRegistry(bundle, inferredFromReferenceKind, {}),
+    () => createRqsRegisteredRegistry(bundle, inferredFromReferenceKind, mixedParams),
     (error) => error?.code === 'SNAPBACK_RQS_MIXED_GROUP_INVALID',
     'a LiveQuery reference and live-looking storage plan cannot replace the bound liveness fact',
   );
@@ -182,7 +195,7 @@ test('mixed consumption refuses unknown versions, open records, and shape infere
     pageDomain: 'whole-result',
   };
   assert.throws(
-    () => createRqsRegisteredRegistry(bundle, contradictoryFact, {}),
+    () => createRqsRegisteredRegistry(bundle, contradictoryFact, mixedParams),
     (error) => error?.code === 'SNAPBACK_RQS_MIXED_GROUP_INVALID',
     'a duplicated liveness fact that disagrees with NodePlanHashV1 refuses',
   );

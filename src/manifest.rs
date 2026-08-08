@@ -10237,7 +10237,7 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:f57d74f0c8d67d85d0e09d2308a52ad55f59894db77372c3f38fa6fa7d52cb83";
+    "sha256:16d405479de7bb6ba26bbe5813f6dab0720abda7bfc07b68c8bca5c669b509b8";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
@@ -10645,7 +10645,7 @@ fn local_relation_activity_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:bbaf21bbf50072f906235376511f90613439038916b85b2b51ceee05472f1f0a"
+                    "sha256:67c194ed520fdea78dc94968f1814caaf4f1b924ca8e9b24b09b3e037b3fd4f6"
                         .to_owned(),
                 ),
                 (
@@ -10852,7 +10852,7 @@ fn local_persistent_store_contributor_chain_verified(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:bbaf21bbf50072f906235376511f90613439038916b85b2b51ceee05472f1f0a"
+                    "sha256:67c194ed520fdea78dc94968f1814caaf4f1b924ca8e9b24b09b3e037b3fd4f6"
                         .to_owned(),
                 ),
                 (
@@ -10864,7 +10864,7 @@ fn local_persistent_store_contributor_chain_verified(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/index.mjs".to_owned(),
-                "sha256:42097701373c6c6d9ec256d01dc017b802b874719de18ee8fdaac4d9c9e6abb4"
+                "sha256:213eaf3871ae5aa9b0554170c1d9b5eceea3da334829e5cd16154220a51eb96d"
                     .to_owned(),
             )])
         && carrier.client_source_sha256

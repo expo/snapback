@@ -5,7 +5,12 @@
 **Systems:** Sync, Realtime, API, Auth, Client integration, Deployment
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-08-03 (`single_table_v1@1` producer boundary: the existing
+**Revised:** 2026-08-08 (§0E.6's step-3 top-level-only narrowing partially
+lifted: `$param` references are admitted at object-reachable positions, typed
+from the LLP 0131 argument contract, and literal members may be null, union,
+array, or literal-node values — see "Dated amendment: structured route-group
+arguments", `issues/20260808-route-group-argument-lowering.md`.)
+2026-08-03 (`single_table_v1@1` producer boundary: the existing
 derived `rqsEligible` fact also selects the class; the host emits/recomputes
 its normalized node and capability record; authors still cannot assert
 membership; semantic only.) 2026-07-24 (step-7 landing notes appended to the
@@ -947,6 +952,84 @@ is normative; the sections above read as amended for this arm:
    outstanding tokens. Not provable locally: real deploys (generation
    rotation across deploys is exercised via a testing-gated mint override),
    edge caching/compression, and real platform eviction economics.
+
+## Dated amendment: structured route-group arguments (2026-08-08)
+
+The step-3 amendment above narrowed §0E.6 to "references are typable **only at
+top-level arg positions**" and gave one reason: "there is no manifest-carried
+arg schema server-side". LLP 0131 later landed `argsContract` on every
+function definition — a carried, declaration-authoritative, recursive
+description of the function's arguments. The premise no longer holds for
+nested positions, so the narrowing is **partially lifted** and §0E.6's
+original "mirroring the args shape" wording is restored for objects. This is
+not new expressiveness (no defaults, transforms, or optional params), so the
+grammar stays `params-v1` and the manifest stays `formatVersion: 1`.
+
+**What is admitted now.** A `{"$param": name}` node may sit at any position
+reachable from the mapping root **through plain objects**, at any depth:
+
+```js
+{ function: 'listIssues', args: { context: {
+  projectId: routeParam('projectId'),   // nested reference
+  cursor: null,                          // null member
+  sort: 'asc',                           // union-of-literals member
+  tags: ['open', 'ready'],               // array-of-literals member
+} } }
+```
+
+Literal members now validate against the declared argument validator across
+the whole recursive vocabulary: `v.null()`, `v.literal(...)`, `v.union([...])`,
+`v.array(...)`, and `v.vector(...)`, in addition to the scalars and objects
+v1 already checked. `v.tuple(...)` is deliberately not covered: it is not in
+LLP 0131's closed argument grammar, and admitting it there is a separate
+decision.
+
+**What still refuses** (`ROUTES_ARGS_INVALID` at compile time,
+`SNAPBACK_BUNDLE_PARAMS_INVALID` / `SNAPBACK_ROUTES_MANIFEST_INVALID` at
+admission):
+
+- a bare reference at the mapping root — no named arg position;
+- a reference anywhere inside an **array** literal — an index-addressed
+  position has no stable declaration path, so array interiors stay
+  literal-only (recorded remaining work, not an oversight);
+- a reference whose path cannot be resolved through object nodes, or whose
+  leaf is not a string/number/boolean argument position;
+- a reference beside other keys, or with a non-string `$param` value.
+
+**Typing authority is split, deliberately.** Depth-1 references keep the
+step-3 AST-derived typing (`function_route_arg_types`, plan filters comparing
+a schema field against `Arg(name)`) **byte-for-byte**, so no app that lowers
+today changes behavior. Depth ≥ 2 references type from the carried argument
+contract (`function_nested_route_arg_types`), whose scalar-leaf rule codegen
+and both server arms reproduce identically: `string`/`principal`/`assetRef`/
+`id` → string, `integer` → integer, `finiteReal` → number, `boolean` →
+boolean, everything else → no entry (fail closed). A function with no
+`argsContract` (pre-0131 manifest) admits no nested reference. Unifying the
+two typing sources is follow-on work, not a v1 obligation.
+
+One consequence worth naming: nested references are typable for **JS-handler**
+queries too, because the argument contract exists regardless of whether the
+handler is a declarative plan. The depth-1 seam recorded in
+`issues/20260731-0112-register-eligibility-js-param-seam.md` is unchanged.
+
+**Register/mixed group eligibility follows every reference.** `registerGroupEligible`
+and `mixedGroupEligible` already required every `$param`-mapped arg to be
+string-typed so the client can materialize the raw route segment without
+decoding; that rule now applies to references at every depth, on both the
+codegen predicate and the served admission check.
+
+**Version skew is fail-closed.** A manifest carrying a nested reference,
+served by a runtime or Worker predating this amendment, refuses at admission
+(the reference has no top-level target) rather than substituting untyped.
+
+**Two arm-parity defects found and fixed while landing this.** (a) The
+Cloudflare arm's `number` decode called `jcs(parsed)` only for its throw and
+never compared the canonical form against the presented segment, so it
+accepted segments the local arm refuses (`"5.0"`, `"1e3"`); it now enforces
+the round-trip equality §0E.6 specifies, restoring the "Predicate parity"
+conformance clause below. (b) The Cloudflare arm admitted a **bare root**
+`{"$param": …}` mapping (its per-key loop never inspected the mapping object
+itself); it now refuses, matching the local arm.
 
 ## Open questions
 

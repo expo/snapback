@@ -1042,6 +1042,52 @@ export const todosByRank = defineLiveQuery({
 });
 `;
 
+const structuredRouteSchema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export const boards = defineTable({ title: v.string() });
+export const cells = defineTable({ boardId: v.id('boards'), title: v.string() }).sync();
+export default defineSchema({ boards, cells });
+`;
+
+const structuredRouteFunctions = `
+import { defineLiveQuery, defineQuery, v } from '${defineUrl}';
+export const listCells = defineLiveQuery({
+  table: 'cells',
+  args: {
+    context: v.object({
+      boardId: v.id('boards'),
+      cursor: v.union([v.string(), v.null()]),
+      sort: v.union([v.literal('asc'), v.literal('desc')]),
+      tags: v.array(v.string(), { maxItems: 4 }),
+    }),
+  },
+});
+export const cellsByRank = defineLiveQuery({
+  table: 'cells',
+  args: { context: v.object({ rank: v.integer() }) },
+});
+export const cellsByUnion = defineLiveQuery({
+  table: 'cells',
+  args: { context: v.union([v.object({ boardId: v.id('boards') }), v.null()]) },
+});
+export const cellsByJson = defineLiveQuery({
+  table: 'cells',
+  args: { context: v.object({ payload: v.json() }) },
+});
+export const cellsByIds = defineLiveQuery({
+  table: 'cells',
+  args: { context: v.object({ ids: v.array(v.id('boards')) }) },
+});
+export const cellsByLiteral = defineLiveQuery({
+  table: 'cells',
+  args: { context: v.object({ sort: v.literal('asc') }) },
+});
+export const snapshotCells = defineQuery({
+  table: 'cells',
+  args: { context: v.object({ boardId: v.id('boards') }) },
+});
+`;
+
 {
   // publicInline without a valid authorityIndependent declaration refuses.
   const diagnostics = await invalidCase({
@@ -1179,6 +1225,92 @@ void wrongParams;
 }
 
 {
+  // Object-reachable references are typed through the recursive LLP 0131
+  // args contract. Null, union-literal, and array members remain
+  // literal template data, and group eligibility follows every nested target.
+  const result = await validCase({
+    schema: structuredRouteSchema,
+    functions: structuredRouteFunctions,
+    handlers: {
+      'routes.mjs': `
+import { defineRoutes, routeParam } from '${defineUrl}';
+export default defineRoutes([
+  {
+    route: '/boards/:boardId',
+    queries: [{
+      function: 'listCells',
+      args: {
+        context: {
+          boardId: routeParam('boardId'),
+          cursor: null,
+          sort: 'asc',
+          tags: ['open', 'ready'],
+        },
+      },
+    }],
+  },
+  {
+    route: '/ranks/:rank',
+    queries: [{ function: 'cellsByRank', args: { context: { rank: routeParam('rank') } } }],
+  },
+  {
+    route: '/mixed-boards/:boardId',
+    queries: [
+      { function: 'snapshotCells', args: { context: { boardId: routeParam('boardId') } } },
+      { function: 'listCells', args: { context: {
+        boardId: routeParam('boardId'), cursor: null, sort: 'asc', tags: [],
+      } } },
+    ],
+  },
+]);
+`,
+    },
+  });
+  const routesPath = join(result.outDir, 'routes.manifest.json');
+  const apiPath = join(result.outDir, 'api.mjs');
+  const apiTypesPath = join(result.outDir, 'api.d.ts');
+  const routes = JSON.parse(readFileSync(routesPath, 'utf8'));
+  assert.deepEqual(routes.routes[0].queries[0].args, {
+    context: {
+      boardId: { $param: 'boardId' },
+      cursor: null,
+      sort: 'asc',
+      tags: ['open', 'ready'],
+    },
+  });
+  assert.equal(
+    routes.routes[0].registerGroupEligible,
+    true,
+    'nested string references preserve register-group eligibility',
+  );
+  assert.equal(
+    Object.hasOwn(routes.routes[1], 'registerGroupEligible'),
+    false,
+    'a nested integer reference is not register-group eligible',
+  );
+  assert.equal(
+    routes.routes[2].mixedGroupEligible,
+    true,
+    'nested string references preserve mixed-group eligibility',
+  );
+  const apiTypes = readFileSync(apiTypesPath, 'utf8');
+  assert(
+    apiTypes.includes(
+      'args: { readonly "context": { readonly "boardId": { readonly "$param": "boardId" }',
+    ),
+    'api.d.ts preserves the nested route template structurally',
+  );
+  const firstApi = readFileSync(apiPath, 'utf8');
+  const firstTypes = apiTypes;
+  const firstRoutes = readFileSync(routesPath, 'utf8');
+  const repeated = await generate(dirname(result.outDir));
+  assert.equal(repeated.ok, true, `repeat generation failed: ${JSON.stringify(repeated.diagnostics)}`);
+  assert.equal(readFileSync(apiPath, 'utf8'), firstApi);
+  assert.equal(readFileSync(apiTypesPath, 'utf8'), firstTypes);
+  assert.equal(readFileSync(routesPath, 'utf8'), firstRoutes);
+}
+
+{
   // Format 1 stays the all-LiveQuery projection; a mixed route receives the
   // distinct format-2 profile. Child labels remain globally unique
   // when a real function name resembles another function's occurrence suffix.
@@ -1264,10 +1396,23 @@ export default defineRoutes([
     functions: publicInlineFunctions,
     handlers: { 'routes.mjs': routesSource },
   });
+  const structuredRoutesCase = (routesSource) => invalidCase({
+    schema: structuredRouteSchema,
+    functions: structuredRouteFunctions,
+    handlers: { 'routes.mjs': routesSource },
+  });
   const expectCode = (diagnostics, code) => assert(
     diagnostics.some((diagnostic) => diagnostic.code === code),
     `expected ${code}: ${JSON.stringify(diagnostics)}`,
   );
+  const expectRouteArgs = async (diagnosticsPromise, messagePattern) => {
+    const diagnostics = await diagnosticsPromise;
+    expectCode(diagnostics, 'ROUTES_ARGS_INVALID');
+    assert.match(
+      diagnostics.map(({ message }) => message).join('\n'),
+      messagePattern,
+    );
+  };
   expectCode(await routesCase(`
 import { defineRoutes } from '${defineUrl}';
 export default defineRoutes([{ route: '/', queries: [{ function: 'nope', args: {} }] }]);
@@ -1291,6 +1436,71 @@ expectCode(await routesCase(`
 import { defineRoutes, routeParam } from '${defineUrl}';
 export default defineRoutes([{ route: '/t/:title', queries: [{ function: 'listTodos', args: { title: 'x', extra: [routeParam('title')] } }] }]);
 `), 'ROUTES_ARGS_INVALID');
+  await expectRouteArgs(structuredRoutesCase(`
+import { defineRoutes } from '${defineUrl}';
+export default defineRoutes([{
+  route: '/boards',
+  queries: [{ function: 'listCells', args: { context: {
+    boardId: 'board-1', cursor: null, sort: 'sideways', tags: [],
+  } } }],
+}]);
+`), /literal for arg context does not match its arg schema/u);
+  await expectRouteArgs(structuredRoutesCase(`
+import { defineRoutes } from '${defineUrl}';
+export default defineRoutes([{
+  route: '/boards',
+  queries: [{ function: 'listCells', args: { context: {
+    boardId: 'board-1', cursor: null, sort: 'asc', tags: ['ok', 2],
+  } } }],
+}]);
+`), /literal for arg context does not match its arg schema/u);
+  await expectRouteArgs(structuredRoutesCase(`
+import { defineRoutes } from '${defineUrl}';
+export default defineRoutes([{
+  route: '/boards',
+  queries: [{ function: 'listCells', args: { context: {
+    boardId: 'board-1', cursor: null, sort: 'asc',
+    tags: ['one', 'two', 'three', 'four', 'five'],
+  } } }],
+}]);
+`), /literal for arg context does not match its arg schema/u);
+  await expectRouteArgs(structuredRoutesCase(`
+import { defineRoutes, routeParam } from '${defineUrl}';
+export default defineRoutes([{
+  route: '/boards/:boardId',
+  queries: [{ function: 'cellsByIds', args: { context: { ids: [routeParam('boardId')] } } }],
+}]);
+`), /a \$param reference at context\.ids\.0 is nested inside an array literal; references are typable only at object positions/u);
+  await expectRouteArgs(structuredRoutesCase(`
+import { defineRoutes, routeParam } from '${defineUrl}';
+export default defineRoutes([{
+  route: '/boards/:boardId',
+  queries: [{ function: 'cellsByUnion', args: { context: { boardId: routeParam('boardId') } } }],
+}]);
+`), /references param into context\.boardId, whose declared type is not a string\/number\/boolean argument position/u);
+  await expectRouteArgs(structuredRoutesCase(`
+import { defineRoutes, routeParam } from '${defineUrl}';
+export default defineRoutes([{
+  route: '/boards/:boardId',
+  queries: [{ function: 'cellsByJson', args: { context: { payload: routeParam('boardId') } } }],
+}]);
+`), /references param into context\.payload, whose declared type is not a string\/number\/boolean argument position/u);
+  await expectRouteArgs(structuredRoutesCase(`
+import { defineRoutes, routeParam } from '${defineUrl}';
+export default defineRoutes([{
+  route: '/boards/:boardId',
+  queries: [{ function: 'listCells', args: { context: {
+    boardId: routeParam('missing'), cursor: null, sort: 'asc', tags: [],
+  } } }],
+}]);
+`), /references :missing, which is not in the route pattern/u);
+  await expectRouteArgs(structuredRoutesCase(`
+import { defineRoutes, routeParam } from '${defineUrl}';
+export default defineRoutes([{
+  route: '/sort/:sort',
+  queries: [{ function: 'cellsByLiteral', args: { context: { sort: routeParam('sort') } } }],
+}]);
+`), /references param into context\.sort, whose declared type is not a string\/number\/boolean argument position/u);
   const tooManyQueries = Array.from(
     { length: 33 },
     () => "{ function: 'listTodos', args: { title: 'x' } }",

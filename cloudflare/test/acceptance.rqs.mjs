@@ -21,6 +21,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startProof } from './harness.mjs';
 import { serializeBootPayload } from '../../packages/snapback-vite/rqs-serializer.mjs';
+import {
+  functionRouteNestedArgTypes,
+  substituteParamsV1,
+  validateRoutesManifest,
+} from '../src/rqs-host.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../..');
@@ -45,6 +50,62 @@ function extractBoot(html) {
   const match = html.match(BOOT_BLOCK);
   if (!match) return null;
   return { raw: match[1], parsed: JSON.parse(match[1]) };
+}
+
+// --- params-v1 structured-object admission and substitution ---------------
+{
+  const nestedFunction = {
+    name: 'nestedBoard',
+    kind: 'Query',
+    argsContract: {
+      fields: [{
+        name: 'context',
+        required: true,
+        value: {
+          kind: 'object',
+          allowExtra: false,
+          fields: [
+            { name: 'boardId', required: true, value: { kind: 'string', maxBytes: 256 } },
+            { name: 'rank', required: false, value: { kind: 'integer', min: 0, max: 100 } },
+          ],
+        },
+      }],
+    },
+  };
+  const mapping = { context: { boardId: { $param: 'boardId' } } };
+  const positiveManifest = {
+    formatVersion: 1,
+    routes: [{
+      route: '/nested/:boardId',
+      queries: [{ function: 'nestedBoard', args: mapping }],
+    }],
+  };
+  const functionsByName = (name) => (name === nestedFunction.name ? nestedFunction : null);
+  check(
+    'nested object-reachable route params admit from argsContract',
+    validateRoutesManifest(positiveManifest, functionsByName, new Map()) === null,
+  );
+  const nestedTypes = functionRouteNestedArgTypes(nestedFunction);
+  const substituted = substituteParamsV1(mapping, { boardId: 'wall' }, new Map(), nestedTypes);
+  check(
+    'nested object-reachable route params materialize before host evaluation',
+    JSON.stringify(substituted.args) === JSON.stringify({ context: { boardId: 'wall' } }),
+    JSON.stringify(substituted),
+  );
+  const arrayManifest = {
+    formatVersion: 1,
+    routes: [{
+      route: '/nested-array/:boardId',
+      queries: [{
+        function: 'nestedBoard',
+        args: { context: { values: [{ $param: 'boardId' }] } },
+      }],
+    }],
+  };
+  check(
+    'a route param inside an array literal refuses host admission',
+    /array literal/u.test(validateRoutesManifest(arrayManifest, functionsByName, new Map()) ?? ''),
+  );
 }
 
 // --- serializer fixtures: the same corpus, byte-for-byte, through the same

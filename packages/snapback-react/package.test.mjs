@@ -82,7 +82,7 @@ function createFakeClient({
   bundleError = null,
   authMode = 'dev',
   authInvalidationProtocol = 1,
-  routeManifestHash = 'sha256:f5f932754bef8663f6097c5e1cb5135cabdb522f19e277a244d4e9646b7cd1c8',
+  routeManifestHash = 'sha256:4606fa619bd2abd7323a5de9e8c0b3c94e78f37f066c279d91ed412dc22848c4',
   deferRegisteredFunction = null,
   managerSocketDemand = 0,
 } = {}) {
@@ -297,7 +297,7 @@ function createFakeClient({
         },
         {
           function: 'details',
-          args: { id: params.id },
+          args: { context: { id: params.id, cursor: null } },
           rows: [{ id: `details:${params.id}`, revision: 41 }],
           resume: null,
           subscriptionId: 'registered-details',
@@ -562,7 +562,10 @@ const routes = Object.freeze({
       registerGroupEligible: true,
       queries: Object.freeze([
         Object.freeze({ function: 'feed', args: { id: { $param: 'id' } } }),
-        Object.freeze({ function: 'details', args: { id: { $param: 'id' } } }),
+        Object.freeze({
+          function: 'details',
+          args: { context: { id: { $param: 'id' }, cursor: null } },
+        }),
       ]),
     }),
   ]),
@@ -798,6 +801,11 @@ assert.deepEqual(
   primedGroup.entries.map((entry) => Object.keys(entry).sort()),
   [['args', 'name', 'ref'], ['args', 'name', 'ref']],
   'the public preparation exposes safe generated identity only',
+);
+assert.deepEqual(
+  primedGroup.entries[1].args,
+  { context: { id: 'incident-41', cursor: null } },
+  'nested route params materialize recursively in prepared group args',
 );
 assert.doesNotMatch(
   JSON.stringify(primedGroup),

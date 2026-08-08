@@ -10,14 +10,15 @@
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
+use sha2::{Digest as _, Sha256};
 use snapback::admin::AppState;
 use snapback::bundle::{BundleQuerySpec, BundleRouteEntry, RoutesManifest};
 use snapback::local::{EnsureAppInput, LocalSnapback};
 use snapback::manifest::{
     AuthRequirement, DependencySummary, FieldManifest, FieldType, FilterExpr, FilterOp,
-    FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime, HandlerPlan,
-    IndexManifest, OrderDirection, OrderExpr, PublicFunctionManifest, QueryPlan, SchemaManifest,
-    TableManifest, ValueExpr,
+    FunctionArgsContract, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime,
+    HandlerPlan, IndexManifest, OrderDirection, OrderExpr, PublicFunctionManifest, QueryPlan,
+    ResultObjectFieldContract, ResultValueContract, SchemaManifest, TableManifest, ValueExpr,
 };
 use tower::ServiceExt;
 
@@ -142,11 +143,108 @@ fn paint_cell() -> FunctionDefinition {
     )
 }
 
+fn contract_hash(contract: &FunctionArgsContract) -> String {
+    let value = serde_json::to_value(contract).expect("args contract serializes");
+    let canonical = snapback::rqs::jcs(&value).expect("args contract is canonical");
+    let mut hash = Sha256::new();
+    hash.update(b"snapback:function-args:v2\n");
+    hash.update(canonical.as_bytes());
+    format!("sha256:{:x}", hash.finalize())
+}
+
+fn structured_context_query() -> FunctionDefinition {
+    let contract = FunctionArgsContract {
+        fields: vec![ResultObjectFieldContract {
+            name: "context".to_owned(),
+            required: true,
+            value: ResultValueContract::Object {
+                fields: vec![
+                    ResultObjectFieldContract {
+                        name: "boardId".to_owned(),
+                        required: true,
+                        value: ResultValueContract::String { max_bytes: 256 },
+                    },
+                    ResultObjectFieldContract {
+                        name: "cursor".to_owned(),
+                        required: true,
+                        value: ResultValueContract::String { max_bytes: 256 },
+                    },
+                    ResultObjectFieldContract {
+                        name: "payload".to_owned(),
+                        required: false,
+                        value: ResultValueContract::Json {
+                            max_depth: 16,
+                            max_bytes: 1_024,
+                        },
+                    },
+                    ResultObjectFieldContract {
+                        name: "choice".to_owned(),
+                        required: false,
+                        value: ResultValueContract::Union {
+                            variants: vec![
+                                ResultValueContract::Null,
+                                ResultValueContract::String { max_bytes: 256 },
+                            ],
+                        },
+                    },
+                    ResultObjectFieldContract {
+                        name: "rank".to_owned(),
+                        required: false,
+                        value: ResultValueContract::Integer {
+                            min: -9_007_199_254_740_991,
+                            max: 9_007_199_254_740_991,
+                        },
+                    },
+                ],
+                allow_extra: false,
+            },
+        }],
+    };
+    let mut function = FunctionDefinition::new(
+        "structuredContext",
+        FunctionKind::LiveQuery,
+        FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table: "cells".to_owned(),
+            filters: Vec::new(),
+            order: Vec::new(),
+            limit: None,
+            membership_filters: Vec::new(),
+            indexed_by: None,
+        })),
+    );
+    function.args_contract_hash = Some(contract_hash(&contract));
+    function.args_contract = Some(contract);
+    function.required_capabilities = vec!["args_contract_v1".to_owned()];
+    function
+}
+
+fn legacy_structured_context_query() -> FunctionDefinition {
+    FunctionDefinition::new(
+        "legacyStructuredContext",
+        FunctionKind::LiveQuery,
+        FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table: "cells".to_owned(),
+            filters: Vec::new(),
+            order: Vec::new(),
+            limit: None,
+            membership_filters: Vec::new(),
+            indexed_by: None,
+        })),
+    )
+}
+
 fn wall_functions() -> FunctionManifest {
     FunctionManifest {
         app_id: "wall".to_owned(),
         bundle_hash: Some("rqs-routes-functions-v0".to_owned()),
-        functions: vec![list_cells(), list_ranked(), paint_cell()],
+        acknowledged_experimental_capabilities: vec!["args_contract_v1".to_owned()],
+        functions: vec![
+            list_cells(),
+            list_ranked(),
+            paint_cell(),
+            structured_context_query(),
+            legacy_structured_context_query(),
+        ],
         ..FunctionManifest::default()
     }
 }
@@ -411,6 +509,90 @@ fn routes_manifest_admission_refusals_are_coded() {
             error.diagnostic.message
         );
     };
+
+    snapback
+        .install_routes_manifest(manifest(vec![BundleRouteEntry {
+            route: "/structured/:boardId".to_owned(),
+            queries: vec![query_spec(
+                "structuredContext",
+                json!({
+                    "context": {
+                        "boardId": { "$param": "boardId" },
+                        "cursor": null
+                    }
+                }),
+            )],
+            persist: None,
+            register_group_eligible: false,
+            mixed_group_eligible: false,
+            mixed_profile: None,
+        }]))
+        .expect("a nested string reference is admitted from argsContract");
+
+    refuses(
+        &mut snapback,
+        manifest(vec![BundleRouteEntry {
+            route: "/structured-json/:payload".to_owned(),
+            queries: vec![query_spec(
+                "structuredContext",
+                json!({ "context": { "payload": { "$param": "payload" } } }),
+            )],
+            persist: None,
+            register_group_eligible: false,
+            mixed_group_eligible: false,
+            mixed_profile: None,
+        }]),
+        "nested reference into a json contract position",
+    );
+    refuses(
+        &mut snapback,
+        manifest(vec![BundleRouteEntry {
+            route: "/structured-array/:boardId".to_owned(),
+            queries: vec![query_spec(
+                "structuredContext",
+                json!({
+                    "context": {
+                        "values": [{ "$param": "boardId" }]
+                    }
+                }),
+            )],
+            persist: None,
+            register_group_eligible: false,
+            mixed_group_eligible: false,
+            mixed_profile: None,
+        }]),
+        "nested reference inside an array literal",
+    );
+    refuses(
+        &mut snapback,
+        manifest(vec![BundleRouteEntry {
+            route: "/structured-rank/:rank".to_owned(),
+            queries: vec![query_spec(
+                "structuredContext",
+                json!({ "context": { "rank": { "$param": "rank" } } }),
+            )],
+            persist: None,
+            register_group_eligible: true,
+            mixed_group_eligible: false,
+            mixed_profile: None,
+        }]),
+        "registerGroupEligible with a nested integer route-param target",
+    );
+    refuses(
+        &mut snapback,
+        manifest(vec![BundleRouteEntry {
+            route: "/legacy-structured/:boardId".to_owned(),
+            queries: vec![query_spec(
+                "legacyStructuredContext",
+                json!({ "context": { "boardId": { "$param": "boardId" } } }),
+            )],
+            persist: None,
+            register_group_eligible: false,
+            mixed_group_eligible: false,
+            mixed_profile: None,
+        }]),
+        "nested reference without an args contract",
+    );
 
     refuses(
         &mut snapback,

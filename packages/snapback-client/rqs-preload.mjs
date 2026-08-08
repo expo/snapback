@@ -304,15 +304,24 @@ function routeParamNames(route) {
 
 function materializeMixedArgs(template, params, where) {
   if (!plainRecord(template)) invalidMixed(`${where} must be a generated args record`);
-  return Object.fromEntries(Object.entries(template).map(([name, value]) => {
+  const materialize = (value, path) => {
     if (plainRecord(value) && Object.keys(value).length === 1 && Object.hasOwn(value, '$param')) {
       if (typeof value.$param !== 'string' || typeof params[value.$param] !== 'string') {
-        invalidMixed(`${where}.${name} has an unresolved route parameter`);
+        invalidMixed(`${path} has an unresolved route parameter`);
       }
-      return [name, params[value.$param]];
+      return params[value.$param];
     }
-    return [name, value];
-  }));
+    if (plainRecord(value)) {
+      return Object.fromEntries(Object.entries(value).map(
+        ([name, entry]) => [name, materialize(entry, `${path}.${name}`)],
+      ));
+    }
+    // Array interiors are literal-only under params-v1.
+    return value;
+  };
+  return Object.fromEntries(Object.entries(template).map(
+    ([name, value]) => [name, materialize(value, `${where}.${name}`)],
+  ));
 }
 
 function validateMixedReference(reference, params) {

@@ -6694,8 +6694,78 @@ function routePatternsOverlap(a, b) {
   ));
 }
 
+function isPlainRouteObject(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+function isRouteParamRef(value) {
+  return isPlainRouteObject(value) && Object.hasOwn(value, '$param');
+}
+
+function routeMappingParamReferences(mapping, visitArrayInteriors, initialPath = []) {
+  const references = [];
+  const visit = (value, path, insideArray) => {
+    if (Array.isArray(value)) {
+      if (!visitArrayInteriors) return;
+      value.forEach((entry, index) => visit(entry, [...path, String(index)], true));
+      return;
+    }
+    if (!isPlainRouteObject(value)) return;
+    if (isRouteParamRef(value)) references.push({ path, value, insideArray });
+    for (const [key, entry] of Object.entries(value)) {
+      visit(entry, [...path, key], insideArray);
+    }
+  };
+  visit(mapping, initialPath, false);
+  return references;
+}
+
+function routeValidatorAtPath(path, fnArgs) {
+  if (path.length === 0) return null;
+  let validator = fnArgs?.[path[0]];
+  for (let index = 1; index < path.length; index += 1) {
+    if (
+      validator?.primitive !== 'object'
+      || validator.resultKind !== undefined
+    ) return null;
+    validator = validator.fields?.[path[index]];
+  }
+  return validator ?? null;
+}
+
+/** @internal Every `{"$param"}` reference in a params-v1 mapping, paired with
+ * the declared validator its path resolves to (null when unresolvable). */
+export function routeMappingParamTargets(mapping, fnArgs) {
+  return routeMappingParamReferences(mapping, false).map(({ path, value }) => ({
+    path,
+    param: value.$param,
+    validator: routeValidatorAtPath(path, fnArgs),
+  }));
+}
+
 function routeLiteralMatches(validator, value) {
+  if (isRouteParamRef(value)) return true;
   if (!validator || validator.primitive === 'unknown') return true;
+  if (validator.resultKind === 'null') return value === null;
+  if (validator.resultKind === 'literal') return value === validator.literal;
+  if (validator.resultKind === 'union') {
+    return (validator.variants ?? []).some((variant) => routeLiteralMatches(variant, value));
+  }
+  if (validator.resultKind === 'array') {
+    return Array.isArray(value)
+      && (
+        typeof validator.resultOptions?.maxItems !== 'number'
+        || value.length <= validator.resultOptions.maxItems
+      )
+      && value.every((entry) => routeLiteralMatches(validator.element, entry));
+  }
+  if (validator.resultKind === 'vector') {
+    return Array.isArray(value)
+      && value.length === validator.dimensions
+      && value.every((entry) => typeof entry === 'number' && Number.isFinite(entry));
+  }
   if (validator.primitive === 'object') {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
     const fields = validator.fields ?? {};
@@ -6712,8 +6782,8 @@ function routeLiteralMatches(validator, value) {
 /// Compile the authored routes declaration into the routes.manifest.json
 /// artifact, validating against the authored functions (LLP 0092 §0C.1
 /// admission, run at compile time): function exists and is a query; the
-/// `params-v1` mapping grammar holds (references at top-level arg positions
-/// only, sole-`$param`-key rule, every reference naming a pattern param);
+/// `params-v1` mapping grammar holds (references at object positions only,
+/// sole-`$param`-key rule, every reference naming a pattern param);
 /// each reference's target arg-schema type is string/number/boolean; literal
 /// portions validate statically; every required arg is covered.
 function compileRoutesManifest(routesModule, functionsModule, appId, err) {
@@ -6748,35 +6818,55 @@ function compileRoutesManifest(routesModule, functionsModule, appId, err) {
       }
       const fnArgs = fn.args ?? {};
       const mapping = spec.args ?? {};
-      const assertLiteral = (value, where) => {
-        if (value && typeof value === 'object') {
-          if (!Array.isArray(value) && Object.hasOwn(value, '$param')) {
-            fail('ROUTES_ARGS_INVALID', `a $param reference at ${where} is nested inside a literal; references are typable only at top-level arg positions`);
-            return;
+
+      // Pass A: admit and type every reference before treating the remaining
+      // structure as literals. Array interiors deliberately have no typable
+      // target path, even when an enclosing object field has a contract.
+      if (isRouteParamRef(mapping)) {
+        fail('ROUTES_ARGS_INVALID', 'a bare top-level $param reference has no named arg position');
+        continue;
+      }
+      const referencePathPrefix = Array.isArray(mapping) ? ['args'] : [];
+      for (const { path, value, insideArray } of routeMappingParamReferences(
+        mapping,
+        true,
+        referencePathPrefix,
+      )) {
+        const referencePath = path.join('.');
+        if (insideArray) {
+          fail('ROUTES_ARGS_INVALID', `a $param reference at ${referencePath} is nested inside an array literal; references are typable only at object positions`);
+        } else if (Object.keys(value).length !== 1 || typeof value.$param !== 'string') {
+          fail('ROUTES_ARGS_INVALID', `the reference at ${referencePath} must be a sole-key {"$param": name} object`);
+        } else if (!params.includes(value.$param)) {
+          fail('ROUTES_ARGS_INVALID', `references :${value.$param}, which is not in the route pattern`);
+        } else {
+          const validator = routeValidatorAtPath(path, fnArgs);
+          if (path.length === 1) {
+            // Preserve the historical top-level rule byte-for-byte: result
+            // node refinements do not narrow any previously admitted app.
+            if (!validator || !ROUTE_PARAM_PRIMITIVES.has(validator.primitive)) {
+              fail('ROUTES_ARGS_INVALID', `references param into arg ${path[0]}, whose schema type is not string/number/boolean`);
+            }
+          // @ref LLP 0131#the-argument-contract-descriptor — nested positions
+          // are newly typable from the carried recursive contract, whose
+          // scalar leaf rule both codegen and the server can reproduce.
+          } else if (
+            !validator
+            || !ROUTE_PARAM_PRIMITIVES.has(validator.primitive)
+            || validator.resultKind !== undefined
+          ) {
+            fail('ROUTES_ARGS_INVALID', `references param into ${referencePath}, whose declared type is not a string/number/boolean argument position`);
           }
-          for (const [key, inner] of Object.entries(value)) assertLiteral(inner, `${where}.${key}`);
         }
-      };
+      }
+
+      // Pass B: validate each complete top-level literal template. Reference
+      // nodes already admitted in pass A match their resolved positions.
       if (mapping && typeof mapping === 'object' && !Array.isArray(mapping)) {
-        if (Object.hasOwn(mapping, '$param')) {
-          fail('ROUTES_ARGS_INVALID', 'a bare top-level $param reference has no named arg position');
-          continue;
-        }
         for (const [key, value] of Object.entries(mapping)) {
           const validator = fnArgs[key];
-          if (value && typeof value === 'object' && !Array.isArray(value) && Object.hasOwn(value, '$param')) {
-            if (Object.keys(value).length !== 1 || typeof value.$param !== 'string') {
-              fail('ROUTES_ARGS_INVALID', `the reference at ${key} must be a sole-key {"$param": name} object`);
-            } else if (!params.includes(value.$param)) {
-              fail('ROUTES_ARGS_INVALID', `references :${value.$param}, which is not in the route pattern`);
-            } else if (!validator || !ROUTE_PARAM_PRIMITIVES.has(validator.primitive)) {
-              fail('ROUTES_ARGS_INVALID', `references param into arg ${key}, whose schema type is not string/number/boolean`);
-            }
-          } else {
-            assertLiteral(value, key);
-            if (validator && !routeLiteralMatches(validator, value)) {
-              fail('ROUTES_ARGS_INVALID', `literal for arg ${key} does not match its arg schema`);
-            }
+          if (validator && !routeLiteralMatches(validator, value)) {
+            fail('ROUTES_ARGS_INVALID', `literal for arg ${key} does not match its arg schema`);
           }
         }
         for (const [name, validator] of Object.entries(fnArgs)) {
@@ -6784,8 +6874,6 @@ function compileRoutesManifest(routesModule, functionsModule, appId, err) {
             fail('ROUTES_ARGS_INVALID', `required arg ${name} is not covered by the mapping`);
           }
         }
-      } else {
-        assertLiteral(mapping, 'args');
       }
     }
     const registerGroupEligible = routeRegisterGroupEligible(queries, functionsModule);
@@ -6810,15 +6898,9 @@ export function routeRegisterGroupEligible(queries, functionsModule) {
     // must not let live search enter register mode before that path owns
     // cursor and ceiling admission.
     if (fn.searchPlan !== undefined) return false;
-    return Object.entries(spec.args ?? {}).every(([key, value]) => (
-      !(
-        value
-        && typeof value === 'object'
-        && !Array.isArray(value)
-        && Object.hasOwn(value, '$param')
-      )
-      || fn.args?.[key]?.primitive === 'string'
-    ));
+    return routeMappingParamTargets(spec.args ?? {}, fn.args).every(
+      ({ validator }) => validator?.primitive === 'string',
+    );
   });
 }
 
@@ -6833,15 +6915,9 @@ export function routeMixedGroupEligible(queries, functionsModule) {
     else if (fn?.__kind === 'LiveQuery') live = true;
     else return false;
     if (fn.searchPlan !== undefined) return false;
-    if (!Object.entries(spec.args ?? {}).every(([key, value]) => (
-      !(
-        value
-        && typeof value === 'object'
-        && !Array.isArray(value)
-        && Object.hasOwn(value, '$param')
-      )
-      || fn.args?.[key]?.primitive === 'string'
-    ))) return false;
+    if (!routeMappingParamTargets(spec.args ?? {}, fn.args).every(
+      ({ validator }) => validator?.primitive === 'string',
+    )) return false;
   }
   return query && live;
 }

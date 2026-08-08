@@ -90,6 +90,16 @@ export function renderOperationSchemas(
   }>>>,
 ): OperationSchemaArtifact[];
 
+/** Every object-reachable route-param reference and its resolved validator. */
+export function routeMappingParamTargets(
+  mapping: unknown,
+  fnArgs: Readonly<Record<string, unknown>> | undefined,
+): ReadonlyArray<Readonly<{
+  path: readonly string[];
+  param: unknown;
+  validator: Readonly<Record<string, unknown>> | null;
+}>>;
+
 /** Closed register-mode predicate shared with the route authoring fixture. */
 export function routeRegisterGroupEligible(
   queries: ReadonlyArray<Readonly<{

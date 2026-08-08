@@ -3567,6 +3567,43 @@ fn collect_value_expr_arg_names(value: &ValueExpr, out: &mut BTreeSet<String>) {
     }
 }
 
+fn object_reachable_route_param_paths(mapping: &Value) -> Result<Vec<Vec<String>>, ()> {
+    fn collect(
+        value: &Value,
+        path: &mut Vec<String>,
+        inside_array: bool,
+        references: &mut Vec<Vec<String>>,
+    ) -> Result<(), ()> {
+        match value {
+            Value::Object(map) => {
+                if map.contains_key("$param") {
+                    if path.is_empty() || inside_array {
+                        return Err(());
+                    }
+                    references.push(path.clone());
+                    return Ok(());
+                }
+                for (key, inner) in map {
+                    path.push(key.clone());
+                    collect(inner, path, inside_array, references)?;
+                    path.pop();
+                }
+            }
+            Value::Array(items) => {
+                for item in items {
+                    collect(item, path, true, references)?;
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    let mut references = Vec::new();
+    collect(mapping, &mut Vec::new(), false, &mut references)?;
+    Ok(references)
+}
+
 impl LiveSubscription {
     /// @ref LLP 0058#live-owner-and-replacement-predicate — a retained live
     /// owner is the resolved authority *and* exact connection grant. `None`
@@ -14982,11 +15019,11 @@ impl LocalSnapback {
 
     /// LLP 0092 §0C.1 install-time validation against the served functions
     /// manifest: every named function exists and is a query; every `$param`
-    /// reference targets a schema-typable top-level arg (the AST-derived
-    /// per-arg decode types of §0E.6); and every arg the query's plan reads
-    /// is covered by the mapping. Failures refuse the manifest with the
-    /// coded load error — per 0090 D1.4, manifest presence authorizes
-    /// preload selection only.
+    /// reference targets a typable object-reachable arg position (AST-derived
+    /// at depth 1, argument-contract-derived below it); and every arg the
+    /// query's plan reads is covered by the mapping. Failures refuse the
+    /// manifest with the coded load error — per 0090 D1.4, manifest presence
+    /// authorizes preload selection only.
     fn validate_routes_manifest(
         &self,
         manifest: &crate::bundle::RoutesManifest,
@@ -15066,27 +15103,48 @@ impl LocalSnapback {
                     )));
                 }
                 let arg_types = crate::bundle::function_route_arg_types(function, schema);
-                if let Value::Object(map) = &spec.args {
-                    for (key, value) in map {
-                        let Value::Object(inner) = value else {
-                            continue;
-                        };
-                        if inner.contains_key("$param") && !arg_types.contains_key(key.as_str()) {
+                let nested_arg_types = crate::bundle::function_nested_route_arg_types(function);
+                let reference_paths = object_reachable_route_param_paths(&spec.args).map_err(
+                    |_| {
+                        routes_manifest_error(format!(
+                            "route {:?} query {:?} has a param reference at the mapping root or inside an array literal",
+                            entry.route, spec.function
+                        ))
+                    },
+                )?;
+                for path in reference_paths {
+                    let target_type = if path.len() == 1 {
+                        arg_types.get(path[0].as_str())
+                    } else {
+                        nested_arg_types.get(&path)
+                    };
+                    if target_type.is_none() {
+                        if path.len() == 1 {
+                            let key = &path[0];
                             return Err(routes_manifest_error(format!(
                                 "route {:?} query {:?} references param into arg {:?}, which has no schema-derived string/number/boolean type",
                                 entry.route, spec.function, key
                             )));
                         }
-                        if (entry.register_group_eligible || entry.mixed_group_eligible)
-                            && inner.contains_key("$param")
-                            && arg_types.get(key.as_str())
-                                != Some(&crate::bundle::RouteParamType::String)
-                        {
-                            return Err(routes_manifest_error(format!(
-                                "route {:?} asserts registerGroupEligible but query {:?} param target {:?} is not string-typed",
-                                entry.route, spec.function, key
-                            )));
-                        }
+                        return Err(routes_manifest_error(format!(
+                            "route {:?} query {:?} references param into {}, which has no contract-derived string/number/boolean type",
+                            entry.route,
+                            spec.function,
+                            path.join(".")
+                        )));
+                    }
+                    if (entry.register_group_eligible || entry.mixed_group_eligible)
+                        && target_type != Some(&crate::bundle::RouteParamType::String)
+                    {
+                        let target = if path.len() == 1 {
+                            path[0].clone()
+                        } else {
+                            path.join(".")
+                        };
+                        return Err(routes_manifest_error(format!(
+                            "route {:?} asserts registerGroupEligible but query {:?} param target {:?} is not string-typed",
+                            entry.route, spec.function, target
+                        )));
                     }
                 }
                 // Coverage: every arg the plan's filters read must appear in
@@ -15564,10 +15622,13 @@ impl LocalSnapback {
                     }
                 }
                 // Schema-driven per-arg decode (LLP 0092 §0E.6): references
-                // decode by the AST-derived type of their target arg.
+                // decode from the unchanged AST type at depth 1 and the
+                // carried argument contract below it.
                 let arg_types = bundle::function_route_arg_types(&function, snapback.db.schema());
-                let args = bundle::substitute_params_v1(&spec.args, params, &arg_types)
-                    .map_err(|code| refuse(code, "bundle args mapping refused"))?;
+                let nested_arg_types = bundle::function_nested_route_arg_types(&function);
+                let args =
+                    bundle::substitute_params_v1(&spec.args, params, &arg_types, &nested_arg_types)
+                        .map_err(|code| refuse(code, "bundle args mapping refused"))?;
                 let (rows, resume, subscription_id, authorization) = match &register {
                     None => {
                         let input = HandlerInput {
@@ -15816,8 +15877,10 @@ impl LocalSnapback {
                 }
             }
             let arg_types = bundle::function_route_arg_types(&function, self.db.schema());
-            let args = bundle::substitute_params_v1(&spec.args, params, &arg_types)
-                .map_err(|code| refuse(code, "mixed bundle args mapping refused"))?;
+            let nested_arg_types = bundle::function_nested_route_arg_types(&function);
+            let args =
+                bundle::substitute_params_v1(&spec.args, params, &arg_types, &nested_arg_types)
+                    .map_err(|code| refuse(code, "mixed bundle args mapping refused"))?;
             let invocation_authority = if admission.live {
                 let lease = self
                     .admission

@@ -303,48 +303,56 @@ function routeParams(route) {
     .map((segment) => segment.slice(1));
 }
 
+function groupPlainObject(value) {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
 function materializeGroupArgs(mapping, params) {
-  const output = {};
-  for (const [name, value] of Object.entries(mapping ?? {})) {
+  const materialize = (value) => {
     if (
-      value
-      && typeof value === 'object'
-      && !Array.isArray(value)
+      groupPlainObject(value)
       && Object.keys(value).length === 1
       && typeof value.$param === 'string'
     ) {
-      output[name] = params[value.$param];
-    } else {
-      output[name] = structuredClone(value);
+      return params[value.$param];
     }
-  }
+    if (groupPlainObject(value)) {
+      return Object.fromEntries(
+        Object.entries(value).map(([name, entry]) => [name, materialize(entry)]),
+      );
+    }
+    // Array interiors are literal-only under params-v1.
+    return structuredClone(value);
+  };
+  const output = materialize(mapping ?? {});
   return deepFreeze(output);
 }
 
 function groupResponseArgsMatch(mapping, params, actual) {
-  if (!actual || typeof actual !== 'object' || Array.isArray(actual)) return false;
-  const expectedKeys = Object.keys(mapping ?? {}).sort();
-  const actualKeys = Object.keys(actual).sort();
-  if (
-    expectedKeys.length !== actualKeys.length
-    || expectedKeys.some((key, index) => key !== actualKeys[index])
-  ) return false;
-  return expectedKeys.every((name) => {
-    const template = mapping[name];
+  const matches = (template, decoded) => {
     if (
-      template
-      && typeof template === 'object'
-      && !Array.isArray(template)
+      groupPlainObject(template)
       && Object.keys(template).length === 1
       && typeof template.$param === 'string'
     ) {
       const raw = params[template.$param];
-      const decoded = actual[name];
       return typeof decoded === 'string' && decoded === raw;
     }
-    return canonicalizeClientValueV1(template)
-      === canonicalizeClientValueV1(actual[name]);
-  });
+    if (groupPlainObject(template)) {
+      if (!groupPlainObject(decoded)) return false;
+      const expectedKeys = Object.keys(template).sort();
+      const actualKeys = Object.keys(decoded).sort();
+      return expectedKeys.length === actualKeys.length
+        && expectedKeys.every((key, index) => (
+          key === actualKeys[index] && matches(template[key], decoded[key])
+        ));
+    }
+    // Array interiors are literal-only and compare as one canonical value.
+    return canonicalizeClientValueV1(template) === canonicalizeClientValueV1(decoded);
+  };
+  return matches(mapping ?? {}, actual);
 }
 
 // --- Offline binding receipt (cold-boot preparation without a server) -------

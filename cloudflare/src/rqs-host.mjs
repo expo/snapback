@@ -343,47 +343,23 @@ export function validateRoutesManifest(manifest, functionsByName, schemaTables) 
   return null;
 }
 
+function isPlainRouteObject(value) {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
 function isParamRef(value) {
   return (
-    value !== null
-    && typeof value === 'object'
-    && !Array.isArray(value)
+    isPlainRouteObject(value)
     && Object.keys(value).length === 1
     && Object.hasOwn(value, '$param')
   );
 }
 
-function assertLiteral(value) {
-  if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-    return null;
-  }
-  if (Array.isArray(value)) {
-    for (const entry of value) {
-      const error = assertLiteral(entry);
-      if (error) return error;
-    }
-    return null;
-  }
-  if (typeof value === 'object') {
-    if (Object.hasOwn(value, '$param')) {
-      // References are typable only at top-level arg positions (the step-3
-      // sharpening of §0E.6); a nested $param — or $param beside other keys
-      // — is refused at admission.
-      return 'nested or malformed $param reference';
-    }
-    for (const entry of Object.values(value)) {
-      const error = assertLiteral(entry);
-      if (error) return error;
-    }
-    return null;
-  }
-  return 'unsupported literal';
-}
-
 /// AST-derived per-arg route types (LLP 0092 §0E.6 step-3 sharpening): a plan
 /// filter comparing a schema field against `Arg(name)` types that arg from
-/// the schema field type. There is no manifest-carried arg schema on this arm
-/// either.
+/// the schema field type. This remains the byte-compatible depth-1 authority.
 export function functionRouteArgTypes(fn, schemaTables) {
   const plan = hostPlanQuery(fn);
   if (!plan) return new Map();
@@ -401,62 +377,144 @@ export function functionRouteArgTypes(fn, schemaTables) {
   return types;
 }
 
+/// Contract-derived route types for object-reachable argument paths.
+/// @ref LLP 0092#dated-amendment-structured-route-group-arguments-2026-08-08
+///   — LLP 0131's carried argsContract replaces the old no-schema premise at
+///   nested positions, while depth 1 keeps functionRouteArgTypes unchanged.
+export function functionRouteNestedArgTypes(fn) {
+  const types = new Map();
+  const collect = (fields, path) => {
+    if (!Array.isArray(fields)) return;
+    for (const field of fields) {
+      if (!field || typeof field.name !== 'string') continue;
+      const nextPath = [...path, field.name];
+      const node = field.value;
+      let type = null;
+      if (['string', 'principal', 'assetRef', 'id'].includes(node?.kind)) type = 'string';
+      else if (node?.kind === 'integer') type = 'integer';
+      else if (node?.kind === 'finiteReal') type = 'number';
+      else if (node?.kind === 'boolean') type = 'boolean';
+      else if (node?.kind === 'object') collect(node.fields, nextPath);
+      if (type !== null) types.set(JSON.stringify(nextPath), type);
+    }
+  };
+  collect(fn?.argsContract?.fields, []);
+  return types;
+}
+
 function validateArgsMapping(mapping, routeParams, fn, schemaTables) {
-  if (!mapping || typeof mapping !== 'object' || Array.isArray(mapping)) {
+  if (!isPlainRouteObject(mapping)) {
     return 'args mapping must be an object';
   }
   const argTypes = functionRouteArgTypes(fn, schemaTables);
-  for (const [argName, value] of Object.entries(mapping)) {
-    if (isParamRef(value)) {
-      if (typeof value.$param !== 'string') return '$param must name a route param';
+  const nestedArgTypes = functionRouteNestedArgTypes(fn);
+  const visit = (value, path, insideArray) => {
+    if (Array.isArray(value)) {
+      for (const entry of value) {
+        const error = visit(entry, path, true);
+        if (error) return error;
+      }
+      return null;
+    }
+    if (!isPlainRouteObject(value)) {
+      return value === null || ['string', 'number', 'boolean'].includes(typeof value)
+        ? null
+        : 'unsupported literal';
+    }
+    if (Object.hasOwn(value, '$param')) {
+      if (path.length === 0) return 'a bare root $param has no named arg position';
+      if (insideArray) return 'a $param reference is nested inside an array literal';
+      if (!isParamRef(value) || typeof value.$param !== 'string') {
+        return 'malformed $param reference';
+      }
       if (!routeParams.has(value.$param)) return `$param ${value.$param} is not in the route pattern`;
-      if (!argTypes.has(argName)) return `referenced arg ${argName} has no schema-typed target`;
-    } else {
-      const error = assertLiteral(value);
+      const type = path.length === 1
+        ? argTypes.get(path[0])
+        : nestedArgTypes.get(JSON.stringify(path));
+      if (type === undefined) {
+        return path.length === 1
+          ? `referenced arg ${path[0]} has no schema-typed target`
+          : `referenced path ${path.join('.')} has no contract-typed target`;
+      }
+      return null;
+    }
+    for (const [name, entry] of Object.entries(value)) {
+      const error = visit(entry, [...path, name], insideArray);
       if (error) return error;
     }
-  }
-  return null;
+    return null;
+  };
+  return visit(mapping, [], false);
 }
 
 const DECIMAL_NUMBER = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/;
 
 /// Per-request params-v1 substitution (LLP 0092 §0E.6): decode each `$param`
-/// by its AST-derived target type; any failure is
+/// by its depth-1 AST type or nested argument-contract type; any failure is
 /// `SNAPBACK_BUNDLE_PARAMS_INVALID` at the endpoint.
-export function substituteParamsV1(mapping, params, argTypes) {
-  const args = {};
-  for (const [argName, value] of Object.entries(mapping)) {
-    if (isParamRef(value)) {
-      const raw = params[value.$param];
-      if (typeof raw !== 'string') return { error: `missing route param ${value.$param}` };
-      const type = argTypes.get(argName);
-      if (type === 'string') {
-        args[argName] = raw;
-      } else if (type === 'number' || type === 'integer') {
-        if (!DECIMAL_NUMBER.test(raw)) return { error: `param ${value.$param} is not a number` };
-        const parsed = Number(raw);
-        if (!Number.isFinite(parsed)) return { error: `param ${value.$param} is not finite` };
-        try {
-          jcs(parsed); // the JCS round-trip refusal band (LLP 0091 §0A.2)
-        } catch {
-          return { error: `param ${value.$param} does not round-trip` };
-        }
-        if (type === 'integer' && !Number.isSafeInteger(parsed)) {
-          return { error: `param ${value.$param} is not an in-band integer` };
-        }
-        args[argName] = parsed;
-      } else if (type === 'boolean') {
-        if (raw !== 'true' && raw !== 'false') return { error: `param ${value.$param} is not a boolean` };
-        args[argName] = raw === 'true';
-      } else {
-        return { error: `arg ${argName} has no schema-typed target` };
+export function substituteParamsV1(mapping, params, argTypes, nestedArgTypes) {
+  const substitute = (value, path, insideArray) => {
+    if (Array.isArray(value)) {
+      const output = [];
+      for (const entry of value) {
+        const substituted = substitute(entry, path, true);
+        if (substituted.error) return substituted;
+        output.push(substituted.value);
       }
-    } else {
-      args[argName] = value;
+      return { value: output };
     }
+    if (isPlainRouteObject(value)) {
+      if (Object.hasOwn(value, '$param')) {
+        if (path.length === 0 || insideArray || !isParamRef(value) || typeof value.$param !== 'string') {
+          return { error: 'untypable or malformed route parameter reference' };
+        }
+        const raw = params[value.$param];
+        if (typeof raw !== 'string') return { error: `missing route param ${value.$param}` };
+        const type = path.length === 1
+          ? argTypes.get(path[0])
+          : nestedArgTypes.get(JSON.stringify(path));
+        if (type === 'string') {
+          return { value: raw };
+        } else if (type === 'number' || type === 'integer') {
+          if (!DECIMAL_NUMBER.test(raw)) return { error: `param ${value.$param} is not a number` };
+          const parsed = Number(raw);
+          if (!Number.isFinite(parsed)) return { error: `param ${value.$param} is not finite` };
+          let canonical;
+          try {
+            canonical = jcs(parsed);
+          } catch {
+            return { error: `param ${value.$param} does not round-trip` };
+          }
+          if (canonical !== raw) return { error: `param ${value.$param} does not round-trip` };
+          if (type === 'integer' && !Number.isSafeInteger(parsed)) {
+            return { error: `param ${value.$param} is not an in-band integer` };
+          }
+          return { value: parsed };
+        } else if (type === 'boolean') {
+          if (raw !== 'true' && raw !== 'false') {
+            return { error: `param ${value.$param} is not a boolean` };
+          }
+          return { value: raw === 'true' };
+        } else {
+          return { error: `arg path ${path.join('.')} has no typed target` };
+        }
+      }
+      const output = {};
+      for (const [name, entry] of Object.entries(value)) {
+        const substituted = substitute(entry, [...path, name], insideArray);
+        if (substituted.error) return substituted;
+        output[name] = substituted.value;
+      }
+      return { value: output };
+    }
+    return { value };
+  };
+  const substituted = substitute(mapping, [], false);
+  if (substituted.error) return substituted;
+  if (!isPlainRouteObject(substituted.value)) {
+    return { error: 'args mapping must be an object' };
   }
-  return { args };
+  return { args: substituted.value };
 }
 
 // ---------------------------------------------------------------------------

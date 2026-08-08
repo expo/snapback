@@ -79,6 +79,7 @@ import {
   ensureResumeKeyTable,
   evaluateHostPlanQuery,
   functionRouteArgTypes,
+  functionRouteNestedArgTypes,
   generationDigest,
   hostPlanQuery,
   mintTokenWire,
@@ -1472,7 +1473,8 @@ export class Coordinator {
       const substituted = substituteParamsV1(
         spec.args || {},
         params || {},
-        functionRouteArgTypes(fn, APP_SCHEMA_TABLES)
+        functionRouteArgTypes(fn, APP_SCHEMA_TABLES),
+        functionRouteNestedArgTypes(fn)
       );
       if (substituted.error) {
         return failure(400, 'SNAPBACK_BUNDLE_PARAMS_INVALID', substituted.error);
