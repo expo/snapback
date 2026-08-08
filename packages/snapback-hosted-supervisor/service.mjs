@@ -407,12 +407,13 @@ function invokeCommand(supervisor, input) {
     case 'registerControlHead':
       return supervisor.registerControlHead(args);
     case 'registerHostedTargetEnrollment': {
+      const enrollment = validateHostedTargetEnrollment(args);
       const signingSeed = readSecret(
-        args.signingSeedCredentialRef,
+        enrollment.signingSeedCredentialRef,
         'target admission signing seed',
       );
       return supervisor.registerHostedTargetEnrollment(
-        validateHostedTargetEnrollment(args, signingSeed),
+        validateHostedTargetEnrollment(enrollment, signingSeed),
       );
     }
     case 'planCleanup':

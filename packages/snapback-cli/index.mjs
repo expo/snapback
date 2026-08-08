@@ -97,6 +97,7 @@ import {
   runHostedRead,
   submitHostedOperatorRequest,
 } from './hosted-control.mjs';
+import { stopProcessGroup } from './process-teardown.mjs';
 export {
   addTarget,
   applyBackupPlan,
@@ -499,6 +500,7 @@ export async function doctor(options = {}) {
     await loadGenerated(runtime.binary, projectRoot, backendRoot, readyFile, adminToken, {
       seed: true,
       database,
+      env: options.env,
     });
     checks.push(doctorDiagnostic(
       'SNAPBACK_DOCTOR_BUNDLE_LOAD_OK',
@@ -575,7 +577,6 @@ export async function doctor(options = {}) {
         timeout: 15_000,
       });
       if (stop.status !== 0) {
-        child.kill('SIGTERM');
         failure ??= doctorDiagnostic(
           'SNAPBACK_DOCTOR_SHUTDOWN_FAILED',
           'runtime',
@@ -583,23 +584,14 @@ export async function doctor(options = {}) {
           { status: stop.status, signal: stop.signal, stderr: stop.stderr?.slice(0, 2_000) ?? '' },
         );
       }
-    }
-    if (child?.exitCode === null) {
-      await new Promise((resolveExit) => {
-        const timer = setTimeout(() => {
-          child.kill('SIGKILL');
-          failure ??= doctorDiagnostic(
-            'SNAPBACK_DOCTOR_SHUTDOWN_FAILED',
-            'runtime',
-            'the disposable server did not exit within the shutdown deadline',
-          );
-          resolveExit();
-        }, 5_000);
-        child.once('exit', () => {
-          clearTimeout(timer);
-          resolveExit();
-        });
-      });
+      const exited = await stopProcessGroup(child);
+      if (!exited) {
+        failure ??= doctorDiagnostic(
+          'SNAPBACK_DOCTOR_SHUTDOWN_FAILED',
+          'runtime',
+          'the disposable server did not exit within the shutdown deadline',
+        );
+      }
     }
     try {
       rmSync(scratch, { recursive: true, force: true });
@@ -1990,10 +1982,14 @@ export async function loadGenerated(
     skipSchemaFunctions = false,
     runtime = null,
     runtimeIdentity = null,
+    env = process.env,
   } = {},
 ) {
   const generated = join(backendRoot, 'generated');
-  const targetArgs = ['--ready-file', readyFile, ...(adminToken ? ['--token', adminToken] : [])];
+  const targetArgs = ['--ready-file', readyFile];
+  const nativeEnvironment = adminToken
+    ? { ...env, SNAPBACK_ADMIN_TOKEN: adminToken }
+    : env;
   const optionalGeneratedArtifact = (artifactPath) => {
     let resolved;
     try {
@@ -2051,7 +2047,7 @@ export async function loadGenerated(
         'load', ...targetArgs,
         '--schema', schemaPath,
         '--functions', functionsPath,
-      ], { cwd: projectRoot }), 'SNAPBACK_DEV_SERVER_LOAD_FAILED', 'schema/function load');
+      ], { cwd: projectRoot, env: nativeEnvironment }), 'SNAPBACK_DEV_SERVER_LOAD_FAILED', 'schema/function load');
     } catch (error) {
       throw refineGeneratedArtifactFailure(error, {
         binary,
@@ -2140,7 +2136,10 @@ export async function loadGenerated(
   const seedPath = join(backendRoot, 'seed.json');
   if (!artifact && seed && existsSync(seedPath)) {
     requireNativeSuccess(
-      native(binary, ['reset', ...targetArgs, '--seed', seedPath], { cwd: projectRoot }),
+      native(binary, ['reset', ...targetArgs, '--seed', seedPath], {
+        cwd: projectRoot,
+        env: nativeEnvironment,
+      }),
       'SNAPBACK_DEV_SERVER_SEED_FAILED',
       'seed load',
     );
@@ -2276,7 +2275,7 @@ export async function runDev(options = {}) {
     try {
       descriptor = validateDevTarget(await waitForReady(readyFile, child), { readyFile, database });
     } catch (error) {
-      if (child.exitCode === null) child.kill('SIGTERM');
+      await stopProcessGroup(child);
       throw refineGeneratedArtifactFailure(error, {
         binary: runtime.binary,
         runtime,
@@ -2288,9 +2287,13 @@ export async function runDev(options = {}) {
       });
     }
   }
-  const closeManaged = () => {
+  const closeManaged = async () => {
     if (managed && child?.exitCode === null) {
-      native(runtime.binary, ['stop', '--ready-file', readyFile], { cwd: projectRoot });
+      native(runtime.binary, ['stop', '--ready-file', readyFile], {
+        cwd: projectRoot,
+        env: options.env,
+      });
+      await stopProcessGroup(child);
     }
   };
   let adminToken;
@@ -2308,9 +2311,10 @@ export async function runDev(options = {}) {
       skipSchemaFunctions: managed && startupArtifacts !== null,
       runtime,
       runtimeIdentity,
+      env: options.env,
     });
   } catch (error) {
-    closeManaged();
+    await closeManaged();
     throw error;
   }
 
@@ -2390,6 +2394,7 @@ export async function runDev(options = {}) {
         database,
         runtime,
         runtimeIdentity,
+        env: options.env,
       });
       return emitDevEvent({ schemaVersion: 'snapback.dev.v1', ok: true, state: 'generated-and-loaded', changed: filename, ...extra });
     } catch (error) {
@@ -2545,25 +2550,10 @@ export async function runDev(options = {}) {
       directory: clientArm.directory,
     });
   };
-  const closeClientArm = () => {
+  const closeClientArm = async () => {
     if (!clientProcess || clientProcess.exitCode !== null || clientProcess.signal !== null) return;
     const { child: proc } = clientProcess;
-    const signalGroup = (signal) => {
-      try {
-        process.kill(-proc.pid, signal);
-      } catch {
-        try {
-          proc.kill(signal);
-        } catch {
-          // already gone
-        }
-      }
-    };
-    signalGroup('SIGTERM');
-    const escalate = setTimeout(() => {
-      if (clientProcess.exitCode === null && clientProcess.signal === null) signalGroup('SIGKILL');
-    }, 5_000);
-    escalate.unref?.();
+    await stopProcessGroup(proc, { processGroup: true });
   };
   // The client spawns only after the managed server is up and the first
   // generate+load completed, so its plugin's `auto` mode attaches to the
@@ -2638,14 +2628,12 @@ export async function runDev(options = {}) {
     try {
       const previousPid = descriptor.pid ?? null;
       if (child.exitCode === null && child.signalCode === null) {
-        const stop = native(runtime.binary, ['stop', '--ready-file', readyFile], { cwd: projectRoot });
-        if (stop.status !== 0 && child.exitCode === null) child.kill('SIGTERM');
+        native(runtime.binary, ['stop', '--ready-file', readyFile], {
+          cwd: projectRoot,
+          env: options.env,
+        });
+        await stopProcessGroup(child);
       }
-      const deadline = Date.now() + 10_000;
-      while (child.exitCode === null && child.signalCode === null && Date.now() < deadline) {
-        await new Promise((resolveWait) => setTimeout(resolveWait, 50));
-      }
-      if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
       if (existsSync(readyFile)) rmSync(readyFile, { force: true });
       refreshStartupArtifacts();
       child = spawnManagedRuntime(runtime.binary, [
@@ -2723,14 +2711,12 @@ export async function runDev(options = {}) {
     try {
       const previousPid = descriptor.pid ?? null;
       if (child.exitCode === null && child.signalCode === null) {
-        const stop = native(runtime.binary, ['stop', '--ready-file', readyFile], { cwd: projectRoot });
-        if (stop.status !== 0 && child.exitCode === null) child.kill('SIGTERM');
+        native(runtime.binary, ['stop', '--ready-file', readyFile], {
+          cwd: projectRoot,
+          env: options.env,
+        });
+        await stopProcessGroup(child);
       }
-      const deadline = Date.now() + 10_000;
-      while (child.exitCode === null && child.signalCode === null && Date.now() < deadline) {
-        await new Promise((resolveWait) => setTimeout(resolveWait, 50));
-      }
-      if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
       removeManagedDatabaseState(database, readyFile);
       refreshStartupArtifacts();
       child = spawnManagedRuntime(runtime.binary, [
@@ -2799,12 +2785,13 @@ export async function runDev(options = {}) {
       restart: restartVerb,
       'dev-fresh': devFreshVerb,
     },
-    close() {
+    async close() {
+      if (closed) return;
       closed = true;
       clearTimeout(timer);
       watcher.close();
-      closeClientArm();
-      closeManaged();
+      await closeClientArm();
+      await closeManaged();
     },
   };
 }
@@ -3469,15 +3456,7 @@ export async function runCli(argv, options = {}) {
         };
       }
     } finally {
-      dev?.close?.();
-      const child = dev?.child ?? null;
-      if (child && child.exitCode === null && child.signalCode === null) {
-        const deadline = Date.now() + 10_000;
-        while (child.exitCode === null && child.signalCode === null && Date.now() < deadline) {
-          await new Promise((resolveWait) => setTimeout(resolveWait, 50));
-        }
-        if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
-      }
+      await dev?.close?.();
       rmSync(readyFile, { force: true });
     }
     if (failedResult !== null) {
@@ -3746,7 +3725,7 @@ export async function runCli(argv, options = {}) {
       const result = addTarget(descriptor, { controlRoot: controlRoot ?? undefined });
       if (json) printResult(result, true);
       else console.log(JSON.stringify(result, null, 2));
-      return 0;
+      return result.ok === false ? 1 : 0;
     }
     const targetId = args.shift();
     if (!targetId || args.length > 0 || !['show', 'doctor', 'inspect'].includes(subcommand)) {
@@ -4035,7 +4014,7 @@ export async function runCli(argv, options = {}) {
         throw diagnosticError('SNAPBACK_CLI_ARGUMENT_INVALID', 'usage: snapback deploy rollback <plan|apply> ...');
       }
       printResult(result, json);
-      return result.applyEligible === false ? 2 : 0;
+      return result.applyEligible === false ? 2 : (result.ok === false ? 1 : 0);
     }
     if (subcommand === 'status') {
       const targetId = takeFlag(args, '--target');
@@ -4046,7 +4025,7 @@ export async function runCli(argv, options = {}) {
       const result = inspectTarget(targetId, { controlRoot: controlRoot ?? undefined, ...options });
       if (json) printResult(result, true);
       else console.log(JSON.stringify(result, null, 2));
-      return 0;
+      return result.ok === false ? 1 : 0;
     }
     if (subcommand === 'apply') {
       const targetId = takeFlag(args, '--target');
@@ -4070,7 +4049,7 @@ export async function runCli(argv, options = {}) {
         ...options,
       });
       printResult(result, json);
-      return 0;
+      return result.ok === false ? 1 : 0;
     }
     if (subcommand === 'plan') {
       const targetId = takeFlag(args, '--target');
@@ -4232,6 +4211,7 @@ export async function runCli(argv, options = {}) {
           stopping = true;
           process.off('SIGINT', stop);
           process.off('SIGTERM', stop);
+          process.off('SIGHUP', stop);
           detachInput();
           try {
             await result.close();
@@ -4245,6 +4225,7 @@ export async function runCli(argv, options = {}) {
         rejectCritical = (error) => { void settle(error); };
         process.once('SIGINT', stop);
         process.once('SIGTERM', stop);
+        process.once('SIGHUP', stop);
         detachInput = attachDevControlChannel({
           verbs: result.verbs,
           stop,
@@ -4287,27 +4268,32 @@ export async function runCli(argv, options = {}) {
       return 1;
     }
     if (noWatch) {
-      result.close?.();
+      await result.close?.();
     } else if (result.ok) {
       await new Promise((resolveStop, rejectStop) => {
         let stopping = false;
         let detachInput = () => {};
-        const settle = () => {
+        const settle = async (failure = null) => {
+          if (stopping) return;
           stopping = true;
           process.off('SIGINT', stop);
           process.off('SIGTERM', stop);
+          process.off('SIGHUP', stop);
           detachInput();
-          result.close?.();
+          try {
+            await result.close?.();
+            if (failure) rejectStop(failure);
+            else resolveStop();
+          } catch (error) {
+            rejectStop(error);
+          }
         };
         function stop() {
-          if (stopping) return;
-          settle();
-          resolveStop();
+          void settle();
         }
         onUnexpectedServerExit = (code, signal) => {
           if (stopping) return;
-          settle();
-          rejectStop(diagnosticError(
+          void settle(diagnosticError(
             'SNAPBACK_DEV_SERVER_EXITED',
             'the managed Snapback server exited while dev watch was active',
             { code, signal },
@@ -4315,6 +4301,7 @@ export async function runCli(argv, options = {}) {
         };
         process.once('SIGINT', stop);
         process.once('SIGTERM', stop);
+        process.once('SIGHUP', stop);
         detachInput = attachDevControlChannel({
           verbs: result.verbs,
           stop,

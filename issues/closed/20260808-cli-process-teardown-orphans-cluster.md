@@ -47,3 +47,6 @@ is closest) and route all four sites plus `runDev.close()` and the MCP
 
 High on each site; the detachment is deliberate, the missing lifecycle handling
 is the gap.
+
+## Resolution (2026-08-08)
+Fixed on main (Lane F). Verified: node --check all edited files; node --test 6/6; focused behavioral probes; ref-check clean.

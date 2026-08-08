@@ -46,3 +46,6 @@ High on both mechanisms (no `__proto__` guard anywhere in index.mjs; the
 `Publish` alias has no collision check). Medium on worst-case runtime behavior.
 Both are latent (require adversarial-but-legal authored names) — worth closing
 because the whole codegen design leans on emitted artifacts being trustworthy.
+
+## Resolution (2026-08-08)
+Fixed on main (Lane F). Verified: node --check all edited files; node --test 6/6; focused behavioral probes; ref-check clean.

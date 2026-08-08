@@ -29,6 +29,7 @@
     "index.mjs",
     "mcp-control.mjs",
     "network-profile-authority.json",
+    "process-teardown.mjs",
     "reference-lookup.mjs",
     "runtime-readiness.d.mts",
     "runtime-readiness.mjs",

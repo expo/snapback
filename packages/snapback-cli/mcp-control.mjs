@@ -27,6 +27,7 @@ import {
   validateDevTarget,
   waitForReady,
 } from './index.mjs';
+import { stopProcessGroup } from './process-teardown.mjs';
 
 const PROTOCOL_VERSION = '2025-06-18';
 const SCHEMA_VERSION = 'snapback.v0';
@@ -176,6 +177,17 @@ function diagnostic(code, message, details = undefined) {
 
 function requestId() {
   return `mcp_${randomUUID().replaceAll('-', '')}`;
+}
+
+function encodedAdminPathSegment(value, argument) {
+  if (typeof value !== 'string' || value.length === 0 || /[/?#]/.test(value)) {
+    throw diagnosticError(
+      'SNAPBACK_MCP_ARGUMENT_INVALID',
+      `${argument} must be a non-empty URL path segment without /, ?, or #`,
+      { argument },
+    );
+  }
+  return encodeURIComponent(value);
 }
 
 function packageVersion() {
@@ -1342,10 +1354,14 @@ export class McpControlServer {
     const adminToken = managedAdminToken(descriptor, this.database);
     const result = native(runtime.binary, [
       'secret-read-mint', '--ready-file', this.readyFile,
-      ...(adminToken ? ['--token', adminToken] : []),
       ...(scopeArgs ?? [`--${scopeFlag}`]),
       '--row-budget', String(rowBudget), '--byte-budget', String(byteBudget),
-    ], { cwd: this.projectRoot, env: this.env });
+    ], {
+      cwd: this.projectRoot,
+      env: adminToken
+        ? { ...(this.env ?? process.env), SNAPBACK_ADMIN_TOKEN: adminToken }
+        : this.env,
+    });
     if (result.status !== 0) {
       throw diagnosticError(
         'SNAPBACK_MCP_SECRET_READ_MINT_FAILED',
@@ -1623,7 +1639,7 @@ export class McpControlServer {
             database: this.database,
           });
         } catch (error) {
-          if (child.exitCode === null) child.kill('SIGTERM');
+          await stopProcessGroup(child);
           this.child = null;
           this.managed = false;
           throw error;
@@ -1810,8 +1826,9 @@ export class McpControlServer {
       case 'snapback_data_scan': {
         const limit = Number.isInteger(args.limit) ? args.limit : 50;
         const offset = Number.isInteger(args.offset) ? args.offset : 0;
+        const tablePath = encodedAdminPathSegment(args.table, 'table');
         const lease = this.secretReadLease(null, limit, 4 * 1024 * 1024, ['--table', args.table]);
-        return this.adminResult('data.scan', 'GET', `/_snapback/api/data/${args.table}`, {
+        return this.adminResult('data.scan', 'GET', `/_snapback/api/data/${tablePath}`, {
           query: { limit, offset },
           secretReadLease: lease,
         });
@@ -1841,7 +1858,11 @@ export class McpControlServer {
       case 'snapback_jobs_list':
         return this.adminResult('jobs.list', 'GET', '/_snapback/api/jobs');
       case 'snapback_jobs_show':
-        return this.adminResult('jobs.show', 'GET', `/_snapback/api/jobs/${args.id}`);
+        return this.adminResult(
+          'jobs.show',
+          'GET',
+          `/_snapback/api/jobs/${encodedAdminPathSegment(args.id, 'id')}`,
+        );
       case 'snapback_acceptance_run':
         // @ref LLP 0042#acceptance-suite-execution--exposed-runner-deferred —
         // exposed-but-honest: the server registers the pinned-unbuilt
@@ -2253,12 +2274,13 @@ export class McpControlServer {
 
   async close() {
     // Never leave a managed child orphaned behind a disconnected MCP client.
-    if (this.managed && this.child && this.child.exitCode === null && existsSync(this.readyFile)) {
+    if (this.managed && this.child && this.child.exitCode === null) {
+      const child = this.child;
+      let stopped = null;
       try {
-        await this.stopEnvelope(requestId());
-      } catch {
-        this.child.kill('SIGTERM');
-      }
+        stopped = await this.stopEnvelope(requestId());
+      } catch { /* owned-process fallback below */ }
+      if (stopped?.ok !== true || child.exitCode === null) await stopProcessGroup(child);
     }
   }
 }

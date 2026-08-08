@@ -870,8 +870,6 @@ pub enum HostCommand {
         #[arg(long)]
         ready_file: PathBuf,
         #[arg(long)]
-        token: Option<String>,
-        #[arg(long)]
         admin_inspect: bool,
         #[arg(long)]
         receipts: bool,
@@ -2401,7 +2399,6 @@ pub async fn run_from_env() -> anyhow::Result<()> {
         },
         Some(HostCommand::SecretReadMint {
             ready_file,
-            token,
             admin_inspect,
             receipts,
             table,
@@ -2442,7 +2439,7 @@ pub async fn run_from_env() -> anyhow::Result<()> {
                 .context("--ttl-seconds is too large")?;
             let response = mint_secret_read_via_http(
                 &ready_file,
-                token,
+                None,
                 SecretReadMintSpec {
                     scopes,
                     ttl_ms,
@@ -13119,7 +13116,6 @@ mod tests {
 
         let mint_command = HostCommand::SecretReadMint {
             ready_file: PathBuf::from("ready.json"),
-            token: Some(SENTINEL.to_owned()),
             admin_inspect: true,
             receipts: false,
             table: Vec::new(),
@@ -13134,7 +13130,6 @@ mod tests {
         };
         let mint_debug = format!("{mint_command:?}");
         assert!(!mint_debug.contains(SENTINEL), "{mint_debug}");
-        assert!(mint_debug.contains("[REDACTED]"), "{mint_debug}");
 
         let cli = Cli::parse_from([
             "snapback",

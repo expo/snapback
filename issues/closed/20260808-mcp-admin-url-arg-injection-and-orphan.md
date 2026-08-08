@@ -45,3 +45,6 @@ contradicts the "Never leave a managed child orphaned" comment.
 ## Confidence
 
 High on both inconsistencies; medium on blast radius (local dev threat model).
+
+## Resolution (2026-08-08)
+Fixed on main (Lane F). Verified: node --check all edited files; node --test 6/6; focused behavioral probes; ref-check clean.

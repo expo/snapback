@@ -21,6 +21,7 @@ import {
   runDev,
   scrubDynamicLoaderEnvironment,
 } from './index.mjs';
+import { stopProcessGroup } from './process-teardown.mjs';
 
 export const EXPO_DEV_EVENT_FORMAT = 'snapback.expo-dev.v1';
 export const SUPERVISED_EXCHANGE_FORMAT = 'snapback.expo-supervised-exchange.v1';
@@ -1088,25 +1089,6 @@ function startMetro({ command, directory, port, bootstrapOrigin, env, emit, onEx
   return { child, logs, command: resolved.display };
 }
 
-async function stopProcessGroup(child, timeoutMs = 5_000) {
-  if (!child || child.exitCode !== null || child.signalCode !== null) return;
-  const signal = (name) => {
-    try {
-      if (process.platform !== 'win32') process.kill(-child.pid, name);
-      else child.kill(name);
-    } catch {
-      try { child.kill(name); } catch { /* already gone */ }
-    }
-  };
-  const exited = new Promise((resolveExit) => child.once('exit', resolveExit));
-  signal('SIGTERM');
-  const settled = await Promise.race([exited.then(() => true), delay(timeoutMs).then(() => false)]);
-  if (!settled) {
-    signal('SIGKILL');
-    await Promise.race([exited, delay(2_000)]);
-  }
-}
-
 function bindingFromDescriptor({ descriptor, origin, routing, generation, now, ttlMs }) {
   return Object.freeze({
     format: 'snapback.app-binding.v1',
@@ -1541,9 +1523,9 @@ export async function runExpoDev(options = {}) {
           }
         } catch (error) { failures.push(error); }
         try { forwarding?.remove?.(); } catch (error) { failures.push(error); }
-        try { await stopProcessGroup(metro?.child); } catch (error) { failures.push(error); }
+        try { await stopProcessGroup(metro?.child, { processGroup: true }); } catch (error) { failures.push(error); }
         try { await bootstrap?.close?.(); } catch (error) { failures.push(error); }
-        try { dev?.close?.(); } catch (error) { failures.push(error); }
+        try { await dev?.close?.(); } catch (error) { failures.push(error); }
         authority = null;
         binding = null;
         emit({ ok: failures.length === 0, state: 'closed', reclaimed: {
@@ -1610,9 +1592,9 @@ export async function runExpoDev(options = {}) {
       }
     } catch { /* original startup refusal wins */ }
     try { forwarding?.remove?.(); } catch { /* original startup refusal wins */ }
-    try { await stopProcessGroup(metro?.child); } catch { /* original startup refusal wins */ }
+    try { await stopProcessGroup(metro?.child, { processGroup: true }); } catch { /* original startup refusal wins */ }
     try { await bootstrap?.close?.(); } catch { /* original startup refusal wins */ }
-    try { dev?.close?.(); } catch { /* original startup refusal wins */ }
+    try { await dev?.close?.(); } catch { /* original startup refusal wins */ }
     authority = null;
     binding = null;
     emit({

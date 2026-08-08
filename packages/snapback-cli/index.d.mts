@@ -511,7 +511,7 @@ export interface DevLoopHandle {
   runtime: ResolvedRuntime;
   runtimeRecovery: RuntimeRecoveryRecord;
   child: ManagedChildProcess | null;
-  close: () => void;
+  close: () => Promise<void>;
   /** Present only in watch mode. */
   verbs?: DevVerbs;
 }

@@ -39,3 +39,6 @@ root credentials during the window each command runs.
 High on the mechanism at each site; medium on impact (local threat model, all
 dev/bootstrap-tier). Grouped because the fix is one policy — route every secret
 through stdin/fd/env, never argv — applied at three sites.
+
+## Resolution (2026-08-08)
+Fixed on main (Lane F). Verified: node --check all edited files; node --test 6/6; focused behavioral probes; ref-check clean.

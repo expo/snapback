@@ -308,6 +308,26 @@ for (const [stageId, overrides, nextCode] of failureMatrix) {
 }
 
 {
+  const malformed = profile(async () => ({
+    ok: true,
+    conformance: [
+      { pathId: path.id, status: 'observed', report: emptyReport() },
+      { pathId: path.id, status: 'observed', report: emptyReport() },
+    ],
+  }));
+  const receipt = await runVerify(config([malformed]), passOptions());
+  const conformanceStage = receipt.stages.find(({ id }) => id === 'admission-and-conformance');
+  assert.equal(receipt.ok, false);
+  assert.equal(conformanceStage.status, 'failed');
+  assert.equal(conformanceStage.evidence.conformance.status, 'failed');
+  assert.equal(
+    conformanceStage.diagnostics[0].code,
+    'SNAPBACK_VERIFY_CONFORMANCE_INVALID',
+  );
+  cases += 1;
+}
+
+{
   const receipt = await runVerify(config(), passOptions({
     runtimeProbe: async () => ({ ok: false, diagnostics: [] }),
     admissionProbe: async () => ({ ok: false, diagnostics: [] }),

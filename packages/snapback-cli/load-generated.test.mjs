@@ -123,7 +123,9 @@ try {
       'dev-admin-token',
     );
 
-    assert.match(readFileSync(runtime.log, 'utf8'), /^load /u);
+    const nativeLog = readFileSync(runtime.log, 'utf8');
+    assert.match(nativeLog, /^load /u);
+    assert.doesNotMatch(nativeLog, /dev-admin-token/u, 'admin token must not travel on native argv');
     assert.equal(requests.length, 1);
     assert.equal(requests[0].url, 'http://snapback-dev-routes.test/app/ensure');
     assert.deepEqual(JSON.parse(requests[0].init.body), { routes });

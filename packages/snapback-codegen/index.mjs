@@ -840,7 +840,7 @@ const RESERVED_WORDS = new Set([
   'instanceof', 'interface', 'let', 'new', 'null', 'package', 'private',
   'protected', 'public', 'return', 'static', 'super', 'switch', 'this',
   'throw', 'true', 'try', 'typeof', 'var', 'void', 'while', 'with', 'yield',
-  'eval', 'arguments',
+  'eval', 'arguments', '__proto__', 'constructor', 'prototype',
 ]);
 // @ref LLP 0179#existing-exports — standalone query/mutation exports are
 // aliases of app.api nodes, so authored names cannot collide with either the
@@ -3512,9 +3512,19 @@ export async function generateInProcess(backendDir, options = {}) {
   // `ephemeral: true` (the runtime's subscribeEphemeral looks descriptors up
   // there and the compiler rejects `query`-binding them — §2.4 kind
   // mismatch). They are NOT server functions; name collisions are errors.
+  const ephemeralCollectionNames = new Set(ephemeralCollections.map(({ name }) => name));
   for (const collection of ephemeralCollections) {
     if (contractQueries[collection.name] || contractMutations[collection.name]) {
       err('EPHEMERAL_NAME_COLLISION', 'ephemeral', `${collection.name} collides with a function name`, { collection: collection.name });
+      continue;
+    }
+    const publishName = `${collection.name}Publish`;
+    if (contractQueries[publishName] || contractMutations[publishName]) {
+      err('EPHEMERAL_NAME_COLLISION', 'ephemeral', `${publishName} collides with a function name`, { collection: collection.name, alias: publishName });
+      continue;
+    }
+    if (ephemeralCollectionNames.has(publishName)) {
+      err('EPHEMERAL_NAME_COLLISION', 'ephemeral', `${publishName} collides with another ephemeral collection name`, { collection: collection.name, alias: publishName });
       continue;
     }
     contractQueries[collection.name] = contractEphemeralDescriptor(collection, schemaDef);

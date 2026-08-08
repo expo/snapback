@@ -154,8 +154,8 @@ function keychainPut(service, account, value) {
     '-U',
     '-s', service,
     '-a', account,
-    '-w', value,
-  ], { redact: true });
+    '-w',
+  ], { input: `${value}\n${value}\n`, redact: true });
 }
 
 function flyTokenMintAuthority() {

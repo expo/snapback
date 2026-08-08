@@ -77,6 +77,22 @@ export { removeTodo as delete };
   'delete',
 );
 
+// Object-prototype spellings are valid bindings but unsafe as keys in emitted
+// object literals, so they share the reserved-name refusal.
+for (const name of ['__proto__', 'constructor', 'prototype']) {
+  assertRejected(
+    await runCase({
+      functionsSource: `
+import { defineQuery } from '${defineUrl}';
+const query = defineQuery({ table: 'todos', args: {} });
+export { query as ${name} };
+`,
+    }),
+    'FUNCTION_INVALID_IDENTIFIER',
+    name,
+  );
+}
+
 // 3. ES2022 arbitrary string export name with a path traversal: previously the
 //    contract module writeFileSync escaped generated/contract/ entirely.
 assertRejected(
@@ -150,6 +166,52 @@ export default defineSchema(
   }),
   'EPHEMERAL_INVALID_VALUE_FIELD',
   'bad-value',
+);
+
+// Ephemeral publish aliases are generated symbols and must not collide with
+// authored functions or another collection's bare generated symbol.
+assertRejected(
+  await runCase({
+    schemaSource: `
+import { allow, defineEphemeral, defineSchema, defineTable, ephemeral, v } from '${defineUrl}';
+export default defineSchema(
+  { todos: defineTable({ title: v.string(), completed: v.boolean() }).sync() },
+  { ephemeral: defineEphemeral({
+    cursors: ephemeral.collection({
+      scope: { roomId: v.string() }, value: v.string(), ttlMs: 1000,
+      publish: allow.all(), subscribe: allow.all(),
+    }),
+  }) },
+);
+`,
+    functionsSource: `
+import { defineMutation, insert, lit } from '${defineUrl}';
+export const cursorsPublish = defineMutation({
+  args: {}, plan: insert('todos', { title: lit('x'), completed: lit(false) }),
+});
+`,
+  }),
+  'EPHEMERAL_NAME_COLLISION',
+  'cursorsPublish',
+);
+
+assertRejected(
+  await runCase({
+    schemaSource: `
+import { allow, defineEphemeral, defineSchema, defineTable, ephemeral, v } from '${defineUrl}';
+const collection = () => ephemeral.collection({
+  scope: { roomId: v.string() }, value: v.string(), ttlMs: 1000,
+  publish: allow.all(), subscribe: allow.all(),
+});
+export default defineSchema(
+  { todos: defineTable({ title: v.string(), completed: v.boolean() }).sync() },
+  { ephemeral: defineEphemeral({ cursors: collection(), cursorsPublish: collection() }) },
+);
+`,
+    functionsSource: 'export const nothing = 0;\n',
+  }),
+  'EPHEMERAL_NAME_COLLISION',
+  'cursorsPublish',
 );
 
 // 7. Valid identifiers (including a nested v.object arg and a reserved word in

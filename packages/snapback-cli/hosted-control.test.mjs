@@ -296,6 +296,7 @@ try {
     serverCaPath: caPath,
     rootPublicKeyPath,
     serverCertificateSha256: `sha256:${'6'.repeat(64)}`,
+    now: () => 1_800_000_000_000,
     transport: async (_endpoint, options) => {
       assert(options.key.includes('PRIVATE KEY'));
       assert(options.cert.includes('CERTIFICATE'));
@@ -313,6 +314,37 @@ try {
       serverCaPath: caPath,
       rootPublicKeyPath,
       serverCertificateSha256: `sha256:${'6'.repeat(64)}`,
+      minimumRevocationGeneration: 2,
+      now: () => 1_800_000_000_000,
+      transport: async () => transportResponse,
+    }),
+    (error) => error.code === 'SNAPBACK_HOSTED_OPERATOR_RESPONSE_INVALID',
+  );
+  await assert.rejects(
+    isolated.submitHostedOperatorRequest({
+      requestPath: transportRequestPath,
+      endpoint: 'https://supervisor.example.test',
+      clientKeyPath,
+      clientCertificatePath,
+      serverCaPath: caPath,
+      rootPublicKeyPath,
+      serverCertificateSha256: `sha256:${'6'.repeat(64)}`,
+      clockSkewMs: 0,
+      now: () => 1_800_000_060_001,
+      transport: async () => transportResponse,
+    }),
+    (error) => error.code === 'SNAPBACK_HOSTED_OPERATOR_RESPONSE_INVALID',
+  );
+  await assert.rejects(
+    isolated.submitHostedOperatorRequest({
+      requestPath: transportRequestPath,
+      endpoint: 'https://supervisor.example.test',
+      clientKeyPath,
+      clientCertificatePath,
+      serverCaPath: caPath,
+      rootPublicKeyPath,
+      serverCertificateSha256: `sha256:${'6'.repeat(64)}`,
+      now: () => 1_800_000_000_000,
       transport: async () => ({
         ...transportResponse,
         body: { ...transportResponse.body, result: { terminal: 'applied' } },

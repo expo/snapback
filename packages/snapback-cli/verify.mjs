@@ -840,15 +840,37 @@ export async function runVerify(config, options = {}) {
   const profileResults = canRunProfiles
     ? await runProfiles(config, { artifact, identityContext })
     : Object.freeze([]);
-  const conformance = canRunProfiles
-    ? aggregateConformance(config.profiles, profileResults)
-    : Object.freeze({
+  let conformance;
+  if (canRunProfiles) {
+    try {
+      conformance = aggregateConformance(config.profiles, profileResults);
+    } catch (error) {
+      conformance = Object.freeze({
+        status: 'failed', disposition: 'invalid-profile-conformance', complete: false,
+        scope: 'explicitly-registered-paths-only',
+        limitationReason: 'one or more acceptance profiles returned malformed conformance evidence',
+        expectedPaths: config.profiles.reduce((count, profile) => count + profile.paths.length, 0),
+        observedPaths: 0, authoritativePaths: 0, partialPaths: 0,
+        pathEvidence: [], underDeclarations: [], overDeclarations: [],
+        diagnostics: [diagnostic(
+          'SNAPBACK_VERIFY_CONFORMANCE_INVALID',
+          error?.message ?? String(error),
+          {
+            causeCode: error?.code ?? null,
+            causeDiagnostic: error?.diagnostic ?? null,
+          },
+        )],
+      });
+    }
+  } else {
+    conformance = Object.freeze({
       status: 'blocked', disposition: 'upstream-stage-failed', complete: false,
       scope: 'explicitly-registered-paths-only',
       limitationReason: 'repository acceptance suites have no universal D1 path-evidence registry in v0',
       expectedPaths: config.profiles.reduce((count, profile) => count + profile.paths.length, 0), observedPaths: 0,
       pathEvidence: [], underDeclarations: [], overDeclarations: [], diagnostics: [],
     });
+  }
   const admissionAndConformance = {
     ok: admission.ok && ['passed', 'partial', 'not-claimed'].includes(conformance.status),
     blocked: admission.blocked,

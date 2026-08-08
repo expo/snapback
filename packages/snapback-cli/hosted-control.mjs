@@ -37,6 +37,7 @@ const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,255}$/;
 const RFC3339_MILLIS = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const MAX_REQUEST_BYTES = 4 * 1024 * 1024;
 const MAX_OPERATOR_RESPONSE_BYTES = 64 * 1024 * 1024;
+const DEFAULT_OPERATOR_RESPONSE_CLOCK_SKEW_MS = 30_000;
 const INTERMEDIATE_DOMAIN = Buffer.from('snapback-supervisor-service-intermediate-v1\0');
 const RESPONSE_DOMAIN = Buffer.from('snapback-supervisor-response-v1\0');
 const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
@@ -219,7 +220,19 @@ function unsigned(value) {
   return content;
 }
 
-function verifyOperatorResponse(response, request, rootPublicKeyPem) {
+function verifyOperatorResponse(response, request, rootPublicKeyPem, {
+  nowMs = Date.now(),
+  clockSkewMs = DEFAULT_OPERATOR_RESPONSE_CLOCK_SKEW_MS,
+  minimumRevocationGeneration = 1,
+} = {}) {
+  if (!Number.isSafeInteger(nowMs)
+    || !Number.isSafeInteger(clockSkewMs) || clockSkewMs < 0
+    || !Number.isSafeInteger(minimumRevocationGeneration) || minimumRevocationGeneration < 1) {
+    throw fail(
+      'SNAPBACK_HOSTED_OPERATOR_RESPONSE_INVALID',
+      'supervisor response verification time or revocation floor is invalid',
+    );
+  }
   assertClosed(response, OPERATOR_RESPONSE_KEYS, 'SupervisorResponseV1');
   assertClosed(response.serviceIntermediate, INTERMEDIATE_KEYS, 'SupervisorServiceIntermediateV1');
   assertClosed(
@@ -258,6 +271,7 @@ function verifyOperatorResponse(response, request, rootPublicKeyPem) {
     || intermediate.serial < 1
     || !Number.isSafeInteger(intermediate.revocationGeneration)
     || intermediate.revocationGeneration < 1
+    || intermediate.revocationGeneration < minimumRevocationGeneration
     || response.body.schemaVersion !== 'snapback.supervisor-response-body.v1'
     || typeof response.body.ok !== 'boolean'
     || (response.body.ok && response.body.diagnostic !== null)
@@ -301,6 +315,8 @@ function verifyOperatorResponse(response, request, rootPublicKeyPem) {
     || issuedAtMs !== notBeforeMs
     || expiresAtMs <= notBeforeMs
     || expiresAtMs - issuedAtMs > 10 * 60 * 1000
+    || nowMs < notBeforeMs - clockSkewMs
+    || nowMs > expiresAtMs + clockSkewMs
     || !Number.isSafeInteger(intermediateIssuedAtMs)
     || !Number.isSafeInteger(intermediateNotBeforeMs)
     || !Number.isSafeInteger(intermediateExpiresAtMs)
@@ -309,6 +325,8 @@ function verifyOperatorResponse(response, request, rootPublicKeyPem) {
     || issuedAtMs < intermediateNotBeforeMs
     || issuedAtMs > intermediateExpiresAtMs
     || intermediateExpiresAtMs - intermediateNotBeforeMs > 7 * 24 * 60 * 60 * 1000
+    || nowMs < intermediateNotBeforeMs - clockSkewMs
+    || nowMs > intermediateExpiresAtMs + clockSkewMs
   ) {
     throw fail(
       'SNAPBACK_HOSTED_OPERATOR_RESPONSE_INVALID',
@@ -537,6 +555,9 @@ export async function submitHostedOperatorRequest({
   rootPublicKeyPath,
   serverCertificateSha256,
   timeoutMs = 30_000,
+  minimumRevocationGeneration = 1,
+  clockSkewMs = DEFAULT_OPERATOR_RESPONSE_CLOCK_SKEW_MS,
+  now = Date.now,
   transport = requestOperatorEndpoint,
 } = {}) {
   const requestFile = readRegularFile(
@@ -584,7 +605,11 @@ export async function submitHostedOperatorRequest({
     serverCertificateSha256,
     timeoutMs,
   });
-  return verifyOperatorResponse(response, request, rootPublicKey);
+  return verifyOperatorResponse(response, request, rootPublicKey, {
+    nowMs: now(),
+    clockSkewMs,
+    minimumRevocationGeneration,
+  });
 }
 
 export async function invokeHostedLifecycle(verb, {

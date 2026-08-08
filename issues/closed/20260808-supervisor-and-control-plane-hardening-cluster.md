@@ -57,3 +57,6 @@ failed `admission-and-conformance` stage, not an escaping exception.
 High mechanics on all four; A/B are mTLS-gated (low exploitability today), C/D
 are availability/robustness. Grouped because they share the hosted control-plane
 owner.
+
+## Resolution (2026-08-08)
+Fixed on main (Lane F). Verified: node --check all edited files; node --test 6/6; focused behavioral probes; ref-check clean.

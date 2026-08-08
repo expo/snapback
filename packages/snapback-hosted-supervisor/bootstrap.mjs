@@ -242,8 +242,8 @@ function keychainGet(service, account, required = false) {
 function keychainPut(service, account, value) {
   run(
     'security',
-    ['add-generic-password', '-U', '-s', service, '-a', account, '-w', value],
-    { redact: true },
+    ['add-generic-password', '-U', '-s', service, '-a', account, '-w'],
+    { input: `${value}\n${value}\n`, redact: true },
   );
 }
 

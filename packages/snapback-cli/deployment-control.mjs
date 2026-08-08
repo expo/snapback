@@ -82,6 +82,7 @@ const AUDIT_EVENT_KEYS = [
   'reasonCode', 'payload', 'retentionClass', 'recordedAtMs',
   'previousEventId',
 ];
+const CONTROL_AUDIT_LOCK_MAX_AGE_MS = 30_000;
 const RESTORE_RESULT_KEYS = [
   'backupId', 'sourceTargetId', 'sourceDeploymentId', 'sourceDatabaseId',
   'sourceStreamIncarnation', 'destinationTargetId', 'destinationDeploymentId',
@@ -573,6 +574,7 @@ function writeOwnerOnly(path, value) {
   const bytes = Buffer.from(`${canonicalJson(value)}\n`);
   const temporary = `${path}.${process.pid}.${randomUUID()}.tmp`;
   let descriptor;
+  let created = true;
   try {
     descriptor = openSync(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL, 0o600);
     writeFileSync(descriptor, bytes);
@@ -580,13 +582,21 @@ function writeOwnerOnly(path, value) {
     closeSync(descriptor);
     descriptor = undefined;
     chmodSync(temporary, 0o600);
-    linkSync(temporary, path);
+    try {
+      linkSync(temporary, path);
+    } catch (cause) {
+      if (cause?.code !== 'EEXIST') throw cause;
+      assertSecureFile(path);
+      if (!readFileSync(path).equals(bytes)) throw cause;
+      created = false;
+    }
   } finally {
     if (descriptor !== undefined) closeSync(descriptor);
     rmSync(temporary, { force: true });
   }
   syncDirectory(dirname(path));
   assertSecureFile(path);
+  return created;
 }
 
 function replaceOwnerOnly(path, value) {
@@ -1092,12 +1102,47 @@ function readControlAuditChain(options = {}, allowAppendLock = false) {
 function appendControlAuditEvent(input, options = {}) {
   const auditRoot = roots(options).auditEvents;
   const lockPath = join(auditRoot, '.append.lock');
-  try {
-    writeFileSync(lockPath, `${process.pid}\n`, { flag: 'wx', mode: 0o600 });
-  } catch (cause) {
+  let acquired = false;
+  let cause = null;
+  for (let attempt = 0; attempt < 2 && !acquired; attempt += 1) {
+    try {
+      writeFileSync(lockPath, `${process.pid}\n`, { flag: 'wx', mode: 0o600 });
+      acquired = true;
+    } catch (error) {
+      cause = error;
+      if (error?.code !== 'EEXIST' || attempt > 0) break;
+      let metadata;
+      let ownerPid = null;
+      try {
+        metadata = lstatSync(lockPath);
+        const value = readFileSync(lockPath, 'utf8').trim();
+        if (/^[1-9]\d*$/.test(value)) {
+          const parsed = Number(value);
+          if (Number.isSafeInteger(parsed)) ownerPid = parsed;
+        }
+      } catch {
+        continue;
+      }
+      let ownerAlive = false;
+      if (Number.isSafeInteger(ownerPid)) {
+        try {
+          process.kill(ownerPid, 0);
+          ownerAlive = true;
+        } catch (livenessError) {
+          ownerAlive = livenessError?.code === 'EPERM';
+        }
+      }
+      const ageMs = Math.max(0, Date.now() - metadata.mtimeMs);
+      if (ownerAlive && ageMs <= CONTROL_AUDIT_LOCK_MAX_AGE_MS) break;
+      if (ownerPid === null && ageMs <= CONTROL_AUDIT_LOCK_MAX_AGE_MS) break;
+      rmSync(lockPath, { force: true });
+    }
+  }
+  if (!acquired) {
     const error = fail(
       'SNAPBACK_CONTROL_AUDIT_UNAVAILABLE',
-      'mandatory control audit intake is locked or unavailable; privileged action refused',
+      `mandatory control audit intake lock ${lockPath} is held or unavailable; privileged action refused`,
+      { lockPath },
     );
     error.cause = cause;
     throw error;
@@ -1236,7 +1281,10 @@ export function addTarget(descriptorOrPath, options = {}) {
     return { schemaVersion: 'snapback.target-add.v1', ok: true, state: 'reused', targetId: descriptor.targetId, descriptorSha256: sha256(Buffer.from(canonicalJson(descriptor))) };
   }
   try {
-    writeOwnerOnly(path, descriptor);
+    const created = writeOwnerOnly(path, descriptor);
+    if (!created) {
+      return { schemaVersion: 'snapback.target-add.v1', ok: true, state: 'reused', targetId: descriptor.targetId, descriptorSha256: sha256(Buffer.from(canonicalJson(descriptor))) };
+    }
   } catch (cause) {
     if (cause?.code === 'EEXIST' && existsSync(path)) {
       assertSecureFile(path);

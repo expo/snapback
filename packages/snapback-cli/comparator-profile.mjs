@@ -1589,7 +1589,7 @@ async function startLocalComparatorTarget(target, { profile, timeoutMs, signal =
       },
       async close() {
         const errors = [];
-        dev.close?.();
+        await dev.close?.();
         let leaderExited = dev.child === null || dev.child.exitCode !== null;
         if (!leaderExited && dev.child) {
           try {
@@ -1628,7 +1628,7 @@ async function startLocalComparatorTarget(target, { profile, timeoutMs, signal =
       },
     };
   } catch (error) {
-    try { dev?.close?.(); } catch { /* retain original setup error */ }
+    try { await dev?.close?.(); } catch { /* retain original setup error */ }
     try { rmSync(stateRoot, { recursive: true, force: true }); } catch { /* retain original */ }
     try { rmSync(restoreLock, { force: true }); } catch { /* retain original */ }
     throw error;

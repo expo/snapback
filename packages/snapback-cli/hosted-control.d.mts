@@ -164,6 +164,9 @@ export function submitHostedOperatorRequest(options: {
   readonly rootPublicKeyPath: string;
   readonly serverCertificateSha256: string;
   readonly timeoutMs?: number;
+  readonly minimumRevocationGeneration?: number;
+  readonly clockSkewMs?: number;
+  readonly now?: () => number;
   readonly transport?: (
     endpoint: string,
     request: HostedOperatorTransportRequest,
@@ -213,5 +216,10 @@ export const __hostedControlTest: Readonly<{
     response: unknown,
     request: unknown,
     rootPublicKeyPem: string | Uint8Array,
+    options?: Readonly<{
+      nowMs?: number;
+      clockSkewMs?: number;
+      minimumRevocationGeneration?: number;
+    }>,
   ) => SupervisorResponseV1;
 }>;

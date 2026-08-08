@@ -487,6 +487,12 @@ try {
   assert.ok(Array.isArray(dataScan.structuredContent.data.rows));
   assert.equal(dataScan.structuredContent.data.rows.length, 1);
 
+  for (const table of ['../telemetry/export', 'todos?limit=500', 'todos#fragment']) {
+    const refused = await client.call('snapback_data_scan', { table });
+    assert.equal(refused.isError, true);
+    assert.equal(refused.structuredContent.diagnostics[0].code, 'SNAPBACK_MCP_ARGUMENT_INVALID');
+  }
+
   const configStatus = await client.call('snapback_config_status');
   assert.equal(configStatus.structuredContent.operation, 'config.status');
   assert.equal(configStatus.structuredContent.ok, true, JSON.stringify(configStatus.structuredContent));
@@ -513,6 +519,10 @@ try {
   const jobsShow = await client.call('snapback_jobs_show', { id: 'job_does_not_exist' });
   assert.equal(jobsShow.structuredContent.operation, 'jobs.show');
   assert.equal(jobsShow.structuredContent.ok, false, JSON.stringify(jobsShow.structuredContent));
+
+  const jobsTraversal = await client.call('snapback_jobs_show', { id: '../data/users?limit=500' });
+  assert.equal(jobsTraversal.isError, true);
+  assert.equal(jobsTraversal.structuredContent.diagnostics[0].code, 'SNAPBACK_MCP_ARGUMENT_INVALID');
 
   const assetList = await client.call('snapback_asset_list');
   assert.equal(assetList.structuredContent.operation, 'asset.list');

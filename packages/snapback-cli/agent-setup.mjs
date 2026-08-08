@@ -1,8 +1,11 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   readFileSync,
+  realpathSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -32,6 +35,26 @@ function isPlainObject(value) {
 
 function sameJson(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function writeConfigAtomic(path, source) {
+  const output = existsSync(path) ? realpathSync(path) : path;
+  const temporary = `${output}.${process.pid}.${randomUUID()}.tmp`;
+  let mode = null;
+  try {
+    mode = lstatSync(output).mode & 0o777;
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
+  }
+  try {
+    writeFileSync(temporary, source, {
+      encoding: 'utf8',
+      ...(mode === null ? {} : { mode }),
+    });
+    renameSync(temporary, output);
+  } finally {
+    rmSync(temporary, { force: true });
+  }
 }
 
 function escapeRegex(value) {
@@ -339,7 +362,7 @@ export function installAgentSetup({
       mcpServers[configName] = entry;
       changed = true;
       mkdirSync(dirname(targetFile), { recursive: true });
-      writeFileSync(targetFile, `${JSON.stringify({ ...current.config, mcpServers }, null, 2)}\n`, 'utf8');
+      writeConfigAtomic(targetFile, `${JSON.stringify({ ...current.config, mcpServers }, null, 2)}\n`);
     }
     representation = JSON.stringify(entry);
   } else {
@@ -349,7 +372,7 @@ export function installAgentSetup({
     representation = merged.representation;
     if (changed) {
       mkdirSync(dirname(targetFile), { recursive: true });
-      writeFileSync(targetFile, merged.source, 'utf8');
+      writeConfigAtomic(targetFile, merged.source);
     }
   }
 
@@ -432,7 +455,7 @@ export function uninstallAgentSetup({
         && Object.keys(next).length === 1
         && Object.keys(mcpServers).length === 0;
       if (removeFile) rmSync(targetFile);
-      else writeFileSync(targetFile, `${JSON.stringify(next, null, 2)}\n`, 'utf8');
+      else writeConfigAtomic(targetFile, `${JSON.stringify(next, null, 2)}\n`);
     }
   } else {
     const current = readFileSync(targetFile, 'utf8');
@@ -453,7 +476,7 @@ export function uninstallAgentSetup({
       changed = true;
       removeFile = retainedReceipt?.configFileCreated === true && next.trim().length === 0;
       if (removeFile) rmSync(targetFile);
-      else writeFileSync(targetFile, next, 'utf8');
+      else writeConfigAtomic(targetFile, next);
     }
   }
 

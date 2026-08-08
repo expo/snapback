@@ -66,3 +66,6 @@ independently fixable.
 
 Each verified by the reviewers with file:line evidence; all P3. Close
 opportunistically or as a dedicated hygiene sweep.
+
+## Progress (2026-08-08)
+Lane F landed the mechanical subset: exit-code propagation, atomic agent-config writes, idempotent EEXIST for content-addressed writes, and the teardown/URL-encoding overlap. Deferred (need product judgment): audit O(n^2), Windows mode policy, adapter TOCTOU, Fly timestamp, MCP mutation-catalog gate, corrupt-manifest diagnostics, case-insensitive op filenames, malformed generated timestamp, Vite body limits, verify scratch sweep, drift-runner lock/root, login-shell hermeticity, maturity-range warning, ref-check exclusions.
