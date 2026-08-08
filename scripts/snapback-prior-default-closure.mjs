@@ -135,7 +135,12 @@ function dependencyAliases({ manifest, lease, ownerName }) {
   // identity at an exact version; legacy @ccheever artifacts keyed them by
   // the @snapback source alias (decision-9 lineage).
   const leaseNames = new Set(lease.packages.map((row) => row.name));
-  const terminal = [...leaseNames].every((name) => name.startsWith('@expo/snapback-'));
+  // Terminal identity means the closure carries no pre-migration names; the
+  // unscoped create-snapback-app (LLP 0115 decision 9) is terminal too, so
+  // detection keys on the absence of legacy scopes rather than one prefix.
+  const terminal = [...leaseNames].every(
+    (name) => !name.startsWith('@ccheever/') && !name.startsWith('@snapback/'),
+  );
   const aliases = [];
   const sections = normalizedDependencySections(manifest);
   for (const section of DEPENDENCY_SECTIONS) {
