@@ -9,7 +9,7 @@ import {
   runAcceptance,
 } from '../../../_kit/harness.mjs';
 
-const suite = createSuite('public-dashboard / headless', { expectedChecks: 5 });
+const suite = createSuite('public-dashboard / headless', { expectedChecks: 6 });
 const app = await openHeadlessApp(import.meta.url, { appId: 'public-dashboard' });
 
 await runAcceptance(suite, async () => {
@@ -46,6 +46,27 @@ await runAcceptance(suite, async () => {
     });
     assertEqual(sales.entries[0].rows.map(({ label }) => label), ['orders'], 'sales rows');
     assert(Number.isSafeInteger(sales.commitVersion), 'bundle commit is not an integer');
+  });
+
+  await suite.check('structured route context lowers and executes at any object depth', async () => {
+    const contextRoute = app.generated('routes.manifest.json').routes
+      .find(({ route }) => route === '/context-dashboards/:dashboardId');
+    assertEqual(contextRoute.queries[0].args, {
+      context: {
+        dashboardId: { $param: 'dashboardId' },
+        cursor: null,
+        sort: 'asc',
+        tags: ['current', 'critical'],
+      },
+    }, 'structured route manifest');
+    assertEqual(contextRoute.registerGroupEligible, true, 'nested string route binding eligibility');
+
+    const context = await app.client.fetchBundle({
+      route: '/context-dashboards/:dashboardId',
+      params: { dashboardId: 'ops' },
+      mode: 'read',
+    });
+    assertEqual(context.entries[0].rows.map(({ label }) => label), ['latency_ms', 'uptime_pct'], 'nested route binding rows');
   });
 
   await suite.check('an undeclared route is refused', async () => {

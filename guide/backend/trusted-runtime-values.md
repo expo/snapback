@@ -3,14 +3,14 @@ title: Trusted runtime time and identifiers
 id: backend.runtime-values
 order: 24
 audience: agent-first
-capabilities: [backend.runtime-values]
-authorities: [llp/0051-language-neutral-data-tier.rfc.md, llp/0065-generated-data-pattern-soundness.rfc.md, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/index.mjs]
+capabilities: [backend.runtime-values, backend.mutation-settlement-identity]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0051-language-neutral-data-tier.rfc.md, llp/0065-generated-data-pattern-soundness.rfc.md, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/index.mjs, tests/mutation_settlement_identity_v0.rs]
 examples: [demos/competitive-checkpoint/snapback/handlers.mjs, demos/competitive-checkpoint/snapback/generated/operations/startReply.args.schema.json]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-commit: 98257903f5b726e1e19fe9ac3132ea3ed83ecd78
 ---
 
 # Trusted runtime time and identifiers
@@ -62,6 +62,17 @@ For owner-scoped generated CRUD, declare the same policy as
 `createDefaults: { createdAt: 'now', pageKey: 'id' }` instead of writing a
 handler. The [safe standard patterns](./standard-patterns.md) page covers that
 narrow helper profile.
+
+<!-- since: 0.1.15 -->
+
+## Keep effect identity stable across mutation re-entry
+
+`ctx.runtime.id()` is fresh identity for one handler entry. It is not an
+effect-deduplication key: a mutation that throws before settlement may
+genuinely re-enter and receive another runtime id. When retries must write one
+durable effect intent with one provider idempotency key, use the mutation's
+replay-stable `settlementId` instead. The complete mutation-only recipe is
+[derive a replay-stable effect key](./mutations.md#derive-a-replay-stable-effect-key).
 
 ## Keep generated fields out of operation arguments
 
@@ -138,5 +149,7 @@ migration claim.
 - Do not substitute `Date.now()`, `new Date()`, or `Math.random()` inside a
   handler.
 - Do not reuse one `ctx.runtime.id()` result for distinct logical records.
+- Do not use `ctx.runtime.id()` as a replay-stable effect or provider
+  idempotency key.
 - Do not type a runtime-generated string as a principal or foreign key.
 - Do not infer a supported migration workflow from the runtime-value APIs.

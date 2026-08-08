@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "98257903f5b726e1e19fe9ac3132ea3ed83ecd78"
+    "commit": "3d6d4c96c1d8710db365d5a9c66cbd1551e09ea2"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -974,6 +974,7 @@
         "llp/0004-application-data-api.rfc.md",
         "llp/0009-code-execution-security.rfc.md",
         "llp/0036-app-secrets-and-config.rfc.md",
+        "llp/0043-offline-replay-retention.rfc.md",
         "llp/0055-agent-principals-and-scoped-grants.rfc.md",
         "llp/0076-bounded-streamed-actions.rfc.md",
         "llp/0108-inline-handlers-and-result-contracts.spec.md",
@@ -992,9 +993,9 @@
         "demos/all-aboard",
         "demos/competitive-checkpoint"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "89365efc7eec13d6e457a5fb9ee373cd724436b16c023709d140b4f052ee34ff",
+      "reviewed": "2026-08-08",
+      "reviewedCommit": "98257903f5b726e1e19fe9ac3132ea3ed83ecd78",
+      "sha256": "b84903b69a9a965dcabd22747e864d7d568da5a72600d9c1212c2d069e103990",
       "snippets": [
         {
           "lang": "js",
@@ -1448,12 +1449,14 @@
       "maturity": "shipped",
       "capabilities": [
         "backend.query-semantics",
-        "backend.record-history"
+        "backend.record-history",
+        "backend.mutation-settlement-identity"
       ],
       "authorities": [
         "llp/0003-local-code-hosting-and-storage-core.rfc.md",
         "llp/0004-application-data-api.rfc.md",
         "llp/0007-storage-portability.spec.md",
+        "llp/0043-offline-replay-retention.rfc.md",
         "llp/0059-session-projection-and-client-barrier.spec.md",
         "llp/0108-inline-handlers-and-result-contracts.spec.md",
         "llp/0144-declared-app-refusal-codes.rfc.md",
@@ -1468,6 +1471,7 @@
         "packages/snapback-codegen/history-authoring-types.fixture.ts",
         "packages/snapback-harness/ctx-bootstrap.js",
         "packages/snapback-codegen/refusal-tracking-authoring.test.mjs",
+        "tests/mutation_settlement_identity_v0.rs",
         "tests/conformance/twin-corpus.handlers.js",
         "demos/messaging-snapback/snapback/functions.mjs",
         "demos/signal-desk/snapback/functions.mjs",
@@ -1480,13 +1484,18 @@
         "demos/signal-desk"
       ],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "eac098a99fb89b07e67cb72430106117b7fee86b",
-      "sha256": "d9caf58cd7941bb3cf59408aae87867ddf8b43ba3972800a8f96dafc95e488e7",
+      "reviewedCommit": "98257903f5b726e1e19fe9ac3132ea3ed83ecd78",
+      "sha256": "3b7ff277eec036e008528ab0a0bf256cd0fb8bdb3efb7412a6609f6ec6ca439b",
       "snippets": [
         {
           "lang": "js",
           "class": "transcluded",
           "source": "demos/signal-desk/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "tests/mutation_settlement_identity_v0.rs"
         },
         {
           "lang": "js",
@@ -1880,21 +1889,24 @@
       ],
       "maturity": "shipped",
       "capabilities": [
-        "backend.runtime-values"
+        "backend.runtime-values",
+        "backend.mutation-settlement-identity"
       ],
       "authorities": [
+        "llp/0043-offline-replay-retention.rfc.md",
         "llp/0051-language-neutral-data-tier.rfc.md",
         "llp/0065-generated-data-pattern-soundness.rfc.md",
         "packages/snapback-harness/ctx-bootstrap.js",
-        "packages/snapback-codegen/index.mjs"
+        "packages/snapback-codegen/index.mjs",
+        "tests/mutation_settlement_identity_v0.rs"
       ],
       "examples": [
         "demos/competitive-checkpoint/snapback/handlers.mjs",
         "demos/competitive-checkpoint/snapback/generated/operations/startReply.args.schema.json"
       ],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "eac098a99fb89b07e67cb72430106117b7fee86b",
-      "sha256": "2393c59cd07516811414a14f5d4f6286dce54bc002eea19dfe9be00599abee70",
+      "reviewedCommit": "98257903f5b726e1e19fe9ac3132ea3ed83ecd78",
+      "sha256": "66265f37d7f50dc5f706e83c1e65a2e71a82c02ee5921c5d920da875cf3f5993",
       "snippets": [
         {
           "lang": "js",
@@ -2007,8 +2019,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "effa2773760fd0d740c49f06990b3fde5e82a66b",
-      "sha256": "964298033331976997777c5fd7bccf4ba8d3687a6583b16bddd31d99cc201664",
+      "reviewedCommit": "98257903f5b726e1e19fe9ac3132ea3ed83ecd78",
+      "sha256": "bfa72c3e8812c3166cfed1e8d922373baac1f9b23734dba8268165fc16a3dac1",
       "snippets": []
     },
     "clients.app-cli": {
@@ -3427,15 +3439,18 @@
         "packages/snapback-client/index.mjs",
         "packages/snapback-client/react-binding.mjs",
         "packages/snapback-codegen/index.mjs",
+        "packages/snapback-codegen/authoring-validation.test.mjs",
+        "demos/public-dashboard/snapback/routes.mjs",
+        "demos/public-dashboard/tests/acceptance/headless.mjs",
         "src/bundle.rs",
         "src/local.rs"
       ],
       "examples": [
         "demos/public-dashboard"
       ],
-      "reviewed": "2026-08-04",
-      "reviewedCommit": "cf47cc3b75172cec3ac6c44428ce40db48d81465",
-      "sha256": "185d5bd60f0dbd5b3f3b581ba483a397edcd6356e7098d84b0cd27c3ff9ac7d0",
+      "reviewed": "2026-08-08",
+      "reviewedCommit": "98257903f5b726e1e19fe9ac3132ea3ed83ecd78",
+      "sha256": "6d33ca2baf454be7de2acc5d7d3ef8cc99baf0974f8151e3b775be0a6494bd9f",
       "snippets": [
         {
           "lang": "js",
@@ -3446,6 +3461,11 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/public-dashboard/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/public-dashboard/snapback/routes.mjs"
         },
         {
           "lang": "js",
@@ -8228,8 +8248,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "effa2773760fd0d740c49f06990b3fde5e82a66b",
-      "sha256": "098268af4c31f16035c5adede89fdeb01044c3d8956446a4d15ba65eb7546c68",
+      "reviewedCommit": "98257903f5b726e1e19fe9ac3132ea3ed83ecd78",
+      "sha256": "cac819535e439636bf0e0db74cb09e316d09716900c79cd5c69c95e230159c78",
       "snippets": []
     },
     "meta.surface-map": {
@@ -8312,8 +8332,8 @@
         "tests/acceptance/desktop-sidecar-v1.mjs"
       ],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "eac098a99fb89b07e67cb72430106117b7fee86b",
-      "sha256": "222d60adaea551d526d91e4f0bd8a1361c2280fed8182978b6a25bca42310fc4",
+      "reviewedCommit": "98257903f5b726e1e19fe9ac3132ea3ed83ecd78",
+      "sha256": "8ef988da8c3565079ab27492b1f8775e740edddb2a3f4ec1c974b7716a2b09a7",
       "snippets": [
         {
           "lang": "js",
@@ -8583,6 +8603,7 @@
       "backend.functions",
       "backend.jobs-one-off",
       "backend.migrations",
+      "backend.mutation-settlement-identity",
       "backend.observability-v1",
       "backend.provisioning",
       "backend.query-semantics",
@@ -8664,5 +8685,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "a1be667f2129e1bcf92f8e86f4b6452b283c9669c5f7f06334f3b7537beb4378"
+  "contentHash": "a28ac53917a80d4e31ed39eaaf944e2ec7708532e198bb55d720dc019a6d8aab"
 }

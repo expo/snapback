@@ -34,6 +34,21 @@ globalThis.__snapbackHandlers = {
     var entryId = await ctx.runtime.id();
     throw new Error(settlement.settlementId + '|' + entryId);
   },
+  async recordEffectIntent(ctx) {
+    var settlement = await ctx.mutation.settlement();
+    var providerIdempotencyKey = settlement.settlementId === null
+      ? null
+      : 'notification:' + settlement.settlementId;
+    await ctx.db.insert('entries', {
+      marker: providerIdempotencyKey === null ? 'no-settlement-identity' : providerIdempotencyKey,
+      clientMutationId: settlement.clientMutationId,
+      settlementId: settlement.settlementId
+    });
+    return {
+      queued: providerIdempotencyKey !== null,
+      providerIdempotencyKey: providerIdempotencyKey
+    };
+  },
   async listEntries(ctx) {
     return await ctx.db.query('entries').collect();
   },
@@ -98,6 +113,7 @@ fn functions() -> FunctionManifest {
         functions: vec![
             define("observeSettlement", FunctionKind::Mutation),
             define("throwSettlement", FunctionKind::Mutation),
+            define("recordEffectIntent", FunctionKind::Mutation),
             define("listEntries", FunctionKind::Query),
             define("querySettlement", FunctionKind::Query),
             define("actionSettlement", FunctionKind::Action),
@@ -245,6 +261,42 @@ fn settlement_identity_is_stable_across_a_genuine_re_entry() {
         "a fresh ctx.runtime.id proves the handler genuinely re-entered"
     );
     assert_sha256(&Value::String(first.0));
+}
+
+#[test]
+fn effect_intent_uses_one_replay_stable_provider_key() {
+    let mut snapback = configured();
+    let client_mutation_id = "cm_settlement_effect_1";
+    let first = invoke_with_id(
+        &mut snapback,
+        "recordEffectIntent",
+        json!({}),
+        client_mutation_id,
+    )
+    .expect("record effect intent");
+    let replayed = invoke_with_id(
+        &mut snapback,
+        "recordEffectIntent",
+        json!({}),
+        client_mutation_id,
+    )
+    .expect("replay settled effect intent");
+
+    assert_eq!(replayed, first, "the settled duplicate returns one result");
+    assert_eq!(first.result["queued"], true);
+    let settlement_id = first.result["providerIdempotencyKey"]
+        .as_str()
+        .expect("effect intent has a provider key")
+        .strip_prefix("notification:")
+        .expect("provider key is namespaced for the effect");
+    assert_sha256(&Value::String(settlement_id.to_owned()));
+
+    let rows = snapback
+        .invoke_query("listEntries", input(json!({})))
+        .expect("list committed effect intents")
+        .rows;
+    assert_eq!(rows.len(), 1, "settled replay inserts one effect intent");
+    assert_eq!(rows[0]["marker"], first.result["providerIdempotencyKey"]);
 }
 
 #[test]

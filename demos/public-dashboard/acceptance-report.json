@@ -1,9 +1,9 @@
 {
   "title": "public-dashboard / headless",
-  "passed": 5,
+  "passed": 6,
   "skipped": 0,
   "failed": 0,
-  "total": 5,
+  "total": 6,
   "ok": true,
   "results": [
     {
@@ -27,12 +27,17 @@
       "details": null
     },
     {
+      "name": "structured route context lowers and executes at any object depth",
+      "ok": true,
+      "details": null
+    },
+    {
       "name": "an undeclared route is refused",
       "ok": true,
       "details": null
     }
   ],
-  "expectedChecks": 5,
+  "expectedChecks": 6,
   "cleanupErrors": [],
   "cleanupErrorCount": 0
 }

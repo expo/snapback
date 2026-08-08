@@ -15,7 +15,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: effa2773760fd0d740c49f06990b3fde5e82a66b
+reviewed-commit: 98257903f5b726e1e19fe9ac3132ea3ed83ecd78
 ---
 
 # Capability index
@@ -38,6 +38,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.record-history | Bounded per-record version retention: `defineTable(...).history({ retainMs, maxVersionsPerRecord })` (≤ 30 days, 1–1,000 versions), captured at committed writes, consumed by host proof machinery; no author-facing read query | history, record history, version history, audit trail, time travel, retainMs, maxVersionsPerRecord | local | shipped | `history(` in packages/snapback-codegen/define.mjs | llp/0162 | backend/mutations.md |
 | backend.functions | Queries, live queries, mutations, and actions; declarative plans or colocated JS handlers with same-file helpers; explicit document/record/value result contracts including result-side `v.doc(table)` schema references; manifest-derived handler/helper `ctx.db` types with a query-read/mutation-write split; generated exact client references and runtime egress validation | query, mutation, endpoint, api, inline handler, result contract, results.documents, results.records, v.doc, GeneratedHandler, GeneratedQueryDatabase, ctx.refuse, refusals, application error code, domain error, app refusal, mutationPlan, letBind, insertEach, return binding, declarative mutation | local | shipped | packages/snapback-codegen/define.mjs | llp/0004, llp/0009, llp/0101, llp/0108, llp/0127 | backend/queries.md |
 | backend.runtime-values | Derive deterministic per-invocation time and fresh identifiers inside JavaScript handlers | server time, server clock, timestamp, generated id, UUID, Date.now, Math.random | local | shipped | `runtime.now` in packages/snapback-harness/ctx-bootstrap.js | llp/0051, llp/0065 | backend/trusted-runtime-values.md |
+| backend.mutation-settlement-identity | Mutation-only client protocol identity and server-namespaced settlement digest for replay-stable effects; settled duplicates do not re-enter and genuine pre-settlement re-entry preserves the digest. Hosted returns the all-null twin. | ctx.mutation.settlement, settlementId, replay-stable effect, provider idempotency key, effect dedupe | local | shipped | `recordEffectIntent` in tests/mutation_settlement_identity_v0.rs | llp/0043 | backend/mutations.md |
 | backend.standard-patterns | Generate owner CRUD, unique lookup, owner/membership keyset pages | CRUD generator, pagination, callable pagination, membership pages, trusted defaults | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065, llp/0100 | backend/standard-patterns.md |
 | backend.relational-queries | Bounded two-source equi-joins with explicit visibility, closed projections, and transactionally maintained projection tables (`defineRelationalQuery`, `defineMaintainedProjection`, stable capability since 2026-07-26) | joins, relational queries, denormalized reads, materialized views, conversation membership, message sender, chat joins, defineRelationalQuery, defineMaintainedProjection, Convex joins, Supabase joins | local | partial | `defineRelationalQuery` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
 | backend.bounded-children-v1 | Experimental one-visible-parent/one-index-bounded-child-page profile with protected relation incarnations and `sbbc1` AEAD keysets; only contributor source builds with the exact embedded atomic carrier advertise it, while public runtime packages and hosted targets retain a structured GAP | one-to-many, parent children, relation incarnation, bounded child page | local | partial | src/local-relation-activity-publication.v1.json | llp/0104, llp/0108, llp/0101 | GAP (public-package attestation and hosted publication; owner: Charlie, review: 2026-08-31) |
@@ -64,7 +65,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | realtime.live-queries | Subscribe to a query; snapshot + replace/delta updates | subscription, realtime | local | shipped | route /live/{name}/subscribe | llp/0008 | realtime/live-queries.md |
 | realtime.durable-push | Durable WebSocket push lane; connection axis | websocket, stream, push, connection state, connection disconnect, disconnect client, force disconnect | local | shipped | route /live/{connection_id}/stream | llp/0008, llp/0034 | realtime/live-queries.md |
 | realtime.ephemeral | Typed ephemeral rooms plus the scoped React presence hook: presence, typing indicators, cursors, TTL | presence, cursors, rooms, ephemeral, React ephemeral hook, useSnapbackPresence, useSnapbackEphemeral, typing indicator, ephemeral cleanup, cleanup stale entries, expire ephemeral, Supabase Presence, Supabase Broadcast | local | shipped | route /ephemeral/publish + `useSnapbackPresence` in packages/snapback-react/index.d.mts | llp/0013, llp/0107, llp/0114 | realtime/ephemeral-state.md |
-| realtime.snapshot-bundles | Resumable-query snapshot bundles: one request evaluates a served route-manifest entry's queries at one commit with per-query resume tokens; register mode arms the pending-registration owner. The contributor local target additionally ships Experimental `mixed_bundle_boot_v2`: a disjoint LLP 0157 `mixed-route.v2` artifact/wire evaluates live and ordinary children at one pinned snapshot, registers only identity-bound live children, and returns plain children honestly read-only. Legacy RQS entries stay grandfathered under LLP 0090, entering QMK custody only through connected prove-or-fresh adoption. `defineRoutes` + `publicInline` feed the Channel A inlined web boot (`snapbackChannelA` in packages/snapback-vite) with anonymous reads for publicInline-class routes; on the Cloudflare arm the routes manifest compiles into the Worker, the gateway serves Channel A HTML, and the coordinator answers read-mode bundles + token resume (register and mixed mode Cloudflare: deferred) | bundle, preload, resumable snapshots, boot, RQS, mixed route, read-only child, registered live child, inlined HTML, routes manifest | local, cloudflare | partial | route /app/bundle + schemas/capability.manifest.local-dev-sqlite-ibex.json (`mixed_bundle_boot_v2`) | llp/0090, llp/0092, llp/0157, llp/0166 | realtime/snapshot-bundles.md |
+| realtime.snapshot-bundles | Resumable-query snapshot bundles: one request evaluates a served route-manifest entry's queries at one commit with per-query resume tokens; register mode arms the pending-registration owner. Route arguments may carry `routeParam()` at object-reachable leaves beside recursively validated literal context; that structured lowering is contributor-source-only beyond published closure 0.1.15. The contributor local target additionally ships Experimental `mixed_bundle_boot_v2`: a disjoint LLP 0157 `mixed-route.v2` artifact/wire evaluates live and ordinary children at one pinned snapshot, registers only identity-bound live children, and returns plain children honestly read-only. Legacy RQS entries stay grandfathered under LLP 0090, entering QMK custody only through connected prove-or-fresh adoption. `defineRoutes` + `publicInline` feed the Channel A inlined web boot (`snapbackChannelA` in packages/snapback-vite) with anonymous reads for publicInline-class routes; on the Cloudflare arm the routes manifest compiles into the Worker, the gateway serves Channel A HTML, and the coordinator answers read-mode bundles + token resume (register and mixed mode Cloudflare: deferred) | bundle, preload, resumable snapshots, boot, RQS, mixed route, read-only child, registered live child, inlined HTML, routes manifest, routeParam, nested routeParam, structured route arguments, route group args, query context | local, cloudflare | partial | route /app/bundle + schemas/capability.manifest.local-dev-sqlite-ibex.json (`mixed_bundle_boot_v2`) + packages/snapback-codegen/authoring-validation.test.mjs | llp/0090, llp/0092, llp/0157, llp/0166 | realtime/snapshot-bundles.md |
 | sync.offline | Retained queries, outbox, replay, optimistic overlays (Contract arm: lease-bounded protected retention, derived overlays, `Parity` under LLP 0043's proof rule) | local-first, outbox | local | shipped | route /outbox/{connection_id} | llp/0043, llp/0052 | sync/offline-and-retention.md |
 | sync.offline-js-arm | Experimental JS/React offline substrate: default IndexedDB + Web Locks in browsers, durable file storage on Node, and in-memory fallback; declared public authority-independent retained queries; durable M2 outbox with exact ordered replay and pending-intent projection. LLP 0090 grandfathers legacy RQS entries: adoption is connected-only prove-or-fresh into QMK custody, one atomic transaction, never relabeling bytes or dropping pending outbox intent. Node/file and React-stub tests pass, and LLP 0155 proves real-Chrome `SIGKILL` persistence plus two-tab lock refusal/takeover. The 2026-08-07 browser public witness proves the end-to-end browser facts (labeling, resync/replay, settlement, convergence, SPA reload, protected refusal). Authenticated retention stays with the lease-custody ticket; no local execution or `Parity` claim | offline browser, cold boot, restart-safe queue, IndexedDB, default persistence, retainability opt-in, pending intent render | local | partial | `resolveDefaultRqsStore` in packages/snapback-client/rqs-store-default.mjs + `demos/public-dashboard/tests/acceptance/offline-local-first.mjs` (Node/file, same-process) + `demos/zero-bakeoff/stage0/browser/run.mjs` (browser substrate) + packages/snapback-client/rqs-resume.test.mjs (auth-scoped refusal receipt) + `demos/browser-local-first/tests/acceptance/browser-public-witness.mjs` | llp/0043, llp/0090, llp/0129, llp/0155, llp/0166 | sync/offline-and-retention.md |
 | sync.offline-js-arm-sessions | JS-arm offline queue under browser-session and agent custody (LLP 0043 §Auth posture, ratified 2026-08-04, implemented 2026-08-06): capture-at-enqueue authority descriptor + principal scope + durable custody lineage; same-principal replacement sessions strand rerecordable work for explicit read/discard/re-record-as-new-`clientMutationId`; principal change privacy-deletes predecessor queue bytes with a diagnostic count before successor observation; `SNAPBACK_AUTH_STALE_RESULT` replay refusals strand terminally while content refusals stay failed; v1 is server-refusal-only (no LLP 0053 queue-obligation port — named Contract-arm asymmetry) | sessions custody, agent custody offline, strand, re-record, cross-principal delete, offline auth queue | local | shipped | demos/card-game/tests/acceptance/offline-sessions-custody.mjs + packages/snapback-client/outbox-custody.test.mjs | llp/0043, llp/0053, llp/0129 | sync/offline-and-retention.md |
@@ -915,7 +916,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: effa2773760fd0d740c49f06990b3fde5e82a66b
+reviewed-commit: 98257903f5b726e1e19fe9ac3132ea3ed83ecd78
 ---
 
 # Retrieval eval protocol
@@ -1196,6 +1197,28 @@ Case 26 absorbs the duplicated native-lane simulator setup recorded in
     Expected pages: `clients/react-expo.md`.
     Route terms: "headless simulator", "plistlib", "Expo Go onboarding",
     "simctl openurl", "deep-link drive channel".
+
+Cases 27–28 absorb the structured route-argument and mutation-settlement
+guide gaps filed after the 2026-08-08 Zerobugs authoring pass.
+
+27. **Structured route arguments:** "Bundle `/projects/:projectId` into a
+    query taking `{ context: { projectId, cursor: null, sort: 'asc', tags:
+    ['open'] } }`." The run fails if the plan flattens `context`, adds a
+    server-side merge, puts `routeParam()` inside an array, or invents
+    transforms or defaults.
+    Expected pages: `realtime/snapshot-bundles.md`.
+    Route terms: "structured route arguments", "nested routeParam",
+    "query context", "route group args".
+
+28. **Replay-stable effect intent:** "A client mutation writes a notification
+    intent; retries must reuse one provider idempotency key even if the handler
+    threw before commit." The run fails if the plan uses `ctx.runtime.id()`,
+    parses or hashes the raw `clientMutationId`, calls the settlement surface
+    from a query or action, or performs external I/O inside the mutation.
+    Expected pages: `backend/mutations.md`,
+    `backend/trusted-runtime-values.md`.
+    Route terms: "ctx.mutation.settlement", "settlementId",
+    "replay-stable effect", "provider idempotency key".
 
 ## Static routing check
 
@@ -3346,14 +3369,14 @@ title: Mutations
 id: backend.mutations
 order: 2
 audience: agent-first
-capabilities: [backend.query-semantics, backend.record-history]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0162-agent-safe-storage-profile.rfc.md, llp/0174-authoring-incidents-at-security-fences.research.md, src/server.rs, src/runtime.rs, src/result_contract.rs, src/proof_checkpoint.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, packages/snapback-codegen/history-authoring-types.fixture.ts, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/refusal-tracking-authoring.test.mjs, tests/conformance/twin-corpus.handlers.js, demos/messaging-snapback/snapback/functions.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
+capabilities: [backend.query-semantics, backend.record-history, backend.mutation-settlement-identity]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0043-offline-replay-retention.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0162-agent-safe-storage-profile.rfc.md, llp/0174-authoring-incidents-at-security-fences.research.md, src/server.rs, src/runtime.rs, src/result_contract.rs, src/proof_checkpoint.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, packages/snapback-codegen/history-authoring-types.fixture.ts, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/refusal-tracking-authoring.test.mjs, tests/mutation_settlement_identity_v0.rs, tests/conformance/twin-corpus.handlers.js, demos/messaging-snapback/snapback/functions.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
 examples: [demos/todo, demos/todo-v2, demos/messaging-snapback, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-commit: 98257903f5b726e1e19fe9ac3132ea3ed83ecd78
 ---
 
 # Mutations
@@ -3481,6 +3504,54 @@ same mutation and have their own pages: a declared `sequences` counter
 allocated through `ctx.sequence.allocate`
 ([sequences](./sequences.md)) and durable follow-up work enqueued through
 `ctx.jobs.enqueue` ([one-off durable jobs](./jobs.md)).
+
+<!-- since: 0.1.15 -->
+
+## Derive a replay-stable effect key
+
+When a mutation records an intent that an action or worker will deliver to an
+external provider, derive the provider idempotency key from
+`ctx.mutation.settlement()`. Write the intent and key inside the transaction;
+perform the network I/O later, outside the mutation:
+
+```js source=tests/mutation_settlement_identity_v0.rs
+  async recordEffectIntent(ctx) {
+    var settlement = await ctx.mutation.settlement();
+    var providerIdempotencyKey = settlement.settlementId === null
+      ? null
+      : 'notification:' + settlement.settlementId;
+    await ctx.db.insert('entries', {
+      marker: providerIdempotencyKey === null ? 'no-settlement-identity' : providerIdempotencyKey,
+      clientMutationId: settlement.clientMutationId,
+      settlementId: settlement.settlementId
+    });
+    return {
+      queued: providerIdempotencyKey !== null,
+      providerIdempotencyKey: providerIdempotencyKey
+    };
+  },
+```
+
+The projection has two opaque fields. `clientMutationId` is the client-minted
+protocol identity; `settlementId` is the server-namespaced digest for the exact
+mutation, authenticated principal, function, and arguments. Both are `null`
+when the invocation carried no client mutation id. A settled duplicate returns
+its stored result without handler re-entry. If an earlier attempt failed before
+settlement and the handler genuinely re-enters, the same logical mutation sees
+the same `settlementId` even though fresh per-entry values such as
+`ctx.runtime.id()` may differ.
+
+Treat both fields as opaque. Do not parse or re-hash a raw client mutation id,
+and do not use a bearer token or secret as the provider key. Namespace the
+server settlement id by effect, as the example does, so two providers do not
+share one key.
+
+Queries and actions have no mutation settlement identity and refuse the call
+with `SNAPBACK_MUTATION_SETTLEMENT_UNAVAILABLE`. An action should call a named
+mutation through `ctx.runMutation`; that mutation writes the effect intent and
+the later action or worker performs delivery. The hosted coordinator currently
+has no client-mutation replay ledger and returns the all-null twin, so a
+replay-stable effect key is a local-target capability.
 
 A mutation that declares a write to a `permissionBacking` table is generated
 with `authorityCreating: true`. Authors may explicitly mark an opaque mutation
@@ -3842,13 +3913,13 @@ id: backend.actions-and-fetch
 order: 3
 audience: agent-first
 capabilities: [backend.actions]
-authorities: [llp/0004-application-data-api.rfc.md, llp/0009-code-execution-security.rfc.md, llp/0036-app-secrets-and-config.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0076-bounded-streamed-actions.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-harness/ctx-bootstrap.js, src/server.rs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/snapback/handlers.mjs, demos/all-aboard/tests/egress-probe/functions.mjs, demos/all-aboard/tests/egress-probe/handlers.mjs, demos/all-aboard/tests/acceptance/egress.mjs, demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs]
+authorities: [llp/0004-application-data-api.rfc.md, llp/0009-code-execution-security.rfc.md, llp/0036-app-secrets-and-config.rfc.md, llp/0043-offline-replay-retention.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0076-bounded-streamed-actions.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-harness/ctx-bootstrap.js, src/server.rs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/snapback/handlers.mjs, demos/all-aboard/tests/egress-probe/functions.mjs, demos/all-aboard/tests/egress-probe/handlers.mjs, demos/all-aboard/tests/acceptance/egress.mjs, demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs]
 examples: [demos/all-aboard, demos/competitive-checkpoint]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-08
+reviewed-commit: 98257903f5b726e1e19fe9ac3132ea3ed83ecd78
 ---
 
 # Actions and outbound fetch
@@ -4007,6 +4078,13 @@ commit and live fan-out:
 This split prevents a slow or failed network request from holding the write
 lane. Nested mutations inherit the action's server-resolved authority; they do
 not accept a replacement identity.
+
+<!-- since: 0.1.15 -->
+
+Actions themselves cannot call `ctx.mutation.settlement()`; the host refuses
+it with `SNAPBACK_MUTATION_SETTLEMENT_UNAVAILABLE`. For replay-stable external
+delivery, have the nested mutation [derive and store an effect key](./mutations.md#derive-a-replay-stable-effect-key),
+then let the action or worker perform the I/O from that durable intent.
 
 Two adjacent action surfaces have their own pages: a mutation schedules an
 action to run later, transactionally with its writes, via `ctx.jobs.enqueue`
@@ -5938,14 +6016,14 @@ title: Trusted runtime time and identifiers
 id: backend.runtime-values
 order: 24
 audience: agent-first
-capabilities: [backend.runtime-values]
-authorities: [llp/0051-language-neutral-data-tier.rfc.md, llp/0065-generated-data-pattern-soundness.rfc.md, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/index.mjs]
+capabilities: [backend.runtime-values, backend.mutation-settlement-identity]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0051-language-neutral-data-tier.rfc.md, llp/0065-generated-data-pattern-soundness.rfc.md, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/index.mjs, tests/mutation_settlement_identity_v0.rs]
 examples: [demos/competitive-checkpoint/snapback/handlers.mjs, demos/competitive-checkpoint/snapback/generated/operations/startReply.args.schema.json]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-commit: 98257903f5b726e1e19fe9ac3132ea3ed83ecd78
 ---
 
 # Trusted runtime time and identifiers
@@ -5997,6 +6075,17 @@ For owner-scoped generated CRUD, declare the same policy as
 `createDefaults: { createdAt: 'now', pageKey: 'id' }` instead of writing a
 handler. The [safe standard patterns](./standard-patterns.md) page covers that
 narrow helper profile.
+
+<!-- since: 0.1.15 -->
+
+## Keep effect identity stable across mutation re-entry
+
+`ctx.runtime.id()` is fresh identity for one handler entry. It is not an
+effect-deduplication key: a mutation that throws before settlement may
+genuinely re-enter and receive another runtime id. When retries must write one
+durable effect intent with one provider idempotency key, use the mutation's
+replay-stable `settlementId` instead. The complete mutation-only recipe is
+[derive a replay-stable effect key](./mutations.md#derive-a-replay-stable-effect-key).
 
 ## Keep generated fields out of operation arguments
 
@@ -6073,6 +6162,8 @@ migration claim.
 - Do not substitute `Date.now()`, `new Date()`, or `Math.random()` inside a
   handler.
 - Do not reuse one `ctx.runtime.id()` result for distinct logical records.
+- Do not use `ctx.runtime.id()` as a replay-stable effect or provider
+  idempotency key.
 - Do not type a runtime-generated string as a principal or foreign key.
 - Do not infer a supported migration workflow from the runtime-value APIs.
 
@@ -16940,13 +17031,13 @@ id: realtime.snapshot-bundles
 order: 3
 audience: agent-first
 capabilities: [realtime.snapshot-bundles]
-authorities: [llp/0090-resumable-query-snapshots.rfc.md, llp/0092-rqs-manifest-bundle-and-channel-a-contract.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-codegen/index.mjs, src/bundle.rs, src/local.rs]
+authorities: [llp/0090-resumable-query-snapshots.rfc.md, llp/0092-rqs-manifest-bundle-and-channel-a-contract.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/authoring-validation.test.mjs, demos/public-dashboard/snapback/routes.mjs, demos/public-dashboard/tests/acceptance/headless.mjs, src/bundle.rs, src/local.rs]
 examples: [demos/public-dashboard]
 status: current
 targets: [local, cloudflare]
 maturity: partial
-reviewed: 2026-08-04
-reviewed-commit: cf47cc3b75172cec3ac6c44428ce40db48d81465
+reviewed: 2026-08-08
+reviewed-commit: 98257903f5b726e1e19fe9ac3132ea3ed83ecd78
 ---
 
 # Route snapshot bundles
@@ -16997,7 +17088,6 @@ Routes are generated artifacts. Bind URL parameters through `routeParam`
 instead of accepting an ad hoc query list from the caller:
 
 ```js source=demos/public-dashboard/snapback/routes.mjs
-export default defineRoutes([
   {
     route: '/dashboards/:dashboardId',
     queries: [
@@ -17007,7 +17097,6 @@ export default defineRoutes([
       },
     ],
   },
-]);
 ```
 
 For anonymous Channel A boot, the query must explicitly declare all three
@@ -17033,6 +17122,60 @@ argument must be a literal or a declared route-parameter binding.
 This example works on contributor-source builds and, since
 `@expo/snapback-*@0.1.11`, on published packages carrying the packaged-store
 qualification receipt — see [offline retention](../sync/offline-and-retention.md).
+
+<!-- since: 0.1.16 unreleased -->
+
+> **Unreleased.** Structured route-group arguments are newer than the newest
+> published closure, 0.1.15; until the next closure publishes, use them only
+> from contributor-source builds.
+
+## Bind route parameters inside structured query arguments
+
+A `routeParam()` may sit at any object-reachable leaf of a query argument.
+Keep the surrounding context literal: objects may recursively contain `null`,
+literal-union values, arrays of literal values, and finite-number vector
+literals. Public Dashboard binds the URL id inside `context` while carrying a
+nullable cursor, sort direction, and tags beside it:
+
+```js source=demos/public-dashboard/snapback/routes.mjs
+  {
+    route: '/context-dashboards/:dashboardId',
+    queries: [
+      {
+        function: 'dashboardMetricsByContext',
+        args: {
+          context: {
+            dashboardId: routeParam('dashboardId'),
+            cursor: null,
+            sort: 'asc',
+            tags: ['current', 'critical'],
+          },
+        },
+      },
+    ],
+  },
+```
+
+The query validator remains the authority for the whole structure. Codegen
+checks every literal member against it and confirms that the nested binding
+lands on a scalar string-, number-, or boolean-compatible leaf. At runtime the
+bound value preserves that scalar type; it is not flattened or merged by a
+handler.
+
+Some shapes deliberately refuse generation:
+
+- A bare `routeParam()` as the whole `args` root has no declared argument key.
+- A reference inside an array, or a reference object mixed with sibling keys,
+  is ambiguous and refuses. Arrays are literal context only.
+- A non-string `$param`, defaults, transforms, optional route parameters, and
+  tuple-style argument invention are outside this surface.
+- Register and mixed-route groups require every reference at every depth to
+  target a string-typed leaf. A number- or boolean-typed binding remains valid
+  for read-mode argument lowering but makes that group ineligible.
+
+Targets with an older routes-manifest validator fail closed on the structured
+shape. Do not flatten the object or add a server-side merge to work around
+version skew; align the codegen and runtime closure instead.
 
 ## Fetch one consistent page snapshot
 
@@ -40173,7 +40316,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-commit: 98257903f5b726e1e19fe9ac3132ea3ed83ecd78
 ---
 
 # Offline retention and mutation replay
@@ -40363,6 +40506,15 @@ proof of the same contracts. The headless witness proves:
   2026-08-01 rendering note). Render the queued-changes state next to the
   retained rows from `client.outboxStatus()` (React:
   `useSnapbackOutbox()`), never by faking the rows themselves.
+
+<!-- since: 0.1.15 -->
+
+The replay path preserves the original `clientMutationId`. A local mutation
+handler that needs a replay-stable key for a durable effect intent can project
+the corresponding server identity through
+[`ctx.mutation.settlement()`](../backend/mutations.md#derive-a-replay-stable-effect-key);
+do not substitute a fresh runtime id or perform the external effect inside the
+mutation transaction.
 
 **Queueing requires writer custody of the durable store.** The client store
 is single-writer: the first client over a store directory (or IndexedDB

@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: effa2773760fd0d740c49f06990b3fde5e82a66b
+reviewed-commit: 98257903f5b726e1e19fe9ac3132ea3ed83ecd78
 ---
 
 # Retrieval eval protocol
@@ -291,6 +291,28 @@ Case 26 absorbs the duplicated native-lane simulator setup recorded in
     Expected pages: `clients/react-expo.md`.
     Route terms: "headless simulator", "plistlib", "Expo Go onboarding",
     "simctl openurl", "deep-link drive channel".
+
+Cases 27–28 absorb the structured route-argument and mutation-settlement
+guide gaps filed after the 2026-08-08 Zerobugs authoring pass.
+
+27. **Structured route arguments:** "Bundle `/projects/:projectId` into a
+    query taking `{ context: { projectId, cursor: null, sort: 'asc', tags:
+    ['open'] } }`." The run fails if the plan flattens `context`, adds a
+    server-side merge, puts `routeParam()` inside an array, or invents
+    transforms or defaults.
+    Expected pages: `realtime/snapshot-bundles.md`.
+    Route terms: "structured route arguments", "nested routeParam",
+    "query context", "route group args".
+
+28. **Replay-stable effect intent:** "A client mutation writes a notification
+    intent; retries must reuse one provider idempotency key even if the handler
+    threw before commit." The run fails if the plan uses `ctx.runtime.id()`,
+    parses or hashes the raw `clientMutationId`, calls the settlement surface
+    from a query or action, or performs external I/O inside the mutation.
+    Expected pages: `backend/mutations.md`,
+    `backend/trusted-runtime-values.md`.
+    Route terms: "ctx.mutation.settlement", "settlementId",
+    "replay-stable effect", "provider idempotency key".
 
 ## Static routing check
 

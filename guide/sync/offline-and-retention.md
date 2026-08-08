@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-commit: 98257903f5b726e1e19fe9ac3132ea3ed83ecd78
 ---
 
 # Offline retention and mutation replay
@@ -200,6 +200,15 @@ proof of the same contracts. The headless witness proves:
   2026-08-01 rendering note). Render the queued-changes state next to the
   retained rows from `client.outboxStatus()` (React:
   `useSnapbackOutbox()`), never by faking the rows themselves.
+
+<!-- since: 0.1.15 -->
+
+The replay path preserves the original `clientMutationId`. A local mutation
+handler that needs a replay-stable key for a durable effect intent can project
+the corresponding server identity through
+[`ctx.mutation.settlement()`](../backend/mutations.md#derive-a-replay-stable-effect-key);
+do not substitute a fresh runtime id or perform the external effect inside the
+mutation transaction.
 
 **Queueing requires writer custody of the durable store.** The client store
 is single-writer: the first client over a store directory (or IndexedDB

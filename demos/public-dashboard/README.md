@@ -4,6 +4,10 @@
 route-declared snapshot-bundle request. The query is explicitly public,
 authority-independent, and approved for tokenless inlining.
 
+The `/context-dashboards/:dashboardId` variant proves that a route parameter
+may occupy an object-reachable query-argument leaf beside recursively
+validated literal context (`null`, literal-union, and array members).
+
 Run:
 
 ```sh

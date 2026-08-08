@@ -13,4 +13,22 @@ export default defineRoutes([
       },
     ],
   },
+  // @ref LLP 0092#dated-amendment-structured-route-group-arguments-2026-08-08 —
+  // object-reachable route bindings and literal context are lowered together.
+  {
+    route: '/context-dashboards/:dashboardId',
+    queries: [
+      {
+        function: 'dashboardMetricsByContext',
+        args: {
+          context: {
+            dashboardId: routeParam('dashboardId'),
+            cursor: null,
+            sort: 'asc',
+            tags: ['current', 'critical'],
+          },
+        },
+      },
+    ],
+  },
 ]);

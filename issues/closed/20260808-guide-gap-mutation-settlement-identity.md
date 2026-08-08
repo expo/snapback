@@ -32,3 +32,12 @@ clean in a fresh worktree — it needs `./scripts/check-generated-artifacts` and
 the Exact/Contract demo installs first — so a guide edit could not be verified
 in the same pass without a disproportionate setup. Do this on a pass that
 already has the generated demo artifacts materialized.
+
+## Resolution
+
+Resolved 2026-08-08. The mutation settlement test now carries an executable
+effect-intent recipe whose provider key survives replay and settled duplicate
+delivery. The Guide transcludes it from the mutations page, routes runtime-id,
+action, and offline-replay choices to it, records the local/hosted asymmetry in
+the capability index, and adds retrieval case 28. The released section is
+fenced at published closure 0.1.15.

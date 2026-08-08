@@ -3,10 +3,12 @@
 
 import {
   arg,
+  argsRoot,
   asc,
   defineLiveQuery,
   defineMutation,
   eq,
+  field,
   insert,
   patch,
   returnBinding,
@@ -18,6 +20,24 @@ export const dashboardMetrics = defineLiveQuery({
   table: 'metrics',
   args: { dashboardId: v.string() },
   filter: [eq('dashboardId', arg('dashboardId'))],
+  order: [asc('label')],
+  index: 'by_dashboard',
+  auth: 'public',
+  authorityIndependent: true,
+  publicInline: true,
+});
+
+export const dashboardMetricsByContext = defineLiveQuery({
+  table: 'metrics',
+  args: {
+    context: v.object({
+      dashboardId: v.string(),
+      cursor: v.union([v.string(), v.null()]),
+      sort: v.union([v.literal('asc'), v.literal('desc')]),
+      tags: v.array(v.string(), { maxItems: 4 }),
+    }),
+  },
+  filter: [eq('dashboardId', field(argsRoot(), 'context', 'dashboardId'))],
   order: [asc('label')],
   index: 'by_dashboard',
   auth: 'public',

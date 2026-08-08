@@ -36,3 +36,11 @@ possibly the unreleased banner) when this lands — check
 
 Owner seam: D2 (LLP 0183 assigns the graph/argument surface to D2);
 governing guide design is LLP 0061 §5.
+
+## Resolution
+
+Resolved 2026-08-08. Public Dashboard now executes a nested structured route
+argument and asserts its generated manifest shape and group eligibility. The
+snapshot-bundles page transcludes that carrier, enumerates admitted and refused
+shapes, and fences the surface as unreleased beyond published closure 0.1.15.
+The capability aliases and retrieval case 27 make the technique discoverable.
