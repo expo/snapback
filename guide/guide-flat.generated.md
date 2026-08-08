@@ -15,7 +15,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: d851167d7492a7303e2e84dc4317bdc32c4e5797
+reviewed-commit: 2c6b3d38cbf2ba197cfb0390aaddba1ce107e4e0
 ---
 
 # Capability index
@@ -146,7 +146,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: d851167d7492a7303e2e84dc4317bdc32c4e5797
+reviewed-commit: 2c6b3d38cbf2ba197cfb0390aaddba1ce107e4e0
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -932,7 +932,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 30ea435fee4a3f025177985b766b4801f8289ed5
+reviewed-commit: 88a35fb65fa736c8078642622bd4ec96a4014373
 ---
 
 # Retrieval eval protocol
@@ -8811,7 +8811,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: d851167d7492a7303e2e84dc4317bdc32c4e5797
+reviewed-commit: 2c6b3d38cbf2ba197cfb0390aaddba1ce107e4e0
 ---
 
 # The headless client
@@ -9661,7 +9661,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: d851167d7492a7303e2e84dc4317bdc32c4e5797
+reviewed-commit: 2c6b3d38cbf2ba197cfb0390aaddba1ce107e4e0
 ---
 
 # The React client
@@ -17904,7 +17904,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 30ea435fee4a3f025177985b766b4801f8289ed5
+reviewed-commit: 88a35fb65fa736c8078642622bd4ec96a4014373
 ---
 
 # Recipe: paginated and load-more lists
@@ -18112,7 +18112,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: d851167d7492a7303e2e84dc4317bdc32c4e5797
+reviewed-commit: 2c6b3d38cbf2ba197cfb0390aaddba1ce107e4e0
 ---
 
 # Recipe: browser sign-in and reload custody
@@ -18319,7 +18319,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 30ea435fee4a3f025177985b766b4801f8289ed5
+reviewed-commit: 88a35fb65fa736c8078642622bd4ec96a4014373
 ---
 
 # Recipe: optimistic create with a server-minted ID
@@ -18506,7 +18506,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: 30ea435fee4a3f025177985b766b4801f8289ed5
+reviewed-commit: 88a35fb65fa736c8078642622bd4ec96a4014373
 ---
 
 # Recipe: coming from Convex and Supabase
