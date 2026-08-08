@@ -9528,7 +9528,9 @@ fn session_online_protocol_refusal(
                 "auth",
                 "add the request header `x-snapback-auth-client-protocol: 1`: this request \
                  does not offer the exact supported auth-client protocol (on a WebSocket \
-                 upgrade, offer the `snapback.auth-client.1` subprotocol instead)",
+                 upgrade, offer the `snapback.auth-client.1` subprotocol instead; a \
+                 non-session SnapbackClient passes both `authClientProtocol: 1` and \
+                 `custody: 'anonymous-public'`)",
             )
             .with_details(json!({
                 "capability": "onlineRequestResponse",
@@ -32230,7 +32232,9 @@ globalThis.__snapbackHandlers = {
             refusal.diagnostic.message,
             "add the request header `x-snapback-auth-client-protocol: 1`: this request \
              does not offer the exact supported auth-client protocol (on a WebSocket \
-             upgrade, offer the `snapback.auth-client.1` subprotocol instead)"
+             upgrade, offer the `snapback.auth-client.1` subprotocol instead; a \
+             non-session SnapbackClient passes both `authClientProtocol: 1` and \
+             `custody: 'anonymous-public'`)"
         );
     }
 

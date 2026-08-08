@@ -334,6 +334,25 @@ try {
       'unknown custody values refuse',
     );
   }
+
+  // --- Diary 0068: non-session inspection needs the complete client option pair.
+  {
+    captured.length = 0;
+    const inspection = new SnapbackClient(baseUrl, {
+      authClientProtocol: 1,
+      custody: 'anonymous-public',
+    });
+    assert.deepEqual(
+      await inspection.query('listThings'),
+      { rows: [{ id: 't1' }], version: 3 },
+      'a non-session inspection client reads with the protocol offer',
+    );
+    await inspection.loadSchema({});
+    const queryRequest = captured.find((entry) => entry.url === '/query/listThings');
+    assert.equal(queryRequest.headers['x-snapback-auth-client-protocol'], '1');
+    const adminRequest = captured.find((entry) => entry.url === '/_snapback/api/schema/load');
+    assert.equal(adminRequest.headers['x-snapback-admin-token'], PLANTED_ADMIN_TOKEN);
+  }
   console.log('app-data anonymous-public custody assertions pass');
 
   console.log('app-data.test.mjs: façade posture, redirect-terminal, ingress bounds, and bare artifact path pass');

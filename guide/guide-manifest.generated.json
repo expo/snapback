@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "b4de3a14dc04a16b3bfc7be05f8834716e2e4633"
+    "commit": "3bea79ec0d6ea7b1875f8a751f6b3b9d2383f4fc"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -630,9 +630,9 @@
       "examples": [
         "demos/card-game"
       ],
-      "reviewed": "2026-08-03",
+      "reviewed": "2026-08-08",
       "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "6414afdfcd963d8cdd2d26501ce4b70a7455d1a39dfad807f2f58e1910f2fe02",
+      "sha256": "595e3b6f6adda068c4b4481578d7c999fe0322bd8de5a9f59346c125372465f9",
       "snippets": [
         {
           "lang": "js",
@@ -656,6 +656,11 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/party-wall/tests/acceptance/headless.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-client/app-data.test.mjs"
         },
         {
           "lang": "js",
@@ -3727,5 +3732,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "b2fea5872a18eba881394e050c79ca262b4fa29a04faa92c1aaa150dd368a0ff"
+  "contentHash": "abea66e679f488b0b7cba581273962be791deedb2d85fce8c8c51c5b33c251d8"
 }

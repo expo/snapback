@@ -1172,7 +1172,7 @@ examples: [demos/card-game]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
+reviewed: 2026-08-08
 reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
@@ -1359,6 +1359,24 @@ custody: passing a bearer alongside it throws rather than silently
 downgrading, so no caller-selected identity can be smuggled through the
 anonymous path. Anonymous clients read `public` queries only; protected
 queries refuse exactly as they do for a signed-out browser.
+
+For a non-session **admin/inspection** client against a sessions-mode server,
+pass both options together. `authClientProtocol: 1` satisfies the server's
+protocol-offer gate; without it the server refuses
+`SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED`. `custody: 'anonymous-public'`
+satisfies the client constructor; `authClientProtocol: 1` alone throws a
+custody `TypeError`. Each refusal names one half; this is the complete pair:
+
+```js source=packages/snapback-client/app-data.test.mjs
+    const inspection = new SnapbackClient(baseUrl, {
+      authClientProtocol: 1,
+      custody: 'anonymous-public',
+    });
+```
+
+The admin token from `SNAPBACK_ADMIN_TOKEN` or the `adminToken` option rides
+alongside this custody on admin routes. Anonymous-public custody does not strip
+it unless you pass `adminToken: null`.
 
 ## Reset invalidates sessions and reissues principals
 
