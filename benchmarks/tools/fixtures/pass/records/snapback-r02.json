@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "lane": "snapback",
+  "laneVariant": "skill",
+  "carrier": "web",
+  "brief": "messaging",
+  "harness": {
+    "name": "synthetic-harness-1.0.0",
+    "model": "synthetic-model-1",
+    "effort": "medium",
+    "environment": {
+      "platformVersion": "0.1.99-synthetic",
+      "machineClass": "synthetic-machine-v1",
+      "os": "synthetic-os-1"
+    }
+  },
+  "timestamps": {
+    "startedAt": "2026-08-08T12:03:00.000Z",
+    "finishedAt": "2026-08-08T12:03:10.000Z"
+  },
+  "firstGreenProofAt": "2026-08-08T12:03:10.000Z",
+  "wallClock": {
+    "totalSeconds": 10,
+    "phases": {
+      "orientation": 1,
+      "authoring": 6,
+      "verification": 2,
+      "diagnosis": 1
+    }
+  },
+  "tokens": {
+    "input": 70,
+    "output": 30,
+    "source": "synthetic-meter-v1",
+    "phases": {
+      "orientation": 10,
+      "authoring": 65,
+      "verification": 15,
+      "diagnosis": 10
+    }
+  },
+  "toolUses": 10,
+  "correctionLoops": [],
+  "handAuthoredLoc": {
+    "lines": 95,
+    "files": 5,
+    "sharedUiLines": null
+  },
+  "rubric": {
+    "functionalCompleteness": 80,
+    "realtimeTyping": 80,
+    "offlineBehavior": 80,
+    "imagesAssets": 80,
+    "dataModelTypeSafety": 80,
+    "dxDocsSetup": 80,
+    "testabilityDiagnostics": 80,
+    "operationsMaturity": 80,
+    "weightedOverall": 80
+  },
+  "authParity": {
+    "posture": "test-persona-seam",
+    "notes": "Synthetic fixture; not authentication."
+  },
+  "diary": "benchmarks/tools/fixtures/pass/diary.md",
+  "notes": "Synthetic fixture only.",
+  "synthetic": true,
+  "recordDigest": "sha256:396234105f3666b9ec12c149c5e9b9a6c955856554d846b30cf97e8ad3590215",
+  "publication": {
+    "comparisonSet": "synthetic-pass",
+    "repetition": 2,
+    "attemptId": "synthetic-snapback-r02",
+    "position": 2,
+    "resultStatus": "success",
+    "proofEvidence": [
+      "benchmarks/tools/fixtures/pass/evidence/proof.json"
+    ],
+    "sanitizedTrace": "benchmarks/tools/fixtures/pass/evidence/public-trace.json"
+  }
+}

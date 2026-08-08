@@ -187,5 +187,8 @@ remains **OPEN (LLP 0186 OQ5)**; this instrument does not decide it.
 - `lanes/` — four proven parameterized prompt templates.
 - `records/` — the record format, standing run records, and the series table.
 - `schema/` — the optional per-lane JSON run-record schema.
+- `tools/` — the LLP 0197 checked record loader/publisher and publication-safe
+  action-trace sanitizer. Its fixtures are synthetic and are never benchmark
+  results; see `tools/README.md`.
 - `protocol.md` — run rules, metering, repetition floors, attribution, and
   publication posture.

@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "lane": "snapback",
+  "laneVariant": "skill",
+  "carrier": "web",
+  "brief": "messaging",
+  "harness": {
+    "name": "synthetic-harness-1.0.0",
+    "model": "synthetic-model-1",
+    "effort": "medium",
+    "environment": {
+      "platformVersion": "0.1.99-synthetic",
+      "machineClass": "synthetic-machine-v1",
+      "os": "synthetic-os-1"
+    }
+  },
+  "timestamps": {
+    "startedAt": "2026-08-08T12:01:00.000Z",
+    "finishedAt": "2026-08-08T12:01:12.000Z"
+  },
+  "firstGreenProofAt": "2026-08-08T12:01:12.000Z",
+  "wallClock": {
+    "totalSeconds": 12,
+    "phases": {
+      "orientation": 1,
+      "authoring": 7,
+      "verification": 3,
+      "diagnosis": 1
+    }
+  },
+  "tokens": {
+    "input": 80,
+    "output": 40,
+    "source": "synthetic-meter-v1",
+    "phases": {
+      "orientation": 10,
+      "authoring": 80,
+      "verification": 20,
+      "diagnosis": 10
+    }
+  },
+  "toolUses": 12,
+  "correctionLoops": [],
+  "handAuthoredLoc": {
+    "lines": 100,
+    "files": 5,
+    "sharedUiLines": null
+  },
+  "rubric": {
+    "functionalCompleteness": 80,
+    "realtimeTyping": 80,
+    "offlineBehavior": 80,
+    "imagesAssets": 80,
+    "dataModelTypeSafety": 80,
+    "dxDocsSetup": 80,
+    "testabilityDiagnostics": 80,
+    "operationsMaturity": 80,
+    "weightedOverall": 80
+  },
+  "authParity": {
+    "posture": "test-persona-seam",
+    "notes": "Synthetic fixture; not authentication."
+  },
+  "diary": "benchmarks/tools/fixtures/pass/diary.md",
+  "notes": "Synthetic fixture only.",
+  "synthetic": true,
+  "futureP000Field": {
+    "additive": "tolerated"
+  },
+  "recordDigest": "sha256:8a8ae12961ce91ea1bfafa5c21dd919dc5e33466650afd957386ac7aecfb225f",
+  "publication": {
+    "comparisonSet": "synthetic-pass",
+    "repetition": 1,
+    "attemptId": "synthetic-snapback-r01",
+    "position": 1,
+    "resultStatus": "success",
+    "proofEvidence": [
+      "benchmarks/tools/fixtures/pass/evidence/proof.json"
+    ],
+    "sanitizedTrace": "benchmarks/tools/fixtures/pass/evidence/public-trace.json"
+  }
+}

@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "synthetic": true,
+  "claimId": "synthetic-pass",
+  "title": "Synthetic missing-evidence fixture",
+  "brief": "messaging",
+  "requiredClaimFields": [
+    "recordDigest",
+    "publication"
+  ],
+  "recordFiles": [
+    "benchmarks/tools/fixtures/pass/records/snapback-r01.json",
+    "benchmarks/tools/fixtures/pass/records/convex-r01.json",
+    "benchmarks/tools/fixtures/pass/records/snapback-r02.json",
+    "benchmarks/tools/fixtures/pass/records/convex-r02.json",
+    "benchmarks/tools/fixtures/pass/records/snapback-r03.json",
+    "benchmarks/tools/fixtures/pass/records/convex-r03.json"
+  ],
+  "lanes": [
+    {
+      "id": "snapback-skill-web",
+      "displayName": "Snapback skill web (synthetic)",
+      "match": {
+        "lane": "snapback",
+        "laneVariant": "skill",
+        "carrier": "web"
+      }
+    },
+    {
+      "id": "convex-web",
+      "displayName": "Convex web (synthetic)",
+      "match": {
+        "lane": "convex",
+        "carrier": "web"
+      }
+    }
+  ],
+  "primaryComparison": {
+    "subjectLaneId": "snapback-skill-web",
+    "controlLaneId": "convex-web",
+    "metrics": [
+      "wallClock",
+      "tokens"
+    ],
+    "successPolicy": {
+      "expectedAttemptsPerLane": 3,
+      "minimumSuccessCount": 3,
+      "minimumSuccessRate": 1,
+      "maximumSuccessRateDifference": 0
+    }
+  },
+  "disclosures": {
+    "fairness": {
+      "coldContext": "Synthetic lanes declare cold context.",
+      "publishedSurfacesOnly": "Synthetic Snapback uses only imaginary published surfaces.",
+      "sameModelAndEffort": "Both lanes pin synthetic-model-1 at medium effort.",
+      "sameMachine": "Both lanes use synthetic-machine-v1.",
+      "counterbalancedSerial": "Lanes run serially in AB, BA, AB order.",
+      "competitorWebDocs": "The synthetic competitor may use its imaginary public web docs.",
+      "priorFamiliarity": "No causal adjustment is made for model prior familiarity.",
+      "authParity": "Both synthetic lanes use the same visibly labeled test-persona seam."
+    },
+    "proofBar": {
+      "statement": "Both synthetic lanes claim the same imaginary messaging outcomes.",
+      "equal": true,
+      "perLane": {
+        "snapback-skill-web": {
+          "statement": "This pointer must fail closed.",
+          "evidence": [
+            "benchmarks/tools/fixtures/pass/evidence/does-not-exist.json"
+          ]
+        },
+        "convex-web": {
+          "statement": "All synthetic proofs passed.",
+          "evidence": [
+            "benchmarks/tools/fixtures/pass/evidence/proof.json"
+          ]
+        }
+      }
+    },
+    "aid": {
+      "perLane": {
+        "snapback-skill-web": {
+          "classification": "aid-assisted",
+          "eligibilityPolicy": "Any public official aid frozen before the synthetic run is eligible.",
+          "artifacts": [
+            {
+              "name": "synthetic-snapback-skill",
+              "version": "1.0.0-synthetic",
+              "source": "official synthetic fixture"
+            }
+          ]
+        },
+        "convex-web": {
+          "classification": "bare-start",
+          "eligibilityPolicy": "Any public official aid frozen before the synthetic run is eligible.",
+          "artifacts": []
+        }
+      }
+    },
+    "versionPinning": {
+      "perLane": {
+        "snapback-skill-web": {
+          "platform": "Snapback synthetic",
+          "version": "0.1.99-synthetic",
+          "environment": {
+            "platformVersion": "0.1.99-synthetic",
+            "machineClass": "synthetic-machine-v1"
+          }
+        },
+        "convex-web": {
+          "platform": "Convex synthetic",
+          "version": "9.9.9-synthetic",
+          "environment": {
+            "competitorVersion": "9.9.9-synthetic",
+            "machineClass": "synthetic-machine-v1"
+          }
+        }
+      }
+    },
+    "humanReview": {
+      "status": "approved",
+      "reviewerRole": "synthetic-repository-disclosure-authority",
+      "reviewedAt": "2026-08-08T12:30:00.000Z",
+      "evidence": "benchmarks/tools/fixtures/pass/evidence/review.json"
+    }
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "lane": "convex",
+  "carrier": "web",
+  "brief": "messaging",
+  "harness": {
+    "name": "synthetic-harness-1.0.0",
+    "model": "synthetic-model-1",
+    "effort": "medium",
+    "environment": {
+      "competitorVersion": "9.9.9-synthetic",
+      "machineClass": "synthetic-machine-v1",
+      "os": "synthetic-os-1"
+    }
+  },
+  "timestamps": {
+    "startedAt": "2026-08-08T12:06:00.000Z",
+    "finishedAt": "2026-08-08T12:06:07.000Z"
+  },
+  "firstGreenProofAt": "2026-08-08T12:06:07.000Z",
+  "wallClock": {
+    "totalSeconds": 7,
+    "phases": {
+      "orientation": 1,
+      "authoring": 4,
+      "verification": 1,
+      "diagnosis": 1
+    }
+  },
+  "tokens": {
+    "input": 45,
+    "output": 25,
+    "source": "synthetic-meter-v1",
+    "phases": {
+      "orientation": 5,
+      "authoring": 45,
+      "verification": 10,
+      "diagnosis": 10
+    }
+  },
+  "toolUses": 7,
+  "correctionLoops": [],
+  "handAuthoredLoc": {
+    "lines": 52,
+    "files": 4,
+    "sharedUiLines": null
+  },
+  "rubric": {
+    "functionalCompleteness": 80,
+    "realtimeTyping": 80,
+    "offlineBehavior": 80,
+    "imagesAssets": 80,
+    "dataModelTypeSafety": 80,
+    "dxDocsSetup": 80,
+    "testabilityDiagnostics": 80,
+    "operationsMaturity": 80,
+    "weightedOverall": 80
+  },
+  "authParity": {
+    "posture": "test-persona-seam",
+    "notes": "Synthetic fixture; not authentication."
+  },
+  "diary": "benchmarks/tools/fixtures/pass/diary.md",
+  "notes": "Synthetic fixture only.",
+  "synthetic": true,
+  "recordDigest": "sha256:bde973b1c21a17b87e5cc666963acb5db6fe904de6133ee47ebe5de0183ff8b0",
+  "publication": {
+    "comparisonSet": "synthetic-pass",
+    "repetition": 3,
+    "attemptId": "synthetic-convex-r03",
+    "position": 2,
+    "resultStatus": "success",
+    "proofEvidence": [
+      "benchmarks/tools/fixtures/pass/evidence/proof.json"
+    ],
+    "sanitizedTrace": "benchmarks/tools/fixtures/pass/evidence/public-trace.json"
+  }
+}

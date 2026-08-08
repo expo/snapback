@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "synthetic": true,
+  "invocations": [
+    {
+      "actionClass": "proof-command",
+      "toolName": "/Users/synthetic/private-only-tool-name",
+      "startedAt": "2026-08-08T12:00:00.000Z",
+      "finishedAt": "2026-08-08T12:00:01.000Z",
+      "resultStatus": "success",
+      "arguments": {
+        "synthetic": true
+      },
+      "transcript": "Synthetic unsafe-redaction fixture."
+    }
+  ]
+}

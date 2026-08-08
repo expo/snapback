@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "synthetic": true,
+  "sanitizer": "llp0197-rule5-v1",
+  "reviewRequired": true,
+  "invocations": [
+    {
+      "actionClass": "proof-command",
+      "toolName": "exec_command",
+      "timing": {
+        "startedAt": "2026-08-08T12:00:00.000Z",
+        "finishedAt": "2026-08-08T12:00:01.250Z",
+        "durationMs": 1250
+      },
+      "resultStatus": "success",
+      "evidenceId": "ev_4183bd50ce41a02acc7cdca3de435007",
+      "integrityCommitment": "hmac-sha256:c41b10da5db39585cdde4dfdc0a76185a5d3c876a9c1dec8b20b13f107670b90",
+      "redactions": [
+        {
+          "field": "$",
+          "reasonCode": "PRIVATE_ORIGINAL"
+        },
+        {
+          "field": "arguments",
+          "reasonCode": "PRIVATE_TOOL_ARGUMENT"
+        },
+        {
+          "field": "transcript",
+          "reasonCode": "PRIVATE_TRANSCRIPT"
+        }
+      ]
+    }
+  ]
+}
