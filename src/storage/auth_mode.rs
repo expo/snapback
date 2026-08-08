@@ -10,8 +10,8 @@
 use super::{
     LocalDatabase, create_index, create_or_update_table, current_version_on, next_storage_version,
     physical_user_tables, reject_field_retypes, reject_unsafe_required_field_changes, schema_table,
-    seed_into_transaction, set_version, validate_managed_row_versions,
-    validate_enum_domain_evolution, validate_managed_table_versions_by_name, validate_schema,
+    seed_into_transaction, set_version, validate_enum_domain_evolution,
+    validate_managed_row_versions, validate_managed_table_versions_by_name, validate_schema,
 };
 use crate::auth::mode::{
     AUTH_MODE_FORMAT_VERSION, AppDataAvailability, AuthModeQuarantine, AuthModeStateRecord,
@@ -623,11 +623,7 @@ impl LocalDatabase {
                 if seed.is_some() {
                     require_fresh_seed_target(tx, &current.state)?;
                 }
-                validate_enum_domain_evolution(
-                    tx,
-                    &predecessor_schema,
-                    &schema_manifest,
-                )?;
+                validate_enum_domain_evolution(tx, &predecessor_schema, &schema_manifest)?;
                 let predecessor_head = current_version_on(tx)?;
                 super::preflight_membership_activation_sources(
                     tx,

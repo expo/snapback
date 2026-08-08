@@ -47,3 +47,6 @@ formatter toolchain bound to `rust-toolchain.toml` so local and CI results agree
 
 High. The formatter failure is deterministic under the repository's pinned
 Rust 1.97 toolchain, and no canonical gate currently invokes it.
+
+## Resolution (2026-08-08)
+Fixed on main (rustfmt lane). cargo fmt --all reformatted 22 files (no semantic edits); added scripts/check-rustfmt.mjs as a fast alwaysGate (SNAPBACK_RUSTFMT_CHECK_FAILED, non-vacuous) wired into verify-local-proof + the selection policy with a selector fixture, so every .rs change now selects the fmt check. Verified: cargo fmt --all -- --check exit 0; gate PASS (234 files); selection fixtures 11/11; ref-check clean.

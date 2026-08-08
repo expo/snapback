@@ -142,6 +142,11 @@ test('root production audit selection does not depend on Exact/admin baseline ga
   }
 });
 
+test('a new Rust source file selects the rustfmt gate', () => {
+  const rustSource = select(['packages/snapback-client/src/new-native-bridge.rs']);
+  includesAll(rustSource, ['rustfmt']);
+});
+
 test('native, Cloudflare, seed, and carrier changes select their unique claims', () => {
   const native = select(['src/storage.rs']);
   includesAll(native, [

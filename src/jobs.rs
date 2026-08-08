@@ -1577,14 +1577,10 @@ mod tests {
         assert!(job_attempts(&conn, "job_a").unwrap().is_empty());
         assert!(job_status_row(&conn, "job_b").unwrap().is_some());
 
-        let tombstone = find_job_by_scoped_idempotency(
-            &conn,
-            JOBS_DEFAULT_QUEUE,
-            "notify",
-            "stable-key",
-        )
-        .unwrap()
-        .expect("keyed terminal job leaves its idempotency tombstone");
+        let tombstone =
+            find_job_by_scoped_idempotency(&conn, JOBS_DEFAULT_QUEUE, "notify", "stable-key")
+                .unwrap()
+                .expect("keyed terminal job leaves its idempotency tombstone");
         assert_eq!(tombstone.job_id, "job_a");
         assert_eq!(tombstone.max_attempts, 1);
         assert_eq!(tombstone.args_digest, expected_args_digest);

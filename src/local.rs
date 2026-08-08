@@ -27183,17 +27183,15 @@ fn validate_function_schema_references(
                                         FieldType::String => ResultValueContract::String {
                                             max_bytes: 1_048_576,
                                         },
-                                        FieldType::Enum { values } => {
-                                            ResultValueContract::Union {
-                                                variants: values
-                                                    .iter()
-                                                    .cloned()
-                                                    .map(|value| ResultValueContract::Literal {
-                                                        value: Value::String(value),
-                                                    })
-                                                    .collect(),
-                                            }
-                                        }
+                                        FieldType::Enum { values } => ResultValueContract::Union {
+                                            variants: values
+                                                .iter()
+                                                .cloned()
+                                                .map(|value| ResultValueContract::Literal {
+                                                    value: Value::String(value),
+                                                })
+                                                .collect(),
+                                        },
                                         FieldType::Boolean => ResultValueContract::Boolean,
                                         FieldType::Integer => ResultValueContract::Integer {
                                             min: -9_007_199_254_740_991,
@@ -34657,10 +34655,7 @@ globalThis.__snapbackHandlers = {
         let plan = MutationPlan {
             steps: vec![MutationStep::Insert {
                 table: "posts".to_owned(),
-                values: BTreeMap::from([(
-                    "photo".to_owned(),
-                    ValueExpr::Literal(json!(asset_id)),
-                )]),
+                values: BTreeMap::from([("photo".to_owned(), ValueExpr::Literal(json!(asset_id)))]),
                 bind_id_as: None,
             }],
             return_value: None,
@@ -34686,9 +34681,7 @@ globalThis.__snapbackHandlers = {
         let row_count = snapback
             .db
             .asset_transaction(|tx| {
-                Ok(tx.query_row("SELECT COUNT(*) FROM posts", [], |row| {
-                    row.get::<_, u64>(0)
-                })?)
+                Ok(tx.query_row("SELECT COUNT(*) FROM posts", [], |row| row.get::<_, u64>(0))?)
             })
             .expect("count posts after refusal");
         assert_eq!(row_count, 0, "the refused changeset must roll back the row");
@@ -34701,10 +34694,7 @@ globalThis.__snapbackHandlers = {
         let plan = MutationPlan {
             steps: vec![MutationStep::Insert {
                 table: "posts".to_owned(),
-                values: BTreeMap::from([(
-                    "photo".to_owned(),
-                    ValueExpr::Literal(json!(asset_id)),
-                )]),
+                values: BTreeMap::from([("photo".to_owned(), ValueExpr::Literal(json!(asset_id)))]),
                 bind_id_as: None,
             }],
             return_value: None,
@@ -34721,9 +34711,7 @@ globalThis.__snapbackHandlers = {
         let row_count = snapback
             .db
             .asset_transaction(|tx| {
-                Ok(tx.query_row("SELECT COUNT(*) FROM posts", [], |row| {
-                    row.get::<_, u64>(0)
-                })?)
+                Ok(tx.query_row("SELECT COUNT(*) FROM posts", [], |row| row.get::<_, u64>(0))?)
             })
             .expect("count posts after refusal");
         assert_eq!(row_count, 0, "the refused changeset must roll back the row");
@@ -37533,7 +37521,10 @@ globalThis.__snapbackHandlers = {
         let error = snapback
             .asset_attempt_create(&creator, asset_create_request(Some(declared_length)))
             .expect_err("buffered media cannot reserve above the process ceiling");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED"
+        );
         assert_eq!(
             error.diagnostic.details["limit"],
             serde_json::json!(crate::assets::ASSET_BUFFERED_FINALIZE_MAX_BYTES)
@@ -38943,9 +38934,7 @@ globalThis.__snapbackHandlers = {
         assert_eq!(count_event(&mut snapback, "asset-ready"), 1);
 
         let report = snapback
-            .asset_gc_sweep(
-                now_millis() + crate::assets::ASSET_DELIVERY_RECEIPT_RETENTION_MS + 1,
-            )
+            .asset_gc_sweep(now_millis() + crate::assets::ASSET_DELIVERY_RECEIPT_RETENTION_MS + 1)
             .expect("retention sweep");
         assert_eq!(report.delivery_receipts_purged, 2);
         assert_eq!(count_event(&mut snapback, "delivery-admitted"), 0);
@@ -47434,8 +47423,10 @@ globalThis.__snapbackHandlers = {
             .expect("make the strict projection admissible before retry");
         let retried = snapback.load_functions(functions);
         assert!(
-            retried.iter().all(|diagnostic| diagnostic.severity
-                != crate::diagnostic::DiagnosticSeverity::Error),
+            retried
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
             "retry must activate: {retried:?}"
         );
         assert!(

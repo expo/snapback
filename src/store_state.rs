@@ -376,12 +376,14 @@ fn export_store_inner(
                 // The underlying capture reports a specific reason; swallowing
                 // it here would reproduce the exact "diagnostic names nothing"
                 // defect this decision exists to fix.
-                database.backup_database_image_into(&image).map_err(|error| {
-                    store_invalid(&format!(
-                        "SQLite online store export did not complete: {} ({})",
-                        error.diagnostic.message, error.diagnostic.code
-                    ))
-                })?;
+                database
+                    .backup_database_image_into(&image)
+                    .map_err(|error| {
+                        store_invalid(&format!(
+                            "SQLite online store export did not complete: {} ({})",
+                            error.diagnostic.message, error.diagnostic.code
+                        ))
+                    })?;
                 let (sha256, bytes) = sha256_file(&mut image)?;
                 carried.push(StoreExportMember {
                     id: member.id.to_owned(),

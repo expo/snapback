@@ -4193,10 +4193,7 @@ pub(crate) fn admin_route_registrations() -> Vec<RegisteredRoute> {
             post(admin_run_function),
         ),
         RegisteredRoute::new(
-            read(
-                "/_snapback/api/cron",
-                ResponseSensitivity::OperatorMetadata,
-            ),
+            read("/_snapback/api/cron", ResponseSensitivity::OperatorMetadata),
             get(admin_cron_list),
         ),
         RegisteredRoute::new(
@@ -5724,25 +5721,27 @@ async fn admin_ephemeral_cleanup(
         .into());
     }
     let evaluated_at_ms = now_millis();
-    let (cutoff_kind, requested_ms, cutoff_timestamp_ms) =
-        match (request.cutoff_timestamp_ms, request.older_than_ms) {
-            (Some(timestamp), None) if timestamp <= evaluated_at_ms => {
-                ("timestamp", timestamp, timestamp)
-            }
-            (None, Some(age)) => (
-                "expiredForAtLeast",
-                age,
-                evaluated_at_ms.saturating_sub(age),
-            ),
-            _ => {
-                return Err(SnapbackError::error(
+    let (cutoff_kind, requested_ms, cutoff_timestamp_ms) = match (
+        request.cutoff_timestamp_ms,
+        request.older_than_ms,
+    ) {
+        (Some(timestamp), None) if timestamp <= evaluated_at_ms => {
+            ("timestamp", timestamp, timestamp)
+        }
+        (None, Some(age)) => (
+            "expiredForAtLeast",
+            age,
+            evaluated_at_ms.saturating_sub(age),
+        ),
+        _ => {
+            return Err(SnapbackError::error(
                     "SNAPBACK_EPHEMERAL_CLEANUP_CUTOFF_INVALID",
                     "ephemeral",
                     "provide exactly one of cutoffTimestampMs or olderThanMs; timestamps cannot be in the future",
                 )
                 .into());
-            }
-        };
+        }
+    };
     // Room authority is off the global mutex (LLP 0032 L9): cleanup reaches
     // the store directly and cannot queue behind a busy write.
     let report = state.ephemeral.cleanup_expired_bounded(
@@ -5823,12 +5822,7 @@ mod tests {
             ServerContext::detached(),
         )
         .expect("first graph owner");
-        let owned = match AppState::try_new(
-            shared,
-            read,
-            ephemeral,
-            ServerContext::detached(),
-        ) {
+        let owned = match AppState::try_new(shared, read, ephemeral, ServerContext::detached()) {
             Ok(_) => panic!("wrapping one graph twice must fail"),
             Err(error) => error,
         };
@@ -5842,10 +5836,7 @@ mod tests {
     fn fallible_app_state_entropy_failure_has_stable_diagnostic() {
         let error = telemetry_export_continuation_key_with(|_| Err(()))
             .expect_err("entropy failure must remain typed");
-        assert_eq!(
-            error.diagnostic.code,
-            "SNAPBACK_EMBED_ENTROPY_UNAVAILABLE"
-        );
+        assert_eq!(error.diagnostic.code, "SNAPBACK_EMBED_ENTROPY_UNAVAILABLE");
     }
 
     #[test]
@@ -6300,17 +6291,20 @@ mod tests {
     fn debug_perturbation_target_authority_is_local_non_production_only() {
         let mut local_dev_context = ServerContext::new("127.0.0.1", 0, true);
         local_dev_context.profile = ServerProfile::Dev;
-        let local_dev = AppState::from_snapback(LocalSnapback::memory().unwrap(), local_dev_context);
+        let local_dev =
+            AppState::from_snapback(LocalSnapback::memory().unwrap(), local_dev_context);
         assert!(local_dev.debug_perturbation_target_authority().is_ok());
 
         let mut local_prod_context = ServerContext::new("127.0.0.1", 0, true);
         local_prod_context.profile = ServerProfile::Prod;
-        let local_prod = AppState::from_snapback(LocalSnapback::memory().unwrap(), local_prod_context);
+        let local_prod =
+            AppState::from_snapback(LocalSnapback::memory().unwrap(), local_prod_context);
         let refusal = local_prod
             .debug_perturbation_target_authority()
             .expect_err("a production profile must refuse this perturbation");
         assert_eq!(
-            refusal.diagnostic.code, "SNAPBACK_DEBUG_PERTURBATION_TARGET_REFUSED",
+            refusal.diagnostic.code,
+            "SNAPBACK_DEBUG_PERTURBATION_TARGET_REFUSED",
         );
 
         // A derived instance stays refused even though it is local and
@@ -6337,9 +6331,9 @@ mod tests {
         // `network_profile_authority_captures_boot_validated_derived_identity`
         // above, which proves `derived_instance_present: Some(true)` is
         // exactly the fact that gate's `permits()` treats as eligible).
-        let derived_refusal = derived
-            .debug_perturbation_target_authority()
-            .expect_err("a derived instance must refuse this perturbation until LLP 0158 grants recognition");
+        let derived_refusal = derived.debug_perturbation_target_authority().expect_err(
+            "a derived instance must refuse this perturbation until LLP 0158 grants recognition",
+        );
         assert_eq!(
             derived_refusal.diagnostic.code,
             "SNAPBACK_DEBUG_PERTURBATION_TARGET_REFUSED",

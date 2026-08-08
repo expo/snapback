@@ -192,11 +192,9 @@ fn fixture(profile: ServerProfile, token_ttl_ms: u64) -> Fixture {
     let mut context = ServerContext::detached();
     context.profile = profile;
     context.admin_token = Some(admin_token.clone());
-    let (registry, operator) = ImpersonationCapabilityRegistry::generate(
-        admin_token.clone(),
-        &OsRandom,
-    )
-    .expect("generate impersonation capability");
+    let (registry, operator) =
+        ImpersonationCapabilityRegistry::generate(admin_token.clone(), &OsRandom)
+            .expect("generate impersonation capability");
     let mut impersonation_capability = None;
     operator
         .emit_once_to_terminal(|value| {
@@ -218,12 +216,7 @@ fn fixture(profile: ServerProfile, token_ttl_ms: u64) -> Fixture {
     }
 }
 
-fn operation_input(
-    fixture: &Fixture,
-    patch: Value,
-    authority: Value,
-    reason: &str,
-) -> Value {
+fn operation_input(fixture: &Fixture, patch: Value, authority: Value, reason: &str) -> Value {
     json!({
         "table": "todos",
         "rowId": fixture.row_id,
@@ -293,29 +286,57 @@ async fn preview_apply_commits_receipt_and_live_notification_then_refuses_reuse(
     );
     let previewed = preview(&fixture, input.clone()).await;
     assert_eq!(previewed["ok"], true, "preview: {previewed}");
-    assert_eq!(previewed["data"]["validated"]["diff"]["before"]["title"], "before");
-    assert_eq!(previewed["data"]["validated"]["diff"]["after"]["title"], "after");
     assert_eq!(
-        previewed["data"]["validated"]["affectedLiveQueryClasses"][0]
-            ["liveFunctions"],
+        previewed["data"]["validated"]["diff"]["before"]["title"],
+        "before"
+    );
+    assert_eq!(
+        previewed["data"]["validated"]["diff"]["after"]["title"],
+        "after"
+    );
+    assert_eq!(
+        previewed["data"]["validated"]["affectedLiveQueryClasses"][0]["liveFunctions"],
         json!(["listTodos"])
     );
-    assert!(previewed["data"]["applyToken"].as_str().unwrap().starts_with("sbpat_"));
+    assert!(
+        previewed["data"]["applyToken"]
+            .as_str()
+            .unwrap()
+            .starts_with("sbpat_")
+    );
 
-    let applied = host_op(&fixture, "data.patch.apply", apply_input(&input, &previewed)).await;
+    let applied = host_op(
+        &fixture,
+        "data.patch.apply",
+        apply_input(&input, &previewed),
+    )
+    .await;
     assert_eq!(applied["ok"], true, "apply: {applied}");
     assert_eq!(applied["data"]["receiptKind"], "dataPatchReceipt.v1");
-    assert!(applied["data"]["applyTokenId"].as_str().unwrap().starts_with("sha256:"));
+    assert!(
+        applied["data"]["applyTokenId"]
+            .as_str()
+            .unwrap()
+            .starts_with("sha256:")
+    );
     assert_ne!(
-        applied["data"]["applyTokenId"],
-        previewed["data"]["applyToken"],
+        applied["data"]["applyTokenId"], previewed["data"]["applyToken"],
         "receipt carries only a non-authorizing token id"
     );
-    assert_eq!(applied["data"]["catalogDigest"], previewed["data"]["catalogDigest"]);
-    assert_eq!(applied["data"]["startupNonce"], previewed["data"]["startupNonce"]);
+    assert_eq!(
+        applied["data"]["catalogDigest"],
+        previewed["data"]["catalogDigest"]
+    );
+    assert_eq!(
+        applied["data"]["startupNonce"],
+        previewed["data"]["startupNonce"]
+    );
     assert_eq!(applied["data"]["authority"], dev_user("user-a"));
     assert_eq!(applied["data"]["reason"], reason);
-    assert_eq!(applied["data"]["authorizationDisposition"], "devUserImpersonation");
+    assert_eq!(
+        applied["data"]["authorizationDisposition"],
+        "devUserImpersonation"
+    );
 
     let frames = fixture
         .state
@@ -325,10 +346,21 @@ async fn preview_apply_commits_receipt_and_live_notification_then_refuses_reuse(
         .drain_live_stream("data-patch-live");
     assert_eq!(frames.len(), 1, "ordinary live fan-out: {frames:?}");
     let frame: Value = serde_json::from_str(&frames[0]).expect("live frame json");
-    assert!(matches!(frame["kind"].as_str(), Some("live_delta" | "live_replace")));
-    assert!(frames[0].contains("after"), "live frame contains patched row: {frame}");
+    assert!(matches!(
+        frame["kind"].as_str(),
+        Some("live_delta" | "live_replace")
+    ));
+    assert!(
+        frames[0].contains("after"),
+        "live frame contains patched row: {frame}"
+    );
 
-    let reused = host_op(&fixture, "data.patch.apply", apply_input(&input, &previewed)).await;
+    let reused = host_op(
+        &fixture,
+        "data.patch.apply",
+        apply_input(&input, &previewed),
+    )
+    .await;
     assert_eq!(reused["ok"], false);
     assert_eq!(
         reused["diagnostics"][0]["code"],
@@ -348,7 +380,10 @@ async fn preview_refuses_stale_unknown_and_invalid_values_with_stable_codes() {
     );
     stale["expectedVersion"] = json!(fixture.row_version + 1);
     let stale = preview(&fixture, stale).await;
-    assert_eq!(stale["diagnostics"][0]["code"], "SNAPBACK_DATA_PATCH_STALE_VERSION");
+    assert_eq!(
+        stale["diagnostics"][0]["code"],
+        "SNAPBACK_DATA_PATCH_STALE_VERSION"
+    );
 
     let unknown = preview(
         &fixture,
@@ -360,7 +395,10 @@ async fn preview_refuses_stale_unknown_and_invalid_values_with_stable_codes() {
         ),
     )
     .await;
-    assert_eq!(unknown["diagnostics"][0]["code"], "SNAPBACK_DATA_PATCH_UNKNOWN_FIELD");
+    assert_eq!(
+        unknown["diagnostics"][0]["code"],
+        "SNAPBACK_DATA_PATCH_UNKNOWN_FIELD"
+    );
 
     let invalid = preview(
         &fixture,
@@ -428,8 +466,16 @@ async fn token_binds_impersonated_user_and_patch_without_consuming_on_mismatch()
         "SNAPBACK_DATA_PATCH_APPLY_TOKEN_MISMATCH"
     );
 
-    let exact = host_op(&fixture, "data.patch.apply", apply_input(&input, &previewed)).await;
-    assert_eq!(exact["ok"], true, "mismatches did not consume token: {exact}");
+    let exact = host_op(
+        &fixture,
+        "data.patch.apply",
+        apply_input(&input, &previewed),
+    )
+    .await;
+    assert_eq!(
+        exact["ok"], true,
+        "mismatches did not consume token: {exact}"
+    );
 }
 
 #[tokio::test]
@@ -476,8 +522,16 @@ async fn token_expires_and_same_row_concurrency_is_stale_after_consumption() {
             ),
         )
         .expect("concurrent same-row mutation");
-    let stale = host_op(&fixture, "data.patch.apply", apply_input(&input, &previewed)).await;
-    assert_eq!(stale["diagnostics"][0]["code"], "SNAPBACK_DATA_PATCH_STALE_VERSION");
+    let stale = host_op(
+        &fixture,
+        "data.patch.apply",
+        apply_input(&input, &previewed),
+    )
+    .await;
+    assert_eq!(
+        stale["diagnostics"][0]["code"],
+        "SNAPBACK_DATA_PATCH_STALE_VERSION"
+    );
 }
 
 #[tokio::test]
@@ -501,8 +555,16 @@ async fn unrelated_commit_does_not_break_per_row_precondition() {
             handler_input(json!({ "title": "unrelated" }), "user-a"),
         )
         .expect("unrelated row commit");
-    let applied = host_op(&fixture, "data.patch.apply", apply_input(&input, &previewed)).await;
-    assert_eq!(applied["ok"], true, "per-row CAS ignores global advance: {applied}");
+    let applied = host_op(
+        &fixture,
+        "data.patch.apply",
+        apply_input(&input, &previewed),
+    )
+    .await;
+    assert_eq!(
+        applied["ok"], true,
+        "per-row CAS ignores global advance: {applied}"
+    );
     assert_eq!(
         applied["data"]["authorizationDisposition"],
         "devAdminBypassAdmitted"
@@ -529,5 +591,8 @@ async fn production_profile_is_a_target_refusal_not_operability_unavailable() {
         refused["diagnostics"][0]["code"],
         "SNAPBACK_DATA_PATCH_TARGET_REFUSED"
     );
-    assert_eq!(refused["diagnostics"][0]["details"]["availability"], "refused");
+    assert_eq!(
+        refused["diagnostics"][0]["details"]["availability"],
+        "refused"
+    );
 }

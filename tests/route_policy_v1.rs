@@ -280,7 +280,10 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("GET", "/_snapback/api/health"),
         ("GET", "/_snapback/api/control-catalog"),
         ("GET", "/_snapback/api/control-catalog/instance"),
-        ("GET", "/_snapback/api/control-catalog/operations/{operation}"),
+        (
+            "GET",
+            "/_snapback/api/control-catalog/operations/{operation}",
+        ),
         ("GET", "/_snapback/api/telemetry/stats"),
         ("GET", "/_snapback/api/telemetry/events"),
         ("GET", "/_snapback/api/telemetry/export"),

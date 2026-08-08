@@ -128,9 +128,7 @@ impl S3Transport for UreqTransport {
         } else {
             S3_RESPONSE_BODY_MAX_BYTES
         };
-        let mut call = agent
-            .request(request.method, &request.url)
-            .timeout(timeout);
+        let mut call = agent.request(request.method, &request.url).timeout(timeout);
         for (name, value) in &request.headers {
             call = call.set(name, value);
         }
@@ -177,9 +175,7 @@ impl S3Transport for UreqTransport {
             return Err(SnapbackError::error(
                 "SNAPBACK_ASSET_STORE_UNAVAILABLE",
                 "assets",
-                format!(
-                    "s3 response exceeded the {response_body_limit}-byte transport limit"
-                ),
+                format!("s3 response exceeded the {response_body_limit}-byte transport limit"),
             ));
         }
         Ok(S3Response {
@@ -1440,10 +1436,7 @@ mod tests {
         let error = store
             .read_chunk(AssetObjectRef::Blob("ignored-range"), 2, 3)
             .expect_err("status 200 cannot satisfy the ranged-read contract");
-        assert_eq!(
-            error.diagnostic.code,
-            "SNAPBACK_ASSET_STORE_UNAVAILABLE"
-        );
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_STORE_UNAVAILABLE");
     }
 
     #[test]

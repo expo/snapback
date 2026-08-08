@@ -72,7 +72,10 @@ fn backlogged_burst_coalesces_to_one_frame_and_converges() {
     assert_eq!(snapback.live_coalesce_stats().deferred_commits, 10);
 
     // The backstop's flush delivers the whole burst as ONE frame.
-    assert!(snapback.flush_pending_live_fanout(), "pending frame flushed");
+    assert!(
+        snapback.flush_pending_live_fanout(),
+        "pending frame flushed"
+    );
     let flushed = drain(&mut snapback, "conn");
     assert_eq!(
         flushed.len(),

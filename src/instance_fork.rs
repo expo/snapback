@@ -4653,96 +4653,100 @@ fn publish_with_options(
         sync_directory(&staging)?;
         maybe_cut(cut_at, PublicationCut::AfterSentinelDirectorySync)?;
 
-    let database_file = source_database
-        .file_name()
-        .and_then(|value| value.to_str())
-        .ok_or_else(|| {
-            fork_error(
-                "SNAPBACK_FORK_PATH_INVALID",
-                "source database needs a UTF-8 file name",
-            )
-        })?;
-    let staging_database = staging.join(database_file);
-    let source = Connection::open(source_database)?;
-    audit_connection(&source)?;
-    let mut target = Connection::open(&staging_database)?;
-    {
-        let backup = rusqlite::backup::Backup::new(&source, &mut target)?;
-        backup.run_to_completion(128, std::time::Duration::from_millis(1), None)?;
-    }
-    drop(target);
-    maybe_cut(cut_at, PublicationCut::AfterClone)?;
-
-    if with_secrets {
-        let source_config = crate::config::ConfigStore::path_for_database(source_database);
-        if source_config.exists() {
-            let bytes = crate::secure_file::read_owner_only(&source_config)
-                .map_err(|error| io_error("read parent config for explicit fork copy", error))?;
-            let target_config = crate::config::ConfigStore::path_for_database(&staging_database);
-            crate::secure_file::write_new_owner_only(&target_config, &bytes)
-                .map_err(|error| io_error("copy config into fork staging", error))?;
-            sync_file(&target_config, "sync copied fork config")?;
+        let database_file = source_database
+            .file_name()
+            .and_then(|value| value.to_str())
+            .ok_or_else(|| {
+                fork_error(
+                    "SNAPBACK_FORK_PATH_INVALID",
+                    "source database needs a UTF-8 file name",
+                )
+            })?;
+        let staging_database = staging.join(database_file);
+        let source = Connection::open(source_database)?;
+        audit_connection(&source)?;
+        let mut target = Connection::open(&staging_database)?;
+        {
+            let backup = rusqlite::backup::Backup::new(&source, &mut target)?;
+            backup.run_to_completion(128, std::time::Duration::from_millis(1), None)?;
         }
-    }
+        drop(target);
+        maybe_cut(cut_at, PublicationCut::AfterClone)?;
 
-    let receipt = scrub_and_mint_with_cut(
-        &staging_database,
-        app_id,
-        parent_instance_id,
-        now_ms,
-        cut_at,
-        with_secrets,
-        expires_at_ms,
-    )?;
-    let app_binding = expected_app
-        .map(|expected| write_fork_app_binding(&staging, &receipt, expected))
-        .transpose()?;
-    if app_binding.is_some() {
-        fs::remove_file(staging.join(APP_BINDING_INTENT_FILE))
-            .map_err(|error| io_error("remove staged app binding intent", error))?;
-    }
-    copy_fork_private_assets(source_database, &staging, &staging_database)?;
-    maybe_cut(cut_at, PublicationCut::AfterAssetCopy)?;
-    if retain_base {
-        retain_base_snapshot(&staging, &staging_database, &receipt, now_ms)?;
-    }
-    sync_directory(&staging)?;
-    maybe_cut(cut_at, PublicationCut::AfterStagingDirectorySync)?;
+        if with_secrets {
+            let source_config = crate::config::ConfigStore::path_for_database(source_database);
+            if source_config.exists() {
+                let bytes =
+                    crate::secure_file::read_owner_only(&source_config).map_err(|error| {
+                        io_error("read parent config for explicit fork copy", error)
+                    })?;
+                let target_config =
+                    crate::config::ConfigStore::path_for_database(&staging_database);
+                crate::secure_file::write_new_owner_only(&target_config, &bytes)
+                    .map_err(|error| io_error("copy config into fork staging", error))?;
+                sync_file(&target_config, "sync copied fork config")?;
+            }
+        }
 
-    let registry_directory = parent.join(REGISTRY_DIRECTORY);
-    fs::create_dir_all(&registry_directory)
-        .map_err(|error| io_error("create fork registry", error))?;
-    let registry = registry_path(parent, &receipt.lineage.fork_id);
-    write_json_sync(
-        &registry,
-        &registry_entry("intent", destination, &receipt, app_binding.as_ref()),
-    )?;
-    sync_directory(&registry_directory)?;
-    maybe_cut(cut_at, PublicationCut::AfterRegistryIntent)?;
+        let receipt = scrub_and_mint_with_cut(
+            &staging_database,
+            app_id,
+            parent_instance_id,
+            now_ms,
+            cut_at,
+            with_secrets,
+            expires_at_ms,
+        )?;
+        let app_binding = expected_app
+            .map(|expected| write_fork_app_binding(&staging, &receipt, expected))
+            .transpose()?;
+        if app_binding.is_some() {
+            fs::remove_file(staging.join(APP_BINDING_INTENT_FILE))
+                .map_err(|error| io_error("remove staged app binding intent", error))?;
+        }
+        copy_fork_private_assets(source_database, &staging, &staging_database)?;
+        maybe_cut(cut_at, PublicationCut::AfterAssetCopy)?;
+        if retain_base {
+            retain_base_snapshot(&staging, &staging_database, &receipt, now_ms)?;
+        }
+        sync_directory(&staging)?;
+        maybe_cut(cut_at, PublicationCut::AfterStagingDirectorySync)?;
 
-    fs::rename(&staging, destination)
-        .map_err(|error| io_error("commit fork directory rename", error))?;
-    maybe_cut(cut_at, PublicationCut::AfterRename)?;
-    sync_directory(parent)?;
-    maybe_cut(cut_at, PublicationCut::AfterParentDirectorySync)?;
-    let registry_result = write_json_sync(
-        &registry,
-        &registry_entry("published", destination, &receipt, app_binding.as_ref()),
-    );
-    if registry_result.is_ok() {
-        let _ = sync_directory(&registry_directory);
-    }
-    maybe_cut(cut_at, PublicationCut::AfterRegistryFinalize)?;
-    fs::remove_file(destination.join(STAGING_SENTINEL))
-        .map_err(|error| io_error("remove published fork sentinel", error))?;
-    maybe_cut(cut_at, PublicationCut::AfterSentinelUnlink)?;
-    sync_directory(destination)?;
-    maybe_cut(cut_at, PublicationCut::AfterPublishedDirectorySync)?;
+        let registry_directory = parent.join(REGISTRY_DIRECTORY);
+        fs::create_dir_all(&registry_directory)
+            .map_err(|error| io_error("create fork registry", error))?;
+        let registry = registry_path(parent, &receipt.lineage.fork_id);
+        write_json_sync(
+            &registry,
+            &registry_entry("intent", destination, &receipt, app_binding.as_ref()),
+        )?;
+        sync_directory(&registry_directory)?;
+        maybe_cut(cut_at, PublicationCut::AfterRegistryIntent)?;
+
+        fs::rename(&staging, destination)
+            .map_err(|error| io_error("commit fork directory rename", error))?;
+        maybe_cut(cut_at, PublicationCut::AfterRename)?;
+        sync_directory(parent)?;
+        maybe_cut(cut_at, PublicationCut::AfterParentDirectorySync)?;
+        let registry_result = write_json_sync(
+            &registry,
+            &registry_entry("published", destination, &receipt, app_binding.as_ref()),
+        );
+        if registry_result.is_ok() {
+            let _ = sync_directory(&registry_directory);
+        }
+        maybe_cut(cut_at, PublicationCut::AfterRegistryFinalize)?;
+        fs::remove_file(destination.join(STAGING_SENTINEL))
+            .map_err(|error| io_error("remove published fork sentinel", error))?;
+        maybe_cut(cut_at, PublicationCut::AfterSentinelUnlink)?;
+        sync_directory(destination)?;
+        maybe_cut(cut_at, PublicationCut::AfterPublishedDirectorySync)?;
         Ok(receipt)
     })();
-    if result.as_ref().is_err_and(|error| {
-        error.diagnostic.code != "SNAPBACK_FORK_TEST_CRASH_CUT"
-    }) {
+    if result
+        .as_ref()
+        .is_err_and(|error| error.diagnostic.code != "SNAPBACK_FORK_TEST_CRASH_CUT")
+    {
         let _ = fs::remove_dir_all(&staging);
     }
     result

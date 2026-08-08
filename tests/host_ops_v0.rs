@@ -189,7 +189,10 @@ fn cron_list_host_operation_is_a_narrow_read_only_projection() {
     let listed = envelope(&mut snapback, json!({ "operation": "cron.list" }));
     assert_eq!(listed["ok"], true, "{listed}");
     assert_eq!(listed["operation"], "cron.list");
-    assert_eq!(listed["data"]["cron"]["artifactKind"], "snapback.cron-list/v1");
+    assert_eq!(
+        listed["data"]["cron"]["artifactKind"],
+        "snapback.cron-list/v1"
+    );
     assert!(listed["data"]["cron"]["jobs"].is_array());
     assert!(listed["data"]["cron"].get("recentRuns").is_none());
     assert!(listed["data"]["cron"].get("diagnostics").is_none());
@@ -201,7 +204,10 @@ async fn cron_list_get_alias_enforces_admin_read_and_returns_the_same_dto() {
         .into_iter()
         .find(|operation| operation.operation == "host_ops.cron.list")
         .expect("cron.list host operation registration");
-    assert_eq!(operation.path_policy, snapback::server::RoutePolicy::AdminRead);
+    assert_eq!(
+        operation.path_policy,
+        snapback::server::RoutePolicy::AdminRead
+    );
     assert_eq!(
         operation.response_sensitivity,
         snapback::server::ResponseSensitivity::OperatorMetadata

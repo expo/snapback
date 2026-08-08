@@ -3350,24 +3350,20 @@ pub(crate) fn resume_pending_cleanup(
             };
             let cleanup_tables =
                 cleanup_tables_for_operation(conn, &context.operation_id, terminal)?;
-            let table_cleanup_exists = cleanup_tables
-                .iter()
-                .try_fold(false, |found, name| {
-                    Ok::<_, SnapbackError>(found || super::sqlite_table_exists(conn, name)?)
-                })?;
-            let checkpoint_cleanup_exists = if super::sqlite_table_exists(
-                conn,
-                "_snapback_migration_checkpoint",
-            )? {
-                conn.query_row(
-                    "SELECT EXISTS(SELECT 1 FROM _snapback_migration_checkpoint \
+            let table_cleanup_exists = cleanup_tables.iter().try_fold(false, |found, name| {
+                Ok::<_, SnapbackError>(found || super::sqlite_table_exists(conn, name)?)
+            })?;
+            let checkpoint_cleanup_exists =
+                if super::sqlite_table_exists(conn, "_snapback_migration_checkpoint")? {
+                    conn.query_row(
+                        "SELECT EXISTS(SELECT 1 FROM _snapback_migration_checkpoint \
                      WHERE operation_id = ?1)",
-                    params![context.operation_id],
-                    |row| row.get::<_, bool>(0),
-                )?
-            } else {
-                false
-            };
+                        params![context.operation_id],
+                        |row| row.get::<_, bool>(0),
+                    )?
+                } else {
+                    false
+                };
             if !table_cleanup_exists && !checkpoint_cleanup_exists {
                 return Ok(None);
             }
@@ -6118,10 +6114,12 @@ mod tests {
         db.seed(SeedData {
             tables: BTreeMap::from([(
                 "items".to_owned(),
-                vec![json!({ "title": "one" })
-                    .as_object()
-                    .cloned()
-                    .expect("seed object")],
+                vec![
+                    json!({ "title": "one" })
+                        .as_object()
+                        .cloned()
+                        .expect("seed object"),
+                ],
             )]),
         })
         .expect("seed predecessor");
@@ -6162,10 +6160,12 @@ mod tests {
         db.seed(SeedData {
             tables: BTreeMap::from([(
                 "items".to_owned(),
-                vec![json!({ "title": "one" })
-                    .as_object()
-                    .cloned()
-                    .expect("seed object")],
+                vec![
+                    json!({ "title": "one" })
+                        .as_object()
+                        .cloned()
+                        .expect("seed object"),
+                ],
             )]),
         })
         .expect("seed predecessor");
@@ -7987,12 +7987,7 @@ mod tests {
         assert!(held_checkpoints > 0);
         let (_, resolved) = audience();
         rolled_back
-            .migrate_rollback(
-                &rollback_plan,
-                &rollback_approval,
-                &resolved,
-                now_millis(),
-            )
+            .migrate_rollback(&rollback_plan, &rollback_approval, &resolved, now_millis())
             .expect("rollback migration");
         let rollback_checkpoints: u64 = rolled_back
             .conn

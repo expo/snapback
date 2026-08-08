@@ -802,8 +802,7 @@ mod tests {
         let function = function(FunctionArgsContract {
             fields: vec![field("image", true, ResultValueContract::AssetRef)],
         });
-        validate_function_args(&function, &json!({ "image": "asset-1" }))
-            .expect("opaque asset id");
+        validate_function_args(&function, &json!({ "image": "asset-1" })).expect("opaque asset id");
         for rejected in [json!({ "image": "" }), json!({ "image": 42 })] {
             let error = validate_function_args(&function, &rejected)
                 .expect_err("empty or non-string asset refs refuse");

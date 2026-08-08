@@ -588,12 +588,14 @@ mod tests {
         let key = AuthenticationThrottleKey::from_bytes([9; 32]);
         let mut bounded = config();
         bounded.maximum_key_count = 6;
-        let dimensions_for = |subject: &str| AuthenticationThrottleDimensions::for_ip(
-            "deployment-secret-name",
-            "192.0.2.8".parse().unwrap(),
-            Some(subject.to_owned()),
-            None,
-        );
+        let dimensions_for = |subject: &str| {
+            AuthenticationThrottleDimensions::for_ip(
+                "deployment-secret-name",
+                "192.0.2.8".parse().unwrap(),
+                Some(subject.to_owned()),
+                None,
+            )
+        };
 
         assert!(
             charge_shared_authentication_attempt(
@@ -635,7 +637,10 @@ mod tests {
             30_000,
         )
         .unwrap();
-        assert!(decision.admitted, "capacity is not a deployment-wide refusal");
+        assert!(
+            decision.admitted,
+            "capacity is not a deployment-wide refusal"
+        );
         assert_eq!(
             db.query_row(&format!("SELECT COUNT(*) FROM {TABLE}"), [], |row| row
                 .get::<_, i64>(0))
@@ -657,7 +662,10 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(retained, 0, "the oldest unrelated subject row is evicted first");
+        assert_eq!(
+            retained, 0,
+            "the oldest unrelated subject row is evicted first"
+        );
     }
 
     #[test]

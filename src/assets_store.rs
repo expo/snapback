@@ -60,11 +60,7 @@ pub trait AssetStore: Send + Sync {
     /// implementations should avoid buffering the whole object; the default
     /// preserves compatibility for stores whose native copy lane is not yet
     /// active.
-    fn copy_from_staging(
-        &self,
-        source: AssetObjectRef<'_>,
-        blob_key: &str,
-    ) -> SnapbackResult<()> {
+    fn copy_from_staging(&self, source: AssetObjectRef<'_>, blob_key: &str) -> SnapbackResult<()> {
         if matches!(source, AssetObjectRef::Blob(_)) {
             return Err(SnapbackError::error(
                 "SNAPBACK_ASSET_STORE_OP_UNSUPPORTED",
@@ -133,9 +129,10 @@ fn durable_replace(
 ) -> SnapbackResult<()> {
     use std::io::Write as _;
 
-    let file_name = path.file_name().and_then(|name| name.to_str()).ok_or_else(|| {
-        store_unavailable(context, "object path has no valid file name")
-    })?;
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| store_unavailable(context, "object path has no valid file name"))?;
     let temporary_name = file_name
         .strip_suffix(crate::assets::ASSET_CANONICAL_SUFFIX)
         .map(|key| format!("{key}-tmp{}", crate::assets::ASSET_CANONICAL_SUFFIX))
@@ -260,11 +257,7 @@ impl AssetStore for AssetFsStore {
         })
     }
 
-    fn copy_from_staging(
-        &self,
-        source: AssetObjectRef<'_>,
-        blob_key: &str,
-    ) -> SnapbackResult<()> {
+    fn copy_from_staging(&self, source: AssetObjectRef<'_>, blob_key: &str) -> SnapbackResult<()> {
         if matches!(source, AssetObjectRef::Blob(_)) {
             return Err(SnapbackError::error(
                 "SNAPBACK_ASSET_STORE_OP_UNSUPPORTED",
@@ -403,13 +396,12 @@ mod tests {
                 .expect("canonical"),
             b"second canonical"
         );
-        let temporary_entries = std::fs::read_dir(
-            crate::assets::AssetFsStore::staging_directory(root.path()),
-        )
-        .expect("list staging")
-        .filter_map(Result::ok)
-        .filter(|entry| entry.file_name().to_string_lossy().contains("-tmp"))
-        .count();
+        let temporary_entries =
+            std::fs::read_dir(crate::assets::AssetFsStore::staging_directory(root.path()))
+                .expect("list staging")
+                .filter_map(Result::ok)
+                .filter(|entry| entry.file_name().to_string_lossy().contains("-tmp"))
+                .count();
         assert_eq!(temporary_entries, 0, "publication leaves no temp files");
     }
 }

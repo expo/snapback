@@ -18409,7 +18409,9 @@ async fn host_ops_handler_inner(
             Err(error) => Err(error),
         };
         let result = with_snapback(&state, move |snapback| {
-            crate::host_ops::force_live_resync_result(snapback, &request, server_url, profile, outcome)
+            crate::host_ops::force_live_resync_result(
+                snapback, &request, server_url, profile, outcome,
+            )
         })
         .await;
         return Ok(Json(result));
@@ -19301,15 +19303,17 @@ async fn execute_data_patch_host_operation(
             let binding = crate::data_patch::binding_from_preview(&input, &validated, &context);
             let (apply_token, apply_token_id, apply_token_expires_at_ms) =
                 runtime.data_patch_tokens.mint(binding)?;
-            Ok(serde_json::to_value(crate::data_patch::DataPatchPreviewOutputV1 {
-                validated,
-                apply_token,
-                apply_token_id,
-                apply_token_expires_at_ms,
-                catalog_digest: context.catalog_digest,
-                startup_nonce: context.startup_nonce,
-            })
-            .expect("closed data-patch preview output serializes"))
+            Ok(
+                serde_json::to_value(crate::data_patch::DataPatchPreviewOutputV1 {
+                    validated,
+                    apply_token,
+                    apply_token_id,
+                    apply_token_expires_at_ms,
+                    catalog_digest: context.catalog_digest,
+                    startup_nonce: context.startup_nonce,
+                })
+                .expect("closed data-patch preview output serializes"),
+            )
         });
         return Ok(project_data_patch_result(
             &state,
@@ -21191,8 +21195,7 @@ async fn stream_asset_delivery(
                 ));
             }
             let read = chunk.len() as u64;
-            let (position, remaining) =
-                advance_asset_delivery_window(position, remaining, read)?;
+            let (position, remaining) = advance_asset_delivery_window(position, remaining, read)?;
             Ok(Some((
                 Bytes::from(chunk),
                 (store, blob_key, position, remaining),
@@ -24842,9 +24845,7 @@ async fn ensure_ephemeral_collections(
     } else {
         runtime.ephemeral.ensure_collections(collections)
     };
-    outcome
-        .map(Json)
-        .map_err(ApiError::from_ephemeral)
+    outcome.map(Json).map_err(ApiError::from_ephemeral)
 }
 
 async fn publish_ephemeral(
@@ -33882,8 +33883,7 @@ globalThis.__snapbackHandlers = {
         let unknown_field = response_json(response).await;
         let details = &unknown_field["diagnostic"]["details"];
         assert_eq!(
-            unknown_field["diagnostic"]["code"],
-            "SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION",
+            unknown_field["diagnostic"]["code"], "SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION",
             "{unknown_field}"
         );
         assert_eq!(details["candidateFields"][0]["name"], "title");

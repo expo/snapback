@@ -1242,10 +1242,7 @@ pub fn receipts_for_asset(
 }
 
 /// Bound the read-rate receipt class without changing lifecycle evidence.
-pub fn purge_delivery_receipts(
-    tx: &Transaction<'_>,
-    cutoff_ms: u64,
-) -> SnapbackResult<u64> {
+pub fn purge_delivery_receipts(tx: &Transaction<'_>, cutoff_ms: u64) -> SnapbackResult<u64> {
     let removed = tx.execute(
         "DELETE FROM _snapback_asset_receipts_v1
          WHERE event = 'delivery-admitted' AND at_ms <= ?1",

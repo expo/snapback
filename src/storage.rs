@@ -19748,12 +19748,7 @@ fn patch_document(
             return Err(relation_incarnation_write_protected(table, field));
         }
         validate_declared_field_value(field_manifest, value)?;
-        json_to_sql_value_for_field(
-            value,
-            &field_manifest.field_type,
-            &table.name,
-            field,
-        )?;
+        json_to_sql_value_for_field(value, &field_manifest.field_type, &table.name, field)?;
     }
 
     let current = get_document_from_tx(tx, table, id, version)?;
@@ -21887,15 +21882,10 @@ mod stored_enum_tests {
     #[test]
     fn enum_lowers_to_text_and_central_writes_enforce_the_domain() {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(schema(vec![field(
-            "role",
-            domain(&["admin", "member"]),
-            false,
-        ), field(
-            "visibility",
-            domain(&["internal", "public"]),
-            true,
-        )]))
+        db.apply_schema(schema(vec![
+            field("role", domain(&["admin", "member"]), false),
+            field("visibility", domain(&["internal", "public"]), true),
+        ]))
         .expect("apply enum schema");
 
         let (declared, not_null): (String, i64) = db
@@ -21925,7 +21915,10 @@ mod stored_enum_tests {
             Map::from_iter([("role".to_owned(), json!("admin"))]),
         )
         .expect("admitted enum insert");
-        assert_eq!(db.get("items", "item_ok").unwrap().unwrap()["role"], "admin");
+        assert_eq!(
+            db.get("items", "item_ok").unwrap().unwrap()["role"],
+            "admin"
+        );
 
         let non_string = insert(
             &mut db,
@@ -21945,7 +21938,10 @@ mod stored_enum_tests {
         assert_eq!(outside.diagnostic.details["table"], "items");
         assert_eq!(outside.diagnostic.details["field"], "role");
         assert_eq!(outside.diagnostic.details["value"], "owner");
-        assert_eq!(outside.diagnostic.details["admitted"], json!(["admin", "member"]));
+        assert_eq!(
+            outside.diagnostic.details["admitted"],
+            json!(["admin", "member"])
+        );
         assert!(db.get("items", "item_outside").unwrap().is_none());
 
         let required_null = insert(
@@ -21954,7 +21950,10 @@ mod stored_enum_tests {
             Map::from_iter([("role".to_owned(), Value::Null)]),
         )
         .expect_err("null required enum refuses");
-        assert_eq!(required_null.diagnostic.code, "SNAPBACK_FIELD_TYPE_MISMATCH");
+        assert_eq!(
+            required_null.diagnostic.code,
+            "SNAPBACK_FIELD_TYPE_MISMATCH"
+        );
         assert!(db.get("items", "item_required_null").unwrap().is_none());
         insert(
             &mut db,
@@ -21997,7 +21996,10 @@ mod stored_enum_tests {
             refused_patch.diagnostic.code,
             "SNAPBACK_FIELD_ENUM_VALUE_INVALID"
         );
-        assert_eq!(db.get("items", "item_ok").unwrap().unwrap()["role"], "member");
+        assert_eq!(
+            db.get("items", "item_ok").unwrap().unwrap()["role"],
+            "member"
+        );
     }
 
     #[test]
@@ -22011,14 +22013,18 @@ mod stored_enum_tests {
             Map::from_iter([("title".to_owned(), json!("hello"))]),
         )
         .expect("seed nonempty table");
-        db
-            .apply_schema(schema(vec![
-                field("title", FieldType::String, false),
-                field("state", domain(&["open", "closed"]), true),
-            ]))
-            .expect("optional enum field can be added to nonempty table");
+        db.apply_schema(schema(vec![
+            field("title", FieldType::String, false),
+            field("state", domain(&["open", "closed"]), true),
+        ]))
+        .expect("optional enum field can be added to nonempty table");
         assert_eq!(
-            db.schema().table("items").unwrap().field("state").unwrap().field_type,
+            db.schema()
+                .table("items")
+                .unwrap()
+                .field("state")
+                .unwrap()
+                .field_type,
             domain(&["open", "closed"])
         );
     }
@@ -22054,7 +22060,12 @@ mod stored_enum_tests {
             "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED"
         );
         assert!(
-            nonempty.schema().table("items").unwrap().field("state").is_none(),
+            nonempty
+                .schema()
+                .table("items")
+                .unwrap()
+                .field("state")
+                .is_none(),
             "refusal leaves the manifest unchanged"
         );
         let state_columns: i64 = nonempty
@@ -22071,27 +22082,28 @@ mod stored_enum_tests {
     #[test]
     fn enum_domain_widening_admits_without_touching_rows() {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db
-            .apply_schema(schema(vec![field(
-                "state",
-                domain(&["open", "closed"]),
-                false,
-            )]))
-            .expect("apply narrow enum");
+        db.apply_schema(schema(vec![field(
+            "state",
+            domain(&["open", "closed"]),
+            false,
+        )]))
+        .expect("apply narrow enum");
         insert(
             &mut db,
             "open_item",
             Map::from_iter([("state".to_owned(), json!("open"))]),
         )
         .expect("seed admitted value");
-        db
-            .apply_schema(schema(vec![field(
-                "state",
-                domain(&["closed", "open", "archived"]),
-                false,
-            )]))
-            .expect("enum subset widening is declaration-only");
-        assert_eq!(db.get("items", "open_item").unwrap().unwrap()["state"], "open");
+        db.apply_schema(schema(vec![field(
+            "state",
+            domain(&["closed", "open", "archived"]),
+            false,
+        )]))
+        .expect("enum subset widening is declaration-only");
+        assert_eq!(
+            db.get("items", "open_item").unwrap().unwrap()["state"],
+            "open"
+        );
     }
 
     #[test]
@@ -22145,10 +22157,24 @@ mod stored_enum_tests {
         assert_eq!(error.diagnostic.details["table"], "items");
         assert_eq!(error.diagnostic.details["field"], "state");
         assert_eq!(error.diagnostic.details["offendingValue"], "archived");
-        assert_eq!(error.diagnostic.details["admitted"], json!(["open", "closed"]));
-        assert!(error.diagnostic.message.contains("snapback migrate preview --help"));
         assert_eq!(
-            refusing.schema().table("items").unwrap().field("state").unwrap().field_type,
+            error.diagnostic.details["admitted"],
+            json!(["open", "closed"])
+        );
+        assert!(
+            error
+                .diagnostic
+                .message
+                .contains("snapback migrate preview --help")
+        );
+        assert_eq!(
+            refusing
+                .schema()
+                .table("items")
+                .unwrap()
+                .field("state")
+                .unwrap()
+                .field_type,
             domain(&["open", "closed", "archived"]),
             "refusal leaves the manifest unchanged"
         );
@@ -22205,7 +22231,13 @@ mod stored_enum_tests {
         );
         assert_eq!(error.diagnostic.details["offendingValue"], "pending");
         assert_eq!(
-            refusing.schema().table("items").unwrap().field("state").unwrap().field_type,
+            refusing
+                .schema()
+                .table("items")
+                .unwrap()
+                .field("state")
+                .unwrap()
+                .field_type,
             FieldType::String
         );
         let note_columns: i64 = refusing
@@ -22237,10 +22269,18 @@ mod stored_enum_tests {
         db.apply_schema(schema(vec![field("state", FieldType::String, false)]))
             .expect("enum to string is declaration-only");
         assert_eq!(
-            db.schema().table("items").unwrap().field("state").unwrap().field_type,
+            db.schema()
+                .table("items")
+                .unwrap()
+                .field("state")
+                .unwrap()
+                .field_type,
             FieldType::String
         );
-        assert_eq!(db.get("items", "open_item").unwrap().unwrap()["state"], "open");
+        assert_eq!(
+            db.get("items", "open_item").unwrap().unwrap()["state"],
+            "open"
+        );
     }
 
     #[test]
@@ -22257,7 +22297,12 @@ mod stored_enum_tests {
             .expect_err("integer to enum remains a retype");
         assert_eq!(error.diagnostic.code, "SNAPBACK_SCHEMA_FIELD_RETYPED");
         assert_eq!(
-            db.schema().table("items").unwrap().field("state").unwrap().field_type,
+            db.schema()
+                .table("items")
+                .unwrap()
+                .field("state")
+                .unwrap()
+                .field_type,
             FieldType::Integer
         );
         let declared: String = db

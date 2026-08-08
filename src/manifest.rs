@@ -10552,12 +10552,10 @@ struct LocalPersistentStorePublicationAnchorV1 {
 
 pub(crate) const PACKAGED_STORE_QUALIFICATION_SCHEMA_VERSION: &str =
     "snapback.packaged-store-qualification.v1";
-pub(crate) const PACKAGED_STORE_QUALIFICATION_SUITE_ID: &str =
-    "packaged-store-qualification-v1";
+pub(crate) const PACKAGED_STORE_QUALIFICATION_SUITE_ID: &str = "packaged-store-qualification-v1";
 const PACKAGED_STORE_QUALIFICATION_RECEIPT_ENV: &str =
     "SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT";
-const PACKAGED_STORE_QUALIFICATION_MODE_ENV: &str =
-    "SNAPBACK_PACKAGED_STORE_QUALIFICATION_MODE";
+const PACKAGED_STORE_QUALIFICATION_MODE_ENV: &str = "SNAPBACK_PACKAGED_STORE_QUALIFICATION_MODE";
 const PACKAGED_STORE_QUALIFICATION_RECEIPT_MAX_BYTES: u64 = 4 * 1024 * 1024;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -10766,8 +10764,7 @@ fn packaged_store_qualification_receipt_is_qualified(
     ) {
         return false;
     }
-    let Ok(receipt) =
-        serde_json::from_slice::<PackagedStoreQualificationReceiptV1>(receipt_bytes)
+    let Ok(receipt) = serde_json::from_slice::<PackagedStoreQualificationReceiptV1>(receipt_bytes)
     else {
         return false;
     };
@@ -10804,7 +10801,8 @@ fn packaged_store_qualification_receipt_bytes() -> Option<&'static [u8]> {
         .get_or_init(|| {
             let path = std::env::var_os(PACKAGED_STORE_QUALIFICATION_RECEIPT_ENV)?;
             let metadata = std::fs::metadata(&path).ok()?;
-            if !metadata.is_file() || metadata.len() > PACKAGED_STORE_QUALIFICATION_RECEIPT_MAX_BYTES
+            if !metadata.is_file()
+                || metadata.len() > PACKAGED_STORE_QUALIFICATION_RECEIPT_MAX_BYTES
             {
                 return None;
             }
@@ -12694,8 +12692,7 @@ impl CapabilityManifest {
             supported_capabilities: Vec::new(),
             capability_maturity: BTreeMap::new(),
             agent_safe: AgentSafeCapabilityExtensionV1::missing(),
-            packaged_store_qualification_mode: capability_facts
-                .packaged_store_qualification_mode,
+            packaged_store_qualification_mode: capability_facts.packaged_store_qualification_mode,
             auth_protocols: Some(AuthProtocols::V1),
             hosted_auth: crate::auth::deployment::HostedAuthCapabilities::local_target(),
             storage_engine: "sqlite".to_owned(),
@@ -15280,8 +15277,7 @@ mod membership_manifest_grammar_tests {
         }
     }
 
-    const PACKAGED_STORE_TEST_GIT_COMMIT: &str =
-        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    const PACKAGED_STORE_TEST_GIT_COMMIT: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
     fn packaged_store_test_receipt_bytes() -> Vec<u8> {
         let identity = crate::identity::BinaryIdentity {
@@ -15467,13 +15463,16 @@ mod membership_manifest_grammar_tests {
             |receipt| receipt["binaryIdentity"]["gitDirty"] = json!(true),
             |receipt| receipt["binaryIdentity"]["buildProfile"] = json!("debug"),
             |receipt| {
-                receipt["binaryIdentity"]["buildDistribution"] = json!(
-                    crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE
-                )
+                receipt["binaryIdentity"]["buildDistribution"] =
+                    json!(crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE)
             },
-            |receipt| receipt["embeddedCarrierSha256"] = json!(format!("sha256:{}", "2".repeat(64))),
+            |receipt| {
+                receipt["embeddedCarrierSha256"] = json!(format!("sha256:{}", "2".repeat(64)))
+            },
             |receipt| receipt["packageClosureSha256"] = json!(format!("sha256:{}", "3".repeat(64))),
-            |receipt| receipt["packageClosure"][0]["sha256"] = json!(format!("sha256:{}", "0".repeat(64))),
+            |receipt| {
+                receipt["packageClosure"][0]["sha256"] = json!(format!("sha256:{}", "0".repeat(64)))
+            },
             |receipt| receipt["packageClosure"][0]["sha256"] = json!("sha256:not-a-digest"),
             |receipt| receipt["suite"]["id"] = json!("some-other-suite"),
             |receipt| receipt["suite"]["fail"] = json!(1),
@@ -15558,15 +15557,14 @@ mod membership_manifest_grammar_tests {
             OsStr::new("0")
         )));
 
-        let packaged_facts =
-            TargetCapabilityFacts::local_auth_aware_with_packaged_store_evidence(
-                crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
-                PACKAGED_STORE_TEST_GIT_COMMIT,
-                false,
-                "release",
-                None,
-                true,
-            );
+        let packaged_facts = TargetCapabilityFacts::local_auth_aware_with_packaged_store_evidence(
+            crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
+            PACKAGED_STORE_TEST_GIT_COMMIT,
+            false,
+            "release",
+            None,
+            true,
+        );
         let packaged = CapabilityManifest::local_v0_with_facts(
             local_v0_default_capability_gaps(),
             packaged_facts,

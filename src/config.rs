@@ -592,10 +592,13 @@ impl ConfigStore {
                             member
                                 .as_str()
                                 .is_some_and(|member| !member.trim().is_empty())
-                        }) => members
-                    .iter()
-                    .map(|member| member.as_str().unwrap().to_owned())
-                    .collect(),
+                        }) =>
+                {
+                    members
+                        .iter()
+                        .map(|member| member.as_str().unwrap().to_owned())
+                        .collect()
+                }
                 _ => Vec::new(),
             };
             if values.is_empty() {
