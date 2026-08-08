@@ -1,11 +1,17 @@
 # LLP 0198: Surpassing Convex on agent authoring — state of the world and the closing plan
 
 **Type:** Plan
-**Status:** Review
+**Status:** Accepted
 **Systems:** Competitive evaluation, Developer experience, Documentation,
 Templates, Error handling, Operations, Publishing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
+**Revised:** 2026-08-08 (e — **Accepted by author ruling** (Charlie
+Cheever, 2026-08-08), applied at revision (d) with the loop's terminal
+state on the record: revision (d) is the unreviewed post-loop residue
+repair; the Claude-family READY binds to revision (c). The run journal
+`llp/reviews/0198-surpass-convex-agent-authoring.run.md` holds the
+verdict history and the disclosed growth-budget deviation.)
 **Revised:** 2026-08-08 (d — **UNREVIEWED post-loop residue repair**,
 applied at round-budget exhaustion under the delta rule's
 label-unreviewed terminal. Round 3: Claude READY on (c) with 0
