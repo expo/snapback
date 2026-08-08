@@ -10862,7 +10862,7 @@ fn local_persistent_store_contributor_chain_verified(
             == BTreeMap::from([
                 (
                     "packages/snapback-client/local-read-admission.mjs".to_owned(),
-                    "sha256:7ffaf2ad7e59d98c3e4dd2a8195da7705882f11c187b1239725e33d84a04bc54"
+                    "sha256:703f293078782ab3d595d518925be5b299ed7e26e19edc8ecef8c29627cc7900"
                         .to_owned(),
                 ),
                 (

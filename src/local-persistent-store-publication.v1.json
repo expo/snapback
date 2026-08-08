@@ -18,7 +18,7 @@
     "packages/snapback-codegen/index.mjs": "sha256:82a3d4ae0bdb82bc79b41216c63528639177df1be63a1427fb9db29b69dfca3e"
   },
   "clientSourceSha256": {
-    "packages/snapback-client/local-read-admission.mjs": "sha256:7ffaf2ad7e59d98c3e4dd2a8195da7705882f11c187b1239725e33d84a04bc54",
+    "packages/snapback-client/local-read-admission.mjs": "sha256:703f293078782ab3d595d518925be5b299ed7e26e19edc8ecef8c29627cc7900",
     "packages/snapback-client/materialization-bridge.mjs": "sha256:5e8681971300b089e29b43b1ecd1bf4b3f7ad0ce7966e2dfc5a6f69d4cda27a1",
     "packages/snapback-client/materialization-store.mjs": "sha256:34ebc65b3632869e39fd9587bd79a36e0a85316c4c660d8f1b12497668652310",
     "packages/snapback-client/materialization-store-runtime.mjs": "sha256:525ffb0bee554a6b9c2e65256e0668ebfbcc23c43b0d4ae046c399aed410c049",
