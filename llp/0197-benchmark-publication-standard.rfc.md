@@ -5,7 +5,7 @@
 **Systems:** Competitive evaluation, Publishing, Documentation
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (r5, this document: rule 4b ratio floor (minimum successful observations per lane; ratio omitted below floor, capability-outcome headline instead); 0065 slug.) 2026-08-08 (r4) — round-3 fixes: 0194 verify-config declaration path + scope ordering; 0197 aid symmetry beyond templates, no cross-vendor numbers in the history narrative, success counts on ratio charts, Related enumerated; slug-precision citations (0193); 0196 N=1 caveat. 2026-08-08 (r2) — r2 applies the full round-1 revision set that r1 header claimed but (reviser error, caught by the round-2 delta reviews) did not contain, plus round-2 finds: preregistration in rule 1, rules 4a/4b, publication-safe schema in rule 6, reproducibility manifest, diary-0058 citation, series restated 2.91x→2.24x. 2026-08-08 (r1) — super-refine round-1 revision against the
+**Revised:** 2026-08-08 (r6, this document: rule 4b denominator-aware (equal preregistered attempts, success-rate minimum, thresholds join rule 1 preregistration). UNREVIEWED — applied after the final authorized round; every change resolves an enumerated round-5 concern.) 2026-08-08 (r5, this document: rule 4b ratio floor (minimum successful observations per lane; ratio omitted below floor, capability-outcome headline instead); 0065 slug.) 2026-08-08 (r4) — round-3 fixes: 0194 verify-config declaration path + scope ordering; 0197 aid symmetry beyond templates, no cross-vendor numbers in the history narrative, success counts on ratio charts, Related enumerated; slug-precision citations (0193); 0196 N=1 caveat. 2026-08-08 (r2) — r2 applies the full round-1 revision set that r1 header claimed but (reviser error, caught by the round-2 delta reviews) did not contain, plus round-2 finds: preregistration in rule 1, rules 4a/4b, publication-safe schema in rule 6, reproducibility manifest, diary-0058 citation, series restated 2.91x→2.24x. 2026-08-08 (r1) — super-refine round-1 revision against the
 dual-family cluster reviews (llp/reviews/0193-*.{claude,gpt-5}.md):
 unretained/incorrect quantitative claims corrected to retained-artifact
 citations; see the review artifacts for the concern ledger.
@@ -82,11 +82,15 @@ A published Snapback benchmark claim requires:
    efficiency ratios computed only across runs meeting the identical
    bar, with the capability-failure table published beside them and
    per-lane success counts stated on the ratio chart itself. Ratio
-   floor: a ratio requires the preregistered minimum successful
-   observations per lane (N≥3 successes, matching rule 1); when either
-   lane misses the floor or success counts differ beyond the
-   preregistered threshold, the ratio is omitted and the
-   capability-outcome comparison is the headline instead.
+   floor, denominator-aware: attempt counts per lane are equal and
+   preregistered (rule 1's matrix); a ratio requires the preregistered
+   minimum successful observations per lane (N≥3 successes — the same
+   floor as rule 1's run count, applied to successes) AND a
+   preregistered minimum success rate per lane; when either lane
+   misses either criterion, or success rates differ beyond the
+   preregistered threshold (the thresholds join rule 1's preregistered
+   items), the ratio is omitted or subordinated and the
+   capability-outcome comparison is the headline.
 5. **Version pinning:** every run names the exact closure and
    competitor versions; claims age out when either moves materially.
 6. **Self-report symmetry, publication-safe:** lane reports and

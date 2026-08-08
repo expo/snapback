@@ -5,7 +5,7 @@
 **Systems:** Diagnostics, Error handling, Guide, Agent experience, CI
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (r5, this document: exemplar reattributed (assets-put-user is the retrofit case, ticket-cited); reclassification gating in Phase 3; 0065 slug.) 2026-08-08 (r4) — round-3 fixes: 0194 verify-config declaration path + scope ordering; 0197 aid symmetry beyond templates, no cross-vendor numbers in the history narrative, success counts on ratio charts, Related enumerated; slug-precision citations; 0196 N=1 caveat. 2026-08-08 (r3) — pre-round-3 minors (citation precision, diary enumeration). 2026-08-08 (r1) — super-refine round-1 revision against the
+**Revised:** 2026-08-08 (r6, this document: sibling-ticket provenance corrected (excursion vs product-half fix), retrofit removed from the observed list, reclassification refusal made mechanical + exit-criterion negative test, post-run grading outside the metered window. UNREVIEWED — applied after the final authorized round; every change resolves an enumerated round-5 concern.) 2026-08-08 (r5, this document: exemplar reattributed (assets-put-user is the retrofit case, ticket-cited); reclassification gating in Phase 3; 0065 slug.) 2026-08-08 (r4) — round-3 fixes: 0194 verify-config declaration path + scope ordering; 0197 aid symmetry beyond templates, no cross-vendor numbers in the history narrative, success counts on ratio charts, Related enumerated; slug-precision citations; 0196 N=1 caveat. 2026-08-08 (r3) — pre-round-3 minors (citation precision, diary enumeration). 2026-08-08 (r1) — super-refine round-1 revision against the
 dual-family cluster reviews (llp/reviews/0193-*.{claude,gpt-5}.md):
 unretained/incorrect quantitative claims corrected to retained-artifact
 citations; see the review artifacts for the concern ledger.
@@ -21,10 +21,11 @@ resolved fastest when the refusal named its own fix — diary 0048's (`0048-uplo
 error, is the retained observed exemplar; the anonymous-upload refusal
 (`SNAPBACK_ASSET_OWNER_CUSTODY_UNSATISFIABLE`, which now names
 `snapback assets put --user`) is the retained RETROFIT exemplar — the
-0058-era run paid the source-reading excursion
-(`issues/closed/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`)
-and the remediation-carrying message is that ticket's fix, exactly the
-before/after this program generalizes — while several of
+0058-era run paid the source-reading excursion (recorded in
+`issues/closed/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`)
+and the remediation-carrying message is the sibling product-half fix
+(`issues/closed/20260805-expo-asset-upload-guide-gap.md`, resolved
+2026-08-06), exactly the before/after this program generalizes — while several of
 the expensive detours trace to refusals that carried neither rule nor
 fix. (Additional unretained lane-report incidents exist but are not
 cited as evidence here.) LLP 0186 W3 states the
@@ -39,9 +40,10 @@ bar structural, so it can never regress.
 - Diary 0069: zero framework defects, yet the run's expensive moments
   were knowledge-shaped — several reachable from a refusal that could
   have carried the answer.
-- The retained record shows the mechanism in both directions: refusals
-  that named remediations (`snapback assets put --user`, diary 0048's
-  decode diagnostic, the seed-recovery messages) cost near-zero;
+- The retained record shows the mechanism in both directions: observed
+  refusals that named remediations (diary 0048's decode diagnostic, the
+  seed-recovery messages) cost near-zero (the `assets put --user`
+  remediation is the retrofit case above, not an observed resolution);
   refusals that did not each cost a bisection session — diary 0058's (`0058-relay-room-expo-backend-bakeoff`)
   "host-ops error response was not JSON" (in-checkout era;
   `issues/closed/20260805-managed-dev-multi-json-load.md`) and the
@@ -68,8 +70,9 @@ agent-triggerable paths, batched by subsystem. Message edits follow the
 house style; guide anchors must resolve (check-guide enforces). Codes
 that are genuinely internal (never agent-triggerable) are marked so in
 the ledger rather than polished; later reclassification of an
-agent-triggerable code to internal is a gated ledger change under the
-same review bar as a grade regression.
+agent-triggerable code to internal is refused mechanically by the drift
+gate absent an explicit override marker, under the same review bar as a
+grade regression.
 
 **Phase 3 — the ratchet.** Extend the diagnostic-inventory drift gate:
 a new agent-triggerable code cannot land without a remediation in the
@@ -83,8 +86,10 @@ code-by-code as the carrier lands. Anchor
 resolution joins CI. The graded ledger becomes the gate's baseline;
 grade regressions fail.
 
-**Phase 4 — close the loop with measurement.** The next benchmark run's
-lane reports grade every refusal encountered; new B/C sightings are the
+**Phase 4 — close the loop with measurement.** Refusal grading happens
+post-run from retained lane reports and transcripts — outside the
+metered window, so Snapback-only grading duty never skews the
+comparison (LLP 0197's fairness rules assume this); new B/C sightings are the
 recurring audit input.
 
 ## Exit criteria
@@ -95,7 +100,9 @@ recurring audit input.
    program's declared bar; diary-cited codes are merely the first
    batch).
 3. The drift gate refuses a new agent-triggerable code without
-   remediation/anchor (negative test), and refuses grade regressions.
+   remediation/anchor, refuses grade regressions, and refuses
+   unmarked agent-triggerable-to-internal reclassification (negative
+   tests for all three).
 4. A benchmark run encounters zero B- or C-grade refusals — as
    validation of criterion 2, not a substitute for it.
 

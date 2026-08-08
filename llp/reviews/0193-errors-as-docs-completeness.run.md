@@ -129,3 +129,36 @@ verify.d.mts already exists/published), OQ2 narrowed to ctx; 0197
 rule-4b ratio floor; 0193 retrofit-exemplar relabel + reclassification
 gating + 0065 slug; 0195 slug only; 0196 unchanged; per-document r5
 headers. Round-4 claude body appended below.
+
+## Round 5 results and FINAL close-out — 2026-08-08
+
+Verdicts at capsule revision 567fab93b:
+- claude: 0194/0195/0196/0197 READY; 0193 NOT READY (1 — sibling-ticket
+  provenance inside the r5 relabel); SET NOT READY on that alone.
+- gpt-5: 0193 NOT READY (1 — retrofit still in the observed Evidence
+  list), 0194/0195/0196 READY, 0197 NOT READY (2 — 4b not
+  denominator-aware); SET NOT READY.
+
+CONVERGENCE at loop end (5 rounds run; author authorized 2 + up to 3
+more; budget exhausted):
+- 0194, 0195, 0196: DUAL-READY at 567fab93b. CONVERGED.
+- 0193, 0197: no family reports any PRE-EXISTING MATERIAL concern in
+  either round-4 or round-5; every open item is IN-DELTA, one-sentence
+  scale, and resolved by the r6 revision — which is UNREVIEWED.
+  Final verdicts bind to 567fab93b; r6 exists and is unreviewed.
+
+Disposition ledger, round 5 (complete):
+- claude #1 (0193 provenance) FIXED in r6 (sibling ticket pair cited
+  correctly). claude #2 (mechanical reclassification gate) FIXED in r6
+  incl. exit-criterion negative test. claude #3 (4b wording/threshold
+  preregistration) FIXED in r6. claude #4 (post-run grading) FIXED in
+  r6. claude #5 (published-vs-repo .d.mts fencing) implementation-
+  phase, dispositioned to build time.
+- gpt-5 #1 (retrofit in observed list) FIXED in r6. gpt-5 #2 (4b
+  denominator awareness) FIXED in r6. gpt-5 minors: dispositioned in
+  the artifact (altitude rule).
+
+Proposed next step: all five remain Review. 0194/0195/0196 are
+candidates for author acceptance as-is; 0193/0197 carry a one-round
+unreviewed r6 tail an optional future delta round can clear.
+Acceptance is the author's; this loop applies no further transitions.
