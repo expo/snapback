@@ -22798,7 +22798,7 @@ mod guarded_commit_tests {
                 ..AuthInput::default()
             }
             .with_activity_provenance(Some(owner), Some("human"), None)
-            .with_client_mutation_digest(Some(&format!("sha256:{}", "0".repeat(64)))),
+            .with_client_mutation_settlement(None, Some(&format!("sha256:{}", "0".repeat(64)))),
             ..HandlerInput::default()
         }
     }
@@ -24303,7 +24303,7 @@ mod guarded_commit_tests {
         let digest = identity.activity_digest();
         input.auth = input
             .auth
-            .with_client_mutation_digest(Some(digest.as_str()));
+            .with_client_mutation_settlement(Some(identity.id.as_str()), Some(digest.as_str()));
         let first = db
             .execute_mutation_idempotent(&plan, &input, &identity)
             .expect("first activity commit");
@@ -24484,7 +24484,7 @@ mod guarded_commit_tests {
                 ..AuthInput::default()
             }
             .with_activity_provenance(Some("user-1"), Some("human"), None)
-            .with_client_mutation_digest(Some(&format!("sha256:{}", "0".repeat(64)))),
+            .with_client_mutation_settlement(None, Some(&format!("sha256:{}", "0".repeat(64)))),
             ..HandlerInput::default()
         }
     }
@@ -24525,9 +24525,10 @@ mod guarded_commit_tests {
     ) -> (HandlerInput, ClientMutationIdentity) {
         let mut input = activity_input(result);
         let identity = ClientMutationIdentity::new(id, function, &input);
-        input.auth = input
-            .auth
-            .with_client_mutation_digest(Some(&identity.activity_digest()));
+        input.auth = input.auth.with_client_mutation_settlement(
+            Some(identity.id.as_str()),
+            Some(&identity.activity_digest()),
+        );
         (input, identity)
     }
 

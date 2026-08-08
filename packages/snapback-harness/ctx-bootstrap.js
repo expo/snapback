@@ -826,6 +826,57 @@
         id: function() { return host("runtime.id", {}); }
       }
     };
+    // @ref LLP 0043#handler-visible-settlement-identity-2026-08-08 — only mutations
+    // carry the durable identity whose settled duplicate bypasses handler
+    // dispatch. Queries are reads and actions must enter through runMutation.
+    // Copy only the two host-owned scalar fields into a fresh, frozen,
+    // null-prototype value so handler code cannot mutate host state or retain
+    // a shared mutable projection across calls.
+    function freezeMutationSettlement(resolved) {
+      resolved = resolved || {};
+      var projected = trustedReflectApply(trustedCreate, Object, [null]);
+      var clientMutationId = typeof resolved.clientMutationId === "string"
+        ? resolved.clientMutationId
+        : null;
+      var settlementId = typeof resolved.settlementId === "string"
+        ? resolved.settlementId
+        : null;
+      trustedDefineProperty(projected, "clientMutationId", {
+        value: clientMutationId,
+        enumerable: true,
+        writable: false,
+        configurable: false
+      });
+      trustedDefineProperty(projected, "settlementId", {
+        value: settlementId,
+        enumerable: true,
+        writable: false,
+        configurable: false
+      });
+      return trustedFreeze(projected);
+    }
+    var mutation = trustedReflectApply(trustedCreate, Object, [null]);
+    trustedDefineProperty(mutation, "settlement", {
+      value: mode === "mutation"
+        ? function() {
+            var answer = host("mutation.settlement", {});
+            return answer && typeof answer.then === "function"
+              ? answer.then(freezeMutationSettlement)
+              : freezeMutationSettlement(answer);
+          }
+        : function() {
+            throw snapbackError(
+              "SNAPBACK_MUTATION_SETTLEMENT_UNAVAILABLE",
+              mode === "action"
+                ? "actions carry no settlement identity; call ctx.runMutation and read ctx.mutation.settlement() inside that mutation"
+                : "queries are never queued or settled; only mutations carry a settlement identity"
+            );
+          },
+      enumerable: true,
+      writable: false,
+      configurable: false
+    });
+    ctx.mutation = trustedFreeze(mutation);
     // Transactional one-off durable work (LLP 0070 first slice): mutations
     // buffer enqueues that commit or roll back with their writes. Queries
     // cannot enqueue; actions enqueue only through an explicit mutation —

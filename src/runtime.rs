@@ -2172,6 +2172,34 @@ impl<'a> IbexHostContext<'a> {
                 Ok(result)
             }
             "runtime.now" => Ok(json!(self.now_ms)),
+            // @ref LLP 0043#handler-visible-settlement-identity-2026-08-08 — the handler
+            // observes the exact durable settlement identity that makes a
+            // client mutation replay without re-entering application code.
+            // This answer is request-derived, not host-generated, so it does
+            // not consume or extend LLP 0051 D1's ctx-answer ledger.
+            "mutation.settlement" => {
+                match self.mode {
+                    IbexInvocationMode::Mutation => {}
+                    IbexInvocationMode::Query => {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_MUTATION_SETTLEMENT_UNAVAILABLE",
+                            "runtime",
+                            "queries are never queued or settled; only mutations carry a settlement identity",
+                        ));
+                    }
+                    IbexInvocationMode::Action => {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_MUTATION_SETTLEMENT_UNAVAILABLE",
+                            "runtime",
+                            "actions carry no settlement identity; call ctx.runMutation and read ctx.mutation.settlement() inside that mutation",
+                        ));
+                    }
+                }
+                Ok(json!({
+                    "clientMutationId": self.input.auth.client_mutation_id.as_deref(),
+                    "settlementId": self.input.auth.client_mutation_digest.as_deref(),
+                }))
+            }
             // Diagnostics-routed console (LLP 0048 allowlist slice 1): the
             // routed console shim forwards handler console output here. It is
             // diagnostics, never data — recorded on the host-call trace (both
@@ -4299,6 +4327,7 @@ fn handler_envelope_code(code: &str) -> &str {
         // outcomes remain typed across both handler-envelope decoders.
         | "SNAPBACK_SEQUENCE_EXHAUSTED"
         | "SNAPBACK_SEQUENCE_UNDECLARED"
+        | "SNAPBACK_MUTATION_SETTLEMENT_UNAVAILABLE"
         | "SNAPBACK_RELATION_PARENT_UNAVAILABLE"
         // LLP 0051 D1: ledger divergence and the ledger-length limit are
         // typed results, not generic handler failures.
@@ -4775,6 +4804,7 @@ mod parse_handler_output_tests {
         for code in [
             "SNAPBACK_SEQUENCE_EXHAUSTED",
             "SNAPBACK_SEQUENCE_UNDECLARED",
+            "SNAPBACK_MUTATION_SETTLEMENT_UNAVAILABLE",
             "SNAPBACK_RELATION_PARENT_UNAVAILABLE",
         ] {
             assert_eq!(

@@ -294,6 +294,7 @@ try {
       "eventMembers: { requireRole(resource: Id<'events'>, role: EventMembersRole, ...roles: EventMembersRole[])",
       'export interface GeneratedMembership',
       "eventMembers: { bootstrap(values: EventMembersBootstrap): Promise<Id<'events'>>",
+      'export interface GeneratedMutationSettlement { readonly clientMutationId: string | null; readonly settlementId: string | null }',
       'export interface GeneratedMutationContext<Auth extends GeneratedAuthContext',
     ]) {
       assert(apiTypes.includes(expected), `generated API types omit ${expected}`);
@@ -305,6 +306,10 @@ try {
     assert(
       apiTypes.includes('export interface GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> extends GeneratedQueryContext<Auth> { readonly db: GeneratedMutationDatabase; readonly membership: GeneratedMembership;'),
       'mutation context must add the write database and sanctioned membership capabilities',
+    );
+    assert(
+      apiTypes.includes('readonly mutation: { settlement(): GeneratedMutationSettlement }'),
+      'mutation context must expose the durable settlement identity projection',
     );
     const actionContext = apiTypes.slice(
       apiTypes.indexOf('export interface GeneratedActionContext'),
@@ -459,6 +464,13 @@ declare const ctx: GeneratedMutationContext;
 declare const memberId: Id<'eventMembers'>;
 
 ctx.membership.eventMembers.patch(memberId, {});
+const settlement = ctx.mutation.settlement();
+const clientMutationId: string | null = settlement.clientMutationId;
+const settlementId: string | null = settlement.settlementId;
+void clientMutationId;
+void settlementId;
+// @ts-expect-error Settlement projections are read-only.
+settlement.settlementId = 'replacement';
 // @ts-expect-error Membership authorization axes cannot be patched.
 ctx.membership.eventMembers.patch(memberId, { role: 'host' });
 `);

@@ -152,6 +152,8 @@ try {
   assert.match(firstTypes, /export type OrgMembersBootstrap = \{ name: string; tagline\?: null \| string \}/u);
   assert.match(firstTypes, /GeneratedAnonymousAuthContext \{ readonly userId: null; readonly sessionId: null; readonly isAuthenticated: false \}/u);
   assert.match(firstTypes, /GeneratedAuthenticatedAuthContext \{ readonly userId: Principal; readonly sessionId: string \| null; readonly isAuthenticated: true;/u);
+  assert.match(firstTypes, /GeneratedMutationSettlement \{ readonly clientMutationId: string \| null; readonly settlementId: string \| null \}/u);
+  assert.match(firstTypes, /readonly mutation: \{ settlement\(\): GeneratedMutationSettlement \}/u);
   assert.match(firstTypes, /listCustomers: GeneratedQueryContext<GeneratedAuthenticatedAuthContext>;/u);
   assert.match(firstTypes, /listCustomers: FunctionReference<[^\n]+GeneratedDataModel\["customers"\]/u);
   assert.match(firstTypes, /customerEnvelopes: FunctionReference<[^\n]+"createdAt": number/u);

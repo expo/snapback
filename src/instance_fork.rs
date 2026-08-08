@@ -2169,6 +2169,10 @@ impl EgressFamily {
             | "runtime.now"
             | "runtime.log"
             | "runtime.id"
+            // @ref LLP 0043#handler-visible-settlement-identity-2026-08-08 — settlement
+            // identity is a read-only projection of this request, not egress
+            // or an independently generated effect on a derived fork.
+            | "mutation.settlement"
             | "action.metadata"
             | "action.externalEffectInitiated"
             | "action.runMutation"
@@ -6235,6 +6239,8 @@ mod tests {
         // Local-only ops stay admitted on a fork.
         fork.deny_derived_fork_host_op("db.query", 45).unwrap();
         fork.deny_derived_fork_host_op("runtime.now", 45).unwrap();
+        fork.deny_derived_fork_host_op("mutation.settlement", 45)
+            .unwrap();
         drop(fork);
         // Every refusal above left a durable, payload-free marker.
         let conn = Connection::open(&database).unwrap();

@@ -4,7 +4,7 @@ import test from 'node:test';
 import vm from 'node:vm';
 
 import { classifyHandlerPlatformFailure } from '../../cloudflare/src/platform-errors.js';
-import { admitDeclaredRefusal, parseHandlerEnvelope } from './envelope.mjs';
+import { admitDeclaredRefusal, handlerEnvelopeCode, parseHandlerEnvelope } from './envelope.mjs';
 
 const bootstrap = await readFile(new URL('./ctx-bootstrap.js', import.meta.url), 'utf8');
 
@@ -123,6 +123,13 @@ test('sealed auth projection carries the asset-callback actor kind', async () =>
       frozen: true,
     },
   });
+});
+
+test('mutation settlement availability refusals survive the JS-host decoder', () => {
+  assert.equal(
+    handlerEnvelopeCode('SNAPBACK_MUTATION_SETTLEMENT_UNAVAILABLE'),
+    'SNAPBACK_MUTATION_SETTLEMENT_UNAVAILABLE',
+  );
 });
 
 test('settle extraction isolates hostile name/constructor/stack/message getters', async () => {

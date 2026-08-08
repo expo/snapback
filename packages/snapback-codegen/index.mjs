@@ -10384,6 +10384,7 @@ function renderApiTypes(
     'export interface GeneratedAuthenticatedAuthContext { readonly userId: Principal; readonly sessionId: string | null; readonly isAuthenticated: true; readonly provider?: string; readonly roles: readonly string[]; readonly kind: "human" | "agent"; readonly actor?: { readonly userId: Principal; readonly kind: "agent"; readonly grantId: string }; readonly actorKind?: "asset-callbacks" }',
     'export type GeneratedAuthContext = GeneratedAnonymousAuthContext | GeneratedAuthenticatedAuthContext;',
     'export interface GeneratedRuntimeContext { now(): number; id(): string }',
+    'export interface GeneratedMutationSettlement { readonly clientMutationId: string | null; readonly settlementId: string | null }',
   );
   if (hasPushSend) {
     lines.push(
@@ -10484,7 +10485,7 @@ function renderApiTypes(
     : '';
   lines.push(
     'export interface GeneratedQueryContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> { readonly db: GeneratedQueryDatabase; readonly permissions: GeneratedPermissions; readonly auth: Auth; readonly runtime: GeneratedRuntimeContext; readonly assets: any; isDirectHuman(): boolean; refuse(code: string, details?: unknown): never }',
-    'export interface GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> extends GeneratedQueryContext<Auth> { readonly db: GeneratedMutationDatabase; readonly membership: GeneratedMembership; readonly jobs: { enqueue(name: string, args: Readonly<Record<string, unknown>>, options?: Readonly<Record<string, unknown>>): Promise<unknown> } }',
+    'export interface GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> extends GeneratedQueryContext<Auth> { readonly db: GeneratedMutationDatabase; readonly membership: GeneratedMembership; readonly jobs: { enqueue(name: string, args: Readonly<Record<string, unknown>>, options?: Readonly<Record<string, unknown>>): Promise<unknown> }; readonly mutation: { settlement(): GeneratedMutationSettlement } }',
     `export interface GeneratedActionContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> { readonly auth: Auth; readonly runtime: GeneratedRuntimeContext; readonly assets: any; readonly secrets: { get(name: string): any; rotating(name: string): any }; readonly run: unknown; readonly cron: unknown;${generatedPushProperty} isDirectHuman(): boolean; runMutation(name: string, args: Readonly<Record<string, unknown>>): Promise<unknown>; fetch(request: Readonly<Record<string, unknown>>): Promise<any>; fetchStream(request: Readonly<Record<string, unknown>>): Promise<any>; readonly streamAttempt: any; refuse(code: string, details?: unknown): never }`,
     'export interface GeneratedFunctionContexts {',
   );

@@ -1,10 +1,10 @@
 // The JS host-op table for the Cloudflare target — the engine-neutral
 // contract's Durable-Object-SQLite implementation (LLP 0040 §Version
 // contract). It mirrors the Rust `IbexHostContext::handle_host_call` op table
-// (db.query/get/insert/patch/delete, runtime.now/id/log) so a handler run on
-// this target observes the same semantics as on the local target: buffered
-// writes, read-your-writes overlay, ids and clock from the host, and version
-// assigned atomically at commit.
+// (db.query/get/insert/patch/delete, runtime.now/id/log,
+// mutation.settlement) so a handler run on this target observes the same
+// semantics as on the local target: buffered writes, read-your-writes overlay,
+// ids and clock from the host, and version assigned atomically at commit.
 //
 // One invocation constructs one HostContext. A mutation's buffered writes are
 // held here and committed as one local SQLite transaction by the coordinator
@@ -692,6 +692,23 @@ export class HostContext {
       }
       case 'runtime.now':
         return { ok: true, value: this.nowMs };
+      // @ref LLP 0043#handler-visible-settlement-identity-2026-08-08 — the hosted proof
+      // has no client-mutation replay ledger, so mutation mode exposes the
+      // honest all-null twin while preserving the mutation-only contract.
+      case 'mutation.settlement':
+        if (this.mode === 'query') {
+          return snapbackFail(
+            'SNAPBACK_MUTATION_SETTLEMENT_UNAVAILABLE',
+            'queries are never queued or settled; only mutations carry a settlement identity'
+          );
+        }
+        if (this.mode === 'action') {
+          return snapbackFail(
+            'SNAPBACK_MUTATION_SETTLEMENT_UNAVAILABLE',
+            'actions carry no settlement identity; call ctx.runMutation and read ctx.mutation.settlement() inside that mutation'
+          );
+        }
+        return { ok: true, value: { clientMutationId: null, settlementId: null } };
       case 'runtime.id':
         return { ok: true, value: this.newId() };
       case 'runtime.log':

@@ -5,7 +5,11 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-07 (ownership acceptance — LLP 0129 owner-landing
+**Revised:** 2026-08-08 (handler-visible settlement identity, Claude Fable 5 /
+Codex gpt-5.6-sol: mutation handlers read the durable settlement identity
+through `ctx.mutation.settlement()` instead of minting app-owned effect
+idempotency keys; queries and actions refuse it typed) · 2026-08-07
+(ownership acceptance — LLP 0129 owner-landing
 ledger row 4, speculative/settlement receipt shapes ("receipt
 projection"), assigned to this RFC by the 2026-08-07 author gate packet
 ruling, item 7
@@ -390,6 +394,58 @@ supplied `AuthInput` when the original client can no longer acknowledge them.
 The explicit selector prevents an empty request from accidentally purging the
 whole ledger. That operator action intentionally gives up exactly-once replay
 for the purged identities and is not counted as client acknowledgement GC.
+
+#### Handler-visible settlement identity (2026-08-08)
+
+A settled duplicate never re-enters the handler, so until now the handler had
+no way to name the settlement it was executing. Applications that need an
+effect idempotency key — a provider call that must not fire twice for one
+logical mutation — were minting their own from `ctx.runtime.id()` and
+threading identity arguments through generated calls. The Zerobugs control hit
+this twice independently (LLP 0183 D5/D7 seam;
+`issues/closed/20260808-handler-settlement-identity-surface.md`).
+
+The mutation handler context therefore exposes the identity the server has
+already constructed:
+
+```
+await ctx.mutation.settlement()
+// { clientMutationId: string | null, settlementId: string | null }
+```
+
+- `clientMutationId` is the opaque id the client minted, verbatim, or `null`
+  when the request carried none.
+- `settlementId` is the durable settlement identity digest — the same
+  provenance digest the activity lane already writes
+  (`ClientMutationIdentity::activity_digest`), a `sha256:` value over
+  `{authFingerprint, authorityInstanceId, clientMutationId, function,
+  inputFingerprint[, operationIssuance]}`. It is `null` exactly when
+  `clientMutationId` is.
+
+Both fields are read-only own properties of a fresh, frozen, null-prototype
+object, and both are derived from the request rather than from handler state.
+The identity is replay-stable by construction: the same logical mutation —
+same client id, function, auth, and inputs — yields the same `settlementId` on
+every entry, including the re-entry that follows a first attempt which threw
+before any settlement was retained. It is not host-generated, so it neither
+consumes nor extends LLP 0051 D1's ctx-answer ledger and reads identically in
+record and replay mode.
+
+`settlementId` is deliberately not named `settlementIdentity`: LLP 0133 uses
+that name on the mutation request wire for retained implementation/activation
+claims, which are a different fact.
+
+Queries and actions expose the member but refuse it with
+`SNAPBACK_MUTATION_SETTLEMENT_UNAVAILABLE`, thrown without a host round-trip,
+following `ctx.jobs.enqueue`. The idempotency key is mutation-only (M1/M2
+above): queries are server-authoritative reads and are never queued or
+ledgered as writes, and an action's durable work crosses `ctx.runMutation`,
+where the mutation it invokes carries its own settlement.
+
+Stated rather than papered over: the hosted coordinator keeps no
+client-mutation replay ledger and never echoes `clientMutationId`, so the
+hosted arm answers the honest all-null twin. An application that needs a
+replay-stable effect key gets one on the local target.
 
 ### Conflict posture
 

@@ -13668,9 +13668,10 @@ impl LocalSnapback {
                             //   discards client ctx answers before authoritative execution.
                             input.ctx_ledger = None;
                         }
-                        input.auth = input
-                            .auth
-                            .with_client_mutation_digest(client_mutation_digest.as_deref());
+                        input.auth = input.auth.with_client_mutation_settlement(
+                            identity.as_ref().map(|identity| identity.id.as_str()),
+                            client_mutation_digest.as_deref(),
+                        );
                         let epoch_scopes = evaluate_permission_epoch_scopes(&function, &input)?;
                         let (preflight, execution) = match &function.runtime {
                             FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
@@ -14278,9 +14279,10 @@ impl LocalSnapback {
         let client_mutation_digest = identity
             .as_ref()
             .map(ClientMutationIdentity::activity_digest);
-        input.auth = input
-            .auth
-            .with_client_mutation_digest(client_mutation_digest.as_deref());
+        input.auth = input.auth.with_client_mutation_settlement(
+            identity.as_ref().map(|identity| identity.id.as_str()),
+            client_mutation_digest.as_deref(),
+        );
         // Legacy function-declared permission-epoch scopes are evaluated
         // BEFORE the mutation executes. This compatibility resync map is not
         // LLP 0053's durable global AuthorizationVersion, which advances in
