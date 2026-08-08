@@ -119,13 +119,19 @@ async function stopProcessGroup(child) {
 }
 
 async function waitForExpoWeb(child, port, readLogs) {
-  const deadline = Date.now() + 60_000;
+  // Cold Metro rebuilds of the completed chat template exceed the original
+  // 60s probe budget on a busy host; the bundle itself is already proven by
+  // the static export above, so the serve probe can afford a longer wait.
+  const deadline = Date.now()
+    + (Number(process.env.SNAPBACK_EXPO_WEB_READY_TIMEOUT_MS) || 240_000);
   while (Date.now() < deadline) {
     if (child.exitCode !== null || child.signalCode !== null) {
       throw new Error(`Expo web exited before readiness\n${readLogs()}`);
     }
     try {
-      const response = await fetch(`http://127.0.0.1:${port}/`);
+      // `expo start --localhost` binds ::1 (not 127.0.0.1) on IPv6-first
+      // macOS hosts; probe the same name Expo binds so both families work.
+      const response = await fetch(`http://localhost:${port}/`);
       if (response.ok && (await response.text()).includes('id="root"')) return;
     } catch {
       // Metro is still starting.

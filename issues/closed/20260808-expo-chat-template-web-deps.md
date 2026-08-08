@@ -45,3 +45,12 @@ export surfaced: `@expo/snapback-expo`'s web AppState arm imported the
 React Native package root, which Metro rejects as native-only on web.
 The lane changed it to resolve React Native Web's AppState export
 directly (with a DOM guard), landed with the T3 prove-command work.
+
+Serving check completed 2026-08-08 (orchestrator, lane-0196 landing):
+the full recurring harness — scaffold, codegen, static acceptance,
+strict typecheck, static web export, and the live `expo start --web`
+HTTP probe — passed end to end on a loopback-capable host. The probe
+itself had a latent defect: `expo start --localhost` binds ::1 on
+IPv6-first macOS hosts while the probe fetched 127.0.0.1, so it could
+never succeed where loopback was allowed; fixed to probe `localhost`
+with a configurable readiness budget.
