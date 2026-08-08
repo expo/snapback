@@ -4916,7 +4916,9 @@ impl LocalSnapback {
                         .replace_collections(ephemeral_collections)
                         .expect("prevalidated ephemeral definitions publish infallibly");
                 });
-                snapback.install_app_generation(generation);
+                crate::generation_activation::GenerationActivation::install_process_generation(
+                    snapback, generation,
+                );
                 snapback.refresh_read_manifests();
                 // Schema-driven route-param typing depends on the schema
                 // (LLP 0092 §0E.6): a served route manifest that no longer
@@ -5002,124 +5004,21 @@ impl LocalSnapback {
             }
         };
 
-        // @ref LLP 0080#5-transactionally-maintained-projections — activation
-        //   materializes: a plan whose digest changed (or never activated)
-        //   rebuilds under the local barrier BEFORE the manifest installs,
-        //   so the §5 oracle holds from the first active commit version. A
-        //   refused rebuild (existing-data fan-out, invariant breach) fails
-        //   the whole activation.
-        let mut rebuilt_projection_ids = Vec::new();
-        for plan in &manifest.projections {
-            match self.db.rebuild_projection_if_stale(plan, "activation") {
-                Ok(Some(receipt)) => {
-                    rebuilt_projection_ids.push(plan.id.clone());
-                    preflight.push(Diagnostic::info(
-                        "SNAPBACK_PROJECTION_REBUILT",
-                        "storage",
-                        format!(
-                            "projection {} rebuilt at activation: {} rows, generation {}, {}",
-                            plan.id, receipt.row_count, receipt.generation, receipt.content_digest
-                        ),
-                    ));
-                }
-                Ok(None) => {}
-                Err(error) => {
-                    preflight.push(error.diagnostic);
-                    if let Err(cleanup_error) = self
-                        .db
-                        .clear_projection_plan_digests(&rebuilt_projection_ids)
-                    {
-                        preflight.push(cleanup_error.diagnostic);
-                    }
-                    self.record_attached_diagnostics(preflight.clone());
-                    return preflight;
-                }
-            }
-        }
-
-        if let Err(error) = self
-            .db
-            .install_sequence_declarations(sequence_declarations, false)
-        {
-            preflight.push(error.diagnostic);
-            if let Err(cleanup_error) = self
-                .db
-                .clear_projection_plan_digests(&rebuilt_projection_ids)
-            {
-                preflight.push(cleanup_error.diagnostic);
-            }
-            self.record_attached_diagnostics(preflight.clone());
-            return preflight;
-        }
-
-        self.functions = manifest;
-        // @ref LLP 0154#d2--the-observation-span-classification-registry-and-phase-1-kinds —
-        //   publish exact release identity before the activation marker and
-        //   every subsequently admitted operation.
-        self.telemetry
-            .set_release(self.functions.bundle_hash.as_deref());
-        self.functions_loaded = true;
-        self.db.set_projections(self.functions.projections.clone());
-        self.db.set_order_field_bounds(
-            order_field_bounds.expect("error-free preflight prepared order-field bounds"),
-        );
-        self.install_app_generation(generation);
-        // New code means new warm-VM setup state; content keying already
-        // prevents stale reuse, clearing also frees the old VMs' memory.
-        self.warm_vms.clear();
-        let mut diagnostics = preflight;
-        // A served route manifest that no longer validates against the new
-        // functions manifest is dropped fail-closed (LLP 0092 §0C.1): stale
-        // entries must not keep resolving; Channel A degrades to the shell
-        // and bundles answer ROUTE_UNKNOWN until a coherent manifest is
-        // ensured again.
-        if let Some(routes) = self.routes.clone()
-            && let Err(error) = self.validate_routes_manifest(&routes)
-        {
-            self.routes = None;
-            self.routes_manifest_hash = None;
-            diagnostics.push(Diagnostic::warning(
-                "SNAPBACK_ROUTES_MANIFEST_INVALID",
-                "runtime",
-                format!(
-                    "served route manifest dropped: it no longer validates against the new functions manifest ({})",
-                    error.diagnostic.message
-                ),
-            ));
-        }
-
-        if self
-            .functions
-            .functions
-            .iter()
-            .any(|function| matches!(function.runtime, FunctionRuntime::IbexModule(_)))
-        {
-            diagnostics.push(Diagnostic::info(
-                "SNAPBACK_IBEX_FUNCTIONS_LOADED",
-                "runtime",
-                "Ibex handler modules loaded for embedded ctx.db execution",
-            ));
-        }
-
-        diagnostics.extend(self.cron.reconcile(&self.functions));
-        diagnostics.extend(self.reconcile_config());
-        diagnostics.extend(self.runtime.diagnostics());
-        self.refresh_read_manifests();
-        self.refresh_cron_active();
-        if let Err(error) = self.persist_cron_state() {
-            diagnostics.push(error.diagnostic);
-        }
-        self.telemetry.point_classified(
-            crate::telemetry_contract::OperationClassIdV1::LIFECYCLE,
-            "release_activation",
-            Some(200),
-            None,
-            None,
-            None,
-            crate::telemetry::Priority::Reserved,
-        );
-        self.record_attached_diagnostics(diagnostics.clone());
-        diagnostics
+        crate::generation_activation::GenerationActivation::new(self).activate_functions(
+            crate::generation_activation::FunctionGenerationActivation {
+                manifest,
+                generation,
+                order_field_bounds: order_field_bounds
+                    .expect("error-free preflight prepared order-field bounds"),
+                sequence_declarations,
+                trusted_active_generation: false,
+                publish_ephemeral_collections: false,
+                validate_routes_after_install: true,
+                inject_publication_warning: false,
+                diagnostic_boundary: DiagnosticBoundary::Attached,
+                diagnostics: preflight,
+            },
+        )
     }
 
     /// Legacy raw function publication is a dev-only embedding seam. Every
@@ -5222,106 +5121,20 @@ impl LocalSnapback {
             self.record_diagnostics_at_boundary(diagnostics.clone(), diagnostic_boundary);
             return diagnostics;
         }
-        let ephemeral = self.ephemeral.clone();
-        let ephemeral_collections = self.db.schema().ephemeral_collections.clone();
-        crate::exec_guard::run_or_defer_after_local(move || {
-            ephemeral
-                .replace_collections(ephemeral_collections)
-                .expect("preflighted ephemeral definitions publish infallibly");
-        });
-
-        let mut diagnostics = Vec::new();
-        let mut rebuilt_projection_ids = Vec::new();
-        for plan in &manifest.projections {
-            match self.db.rebuild_projection_if_stale(plan, "activation") {
-                Ok(Some(receipt)) => {
-                    rebuilt_projection_ids.push(plan.id.clone());
-                    diagnostics.push(Diagnostic::info(
-                        "SNAPBACK_PROJECTION_REBUILT",
-                        "storage",
-                        format!(
-                            "projection {} rebuilt at activation: {} rows, generation {}, {}",
-                            plan.id, receipt.row_count, receipt.generation, receipt.content_digest
-                        ),
-                    ));
-                }
-                Ok(None) => {}
-                Err(error) => {
-                    diagnostics.push(error.diagnostic);
-                    if let Err(cleanup_error) = self
-                        .db
-                        .clear_projection_plan_digests(&rebuilt_projection_ids)
-                    {
-                        diagnostics.push(cleanup_error.diagnostic);
-                    }
-                    self.record_diagnostics_at_boundary(diagnostics.clone(), diagnostic_boundary);
-                    return diagnostics;
-                }
-            }
-        }
-        if let Err(error) = self
-            .db
-            .install_sequence_declarations(sequence_declarations, trusted_active_generation)
-        {
-            diagnostics.push(error.diagnostic);
-            if let Err(cleanup_error) = self
-                .db
-                .clear_projection_plan_digests(&rebuilt_projection_ids)
-            {
-                diagnostics.push(cleanup_error.diagnostic);
-            }
-            self.record_diagnostics_at_boundary(diagnostics.clone(), diagnostic_boundary);
-            return diagnostics;
-        }
-        self.functions = manifest;
-        // @ref LLP 0154#d2--the-observation-span-classification-registry-and-phase-1-kinds —
-        //   complete-pair publication uses the same release cut as raw dev.
-        self.telemetry
-            .set_release(self.functions.bundle_hash.as_deref());
-        self.functions_loaded = true;
-        self.db.set_projections(self.functions.projections.clone());
-        self.db.set_order_field_bounds(order_field_bounds);
-        self.install_app_generation(generation);
-        self.warm_vms.clear();
-        if self
-            .functions
-            .functions
-            .iter()
-            .any(|function| matches!(function.runtime, FunctionRuntime::IbexModule(_)))
-        {
-            diagnostics.push(Diagnostic::info(
-                "SNAPBACK_IBEX_FUNCTIONS_LOADED",
-                "runtime",
-                "Ibex handler modules loaded for embedded ctx.db execution",
-            ));
-        }
-        diagnostics.extend(self.cron.reconcile(&self.functions));
-        diagnostics.extend(self.reconcile_config());
-        diagnostics.extend(self.runtime.diagnostics());
-        self.refresh_read_manifests();
-        self.refresh_cron_active();
-        if let Err(error) = self.persist_cron_state() {
-            diagnostics.push(error.diagnostic);
-        }
-        self.telemetry.point_classified(
-            crate::telemetry_contract::OperationClassIdV1::LIFECYCLE,
-            "release_activation",
-            Some(200),
-            None,
-            None,
-            None,
-            crate::telemetry::Priority::Reserved,
-        );
-        #[cfg(test)]
-        if INJECT_NEXT_PUBLICATION_WARNING.with(|inject| inject.replace(false)) {
-            diagnostics.push(Diagnostic::warning(
-                "SNAPBACK_CONFIG_TRANSIT_RULE",
-                "config",
-                "closed publication boundary fixture",
-            ));
-        }
-        self.record_diagnostics_at_boundary(diagnostics.clone(), diagnostic_boundary);
-        diagnostics
+        crate::generation_activation::GenerationActivation::new(self).activate_functions(
+            crate::generation_activation::FunctionGenerationActivation {
+                manifest,
+                generation,
+                order_field_bounds,
+                sequence_declarations,
+                trusted_active_generation,
+                publish_ephemeral_collections: true,
+                validate_routes_after_install: false,
+                inject_publication_warning: true,
+                diagnostic_boundary,
+                diagnostics: Vec::new(),
+            },
+        )
     }
 
     /// Reserve the non-reusable process generation before a durable mode cut.
@@ -5624,7 +5437,10 @@ impl LocalSnapback {
             Ordering::Acquire,
         );
         debug_assert_eq!(exchanged, Ok(secret_read_generation));
-        self.install_app_generation(app_generation);
+        crate::generation_activation::GenerationActivation::install_process_generation(
+            self,
+            app_generation,
+        );
         self.warm_vms.clear();
         self.terminalize_all_local_live_effects();
         // ENG-23333: capture the live subscriptions being dropped so their
@@ -5831,7 +5647,37 @@ impl LocalSnapback {
         self.app_generation
     }
 
-    fn install_app_generation(&mut self, generation: u64) {
+    pub(crate) fn generation_database_mut(&mut self) -> &mut LocalDatabase {
+        &mut self.db
+    }
+
+    pub(crate) fn publish_generation_ephemeral_collections(&mut self) {
+        let ephemeral = self.ephemeral.clone();
+        let ephemeral_collections = self.db.schema().ephemeral_collections.clone();
+        crate::exec_guard::run_or_defer_after_local(move || {
+            ephemeral
+                .replace_collections(ephemeral_collections)
+                .expect("preflighted ephemeral definitions publish infallibly");
+        });
+    }
+
+    pub(crate) fn compose_function_generation_successor(
+        &mut self,
+        manifest: FunctionManifest,
+        order_field_bounds: BTreeMap<(String, String), u64>,
+    ) {
+        self.functions = manifest;
+        // @ref LLP 0154#d2--the-observation-span-classification-registry-and-phase-1-kinds —
+        //   publish exact release identity before the activation marker and
+        //   every subsequently admitted operation.
+        self.telemetry
+            .set_release(self.functions.bundle_hash.as_deref());
+        self.functions_loaded = true;
+        self.db.set_projections(self.functions.projections.clone());
+        self.db.set_order_field_bounds(order_field_bounds);
+    }
+
+    pub(crate) fn install_process_generation_marker(&mut self, generation: u64) {
         self.app_generation = generation;
         self.app_generation_fence
             .store(generation, Ordering::SeqCst);
@@ -5840,6 +5686,83 @@ impl LocalSnapback {
         // ensure recomputes the identical digest, so outstanding resume
         // tokens keep verifying (LLP 0091 §0A.6).
         self.rqs_generation = None;
+    }
+
+    pub(crate) fn post_install_function_generation(
+        &mut self,
+        diagnostics: &mut Vec<Diagnostic>,
+        validate_routes_after_install: bool,
+        inject_publication_warning: bool,
+    ) {
+        #[cfg(not(test))]
+        let _ = inject_publication_warning;
+        // New code means new warm-VM setup state; content keying already
+        // prevents stale reuse, clearing also frees the old VMs' memory.
+        self.warm_vms.clear();
+        if validate_routes_after_install
+            && let Some(routes) = self.routes.clone()
+            && let Err(error) = self.validate_routes_manifest(&routes)
+        {
+            // A stale served route manifest drops fail-closed after raw-dev
+            // function publication (LLP 0092 §0C.1).
+            self.routes = None;
+            self.routes_manifest_hash = None;
+            diagnostics.push(Diagnostic::warning(
+                "SNAPBACK_ROUTES_MANIFEST_INVALID",
+                "runtime",
+                format!(
+                    "served route manifest dropped: it no longer validates against the new functions manifest ({})",
+                    error.diagnostic.message
+                ),
+            ));
+        }
+        if self
+            .functions
+            .functions
+            .iter()
+            .any(|function| matches!(function.runtime, FunctionRuntime::IbexModule(_)))
+        {
+            diagnostics.push(Diagnostic::info(
+                "SNAPBACK_IBEX_FUNCTIONS_LOADED",
+                "runtime",
+                "Ibex handler modules loaded for embedded ctx.db execution",
+            ));
+        }
+        diagnostics.extend(self.cron.reconcile(&self.functions));
+        diagnostics.extend(self.reconcile_config());
+        diagnostics.extend(self.runtime.diagnostics());
+        self.refresh_read_manifests();
+        self.refresh_cron_active();
+        if let Err(error) = self.persist_cron_state() {
+            diagnostics.push(error.diagnostic);
+        }
+        self.telemetry.point_classified(
+            crate::telemetry_contract::OperationClassIdV1::LIFECYCLE,
+            "release_activation",
+            Some(200),
+            None,
+            None,
+            None,
+            crate::telemetry::Priority::Reserved,
+        );
+        #[cfg(test)]
+        if inject_publication_warning
+            && INJECT_NEXT_PUBLICATION_WARNING.with(|inject| inject.replace(false))
+        {
+            diagnostics.push(Diagnostic::warning(
+                "SNAPBACK_CONFIG_TRANSIT_RULE",
+                "config",
+                "closed publication boundary fixture",
+            ));
+        }
+    }
+
+    pub(crate) fn record_generation_activation_diagnostics(
+        &mut self,
+        diagnostics: Vec<Diagnostic>,
+        boundary: DiagnosticBoundary,
+    ) {
+        self.record_diagnostics_at_boundary(diagnostics, boundary);
     }
 
     fn resolve_complete_provision_pair(
@@ -6159,34 +6082,26 @@ impl LocalSnapback {
             let publication_generation = self
                 .reserve_function_publication_generation()
                 .map_err(ModeCommitFailure::RolledBack)?;
-            let committed = self
-                .db
-                .apply_same_mode_network_deployment_with_functions_classified(
+            let activation = crate::generation_activation::GenerationActivation::new(self)
+                .activate_same_mode_network_generation(
                     prepared.deployment,
                     prepared.artifacts.schema,
-                    prepared.artifacts.functions.clone(),
+                    prepared.artifacts.functions,
                     prepared.artifacts.seed,
-                );
+                    publication_generation,
+                    DiagnosticBoundary::Attached,
+                )?;
+            let crate::generation_activation::SameModeNetworkActivation {
+                commit: committed,
+                committed_at,
+                diagnostics,
+            } = activation;
             let NetworkDeploymentCommit {
                 seed_outcome,
                 activation_changed,
                 state,
                 authorization,
-            } = match committed {
-                DurableModeCommit::Committed(committed) => committed,
-                DurableModeCommit::RolledBack(error) => {
-                    return Err(ModeCommitFailure::RolledBack(error));
-                }
-                DurableModeCommit::Uncertain(error) => {
-                    return Err(ModeCommitFailure::Uncertain(error));
-                }
-            };
-            let committed_at = Instant::now();
-            let diagnostics = self.publish_preflighted_functions(
-                prepared.artifacts.functions,
-                publication_generation,
-                DiagnosticBoundary::Attached,
-            );
+            } = committed;
             if let Some(routes) = routes.as_ref()
                 && !routes_matched
             {
@@ -15008,7 +14923,8 @@ impl LocalSnapback {
 
     /// The local-arm `generation` digest (LLP 0091 §0A.6): content-derived
     /// from the served manifests and resume-relevant config, recomputed after
-    /// every ensure (`install_app_generation` clears the cache). A no-op
+    /// every ensure (the generation-activation coordinator clears the cache).
+    /// A no-op
     /// ensure reproduces identical components and therefore an identical
     /// digest, so dev-loop ensures do not needlessly refuse tokens.
     pub fn rqs_generation_digest(&mut self) -> SnapbackResult<String> {
@@ -47330,12 +47246,11 @@ globalThis.__snapbackHandlers = {
         assert_eq!(error.diagnostic.code, "SNAPBACK_UNKNOWN_FUNCTION");
     }
 
-    // @ref LLP 0080#5-transactionally-maintained-projections — a rebuild
-    //   digest becomes authoritative only with the function generation that
-    //   owns it; failed multi-plan activation clears earlier rebuild pins so
-    //   retry cannot skip a materialization changed under the old posture.
+    // @ref LLP 0199#owner-1 — the first-slice failure/retry characterization:
+    //   the coordinator owns P1 compensation, the failed successor never
+    //   becomes live, and retry proves its manifest against physical rows.
     #[test]
-    fn failed_projection_activation_retry_rebuilds_earlier_materialization() {
+    fn generation_activation_failed_then_retry_rebuilds_and_matches_materialization() {
         let (mut schema, mut functions, first_plan) = projection_fixture(5);
         let mut second_output = schema
             .tables
@@ -47372,12 +47287,23 @@ globalThis.__snapbackHandlers = {
             })
             .expect("seed pre-activation data");
 
+        let predecessor_generation = snapback.app_generation();
+        let expected_projections = functions.projections.clone();
         let failed = snapback.load_functions(functions.clone());
         assert!(
             failed
                 .iter()
                 .any(|diagnostic| diagnostic.code == "SNAPBACK_PROJECTION_FANOUT_EXCEEDED"),
             "the second rebuild must refuse activation: {failed:?}"
+        );
+        assert_eq!(
+            snapback.app_generation(),
+            predecessor_generation,
+            "a failed compose must not install the process generation"
+        );
+        assert!(
+            snapback.functions.projections.is_empty(),
+            "the failed successor manifest must not become live"
         );
         let first_receipt = snapback
             .db
@@ -47442,6 +47368,19 @@ globalThis.__snapbackHandlers = {
             .expect("retried receipt read")
             .expect("retried receipt exists");
         assert_eq!(retried_receipt.generation, 2);
+        assert_eq!(
+            snapback.functions.projections, expected_projections,
+            "the live manifest is the exact successor whose plans rebuilt"
+        );
+        let expected_plan_digest = crate::rqs::sha256_identity(
+            &serde_json::to_value(&snapback.functions.projections[0])
+                .expect("live projection plan serializes"),
+        )
+        .expect("live projection plan canonicalizes");
+        assert_eq!(
+            retried_receipt.plan_digest, expected_plan_digest,
+            "the committed rebuild receipt names the live plan"
+        );
         let rows = snapback
             .db
             .query(
@@ -47459,6 +47398,130 @@ globalThis.__snapbackHandlers = {
             .rows;
         assert_eq!(rows.len(), 1, "retry removed the stale beta projection row");
         assert_eq!(rows[0]["title"], json!("alpha"));
+    }
+
+    // @ref LLP 0199#owner-1 — crash/reopen trusts the persisted deployment
+    //   generation and stored materialization, never the old process handle.
+    #[test]
+    fn generation_activation_reopen_uses_durable_record_and_matching_materialization() {
+        let directory = tempfile::tempdir().expect("activation reopen directory");
+        let database_path = directory.path().join("activation-reopen.sqlite");
+        let (mut schema, mut functions, _plan) = projection_fixture(5);
+        schema.app_id = "generation-activation-reopen".to_owned();
+        schema.schema_hash = Some(format!("sha256:{}", "a".repeat(64)));
+        schema.inputs_hash = Some(format!("sha256:{}", "c".repeat(64)));
+        functions.app_id = schema.app_id.clone();
+        functions.bundle_hash = Some(format!("sha256:{}", "b".repeat(64)));
+        functions.inputs_hash = schema.inputs_hash.clone();
+        let durable_generation = DeploymentIdentity::from_manifests(
+            AuthMode::Dev,
+            &schema,
+            &functions,
+        )
+        .expect("coherent durable generation");
+        let expected_plan_digest = crate::rqs::sha256_identity(
+            &serde_json::to_value(&functions.projections[0])
+                .expect("projection plan serializes"),
+        )
+        .expect("projection plan canonicalizes");
+        let row = |fields: Value| fields.as_object().cloned().expect("seed row");
+        let seed = crate::manifest::SeedData {
+            tables: BTreeMap::from([
+                (
+                    "books".to_owned(),
+                    vec![
+                        row(json!({ "title": "alpha", "slug": "s-alpha", "authorSlug": "ada", "ownerId": "user-a" })),
+                        row(json!({ "title": "beta", "slug": "s-beta", "authorSlug": "ada", "ownerId": "user-a" })),
+                    ],
+                ),
+                (
+                    "authors".to_owned(),
+                    vec![row(json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }))],
+                ),
+            ]),
+        };
+
+        {
+            let mut snapback = LocalSnapback::open(&database_path)
+                .expect("open persistent activation fixture");
+            let prepared = snapback
+                .prepare_auth_provision(
+                    EnsureAppMode::Dev,
+                    Some(schema.clone()),
+                    Some(functions.clone()),
+                    Some(seed),
+                )
+                .expect("prepare complete generation");
+            let (_, state) = snapback
+                .commit_auth_provision(prepared, "test")
+                .expect("commit and publish complete generation");
+            assert_eq!(
+                state.active_deployment.as_ref(),
+                Some(&durable_generation),
+                "the persisted generation record controls recovery"
+            );
+            assert_eq!(snapback.functions, functions, "successor manifest is live");
+            let receipt = snapback
+                .db
+                .projection_rebuild_receipt("book-summaries")
+                .expect("read activation receipt")
+                .expect("activation receipt exists");
+            assert_eq!(receipt.plan_digest, expected_plan_digest);
+            assert_eq!(receipt.row_count, 2);
+        }
+
+        let mut reopened =
+            LocalSnapback::open(&database_path).expect("reopen committed generation");
+        let snapshot = reopened.db.auth_mode_snapshot().expect("durable snapshot");
+        assert_eq!(
+            snapshot.state.active_deployment.as_ref(),
+            Some(&durable_generation)
+        );
+        assert_eq!(snapshot.active_manifest.as_ref(), Some(&schema));
+        assert!(
+            reopened.functions.functions.is_empty(),
+            "the predecessor process handle is not reconstructed as recovery authority"
+        );
+        let rows = reopened
+            .db
+            .query(
+                &QueryPlan {
+                    table: "bookSummaries".to_owned(),
+                    filters: Vec::new(),
+                    membership_filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                },
+                &HandlerInput::default(),
+            )
+            .expect("read reopened materialization")
+            .rows;
+        assert_eq!(rows.len(), 2);
+        assert!(rows.iter().all(|row| row["authorName"] == json!("Ada")));
+
+        let diagnostics = reopened.load_functions(functions.clone());
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
+            "reinstall from the durable carrier succeeds: {diagnostics:?}"
+        );
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code != "SNAPBACK_PROJECTION_REBUILT"),
+            "matching durable digest and rows require no recovery rebuild: {diagnostics:?}"
+        );
+        assert_eq!(reopened.functions, functions);
+        let receipt = reopened
+            .db
+            .projection_rebuild_receipt("book-summaries")
+            .expect("read reopened receipt")
+            .expect("reopened receipt exists");
+        assert_eq!(receipt.plan_digest, expected_plan_digest);
+        assert_eq!(receipt.row_count, rows.len());
     }
 
     // @ref LLP 0080#5-transactionally-maintained-projections — activation

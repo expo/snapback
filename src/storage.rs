@@ -9234,10 +9234,11 @@ impl LocalDatabase {
         })
     }
 
-    /// Compensate a function-generation activation that rebuilt one or more
-    /// projections but failed before installing that generation. The output
-    /// bytes may subsequently be maintained by the still-active predecessor
-    /// plan, so the successor digest cannot remain a rebuild-skip oracle.
+    /// Storage-kernel primitive used by the generation-activation coordinator
+    /// to compensate a rebuild whose owning generation did not install. The
+    /// output bytes may subsequently be maintained by the still-active
+    /// predecessor plan, so the successor digest cannot remain a rebuild-skip
+    /// oracle.
     pub(crate) fn clear_projection_plan_digests(
         &mut self,
         plan_ids: &[String],

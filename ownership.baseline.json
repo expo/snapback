@@ -1,8 +1,8 @@
 {
   "schemaVersion": "snapback.module-ownership-baseline.v1",
   "manifestSchemaVersion": "snapback.module-ownership-manifest.v1",
-  "moduleCount": 164,
-  "edgeCount": 934,
+  "moduleCount": 165,
+  "edgeCount": 941,
   "edges": [
     {
       "from": "src/admin_impersonation.rs",
@@ -2015,6 +2015,42 @@
       "toOwner": "storage-migration-kernel"
     },
     {
+      "from": "src/generation_activation.rs",
+      "fromOwner": "generation-activation-coordinator",
+      "to": "src/auth/admission.rs",
+      "toOwner": "unassigned"
+    },
+    {
+      "from": "src/generation_activation.rs",
+      "fromOwner": "generation-activation-coordinator",
+      "to": "src/auth/mode.rs",
+      "toOwner": "unassigned"
+    },
+    {
+      "from": "src/generation_activation.rs",
+      "fromOwner": "generation-activation-coordinator",
+      "to": "src/diagnostic.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/generation_activation.rs",
+      "fromOwner": "generation-activation-coordinator",
+      "to": "src/local.rs",
+      "toOwner": "unassigned"
+    },
+    {
+      "from": "src/generation_activation.rs",
+      "fromOwner": "generation-activation-coordinator",
+      "to": "src/manifest.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/generation_activation.rs",
+      "fromOwner": "generation-activation-coordinator",
+      "to": "src/storage/auth_mode.rs",
+      "toOwner": "storage-migration-kernel"
+    },
+    {
       "from": "src/guide_mcp.rs",
       "fromOwner": "transport-adapters",
       "to": "src/guide_reference.rs",
@@ -2583,6 +2619,12 @@
       "fromOwner": "unassigned",
       "to": "src/fork_promotion.rs",
       "toOwner": "background-services"
+    },
+    {
+      "from": "src/local.rs",
+      "fromOwner": "unassigned",
+      "to": "src/generation_activation.rs",
+      "toOwner": "generation-activation-coordinator"
     },
     {
       "from": "src/local.rs",

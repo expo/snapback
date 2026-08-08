@@ -29,6 +29,9 @@ pub mod admin_link;
 #[doc(hidden)]
 pub mod admin_secret_read;
 pub(crate) mod agent_safe_publication;
+// @ref LLP 0199#target-ownership-map — owner 1: crate-private generation
+// activation coordinator.
+pub(crate) mod generation_activation;
 #[doc(hidden)]
 pub mod api_envelope;
 #[doc(hidden)]
