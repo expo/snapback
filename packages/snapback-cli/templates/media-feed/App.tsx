@@ -57,7 +57,7 @@ function Card({ entry }: Readonly<{ entry: Entry }>) {
 function Feed() {
   const connection = useSnapbackConnection();
   const first = useSnapbackQuery(api.liveFeed, {});
-  const [before, setBefore] = useState<number | null>(null);
+  const [before, setBefore] = useState<string | null>(null);
   const [archive, setArchive] = useState<readonly Entry[]>([]);
   const [exhausted, setExhausted] = useState(false);
   const older = useSnapbackQuery(api.olderFeedPage, before === null ? skip : { before });
@@ -121,7 +121,7 @@ function Feed() {
   const loadOlder = () => {
     if (exhausted || older.status === 'pending') return;
     const oldest = entries.at(-1);
-    if (oldest && oldest.createdAt !== before) setBefore(oldest.createdAt);
+    if (oldest && oldest.pageKey !== before) setBefore(oldest.pageKey);
   };
 
   return (

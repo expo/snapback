@@ -157,3 +157,24 @@ This lane authored the transcribed rung-2 gate but did not execute its served
 runtime. The orchestrator owns the controlled run and dated receipt. The
 Option-C decision lab, its frozen manifests, and Field Notebook were not
 changed or used as evidence.
+
+### 2026-08-08 — Guide recipe extraction and capability split
+
+The retained W4 arm is now the executable source for
+`guide/recipes/optimistic-create.md`. Re-reading it as authoring guidance made
+the product boundary clearer than the older "Snapback lacks optimistic
+create" shorthand: the generated-IR and settlement substrate **does** ship.
+`createOptimisticMutationView` projects the provisional reservation into the
+same filter/order/count/relationship path, and the rung-2 response-loss case
+proves that the same durable intent republishes one canonical result and
+logical-mint `idMap`.
+
+The remaining gap is React ergonomics, not settlement design. Contention
+Calendar still hand-composes a framework-neutral view, canonical live handles,
+rebases, projection, and teardown instead of installing a provisional entity
+through `useSnapbackMutation` into the provider's canonical query store. The
+capability index now records those as two different facts: shipped
+`clients.optimistic-mutation-view`, design-only
+`clients.optimistic-create`. A narrow follow-up owns the latter, so the Guide
+can teach today's powerful lower-level path without implying a first-class
+hook that does not exist.

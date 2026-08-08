@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 98257903f5b726e1e19fe9ac3132ea3ed83ecd78
+reviewed-commit: HEAD
 ---
 
 # Retrieval eval protocol
@@ -167,11 +167,12 @@ Lane 1 misses, absorbed 2026-08-07).
 16. **Domain errors and optimistic create:** "Show 'card is locked' copy when
     a mutation is rejected, and optimistically create a row whose ID the
     server mints." The run fails if the plan parses `SNAPBACK_HANDLER_FAILED`
-    message text, or forges a provisional generated row ID instead of the
-    intent-keyed pending sidecar.
-    Expected pages: `clients/react.md` (both sections) and
+    message text, forges a provisional generated row ID, or claims the
+    lower-level optimistic mutation view is a first-class provider hook.
+    Expected pages: `clients/react.md`, `recipes/optimistic-create.md`, and
     `backend/mutations.md` (declared refusals).
-    Route terms: "optimistic create", "ctx.refuse", "refusals".
+    Route terms: "optimistic create", "server-minted ID", "ctx.refuse",
+    "refusals".
 
 Case 17 is an absorption seed from the 2026-08-07 three-lane measurement
 (Diary 0066 finding 6, `issues/20260807-arg-filtered-retention-none-maze.md`).
@@ -292,10 +293,31 @@ Case 26 absorbs the duplicated native-lane simulator setup recorded in
     Route terms: "headless simulator", "plistlib", "Expo Go onboarding",
     "simctl openurl", "deep-link drive channel".
 
-Cases 27–28 absorb the structured route-argument and mutation-settlement
-guide gaps filed after the 2026-08-08 Zerobugs authoring pass.
+Cases 27–30 absorb the paged-list, server-minted optimistic-create,
+structured route-argument, and mutation-settlement guide gaps closed or
+narrowed on 2026-08-08.
 
-27. **Structured route arguments:** "Bundle `/projects/:projectId` into a
+27. **React load-more list:** "Build an infinite-scroll React feed whose
+    live queries replace whole page results, survives equal timestamps at the
+    boundary, and explains what is actually retained after reload." The run
+    fails if the plan paginates on `createdAt`, appends every replacement,
+    claims the assembled archive is durable, or feeds a raw key into a
+    standard-pattern opaque cursor.
+    Expected pages: `recipes/paged-list.md`.
+    Route terms: "load more", "infinite scroll", "whole-result replacement",
+    "retained pages", "pageKey".
+
+28. **Server-minted optimistic ID under response loss:** "Show a provisional
+    create in the same filter/order/count projection as canonical rows, then
+    lose the response after commit and settle one intent to one server ID."
+    The run fails if the plan forges `Id<Table>`, authors a second reducer,
+    retries with a fresh intent, guesses the mapping by content/call order, or
+    claims a first-class `useSnapbackMutation` insert API exists.
+    Expected pages: `recipes/optimistic-create.md`.
+    Route terms: "createOptimisticMutationView", "logical mint", "idMap",
+    "ambiguous retry", "response loss".
+
+29. **Structured route arguments:** "Bundle `/projects/:projectId` into a
     query taking `{ context: { projectId, cursor: null, sort: 'asc', tags:
     ['open'] } }`." The run fails if the plan flattens `context`, adds a
     server-side merge, puts `routeParam()` inside an array, or invents
@@ -304,7 +326,7 @@ guide gaps filed after the 2026-08-08 Zerobugs authoring pass.
     Route terms: "structured route arguments", "nested routeParam",
     "query context", "route group args".
 
-28. **Replay-stable effect intent:** "A client mutation writes a notification
+30. **Replay-stable effect intent:** "A client mutation writes a notification
     intent; retries must reuse one provider idempotency key even if the handler
     threw before commit." The run fails if the plan uses `ctx.runtime.id()`,
     parses or hashes the raw `clientMutationId`, calls the settlement surface

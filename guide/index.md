@@ -9,8 +9,8 @@ examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-07
-reviewed-commit: cca0db7d8e94c8d4943eb808d4e10238a506c70c
+reviewed: 2026-08-08
+reviewed-commit: HEAD
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -291,6 +291,13 @@ you never build around a feature because you didn't know it existed.
   count: atomic two-field projection, replayable capture-and-set reducers,
   complete-receipt matching, and the one-canonical-store rule across query
   surfaces.
+- [Paginated and load-more lists](./recipes/paged-list.md) — a unique
+  immutable keyset boundary, whole-result live replacement, React archive
+  assembly, and honest retained-state limits (media-feed, distilled).
+- [Optimistic create with a server-minted ID](./recipes/optimistic-create.md)
+  — generated mutation IR, durable intent identity, typed provisional
+  presentation, logical-mint mapping, and ambiguous retry (Contention
+  Calendar, distilled).
 - [Coming from Convex/Supabase?](./recipes/coming-from-convex-and-supabase.md)
   — worked-example translations of common Convex/Supabase journeys into
   Snapback, CI-verified against real demo sources (LLP 0186 W2).

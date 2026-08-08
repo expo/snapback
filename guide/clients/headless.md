@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-commit: HEAD
 ---
 
 # The headless client
@@ -540,7 +540,10 @@ on demand: `registerQuery`/`releaseQueryRegistration`
 and `storePolicyInspection` is the value-free retention/policy inspection for
 one authority partition. `createOptimisticMutationView` is the public
 LLP 0155 rebase view: app code supplies the authoritative rows and every
-private optimistic layer is replayed from the durable outbox in sequence.
+private optimistic layer is replayed from the durable outbox in sequence. For
+the generated-insert, typed provisional-identity, logical-mint mapping, and
+ambiguous-retry composition, follow the
+[optimistic-create recipe](../recipes/optimistic-create.md).
 
 Members whose names start with `__` (for example
 `__registerExternalBearerHandle`) are internal composition seams between the

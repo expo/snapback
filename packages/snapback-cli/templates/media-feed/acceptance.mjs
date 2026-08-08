@@ -78,16 +78,28 @@ try {
   pass('artifact-identity', loadedIdentity);
   const first = await client.query(api.liveFeed, { args: {} });
   assert.equal(first.rows.length, 6);
-  const older = await client.query(api.olderFeedPage, { args: { before: first.rows.at(-1).createdAt } });
+  assert.deepEqual(first.rows.map((row) => row.pageKey), [...first.rows.map((row) => row.pageKey)].sort().reverse());
+  const boundary = first.rows.at(-1).pageKey;
+  const older = await client.query(api.olderFeedPage, { args: { before: boundary } });
   assert.equal(older.rows.length, 6);
+  assert.deepEqual(older.rows.map((row) => row.pageKey), [...older.rows.map((row) => row.pageKey)].sort().reverse());
+  assert.equal(first.rows.at(-1).createdAt, older.rows[0].createdAt, 'equal timestamps straddle the unique page-key boundary');
   assert.equal(new Set([...first.rows, ...older.rows].map((row) => row._id)).size, 12);
-  pass('retained-live-feed-pages', { first: first.rows.length, older: older.rows.length });
   feed = await client.liveQuery(api.liveFeed, { args: {}, connectionId: 'media-feed-acceptance' });
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
   const upload = createAssetClient(client).start({ upload: api.feedPhotoUpload, file: new Blob([png], { type: 'image/png' }), declaredFilename: 'acceptance.png', declaredContentType: 'image/png' });
   const finished = await upload.done;
   assert.equal(finished.status, 'ready', JSON.stringify(finished.diagnostic));
   const created = await client.mutate(api.createEntry, { args: { authorName: 'Acceptance', caption: 'Uploaded through typed custody.', photo: finished.assetId } });
+  const olderAfterInsert = await client.query(api.olderFeedPage, { args: { before: boundary } });
+  assert.deepEqual(olderAfterInsert.rows.map((row) => row._id), older.rows.map((row) => row._id), 'a newer concurrent insert does not shift the historical page');
+  pass('retained-live-feed-pages', {
+    first: first.rows.length,
+    older: older.rows.length,
+    uniqueBoundary: 'pageKey',
+    equalTimestampBoundary: true,
+    newerInsertStable: true,
+  });
   const observed = await until(async () => (await feed.poll()).find((row) => row._id === created.result), 'uploaded feed entry live observation');
   assert.equal(observed.photo, finished.assetId);
   pass('session-upload-and-attach', { assetId: finished.assetId, entryId: created.result });
@@ -103,7 +115,7 @@ try {
   failure = { code: error?.diagnostic?.code ?? error?.code ?? 'SNAPBACK_STARTER_ACCEPTANCE_FAILED', message: String(error?.message ?? error).slice(0, 4096) };
 } finally {
   cleanup.attempted = true;
-  try { feed?.dispose(); if (client) assert.equal((await client.inspect()).subscriptions.length, 0); cleanup.clientResourcesReleased = true; } catch (error) { failure ??= { code: 'SNAPBACK_STARTER_ACCEPTANCE_CLEANUP_FAILED', message: String(error) }; }
+  try { await feed?.dispose(); if (client) assert.equal((await client.inspect()).subscriptions.length, 0); cleanup.clientResourcesReleased = true; } catch (error) { failure ??= { code: 'SNAPBACK_STARTER_ACCEPTANCE_CLEANUP_FAILED', message: String(error) }; }
   if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
   cleanup.devExited = Boolean(await waitForExit(10000));
   if (!cleanup.devExited) child.kill('SIGKILL');

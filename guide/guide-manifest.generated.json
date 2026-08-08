@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "3d6d4c96c1d8710db365d5a9c66cbd1551e09ea2"
+    "commit": "f6304ba5550617bc31e52cf16b938c77aa6cd868"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -334,8 +334,18 @@
         "title": "Recipe: optimistic toggle"
       },
       {
-        "id": "recipes.coming-from-convex-and-supabase",
+        "id": "recipes.paged-list",
         "order": 4,
+        "title": "Recipe: paginated and load-more lists"
+      },
+      {
+        "id": "recipes.optimistic-create",
+        "order": 5,
+        "title": "Recipe: optimistic create with a server-minted ID"
+      },
+      {
+        "id": "recipes.coming-from-convex-and-supabase",
+        "order": 6,
         "title": "Recipe: coming from Convex and Supabase"
       }
     ],
@@ -2007,7 +2017,10 @@
         "llp/0041-packaged-dev-loop.rfc.md",
         "llp/0061-agent-first-snapback-guide.rfc.md",
         "llp/0064-native-client-surfaces.rfc.md",
+        "llp/0100-membership-addressed-operations-and-pages.rfc.md",
+        "llp/0133-local-settlement.spec.md",
         "llp/0154-minimal-observability.rfc.md",
+        "llp/0155-local-sync-product-direction.rfc.md",
         "llp/0156-minimal-error-tracking.rfc.md",
         "src/server.rs",
         "src/admin.rs",
@@ -2019,8 +2032,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "98257903f5b726e1e19fe9ac3132ea3ed83ecd78",
-      "sha256": "bfa72c3e8812c3166cfed1e8d922373baac1f9b23734dba8268165fc16a3dac1",
+      "reviewedCommit": "HEAD",
+      "sha256": "6e0a39620b8f850b02288fe5ff33e8ae2db0e46f38314e9cd2adb7969c23e5b5",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2214,8 +2227,8 @@
         "demos/partiful-matrix/surfaces/vanilla"
       ],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "eac098a99fb89b07e67cb72430106117b7fee86b",
-      "sha256": "34307f53d3acaaec9a828c1ce655c695971008cd54ada86908d34461908d6712",
+      "reviewedCommit": "HEAD",
+      "sha256": "bbefd9bfb9da4e344d20ad80748d934e16cf4d278942c4ff5eb4062e7504cf99",
       "snippets": [
         {
           "lang": "js",
@@ -2391,8 +2404,8 @@
         "packages/snapback-react/exact-result-types.fixture.ts"
       ],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "eac098a99fb89b07e67cb72430106117b7fee86b",
-      "sha256": "b6304dabb64903848fd32aff19719ea521f1e6e8293a2c8b325006cece2d94f8",
+      "reviewedCommit": "HEAD",
+      "sha256": "23185c679d3dbf2e4ec4babcb49ee17834aef1b82f84aa7305d7ce1db3da588d",
       "snippets": [
         {
           "lang": "ts",
@@ -2861,9 +2874,9 @@
         "demos/partiful-matrix",
         "demos/expo-golden-path-fixture"
       ],
-      "reviewed": "2026-08-07",
-      "reviewedCommit": "cca0db7d8e94c8d4943eb808d4e10238a506c70c",
-      "sha256": "ba01d26fdf630a247e85520ee10a87ad65c77321eb006618bf5df3ae48a71d02",
+      "reviewed": "2026-08-08",
+      "reviewedCommit": "HEAD",
+      "sha256": "948e245863c94d8dfffca533996323fce4f8e777769d84ab686384b97934a0e6",
       "snippets": [
         {
           "lang": "json",
@@ -3477,7 +3490,7 @@
     "recipes.coming-from-convex-and-supabase": {
       "path": "guide/recipes/coming-from-convex-and-supabase.md",
       "title": "Recipe: coming from Convex and Supabase",
-      "order": 4,
+      "order": 6,
       "status": "current",
       "targets": [
         "local"
@@ -3513,7 +3526,7 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedCommit": "eac098a99fb89b07e67cb72430106117b7fee86b",
-      "sha256": "3ba370343f03e5925998c0bf895712b9d69c1299d13daffb735a4a40bb79d9b6",
+      "sha256": "5df9a262a299d0701c8e0d9c71a4d06ab86d071c14384465a48d88372b4070bb",
       "snippets": [
         {
           "lang": "ts",
@@ -3652,6 +3665,62 @@
         }
       ]
     },
+    "recipes.optimistic-create": {
+      "path": "guide/recipes/optimistic-create.md",
+      "title": "Recipe: optimistic create with a server-minted ID",
+      "order": 5,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "clients.optimistic-mutation-view"
+      ],
+      "authorities": [
+        "llp/0107-react-presence-and-optimistic-lifecycle.spec.md",
+        "llp/0133-local-settlement.spec.md",
+        "llp/0155-local-sync-product-direction.rfc.md",
+        "packages/snapback-client/index.mjs",
+        "demos/zero-bakeoff/apps/contention-calendar/snapback/functions.mjs",
+        "demos/zero-bakeoff/apps/contention-calendar/snapback/src/App.tsx",
+        "tests/acceptance/contention-calendar-rung2-v1.mjs"
+      ],
+      "examples": [
+        "demos/zero-bakeoff/apps/contention-calendar",
+        "tests/acceptance/contention-calendar-rung2-v1.mjs"
+      ],
+      "reviewed": "2026-08-08",
+      "reviewedCommit": "HEAD",
+      "sha256": "d6344c517ba6eb5084e5fd960d66ff006229ea7426ca3a89b18c5a0614f36345",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/zero-bakeoff/apps/contention-calendar/snapback/functions.mjs"
+        },
+        {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "demos/zero-bakeoff/apps/contention-calendar/snapback/src/App.tsx"
+        },
+        {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "demos/zero-bakeoff/apps/contention-calendar/snapback/src/App.tsx"
+        },
+        {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "demos/zero-bakeoff/apps/contention-calendar/snapback/src/App.tsx"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "tests/acceptance/contention-calendar-rung2-v1.mjs"
+        }
+      ]
+    },
     "recipes.optimistic-toggle": {
       "path": "guide/recipes/optimistic-toggle.md",
       "title": "Recipe: optimistic toggle",
@@ -3721,6 +3790,61 @@
           "lang": "js",
           "class": "transcluded",
           "source": "packages/snapback-react/optimistic.test.mjs"
+        }
+      ]
+    },
+    "recipes.paged-list": {
+      "path": "guide/recipes/paged-list.md",
+      "title": "Recipe: paginated and load-more lists",
+      "order": 4,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "clients.react-paged-list"
+      ],
+      "authorities": [
+        "llp/0100-membership-addressed-operations-and-pages.rfc.md",
+        "llp/0114-first-class-react-and-query-groups.spec.md",
+        "llp/0196-template-and-recipe-portfolio.plan.md",
+        "packages/snapback-cli/templates/media-feed/snapback/schema.mjs",
+        "packages/snapback-cli/templates/media-feed/snapback/functions.mjs",
+        "packages/snapback-cli/templates/media-feed/App.tsx",
+        "packages/snapback-cli/templates/media-feed/acceptance.mjs"
+      ],
+      "examples": [
+        "packages/snapback-cli/templates/media-feed"
+      ],
+      "reviewed": "2026-08-08",
+      "reviewedCommit": "HEAD",
+      "sha256": "8e73d054d392dc2366dd2d990dfac37783b2dd0319b5960d52c029137929fe26",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-cli/templates/media-feed/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-cli/templates/media-feed/snapback/functions.mjs"
+        },
+        {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "packages/snapback-cli/templates/media-feed/App.tsx"
+        },
+        {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "packages/snapback-cli/templates/media-feed/App.tsx"
+        },
+        {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "packages/snapback-cli/templates/media-feed/App.tsx"
         }
       ]
     },
@@ -8248,8 +8372,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "98257903f5b726e1e19fe9ac3132ea3ed83ecd78",
-      "sha256": "cac819535e439636bf0e0db74cb09e316d09716900c79cd5c69c95e230159c78",
+      "reviewedCommit": "HEAD",
+      "sha256": "ca7ce25ae530eed0438079552d06bc3ba9c7c27c93d166e53dd9b06233f85a15",
       "snippets": []
     },
     "meta.surface-map": {
@@ -8629,10 +8753,12 @@
       "clients.headless",
       "clients.micro",
       "clients.mutation-outcomes",
+      "clients.optimistic-mutation-view",
       "clients.optimistic-overlays",
       "clients.protocol",
       "clients.react",
       "clients.react-expo",
+      "clients.react-paged-list",
       "clients.surfaces",
       "clients.swift",
       "deploy.cloudflare",
@@ -8685,5 +8811,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "a28ac53917a80d4e31ed39eaaf944e2ec7708532e198bb55d720dc019a6d8aab"
+  "contentHash": "6a60a6999df5492c3ac744ed4a95b98dcee3572b35a24928889990804c5a1b14"
 }

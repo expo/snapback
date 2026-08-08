@@ -9,13 +9,13 @@ id: meta.capabilities
 order: 2
 audience: agent-first
 capabilities: []
-authorities: [llp/0041-packaged-dev-loop.rfc.md, llp/0061-agent-first-snapback-guide.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0154-minimal-observability.rfc.md, llp/0156-minimal-error-tracking.rfc.md, src/server.rs, src/admin.rs, src/telemetry_query.rs, src/errors_query.rs, packages/snapback-cli/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs]
+authorities: [llp/0041-packaged-dev-loop.rfc.md, llp/0061-agent-first-snapback-guide.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0133-local-settlement.spec.md, llp/0154-minimal-observability.rfc.md, llp/0155-local-sync-product-direction.rfc.md, llp/0156-minimal-error-tracking.rfc.md, src/server.rs, src/admin.rs, src/telemetry_query.rs, src/errors_query.rs, packages/snapback-cli/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs]
 examples: []
 status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 98257903f5b726e1e19fe9ac3132ea3ed83ecd78
+reviewed-commit: HEAD
 ---
 
 # Capability index
@@ -38,7 +38,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.record-history | Bounded per-record version retention: `defineTable(...).history({ retainMs, maxVersionsPerRecord })` (≤ 30 days, 1–1,000 versions), captured at committed writes, consumed by host proof machinery; no author-facing read query | history, record history, version history, audit trail, time travel, retainMs, maxVersionsPerRecord | local | shipped | `history(` in packages/snapback-codegen/define.mjs | llp/0162 | backend/mutations.md |
 | backend.functions | Queries, live queries, mutations, and actions; declarative plans or colocated JS handlers with same-file helpers; explicit document/record/value result contracts including result-side `v.doc(table)` schema references; manifest-derived handler/helper `ctx.db` types with a query-read/mutation-write split; generated exact client references and runtime egress validation | query, mutation, endpoint, api, inline handler, result contract, results.documents, results.records, v.doc, GeneratedHandler, GeneratedQueryDatabase, ctx.refuse, refusals, application error code, domain error, app refusal, mutationPlan, letBind, insertEach, return binding, declarative mutation | local | shipped | packages/snapback-codegen/define.mjs | llp/0004, llp/0009, llp/0101, llp/0108, llp/0127 | backend/queries.md |
 | backend.runtime-values | Derive deterministic per-invocation time and fresh identifiers inside JavaScript handlers | server time, server clock, timestamp, generated id, UUID, Date.now, Math.random | local | shipped | `runtime.now` in packages/snapback-harness/ctx-bootstrap.js | llp/0051, llp/0065 | backend/trusted-runtime-values.md |
-| backend.mutation-settlement-identity | Mutation-only client protocol identity and server-namespaced settlement digest for replay-stable effects; settled duplicates do not re-enter and genuine pre-settlement re-entry preserves the digest. Hosted returns the all-null twin. | ctx.mutation.settlement, settlementId, replay-stable effect, provider idempotency key, effect dedupe | local | shipped | `recordEffectIntent` in tests/mutation_settlement_identity_v0.rs | llp/0043 | backend/mutations.md |
+| backend.mutation-settlement-identity | Mutation-only client identity and server-namespaced digest for replay-stable effects; genuine re-entry preserves it, while hosted returns null. | ctx.mutation.settlement, settlementId, replay-stable effect, provider idempotency key, effect dedupe | local | shipped | `recordEffectIntent` in tests/mutation_settlement_identity_v0.rs | llp/0043 | backend/mutations.md |
 | backend.standard-patterns | Generate owner CRUD, unique lookup, owner/membership keyset pages | CRUD generator, pagination, callable pagination, membership pages, trusted defaults | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065, llp/0100 | backend/standard-patterns.md |
 | backend.relational-queries | Bounded two-source equi-joins with explicit visibility, closed projections, and transactionally maintained projection tables (`defineRelationalQuery`, `defineMaintainedProjection`, stable capability since 2026-07-26) | joins, relational queries, denormalized reads, materialized views, conversation membership, message sender, chat joins, defineRelationalQuery, defineMaintainedProjection, Convex joins, Supabase joins | local | partial | `defineRelationalQuery` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
 | backend.bounded-children-v1 | Experimental one-visible-parent/one-index-bounded-child-page profile with protected relation incarnations and `sbbc1` AEAD keysets; only contributor source builds with the exact embedded atomic carrier advertise it, while public runtime packages and hosted targets retain a structured GAP | one-to-many, parent children, relation incarnation, bounded child page | local | partial | src/local-relation-activity-publication.v1.json | llp/0104, llp/0108, llp/0101 | GAP (public-package attestation and hosted publication; owner: Charlie, review: 2026-08-31) |
@@ -65,7 +65,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | realtime.live-queries | Subscribe to a query; snapshot + replace/delta updates | subscription, realtime | local | shipped | route /live/{name}/subscribe | llp/0008 | realtime/live-queries.md |
 | realtime.durable-push | Durable WebSocket push lane; connection axis | websocket, stream, push, connection state, connection disconnect, disconnect client, force disconnect | local | shipped | route /live/{connection_id}/stream | llp/0008, llp/0034 | realtime/live-queries.md |
 | realtime.ephemeral | Typed ephemeral rooms plus the scoped React presence hook: presence, typing indicators, cursors, TTL | presence, cursors, rooms, ephemeral, React ephemeral hook, useSnapbackPresence, useSnapbackEphemeral, typing indicator, ephemeral cleanup, cleanup stale entries, expire ephemeral, Supabase Presence, Supabase Broadcast | local | shipped | route /ephemeral/publish + `useSnapbackPresence` in packages/snapback-react/index.d.mts | llp/0013, llp/0107, llp/0114 | realtime/ephemeral-state.md |
-| realtime.snapshot-bundles | Resumable-query snapshot bundles: one request evaluates a served route-manifest entry's queries at one commit with per-query resume tokens; register mode arms the pending-registration owner. Route arguments may carry `routeParam()` at object-reachable leaves beside recursively validated literal context; that structured lowering is contributor-source-only beyond published closure 0.1.15. The contributor local target additionally ships Experimental `mixed_bundle_boot_v2`: a disjoint LLP 0157 `mixed-route.v2` artifact/wire evaluates live and ordinary children at one pinned snapshot, registers only identity-bound live children, and returns plain children honestly read-only. Legacy RQS entries stay grandfathered under LLP 0090, entering QMK custody only through connected prove-or-fresh adoption. `defineRoutes` + `publicInline` feed the Channel A inlined web boot (`snapbackChannelA` in packages/snapback-vite) with anonymous reads for publicInline-class routes; on the Cloudflare arm the routes manifest compiles into the Worker, the gateway serves Channel A HTML, and the coordinator answers read-mode bundles + token resume (register and mixed mode Cloudflare: deferred) | bundle, preload, resumable snapshots, boot, RQS, mixed route, read-only child, registered live child, inlined HTML, routes manifest, routeParam, nested routeParam, structured route arguments, route group args, query context | local, cloudflare | partial | route /app/bundle + schemas/capability.manifest.local-dev-sqlite-ibex.json (`mixed_bundle_boot_v2`) + packages/snapback-codegen/authoring-validation.test.mjs | llp/0090, llp/0092, llp/0157, llp/0166 | realtime/snapshot-bundles.md |
+| realtime.snapshot-bundles | RQS bundles evaluate a served route's queries at one commit with resume tokens; register mode arms live owners. Structured args accept `routeParam()` at object-reachable leaves beside validated literal context (contributor-only after 0.1.15). Local Experimental mixed-route evaluates live and ordinary children at one snapshot, registering only live children. Legacy adoption remains prove-or-fresh; `publicInline` powers Channel A; Cloudflare read mode ships while register/mixed remain deferred. | bundle, preload, resumable snapshots, boot, RQS, mixed route, read-only child, registered live child, inlined HTML, routes manifest, routeParam, nested routeParam, structured route arguments, route group args, query context | local, cloudflare | partial | route /app/bundle + schemas/capability.manifest.local-dev-sqlite-ibex.json (`mixed_bundle_boot_v2`) + packages/snapback-codegen/authoring-validation.test.mjs | llp/0090, llp/0092, llp/0157, llp/0166 | realtime/snapshot-bundles.md |
 | sync.offline | Retained queries, outbox, replay, optimistic overlays (Contract arm: lease-bounded protected retention, derived overlays, `Parity` under LLP 0043's proof rule) | local-first, outbox | local | shipped | route /outbox/{connection_id} | llp/0043, llp/0052 | sync/offline-and-retention.md |
 | sync.offline-js-arm | Experimental JS/React offline substrate: default IndexedDB + Web Locks in browsers, durable file storage on Node, and in-memory fallback; declared public authority-independent retained queries; durable M2 outbox with exact ordered replay and pending-intent projection. LLP 0090 grandfathers legacy RQS entries: adoption is connected-only prove-or-fresh into QMK custody, one atomic transaction, never relabeling bytes or dropping pending outbox intent. Node/file and React-stub tests pass, and LLP 0155 proves real-Chrome `SIGKILL` persistence plus two-tab lock refusal/takeover. The 2026-08-07 browser public witness proves the end-to-end browser facts (labeling, resync/replay, settlement, convergence, SPA reload, protected refusal). Authenticated retention stays with the lease-custody ticket; no local execution or `Parity` claim | offline browser, cold boot, restart-safe queue, IndexedDB, default persistence, retainability opt-in, pending intent render | local | partial | `resolveDefaultRqsStore` in packages/snapback-client/rqs-store-default.mjs + `demos/public-dashboard/tests/acceptance/offline-local-first.mjs` (Node/file, same-process) + `demos/zero-bakeoff/stage0/browser/run.mjs` (browser substrate) + packages/snapback-client/rqs-resume.test.mjs (auth-scoped refusal receipt) + `demos/browser-local-first/tests/acceptance/browser-public-witness.mjs` | llp/0043, llp/0090, llp/0129, llp/0155, llp/0166 | sync/offline-and-retention.md |
 | sync.offline-js-arm-sessions | JS-arm offline queue under browser-session and agent custody (LLP 0043 §Auth posture, ratified 2026-08-04, implemented 2026-08-06): capture-at-enqueue authority descriptor + principal scope + durable custody lineage; same-principal replacement sessions strand rerecordable work for explicit read/discard/re-record-as-new-`clientMutationId`; principal change privacy-deletes predecessor queue bytes with a diagnostic count before successor observation; `SNAPBACK_AUTH_STALE_RESULT` replay refusals strand terminally while content refusals stay failed; v1 is server-refusal-only (no LLP 0053 queue-obligation port — named Contract-arm asymmetry) | sessions custody, agent custody offline, strand, re-record, cross-principal delete, offline auth queue | local | shipped | demos/card-game/tests/acceptance/offline-sessions-custody.mjs + packages/snapback-client/outbox-custody.test.mjs | llp/0043, llp/0053, llp/0129 | sync/offline-and-retention.md |
@@ -97,7 +97,9 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | clients.mutation-outcomes | Raw provider settlement facts plus Exact three-fact mutation projection | mutation state, timeout, retry, receipt, ambiguity | local | shipped | `partitime.step1-mutation-projection.v1` in demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs | llp/0043, llp/0063 | clients/contract-adapter.md |
 | clients.optimistic-overlays | Derived optimistic mutations + reconciliation | optimistic, overlays, latency | local | shipped | `deriveOptimisticReducer` in packages/snapback-contract/index.mjs | llp/0052 | clients/contract-adapter.md |
 | clients.react | Prepared React provider over one headless store/transport seam: exact generated single/grouped live queries, capability-gated all-live and mixed-route references with one-commit register-mode adoption, explicit per-child registered-live/read-only boot provenance, honest weakest aggregate connection state, explicit live fallback, attach-deadline recovery, sessions authorization adoption, result-validated optimistic mutation rebase/rollback, local managed connection-keyed presence, per-query `freshness`/`retention` offline facts with the `useSnapbackOutbox` queued-intent projection, Strict Mode/HMR sharing, complete cleanup, and retained Signal Desk receipts | react, hooks, useSyncExternalStore, useSnapbackQuery, Convex useQuery, result inference, typed mutation, optimistic rollback, replay advisory, projectRecordFields, optimistic toggle helper, presence, ephemeral hook, useSnapbackPresence, typing indicator, query groups, mixed route, read-only snapshot, bundle prime, registered bundle, hmr, offline freshness, outbox badge, pending sidecar, application error, app refusal, appCode | local | shipped | `useSnapbackPresence` in packages/snapback-react/index.d.mts | llp/0012, llp/0064, llp/0074, llp/0090, llp/0101, llp/0114, llp/0106, llp/0107, llp/0129, llp/0157 | clients/react.md |
-| clients.optimistic-create | First-class typed optimistic create when the server mints the row ID — an intent-ID provisional row in the provider's query store, one intent → one canonical row under ambiguous retry; current paved shape is the pending sidecar in clients/react.md | optimistic create, optimistic insert, provisional row, pending row, intent id, client-generated id, temporary id, server-minted id | none | design-only | diaries/0044-contention-calendar-zero-bakeoff.diary.md (no shipped witness) | llp/0107, llp/0138 | GAP (owner: ccheever, review: 2026-09-30; issue: issues/20260801-optimistic-create-and-app-error-guide-gap.md); clients/react.md |
+| clients.react-paged-list | React load-more: unique raw keyset, whole-result merge, volatile archive; protected cursors stay headless | paginated list, load more, infinite scroll, whole-result replacement, retained pages, pageKey | local | shipped | packages/snapback-cli/templates/media-feed/acceptance.mjs | llp/0100, llp/0114, llp/0196 | recipes/paged-list.md |
+| clients.optimistic-mutation-view | Generated-IR optimistic create: durable intent, typed provisional row, logical-mint mapping, ambiguous retry | createOptimisticMutationView, optimistic create, server-minted ID, logical mint, idMap, ambiguous retry, response loss | local | shipped | `createOptimisticMutationView` in packages/snapback-client/index.d.mts | llp/0133, llp/0155 | recipes/optimistic-create.md |
+| clients.optimistic-create | First-class React-provider optimistic insert directly in a canonical `useSnapbackQuery` store; lower-level substrate ships separately | React optimistic create, useSnapbackMutation insert, optimistic insert hook, provider provisional row, pending row, intent id, temporary id | none | design-only | issues/20260808-first-class-react-optimistic-create.md (no provider/hook witness) | llp/0107, llp/0133, llp/0155 | GAP (owner: ccheever, review: 2026-09-30; issue: issues/20260808-first-class-react-optimistic-create.md); recipes/optimistic-create.md |
 | clients.surfaces | Generated application surfaces bind one screen/resource's reads, ordinary mutations, asset-bearing commands, raw assets, and presence around shared params; React and headless projections share canonical owners. The closed command task composes zero/one asset child with one ordinary mutation and reports truthful failure, ambiguity, and residue provenance. | defineSurface, useSurface, observeSnapbackSurface, application surface, screen surface, one hook for a screen, bind query and mutation, surface presence, conversation surface, useSnapbackSurface, defineCommand, useSnapbackCommand, image send, upload then mutate, command task | local | partial | `useSnapbackCommand` in packages/snapback-react/index.d.mts | llp/0179, llp/0180, llp/0114, llp/0176 | clients/surfaces.md |
 | clients.react-expo | React Expo Online; supervised no-URL simulator/emulator boot. G1 receipts prove those routes. The Expo web carrier is paved at package level (loopback-scoped bootstrap CORS + preflight, web-safe `#app-state` resolution, browser `File`/`Blob`/`blob:` picker sources); an end-to-end Expo-web receipt is still open. Cold boot with the supervisor stopped falls back to the cached non-secret binding plus the digest-bound persisted receipt (`preparation.source: 'persisted-receipt'`; admission/expiry unchanged, bearer never persisted). Android USB selection plus exact `adb reverse` ownership is headless-proven with a live Online receipt pending; iOS USB honestly refuses because current `devicectl` has no TCP forward and `iproxy` is the wrong direction. Physical-device capability, LAN/tunnel, and release remain unclaimed. | react native, expo, ios, android, expo web, react-native-web, bootstrap CORS, blob picker, physical device, USB device, snapback dev --expo, SnapbackExpoProvider, adb reverse, TCP/IP adb refused, ios udid, iproxy, 10.0.2.2, authority-required, restore lock, .snapback gitignore, copy project | local | shipped | `runExpoDev` in packages/snapback-cli/expo-dev.mjs + packages/snapback-cli/expo-bootstrap-exchange.test.mjs + packages/snapback-cli/expo-device-forwarding.test.mjs + simulator/emulator receipts | llp/0012, llp/0064, llp/0176, llp/0181 | clients/react-expo.md |
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance; crash detection | run server, ports, bindPortExactly, lifecycle, watchdog, crash, prebuilt binary, seed reset | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010, llp/0030 | testing/acceptance.md |
@@ -142,8 +144,8 @@ examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-07
-reviewed-commit: cca0db7d8e94c8d4943eb808d4e10238a506c70c
+reviewed: 2026-08-08
+reviewed-commit: HEAD
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -424,6 +426,13 @@ you never build around a feature because you didn't know it existed.
   count: atomic two-field projection, replayable capture-and-set reducers,
   complete-receipt matching, and the one-canonical-store rule across query
   surfaces.
+- [Paginated and load-more lists](./recipes/paged-list.md) — a unique
+  immutable keyset boundary, whole-result live replacement, React archive
+  assembly, and honest retained-state limits (media-feed, distilled).
+- [Optimistic create with a server-minted ID](./recipes/optimistic-create.md)
+  — generated mutation IR, durable intent identity, typed provisional
+  presentation, logical-mint mapping, and ambiguous retry (Contention
+  Calendar, distilled).
 - [Coming from Convex/Supabase?](./recipes/coming-from-convex-and-supabase.md)
   — worked-example translations of common Convex/Supabase journeys into
   Snapback, CI-verified against real demo sources (LLP 0186 W2).
@@ -916,7 +925,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 98257903f5b726e1e19fe9ac3132ea3ed83ecd78
+reviewed-commit: HEAD
 ---
 
 # Retrieval eval protocol
@@ -1073,11 +1082,12 @@ Lane 1 misses, absorbed 2026-08-07).
 16. **Domain errors and optimistic create:** "Show 'card is locked' copy when
     a mutation is rejected, and optimistically create a row whose ID the
     server mints." The run fails if the plan parses `SNAPBACK_HANDLER_FAILED`
-    message text, or forges a provisional generated row ID instead of the
-    intent-keyed pending sidecar.
-    Expected pages: `clients/react.md` (both sections) and
+    message text, forges a provisional generated row ID, or claims the
+    lower-level optimistic mutation view is a first-class provider hook.
+    Expected pages: `clients/react.md`, `recipes/optimistic-create.md`, and
     `backend/mutations.md` (declared refusals).
-    Route terms: "optimistic create", "ctx.refuse", "refusals".
+    Route terms: "optimistic create", "server-minted ID", "ctx.refuse",
+    "refusals".
 
 Case 17 is an absorption seed from the 2026-08-07 three-lane measurement
 (Diary 0066 finding 6, `issues/20260807-arg-filtered-retention-none-maze.md`).
@@ -1198,10 +1208,31 @@ Case 26 absorbs the duplicated native-lane simulator setup recorded in
     Route terms: "headless simulator", "plistlib", "Expo Go onboarding",
     "simctl openurl", "deep-link drive channel".
 
-Cases 27–28 absorb the structured route-argument and mutation-settlement
-guide gaps filed after the 2026-08-08 Zerobugs authoring pass.
+Cases 27–30 absorb the paged-list, server-minted optimistic-create,
+structured route-argument, and mutation-settlement guide gaps closed or
+narrowed on 2026-08-08.
 
-27. **Structured route arguments:** "Bundle `/projects/:projectId` into a
+27. **React load-more list:** "Build an infinite-scroll React feed whose
+    live queries replace whole page results, survives equal timestamps at the
+    boundary, and explains what is actually retained after reload." The run
+    fails if the plan paginates on `createdAt`, appends every replacement,
+    claims the assembled archive is durable, or feeds a raw key into a
+    standard-pattern opaque cursor.
+    Expected pages: `recipes/paged-list.md`.
+    Route terms: "load more", "infinite scroll", "whole-result replacement",
+    "retained pages", "pageKey".
+
+28. **Server-minted optimistic ID under response loss:** "Show a provisional
+    create in the same filter/order/count projection as canonical rows, then
+    lose the response after commit and settle one intent to one server ID."
+    The run fails if the plan forges `Id<Table>`, authors a second reducer,
+    retries with a fresh intent, guesses the mapping by content/call order, or
+    claims a first-class `useSnapbackMutation` insert API exists.
+    Expected pages: `recipes/optimistic-create.md`.
+    Route terms: "createOptimisticMutationView", "logical mint", "idMap",
+    "ambiguous retry", "response loss".
+
+29. **Structured route arguments:** "Bundle `/projects/:projectId` into a
     query taking `{ context: { projectId, cursor: null, sort: 'asc', tags:
     ['open'] } }`." The run fails if the plan flattens `context`, adds a
     server-side merge, puts `routeParam()` inside an array, or invents
@@ -1210,7 +1241,7 @@ guide gaps filed after the 2026-08-08 Zerobugs authoring pass.
     Route terms: "structured route arguments", "nested routeParam",
     "query context", "route group args".
 
-28. **Replay-stable effect intent:** "A client mutation writes a notification
+30. **Replay-stable effect intent:** "A client mutation writes a notification
     intent; retries must reuse one provider idempotency key even if the handler
     threw before commit." The run fails if the plan uses `ctx.runtime.id()`,
     parses or hashes the raw `clientMutationId`, calls the settlement surface
@@ -8724,7 +8755,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-commit: HEAD
 ---
 
 # The headless client
@@ -9254,7 +9285,10 @@ on demand: `registerQuery`/`releaseQueryRegistration`
 and `storePolicyInspection` is the value-free retention/policy inspection for
 one authority partition. `createOptimisticMutationView` is the public
 LLP 0155 rebase view: app code supplies the authoritative rows and every
-private optimistic layer is replayed from the durable outbox in sequence.
+private optimistic layer is replayed from the durable outbox in sequence. For
+the generated-insert, typed provisional-identity, logical-mint mapping, and
+ambiguous-retry composition, follow the
+[optimistic-create recipe](../recipes/optimistic-create.md).
 
 Members whose names start with `__` (for example
 `__registerExternalBearerHandle`) are internal composition seams between the
@@ -9571,7 +9605,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-commit: HEAD
 ---
 
 # The React client
@@ -9949,20 +9983,26 @@ and a presentation-only key needs no unpredictability.
 
 Render the pending items beside the query rows, marked as unsettled. On
 rejection, only the corresponding pending item disappears; on success the
-authoritative row replaces it through the ordinary live update. The
-contention-calendar bakeoff arm
-([diary 0044](repo:diaries/0044-contention-calendar-zero-bakeoff.diary.md))
-is the witness for this shape — and for the type system correctly refusing
-the forgery.
+authoritative row replaces it through the ordinary live update. This is the
+smallest hook-native shape when a pending item does not need to participate in
+query filtering, ordering, counts, or relationships.
 
 This is honestly less composable than a provider-owned optimistic insert: the
 pending row does not participate in the query store's filtering, sorting, or
-counting. A first-class typed intent-ID optimistic create — a provisional row
-in the provider's store that reconciles one intent to one canonical row under
-ambiguous retry — is an explicit GAP
+counting. When the create **does** need those semantics, the shipped
+framework-neutral generated-IR path uses
+`SnapbackClient.createOptimisticMutationView`, durable protocol intent
+identity, and the server's logical-mint map without forging a canonical id;
+follow the CI-verified
+[optimistic-create recipe](../recipes/optimistic-create.md). That path is
+lower-level than this provider/hook.
+
+A first-class typed intent-ID optimistic create directly in the provider's
+canonical query store — reconciling one intent to one canonical row under
+ambiguous retry — remains an explicit GAP
 (`clients.optimistic-create` in the [capability index](../capabilities.md);
 issue
-[20260801-optimistic-create-and-app-error-guide-gap](repo:issues/20260801-optimistic-create-and-app-error-guide-gap.md)).
+[20260808-first-class-react-optimistic-create](repo:issues/20260808-first-class-react-optimistic-create.md)).
 
 ## Show stable application errors through rollback
 
@@ -17795,11 +17835,400 @@ not.
 
 ---
 
+<!-- snapback-guide-source: guide/recipes/paged-list.md -->
+---
+title: "Recipe: paginated and load-more lists"
+id: recipes.paged-list
+order: 4
+audience: agent-first
+capabilities: [clients.react-paged-list]
+authorities: [llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0196-template-and-recipe-portfolio.plan.md, packages/snapback-cli/templates/media-feed/snapback/schema.mjs, packages/snapback-cli/templates/media-feed/snapback/functions.mjs, packages/snapback-cli/templates/media-feed/App.tsx, packages/snapback-cli/templates/media-feed/acceptance.mjs]
+examples: [packages/snapback-cli/templates/media-feed]
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-08-08
+reviewed-commit: HEAD
+---
+
+# Recipe: paginated and load-more lists
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+Use a live query for the current window and a second bounded query for rows
+strictly before its oldest unique key. In React, keep older whole-result pages
+in a small presentation sidecar and deduplicate the combined list by canonical
+row id. The `media-feed` template is the complete executable carrier:
+
+```sh
+npx create-snapback-app my-feed --template media-feed
+cd my-feed
+npm run prove
+```
+
+This recipe is for a public/shared feed with a raw, application-owned unique
+boundary. Owner- and membership-protected generated pages have an opaque
+cursor and a different custody contract; [use that path](#use-opaque-cursors-for-protected-pages)
+instead of copying this public-feed shape.
+
+## Give every row a unique immutable page key
+
+A display timestamp is not a keyset boundary. Two rows can share one
+millisecond, and `createdAt < before` would skip the second row if the page
+break landed between them. Keep `createdAt` for display, but order and filter
+on an independently unique immutable string. The template combines a
+zero-padded server time with a server runtime id:
+
+```js source=packages/snapback-cli/templates/media-feed/snapback/functions.mjs
+  handler: async (ctx, args) => {
+    const createdAt = ctx.runtime.now();
+    return ctx.db.insert('entries', {
+      ownerId: ctx.auth.userId,
+      authorName: args.authorName,
+      caption: args.caption,
+      photo: await ctx.assets.attach(args.photo, { upload: 'feedPhotoUpload' }),
+      // Time keeps feed order intuitive; the runtime id makes the boundary
+      // unique even when two entries share the same millisecond.
+      pageKey: `${String(createdAt).padStart(16, '0')}:${ctx.runtime.id()}`,
+      createdAt,
+    });
+  },
+```
+
+Declare `pageKey` required and the index unique. If the application permits
+editing rows, make `pageKey` immutable explicitly; moving a boundary field
+during traversal can legitimately move that row across the boundary. This is
+the unique continuation contract in [safe standard patterns](../backend/standard-patterns.md#generate-keyset-pages),
+applied here to a public unpartitioned feed.
+
+## Query the current window and one older window
+
+Both queries are bounded and use the same descending index. The older query's
+strict comparison means the boundary row cannot repeat:
+
+```js source=packages/snapback-cli/templates/media-feed/snapback/functions.mjs
+export const liveFeed = defineLiveQuery({
+  table: 'entries',
+  args: {},
+  order: [desc('pageKey')],
+  index: 'by_page_key',
+  limit: 6,
+  auth: 'public',
+  authorityIndependent: true,
+});
+
+export const olderFeedPage = defineLiveQuery({
+  table: 'entries',
+  args: { before: v.string() },
+  filter: [ltFilter('pageKey', arg('before'))],
+  order: [desc('pageKey')],
+  index: 'by_page_key',
+  limit: 6,
+  auth: 'public',
+  authorityIndependent: true,
+});
+```
+
+These are live queries, so each delivery replaces the complete result for its
+exact `(query, args)` identity. Do not append every replacement blindly. The
+current window remains query-owned; only the accumulated archive is local
+presentation state.
+
+## Accumulate replacements without duplicating rows
+
+Start the older hook as `skip`, then activate it with the oldest rendered
+`pageKey`. When a whole older page arrives, append only canonical ids that are
+absent from both the current live window and the archive:
+
+```tsx source=packages/snapback-cli/templates/media-feed/App.tsx
+  const first = useSnapbackQuery(api.liveFeed, {});
+  const [before, setBefore] = useState<string | null>(null);
+  const [archive, setArchive] = useState<readonly Entry[]>([]);
+  const [exhausted, setExhausted] = useState(false);
+  const older = useSnapbackQuery(api.olderFeedPage, before === null ? skip : { before });
+```
+
+```tsx source=packages/snapback-cli/templates/media-feed/App.tsx
+  useEffect(() => {
+    if (older.status !== 'ready' && older.status !== 'refreshing') return;
+    setArchive((current) => {
+      const seen = new Set(firstRows.map((row) => row._id));
+      const merged = [...current];
+      let changed = false;
+      for (const row of older.data) {
+        if (!seen.has(row._id) && !merged.some((item) => item._id === row._id)) {
+          merged.push(row);
+          changed = true;
+        }
+      }
+      return changed ? merged : current;
+    });
+    setExhausted(older.data.length < 6);
+  }, [firstRows, older]);
+
+  const entries = useMemo(() => {
+    const seen = new Set<string>();
+    return [...firstRows, ...archive].filter((entry) => {
+      if (seen.has(entry._id)) return false;
+      seen.add(entry._id);
+      return true;
+    });
+  }, [firstRows, archive]);
+```
+
+Advance only when there is a row and the boundary actually changed. A short
+page is terminal; a full final page needs one more request to observe the
+empty terminal page:
+
+```tsx source=packages/snapback-cli/templates/media-feed/App.tsx
+  const loadOlder = () => {
+    if (exhausted || older.status === 'pending') return;
+    const oldest = entries.at(-1);
+    if (oldest && oldest.pageKey !== before) setBefore(oldest.pageKey);
+  };
+```
+
+`FlatList.onEndReached` calls `loadOlder`; a button can call the same function.
+Keep `_id` as the render key. The template's live acceptance deliberately puts
+equal `createdAt` values on opposite sides of the page break, proves twelve
+unique rows, inserts a newer row, and proves the historical page did not
+shift.
+
+## Treat retention and the archive as different things
+
+The provider may render a retained snapshot for an eligible exact
+`(query, args)` registration and reports that fact through
+`QueryState.freshness`/`retention`. The `archive` array above is ordinary React
+state. It is **not** part of the retained query store and disappears on reload.
+Do not label the assembled infinite list offline-complete merely because the
+current window or one previously registered page can render retained.
+
+For protected data, also clear every caller-owned accumulated page at the
+same authorization cut that blanks the protected current window. Retaining an
+archive past logout or membership removal would turn presentation state into
+an ungoverned cache.
+
+## Use opaque cursors for protected pages
+
+`defineOwnedKeysetPages` and `defineMembershipKeysetPages` return an envelope
+with `rows` and an opaque custody-bound cursor. The membership pair is
+callable-only by design. That envelope is not the array-shaped generated live
+query accepted by `useSnapbackQuery`, and the React `QueryState` does not
+surface a hidden cursor. Invoke those pages with the
+[headless client's `query`](../clients/headless.md) from an application-owned
+control, thread the returned cursor verbatim, and clear accumulated rows on an
+authority cut. Do not substitute the raw `pageKey` or cast the callable page
+into a live hook.
+
+This is an honest API boundary: the public media-feed recipe needs no new
+platform primitive, while a first-class React hook for opaque callable pages
+would be a separate client feature.
+
+## Anti-patterns
+
+- Do not paginate on a non-unique timestamp or offset.
+- Do not append every live replacement; merge by canonical `_id`.
+- Do not claim the React archive is retained or offline-complete.
+- Do not feed a raw boundary to a standard-pattern cursor argument.
+- Do not keep protected accumulated rows across logout, membership loss, or
+  another authority partition change.
+
+---
+
+<!-- snapback-guide-source: guide/recipes/optimistic-create.md -->
+---
+title: "Recipe: optimistic create with a server-minted ID"
+id: recipes.optimistic-create
+order: 5
+audience: agent-first
+capabilities: [clients.optimistic-mutation-view]
+authorities: [llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0133-local-settlement.spec.md, llp/0155-local-sync-product-direction.rfc.md, packages/snapback-client/index.mjs, demos/zero-bakeoff/apps/contention-calendar/snapback/functions.mjs, demos/zero-bakeoff/apps/contention-calendar/snapback/src/App.tsx, tests/acceptance/contention-calendar-rung2-v1.mjs]
+examples: [demos/zero-bakeoff/apps/contention-calendar, tests/acceptance/contention-calendar-rung2-v1.mjs]
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-08-08
+reviewed-commit: HEAD
+---
+
+# Recipe: optimistic create with a server-minted ID
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+Snapback can render an optimistic insert before the server mints its canonical
+row id without forging a generated `Id<Table>`. The shipped path is the
+framework-neutral `SnapbackClient.createOptimisticMutationView` over a durable
+outbox and a locally executable generated mutation IR. Contention Calendar is
+the executable React witness, and its retained rung-2 acceptance proves
+provisional filtering/order/count/relationships, rejection, logical-mint id
+mapping, response-loss retry, and observer convergence.
+
+This is a lower-level composition than `useSnapbackMutation`. There is still
+no first-class provider-owned React hook that inserts a typed provisional row
+into a canonical `useSnapbackQuery` store; that ergonomic capability remains
+the explicit `clients.optimistic-create` GAP.
+
+## Author one generated insert
+
+Use `defineMutation`, not a server JS mutation plus a separate application
+optimistic reducer. The generated plan is the one authored operation the local
+evaluator predicts and the server executes authoritatively:
+
+```js source=demos/zero-bakeoff/apps/contention-calendar/snapback/functions.mjs
+export const reserve = defineMutation({
+  args: {
+    idempotencyKey: v.string(),
+    resourceKey: v.string(),
+    slotKey: v.string(),
+    ownerId: v.string(),
+    title: v.string(),
+    now: v.integer(),
+  },
+  result: results.value(v.id('reservations')),
+  plan: insert('reservations', {
+    idempotencyKey: arg('idempotencyKey'),
+    resourceKey: arg('resourceKey'),
+    slotKey: arg('slotKey'),
+    resourceSlotKey: concat(arg('resourceKey'), '|', arg('slotKey')),
+    ownerId: arg('ownerId'),
+    title: arg('title'),
+    createdAt: arg('now'),
+  }, { bindIdAs: 'reservationId' }),
+  returns: returnBinding('reservationId'),
+});
+```
+
+Generation must classify the mutation `local-executable`. Unsupported local
+IR refuses or degrades explicitly; do not add a handwritten reducer while
+claiming same-operation parity.
+
+## Keep provisional and canonical identities distinct
+
+The optimistic layer contains a speculative mint, but application UI must not
+cast it to the branded canonical id. Derive presentation identity from the
+layer's durable `clientMutationId`; use the generated row id only after the
+authoritative query supplies it:
+
+```tsx source=demos/zero-bakeoff/apps/contention-calendar/snapback/src/App.tsx
+type VisibleReservation = Readonly<{
+  identity:
+    | Readonly<{ kind: 'provisional'; intentId: string }>
+    | Readonly<{ kind: 'canonical'; id: Reservation['_id'] }>;
+  fields: ReservationFields;
+  resourceTitle: string;
+}>;
+```
+
+That distinction prevents a speculative string from leaking into mutation
+arguments or durable application state as if the server had minted it. It also
+gives React a stable key: `intent:${intentId}` while provisional,
+`canonical:${id}` after authoritative delivery.
+
+## Open one view over the canonical base
+
+The client needs a durable RQS store and offline queue. Fetch the canonical
+rows, create the optimistic view, subscribe to it, and rebase it whenever the
+canonical live query advances:
+
+```tsx source=demos/zero-bakeoff/apps/contention-calendar/snapback/src/App.tsx
+      const view = await client.createOptimisticMutationView({
+        authoritativeRows: { reservations: scheduleRows.rows },
+        connected: true,
+      });
+```
+
+The view replays private generated-IR layers over the newest authoritative
+base in durable sequence. Projection code can filter, sort, count, and join
+the `visibleRows` with already-complete bounded local data; it must preserve
+the identity union above and never expose a provisional mint as canonical.
+
+## Mutate normally, then retire by settlement identity
+
+`client.mutate(api.reserve, { args })` sees the generated IR, records durable
+intent, and paints the provisional row before the server response. On success,
+install authoritative rows and retire the exact `clientMutationId`:
+
+```tsx source=demos/zero-bakeoff/apps/contention-calendar/snapback/src/App.tsx
+      const schedule = await client.query(api.schedule);
+      canonicalRef.current = schedule.rows;
+      await viewRef.current?.rebase({
+        authoritativeRows: { reservations: schedule.rows },
+        retiredSettlementIdentities: settlement.clientMutationId
+          ? [settlement.clientMutationId]
+          : [],
+        connected: true,
+        cause: 'reservation-authoritative-delivery',
+      });
+```
+
+A successful server-minted insert carries an LLP 0133 `idMap`. The mapping is
+not guessed from equal row content, call order, or mint counts: it pairs the
+local and authoritative ids by logical mint identity `(site, occurrence)`.
+The executable acceptance checks every member:
+
+```js source=tests/acceptance/contention-calendar-rung2-v1.mjs
+  assert.equal(mapping.speculative, claim.claimed);
+  assert.equal(mapping.site, claim.site);
+  assert.equal(mapping.occurrence, claim.occurrence);
+  assert.equal(mapping.authoritative, settlement.result);
+  assert.equal(mapping.disposition, 'mapped');
+```
+
+On rejection, refresh/rebase from the canonical base. The rejected private
+layer retires immediately and later layers replay. Show a stable declared
+application refusal when the backend supplies one; never parse handler message
+text ([declared refusals](../backend/mutations.md#consume-the-structured-result)).
+
+## Reuse the exact intent after an ambiguous response
+
+Do not call the mutation again as a new user intent after response loss. The
+durable outbox replays the original `clientMutationId` and its exact
+semantics-affecting identity. The server's settlement ledger republishes the
+stored result and the same logical-mint mapping, so one intent creates one
+canonical row.
+
+Contention Calendar's retained receipt proves two wire attempts, one
+authoritative application, the same result, and the same `idMap` after a
+simulated response loss **after commit**. Run the source check without a
+server:
+
+```sh
+node tests/acceptance/contention-calendar-rung2-v1.mjs --check
+```
+
+The same view also replays pending generated operations on boot. App code owns
+view/live-handle teardown and must keep one authority partition per durable
+store; never adopt an old authority's optimistic layers into a new principal.
+
+## Choose the right current path
+
+| Need | Current path |
+| --- | --- |
+| A simple React form where pending rows need no query filtering, ordering, counts, or relationships | Use the component-local intent-keyed pending sidecar in [the React guide](../clients/react.md#optimistically-create-a-row-the-server-will-name). |
+| Generated-IR create must participate in one shared local projection and survive ambiguous retry/restart | Compose `createOptimisticMutationView` as this recipe shows. |
+| A provisional row directly inside the provider's typed `useSnapbackQuery` store through a first-class hook | GAP: `clients.optimistic-create`; do not pretend this lower-level view is that API. |
+
+## Anti-patterns
+
+- Do not cast or admit a speculative mint as `Id<Table>`.
+- Do not author a generated mutation IR and a second optimistic reducer for
+  the same operation.
+- Do not settle by row-content equality, response order, or mint count.
+- Do not retry an ambiguous mutation under a fresh intent identity.
+- Do not claim `useSnapbackMutation` has a first-class optimistic-insert
+  option; the shipped view is a lower-level headless composition.
+
+---
+
 <!-- snapback-guide-source: guide/recipes/coming-from-convex-and-supabase.md -->
 ---
 title: "Recipe: coming from Convex and Supabase"
 id: recipes.coming-from-convex-and-supabase
-order: 4
+order: 6
 audience: agent-first
 capabilities: [backend.functions, auth.scoped-queries, clients.react, backend.assets, backend.relational-queries, realtime.ephemeral]
 authorities: [llp/0186-agent-authoring-efficiency-program.plan.md, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs, demos/expo-golden-path-fixture/snapback/schema.mjs, demos/expo-golden-path-fixture/snapback/functions.mjs, demos/expo-golden-path-fixture/src/screens/chat-screen.tsx, demos/competitive-checkpoint/snapback/functions.mjs, demos/messaging-snapback/src/lib/useTyping.ts, demos/cursors-web/snapback/schema.mjs, packages/snapback-react/exact-result-types.fixture.ts]
