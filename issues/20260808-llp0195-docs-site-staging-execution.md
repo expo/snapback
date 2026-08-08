@@ -143,3 +143,11 @@ benchmark publication occurred. Remaining work is the D1–D4 author decision
 set, selection/configuration of a deploy target if D1 is yes, and one
 orchestrator-side preview using the command above before any later authorized
 publication step.
+
+## Author ruling — 2026-08-08
+
+D1: PUBLISH — "will publish soon" (Charlie, in session). Timing is
+author-held; the staged artifact and generator are ready. D2 (example
+licensing), D3 (snapshot policy), D4 (benchmarks on site) were not
+explicitly ruled this turn — the memo's recommendations stand as
+proposals and need explicit confirmation before or at first deploy.

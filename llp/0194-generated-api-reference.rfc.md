@@ -1,11 +1,11 @@
 # LLP 0194: Generated API reference surface
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Guide, Documentation, Client packages, Types, Build
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (r8, round-6 fixes: export parity split value-space vs type-space (non-runtime registry kinds exempt from the runtime check); acceptance 2 requires bootstrap removal/conversion + CI duplicate-ownership rejection once the ctx declaration lands.) 2026-08-08 (r7, author-merge: Charlie's action-economy revision
+**Revised:** 2026-08-08 (Accepted by Charlie Cheever — author ruling in session; final review binding per llp/reviews/0193-*.run.md close-out: 0194 dual-READY at r8, the others accepted with the enumerated r9 tail.) 2026-08-08 (r8, round-6 fixes: export parity split value-space vs type-space (non-runtime registry kinds exempt from the runtime check); acceptance 2 requires bootstrap removal/conversion + CI duplicate-ownership rejection once the ctx declaration lands.) 2026-08-08 (r7, author-merge: Charlie's action-economy revision
 — a canonical machine-readable symbol registry becomes the authority behind
 Markdown, CLI, and MCP projections; a published `ctx` declaration source is
 required with hand-fenced prose permitted only as a temporary bootstrap
@@ -119,9 +119,10 @@ gap.
 - OQ1: Initial registry and projection size budgets. Per-package
   Markdown may exceed the flat-guide discipline; module/symbol slicing
   must be measured.
-- OQ2: Which published package/module owns the `ctx` declaration file.
-  The requirement for a declaration source is decided here; only its
-  placement and compatibility rollout remain open. (Verify-config needs
+- OQ2: RULED (author, 2026-08-08): `@expo/snapback-codegen/ctx` owns
+  the `ctx` declaration file, per the execution lane's proposal
+  (issues/20260808-llp0194-symbol-registry-execution.md); the
+  types-only export condition is acceptable. Implementation follows. (Verify-config needs
   no OQ: its `verify.d.mts` export exists and is `.d.mts`-traversable
   by the Design-2 registry builder.)
 - OQ3: Whether doc comments in `.d.mts` are complete enough to render

@@ -272,3 +272,11 @@ DYLD_FRAMEWORK_PATH=$PWD/vendor/ibex/ios/Frameworks cargo test --locked --test s
 
 Nothing else remains in the deferred native scope. No git commit was attempted;
 the sandbox does not permit git-metadata writes.
+
+## Author ruling — 2026-08-08
+
+OQ2 RATIFIED (Charlie, in session): `@expo/snapback-codegen/ctx` owns
+the ctx declaration source, types-only export condition accepted.
+Implementation lane launched: ctx.d.mts under snapback-codegen,
+registry inclusion as type-only kinds, bootstrap page retirement per
+Acceptance 2, CI duplicate-ownership rejection.

@@ -1,12 +1,12 @@
 # LLP 0195: Public documentation, examples, and training-data surface
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Documentation, Publishing, Guide, Templates, Competitive
 evaluation
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (r9, round-7 fix: Proposal 4's residual "could isolate the training effect" clause aligned with the rewritten OQ4 — familiarity surveillance only.) 2026-08-08 (r8, round-6 fixes: OQ4 recast as familiarity surveillance only — epoch changes cannot establish corpus presence; per-release snapshots marked as proposed D3 default.) 2026-08-08 (r7, author-merge: Charlie's revision — publication
+**Revised:** 2026-08-08 (Accepted by Charlie Cheever — author ruling in session; final review binding per llp/reviews/0193-*.run.md close-out: 0194 dual-READY at r8, the others accepted with the enumerated r9 tail.) 2026-08-08 (r9, round-7 fix: Proposal 4's residual "could isolate the training effect" clause aligned with the rewritten OQ4 — familiarity surveillance only.) 2026-08-08 (r8, round-6 fixes: OQ4 recast as familiarity surveillance only — epoch changes cannot establish corpus presence; per-release snapshots marked as proposed D3 default.) 2026-08-08 (r7, author-merge: Charlie's revision — publication
 binds to a qualified closure/content digest rather than moving HEAD; public
 examples become generated projections with a single canonical owner; the
 two-clocks success measures separate immediate retrieval from long-horizon
