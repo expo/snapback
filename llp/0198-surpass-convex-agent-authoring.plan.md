@@ -6,6 +6,13 @@
 Templates, Error handling, Operations, Publishing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
+**Revised:** 2026-08-08 (b — round-1 super-refine revision, both
+families NOT READY on (a): P0 restaged against the N≥8 variance floor;
+victory conditions → claim ladder with 0197-4a labeling and
+requalification semantics; run-5 zero-defect claim precise; P1
+record-measurable and ownership-corrected (0194 exclusions, 0171
+Finding D); trust-boundary/day-2 briefs; cross-family leg P0b. Reviews:
+`llp/reviews/0198-surpass-convex-agent-authoring.{claude,gpt-5}.md`.)
 **Revised:** 2026-08-08 (a — Draft → Review at llp-super-refine loop
 start, the one authorized transition; design-partner mode requested by
 the author, GPT-family reviewer weighted toward generative input)
@@ -23,32 +30,29 @@ Five instrumented measurement runs (2026-08-05 → 2026-08-08) plus the
 qualitative bakeoff corpus now give a complete picture of where Snapback
 stands against Convex as a backend for coding agents. The short version:
 **the defect war is won and the knowledge war is winnable; what remains
-after that is orientation (training-data presence), operations
+after that is orientation (prior model familiarity), operations
 productization, and the discipline to claim a win only when the
 instrument supports it.** Run 5 (diary 0069, npm 0.1.15) recorded zero
-framework defects in any Snapback lane for the first time — the entire
-skill-lane backend passed codegen and typecheck first-try — yet Convex
+defect-shaped framework loops in any Snapback lane for the first time —
+the skill lane's entire backend passed codegen and typecheck first-try,
+and the bare lane's two remaining framework-attributed loops were
+knowledge-shaped (the template web-deps gap), not defects. Yet Convex
 still finishes the same brief in roughly half the wall-clock and 45% of
 the tokens, almost entirely because the model already knows Convex and
 must still read to learn Snapback.
 
-This Plan does three things no single existing document does:
-
-1. **Captures the current state in one place** — the measured series, the
-   correction-loop trajectory, the scored-rubric record, the qualitative
-   likes/dislikes synthesis across eight diaries, and Convex's own
-   strengths and weaknesses as the lanes found them.
-2. **Defines "surpass"** as four explicit victory conditions with the
-   evidence each requires under LLP 0189's claim-gating rules.
-3. **Sequences the endgame** — the already-owned lanes (0193–0197), the
-   two gaps no document owns yet (operations productization; a brief that
-   measures the trust-boundary dimension the current corpus zeroes out),
-   and the N≥3 measurement protocol that must precede any claim.
-
-This Plan re-owns no mechanism from 0186/0187/0193–0197; where those
-documents own a lane, this Plan cites and sequences it. Its original
-contributions are the synthesis (Part I), the victory conditions, the
-real-auth brief proposal, and the operations-dimension ask (Part II).
+This Plan does three things no single existing document does: it
+**captures the current state in one place** (the measured series, the
+loop trajectory, the scored-rubric record, the qualitative synthesis,
+and Convex's own profile as the lanes found it); it **defines "surpass"
+as an explicit claim ladder** — which conjunction of evidence supports
+which public phrase, under LLP 0189 claim gating and LLP 0197's
+publication standard; and it **sequences the endgame** across the owned
+lanes (0193–0197) and the gaps no document owns yet. It re-owns no
+mechanism from 0186/0187/0193–0197; its original contributions are the
+synthesis (Part I), the claim ladder and requalification semantics, the
+trust-boundary and day-2 brief proposals, the cross-family replication
+leg, and the operations-dimension ask (Part II).
 
 ---
 
@@ -59,15 +63,19 @@ real-auth brief proposal, and the operations-dimension ask (Part II).
 Same WhatsApp-shaped brief, same machine (M5 Max, shared with fleet
 load), serial cold-context lanes, published surfaces only from run 2
 onward, token counts from the orchestration harness. Primary tracked
-pair: skill-equipped Snapback web lane vs Convex.
+pair: skill-equipped Snapback web lane vs Convex. Bases differ across
+rows (as LLP 0197 requires stating): runs 1–2 predate the authoring
+skill — run 1 was in-checkout under Codex, run 2 was the bare
+published-consumer lane under Claude Fable 5; runs 3–5 are the
+skill-equipped lane under Claude Fable 5.
 
-| Run | Date | Basis | Snapback skill lane | Convex | Wall ratio | Token ratio |
+| Run | Date | Basis | Snapback lane (see basis) | Convex | Wall ratio | Token ratio |
 |---|---|---|---|---|---:|---:|
-| 1 (diary 0058) | 08-05 | in-checkout, Codex | 26m03s (no skill yet) | 11m15s | 2.32x | unmeasured |
-| 2 (diary 0065) | 08-06 | npm 0.1.10, bare | 36m33s / 330k tok | 12m27s / 101k | 2.94x | 3.26x |
-| 3 (diary 0066) | 08-07 | npm 0.1.12 | 64m00s / 329k | 14m01s / 111k | 4.57x | 2.95x |
-| 4 (diary 0068) | 08-07 | npm 0.1.13 | 26m22s / 226k | 16m36s / 113k | **1.59x** | **2.00x** |
-| 5 (diary 0069) | 08-08 | npm 0.1.15, first harness-native | 19m00s / 201k | 10m18s / 90k | 1.84x | 2.24x |
+| 1 (diary 0058) | 08-05 | in-checkout, Codex, no skill | 26m03s | 11m15s | 2.32x | unmeasured |
+| 2 (diary 0065) | 08-06 | npm 0.1.10, bare (no skill existed) | 36m33s / 330k tok | 12m27s / 101k | 2.94x | 3.26x |
+| 3 (diary 0066) | 08-07 | npm 0.1.12, skill | 64m00s / 329k | 14m01s / 111k | 4.57x | 2.95x |
+| 4 (diary 0068) | 08-07 | npm 0.1.13, skill | 26m22s / 226k | 16m36s / 113k | **1.59x** | **2.00x** |
+| 5 (diary 0069) | 08-08 | npm 0.1.15, skill, first harness-native | 19m00s / 201k | 10m18s / 90k | 1.84x | 2.24x |
 
 Reading rules established by the series itself:
 
@@ -77,11 +85,11 @@ Reading rules established by the series itself:
   run 5 posted its best-ever wall and tokens.
 - **The ratio is inside the noise.** Convex's run-5 lane was also its
   best ever (previous band 12.5–16.6m / 101–113k), so the ratio moved
-  1.59x → 1.84x with N=1 per configuration against a demonstrated ±30%
-  per-lane variance band. Diary 0069's verdict stands as this Plan's
+  1.59x → 1.84x with N=1 per configuration against an observed ±30%
+  per-lane spread. Diary 0069's verdict stands as this Plan's
   measurement posture: *ratio movement of this size is not a signal in
-  either direction; claiming the trend either way requires the N≥3
-  protocol.*
+  either direction; claiming the trend either way requires repetition*
+  (see P0 for the staged N≥3 / N≥8 design the protocol requires).
 - Run 3 is the cautionary tale in both directions: a structural wall
   (web carrier) tripled the gap in one release, and one seven-fix layer
   reversed it completely in the next. The gap is release-sensitive in
@@ -94,17 +102,19 @@ custody, offline registration, upload plumbing no longer hand-built);
 native-simulator 25m14s / 250k (2.45x / 2.78x) with all proofs on the
 simulator and zero failed `snapback` invocations.
 
-### I.2 The defect trajectory: walls → papercuts → zero
+### I.2 The defect trajectory: walls → papercuts → zero defects
 
 Framework-attributed correction loops in the skill lane: run 2 **4**
-(each costing a diagnosis-plus-workaround cycle — the CORS relay and
-offline fallback were real engineering), run 3 **8** (the web-carrier
-wall, replicated independently by both lanes), run 4 **3** (all
-papercuts), run 5 **0 backend / 0 framework across all three Snapback
-lanes**. The corresponding Convex figures were 2–3 per run, resolved
-"from its own error messages in minutes" (diary 0065) — that loop-quality
-asymmetry, not the loop count, was the felt-experience gap, and it is
-what run 5 eliminated.
+(each a diagnosis-plus-workaround cycle — the CORS relay and offline
+fallback were real engineering), run 3 **8** (the web-carrier wall),
+run 4 **3** (all papercuts), run 5 **0**. Precisely stated per the 0115
+record: **zero defect-shaped framework loops in any run-5 Snapback
+lane**; the bare lane retained ~2 framework-attributed loops that were
+knowledge-shaped (the expo-chat template's missing web deps). Convex's
+framework-attributed figures were 2, 3, 1, 0 (runs 2–5), resolved "from
+its own error messages in minutes" (diary 0065) — that loop-quality
+asymmetry, not the count, was the felt experience gap, and run 5
+eliminated its defect-shaped half.
 
 Diaries 0065/0066 established the working proxy: token cost tracks loop
 count almost linearly, making the correction-loop ledger the cheapest
@@ -145,9 +155,11 @@ Longer-standing open frictions not in the run-5 residue but carried in
 the corpus: the doc-comment/artifact-identity edit-loop tax (0186 W4's
 remaining item — a comment edit can still force a local-store rollover);
 the `optional-user` auth default in sessions apps (the one place the
-framework is default-open; diary 0057 escalated it); jobs'
-`maxAttempts: 1` default interacting with first-attempt platform
-contention.
+framework is default-open; diary 0057 escalated it; 0186 W3 already
+sequences the diagnostic); and first-attempt platform-contention
+failures interacting with jobs' `maxAttempts: 1` — where LLP 0171
+Finding D has already ruled that the default stays and the remedy is
+effect-safe retry/observability, not a blanket default increase.
 
 ### I.3 The scored-rubric record
 
@@ -159,23 +171,28 @@ operations/maturity 10%). Two scored runs exist:
 
 | Dimension (weight) | Run 1: S / C | Run 2: S / C | Movement and cause |
 |---|---|---|---|
-| Functional completeness (20%) | 96 / 97 | ~96 / 97 | stable; Convex marginally simpler to prove end-to-end |
+| Functional completeness (20%) | 96 / 97 | 95 / 97 | stable; run 2: "Convex first-run-passed everything" |
 | Realtime + typing (10%) | 95 / 80 | 95 / 80 | structural: one ephemeral declaration vs durable table + scheduled expiry + nonce + keepalive |
 | Offline behavior (20%) | 94 / 62 | 66 / 62 | the closure gate collapsed Snapback's best dimension in run 2; **repaved for npm consumers 08-07, first-try in all run-4/5 lanes — no scored run since** |
-| Images/assets (10%) | 82 / 92 | ~82 / 92 | Convex's 3-step flow "worked immediately"; Snapback's stronger policy/atomicity model taxed by authority ceremony (since paved) |
-| Data model + type safety (10%) | 94 / 91 | 94 / 91 | stable Snapback edge (closed result shapes, generated contracts) |
+| Images/assets (10%) | 82 / 92 | 78 / 93 | Convex's 3-step flow "worked immediately"; Snapback's stronger policy/atomicity model taxed by authority ceremony and the run-2 CORS relay (since paved) |
+| Data model + type safety (10%) | 94 / 91 | 94 / 90 | stable Snapback edge (closed result shapes, generated contracts; Convex's emoji-key refusal dinged in run 2) |
 | DX, docs, setup (15%) | 55 / 95 | 72 / 95 | biggest Snapback gain from the W0 plumbing wave; run-5's zero-defect result is unpriced |
 | Testability + diagnostics (5%) | 87 / 88 | 90 / 88 | operator CLI + codegen diagnostics praised throughout |
 | Operations + maturity (10%) | 62 / 96 | 70 / 96 | **the largest stable structural deficit**: Convex cloud dev is productized; Snapback is local-first with rigor but no equivalent hosted story |
 | **Weighted overall** | **84 / 86** | **81 / 86** | run-2 dip = offline forfeit outweighing DX gain |
-| Mature-hypothetical (run 1) | **97 / 96** | — | "chat is a local-first replicated log plus ephemeral coordination and referenced media; most deductions today are implementation/packaging maturity" |
+
+Run 1's mature-hypothetical scoring flips the winner (Snapback 97,
+Convex 96): "chat is fundamentally a local-first replicated log plus
+ephemeral coordination and referenced media," and "most of the
+deductions today are implementation/packaging maturity" (diary 0058,
+two adjacent passages).
 
 No scored rubric has been recorded since run 2. Given that runs 4–5
 repaired exactly the two dimensions that produced run 2's deficit
 (offline forfeited, DX at 72), the mature-hypothetical flip is plausibly
 already the published-surface reality — but under LLP 0189 that is a
-hypothesis, not a claim. **P0 below makes scoring the rubric part of
-every harness run so the record can say so.**
+hypothesis, not a claim. **P0 below makes rubric scoring a required part
+of the record format so the record can say so.**
 
 ### I.4 Qualitative synthesis: what agents say
 
@@ -214,23 +231,24 @@ with more evidence now):**
 drift (0057's top finding — three of its four biggest time sinks from
 one gap; closed by the published-closure fence), the human-shaped dev
 loop (closed), asset authority ceremony (paved), deployment pinning vs
-edit loop (open), sharp defaults (open), closed-shape failures without
-field names (closed), knowledge residue (open, owned by 0193/0194/0196).
+edit loop (open), sharp defaults (open, with 0171 Finding D bounding the
+jobs half), closed-shape failures without field names (closed),
+knowledge residue (open, owned by 0193/0194/0196).
 
 **Convex's profile as the lanes found it.** Strengths: one command to a
 live cloud deployment with zero code corrections; "reactivity is free";
 storage is a two-liner; anonymous local mode "remains the standout";
 compact TypeScript model; self-explanatory errors; and **zero
-documentation consumed in any run** — the training-data moat. Weaknesses
-the lanes hit: no offline contract (each lane hand-rolled a ~40–60-line
-cache its own report disclaimed as "not a real sync story" — offline
-writes would be lost); presence rebuilt expensively from durable
-primitives; the three-step upload's orphan window and bearer-URL
-snapshotting care; non-ASCII/emoji field names refused only at runtime
-("a real sharp edge for chat"); local backend lifetime tied to the CLI
-process ("undocumented-feeling"); circular-type inference on untyped
-`ctx.runMutation` callers; Node actions unable to read bundled files;
-N+1-ish reads at demo scale.
+documentation consumed in any instrumented run (2–5)** — prior model
+familiarity. Weaknesses the lanes hit: no offline contract (each lane
+hand-rolled a ~40–60-line cache its own report disclaimed as "not a
+real sync story" — offline writes would be lost); presence rebuilt
+expensively from durable primitives; the three-step upload's orphan
+window and bearer-URL snapshotting care; non-ASCII/emoji field names
+refused only at runtime ("a real sharp edge for chat"); local backend
+lifetime tied to the CLI process ("undocumented-feeling");
+circular-type inference on untyped `ctx.runMutation` callers; Node
+actions unable to read bundled files; N+1-ish reads at demo scale.
 
 **The verdict pattern, verbatim where it matters:** run 1 — "If I had to
 ship this prototype this week, I would choose Convex... If offline
@@ -245,20 +263,27 @@ prescriptive for media handling and evidence."
 
 ### I.5 The remaining gap, decomposed
 
-With defects at zero, the run-5 skill-lane delta (19m00s / 201k vs
-10m18s / 90k) decomposes into four named terms:
+With defect-shaped loops at zero, the run-5 skill-lane delta (19m00s /
+201k vs 10m18s / 90k) decomposes into four named terms:
 
 1. **Orientation (the dominant term).** Convex lanes read nothing;
    Snapback lanes still read the guide and, at the edges, package
-   source. Diary 0069: "the orientation gap is now the dominant term, as
-   predicted; it shrinks with training-data presence, not engineering."
-   Levers: LLP 0195 (public docs/training surface — "the only available
-   lever on the training-data moat"), LLP 0196 (templates: the series
-   proved scaffold beats guide beats package source), LLP 0194 (kill the
-   package-source excursions), the published skill (already worth ~10m
-   wall in run 5: 19m vs 29m35s bare).
+   source. Diary 0069: "the orientation gap is now the dominant term,
+   as predicted." Levers, in verified order: LLP 0196 (the series
+   proved scaffold beats guide beats package source — scaffold defaults
+   produced run 5's largest gain); the published skill (run 5's skill
+   lane ran ~10m faster than bare — though per diary 0068 the scaffold
+   now ships the skill, so the residual delta measures pre-scaffold
+   routing and is a single-run figure inside the observed spread);
+   LLP 0194 (kill the package-source excursions); LLP 0195 (the public
+   surface — the pre-install orientation and discoverability fix; its
+   training-data effect is, per 0195's own text, a plausible but
+   **unverified hypothesis**, so this Plan treats training-data
+   presence as upside, never a scheduled lever).
 2. **Knowledge residue.** The specific run-5 excursions of I.2 — each
-   maps 1:1 onto 0193/0194/0196 work items already drafted.
+   maps onto 0193/0194/0196 work items, with the ownership caveat P1
+   records (0194 currently *excludes* the `ctx` and verify-config
+   surfaces until declaration files land).
 3. **Deeper proof surface (not a cost to remove — a cost to price).**
    Snapback lanes register real verify profiles and prove platform
    retention with honest facts; Convex lanes pass a shallower bar with
@@ -274,20 +299,29 @@ With defects at zero, the run-5 skill-lane delta (19m00s / 201k vs
 
 ### I.6 Measurement caveats (carried into every claim)
 
-- N=1 per configuration everywhere; demonstrated ±30% per-lane variance;
-  same shared machine; one model family for runs 2–5 (Claude Fable 5;
-  run 1 was Codex). No ratio claim without the N≥3 protocol
-  (`benchmarks/README.md`, LLP 0186 OQ1/OQ2, LLP 0197 requirement 1).
+- N=1 per configuration everywhere; an observed ±30% per-lane spread
+  (itself an N=1-era estimate — `benchmarks/protocol.md` makes no
+  variance claim below N≥8); same shared machine; one model family for
+  runs 2–5 (Claude Fable 5; run 1 was Codex). No ratio claim without
+  the staged repetition design in P0.
 - One brief family (messaging) has ever been run; it favors
   realtime-native platforms (0186 OQ4). CRUD and media briefs are
-  authored but unrun.
-- **The auth seam caveat, which cuts against Snapback:** every messaging
+  authored but unrun — and because LLP 0196 T1/T2 build templates
+  against those same brief shapes, runs of them are *template-assisted*
+  scenarios under LLP 0197 rule 4a, never general-claim evidence.
+- **The auth-seam caveat, which cuts against Snapback:** every messaging
   arm on both sides used a client-supplied test-persona seam, not real
   authentication. The corpus therefore systematically measures the
   dimension Snapback is weakest on (setup ceremony) while zeroing the
   dimension it is strongest on (structural trust boundaries) — diary
   0057, the only real-auth run, is also the most pro-Snapback verdict.
-  No current brief prices this. Part II fixes that.
+- **The greenfield caveat, which cuts for Snapback:** every run builds
+  from empty, zeroing the dimension where Snapback's known open
+  frictions live — the artifact-identity rollover, deployment pinning
+  vs the edit loop, 0057's "story for evolving a sessions app without
+  dropping its database." Convex's edit-loop story is plausibly its
+  second advantage after familiarity. No current brief prices either
+  direction; P3 adds both.
 - Convex is a moving target: its run-5 lane was its best ever, and its
   weaknesses list is dated 2026-08-08 against the versions the lanes
   used.
@@ -296,112 +330,191 @@ With defects at zero, the run-5 skill-lane delta (19m00s / 201k vs
 
 ## Part II — The plan: parity, then past it
 
-### II.1 What "surpass" means — four victory conditions
+### II.1 What "surpass" means — a claim ladder
 
-Each condition is a claim under LLP 0189: snapshot-bound to a scoped
-qualification digest, never a gate requiring a complete proof at an
-exact commit, and requalified after drift rather than asserted as a
-standing fact.
+Each rung is a claim under LLP 0189 — snapshot-bound, requalified after
+drift — publishable only per LLP 0197 (all runs reported, instrument
+published, rule-4a scenario labeling). Every rung is scoped to the
+**pinned model family** until P0b answers family stability, and labeled
+**template-assisted** wherever a first-party template materially built
+the lane's start, with symmetric competitor starter selection.
 
-- **V1 — Efficiency parity (measured).** Skill-web lane ≤1.2x Convex
-  wall-clock on the messaging brief (LLP 0186 outcome 1), established by
-  the N≥3 protocol, then held by the ratchet. Stretch: ≤1.0x — plausible
-  only after the orientation term shrinks (P2/P3), and honestly labeled
-  as contingent on training-data presence.
-- **V2 — Rubric win (scored).** `weightedOverall` ≥ Convex on published
-  surfaces across ≥2 brief families under the frozen 0058 weights, N≥3,
-  with fairness notes attached. Given I.3, this is likely the first
-  condition to fall; it is unclaimed until scored.
-- **V3 — Preference (stated).** In a fresh-context choose-your-backend
-  probe (agent given both platforms' public surfaces and a brief, asked
-  to pick and justify before building), agents pick Snapback for briefs
-  with offline/realtime/media/trust requirements and are at worst
-  neutral on plain CRUD. This is the qualitative flip of run 1's "I
-  would choose Convex this week," and it is only meaningful once P2
-  gives agents a public surface to orient on.
-- **V4 — Publishable.** V1/V2 evidence published under LLP 0197's
-  standard (instrument, briefs, raw records, all runs reported).
+- **L1 — Template-assisted efficiency parity.** Skill-web ≤1.2x Convex
+  wall **and** ≤1.2x within-family tokens (both required — parity
+  bought by doubling inference spend is not parity), messaging brief,
+  N≥3 medians, all runs reported.
+- **L2 — Equal-proof-bar superiority.** On the equal-proof-bar brief,
+  Snapback wins wall or tokens outright, N≥3. This rung prices the moat
+  honestly; a loss here is publishable instrument-honesty evidence.
+- **L3 — General authoring efficiency.** L1's bounds on a held-out
+  brief variant no template was designed against (0197 rule 4a).
+- **L4 — Scored superiority.** Rubric wins under P0's two-layer scoring
+  (frozen 0058 rubric for messaging; preregistered per-brief outcome
+  rubrics elsewhere), N≥3, published surfaces, fairness notes.
+- **L5 — Revealed preference.** The P3 pick-and-build probe (choice
+  under commitment, post-build preference recorded) favors Snapback on
+  offline/realtime/media/trust briefs and is at worst neutral on plain
+  CRUD, across the P0b family panel.
+
+**The unqualified phrase "surpasses Convex for agent authoring" requires
+L3 + L4, with L5 across ≥2 model families as confirmation.** Lower rungs
+publish individually under their own labels; no rung is ever stated as a
+higher rung's phrase. (Replaces revision (a)'s "V1 or V2" trigger, which
+let one narrow win imply the global claim.)
+
+**Requalification:** every published rung names its snapshot tuple
+{closure version, competitor version, model build, harness commit,
+brief hash}. A standing **control-lane cadence** — one Convex re-run
+per epoch (monthly or on a competitor minor release) — detects control
+drift; drift beyond the P0 band, a Snapback promotion, or a model-epoch
+change triggers requalification on the next cycle, the claim meanwhile
+reading as historical ("held at snapshot X"). "Convex keeps improving"
+becomes a mechanism, not a risk note.
 
 ### II.2 Strategy in one paragraph
 
 Do not soften the declarative, typed, evidence-heavy core to imitate
 Convex (0186's non-goal, upheld). Close the two remaining self-owned
 gap terms (knowledge residue → P1; orientation → P2), make the
-measurement price what Snapback actually delivers (equal proof bars and
-a real-auth brief → P3), name an owner for the one structural deficit
-(operations → P4), and claim nothing before the instrument supports it
-(P0 first, publication last).
+measurement price what Snapback actually delivers — in both directions
+(equal proof bars, trust-boundary brief, day-2 brief → P3), name an
+owner for the one structural deficit (operations → P4), and claim
+nothing before the instrument supports it (P0 first, publication last).
 
 ### II.3 Phases
 
-**P0 — Variance before claims (immediate; owner: `benchmarks/` under
-0186 W1).** Run the N≥3 repeat protocol on the exact run-5
-configuration (0.1.15, messaging brief, four lanes) to establish the
-per-lane variance band. Score the 0058 rubric as part of every harness
-run from now on — the schema requires it and runs 3–5 skipped it, which
-is why I.3's most important row is a hypothesis. Exit: standing
-mean±band numbers replacing all N=1 ratios; first scored rubric since
-run 2; ratchet tolerance derivable from data (answers 0186 OQ2).
+**P0 — Instrument before claims (immediate; owner: `benchmarks/` under
+0186 W1).** Staged, so the evidence bar rises without pricing the plan
+out of execution:
+
+- *P0.0 — schema/protocol amendments landed before the repeats*:
+  (a) `tokens.phases` mirroring `wallClock.phases` — I.5's four-term
+  decomposition becomes a record fact, resolving OQ5; (b) a
+  first-green-proof timestamp per lane (II.4's "first fifteen minutes"
+  gets a number); (c) sub-attribution on snapback-attributed loops —
+  `defect` vs `knowledge-gap` — so P1's exit reads from records, not
+  diary prose; (d) rubric scoring required by the record format
+  (`records/schema.md` + README procedure — the JSON schema alone is
+  optional today).
+- *P0.1 — N≥3 confirmatory series* on the run-5 configuration:
+  ratchet-eligible medians + ranges per 0197 rule 1 and
+  `benchmarks/protocol.md`. **No variance band is claimed at N≥3** —
+  the protocol's floor for variance claims is N≥8.
+- *P0.2 — N≥8 variance study on the primary pair only* (skill-web vs
+  Convex), blocked design: alternating lane order (ABBA), runs paired
+  within time blocks, fleet load recorded. Produces the band and the
+  ratchet tolerance (answers 0186 OQ2).
+- *P0b — cross-family replication leg* (promoted from revision (a)'s
+  OQ3: the dominant term — prior familiarity — is a property of the
+  model family, so every rung is exposed to being a one-family
+  artifact): re-run the primary pair under a GPT-family harness, N≥1–3,
+  in two conditions: **native ecosystem discovery** (skill found via
+  `AGENTS.md`/`.agents/skills` conventions, not prompt-pasted —
+  distribution quality, not payload quality) and pinned-payload for
+  comparability. Token accounting is **never pooled across families**
+  (tokenizer and hidden-reasoning accounting differ); report
+  within-family ratios and wall only. Matrix expansion waits on a
+  family interaction appearing.
+
+Exit: standing medians+ranges (N≥3) for all four lanes; a variance band
+and ratchet tolerance from the N≥8 primary-pair study; records carrying
+token-phase splits, first-proof timestamps, sub-attributed loops, and
+rubric scores; a directional answer to "is the ranking family-stable?"
 
 **P1 — Knowledge-residue closure (days–weeks; owners: LLP 0193, 0194,
-0196 as drafted; the run-5 round-3 tickets).** The errors-as-docs audit,
-the generated API reference (its acceptance test is exactly I.5's
-excursion list: `ctx.db` verbs, headless call shapes, verify-config
-contract, constructor pairs — none should require `node_modules`), the
-template portfolio (T1/T2 matching the committed briefs; web deps into
-expo-chat — two runs running). Also the two sharp defaults from I.2
-(auth `optional-user`; jobs `maxAttempts: 1`) — cheap, corpus-flagged,
-author-visible. Exit: a measurement run in which no Snapback lane opens
-package source and knowledge-attributed loops are 0, matching the
-defect-attributed 0 already achieved.
+0196 as drafted; the run-5 round-3 tickets).** The errors-as-docs audit;
+the generated API reference — **plus a declaration-source work item this
+Plan adds**: 0194 names the `ctx` handler surface and the verify-config
+contract as exclusions until declaration files exist, and those are two
+of run 5's package-source excursions, so "0194 covers it" is false until
+the declarations land (acceptance: 0194 OQ2's `ctx` declaration file, a
+verify-config contract source, retrieval probes for every diary-0069
+excursion); the template portfolio (T1/T2; web deps into expo-chat —
+two runs running). Sharp defaults, scoped to their governing rulings:
+the auth-omission diagnostic (0186 W3, already sequenced); for jobs
+retry, **not** a default flip — LLP 0171 Finding D keeps
+`maxAttempts: 1` and idempotency as the constraint — but the effect-safe
+remedy for first-attempt platform contention (observability + a retry
+path that cannot replay external effects). Exit, read from records via
+P0.0(c): a run with zero `knowledge-gap`-attributed Snapback loops and
+no package-source consultation.
 
-**P2 — Orientation and the training-data lever (author-gated; owner:
-LLP 0195).** The public documentation surface is the largest unstarted
-item and the only lever on the dominant remaining term. This Plan adds
-one sequencing note to 0195: publish *before* pressing V1's stretch
-goal, because every run demonstrates the ceiling — an agent cannot pay
-less than one full guide-orientation pass for a platform whose docs
-exist nowhere it has ever seen. Exit: cold agent with no skill installed
-reaches the paved path from the public web; orientation cost measured as
-its own wall/token split (the harness already supports the split).
+**P2 — Orientation (author-gated; owner: LLP 0195).** The public
+surface is the largest unstarted item and the primary lever on the
+dominant term — as **pre-install orientation and discoverability**,
+which 0195's own decision case rests on; the training-data effect is
+upside on 0195's stated unverified hypothesis, not a scheduled return.
+Two additions from this loop: (a) skill distribution is itself an
+acceptance surface — cold discovery through `.agents/skills`,
+`.claude/skills`, and scaffold `AGENTS.md`, tested per ecosystem, never
+simulated by prompt-pasting; (b) P2's measurement is the orientation
+*decomposition* the P0.0 token split enables — prior-only / public-web
+/ native-skill / template conditions on the same pinned model isolate
+where the next orientation dollar goes. Exit: a cold agent with no
+pre-installed skill reaches the paved path from the public web;
+orientation reported from record fields, by condition.
 
-**P3 — Make the briefs price the moats (owner: this Plan; instrument
-changes land under `benchmarks/` conventions).**
+**P3 — Make the briefs price the product in both directions (owner:
+this Plan; instrument changes land under `benchmarks/` conventions).**
 
-- Run the authored-but-never-run **equal-proof-bar messaging brief**:
-  identical offline read and offline-write semantics required from every
-  lane. Prediction on record: the Convex lane must build a real outbox
-  (run-1 diary priced that as "a significant feature, not a fair
-  incidental shim") and the efficiency ratio inverts. Either outcome is
-  publication-grade signal.
-- **Author and run a real-auth brief** (new work item): both lanes
-  implement their platform's idiomatic production auth (Snapback
-  sessions custody; Convex's auth integration), retiring the
-  test-persona seam that zeroes Snapback's strongest dimension (I.6).
-  Fairness rule: each platform's own recommended path, no imported
-  ceremony.
-- Run the CRUD and media briefs so wins don't overfit to chat, and so
-  the Supabase/PocketBase/Postgres lanes can enter without being
-  strawmen (0186 OQ4).
+- Run the authored-but-never-run **equal-proof-bar messaging brief**.
+  Prediction on record: the Convex lane must build a real outbox (run-1
+  diary priced that as "a significant feature, not a fair incidental
+  shim") and the efficiency ratio inverts. Either outcome is
+  publication-grade signal (L2 either way).
+- **Author and run a trust-boundary brief** (replacing revision (a)'s
+  "real-auth brief," whose "idiomatic production auth" framing would
+  have mixed trust-boundary quality with identity-provider choice and
+  account ceremony). Pattern: the equal-proof-bar shape — vendor-neutral
+  *outcome* requirements with negative proofs: (a) identity is
+  server-derived — no client-supplied sender reaches storage; (b) a
+  valid principal-X token cannot read a conversation X is not in,
+  proven by a two-principal negative test (0057's shape, the corpus's
+  only real-auth precedent); (c) unauthenticated requests to protected
+  operations are refused; (d) revocation takes effect on the live
+  connection. Each lane meets the outcomes via its platform's
+  recommended path; both transcripts published. Identity-provider
+  *onboarding* ceremony is OQ2's residual.
+- **Author and run a day-2 evolution brief**: the messaging app as
+  built, plus three scripted change requests — add a field and migrate
+  live data; add a feature touching schema + client; a pure refactor.
+  Prices I.6's greenfield caveat (the artifact-identity tax, deployment
+  pinning vs the edit loop) — Snapback's hidden weakness, symmetric to
+  the auth seam hiding its hidden strength.
+- Run the CRUD and media briefs — labeled template-assisted where T1/T2
+  apply, held-out variants frozen before measurement for any general
+  claim, symmetric predeclared competitor starter selection (0197 rule
+  4a). **Preregister the plain-CRUD control as expected to favor
+  Convex, and publish it either way** — a credible loss is stronger
+  instrument evidence than another fairness disclaimer.
 
-Exit: rubric + efficiency records across ≥3 brief families, each N≥3.
+Exit: efficiency + scoring records across ≥3 brief families at N≥3,
+including one brief adversarial to Snapback and one pricing each
+direction's hidden dimension.
 
 **P4 — The operations dimension (author decision required; no current
-owner).** The 62–70 vs 96 deficit will cap V2 at every scoring until
-addressed. Options, for an author sitting rather than this Plan to
-decide: (a) productize the hosted lane (the LLP 0099 hosted-executor
-direction) to genuine one-command parity; (b) sharpen the existing
-local-first + Cloudflare deploy story and contest the dimension's
-definition — scale-to-zero self-hosting *is* an operations story, argued
-under 0197's fairness notes; (c) accept the dimension deficit and win
-V2 on the other seven. This Plan's only assertion: the choice should be
-explicit, because it is the last structural term in the gap.
+owner).** The 62–70 vs 96 deficit caps L4 at every scoring until
+addressed. **Before the sitting, gather evidence**: a small
+deploy-and-operate brief leg, once per platform — reach a shareable URL
+that survives the authoring session, read logs after an induced error,
+restart, rotate a secret, clean up — recording time, logins, manual
+interventions. That converts a judged score into a cost table. Author
+options: (a) productize the hosted lane (LLP 0099 direction) to
+one-command parity; (b) argue scale-to-zero self-hosting as a
+different-but-equal operations model — as a **new, preregistered,
+separately-published scorecard for future claims only**; the frozen
+0058 rubric and already-scored records are never redefined post hoc;
+(c) accept the deficit and compete on the other seven. This Plan's only
+assertion: the choice should be explicit — it is the last structural
+term in the gap.
 
-**P5 — Publish (owner: LLP 0197).** When V1 or V2 holds under P0
-discipline, publish under the 0197 standard. The fork-publication
-lesson (2026-08-07: publication withdrawn same-day by wave drift) is the
-cautionary precedent: publish snapshots with digests, not standing
-claims.
+**P5 — Publish (owner: LLP 0197).** When a rung of II.1 holds under P0
+discipline, publish it under the 0197 standard **naming the exact rung
+and scope** — never a higher rung's phrase. The fork-publication lesson
+(2026-08-07: publication withdrawn same-day by wave drift) is the
+cautionary precedent: publish snapshots with digests, run the
+control-lane cadence, and let requalification lapse a claim to
+historical rather than defending it.
 
 ### II.4 What must not change
 
@@ -410,43 +523,44 @@ primitive, platform offline, typed assets, the closed result contract,
 enforced determinism, server-derived identity, and the verify/evidence
 culture are the product. Every one is now attached to a competitor cost
 the lanes measured (I.4). The endgame is making the first fifteen
-minutes as cheap as Convex's while keeping the semantics Convex would
-have to rebuild — not meeting in the middle.
+minutes as cheap as Convex's — now a measured quantity via P0.0(b) —
+while keeping the semantics Convex would have to rebuild; not meeting
+in the middle.
 
 ### II.5 Risks
 
-- **Convex keeps improving** (best-ever run 5); the ratchet must track a
-  moving control, which is another reason P0's bands come first.
-- **Training-data timescale.** P2 seeds the next training cut at
-  earliest; until then the orientation term has a floor. V1-stretch may
-  be unreachable this year — say so in publications rather than gaming
-  the brief.
-- **Rubric overfit.** The 0058 weights price offline at 20%; a critic
-  will note it favors Snapback. Answer under 0197: publish per-dimension
-  scores, not just the weighted total, and publish the weights'
-  provenance (frozen 2026-08-05, before any Snapback win existed).
-- **Fleet drift vs claims.** Main moves continuously; every number here
-  is a dated snapshot. LLP 0189 discipline is load-bearing for this
-  entire Plan.
+- **Convex keeps improving** (best-ever run 5). Mitigated by mechanism:
+  II.1's control-lane cadence and requalification tuple.
+- **Familiarity timescale.** Even if 0195's training-data hypothesis
+  pays off, it pays at training-cut cadence; until then the orientation
+  term has a floor set by retrieval and injection quality. L3 may be
+  unreachable this year — say so rather than gaming the brief.
+- **Rubric overfit.** The 0058 weights price offline at 20%. Answer
+  under 0197: per-dimension scores always published, weights'
+  provenance stated (frozen 2026-08-05, before any Snapback win
+  existed), two-layer scoring keeps unexercised dimensions out of
+  cross-brief aggregation.
+- **One-family artifact risk.** The series is Fable-5-shaped until P0b
+  runs; every rung is scoped to the pinned family until then.
+- **Fleet drift vs claims.** Every number here is a dated snapshot;
+  LLP 0189 discipline is load-bearing for this entire Plan.
 
 ## Open questions
 
-- **OQ1 — Operations posture.** Which P4 option — hosted productization,
-  contest-the-definition, or accept-the-deficit? Author decision;
-  everything else in this Plan proceeds regardless.
-- **OQ2 — Real-auth brief fairness.** Does "each platform's idiomatic
-  auth" survive review as fair when the platforms' auth models differ
-  this much in shape? Proposed test: publish both lane transcripts and
-  let the fairness notes carry the asymmetry.
-- **OQ3 — Model diversity.** Runs 2–5 are one model family. Does the
-  ranking hold on other families, and does V3's preference probe need a
-  multi-family panel to mean anything? (Extends 0186 OQ1's
-  pin-one-model-per-epoch question to the qualitative claims.)
-- **OQ4 — Choose-your-backend probe design (V3).** A stated-preference
-  probe is cheap but gameable by prompt framing; what framing makes it
-  honest, and should it be run blind (platform names redacted, surfaces
-  only)?
-- **OQ5 — Proof-surface token accounting.** Should records split
-  proof/verification tokens from build tokens so the deeper-proof
-  asymmetry (I.5 term 3) is visible in the efficiency numbers instead of
-  silently inflating them?
+- **OQ1 — Operations posture.** Which P4 option — hosted
+  productization, new preregistered scorecard, or accept-the-deficit?
+  Author decision; the P4 evidence leg proceeds regardless.
+- **OQ2 — Identity-provider onboarding.** The trust-boundary brief
+  prices security outcomes vendor-neutrally; does *onboarding* ceremony
+  (provider setup, credentials, account flows) deserve its own priced
+  brief, or is it provider-dominated noise?
+- **OQ3 — Family-matrix expansion rule.** What family-interaction
+  signal justifies expanding beyond P0b's two families, given each
+  family-lane is a full serial run cost?
+- **OQ4 — Pick-and-build probe mechanics.** How much surface redaction
+  survives contact with reality (both platforms are identifiable from
+  their artifacts), and should the named-platform condition publish
+  alongside the redacted one (the GPT-family review's brand-prior
+  point)?
+- **OQ5 — resolved by P0.0(a):** token-phase splits mirror the
+  wall-clock phases; kept as a disposition record.
