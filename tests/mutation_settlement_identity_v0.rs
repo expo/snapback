@@ -124,6 +124,7 @@ fn input(args: Value) -> HandlerInput {
     }
 }
 
+#[allow(clippy::result_large_err)] // SnapbackResult is the API under test.
 fn invoke_with_id(
     snapback: &mut LocalSnapback,
     name: &str,

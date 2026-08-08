@@ -18,7 +18,7 @@ bare Errors on guard-shaped paths while declaring no refusals; (3) the
 `SNAPBACK_HANDLER_FAILED` client message could hint "if this is an
 application refusal, declare it" in dev mode.
 
-- **Claimed 2026-08-08:** session dc26442d (13-ticket sweep orchestrator) is executing this ticket now; sibling sessions should not duplicate.
+- **Claim released 2026-08-08:** the sweep (session dc26442d) landed what it could and recorded the remainder above/below; the open remainder is unclaimed and free for any session to pick up.
 
 ## Partial resolution — 2026-08-08 (ask 1 landed; asks 2 and 3 remain)
 

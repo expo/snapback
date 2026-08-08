@@ -26,3 +26,9 @@ Fix is one line: a `type JsonBeforeRenameHook = Option<Box<dyn FnOnce(&Path, &Pa
 alias, or a scoped `#[allow(clippy::type_complexity)]` with a reason. Filed
 rather than fixed inline so it does not ride an unrelated commit
 (`issues/20260808-route-group-argument-lowering.md`).
+
+## Resolution
+
+**Closed 2026-08-08 as a duplicate** of
+`20260808-clippy-type-complexity-red-instance-fork.md` (filed concurrently
+by a sibling lane of the same sweep); fixed there.

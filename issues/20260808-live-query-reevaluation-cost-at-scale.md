@@ -29,7 +29,7 @@ gate as the acceptance instrument. The zb5-hot machinery reruns this
 measurement in ~80 min; `demos/zerobugs/control/scripts/diag-hot-stream.mts`
 iterates in minutes against a persistent baseline.
 
-- **Claimed 2026-08-08:** session dc26442d (13-ticket sweep orchestrator) is executing this ticket now; sibling sessions should not duplicate.
+- **Claim released 2026-08-08:** the sweep (session dc26442d) landed what it could and recorded the remainder above/below; the open remainder is unclaimed and free for any session to pick up.
 
 ## Ruling (2026-08-08)
 

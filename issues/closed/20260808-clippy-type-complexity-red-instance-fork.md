@@ -34,3 +34,15 @@ Introduce a `type` alias for the boxed hook (e.g.
 `type JsonBeforeRenameHook = Box<dyn FnOnce(&Path, &Path)>;`) so the
 thread-local reads plainly, and re-green the `cargo-clippy` rung. Prefer the
 alias over an `#[allow(clippy::type_complexity)]`.
+
+## Resolution
+
+**Fixed 2026-08-08** (13-ticket sweep orchestrator, session dc26442d).
+`type JsonBeforeRenameHook` alias in `src/instance_fork.rs` clears the
+`type_complexity` red; a second `--all-targets` red that had appeared
+meanwhile (`result_large_err` on the new
+`tests/mutation_settlement_identity_v0.rs` helper) got the established
+`#[allow(clippy::result_large_err)]` annotation (same pattern as
+`tests/route_policy_v1.rs`). Verified: `cargo clippy --all-targets --
+-D warnings` finishes clean; `mutation_settlement_identity_v0` 5/5 and
+`--lib instance_fork` 52/52 still pass.

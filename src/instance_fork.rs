@@ -118,12 +118,14 @@ struct AppRootIdentityV1 {
 }
 
 #[cfg(test)]
+type JsonBeforeRenameHook = Option<Box<dyn FnOnce(&Path, &Path)>>;
+
+#[cfg(test)]
 thread_local! {
     static DIFF_AFTER_HEADER_HOOK: std::cell::RefCell<Option<Box<dyn FnOnce()>>> =
         const { std::cell::RefCell::new(None) };
-    static JSON_BEFORE_RENAME_HOOK: std::cell::RefCell<
-        Option<Box<dyn FnOnce(&Path, &Path)>>,
-    > = const { std::cell::RefCell::new(None) };
+    static JSON_BEFORE_RENAME_HOOK: std::cell::RefCell<JsonBeforeRenameHook> =
+        const { std::cell::RefCell::new(None) };
 }
 
 #[cfg(test)]

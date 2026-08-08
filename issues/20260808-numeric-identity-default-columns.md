@@ -16,7 +16,7 @@ Related: `W-ENUM` (stored literal-union domains) is the same class of
 "portable relational schema surface" gap — tracked in
 issues/20260808-stored-literal-union-enums.md.
 
-- **Claimed 2026-08-08:** session dc26442d (13-ticket sweep orchestrator) is executing this ticket now; sibling sessions should not duplicate.
+- **Claim released 2026-08-08:** the sweep (session dc26442d) landed what it could and recorded the remainder above/below; the open remainder is unclaimed and free for any session to pick up.
 
 ## Disposition 2026-08-08 — NOT implemented; author-gated. Ticket stays open.
 
