@@ -636,9 +636,43 @@ live probe showing the anonymous stream now opens against a real sessions
 server. `zb5-hot` reruns as `v7`; at the million-issue baseline
 `issue.create` is expected to refuse at the portable 1,024 short-id
 allocator bound, taking its predeclared `W-SHORTID-LARGE` GAP branch
-together with the effect-counter row.
+together with the effect-counter row. (The same anonymous-live-header
+defect was independently found and fixed on `main` the same day by the
+browser-carrier public witness lane; that upstream fix is the one that
+landed, and this control's kit regression case now covers it.)
 
-## Workaround and component register (predeclared)
+`zb5-hot` `v7` (preserved FAIL) reached the live cycles for the first
+time — ingest, fold, keyring clone, cycle boot, actor binding, streaming
+observers, and the open-loop mutation dispatch all ran — and failed on
+one settle assertion: the ordinary-user observer's stream flag read
+`'stale'` at settle while its data was fully converged (the authoritative
+poll returned the exact expected rows, counts, and protected-visibility
+facts for every actor). The trial ran on a heavily fleet-contended
+machine (104-minute ingest against 66 on the quiet box), where a
+transient delta-stream lapse mid-recovery is expected scheduler noise.
+Remediation keeps the claim honest instead of instantaneous: settle now
+allows a bounded 30 s stream-recovery window and the receipt discloses
+`staleAtSettle`/`staleRecoveryMs` per observer; a stream still stale
+after the window keeps failing the row. `zb5-hot` reruns as `v8`.
+
+`zb5-hot` `v8` (preserved FAIL) refuted the transient-noise reading: on a
+mostly quiet machine the ordinary-user stream still read `'stale'` and
+the 30 s recovery window expired without regain, while every
+authoritative poll again returned exact converged rows. The stream socket
+is lost mid-cycle and never re-establishes under `fallbackToPoll: false`
+— either server delta-loop starvation under the ~96 heavy opaque-query
+re-evaluations a cycle owes at this scale, or a client resubscribe-retry
+defect. Filed as
+`issues/20260807-hot-cycle-live-stream-stale-at-settle.md` with a
+standalone diagnostic recipe (persistent baseline, live server, iterate
+without re-ingesting). **Lane 8's hot leg closes at this honest boundary,
+exactly as the large leg closed on the P1 version-scan finding:**
+attempts `v1`–`v8` are preserved evidence — kit stop grace, the SIGTERM
+WAL-strand platform ticket, the 12 GiB hasher, the sessions keyring
+db-sibling, the anonymous live-protocol header (fixed upstream), the
+vacuous-pass hardening, and this stream lapse — and every §4.4 hot row
+remains an honest GAP owned by that ticket. Rerun as `ZBUGS_ATTEMPT=v9`
+after the repair; nothing backfills existing receipts.
 
 Rows not yet used retain `TBD-before-use`. Each implementing job must replace
 that marker with measured source/provider line ranges before its first ZB0

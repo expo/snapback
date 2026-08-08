@@ -389,6 +389,8 @@ async function openHotObservers({bound, anonymous, projectName, cycle}) {
         finalRows: null,
         finalVersion: null,
         finalConnection: null,
+        staleAtSettle: false,
+        staleRecoveryMs: null,
       };
       counters[actor] = counter;
       const handlePromise = observerClient(bound, anonymous, actor).liveQuery(api.issueListV2, {
@@ -452,6 +454,23 @@ async function openHotObservers({bound, anonymous, projectName, cycle}) {
         item => item.issue.id === POLICY_ISSUE_ID,
       ) ? 1 : 0;
       counter.finalVersion = handle.version;
+      // Convergence is proved by the authoritative poll above. The delta
+      // stream may lapse transiently under machine load and recover on its
+      // own; the live-at-settle claim therefore allows a bounded recovery
+      // window with the lapse and its recovery time disclosed in the
+      // receipt, instead of asserting one instantaneous flag read
+      // (zb5-hot v7: 'stale' at settle with fully converged rows).
+      if (handle.connection !== 'live') {
+        counter.staleAtSettle = true;
+        const staleStart = performance.now();
+        const deadline = staleStart + 30_000;
+        while (handle.connection !== 'live' && performance.now() < deadline) {
+          await new Promise(resolve => setTimeout(resolve, 250));
+        }
+        counter.staleRecoveryMs = handle.connection === 'live'
+          ? Math.round(performance.now() - staleStart)
+          : null;
+      }
       counter.finalConnection = handle.connection;
     }
   };

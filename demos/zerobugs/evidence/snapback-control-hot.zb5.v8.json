@@ -1,0 +1,1701 @@
+{
+  "actorIdentity": {
+    "actors": {
+      "assignee": {
+        "principalDigest": "sha256:8aa201d342870bf2c3b19b373cbacef26a808a319232083f4e52e5639027aaca",
+        "role": "user",
+        "sourceUserID": "usr_0012"
+      },
+      "creator": {
+        "principalDigest": "sha256:3f734b7fa8e26c1b8fd1eaad6c1a2ddfc43ca895fcdbca23e42e2c0cf1f6ed9a",
+        "role": "user",
+        "sourceUserID": "usr_0011"
+      },
+      "crew-admin": {
+        "principalDigest": "sha256:e9a84e14cc8e4ac8986d6ae0e3219692ec17e544457a246af299cade54b6ffa9",
+        "role": "crew",
+        "sourceUserID": "usr_0000"
+      },
+      "ordinary-user": {
+        "principalDigest": "sha256:af1147cdd6ac37eefda012933c0260a197aa2661fec165a6aac53e1ff3414dd8",
+        "role": "user",
+        "sourceUserID": "usr_0010"
+      },
+      "removed-member": {
+        "principalDigest": "sha256:91eaa3a73e7527621359e579aab407e15d60089a2775ad27e1f6f05176feabee",
+        "role": "crew",
+        "sourceUserID": "usr_0001"
+      }
+    },
+    "mode": "fresh per-cycle external sessions; principal carriers withheld and content-digested"
+  },
+  "arm": "snapback-control-hot",
+  "assistance": [
+    {
+      "at": "2026-08-08T01:48:29.019Z",
+      "kind": "governing-design",
+      "purpose": "ZB acceptance and immutable evidence contract",
+      "sequence": 1,
+      "source": "llp/0183-zerobugs-quality-surface.rfc.md"
+    },
+    {
+      "at": "2026-08-08T01:48:29.019Z",
+      "kind": "guide",
+      "purpose": "fresh owned server and non-vacuous check lifecycle",
+      "sequence": 2,
+      "source": "guide/testing/acceptance.md"
+    },
+    {
+      "at": "2026-08-08T01:48:29.019Z",
+      "kind": "landed-lane-evidence",
+      "purpose": "reuse source-oracle, actor, mutation, effect, and adapter checks",
+      "sequence": 3,
+      "source": "demos/zerobugs/control/tests/acceptance/lane2-live.mts..lane6a-live.mts"
+    }
+  ],
+  "attempt": "v8",
+  "browserIdentity": {
+    "mode": "not-launched during socket-free seam audit or incompatible-seam refusal",
+    "observerCountPerCycle": 0
+  },
+  "capabilityFacts": [
+    {
+      "id": "performance.hot-profile",
+      "status": "gap"
+    },
+    {
+      "id": "effects.hot-trigger-distinguishability",
+      "status": "gap"
+    },
+    {
+      "id": "hot.open-loop-fixed-arrivals",
+      "status": "gap"
+    }
+  ],
+  "checks": {
+    "counts": {
+      "fail": 18,
+      "gap": 1,
+      "missing": 0,
+      "pass": 5
+    },
+    "executed": 24,
+    "expected": 24,
+    "harness": {
+      "expectedChecks": 24,
+      "failed": 18,
+      "ok": false,
+      "passed": 5,
+      "shortfall": null,
+      "skipped": 1,
+      "total": 24
+    },
+    "missing": [],
+    "rows": [
+      {
+        "details": {
+          "arm": "snapback-control-hot",
+          "cycleCount": 3,
+          "expectedChecks": 24,
+          "margins": "none",
+          "rawSamplesTotal": 48,
+          "receipt": "snapback-control-hot.zb5.v1.json",
+          "samplesPerMutation": 3
+        },
+        "id": "gate-definition-and-distinct-receipt-arm",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "baseDigest": "sha256:7514938a88bb1b8d77fee15f2cf7a50aa1030be2ebee344c473ef4d263a21c94",
+          "baseFixtureId": "large-seed42-v1",
+          "fixtureId": "hot-recent-v1",
+          "loadBatches": 6176,
+          "loadRows": 5549113,
+          "overlayDigest": "sha256:39d7758a5a5809abf9fa3b3c6b966ecdf43dd9f5c6cc8b3977a94c17dd4efd73",
+          "workingSetDigest": "sha256:7e3ee7d659ad10e69f4ff681b091980d30525b62991ab4548c547e5240b9e464",
+          "workingSetRows": 1000
+        },
+        "id": "hot-profile-derives-from-verified-large-working-set",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "cycles": 3,
+          "digest": "sha256:aec3c98570fd981660544f30381c811002397cd1cd7e40157ceb5a0ff52cce90",
+          "emittedBeforeExecution": true,
+          "operations": 48,
+          "schemaVersion": "zerobugs-hot-operation-plan.v1",
+          "selectedRowsBound": "W only"
+        },
+        "id": "operation-arguments-emitted-and-content-digested-before-execution",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "adaptiveArrivals": false,
+          "arrivalOffsetsMs": [
+            0,
+            25,
+            50,
+            75,
+            100,
+            125,
+            150,
+            175,
+            200,
+            225,
+            250,
+            275,
+            300,
+            325,
+            350,
+            375
+          ],
+          "schedulingRule": "dispatch deadline is cycleStart + inventoryIndex*25ms; no prior response is awaited to choose an arrival"
+        },
+        "id": "open-loop-arrivals-use-fixed-nonadaptive-offsets",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "distinguishability": "separate per-operation custody counters required live",
+          "nonTrigger": [
+            "issue.delete",
+            "notification.update",
+            "emoji.remove",
+            "comment.remove",
+            "label.create",
+            "label.createAndAddToIssue",
+            "viewState.set",
+            "userPref.set"
+          ],
+          "trigger": [
+            "issue.create",
+            "issue.update",
+            "issue.addLabel",
+            "issue.removeLabel",
+            "emoji.addToIssue",
+            "emoji.addToComment",
+            "comment.add",
+            "comment.edit"
+          ]
+        },
+        "id": "eight-trigger-eight-nontrigger-inventory-partition",
+        "status": "PASS"
+      },
+      {
+        "diagnostic": {
+          "code": "ERR_ASSERTION",
+          "details": null,
+          "id": "fresh-precycle-reset-is-byte-provable",
+          "message": "ordinary-user remains live at settle\n\n'stale' !== 'live'\n",
+          "redacted": true
+        },
+        "id": "fresh-precycle-reset-is-byte-provable",
+        "status": "FAIL"
+      },
+      {
+        "diagnostic": {
+          "code": "ERR_ASSERTION",
+          "details": null,
+          "id": "runtime-effect-trigger-and-nontrigger-counters",
+          "message": "Expected values to be strictly equal:\n\n0 !== 24\n",
+          "redacted": true
+        },
+        "id": "runtime-effect-trigger-and-nontrigger-counters",
+        "status": "FAIL"
+      },
+      {
+        "details": {
+          "cycles": 3,
+          "missingTransition": "removed-member crew-to-user plus predecessor-authority invalidation",
+          "owner": "control acceptance authority-transition seam",
+          "perCycle": [],
+          "reason": "The live open-loop cycles, six observers, attacker probes, and retained-client inspections ran. The generated API still has no acceptance operation that performs the required crew-to-user role change and invalidates predecessor authority, so post-transition negative delivery cannot be claimed."
+        },
+        "id": "hot-cycle-custody-counters",
+        "status": "GAP"
+      },
+      {
+        "diagnostic": {
+          "code": "ERR_ASSERTION",
+          "details": null,
+          "id": "raw-mutation-01-issue.create",
+          "message": "issue.create applied in every live cycle",
+          "redacted": true
+        },
+        "id": "raw-mutation-01-issue.create",
+        "status": "FAIL"
+      },
+      {
+        "diagnostic": {
+          "code": "ERR_ASSERTION",
+          "details": null,
+          "id": "raw-mutation-02-issue.update",
+          "message": "issue.update applied in every live cycle",
+          "redacted": true
+        },
+        "id": "raw-mutation-02-issue.update",
+        "status": "FAIL"
+      },
+      {
+        "diagnostic": {
+          "code": "ERR_ASSERTION",
+          "details": null,
+          "id": "raw-mutation-03-issue.delete",
+          "message": "issue.delete applied in every live cycle",
+          "redacted": true
+        },
+        "id": "raw-mutation-03-issue.delete",
+        "status": "FAIL"
+      },
+      {
+        "diagnostic": {
+          "code": "ERR_ASSERTION",
+          "details": null,
+          "id": "raw-mutation-04-issue.addLabel",
+          "message": "issue.addLabel applied in every live cycle",
+          "redacted": true
+        },
+        "id": "raw-mutation-04-issue.addLabel",
+        "status": "FAIL"
+      },
+      {
+        "diagnostic": {
+          "code": "ERR_ASSERTION",
+          "details": null,
+          "id": "raw-mutation-05-issue.removeLabel",
+          "message": "issue.removeLabel applied in every live cycle",
+          "redacted": true
+        },
+        "id": "raw-mutation-05-issue.removeLabel",
+        "status": "FAIL"
+      },
+      {
+        "diagnostic": {
+          "code": "ERR_ASSERTION",
+          "details": null,
+          "id": "raw-mutation-06-notification.update",
+          "message": "notification.update applied in every live cycle",
+          "redacted": true
+        },
+        "id": "raw-mutation-06-notification.update",
+        "status": "FAIL"
+      },
+      {
+        "diagnostic": {
+          "code": "ERR_ASSERTION",
+          "details": null,
+          "id": "raw-mutation-07-emoji.addToIssue",
+          "message": "emoji.addToIssue applied in every live cycle",
+          "redacted": true
+        },
+        "id": "raw-mutation-07-emoji.addToIssue",
+        "status": "FAIL"
+      },
+      {
+        "diagnostic": {
+          "code": "ERR_ASSERTION",
+          "details": null,
+          "id": "raw-mutation-08-emoji.addToComment",
+          "message": "emoji.addToComment applied in every live cycle",
+          "redacted": true
+        },
+        "id": "raw-mutation-08-emoji.addToComment",
+        "status": "FAIL"
+      },
+      {
+        "diagnostic": {
+          "code": "ERR_ASSERTION",
+          "details": null,
+          "id": "raw-mutation-09-emoji.remove",
+          "message": "emoji.remove applied in every live cycle",
+          "redacted": true
+        },
+        "id": "raw-mutation-09-emoji.remove",
+        "status": "FAIL"
+      },
+      {
+        "diagnostic": {
+          "code": "ERR_ASSERTION",
+          "details": null,
+          "id": "raw-mutation-10-comment.add",
+          "message": "comment.add applied in every live cycle",
+          "redacted": true
+        },
+        "id": "raw-mutation-10-comment.add",
+        "status": "FAIL"
+      },
+      {
+        "diagnostic": {
+          "code": "ERR_ASSERTION",
+          "details": null,
+          "id": "raw-mutation-11-comment.edit",
+          "message": "comment.edit applied in every live cycle",
+          "redacted": true
+        },
+        "id": "raw-mutation-11-comment.edit",
+        "status": "FAIL"
+      },
+      {
+        "diagnostic": {
+          "code": "ERR_ASSERTION",
+          "details": null,
+          "id": "raw-mutation-12-comment.remove",
+          "message": "comment.remove applied in every live cycle",
+          "redacted": true
+        },
+        "id": "raw-mutation-12-comment.remove",
+        "status": "FAIL"
+      },
+      {
+        "diagnostic": {
+          "code": "ERR_ASSERTION",
+          "details": null,
+          "id": "raw-mutation-13-label.create",
+          "message": "label.create applied in every live cycle",
+          "redacted": true
+        },
+        "id": "raw-mutation-13-label.create",
+        "status": "FAIL"
+      },
+      {
+        "diagnostic": {
+          "code": "ERR_ASSERTION",
+          "details": null,
+          "id": "raw-mutation-14-label.createAndAddToIssue",
+          "message": "label.createAndAddToIssue applied in every live cycle",
+          "redacted": true
+        },
+        "id": "raw-mutation-14-label.createAndAddToIssue",
+        "status": "FAIL"
+      },
+      {
+        "diagnostic": {
+          "code": "ERR_ASSERTION",
+          "details": null,
+          "id": "raw-mutation-15-viewState.set",
+          "message": "viewState.set applied in every live cycle",
+          "redacted": true
+        },
+        "id": "raw-mutation-15-viewState.set",
+        "status": "FAIL"
+      },
+      {
+        "diagnostic": {
+          "code": "ERR_ASSERTION",
+          "details": null,
+          "id": "raw-mutation-16-userPref.set",
+          "message": "userPref.set applied in every live cycle",
+          "redacted": true
+        },
+        "id": "raw-mutation-16-userPref.set",
+        "status": "FAIL"
+      }
+    ]
+  },
+  "cleanup": {
+    "ownership": "Every resource registered through the gate runner was cleaned in reverse ownership order.",
+    "results": [
+      {
+        "label": "ZB5 hot cycle 0 live observers",
+        "reverseIndex": 0,
+        "status": "PASS",
+        "targets": []
+      },
+      {
+        "label": "ZB5 hot cycle 0 anonymous client",
+        "reverseIndex": 1,
+        "status": "PASS",
+        "targets": []
+      },
+      {
+        "label": "ZB5 hot cycle 0 actor sessions",
+        "reverseIndex": 2,
+        "status": "PASS",
+        "targets": []
+      },
+      {
+        "label": "Snapback server",
+        "reverseIndex": 3,
+        "status": "PASS",
+        "targets": [
+          {
+            "id": "76099",
+            "kind": "process"
+          }
+        ]
+      },
+      {
+        "label": "Snapback server",
+        "reverseIndex": 4,
+        "status": "PASS",
+        "targets": [
+          {
+            "id": "15167",
+            "kind": "process"
+          }
+        ]
+      },
+      {
+        "label": "zb5-hot scratch namespace",
+        "reverseIndex": 5,
+        "status": "PASS",
+        "targets": [
+          {
+            "kind": "directory",
+            "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb5-hot-L32aOA"
+          }
+        ]
+      }
+    ],
+    "status": "PASS",
+    "targets": [
+      {
+        "id": "76099",
+        "kind": "process"
+      },
+      {
+        "id": "15167",
+        "kind": "process"
+      },
+      {
+        "kind": "directory",
+        "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb5-hot-L32aOA"
+      }
+    ]
+  },
+  "completedAt": "2026-08-08T02:56:16.270Z",
+  "componentReleaseIdentities": [
+    {
+      "id": "zerobugs-control-composition",
+      "path": "demos/zerobugs/control/composition/zerobugs-control-composition.v1.json",
+      "runtime": {
+        "entrypoint": "composition/server.mts",
+        "hostEnv": "ZERBUGS_GATEWAY_HOST",
+        "name": "bun",
+        "portEnv": "ZERBUGS_GATEWAY_PORT",
+        "readyFileEnv": "ZERBUGS_GATEWAY_READY_FILE",
+        "version": "1.3.12"
+      },
+      "sha256": "sha256:2e99e33cfbef2c961257399b817a8b749699efcf22720308476576d1aff2513d",
+      "snapbackRelease": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:98195b9448c613209a88afd16a957a1e575220cb92b80332d40a9adc4eeafaff",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:e42e89134ecc7062e6432d81535151898fa57be5f7b917f2cc3198f42c33ab78",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "status": "supported-local-control",
+      "version": 1
+    }
+  ],
+  "custodyAccounting": {
+    "effectNonTriggerCounters": {
+      "applied": 0,
+      "nonNullIntentReceipts": 0,
+      "planned": 24,
+      "refused": 0
+    },
+    "effectTriggerCounters": {
+      "applied": 0,
+      "durableIntentReceipts": 0,
+      "planned": 24,
+      "refused": 0
+    },
+    "perCycle": [],
+    "roleTransition": "missing generated crew-to-user transition and predecessor-authority invalidation operation",
+    "status": "GAP"
+  },
+  "diagnostics": [
+    {
+      "code": "ERR_ASSERTION",
+      "details": null,
+      "id": "fresh-precycle-reset-is-byte-provable",
+      "message": "ordinary-user remains live at settle\n\n'stale' !== 'live'\n",
+      "redacted": true
+    },
+    {
+      "code": "ERR_ASSERTION",
+      "details": null,
+      "id": "runtime-effect-trigger-and-nontrigger-counters",
+      "message": "Expected values to be strictly equal:\n\n0 !== 24\n",
+      "redacted": true
+    },
+    {
+      "code": "ERR_ASSERTION",
+      "details": null,
+      "id": "raw-mutation-01-issue.create",
+      "message": "issue.create applied in every live cycle",
+      "redacted": true
+    },
+    {
+      "code": "ERR_ASSERTION",
+      "details": null,
+      "id": "raw-mutation-02-issue.update",
+      "message": "issue.update applied in every live cycle",
+      "redacted": true
+    },
+    {
+      "code": "ERR_ASSERTION",
+      "details": null,
+      "id": "raw-mutation-03-issue.delete",
+      "message": "issue.delete applied in every live cycle",
+      "redacted": true
+    },
+    {
+      "code": "ERR_ASSERTION",
+      "details": null,
+      "id": "raw-mutation-04-issue.addLabel",
+      "message": "issue.addLabel applied in every live cycle",
+      "redacted": true
+    },
+    {
+      "code": "ERR_ASSERTION",
+      "details": null,
+      "id": "raw-mutation-05-issue.removeLabel",
+      "message": "issue.removeLabel applied in every live cycle",
+      "redacted": true
+    },
+    {
+      "code": "ERR_ASSERTION",
+      "details": null,
+      "id": "raw-mutation-06-notification.update",
+      "message": "notification.update applied in every live cycle",
+      "redacted": true
+    },
+    {
+      "code": "ERR_ASSERTION",
+      "details": null,
+      "id": "raw-mutation-07-emoji.addToIssue",
+      "message": "emoji.addToIssue applied in every live cycle",
+      "redacted": true
+    },
+    {
+      "code": "ERR_ASSERTION",
+      "details": null,
+      "id": "raw-mutation-08-emoji.addToComment",
+      "message": "emoji.addToComment applied in every live cycle",
+      "redacted": true
+    },
+    {
+      "code": "ERR_ASSERTION",
+      "details": null,
+      "id": "raw-mutation-09-emoji.remove",
+      "message": "emoji.remove applied in every live cycle",
+      "redacted": true
+    },
+    {
+      "code": "ERR_ASSERTION",
+      "details": null,
+      "id": "raw-mutation-10-comment.add",
+      "message": "comment.add applied in every live cycle",
+      "redacted": true
+    },
+    {
+      "code": "ERR_ASSERTION",
+      "details": null,
+      "id": "raw-mutation-11-comment.edit",
+      "message": "comment.edit applied in every live cycle",
+      "redacted": true
+    },
+    {
+      "code": "ERR_ASSERTION",
+      "details": null,
+      "id": "raw-mutation-12-comment.remove",
+      "message": "comment.remove applied in every live cycle",
+      "redacted": true
+    },
+    {
+      "code": "ERR_ASSERTION",
+      "details": null,
+      "id": "raw-mutation-13-label.create",
+      "message": "label.create applied in every live cycle",
+      "redacted": true
+    },
+    {
+      "code": "ERR_ASSERTION",
+      "details": null,
+      "id": "raw-mutation-14-label.createAndAddToIssue",
+      "message": "label.createAndAddToIssue applied in every live cycle",
+      "redacted": true
+    },
+    {
+      "code": "ERR_ASSERTION",
+      "details": null,
+      "id": "raw-mutation-15-viewState.set",
+      "message": "viewState.set applied in every live cycle",
+      "redacted": true
+    },
+    {
+      "code": "ERR_ASSERTION",
+      "details": null,
+      "id": "raw-mutation-16-userPref.set",
+      "message": "userPref.set applied in every live cycle",
+      "redacted": true
+    }
+  ],
+  "execution": {
+    "harnessAcceptedCount": true,
+    "setupCompleted": true,
+    "status": "PASS"
+  },
+  "fixtureIdentity": {
+    "baseFixtureId": "large-seed42-v1",
+    "baseRowCount": 5533266,
+    "batches": 6176,
+    "digest": "sha256:7514938a88bb1b8d77fee15f2cf7a50aa1030be2ebee344c473ef4d263a21c94",
+    "id": "hot-recent-v1",
+    "mode": "deterministic derivation; no separate generated database",
+    "overlayDigest": "sha256:39d7758a5a5809abf9fa3b3c6b966ecdf43dd9f5c6cc8b3977a94c17dd4efd73",
+    "rowCount": 5549113,
+    "workingSetDigest": "sha256:7e3ee7d659ad10e69f4ff681b091980d30525b62991ab4548c547e5240b9e464"
+  },
+  "gate": "zb5",
+  "generatedIdentities": [
+    {
+      "id": "schemaManifest",
+      "path": "demos/zerobugs/control/snapback/generated/schema.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:98195b9448c613209a88afd16a957a1e575220cb92b80332d40a9adc4eeafaff",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:e42e89134ecc7062e6432d81535151898fa57be5f7b917f2cc3198f42c33ab78",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:ded5755121f86e41fae151983fdd7734f85184f745b07415a23bd536bfb658e4"
+    },
+    {
+      "id": "functionManifest",
+      "path": "demos/zerobugs/control/snapback/generated/functions.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:98195b9448c613209a88afd16a957a1e575220cb92b80332d40a9adc4eeafaff",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:e42e89134ecc7062e6432d81535151898fa57be5f7b917f2cc3198f42c33ab78",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:19ae4356e1b7b31030fc1834232a9258becd7fee4ae3fa6fe47ae24fef64e29d"
+    },
+    {
+      "id": "capabilityManifest",
+      "path": "demos/zerobugs/control/snapback/generated/capability.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:98195b9448c613209a88afd16a957a1e575220cb92b80332d40a9adc4eeafaff",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:e42e89134ecc7062e6432d81535151898fa57be5f7b917f2cc3198f42c33ab78",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v0",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:95acfb5fa272a4c7acc7f52d11f1ad0054b98152c45903cf3cb9430b4ab8c286"
+    },
+    {
+      "id": "contractDataManifest",
+      "path": "demos/zerobugs/control/snapback/generated/contract-data.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:98195b9448c613209a88afd16a957a1e575220cb92b80332d40a9adc4eeafaff",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:e42e89134ecc7062e6432d81535151898fa57be5f7b917f2cc3198f42c33ab78",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:cddb4560e94878993016ae36161e29fc96d63a8f16e32342b515c916bdbaee95"
+    },
+    {
+      "id": "artifactIndex",
+      "path": "demos/zerobugs/control/snapback/generated/artifacts.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:98195b9448c613209a88afd16a957a1e575220cb92b80332d40a9adc4eeafaff",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:e42e89134ecc7062e6432d81535151898fa57be5f7b917f2cc3198f42c33ab78",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:4bba1fd58deb5120631753a74f3b98b108d3fe111d9b064434c4b20262f3e1aa"
+    }
+  ],
+  "machineIdentity": {
+    "arch": "arm64",
+    "cpuCount": 18,
+    "hostnameSha256": "sha256:4a238cd09cfb162aa54334e6f1b3fba341960951bd6f36b2b01b6e77a72395c0",
+    "platform": "darwin"
+  },
+  "manifest": {
+    "id": "zerobugs-acceptance.v1",
+    "path": "demos/zerobugs/manifest/acceptance.v1.json",
+    "sha256": "sha256:3eb0280a5803da887cea371193f62ff372ac537efa24e7cd53b150afe0d1fc2c"
+  },
+  "network": "socket-free seam audit or incompatible-seam refusal",
+  "outcome": "FAIL",
+  "rawArtifacts": [
+    {
+      "path": "demos/zerobugs/control/PLAN.md",
+      "sha256": "sha256:9c268eb31ec42549082b3c0c8c3461c69485a2ce9d2cf0e3ae6d4d8dbee42380"
+    },
+    {
+      "path": "demos/zerobugs/control/composition/zerobugs-control-composition.v1.json",
+      "sha256": "sha256:2e99e33cfbef2c961257399b817a8b749699efcf22720308476576d1aff2513d"
+    },
+    {
+      "path": "demos/zerobugs/control/scripts/build-large-overlay.mts",
+      "sha256": "sha256:e0b7369049f69cba9bfa784af3c4efae44fe8460043d3c99c4df2ce7cc46f4ff"
+    },
+    {
+      "path": "demos/zerobugs/control/scripts/load-large-fixture.mts",
+      "sha256": "sha256:894b680906bf3de438ac406e85b27586a6d08a1c9cc064abde2a1bd4d47ab185"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/artifacts.json",
+      "sha256": "sha256:4bba1fd58deb5120631753a74f3b98b108d3fe111d9b064434c4b20262f3e1aa"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/capability.manifest.json",
+      "sha256": "sha256:95acfb5fa272a4c7acc7f52d11f1ad0054b98152c45903cf3cb9430b4ab8c286"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/contract-data.manifest.json",
+      "sha256": "sha256:cddb4560e94878993016ae36161e29fc96d63a8f16e32342b515c916bdbaee95"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/functions.manifest.json",
+      "sha256": "sha256:19ae4356e1b7b31030fc1834232a9258becd7fee4ae3fa6fe47ae24fef64e29d"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/schema.manifest.json",
+      "sha256": "sha256:ded5755121f86e41fae151983fdd7734f85184f745b07415a23bd536bfb658e4"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/gate-support.mjs",
+      "sha256": "sha256:52e514bc20ab2ac0dfba2639e7e07ac2f38f824836070c3847867afb221f2437"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/gates/zb5-hot.mjs",
+      "sha256": "sha256:cb044f9dd2d1e29162e402de649709c8e06cdb667f6a11dc6b5004cff2d60904"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/gates/zb5-scale-support.mjs",
+      "sha256": "sha256:ac5dd07e841ce02f2350fa9f3fba221095e21537f61dda46e07db754b71c49a1"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/fixtures/fixture-digests.json",
+      "sha256": "sha256:56afa56a74f0edddfd71ac0e7a09f5c12bc1e2eaed9e2be2f2ad6c84c31d38b3"
+    },
+    {
+      "path": "demos/zerobugs/manifest/acceptance.v1.json",
+      "sha256": "sha256:3eb0280a5803da887cea371193f62ff372ac537efa24e7cd53b150afe0d1fc2c"
+    },
+    {
+      "path": "demos/zerobugs/manifest/large-seed42-v1.receipt.json",
+      "sha256": "sha256:d9dfd4fde488a388502773f569e829746f66826ae0f9f47263d36eef7d625a8a"
+    },
+    {
+      "path": "demos/zerobugs/stage0/inventory.v1.json",
+      "sha256": "sha256:0d7233897864c39f99ef5c46946da21ddfc8a404e6f0441c741c02192a43eaa3"
+    },
+    {
+      "path": "guide/testing/acceptance.md",
+      "sha256": "sha256:f8e0c2178f5798b839c41fa1c062ac5b3c8f23ca387699ca9a726be2c6713992"
+    }
+  ],
+  "refusalFacts": [
+    {
+      "id": "hot-cycle-without-provable-reset",
+      "status": "refused"
+    },
+    {
+      "id": "adaptive-arrival-rate",
+      "status": "refused"
+    },
+    {
+      "id": "performance-unfrozen-margin",
+      "status": "refused"
+    },
+    {
+      "id": "removed-member-role-transition-without-authority-invalidation",
+      "status": "refused"
+    },
+    {
+      "id": "issue-create-beyond-portable-short-id-bound",
+      "status": "not-observed"
+    }
+  ],
+  "schemaVersion": "zerobugs-gate-receipt.v1",
+  "sourceAccounting": {
+    "cycles": 3,
+    "expectedChecks": 24,
+    "inventoryOrder": [
+      "issue.create",
+      "issue.update",
+      "issue.delete",
+      "issue.addLabel",
+      "issue.removeLabel",
+      "notification.update",
+      "emoji.addToIssue",
+      "emoji.addToComment",
+      "emoji.remove",
+      "comment.add",
+      "comment.edit",
+      "comment.remove",
+      "label.create",
+      "label.createAndAddToIssue",
+      "viewState.set",
+      "userPref.set"
+    ],
+    "operationArgumentsDigest": "sha256:aec3c98570fd981660544f30381c811002397cd1cd7e40157ceb5a0ff52cce90",
+    "operationPlan": {
+      "adaptiveArrivals": false,
+      "arrivalIntervalMs": 25,
+      "attackerPosture": "negative probes only; no mutation inventory authority",
+      "cycles": 3,
+      "fixtureId": "hot-recent-v1",
+      "largeFixtureId": "large-seed42-v1",
+      "observers": [
+        "ordinary-user",
+        "creator",
+        "assignee",
+        "crew-admin",
+        "removed-member",
+        "anonymous"
+      ],
+      "overlayDigest": "sha256:39d7758a5a5809abf9fa3b3c6b966ecdf43dd9f5c6cc8b3977a94c17dd4efd73",
+      "plan": [
+        {
+          "argumentsDigest": "sha256:c5c8898f84c78f0e1176b5f8d4e57feac83bdb72b08b060c64e546170af47d0e",
+          "authorityTransitions": [
+            {
+              "actor": "removed-member",
+              "arrivalOffsetMs": 400,
+              "invalidatePredecessorAuthority": true,
+              "negativeReadProbeAfterTransition": true,
+              "transition": "crew-to-user-role-change"
+            }
+          ],
+          "cycle": 0,
+          "operations": [
+            {
+              "actor": "ordinary-user",
+              "args": {
+                "compositionClientID": "hot-client-0",
+                "compositionMutationID": "hot-0-01",
+                "created": 1785888010000,
+                "description": "deterministic hot-profile issue",
+                "id": "zbhot_d3fbcbeb42035ab3788bd40f",
+                "modified": 1785888010000,
+                "projectID": "OfAwqxYz9GbQfkkFpNpkT",
+                "title": "hot-recent-v1 cycle 0 issue"
+              },
+              "arrivalOffsetMs": 0,
+              "effectClass": "trigger",
+              "inventoryIndex": 0,
+              "name": "issue.create"
+            },
+            {
+              "actor": "crew-admin",
+              "args": {
+                "compositionClientID": "hot-client-0",
+                "compositionMutationID": "hot-0-02",
+                "id": "-2Ovs18trGRIjvxsJQaYJ",
+                "modified": 1785888010001,
+                "title": "hot-recent-v1 cycle 0 update"
+              },
+              "arrivalOffsetMs": 25,
+              "effectClass": "trigger",
+              "inventoryIndex": 1,
+              "name": "issue.update"
+            },
+            {
+              "actor": "crew-admin",
+              "args": {
+                "id": "-8EAV1sZodqj9AMlGc2fR"
+              },
+              "arrivalOffsetMs": 50,
+              "effectClass": "non-trigger",
+              "inventoryIndex": 2,
+              "name": "issue.delete"
+            },
+            {
+              "actor": "crew-admin",
+              "args": {
+                "compositionClientID": "hot-client-0",
+                "compositionMutationID": "hot-0-04",
+                "issueID": "-9y94Z-IH_0NnTkn2pM4w",
+                "labelID": "HSHR6A4P_7OKDJGPEniqE",
+                "projectID": "OfAwqxYz9GbQfkkFpNpkT"
+              },
+              "arrivalOffsetMs": 75,
+              "effectClass": "trigger",
+              "inventoryIndex": 3,
+              "name": "issue.addLabel"
+            },
+            {
+              "actor": "crew-admin",
+              "args": {
+                "compositionClientID": "hot-client-0",
+                "compositionMutationID": "hot-0-05",
+                "issueID": "-2Ovs18trGRIjvxsJQaYJ",
+                "labelID": "HSHR6A4P_7OKDJGPEniqE"
+              },
+              "arrivalOffsetMs": 100,
+              "effectClass": "trigger",
+              "inventoryIndex": 4,
+              "name": "issue.removeLabel"
+            },
+            {
+              "actor": "assignee",
+              "args": {
+                "created": 1785888010005,
+                "issueID": "-EZZYWDaetu4INQLUg4sI",
+                "subscribed": "subscribe"
+              },
+              "arrivalOffsetMs": 125,
+              "effectClass": "non-trigger",
+              "inventoryIndex": 5,
+              "name": "notification.update"
+            },
+            {
+              "actor": "ordinary-user",
+              "args": {
+                "annotation": "thumbs up",
+                "compositionClientID": "hot-client-0",
+                "compositionMutationID": "hot-0-07",
+                "created": 1785888010006,
+                "id": "zbhot_1a05948375fe98d1b414587f",
+                "subjectID": "-KEvk4fUHdUivVO168wlm",
+                "unicode": "👍"
+              },
+              "arrivalOffsetMs": 150,
+              "effectClass": "trigger",
+              "inventoryIndex": 6,
+              "name": "emoji.addToIssue"
+            },
+            {
+              "actor": "creator",
+              "args": {
+                "annotation": "thumbs up",
+                "compositionClientID": "hot-client-0",
+                "compositionMutationID": "hot-0-08",
+                "created": 1785888010007,
+                "id": "zbhot_6e3a2abe5f08348f3a10281b",
+                "subjectID": "--L23xbrHPV-KWHOZJxCq",
+                "unicode": "👍"
+              },
+              "arrivalOffsetMs": 175,
+              "effectClass": "trigger",
+              "inventoryIndex": 7,
+              "name": "emoji.addToComment"
+            },
+            {
+              "actor": "assignee",
+              "args": {
+                "id": "zbav1_00143df7448080d8ce73d7aa"
+              },
+              "arrivalOffsetMs": 200,
+              "effectClass": "non-trigger",
+              "inventoryIndex": 8,
+              "name": "emoji.remove"
+            },
+            {
+              "actor": "assignee",
+              "args": {
+                "body": "hot-recent-v1 cycle 0 comment",
+                "compositionClientID": "hot-client-0",
+                "compositionMutationID": "hot-0-10",
+                "created": 1785888010009,
+                "id": "zbhot_0c3c834134f4525c5a10ff4c",
+                "issueID": "-fmdt1FfmcjwzVpdsleKx"
+              },
+              "arrivalOffsetMs": 225,
+              "effectClass": "trigger",
+              "inventoryIndex": 9,
+              "name": "comment.add"
+            },
+            {
+              "actor": "crew-admin",
+              "args": {
+                "body": "hot-recent-v1 cycle 0 edited comment",
+                "compositionClientID": "hot-client-0",
+                "compositionMutationID": "hot-0-11",
+                "id": "--s689SvWkwoS-gDHZaFB"
+              },
+              "arrivalOffsetMs": 250,
+              "effectClass": "trigger",
+              "inventoryIndex": 10,
+              "name": "comment.edit"
+            },
+            {
+              "actor": "crew-admin",
+              "args": {
+                "id": "-33zGpeKyU6CneRabYoYY"
+              },
+              "arrivalOffsetMs": 275,
+              "effectClass": "non-trigger",
+              "inventoryIndex": 11,
+              "name": "comment.remove"
+            },
+            {
+              "actor": "crew-admin",
+              "args": {
+                "id": "zbhot_ed2605a2c5580c8f7b74de30",
+                "name": "hot-label-0-a",
+                "projectID": "OfAwqxYz9GbQfkkFpNpkT"
+              },
+              "arrivalOffsetMs": 300,
+              "effectClass": "non-trigger",
+              "inventoryIndex": 12,
+              "name": "label.create"
+            },
+            {
+              "actor": "crew-admin",
+              "args": {
+                "issueID": "08-PCOp1EtWmzJkekHUPe",
+                "labelID": "zbhot_08d1a37c9a3c5ef90742fbc2",
+                "labelName": "hot-label-0-b",
+                "projectID": "OfAwqxYz9GbQfkkFpNpkT"
+              },
+              "arrivalOffsetMs": 325,
+              "effectClass": "non-trigger",
+              "inventoryIndex": 13,
+              "name": "label.createAndAddToIssue"
+            },
+            {
+              "actor": "removed-member",
+              "args": {
+                "issueID": "08IwMq2rkArB_eLxR-Zy1",
+                "viewed": 1785888010014
+              },
+              "arrivalOffsetMs": 350,
+              "effectClass": "non-trigger",
+              "inventoryIndex": 14,
+              "name": "viewState.set"
+            },
+            {
+              "actor": "ordinary-user",
+              "args": {
+                "key": "zerobugs-acceptance.v1",
+                "value": "hot-cycle-0"
+              },
+              "arrivalOffsetMs": 375,
+              "effectClass": "non-trigger",
+              "inventoryIndex": 15,
+              "name": "userPref.set"
+            }
+          ],
+          "resetGeneration": 0
+        },
+        {
+          "argumentsDigest": "sha256:ef3de589dfda1d13e01b95f343bccbcae7bf24685e9d5d7d4c57b6d2f36d7d52",
+          "authorityTransitions": [
+            {
+              "actor": "removed-member",
+              "arrivalOffsetMs": 400,
+              "invalidatePredecessorAuthority": true,
+              "negativeReadProbeAfterTransition": true,
+              "transition": "crew-to-user-role-change"
+            }
+          ],
+          "cycle": 1,
+          "operations": [
+            {
+              "actor": "ordinary-user",
+              "args": {
+                "compositionClientID": "hot-client-1",
+                "compositionMutationID": "hot-1-01",
+                "created": 1785888011000,
+                "description": "deterministic hot-profile issue",
+                "id": "zbhot_4245ad1398712216811a4439",
+                "modified": 1785888011000,
+                "projectID": "OfAwqxYz9GbQfkkFpNpkT",
+                "title": "hot-recent-v1 cycle 1 issue"
+              },
+              "arrivalOffsetMs": 0,
+              "effectClass": "trigger",
+              "inventoryIndex": 0,
+              "name": "issue.create"
+            },
+            {
+              "actor": "crew-admin",
+              "args": {
+                "compositionClientID": "hot-client-1",
+                "compositionMutationID": "hot-1-02",
+                "id": "-2Ovs18trGRIjvxsJQaYJ",
+                "modified": 1785888011001,
+                "title": "hot-recent-v1 cycle 1 update"
+              },
+              "arrivalOffsetMs": 25,
+              "effectClass": "trigger",
+              "inventoryIndex": 1,
+              "name": "issue.update"
+            },
+            {
+              "actor": "crew-admin",
+              "args": {
+                "id": "-8EAV1sZodqj9AMlGc2fR"
+              },
+              "arrivalOffsetMs": 50,
+              "effectClass": "non-trigger",
+              "inventoryIndex": 2,
+              "name": "issue.delete"
+            },
+            {
+              "actor": "crew-admin",
+              "args": {
+                "compositionClientID": "hot-client-1",
+                "compositionMutationID": "hot-1-04",
+                "issueID": "-9y94Z-IH_0NnTkn2pM4w",
+                "labelID": "HSHR6A4P_7OKDJGPEniqE",
+                "projectID": "OfAwqxYz9GbQfkkFpNpkT"
+              },
+              "arrivalOffsetMs": 75,
+              "effectClass": "trigger",
+              "inventoryIndex": 3,
+              "name": "issue.addLabel"
+            },
+            {
+              "actor": "crew-admin",
+              "args": {
+                "compositionClientID": "hot-client-1",
+                "compositionMutationID": "hot-1-05",
+                "issueID": "-2Ovs18trGRIjvxsJQaYJ",
+                "labelID": "HSHR6A4P_7OKDJGPEniqE"
+              },
+              "arrivalOffsetMs": 100,
+              "effectClass": "trigger",
+              "inventoryIndex": 4,
+              "name": "issue.removeLabel"
+            },
+            {
+              "actor": "assignee",
+              "args": {
+                "created": 1785888011005,
+                "issueID": "-EZZYWDaetu4INQLUg4sI",
+                "subscribed": "subscribe"
+              },
+              "arrivalOffsetMs": 125,
+              "effectClass": "non-trigger",
+              "inventoryIndex": 5,
+              "name": "notification.update"
+            },
+            {
+              "actor": "ordinary-user",
+              "args": {
+                "annotation": "thumbs up",
+                "compositionClientID": "hot-client-1",
+                "compositionMutationID": "hot-1-07",
+                "created": 1785888011006,
+                "id": "zbhot_244fcfcf4aebab4842e1259a",
+                "subjectID": "-KEvk4fUHdUivVO168wlm",
+                "unicode": "👍"
+              },
+              "arrivalOffsetMs": 150,
+              "effectClass": "trigger",
+              "inventoryIndex": 6,
+              "name": "emoji.addToIssue"
+            },
+            {
+              "actor": "creator",
+              "args": {
+                "annotation": "thumbs up",
+                "compositionClientID": "hot-client-1",
+                "compositionMutationID": "hot-1-08",
+                "created": 1785888011007,
+                "id": "zbhot_db93b0c41a3fbc9666b11ae1",
+                "subjectID": "--L23xbrHPV-KWHOZJxCq",
+                "unicode": "👍"
+              },
+              "arrivalOffsetMs": 175,
+              "effectClass": "trigger",
+              "inventoryIndex": 7,
+              "name": "emoji.addToComment"
+            },
+            {
+              "actor": "assignee",
+              "args": {
+                "id": "zbav1_00143df7448080d8ce73d7aa"
+              },
+              "arrivalOffsetMs": 200,
+              "effectClass": "non-trigger",
+              "inventoryIndex": 8,
+              "name": "emoji.remove"
+            },
+            {
+              "actor": "assignee",
+              "args": {
+                "body": "hot-recent-v1 cycle 1 comment",
+                "compositionClientID": "hot-client-1",
+                "compositionMutationID": "hot-1-10",
+                "created": 1785888011009,
+                "id": "zbhot_b828c93a81331b2a31f89838",
+                "issueID": "-fmdt1FfmcjwzVpdsleKx"
+              },
+              "arrivalOffsetMs": 225,
+              "effectClass": "trigger",
+              "inventoryIndex": 9,
+              "name": "comment.add"
+            },
+            {
+              "actor": "crew-admin",
+              "args": {
+                "body": "hot-recent-v1 cycle 1 edited comment",
+                "compositionClientID": "hot-client-1",
+                "compositionMutationID": "hot-1-11",
+                "id": "--s689SvWkwoS-gDHZaFB"
+              },
+              "arrivalOffsetMs": 250,
+              "effectClass": "trigger",
+              "inventoryIndex": 10,
+              "name": "comment.edit"
+            },
+            {
+              "actor": "crew-admin",
+              "args": {
+                "id": "-33zGpeKyU6CneRabYoYY"
+              },
+              "arrivalOffsetMs": 275,
+              "effectClass": "non-trigger",
+              "inventoryIndex": 11,
+              "name": "comment.remove"
+            },
+            {
+              "actor": "crew-admin",
+              "args": {
+                "id": "zbhot_a87175dc03fe27ccd951a04b",
+                "name": "hot-label-1-a",
+                "projectID": "OfAwqxYz9GbQfkkFpNpkT"
+              },
+              "arrivalOffsetMs": 300,
+              "effectClass": "non-trigger",
+              "inventoryIndex": 12,
+              "name": "label.create"
+            },
+            {
+              "actor": "crew-admin",
+              "args": {
+                "issueID": "08-PCOp1EtWmzJkekHUPe",
+                "labelID": "zbhot_7d8af87a5fcdb5af19cf7784",
+                "labelName": "hot-label-1-b",
+                "projectID": "OfAwqxYz9GbQfkkFpNpkT"
+              },
+              "arrivalOffsetMs": 325,
+              "effectClass": "non-trigger",
+              "inventoryIndex": 13,
+              "name": "label.createAndAddToIssue"
+            },
+            {
+              "actor": "removed-member",
+              "args": {
+                "issueID": "08IwMq2rkArB_eLxR-Zy1",
+                "viewed": 1785888011014
+              },
+              "arrivalOffsetMs": 350,
+              "effectClass": "non-trigger",
+              "inventoryIndex": 14,
+              "name": "viewState.set"
+            },
+            {
+              "actor": "ordinary-user",
+              "args": {
+                "key": "zerobugs-acceptance.v1",
+                "value": "hot-cycle-1"
+              },
+              "arrivalOffsetMs": 375,
+              "effectClass": "non-trigger",
+              "inventoryIndex": 15,
+              "name": "userPref.set"
+            }
+          ],
+          "resetGeneration": 1
+        },
+        {
+          "argumentsDigest": "sha256:961ff732448fb42ce53ea5e9ff4bb1ad9557e4119c8fb0d949a4489625c1669e",
+          "authorityTransitions": [
+            {
+              "actor": "removed-member",
+              "arrivalOffsetMs": 400,
+              "invalidatePredecessorAuthority": true,
+              "negativeReadProbeAfterTransition": true,
+              "transition": "crew-to-user-role-change"
+            }
+          ],
+          "cycle": 2,
+          "operations": [
+            {
+              "actor": "ordinary-user",
+              "args": {
+                "compositionClientID": "hot-client-2",
+                "compositionMutationID": "hot-2-01",
+                "created": 1785888012000,
+                "description": "deterministic hot-profile issue",
+                "id": "zbhot_69f837b2f73cec19698a7c48",
+                "modified": 1785888012000,
+                "projectID": "OfAwqxYz9GbQfkkFpNpkT",
+                "title": "hot-recent-v1 cycle 2 issue"
+              },
+              "arrivalOffsetMs": 0,
+              "effectClass": "trigger",
+              "inventoryIndex": 0,
+              "name": "issue.create"
+            },
+            {
+              "actor": "crew-admin",
+              "args": {
+                "compositionClientID": "hot-client-2",
+                "compositionMutationID": "hot-2-02",
+                "id": "-2Ovs18trGRIjvxsJQaYJ",
+                "modified": 1785888012001,
+                "title": "hot-recent-v1 cycle 2 update"
+              },
+              "arrivalOffsetMs": 25,
+              "effectClass": "trigger",
+              "inventoryIndex": 1,
+              "name": "issue.update"
+            },
+            {
+              "actor": "crew-admin",
+              "args": {
+                "id": "-8EAV1sZodqj9AMlGc2fR"
+              },
+              "arrivalOffsetMs": 50,
+              "effectClass": "non-trigger",
+              "inventoryIndex": 2,
+              "name": "issue.delete"
+            },
+            {
+              "actor": "crew-admin",
+              "args": {
+                "compositionClientID": "hot-client-2",
+                "compositionMutationID": "hot-2-04",
+                "issueID": "-9y94Z-IH_0NnTkn2pM4w",
+                "labelID": "HSHR6A4P_7OKDJGPEniqE",
+                "projectID": "OfAwqxYz9GbQfkkFpNpkT"
+              },
+              "arrivalOffsetMs": 75,
+              "effectClass": "trigger",
+              "inventoryIndex": 3,
+              "name": "issue.addLabel"
+            },
+            {
+              "actor": "crew-admin",
+              "args": {
+                "compositionClientID": "hot-client-2",
+                "compositionMutationID": "hot-2-05",
+                "issueID": "-2Ovs18trGRIjvxsJQaYJ",
+                "labelID": "HSHR6A4P_7OKDJGPEniqE"
+              },
+              "arrivalOffsetMs": 100,
+              "effectClass": "trigger",
+              "inventoryIndex": 4,
+              "name": "issue.removeLabel"
+            },
+            {
+              "actor": "assignee",
+              "args": {
+                "created": 1785888012005,
+                "issueID": "-EZZYWDaetu4INQLUg4sI",
+                "subscribed": "subscribe"
+              },
+              "arrivalOffsetMs": 125,
+              "effectClass": "non-trigger",
+              "inventoryIndex": 5,
+              "name": "notification.update"
+            },
+            {
+              "actor": "ordinary-user",
+              "args": {
+                "annotation": "thumbs up",
+                "compositionClientID": "hot-client-2",
+                "compositionMutationID": "hot-2-07",
+                "created": 1785888012006,
+                "id": "zbhot_19eaec85ceb53d86f1706ee3",
+                "subjectID": "-KEvk4fUHdUivVO168wlm",
+                "unicode": "👍"
+              },
+              "arrivalOffsetMs": 150,
+              "effectClass": "trigger",
+              "inventoryIndex": 6,
+              "name": "emoji.addToIssue"
+            },
+            {
+              "actor": "creator",
+              "args": {
+                "annotation": "thumbs up",
+                "compositionClientID": "hot-client-2",
+                "compositionMutationID": "hot-2-08",
+                "created": 1785888012007,
+                "id": "zbhot_9113cdbbe8679b400360c71e",
+                "subjectID": "--L23xbrHPV-KWHOZJxCq",
+                "unicode": "👍"
+              },
+              "arrivalOffsetMs": 175,
+              "effectClass": "trigger",
+              "inventoryIndex": 7,
+              "name": "emoji.addToComment"
+            },
+            {
+              "actor": "assignee",
+              "args": {
+                "id": "zbav1_00143df7448080d8ce73d7aa"
+              },
+              "arrivalOffsetMs": 200,
+              "effectClass": "non-trigger",
+              "inventoryIndex": 8,
+              "name": "emoji.remove"
+            },
+            {
+              "actor": "assignee",
+              "args": {
+                "body": "hot-recent-v1 cycle 2 comment",
+                "compositionClientID": "hot-client-2",
+                "compositionMutationID": "hot-2-10",
+                "created": 1785888012009,
+                "id": "zbhot_5b970b52b9a2beb762a2ebbc",
+                "issueID": "-fmdt1FfmcjwzVpdsleKx"
+              },
+              "arrivalOffsetMs": 225,
+              "effectClass": "trigger",
+              "inventoryIndex": 9,
+              "name": "comment.add"
+            },
+            {
+              "actor": "crew-admin",
+              "args": {
+                "body": "hot-recent-v1 cycle 2 edited comment",
+                "compositionClientID": "hot-client-2",
+                "compositionMutationID": "hot-2-11",
+                "id": "--s689SvWkwoS-gDHZaFB"
+              },
+              "arrivalOffsetMs": 250,
+              "effectClass": "trigger",
+              "inventoryIndex": 10,
+              "name": "comment.edit"
+            },
+            {
+              "actor": "crew-admin",
+              "args": {
+                "id": "-33zGpeKyU6CneRabYoYY"
+              },
+              "arrivalOffsetMs": 275,
+              "effectClass": "non-trigger",
+              "inventoryIndex": 11,
+              "name": "comment.remove"
+            },
+            {
+              "actor": "crew-admin",
+              "args": {
+                "id": "zbhot_f4ab4caf79480d9fa1b009f8",
+                "name": "hot-label-2-a",
+                "projectID": "OfAwqxYz9GbQfkkFpNpkT"
+              },
+              "arrivalOffsetMs": 300,
+              "effectClass": "non-trigger",
+              "inventoryIndex": 12,
+              "name": "label.create"
+            },
+            {
+              "actor": "crew-admin",
+              "args": {
+                "issueID": "08-PCOp1EtWmzJkekHUPe",
+                "labelID": "zbhot_1e6d6682c976b1e0e6d222e4",
+                "labelName": "hot-label-2-b",
+                "projectID": "OfAwqxYz9GbQfkkFpNpkT"
+              },
+              "arrivalOffsetMs": 325,
+              "effectClass": "non-trigger",
+              "inventoryIndex": 13,
+              "name": "label.createAndAddToIssue"
+            },
+            {
+              "actor": "removed-member",
+              "args": {
+                "issueID": "08IwMq2rkArB_eLxR-Zy1",
+                "viewed": 1785888012014
+              },
+              "arrivalOffsetMs": 350,
+              "effectClass": "non-trigger",
+              "inventoryIndex": 14,
+              "name": "viewState.set"
+            },
+            {
+              "actor": "ordinary-user",
+              "args": {
+                "key": "zerobugs-acceptance.v1",
+                "value": "hot-cycle-2"
+              },
+              "arrivalOffsetMs": 375,
+              "effectClass": "non-trigger",
+              "inventoryIndex": 15,
+              "name": "userPref.set"
+            }
+          ],
+          "resetGeneration": 2
+        }
+      ],
+      "schemaVersion": "zerobugs-hot-operation-plan.v1",
+      "workingSetDigest": "sha256:7e3ee7d659ad10e69f4ff681b091980d30525b62991ab4548c547e5240b9e464"
+    },
+    "rawLatencyDistributions": {
+      "comment.add": {
+        "check": "raw-mutation-10-comment.add",
+        "dispatchDriftMs": [],
+        "expectedSamples": 3,
+        "outcomes": [],
+        "samplesMs": [],
+        "status": "FAIL"
+      },
+      "comment.edit": {
+        "check": "raw-mutation-11-comment.edit",
+        "dispatchDriftMs": [],
+        "expectedSamples": 3,
+        "outcomes": [],
+        "samplesMs": [],
+        "status": "FAIL"
+      },
+      "comment.remove": {
+        "check": "raw-mutation-12-comment.remove",
+        "dispatchDriftMs": [],
+        "expectedSamples": 3,
+        "outcomes": [],
+        "samplesMs": [],
+        "status": "FAIL"
+      },
+      "emoji.addToComment": {
+        "check": "raw-mutation-08-emoji.addToComment",
+        "dispatchDriftMs": [],
+        "expectedSamples": 3,
+        "outcomes": [],
+        "samplesMs": [],
+        "status": "FAIL"
+      },
+      "emoji.addToIssue": {
+        "check": "raw-mutation-07-emoji.addToIssue",
+        "dispatchDriftMs": [],
+        "expectedSamples": 3,
+        "outcomes": [],
+        "samplesMs": [],
+        "status": "FAIL"
+      },
+      "emoji.remove": {
+        "check": "raw-mutation-09-emoji.remove",
+        "dispatchDriftMs": [],
+        "expectedSamples": 3,
+        "outcomes": [],
+        "samplesMs": [],
+        "status": "FAIL"
+      },
+      "issue.addLabel": {
+        "check": "raw-mutation-04-issue.addLabel",
+        "dispatchDriftMs": [],
+        "expectedSamples": 3,
+        "outcomes": [],
+        "samplesMs": [],
+        "status": "FAIL"
+      },
+      "issue.create": {
+        "check": "raw-mutation-01-issue.create",
+        "dispatchDriftMs": [],
+        "expectedSamples": 3,
+        "outcomes": [],
+        "samplesMs": [],
+        "status": "FAIL"
+      },
+      "issue.delete": {
+        "check": "raw-mutation-03-issue.delete",
+        "dispatchDriftMs": [],
+        "expectedSamples": 3,
+        "outcomes": [],
+        "samplesMs": [],
+        "status": "FAIL"
+      },
+      "issue.removeLabel": {
+        "check": "raw-mutation-05-issue.removeLabel",
+        "dispatchDriftMs": [],
+        "expectedSamples": 3,
+        "outcomes": [],
+        "samplesMs": [],
+        "status": "FAIL"
+      },
+      "issue.update": {
+        "check": "raw-mutation-02-issue.update",
+        "dispatchDriftMs": [],
+        "expectedSamples": 3,
+        "outcomes": [],
+        "samplesMs": [],
+        "status": "FAIL"
+      },
+      "label.create": {
+        "check": "raw-mutation-13-label.create",
+        "dispatchDriftMs": [],
+        "expectedSamples": 3,
+        "outcomes": [],
+        "samplesMs": [],
+        "status": "FAIL"
+      },
+      "label.createAndAddToIssue": {
+        "check": "raw-mutation-14-label.createAndAddToIssue",
+        "dispatchDriftMs": [],
+        "expectedSamples": 3,
+        "outcomes": [],
+        "samplesMs": [],
+        "status": "FAIL"
+      },
+      "notification.update": {
+        "check": "raw-mutation-06-notification.update",
+        "dispatchDriftMs": [],
+        "expectedSamples": 3,
+        "outcomes": [],
+        "samplesMs": [],
+        "status": "FAIL"
+      },
+      "userPref.set": {
+        "check": "raw-mutation-16-userPref.set",
+        "dispatchDriftMs": [],
+        "expectedSamples": 3,
+        "outcomes": [],
+        "samplesMs": [],
+        "status": "FAIL"
+      },
+      "viewState.set": {
+        "check": "raw-mutation-15-viewState.set",
+        "dispatchDriftMs": [],
+        "expectedSamples": 3,
+        "outcomes": [],
+        "samplesMs": [],
+        "status": "FAIL"
+      }
+    },
+    "rawSamplesRecorded": 0
+  },
+  "startedAt": "2026-08-08T01:48:29.019Z",
+  "targetIdentity": {
+    "appId": "zerobugs-control",
+    "bundleHash": "snapback.v1:sessions:function:sha256:98195b9448c613209a88afd16a957a1e575220cb92b80332d40a9adc4eeafaff",
+    "id": "local-dev-sqlite-ibex",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:e42e89134ecc7062e6432d81535151898fa57be5f7b917f2cc3198f42c33ab78",
+    "mode": "fresh local Ibex plus SQLite server",
+    "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+    "schemaVersion": "snapback.v1"
+  },
+  "workarounds": [
+    {
+      "baselineDigest": "sha256:ecef9c242f45b3371cbbf6e1b28a8527121b577e62399eca31550b6da9f53b84",
+      "id": "HOT-RESET-BASELINE-CLONE",
+      "mode": "byte-identical paused SQLite baseline clone per cycle",
+      "resetProofs": [
+        {
+          "baselineDigest": "sha256:ecef9c242f45b3371cbbf6e1b28a8527121b577e62399eca31550b6da9f53b84",
+          "cloneDigest": "sha256:ecef9c242f45b3371cbbf6e1b28a8527121b577e62399eca31550b6da9f53b84",
+          "cloneMethod": "COPYFILE_FICLONE with platform fallback; db-sibling auth keyring cloned alongside",
+          "cycle": 0,
+          "generation": 0
+        }
+      ],
+      "status": "gap"
+    }
+  ]
+}

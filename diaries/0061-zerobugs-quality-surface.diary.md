@@ -387,3 +387,36 @@ issue held out of every ordinary/anonymous count-like surface at scale.
 Nothing here is a margin claim — single samples, loopback, one machine —
 but the large-profile GAP rows that have trailed this control since Lane 8
 opened are now real numbers in an immutable receipt.
+
+## 2026-08-07 (later) — the hot profile's attempt ladder, and a second honest boundary
+
+zb5-hot never got a clean receipt today, and the eight preserved FAILs
+are the most instructive artifact the hot profile has produced. Each
+attempt advanced exactly one stage further and each stage found one real
+thing nobody could have seen at 1,024-row scale: the kit's 3-second stop
+grace; the runtime stranding its SQLite WAL on SIGTERM at 12 GiB (P2
+ticket — small stores checkpoint provably clean); a receipt hasher that
+read whole files and died at 12 GiB; the sessions auth keyring living as
+a db-path-prefixed sibling no clone ever carried because no lane had ever
+booted a clone; the anonymous-public client dropping its configured
+authorization-invalidation header on /live/ paths — found by this gate
+and, the same day, independently found and fixed on main by another
+lane's public witness; and a vacuous-pass hardening for the gate itself.
+
+The ladder's terminal finding is the one worth the ticket: with all of
+that fixed, the cycles run, all sixteen mutations commit, and every
+observer's authoritative poll converges to exact rows at 5.5M-row scale —
+but a streaming observer's socket drops mid-cycle and never comes back,
+on a loud machine and a quiet one alike. Convergence is not the problem;
+the live stream contract under hot mutation fan-out is. Whether that is
+the server's delta loop owing ~96 heavy opaque-query re-evaluations per
+cycle burst or a client resubscribe path that never retries under
+fallbackToPoll: false is precisely the diagnosis the ticket's standalone
+recipe exists to make cheap (the receipted gate costs ~75 minutes per
+question; a persistent-baseline harness costs one ingest ever).
+
+So Lane 8 ends where it began, on the program's own terms: the large
+profile fully qualified with real numbers, the hot profile closed at an
+honest boundary owned by a named ticket, receipts that never overwrite,
+and a platform that is five scale-shaped defects more honest than it was
+yesterday. The control keeps doing the only job it was built for.
