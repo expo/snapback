@@ -279,6 +279,19 @@ recorded in `issues/20260808-offline-supervisor-origin-guide-anchor.md`.
     Route terms: "EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN", "bare Metro",
     "cold offline", "persisted-receipt".
 
+Case 26 absorbs the duplicated native-lane simulator setup recorded in
+`issues/20260808-headless-simulator-proof-recipe.md`.
+
+26. **Headless iOS simulator proof:** "Drive an Expo iOS proof without opening
+    Simulator.app: install and launch the app, dismiss Expo Go onboarding,
+    send a custom-scheme command, and capture a screenshot." The run fails if
+    it uses `plutil` for the dotted scheme-approval key, expects `simctl` to
+    answer the first-open confirmation, or treats URL delivery alone as the
+    product witness.
+    Expected pages: `clients/react-expo.md`.
+    Route terms: "headless simulator", "plistlib", "Expo Go onboarding",
+    "simctl openurl", "deep-link drive channel".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:

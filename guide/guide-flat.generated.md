@@ -1174,6 +1174,19 @@ recorded in `issues/20260808-offline-supervisor-origin-guide-anchor.md`.
     Route terms: "EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN", "bare Metro",
     "cold offline", "persisted-receipt".
 
+Case 26 absorbs the duplicated native-lane simulator setup recorded in
+`issues/20260808-headless-simulator-proof-recipe.md`.
+
+26. **Headless iOS simulator proof:** "Drive an Expo iOS proof without opening
+    Simulator.app: install and launch the app, dismiss Expo Go onboarding,
+    send a custom-scheme command, and capture a screenshot." The run fails if
+    it uses `plutil` for the dotted scheme-approval key, expects `simctl` to
+    answer the first-open confirmation, or treats URL delivery alone as the
+    product witness.
+    Expected pages: `clients/react-expo.md`.
+    Route terms: "headless simulator", "plistlib", "Expo Go onboarding",
+    "simctl openurl", "deep-link drive channel".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:
@@ -9761,7 +9774,7 @@ order: 3
 audience: agent-first
 capabilities: [clients.react-expo]
 authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0181-zero-configuration-expo.rfc.md, packages/snapback-cli/expo-dev.mjs, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-expo/app-binding.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-expo/config-plugin.cjs, packages/snapback-expo/index.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo/supervised-binding-cache.mjs, packages/snapback-expo/supervised-environment.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/_kit/eas-stage-build.mjs]
-examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md, demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md, demos/expo-golden-path-fixture/receipts/20260806-g4-external-summary.md, demos/expo-golden-path-fixture/receipts/physical-device-online-checklist.md, demos/partiful-matrix/native/react-expo, packages/snapback-cli/expo-device-forwarding.test.mjs, packages/snapback-cli/expo-bootstrap-exchange.test.mjs, packages/snapback-expo/asset-source.test.mjs, packages/snapback-expo/supervised-offline-fallback.test.mjs, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-expo/provider.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, scripts/local-source-package-closure.test.mjs, demos/rn-durable-store-witness/probe-App.tsx, demos/tandem-expo-bakeoff/scripts/build-ios-dev-client, demos/_kit/tests/repo-layout-unit.mjs]
+examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md, demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md, demos/expo-golden-path-fixture/receipts/20260806-g4-external-summary.md, demos/expo-golden-path-fixture/receipts/physical-device-online-checklist.md, demos/partiful-matrix/native/react-expo, packages/snapback-cli/expo-device-forwarding.test.mjs, packages/snapback-cli/expo-bootstrap-exchange.test.mjs, packages/snapback-expo/asset-source.test.mjs, packages/snapback-expo/supervised-offline-fallback.test.mjs, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-expo/provider.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, scripts/local-source-package-closure.test.mjs, demos/rn-durable-store-witness/probe-App.tsx, demos/tandem-expo-bakeoff/scripts/build-ios-dev-client, demos/_kit/tests/repo-layout-unit.mjs, benchmarks/lanes/native-simulator.md]
 status: current
 targets: [local]
 maturity: shipped
@@ -10419,32 +10432,112 @@ permission to expose development auth on a non-loopback listener. Each OS must
 run its own build, lifecycle, reconnect, and artifact-exclusion checks; neither
 receipt can substitute for the other.
 
-## Witness a deep link on the simulator
+## Run a headless iOS simulator proof
 
-An invitation or share flow returns to the app through a custom scheme, and
-the acceptance loop above has no deep-link leg by default. Two facts save a
-silent timeout:
+Use a dedicated simulator and `xcrun simctl` throughout; opening
+Simulator.app is unnecessary. Record the UDID, runtime version, app bundle
+digest, and every command in the receipt so the screenshot is evidence for one
+exact LLP 0064 tuple rather than a generic iOS claim.
 
-1. **The first open of a custom scheme raises an OS confirmation dialog**
-   (`Open in "<app>"?`). That is an iOS product fact — a real user answers it
-   once per scheme — and no headless `simctl` surface can answer it. The URL
-   event never reaches the app, and a director/witness run simply times out
-   with no diagnostic.
-2. **Pre-approve the scheme for headless runs.** With the device *shut down*,
-   write the scheme approval into the simulator's launch-services preferences:
+### Pre-approve the deep-link scheme with `plistlib`
+
+The first custom-scheme open raises the iOS `Open in "<app>"?` confirmation.
+A real user answers it once, but no headless `simctl` command can. The URL
+never reaches the app, so an unattended witness otherwise times out without a
+useful diagnostic.
+
+Pre-approve only the dedicated test simulator, while it is **shut down**.
+`plutil -replace` is the wrong tool here: it interprets the dots in
+`com.apple.CoreSimulator.CoreSimulatorBridge-->{scheme}` as a key path instead
+of one literal dictionary key. Python's `plistlib` assigns the literal key:
 
 ```sh
-# device shut down; key is CoreSimulatorBridge-->{scheme}, value is the bundle id
-plutil -replace "com.apple.CoreSimulator.CoreSimulatorBridge-->myapp" \
-  -string com.example.myapp \
-  ~/Library/Developer/CoreSimulator/Devices/<UDID>/data/Library/Preferences/com.apple.launchservices.schemeapproval.plist
+export UDID="<simulator-udid>"
+export APP_SCHEME="myapp"
+export APP_BUNDLE_ID="com.example.myapp"
+export APPROVAL_PLIST="$HOME/Library/Developer/CoreSimulator/Devices/$UDID/data/Library/Preferences/com.apple.launchservices.schemeapproval.plist"
+
+xcrun simctl shutdown "$UDID" 2>/dev/null || true
+python3 - <<'PY'
+import os
+import plistlib
+from pathlib import Path
+
+path = Path(os.environ['APPROVAL_PLIST'])
+path.parent.mkdir(parents=True, exist_ok=True)
+if path.exists():
+    with path.open('rb') as source:
+        preferences = plistlib.load(source)
+else:
+    preferences = {}
+key = f"com.apple.CoreSimulator.CoreSimulatorBridge-->{os.environ['APP_SCHEME']}"
+preferences[key] = os.environ['APP_BUNDLE_ID']
+temporary = path.with_suffix(path.suffix + '.tmp')
+with temporary.open('wb') as destination:
+    plistlib.dump(preferences, destination, fmt=plistlib.FMT_BINARY)
+temporary.replace(path)
+PY
 ```
 
-Then boot, install, and `xcrun simctl openurl <UDID> "myapp://invite/<token>"`;
-the React Native `Linking` listener fires and the in-app redemption is
-witnessable like any other step. Keep the scheme registration itself in the
-app config (`expo.scheme`) — the pre-approval only substitutes for the human
-tap, and only on a simulator you control.
+Keep the scheme registration in app config (`expo.scheme`). For Expo Go, the
+corresponding pair is scheme `exp` and bundle id `host.exp.Exponent`; for a
+development or release build, use that app's own scheme and bundle id. This
+pre-approval is test infrastructure, not an application entitlement or a
+production bypass.
+
+### Boot, install, dismiss Expo Go onboarding, launch, and capture
+
+Booting, installing, launching, and taking screenshots can all remain
+headless:
+
+```sh
+export APP_PATH="/absolute/path/to/MyApp.app"
+export EVIDENCE_DIR="/absolute/path/to/evidence"
+
+mkdir -p "$EVIDENCE_DIR"
+xcrun simctl boot "$UDID"
+xcrun simctl bootstatus "$UDID" -b
+xcrun simctl install "$UDID" "$APP_PATH"
+xcrun simctl launch --terminate-running-process "$UDID" "$APP_BUNDLE_ID"
+xcrun simctl io "$UDID" screenshot "$EVIDENCE_DIR/boot.png"
+```
+
+When the carrier is Expo Go, install it first and dismiss its first-run sheet
+before launch; otherwise the sheet can cover the app and consume the first
+interaction:
+
+```sh
+xcrun simctl spawn "$UDID" defaults write host.exp.Exponent \
+  EXDevMenuIsOnboardingFinished -bool YES
+```
+
+Run that command after Expo Go is installed and before its first launch. It is
+not needed for a standalone development or release app.
+
+### Use deep links as a tap-less drive channel
+
+`simctl openurl` is reliable once the scheme is approved:
+
+```sh
+xcrun simctl openurl "$UDID" \
+  "myapp://proof/send-message?fixture=hello-1"
+xcrun simctl io "$UDID" screenshot "$EVIDENCE_DIR/message-sent.png"
+```
+
+For an unattended proof build, route a small closed set of `proof/*` URLs from
+the ordinary React Native `Linking` listener to the same actions the UI invokes
+(send, navigate, background-test setup), then emit the normal in-app/server
+witness. Do not let the drive channel call private backend seams, skip
+authority, or declare success by receiving the URL alone. Keep secrets out of
+URLs, gate the channel to the proof build, and pair every drive command with an
+independent observation or screenshot. Invitation/share URLs remain real
+product flows; the `proof/*` convention is only a tap-less test director.
+
+Finally, prefer the newest admitted runtime and record it. The iOS 26.3
+simulator has a CoreText defect that can render astral emoji as tofu even when
+the semantic string is correct; iOS 26.5 renders the same emoji correctly.
+Treat a 26.3-only glyph difference as environment evidence, not a Snapback
+data corruption claim.
 
 ## Handle native reconnect honestly
 
