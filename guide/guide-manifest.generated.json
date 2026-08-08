@@ -1939,7 +1939,7 @@
       ],
       "reviewed": "2026-08-07",
       "reviewedCommit": "6a1de382fade55da910e3ab1f40115e1e0cfad48",
-      "sha256": "d62b1ce76bfde3db126f287084db280d2a08175f2bc9b685ad8abe854d55c790",
+      "sha256": "1c9be0672e0e2644d699ceed312ef03eca421973148077080a57812863247c67",
       "snippets": [
         {
           "lang": "json",
@@ -1976,6 +1976,11 @@
         {
           "lang": "ts",
           "class": "fragment"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-cli/expo-dev.mjs"
         },
         {
           "lang": "ts",
@@ -3402,7 +3407,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedCommit": "effa2773760fd0d740c49f06990b3fde5e82a66b",
-      "sha256": "222de4524df9d6bf9a49336ac2c7f3aabb8e9c7391812e61a6cf720fe3c6d67a",
+      "sha256": "4e2c00f1adc0dd96f855d5619f53ab0f3c431b4306162f225b68092df50a60d8",
       "snippets": []
     },
     "meta.surface-map": {
@@ -3812,5 +3817,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "bb608bcdd2afecc4d64b9f952eeed3482579dfd232c82afc441df5c0f1776350"
+  "contentHash": "69351bd08798d19e650942436ee118db114a5157dae40174d7077bacff2b5352"
 }

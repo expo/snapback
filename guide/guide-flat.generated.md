@@ -1161,6 +1161,19 @@ Case 24 absorbs the repeated verifier-config source-reading detour recorded in
     Route terms: "snapback.verify.config.mjs", "defineVerifyConfig",
     "@expo/snapback-cli/verify", "acceptance profile".
 
+Case 25 absorbs the repeated bare-Metro cold-offline source excavation
+recorded in `issues/20260808-offline-supervisor-origin-guide-anchor.md`.
+
+25. **Expo supervised cold offline boot:** "After warming an Expo app through
+    `snapback dev --expo`, stop the supervisor and prove a cold launch from the
+    cached binding and retained receipt using bare Metro." The run fails if it
+    omits the bundle-time supervisor-origin environment, invents a new dead
+    URL instead of capturing the supervised exchange origin, or claims
+    protected reads work offline.
+    Expected pages: `clients/react-expo.md`.
+    Route terms: "EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN", "bare Metro",
+    "cold offline", "persisted-receipt".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:
@@ -10289,6 +10302,57 @@ facts are the retained last-known public facts, and protected reads still
 refuse offline. No matching cache or receipt keeps the original
 bootstrap-unavailable refusal. Witness:
 [supervised offline fallback test](repo:packages/snapback-expo/supervised-offline-fallback.test.mjs).
+
+### Reproduce a supervised cold boot with bare Metro
+
+The supervisor normally puts its credential-free bootstrap origin into the
+Metro process before Metro builds the application bundle:
+
+```js source=packages/snapback-cli/expo-dev.mjs fragment="supervisor origin injected into Metro's environment"
+      EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN: bootstrapOrigin,
+```
+
+That environment value is the switch that makes the provider attempt the
+supervised exchange and, when that exact exchange is unreachable, consider
+the cached-binding fallback. It is public loopback routing, not a bearer. To
+exercise the cold-offline path outside the supervisor:
+
+1. Start `snapback dev ./snapback --expo`, launch the app, and wait for both a
+   ready provider and the retained query you intend to witness. That warm run
+   persists the public supervised binding cache and the separate digest-bound
+   client receipt.
+2. While the supervisor is still running, capture `exchangeOrigin` from
+   `.snapback/expo-supervisor.json` in a second terminal:
+
+   ```sh
+   export SNAPBACK_OFFLINE_ORIGIN="$(node -e \
+     "process.stdout.write(JSON.parse(require('node:fs').readFileSync('.snapback/expo-supervisor.json')).exchangeOrigin)")"
+   ```
+
+3. Stop the supervisor. Its close path removes
+   `.snapback/expo-supervisor.json` and reclaims the managed backend, Metro,
+   bootstrap exchange, transient binding/session material, and any Android
+   port forwards. The development-only public binding cache and client receipt
+   deliberately remain in the app's store.
+4. Start a new bare Metro process with the captured, now-unreachable origin in
+   its environment, then cold-launch the app:
+
+   ```sh
+   EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN="$SNAPBACK_OFFLINE_ORIGIN" \
+     npx --no-install expo start --localhost --clear
+   ```
+
+The variable must be present **when Metro creates the bundle**. Adding it after
+Metro starts, or only to the shell that launches the simulator, does not change
+an already-built JavaScript bundle; stop and restart Metro with the variable.
+Do not substitute an arbitrary dead URL: the provider admits only the captured
+device-local HTTP origin shape.
+
+On success, boot is ready with `state.preparation.source ===
+'persisted-receipt'` and retained public rows remain non-live. An absent cache
+or receipt still returns `SNAPBACK_EXPO_BOOTSTRAP_UNAVAILABLE`; an expired
+cached binding still returns `SNAPBACK_APP_BINDING_EXPIRED`; and protected
+reads never become available merely because public retained rows did.
 
 Flush on background (the LLP 0091 step-5 lifecycle wiring): persistence is
 debounced, so have the shell flush pending resume state when the app leaves

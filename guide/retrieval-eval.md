@@ -266,6 +266,19 @@ Case 24 absorbs the repeated verifier-config source-reading detour recorded in
     Route terms: "snapback.verify.config.mjs", "defineVerifyConfig",
     "@expo/snapback-cli/verify", "acceptance profile".
 
+Case 25 absorbs the repeated bare-Metro cold-offline source excavation
+recorded in `issues/20260808-offline-supervisor-origin-guide-anchor.md`.
+
+25. **Expo supervised cold offline boot:** "After warming an Expo app through
+    `snapback dev --expo`, stop the supervisor and prove a cold launch from the
+    cached binding and retained receipt using bare Metro." The run fails if it
+    omits the bundle-time supervisor-origin environment, invents a new dead
+    URL instead of capturing the supervised exchange origin, or claims
+    protected reads work offline.
+    Expected pages: `clients/react-expo.md`.
+    Route terms: "EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN", "bare Metro",
+    "cold offline", "persisted-receipt".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:
