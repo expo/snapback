@@ -129,7 +129,7 @@ is in [verify](../../guide/testing/verify.md).
 10. **Headless generated command invocation lives at `app.commands.*`**, not
     on the `api` export — `createCommandClient(client).start(app.commands.<name>, …)`
     ([headless client](../../guide/clients/headless.md)).
-11. **`createAssetClient` exports from the package root since `0.1.14`**;
+11. **`createAssetClient` exports from the package root since `0.1.15`**;
    on older closures import it from the `@expo/snapback-client/assets`
    subpath (the root types declared it before the runtime export existed).
 12. **The supervisor reclaims Metro/bootstrap when the backend dies.** A
