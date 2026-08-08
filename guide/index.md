@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: HEAD
+reviewed-commit: dcc3bd2a6192f5b6c9964786e9e5e0cdd185c219
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />

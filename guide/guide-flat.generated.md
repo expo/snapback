@@ -15,7 +15,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: HEAD
+reviewed-commit: dcc3bd2a6192f5b6c9964786e9e5e0cdd185c219
 ---
 
 # Capability index
@@ -146,7 +146,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: HEAD
+reviewed-commit: dcc3bd2a6192f5b6c9964786e9e5e0cdd185c219
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -932,7 +932,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: HEAD
+reviewed-commit: dcc3bd2a6192f5b6c9964786e9e5e0cdd185c219
 ---
 
 # Retrieval eval protocol
@@ -8811,7 +8811,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: HEAD
+reviewed-commit: dcc3bd2a6192f5b6c9964786e9e5e0cdd185c219
 ---
 
 # The headless client
@@ -9661,7 +9661,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: HEAD
+reviewed-commit: dcc3bd2a6192f5b6c9964786e9e5e0cdd185c219
 ---
 
 # The React client
@@ -17904,7 +17904,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: HEAD
+reviewed-commit: dcc3bd2a6192f5b6c9964786e9e5e0cdd185c219
 ---
 
 # Recipe: paginated and load-more lists
@@ -18106,7 +18106,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: HEAD
+reviewed-commit: dcc3bd2a6192f5b6c9964786e9e5e0cdd185c219
 ---
 
 # Recipe: browser sign-in and reload custody
@@ -18313,7 +18313,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: HEAD
+reviewed-commit: dcc3bd2a6192f5b6c9964786e9e5e0cdd185c219
 ---
 
 # Recipe: optimistic create with a server-minted ID
