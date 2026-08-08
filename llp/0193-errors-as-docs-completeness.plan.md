@@ -5,7 +5,7 @@
 **Systems:** Diagnostics, Error handling, Guide, Agent experience, CI
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (r7, author-merge: Charlie's reconciliation —
+**Revised:** 2026-08-08 (r8, round-6 fixes: ledger fields made orthogonal (representation / target kind / OQ6 mechanism); candidate-vs-published closure validation so unreleased diagnostics stay landable; exit criterion 5 requires downgrade+refix+retest for ineffective A-grades, bounded to the first post-ratchet run; carrier trigger = OQ6 carrier SHIPS; three-of-six residues enumerated.) 2026-08-08 (r7, author-merge: Charlie's reconciliation —
 the evidence claim narrowed to the refusal-reachable three-of-six subset
 with the rest routed to 0194/0196; the ledger grades resolution quality
 and closure binding (carrier/target/applicability/one-attempt witness
@@ -51,9 +51,11 @@ bar structural, so it can never regress.
 
 ## Evidence
 
-- Diary 0069: six expensive moments were knowledge-shaped; three were
-  reachable from a refusal that could have carried the answer. The
-  other three route to LLP 0194/0196 and keep this Plan's causal claim
+- Diary 0069: six expensive moments were knowledge-shaped. The
+  refusal-reachable subset this Plan owns is graded in the Phase 1
+  ledger's first rows (residues 1, 4, and 6 of that diary's list); the
+  signature-shaped remainder (residues 2, 3, 5) routes to LLP 0194 and
+  the template gap to LLP 0196, keeping this Plan's causal claim
   bounded.
 - The retained record shows the mechanism in both directions: observed
   refusals that named remediations (diary 0048's decode diagnostic, the
@@ -76,19 +78,26 @@ including env vars and test constants; the diagnostic subset is the
 real population and Phase 1 establishes its size) from the diagnostic registry
 plus a grep sweep for unregistered emissions. Fan out grading lanes:
 each code graded A (names rule + current fix/anchor), B (names rule
-only), or C (bare). The ledger also records the emitting site,
-agent-triggerability, remediation carrier
-(`structured | message | guide | reference`), target, closure/version
+only), or C (bare). The ledger also records the emitting site, agent-triggerability, and
+three orthogonal remediation fields — emitted representation
+(`structured | message-text`), remediation target kind
+(`inline-fix | guide-anchor | reference-symbol`), and the OQ6-selected
+enforcement/storage mechanism once ruled — plus closure/version
 applicability, anchor/symbol resolution, and whether a cold one-attempt
-recovery witness exists. Output: a checked-in graded ledger under
+recovery witness exists. A structured remediation targeting an exact
+registry symbol is an ordinary valid combination. Output: a checked-in graded ledger under
 `tests/acceptance/diagnostics/`.
 
 **Phase 2 — fix in evidence order.** First: every B/C code that appears
 in any diary's correction-loop list. Then B/C codes on
 agent-triggerable paths, batched by subsystem. Message edits follow the
 house style; guide and LLP 0194 reference anchors must resolve against
-the published closure the remediation claims to teach (check-guide and
-the reference checks enforce). Codes
+the closure the remediation names: unreleased diagnostics validate
+against the exact candidate/build closure digest and are revalidated
+against the qualified published digest at release (so the ratchet never
+makes an unreleased diagnostic unlandable), and the remediation and its
+anchor must name the same closure (check-guide and the reference checks
+enforce). Codes
 that are genuinely internal (never agent-triggerable) are marked so in
 the ledger rather than polished; later reclassification of an
 agent-triggerable code to internal is refused mechanically by the drift
@@ -130,16 +139,21 @@ search or bisection are the recurring audit input.
    tests for all three).
 4. A benchmark run encounters zero B- or C-grade refusals — as
    validation of criterion 2, not a substitute for it.
-5. Every encountered A-grade refusal either produces a one-attempt
-   recovery or files evidence explaining why its remediation was
-   ineffective.
+5. In the first post-ratchet benchmark run, every encountered A-grade
+   refusal produces a one-attempt recovery; an ineffective A-grade
+   remediation triggers downgrade and refix with a successful retest
+   before this criterion passes (classes where one-attempt recovery is
+   intrinsically inappropriate get a bounded alternative witness,
+   named in the ledger). The standing per-run audit rule lives in
+   Phase 4.
 
 ## Open questions
 
 - OQ1: Migration cadence — how quickly audited legacy codes graduate
   from the text+anchor floor to D7's structured `remediations` carrier
-  once the 0146 OQ6 carrier ruling lands. New codes use the structured
-  carrier from that point; the open question is cadence, not the target
+  once the 0146 OQ6-selected carrier ships. New codes use the structured
+  carrier from the moment it ships (the ruling alone does not end the
+  text+anchor floor); the open question is cadence, not the target
   shape (settled by 0146's ratified D7). Proposal: structured on next
   touch, dated full-migration milestone set when the carrier ships.
 - OQ2: Grading authority for "agent-triggerable" — proposal: reachable

@@ -5,7 +5,7 @@
 **Systems:** Templates, CLI, Guide, Testing, Agent experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (r7, author-merge: Charlie's action-economy
+**Revised:** 2026-08-08 (r8, round-6 fixes: stale 0197 "rules 4a/4b" pointer corrected to rule 10; holdout adopts rule 10's full aid scope and "substantially implemented" test incl. OQ3.) 2026-08-08 (r7, author-merge: Charlie's action-economy
 revision — T0 completes the existing chat starter before portfolio breadth;
 every template exposes one proof command delegating to LLP 0146 D2's
 `snapback verify`; the headless-simulator recipe becomes an executable
@@ -129,7 +129,7 @@ T1 lands.
   (three app templates + recipes); additions require a measured brief.
 - OQ2: Whether `create-snapback-app` grows an interactive template
   picker or stays flag-driven (agents prefer flags; humans may not).
-- OQ3: Holdout selection and official-starter eligibility for public
-  comparisons. LLP 0197 owns the disclosure rule; this Plan must supply
-  at least one workload not directly solved by a template added for its
-  brief.
+- OQ3: Holdout selection and aid eligibility for public comparisons.
+  LLP 0197 rule 10 owns the disclosure rule and the "substantially
+  implemented" test across ALL vendor-authored aids; this Plan must
+  supply at least one workload that passes that test.

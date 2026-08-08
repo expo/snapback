@@ -5,7 +5,7 @@
 **Systems:** Competitive evaluation, Publishing, Documentation
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (r7, author-merge: Charlie's restructure after the
+**Revised:** 2026-08-08 (r8, round-6 fixes: rule 5 gains an explicit public/private boundary — opaque evidence IDs, keyed integrity commitments over private originals, fail-closed publisher; rule 2 defines near-balance at odd N; rule 3 conditioned on 0195 D4 with an alternate-home fallback.) 2026-08-08 (r7, author-merge: Charlie's restructure after the
 first harness-native run — counterbalanced repetitions, mandatory machine
 records, action-economy evidence with semantic action classes,
 receipt-backed proof over LLP 0146 verify, the `snapback-defect`
@@ -55,14 +55,20 @@ A published Snapback benchmark claim requires:
    W1 protocol.
 2. **Counterbalanced repetitions.** Lanes remain serial and
    same-machine within a comparison set, but their order rotates across
-   repetitions using a predeclared balanced schedule. The record pins
+   repetitions using a predeclared rotation schedule ("balanced" means
+   position counts differing by at most one at odd N; exact balance
+   requires repetition counts divisible by the lane count, e.g. N=4
+   for two lanes). The record pins
    machine state and load, package-manager/cache posture, fresh versus
    reused backend state, occupied ports, model, effort, harness, and
    package versions. A favorable lane may not always receive the same
    warm-cache or machine-load position.
 3. **The full harness public:** briefs verbatim, instantiated lane
    prompts, fairness rules, ordering schedule, record schema, and run
-   records (the `benchmarks/` tree, published via LLP 0195), plus a
+   records (the `benchmarks/` tree, published via LLP 0195 — this rule
+   is conditional on 0195 D4 admitting benchmark artifacts to the
+   public site; if D4 rules otherwise, an alternate public home is
+   named before any claim publishes), plus a
    reproducibility manifest per record (harness commit, model
    identity/build and settings as run, closure and competitor versions,
    tool versions, environment and machine class, stopping rules, seeds
@@ -89,7 +95,14 @@ A published Snapback benchmark claim requires:
    codes, retained hashes of private originals, and a human with
    repository-disclosure authority reviewing before anything ships —
    and may not remove the action class, timestamp, result status, or a
-   stable evidence pointer. Raw transcripts never publish.
+   stable evidence pointer. The public/private boundary is explicit:
+   the PUBLIC record carries normalized invocation metadata (action
+   class, tool name, timing, result status) and opaque evidence IDs;
+   raw tool arguments, transcripts, and sensitive originals stay in an
+   access-controlled private store keyed by those IDs, with keyed
+   integrity commitments rather than plain hashes of low-entropy
+   values (which permit confirmation attacks). The publisher fails
+   closed when safe redaction would destroy required auditability.
 6. **Fairness notes attached to every chart:** cold-context agents;
    published surfaces only; same model, effort, and within-set machine;
    counterbalanced serial discipline; competitor lanes free to use web

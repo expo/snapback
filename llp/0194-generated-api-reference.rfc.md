@@ -5,7 +5,7 @@
 **Systems:** Guide, Documentation, Client packages, Types, Build
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (r7, author-merge: Charlie's action-economy revision
+**Revised:** 2026-08-08 (r8, round-6 fixes: export parity split value-space vs type-space (non-runtime registry kinds exempt from the runtime check); acceptance 2 requires bootstrap removal/conversion + CI duplicate-ownership rejection once the ctx declaration lands.) 2026-08-08 (r7, author-merge: Charlie's action-economy revision
 — a canonical machine-readable symbol registry becomes the authority behind
 Markdown, CLI, and MCP projections; a published `ctx` declaration source is
 required with hand-fenced prose permitted only as a temporary bootstrap
@@ -91,10 +91,19 @@ gap.
 
 ## Acceptance
 
-1. Registry/runtime export parity fails if a declared symbol is absent
-   at runtime or a public runtime export lacks a registry entry.
+1. Registry/runtime export parity: value-space declared symbols must
+   exist at runtime under their applicable export conditions, and every
+   public runtime export must have a registry entry; type-space-only
+   symbols (hook fact types, contract interfaces) appear in the
+   registry with an explicit non-runtime kind and are exempt from the
+   runtime check.
 2. The `ctx` handler surface is available to consumers as declarations
-   and in the same registry as package APIs.
+   and in the same registry as package APIs, the hand-fenced bootstrap
+   prose is removed or converted to a generated projection, and CI
+   rejects duplicate symbol ownership from the moment the declaration
+   source lands. While the bootstrap lives, it passes check-guide like
+   any page and its retirement trigger is OQ2's declaration landing;
+   ctx fix-pointers use the 0193 text+anchor floor until then.
 3. A cold signature-task suite covering headless args nesting,
    constructor custody pairs, verify-config, hook facts, and `ctx.db`
    completes with zero package-source reads and zero binary-string

@@ -6,7 +6,7 @@
 evaluation
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (r7, author-merge: Charlie's revision — publication
+**Revised:** 2026-08-08 (r8, round-6 fixes: OQ4 recast as familiarity surveillance only — epoch changes cannot establish corpus presence; per-release snapshots marked as proposed D3 default.) 2026-08-08 (r7, author-merge: Charlie's revision — publication
 binds to a qualified closure/content digest rather than moving HEAD; public
 examples become generated projections with a single canonical owner; the
 two-clocks success measures separate immediate retrieval from long-horizon
@@ -44,8 +44,9 @@ is the author's decision.
    machinery), and honest by construction (GAP rows). A static site
    generator over `guide/` — same markdown, same snippets, the 0194
    reference included — published on a real domain, with `/llms.txt` at
-   the root and per-release snapshots pinned to published closures (the
-   fence machinery already knows what each closure contains). The
+   the root and — as the proposed D3 default, not settled design —
+   per-release snapshots pinned to published closures (the fence
+   machinery already knows what each closure contains). The
    in-repo/served guide remains canonical; the site is a projection with
    the same content hashes. Publication consumes a qualified
    closure/content digest, not whatever commit happens to be HEAD while
@@ -113,7 +114,11 @@ published, not marketing copy.
   as the site's acceptance test).
 - OQ3: Whether `snapback guide <query>` gains a `--web` mode linking the
   public anchors, unifying citations across surfaces.
-- OQ4: The pinned-model knowledge evaluation — a fixed question set
-  about Snapback answered by pinned model builds over time, isolating
-  training-data presence from in-context aids; only worth building if
-  the training hypothesis starts driving decisions.
+- OQ4: The pinned-model familiarity surveillance — a fixed question
+  set about Snapback answered by pinned model builds, with closure,
+  harness, questions, and aids held fixed within each separately
+  reported model epoch. It observes familiarity trends only; changing
+  epochs cannot establish corpus presence or isolate training-data
+  inclusion from other model changes, so attribution to training
+  requires corpus evidence or a controlled ablation. Only worth
+  building if the training hypothesis starts driving decisions.
