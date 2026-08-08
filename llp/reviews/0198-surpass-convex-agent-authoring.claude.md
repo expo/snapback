@@ -437,3 +437,117 @@ is owned by no phase. Reviewed revision: 2f11795033ae122d210321d62c862a9df66002c
 
 **Counts:** MATERIAL — 3 IN-DELTA, 0 PRE-EXISTING. minor — 4 IN-DELTA,
 3 PRE-EXISTING.
+
+---
+
+## Round 3 — 2026-08-08 — revision (c) b5a1a7d6 / sha256 db995830… — DELTA ROUND — verdict: READY (0 MATERIAL; 3 IN-DELTA minor, 1 PRE-EXISTING minor)
+
+Provenance: fresh Claude-family subagent (claude-fable-5), mutually
+blind, capsule-r3 tar sha256-16 590e4cc9c11fa629 (0198 artifacts
+excluded; DELTA-b-to-c.diff at root); instructions sha256-16
+9f06e55946a7833f; runtime 7m00s. Body verbatim.
+
+# Claude-family review — LLP 0198, round 3 (delta round)
+
+**Target:** `llp/0198-surpass-convex-agent-authoring.plan.md`, revision (c),
+commit b5a1a7d6a96e255fc4978bcb1c5aa415cdb30c93, file sha256
+db99583036f3aee8d5f8dfbf6007f8fa767171dd2a31c33114d85cf54fe3161c
+(verified against the capsule file).
+
+**Method.** Read the full (c) text, then `DELTA-b-to-c.diff`, then verified
+every load-bearing (c) claim against capsule primary sources:
+`benchmarks/records/2026-08-08-messaging-0115.md` and
+`2026-08-07-messaging-0113.md`, `benchmarks/protocol.md`, `benchmarks/README.md`,
+`benchmarks/schema/run-record.schema.json`, `benchmarks/records/schema.md`,
+diaries 0069/0058-relay-room/0058-messaging/0067, LLP 0197 (rules 1/3/4a/4b/5/6),
+LLP 0194 (r5 header, initial scope, OQ2), LLP 0171 Finding D, LLP 0189
+(D-3/D-4), LLP 0196 (0.1.15 qualifier), LLP 0195 (training-data hypothesis).
+
+Verification results feeding the concerns below (all checks that passed,
+briefly): the restated run-5 loop accounting quotes the 0115 record's
+annotations verbatim and its "no defect-shaped framework loop in any run-5
+Snapback lane" reading matches both the record's Notes line ("first run with
+zero framework defects in any Snapback lane") and diary 0069; the web-deps
+"both web lanes' longest single loop" claim matches diary 0069 residue 1;
+the 0196 qualifier ("largest knowledge-placement improvement; 0.1.13's
+defect-fix layer produced larger raw steps") matches LLP 0196 lines 22–26;
+the P1 rewrite matches LLP 0194 r5 exactly (verify-config in initial scope
+via published `verify.d.mts`, `ctx` the sole remaining named exclusion,
+OQ2 narrowed accordingly); the retry ask matches 0171 Finding D verbatim
+(LLP 0070 owns both questions; finite cap, backoff/jitter, generation pin,
+proved no-effect stage); aid-assisted labeling and symmetric predeclared
+competitor aid selection match 0197 rule 4a's full scope; the
+publication-safe projection ("raw transcripts never publish") matches 0197
+rule 6; material-competitor-release aging matches rule 5; the qualification
+digest binding matches 0189 D-3/D-4; P0.1's "no variance band at N≥3"
+and P0.2's N≥8 blocked design match protocol.md's floors; P0b's
+no-cross-family token pooling is honored by L1's "within-family tokens";
+P0.0(c)'s sub-attribution as a sub-field of the existing `snapback-defect`
+enum value is coherent with the schema and preserves the discoverability
+tie-break; P0.0(a)'s narrowed claim (orientation/verification shares only,
+not the full four-term decomposition) is now honest against I.5; the
+0058-messaging quote attribution and the run-1 scored figures
+(26m03s/11m15s, 84/86, mature-hypothetical 97/96) all check.
+
+## Concerns
+
+1. **minor — IN-DELTA.** I.2's trajectory series changes units at its last
+   entry: runs 2–4 figures (4, 8, 3) are framework-attributed loop *counts*
+   (confirmed against the 0113 record's "9 (3 framework)" convention) while
+   run 5's entry is "zero defect-shaped" — a different unit whose
+   framework-attributed comparable is nonzero (skill "7 (0 backend)", bare
+   "6 (~2)", with the web-deps loop framework-attributed via the
+   discoverability tie-break). The (c) text discloses this immediately and
+   quotes the annotations verbatim, which is the right call, but the
+   series as a series still invites an unlike-units 3→0 reading; one clause
+   noting that run 5's framework-attributed comparable is nonzero-but-
+   knowledge-shaped would close it. Evidence:
+   `benchmarks/records/2026-08-08-messaging-0115.md` (table + Notes) vs
+   `2026-08-07-messaging-0113.md` ("total (framework)" convention).
+
+2. **minor — IN-DELTA.** The pick-and-build preregistration (P3) defines
+   "favors Snapback" (strict majority of picks, no majority post-build
+   regret) but leaves L5's other necessary condition — "at worst neutral on
+   plain CRUD" — without a decision rule, and captures "regret or switch"
+   while only regret enters the rule. As stated, L5's CRUD leg cannot be
+   adjudicated from the preregistered rule. Evidence: II.1 L5 bullet vs P3
+   pick-and-build bullet.
+
+3. **minor — IN-DELTA.** The requalification trigger has a control-lane band
+   exceedance confirmed by an N≥3 series against a band produced at N≥8,
+   while `protocol.md` reserves "treating a delta as real" (regression
+   attribution) for N≥8. The conservative direction (requalification lapses
+   a claim rather than making one) makes N≥3 defensible, and the
+   protocol.md citation is used only for the single-run half — but the text
+   should say the confirmatory standard is deliberately below the N≥8
+   attribution floor *because* requalification is claim-protective, so the
+   choice cannot be read as a protocol violation. Evidence: II.1
+   Requalification vs `benchmarks/protocol.md` "Repetitions and variance".
+
+4. **minor — PRE-EXISTING.** The Related header's "diaries 0057–0060 and
+   0065–0069" range includes diary 0067 (browser local-first public
+   witness), which the (c) I.4 enumeration now deliberately — and correctly
+   (0067 is a witness-harness diary, not a bakeoff arm) — excludes from the
+   bakeoff corpus; harmless as a Related pointer, but the visible
+   range-vs-enumeration mismatch is worth one word ("plus witness diary
+   0067" or trimming the range). Evidence: header Related line vs I.4
+   first sentence; `diaries/0067-browser-local-first-public-witness.diary.md`.
+
+## Generative input
+
+- The rung matrix (II.1) is the right container for the preregistered
+  decision rules concern 2 identifies; when it is first committed under
+  `benchmarks/`, giving every rung's *negative* space a row (what outcome
+  demotes or blocks the rung, not just what satisfies it — e.g. L5's CRUD
+  neutrality band, L2's loss-publishes-as-honesty path) would make the
+  matrix the single audit surface P5 needs and retire concerns 2/3
+  structurally.
+
+## Verdict
+
+READY — no unresolved MATERIAL concern anywhere in the document: every
+(b)→(c) mechanism checks against the sources it cites (0115 record, diary
+0069, LLP 0194 r5, 0171 Finding D, 0197 rules 1/4a/5/6, 0189 D-3/D-4,
+protocol.md's N≥3/N≥8 floors), and the four residual concerns are minor
+wording/preregistration-completeness items. Reviewed revision:
+b5a1a7d6a96e255fc4978bcb1c5aa415cdb30c93 / sha256 db99583036f3aee8d5f8dfbf6007f8fa767171dd2a31c33114d85cf54fe3161c.

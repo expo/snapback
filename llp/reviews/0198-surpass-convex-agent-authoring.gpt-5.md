@@ -124,3 +124,36 @@ A single rung matrix covering required configurations, aid labels, preregistered
 ## Verdict
 
 NOT READY — revision `2f117950` / sha256 `404b0b93…` has unresolved MATERIAL concerns in revision (b).
+
+---
+
+## Round 3 — 2026-08-08 — revision (c) b5a1a7d6 / sha256 db995830… — DELTA ROUND — verdict: NOT READY (5 MATERIAL, all IN-DELTA; 2 PRE-EXISTING minor)
+
+Provenance: codex exec, gpt-5.6-sol, reasoning xhigh, read-only sandbox
+on capsule-r3 (tar sha256-16 590e4cc9c11fa629; 0198 artifacts excluded;
+DELTA-b-to-c.diff at root); instructions sha256-16 9f06e55946a7833f.
+Body verbatim (complete stdout).
+
+## Concerns
+
+1. **MATERIAL — IN-DELTA.** L2/P3 can call an N≥3 median an “outright” equal-proof-bar win although P0.2’s N≥8 study covers only the baseline messaging configuration, contrary to the protocol’s N≥8-per-configuration floor and without explicitly carrying LLP 0197 rule 4b’s N≥3-success and success-rate gates; evidence: LLP 0198 §II.1 L2 and §II.3 P0.1–P0.2/P3, `benchmarks/protocol.md` “Repetitions and variance,” LLP 0197 rules 1 and 4b.
+
+2. **MATERIAL — IN-DELTA.** The new qualification digest is described as containing run records and verify receipts but omits the rung/run matrices, protocol, briefs, lane prompts, and scoring checkers that define claim semantics, allowing semantic drift to escape LLP 0189’s claim-relevant invalidation boundary; evidence: LLP 0198 §II.1 “rung matrix” and “Requalification,” LLP 0189 D-3/D-4, LLP 0197 rules 1–4a.
+
+3. **MATERIAL — IN-DELTA.** Revision (c) supplies an N≥3 floor for lifting family scope but no sufficient decision rule, while P0b tests only the primary messaging pair and waits for an interaction to appear before expanding the matrix, so it cannot justify lifting L2–L4 across unmeasured equal-proof, held-out, and other-brief configurations; evidence: LLP 0198 §II.1 opening scope rule and §II.3 P0b, LLP 0197 rules 1 and 3.
+
+4. **MATERIAL — IN-DELTA.** L5 remains undecidable because “N≥5 … across the P0b family panel” does not require N per model-family/brief/redaction configuration and “at worst neutral” is undefined, permitting pooled families or opposite family results to satisfy a gate required for the unqualified claim; evidence: LLP 0198 §II.1 L5 and §II.3 pick-and-build probe, LLP 0197 rules 1 and 3.
+
+5. **MATERIAL — IN-DELTA.** The day-2 design freezes an unspecified post-run artifact without requiring acceptance-equivalent paired starting states or treating artifact identity as a configuration dimension, so repeated cold-agent runs can pseudoreplicate one lucky or poor prior implementation rather than measure platform evolution cost; evidence: LLP 0198 §II.3 P3 day-2 brief, `benchmarks/protocol.md` “Run rules,” LLP 0197 rules 1, 3, and 4a.
+
+6. **minor — PRE-EXISTING.** I.2 still says the verify-config contract exists only in `verify.mjs`, contradicting both corrected P1 and LLP 0194’s published `verify.d.mts` source; evidence: LLP 0198 §I.2/P1, LLP 0194 Design 5 and OQ2.
+
+7. **minor — PRE-EXISTING.** P4 says the operations deficit “caps L4 at every scoring,” although operations carries only 10% of the rubric and P4 option (c) itself permits winning through the other seven dimensions; evidence: LLP 0198 §I.3 scoring table and §II.3 P4.
+
+## Generative input
+
+Represent every claim as a frozen configuration cell containing family/model, brief and starting-artifact hashes, aid/redaction condition, success floor, N, statistic, margin, and semantic-input digest; require family-specific verdicts and either N≥8 for each ordering claim or an explicit preregistered variance-transfer rule.
+
+## Verdict
+
+NOT READY — reviewed revision b5a1a7d6 (sha256 db99583036f3aee8d5f8dfbf6007f8fa767171dd2a31c33114d85cf54fe3161c) has unresolved MATERIAL defects in its claim, qualification, family-scope, and probe rules.

@@ -83,3 +83,18 @@ Orchestrator re-verified 0194 r5 scope, 0197 4a aid wording, and the
 final budgeted round: a delta round on the (b)→(c) diff; per the
 addendum, in-delta residue after round 3 ships labeled unreviewed or
 escalates.
+
+## Round 3 — 2026-08-08 — final budgeted round, delta on (b)→(c)
+
+- Target revision: (c) — commit b5a1a7d6a96e255fc4978bcb1c5aa415cdb30c93, file sha256 db99583036f3aee8d5f8dfbf6007f8fa767171dd2a31c33114d85cf54fe3161c
+- Capsule-r3 tar sha256-16 590e4cc9c11fa629 (0198 artifacts excluded; DELTA-b-to-c.diff at root, 324 lines); instructions sha256-16 29e07acb107150ad
+- Same families/models, fresh contexts, mutually blind; persisted before launch.
+
+## Round 3 receipts + loop close-out — 2026-08-08
+
+- Claude family: READY on (c) — 0 MATERIAL (0 IN-DELTA, 0 PRE-EXISTING); 3 IN-DELTA + 1 PRE-EXISTING minors. Runtime 7m00s. Sealed verbatim.
+- GPT family: NOT READY on (c) — 5 MATERIAL, all IN-DELTA in (c)'s own text; 0 PRE-EXISTING MATERIAL; 2 PRE-EXISTING minors. Sealed verbatim.
+- Terminal state at the 3-round budget: **delta-converged on pre-existing text** (no family reported a PRE-EXISTING MATERIAL in rounds 2 or 3); formal dual-READY NOT achieved — the GPT family found MATERIAL defects in each round's newly added text (rounds 1→3: 10 → 5, narrowing to preregistration-completeness of the claim rules). This is the treadmill-terminal shape (cf. 0186/0187, 0188 loops).
+- Disposition: revision (d) applies the GPT round-3 set and all outstanding minors, and is **labeled unreviewed** per the delta rule's terminal. Every round-3 concern is enumerated in the sealed artifacts; none was summarized away.
+- Deviations for the author: net growth ~40% over the entering revision vs the ~20% budget (452 → ~650 lines), spent on review-demanded mechanism text (claim ladder, preregistration rules, requalification semantics); three compression passes applied. Convergence claim scoped: Claude-family READY binds to (c) b5a1a7d6 / db995830…; (d) is unreviewed by both families.
+- Recommendation: **stay Review.** Acceptance is the author's; if the author wants a formally clean terminal, one authorized extra GPT-family delta round on (d) would either confirm or continue the treadmill.

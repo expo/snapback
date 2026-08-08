@@ -6,6 +6,17 @@
 Templates, Error handling, Operations, Publishing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
+**Revised:** 2026-08-08 (d — **UNREVIEWED post-loop residue repair**,
+applied at round-budget exhaustion under the delta rule's
+label-unreviewed terminal. Round 3: Claude READY on (c) with 0
+MATERIAL; GPT NOT READY with 5 MATERIALs, all IN-DELTA in (c)'s own
+text, 0 PRE-EXISTING — pre-existing text was clean in both families in
+rounds 2 and 3. (d) applies the GPT round-3 set (L2 ordering-claim
+evidence bar + 4b gates; qualification digest widened to all semantic
+inputs; per-configuration family-scope lift; per-cell probe verdicts
+and neutral definition; day-2 acceptance-equivalent paired starts) and
+both families' minors. No reviewer has seen (d); acceptance is the
+author's call with that on the record.)
 **Revised:** 2026-08-08 (c — round-2 delta revision; both families
 NOT READY on (b) with **zero PRE-EXISTING MATERIAL concerns** — every
 MATERIAL was in the (b) delta itself: run-5 loop accounting restated to
@@ -33,7 +44,8 @@ claim gating — governs every claim below), LLP 0193 (errors-as-docs),
 LLP 0194 (generated API reference), LLP 0195 (public documentation and
 training surface), LLP 0196 (template portfolio), LLP 0197 (benchmark
 publication standard), LLP 0130 (Convex parity standing decisions),
-diaries 0057–0060 and 0065–0069, `benchmarks/` (harness and records)
+diaries 0057–0060, 0065–0066, and 0068–0069, `benchmarks/` (harness
+and records)
 
 ## Summary
 
@@ -122,7 +134,8 @@ Framework-attributed correction loops in the primary tracked lane (bare
 in run 2 — no skill existed yet; skill-equipped thereafter): run 2 **4**
 (each a diagnosis-plus-workaround cycle — the CORS relay and offline
 fallback were real engineering), run 3 **8** (the web-carrier wall),
-run 4 **3** (all papercuts), run 5 **zero defect-shaped**. Precisely,
+run 4 **3** (all papercuts), run 5 **0 defect-shaped** (the
+knowledge-shaped residue is broken out below). Precisely,
 per the 0115 record's annotations (skill "7 (0 backend)", native
 "8 (0 framework)", bare "6 (~2)"): **no defect-shaped framework loop in
 any run-5 Snapback lane**, with knowledge-shaped framework-attributed
@@ -162,8 +175,10 @@ platform deps (both web lanes' longest single loop, two runs running);
 the `ctx.db` verb set is undocumented (the native lane extracted
 `query/withIndex/eq/collect/take/delete` from runtime binary strings);
 headless call-shape ambiguity (`{ args: {...} }` nesting); the
-verify-config authoring contract lives only in `verify.mjs` source
-(second consecutive run); simulator-proof recipe gaps; the
+verify-config authoring contract was findable only by reading
+`verify.mjs` source (second consecutive run; 0194 r5 has since placed
+its published `verify.d.mts` declaration in initial scope — the
+remaining residue is discoverability); simulator-proof recipe gaps; the
 offline supervisor-origin env var still lacks a guide anchor. Every one
 is knowledge-shaped, not defect-shaped — which is precisely why LLP
 0193/0194/0196 exist.
@@ -358,7 +373,11 @@ With defect-shaped loops at zero, the run-5 skill-lane delta (19m00s /
 Each rung is a claim under LLP 0189 — snapshot-bound, requalified after
 drift — publishable only per LLP 0197 (all runs reported, instrument
 published, rule-4a scenario labeling). Every rung is scoped to the
-**pinned model family** until P0b answers family stability, and labeled
+**pinned model family**; family scope lifts **per configuration**, only
+when that rung's own configuration (brief × aid condition) has a
+cross-family series at the preregistered N≥3 — P0b's messaging-pair leg
+lifts the messaging-configuration rungs only, never L2/L3/L4's other
+configurations by transfer. Rungs are labeled
 **aid-assisted** wherever any vendor-authored aid — template, example,
 recipe, or skill content — materially built the lane's start (0197
 rule 4a's full scope, not templates alone), with symmetric predeclared
@@ -369,9 +388,14 @@ competitor aid selection.
   bought by doubling inference spend is not parity), messaging brief,
   N≥3 medians, all runs reported.
 - **L2 — Equal-proof-bar superiority.** On the equal-proof-bar brief,
-  Snapback wins wall or tokens outright with the other metric inside
-  the L1 bound, N≥3. This rung prices the moat honestly; a loss here
-  publishes as instrument-honesty evidence, not as L2.
+  Snapback wins wall or tokens with the other metric inside the L1
+  bound, under 0197 rule 4b's success gates (identical budgets and
+  stopping rules; failed attempts reported as capability failures) —
+  and because a win here is an *ordering* claim, it requires either
+  N≥8 on this configuration or a preregistered variance-transfer rule
+  from the P0.2 band, stated in the rung matrix. This rung prices the
+  moat honestly; a loss publishes as instrument-honesty evidence, not
+  as L2.
 - **L3 — General authoring efficiency.** L1's bounds on a held-out
   brief variant no vendor-authored aid was designed against (0197
   rule 4a).
@@ -380,7 +404,10 @@ competitor aid selection.
 - **L5 — Revealed preference.** The pick-and-build probe P3 owns
   (preregistered N and decision rule stated there) favors Snapback on
   offline/realtime/media/trust briefs and is at worst neutral on plain
-  CRUD, across the P0b family panel.
+  CRUD — "neutral" = neither platform meets the favors-condition —
+  with verdicts **per family, per brief family, per redaction
+  condition**, never pooled across cells; the rung needs the
+  favors/neutral pattern to hold in every family cell measured.
 
 **The unqualified phrase "surpasses Convex for agent authoring" requires
 L3 + L4, with L5 across ≥2 model families as confirmation.** Lower rungs
@@ -395,13 +422,18 @@ P5 publishes only from the matrix.
 **Requalification:** every published rung names its snapshot tuple
 {closure version, competitor version, model build, harness commit,
 brief hash} and binds to a claim-scoped qualification digest per LLP
-0189 (the run records and verify receipts the claim reads from, at
-their qualification commit). A standing **control-lane cadence** — one
+0189 covering every semantic input of the claim — the run records and
+verify receipts it reads from *and* the rung matrix, protocol, brief
+texts, lane prompts, and scoring definitions that give it meaning, at
+their qualification commit — so semantic drift cannot escape the
+invalidation boundary. A standing **control-lane cadence** — one
 Convex re-run per epoch (monthly or on a competitor minor release) —
 watches control drift. Triggers: a material competitor release in the
 measured area ages the claim to historical on its own, band breach or
 not; a control-lane band exceedance triggers an N≥3 confirmatory series
-first (single runs never fire requalification, per `protocol.md`); a
+first (single runs never fire requalification; N≥3 only confirms the
+exceedance is worth a requalification cycle — attributing the delta to
+a cause still needs the protocol's N≥8); a
 Snapback promotion or model-epoch change requalifies on the next cycle.
 A lapsed claim reads "held at snapshot X," never current. "Convex keeps
 improving" becomes a mechanism, not a risk note.
@@ -531,22 +563,28 @@ this Plan; instrument changes land under `benchmarks/` conventions).**
   ceremony stays outside the construct; both lanes publish per 0197's
   publication-safe projection (raw transcripts never publish).
   Identity-provider *onboarding* ceremony is OQ2's residual.
-- **Author and run a day-2 evolution brief**: starting from a frozen
-  post-messaging-run artifact with a cold-context agent, three scripted
-  change requests — add a field and migrate live data; add a feature
-  touching schema + client; a pure refactor. Prices I.6's greenfield
-  caveat (the artifact-identity tax, deployment pinning vs the edit
-  loop) — Snapback's hidden weakness, symmetric to the auth seam hiding
-  its hidden strength.
+- **Author and run a day-2 evolution brief**: starting from frozen
+  post-messaging-run artifacts with a cold-context agent, three
+  scripted change requests — add a field and migrate live data; add a
+  feature touching schema + client; a pure refactor. The starting
+  artifacts are paired configuration inputs: each platform's artifact
+  must have passed the same messaging acceptance bar
+  (acceptance-equivalent starts), its hash is part of the
+  configuration cell, and re-freezing is a new configuration — so
+  repeats measure evolution cost, not one lucky or poor prior
+  implementation. Prices I.6's greenfield caveat (the artifact-identity
+  tax, deployment pinning vs the edit loop) — Snapback's hidden
+  weakness, symmetric to the auth seam hiding its hidden strength.
 - **Run the pick-and-build preference probe** (L5's instrument, owned
   here): the agent picks a backend from redacted surface artifacts,
   then must build the brief with its pick; the record captures the
   pick, post-build preference (regret or switch), and whether the
   justification cites properties the measured record supports.
-  Preregistered: N≥5 fresh contexts per brief family, across the P0b
-  family panel; "favors Snapback" = strict majority of picks with no
-  majority post-build regret; the publication label carries the
-  redaction condition (OQ4's residual).
+  Preregistered: N≥5 fresh contexts **per cell** (model family × brief
+  family × redaction condition); "favors Snapback" = strict majority
+  of picks with no majority post-build regret, judged per cell and
+  never pooled; the publication label carries the redaction condition
+  (OQ4's residual).
 - Run the CRUD and media briefs — labeled aid-assisted where T1/T2 or
   any vendor-authored aid applies, held-out variants frozen before
   measurement for any general claim, symmetric predeclared competitor
@@ -560,8 +598,10 @@ including one brief adversarial to Snapback and one pricing each
 direction's hidden dimension.
 
 **P4 — The operations dimension (author decision required; no current
-owner).** The 62–70 vs 96 deficit caps L4 at every scoring until
-addressed. **Before the sitting, gather evidence**: a small
+owner).** The 62–70 vs 96 deficit drags L4 at every scoring until
+addressed (≈2.6 weighted points on a 10%-weighted dimension — option
+(c) can outscore it elsewhere, which is exactly why it is a live
+option). **Before the sitting, gather evidence**: a small
 deploy-and-operate brief leg, once per platform — reach a shareable URL
 that survives the authoring session, read logs after an induced error,
 restart, rotate a secret, clean up — recording time, logins, manual
