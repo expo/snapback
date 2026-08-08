@@ -4,9 +4,9 @@ Governing plan: LLP 0186 W1
 (`llp/0186-agent-authoring-efficiency-program.plan.md`). This protocol
 operationalizes the bakeoff practice of diaries 0058/0059 into rules a
 repeatable instrument can hold every lane to. Sections marked **DRAFT**
-or **OPEN** are not ratified; the first instrumented run ratifies the
-attribution rule, and the OPEN items belong to LLP 0186's open
-questions, not to this file.
+or **OPEN** are not ratified. The instrumented 0065/0066/0068 runs
+exercised the attribution rule, which remains draft through calibration;
+the OPEN items belong to LLP 0186's open questions, not to this file.
 
 ## Run rules
 
@@ -24,7 +24,14 @@ questions, not to this file.
    create a new brief version and restart calibration for that brief.
 4. **Same harness, same model, same effort** across all lanes of a
    comparison set, recorded in the run record (`harness.*`).
-5. **One record per lane run**, validating against
+5. **Serial, same-machine execution.** Run every lane of a comparison
+   set serially on the same machine and hand each lane the same explicit
+   occupied-port note through the `{{PORT_EXCLUSIONS}}` prompt parameter.
+6. **Published-surface fence.** Snapback lanes may use only published
+   packages, their CLI/README surfaces, and the served guide — never a
+   source checkout; source-checkout runs are diagnostic-only under
+   [Environment pinning](#environment-pinning).
+7. **One record per lane run**, validating against
    `schema/run-record.schema.json`, plus a free-form run diary. The
    diary is the qualitative instrument; the record is the quantitative
    one; neither substitutes for the other.
@@ -43,10 +50,16 @@ not.
 ## Token metering
 
 Input and output tokens are recorded per lane with the accounting
-channel named in `tokens.source`. Where no trustworthy per-lane meter
-exists, record nulls with an explanation rather than reconstructing
-counts (diary 0058: reconstructing from visible prose "would be
-fictional").
+channel named in `tokens.source`; tool invocations are recorded from the
+same per-lane usage accounting. The 0065/0066/0068 runs metered tokens
+through the orchestration harness, and 0065/0066 also retained tool-use
+counts. Where no trustworthy per-lane meter exists, record nulls with an
+explanation rather than reconstructing counts (diary 0058: reconstructing
+from visible prose "would be fictional").
+
+Wall-clock comparisons across runs can be muddied by changing machine
+load (diary 0066). Tokens are therefore the better cross-run metric,
+while same-run wall ratios remain useful under the same-machine rule.
 
 **OPEN (LLP 0186 OQ1):** which harness exposes trustworthy per-lane
 usage (Claude Code session accounting, Codex surface, or a wrapping
@@ -61,6 +74,12 @@ breach report treating a delta as real — is made from fewer than 8
 repetitions per lane** of the configuration in question. This floor
 carries the operational lesson LLP 0186 OQ2 cites ("measure N≥8 before
 blaming a commit", the Minisforum telemetry lane).
+
+**No ratchet claim is made from fewer than 3 runs of the configuration.**
+Single runs remain recorded existence evidence; N>=3 is the W1 harness's
+operational minimum, while N>=8 remains the floor for a variance claim or
+for attributing a real regression to a commit or release
+(`issues/closed/20260808-w1-benchmark-harness-formalization.md`).
 
 **OPEN (LLP 0186 OQ2):** the actual calibration answer — how many
 repetitions make the ratchet stable enough to gate a release without
@@ -87,10 +106,15 @@ defect occurred" — never of magnitude).
 
 ## Correction-loop attribution rule (DRAFT)
 
-To be ratified at the first instrumented run (LLP 0186, Measurable
-outcome 3: the prior ~11 / ~4-heavy figures are reconstructions from
-qualitative diary text, not recorded counts; the first instrumented run
-defines the rule and records the binding baseline).
+This rule replaces the prior ~11 / ~4-heavy figures, which were
+reconstructions from qualitative diary text rather than recorded counts
+(LLP 0186, Measurable outcome 3).
+
+**Status, 2026-08-08.** Diaries 0065/0066/0068 exercised this rule with
+the `framework` / `self` / `tooling` shorthand mapped to the enum below
+as specified in `records/schema.md`. It remains **DRAFT** until LLP 0186
+OQ2's calibration phase confirms or revises it, and the ratchet reading
+these attributions remains measurement-only.
 
 **A correction loop** is counted each time the agent treats a step as
 complete (or a tool reports success), contrary evidence arrives, and the

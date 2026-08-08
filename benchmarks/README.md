@@ -1,103 +1,170 @@
 <!-- @ref LLP 0186#w1--competitive-benchmark-and-ratchet-owned-here — this
-     directory is W1's instrument: the fixed brief corpus, run-record schema,
-     protocol, and per-release calibration records the ratchet reads. -->
+     directory is W1's instrument: the fixed brief corpus, lane prompt
+     templates, protocol, and per-release run records the ratchet reads. -->
 
 # Snapback competitive benchmark
 
 This directory is the instrument mandated by **LLP 0186 W1**
 (`llp/0186-agent-authoring-efficiency-program.plan.md`): a repeatable,
-same-brief, same-harness comparison of what it costs a coding agent to
-build a real application on Snapback versus its competitors, formalizing
-the 2026-08-05 paired bakeoffs
+same-brief, same-harness comparison of what it costs a coding agent to build a
+real application on Snapback versus its competitors, formalizing the
+2026-08-05 paired bakeoffs
 (`diaries/0058-relay-room-expo-backend-bakeoff.diary.md`,
-`diaries/0059-tandem-expo-messaging-bakeoff.diary.md`).
+`diaries/0059-tandem-expo-messaging-bakeoff.diary.md`) and the instrumented
+0065/0066/0068 series.
 
-It is scaffolding plus protocol. No benchmark lane has been executed from
-this directory yet; the first instrumented run ratifies the draft
-attribution rule in `protocol.md` and records the binding baseline
-(LLP 0186, Measurable outcome 3).
+An orchestrating agent can select a brief, instantiate the proven lane prompts,
+run the comparison, and produce a durable record using this directory alone.
 
 ## What it measures, per lane per run
 
 | Metric | Definition | Provenance |
 |---|---|---|
 | Wall-clock | Epoch-timestamped start/finish of the lane, split into orientation / authoring / verification / diagnosis where the transcript supports it | Diary 0058 recorded 26m03s (Snapback) vs 11m15s (Convex) from local epoch timestamps — the calibrated baseline pair. That clock excluded Snapback-only orientation reading, biasing it in Snapback's favor; the instrument makes orientation an explicit split instead of an exclusion. |
-| Input + output tokens | Usage accounting from the run harness, with the accounting channel named in the record (`tokens.source`) | Diary 0058: "Model token counts are unavailable. This Codex surface did not expose a per-lane token meter." **OPEN (LLP 0186 OQ1):** which harness channel is trustworthy, and whether cross-model token comparison is ever fair or the ratchet pins one model per epoch. |
-| Correction loops | Count of correction loops, each carrying an attribution (`snapback-defect`, `agent-error`, `environment`, `ambiguous`) and an evidence pointer | The prior-run figures (~11 for diary 0058, ~4 heavy for 0059) are reconstructions from qualitative diary text, not recorded counts (LLP 0186, Measurable outcome 3). The first instrumented run defines the attribution rule and the binding baseline. |
+| Input + output tokens | Usage accounting from the orchestration harness, with the accounting channel named in the record (`tokens.source`) | Metering is no longer hypothetical: the 0065/0066/0068 runs metered per-lane tokens through the harness. **OPEN (LLP 0186 OQ1):** which channels are trustworthy, and whether cross-model token comparison is fair or the ratchet pins one model per epoch. |
+| Tool uses | Per-lane tool invocations from the same orchestration-harness accounting | Recorded for diaries 0065/0066; where a harness count is not retained, as in the 0068 standing record, mark it unmeasured rather than reconstructing it. |
+| Correction loops | Recorded count of correction loops, each carrying an attribution (`snapback-defect`, `agent-error`, `environment`, `ambiguous`) and an evidence pointer | Diaries 0065/0066/0068 recorded counts during the runs. The earlier ~11 / ~4-heavy figures remain qualitative reconstructions and are not substituted for measured counts. |
 | Hand-authored LOC | Hand-authored source/test lines, generated artifacts excluded | Diary 0058: Snapback 1,202 lines / 14 files vs Convex 868 / 13. A ceremony proxy only — see fairness rules. |
 | Rubric scores | Diary 0058's weighted dimensions, unchanged (see `schema/run-record.schema.json`) | Functional completeness 20%, realtime + typing 10%, offline behavior 20%, images/assets 10%, data model + type safety 10%, DX/docs/setup 15%, testability + diagnostics 5%, operations + current maturity 10%. |
 
 ## Lanes
 
-Snapback, Convex, Supabase, PocketBase, raw Postgres+Express. Same agent
-harness, same model, cold context, no human steering (LLP 0186 W1).
+The instrument has two axes. The backend axis is Snapback, Convex, Supabase,
+PocketBase, and raw Postgres+Express — the LLP 0186 W1 lane set. Convex is the
+proven control; the other three competitor lanes remain unproven.
+
+The Snapback axis crosses authoring context (bare or skill-equipped) with
+carrier (web or native simulator). The four proven prompt templates in
+`lanes/` are bare Snapback web, skill-equipped Snapback web, skill-equipped
+Snapback native simulator, and competitor web, carried verbatim from diary
+0068's run apart from parameters. The primary tracked pair in that series is
+skill-equipped Snapback web versus Convex.
 
 **OPEN (LLP 0186 OQ4):** the messaging brief advantages realtime-native
-platforms; the CRUD and media briefs in `briefs/` exist so the
-Supabase/PocketBase/Postgres lanes are representative rather than
-strawmen, but which brief mix keeps them so is not yet settled.
+platforms; the CRUD and media briefs exist so the Supabase, PocketBase, and
+Postgres lanes can be representative rather than strawmen, but which brief mix
+keeps them so is not settled.
 
 ## Brief corpus
 
-- `briefs/messaging.md` — the WhatsApp-shaped brief the calibrated
-  baseline runs used (extracted from diaries 0058/0059).
-- `briefs/crud.md` — conventional CRUD shape (authored for W1's
-  diversification requirement, no prior run).
-- `briefs/media.md` — media-heavy shape (authored for W1's
-  diversification requirement, no prior run).
+- `briefs/messaging.md` — the standing WhatsApp-shaped baseline and its proven
+  lane-prompt block.
+- `briefs/messaging-equal-proof-bar.md` — the same app with identical offline
+  read and offline-write semantics required from every lane; not yet run.
+- `briefs/crud.md` — a field-service CRUD shape, scaffolded 2026-08-06 and not
+  yet run.
+- `briefs/media.md` — a trip-photo-journal media shape, scaffolded 2026-08-06
+  and not yet run.
 
-## Fairness rules (carried from the diaries)
+## Fairness rules
 
-1. **Auth parity is labeled, never assumed.** Both bakeoff arms used a
-   visibly labeled test-persona seam, not production authentication
-   (diary 0058: "neither app pretends that tapping 'Ada' is production
-   authentication"; diary 0059: "the line-count result must not be read
-   as a security comparison"). Every run record states the auth posture
-   of each lane; lanes with unequal auth work are compared with that
-   labeled, not silently.
-2. **Guarantees are scored, not line counts.** Raw lines are "a rough
-   ceremony signal" (0058) and "a crude measure" (0059): the Snapback
-   arms expressed more image policy and runtime admission; the Convex
-   arms hand-built typing cleanup and an app-owned offline cache with
-   offline sends disabled. The rubric scores what is guaranteed
-   (offline/durability contracts, atomicity, presence semantics), so the
-   ratchet never rewards omitting guarantees to look cheap.
-3. **Orientation cost is measured, not excluded.** The 0058 clock
-   excluded shared Snapback-heavy orientation; the instrument records it
-   as a wall-clock split instead.
-4. **Failures caused by the lane's own authoring mistakes are attributed
-   as such**, per the attribution rule in `protocol.md` (draft until the
-   first instrumented run ratifies it).
+1. **Auth parity is labeled, never assumed.** Both bakeoff arms used a visibly
+   labeled test-persona seam, not production authentication (diary 0058:
+   "neither app pretends that tapping 'Ada' is production authentication";
+   diary 0059: "the line-count result must not be read as a security
+   comparison"). Every run record states the auth posture of each lane; lanes
+   with unequal auth work are compared with that labeled, not silently.
+2. **Guarantees are scored, not line counts.** Raw lines are "a rough ceremony
+   signal" (0058) and "a crude measure" (0059): the Snapback arms expressed
+   more image policy and runtime admission; the Convex arms hand-built typing
+   cleanup and an app-owned offline cache with offline sends disabled. The
+   rubric scores what is guaranteed (offline/durability contracts, atomicity,
+   presence semantics), so the ratchet never rewards omitting guarantees to
+   look cheap.
+3. **Orientation cost is measured, not excluded.** The 0058 clock excluded
+   shared Snapback-heavy orientation; the instrument records it as a
+   wall-clock split instead.
+4. **Failures caused by the lane's own authoring mistakes are attributed as
+   such**, per the attribution rule in `protocol.md`, which remains
+   draft-labeled until LLP 0186 OQ2's calibration phase confirms or revises it.
+5. **Context is cold.** Every lane uses a fresh agent with no memory of other
+   lanes or prior runs of the brief.
+6. **Isolation fences are strict.** Every lane has a private workdir, no lane
+   reads another's directory, and Snapback builds use published surfaces only
+   — npm packages, the served guide, and CLI help — never the source checkout.
+7. **Execution is serial and controlled.** Run lanes serially on the same
+   machine, harness, and model, with no human steering after prompt delivery.
+8. **Usage comes from the harness.** Meter tokens and tool uses through the
+   orchestration harness's usage accounting and name its channel in the record;
+   which channels are trustworthy remains **OPEN (LLP 0186 OQ1)**.
+9. **Repetition floors constrain claims.** One run is existence evidence;
+   ratchet claims require N>=3 per configuration, regression attribution
+   requires N>=8, and the calibrated answer remains **OPEN (LLP 0186 OQ2)**
+   under `protocol.md`.
+
+## Run procedure
+
+1. Pick a brief from `briefs/` and use its `Lane-prompt block` verbatim as
+   `{{BRIEF}}`.
+2. Preflight the environment: confirm that npm `latest` resolves to the
+   published closure the run claims to measure; survey occupied ports and
+   write the `{{PORT_EXCLUSIONS}}` sentence; then create one fresh workdir per
+   lane. Do not put workdirs under `/private/tmp` because Metro's watcher is
+   blind there, and do not set `CI=1`, which silently disables watching — the
+   instrumented series hit these conditions three times.
+3. For skill-equipped and native lanes, extract `{{SKILL_PAYLOAD}}` from the
+   published consumer scaffold using the recipe below.
+4. Instantiate the appropriate templates from `lanes/`. When the expanded
+   prompt is too long for a harness field, write it to a lane-private file and
+   deliver the proven one-line instruction documented in `lanes/skill.md`.
+5. Run the lanes serially and cold. Collect start/end epochs, per-lane token and
+   tool-use counts from the orchestration harness, and each lane's final report.
+6. Attribute correction loops under `protocol.md`, then independently check
+   each claimed proof result against the selected brief's acceptance bar.
+7. Write the comparison record under `records/` following `records/schema.md`,
+   append its series row, and file one repository ticket per
+   framework-attributed loop. That fix-measure loop closed the walls found by
+   the 0065 and 0066 runs.
+8. Before making a ratchet claim, repeat the same configuration in fresh
+   workdirs until N>=3. Re-instantiating the templates is the current repeat
+   mechanism; making repeats one command remains open harness work under
+   **LLP 0186 OQ2**.
+
+## Skill payload and registry lag
+
+To build `{{SKILL_PAYLOAD}}`, use a throwaway directory, install
+`@expo/snapback-cli@latest`, run
+`snapback new probe --template expo-chat`, and take
+`probe/.claude/skills/snapback-authoring/SKILL.md`; do not use this repository's
+`skills/` copy, because the scaffold-emitted consumer form is what an external
+agent actually receives. Then check the version the lane install resolved in
+its lockfile or with `npm ls` against the release the run claims to measure:
+registry propagation can lag, and a lane must never receive credit or blame for
+a closure it did not run.
 
 ## Ratchet: measurement-only until calibrated
 
-Per-release results land under `calibration/`. Per the accepted LLP 0186
-W1 text, the ratchet **starts measurement-only: it becomes
-release-gating only after a calibration phase resolves OQ1/OQ2** (pinned
-model/epoch, repetition count, variance treatment, tolerance, run cost).
-Until then a breach is a report, not a block.
+The standing published-consumer baseline is npm 0.1.13: skill-equipped
+Snapback web is **1.59x wall / 2.00x tokens** versus Convex (the primary pair),
+bare Snapback web is **2.50x / 2.25x**, and skill-equipped native is
+**2.27x / 2.33x**. The evidence and full 0058/0065/0066/0068 series are in
+`records/2026-08-07-messaging-0113.md`.
+
+Per LLP 0186 W1, the ratchet remains measurement-only until a calibration
+phase resolves OQ1/OQ2: model/epoch pinning, repetition count, variance,
+tolerance, cadence, and run cost. Until then a breach is a report, not a block.
 
 ## Publication gate
 
-No comparative numbers are published until W0 has landed and Snapback's
-own lane is not losing on self-inflicted plumbing (LLP 0186 W1). Status:
-**W0 exited 2026-08-06** — the qualified `0.1.9` closure is live on npm
-`latest` with a green cold install from the public registry
-(`issues/closed/20260803-first-npm-latest-promotion.md`), so baseline
-runs from here forward run the Snapback lane **against published
-packages**, not the source checkout the diaries used. The gate then
-turns on the run evidence itself: a published-package run whose Snapback
-lane carries no `snapback-defect` correction loops of the W0 plumbing
-class.
+W0 exited 2026-08-06: the qualified 0.1.9 closure reached npm `latest` with a
+green cold install from the public registry
+(`issues/closed/20260803-first-npm-latest-promotion.md`). Baseline Snapback
+lanes since then measure published packages, not the source checkout used by
+the earlier diaries. Diary 0068's npm 0.1.13 standing baseline reduced
+framework-attributed Snapback loops to papercuts — one to three per lane — and
+established that the publication gate's product condition is met: these are
+comparative numbers one could publish with their fairness notes attached.
 
-**OPEN (LLP 0186 OQ5):** what disclosure (harness, model, briefs,
-fairness rules, raw diaries) makes published results credible rather
-than vendor-benchmark noise. Draft position in `protocol.md`; not
-resolved here.
+Numbers from a record are publishable **only together with that record's
+fairness notes**. What fuller disclosure a credible publication requires
+remains **OPEN (LLP 0186 OQ5)**; this instrument does not decide it.
 
 ## Directory layout
 
-- `briefs/` — the fixed brief corpus (verbatim per lane per run).
-- `schema/run-record.schema.json` — JSON Schema for one lane-run record.
-- `protocol.md` — the run protocol and the draft attribution rule.
-- `calibration/` — per-release run records (measurement-only phase).
+- `briefs/` — four fixed briefs: messaging, its equal-proof-bar variant, CRUD,
+  and media.
+- `lanes/` — four proven parameterized prompt templates.
+- `records/` — the record format, standing run records, and the series table.
+- `schema/` — the optional per-lane JSON run-record schema.
+- `protocol.md` — run rules, metering, repetition floors, attribution, and
+  publication posture.

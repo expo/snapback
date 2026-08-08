@@ -415,6 +415,13 @@ for everything else: if a wave lands and the lane doesn't get cheaper,
 the model in this Plan is wrong somewhere and the diary for that run
 should say where.
 
+**2026-08-08 (W1):** the benchmark instrument is formalized under
+`benchmarks/` (methodology, brief corpus incl. the equal-proof-bar
+messaging variant, the proven lane prompt templates, and run records
+carrying the 0058/0065/0066/0068 series; standing baseline
+`benchmarks/records/2026-08-07-messaging-0113.md` — skill-web 1.59x wall
+/ 2.00x tokens vs Convex on 0.1.13).
+
 ## Measurable outcomes
 
 1. Snapback wall-clock on the messaging brief within 1.2x of the best

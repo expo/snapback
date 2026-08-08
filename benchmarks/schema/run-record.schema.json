@@ -27,9 +27,17 @@
       "description": "Backend lane under test (LLP 0186 W1 lane set).",
       "enum": ["snapback", "convex", "supabase", "pocketbase", "postgres-express"]
     },
+    "laneVariant": {
+      "description": "Snapback-lane variant per the lanes/ templates; omit for competitor lanes.",
+      "enum": ["bare", "skill"]
+    },
+    "carrier": {
+      "description": "Interaction-proof carrier (diary 0068 introduced the native lane).",
+      "enum": ["web", "native-simulator"]
+    },
     "brief": {
       "description": "Which fixed brief was run, verbatim, from benchmarks/briefs/.",
-      "enum": ["messaging", "crud", "media"]
+      "enum": ["messaging", "messaging-equal-proof-bar", "crud", "media"]
     },
     "harness": {
       "type": "object",
@@ -98,6 +106,11 @@
           "description": "Accounting channel, e.g. 'claude-code-session-accounting', 'api-usage-header', 'wrapping-proxy'; null when no per-lane meter existed."
         }
       }
+    },
+    "toolUses": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "Tool invocations from the harness accounting channel; null when not captured."
     },
     "correctionLoops": {
       "type": "array",
@@ -177,7 +190,7 @@
     },
     "diary": {
       "type": "string",
-      "description": "Path to the free-form run diary for this run (diaries/NNNN-*.diary.md or a benchmarks/calibration/ relative path)."
+      "description": "Path to the free-form run diary for this run (diaries/NNNN-*.diary.md or a benchmarks/records/ relative path)."
     },
     "notes": {
       "type": "string",
