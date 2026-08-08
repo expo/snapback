@@ -185,7 +185,6 @@ created id, changed count, and server-owned row fields together:
     const created = await db.mutate(api.createTodo, { args: { title: 'Buy milk' }, userId: ADA });
     assert(typeof created.result === 'string' && created.result.length > 0, 'no id returned');
     assertEqual(created.changed_count, 1, 'changed_count');
-    const rows = (await db.query(api.listTodos, { userId: ADA })).rows;
 ```
 
 Use `results.value(validator)` for a direct scalar/object payload or

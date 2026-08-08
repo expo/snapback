@@ -4,7 +4,7 @@ id: clients.headless
 order: 1
 audience: agent-first
 capabilities: [clients.headless, clients.external-store]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/online.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, demos/_kit/agent-authority-filesystem.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/online.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, packages/snapback-client/exact-reference-types.fixture.ts, demos/_kit/agent-authority-filesystem.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game, demos/partiful-matrix/surfaces/vanilla]
 status: current
 targets: [local]
@@ -230,6 +230,28 @@ app reset and require an exact `{state:"absent"}` or
 `action(ref, { args, userId, readSet })` accept a generated function reference
 or name. In sessions mode the server accepts no caller-selected identity—the
 coordinator repeats the session bearer and the server resolves authority.
+
+**Always nest function arguments under the `args` key.** Fields beside `args`
+are call options such as `userId`, `readSet`, or `connectionId`; putting a
+function argument at that outer level does not pass it to the function. The
+client's compiled reference-type fixture uses the same shape for ordinary and
+live calls:
+
+```ts source=packages/snapback-client/exact-reference-types.fixture.ts fragment="generated query, mutation, and live-query call shapes"
+client.query(listTodos, { args: { owner: 'ada' } }).then((output) => {
+  output.rows[0]?.title.toUpperCase();
+});
+client.mutate(createTodo, { args: { title: 'ship it' } }).then((output) => {
+  output.result.toUpperCase();
+});
+client.liveQuery(listTodos, {
+  connectionId: 'fixture',
+  args: { owner: 'ada' },
+  onUpdate(rows) {
+    rows[0]?.title.toUpperCase();
+  },
+});
+```
 
 Generated references carry their closed operation argument schema. The client
 validates it before network I/O for query, mutation, action, live subscribe,

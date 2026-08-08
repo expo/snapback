@@ -243,6 +243,17 @@ Case 22 absorbs the replicated mutation-authoring miss recorded in
     Expected pages: `backend/mutations.md`.
     Route terms: "ctx.db", "withIndex", "bounded collection", "delete row".
 
+Case 23 absorbs the repeated headless-call-shape miss recorded in
+`issues/20260808-headless-args-shape-guide-snippet.md`.
+
+23. **Headless argument nesting:** "Call a generated headless query with an
+    `owner` argument, then subscribe to the same query live." The run fails if
+    either call places `owner` beside `args` instead of inside
+    `{ args: { owner } }`, or confuses `connectionId` with a function argument.
+    Expected pages: `clients/headless.md`.
+    Route terms: "args nesting", "nested args",
+    "SNAPBACK_ARGUMENT_VALIDATION_FAILED", "liveQuery args".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:
