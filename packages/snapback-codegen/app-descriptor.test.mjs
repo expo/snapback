@@ -5,6 +5,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -34,6 +35,9 @@ const defineUrl = pathToFileURL(join(packageRoot, 'define.mjs')).href;
 const root = mkdtempSync(join(tmpdir(), 'snapback-app-descriptor-'));
 const backend = join(root, 'fixture', 'snapback');
 mkdirSync(backend, { recursive: true });
+const snapbackModules = join(root, 'fixture', 'node_modules', '@expo');
+mkdirSync(snapbackModules, { recursive: true });
+symlinkSync(packageRoot, join(snapbackModules, 'snapback-codegen'), 'dir');
 
 const validSchema = `
 import { defineSchema, defineTable, v } from '${defineUrl}';

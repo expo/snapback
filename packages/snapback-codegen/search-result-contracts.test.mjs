@@ -32,6 +32,11 @@ try {
     join(snapbackModules, 'snapback-client'),
     'dir',
   );
+  symlinkSync(
+    join(repositoryRoot, 'packages', 'snapback-codegen'),
+    join(snapbackModules, 'snapback-codegen'),
+    'dir',
+  );
 
   writeFileSync(join(backend, 'schema.mjs'), `
 import { defineSchema, defineTable, v } from ${JSON.stringify(defineUrl)};

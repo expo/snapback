@@ -58,16 +58,26 @@ for (const fact of hookFacts) assert.equal(fact.runtime.kind, 'type-only');
 assert.match(hookFacts[0].signature, /freshness/u);
 assert.match(hookFacts[1].signature, /pending/u);
 
-const ctxBootstrap = readReference('ctx-db-bootstrap.md');
+const ctxModule = '@expo/snapback-codegen/ctx';
+const queryBuilder = exact('QueryBuilder', ctxModule);
+const queryDatabase = exact('QueryDatabase', ctxModule);
+const mutationDatabase = exact('MutationDatabase', ctxModule);
+const queryContext = exact('QueryContext', ctxModule);
+const mutationContext = exact('MutationContext', ctxModule);
 for (const verb of ['withIndex', 'eq', 'in', 'lt', 'lte', 'gt', 'gte', 'order', 'take', 'collect', 'first']) {
-  assert.match(ctxBootstrap, new RegExp(`\\b${verb}\\b`, 'u'), `ctx query reference must name ${verb}`);
+  member(queryBuilder, verb);
 }
-for (const verb of ['get', 'query', 'insert', 'patch', 'delete']) {
-  assert.match(ctxBootstrap, new RegExp(`\\b${verb}\\b`, 'u'), `ctx database reference must name ${verb}`);
+for (const verb of ['get', 'query']) member(queryDatabase, verb);
+for (const verb of ['insert', 'patch', 'delete']) member(mutationDatabase, verb);
+for (const symbol of [queryBuilder, queryDatabase, mutationDatabase, queryContext, mutationContext]) {
+  assert.equal(symbol.runtime.kind, 'type-only');
 }
-assert.equal(registry.scope.handlerContext.status, 'excluded-pending-published-declaration');
+assert.match(queryContext.signature, /readonly db: QueryDatabase<Schema>/u);
+assert.match(mutationContext.signature, /readonly db: MutationDatabase<Schema>/u);
+assert.equal(registry.scope.handlerContext.status, 'included-published-type-only-declaration');
+assert.equal(registry.scope.handlerContext.module, ctxModule);
 
-for (const symbol of [client, options, verify, ...hookFacts]) {
+for (const symbol of [client, options, verify, ...hookFacts, queryBuilder, queryDatabase, mutationDatabase, queryContext, mutationContext]) {
   const moduleRecord = registry.modules.find((candidate) => candidate.module === symbol.module);
   assert.ok(moduleRecord, `module page must exist for ${symbol.identity}`);
   const page = readReference(moduleRecord.page.split('/').at(-1));

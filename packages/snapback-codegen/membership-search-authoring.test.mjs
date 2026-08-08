@@ -155,6 +155,11 @@ try {
       join(snapbackModules, 'snapback-client'),
       'dir',
     );
+    symlinkSync(
+      join(repositoryRoot, 'packages', 'snapback-codegen'),
+      join(snapbackModules, 'snapback-codegen'),
+      'dir',
+    );
     writeFileSync(join(dir, 'consumer.ts'), `
 import api, { type FunctionArgs, type Id, type SearchRequestV1 } from './generated/api';
 

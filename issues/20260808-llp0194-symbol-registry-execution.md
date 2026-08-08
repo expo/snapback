@@ -1,6 +1,6 @@
 # LLP 0194 execution: canonical symbol registry + generated API reference
 
-**Status:** Open — native/Rust projections implemented locally; published ctx declaration remains
+**Status:** Open — native/Rust projections and OQ2 ctx ownership implemented locally; final landing and non-OQ2 follow-ons remain
 **Impact:** 5
 **Urgency:** 4
 **Ease:** 2
@@ -280,3 +280,108 @@ the ctx declaration source, types-only export condition accepted.
 Implementation lane launched: ctx.d.mts under snapback-codegen,
 registry inclusion as type-only kinds, bootstrap page retirement per
 Acceptance 2, CI duplicate-ownership rejection.
+
+## 2026-08-08 OQ2 ctx declaration execution log
+
+### Implemented in this worktree
+
+- `packages/snapback-codegen/ctx.d.mts` is now the published, type-only
+  declaration owner for the handler context surface. It parameterizes row,
+  index, insert, patch, and operation-specific table-admission maps and keeps
+  `QueryDatabase` read-only while `MutationDatabase` adds only
+  `insert`/`patch`/`delete`. The query builder exposes the Rust/handler bridge's
+  exact `withIndex`/`eq`/`in`/`lt`/`lte`/`gt`/`gte`/`order`/`take`/`collect`/
+  `first` vocabulary. The owner also declares the other shipped handler
+  context members (auth/runtime/refusal, assets, jobs, sequence allocation,
+  mutation settlement, action fetch/stream/secret/run surfaces, optional push,
+  and the generic handler function shape) without adding a runtime export.
+- `@expo/snapback-codegen` publishes `./ctx` with exactly a `types` condition
+  and includes `ctx.d.mts` in its package allowlist. Generated `api.d.ts` now
+  imports and `export type *` re-exports that owner, builds one
+  `GeneratedHandlerSchema` from the app's generated maps, and aliases the
+  generated DB/context/handler types to owner instantiations instead of
+  redeclaring the generic contract. The committed policy-managed generated
+  API fixtures and their artifact receipts were regenerated.
+- The canonical registry now includes `@expo/snapback-codegen/ctx` as a
+  type-only module: 38 type symbols, zero runtime values. The complete registry
+  has 41 modules and 885 symbols at source digest
+  `sha256:cc6a2b043d1c7d30d7136b9bbcd9c07147af3f151589a47d6ee8626e630666b5`.
+  `registry.scope.handlerContext` is
+  `included-published-type-only-declaration` with runtime parity explicitly
+  exempt, and the generated projection is
+  `guide/reference/expo-snapback-codegen--ctx.md`.
+- The registry check path now fails if the published ctx module contributes a
+  value-space symbol, if codegen reintroduces any owner declaration, if a
+  generated `Generated*` context becomes a generic interface again, or if the
+  required owner imports/re-export/instantiations disappear. This makes the
+  existing registry `--check` CI seam the duplicate-ownership gate.
+- The independently maintained `guide/reference/ctx-db-bootstrap.md` was
+  deleted. Its Guide link now resolves to the generated module projection, and
+  the cold signature suite derives its ctx answers and anchors only from that
+  projection plus `registry.json`.
+- Strict temporary consumers now install/model the published codegen package
+  when resolving generated declarations. The recurring Expo chat template
+  harness also declares the codegen dependency, so a scaffolded app resolves
+  the new type-only import under the same publish allowlist as an installed
+  consumer.
+
+### Acceptance 2 status
+
+**PASS in the working tree.** The declaration is published from the same
+registry pipeline as the other package APIs; generated app declarations import,
+instantiate, and re-export the owner; the authored bootstrap authority is gone;
+the cold suite consumes the generated projection; and registry CI rejects a
+return to duplicate generic ownership from the declaration's first landing.
+No OQ2 implementation work remains.
+
+### Verification
+
+Passed:
+
+- `volta run --node 24.18.0 node scripts/generate-symbol-registry.mjs` and
+  `volta run --node 24.18.0 node scripts/generate-guide-manifest.mjs` — PASS;
+  wrote 42 Markdown projections and a 108-page Guide manifest.
+- `volta run --node 24.18.0 node scripts/generate-symbol-registry.mjs --check`
+  — PASS (41 modules, 885 symbols, exact runtime parity).
+- `volta run --node 24.18.0 node tests/generated-api-reference-v1.mjs` — PASS;
+  the ctx question reads `expo-snapback-codegen--ctx.md` and the registry, not
+  package source or bootstrap prose.
+- Standalone strict TypeScript compilation of
+  `packages/snapback-codegen/ctx.d.mts` — PASS.
+- Affected codegen tests — PASS:
+  `schema-reference-type-flow`, `authoring-validation`, `rbac-authoring`,
+  `membership-search-authoring`, `search-result-contracts`,
+  `provider-introspection`, `relational-authoring`, and `app-descriptor`.
+- `volta run --node 24.18.0 node scripts/check-expo-chat-template-typecheck.mjs`
+  — PASS for dependency parity, codegen, strict typecheck, and static web
+  export. The serve probe was skipped before starting a server because the
+  sandbox denied loopback listen, as expected for this lane.
+- `volta run --node 24.18.0 node scripts/check-guide.mjs` — PASS (108 pages,
+  1,139 snippets; 51 existing warning-only freshness notices).
+- `volta run --node 24.18.0 node scripts/check-inventories.mjs` — PASS (238
+  package tests, 25 demos, 281 publication leaves, 108 Guide pages / 1,139
+  snippets).
+- `./ref-check --verbose`, `git diff --check`, and the final registry/cold
+  rerun — PASS.
+
+Sandbox-only aggregate limitations, recorded without masking them:
+
+- `volta run --node 24.18.0 npm test` in `packages/snapback-codegen` passed all
+  tests through `retainability-profile` and then stopped in the pre-existing
+  `dependency-graph.test.mjs` inspector assertion. That test requires one
+  `Debugger listening` endpoint; this sandbox returns
+  `Starting inspector on 127.0.0.1:0 failed: operation not permitted`, so it
+  observes zero. Re-running that test alone reproduces the same environmental
+  failure. Every remaining package test after it was run separately and
+  passed, and all OQ2-affected tests passed in the focused suite above.
+- `scripts/check-generated-artifacts` regenerated the intended committed
+  projections, then reported its final `git diff --exit-code` gate as stale.
+  That gate deliberately compares generated review paths to `HEAD`, so it
+  cannot pass while this requested implementation is left uncommitted. The
+  orchestrator should run it again after reviewing and landing the generated
+  files.
+
+No Cargo command, persistent server, or git commit was run for OQ2; the Expo
+probe skipped before app-server startup when its loopback preflight was denied.
+Changes and this execution log are intentionally left in the working tree for
+the orchestrator.

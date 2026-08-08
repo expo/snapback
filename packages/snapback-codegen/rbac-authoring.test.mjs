@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -217,6 +217,9 @@ export const createEvent = defineMutation({
 async function run(inputFunctions = functions(), inputSchema = schema) {
   const dir = mkdtempSync(join(tmpdir(), 'snapback-rbac-authoring-'));
   dirs.push(dir);
+  const snapbackModules = join(dir, 'node_modules', '@expo');
+  mkdirSync(snapbackModules, { recursive: true });
+  symlinkSync(dirname(fileURLToPath(import.meta.url)), join(snapbackModules, 'snapback-codegen'), 'dir');
   writeFileSync(join(dir, 'schema.mjs'), inputSchema);
   writeFileSync(join(dir, 'functions.mjs'), inputFunctions);
   writeFileSync(join(dir, 'bootstrap-handler.mjs'), `
@@ -294,25 +297,25 @@ try {
       "eventMembers: { requireRole(resource: Id<'events'>, role: EventMembersRole, ...roles: EventMembersRole[])",
       'export interface GeneratedMembership',
       "eventMembers: { bootstrap(values: EventMembersBootstrap): Promise<Id<'events'>>",
-      'export interface GeneratedMutationSettlement { readonly clientMutationId: string | null; readonly settlementId: string | null }',
-      'export interface GeneratedMutationContext<Auth extends GeneratedAuthContext',
+      'export type GeneratedMutationSettlement = MutationSettlement',
+      'export type GeneratedMutationContext<Auth extends GeneratedAuthContext',
     ]) {
       assert(apiTypes.includes(expected), `generated API types omit ${expected}`);
     }
     assert(
-      apiTypes.includes('export interface GeneratedQueryContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> { readonly db: GeneratedQueryDatabase; readonly permissions: GeneratedPermissions;'),
+      apiTypes.includes('export type GeneratedQueryContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = QueryContext<GeneratedHandlerSchema, Auth, GeneratedPermissions'),
       'query context must expose the read-only database and permissions capabilities',
     );
     assert(
-      apiTypes.includes('export interface GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> extends GeneratedQueryContext<Auth> { readonly db: GeneratedMutationDatabase; readonly membership: GeneratedMembership;'),
+      apiTypes.includes('export type GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = MutationContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, GeneratedAssetsContext, GeneratedRuntimeContext, GeneratedMembership'),
       'mutation context must add the write database and sanctioned membership capabilities',
     );
     assert(
-      apiTypes.includes('readonly mutation: { settlement(): GeneratedMutationSettlement }'),
+      apiTypes.includes('JobsContext, SequenceContext, MutationIdentityContext>'),
       'mutation context must expose the durable settlement identity projection',
     );
     const actionContext = apiTypes.slice(
-      apiTypes.indexOf('export interface GeneratedActionContext'),
+      apiTypes.indexOf('export type GeneratedActionContext'),
       apiTypes.indexOf('export interface GeneratedFunctionContexts'),
     );
     assert(!actionContext.includes('GeneratedMembership'), 'actions must not receive membership authority');
