@@ -1142,7 +1142,7 @@ tickets (declared refusals, principal↔app-identity binding, SVG assets).
     "SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED", "nosniff".
 
 Case 21 is an absorption seed from the 2026-08-07 zerobugs `zb5-hot` `v4`
-attempt (`issues/20260808-sessions-store-copy-needs-auth-keyring-sibling.md`):
+attempt (`issues/closed/20260808-sessions-store-copy-needs-auth-keyring-sibling.md`):
 a full receipted gate run was burned discovering that a database copy is not a
 store copy, and nothing in the guide named the sibling.
 
@@ -1156,7 +1156,7 @@ store copy, and nothing in the guide named the sibling.
     "auth-keyring.json", "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE".
 
 Case 22 absorbs the replicated mutation-authoring miss recorded in
-`issues/20260808-ctx-db-verbs-undocumented.md`.
+`issues/closed/20260808-ctx-db-verbs-undocumented.md`.
 
 22. **Mutation database verbs:** "Inside a JS mutation, query a declared
     index, collect at most 500 rows, and delete one matched row." The run fails
@@ -1167,7 +1167,7 @@ Case 22 absorbs the replicated mutation-authoring miss recorded in
     Route terms: "ctx.db", "withIndex", "bounded collection", "delete row".
 
 Case 23 absorbs the repeated headless-call-shape miss recorded in
-`issues/20260808-headless-args-shape-guide-snippet.md`.
+`issues/closed/20260808-headless-args-shape-guide-snippet.md`.
 
 23. **Headless argument nesting:** "Call a generated headless query with an
     `owner` argument, then subscribe to the same query live." The run fails if
@@ -1178,7 +1178,7 @@ Case 23 absorbs the repeated headless-call-shape miss recorded in
     "SNAPBACK_ARGUMENT_VALIDATION_FAILED", "liveQuery args".
 
 Case 24 absorbs the repeated verifier-config source-reading detour recorded in
-`issues/20260808-verify-config-authoring-guide-anchor.md`.
+`issues/closed/20260808-verify-config-authoring-guide-anchor.md`.
 
 24. **Verify config authoring:** "Register my headless acceptance suite with
     `snapback verify`, including its execution identities and read/write
@@ -1190,7 +1190,7 @@ Case 24 absorbs the repeated verifier-config source-reading detour recorded in
     "@expo/snapback-cli/verify", "acceptance profile".
 
 Case 25 absorbs the repeated bare-Metro cold-offline source excavation
-recorded in `issues/20260808-offline-supervisor-origin-guide-anchor.md`.
+recorded in `issues/closed/20260808-offline-supervisor-origin-guide-anchor.md`.
 
 25. **Expo supervised cold offline boot:** "After warming an Expo app through
     `snapback dev --expo`, stop the supervisor and prove a cold launch from the
@@ -1203,7 +1203,7 @@ recorded in `issues/20260808-offline-supervisor-origin-guide-anchor.md`.
     "cold offline", "persisted-receipt".
 
 Case 26 absorbs the duplicated native-lane simulator setup recorded in
-`issues/20260808-headless-simulator-proof-recipe.md`.
+`issues/closed/20260808-headless-simulator-proof-recipe.md`.
 
 26. **Headless iOS simulator proof:** "Drive an Expo iOS proof without opening
     Simulator.app: install and launch the app, dismiss Expo Go onboarding,
@@ -17898,7 +17898,7 @@ id: recipes.paged-list
 order: 4
 audience: agent-first
 capabilities: [clients.react-paged-list]
-authorities: [llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0196-template-and-recipe-portfolio.plan.md, packages/snapback-cli/templates/media-feed/snapback/schema.mjs, packages/snapback-cli/templates/media-feed/snapback/functions.mjs, packages/snapback-cli/templates/media-feed/App.tsx, packages/snapback-cli/templates/media-feed/acceptance.mjs]
+authorities: [llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0196-template-and-recipe-portfolio.plan.md, packages/snapback-cli/templates/media-feed/snapback/schema.mjs, packages/snapback-cli/templates/media-feed/snapback/functions.mjs, packages/snapback-cli/templates/media-feed/App.tsx, packages/snapback-cli/templates/media-feed/pagination.mjs, packages/snapback-cli/templates/media-feed/acceptance.mjs, packages/snapback-cli/templates/media-feed/acceptance.static.mjs]
 examples: [packages/snapback-cli/templates/media-feed]
 status: current
 targets: [local]
@@ -17995,32 +17995,35 @@ presentation state.
 ## Accumulate replacements without duplicating rows
 
 Start the older hook as `skip`, then activate it with the oldest rendered
-`pageKey`. When a whole older page arrives, append only canonical ids that are
-absent from both the current live window and the archive:
+`pageKey`. This feed is append-only. When a newer insert slides the live head,
+move rows displaced from the previous head into the archive; otherwise the
+old boundary excludes that row from the older page and it briefly vanishes.
+Merge whole older-page replacements through the same helper, deduplicate by
+canonical id, and sort by the immutable page key:
 
 ```tsx source=packages/snapback-cli/templates/media-feed/App.tsx
   const first = useSnapbackQuery(api.liveFeed, {});
   const [before, setBefore] = useState<string | null>(null);
   const [archive, setArchive] = useState<readonly Entry[]>([]);
+  const previousFirstRows = useRef<readonly Entry[]>([]);
   const [exhausted, setExhausted] = useState(false);
   const older = useSnapbackQuery(api.olderFeedPage, before === null ? skip : { before });
 ```
 
 ```tsx source=packages/snapback-cli/templates/media-feed/App.tsx
   useEffect(() => {
+    if (!firstReady) return;
+    setArchive((current) => mergePagedArchive({
+      archive: current,
+      head: firstRows,
+      previousHead: previousFirstRows.current,
+    }));
+    previousFirstRows.current = firstRows;
+  }, [firstReady, firstRows]);
+
+  useEffect(() => {
     if (older.status !== 'ready' && older.status !== 'refreshing') return;
-    setArchive((current) => {
-      const seen = new Set(firstRows.map((row) => row._id));
-      const merged = [...current];
-      let changed = false;
-      for (const row of older.data) {
-        if (!seen.has(row._id) && !merged.some((item) => item._id === row._id)) {
-          merged.push(row);
-          changed = true;
-        }
-      }
-      return changed ? merged : current;
-    });
+    setArchive((current) => mergePagedArchive({ archive: current, head: firstRows, page: older.data }));
     setExhausted(older.data.length < 6);
   }, [firstRows, older]);
 
@@ -18050,7 +18053,10 @@ empty terminal page:
 Keep `_id` as the render key. The template's live acceptance deliberately puts
 equal `createdAt` values on opposite sides of the page break, proves twelve
 unique rows, inserts a newer row, and proves the historical page did not
-shift.
+shift. Its executable static acceptance also slides the live head and proves
+the displaced boundary row remains in the merged list. If rows can be deleted,
+do not use append-only rollover unchanged: carry deletion/tombstone semantics
+into the presentation merge so a removed head row is not archived forever.
 
 ## Treat retention and the archive as different things
 
@@ -18304,7 +18310,7 @@ specs; do not generalize this fixture into those contracts.
 ---
 title: "Recipe: optimistic create with a server-minted ID"
 id: recipes.optimistic-create
-order: 5
+order: 6
 audience: agent-first
 capabilities: [clients.optimistic-mutation-view]
 authorities: [llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0133-local-settlement.spec.md, llp/0155-local-sync-product-direction.rfc.md, packages/snapback-client/index.mjs, demos/zero-bakeoff/apps/contention-calendar/snapback/functions.mjs, demos/zero-bakeoff/apps/contention-calendar/snapback/src/App.tsx, tests/acceptance/contention-calendar-rung2-v1.mjs]
@@ -18491,7 +18497,7 @@ store; never adopt an old authority's optimistic layers into a new principal.
 ---
 title: "Recipe: coming from Convex and Supabase"
 id: recipes.coming-from-convex-and-supabase
-order: 6
+order: 7
 audience: agent-first
 capabilities: [backend.functions, auth.scoped-queries, clients.react, backend.assets, backend.relational-queries, realtime.ephemeral]
 authorities: [llp/0186-agent-authoring-efficiency-program.plan.md, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs, demos/expo-golden-path-fixture/snapback/schema.mjs, demos/expo-golden-path-fixture/snapback/functions.mjs, demos/expo-golden-path-fixture/src/screens/chat-screen.tsx, demos/competitive-checkpoint/snapback/functions.mjs, demos/messaging-snapback/src/lib/useTyping.ts, demos/cursors-web/snapback/schema.mjs, packages/snapback-react/exact-result-types.fixture.ts]

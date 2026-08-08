@@ -4,7 +4,7 @@ id: recipes.paged-list
 order: 4
 audience: agent-first
 capabilities: [clients.react-paged-list]
-authorities: [llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0196-template-and-recipe-portfolio.plan.md, packages/snapback-cli/templates/media-feed/snapback/schema.mjs, packages/snapback-cli/templates/media-feed/snapback/functions.mjs, packages/snapback-cli/templates/media-feed/App.tsx, packages/snapback-cli/templates/media-feed/acceptance.mjs]
+authorities: [llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0196-template-and-recipe-portfolio.plan.md, packages/snapback-cli/templates/media-feed/snapback/schema.mjs, packages/snapback-cli/templates/media-feed/snapback/functions.mjs, packages/snapback-cli/templates/media-feed/App.tsx, packages/snapback-cli/templates/media-feed/pagination.mjs, packages/snapback-cli/templates/media-feed/acceptance.mjs, packages/snapback-cli/templates/media-feed/acceptance.static.mjs]
 examples: [packages/snapback-cli/templates/media-feed]
 status: current
 targets: [local]
@@ -101,32 +101,35 @@ presentation state.
 ## Accumulate replacements without duplicating rows
 
 Start the older hook as `skip`, then activate it with the oldest rendered
-`pageKey`. When a whole older page arrives, append only canonical ids that are
-absent from both the current live window and the archive:
+`pageKey`. This feed is append-only. When a newer insert slides the live head,
+move rows displaced from the previous head into the archive; otherwise the
+old boundary excludes that row from the older page and it briefly vanishes.
+Merge whole older-page replacements through the same helper, deduplicate by
+canonical id, and sort by the immutable page key:
 
 ```tsx source=packages/snapback-cli/templates/media-feed/App.tsx
   const first = useSnapbackQuery(api.liveFeed, {});
   const [before, setBefore] = useState<string | null>(null);
   const [archive, setArchive] = useState<readonly Entry[]>([]);
+  const previousFirstRows = useRef<readonly Entry[]>([]);
   const [exhausted, setExhausted] = useState(false);
   const older = useSnapbackQuery(api.olderFeedPage, before === null ? skip : { before });
 ```
 
 ```tsx source=packages/snapback-cli/templates/media-feed/App.tsx
   useEffect(() => {
+    if (!firstReady) return;
+    setArchive((current) => mergePagedArchive({
+      archive: current,
+      head: firstRows,
+      previousHead: previousFirstRows.current,
+    }));
+    previousFirstRows.current = firstRows;
+  }, [firstReady, firstRows]);
+
+  useEffect(() => {
     if (older.status !== 'ready' && older.status !== 'refreshing') return;
-    setArchive((current) => {
-      const seen = new Set(firstRows.map((row) => row._id));
-      const merged = [...current];
-      let changed = false;
-      for (const row of older.data) {
-        if (!seen.has(row._id) && !merged.some((item) => item._id === row._id)) {
-          merged.push(row);
-          changed = true;
-        }
-      }
-      return changed ? merged : current;
-    });
+    setArchive((current) => mergePagedArchive({ archive: current, head: firstRows, page: older.data }));
     setExhausted(older.data.length < 6);
   }, [firstRows, older]);
 
@@ -156,7 +159,10 @@ empty terminal page:
 Keep `_id` as the render key. The template's live acceptance deliberately puts
 equal `createdAt` values on opposite sides of the page break, proves twelve
 unique rows, inserts a newer row, and proves the historical page did not
-shift.
+shift. Its executable static acceptance also slides the live head and proves
+the displaced boundary row remains in the merged list. If rows can be deleted,
+do not use append-only rollover unchanged: carry deletion/tombstone semantics
+into the presentation merge so a removed head row is not archived forever.
 
 ## Treat retention and the archive as different things
 

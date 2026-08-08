@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as Crypto from 'expo-crypto';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
@@ -26,6 +26,7 @@ import {
 import type { ExpoBootState } from '@expo/snapback-expo';
 import { app } from './snapback/generated/app.mjs';
 import api from './snapback/generated/api.mjs';
+import { mergePagedArchive } from './pagination.mjs';
 import type { GeneratedDataModel } from './snapback/generated/api.d.ts';
 
 type Entry = GeneratedDataModel['entries'];
@@ -59,6 +60,7 @@ function Feed() {
   const first = useSnapbackQuery(api.liveFeed, {});
   const [before, setBefore] = useState<string | null>(null);
   const [archive, setArchive] = useState<readonly Entry[]>([]);
+  const previousFirstRows = useRef<readonly Entry[]>([]);
   const [exhausted, setExhausted] = useState(false);
   const older = useSnapbackQuery(api.olderFeedPage, before === null ? skip : { before });
   const publishEntry = useSnapbackCommand(app.commands.publishEntry);
@@ -67,22 +69,22 @@ function Feed() {
   const [photo, setPhoto] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [taskStatus, setTaskStatus] = useState('ready');
   const [error, setError] = useState<string | null>(null);
-  const firstRows = first.status === 'ready' || first.status === 'refreshing' ? first.data : [];
+  const firstReady = first.status === 'ready' || first.status === 'refreshing';
+  const firstRows = firstReady ? first.data : [];
+
+  useEffect(() => {
+    if (!firstReady) return;
+    setArchive((current) => mergePagedArchive({
+      archive: current,
+      head: firstRows,
+      previousHead: previousFirstRows.current,
+    }));
+    previousFirstRows.current = firstRows;
+  }, [firstReady, firstRows]);
 
   useEffect(() => {
     if (older.status !== 'ready' && older.status !== 'refreshing') return;
-    setArchive((current) => {
-      const seen = new Set(firstRows.map((row) => row._id));
-      const merged = [...current];
-      let changed = false;
-      for (const row of older.data) {
-        if (!seen.has(row._id) && !merged.some((item) => item._id === row._id)) {
-          merged.push(row);
-          changed = true;
-        }
-      }
-      return changed ? merged : current;
-    });
+    setArchive((current) => mergePagedArchive({ archive: current, head: firstRows, page: older.data }));
     setExhausted(older.data.length < 6);
   }, [firstRows, older]);
 

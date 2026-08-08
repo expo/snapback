@@ -220,7 +220,7 @@ tickets (declared refusals, principal↔app-identity binding, SVG assets).
     "SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED", "nosniff".
 
 Case 21 is an absorption seed from the 2026-08-07 zerobugs `zb5-hot` `v4`
-attempt (`issues/20260808-sessions-store-copy-needs-auth-keyring-sibling.md`):
+attempt (`issues/closed/20260808-sessions-store-copy-needs-auth-keyring-sibling.md`):
 a full receipted gate run was burned discovering that a database copy is not a
 store copy, and nothing in the guide named the sibling.
 
@@ -234,7 +234,7 @@ store copy, and nothing in the guide named the sibling.
     "auth-keyring.json", "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE".
 
 Case 22 absorbs the replicated mutation-authoring miss recorded in
-`issues/20260808-ctx-db-verbs-undocumented.md`.
+`issues/closed/20260808-ctx-db-verbs-undocumented.md`.
 
 22. **Mutation database verbs:** "Inside a JS mutation, query a declared
     index, collect at most 500 rows, and delete one matched row." The run fails
@@ -245,7 +245,7 @@ Case 22 absorbs the replicated mutation-authoring miss recorded in
     Route terms: "ctx.db", "withIndex", "bounded collection", "delete row".
 
 Case 23 absorbs the repeated headless-call-shape miss recorded in
-`issues/20260808-headless-args-shape-guide-snippet.md`.
+`issues/closed/20260808-headless-args-shape-guide-snippet.md`.
 
 23. **Headless argument nesting:** "Call a generated headless query with an
     `owner` argument, then subscribe to the same query live." The run fails if
@@ -256,7 +256,7 @@ Case 23 absorbs the repeated headless-call-shape miss recorded in
     "SNAPBACK_ARGUMENT_VALIDATION_FAILED", "liveQuery args".
 
 Case 24 absorbs the repeated verifier-config source-reading detour recorded in
-`issues/20260808-verify-config-authoring-guide-anchor.md`.
+`issues/closed/20260808-verify-config-authoring-guide-anchor.md`.
 
 24. **Verify config authoring:** "Register my headless acceptance suite with
     `snapback verify`, including its execution identities and read/write
@@ -268,7 +268,7 @@ Case 24 absorbs the repeated verifier-config source-reading detour recorded in
     "@expo/snapback-cli/verify", "acceptance profile".
 
 Case 25 absorbs the repeated bare-Metro cold-offline source excavation
-recorded in `issues/20260808-offline-supervisor-origin-guide-anchor.md`.
+recorded in `issues/closed/20260808-offline-supervisor-origin-guide-anchor.md`.
 
 25. **Expo supervised cold offline boot:** "After warming an Expo app through
     `snapback dev --expo`, stop the supervisor and prove a cold launch from the
@@ -281,7 +281,7 @@ recorded in `issues/20260808-offline-supervisor-origin-guide-anchor.md`.
     "cold offline", "persisted-receipt".
 
 Case 26 absorbs the duplicated native-lane simulator setup recorded in
-`issues/20260808-headless-simulator-proof-recipe.md`.
+`issues/closed/20260808-headless-simulator-proof-recipe.md`.
 
 26. **Headless iOS simulator proof:** "Drive an Expo iOS proof without opening
     Simulator.app: install and launch the app, dismiss Expo Go onboarding,

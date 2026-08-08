@@ -37,6 +37,9 @@ queries, so their bounded snapshots are eligible for retained rendering.
 Pagination uses an immutable, independently unique `pageKey`, not the display
 timestamp: the current window is a whole-result live replacement, while older
 pages accumulate in component state and are deduplicated by canonical `_id`.
+Because this starter is append-only, a row displaced when a newer insert slides
+the live head is rolled into that archive. A feed with deletion needs explicit
+tombstone semantics instead of preserving every displaced row.
 That accumulator is intentionally volatile; retaining an exact query/args
 snapshot does not retain the assembled infinite list across reloads.
 

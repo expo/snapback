@@ -1,7 +1,7 @@
 ---
 title: "Recipe: optimistic create with a server-minted ID"
 id: recipes.optimistic-create
-order: 5
+order: 6
 audience: agent-first
 capabilities: [clients.optimistic-mutation-view]
 authorities: [llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0133-local-settlement.spec.md, llp/0155-local-sync-product-direction.rfc.md, packages/snapback-client/index.mjs, demos/zero-bakeoff/apps/contention-calendar/snapback/functions.mjs, demos/zero-bakeoff/apps/contention-calendar/snapback/src/App.tsx, tests/acceptance/contention-calendar-rung2-v1.mjs]

@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "64fe36207834756a71ef0a813b05878b4705f563"
+    "commit": "c352a5b3ef08c61d8dbb621109e46f32d7e04739"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -345,12 +345,12 @@
       },
       {
         "id": "recipes.optimistic-create",
-        "order": 5,
+        "order": 6,
         "title": "Recipe: optimistic create with a server-minted ID"
       },
       {
         "id": "recipes.coming-from-convex-and-supabase",
-        "order": 6,
+        "order": 7,
         "title": "Recipe: coming from Convex and Supabase"
       }
     ],
@@ -3564,7 +3564,7 @@
     "recipes.coming-from-convex-and-supabase": {
       "path": "guide/recipes/coming-from-convex-and-supabase.md",
       "title": "Recipe: coming from Convex and Supabase",
-      "order": 6,
+      "order": 7,
       "status": "current",
       "targets": [
         "local"
@@ -3600,7 +3600,7 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedCommit": "eac098a99fb89b07e67cb72430106117b7fee86b",
-      "sha256": "5df9a262a299d0701c8e0d9c71a4d06ab86d071c14384465a48d88372b4070bb",
+      "sha256": "655d15d3f058c8feac675b631b47d6fbb8104283b5a91d01660e8a72db64c6c8",
       "snippets": [
         {
           "lang": "ts",
@@ -3742,7 +3742,7 @@
     "recipes.optimistic-create": {
       "path": "guide/recipes/optimistic-create.md",
       "title": "Recipe: optimistic create with a server-minted ID",
-      "order": 5,
+      "order": 6,
       "status": "current",
       "targets": [
         "local"
@@ -3766,7 +3766,7 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedCommit": "d851167d7492a7303e2e84dc4317bdc32c4e5797",
-      "sha256": "a0ef7ca9d9a302753d5c3179005be4e080a77088da6b96b2ec9bb72db15a9fcc",
+      "sha256": "240fb56e2cf6685e810610f43c9318323995df4497494fb5aaf94c6678acb8f8",
       "snippets": [
         {
           "lang": "js",
@@ -3886,14 +3886,16 @@
         "packages/snapback-cli/templates/media-feed/snapback/schema.mjs",
         "packages/snapback-cli/templates/media-feed/snapback/functions.mjs",
         "packages/snapback-cli/templates/media-feed/App.tsx",
-        "packages/snapback-cli/templates/media-feed/acceptance.mjs"
+        "packages/snapback-cli/templates/media-feed/pagination.mjs",
+        "packages/snapback-cli/templates/media-feed/acceptance.mjs",
+        "packages/snapback-cli/templates/media-feed/acceptance.static.mjs"
       ],
       "examples": [
         "packages/snapback-cli/templates/media-feed"
       ],
       "reviewed": "2026-08-08",
       "reviewedCommit": "d851167d7492a7303e2e84dc4317bdc32c4e5797",
-      "sha256": "e870147d2c1e4ed4dd9f1bf24423f62cf7c3762e0ca1fb99572397f7edab6471",
+      "sha256": "2c73213f88a961d6ed2d095f545a982cf71fa714e7d7d4c20e2074013e45af5d",
       "snippets": [
         {
           "lang": "js",
@@ -8447,7 +8449,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedCommit": "d851167d7492a7303e2e84dc4317bdc32c4e5797",
-      "sha256": "203470b123f5506cda16c7f336705c6ce50f407d0e1f8fcd17a9706a0e45528a",
+      "sha256": "56d964b7c2c802be9f49f27d14bb5c248026f3c7c7b564aeb5d27c0dcc8c981e",
       "snippets": []
     },
     "meta.surface-map": {
@@ -8886,5 +8888,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "6a58c3631cf8ebf102915c65c965ee17893b8b31033e93f43e392e946376fd45"
+  "contentHash": "ed91baa0a152526b35c5fa86e16841e14bd47c624f990617af88f59d3c5effae"
 }
