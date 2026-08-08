@@ -15,6 +15,7 @@ export type {
   ExternalStoreStatus,
 } from './external-store.mjs';
 export { SnapbackCommandClient, createCommandClient } from './commands.mjs';
+export { createAssetClient } from './assets.mjs';
 export type {
   AssetBearingCommandDescriptorV1,
   AssetBearingCommandReferenceV1,

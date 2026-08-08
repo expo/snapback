@@ -108,6 +108,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'demand-broker.test.mjs',
       'ephemeral-room.test.mjs',
       'evaluation-floor.test.mjs',
+      'export-parity.test.mjs',
       'external-store.test.mjs',
       'generated-mutation-ir.test.mjs',
       'hosted-browser.test.mjs',
@@ -445,7 +446,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 234,
+  expectedTotal = 235,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -727,6 +728,10 @@ export function checkPackageTestInventories(options = {}) {
 // 233 -> 234 (2026-08-08, supervisor Metro watch-inertness advisory):
 // @expo/snapback-cli gains the pure CI/watcher-blind-root assessment suite
 // (issues/20260808-supervisor-warn-metro-watch-blind.md).
+// 234 -> 235 (2026-08-08,
+// issues/20260807-client-root-export-createassetclient.md): @expo/snapback-client
+// gains the general declared-vs-runtime export parity check across every typed
+// export entry.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

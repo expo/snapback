@@ -50,6 +50,7 @@ import {
 } from './answer-classes.mjs';
 export { parseSearchQueryV1, search } from './search.mjs';
 export { SnapbackCommandClient, createCommandClient } from './commands.mjs';
+export { createAssetClient } from './assets.mjs';
 export {
   CANONICAL_CLIENT_VALUE_V1_LIMITS,
   canonicalizeClientValueV1,
