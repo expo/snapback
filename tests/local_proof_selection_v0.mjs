@@ -147,6 +147,22 @@ test('a new Rust source file selects the rustfmt gate', () => {
   includesAll(rustSource, ['rustfmt']);
 });
 
+test('Rust modules and ownership authorities select the module-ownership ratchet', () => {
+  for (const rustModule of ['src/storage.rs', 'src/new-owner-boundary.rs']) {
+    includesAll(select([rustModule]), ['module-ownership']);
+  }
+
+  for (const authority of [
+    'ownership.manifest.json',
+    'ownership.baseline.json',
+    'scripts/check-module-ownership.mjs',
+  ]) {
+    const plan = select([authority]);
+    assert.equal(plan.selectionClass, 'FAST_ONLY', authority);
+    includesAll(plan, ['module-ownership']);
+  }
+});
+
 test('native, Cloudflare, seed, and carrier changes select their unique claims', () => {
   const native = select(['src/storage.rs']);
   includesAll(native, [

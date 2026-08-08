@@ -1,0 +1,319 @@
+{
+  "schemaVersion": "snapback.module-ownership-manifest.v1",
+  "governedBy": [
+    "LLP 0199#target-ownership-map",
+    "LLP 0199#author-rulings-accepted-2026-08-08-charlie-cheever"
+  ],
+  "dependencyDirection": {
+    "description": "transport/adapters -> domain services -> storage/migration kernel -> shared contract/types leaf",
+    "layers": [
+      [
+        "transport-adapters",
+        "embed-facade"
+      ],
+      [
+        "generation-activation-coordinator",
+        "sync-realtime-engine",
+        "background-services"
+      ],
+      [
+        "storage-migration-kernel"
+      ],
+      [
+        "shared-contract-types-leaf"
+      ]
+    ]
+  },
+  "owners": {
+    "shared-contract-types-leaf": {
+      "ordinal": 0,
+      "layer": "contract-leaf",
+      "rank": 0,
+      "allowedDependencies": []
+    },
+    "generation-activation-coordinator": {
+      "ordinal": 1,
+      "layer": "domain-service",
+      "rank": 2,
+      "allowedDependencies": [
+        "storage-migration-kernel",
+        "shared-contract-types-leaf"
+      ]
+    },
+    "storage-migration-kernel": {
+      "ordinal": 2,
+      "layer": "kernel",
+      "rank": 1,
+      "allowedDependencies": [
+        "shared-contract-types-leaf"
+      ]
+    },
+    "sync-realtime-engine": {
+      "ordinal": 3,
+      "layer": "domain-service",
+      "rank": 2,
+      "allowedDependencies": [
+        "storage-migration-kernel",
+        "shared-contract-types-leaf"
+      ]
+    },
+    "background-services": {
+      "ordinal": 4,
+      "layer": "domain-service",
+      "rank": 2,
+      "allowedDependencies": [
+        "storage-migration-kernel",
+        "shared-contract-types-leaf"
+      ]
+    },
+    "transport-adapters": {
+      "ordinal": 5,
+      "layer": "adapter",
+      "rank": 3,
+      "allowedDependencies": [
+        "generation-activation-coordinator",
+        "sync-realtime-engine",
+        "background-services",
+        "storage-migration-kernel",
+        "shared-contract-types-leaf"
+      ]
+    },
+    "embed-facade": {
+      "ordinal": 6,
+      "layer": "adapter",
+      "rank": 3,
+      "allowedDependencies": [
+        "generation-activation-coordinator",
+        "sync-realtime-engine",
+        "background-services",
+        "storage-migration-kernel",
+        "shared-contract-types-leaf"
+      ]
+    },
+    "unassigned": {
+      "ordinal": null,
+      "layer": "unassigned",
+      "rank": null,
+      "allowedDependencies": []
+    }
+  },
+  "godFiles": [
+    "src/local.rs",
+    "src/server.rs",
+    "src/storage.rs"
+  ],
+  "modulesByOwner": {
+    "shared-contract-types-leaf": [
+      "src/api_envelope.rs",
+      "src/app_data_result.rs",
+      "src/args_contract.rs",
+      "src/commit_envelope.rs",
+      "src/data_patch.rs",
+      "src/data_tier.rs",
+      "src/diagnostic.rs",
+      "src/handler_wire.rs",
+      "src/identity.rs",
+      "src/ids.rs",
+      "src/live_wire.rs",
+      "src/manifest.rs",
+      "src/network_profile.rs",
+      "src/result_contract.rs",
+      "src/service_profile.rs",
+      "src/telemetry_contract.rs",
+      "src/value_expr.rs",
+      "src/wire_fixtures.rs",
+      "src/wire_version.rs"
+    ],
+    "generation-activation-coordinator": [
+      "src/agent_safe_publication.rs",
+      "src/auth/deployment.rs",
+      "src/bundle.rs",
+      "src/completeness.rs",
+      "src/config.rs",
+      "src/deploy.rs",
+      "src/schema_export.rs",
+      "src/seed_identity.rs"
+    ],
+    "storage-migration-kernel": [
+      "src/branches.rs",
+      "src/instance_lock.rs",
+      "src/migration.rs",
+      "src/migration_presentation.rs",
+      "src/operation_detail.rs",
+      "src/operation_ledger.rs",
+      "src/proof_checkpoint.rs",
+      "src/secure_file.rs",
+      "src/storage.rs",
+      "src/storage/auth.rs",
+      "src/storage/auth_agent_credentials.rs",
+      "src/storage/auth_agents.rs",
+      "src/storage/auth_asset_callbacks.rs",
+      "src/storage/auth_grants.rs",
+      "src/storage/auth_invalidation.rs",
+      "src/storage/auth_mode.rs",
+      "src/storage/auth_rescue.rs",
+      "src/storage/auth_scope_bases.rs",
+      "src/storage/auth_sender.rs",
+      "src/storage/auth_stream.rs",
+      "src/storage/auth_throttle.rs",
+      "src/storage/authorization.rs",
+      "src/storage/authorized_lease.rs",
+      "src/storage/hosted_admission.rs",
+      "src/storage/migration_executor.rs",
+      "src/storage/write_authority.rs",
+      "src/store_state.rs"
+    ],
+    "sync-realtime-engine": [
+      "src/bounded_children_cursor.rs",
+      "src/ephemeral.rs",
+      "src/live_coalesce.rs",
+      "src/live_matcher.rs",
+      "src/membership_rules.rs",
+      "src/rqs.rs",
+      "src/snapshot_batch_cursor.rs",
+      "src/snapshot_batch_cursor_v2.rs",
+      "src/stream_attempt.rs"
+    ],
+    "background-services": [
+      "src/assets.rs",
+      "src/assets_cut.rs",
+      "src/assets_image.rs",
+      "src/assets_s3.rs",
+      "src/assets_store.rs",
+      "src/assets_video.rs",
+      "src/cron.rs",
+      "src/error_tracking.rs",
+      "src/errors_query.rs",
+      "src/fork_promotion.rs",
+      "src/instance_fork.rs",
+      "src/jobs.rs",
+      "src/push.rs",
+      "src/push/fake_expo.rs",
+      "src/telemetry.rs",
+      "src/telemetry_bench.rs",
+      "src/telemetry_query.rs"
+    ],
+    "transport-adapters": [
+      "src/admin.rs",
+      "src/admin_impersonation.rs",
+      "src/admin_link.rs",
+      "src/admin_secret_read.rs",
+      "src/bin/snapback-agent-safe-candidate.rs",
+      "src/bin/snapback-agent-safe-paired.rs",
+      "src/bin/snapback-agent-safe-step0.rs",
+      "src/bin/snapback-bench.rs",
+      "src/bin/snapback-cf-manifest.rs",
+      "src/bin/snapback-conformance-twin.rs",
+      "src/bin/snapback-fork-promotion-bench.rs",
+      "src/bin/snapback-hosted-admission.rs",
+      "src/bin/snapback-local.rs",
+      "src/bin/snapback-sbsb2-vectors.rs",
+      "src/bin/snapback-schemagen.rs",
+      "src/bin/snapback-telemetry-bench.rs",
+      "src/cli.rs",
+      "src/guide_mcp.rs",
+      "src/main.rs",
+      "src/server.rs",
+      "src/workerd_exec.rs"
+    ],
+    "embed-facade": [
+      "src/embed.rs",
+      "src/lib.rs"
+    ],
+    "unassigned": [
+      "src/auth/admission.rs",
+      "src/auth/backup.rs",
+      "src/auth/coordinator.rs",
+      "src/auth/crypto.rs",
+      "src/auth/descriptor.rs",
+      "src/auth/effective_source.rs",
+      "src/auth/handshake.rs",
+      "src/auth/hosted_edge.rs",
+      "src/auth/invalidation.rs",
+      "src/auth/invocation.rs",
+      "src/auth/keyring.rs",
+      "src/auth/lease.rs",
+      "src/auth/lifecycle.rs",
+      "src/auth/mailbox.rs",
+      "src/auth/mod.rs",
+      "src/auth/mode.rs",
+      "src/auth/provider.rs",
+      "src/auth/recovery.rs",
+      "src/auth/rescue.rs",
+      "src/auth/runtime.rs",
+      "src/auth/sender_proof.rs",
+      "src/auth/service_fence.rs",
+      "src/auth/session_projection.rs",
+      "src/auth/throttle.rs",
+      "src/auth/wire.rs",
+      "src/authoring_suggestion.rs",
+      "src/bench.rs",
+      "src/conformance.rs",
+      "src/contract_exact.rs",
+      "src/control_catalog.rs",
+      "src/exec_guard.rs",
+      "src/guide.rs",
+      "src/guide_reference.rs",
+      "src/host_ops.rs",
+      "src/local.rs",
+      "src/local/auth_room_kick_acceptance.rs",
+      "src/local/authorization_acceptance.rs",
+      "src/result_transform.rs",
+      "src/runtime.rs",
+      "src/search/analyzer.rs",
+      "src/search/ast.rs",
+      "src/search/cursor.rs",
+      "src/search/fixtures.rs",
+      "src/search/highlight.rs",
+      "src/search/mod.rs",
+      "src/search/parser.rs",
+      "src/search/rebuild.rs",
+      "src/search/scorer.rs",
+      "src/search/sqlite.rs",
+      "src/search/types.rs",
+      "src/search/unicode17_generated.rs",
+      "src/vector/acceptance.rs",
+      "src/vector/diagnostics.rs",
+      "src/vector/mod.rs",
+      "src/vector/profile.rs",
+      "src/vector/query.rs",
+      "src/vector/rebuild.rs",
+      "src/vector/sqlite.rs",
+      "src/vector/storage.rs",
+      "src/vector/types.rs",
+      "src/warm_vm.rs"
+    ]
+  },
+  "mixedModuleScopes": {
+    "src/local.rs": [
+      {
+        "owner": "generation-activation-coordinator",
+        "scope": "Generation composition and activation transitions targeted for the first semantic extraction."
+      },
+      {
+        "owner": "unassigned",
+        "scope": "All remaining local runtime, lifecycle, auth, execution, and orchestration behavior until later slices place it."
+      }
+    ],
+    "src/manifest.rs": [
+      {
+        "owner": "shared-contract-types-leaf",
+        "scope": "Language-neutral schema, wire, and generation types that are the intended canonical leaf."
+      },
+      {
+        "owner": "unassigned",
+        "scope": "Subsystem-coupled identity, vector, push, assets, auth, and other behavior pending extraction."
+      }
+    ]
+  },
+  "uncertainAssignments": {
+    "src/agent_safe_publication.rs": "Publication is generation-adjacent, but its final extracted owner may differ from generation activation.",
+    "src/auth/deployment.rs": "Only generation/deployment activation behavior is assigned here; the remaining auth owner map is intentionally unresolved.",
+    "src/data_tier.rs": "Treated as a contract/profile type leaf pending extraction of any behavior residue.",
+    "src/live_wire.rs": "Treated as the language-neutral wire leaf even though its current file may retain sync-coupled behavior.",
+    "src/local.rs": "Mixed hub: generation-activation behavior is targeted for owner 1, but file-level analysis leaves the current module unassigned until extraction creates a real boundary.",
+    "src/manifest.rs": "Types are assigned to the shared contract/types leaf; higher-level subsystem residue remains to be extracted, so this whole-file assignment is provisional.",
+    "src/migration_presentation.rs": "Placed with migration for the first ratchet; presentation behavior may later move to an adapter.",
+    "src/telemetry_contract.rs": "Treated as a contract leaf; telemetry behavior remains under background services."
+  }
+}

@@ -519,6 +519,17 @@
       ]
     },
     {
+      "id": "module-ownership-authority",
+      "groups": [
+        "module-ownership"
+      ],
+      "files": [
+        "ownership.baseline.json",
+        "ownership.manifest.json",
+        "scripts/check-module-ownership.mjs"
+      ]
+    },
+    {
       "id": "telemetry-policy-and-source",
       "groups": [
         "telemetry"
@@ -663,6 +674,7 @@
     {
       "id": "native-runtime",
       "groups": [
+        "module-ownership",
         "native",
         "versioned-seed",
         "telemetry"
@@ -810,6 +822,12 @@
     }
   ],
   "groups": {
+    "module-ownership": {
+      "lane": "fast",
+      "gates": [
+        "module-ownership"
+      ]
+    },
     "drift-enforcement": {
       "lane": "fast",
       "gates": [
