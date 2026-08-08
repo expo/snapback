@@ -115,7 +115,14 @@ interface Options {
   observerCount: 0 | 1 | 6;
   observerPartition: ObserverPartition;
   coalescing: 'on' | 'off';
+  cycleOffset: number;
 }
+
+// Cycle indices 0-2 (and their hotIDs, clientMutationIds, and the un-suffixed
+// bind ids) are burned into the persistent hot-diag baseline by diag-run1/2;
+// arms replay against clones of that baseline, so every deterministic identity
+// is namespaced by the arm's cycle offset to stay fresh.
+let runIdentitySuffix = '-o0';
 
 interface HotOperation {
   inventoryIndex: number;
@@ -374,6 +381,7 @@ function parseArgs(argv: string[]): Options | null {
   let outPath = DEFAULT_OUT_PATH;
   let observeSeconds = DEFAULT_OBSERVE_SECONDS;
   let cycles = 1;
+  let cycleOffset = 0;
   let arrivalMode: ArrivalMode = 'fixed';
   let sustainIntervalMs = DEFAULT_SUSTAIN_INTERVAL_MS;
   let sustainSeconds = DEFAULT_SUSTAIN_SECONDS;
@@ -450,6 +458,14 @@ function parseArgs(argv: string[]): Options | null {
         throw new Error('--coalescing must be on or off');
       }
       coalescing = value;
+    } else if (argument === '--cycle-offset' || argument.startsWith('--cycle-offset=')) {
+      let value;
+      [value, index] = optionValue(argv, index, '--cycle-offset');
+      const parsed = Number(value);
+      if (!Number.isSafeInteger(parsed) || parsed < 0) {
+        throw new Error('--cycle-offset must be a non-negative integer');
+      }
+      cycleOffset = parsed;
     } else {
       throw new Error(`unknown argument ${argument}`);
     }
@@ -463,6 +479,7 @@ function parseArgs(argv: string[]): Options | null {
     outPath: resolve(outPath),
     observeSeconds,
     cycles,
+    cycleOffset,
     arrivalMode,
     sustainIntervalMs,
     sustainSeconds,
@@ -486,7 +503,11 @@ function actorNameBySourceID(bindings: AnyRecord): Map<string, Actor> {
   }));
 }
 
-function buildHotOperationPlan(overlay: AnyRecord, cycles: number): HotCycle[] {
+function buildHotOperationPlan(
+  overlay: AnyRecord,
+  cycles: number,
+  cycleOffset: number,
+): HotCycle[] {
   const payload = overlay.payload as AnyRecord;
   const workingSet = payload.workingSet as AnyRecord;
   const projections = payload.projections as AnyRecord;
@@ -550,7 +571,8 @@ function buildHotOperationPlan(overlay: AnyRecord, cycles: number): HotCycle[] {
   assert(addLabelID, 'working set has a project label for the add candidate');
 
   const plan: HotCycle[] = [];
-  for (let cycle = 0; cycle < cycles; cycle += 1) {
+  for (let step = 0; step < cycles; step += 1) {
+    const cycle = cycleOffset + step;
     const time = (index: number): number => (
       GENERATION_EPOCH_MS + 10_000 + cycle * 1_000 + index
     );
@@ -706,7 +728,7 @@ async function bindOrAdoptActors(
       try {
         await client.mutate(api.acceptanceBindActor, {
           args: {actor},
-          clientMutationId: `diag-hot-stream-bind-${actor}`,
+          clientMutationId: `diag-hot-stream-bind-${actor}${runIdentitySuffix}`,
           queue: false,
         });
       } catch (error) {
@@ -806,7 +828,7 @@ async function buildObserverSources(
       try {
         await client.mutate(api.acceptanceBindActor, {
           args: {actor: 'crew-admin'},
-          clientMutationId: `diag-hot-stream-bind-${label}`,
+          clientMutationId: `diag-hot-stream-bind-${label}${runIdentitySuffix}`,
           queue: false,
         });
       } catch (error) {
@@ -1650,6 +1672,7 @@ async function closeClients(
 }
 
 async function run(options: Options, logger: JsonlLogger): Promise<void> {
+  runIdentitySuffix = `-o${options.cycleOffset}`;
   const abortController = new AbortController();
   let interruptedBy: NodeJS.Signals | null = null;
   const onSignal = (signal: NodeJS.Signals): void => {
@@ -1746,9 +1769,10 @@ async function run(options: Options, logger: JsonlLogger): Promise<void> {
       String((payload.selectedProject as AnyRecord).id),
       logger,
     );
-    const plan = buildHotOperationPlan(overlay, plannedCycles);
+    const plan = buildHotOperationPlan(overlay, plannedCycles, options.cycleOffset);
     logger.record('operation_plan', {
       cycles: plan.length,
+      cycleOffset: options.cycleOffset,
       operationsPerCycle: MUTATION_NAMES.length,
       arrivalMode: options.arrivalMode,
       fixedArrivalIntervalMs: FIXED_ARRIVAL_INTERVAL_MS,

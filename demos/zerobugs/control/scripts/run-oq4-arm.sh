@@ -1,6 +1,7 @@
 #!/bin/zsh
 
 set -euo pipefail
+setopt EXTENDED_GLOB
 unsetopt BG_NICE
 
 if (( $# < 5 )); then
@@ -63,7 +64,7 @@ cp -c $pristine/diag.sqlite3.auth-keyring.json $database.auth-keyring.json
 cp -c $pristine/startup-artifacts.json $startup_artifacts
 
 cleanup() {
-  local status=$?
+  local rc=$?
   trap - EXIT INT TERM
   if [[ -n ${server_pid:-} ]] && kill -0 $server_pid 2>/dev/null; then
     kill -TERM $server_pid 2>/dev/null || true
@@ -71,7 +72,7 @@ cleanup() {
   fi
   rm -f $database $database-wal $database-shm $database.auth-keyring.json
   rm -f $startup_artifacts $ready_file
-  return $status
+  return $rc
 }
 trap cleanup EXIT INT TERM
 
@@ -126,6 +127,7 @@ if (
     --observer-count $observer_count \
     --observer-partition $observer_partition \
     --coalescing $coalesce \
+    --cycle-offset 10 \
     $cycle_flags \
     "$@"
 ); then
