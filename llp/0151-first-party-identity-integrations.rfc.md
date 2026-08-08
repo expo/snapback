@@ -8,7 +8,10 @@ OpenAI Codex (`gpt-5.6-sol`) and a non-author Fable context (rounds 1–2, per
 Charlie's direction that the other family participate in the design, not
 only review it)
 **Date:** 2026-08-02
-**Revised:** 2026-08-06 (sitting #4: wave-4 deferral of the generated-domain passkeys tier and shared-delivery questions AFFIRMED; decided together at wave-4 kickoff.) 2026-08-03 (decision-sitting propagation: the two remaining
+**Revised:** 2026-08-08 (wave-4 kickoff: the **generated-domain passkeys
+tier is RULED — preview-only exception**, with a named promotion condition;
+see the dated ruling in §Open questions. The shared-delivery twin remains
+open and is no longer bound to the passkeys answer.) 2026-08-06 (sitting #4: wave-4 deferral of the generated-domain passkeys tier and shared-delivery questions AFFIRMED; decided together at wave-4 kickoff.) 2026-08-03 (decision-sitting propagation: the two remaining
 residual questions — generated-domain passkeys tier and Expo-hosted
 shared email/SMS delivery for generated domains — are deferred to the
 wave-4 kickoff with their context recorded; see the dated note in §Open
@@ -835,10 +838,30 @@ labeled walkthrough.
   broker-issuer variant remains rejected.
 - **SMS tier placement — ANSWERED 2026-08-02:** tier 2, supported with vendor
   configuration; promotion requires a named delivery-vendor owner.
-- **Generated-domain passkeys**: production tier-1 with disclosure, or
-  preview-only exception? The tethered-continuity dependency (§Passkeys)
-  is exactly the kind of tether the pinned constraint scrutinizes —
-  author's call.
+- **Generated-domain passkeys — RULED 2026-08-08 (Charlie, wave-4 kickoff):
+  preview-only exception**, not production tier 1. Promotion to production
+  tier-1-with-disclosure is conditioned on both (a) **ROR verified** across
+  target browsers and the iOS/Android platform-association mechanisms, and
+  (b) a **named owner** for the indefinite generated-origin serving
+  obligation (`/.well-known/webauthn` must keep resolving for as long as any
+  credential registered against that RP id exists — including for apps that
+  have since moved to their own domain).
+
+  Rationale: Related Origin Requests is the *only* continuity mechanism
+  generated-domain passkeys have, and ROR behaviour is itself an unverified
+  open question below. A production tier-1 claim would assert a continuity
+  story that has not been demonstrated. The ruling costs little today
+  because §Passkeys already holds passkeys to *additional-next-to-a-
+  recoverable-mechanism* until ROR verifies — so a generated-domain passkey
+  failure is degraded auth, not account loss. The tether only becomes
+  load-bearing when passkeys graduate to recommended default, and that
+  graduation is gated on the same ROR verification. Ruling tier 1 now would
+  spend that decision early, without evidence, in the direction that is
+  harder to reverse.
+
+  This resolves the Fable/Codex split by making it evidence-gated rather
+  than a standing bet: Fable's position becomes available on ROR
+  verification; Codex's forbidden-tether objection is honoured until then.
 - **Expo as OIDC provider**: who on the Expo side owns shipping a
   standards-compliant OIDC surface (issuer, claims contract, per-app
   registration), clearing the GAP row?
