@@ -5,7 +5,7 @@
 **Systems:** Guide, Documentation, Client packages, Types, Build
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (r2) — r2 also resolves the OQ2 hand-written-interim contradiction (named exclusion until a declaration file lands). 2026-08-08 (r1) — super-refine round-1 revision against the
+**Revised:** 2026-08-08 (r3) — pre-round-3 minors (citation precision, diary enumeration, OQ2-contingency marking). 2026-08-08 (r2) — r2 also resolves the OQ2 hand-written-interim contradiction (named exclusion until a declaration file lands). 2026-08-08 (r1) — super-refine round-1 revision against the
 dual-family cluster reviews (llp/reviews/0193-*.{claude,gpt-5}.md):
 unretained/incorrect quantitative claims corrected to retained-artifact
 citations; see the review artifacts for the concern ledger.
@@ -58,10 +58,13 @@ requires opening `node_modules`.
 ## What this kills
 
 Retained-record attributions: headless args nesting (diary 0069 residue
-3), `ctx.db` verbs via binary strings (0069 residue 2), verify-config
-contract (0068 and 0069 residue 5), `createAssetClient` root-export
-discovery (diary 0068), the sessions client-construction option pair
-(0068 residue 4, hit by two lanes). Diary 0069 calls orientation "the
+3), `createAssetClient` root-export discovery (diary 0068), the sessions
+client-construction option pair (0068 residue 4, hit by two lanes) —
+all in the initial declaration-sourced scope. Contingent on OQ2's
+declaration files landing: `ctx.db` verbs via binary strings (0069
+residue 2) and the verify-config contract (0068 and 0069 residue 5) —
+the two most expensive named excursions sit behind that exclusion,
+which is the strongest argument for scheduling OQ2 early. Diary 0069 calls orientation "the
 dominant term" in the remaining gap; the signature-shaped items above
 are the subset of its residue list this RFC removes. (No quantitative
 fraction is claimed; the diaries do not decompose the bucket.)

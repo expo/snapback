@@ -5,13 +5,13 @@
 **Systems:** Diagnostics, Error handling, Guide, Agent experience, CI
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (r1) — super-refine round-1 revision against the
+**Revised:** 2026-08-08 (r3) — pre-round-3 minors (citation precision, diary enumeration). 2026-08-08 (r1) — super-refine round-1 revision against the
 dual-family cluster reviews (llp/reviews/0193-*.{claude,gpt-5}.md):
 unretained/incorrect quantitative claims corrected to retained-artifact
 citations; see the review artifacts for the concern ledger.
 **Related:** LLP 0186 (W3 states the bar), LLP 0146 (D7 — typed
 remediations, ratified at sitting #4), LLP 0010 (diagnostic codes),
-diaries 0065-0069
+diaries 0065/0066/0068/0069
 
 ## Summary
 
@@ -37,8 +37,11 @@ bar structural, so it can never regress.
 - The retained record shows the mechanism in both directions: refusals
   that named remediations (`snapback assets put --user`, diary 0048's
   decode diagnostic, the seed-recovery messages) cost near-zero;
-  refusals that did not (the 0.1.10-era `host-ops response was not
-  JSON`, the hashed field path) each cost a bisection session.
+  refusals that did not each cost a bisection session — diary 0058's
+  "host-ops error response was not JSON" (in-checkout era;
+  `issues/closed/20260805-managed-dev-multi-json-load.md`) and the
+  SHA-256-hashed field path
+  (`issues/closed/20260805-result-contract-violation-hashes-field-path.md`).
 - The infrastructure half-exists: stable code registry, the
   production diagnostic-inventory drift gate, and 0146 D7 ratified as
   the remediation carrier.

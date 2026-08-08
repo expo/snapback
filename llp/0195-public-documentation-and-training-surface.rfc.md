@@ -6,12 +6,12 @@
 evaluation
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (r1) — super-refine round-1 revision against the
+**Revised:** 2026-08-08 (r3) — pre-round-3 minors (citation precision, diary enumeration). 2026-08-08 (r1) — super-refine round-1 revision against the
 dual-family cluster reviews (llp/reviews/0193-*.{claude,gpt-5}.md):
 unretained/incorrect quantitative claims corrected to retained-artifact
 citations; see the review artifacts for the concern ledger.
 **Related:** LLP 0186 (the orientation-gap evidence), LLP 0061 (guide),
-LLP 0041 (packaging), diaries 0065-0069
+LLP 0041 (packaging), diaries 0065/0066/0068/0069
 
 ## Summary
 
@@ -64,7 +64,7 @@ is the author's decision.
 No hosted-service claims change; the site documents the local-first
 surface the capability index already asserts, GAP rows included. The
 honesty discipline that survived four published-consumer audits
-(diaries 0065-0069; the 0058 run was in-checkout) is the asset being
+(diaries 0065/0066/0068/0069; the 0058 run was in-checkout) is the asset being
 published, not marketing copy.
 
 ## Author decisions required
