@@ -1,9 +1,22 @@
 #!/usr/bin/env node
 
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+} from 'node:fs';
+import { createServer } from 'node:net';
+import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { setTimeout as delay } from 'node:timers/promises';
 
 import { generateApp, scaffoldApp } from '../packages/snapback-cli/index.mjs';
 
@@ -17,6 +30,94 @@ function nonSnapbackDependencies(manifest, section) {
   return Object.fromEntries(Object.entries(manifest[section] ?? {}).filter(
     ([name]) => !name.startsWith('@expo/snapback-'),
   ));
+}
+
+function materializeConsumerNodeModules(destination) {
+  const source = join(harnessRoot, 'node_modules');
+  mkdirSync(destination, { recursive: true });
+  for (const entry of readdirSync(source)) {
+    const sourceEntry = join(source, entry);
+    const destinationEntry = join(destination, entry);
+    if (!entry.startsWith('@')) {
+      symlinkSync(sourceEntry, destinationEntry, 'dir');
+      continue;
+    }
+    mkdirSync(destinationEntry, { recursive: true });
+    for (const scopedEntry of readdirSync(sourceEntry)) {
+      const packageName = `${entry}/${scopedEntry}`;
+      const sourcePackage = join(sourceEntry, scopedEntry);
+      const destinationPackage = join(destinationEntry, scopedEntry);
+      if (packageName.startsWith('@expo/snapback-')) {
+        // Bun represents local file dependencies as directories of per-file
+        // symlinks back to this monorepo. Materialize only the package's
+        // publish allowlist so Metro sees the same package-local peer topology
+        // as a registry install instead of following those links to source.
+        const packageManifest = JSON.parse(
+          readFileSync(join(sourcePackage, 'package.json'), 'utf8'),
+        );
+        mkdirSync(destinationPackage, { recursive: true });
+        for (const publishedFile of ['package.json', ...(packageManifest.files ?? [])]) {
+          const sourceFile = join(sourcePackage, publishedFile);
+          if (!existsSync(sourceFile)) continue;
+          const destinationFile = join(destinationPackage, publishedFile);
+          mkdirSync(resolve(destinationFile, '..'), { recursive: true });
+          copyFileSync(realpathSync(sourceFile), destinationFile);
+        }
+      } else {
+        symlinkSync(sourcePackage, destinationPackage, 'dir');
+      }
+    }
+  }
+}
+
+function freeLoopbackPort() {
+  return new Promise((resolvePort, rejectPort) => {
+    const server = createServer();
+    server.once('error', rejectPort);
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      server.close((error) => {
+        if (error) rejectPort(error);
+        else resolvePort(address.port);
+      });
+    });
+  });
+}
+
+async function stopProcessGroup(child) {
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  const exited = new Promise((resolveExit) => child.once('exit', resolveExit));
+  try {
+    if (process.platform === 'win32') child.kill('SIGTERM');
+    else process.kill(-child.pid, 'SIGTERM');
+  } catch {
+    child.kill('SIGTERM');
+  }
+  if (await Promise.race([exited.then(() => true), delay(5_000, false)])) return;
+  try {
+    if (process.platform === 'win32') child.kill('SIGKILL');
+    else process.kill(-child.pid, 'SIGKILL');
+  } catch {
+    child.kill('SIGKILL');
+  }
+  await Promise.race([exited, delay(2_000)]);
+}
+
+async function waitForExpoWeb(child, port, readLogs) {
+  const deadline = Date.now() + 60_000;
+  while (Date.now() < deadline) {
+    if (child.exitCode !== null || child.signalCode !== null) {
+      throw new Error(`Expo web exited before readiness\n${readLogs()}`);
+    }
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/`);
+      if (response.ok && (await response.text()).includes('id="root"')) return;
+    } catch {
+      // Metro is still starting.
+    }
+    await delay(250);
+  }
+  throw new Error(`Expo web did not become ready\n${readLogs()}`);
 }
 
 for (const section of ['dependencies', 'devDependencies']) {
@@ -41,7 +142,7 @@ for (const [name, version] of Object.entries(templateManifest.dependencies ?? {}
   );
 }
 
-const scratchRoot = mkdtempSync(join(harnessRoot, '.expo-chat-typecheck-'));
+const scratchRoot = mkdtempSync(join(tmpdir(), 'snapback-expo-chat-template-'));
 const scaffoldRoot = join(scratchRoot, 'expo-chat');
 try {
   // @ref LLP 0186#w2--context-injection-surface-owned-here — keep the
@@ -49,6 +150,10 @@ try {
   // template and first-party client declarations evolve.
   const scaffold = scaffoldApp(scaffoldRoot, { template: 'expo-chat' });
   assert.equal(scaffold.ok, true);
+  // Keep the generated project outside the source monorepo so Expo resolves
+  // the installed package closure exactly like a consumer. The harness owns
+  // that frozen closure; the scaffold itself remains untouched.
+  materializeConsumerNodeModules(join(scaffoldRoot, 'node_modules'));
   const generated = await generateApp(join(scaffoldRoot, 'snapback'));
   assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
   assert.equal(
@@ -62,7 +167,60 @@ try {
     { cwd: scaffoldRoot, encoding: 'utf8', timeout: 180_000 },
   );
   assert.equal(typecheck.status, 0, typecheck.stderr || typecheck.stdout);
-  process.stdout.write('expo-chat template dependency parity, codegen, and strict typecheck: PASS\n');
+  const webOutput = join(scratchRoot, 'web-dist');
+  const webExport = spawnSync(
+    join(harnessRoot, 'node_modules', '.bin', 'expo'),
+    ['export', '--platform', 'web', '--output-dir', webOutput, '--clear'],
+    {
+      cwd: scaffoldRoot,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        CI: '1',
+        EXPO_NO_TELEMETRY: '1',
+      },
+      timeout: 300_000,
+    },
+  );
+  assert.equal(webExport.status, 0, webExport.stderr || webExport.stdout);
+  assert.equal(existsSync(join(webOutput, 'index.html')), true, 'Expo web export omitted index.html');
+  let webPort;
+  try {
+    webPort = await freeLoopbackPort();
+  } catch (error) {
+    if (error?.code !== 'EPERM') throw error;
+    process.stdout.write('Expo web serve: SKIP (sandbox denied loopback listen)\n');
+  }
+  if (webPort !== undefined) {
+    const webServer = spawn(
+      join(harnessRoot, 'node_modules', '.bin', 'expo'),
+      ['start', '--web', '--localhost', '--port', String(webPort), '--clear'],
+      {
+        cwd: scaffoldRoot,
+        detached: process.platform !== 'win32',
+        env: {
+          ...process.env,
+          CI: '1',
+          EXPO_NO_TELEMETRY: '1',
+        },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    );
+    let webLogs = '';
+    const capture = (chunk) => {
+      webLogs = `${webLogs}${chunk}`.slice(-20_000);
+    };
+    webServer.stdout.on('data', capture);
+    webServer.stderr.on('data', capture);
+    try {
+      await waitForExpoWeb(webServer, webPort, () => webLogs);
+    } finally {
+      await stopProcessGroup(webServer);
+    }
+  }
+  process.stdout.write(
+    'expo-chat template dependency parity, codegen, strict typecheck, and web export: PASS\n',
+  );
 } finally {
   rmSync(scratchRoot, { recursive: true, force: true });
 }

@@ -265,6 +265,11 @@ console.log(JSON.stringify({
   const chatManifest = JSON.parse(readFileSync(join(chatProject, 'package.json'), 'utf8'));
   assert.match(chatManifest.dependencies['@expo/snapback-expo'], /^\^\d+\.\d+\.\d+/);
   assert.match(chatManifest.dependencies['@expo/snapback-cli'], /^\^\d+\.\d+\.\d+/);
+  assert.equal(chatManifest.dependencies['@expo/metro-runtime'], '~57.0.8');
+  assert.equal(chatManifest.dependencies['react-dom'], '19.2.3');
+  assert.equal(chatManifest.dependencies['react-native-web'], '^0.21.2');
+  const chatAppConfig = JSON.parse(readFileSync(join(chatProject, 'app.json'), 'utf8'));
+  assert.deepEqual(chatAppConfig.expo.platforms, ['ios', 'android', 'web']);
   assert.equal(chatManifest.scripts.test, 'node acceptance.mjs');
   assert.equal(chatManifest.scripts['test:static'], 'node acceptance.static.mjs');
   assert.equal(chatManifest.scripts['test:live'], chatManifest.scripts.test);
