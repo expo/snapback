@@ -126,3 +126,51 @@ No MATERIAL concerns found, in-delta or pre-existing. The delta changes were eac
 0197: READY
 
 SET: READY
+## Round 4 — 2026-08-08 (claude family, delta round)
+
+Provenance: fresh cold-context subagent, Fable 5, capsule sr-capsule-r4,
+targets at 68da5ad37. One launch. Body verbatim:
+
+All verification done. Here is the review.
+
+---
+
+# Independent review — r4 delta round, LLP 0193–0197 set
+
+Reviewer: independent, no prior context; capsule at `sr-capsule-r4/`; repository consulted at `/Users/ccheever/projects/snapback` (nothing under `llp/reviews/` was read).
+
+## Concerns
+
+**1. [MATERIAL] [IN-DELTA] — 0194, Design 5 + OQ2: the verify-config "no declaration source today" premise is false; the exact artifact OQ2 asks for already exists and is exported.**
+Quote (Design 5): *"The `ctx` handler surface and the CLI verify/config contracts have no declaration source today; they JOIN the reference when their declaration sources land (OQ2 proposes both: a `ctx` declaration file and a verify-config types/schema export)"*; quote (OQ2): *"the verify-config contract joins only via a published machine-readable source (a types export or schema from `@expo/snapback-cli`'s verify module)."*
+Repository fact: `packages/snapback-cli/verify.d.mts` exists on main and contains the full contract — `interface VerifyConfig` (`schemaVersion: 'snapback.verify-config.v1'`, profiles/paths/testFiles), `defineVerifyConfig`, `loadVerifyConfig`, `defaultVerifyConfig`, receipt validators — and `packages/snapback-cli/package.json` publishes it: `"./verify": { "types": "./verify.d.mts", "default": "./verify.mjs" }`, with `verify.d.mts` in the `files` list. It landed 2026-08-04 (commit `9342b17d9`), four days before these r4 documents (dated 2026-08-08) and before the 0.1.15 publish (`guide/published-closure.json` `publishedAt: 2026-08-08`). This is precisely the delta text: r4's stated change is that OQ2 "now names declaration sources for BOTH contingent surfaces," and the verify-config half names a source as future-contingent when it already shipped. The consequence is a defective sequencing decision, not just a wrong sentence: one of the *"two most expensive named excursions"* (0068/0069 residue 5) is classified as a named exclusion "ordered immediately after the initial package scope," when it is eligible for the initial declaration-sourced scope now — the actual gap is discoverability/generation coverage (diary 0069 residue 5 records the lane reading `verify.mjs` source, and the guide never points at the types export), not a missing source. The `ctx` half of the claim checks out (no `HandlerContext`/`ctx.db` declaration exists in any package `.d.mts`).
+Resolving change: restate Design 5/OQ2 — verify-config already has a published machine-readable declaration source (`@expo/snapback-cli/verify` → `verify.d.mts`); either move it into the initial scope, or state explicitly why the existing export is insufficient (e.g. unaudited completeness against the runtime's actual verify contract) and gate on that audit instead. OQ2 then narrows to the `ctx` declaration file only.
+
+**2. [minor] [IN-DELTA] — 0193/0195/0197: the slug-disambiguation fix is incomplete — diary 0065 also collides and is cited bare.**
+r4's stated fix is *"colliding diary-number citations gained filename slugs"* (0193) and *"Related enumerates diaries with a slug disambiguation"* (0197). 0048 and 0058 got slugs, but `diaries/` contains two 0065 files (`0065-rematch-published-closure-bakeoff.diary.md` and `0065-fleet-observatory-move1.diary.md`), and 0065 is cited without a slug in 0193 (Summary: *"diary 0065's tickets"*; Related: *"diaries 0065/0066/0068/0069"*), 0195 (Related and *"four published-consumer audits (diaries 0065/0066/0068/0069…)"*), and 0197 (Related: *"diaries 0058/0065/0066/0068/0069 … 0058 by filename …, a colliding number exists"* — noting only 0058's collision).
+Resolving change: add the `0065-rematch-published-closure-bakeoff` slug once per document (or note both collisions in 0197's Related).
+
+**3. [minor] [PRE-EXISTING] — 0193, Summary: the `assets put --user` exemplar is misattributed and temporally inverted as evidence.**
+Quote: *"the anonymous-upload refusal naming `snapback assets put --user` (diary 0065's tickets) are retained exemplars"* — presented as an exemplar of refusals that *"resolved fastest when the refusal named its own fix."* The retained record says otherwise on both points: the ticket is `issues/closed/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`, whose provenance is the diary-0058-era messaging build (the ticket itself cites `0058-relay-room-expo-backend-bakeoff`; diary 0065-rematch's ticket list contains only three 20260806 tickets, none about anonymous upload), and at the time of that ticket the refusal did **not** name the fix — the agent found `assets put --user` by reading `src/local.rs`/`assets.mjs` (the ticket documents exactly that excursion). The remediation-carrying message (`SNAPBACK_ASSET_OWNER_CUSTODY_UNSATISFIABLE`, `src/local.rs:8038`, which does name `snapback assets put --user <handle>`) is the *fix produced by* that ticket, not an observed cheap resolution. The thesis survives on the other exemplars (diary 0048's decode diagnostic is genuinely observed), but this one is a retrofit presented as evidence.
+Resolving change: cite the ticket path directly, attribute it to the 0058-era run, and label it as the retrofitted A-grade exemplar rather than an observed near-zero-cost resolution — or replace it with an exemplar observed resolving cheaply in a run.
+
+**4. [minor] [PRE-EXISTING] — 0197, rule 4b: success-conditioned ratios retain a survivorship channel.**
+Quote: *"efficiency ratios computed only across runs meeting the identical bar, with the capability-failure table published beside them and per-lane success counts stated on the ratio chart itself."* The r4 addition (success counts on the chart) discloses the problem but does not bound it: a headline ratio computed over 3/3 vs 1/3 successes is still permitted as the headline. A one-line floor (e.g. no headline ratio when per-lane success counts differ beyond a stated threshold; publish the capability-failure comparison as the headline instead) would close it. Implementation-adjacent, but it is a publication-standard rule, so worth a sentence.
+
+**5. [minor] [PRE-EXISTING] — 0193, Phase 3: the ratchet has a lateral evasion channel via reclassification.**
+The gate refuses *"grade regressions"*, and codes *"genuinely internal (never agent-triggerable) are marked so in the ledger rather than polished"* — but nothing governs later reclassification of an agent-triggerable code to internal, which removes it from the bar without a grade regression. OQ2 covers initial grading authority only. Resolving change: one sentence making triggerability reclassification a gated ledger change (same review bar as a grade regression).
+
+**6. [minor] [IN-DELTA] — all five, Revised header: the shared r4 changelog entry mislabels per-document provenance.**
+Every document's r4 entry lists the whole set's fixes (e.g. 0195's header claims *"0194 verify-config declaration path + scope ordering; 0197 aid symmetry…"* though 0195's own r4 delta is header-only). A single-document reader cannot tell what changed in *this* document. Cosmetic but it degrades exactly the citation-precision property r3/r4 were tightening.
+
+Verified clean (checks that found no defect): the 2.91x/2.24x arithmetic against retained diary tables (328.9k/113k, 201.3k/89.8k); 41m32s→29m35s and 80m33s→41m32s bare-lane steps with the seven-fix attribution (diaries 0066/0068/0069); the ±30%/N=1 variance caveat now inline in 0196 matches diary 0069's own disclaimer; `benchmarks/briefs/{crud,media,messaging-equal-proof-bar}.md` all exist; all four ticketed recipes/papercuts in 0196 T3/T4 exist under `issues/`; the OQ6 carrier and flat-projection-oversize tickets exist; ~2,700 symbol estimate is consistent (2,852 measured repo-wide); 0197's history-narrative section contains no cross-vendor numbers as the delta claims; 0197 rule 4a's benchmark-lane-apps clause correctly closes the loop that 0195 Proposal 2 opens; the `0058-relay-room` slug correctly identifies the origin-run diary (26m03s/11m15s confirmed in that file).
+
+## Verdicts
+
+- **0193 (errors-as-docs completeness, Plan):** READY — no MATERIAL concern; minors 2, 3, 5.
+- **0194 (generated API reference, RFC):** NOT READY — MATERIAL IN-DELTA concern 1 (false "no declaration source today" premise for verify-config; scope/sequencing decision built on it).
+- **0195 (public documentation surface, RFC):** READY — no MATERIAL concern; minors 2, 6.
+- **0196 (template and recipe portfolio, Plan):** READY — no MATERIAL concern; the r4 N=1 caveat resolves the motivation-evidence risk cleanly.
+- **0197 (benchmark publication standard, RFC):** READY — no MATERIAL concern; minors 2, 4; the r4 aid-symmetry widening and no-numbers history narrative are correct and well-formed.
+
+**SET VERDICT: NOT READY — one MATERIAL IN-DELTA concern (0194, concern 1); all other concerns are minor and the remaining four documents are individually READY.**

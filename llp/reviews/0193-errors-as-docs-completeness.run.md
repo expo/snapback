@@ -114,3 +114,18 @@ Round-3 artifacts appended below round-2 sections; round-3 verdicts:
 claude ALL READY / SET READY (5 minors); gpt-5 0193/0195/0196 READY,
 0194 (1), 0197 (2,3) — all IN-DELTA, zero PRE-EXISTING MATERIAL.
 r4 applies gpt-5's three finds + claude minors 1,2,3,5.
+
+## Round 5 (final delta round) — 2026-08-08, targets at 567fab93b
+
+Capsule sha256:
+31fb3b3a792a983fb9399efc895c4ae26729a40d67dac0d62b158f4477fde2f4  /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r5/0193-errors-as-docs-completeness.plan.md
+922b04ddf9e41851aa774009377914b4f5563fcef0e34c3a9483ba40df1d556d  /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r5/0194-generated-api-reference.rfc.md
+dd48624740f9b3c8fc93d6e152c43a39a0e6414d773a6d52fdd0e2c5a6dae137  /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r5/0195-public-documentation-and-training-surface.rfc.md
+fc3d76dc2b02156cb00c10b7d3b145b761d8e4a4f23103b7ac0f117ab3ef93cd  /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r5/0196-template-and-recipe-portfolio.plan.md
+10c60bf7e3179a63fcb852b3537826ec726c66a82f6b83c206587ebb02c607d4  /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r5/0197-benchmark-publication-standard.rfc.md
+edaadaecd4152575d9e7231b8bf5084c1b5e3119ed6b7d80c3a594c6d6a808fe  /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r5/CONTEXT.md
+Delta: 0194 verify-config into initial scope (round-4 claude find:
+verify.d.mts already exists/published), OQ2 narrowed to ctx; 0197
+rule-4b ratio floor; 0193 retrofit-exemplar relabel + reclassification
+gating + 0065 slug; 0195 slug only; 0196 unchanged; per-document r5
+headers. Round-4 claude body appended below.
