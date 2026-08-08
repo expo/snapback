@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {createWriteStream, type WriteStream} from 'node:fs';
+import {createWriteStream, readFileSync, type WriteStream} from 'node:fs';
 import {mkdir, readFile} from 'node:fs/promises';
 import {dirname, join, resolve} from 'node:path';
 import {performance} from 'node:perf_hooks';
@@ -11,7 +11,42 @@ import {
   createExternalSessionClient,
 } from '@expo/snapback-client';
 
-import api from '../snapback/generated/api.mjs';
+import apiGenerated from '../snapback/generated/api.mjs';
+
+// The frozen hot-diag baseline pins its auth-mode deployment (LLP 0058) at
+// the generation active at ingest time; the checked-out codegen has since
+// rotated bundle/inputs hashes with byte-identical control sources. When
+// OQ4_STARTUP_ARTIFACTS names the ingest-era carrier, assert the pinned
+// generation on every function reference so the client matches the store it
+// measures instead of the codegen toolchain of the day.
+function pinnedGenerationFromCarrier(path: string | undefined): AnyRecord | null {
+  if (!path) return null;
+  const carrier = JSON.parse(readFileSync(path, 'utf8')) as AnyRecord;
+  const functions = carrier.functions as AnyRecord;
+  const schema = carrier.schema as AnyRecord;
+  return {
+    schemaVersion: String(functions.schemaVersion),
+    appId: String(functions.appId),
+    schemaHash: String(schema.schemaHash),
+    bundleHash: String(functions.bundleHash),
+    inputsHash: String(functions.inputsHash),
+  };
+}
+
+const pinnedGeneration = pinnedGenerationFromCarrier(process.env.OQ4_STARTUP_ARTIFACTS);
+const api = (pinnedGeneration
+  ? Object.fromEntries(Object.entries(apiGenerated as Record<string, unknown>).map(
+    ([key, value]) => [
+      key,
+      value !== null
+        && typeof value === 'object'
+        && (value as AnyRecord).artifactKind === 'functionReference'
+        && (value as AnyRecord).expectedGeneration != null
+        ? {...(value as AnyRecord), expectedGeneration: pinnedGeneration}
+        : value,
+    ],
+  ))
+  : apiGenerated) as typeof apiGenerated;
 import {
   GENERATION_EPOCH_MS,
   MANIFEST_ID,
@@ -1723,6 +1758,7 @@ async function run(options: Options, logger: JsonlLogger): Promise<void> {
       outPath: logger.outPath,
     });
     logger.record('configuration', {
+      pinnedGeneration,
       readyFile: options.readyFile,
       serverUrl: ready.serverUrl,
       overlayPath: options.overlayPath,

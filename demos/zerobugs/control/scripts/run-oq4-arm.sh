@@ -120,7 +120,9 @@ fi
 
 if (
   cd $control_root
-  ZBUGS_LARGE_OVERLAY_PATH=$overlay bun scripts/diag-hot-stream.mts \
+  ZBUGS_LARGE_OVERLAY_PATH=$overlay \
+  OQ4_STARTUP_ARTIFACTS=$startup_artifacts \
+  bun scripts/diag-hot-stream.mts \
     --ready-file $ready_file \
     --out $client_trace \
     --arrival-mode $arrival_mode \
