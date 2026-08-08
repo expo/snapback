@@ -1,0 +1,913 @@
+{
+  "schemaVersion": "snapback.client-bundle-metrology-rollover-baseline.v1",
+  "source": {
+    "revision": "43db5e1e6ac8a7f75026d3e79f534ddacdcc56c1",
+    "packageTrees": {
+      "packages/snapback-client": "33079db6cfc3be5e02601047f9c02c959cb4bf04",
+      "packages/snapback-contract": "44e5b4ccf7a4d4151b2eba35a6f49eaea29ec758",
+      "packages/snapback-react": "7bf01087239f29a1bbd96c12445bb0aee5e28f58"
+    }
+  },
+  "authorities": [
+    "LLP 0129#phases",
+    "LLP 0063#workstream-8--performance-and-packaging-budgets",
+    "LLP 0145#phase-a--establish-a-size-ratchet",
+    "LLP 0166#d9--carriers-storage-profiles-arms-and-the-bundle"
+  ],
+  "frozenRule": "declared prospective workload-version rollover; predecessor receipts remain immutable; valid ceilings never loosen",
+  "workloadVersion": "single-row-delete-admission.2026-08-07.v1",
+  "predecessors": [
+    {
+      "filename": "baseline.client-bundle-disposition.v2.json",
+      "sha256": "780120e22d36bf761ee5b5064b8eef5ae3f39dccf80e8f3f8a04c3113c38d9b3",
+      "profileIds": [
+        "public-subpath-ir-evaluator"
+      ]
+    },
+    {
+      "filename": "baseline.move3-single-table-lifecycle.v1.json",
+      "sha256": "a5c4e0b60dbb6d84b279e870d55009257b69d5171b0e08b98dc80fac31c6baa8",
+      "profileIds": [
+        "public-subpath-optimistic-rebase"
+      ]
+    }
+  ],
+  "method": {
+    "runtime": {
+      "node": "v24.18.0",
+      "zlib": "1.3.1-e00f703",
+      "brotli": "1.2.0"
+    },
+    "bundler": "esbuild@0.28.1",
+    "bundle": true,
+    "platform": "browser",
+    "format": "esm",
+    "target": "es2022",
+    "minify": true,
+    "treeShaking": true,
+    "legalComments": "none",
+    "conditions": [
+      "browser",
+      "import",
+      "default"
+    ],
+    "gzipLevel": 9,
+    "brotliQuality": 11,
+    "reactExternal": true,
+    "attribution": "esbuild module-own bytesInOutput grouped by stable package boundary"
+  },
+  "inputs": {
+    "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
+    "lockfileSha256": "ad8a98cbad65849cc8e496a471b0c1ddb7bbf7a6292dd4cceb27a77339ab480d"
+  },
+  "behaviorCommands": [
+    "node packages/snapback-client/package.test.mjs",
+    "node packages/snapback-client/browser-closure.test.mjs",
+    "node packages/snapback-client/ir-evaluator.test.mjs",
+    "node packages/snapback-client/local-read-admission.test.mjs",
+    "node packages/snapback-client/optimistic-rebase.test.mjs",
+    "node packages/snapback-client/optimistic-rebase-acceptance.test.mjs"
+  ],
+  "rationale": {
+    "date": "2026-08-07",
+    "fix": "Single-row Delete admitted into the M1 local evaluator verb set by author ruling 2026-08-07 (LLP 0129 Phase 2a): at most one Delete step per plan, one row by id, ChangedCount semantics. The bytes are the classifier admission (ir-evaluator), the Delete point-read coverage (local-read-admission, absorbed within its ceiling), and the private-layer delete fold (optimistic-rebase).",
+    "ticket": "issues/closed/20260807-single-row-delete-effect-ceiling.md",
+    "byteDeltas": "public-subpath-ir-evaluator min 21,295 -> 21,407 (+112), gzip 7,615 -> 7,644 (+29), brotli 6,740 -> 6,760 (+20); public-subpath-optimistic-rebase brotli 12,744 -> 12,791 (+47).",
+    "summary": "Advance the two closures grown by the 2026-08-07 single-row Delete admission (browser-IR coverage gate: common-path 11/12 -> 12/12, receipt browser-ir-coverage.2026-08-07.v3). Every other active ceiling and both predecessors remain immutable."
+  },
+  "beforeAfter": [
+    {
+      "id": "public-subpath-ir-evaluator",
+      "predecessor": {
+        "filename": "baseline.client-bundle-disposition.v2.json",
+        "minifiedBytes": 21295,
+        "gzipBytes": 7615,
+        "brotliBytes": 6740,
+        "outputSha256": "330733ffaeecf451262a5a93d94606c4ac70ee1661ed5943628a14957fc4780d"
+      },
+      "successor": {
+        "minifiedBytes": 21407,
+        "gzipBytes": 7644,
+        "brotliBytes": 6760,
+        "outputSha256": "44adc6503476873038d7e84eba3c63ed376abd62d6d18b395ca7f4fb6af21140"
+      },
+      "delta": {
+        "minifiedBytes": 112,
+        "gzipBytes": 29,
+        "brotliBytes": 20
+      }
+    },
+    {
+      "id": "public-subpath-optimistic-rebase",
+      "predecessor": {
+        "filename": "baseline.move3-single-table-lifecycle.v1.json",
+        "minifiedBytes": 45640,
+        "gzipBytes": 14307,
+        "brotliBytes": 12744,
+        "outputSha256": "b3adc6b08243661ee8116a16a1d5a4845051172f877634b3f66a6457bf7570bc"
+      },
+      "successor": {
+        "minifiedBytes": 45395,
+        "gzipBytes": 14291,
+        "brotliBytes": 12791,
+        "outputSha256": "4720ad1f1cffd9c0b655edf8c4adf1f10e395bbfd4ccc11b6263b886ae317360"
+      },
+      "delta": {
+        "minifiedBytes": -245,
+        "gzipBytes": -16,
+        "brotliBytes": 47
+      }
+    }
+  ],
+  "profiles": [
+    {
+      "id": "public-subpath-ir-evaluator",
+      "package": "@expo/snapback-client/ir-evaluator",
+      "fixtureSha256": "d639ed2c97eb8353f8f192e7442abf10b9a47d76690819b2d648592f1285ca5e",
+      "externals": [],
+      "minifiedBytes": 21407,
+      "gzipBytes": 7644,
+      "brotliBytes": 6760,
+      "outputSha256": "44adc6503476873038d7e84eba3c63ed376abd62d6d18b395ca7f4fb6af21140",
+      "attribution": {
+        "packages": [
+          {
+            "name": "@expo/snapback-client",
+            "bytes": 11626
+          },
+          {
+            "name": "@expo/snapback-contract",
+            "bytes": 9509
+          },
+          {
+            "name": "<fixture>",
+            "bytes": 136
+          }
+        ],
+        "modules": [
+          {
+            "module": "packages/snapback-client/ir-evaluator.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 11626
+          },
+          {
+            "module": "packages/snapback-contract/derived-overlay.mjs",
+            "package": "@expo/snapback-contract",
+            "bytes": 7767
+          },
+          {
+            "module": "packages/snapback-contract/client-store.mjs",
+            "package": "@expo/snapback-contract",
+            "bytes": 719
+          },
+          {
+            "module": "packages/snapback-contract/capabilities.mjs",
+            "package": "@expo/snapback-contract",
+            "bytes": 407
+          },
+          {
+            "module": "packages/snapback-contract/result-contract-validator.mjs",
+            "package": "@expo/snapback-contract",
+            "bytes": 232
+          },
+          {
+            "module": "packages/snapback-contract/index.mjs",
+            "package": "@expo/snapback-contract",
+            "bytes": 163
+          },
+          {
+            "module": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-ir-evaluator.fixture.mjs",
+            "package": "<fixture>",
+            "bytes": 136
+          },
+          {
+            "module": "packages/snapback-contract/auth-coordinator.mjs",
+            "package": "@expo/snapback-contract",
+            "bytes": 104
+          },
+          {
+            "module": "packages/snapback-contract/auth-invalidation.mjs",
+            "package": "@expo/snapback-contract",
+            "bytes": 86
+          },
+          {
+            "module": "packages/snapback-contract/auth-custody-indexeddb.mjs",
+            "package": "@expo/snapback-contract",
+            "bytes": 31
+          }
+        ]
+      },
+      "metafile": {
+        "inputs": {
+          "packages/snapback-client/ir-evaluator.mjs": {
+            "bytes": 24719,
+            "imports": [
+              {
+                "path": "packages/snapback-contract/index.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-contract/artifact-validation.mjs": {
+            "bytes": 10491,
+            "imports": [
+              {
+                "path": "packages/snapback-contract/diagnostics.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-contract/auth-coordinator.mjs": {
+            "bytes": 133248,
+            "imports": [
+              {
+                "path": "packages/snapback-contract/ids.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-contract/auth-custody-indexeddb.mjs": {
+            "bytes": 17961,
+            "imports": [
+              {
+                "path": "packages/snapback-contract/auth-coordinator.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-contract/auth-invalidation.mjs": {
+            "bytes": 20809,
+            "imports": []
+          },
+          "packages/snapback-contract/authorized-lease.mjs": {
+            "bytes": 17280,
+            "imports": [
+              {
+                "path": "packages/snapback-contract/auth-invalidation.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/ids.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-contract/capabilities.mjs": {
+            "bytes": 1461,
+            "imports": []
+          },
+          "packages/snapback-contract/client-store.mjs": {
+            "bytes": 134622,
+            "imports": [
+              {
+                "path": "packages/snapback-contract/auth-invalidation.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/authorized-lease.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/ids.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-contract/derived-overlay.mjs": {
+            "bytes": 30410,
+            "imports": []
+          },
+          "packages/snapback-contract/diagnostics.mjs": {
+            "bytes": 5494,
+            "imports": []
+          },
+          "packages/snapback-contract/ids.mjs": {
+            "bytes": 7421,
+            "imports": []
+          },
+          "packages/snapback-contract/index.mjs": {
+            "bytes": 219958,
+            "imports": [
+              {
+                "path": "packages/snapback-contract/artifact-validation.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/artifact-validation.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/auth-coordinator.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/auth-custody-indexeddb.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/auth-invalidation.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/authorized-lease.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/authorized-lease.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/capabilities.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/client-store.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/client-store.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/derived-overlay.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/derived-overlay.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/diagnostics.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/diagnostics.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/keyed-provider.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/keyed-provider.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/query-authorization.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/render-first.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/result-contract-validator.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-contract/keyed-provider.mjs": {
+            "bytes": 19111,
+            "imports": [
+              {
+                "path": "packages/snapback-contract/artifact-validation.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/diagnostics.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-contract/query-authorization.mjs": {
+            "bytes": 36045,
+            "imports": [
+              {
+                "path": "packages/snapback-contract/auth-invalidation.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-contract/render-first.mjs": {
+            "bytes": 14380,
+            "imports": [
+              {
+                "path": "packages/snapback-contract/index.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-contract/result-contract-validator.mjs": {
+            "bytes": 18289,
+            "imports": []
+          },
+          "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-ir-evaluator.fixture.mjs": {
+            "bytes": 268,
+            "imports": [
+              {
+                "path": "packages/snapback-client/ir-evaluator.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          }
+        },
+        "output": {
+          "bytes": 21407,
+          "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-ir-evaluator.fixture.mjs",
+          "imports": [],
+          "inputs": {
+            "packages/snapback-client/ir-evaluator.mjs": {
+              "bytesInOutput": 11626
+            },
+            "packages/snapback-contract/auth-coordinator.mjs": {
+              "bytesInOutput": 104
+            },
+            "packages/snapback-contract/auth-custody-indexeddb.mjs": {
+              "bytesInOutput": 31
+            },
+            "packages/snapback-contract/auth-invalidation.mjs": {
+              "bytesInOutput": 86
+            },
+            "packages/snapback-contract/capabilities.mjs": {
+              "bytesInOutput": 407
+            },
+            "packages/snapback-contract/client-store.mjs": {
+              "bytesInOutput": 719
+            },
+            "packages/snapback-contract/derived-overlay.mjs": {
+              "bytesInOutput": 7767
+            },
+            "packages/snapback-contract/index.mjs": {
+              "bytesInOutput": 163
+            },
+            "packages/snapback-contract/result-contract-validator.mjs": {
+              "bytesInOutput": 232
+            },
+            "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-ir-evaluator.fixture.mjs": {
+              "bytesInOutput": 136
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "public-subpath-optimistic-rebase",
+      "package": "@expo/snapback-client/optimistic-rebase",
+      "fixtureSha256": "b37902e26c32a21fa79265f08fc898832c7d1936d26e10a11e078c020aa769b6",
+      "externals": [],
+      "minifiedBytes": 45395,
+      "gzipBytes": 14291,
+      "brotliBytes": 12791,
+      "outputSha256": "4720ad1f1cffd9c0b655edf8c4adf1f10e395bbfd4ccc11b6263b886ae317360",
+      "attribution": {
+        "packages": [
+          {
+            "name": "@expo/snapback-client",
+            "bytes": 35595
+          },
+          {
+            "name": "@expo/snapback-contract",
+            "bytes": 9522
+          },
+          {
+            "name": "<fixture>",
+            "bytes": 142
+          }
+        ],
+        "modules": [
+          {
+            "module": "packages/snapback-client/local-read-admission.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 12760
+          },
+          {
+            "module": "packages/snapback-client/ir-evaluator.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 11369
+          },
+          {
+            "module": "packages/snapback-client/optimistic-rebase.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 8342
+          },
+          {
+            "module": "packages/snapback-contract/derived-overlay.mjs",
+            "package": "@expo/snapback-contract",
+            "bytes": 7776
+          },
+          {
+            "module": "packages/snapback-client/canonical-client-value.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 3124
+          },
+          {
+            "module": "packages/snapback-contract/client-store.mjs",
+            "package": "@expo/snapback-contract",
+            "bytes": 719
+          },
+          {
+            "module": "packages/snapback-contract/capabilities.mjs",
+            "package": "@expo/snapback-contract",
+            "bytes": 411
+          },
+          {
+            "module": "packages/snapback-contract/result-contract-validator.mjs",
+            "package": "@expo/snapback-contract",
+            "bytes": 232
+          },
+          {
+            "module": "packages/snapback-contract/index.mjs",
+            "package": "@expo/snapback-contract",
+            "bytes": 163
+          },
+          {
+            "module": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-optimistic-rebase.fixture.mjs",
+            "package": "<fixture>",
+            "bytes": 142
+          },
+          {
+            "module": "packages/snapback-contract/auth-coordinator.mjs",
+            "package": "@expo/snapback-contract",
+            "bytes": 104
+          },
+          {
+            "module": "packages/snapback-contract/auth-invalidation.mjs",
+            "package": "@expo/snapback-contract",
+            "bytes": 86
+          },
+          {
+            "module": "packages/snapback-contract/auth-custody-indexeddb.mjs",
+            "package": "@expo/snapback-contract",
+            "bytes": 31
+          }
+        ]
+      },
+      "metafile": {
+        "inputs": {
+          "packages/snapback-client/canonical-client-value.mjs": {
+            "bytes": 8030,
+            "imports": []
+          },
+          "packages/snapback-client/ir-evaluator.mjs": {
+            "bytes": 24719,
+            "imports": [
+              {
+                "path": "packages/snapback-contract/index.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-client/local-read-admission.mjs": {
+            "bytes": 29368,
+            "imports": [
+              {
+                "path": "packages/snapback-client/canonical-client-value.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/ir-evaluator.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-client/optimistic-rebase.mjs": {
+            "bytes": 16814,
+            "imports": [
+              {
+                "path": "packages/snapback-client/canonical-client-value.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/ir-evaluator.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/local-read-admission.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-contract/artifact-validation.mjs": {
+            "bytes": 10491,
+            "imports": [
+              {
+                "path": "packages/snapback-contract/diagnostics.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-contract/auth-coordinator.mjs": {
+            "bytes": 133248,
+            "imports": [
+              {
+                "path": "packages/snapback-contract/ids.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-contract/auth-custody-indexeddb.mjs": {
+            "bytes": 17961,
+            "imports": [
+              {
+                "path": "packages/snapback-contract/auth-coordinator.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-contract/auth-invalidation.mjs": {
+            "bytes": 20809,
+            "imports": []
+          },
+          "packages/snapback-contract/authorized-lease.mjs": {
+            "bytes": 17280,
+            "imports": [
+              {
+                "path": "packages/snapback-contract/auth-invalidation.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/ids.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-contract/capabilities.mjs": {
+            "bytes": 1461,
+            "imports": []
+          },
+          "packages/snapback-contract/client-store.mjs": {
+            "bytes": 134622,
+            "imports": [
+              {
+                "path": "packages/snapback-contract/auth-invalidation.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/authorized-lease.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/ids.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-contract/derived-overlay.mjs": {
+            "bytes": 30410,
+            "imports": []
+          },
+          "packages/snapback-contract/diagnostics.mjs": {
+            "bytes": 5494,
+            "imports": []
+          },
+          "packages/snapback-contract/ids.mjs": {
+            "bytes": 7421,
+            "imports": []
+          },
+          "packages/snapback-contract/index.mjs": {
+            "bytes": 219958,
+            "imports": [
+              {
+                "path": "packages/snapback-contract/artifact-validation.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/artifact-validation.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/auth-coordinator.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/auth-custody-indexeddb.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/auth-invalidation.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/authorized-lease.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/authorized-lease.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/capabilities.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/client-store.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/client-store.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/derived-overlay.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/derived-overlay.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/diagnostics.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/diagnostics.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/keyed-provider.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/keyed-provider.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/query-authorization.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/render-first.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/result-contract-validator.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-contract/keyed-provider.mjs": {
+            "bytes": 19111,
+            "imports": [
+              {
+                "path": "packages/snapback-contract/artifact-validation.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/diagnostics.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-contract/query-authorization.mjs": {
+            "bytes": 36045,
+            "imports": [
+              {
+                "path": "packages/snapback-contract/auth-invalidation.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-contract/render-first.mjs": {
+            "bytes": 14380,
+            "imports": [
+              {
+                "path": "packages/snapback-contract/index.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-contract/result-contract-validator.mjs": {
+            "bytes": 18289,
+            "imports": []
+          },
+          "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-optimistic-rebase.fixture.mjs": {
+            "bytes": 278,
+            "imports": [
+              {
+                "path": "packages/snapback-client/optimistic-rebase.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          }
+        },
+        "output": {
+          "bytes": 45395,
+          "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-optimistic-rebase.fixture.mjs",
+          "imports": [],
+          "inputs": {
+            "packages/snapback-client/canonical-client-value.mjs": {
+              "bytesInOutput": 3124
+            },
+            "packages/snapback-client/ir-evaluator.mjs": {
+              "bytesInOutput": 11369
+            },
+            "packages/snapback-client/local-read-admission.mjs": {
+              "bytesInOutput": 12760
+            },
+            "packages/snapback-client/optimistic-rebase.mjs": {
+              "bytesInOutput": 8342
+            },
+            "packages/snapback-contract/auth-coordinator.mjs": {
+              "bytesInOutput": 104
+            },
+            "packages/snapback-contract/auth-custody-indexeddb.mjs": {
+              "bytesInOutput": 31
+            },
+            "packages/snapback-contract/auth-invalidation.mjs": {
+              "bytesInOutput": 86
+            },
+            "packages/snapback-contract/capabilities.mjs": {
+              "bytesInOutput": 411
+            },
+            "packages/snapback-contract/client-store.mjs": {
+              "bytesInOutput": 719
+            },
+            "packages/snapback-contract/derived-overlay.mjs": {
+              "bytesInOutput": 7776
+            },
+            "packages/snapback-contract/index.mjs": {
+              "bytesInOutput": 163
+            },
+            "packages/snapback-contract/result-contract-validator.mjs": {
+              "bytesInOutput": 232
+            },
+            "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-optimistic-rebase.fixture.mjs": {
+              "bytesInOutput": 142
+            }
+          }
+        }
+      }
+    }
+  ]
+}
