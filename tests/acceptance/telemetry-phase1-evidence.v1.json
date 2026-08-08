@@ -1,7 +1,7 @@
 {
   "schemaVersion": "snapback.telemetry-phase1-evidence.v1",
-  "createdAt": "2026-08-07T23:58:35.465Z",
-  "sourceRevision": "dd5d9ffbdf5baa3ea299e4dbadeda06d17afec3c",
+  "createdAt": "2026-08-08T02:47:42.212Z",
+  "sourceRevision": "5a131e1f81019ae2dcb666d7f95cc3447d1951ec",
   "sourceInputs": {
     "algorithm": "sha256-length-framed-v1",
     "files": [
@@ -521,13 +521,13 @@
       "tests/acceptance/telemetry-phase1-benchmark-baseline.v1.json",
       "tests/acceptance/telemetry-phase1-evidence-policy.v1.json"
     ],
-    "digest": "87046771b1e074cc1edfc14596f6af3b360b0d1557dc0280fb507a2affb41966"
+    "digest": "b29223711ce0e7382deeca5cb2358065b8ec523671ce7818383f0c51faea6969"
   },
   "benchmark": {
     "schemaVersion": "snapback.telemetry-phase1-benchmark.v2",
     "method": "snapback.telemetry-phase1.method.v3:http-alternation+default-event-worker+buffer-burst+c8-file-cap+direct-transaction-sequenced-flush+wal-checkpoint+retention-sweep+hourly-daily-rollup-scan+file-backed-ibex-on-off-midpoint-worker",
     "environment": {
-      "buildCommit": "dd5d9ffbdf5baa3ea299e4dbadeda06d17afec3c",
+      "buildCommit": "5a131e1f81019ae2dcb666d7f95cc3447d1951ec",
       "buildDirty": false,
       "os": "linux",
       "architecture": "x86_64",
@@ -562,7 +562,7 @@
       "droppedEvents": 9216,
       "reservedEventsRetained": 1024,
       "reservedCapacity": 1024,
-      "enqueueUsPerEvent": 0.5398332950367647
+      "enqueueUsPerEvent": 0.6897521254595588
     },
     "eventArmedWorker": {
       "defaultBatchSize": 256,
@@ -573,9 +573,9 @@
       "flushWait": {
         "samples": 12,
         "workPerSample": 256,
-        "p50Ms": 3.115233,
-        "p95Ms": 3.3152179999999998,
-        "maxMs": 12.703196
+        "p50Ms": 3.9922359999999997,
+        "p95Ms": 4.3352390000000005,
+        "maxMs": 14.141596
       }
     },
     "fileCap": {
@@ -590,21 +590,21 @@
     "flush": {
       "samples": 24,
       "workPerSample": 256,
-      "p50Ms": 0.952925,
-      "p95Ms": 0.9984200000000001,
-      "maxMs": 7.399884
+      "p50Ms": 1.198984,
+      "p95Ms": 1.2605959999999998,
+      "maxMs": 7.543606
     },
     "checkpoint": {
       "samples": 24,
       "workPerSample": 256,
-      "p50Ms": 2.8315960000000002,
-      "p95Ms": 3.207805,
-      "maxMs": 3.865513
+      "p50Ms": 2.615157,
+      "p95Ms": 3.4068229999999997,
+      "maxMs": 4.088152
     },
     "sweep": {
       "rowsBefore": 10000,
       "rowsAfter": 0,
-      "latencyMs": 21.699153,
+      "latencyMs": 23.918813,
       "walBytesAfter": 0
     },
     "queries": {
@@ -616,39 +616,39 @@
       "eventPage": {
         "samples": 50,
         "workPerSample": 100,
-        "p50Ms": 8.040594,
-        "p95Ms": 8.229884,
-        "maxMs": 8.258226
+        "p50Ms": 9.854471,
+        "p95Ms": 10.633381,
+        "maxMs": 14.226555
       },
       "stats": {
         "samples": 50,
         "workPerSample": 9600,
-        "p50Ms": 22.328242000000003,
-        "p95Ms": 23.025911999999998,
-        "maxMs": 23.529345
+        "p50Ms": 27.932333,
+        "p95Ms": 30.111613,
+        "maxMs": 31.051249
       }
     },
     "appLatency": {
       "samplesEach": 800,
       "workerFlushSentinelSample": 600,
-      "workerFlushedRowsAtSentinel": 525,
-      "workerFlushedRowsBeforeFinalDrain": 737,
+      "workerFlushedRowsAtSentinel": 517,
+      "workerFlushedRowsBeforeFinalDrain": 776,
       "telemetryOn": {
         "samples": 800,
         "workPerSample": 1,
-        "p50Ms": 14.300375,
-        "p95Ms": 14.851504,
-        "maxMs": 19.689706
+        "p50Ms": 17.358536,
+        "p95Ms": 18.164486,
+        "maxMs": 24.306298
       },
       "telemetryOff": {
         "samples": 800,
         "workPerSample": 1,
-        "p50Ms": 14.288302,
-        "p95Ms": 14.900228,
-        "maxMs": 19.314512999999998
+        "p50Ms": 17.367161999999997,
+        "p95Ms": 18.144782000000003,
+        "maxMs": 24.549115999999998
       },
-      "p50OverheadPercent": 0.08449569444990424,
-      "p95OverheadPercent": -0.32700170762487435
+      "p50OverheadPercent": -0.04966844899584322,
+      "p95OverheadPercent": 0.10859320326910282
     }
   },
   "idle": {
@@ -661,14 +661,14 @@
         "verdict": "verified",
         "mismatches": [],
         "binary": {
-          "gitCommit": "dd5d9ffbdf5baa3ea299e4dbadeda06d17afec3c",
+          "gitCommit": "5a131e1f81019ae2dcb666d7f95cc3447d1951ec",
           "gitDirty": false,
           "crateVersion": "0.1.0",
           "buildProfile": "release",
-          "startupNonce": "019fdea8-172d-7212-a0b2-3b9ab13a70ce"
+          "startupNonce": "019fdf42-eba6-78e0-bb9d-9561126b864c"
         },
         "expected": {
-          "gitCommit": "dd5d9ffbdf5baa3ea299e4dbadeda06d17afec3c",
+          "gitCommit": "5a131e1f81019ae2dcb666d7f95cc3447d1951ec",
           "gitDirty": false,
           "crateVersion": "0.1.0"
         }
@@ -683,7 +683,7 @@
       "terminalQuietMs": 6000,
       "sampleIntervalMs": 250,
       "observedMutationCount": 3,
-      "lastMutationAfterReadyMs": 3310,
+      "lastMutationAfterReadyMs": 3082,
       "terminalWithinBound": true,
       "policy": {
         "exactProcessStartCount": 1,
@@ -693,13 +693,13 @@
         "maxPersistedEvents": 4
       },
       "preSpawnSnapshot": {
-        "digest": "0251bc827e00aca675a6945591d0e5717e0b9be53f9396c210d8e48efe043b7f",
+        "digest": "4a0332ea802b03a7f42d5309c48599f7e9e630aa3f3e35c58ddc293365551e95",
         "entries": {
           "startup-artifacts.json": {
             "type": "file",
             "bytes": 16193,
             "mode": 33152,
-            "mtimeNs": "1786146985502793140",
+            "mtimeNs": "1786157132468270691",
             "sha256": "330d808c8cc805c03023b37780fdb26ccbdacc3691be38bc09a0066ba8102a9b"
           }
         }
@@ -720,22 +720,24 @@
           ]
         },
         {
-          "afterReadyMs": 3032,
+          "afterReadyMs": 2804,
           "paths": [
             "app.sqlite3.telemetry",
-            "app.sqlite3.telemetry-shm",
-            "app.sqlite3.telemetry-wal"
+            "app.sqlite3.telemetry-journal"
           ]
         },
         {
-          "afterReadyMs": 3310,
+          "afterReadyMs": 3082,
           "paths": [
-            "app.sqlite3.telemetry-shm"
+            "app.sqlite3.telemetry",
+            "app.sqlite3.telemetry-journal",
+            "app.sqlite3.telemetry-shm",
+            "app.sqlite3.telemetry-wal"
           ]
         }
       ],
       "lifecycle": {
-        "watermark": 1786146988774,
+        "watermark": 1786157135710,
         "processStartCount": 1,
         "processReadyCount": 1,
         "eventCount": 4,
@@ -745,56 +747,56 @@
         "flushCommitSequence": 1
       },
       "terminalSnapshot": {
-        "digest": "76b6447663e33bea9df25f60d580bc631fcb161cfc684f59e68293a0c354f026",
+        "digest": "21e063149d8e14437dfe0656006c3238b4109e561ad5e78da87709b344ec1e04",
         "entries": {
           "app.sqlite3": {
             "type": "file",
             "bytes": 4096,
             "mode": 33188,
-            "mtimeNs": "1786146985663793140",
+            "mtimeNs": "1786157132606270700",
             "sha256": "204f9b3c487346c1a41195dfb82bb3014d9725af5bc2ac3cc4fa41f63bc03565"
           },
           "app.sqlite3-shm": {
             "type": "file",
             "bytes": 32768,
             "mode": 33188,
-            "mtimeNs": "1786146985667793140",
-            "sha256": "428bd1060c3bddb058db422e38ffdc7269a02c9a7ae600cd68540228e77b5f29"
+            "mtimeNs": "1786157132610270700",
+            "sha256": "225942487eeb7ffca300ded4e3e5fddcd4c99e52351f9856da87346952e7cef6"
           },
           "app.sqlite3-wal": {
             "type": "file",
             "bytes": 1339032,
             "mode": 33188,
-            "mtimeNs": "1786146985823793141",
-            "sha256": "7454b15c0a859c227b8018968de2b05bc9cd64cd267aa7a54e5a8c4fde24e2ed"
+            "mtimeNs": "1786157132770270710",
+            "sha256": "307eabdcbaee20f3a1278ecab3a013a717ac66434bec35c4ee445719f6b40e6a"
           },
           "app.sqlite3.snapback.lock": {
             "type": "file",
             "bytes": 192,
             "mode": 33152,
-            "mtimeNs": "1786146985825793141",
-            "sha256": "2dc98a25d945db02b92dc8c4759a7fd491ece3fbcb974ec9e275ff3d32eda4d6"
+            "mtimeNs": "1786157132772270710",
+            "sha256": "80e2142d7d404ed763afe7ebc7cdc1f616c175407373f528311be2ace4a5ce54"
           },
           "app.sqlite3.telemetry": {
             "type": "file",
             "bytes": 4096,
             "mode": 33152,
-            "mtimeNs": "1786146988815793145",
+            "mtimeNs": "1786157135752270898",
             "sha256": "204f9b3c487346c1a41195dfb82bb3014d9725af5bc2ac3cc4fa41f63bc03565"
           },
           "app.sqlite3.telemetry-shm": {
             "type": "file",
             "bytes": 32768,
             "mode": 33152,
-            "mtimeNs": "1786146989035793146",
-            "sha256": "391752a171e7fb3c75e675137189f92f3f2ead1da387e90b1d40dedaa83ae7e5"
+            "mtimeNs": "1786157135774270899",
+            "sha256": "648862615e09af8120e569a7fe9d4c2801e15947dac2dafad7ca93295f56072f"
           },
           "app.sqlite3.telemetry-wal": {
             "type": "file",
             "bytes": 276072,
             "mode": 33152,
-            "mtimeNs": "1786146988819793145",
-            "sha256": "5ffb79daaf626444f96b7090569c851f5f7965a76e29d203abd5a76e0adf41e3"
+            "mtimeNs": "1786157135761270899",
+            "sha256": "5ac4246346a29b7367f6e8ae0166c743cfa4f1fe05fc25cf8c0f27a86bc1bcd3"
           },
           "assets/": {
             "type": "directory",
@@ -812,21 +814,21 @@
             "type": "file",
             "bytes": 231,
             "mode": 33152,
-            "mtimeNs": "1786146985770793141",
-            "sha256": "f5a5fcfa822d5b7664a954467eeba7946edbd09d41e6a75cf099ec3464503315"
+            "mtimeNs": "1786157132706270706",
+            "sha256": "cb70221e524f881acb0f252fc96c4fad62911f925a308b9b6a9a6bdaac8cf5b8"
           },
           "resume-keyring.json": {
             "type": "file",
             "bytes": 151,
             "mode": 33152,
-            "mtimeNs": "1786146985768793140",
-            "sha256": "0f34351577b4a4765336ef0f14618f690e7737db216da14445046259400a6ece"
+            "mtimeNs": "1786157132704270706",
+            "sha256": "ebed4c4f988f484165a1faedd6d6fcea9e0f6ae7364e3261bdfec7c05cb83871"
           },
           "startup-artifacts.json": {
             "type": "file",
             "bytes": 16193,
             "mode": 33152,
-            "mtimeNs": "1786146985502793140",
+            "mtimeNs": "1786157132468270691",
             "sha256": "330d808c8cc805c03023b37780fdb26ccbdacc3691be38bc09a0066ba8102a9b"
           }
         }
@@ -838,56 +840,56 @@
       "storageMutationObservationCount": 0,
       "storageMutations": [],
       "startSnapshot": {
-        "digest": "76b6447663e33bea9df25f60d580bc631fcb161cfc684f59e68293a0c354f026",
+        "digest": "21e063149d8e14437dfe0656006c3238b4109e561ad5e78da87709b344ec1e04",
         "entries": {
           "app.sqlite3": {
             "type": "file",
             "bytes": 4096,
             "mode": 33188,
-            "mtimeNs": "1786146985663793140",
+            "mtimeNs": "1786157132606270700",
             "sha256": "204f9b3c487346c1a41195dfb82bb3014d9725af5bc2ac3cc4fa41f63bc03565"
           },
           "app.sqlite3-shm": {
             "type": "file",
             "bytes": 32768,
             "mode": 33188,
-            "mtimeNs": "1786146985667793140",
-            "sha256": "428bd1060c3bddb058db422e38ffdc7269a02c9a7ae600cd68540228e77b5f29"
+            "mtimeNs": "1786157132610270700",
+            "sha256": "225942487eeb7ffca300ded4e3e5fddcd4c99e52351f9856da87346952e7cef6"
           },
           "app.sqlite3-wal": {
             "type": "file",
             "bytes": 1339032,
             "mode": 33188,
-            "mtimeNs": "1786146985823793141",
-            "sha256": "7454b15c0a859c227b8018968de2b05bc9cd64cd267aa7a54e5a8c4fde24e2ed"
+            "mtimeNs": "1786157132770270710",
+            "sha256": "307eabdcbaee20f3a1278ecab3a013a717ac66434bec35c4ee445719f6b40e6a"
           },
           "app.sqlite3.snapback.lock": {
             "type": "file",
             "bytes": 192,
             "mode": 33152,
-            "mtimeNs": "1786146985825793141",
-            "sha256": "2dc98a25d945db02b92dc8c4759a7fd491ece3fbcb974ec9e275ff3d32eda4d6"
+            "mtimeNs": "1786157132772270710",
+            "sha256": "80e2142d7d404ed763afe7ebc7cdc1f616c175407373f528311be2ace4a5ce54"
           },
           "app.sqlite3.telemetry": {
             "type": "file",
             "bytes": 4096,
             "mode": 33152,
-            "mtimeNs": "1786146988815793145",
+            "mtimeNs": "1786157135752270898",
             "sha256": "204f9b3c487346c1a41195dfb82bb3014d9725af5bc2ac3cc4fa41f63bc03565"
           },
           "app.sqlite3.telemetry-shm": {
             "type": "file",
             "bytes": 32768,
             "mode": 33152,
-            "mtimeNs": "1786146989035793146",
-            "sha256": "391752a171e7fb3c75e675137189f92f3f2ead1da387e90b1d40dedaa83ae7e5"
+            "mtimeNs": "1786157135774270899",
+            "sha256": "648862615e09af8120e569a7fe9d4c2801e15947dac2dafad7ca93295f56072f"
           },
           "app.sqlite3.telemetry-wal": {
             "type": "file",
             "bytes": 276072,
             "mode": 33152,
-            "mtimeNs": "1786146988819793145",
-            "sha256": "5ffb79daaf626444f96b7090569c851f5f7965a76e29d203abd5a76e0adf41e3"
+            "mtimeNs": "1786157135761270899",
+            "sha256": "5ac4246346a29b7367f6e8ae0166c743cfa4f1fe05fc25cf8c0f27a86bc1bcd3"
           },
           "assets/": {
             "type": "directory",
@@ -905,76 +907,76 @@
             "type": "file",
             "bytes": 231,
             "mode": 33152,
-            "mtimeNs": "1786146985770793141",
-            "sha256": "f5a5fcfa822d5b7664a954467eeba7946edbd09d41e6a75cf099ec3464503315"
+            "mtimeNs": "1786157132706270706",
+            "sha256": "cb70221e524f881acb0f252fc96c4fad62911f925a308b9b6a9a6bdaac8cf5b8"
           },
           "resume-keyring.json": {
             "type": "file",
             "bytes": 151,
             "mode": 33152,
-            "mtimeNs": "1786146985768793140",
-            "sha256": "0f34351577b4a4765336ef0f14618f690e7737db216da14445046259400a6ece"
+            "mtimeNs": "1786157132704270706",
+            "sha256": "ebed4c4f988f484165a1faedd6d6fcea9e0f6ae7364e3261bdfec7c05cb83871"
           },
           "startup-artifacts.json": {
             "type": "file",
             "bytes": 16193,
             "mode": 33152,
-            "mtimeNs": "1786146985502793140",
+            "mtimeNs": "1786157132468270691",
             "sha256": "330d808c8cc805c03023b37780fdb26ccbdacc3691be38bc09a0066ba8102a9b"
           }
         }
       },
       "endSnapshot": {
-        "digest": "76b6447663e33bea9df25f60d580bc631fcb161cfc684f59e68293a0c354f026",
+        "digest": "21e063149d8e14437dfe0656006c3238b4109e561ad5e78da87709b344ec1e04",
         "entries": {
           "app.sqlite3": {
             "type": "file",
             "bytes": 4096,
             "mode": 33188,
-            "mtimeNs": "1786146985663793140",
+            "mtimeNs": "1786157132606270700",
             "sha256": "204f9b3c487346c1a41195dfb82bb3014d9725af5bc2ac3cc4fa41f63bc03565"
           },
           "app.sqlite3-shm": {
             "type": "file",
             "bytes": 32768,
             "mode": 33188,
-            "mtimeNs": "1786146985667793140",
-            "sha256": "428bd1060c3bddb058db422e38ffdc7269a02c9a7ae600cd68540228e77b5f29"
+            "mtimeNs": "1786157132610270700",
+            "sha256": "225942487eeb7ffca300ded4e3e5fddcd4c99e52351f9856da87346952e7cef6"
           },
           "app.sqlite3-wal": {
             "type": "file",
             "bytes": 1339032,
             "mode": 33188,
-            "mtimeNs": "1786146985823793141",
-            "sha256": "7454b15c0a859c227b8018968de2b05bc9cd64cd267aa7a54e5a8c4fde24e2ed"
+            "mtimeNs": "1786157132770270710",
+            "sha256": "307eabdcbaee20f3a1278ecab3a013a717ac66434bec35c4ee445719f6b40e6a"
           },
           "app.sqlite3.snapback.lock": {
             "type": "file",
             "bytes": 192,
             "mode": 33152,
-            "mtimeNs": "1786146985825793141",
-            "sha256": "2dc98a25d945db02b92dc8c4759a7fd491ece3fbcb974ec9e275ff3d32eda4d6"
+            "mtimeNs": "1786157132772270710",
+            "sha256": "80e2142d7d404ed763afe7ebc7cdc1f616c175407373f528311be2ace4a5ce54"
           },
           "app.sqlite3.telemetry": {
             "type": "file",
             "bytes": 4096,
             "mode": 33152,
-            "mtimeNs": "1786146988815793145",
+            "mtimeNs": "1786157135752270898",
             "sha256": "204f9b3c487346c1a41195dfb82bb3014d9725af5bc2ac3cc4fa41f63bc03565"
           },
           "app.sqlite3.telemetry-shm": {
             "type": "file",
             "bytes": 32768,
             "mode": 33152,
-            "mtimeNs": "1786146989035793146",
-            "sha256": "391752a171e7fb3c75e675137189f92f3f2ead1da387e90b1d40dedaa83ae7e5"
+            "mtimeNs": "1786157135774270899",
+            "sha256": "648862615e09af8120e569a7fe9d4c2801e15947dac2dafad7ca93295f56072f"
           },
           "app.sqlite3.telemetry-wal": {
             "type": "file",
             "bytes": 276072,
             "mode": 33152,
-            "mtimeNs": "1786146988819793145",
-            "sha256": "5ffb79daaf626444f96b7090569c851f5f7965a76e29d203abd5a76e0adf41e3"
+            "mtimeNs": "1786157135761270899",
+            "sha256": "5ac4246346a29b7367f6e8ae0166c743cfa4f1fe05fc25cf8c0f27a86bc1bcd3"
           },
           "assets/": {
             "type": "directory",
@@ -992,27 +994,27 @@
             "type": "file",
             "bytes": 231,
             "mode": 33152,
-            "mtimeNs": "1786146985770793141",
-            "sha256": "f5a5fcfa822d5b7664a954467eeba7946edbd09d41e6a75cf099ec3464503315"
+            "mtimeNs": "1786157132706270706",
+            "sha256": "cb70221e524f881acb0f252fc96c4fad62911f925a308b9b6a9a6bdaac8cf5b8"
           },
           "resume-keyring.json": {
             "type": "file",
             "bytes": 151,
             "mode": 33152,
-            "mtimeNs": "1786146985768793140",
-            "sha256": "0f34351577b4a4765336ef0f14618f690e7737db216da14445046259400a6ece"
+            "mtimeNs": "1786157132704270706",
+            "sha256": "ebed4c4f988f484165a1faedd6d6fcea9e0f6ae7364e3261bdfec7c05cb83871"
           },
           "startup-artifacts.json": {
             "type": "file",
             "bytes": 16193,
             "mode": 33152,
-            "mtimeNs": "1786146985502793140",
+            "mtimeNs": "1786157132468270691",
             "sha256": "330d808c8cc805c03023b37780fdb26ccbdacc3691be38bc09a0066ba8102a9b"
           }
         }
       },
       "startLifecycle": {
-        "watermark": 1786146988774,
+        "watermark": 1786157135710,
         "processStartCount": 1,
         "processReadyCount": 1,
         "eventCount": 4,
@@ -1022,7 +1024,7 @@
         "flushCommitSequence": 1
       },
       "endLifecycle": {
-        "watermark": 1786146988774,
+        "watermark": 1786157135710,
         "processStartCount": 1,
         "processReadyCount": 1,
         "eventCount": 4,
@@ -1035,11 +1037,11 @@
         "source": "linux-procfs",
         "readBytesDelta": 0,
         "writeBytesDelta": 0,
-        "userTicksDelta": 1,
+        "userTicksDelta": 2,
         "systemTicksDelta": 0,
-        "cpuTicksDelta": 1,
-        "rssPagesStart": 13863,
-        "rssPagesEnd": 13863,
+        "cpuTicksDelta": 2,
+        "rssPagesStart": 13841,
+        "rssPagesEnd": 13841,
         "rssPagesDelta": 0,
         "rssGrowthPages": 0,
         "rssKbStart": null,
