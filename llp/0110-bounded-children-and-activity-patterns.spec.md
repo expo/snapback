@@ -5,7 +5,10 @@
 **Systems:** Application data API, Relational queries, Mutations, Code generation, Authorization, Live Queries, Storage portability, Contract/Exact, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-07 (LLP 0189 alignment sweep: verification-cadence/claim-gating clauses re-scoped or annotated to the LLP 0189 D-3/D-6 defaults). 2026-08-06 (author ruling: single-table public-package
+**Revised:** 2026-08-07 (§1.1/§2 stale `ParentIncarnationV1` creation-fields
+derivation spelling deleted per the LLP 0157 v0.11 review residue; the
+round-2/round-3 reconciliations' host-minted UUIDv7 registry is normative).
+2026-08-07 (LLP 0189 alignment sweep: verification-cadence/claim-gating clauses re-scoped or annotated to the LLP 0189 D-3/D-6 defaults). 2026-08-06 (author ruling: single-table public-package
 advertisement amendment — for `single_table_v1` only, packaged advertisement
 by clean-release build identity + embedded carrier + packaged-closure
 qualification receipt; signed `PackageCapabilityAttestationV1` deferred to
@@ -175,7 +178,7 @@ The normalized manifest shape is `BoundedChildrenQueryPlanV1`, identified by
 - one schema-required, nonoptional child foreign-key field whose declared ID
   domain is the parent table;
 - one schema-required, nonoptional child parent-incarnation field set only from the selected
-  parent's host `(createdAt, creationVersion)` token;
+  parent's active host-minted incarnation;
 - `childVisibility: { kind: "through-parent.v1" }`;
 - one named child index;
 - one non-empty ordered list of ascending child scalar fields;
@@ -206,11 +209,21 @@ or independently authority-bearing tables are rejected unless a later profile
 supplies a mechanical visibility proof. Activation rechecks eligibility after
 schema/projection changes; it is not inferred from field names.
 
-`ParentIncarnationV1` is the framework-owned immutable string
-`sbpi1.<base64url-no-pad(JCS({createdAt,creationVersion}))>`, where both members
-are the parent's authoritative host fields at creation. It is generated once,
-never accepted from a client argument, and copied into every child/profile row.
-The child index compares its UTF-8 bytes for exact equality.
+`ParentIncarnationV1` is the framework-owned immutable string identity of one
+parent-row lifetime. It is generated once, never accepted from a client
+argument, and copied into every child/profile row. The child index compares
+its UTF-8 bytes for exact equality.
+
+> **Dated note (2026-08-07):** this paragraph's historical
+> `sbpi1.<base64url-no-pad(JCS({createdAt,creationVersion}))>` derivation
+> spelling is deleted as stale (LLP 0157 v0.11 review residue, Claude R2
+> N10). The round-2/round-3 author reconciliations below are normative on
+> conflict, and the shipped code agrees: the incarnation is a host-minted
+> canonical UUIDv7 row of the protected
+> `_snapback_relation_incarnations_v1` registry, not a digest of host
+> creation fields, and the coordinated cursor budgets (LLP 0157 §D8's
+> `sbsb1` record, inherited member-for-member by `sbsb2`) pin its 36-byte
+> canonical-UUID template accordingly.
 
 ### 1.2 Exact index and work bound
 
@@ -403,8 +416,10 @@ public `SNAPBACK_ROW_NOT_FOUND` outcome before evaluating the primary plan.
 For `create-owner.v1`, the scope and source are the same sole inserted row; its
 ID is a recorded runtime answer, its owner field is a required LLP 0065
 string/principal field set from the effective subject, and its
-`ParentIncarnationV1` is derived from the committed host creation fields.
-Another source effect is not admitted in that mode.
+`ParentIncarnationV1` is the host-minted incarnation created transactionally
+with the committed insert (per the round-2/round-3 reconciliations, normative
+on conflict; the same stale creation-fields derivation deleted from §1.1 on
+2026-08-07). Another source effect is not admitted in that mode.
 
 The primary plan is a point-operation subset of LLP 0051. It may use at most
 eight total relationship point reads, counting each generated
