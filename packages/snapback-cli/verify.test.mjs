@@ -5,7 +5,10 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
+  symlinkSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -17,6 +20,7 @@ import {
   VERIFY_RECEIPT_SCHEMA_VERSION,
   aggregateConformance,
   defaultVerifyConfig,
+  defineStarterVerifyProfile,
   loadVerifyConfig,
   probeAdmission,
   probeArtifactFreshness,
@@ -122,6 +126,110 @@ let cases = 0;
   assert.equal(receipt.stages[2].evidence.conformance.status, 'partial');
   assert.equal(receipt.stages[2].evidence.conformance.pathEvidence[0].status, 'unsupported');
   cases += 1;
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-starter-verify-profile-'));
+  const acceptanceFile = join(scratch, 'acceptance.mjs');
+  writeFileSync(acceptanceFile, `process.stdout.write(JSON.stringify({
+  schemaVersion: 'snapback.starter-acceptance.v1',
+  status: 'passed',
+  expectedCheckCount: 2,
+  executedCheckCount: 2,
+  checks: [{ status: 'passed' }, { status: 'passed' }],
+  identity: {
+    artifact: { appId: 'starter', bundleHash: 'bundle' },
+    loaded: { appId: 'starter', bundleHash: 'bundle' },
+  },
+  lifecycle: {
+    owned: true,
+    readyDescriptorObserved: true,
+    generatedAndLoadedObserved: true,
+  },
+  operations: { queryFunctionId: 'app:list', mutationFunctionId: 'app:create' },
+  cleanup: {
+    attempted: true,
+    clientResourcesReleased: true,
+    devExited: true,
+    temporaryStateRemoved: true,
+    ok: true,
+  },
+  diagnostic: null,
+}) + '\\n');\n`);
+  try {
+    const paths = [
+      { id: 'starter-query', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },
+      { id: 'starter-mutation', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },
+    ];
+    const starter = defineStarterVerifyProfile({
+      id: 'starter-acceptance',
+      acceptanceFile,
+      paths,
+    });
+    assert.deepEqual(starter.testFiles, [realpathSync(acceptanceFile)]);
+    const identityContext = config().context;
+    const outcome = await starter.run({ identityContext });
+    assert.equal(outcome.ok, true);
+    assert.equal(outcome.context, identityContext);
+    assert.deepEqual(outcome.conformance.map(({ pathId }) => pathId), paths.map(({ id }) => id));
+    assert.ok(outcome.conformance.every(({ report }) => (
+      report.readProvenance === 'unsupported' && report.writeProvenance === 'unsupported'
+    )));
+    cases += 1;
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+{
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-starter-verify-invalid-receipt-'));
+  const acceptanceFile = join(scratch, 'acceptance.mjs');
+  writeFileSync(acceptanceFile, `process.stdout.write(JSON.stringify({
+  schemaVersion: 'snapback.starter-acceptance.v1',
+  status: 'passed',
+  expectedCheckCount: 1,
+  executedCheckCount: 1,
+  checks: [],
+  cleanup: { ok: true },
+}) + '\\n');\n`);
+  try {
+    const starter = defineStarterVerifyProfile({ id: 'invalid-starter', acceptanceFile });
+    const outcome = await starter.run({ identityContext: config().context });
+    assert.equal(outcome.ok, false);
+    assert.equal(outcome.diagnostics[0].code, 'SNAPBACK_VERIFY_STARTER_ACCEPTANCE_FAILED');
+    cases += 1;
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+for (const [template, pathCount] of [
+  ['todo-contract', 2],
+  ['react', 2],
+  ['expo-chat', 6],
+]) {
+  const scratch = mkdtempSync(join(tmpdir(), `snapback-${template}-verify-config-`));
+  const scaffold = join(scratch, template);
+  try {
+    mkdirSync(join(scaffold, 'node_modules', '@expo'), { recursive: true });
+    cpSync(
+      new URL(`./templates/${template}/snapback.verify.config.mjs`, import.meta.url),
+      join(scaffold, 'snapback.verify.config.mjs'),
+    );
+    cpSync(
+      new URL(`./templates/${template}/acceptance.mjs`, import.meta.url),
+      join(scaffold, 'acceptance.mjs'),
+    );
+    symlinkSync(
+      dirname(thisFile),
+      join(scaffold, 'node_modules', '@expo', 'snapback-cli'),
+      process.platform === 'win32' ? 'junction' : 'dir',
+    );
+    const templateConfig = await loadVerifyConfig(join(scaffold, 'snapback.verify.config.mjs'));
+    assert.equal(templateConfig.profiles.length, 1);
+    assert.equal(templateConfig.profiles[0].paths.length, pathCount);
+    assert.match(templateConfig.profiles[0].testFiles[0], /acceptance\.mjs$/u);
+    cases += 1;
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
 }
 
 {

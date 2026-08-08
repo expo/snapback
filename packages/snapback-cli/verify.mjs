@@ -8,6 +8,7 @@
 // over-declaration is the intersection across complete observations, so a
 // conditionally used table is not mislabeled as dead declaration surface.
 
+import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   cpSync,
@@ -20,7 +21,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { generate } from '@expo/snapback-codegen';
 import {
@@ -194,6 +195,164 @@ export function defineVerifyConfig(config) {
   assert(plainObject(config), 'verify config must be an object');
   assert(config.schemaVersion === VERIFY_CONFIG_SCHEMA_VERSION, `schemaVersion must be ${VERIFY_CONFIG_SCHEMA_VERSION}`);
   return config;
+}
+
+const STARTER_ACCEPTANCE_SCHEMA_VERSION = 'snapback.starter-acceptance.v1';
+const STARTER_ACCEPTANCE_MAX_OUTPUT_BYTES = 2 * 1024 * 1024;
+
+function resolveStarterAcceptanceFile(value) {
+  if (value instanceof URL) return realpathSync(fileURLToPath(value));
+  assert(typeof value === 'string' && value.length > 0, 'starter acceptanceFile must be a path or file URL');
+  return realpathSync(resolve(value));
+}
+
+function unsupportedConformance(paths) {
+  return paths.map(({ id }) => Object.freeze({
+    pathId: id,
+    status: 'observed',
+    report: Object.freeze({
+      missingReads: Object.freeze([]),
+      missingWrites: Object.freeze([]),
+      extraReads: Object.freeze([]),
+      extraWrites: Object.freeze([]),
+      readProvenance: 'unsupported',
+      writeProvenance: 'unsupported',
+    }),
+  }));
+}
+
+async function runStarterAcceptanceProfile({ acceptanceFile, identityContext, paths, timeoutMs }) {
+  const child = spawn(process.execPath, [acceptanceFile], {
+    cwd: dirname(acceptanceFile),
+    env: { ...process.env, SNAPBACK_VERIFY_PROFILE: 'starter-acceptance' },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let stdout = '';
+  let stderr = '';
+  let overflow = false;
+  let timedOut = false;
+  let killTimeout = null;
+  const append = (current, chunk) => {
+    const next = `${current}${chunk.toString('utf8')}`;
+    if (Buffer.byteLength(next) > STARTER_ACCEPTANCE_MAX_OUTPUT_BYTES) {
+      overflow = true;
+      child.kill('SIGTERM');
+      return next.slice(-STARTER_ACCEPTANCE_MAX_OUTPUT_BYTES);
+    }
+    return next;
+  };
+  child.stdout.on('data', (chunk) => { stdout = append(stdout, chunk); });
+  child.stderr.on('data', (chunk) => { stderr = append(stderr, chunk); });
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    child.kill('SIGTERM');
+    killTimeout = setTimeout(() => child.kill('SIGKILL'), 5_000);
+  }, timeoutMs);
+  const exit = await new Promise((resolveExit) => {
+    child.once('error', (error) => resolveExit({ code: null, signal: null, error }));
+    child.once('close', (code, signal) => resolveExit({ code, signal, error: null }));
+  });
+  clearTimeout(timeout);
+  if (killTimeout !== null) clearTimeout(killTimeout);
+
+  let receipt = null;
+  for (const line of stdout.trim().split('\n').reverse()) {
+    try {
+      const candidate = JSON.parse(line);
+      if (candidate?.schemaVersion === STARTER_ACCEPTANCE_SCHEMA_VERSION) {
+        receipt = candidate;
+        break;
+      }
+    } catch {
+      // The starter receipt is the final JSON line; preceding human output is
+      // not evidence and remains available only in the bounded diagnostic.
+    }
+  }
+  const receiptComplete = receipt?.status === 'passed'
+    && Number.isInteger(receipt?.expectedCheckCount)
+    && receipt.expectedCheckCount > 0
+    && receipt.executedCheckCount === receipt.expectedCheckCount
+    && receipt.checks?.length === receipt.expectedCheckCount
+    && receipt.checks.every(({ status }) => status === 'passed')
+    && typeof receipt.identity?.artifact?.appId === 'string'
+    && receipt.identity?.loaded?.appId === receipt.identity.artifact.appId
+    && receipt.identity?.loaded?.bundleHash === receipt.identity.artifact.bundleHash
+    && receipt.lifecycle?.owned === true
+    && receipt.lifecycle?.readyDescriptorObserved === true
+    && receipt.lifecycle?.generatedAndLoadedObserved === true
+    && typeof receipt.operations?.queryFunctionId === 'string'
+    && typeof receipt.operations?.mutationFunctionId === 'string'
+    && receipt.cleanup?.attempted === true
+    && receipt.cleanup?.clientResourcesReleased === true
+    && receipt.cleanup?.devExited === true
+    && receipt.cleanup?.temporaryStateRemoved === true
+    && receipt.cleanup?.ok === true
+    && receipt.diagnostic === null;
+  const ok = !overflow && !timedOut && exit.error === null && exit.code === 0 && receiptComplete;
+  const diagnosticCode = overflow
+    ? 'SNAPBACK_VERIFY_STARTER_ACCEPTANCE_OUTPUT_LIMIT'
+    : timedOut
+      ? 'SNAPBACK_VERIFY_STARTER_ACCEPTANCE_TIMEOUT'
+      : exit.error?.code ?? receipt?.diagnostic?.code ?? 'SNAPBACK_VERIFY_STARTER_ACCEPTANCE_FAILED';
+  const diagnosticMessage = overflow
+    ? 'starter acceptance exceeded the bounded output limit'
+    : timedOut
+      ? `starter acceptance exceeded its ${timeoutMs}ms timeout`
+      : receipt?.diagnostic?.message
+        ?? exit.error?.message
+        ?? `starter acceptance exited ${exit.code ?? exit.signal ?? 'without a status'} or returned an incomplete receipt`;
+  const diagnostics = ok ? [] : [diagnostic(
+    diagnosticCode,
+    diagnosticMessage,
+    {
+      acceptanceFile,
+      exitCode: exit.code,
+      signal: exit.signal,
+      receiptStatus: receipt?.status ?? null,
+      expectedCheckCount: receipt?.expectedCheckCount ?? null,
+      executedCheckCount: receipt?.executedCheckCount ?? null,
+      stderr: stderr.slice(-16_384),
+    },
+  )];
+  return Object.freeze({
+    ok,
+    context: identityContext,
+    conformance: Object.freeze(unsupportedConformance(paths)),
+    diagnostics: Object.freeze(diagnostics),
+  });
+}
+
+// @ref LLP 0196#program — scaffold proof commands register the existing live
+// starter acceptance under LLP 0146 D2; this adapter runs that receipt instead
+// of creating a second verifier or duplicating its product assertions.
+export function defineStarterVerifyProfile({
+  id,
+  title = id,
+  acceptanceFile,
+  requiredCapabilities = [],
+  paths = [],
+  timeoutMs = 180_000,
+}) {
+  assert(typeof id === 'string' && id.length > 0, 'starter profile id must be a non-empty string');
+  assert(typeof title === 'string' && title.length > 0, 'starter profile title must be a non-empty string');
+  assert(Number.isInteger(timeoutMs) && timeoutMs > 0, 'starter profile timeoutMs must be a positive integer');
+  const resolvedAcceptanceFile = resolveStarterAcceptanceFile(acceptanceFile);
+  const normalizedPaths = Object.freeze(paths.map((path, index) => normalizePath(path, id, index)));
+  return Object.freeze({
+    id,
+    title,
+    testFiles: Object.freeze([resolvedAcceptanceFile]),
+    requiredCapabilities: Object.freeze([...requiredCapabilities]),
+    paths: normalizedPaths,
+    run(context) {
+      return runStarterAcceptanceProfile({
+        acceptanceFile: resolvedAcceptanceFile,
+        identityContext: context.identityContext,
+        paths: normalizedPaths,
+        timeoutMs,
+      });
+    },
+  });
 }
 
 export async function loadVerifyConfig(path, { backendDirectory = null } = {}) {
@@ -552,6 +711,7 @@ async function runProfiles(config, context) {
         artifact: context.artifact,
         backendDirectory: config.backendDirectory,
         generatedDirectory: context.artifact?.generatedRoot ?? config.generatedDirectory,
+        identityContext: context.identityContext,
         profileId: profile.id,
       }));
       assert(plainObject(returned), `profile ${profile.id} must return an object`);

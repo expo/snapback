@@ -201,6 +201,8 @@ console.log(JSON.stringify({
   assert.equal(manifest.scripts.test, 'node acceptance.mjs');
   assert.equal(manifest.scripts['test:static'], 'node acceptance.static.mjs');
   assert.equal(manifest.scripts['test:live'], manifest.scripts.test);
+  assert.match(manifest.scripts.prove, /^snapback verify snapback /u);
+  assert.equal(existsSync(join(project, 'snapback.verify.config.mjs')), true);
   assert.match(
     readFileSync(join(project, '.gitignore'), 'utf8'),
     /^node_modules\/$/mu,
@@ -236,6 +238,8 @@ console.log(JSON.stringify({
   assert.equal(reactManifest.scripts.test, 'node acceptance.mjs');
   assert.equal(reactManifest.scripts['test:static'], 'node acceptance.static.mjs');
   assert.equal(reactManifest.scripts['test:live'], reactManifest.scripts.test);
+  assert.match(reactManifest.scripts.prove, /^snapback verify snapback /u);
+  assert.equal(existsSync(join(reactProject, 'snapback.verify.config.mjs')), true);
   const reactAgentInstructions = readFileSync(join(reactProject, 'AGENTS.md'), 'utf8');
   assert.match(reactAgentInstructions, /capability index first/u);
   assert.match(reactAgentInstructions, /snapback guide <query>/u);
@@ -277,6 +281,17 @@ console.log(JSON.stringify({
   assert.equal(chatManifest.scripts.test, 'node acceptance.mjs');
   assert.equal(chatManifest.scripts['test:static'], 'node acceptance.static.mjs');
   assert.equal(chatManifest.scripts['test:live'], chatManifest.scripts.test);
+  assert.equal(chatManifest.scripts.web, 'expo start --web');
+  assert.match(chatManifest.scripts.prove, /^snapback verify snapback /u);
+  assert.equal(existsSync(join(chatProject, 'snapback.verify.config.mjs')), true);
+  assert.deepEqual(
+    ['@expo/metro-runtime', 'react-dom', 'react-native-web'].filter(
+      (name) => typeof chatManifest.dependencies[name] === 'string',
+    ),
+    ['@expo/metro-runtime', 'react-dom', 'react-native-web'],
+  );
+  const chatExpoManifest = JSON.parse(readFileSync(join(chatProject, 'app.json'), 'utf8'));
+  assert.deepEqual(chatExpoManifest.expo.platforms, ['ios', 'android', 'web']);
   const chatAgentInstructions = readFileSync(join(chatProject, 'AGENTS.md'), 'utf8');
   assert.match(chatAgentInstructions, /capability index first/u);
   assert.match(chatAgentInstructions, /snapback guide <query>/u);
@@ -298,6 +313,10 @@ console.log(JSON.stringify({
   assert.match(
     readFileSync(join(chatProject, 'src', 'screens', 'chat-screen.tsx'), 'utf8'),
     /useSurface\(/,
+  );
+  assert.match(
+    readFileSync(join(chatProject, 'src', 'screens', 'inbox-screen.tsx'), 'utf8'),
+    /TEST PERSONA/u,
   );
   const chatStatic = spawnSync(process.execPath, ['acceptance.static.mjs'], {
     cwd: chatProject,

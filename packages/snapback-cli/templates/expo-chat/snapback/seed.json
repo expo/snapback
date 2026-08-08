@@ -1,5 +1,5 @@
 {
-  "seedVersion": "expo-chat.v1",
+  "seedVersion": "expo-chat.v2",
   "tables": {
     "users": [
       { "_id": "user_ada", "handle": "ada", "name": "Ada Lovelace", "color": "#7C5CFC" },
@@ -8,12 +8,32 @@
       { "_id": "user_katherine", "handle": "katherine", "name": "Katherine Johnson", "color": "#D17A22" }
     ],
     "conversations": [
-      { "_id": "conversation_engine_room", "title": "Engine Room", "updatedAt": 1785855600000, "lastPreview": "Katherine: I checked the numbers twice ✓" }
+      { "_id": "conversation_ada_grace", "kind": "dm", "title": "Ada & Grace", "updatedAt": 1785852300000, "lastPreview": "The compiler note is perfect." },
+      { "_id": "conversation_ada_alan", "kind": "dm", "title": "Ada & Alan", "updatedAt": 1785849300000, "lastPreview": "Tea after the lecture?" },
+      { "_id": "conversation_engine_room", "kind": "group", "title": "Engine Room", "updatedAt": 1785855600000, "lastPreview": "Katherine: I checked the numbers twice ✓" }
+    ],
+    "memberships": [
+      { "_id": "membership_ada_grace_a", "conversationId": "conversation_ada_grace", "userId": "user_ada" },
+      { "_id": "membership_ada_grace_g", "conversationId": "conversation_ada_grace", "userId": "user_grace" },
+      { "_id": "membership_ada_alan_a", "conversationId": "conversation_ada_alan", "userId": "user_ada" },
+      { "_id": "membership_ada_alan_t", "conversationId": "conversation_ada_alan", "userId": "user_alan" },
+      { "_id": "membership_engine_a", "conversationId": "conversation_engine_room", "userId": "user_ada" },
+      { "_id": "membership_engine_g", "conversationId": "conversation_engine_room", "userId": "user_grace" },
+      { "_id": "membership_engine_t", "conversationId": "conversation_engine_room", "userId": "user_alan" },
+      { "_id": "membership_engine_k", "conversationId": "conversation_engine_room", "userId": "user_katherine" }
     ],
     "messages": [
+      { "_id": "message_ag_1", "conversationId": "conversation_ada_grace", "senderId": "user_ada", "kind": "text", "text": "I left a note about the engine's loops.", "sentAt": 1785851700000 },
+      { "_id": "message_ag_2", "conversationId": "conversation_ada_grace", "senderId": "user_grace", "kind": "text", "text": "Found it. The compiler note is perfect.", "replyToId": "message_ag_1", "sentAt": 1785852300000 },
+      { "_id": "message_at_1", "conversationId": "conversation_ada_alan", "senderId": "user_alan", "kind": "text", "text": "Tea after the lecture?", "sentAt": 1785849300000 },
       { "_id": "message_er_1", "conversationId": "conversation_engine_room", "senderId": "user_grace", "kind": "text", "text": "Can everyone confirm the launch calculation?", "sentAt": 1785854400000 },
-      { "_id": "message_er_2", "conversationId": "conversation_engine_room", "senderId": "user_alan", "kind": "text", "text": "The machine agrees with my hand calculation.", "sentAt": 1785855000000 },
-      { "_id": "message_er_3", "conversationId": "conversation_engine_room", "senderId": "user_katherine", "kind": "text", "text": "I checked the numbers twice ✓", "sentAt": 1785855600000 }
+      { "_id": "message_er_2", "conversationId": "conversation_engine_room", "senderId": "user_alan", "kind": "text", "text": "The machine agrees with my hand calculation.", "replyToId": "message_er_1", "sentAt": 1785855000000 },
+      { "_id": "message_er_3", "conversationId": "conversation_engine_room", "senderId": "user_katherine", "kind": "text", "text": "I checked the numbers twice ✓", "replyToId": "message_er_1", "sentAt": 1785855600000 }
+    ],
+    "reactions": [
+      { "_id": "reaction_er_1", "conversationId": "conversation_engine_room", "messageId": "message_er_3", "userId": "user_ada", "emoji": "❤️" },
+      { "_id": "reaction_er_2", "conversationId": "conversation_engine_room", "messageId": "message_er_3", "userId": "user_grace", "emoji": "👍" },
+      { "_id": "reaction_ag_1", "conversationId": "conversation_ada_grace", "messageId": "message_ag_2", "userId": "user_ada", "emoji": "✨" }
     ]
   }
 }

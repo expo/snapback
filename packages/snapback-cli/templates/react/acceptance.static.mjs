@@ -11,10 +11,14 @@ const functions = JSON.parse(readFileSync(
 ));
 const app = readFileSync(new URL('./src/App.tsx', import.meta.url), 'utf8');
 const runtimeAcceptance = readFileSync(new URL('./acceptance.mjs', import.meta.url), 'utf8');
+const packageManifest = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
+const agentInstructions = readFileSync(new URL('./AGENTS.md', import.meta.url), 'utf8');
 assert.equal(artifacts.artifactKind, 'artifactIndex');
 assert.deepEqual(functions.functions.map((fn) => fn.name).sort(), ['createTodo', 'listTodos']);
 assert.match(app, /useSnapbackQueries/);
 assert.match(app, /useSnapbackMutation/);
+assert.match(packageManifest.scripts.prove, /^snapback verify snapback /);
+assert.match(agentInstructions, /the acceptance command/);
 assert(!app.includes(' as '), 'starter must not need result casts');
 assert.match(
   runtimeAcceptance,

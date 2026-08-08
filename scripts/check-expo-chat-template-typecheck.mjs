@@ -24,7 +24,22 @@ const root = resolve(import.meta.dirname, '..');
 const harnessRoot = join(root, 'tests', 'expo-chat-template-typecheck');
 const templateRoot = join(root, 'packages', 'snapback-cli', 'templates', 'expo-chat');
 const templateManifest = JSON.parse(readFileSync(join(templateRoot, 'package.json'), 'utf8'));
+const expoManifest = JSON.parse(readFileSync(join(templateRoot, 'app.json'), 'utf8'));
 const harnessManifest = JSON.parse(readFileSync(join(harnessRoot, 'package.json'), 'utf8'));
+
+assert.deepEqual(expoManifest.expo.platforms, ['ios', 'android', 'web']);
+assert.equal(templateManifest.scripts.web, 'expo start --web');
+assert.match(
+  templateManifest.scripts.prove,
+  /^snapback verify snapback --config \.\/snapback\.verify\.config\.mjs /u,
+);
+for (const dependency of ['@expo/metro-runtime', 'react-dom', 'react-native-web']) {
+  assert.equal(
+    typeof templateManifest.dependencies?.[dependency],
+    'string',
+    `expo-chat must include ${dependency} for a zero-edit web start`,
+  );
+}
 
 function nonSnapbackDependencies(manifest, section) {
   return Object.fromEntries(Object.entries(manifest[section] ?? {}).filter(
@@ -161,6 +176,16 @@ try {
     0,
     JSON.stringify(generated.summary.degradedResults),
   );
+  const staticAcceptance = spawnSync(
+    process.execPath,
+    ['acceptance.static.mjs'],
+    { cwd: scaffoldRoot, encoding: 'utf8', timeout: 60_000 },
+  );
+  assert.equal(
+    staticAcceptance.status,
+    0,
+    staticAcceptance.stderr || staticAcceptance.stdout,
+  );
   const typecheck = spawnSync(
     join(harnessRoot, 'node_modules', '.bin', 'tsc'),
     ['--noEmit', '--project', join(scaffoldRoot, 'tsconfig.json')],
@@ -219,7 +244,7 @@ try {
     }
   }
   process.stdout.write(
-    'expo-chat template dependency parity, codegen, strict typecheck, and web export: PASS\n',
+    'expo-chat web/prove contract, dependency parity, codegen, strict typecheck, and web export: PASS\n',
   );
 } finally {
   rmSync(scratchRoot, { recursive: true, force: true });

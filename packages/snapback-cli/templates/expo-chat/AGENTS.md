@@ -11,18 +11,26 @@ connect the read-only Guide with `snapback mcp`.
 The golden path is: edit `snapback/schema.mjs` and
 `snapback/functions.mjs` → `bun run generate` → `bun run dev` (supervises the
 Expo client; plain `expo start` also works once a dev server is running) →
-exercise the generated client or `snapback run` → `bun run test`.
+exercise the generated client or `snapback run` → `bun run prove`.
 
-This starter carries the conversation surface end to end: a `messages` table
-with an image `assetRef` field, the `messageImageUpload` intent, live queries,
-the `conversation` surface (reads + bound mutations + the `send` command +
-typing presence), and an Expo chat screen driving all of it through
-`useSurface`. Edit this working example rather than composing the wiring from
-prose. The starter runs in Sessions auth mode (`auth: { mode: 'sessions' }` in
-`snapback/schema.mjs`), and the supervised dev loop mints its session
-automatically; that is what makes the in-app image upload work out of the box.
-The root `registerExpoFileSystemRqsFiles` registration in `App.tsx` gives
-retained offline rendering.
+`bun run prove` is **the acceptance command** (`npm run prove` is equivalent).
+It runs this starter's registered live profile through `snapback verify` and
+writes the LLP 0146 D2 receipt to `.snapback/verify-receipt.json`. The
+lower-level `test` and `test:static` scripts are profile/debugging inputs; do
+not substitute them for the D2 receipt when claiming the app is ready.
+
+This starter carries a complete conversation surface end to end: explicit
+memberships, direct-message and group inbox rows, reply pointers, reactions,
+image `assetRef` delivery, typing presence, and one bound `send` command. The
+inbox's **TEST PERSONA** control is deliberately labeled: it changes seeded
+app-data identity for acceptance and demos, while a production app must derive
+identity from adopted session authority. Edit this working example rather than
+composing the wiring from prose. The starter runs in Sessions auth mode
+(`auth: { mode: 'sessions' }` in `snapback/schema.mjs`), and the supervised dev
+loop mints its session automatically; that is what makes authenticated sends
+and in-app image upload work out of the box. The root
+`registerExpoFileSystemRqsFiles` registration in `App.tsx` gives retained
+offline rendering on native; web uses the browser persistence arm.
 
 Use `snapback guide` for the served Guide, flat projection, and MCP entry
 points. Load the relevant Guide page before using a feature area; do not infer

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Platform, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import * as Crypto from 'expo-crypto';
@@ -8,12 +9,11 @@ import type { ExpoBootState } from '@expo/snapback-expo';
 import { app } from './snapback/generated/app.mjs';
 import type { Id } from './snapback/generated/api.d.ts';
 import ChatScreen from './src/screens/chat-screen';
+import InboxScreen from './src/screens/inbox-screen';
 import { palette } from './src/palette';
+import { TestPersonaProvider } from './src/test-persona-context';
 
-// The seeded conversation and persona this starter opens with. Swap these for
-// your own navigation and session-derived identity as the app grows.
-const CONVERSATION_ID = 'conversation_engine_room' as Id<'conversations'>;
-const ACTIVE_USER_ID = 'user_ada' as Id<'users'>;
+type Thread = Readonly<{ id: Id<'conversations'>; title: string }>;
 
 // Durable offline retention: register the on-device file store once, at the
 // root, before any client is constructed. Native only — expo-file-system
@@ -43,9 +43,14 @@ function BootFallback({ state }: Readonly<{ state: ExpoBootState }>) {
 }
 
 export default function App() {
+  const [thread, setThread] = useState<Thread | null>(null);
   return (
     <SnapbackExpoProvider app={app} fallback={(state: ExpoBootState) => <BootFallback state={state} />}>
-      <ChatScreen conversationId={CONVERSATION_ID} activeUserId={ACTIVE_USER_ID} />
+      <TestPersonaProvider>
+        {thread
+          ? <ChatScreen conversationId={thread.id} title={thread.title} onBack={() => setThread(null)} />
+          : <InboxScreen onOpen={(id, title) => setThread({ id, title })} />}
+      </TestPersonaProvider>
     </SnapbackExpoProvider>
   );
 }

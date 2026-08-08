@@ -2916,6 +2916,18 @@ await build({
   // LLP 0179 conversation surface and live starter acceptance.
   const provePackedExpoChatScaffold = async (chatRoot, label) => {
     await installPackedFixture(chatRoot, { timeout: 600_000 });
+    const chatManifest = JSON.parse(readFileSync(join(chatRoot, 'package.json'), 'utf8'));
+    const chatExpoManifest = JSON.parse(readFileSync(join(chatRoot, 'app.json'), 'utf8'));
+    if (
+      chatManifest.scripts?.web !== 'expo start --web'
+      || !chatManifest.scripts?.prove?.startsWith('snapback verify snapback ')
+      || !['@expo/metro-runtime', 'react-dom', 'react-native-web'].every(
+        (name) => typeof chatManifest.dependencies?.[name] === 'string',
+      )
+      || JSON.stringify(chatExpoManifest.expo?.platforms) !== JSON.stringify(['ios', 'android', 'web'])
+    ) {
+      fail(`${label} omitted the proof command or zero-edit Expo web dependency contract`);
+    }
     run(
       join(chatRoot, 'node_modules', '.bin', 'snapback'),
       ['generate', 'snapback', '--json'],

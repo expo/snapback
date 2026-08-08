@@ -20,8 +20,12 @@ import artifacts from './snapback/generated/artifacts.json' with { type: 'json' 
 const EXPECTED_CHECKS = Object.freeze([
   'managed-lifecycle',
   'artifact-identity',
+  'membership-and-conversation-shape',
+  'test-persona-membership-switch',
   'surface-query',
   'surface-mutation-and-observation',
+  'reply-and-observation',
+  'reaction-and-observation',
 ]);
 const MAX_CHILD_OUTPUT_BYTES = 64 * 1024;
 const CONVERSATION_ID = 'conversation_engine_room';
@@ -183,6 +187,36 @@ try {
     bundleHash: artifacts.bundleHash,
   });
 
+  const conversationRows = (await client.query(api.conversations, { args: {} })).rows;
+  const adaMemberships = (await client.query(api.membershipsForUser, {
+    args: { userId: 'user_ada' },
+  })).rows;
+  assert.deepEqual(new Set(conversationRows.map((row) => row.kind)), new Set(['dm', 'group']));
+  assert.deepEqual(
+    new Set(adaMemberships.map((row) => row.conversationId)),
+    new Set(['conversation_ada_grace', 'conversation_ada_alan', CONVERSATION_ID]),
+  );
+  pass('membership-and-conversation-shape', {
+    conversationKinds: [...new Set(conversationRows.map((row) => row.kind))].sort(),
+    adaConversationCount: adaMemberships.length,
+  });
+
+  const graceMemberships = (await client.query(api.membershipsForUser, {
+    args: { userId: 'user_grace' },
+  })).rows;
+  const katherineMemberships = (await client.query(api.membershipsForUser, {
+    args: { userId: 'user_katherine' },
+  })).rows;
+  assert.notDeepEqual(
+    graceMemberships.map((row) => row.conversationId).sort(),
+    katherineMemberships.map((row) => row.conversationId).sort(),
+  );
+  assert.deepEqual(katherineMemberships.map((row) => row.conversationId), [CONVERSATION_ID]);
+  pass('test-persona-membership-switch', {
+    graceConversationCount: graceMemberships.length,
+    katherineConversationCount: katherineMemberships.length,
+  });
+
   const binding = await client.prepareReactBinding({ generatedManifest: app });
   provider = createSnapbackReactProvider(binding, {
     connectionId: 'expo_chat_acceptance',
@@ -197,6 +231,8 @@ try {
   );
   await until(
     () => latest?.state.messages.status === 'ready'
+      && latest?.state.memberships.status === 'ready'
+      && latest?.state.reactions.status === 'ready'
       && (latest.data.messages?.length ?? 0) >= 3
       && latest.data.details?.[0]?.title === 'Engine Room',
     'initial conversation surface reads',
@@ -204,6 +240,8 @@ try {
   pass('surface-query', {
     surface: 'conversation',
     messageRows: latest.data.messages.length,
+    membershipRows: latest.data.memberships?.length ?? 0,
+    reactionRows: latest.data.reactions?.length ?? 0,
     userRows: latest.data.users?.length ?? 0,
   });
 
@@ -224,6 +262,53 @@ try {
   pass('surface-mutation-and-observation', {
     functionId: api.sendMessage.id,
     observedBy: api.messagesForConversation.id,
+  });
+
+  const replyText = `Reply acceptance ${process.pid}`;
+  const reply = await client.mutate(api.sendReply, {
+    args: {
+      conversationId: CONVERSATION_ID,
+      senderId: 'user_grace',
+      text: replyText,
+      replyToId: mutation.result,
+    },
+    clientMutationId: `generated-reply-acceptance-${process.pid}`,
+  });
+  assert.equal(typeof reply.result?.messageId, 'string');
+  await until(
+    () => latest?.data.messages?.some(
+      (row) => row._id === reply.result.messageId
+        && row.replyToId === mutation.result
+        && row.text === replyText,
+    ),
+    'reply pointer surface observation',
+  );
+  pass('reply-and-observation', {
+    functionId: api.sendReply.id,
+    observedBy: api.messagesForConversation.id,
+  });
+
+  const reaction = await client.mutate(api.addReaction, {
+    args: {
+      conversationId: CONVERSATION_ID,
+      messageId: reply.result.messageId,
+      userId: 'user_ada',
+      emoji: '✅',
+    },
+    clientMutationId: `generated-reaction-acceptance-${process.pid}`,
+  });
+  assert.equal(typeof reaction.result?.reactionId, 'string');
+  await until(
+    () => latest?.data.reactions?.some(
+      (row) => row._id === reaction.result.reactionId
+        && row.messageId === reply.result.messageId
+        && row.emoji === '✅',
+    ),
+    'reaction surface observation',
+  );
+  pass('reaction-and-observation', {
+    functionId: api.addReaction.id,
+    observedBy: api.reactionsForConversation.id,
   });
 } catch (error) {
   failure = {
@@ -310,6 +395,8 @@ const receipt = {
     surface: 'conversation',
     queryFunctionId: api.messagesForConversation.id,
     mutationFunctionId: api.sendMessage.id,
+    replyFunctionId: api.sendReply.id,
+    reactionFunctionId: api.addReaction.id,
   },
   cleanup,
   diagnostic: failure,

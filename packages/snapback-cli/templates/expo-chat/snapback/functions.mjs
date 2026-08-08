@@ -9,6 +9,7 @@ import {
   defineLiveQuery,
   defineMutation,
   defineSurface,
+  del,
   eq,
   input,
   insert,
@@ -32,10 +33,37 @@ export const users = defineLiveQuery({
   authorityIndependent: true,
 });
 
+export const conversations = defineLiveQuery({
+  table: 'conversations',
+  args: {},
+  order: [asc('updatedAt')],
+  index: 'by_updated',
+  auth: 'public',
+  authorityIndependent: true,
+});
+
 export const conversationDetails = defineLiveQuery({
   table: 'conversations',
   args: { conversationId: v.id('conversations') },
   filter: [eq('_id', arg('conversationId'))],
+  auth: 'public',
+  authorityIndependent: true,
+});
+
+export const membershipsForUser = defineLiveQuery({
+  table: 'memberships',
+  args: { userId: v.id('users') },
+  filter: [eq('userId', arg('userId'))],
+  index: 'by_user',
+  auth: 'public',
+  authorityIndependent: true,
+});
+
+export const membershipsForConversation = defineLiveQuery({
+  table: 'memberships',
+  args: { conversationId: v.id('conversations') },
+  filter: [eq('conversationId', arg('conversationId'))],
+  index: 'by_conversation',
   auth: 'public',
   authorityIndependent: true,
 });
@@ -46,6 +74,15 @@ export const messagesForConversation = defineLiveQuery({
   filter: [eq('conversationId', arg('conversationId'))],
   order: [asc('sentAt')],
   index: 'by_conversation_sent',
+  auth: 'public',
+  authorityIndependent: true,
+});
+
+export const reactionsForConversation = defineLiveQuery({
+  table: 'reactions',
+  args: { conversationId: v.id('conversations') },
+  filter: [eq('conversationId', arg('conversationId'))],
+  index: 'by_conversation',
   auth: 'public',
   authorityIndependent: true,
 });
@@ -92,12 +129,65 @@ export const sendText = defineMutation({
   returns: returnExpr(record({ messageId: bindingRef('messageId') })),
 });
 
+export const sendReply = defineMutation({
+  args: {
+    conversationId: v.id('conversations'),
+    senderId: v.id('users'),
+    text: v.string(),
+    replyToId: v.id('messages'),
+  },
+  auth: 'authenticated',
+  plan: [
+    insert('messages', {
+      conversationId: arg('conversationId'),
+      senderId: arg('senderId'),
+      kind: lit('text'),
+      text: arg('text'),
+      replyToId: arg('replyToId'),
+      sentAt: runtimeNow(),
+    }, { bindIdAs: 'messageId' }),
+    patch('conversations', arg('conversationId'), {
+      lastPreview: arg('text'),
+      updatedAt: runtimeNow(),
+    }),
+  ],
+  result: results.value(v.object({ messageId: v.id('messages') })),
+  returns: returnExpr(record({ messageId: bindingRef('messageId') })),
+});
+
+export const addReaction = defineMutation({
+  args: {
+    conversationId: v.id('conversations'),
+    messageId: v.id('messages'),
+    userId: v.id('users'),
+    emoji: v.string(),
+  },
+  auth: 'authenticated',
+  plan: insert('reactions', {
+    conversationId: arg('conversationId'),
+    messageId: arg('messageId'),
+    userId: arg('userId'),
+    emoji: arg('emoji'),
+  }, { bindIdAs: 'reactionId' }),
+  result: results.value(v.object({ reactionId: v.id('reactions') })),
+  returns: returnExpr(record({ reactionId: bindingRef('reactionId') })),
+});
+
+export const removeReaction = defineMutation({
+  args: { reactionId: v.id('reactions') },
+  auth: 'authenticated',
+  plan: del('reactions', arg('reactionId')),
+  result: results.value(v.object({ removed: v.boolean() })),
+  returns: returnExpr(record({ removed: lit(true) })),
+});
+
 export const sendMessage = defineJsMutation({
   args: {
     conversationId: v.id('conversations'),
     senderId: v.id('users'),
     body: v.optional(v.string()),
     image: v.optional(v.assetRef({ upload: 'messageImageUpload' })),
+    replyToId: v.optional(v.id('messages')),
   },
   auth: 'authenticated',
   writes: ['messages', 'conversations'],
@@ -109,6 +199,7 @@ export const sendMessage = defineJsMutation({
       senderId: args.senderId,
       kind: hasImage ? 'image' : 'text',
       ...(args.body ? { text: args.body } : {}),
+      ...(args.replyToId ? { replyToId: args.replyToId } : {}),
       ...(hasImage ? {
         // Admission, message write, and reverse-reference commit are one
         // mutation: attach() is the sole boundary where a finalized upload
@@ -141,21 +232,38 @@ export const send = defineCommand({
   },
 });
 
-// The conversation surface declares conversationId once; every bound child
-// records its inspectable substitution, and the client drives the whole
-// screen through one useSurface handle.
+// @ref LLP 0179#closed-grammar — conversationId is declared once; every
+// bound child records its inspectable substitution and one useSurface handle
+// drives the complete thread.
 export const conversation = defineSurface({
   params: { conversationId: v.id('conversations') },
   reads: {
     users: bind(users, {}),
     details: bind(conversationDetails, { conversationId: param('conversationId') }),
+    memberships: bind(membershipsForConversation, { conversationId: param('conversationId') }),
     messages: bind(messagesForConversation, { conversationId: param('conversationId') }),
+    reactions: bind(reactionsForConversation, { conversationId: param('conversationId') }),
   },
   mutations: {
+    react: bind(addReaction, {
+      conversationId: param('conversationId'),
+      messageId: input('messageId'),
+      userId: input('userId'),
+      emoji: input('emoji'),
+    }),
     sendText: bind(sendText, {
       conversationId: param('conversationId'),
       senderId: input('senderId'),
       text: input('text'),
+    }),
+    sendReply: bind(sendReply, {
+      conversationId: param('conversationId'),
+      senderId: input('senderId'),
+      text: input('text'),
+      replyToId: input('replyToId'),
+    }),
+    removeReaction: bind(removeReaction, {
+      reactionId: input('reactionId'),
     }),
   },
   commands: {
@@ -164,6 +272,7 @@ export const conversation = defineSurface({
       senderId: input('senderId'),
       body: input('body'),
       image: input('image'),
+      replyToId: input('replyToId'),
     }),
   },
   assets: {

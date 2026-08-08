@@ -12,23 +12,58 @@ const functions = JSON.parse(readFileSync(
 const schemaSource = readFileSync(new URL('./snapback/schema.mjs', import.meta.url), 'utf8');
 const appSource = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
 const chatScreen = readFileSync(new URL('./src/screens/chat-screen.tsx', import.meta.url), 'utf8');
+const inboxScreen = readFileSync(new URL('./src/screens/inbox-screen.tsx', import.meta.url), 'utf8');
+const personaContext = readFileSync(new URL('./src/test-persona-context.tsx', import.meta.url), 'utf8');
 const runtimeAcceptance = readFileSync(new URL('./acceptance.mjs', import.meta.url), 'utf8');
+const packageManifest = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
+const expoManifest = JSON.parse(readFileSync(new URL('./app.json', import.meta.url), 'utf8'));
 assert.equal(artifacts.artifactKind, 'artifactIndex');
 assert.deepEqual(
   functions.functions.map((fn) => fn.name).sort(),
-  ['conversationDetails', 'messagesForConversation', 'sendMessage', 'sendText', 'users'],
+  [
+    'addReaction',
+    'conversationDetails',
+    'conversations',
+    'membershipsForConversation',
+    'membershipsForUser',
+    'messagesForConversation',
+    'reactionsForConversation',
+    'removeReaction',
+    'sendMessage',
+    'sendReply',
+    'sendText',
+    'users',
+  ],
 );
 assert.deepEqual(
   functions.assetUploadIntents.map((intent) => intent.exportedName),
   ['messageImageUpload'],
 );
 assert.match(schemaSource, /auth:\s*\{\s*mode:\s*'sessions'\s*\}/);
+assert.match(schemaSource, /memberships:\s*defineTable/);
+assert.match(schemaSource, /replyToId:\s*v\.optional\(v\.id\('messages'\)\)/);
+assert.match(schemaSource, /reactions:\s*defineTable/);
 assert.match(appSource, /registerExpoFileSystemRqsFiles\(/);
 assert.match(appSource, /SnapbackExpoProvider/);
+assert.match(appSource, /TestPersonaProvider/);
+assert.match(appSource, /InboxScreen/);
 assert.match(chatScreen, /useSurface\(/);
 assert.match(chatScreen, /conversation\.commands\.send\(/);
+assert.match(chatScreen, /conversation\.mutations\.sendReply\(/);
+assert.match(chatScreen, /conversation\.mutations\.react\(/);
+assert.match(chatScreen, /replyToId/);
 assert.match(chatScreen, /useSnapbackAssetImage/);
 assert.match(chatScreen, /presence\.typing/);
+assert.match(inboxScreen, /TEST PERSONA/);
+assert.match(inboxScreen, /membershipsForUser/);
+assert.match(inboxScreen, /item\.kind === 'group'/);
+assert.match(personaContext, /production identity must come from adopted authority/);
+assert.deepEqual(expoManifest.expo.platforms, ['ios', 'android', 'web']);
+assert.equal(packageManifest.scripts.web, 'expo start --web');
+assert.match(packageManifest.scripts.prove, /^snapback verify snapback /);
+for (const dependency of ['@expo/metro-runtime', 'react-dom', 'react-native-web']) {
+  assert.equal(typeof packageManifest.dependencies[dependency], 'string', `${dependency} must ship in the web-ready template`);
+}
 assert(!chatScreen.includes('emitG2') && !chatScreen.includes('emitG3'),
   'starter must not carry fixture proof instrumentation');
 assert.match(
@@ -36,4 +71,12 @@ assert.match(
   /event\.state === 'generated-and-loaded' && event\.managed === true/,
   'runtime acceptance must wait for the managed CLI load lifecycle, not only the ready file',
 );
-console.log('expo chat starter static coherence: generated refs, surface client, and command send are coherent');
+for (const check of [
+  'membership-and-conversation-shape',
+  'test-persona-membership-switch',
+  'reply-and-observation',
+  'reaction-and-observation',
+]) {
+  assert.match(runtimeAcceptance, new RegExp(check));
+}
+console.log('expo chat starter static coherence: web, inbox, persona, replies, reactions, and proof command are coherent');

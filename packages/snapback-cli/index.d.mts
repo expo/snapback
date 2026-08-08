@@ -81,6 +81,7 @@ export {
   VERIFY_STAGE_IDS,
   aggregateConformance,
   defaultVerifyConfig,
+  defineStarterVerifyProfile,
   defineVerifyConfig,
   loadVerifyConfig,
   probeAdmission,
@@ -91,6 +92,7 @@ export {
   writeVerifyReceipt,
 } from './verify.mjs';
 export type {
+  StarterVerifyProfileOptions,
   VerifyConfig,
   VerifyConformanceReport,
   VerifyIdentityContext,

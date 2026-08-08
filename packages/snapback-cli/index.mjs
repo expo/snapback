@@ -152,6 +152,7 @@ export {
   VERIFY_STAGE_IDS,
   aggregateConformance,
   defaultVerifyConfig,
+  defineStarterVerifyProfile,
   defineVerifyConfig,
   loadVerifyConfig,
   probeAdmission,

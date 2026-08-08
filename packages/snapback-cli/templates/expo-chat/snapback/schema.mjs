@@ -9,10 +9,21 @@ export default defineSchema(
       color: v.string(),
     }).index('by_handle', ['handle'], { unique: true }).sync(),
     conversations: defineTable({
+      kind: v.string(),
       title: v.string(),
       updatedAt: v.integer(),
       lastPreview: v.string(),
     }).index('by_updated', ['updatedAt']).sync(),
+    // @ref LLP 0196#program — the T0 starter models
+    // inbox membership explicitly so the visible test persona changes data.
+    memberships: defineTable({
+      conversationId: v.id('conversations'),
+      userId: v.id('users'),
+    })
+      .index('by_user', ['userId'])
+      .index('by_conversation', ['conversationId'])
+      .index('by_conversation_user', ['conversationId', 'userId'], { unique: true })
+      .sync(),
     messages: defineTable({
       conversationId: v.id('conversations'),
       senderId: v.id('users'),
@@ -21,12 +32,23 @@ export default defineSchema(
       // The image field admits only assets finalized through the
       // messageImageUpload intent declared in functions.mjs.
       image: v.optional(v.assetRef({ upload: 'messageImageUpload' })),
+      replyToId: v.optional(v.id('messages')),
       sentAt: v.integer(),
     })
       .index('by_conversation_sent', ['conversationId', 'sentAt'])
       // Starter choice: message images are public-read. A production chat
       // derives byte authority from conversation membership instead.
       .assetSharing({ kind: 'public-read' })
+      .sync(),
+    reactions: defineTable({
+      conversationId: v.id('conversations'),
+      messageId: v.id('messages'),
+      userId: v.id('users'),
+      emoji: v.string(),
+    })
+      .index('by_conversation', ['conversationId'])
+      .index('by_message', ['messageId'])
+      .index('by_message_user_emoji', ['messageId', 'userId', 'emoji'], { unique: true })
       .sync(),
   },
   {

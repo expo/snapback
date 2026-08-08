@@ -10,7 +10,13 @@ connect the read-only Guide with `snapback mcp`.
 
 The golden path is: edit `snapback/schema.mjs` and
 `snapback/functions.mjs` → `bun run generate` → `bun run dev` → exercise the
-generated client or `snapback run` → `bun run test`.
+generated client or `snapback run` → `bun run prove`.
+
+`bun run prove` is **the acceptance command** (`npm run prove` is equivalent).
+It runs this starter's registered live profile through `snapback verify` and
+writes the LLP 0146 D2 receipt to `.snapback/verify-receipt.json`. The
+lower-level `test` and `test:static` scripts are profile/debugging inputs; do
+not substitute them for the D2 receipt when claiming the app is ready.
 
 Use `snapback guide` for the served Guide, flat projection, and MCP entry
 points. Load the relevant Guide page before using a feature area; do not infer

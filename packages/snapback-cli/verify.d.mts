@@ -36,10 +36,25 @@ export interface VerifyConfig {
   }[];
 }
 
+export interface StarterVerifyProfileOptions {
+  readonly id: string;
+  readonly title?: string;
+  readonly acceptanceFile: string | URL;
+  readonly requiredCapabilities?: readonly string[];
+  readonly paths?: readonly {
+    readonly id: string;
+    readonly kind: VerifyPathKind;
+    readonly targetProfileId: string;
+    readonly functionId?: string | null;
+  }[];
+  readonly timeoutMs?: number;
+}
+
 export const VERIFY_CONFIG_SCHEMA_VERSION: 'snapback.verify-config.v1';
 export const VERIFY_RECEIPT_SCHEMA_VERSION: 'snapback.verify-receipt.v1';
 export const VERIFY_STAGE_IDS: readonly string[];
 export function defineVerifyConfig<T extends VerifyConfig>(config: T): T;
+export function defineStarterVerifyProfile(options: StarterVerifyProfileOptions): NonNullable<VerifyConfig['profiles']>[number];
 export function loadVerifyConfig(path: string, options?: { readonly backendDirectory?: string | null }): Promise<VerifyConfig>;
 export function defaultVerifyConfig(options?: { readonly backendDirectory?: string }): VerifyConfig;
 export function probeArtifactFreshness(config: VerifyConfig): Promise<Readonly<Record<string, unknown>>>;
