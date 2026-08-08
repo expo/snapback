@@ -69,8 +69,10 @@ export type SnapbackConnection =
 
 /** Channel B freshness axis (LLP 0090 D1 / LLP 0114): 'retained' rows come
  * from persistence/preload and are never presented as settled; 'current'
- * rows are authoritative; 'unknown' means no rows are held. */
-export type SnapbackFreshness = 'unknown' | 'retained' | 'current';
+ * rows are authoritative; 'unknown' means no rows are held; 'snapshot'
+ * rows come from a mixed-route read-only child's boot snapshot — they are
+ * server-authored and presented as settled ('ready') but never refresh. */
+export type SnapbackFreshness = 'unknown' | 'retained' | 'current' | 'snapshot';
 
 /** Refuse-with-clarity retainability fact, surfaced from the headless
  * handle (LLP 0129 Phase 0); null until the subscription is classified. */
@@ -78,7 +80,7 @@ export type SnapbackRetention = LiveQueryRetention;
 
 export type QueryState<Result> =
   | Readonly<{ status: 'pending'; data: undefined; error: null; connection: SnapbackConnection; freshness: 'unknown'; retention: SnapbackRetention | null }>
-  | Readonly<{ status: 'ready'; data: Result; error: null; connection: SnapbackConnection; freshness: 'current'; retention: SnapbackRetention | null }>
+  | Readonly<{ status: 'ready'; data: Result; error: null; connection: SnapbackConnection; freshness: 'current' | 'snapshot'; retention: SnapbackRetention | null }>
   | Readonly<{ status: 'refreshing'; data: Result; error: null; connection: SnapbackConnection; freshness: 'retained' | 'current'; retention: SnapbackRetention | null }>
   | Readonly<{ status: 'error'; data: undefined; error: SnapbackDiagnostic; connection: SnapbackConnection; freshness: 'unknown'; retention: SnapbackRetention | null }>
   | Readonly<{ status: 'skipped'; data: undefined; error: null; connection: SnapbackConnection; freshness: 'unknown'; retention: null }>;

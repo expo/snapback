@@ -63,9 +63,8 @@ function nextSteps(result) {
     '  bun install',
     '  bun run dev',
     '',
-    'Then read AGENTS.md (when the template ships one) and the served Guide',
-    'before adding features; `bun run test:static` checks the acceptance',
-    'suite without a live server.',
+    'Then read AGENTS.md and the served Guide before adding features;',
+    '`bun run test:static` checks the acceptance suite without a live server.',
   ].join('\n');
 }
 

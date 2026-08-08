@@ -43,7 +43,9 @@ the lane's backend, with:
 
 Record the experience in a run diary.
 
-## Lane-prompt block (verbatim, runs 0065–0068)
+## Lane-prompt block
+
+Used verbatim by runs 0065–0068.
 
 ```text
 build a WhatsApp-shaped messaging app: DMs and group chats, text and image

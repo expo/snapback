@@ -12,6 +12,10 @@ The golden path is: edit `snapback/schema.mjs` and
 `snapback/functions.mjs` → `bun run generate` → `bun run dev` → exercise the
 generated client or `snapback run` → `bun run prove`.
 
+Despite its name, this starter is backend + headless client only — it ships
+no Contract (or other UI) surface. Scaffold the `react` or `expo-chat`
+template instead when you want a UI out of the box.
+
 `bun run prove` is **the acceptance command** (`npm run prove` is equivalent).
 It runs this starter's registered live profile through `snapback verify` and
 writes the LLP 0146 D2 receipt to `.snapback/verify-receipt.json`. The

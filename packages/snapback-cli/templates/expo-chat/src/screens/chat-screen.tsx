@@ -122,6 +122,10 @@ export default function ChatScreen({ conversationId, title, onBack }: Readonly<{
 
   useEffect(() => () => commandOff.current?.(), []);
 
+  // Demo convenience, not a security boundary: the senderId these composer
+  // actions (send/chooseImage) pass is the seeded test persona, and the
+  // backend accepts it as an argument. A production app derives the sender
+  // from the adopted session server-side (see AGENTS.md).
   const send = async () => {
     const text = draft.trim();
     if (!text) return;
@@ -174,6 +178,8 @@ export default function ChatScreen({ conversationId, title, onBack }: Readonly<{
     }
   };
 
+  // Same caveat as send: userId here is the client-supplied test persona,
+  // never proof of identity.
   const react = async (message: Message, emoji: string) => {
     setComposerError(null);
     const existing = (conversation.data.reactions ?? []).find(

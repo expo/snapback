@@ -34,7 +34,18 @@ memberships, direct-message and group inbox rows, reply pointers, reactions,
 image `assetRef` delivery, typing presence, and one bound `send` command. The
 inbox's **TEST PERSONA** control is deliberately labeled: it changes seeded
 app-data identity for acceptance and demos, while a production app must derive
-identity from adopted session authority. Edit this working example rather than
+identity from adopted session authority.
+
+> **Security caveat — client-supplied `senderId` is a demo convenience, never
+> a security boundary.** The `sendText`/`sendReply`/`send`/`react` calls in
+> this starter pass the active test persona's id as `senderId`/`userId`
+> (`src/screens/chat-screen.tsx`), and the mutations in
+> `snapback/functions.mjs` accept it as an argument so the seeded personas
+> work out of the box. Any client can send any id there. When you extend this
+> into a real app, derive the sender from the adopted session on the server
+> (`ctx.auth.userId` — see the served guide's
+> `auth/sessions-and-principals.md`) and drop the argument; keep personas
+> display-only. Edit this working example rather than
 composing the wiring from prose. The starter runs in Sessions auth mode
 (`auth: { mode: 'sessions' }` in `snapback/schema.mjs`), and the supervised dev
 loop mints its session automatically; that is what makes authenticated sends

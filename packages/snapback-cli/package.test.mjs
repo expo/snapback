@@ -5,6 +5,7 @@ import { chmodSync, existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
+import { fileURLToPath } from 'node:url';
 
 import {
   __test,
@@ -93,6 +94,31 @@ try {
     carrierSelfCheck.plistlib.literalKey,
     'com.apple.CoreSimulator.CoreSimulatorBridge-->exp',
   );
+  assert.ok(cliPackageManifest.files.includes('templates'), 'the published CLI package must include the scaffold templates');
+
+  // npm-packlist unconditionally strips literal .gitignore files from the
+  // published tarball, even under a files allowlist, so every template must
+  // ship the carrier as gitignore.template (scaffoldApp renames it back).
+  const templatesRoot = fileURLToPath(new URL('./templates/', import.meta.url));
+  const templateNames = readdirSync(templatesRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+  assert.ok(templateNames.length > 0, 'the CLI package must ship at least one scaffold template');
+  for (const templateName of templateNames) {
+    assert.equal(
+      existsSync(join(templatesRoot, templateName, 'gitignore.template')),
+      true,
+      `template ${templateName} must ship gitignore.template so npm pack preserves it`,
+    );
+    const strippedGitignores = readdirSync(join(templatesRoot, templateName), { recursive: true })
+      .filter((entry) => entry === '.gitignore' || entry.endsWith(`/.gitignore`));
+    assert.deepEqual(
+      strippedGitignores,
+      [],
+      `template ${templateName} must not ship literal .gitignore files — npm pack silently drops them`,
+    );
+  }
 
   const expectedSkillFiles = [
     '.claude/skills/snapback-authoring/SKILL.md',
