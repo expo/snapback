@@ -1,8 +1,8 @@
 {
   "schemaVersion": "snapback.module-ownership-baseline.v1",
   "manifestSchemaVersion": "snapback.module-ownership-manifest.v1",
-  "moduleCount": 165,
-  "edgeCount": 941,
+  "moduleCount": 166,
+  "edgeCount": 942,
   "edges": [
     {
       "from": "src/admin_impersonation.rs",
@@ -2979,6 +2979,12 @@
       "fromOwner": "shared-contract-types-leaf",
       "to": "src/completeness.rs",
       "toOwner": "generation-activation-coordinator"
+    },
+    {
+      "from": "src/manifest.rs",
+      "fromOwner": "shared-contract-types-leaf",
+      "to": "src/contract_types.rs",
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/manifest.rs",

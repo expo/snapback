@@ -108,6 +108,7 @@
       "src/app_data_result.rs",
       "src/args_contract.rs",
       "src/commit_envelope.rs",
+      "src/contract_types.rs",
       "src/data_patch.rs",
       "src/data_tier.rs",
       "src/diagnostic.rs",

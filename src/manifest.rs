@@ -11,6 +11,7 @@ use std::fmt;
 use std::str::FromStr;
 use std::sync::OnceLock;
 
+pub use crate::contract_types::{AppIdentity, AuthManifest, AuthMode, AuthRequirement};
 pub use crate::search::types::{
     FullTextSearchFactsV1, SearchClauseV1, SearchCursorLimitsV1, SearchCursorV1,
     SearchFieldClassV1, SearchFilterV1, SearchHighlightV1, SearchIndexManifestV1, SearchItemV1,
@@ -320,112 +321,6 @@ fn default_true() -> bool {
 
 fn is_false(value: &bool) -> bool {
     !*value
-}
-
-/// The authority mode declared by a schema artifact. The enum is deliberately
-/// closed: a mode changes who is allowed to supply invocation authority and an
-/// unknown spelling therefore cannot be treated as an additive field.
-///
-/// @ref LLP 0058#closed-auth-mode — auth mode is a must-understand closed value.
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Deserialize,
-    Eq,
-    Ord,
-    PartialEq,
-    PartialOrd,
-    Serialize,
-    schemars::JsonSchema,
-)]
-#[serde(rename_all = "lowercase")]
-pub enum AuthMode {
-    #[default]
-    Dev,
-    Sessions,
-}
-
-impl AuthMode {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Dev => "dev",
-            Self::Sessions => "sessions",
-        }
-    }
-
-    pub const fn artifact_version(self) -> &'static str {
-        match self {
-            Self::Dev => "snapback.v0",
-            Self::Sessions => "snapback.v1",
-        }
-    }
-}
-
-/// Closed schema-manifest auth declaration. Unknown members are rejected so a
-/// future authority-changing field cannot be silently ignored by this parser.
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct AuthManifest {
-    pub mode: AuthMode,
-}
-
-/// Function-level requirement applied after caller authority has been resolved.
-/// Absence in a legacy function is represented by
-/// [`FunctionDefinition::effective_auth_requirement`] as `optional-user`.
-///
-/// @ref LLP 0058#closed-function-requirement — closed values fail at manifest parse.
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Deserialize,
-    Eq,
-    Ord,
-    PartialEq,
-    PartialOrd,
-    Serialize,
-    schemars::JsonSchema,
-)]
-#[serde(rename_all = "kebab-case")]
-pub enum AuthRequirement {
-    Public,
-    #[default]
-    OptionalUser,
-    Authenticated,
-}
-
-impl AuthRequirement {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Public => "public",
-            Self::OptionalUser => "optional-user",
-            Self::Authenticated => "authenticated",
-        }
-    }
-}
-
-/// Optional presentation identity for the loaded app: how the instance should
-/// introduce itself to a human. Everything here is public by construction — it
-/// is rendered on the public root page and flows into the public inspect
-/// projection — so apps must not put secrets in it. The icon/wordmark URLs are
-/// ordinary app-served or absolute URLs; the root page renders them as plain
-/// `<img>` references with attribute escaping.
-///
-/// @ref LLP 0017#instance-home-page — the root page renders this identity when
-///   the manifest declares it; absent, the page is Snapback-branded only.
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
-pub struct AppIdentity {
-    #[serde(default)]
-    pub name: Option<String>,
-    #[serde(default)]
-    pub description: Option<String>,
-    #[serde(default, rename = "iconUrl", alias = "icon_url")]
-    pub icon_url: Option<String>,
-    #[serde(default, rename = "wordmarkUrl", alias = "wordmark_url")]
-    pub wordmark_url: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]

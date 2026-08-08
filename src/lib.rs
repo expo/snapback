@@ -71,6 +71,10 @@ pub mod config;
 pub mod conformance;
 #[doc(hidden)]
 pub mod contract_exact;
+// @ref LLP 0199#target-ownership-map — dependency-free shared contract/types
+// leaf consumed downward by Rust owners and generated-artifact producers.
+#[doc(hidden)]
+pub mod contract_types;
 #[doc(hidden)]
 pub mod control_catalog;
 #[doc(hidden)]
