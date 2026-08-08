@@ -165,6 +165,7 @@ async function startFixture(target, options = {}) {
     metroCommand: { command: process.execPath, args: [metroScript] },
     env: {
       ...process.env,
+      CI: '1',
       SNAPBACK_RUNTIME_BINARY: runtimeBinary,
       SNAPBACK_EXPO_TEST_BUNDLE: target.bundle,
       SNAPBACK_EXPO_TEST_SOURCE_MAP: target.sourceMap,
@@ -646,6 +647,12 @@ try {
   assert(
     events.some((event) => event.state === 'ready' && /snapback admin --ready-file/u.test(event.adminConsoleCommand)),
     'the correlated readiness stream prints the admin console launch command',
+  );
+  assert(
+    events.some((event) => event.state === 'metro-watch-advisory'
+      && event.code === 'SNAPBACK_EXPO_METRO_WATCH_INERT'
+      && event.advisories.some((advisory) => advisory.condition === 'ci-environment')),
+    'the readiness stream warns once when Metro file watching is inert under CI',
   );
   assert(
     events.some((event) => event.state === 'closed'

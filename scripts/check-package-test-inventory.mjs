@@ -66,6 +66,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'expo-bootstrap-exchange.test.mjs',
       'expo-device-forwarding.test.mjs',
       'expo-dev-loop.test.mjs',
+      'expo-metro-watch-advisory.test.mjs',
       'fake-expo-push.test.mjs',
       'hosted-admission-producer.test.mjs',
       'hosted-control.test.mjs',
@@ -444,7 +445,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 233,
+  expectedTotal = 234,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -723,6 +724,9 @@ export function checkPackageTestInventories(options = {}) {
 // 232 -> 233 (2026-08-06, LLP 0043 sessions-custody queue):
 // @expo/snapback-client gains the custody matrix, cold replay, recovery,
 // privacy deletion, and zerobugs regression suite.
+// 233 -> 234 (2026-08-08, supervisor Metro watch-inertness advisory):
+// @expo/snapback-cli gains the pure CI/watcher-blind-root assessment suite
+// (issues/20260808-supervisor-warn-metro-watch-blind.md).
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

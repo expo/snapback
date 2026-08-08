@@ -1,6 +1,20 @@
 export const EXPO_DEV_EVENT_FORMAT: 'snapback.expo-dev.v1';
 export const SUPERVISED_EXCHANGE_FORMAT: 'snapback.expo-supervised-exchange.v1';
 export const SUPERVISED_EXCHANGE_PATH: '/_snapback/expo/v1/bootstrap';
+export const METRO_WATCH_BLIND_ROOTS: readonly string[];
+
+export interface MetroWatchAdvisory {
+  readonly code: 'SNAPBACK_EXPO_METRO_WATCH_INERT';
+  readonly condition: 'ci-environment' | 'watcher-blind-root';
+  readonly message: string;
+  readonly remediation: string;
+  readonly details: Readonly<Record<string, unknown>>;
+}
+
+export function assessMetroWatchInertness(options?: Readonly<{
+  env?: Readonly<Record<string, string | undefined>>;
+  directory?: string | null;
+}>): readonly MetroWatchAdvisory[];
 
 export type ExpoDevicePlatform = 'ios' | 'android';
 export type AndroidExpoTransport = 'adb-reverse' | 'emulator-host-alias';

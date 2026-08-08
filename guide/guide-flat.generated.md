@@ -9220,6 +9220,8 @@ Metro, bootstrap exchange, binding material, and port forwards on exit
 ([LLP 0181 §Supervised development baseline](repo:llp/0181-zero-configuration-expo.rfc.md#supervised-development-baseline),
 [`runExpoDev`](repo:packages/snapback-cli/expo-dev.mjs)).
 
+When Metro's file watching is inert — `CI` truthy in the effective Metro environment (the supervisor itself defaults `CI=1`), or the project under a watcher-blind root such as `/private/tmp` — the readiness stream carries one advisory `SNAPBACK_EXPO_METRO_WATCH_INERT` event naming the condition and the fix, so a stale bundle is not misread as an application bug.
+
 Metro receives only the credential-free rendezvous origin. At runtime the Expo
 facade performs a `GET /_snapback/expo/v1/bootstrap` with `cache: "no-store"`;
 the loopback-only response pairs the expiring binding with either an ordinary
@@ -9320,9 +9322,9 @@ custody boundary:
 On web the client store resolves the browser IndexedDB arm (see
 [the React client page](./react.md)); `registerExpoFileSystemRqsFiles` is a
 native-only registration and is unnecessary there. These paves are proven at
-package level (CORS, resolution, and adapter tests named above); a retained
-end-to-end Expo-web supervised receipt is still open
-([`issues/20260807-supervised-expo-web-carrier-unpaved.md`](repo:issues/20260807-supervised-expo-web-carrier-unpaved.md)).
+package level (CORS, resolution, and adapter tests named above); the
+end-to-end Expo-web supervised receipt landed and closed the carrier ticket
+([`issues/closed/20260807-supervised-expo-web-carrier-unpaved.md`](repo:issues/closed/20260807-supervised-expo-web-carrier-unpaved.md)).
 
 ### Keep the proof boundary visible
 

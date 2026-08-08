@@ -4,6 +4,7 @@ import {
   existsSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
 } from 'node:fs';
 import { createServer as createHttpServer } from 'node:http';
@@ -22,6 +23,62 @@ import {
 export const EXPO_DEV_EVENT_FORMAT = 'snapback.expo-dev.v1';
 export const SUPERVISED_EXCHANGE_FORMAT = 'snapback.expo-supervised-exchange.v1';
 export const SUPERVISED_EXCHANGE_PATH = '/_snapback/expo/v1/bootstrap';
+export const METRO_WATCH_BLIND_ROOTS = Object.freeze(['/private/tmp', '/tmp']);
+
+export function assessMetroWatchInertness({ env = process.env, directory = null } = {}) {
+  const advisories = [];
+
+  try {
+    const effectiveCi = env?.CI ?? '1';
+    const defaulted = env?.CI === undefined || env?.CI === null;
+    const normalizedCi = String(effectiveCi).trim().toLowerCase();
+    if (!['', '0', 'false'].includes(normalizedCi)) {
+      advisories.push(Object.freeze({
+        code: 'SNAPBACK_EXPO_METRO_WATCH_INERT',
+        condition: 'ci-environment',
+        message: defaulted
+          ? 'Metro file watching is inert: the supervisor defaults CI=1 for a non-interactive Expo, and Expo/Metro disable file watching under CI.'
+          : `Metro file watching is inert: CI=${effectiveCi} is set in the environment, and Expo/Metro disable file watching under CI.`,
+        remediation: 'Edits will not rebuild the served bundle. Restart the supervised loop after changes, or pass CI=0 in the supervisor env to re-enable watching.',
+        details: Object.freeze({ ci: String(effectiveCi), defaulted }),
+      }));
+    }
+  } catch {
+    // Assessment is advisory only and must never disturb the supervised loop.
+  }
+
+  try {
+    if (typeof directory === 'string' && directory.length > 0) {
+      const resolvedPath = resolve(directory);
+      let resolvedDirectory = resolvedPath;
+      try {
+        resolvedDirectory = realpathSync(resolvedPath);
+      } catch {
+        // A nonexistent or inaccessible path still supports the lexical heuristic.
+      }
+      const root = METRO_WATCH_BLIND_ROOTS.find((candidate) => (
+        resolvedDirectory === candidate || resolvedDirectory.startsWith(`${candidate}/`)
+      ));
+      if (root !== undefined) {
+        advisories.push(Object.freeze({
+          code: 'SNAPBACK_EXPO_METRO_WATCH_INERT',
+          condition: 'watcher-blind-root',
+          message: `Metro file watching is inert: the Expo project directory ${resolvedDirectory} is under the watcher-blind root ${root}, where file events do not reach Metro.`,
+          remediation: `Edits will not rebuild the served bundle. Move the project off ${root}, or restart the supervised loop after each change.`,
+          details: Object.freeze({ directory: resolvedDirectory, root }),
+        }));
+      }
+    }
+  } catch {
+    // Assessment is advisory only and must never disturb the supervised loop.
+  }
+
+  // An active sentinel-touch probe is skipped because Metro's event stream has
+  // no reliable rebuild-completion event to join and a probe would write into
+  // the user's project; the static tiers cover the observed failure modes
+  // (issues/20260808-supervisor-warn-metro-watch-blind.md).
+  return Object.freeze(advisories);
+}
 
 const LOOPBACK_HOST = '127.0.0.1';
 const BROWSER_EXCHANGE_ORIGIN_PREFIXES = Object.freeze([
@@ -1202,6 +1259,23 @@ export async function runExpoDev(options = {}) {
       timeoutMs: options.metroReadyTimeoutMs ?? 30_000,
     });
     emit({ ok: true, state: 'listeners-verified', listeners });
+    // Advisory only — never fails the loop. Metro silently disables file
+    // watching under CI (which this supervisor defaults) and cannot see edits
+    // under watcher-blind roots such as /private/tmp; without this warning,
+    // stale bundles get misread as application bugs
+    // (issues/20260808-supervisor-warn-metro-watch-blind.md).
+    const watchAdvisories = assessMetroWatchInertness({
+      env: options.env ?? process.env,
+      directory: expoDirectory,
+    });
+    if (watchAdvisories.length > 0) {
+      emit({
+        ok: true,
+        state: 'metro-watch-advisory',
+        code: 'SNAPBACK_EXPO_METRO_WATCH_INERT',
+        advisories: watchAdvisories,
+      });
+    }
     forwarding = installAndroidPortForwarding(route, {
       adbBinary: options.adbBinary,
       run: options.adbRun,
