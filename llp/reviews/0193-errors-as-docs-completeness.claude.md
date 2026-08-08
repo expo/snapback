@@ -174,3 +174,54 @@ Verified clean (checks that found no defect): the 2.91x/2.24x arithmetic against
 - **0197 (benchmark publication standard, RFC):** READY — no MATERIAL concern; minors 2, 4; the r4 aid-symmetry widening and no-numbers history narrative are correct and well-formed.
 
 **SET VERDICT: NOT READY — one MATERIAL IN-DELTA concern (0194, concern 1); all other concerns are minor and the remaining four documents are individually READY.**
+## Round 5 — 2026-08-08 (claude family, delta round)
+
+Provenance: fresh cold-context subagent, Fable 5, capsule sr-capsule-r5,
+targets at 567fab93b. One launch. Body verbatim:
+
+I have completed verification against the repository (packages, npm registry, diaries, tickets, git history; nothing under llp/reviews/ was read). Here is my review.
+
+---
+
+# Independent review — r5 delta round, LLPs 0193–0197
+
+## Verification work performed (summary)
+
+- `packages/snapback-cli/verify.d.mts` exists on main (landed 2026-08-04, commit 9342b17d9), exports the full typed `VerifyConfig` contract (schemaVersion `snapback.verify-config.v1`, profiles, paths), and is wired via the exports map `"./verify" → verify.d.mts`. Confirmed via `npm view` that both `@expo/snapback-cli@0.1.13` and `@0.1.15` — the closures under which the measured excursions occurred (diaries 0068/0069) — ship the `./verify` export. The 0194 r5 claim "already exists and is published; the excursions were pure discoverability" is chronologically and factually sound.
+- Diary slugs and collisions verified: `0048-upload-bakeoff-faceplate` vs `0048-upload-bakeoff-clip-locker`, `0058-relay-room-expo-backend-bakeoff` vs `0058-messaging-snapback`, `0065-rematch-published-closure-bakeoff` vs `0065-fleet-observatory-move1` (and LLP 0065). The r5 slug citations are correct and needed.
+- Diary numbers verified: 0069 residue list (residue 2 = `ctx.db` via binary strings, 3 = headless nesting, 5 = verify-config), zero-framework-defect claim, ±30% band, "dominant term" quote, 328.9k→201.3k series (2.91x→2.24x arithmetic checks), 0068 bare-lane 41m32s → 0069 29m35s.
+- `~2,700 SNAPBACK_* symbols`: a distinct-identifier sweep over src/crates/packages yields 2,696. Accurate.
+- `benchmarks/briefs/messaging-equal-proof-bar.md`, `issues/20260806-guide-flat-projection-oversize.md`, `issues/20260806-llp0146-oq6-remediation-carrier-decision.md`, and the three cited closed issues all exist at the cited paths.
+- The `SNAPBACK_ASSET_OWNER_CUSTODY_UNSATISFIABLE` message (src/local.rs:8036) does name `snapback assets put --user <handle>`; it landed 2026-08-06 (commit ddf7ae909).
+
+## Concerns
+
+**1. [MATERIAL] [IN-DELTA] — 0193, Summary: the retrofit exemplar's fix is attributed to the wrong ticket.**
+Quote: "the 0058-era run paid the source-reading excursion (`issues/closed/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`) and the remediation-carrying message is that ticket's fix".
+The excursion citation is correct, but the remediation-carrying message is not that ticket's fix. The anonymous-caller ticket closed 2026-08-05 with a guide-half + delivery-header (CORP) resolution and contains no mention of `SNAPBACK_ASSET_OWNER_CUSTODY_UNSATISFIABLE` (verified by grep; the refusal landed a day later, 2026-08-06, commit ddf7ae909). The refusal's product-half resolution is recorded in the sibling ticket `issues/closed/20260805-expo-asset-upload-guide-gap.md` ("Resolution note — product half (2026-08-06)"), which the landing commit itself cites. Since the entire r5 delta claim for 0193 is that the exemplar is now "honestly relabeled ... ticket-cited," a false provenance link inside that relabeling is a correctness defect in the delta, not a nit. Resolving change (one sentence): keep the anonymous-caller ticket as the excursion record, and cite `20260805-expo-asset-upload-guide-gap.md` (product half, 2026-08-06) as the ticket whose fix is the remediation-carrying message — or cite both as the 0058-era sibling pair spanning the before/after.
+
+**2. [minor] [IN-DELTA] — 0193, Phase 2/3 + Exit criterion 3: reclassification gating is review policy, not a gate behavior.**
+Quote (Phase 2): "later reclassification of an agent-triggerable code to internal is a gated ledger change under the same review bar as a grade regression." The delta description says Phase 3 gains this gating, but the sentence lives in Phase 2 as a review-bar commitment, and exit criterion 3's negative tests cover only "a new agent-triggerable code without remediation/anchor" and "grade regressions." Agent-triggerable→internal is exactly the mechanical loophole to exit criterion 2, and the Plan's stated promise is that the bar "can never regress" *structurally*. Resolving change: have the drift gate mechanically refuse an agent-triggerable→internal flip absent an override marker, and add it to exit criterion 3's negative-test list.
+
+**3. [minor] [IN-DELTA] — 0197, rule 4b: "matching rule 1" conflates runs with successes, and the count-difference threshold is not in the preregistration enumeration.**
+Quote: "a ratio requires the preregistered minimum successful observations per lane (N≥3 successes, matching rule 1); when either lane misses the floor or success counts differ beyond the preregistered threshold...". Rule 1 requires N≥3 *runs*; 4b's floor is N≥3 *successes* — same number, different kind, and "matching rule 1" invites misreading rule 1 as already requiring three successes. Also, rule 1's preregistration list ("configurations, budgets, stopping and exclusion rules, frozen harness/prompt commits") does not enumerate the success-count-difference threshold that 4b calls "preregistered." Resolving change: reword to "N≥3 successes (the same floor as rule 1's run count, applied to successes)" and add the 4b threshold to rule 1's preregistered-item list. The mechanism itself — omit the ratio, headline the capability-outcome comparison — is sound and symmetric; only the wiring wording needs tightening.
+
+**4. [minor] [PRE-EXISTING] — 0193, Phase 4: refusal grading inside metered benchmark lanes risks asymmetric measurement overhead.**
+Quote: "The next benchmark run's lane reports grade every refusal encountered." Only Snapback lanes encounter `SNAPBACK_*` refusals, so grading duty performed by the lane agent inside the token-metered window adds Snapback-only cost — mildly at odds with 0197's controlled-comparison ambitions. Resolving change: state that grading happens post-run from retained transcripts/lane reports (which the run already produces), outside the metered window.
+
+**5. [minor] [PRE-EXISTING] — 0194, Design 1/2: "published packages' `.d.mts`" vs in-repo pipeline generation is ambiguous.**
+Quote: "Source of truth: the published packages' `.d.mts` files ... Runs in the same pipeline as `generate-guide-manifest`; output is committed generated artifact." Generation runs over the repo's declaration files at build time, which lead the published closure between releases; the guide's fence machinery presumably applies, but the RFC doesn't say whether reference entries for not-yet-published symbols get `since:`/fence treatment like intent-page snippets. Implementation-phase note under the altitude rule — no defective decision; worth one clarifying sentence when built.
+
+No material concerns found in 0195 or 0196. In 0195 the r5 change is the 0065 slug only (verified needed — three colliding 0065 artifacts exist), and the training-data claim remains honestly quarantined as an instrumented hypothesis. In 0196 there is no body change; the r4 N=1 caveat, T5 two-gate split, and held-out-brief rule remain coherent with 0197 rules 4a/4b, which 0196's exit criteria correctly defer to.
+
+## Per-target verdicts
+
+- **LLP 0193 (errors-as-docs completeness, Plan): NOT READY** — one in-delta MATERIAL provenance error (concern 1) in the exact text the r5 delta introduced; a one-sentence citation fix plus the concern-2 gate wiring resolves it.
+- **LLP 0194 (generated API reference, RFC): READY** — the r5 scope move is verified correct against both the repo and the published 0.1.13/0.1.15 closures; remaining concerns are implementation-phase.
+- **LLP 0195 (public documentation and training surface, RFC): READY** — slug-only delta, verified; no material concerns in the full text.
+- **LLP 0196 (template and recipe portfolio, Plan): READY** — no body change; full text holds together with 0197.
+- **LLP 0197 (benchmark publication standard, RFC): READY** — the 4b ratio floor is a genuine honesty improvement; only wording-level tightening remains (concern 3).
+
+## Set verdict
+
+**SET: NOT READY** — solely on 0193's in-delta ticket-attribution error (concern 1); all other documents are READY, and the fix is a single-sentence citation correction (attribute the remediation-carrying message to `issues/closed/20260805-expo-asset-upload-guide-gap.md`, product half, 2026-08-06).
