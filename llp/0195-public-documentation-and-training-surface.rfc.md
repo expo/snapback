@@ -6,7 +6,13 @@
 evaluation
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (r5, this document: 0065 citation slug only.) 2026-08-08 (r4) — round-3 fixes: 0194 verify-config declaration path + scope ordering; 0197 aid symmetry beyond templates, no cross-vendor numbers in the history narrative, success counts on ratio charts, Related enumerated; slug-precision citations (0193); 0196 N=1 caveat. 2026-08-08 (r3) — pre-round-3 minors (citation precision, diary enumeration). 2026-08-08 (r1) — super-refine round-1 revision against the
+**Revised:** 2026-08-08 (r7, author-merge: Charlie's revision — publication
+binds to a qualified closure/content digest rather than moving HEAD; public
+examples become generated projections with a single canonical owner; the
+two-clocks success measures separate immediate retrieval from long-horizon
+training familiarity — merged onto the r6 review spine, which keeps the
+retained "dominant term" citation, the four-audit count, and the
+instrumented-hypothesis framing.) 2026-08-08 (r5, this document: 0065 citation slug only.) 2026-08-08 (r4) — round-3 fixes: 0194 verify-config declaration path + scope ordering; 0197 aid symmetry beyond templates, no cross-vendor numbers in the history narrative, success counts on ratio charts, Related enumerated; slug-precision citations (0193); 0196 N=1 caveat. 2026-08-08 (r3) — pre-round-3 minors (citation precision, diary enumeration). 2026-08-08 (r1) — super-refine round-1 revision against the
 dual-family cluster reviews (llp/reviews/0193-*.{claude,gpt-5}.md):
 unretained/incorrect quantitative claims corrected to retained-artifact
 citations; see the review artifacts for the concern ledger.
@@ -41,12 +47,18 @@ is the author's decision.
    the root and per-release snapshots pinned to published closures (the
    fence machinery already knows what each closure contains). The
    in-repo/served guide remains canonical; the site is a projection with
-   the same content hashes.
-2. **Public examples repository**, mirroring the template outputs and
+   the same content hashes. Publication consumes a qualified
+   closure/content digest, not whatever commit happens to be HEAD while
+   `main` moves.
+2. **Public examples repository**, projecting the template outputs and
    selected demo apps (the benchmark lanes' apps are strong candidates:
-   complete, proof-carrying, honestly scoped). Each example pinned to a
-   closure version and CI-cold-installed against the registry — the
-   examples repo doubles as an external consumer canary.
+   complete, proof-carrying, honestly scoped — LLP 0197 rule 10's aid
+   disclosure applies once published). Each example pinned to a closure
+   version and CI-cold-installed against the registry — the examples
+   repo doubles as an external consumer canary. Generated examples are
+   not independently editable: changes land at the canonical template or
+   demo owner and regenerate the public projection, preventing two
+   sources of truth.
 3. **Skill distribution beyond scaffolds:** publish
    `snapback-authoring` wherever agent harnesses discover skills, so
    pre-scaffold orientation exists off-checkout.
@@ -58,6 +70,22 @@ is the author's decision.
    orientation cost — so the posture claims no timeline; OQ4 sketches
    the pinned-model knowledge evaluation that could isolate the
    training effect if it becomes worth measuring.
+
+## Success measures: two clocks
+
+**Immediate retrieval.** Before installing Snapback, a cold agent can
+answer the existing retrieval-eval intents and reach the exact LLP 0194
+symbol or guide decision within the same tool budget as the served
+corpus. Public bytes carry a qualified closure/content identity that
+matches the canonical guide, and a stale or unqualified projection is
+not published.
+
+**Long-horizon familiarity.** A later pinned model epoch may show
+reduced orientation time, source reads, or tokens in LLP 0186 W1. That
+trend is measured only when the model/harness epoch changes
+deliberately; it is not retroactively attributed to crawler
+availability, and no date is promised for training uptake. (OQ4's
+pinned-model knowledge evaluation is this clock's instrument.)
 
 ## What this does not claim
 

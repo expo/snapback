@@ -162,3 +162,13 @@ Proposed next step: all five remain Review. 0194/0195/0196 are
 candidates for author acceptance as-is; 0193/0197 carry a one-round
 unreviewed r6 tail an optional future delta round can clear.
 Acceptance is the author's; this loop applies no further transitions.
+
+## Round 6 (author-update round) — 2026-08-08
+
+Author (Charlie) edited all five targets in the primary checkout
+against the r0 base (54fa456cf) while the loop ran; diff preserved
+verbatim at llp/reviews/0193-0197-author-input-20260808.diff
+(sha256 0e3b674e0c05b0fe797133452d802b78161d845deb653a355cda958cbcf170d1).
+Reviser merges author content onto r6 as r7; author design decisions
+override loop decisions; review-verified FACTS override r0-based
+phrasing, each such override enumerated in the round-6 delta.
