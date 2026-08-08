@@ -1,6 +1,6 @@
 # LLP 0194 execution: canonical symbol registry + generated API reference
 
-**Status:** Open — CLAIMED (orchestrating session 86767887, 2026-08-08)
+**Status:** Open — lane implemented locally; native/MCP serving and published ctx declaration remain
 **Impact:** 5
 **Urgency:** 4
 **Ease:** 2
@@ -26,3 +26,157 @@ and the docs-only MCP surface; (4) serving under
 signature-task acceptance suite (zero package-source reads / zero
 binary-string excavation). OQ2 (ctx declaration placement): lane
 proposes, orchestrator ratifies, author can override.
+
+## 2026-08-08 execution log
+
+### Landed in this lane
+
+- `scripts/generate-symbol-registry.mjs` now uses the TypeScript compiler API
+  to traverse 40 typed public modules across the four LLP 0194 package scopes.
+  The one committed registry, `guide/reference/registry.json`, contains 845
+  top-level symbols: 366 runtime values and 479 explicit type-only records.
+  Every record carries an `npm:<module>#<export>` stable identity, complete
+  declaration text, overload/member groups, doc text/tags, source spans,
+  runtime names/conditions, kind, and build-bound closure status.
+- Two-way parity imports every applicable runtime entry. It caught and this
+  lane repaired one real gap: the client root exported
+  `rqsRetentionIneligibilityReason` at runtime without declaring it. The
+  generated registry now passes exact value-space parity; type-space records
+  remain explicitly exempt. The root `@expo/snapback-expo` declaration checks
+  `import`/`default`; its `require` condition intentionally selects the config
+  plugin, a different surface with typed `./app.plugin` and `./config-plugin`
+  subpaths, and the exclusion plus reason is recorded in module metadata.
+- The registry generates a compact index and 40 lossless per-module Markdown
+  pages with stable anchors. The hard measured budgets are 256 KiB per module
+  (the client root is about 208 KiB), 32 KiB for the compact index, and 16 KiB
+  per exact lookup. `generate-guide-manifest.mjs` regenerates registry and
+  Markdown first; `check-guide` and inventory audit run the parity/staleness
+  check. The Guide manifest now has 106 pages plus a hash- and byte-bound
+  `reference.symbol-registry` resource, and its content identity includes the
+  registry bytes.
+- The package-owned CLI intercepts exact `snapback guide <symbol|module>` hits
+  from the bound registry, preserves native Markdown search for fuzzy misses,
+  and emits either one exact member/symbol or a bounded module/symbol slice.
+  Truncated answers list the exact signature/member ranges omitted and the
+  next command; JSON and text answers carry Guide content/build identity and
+  registry source identity. CLI help, packaging, and the maintained test
+  inventory include this seam.
+- Intent pages now join headless client, verify config, React fact types, and
+  handler `ctx.db` teaching to the generated reference identities. The
+  temporary `guide/reference/ctx-db-bootstrap.md` is explicitly non-registry,
+  states the shipped generated verb/read-write split, and names its retirement
+  trigger.
+- `tests/generated-api-reference-v1.mjs` answers all five cold questions using
+  a reader fenced to `guide/reference/`: headless args nesting, the
+  `authClientProtocol: 1` + `custody: 'anonymous-public'` pair, `VerifyConfig`,
+  React hook fact types, and `ctx.db` verbs. It reads five reference artifacts,
+  no package source, and no binary bytes. `check-guide` runs it.
+
+### OQ2 placement proposal — ratification requested
+
+Publish the generic type-only handler context from
+`@expo/snapback-codegen/ctx`, owned by a new
+`packages/snapback-codegen/ctx.d.mts`. Codegen already owns handler authoring,
+schema-derived generated data models, and the current exact `Generated*`
+context declarations; putting the generic base there avoids making the
+transport client or a framework binding authoritative for server handler
+types.
+
+Sketch:
+
+- export schema-parameterized `QueryBuilder`, `QueryDatabase`,
+  `MutationDatabase`, `QueryContext`, and `MutationContext` types from the
+  type-only `./ctx` package subpath;
+- parameterize them with generated row/index/insert/patch and table-admission
+  maps, preserving the query/read-write split;
+- make generated `api.d.ts` import, instantiate, and re-export that owner
+  rather than redeclare the generic contract;
+- add the module to the LLP 0194 registry as type-only (no runtime parity),
+  delete/convert the bootstrap page, and fail CI if codegen and the published
+  module define the same stable context identity instead of one importing the
+  other.
+
+The orchestrator should ratify the package/subpath name and whether a
+types-only export condition without an empty runtime module is acceptable to
+the publication tooling.
+
+### Remaining Rust/native work (not changed by instruction)
+
+HTTP serving needs no new route: `build.rs` already embeds the recursive Guide
+tree and `src/server.rs` already serves arbitrary embedded paths through
+`/_snapback/guide/{*path}`, so the new Markdown and registry will be available
+in the next Rust build. No Rust build was run in this lane.
+
+The remaining native work is exact and bounded:
+
+1. In `src/server.rs::LLMS_TXT`, add direct links for
+   `/_snapback/guide/reference/index.md` and
+   `/_snapback/guide/reference/registry.json`; extend
+   `tests/served_guide_v1.rs::memory_server_serves_root_llms_txt_with_guide_identity`
+   to require both. Until then they are reachable through the Guide/flat
+   index but not named directly in `/llms.txt`.
+2. In `src/guide_mcp.rs::resource_catalog`, ingest manifest `resources` whose
+   `projections.mcp` flag is enabled and expose the registry at
+   `snapback-guide://reference/registry`. Add a bounded symbol resource
+   template such as `snapback-guide://symbol/{name}{?slice}` that uses the
+   embedded registry's 16 KiB rules and returns the same identity/truncation
+   schema as the package CLI. Update both the unit test in that module and
+   `tests/guide_mcp_v1.rs` from `page_count + 2` to the manifest-derived
+   resource/template inventory. Only then flip the manifest resource's
+   `mcp` projection flag to true.
+3. In `src/cli.rs`, deserialize the embedded registry before
+   `search_guide_sections`, add parsed `--slice <n>` support to the native
+   `guide` command, and mirror the package lookup schema/budget so a cold npm
+   install with only the co-installed native binary does not depend on a
+   checkout-side `guide/` directory. Preserve the current section search as
+   the non-exact fallback and add exact/sliced cases beside the existing
+   `render_guide_command` tests.
+
+The registry resource therefore honestly declares `http: true`, `mcp: false`,
+and `llms: false` in this landing rather than claiming Rust projections that
+were forbidden here.
+
+### Acceptance status
+
+1. **PASS.** Two-way parity is exact for 40 modules; type-space exemptions are
+   explicit, and the one discovered client declaration gap was repaired.
+2. **BOOTSTRAP PASS / target incomplete.** The fenced page passes Guide checks
+   and has a retirement trigger. The proposed `@expo/snapback-codegen/ctx`
+   declaration, generated instantiation, and duplicate-owner CI still need a
+   ratified follow-up.
+3. **PASS.** The five-question cold suite is reference-only by construction
+   and passed.
+4. **PASS for the package CLI seam.** Exact member/symbol and bounded module
+   slices are identity-bearing and name elisions/next slices. Native installed
+   parity and the MCP template remain the Rust work above.
+5. **PARTIAL.** Registry Markdown, package CLI, and the four intent joins use
+   the same stable identities. Native MCP, native CLI, diagnostics, and LLP
+   0195 public projection cannot complete the cross-surface identity proof in
+   this no-Rust/no-LLP-edit lane.
+
+### Verification
+
+All requested in-scope gates passed under Node 24.18.0:
+
+- `node scripts/check-guide.mjs` — PASS (106 pages, 1,084 snippets; 62
+  warning-only pre-existing freshness notices);
+- `node scripts/check-inventories.mjs` — PASS (238 package tests, 25 demos,
+  281 publication leaves, 106 Guide pages);
+- `node scripts/generate-symbol-registry.mjs --check` — PASS (40 modules, 845
+  symbols, exact runtime parity);
+- `node tests/generated-api-reference-v1.mjs` — PASS (five fenced reference
+  reads);
+- `node packages/snapback-cli/reference-lookup.test.mjs` — PASS;
+- `node packages/snapback-cli/cli-help.test.mjs` — PASS;
+- `node packages/snapback-client/export-parity.test.mjs` — PASS (250 client
+  declarations across 31 typed export entries);
+- `scripts/check-generated-artifacts` — PASS after the ignored demo caches
+  were materialized; no tracked demo output changed;
+- `git diff --check` — PASS.
+
+An additional non-required `node scripts/check-package-export-types.mjs`
+probe failed on a pre-existing surface outside LLP 0194's verify-only CLI
+scope: `@expo/snapback-cli/expo-dev` has runtime exports
+`admittedBrowserExchangeOrigin` and `startBootstrapExchange` missing from its
+declaration. This lane did not broaden into that unrelated declaration repair.
+No Cargo command and no server were run.
