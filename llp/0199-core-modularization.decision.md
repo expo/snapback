@@ -1,12 +1,12 @@
 # LLP 0199: Incremental core modularization — extract owners, do not rewrite
 
 **Type:** Decision
-**Status:** Review
+**Status:** Accepted
 **Systems:** Rust core, Server, Storage, Migration, Live/realtime, Assets, Jobs, Auth, Embedding, LLP governance
 **Author:** Claude (Fable 5)
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (super-refine: dual-family READY convergence at round 3;
-see Revision history)
+**Revised:** 2026-08-08 (super-refine dual-family READY at round 3; **Accepted**
+by the author with OQ1–OQ5 ruled; see Author rulings and Revision history)
 **Related:** LLP 0000 (root explainer / load-bearing invariants), LLP 0038
 (earlier `local.rs` split recommendation), LLP 0059 (single-writer locking and
 linearization), LLP 0141 (embeddable Rust library / `snapback::embed` façade),
@@ -218,7 +218,37 @@ conflated:
   "prevent collapse" criterion the check must be **blocking** for the domain it
   covers; an advisory-only check does not meet it (see OQ5).
 
-## Author decisions required
+## Author rulings (Accepted 2026-08-08, Charlie Cheever)
+
+The author accepted this Decision and directed execution of its entirety. Rulings
+on the open questions:
+
+- **OQ1 — ratified.** Incremental boundary extraction, no rewrite, no flag-day
+  cutover is a standing decision.
+- **OQ2 — generation activation is the first semantic slice, co-sequenced with
+  the storage/migration kernel** (they own distinct defects — the projection-digest
+  P1 and the P0's persisted rollback artifact respectively — and the coordinator
+  composes the kernel's transaction primitive, so the kernel's commit/rollback
+  surface is extracted alongside as owner #1 needs it).
+- **OQ3 — settled in the first slice's design, under this constraint:** the named
+  minimum atomic set (manifest + projection digests + sequence installs + auth
+  publication) must commit or roll back together; the single durable fact that
+  controls crash recovery is the persisted generation record (never an in-memory
+  handle — the P0's lesson); the initial mechanism is one composite kernel commit
+  where the state shares the SQLite transaction domain, with a journaled/
+  compensating step only for state that provably cannot (recorded per slice).
+- **OQ4 — approved on condition:** cosmetic splits proceed as they land, each
+  co-migrating its file-path-keyed selectors, frozen-record gates, source-reading
+  generators, and `@ref`s in the same change.
+- **OQ5 — a blocking module-ownership manifest gate.** An `ownership.toml`-style
+  manifest maps modules to owners and the allowed dependency direction; a proof
+  gate blocks new cross-owner edges that violate the downward direction, seeded
+  with a ratcheted baseline of the current graph so it can land before the
+  extraction completes and tighten as owners are extracted.
+
+The subsections below are retained as the original open questions for provenance.
+
+### Original open questions (pre-ruling, for provenance)
 
 This Decision is under review; ratification and the choice of first slice and
 cadence are the author's call (Charlie Cheever), consistent with LLP governance.
