@@ -3778,10 +3778,10 @@ export async function runCli(argv, options = {}) {
     const queryOptions = {
       targetId,
       controlRoot: controlRoot ?? undefined,
-      ...(sinceRaw === undefined ? {} : { sinceMs: Number(sinceRaw) }),
-      ...(untilRaw === undefined ? {} : { untilMs: Number(untilRaw) }),
-      ...(limitRaw === undefined ? {} : { limit: Number(limitRaw) }),
-      ...(cursor === undefined ? {} : { cursor }),
+      ...(sinceRaw === null ? {} : { sinceMs: Number(sinceRaw) }),
+      ...(untilRaw === null ? {} : { untilMs: Number(untilRaw) }),
+      ...(limitRaw === null ? {} : { limit: Number(limitRaw) }),
+      ...(cursor === null ? {} : { cursor }),
       ...options,
     };
     const result = command === 'logs'
