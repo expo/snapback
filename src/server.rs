@@ -21318,11 +21318,15 @@ async fn invoke_mutation(
 ) -> Response {
     let network_profiles = runtime.network_profiles.clone();
     let mut network_basis = crate::network_profile::MutationEgressBasis::ResultReady;
+    let mut trace_client_mutation_id = None;
     let result: Result<Json<MutationResponse>, ApiError> = async {
         let attribution = authority.function_attribution();
         let Json(request) = input
             .map_err(ApiError::from_json_rejection)
             .map_err(|error| error.with_attribution(attribution.clone()))?;
+        if crate::spike_trace::enabled() {
+            trace_client_mutation_id = request.client_mutation_id.clone();
+        }
         if let Some(current_id) = request.client_mutation_id.as_deref()
             && request
                 .acknowledged_client_mutation_ids
@@ -21391,6 +21395,13 @@ async fn invoke_mutation(
             .map_err(ApiError::from)
             .map_err(|error| error.with_attribution(attribution.clone()))?;
         network_basis = committed_network_basis;
+        crate::spike_trace::mutate_settle(
+            crate::spike_trace::timestamp_ms(),
+            "handler_result_ready",
+            &name,
+            trace_client_mutation_id.as_deref(),
+            None,
+        );
         match result {
             // The mutation envelope carries its attribution member directly
             // (never through the FunctionResponse flatten) so the served bytes
@@ -21421,7 +21432,78 @@ async fn invoke_mutation(
     let response = result.into_response();
     let prepared =
         prepare_mutation_network_egress(&network_profiles, network_basis, Instant::now());
-    release_network_profiled_response(response, prepared).await
+    let response = release_network_profiled_response(response, prepared).await;
+    trace_mutation_response(response, name, trace_client_mutation_id)
+}
+
+/// Record the first response data frame yielded to Hyper. This is the last
+/// application-owned boundary before the transport writes the mutation
+/// response, and unlike handler return it includes configured egress delay.
+struct MutationTraceBody {
+    inner: Body,
+    mutation: String,
+    client_mutation_id: Option<String>,
+    status: u16,
+    recorded: bool,
+}
+
+impl HttpBody for MutationTraceBody {
+    type Data = Bytes;
+    type Error = axum::Error;
+
+    fn poll_frame(
+        self: std::pin::Pin<&mut Self>,
+        context: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Result<http_body::Frame<Self::Data>, Self::Error>>> {
+        let this = self.get_mut();
+        let frame = std::pin::Pin::new(&mut this.inner).poll_frame(context);
+        if !this.recorded
+            && matches!(
+                &frame,
+                std::task::Poll::Ready(Some(Ok(frame))) if frame.data_ref().is_some()
+            )
+        {
+            this.recorded = true;
+            crate::spike_trace::mutate_settle(
+                crate::spike_trace::timestamp_ms(),
+                "http_response_written",
+                &this.mutation,
+                this.client_mutation_id.as_deref(),
+                Some(this.status),
+            );
+        }
+        frame
+    }
+
+    fn is_end_stream(&self) -> bool {
+        self.inner.is_end_stream()
+    }
+
+    fn size_hint(&self) -> http_body::SizeHint {
+        self.inner.size_hint()
+    }
+}
+
+fn trace_mutation_response(
+    response: Response,
+    mutation: String,
+    client_mutation_id: Option<String>,
+) -> Response {
+    if !crate::spike_trace::enabled() {
+        return response;
+    }
+    let status = response.status().as_u16();
+    let (parts, body) = response.into_parts();
+    Response::from_parts(
+        parts,
+        Body::new(MutationTraceBody {
+            inner: body,
+            mutation,
+            client_mutation_id,
+            status,
+            recorded: false,
+        }),
+    )
 }
 
 /// App-data action runner for side-effectful app work that is not a transaction:

@@ -127,6 +127,7 @@ pub mod network_profile;
 pub(crate) mod operation_detail;
 #[doc(hidden)]
 pub mod operation_ledger;
+pub(crate) mod spike_trace;
 #[doc(hidden)]
 pub mod proof_checkpoint;
 #[doc(hidden)]

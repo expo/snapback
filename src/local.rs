@@ -38,8 +38,8 @@ use crate::ephemeral::{
     validate_collection_permission_backing,
 };
 use crate::live_matcher::{
-    LiveDeltaKind, LiveDeltaOutcome, compute_live_delta, live_subscription_may_be_affected,
-    query_dependencies_from_plan,
+    LiveDeltaKind, LiveDeltaOutcome, LiveMatchOutcome, compute_live_delta,
+    live_subscription_match_outcome, query_dependencies_from_plan,
 };
 use crate::live_wire::{
     AuthorizationInvalidationSnapshot, LiveDeltaOpKind, LiveDeltaWireOp, LiveEnvelope,
@@ -1435,6 +1435,7 @@ impl EnsureAppInput {
 /// re-queries current state.
 struct PendingLiveFanout {
     changes: Vec<ChangedRow>,
+    commit_versions: Vec<u64>,
     /// Subscriptions that received a full resync (permission/authorization)
     /// while this frame was pending: their captured membership is newer than
     /// parts of `changes`, so at flush they must take the honest
@@ -3896,7 +3897,7 @@ struct AuthorizationResolutionFailure {
 /// Outcome of the DK-3 op-log delta fast path for one subscription.
 enum DeltaFanout {
     /// A `live_delta` was enqueued and the subscription's membership updated.
-    Delivered,
+    Delivered(usize),
     /// The commit did not change this subscription's result — nothing to send.
     NoChange,
     /// The delta could not be serialized (reported as a fan-out failure).
@@ -6195,6 +6196,7 @@ impl LocalSnapback {
                             frame_version,
                             admission,
                             &BTreeSet::new(),
+                            &[frame_version],
                         )?;
                     }
                     Ok(())
@@ -8857,7 +8859,7 @@ impl LocalSnapback {
         };
         let read_dependencies = query.read_dependencies.clone();
         match self.deliver_authorization_snapshot(subscription, query, "replace", true, admission) {
-            Ok(()) => {
+            Ok(_) => {
                 if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
                     stored.read_dependencies = read_dependencies;
                 }
@@ -13902,6 +13904,11 @@ impl LocalSnapback {
             execution,
             observation,
         } = *staged;
+        let trace_identity = crate::spike_trace::MutationTraceIdentity::capture(
+            &input,
+            identity.as_ref(),
+            Some(&receipt_mutation_id),
+        );
         let admission = prepared.admission_lease().clone();
         if let Err(mut error) = self.ensure_permission_epoch_capacity(&epoch_scopes) {
             observation.finish_error(Some(500), &mut error, None);
@@ -13967,7 +13974,15 @@ impl LocalSnapback {
                 }
             }
         }
-        .and_then(|commit| self.finish_mutation_commit(epoch_scopes, commit, &admission));
+        .and_then(|commit| {
+            self.finish_mutation_commit(
+                &name,
+                &trace_identity,
+                epoch_scopes,
+                commit,
+                &admission,
+            )
+        });
         let network_egress = result
             .as_ref()
             .map(|commit| commit.network_egress.clone())
@@ -14320,6 +14335,11 @@ impl LocalSnapback {
             identity.as_ref().map(|identity| identity.id.as_str()),
             client_mutation_digest.as_deref(),
         );
+        let trace_identity = crate::spike_trace::MutationTraceIdentity::capture(
+            &input,
+            identity.as_ref(),
+            None,
+        );
         // Legacy function-declared permission-epoch scopes are evaluated
         // BEFORE the mutation executes. This compatibility resync map is not
         // LLP 0053's durable global AuthorizationVersion, which advances in
@@ -14464,7 +14484,13 @@ impl LocalSnapback {
                 }
             };
 
-            self.finish_mutation_commit(epoch_scopes, commit, &admission)
+            self.finish_mutation_commit(
+                name,
+                &trace_identity,
+                epoch_scopes,
+                commit,
+                &admission,
+            )
         })();
         finish_function_observation(span, &mut result);
         result
@@ -14513,6 +14539,11 @@ impl LocalSnapback {
             }
         };
         let correlation = telemetry_correlation(&input.correlation);
+        let trace_identity = crate::spike_trace::MutationTraceIdentity::capture(
+            &input,
+            identity,
+            None,
+        );
         let span = self.telemetry.start_classified_span(
             crate::telemetry_contract::OperationClassIdV1::FUNCTION_MUTATION,
             name,
@@ -14534,7 +14565,13 @@ impl LocalSnapback {
                         Ok((admission_guard, caller_guard))
                     },
                 )?;
-                self.finish_mutation_commit(epoch_scopes, commit, prepared.admission_lease())
+                self.finish_mutation_commit(
+                    name,
+                    &trace_identity,
+                    epoch_scopes,
+                    commit,
+                    prepared.admission_lease(),
+                )
             });
         finish_function_observation(span, &mut result);
         result
@@ -14542,6 +14579,8 @@ impl LocalSnapback {
 
     fn finish_mutation_commit(
         &mut self,
+        mutation: &str,
+        trace_identity: &crate::spike_trace::MutationTraceIdentity,
         epoch_scopes: BTreeSet<String>,
         mut commit: MutationCommit,
         admission: &AdmissionLease,
@@ -14552,6 +14591,7 @@ impl LocalSnapback {
         //
         // @ref LLP 0167#observation-semantics--what-a-delay-means — ack and
         //   deltas from a real commit share one commit-relative jitter sample.
+        let commit_durable_ms = crate::spike_trace::timestamp_ms();
         let has_observable_effect = !commit.changes.is_empty()
             || !commit.job_changes.is_empty()
             || !commit.job_enqueues.is_empty()
@@ -14584,6 +14624,13 @@ impl LocalSnapback {
             }
         });
         let frame_version = commit.output.version;
+        crate::spike_trace::commit(
+            commit_durable_ms,
+            mutation,
+            frame_version,
+            commit.changes.len() + commit.job_changes.len(),
+            trace_identity,
+        );
         // This is internal invalidation truth derived from the already-durable
         // commit, not an app-visible publication. Capacity was proved before
         // execution, so it must advance even if the caller's admission lease
@@ -14699,6 +14746,11 @@ impl LocalSnapback {
         self.persist_and_validate_prepared_service_authority(binding.invocation.authority())?;
         check_live()?;
         let input = binding.invocation.canonicalize_input(input);
+        let trace_identity = crate::spike_trace::MutationTraceIdentity::capture(
+            &input,
+            identity.as_ref(),
+            None,
+        );
         let function = self.function(name)?.clone();
         if function != binding.function
             || self.db.schema() != &binding.schema
@@ -14752,7 +14804,13 @@ impl LocalSnapback {
             },
         )?;
         Ok(self
-            .finish_mutation_commit(binding.epoch_scopes, commit, &admission)?
+            .finish_mutation_commit(
+                name,
+                &trace_identity,
+                binding.epoch_scopes,
+                commit,
+                &admission,
+            )?
             .output)
     }
 
@@ -16755,6 +16813,8 @@ impl LocalSnapback {
             })));
         }
 
+        let eval_queue_ms = crate::spike_trace::timestamp_ms();
+        let eval_start_ms = crate::spike_trace::timestamp_ms();
         let query = if let Some(query) = pinned_bundle_invocation {
             query
         } else if reserved_live {
@@ -16803,6 +16863,7 @@ impl LocalSnapback {
             finish_function_observation(span, &mut result);
             result?
         };
+        let eval_finish_ms = crate::spike_trace::timestamp_ms();
         let permission_epochs = permission_epochs_from_dependencies(&query.read_dependencies);
 
         // Server-held RQS digest state for eligible subscriptions, the fresh
@@ -16969,6 +17030,36 @@ impl LocalSnapback {
         // subscription ids are unguessable bearer capabilities, not enumerable
         // counters; they share the runtime's UUIDv7 id source.
         let subscription_id = crate::ids::mint_time_ordered(crate::ids::Kind::Subscription);
+        if crate::spike_trace::enabled() {
+            let (initial_frame_kind, initial_frame_bytes) = if answer_current_as_of {
+                ("current_as_of", 0)
+            } else if let Some(ops) = answer_delta.as_ref() {
+                (
+                    "live_delta",
+                    serde_json::to_vec(ops).map(|payload| payload.len()).unwrap_or(0),
+                )
+            } else {
+                (
+                    "snapshot",
+                    serde_json::to_vec(&query.output.rows)
+                        .map(|payload| payload.len())
+                        .unwrap_or(0),
+                )
+            };
+            crate::spike_trace::eval(
+                &subscription_id,
+                &input.connection_id,
+                &[],
+                eval_queue_ms,
+                eval_start_ms,
+                eval_finish_ms,
+                initial_frame_bytes,
+                Some(initial_frame_kind),
+                head_version,
+                "finish",
+                None,
+            );
+        }
         let _publication = publication_authority.effect_guard("live subscribe publication")?;
         self.touch_connection(&input.connection_id, now_millis());
         let mut authorization_scope = None;
@@ -22689,19 +22780,36 @@ impl LocalSnapback {
     /// signal the backstop flusher. Resynced subscription ids are recorded so
     /// the flush routes them to the replace lane (their membership snapshot
     /// is newer than the older merged changes).
-    fn defer_live_data_fanout(&mut self, changes: &[ChangedRow], resynced: &BTreeSet<String>) {
+    fn defer_live_data_fanout(
+        &mut self,
+        changes: &[ChangedRow],
+        resynced: &BTreeSet<String>,
+        frame_version: u64,
+    ) {
         let pending = self
             .pending_live_fanout
             .get_or_insert_with(|| PendingLiveFanout {
                 changes: Vec::new(),
+                commit_versions: Vec::new(),
                 force_replace: BTreeSet::new(),
                 frames: 0,
                 first_deferred_at: Instant::now(),
             });
         pending.changes.extend_from_slice(changes);
+        if crate::spike_trace::enabled() {
+            pending.commit_versions.push(frame_version);
+        }
         pending.force_replace.extend(resynced.iter().cloned());
         pending.frames += 1;
         self.live_coalesce_stats.deferred_commits += 1;
+        crate::spike_trace::coalesce(
+            "defer",
+            &pending.commit_versions,
+            pending.frames,
+            pending.changes.len(),
+            None,
+            &self.live_coalesce_stats,
+        );
         if let Some(coalescer) = &self.live_coalescer {
             coalescer.request_flush();
         }
@@ -22716,10 +22824,34 @@ impl LocalSnapback {
         frame_version: u64,
         admission: &AdmissionLease,
     ) -> SnapbackResult<()> {
+        let pending_frames = self
+            .pending_live_fanout
+            .as_ref()
+            .map(|pending| pending.frames)
+            .unwrap_or(0);
+        let pending_changes = self
+            .pending_live_fanout
+            .as_ref()
+            .map(|pending| pending.changes.len())
+            .unwrap_or(0);
         if self.should_defer_live_fanout(changes) {
-            self.defer_live_data_fanout(changes, already_resynced);
+            crate::spike_trace::fanout_dispatch(
+                &[frame_version],
+                "defer",
+                changes.len(),
+                pending_frames,
+                pending_changes,
+            );
+            self.defer_live_data_fanout(changes, already_resynced, frame_version);
             return Ok(());
         }
+        crate::spike_trace::fanout_dispatch(
+            &[frame_version],
+            "inline",
+            changes.len(),
+            pending_frames,
+            pending_changes,
+        );
         self.run_live_data_fanout_frame(changes, already_resynced, frame_version, admission)
     }
 
@@ -22735,11 +22867,21 @@ impl LocalSnapback {
         frame_version: u64,
         admission: &AdmissionLease,
     ) -> SnapbackResult<()> {
+        let starvation_inline = self.pending_live_fanout.as_ref().is_some_and(|pending| {
+            self.live_coalescer.as_ref().is_some_and(|coalescer| {
+                let tunables = coalescer.tunables();
+                pending.frames >= tunables.max_frames
+                    || pending.changes.len() >= tunables.max_changes
+                    || pending.first_deferred_at.elapsed() >= tunables.max_hold
+            })
+        });
         let mut force_replace = BTreeSet::new();
         let mut merged: Option<Vec<ChangedRow>> = None;
+        let mut commit_versions = Vec::new();
         let mut merged_frames = 0u64;
         if let Some(pending) = self.pending_live_fanout.take() {
             merged_frames = pending.frames;
+            commit_versions = pending.commit_versions;
             if !changes.is_empty() {
                 let mut all = pending.changes;
                 all.extend_from_slice(changes);
@@ -22747,7 +22889,22 @@ impl LocalSnapback {
                 force_replace = pending.force_replace;
             }
         }
+        if crate::spike_trace::enabled() {
+            if !changes.is_empty() {
+                commit_versions.push(frame_version);
+            }
+            if commit_versions.is_empty() {
+                commit_versions.push(frame_version);
+            }
+        }
         let frame_changes: &[ChangedRow] = merged.as_deref().unwrap_or(changes);
+        let flush_path = if merged_frames == 0 {
+            None
+        } else if starvation_inline {
+            Some("starvation-inline")
+        } else {
+            Some("commit-ridden")
+        };
         let started = Instant::now();
         let result = self.notify_live_subscriptions_in_frame(
             frame_changes,
@@ -22755,6 +22912,7 @@ impl LocalSnapback {
             frame_version,
             admission,
             &force_replace,
+            &commit_versions,
         );
         self.live_fanout_recent_cost = started.elapsed();
         self.live_fanout_last_finished = Some(Instant::now());
@@ -22762,6 +22920,14 @@ impl LocalSnapback {
             self.live_coalesce_stats.coalesced_flushes += 1;
             self.live_coalesce_stats.last_flush_merged_frames =
                 merged_frames + u64::from(!changes.is_empty());
+            crate::spike_trace::coalesce(
+                "flush",
+                &commit_versions,
+                self.live_coalesce_stats.last_flush_merged_frames,
+                frame_changes.len(),
+                flush_path,
+                &self.live_coalesce_stats,
+            );
         }
         result
     }
@@ -22796,9 +22962,18 @@ impl LocalSnapback {
             frame_version,
             &admission,
             &pending.force_replace,
+            &pending.commit_versions,
         );
         self.live_fanout_recent_cost = started.elapsed();
         self.live_fanout_last_finished = Some(Instant::now());
+        crate::spike_trace::coalesce(
+            "flush",
+            &pending.commit_versions,
+            pending.frames,
+            pending.changes.len(),
+            Some("backstop"),
+            &self.live_coalesce_stats,
+        );
         self.end_live_commit_egress();
         if let Err(error) = result {
             self.record_attached_diagnostics(vec![error.diagnostic]);
@@ -22819,10 +22994,33 @@ impl LocalSnapback {
             return;
         }
         if self.should_defer_live_fanout(changes) {
-            self.defer_live_data_fanout(changes, &BTreeSet::new());
+            let frame_version = if crate::spike_trace::enabled() {
+                match self.db.current_version() {
+                    Ok(version) => version,
+                    Err(error) => {
+                        self.record_attached_diagnostics(vec![error.diagnostic]);
+                        return;
+                    }
+                }
+            } else {
+                0
+            };
+            crate::spike_trace::fanout_dispatch(
+                &[frame_version],
+                "defer",
+                changes.len(),
+                self.pending_live_fanout
+                    .as_ref()
+                    .map(|pending| pending.frames)
+                    .unwrap_or(0),
+                self.pending_live_fanout
+                    .as_ref()
+                    .map(|pending| pending.changes.len())
+                    .unwrap_or(0),
+            );
+            self.defer_live_data_fanout(changes, &BTreeSet::new(), frame_version);
             return;
         }
-
         let Ok(admission) = self.admission.admit() else {
             return;
         };
@@ -22833,7 +23031,6 @@ impl LocalSnapback {
                 return;
             }
         };
-
         // This generic entry point is called only after a durable commit. One
         // admission here replaces the old per-frame result-readiness stamps.
         // @ref LLP 0167#observation-semantics--what-a-delay-means — all frames
@@ -23084,7 +23281,7 @@ impl LocalSnapback {
         cause_label: &str,
         raise_cause: bool,
         admission: &AdmissionLease,
-    ) -> SnapbackResult<()> {
+    ) -> SnapbackResult<usize> {
         let _publication = admission.effect_guard("authorization snapshot publication")?;
         let authorization = subscription.authorization.as_ref().ok_or_else(|| {
             SnapbackError::error(
@@ -23151,6 +23348,7 @@ impl LocalSnapback {
             )
             .with_details(json!({ "error": error.to_string() }))
         })?;
+        let payload_bytes = payload.len();
         if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
             stored.read_dependencies = query.read_dependencies;
         }
@@ -23162,7 +23360,7 @@ impl LocalSnapback {
         if enqueue.overflowed_now {
             self.raise_connection_overflow(&subscription.connection_id, snapshot_version)?;
         }
-        Ok(())
+        Ok(payload_bytes)
     }
 
     fn raise_connection_overflow(
@@ -23717,7 +23915,7 @@ impl LocalSnapback {
                     false,
                     admission,
                 ) {
-                    Ok(()) => {
+                    Ok(_) => {
                         self.live_delivery.total_deliveries += 1;
                         self.live_delivery.last_deliveries += 1;
                         self.live_delivery.authorization_blast_radius.for_event(
@@ -23882,6 +24080,7 @@ impl LocalSnapback {
         // always an honest superset.
         // @ref LLP 0008#dated-decision--post-commit-fan-out-coalescing-2026-08-08.
         force_replace: &BTreeSet<String>,
+        commit_versions: &[u64],
     ) -> SnapbackResult<()> {
         // Cheap affected prefilter over borrowed subscriptions: only the
         // survivors are cloned for the mutable delivery loop below (ENG-23334
@@ -23908,7 +24107,7 @@ impl LocalSnapback {
         // Skipping the delta path here keeps seed delivering to HostPlan
         // subscribers (DK-3 review finding C).
         let mut skipped = 0u64;
-        let mut affected: Vec<(LiveSubscription, Option<QueryPlan>)> = Vec::new();
+        let mut affected: Vec<(LiveSubscription, Option<QueryPlan>, LiveMatchOutcome)> = Vec::new();
         // Reserved asset-record projections re-run natively below. Every
         // non-empty frame includes them conservatively: the recompute is a
         // few point reads, and delivery is fingerprint-deduplicated inside
@@ -23919,27 +24118,68 @@ impl LocalSnapback {
         let mut asset_record_subscriptions: Vec<LiveSubscription> = Vec::new();
         for subscription in self.subscriptions.values() {
             if already_resynced.contains(&subscription.id) {
+                crate::spike_trace::matcher_decision(
+                    &subscription.id,
+                    &subscription.connection_id,
+                    commit_versions,
+                    "skip",
+                    None,
+                    "already_resynced",
+                );
                 continue;
             }
             if is_reserved_live_function(&subscription.function) {
+                crate::spike_trace::matcher_decision(
+                    &subscription.id,
+                    &subscription.connection_id,
+                    commit_versions,
+                    "conservative-fallback",
+                    Some("replace"),
+                    "reserved_projection",
+                );
                 asset_record_subscriptions.push(subscription.clone());
                 continue;
             }
             let Some(function) = self.functions.function(&subscription.function) else {
                 skipped += 1;
+                crate::spike_trace::matcher_decision(
+                    &subscription.id,
+                    &subscription.connection_id,
+                    commit_versions,
+                    "skip",
+                    None,
+                    "function_missing",
+                );
                 continue;
             };
             if self.subscription_has_stale_permission(subscription) {
                 skipped += 1;
+                crate::spike_trace::matcher_decision(
+                    &subscription.id,
+                    &subscription.connection_id,
+                    commit_versions,
+                    "skip",
+                    None,
+                    "stale_permission",
+                );
                 continue;
             }
-            if !live_subscription_may_be_affected(
+            let match_outcome = live_subscription_match_outcome(
                 function,
                 &subscription.input,
                 &subscription.read_dependencies,
                 changes,
-            ) {
+            );
+            if match_outcome == LiveMatchOutcome::Skip {
                 skipped += 1;
+                crate::spike_trace::matcher_decision(
+                    &subscription.id,
+                    &subscription.connection_id,
+                    commit_versions,
+                    "skip",
+                    None,
+                    "proved_disjoint",
+                );
                 continue;
             }
             let delta_plan = match &function.runtime {
@@ -23987,7 +24227,7 @@ impl LocalSnapback {
                 }
                 _ => None,
             };
-            affected.push((subscription.clone(), delta_plan));
+            affected.push((subscription.clone(), delta_plan, match_outcome));
         }
         self.live_delivery.total_skipped += skipped;
         self.live_delivery.last_skipped += skipped as usize;
@@ -23997,10 +24237,39 @@ impl LocalSnapback {
         // D1: refresh overhead is per result-change, not per subscriber).
         let mut resume_mint_cache: HashMap<(String, String, u64, String), Option<ResumeWire>> =
             HashMap::new();
-        for (subscription, delta_plan) in affected {
+        for (subscription, delta_plan, match_outcome) in affected {
+            let eval_queue_ms = crate::spike_trace::timestamp_ms();
             if let Err(error) =
                 self.prepare_live_rerun_authority(&subscription.authority, admission.clone())
             {
+                let decision = if match_outcome == LiveMatchOutcome::ConservativeFallback {
+                    "conservative-fallback"
+                } else if delta_plan.is_some() {
+                    "match-delta"
+                } else {
+                    "match-replace"
+                };
+                crate::spike_trace::matcher_decision(
+                    &subscription.id,
+                    &subscription.connection_id,
+                    commit_versions,
+                    decision,
+                    delta_plan.as_ref().map(|_| "delta").or(Some("replace")),
+                    "authority_ended",
+                );
+                crate::spike_trace::eval(
+                    &subscription.id,
+                    &subscription.connection_id,
+                    commit_versions,
+                    eval_queue_ms,
+                    eval_queue_ms,
+                    crate::spike_trace::timestamp_ms(),
+                    0,
+                    None,
+                    frame_version,
+                    "cancel",
+                    Some(&error.diagnostic.code),
+                );
                 self.fail_subscription_fanout(
                     &subscription,
                     "live_authority_ended",
@@ -24011,6 +24280,7 @@ impl LocalSnapback {
                 continue;
             }
             if let Some(plan) = &delta_plan {
+                let eval_start_ms = crate::spike_trace::timestamp_ms();
                 let delta = match self.try_live_delta_fanout(
                     &subscription,
                     plan,
@@ -24021,6 +24291,31 @@ impl LocalSnapback {
                 ) {
                     Ok(delta) => delta,
                     Err(error) => {
+                        crate::spike_trace::matcher_decision(
+                            &subscription.id,
+                            &subscription.connection_id,
+                            commit_versions,
+                            if match_outcome == LiveMatchOutcome::ConservativeFallback {
+                                "conservative-fallback"
+                            } else {
+                                "match-delta"
+                            },
+                            Some("delta"),
+                            "delta_publication_failed",
+                        );
+                        crate::spike_trace::eval(
+                            &subscription.id,
+                            &subscription.connection_id,
+                            commit_versions,
+                            eval_queue_ms,
+                            eval_start_ms,
+                            crate::spike_trace::timestamp_ms(),
+                            0,
+                            Some("live_delta"),
+                            frame_version,
+                            "cancel",
+                            Some(&error.diagnostic.code),
+                        );
                         self.fail_subscription_fanout(
                             &subscription,
                             "live_delta_publication_failed",
@@ -24032,17 +24327,92 @@ impl LocalSnapback {
                     }
                 };
                 match delta {
-                    Some(DeltaFanout::Delivered) => {
+                    Some(DeltaFanout::Delivered(payload_bytes)) => {
+                        crate::spike_trace::matcher_decision(
+                            &subscription.id,
+                            &subscription.connection_id,
+                            commit_versions,
+                            if match_outcome == LiveMatchOutcome::ConservativeFallback {
+                                "conservative-fallback"
+                            } else {
+                                "match-delta"
+                            },
+                            Some("delta"),
+                            "delta_delivered",
+                        );
+                        crate::spike_trace::eval(
+                            &subscription.id,
+                            &subscription.connection_id,
+                            commit_versions,
+                            eval_queue_ms,
+                            eval_start_ms,
+                            crate::spike_trace::timestamp_ms(),
+                            payload_bytes,
+                            Some("live_delta"),
+                            frame_version,
+                            "finish",
+                            None,
+                        );
                         self.live_delivery.total_deliveries += 1;
                         self.live_delivery.last_deliveries += 1;
                         continue;
                     }
                     Some(DeltaFanout::NoChange) => {
+                        crate::spike_trace::matcher_decision(
+                            &subscription.id,
+                            &subscription.connection_id,
+                            commit_versions,
+                            if match_outcome == LiveMatchOutcome::ConservativeFallback {
+                                "conservative-fallback"
+                            } else {
+                                "match-delta"
+                            },
+                            Some("delta"),
+                            "delta_no_change",
+                        );
+                        crate::spike_trace::eval(
+                            &subscription.id,
+                            &subscription.connection_id,
+                            commit_versions,
+                            eval_queue_ms,
+                            eval_start_ms,
+                            crate::spike_trace::timestamp_ms(),
+                            0,
+                            None,
+                            frame_version,
+                            "finish",
+                            None,
+                        );
                         self.live_delivery.total_skipped += 1;
                         self.live_delivery.last_skipped += 1;
                         continue;
                     }
                     Some(DeltaFanout::Failed(error)) => {
+                        crate::spike_trace::matcher_decision(
+                            &subscription.id,
+                            &subscription.connection_id,
+                            commit_versions,
+                            if match_outcome == LiveMatchOutcome::ConservativeFallback {
+                                "conservative-fallback"
+                            } else {
+                                "match-delta"
+                            },
+                            Some("delta"),
+                            "delta_failed",
+                        );
+                        crate::spike_trace::eval(
+                            &subscription.id,
+                            &subscription.connection_id,
+                            commit_versions,
+                            eval_queue_ms,
+                            eval_start_ms,
+                            crate::spike_trace::timestamp_ms(),
+                            0,
+                            Some("live_delta"),
+                            frame_version,
+                            "cancel",
+                            Some(&error.diagnostic.code),
+                        );
                         self.fail_subscription_fanout(
                             &subscription,
                             "live_delta_failed",
@@ -24056,6 +24426,24 @@ impl LocalSnapback {
                 }
             }
 
+            crate::spike_trace::matcher_decision(
+                &subscription.id,
+                &subscription.connection_id,
+                commit_versions,
+                if match_outcome == LiveMatchOutcome::ConservativeFallback {
+                    "conservative-fallback"
+                } else {
+                    "match-replace"
+                },
+                Some("replace"),
+                if delta_plan.is_some() {
+                    "delta_classifier_replace"
+                } else {
+                    "replace_lane"
+                },
+            );
+            let eval_start_ms = crate::spike_trace::timestamp_ms();
+
             let query = if subscription.authorization.is_some() {
                 let floor = self
                     .auth_invalidation
@@ -24065,6 +24453,19 @@ impl LocalSnapback {
                 match self.invoke_authorization_resolution(&subscription, floor, admission) {
                     Ok(query) => query,
                     Err(failure) => {
+                        crate::spike_trace::eval(
+                            &subscription.id,
+                            &subscription.connection_id,
+                            commit_versions,
+                            eval_queue_ms,
+                            eval_start_ms,
+                            crate::spike_trace::timestamp_ms(),
+                            0,
+                            None,
+                            frame_version,
+                            "cancel",
+                            Some(&failure.error.diagnostic.code),
+                        );
                         self.fail_subscription_fanout_with_retry(
                             &subscription,
                             "live_refresh_failed",
@@ -24089,6 +24490,19 @@ impl LocalSnapback {
                     }) {
                     Ok(query) => query,
                     Err(error) => {
+                        crate::spike_trace::eval(
+                            &subscription.id,
+                            &subscription.connection_id,
+                            commit_versions,
+                            eval_queue_ms,
+                            eval_start_ms,
+                            crate::spike_trace::timestamp_ms(),
+                            0,
+                            None,
+                            frame_version,
+                            "cancel",
+                            Some(&error.diagnostic.code),
+                        );
                         self.fail_subscription_fanout(
                             &subscription,
                             "live_refresh_failed",
@@ -24108,17 +24522,45 @@ impl LocalSnapback {
                     true,
                     admission,
                 ) {
-                    Ok(()) => {
+                    Ok(payload_bytes) => {
+                        crate::spike_trace::eval(
+                            &subscription.id,
+                            &subscription.connection_id,
+                            commit_versions,
+                            eval_queue_ms,
+                            eval_start_ms,
+                            crate::spike_trace::timestamp_ms(),
+                            payload_bytes,
+                            Some("authorization_invalidation"),
+                            frame_version,
+                            "finish",
+                            None,
+                        );
                         self.live_delivery.total_deliveries += 1;
                         self.live_delivery.last_deliveries += 1;
                     }
-                    Err(error) => self.fail_subscription_fanout(
-                        &subscription,
-                        "authorization_invalidation_failed",
-                        error,
-                        Some(frame_version),
-                        admission,
-                    ),
+                    Err(error) => {
+                        crate::spike_trace::eval(
+                            &subscription.id,
+                            &subscription.connection_id,
+                            commit_versions,
+                            eval_queue_ms,
+                            eval_start_ms,
+                            crate::spike_trace::timestamp_ms(),
+                            0,
+                            Some("authorization_invalidation"),
+                            frame_version,
+                            "cancel",
+                            Some(&error.diagnostic.code),
+                        );
+                        self.fail_subscription_fanout(
+                            &subscription,
+                            "authorization_invalidation_failed",
+                            error,
+                            Some(frame_version),
+                            admission,
+                        )
+                    }
                 }
                 continue;
             }
@@ -24154,6 +24596,7 @@ impl LocalSnapback {
             } else {
                 None
             };
+            let query_version = query.output.version;
             let payload = match serde_json::to_vec(&LiveEnvelope::LiveReplace {
                 network_profile: None,
                 subscription_id: subscription.id.clone(),
@@ -24164,6 +24607,19 @@ impl LocalSnapback {
             }) {
                 Ok(payload) => payload,
                 Err(error) => {
+                    crate::spike_trace::eval(
+                        &subscription.id,
+                        &subscription.connection_id,
+                        commit_versions,
+                        eval_queue_ms,
+                        eval_start_ms,
+                        crate::spike_trace::timestamp_ms(),
+                        0,
+                        Some("live_replace"),
+                        frame_version,
+                        "cancel",
+                        Some("SNAPBACK_LIVE_UPDATE_SERIALIZE_FAILED"),
+                    );
                     self.fail_subscription_fanout(
                         &subscription,
                         "live_serialize_failed",
@@ -24179,9 +24635,23 @@ impl LocalSnapback {
                     continue;
                 }
             };
+            let payload_bytes = payload.len();
             let _publication = match admission.effect_guard("live replacement publication") {
                 Ok(publication) => publication,
                 Err(error) => {
+                    crate::spike_trace::eval(
+                        &subscription.id,
+                        &subscription.connection_id,
+                        commit_versions,
+                        eval_queue_ms,
+                        eval_start_ms,
+                        crate::spike_trace::timestamp_ms(),
+                        0,
+                        Some("live_replace"),
+                        frame_version,
+                        "cancel",
+                        Some(&error.diagnostic.code),
+                    );
                     self.fail_subscription_fanout(
                         &subscription,
                         "live_replacement_publication_failed",
@@ -24200,8 +24670,21 @@ impl LocalSnapback {
             };
             if enqueue.overflowed_now
                 && let Err(error) = self
-                    .raise_connection_overflow(&subscription.connection_id, query.output.version)
+                    .raise_connection_overflow(&subscription.connection_id, query_version)
             {
+                crate::spike_trace::eval(
+                    &subscription.id,
+                    &subscription.connection_id,
+                    commit_versions,
+                    eval_queue_ms,
+                    eval_start_ms,
+                    crate::spike_trace::timestamp_ms(),
+                    payload_bytes,
+                    Some("live_replace"),
+                    query_version,
+                    "cancel",
+                    Some(&error.diagnostic.code),
+                );
                 self.fail_subscription_fanout(
                     &subscription,
                     "authorization_overflow_projection_failed",
@@ -24211,6 +24694,19 @@ impl LocalSnapback {
                 );
                 continue;
             }
+            crate::spike_trace::eval(
+                &subscription.id,
+                &subscription.connection_id,
+                commit_versions,
+                eval_queue_ms,
+                eval_start_ms,
+                crate::spike_trace::timestamp_ms(),
+                payload_bytes,
+                Some("live_replace"),
+                query_version,
+                "finish",
+                None,
+            );
             self.live_delivery.total_deliveries += 1;
             self.live_delivery.last_deliveries += 1;
         }
@@ -24395,6 +24891,7 @@ impl LocalSnapback {
                 )));
             }
         };
+        let payload_bytes = payload.len();
 
         // Maintain this subscription's membership by applying the ops to its
         // captured Query dependency — no re-query. Add/remove change the id
@@ -24466,7 +24963,7 @@ impl LocalSnapback {
         {
             return Ok(Some(DeltaFanout::Failed(error)));
         }
-        Ok(Some(DeltaFanout::Delivered))
+        Ok(Some(DeltaFanout::Delivered(payload_bytes)))
     }
 
     /// Debug-only: re-run the subscription's query and assert the
