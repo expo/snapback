@@ -921,11 +921,17 @@ pub enum HostCommand {
     // the packaged native runtime is the checkout-independent guide carrier.
     // @ref LLP 0061#4-distribution-and-discovery — the CLI searches the same
     // build-bound corpus served over HTTP and MCP rather than a second copy.
-    /// Show the build-bound Guide channels or search matching Markdown sections.
+    /// Show Guide channels, return an exact API symbol, or search Markdown sections.
     Guide {
-        /// Words to find together in a Guide section. Omit to show all channels.
+        /// Exact API symbol/module or words to find together in a Guide section.
         #[arg(value_name = "QUERY")]
         query: Vec<String>,
+        /// One-based bounded slice for a large exact symbol or module result.
+        #[arg(long, default_value_t = 1, value_parser = parse_guide_slice)]
+        slice: usize,
+        /// Emit the exact symbol/module result as snapback.guide-symbol-lookup.v1 JSON.
+        #[arg(long)]
+        json: bool,
     },
     /// Serve the build-bound Snapback Guide as read-only MCP resources over
     /// stdio. This is the resource-first Phase 2b slice; it exposes no tools.
@@ -1993,6 +1999,14 @@ impl std::fmt::Debug for TargetArgs {
 
 const DEFAULT_SERVED_GUIDE_URL: &str = "http://127.0.0.1:4287/_snapback/guide";
 
+fn parse_guide_slice(value: &str) -> Result<usize, String> {
+    value
+        .parse::<usize>()
+        .ok()
+        .filter(|slice| *slice > 0)
+        .ok_or_else(|| "--slice must be a positive integer".to_owned())
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct GuideSectionMatch {
     path: String,
@@ -2102,29 +2116,46 @@ fn search_guide_sections(query: &str) -> Vec<GuideSectionMatch> {
     search_guide_sections_in(crate::guide::EMBEDDED_GUIDE_FILES, query)
 }
 
-fn render_guide_command(query_words: &[String]) -> String {
+fn render_guide_command(
+    query_words: &[String],
+    slice: usize,
+    json_output: bool,
+) -> anyhow::Result<String> {
     let query = query_words.join(" ");
     let query = query.trim();
     if query.is_empty() {
-        return format!(
+        return Ok(format!(
             "Snapback Guide documentation channels\n\
              \n\
              The URLs below use the first default dev port. If Snapback selected another port, replace the origin with the one printed by snapback dev or snapback start.\n\
              \n\
              Start with the capability index: {DEFAULT_SERVED_GUIDE_URL}/capabilities.md\n\
              Browse the Guide:             {DEFAULT_SERVED_GUIDE_URL}\n\
+             API reference index:           {DEFAULT_SERVED_GUIDE_URL}/reference/index.md\n\
+             API symbol registry:           {DEFAULT_SERVED_GUIDE_URL}/reference/registry.json\n\
              Flat agent projection:         {DEFAULT_SERVED_GUIDE_URL}/flat.md\n\
-             Search this embedded build:    snapback guide <query>\n\
+             Exact symbol or Guide search:  snapback guide <query> [--slice <n>]\n\
              Read through MCP:              snapback mcp\n\
              MCP entry resource:            snapback-guide://manifest\n"
-        );
+        ));
     }
 
+    // @ref LLP 0194#design — exact registry lookup precedes Markdown search;
+    // a miss, rather than an independently interpreted near-match, falls back.
+    if let Some(result) = crate::guide_reference::lookup(query, slice)? {
+        if json_output {
+            return Ok(format!("{}\n", serde_json::to_string_pretty(&result)?));
+        }
+        return Ok(format!(
+            "{}\n",
+            crate::guide_reference::format_lookup(&result)?
+        ));
+    }
     let matches = search_guide_sections(query);
     if matches.is_empty() {
-        return format!(
+        return Ok(format!(
             "No embedded Guide sections matched {query:?}.\nStart with the capability index: {DEFAULT_SERVED_GUIDE_URL}/capabilities.md\n"
-        );
+        ));
     }
 
     let mut output = format!("Embedded Guide sections matching {query:?}:\n");
@@ -2135,14 +2166,14 @@ fn render_guide_command(query_words: &[String]) -> String {
         ));
     }
     output.push_str(&format!("{} section(s) matched.\n", matches.len()));
-    output
+    Ok(output)
 }
 
-fn guide_command(query: &[String]) -> anyhow::Result<()> {
+fn guide_command(query: &[String], slice: usize, json: bool) -> anyhow::Result<()> {
     use std::io::Write as _;
 
     std::io::stdout()
-        .write_all(render_guide_command(query).as_bytes())
+        .write_all(render_guide_command(query, slice, json)?.as_bytes())
         .context("failed to write Guide output")
 }
 
@@ -2477,7 +2508,7 @@ pub async fn run_from_env() -> anyhow::Result<()> {
         },
         Some(HostCommand::Fork { command }) => fork_command(command).await,
         Some(HostCommand::Controls { command }) => controls_command(command),
-        Some(HostCommand::Guide { query }) => guide_command(&query),
+        Some(HostCommand::Guide { query, slice, json }) => guide_command(&query, slice, json),
         Some(HostCommand::Mcp) => crate::guide_mcp::run_stdio(),
         Some(HostCommand::BuildIdentity) => {
             println!(
@@ -10045,10 +10076,12 @@ mod tests {
 
     #[test]
     fn guide_cli_parses_multiword_queries_and_root_help_names_both_channels() {
-        let cli = Cli::parse_from(["snapback", "guide", "live", "query"]);
+        let cli = Cli::parse_from(["snapback", "guide", "live", "query", "--slice", "2"]);
         match cli.command {
-            Some(HostCommand::Guide { query }) => {
+            Some(HostCommand::Guide { query, slice, json }) => {
                 assert_eq!(query, ["live", "query"]);
+                assert_eq!(slice, 2);
+                assert!(!json);
             }
             _ => panic!("expected guide command"),
         }
@@ -10093,12 +10126,58 @@ mod tests {
 
     #[test]
     fn guide_channel_output_starts_with_capabilities_and_names_flat_and_mcp() {
-        let output = render_guide_command(&[]);
+        let output = render_guide_command(&[], 1, false).unwrap();
         let capability = output.find("/capabilities.md").unwrap();
         let browse = output.find("Browse the Guide").unwrap();
         assert!(capability < browse, "{output}");
         assert!(output.contains("/_snapback/guide/flat.md"), "{output}");
+        assert!(output.contains("/_snapback/guide/reference/index.md"), "{output}");
+        assert!(
+            output.contains("/_snapback/guide/reference/registry.json"),
+            "{output}"
+        );
         assert!(output.contains("snapback mcp"), "{output}");
+    }
+
+    #[test]
+    fn guide_exact_member_lookup_precedes_markdown_search() {
+        let output =
+            render_guide_command(&["SnapbackClient.query".to_owned()], 1, false).unwrap();
+        assert!(output.starts_with("SnapbackClient.query — member\n"), "{output}");
+        assert!(output.contains("guide "), "{output}");
+        assert!(output.contains("registry sha256:"), "{output}");
+        assert!(
+            output.contains("readonly args?: FunctionArgs<Ref>"),
+            "{output}"
+        );
+        assert!(!output.contains("Embedded Guide sections matching"), "{output}");
+    }
+
+    #[test]
+    fn guide_exact_lookup_json_exposes_the_shared_schema() {
+        let output =
+            render_guide_command(&["SnapbackClient.query".to_owned()], 1, true).unwrap();
+        let result: serde_json::Value = serde_json::from_str(&output).unwrap();
+        assert_eq!(
+            result["schemaVersion"],
+            crate::guide_reference::LOOKUP_SCHEMA_VERSION
+        );
+        assert_eq!(result["match"], "member");
+        assert_eq!(result["query"], "SnapbackClient.query");
+    }
+
+    #[test]
+    fn guide_large_symbol_uses_requested_bounded_slice() {
+        let first = render_guide_command(&["SnapbackClient".to_owned()], 1, false).unwrap();
+        let second = render_guide_command(&["SnapbackClient".to_owned()], 2, false).unwrap();
+        assert!(first.contains("SnapbackClient — symbol-slice"), "{first}");
+        assert!(first.contains("TRUNCATED:"), "{first}");
+        assert!(
+            first.contains("Next: snapback guide SnapbackClient --slice 2"),
+            "{first}"
+        );
+        assert!(second.contains("members 1-8:"), "{second}");
+        assert_ne!(first, second);
     }
 
     #[test]

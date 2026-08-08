@@ -114,6 +114,10 @@ fn emit_embedded_guide() {
         "capabilities.md",
         "guide-manifest.generated.json",
         "guide-flat.generated.md",
+        // @ref LLP 0194#design — the native binary is the build-bound carrier
+        // for the compact reference index and canonical registry, not only pages.
+        "reference/index.md",
+        "reference/registry.json",
     ] {
         assert!(
             files.iter().any(|path| path == required),

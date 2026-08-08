@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -6,6 +7,29 @@ import { runCli } from './index.mjs';
 import { lookupGuideReference } from './reference-lookup.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+const sharedCases = JSON.parse(readFileSync(
+  resolve(root, 'tests/fixtures/guide-symbol-lookup-v1.json'),
+  'utf8',
+)).cases;
+
+// @ref LLP 0194#design — the package and embedded-native lookup seams run the
+// same exact/member/slice cases so neither projection invents its own dialect.
+for (const fixture of sharedCases) {
+  const result = lookupGuideReference(
+    [fixture.query, ...(fixture.slice === 1 ? [] : ['--slice', String(fixture.slice)])],
+    { projectRoot: root },
+  );
+  if (fixture.match === null) {
+    assert.equal(result, null);
+    continue;
+  }
+  assert.equal(result.schemaVersion, 'snapback.guide-symbol-lookup.v1');
+  assert.equal(result.match, fixture.match);
+  assert.equal(result.truncation?.truncated ?? false, fixture.truncated);
+  if (fixture.nextCommand) assert.equal(result.truncation.nextCommand, fixture.nextCommand);
+  if (fixture.signatureContains) assert.match(result.member.signature, new RegExp(fixture.signatureContains.replace(/[?]/gu, '\\?'), 'u'));
+  assert.ok(Buffer.byteLength(JSON.stringify(result)) <= 16_384);
+}
 
 const member = lookupGuideReference(['SnapbackClient.query'], { projectRoot: root });
 assert.equal(member.match, 'member');

@@ -95,6 +95,8 @@ pub mod guide;
 #[doc(hidden)]
 pub mod guide_mcp;
 #[doc(hidden)]
+pub mod guide_reference;
+#[doc(hidden)]
 pub mod handler_wire;
 #[doc(hidden)]
 pub mod host_ops;

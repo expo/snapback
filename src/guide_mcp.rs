@@ -16,6 +16,8 @@ const PROTOCOL_VERSION: &str = "2025-06-18";
 const MANIFEST_URI: &str = "snapback-guide://manifest";
 const FLAT_URI: &str = "snapback-guide://flat";
 const PAGE_URI_PREFIX: &str = "snapback-guide://page/";
+const SYMBOL_URI_PREFIX: &str = "snapback-guide://symbol/";
+const SYMBOL_URI_TEMPLATE: &str = "snapback-guide://symbol/{name}{?slice}";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct GuideIdentity {
@@ -126,7 +128,139 @@ fn resource_catalog(manifest: &Value) -> anyhow::Result<Vec<GuideResource>> {
             mime_type: "text/markdown; charset=utf-8".to_owned(),
         });
     }
+    let manifest_resources = manifest
+        .get("resources")
+        .and_then(Value::as_object)
+        .context("embedded guide manifest resources is not an object")?;
+    let mut resource_entries = manifest_resources.iter().collect::<Vec<_>>();
+    resource_entries.sort_by(|(left, _), (right, _)| left.cmp(right));
+    for (id, resource) in resource_entries {
+        if resource
+            .pointer("/projections/mcp")
+            .and_then(Value::as_bool)
+            != Some(true)
+        {
+            continue;
+        }
+        let path = resource
+            .get("path")
+            .and_then(Value::as_str)
+            .context("guide manifest resource has no path")?;
+        let embedded_path = path
+            .strip_prefix("guide/")
+            .context("guide manifest resource path is outside guide/")?;
+        anyhow::ensure!(
+            guide::file(embedded_path).is_some(),
+            "embedded guide resource {path} is missing"
+        );
+        let uri = resource
+            .get("uri")
+            .and_then(Value::as_str)
+            .context("guide manifest MCP resource has no URI")?;
+        anyhow::ensure!(
+            !resources.iter().any(|candidate| candidate.uri == uri),
+            "guide manifest repeats MCP resource URI {uri}"
+        );
+        resources.push(GuideResource {
+            uri: uri.to_owned(),
+            name: id.clone(),
+            title: resource
+                .get("title")
+                .and_then(Value::as_str)
+                .context("guide manifest resource has no title")?
+                .to_owned(),
+            description: format!("Snapback Guide resource {path}"),
+            embedded_path: embedded_path.to_owned(),
+            mime_type: resource
+                .get("mediaType")
+                .and_then(Value::as_str)
+                .context("guide manifest resource has no mediaType")?
+                .to_owned(),
+        });
+    }
     Ok(resources)
+}
+
+// @ref LLP 0194#design — the registry flag enables both its static MCP
+// resource and the bounded exact-symbol template backed by the same bytes.
+fn symbol_template_enabled(manifest: &Value) -> bool {
+    manifest
+        .pointer("/resources/reference.symbol-registry/projections/mcp")
+        .and_then(Value::as_bool)
+        == Some(true)
+}
+
+fn resource_templates(manifest: &Value, identity: &GuideIdentity) -> Vec<Value> {
+    if !symbol_template_enabled(manifest) {
+        return Vec::new();
+    }
+    vec![json!({
+        "uriTemplate": SYMBOL_URI_TEMPLATE,
+        "name": "reference.symbol",
+        "title": "Snapback API symbol or module slice",
+        "description": "One exact build-bound symbol/member or bounded module slice. Use slice=2,3,... when the result names a next slice.",
+        "mimeType": "application/json",
+        "_meta": identity_meta(identity),
+    })]
+}
+
+fn percent_decode(value: &str) -> Result<String, &'static str> {
+    let bytes = value.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] != b'%' {
+            decoded.push(bytes[index]);
+            index += 1;
+            continue;
+        }
+        if index + 2 >= bytes.len() {
+            return Err("symbol resource URI has invalid percent encoding");
+        }
+        let hex = |byte: u8| match byte {
+            b'0'..=b'9' => Some(byte - b'0'),
+            b'a'..=b'f' => Some(byte - b'a' + 10),
+            b'A'..=b'F' => Some(byte - b'A' + 10),
+            _ => None,
+        };
+        let high =
+            hex(bytes[index + 1]).ok_or("symbol resource URI has invalid percent encoding")?;
+        let low =
+            hex(bytes[index + 2]).ok_or("symbol resource URI has invalid percent encoding")?;
+        decoded.push((high << 4) | low);
+        index += 3;
+    }
+    String::from_utf8(decoded).map_err(|_| "symbol resource URI is not UTF-8")
+}
+
+fn parse_symbol_resource_uri(uri: &str) -> Result<Option<(String, usize)>, &'static str> {
+    let Some(rest) = uri.strip_prefix(SYMBOL_URI_PREFIX) else {
+        return Ok(None);
+    };
+    let (encoded_name, query) = rest.split_once('?').unwrap_or((rest, ""));
+    let name = percent_decode(encoded_name)?;
+    if name.is_empty() {
+        return Err("symbol resource name is empty");
+    }
+    let mut slice = 1;
+    if !query.is_empty() {
+        let mut saw_slice = false;
+        for field in query.split('&') {
+            let (key, value) = field
+                .split_once('=')
+                .ok_or("symbol resource query parameter has no value")?;
+            if percent_decode(key)? != "slice" || saw_slice {
+                return Err("symbol resource accepts only one slice parameter");
+            }
+            slice = percent_decode(value)?
+                .parse::<usize>()
+                .ok()
+                .filter(|slice| *slice > 0)
+                .ok_or("symbol resource slice must be a positive integer")?;
+            saw_slice = true;
+        }
+    }
+    Ok(Some((name, slice)))
 }
 
 fn identity_meta(identity: &GuideIdentity) -> Value {
@@ -188,7 +322,13 @@ fn handle_request(request: Value) -> Option<Value> {
             }),
         )),
         "ping" => Some(success(id, json!({}))),
-        "resources/templates/list" => Some(success(id, json!({ "resourceTemplates": [] }))),
+        "resources/templates/list" => Some(success(
+            id,
+            json!({
+                "resourceTemplates": resource_templates(&manifest, &identity),
+                "_meta": identity_meta(&identity),
+            }),
+        )),
         "resources/list" => match resource_catalog(&manifest) {
             Ok(resources) => Some(success(
                 id,
@@ -204,6 +344,43 @@ fn handle_request(request: Value) -> Option<Value> {
                 .pointer("/params/uri")
                 .and_then(Value::as_str)
                 .unwrap_or_default();
+            if symbol_template_enabled(&manifest) {
+                match parse_symbol_resource_uri(uri) {
+                    Ok(Some((query, slice))) => {
+                        let lookup = match crate::guide_reference::lookup(&query, slice) {
+                            Ok(Some(lookup)) => lookup,
+                            Ok(None) => return Some(failure(id, -32002, "Resource not found")),
+                            Err(_) => {
+                                return Some(failure(
+                                    id,
+                                    -32603,
+                                    "Embedded symbol registry invalid",
+                                ));
+                            }
+                        };
+                        let text = match serde_json::to_string(&lookup) {
+                            Ok(text) => text,
+                            Err(_) => {
+                                return Some(failure(id, -32603, "Symbol lookup encoding failed"));
+                            }
+                        };
+                        return Some(success(
+                            id,
+                            json!({
+                                "contents": [{
+                                    "uri": uri,
+                                    "mimeType": "application/json",
+                                    "text": text,
+                                    "_meta": identity_meta(&identity),
+                                }],
+                                "_meta": identity_meta(&identity),
+                            }),
+                        ));
+                    }
+                    Ok(None) => {}
+                    Err(message) => return Some(failure(id, -32602, message)),
+                }
+            }
             let resources = match resource_catalog(&manifest) {
                 Ok(resources) => resources,
                 Err(_) => return Some(failure(id, -32603, "Embedded guide catalog invalid")),
@@ -275,12 +452,39 @@ mod tests {
     #[test]
     fn catalog_is_manifest_derived_and_identity_bound() {
         let manifest = embedded_manifest().unwrap();
-        let page_count = manifest["pages"].as_object().unwrap().len();
         let listed = request(1, "resources/list", json!({}));
         let resources = listed["result"]["resources"].as_array().unwrap();
-        assert_eq!(resources.len(), page_count + 2);
-        assert_eq!(resources[0]["uri"], MANIFEST_URI);
-        assert_eq!(resources[1]["uri"], FLAT_URI);
+        let mut expected = vec![MANIFEST_URI.to_owned(), FLAT_URI.to_owned()];
+        expected.extend(
+            manifest["pages"]
+                .as_object()
+                .unwrap()
+                .keys()
+                .map(|id| format!("{PAGE_URI_PREFIX}{id}")),
+        );
+        expected.extend(
+            manifest["resources"]
+                .as_object()
+                .unwrap()
+                .values()
+                .filter(|resource| {
+                    resource
+                        .pointer("/projections/mcp")
+                        .and_then(Value::as_bool)
+                        == Some(true)
+                })
+                .filter_map(|resource| resource.get("uri").and_then(Value::as_str))
+                .map(str::to_owned),
+        );
+        expected.sort();
+        let mut actual = resources
+            .iter()
+            .filter_map(|resource| resource.get("uri").and_then(Value::as_str))
+            .map(str::to_owned)
+            .collect::<Vec<_>>();
+        actual.sort();
+        assert_eq!(actual, expected);
+        assert!(actual.contains(&"snapback-guide://reference/registry".to_owned()));
         let identity = guide_identity(&manifest).unwrap();
         assert!(resources.iter().all(|resource| {
             resource["_meta"]["snapback/guideContentHash"] == identity.content_hash
@@ -289,8 +493,12 @@ mod tests {
     }
 
     #[test]
-    fn manifest_and_pages_return_exact_embedded_bytes() {
-        for uri in [MANIFEST_URI, "snapback-guide://page/auth.protecting-data"] {
+    fn manifest_pages_and_manifest_resources_return_exact_embedded_bytes() {
+        for uri in [
+            MANIFEST_URI,
+            "snapback-guide://page/auth.protecting-data",
+            "snapback-guide://reference/registry",
+        ] {
             let response = request(1, "resources/read", json!({ "uri": uri }));
             let content = &response["result"]["contents"][0];
             assert_eq!(content["uri"], uri);
@@ -302,6 +510,47 @@ mod tests {
             manifest["result"]["contents"][0]["text"],
             std::str::from_utf8(guide::file("guide-manifest.generated.json").unwrap().bytes)
                 .unwrap()
+        );
+        let registry = request(
+            3,
+            "resources/read",
+            json!({ "uri": "snapback-guide://reference/registry" }),
+        );
+        assert_eq!(
+            registry["result"]["contents"][0]["text"],
+            std::str::from_utf8(
+                guide::file(crate::guide_reference::REGISTRY_PATH)
+                    .unwrap()
+                    .bytes
+            )
+            .unwrap()
+        );
+    }
+
+    #[test]
+    fn symbol_template_returns_the_shared_bounded_lookup_schema() {
+        let templates = request(1, "resources/templates/list", json!({}));
+        assert_eq!(
+            templates["result"]["resourceTemplates"][0]["uriTemplate"],
+            SYMBOL_URI_TEMPLATE
+        );
+        let response = request(
+            2,
+            "resources/read",
+            json!({ "uri": "snapback-guide://symbol/SnapbackClient?slice=2" }),
+        );
+        let text = response["result"]["contents"][0]["text"].as_str().unwrap();
+        assert!(text.len() <= crate::guide_reference::MAX_LOOKUP_BYTES);
+        let lookup: Value = serde_json::from_str(text).unwrap();
+        assert_eq!(
+            lookup["schemaVersion"],
+            crate::guide_reference::LOOKUP_SCHEMA_VERSION
+        );
+        assert_eq!(lookup["match"], "symbol-slice");
+        assert_eq!(lookup["truncation"]["slice"], 2);
+        assert_eq!(
+            lookup["truncation"]["nextCommand"],
+            "snapback guide SnapbackClient --slice 3"
         );
     }
 
@@ -319,6 +568,14 @@ mod tests {
             -32002
         );
         assert_eq!(request(3, "tools/list", json!({}))["error"]["code"], -32601);
+        assert_eq!(
+            request(
+                4,
+                "resources/read",
+                json!({ "uri": "snapback-guide://symbol/SnapbackClient?slice=0" })
+            )["error"]["code"],
+            -32602
+        );
         assert!(
             handle_request(json!({
                 "jsonrpc": "2.0",

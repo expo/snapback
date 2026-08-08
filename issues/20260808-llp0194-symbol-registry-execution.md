@@ -1,6 +1,6 @@
 # LLP 0194 execution: canonical symbol registry + generated API reference
 
-**Status:** Open — lane implemented locally; native/MCP serving and published ctx declaration remain
+**Status:** Open — native/Rust projections implemented locally; published ctx declaration remains
 **Impact:** 5
 **Urgency:** 4
 **Ease:** 2
@@ -180,3 +180,95 @@ scope: `@expo/snapback-cli/expo-dev` has runtime exports
 `admittedBrowserExchangeOrigin` and `startBootstrapExchange` missing from its
 declaration. This lane did not broaden into that unrelated declaration repair.
 No Cargo command and no server were run.
+
+## 2026-08-08 deferred native/Rust execution log
+
+This entry supersedes the earlier log's **Remaining Rust/native work** list;
+that list accurately described the handoff before this deferred lane ran.
+
+### Implemented in this worktree
+
+- The recursive Guide embed now requires `reference/index.md` and
+  `reference/registry.json`, and the existing closed wildcard route serves the
+  exact embedded bytes under `/_snapback/guide/reference/`. `/llms.txt` now
+  directly advertises both the compact API index and canonical registry.
+- `src/guide_mcp.rs` derives its static resource inventory from manifest pages
+  plus every manifest resource whose `projections.mcp` flag is true. It exposes
+  the registry at `snapback-guide://reference/registry` and advertises the
+  bounded `snapback-guide://symbol/{name}{?slice}` resource template.
+- `src/guide_reference.rs` is the single native exact-lookup implementation
+  shared by CLI and MCP. It verifies the embedded manifest SHA-256 and source
+  digest bindings before parsing the registry, mirrors
+  `snapback.guide-symbol-lookup.v1`, applies the registry/16 KiB budget, and
+  emits the same member, symbol-slice, module-slice, elision, next-slice, and
+  identity fields as `packages/snapback-cli/reference-lookup.mjs`.
+- `snapback guide <exact-symbol|module> [--slice <n>] [--json]` now performs
+  exact registry lookup before Markdown section search. Non-exact queries keep
+  the prior fuzzy section-search behavior. The package CLI preserves `--json`
+  when a cold install has no checkout registry and delegates to the native
+  carrier.
+- Package and Rust tests consume
+  `tests/fixtures/guide-symbol-lookup-v1.json` for the same exact member,
+  sliced symbol, sliced module, and fuzzy-fallback cases.
+- The manifest resource now truthfully declares `http: true`, `mcp: true`, and
+  `llms: true`; the manifest, flat Guide, registry, and 41 Markdown reference
+  projections were regenerated. Current inventory: 106 Guide pages, 1,092
+  snippets, 40 registry modules, and 847 symbols.
+
+### Acceptance 4/5 status after the native work
+
+4. **PASS across package CLI, native CLI, and MCP.** Exact/member results and
+   requested symbol/module slices carry the same schema and Guide/registry
+   identity, remain at or below 16 KiB, and name elisions plus the next command.
+5. **PASS for the implemented Guide reference surfaces; overall RFC acceptance
+   remains PARTIAL.** Generated Markdown, HTTP, package CLI, native CLI, and MCP
+   resolve the same stable registry identities. The published `ctx`
+   declaration/duplicate-owner retirement, diagnostic joins, and LLP 0195
+   public projection remain outside this deferred Rust lane.
+
+### Verification
+
+Passed:
+
+- `cargo build --locked` — PASS (only existing Ibex/linker warnings).
+- `DYLD_FRAMEWORK_PATH=$PWD/vendor/ibex/ios/Frameworks cargo test --locked --lib guide_`
+  — PASS, 11 focused unit tests.
+- `DYLD_FRAMEWORK_PATH=$PWD/vendor/ibex/ios/Frameworks cargo test --locked --test guide_mcp_v1`
+  — PASS, native stdio MCP integration.
+- `DYLD_FRAMEWORK_PATH=$PWD/vendor/ibex/ios/Frameworks cargo test --locked --test served_guide_v1 -- --skip cli_memory_server_serves_the_build_bound_flat_guide`
+  — PASS, four in-memory route/bytes/identity tests.
+- `volta run --node 24.18.0 node scripts/generate-guide-manifest.mjs` — PASS
+  after the standard ignored demo caches were materialized.
+- `volta run --node 24.18.0 node scripts/check-guide.mjs` — PASS (106 pages,
+  1,092 snippets; 62 warning-only existing freshness notices).
+- `volta run --node 24.18.0 node scripts/generate-symbol-registry.mjs --check`
+  — PASS (40 modules, 847 symbols, exact runtime parity).
+- `volta run --node 24.18.0 node packages/snapback-cli/reference-lookup.test.mjs`
+  — PASS.
+- `node scripts/check-inventories.mjs` — PASS (238 package tests, 25 demos,
+  281 publication leaves, 106 Guide pages / 1,092 snippets).
+- `scripts/check-generated-artifacts` — PASS after `bun install --frozen-lockfile`
+  restored the locked root dependencies and ignored demo caches.
+- `./ref-check --verbose` — PASS (199 LLP docs, 4,152 refs, zero errors or
+  unchecked refs).
+- `git diff --check` and focused `rustfmt --check` — PASS.
+- Rebuilt-binary smoke: native exact JSON, requested symbol slice, manifest
+  registry resource, symbol resource template, and MCP exact member — PASS.
+
+Sandbox-blocked loopback witness:
+
+```sh
+readiness_dir=$(mktemp -d /tmp/snapback-0194-readiness.XXXXXX)
+DYLD_FRAMEWORK_PATH="$PWD/vendor/ibex/ios/Frameworks" target/debug/snapback --port 0 --memory --ready-file "$readiness_dir/ready.json"
+```
+
+This failed before readiness with
+`failed to bind Snapback server to 127.0.0.1:0: Operation not permitted (os error 1)`.
+The orchestrator must run the remaining loopback test outside this sandbox:
+
+```sh
+DYLD_FRAMEWORK_PATH=$PWD/vendor/ibex/ios/Frameworks cargo test --locked --test served_guide_v1 cli_memory_server_serves_the_build_bound_flat_guide
+```
+
+Nothing else remains in the deferred native scope. No git commit was attempted;
+the sandbox does not permit git-metadata writes.

@@ -37,6 +37,8 @@ mod tests {
             "capabilities.md",
             "guide-manifest.generated.json",
             FLAT_PATH,
+            "reference/index.md",
+            crate::guide_reference::REGISTRY_PATH,
         ] {
             assert!(file(path).is_some(), "missing embedded guide file {path}");
         }

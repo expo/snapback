@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "snapback.guide-symbol-lookup-fixtures.v1",
+  "cases": [
+    {
+      "query": "SnapbackClient.query",
+      "slice": 1,
+      "match": "member",
+      "truncated": false,
+      "signatureContains": "readonly args?: FunctionArgs<Ref>"
+    },
+    {
+      "query": "SnapbackClient",
+      "slice": 1,
+      "match": "symbol-slice",
+      "truncated": true,
+      "nextCommand": "snapback guide SnapbackClient --slice 2"
+    },
+    {
+      "query": "SnapbackClient",
+      "slice": 2,
+      "match": "symbol-slice",
+      "truncated": true,
+      "nextCommand": "snapback guide SnapbackClient --slice 3"
+    },
+    {
+      "query": "@expo/snapback-client",
+      "slice": 2,
+      "match": "module-slice",
+      "truncated": true,
+      "nextCommand": "snapback guide @expo/snapback-client --slice 3"
+    },
+    {
+      "query": "not-an-exact-symbol",
+      "slice": 1,
+      "match": null
+    }
+  ]
+}

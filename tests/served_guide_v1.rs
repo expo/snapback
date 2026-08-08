@@ -5,7 +5,6 @@
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode, header};
 use serde_json::Value;
-use sha2::{Digest, Sha256};
 use snapback::admin::AppState;
 use snapback::guide::{FLAT_PATH, GUIDE_CONTENT_SHA256, INDEX_PATH};
 use snapback::local::LocalSnapback;
@@ -44,13 +43,6 @@ fn header<'a>(response: &'a axum::response::Response, name: &str) -> &'a str {
         .unwrap_or_else(|| panic!("missing response header {name}"))
         .to_str()
         .expect("ASCII guide identity header")
-}
-
-fn sha256_hex(bytes: &[u8]) -> String {
-    Sha256::digest(bytes)
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect()
 }
 
 /// The ticket's black-box witness: exercise the real CLI serve path with the
@@ -157,11 +149,11 @@ async fn memory_server_serves_flat_projection_with_manifest_identity() {
         bytes.as_ref(),
         include_bytes!("../guide/guide-flat.generated.md")
     );
-    assert_eq!(sha256_hex(&bytes), GUIDE_CONTENT_SHA256);
-
     let manifest: Value =
         serde_json::from_str(include_str!("../guide/guide-manifest.generated.json"))
             .expect("generated guide manifest JSON");
+    // @ref LLP 0194#design — contentHash now binds both the flat Markdown and
+    // non-Markdown registry bytes, so it intentionally is not the flat SHA.
     assert_eq!(manifest["contentHash"], GUIDE_CONTENT_SHA256);
 }
 
@@ -188,6 +180,8 @@ async fn memory_server_serves_root_llms_txt_with_guide_identity() {
     let body = std::str::from_utf8(&body).expect("UTF-8 llms.txt index");
     assert!(body.contains("/_snapback/guide/flat.md"));
     assert!(body.contains("/_snapback/guide/capabilities.md"));
+    assert!(body.contains("/_snapback/guide/reference/index.md"));
+    assert!(body.contains("/_snapback/guide/reference/registry.json"));
 }
 
 #[tokio::test]
@@ -231,6 +225,31 @@ async fn index_and_individual_build_embedded_files_are_public_read_only() {
     )
     .expect("embedded manifest JSON");
     assert_eq!(manifest_body["buildIdentity"]["commit"], manifest_commit);
+
+    // @ref LLP 0194#design — recursive embedding plus the closed wildcard
+    // route serves both human Markdown and the canonical registry bytes.
+    let reference_index = get("/_snapback/guide/reference/index.md").await;
+    assert_eq!(reference_index.status(), StatusCode::OK);
+    assert_eq!(
+        to_bytes(reference_index.into_body(), usize::MAX)
+            .await
+            .unwrap()
+            .as_ref(),
+        include_bytes!("../guide/reference/index.md")
+    );
+    let registry = get("/_snapback/guide/reference/registry.json").await;
+    assert_eq!(registry.status(), StatusCode::OK);
+    assert_eq!(
+        registry.headers()[header::CONTENT_TYPE],
+        "application/json; charset=utf-8"
+    );
+    assert_eq!(
+        to_bytes(registry.into_body(), usize::MAX)
+            .await
+            .unwrap()
+            .as_ref(),
+        include_bytes!("../guide/reference/registry.json")
+    );
 
     assert_eq!(
         get("/_snapback/guide/eval-runs/2026-07-15/realtime.md")
@@ -281,4 +300,6 @@ fn served_guide_routes_are_registered_system_static_public_projections() {
         include_bytes!("../guide/guide-flat.generated.md")
     );
     assert!(snapback::guide::file("capabilities.md").is_some());
+    assert!(snapback::guide::file("reference/index.md").is_some());
+    assert!(snapback::guide::file("reference/registry.json").is_some());
 }

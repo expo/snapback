@@ -4419,7 +4419,11 @@ export async function runCli(argv, options = {}) {
     });
   }
   const runtime = resolveRuntimeBinary(options);
-  const delegatedArgs = command === undefined ? [] : [command, ...args];
+  // @ref LLP 0194#design — a cold install with no checkout registry delegates
+  // exact Guide lookup to the embedded native registry without losing JSON mode.
+  const delegatedArgs = command === undefined
+    ? []
+    : [command, ...args, ...(command === 'guide' && json ? ['--json'] : [])];
   const result = spawnSync(runtime.binary, delegatedArgs, {
     stdio: 'inherit',
     env: runtimeSpawnEnvironment(runtime.binary, options.env),

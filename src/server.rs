@@ -8000,7 +8000,9 @@ pub const GUIDE_BUILD_COMMIT_HEADER: &str = "x-snapback-server-build-commit";
 // flat single-file projection has outgrown that budget (issues/20260806-
 // guide-flat-projection-oversize.md is still open) and is listed last, as
 // a large, explicit fallback rather than the first-offered link.
-const LLMS_TXT: &str = "# Snapback\n\n> Snapback is a local-first app backend. This server embeds its own authoring guide.\n\n## Docs\n\n- [Capability index](/_snapback/guide/capabilities.md) \u{2014} start here: the compact, capability-complete map.\n- [Guide index](/_snapback/guide)\n- [Complete guide, single file](/_snapback/guide/flat.md) \u{2014} everything in one request; large and growing, prefer the capability index or a specific page first.\n";
+// @ref LLP 0194#design — exact API discovery names both the compact human
+// index and canonical machine registry instead of hiding them in the flat file.
+const LLMS_TXT: &str = "# Snapback\n\n> Snapback is a local-first app backend. This server embeds its own authoring guide.\n\n## Docs\n\n- [Capability index](/_snapback/guide/capabilities.md) \u{2014} start here: the compact, capability-complete map.\n- [Guide index](/_snapback/guide)\n- [API reference index](/_snapback/guide/reference/index.md) \u{2014} compact package and module map.\n- [API symbol registry](/_snapback/guide/reference/registry.json) \u{2014} build-bound exact signatures and stable identities.\n- [Complete guide, single file](/_snapback/guide/flat.md) \u{2014} everything in one request; large and growing, prefer the capability index or a specific page first.\n";
 
 fn guide_bound_response(body: &'static [u8], content_type: &'static str) -> Response {
     let mut response = Response::new(Body::from(body));

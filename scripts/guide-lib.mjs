@@ -54,6 +54,11 @@ export function checkGuideMcpProjection(root, manifest, errors) {
   for (const [id, page] of pages) {
     resources.push({ uri: `${GUIDE_MCP_PAGE_URI_PREFIX}${id}`, path: page.path, sha256: page.sha256 });
   }
+  for (const [id, resource] of Object.entries(manifest?.resources ?? {}).sort(([left], [right]) => left.localeCompare(right))) {
+    if (resource.projections?.mcp === true) {
+      resources.push({ uri: resource.uri, path: resource.path, sha256: resource.sha256, id });
+    }
+  }
   const uris = new Set();
   for (const resource of resources) {
     if (uris.has(resource.uri)) errors.push(`guide MCP projection repeats resource URI ${resource.uri}`);
@@ -69,9 +74,6 @@ export function checkGuideMcpProjection(root, manifest, errors) {
         errors.push(`guide MCP resource ${resource.uri} does not match manifest sha256`);
       }
     }
-  }
-  if (resources.length !== pages.length + 2) {
-    errors.push('guide MCP projection must contain exactly manifest + flat + every manifest page');
   }
   for (const [id, resource] of Object.entries(manifest?.resources ?? {})) {
     const absolute = join(root, resource.path ?? '');
@@ -707,8 +709,8 @@ export function buildManifest(root, pageInfo, snippetRecords, index, surfaces) {
     nav: Object.fromEntries([...nav.entries()].sort()),
     pages,
     // @ref LLP 0194#design — non-Markdown reference bytes participate in the
-    // same manifest and build identity without pretending native MCP support
-    // before its resource catalog learns manifest resources.
+    // same manifest and build identity; projection flags turn true only with
+    // an implemented native carrier and its acceptance coverage.
     resources: {
       'reference.symbol-registry': {
         path: SYMBOL_REGISTRY_PATH,
@@ -718,7 +720,7 @@ export function buildManifest(root, pageInfo, snippetRecords, index, surfaces) {
         sha256: createHash('sha256').update(registryBytes).digest('hex'),
         uri: 'snapback-guide://reference/registry',
         servedPath: '/_snapback/guide/reference/registry.json',
-        projections: { http: true, mcp: false, llms: false },
+        projections: { http: true, mcp: true, llms: true },
         schemaVersion: registry.schemaVersion,
         sourceDigest: registry.buildIdentity?.sourceDigest,
         modules: registry.modules?.length ?? 0,
