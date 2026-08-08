@@ -674,6 +674,33 @@ vacuous-pass hardening, and this stream lapse — and every §4.4 hot row
 remains an honest GAP owned by that ticket. Rerun as `ZBUGS_ATTEMPT=v9`
 after the repair; nothing backfills existing receipts.
 
+#### 2026-08-08 — zb5-hot v10: the hot profile qualifies at its honest boundary
+
+After the runtime invalidation repair (server ack-token/scope-revision
+reuse with conflicting frames; verified by the instrumented probe, then
+in-gate), the typed `ZBUGS_SHORT_ID_BOUNDARY` refusal (issue.create's
+proof-boundary refusal now crosses as a declared code instead of folding
+to `SNAPBACK_HANDLER_FAILED`), and the collision-free op-plan emoji
+(the overlay mints only 👍), `zb5-hot` `v10` is **PASS 21 / GAP 3 /
+FAIL 0** — the predeclared terminal shape. The three GAPs are exactly the
+anticipated ones: `W-SHORTID-LARGE` on `issue.create` and the
+effect-counter row, and the known authority-transition custody seam. All
+eighteen observer instances (six observers × three cycles) report `live`
+at settle with zero stale flags. `v9` is preserved FAIL history (it
+proved the stream fix and exposed the two refusal-shape defects);
+`zb0.v5` FAIL is preserved as the mechanical detection of the frozen
+acceptance.v1.md mutation (restored; erratum in
+`../manifest/ratification-13.v1.md`), with `zb0.v6` PASS 9/9 on the
+restored bytes and rotated identities.
+
+Raw scale fact recorded without any margin claim: under six concurrent
+1,000-row streaming observers at the 5.5M-row store, the 48 sampled
+mutation settle latencies span 111 ms to 148 s with a median near 74 s —
+the live re-evaluation fan-out cost is now measured evidence for the
+D2/D4 live-boundary work and the acceptance.v2 margin discussion.
+
+## Workaround and component register (predeclared)
+
 Rows not yet used retain `TBD-before-use`. Each implementing job must replace
 that marker with measured source/provider line ranges before its first ZB0
 attempt. Using a row before that update fails ZB0.

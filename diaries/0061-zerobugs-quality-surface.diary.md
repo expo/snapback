@@ -420,3 +420,31 @@ profile fully qualified with real numbers, the hot profile closed at an
 honest boundary owned by a named ticket, receipts that never overwrite,
 and a platform that is five scale-shaped defects more honest than it was
 yesterday. The control keeps doing the only job it was built for.
+
+## 2026-08-08 — the hot profile qualifies; the ladder's last three rungs
+
+zb5-hot v10 closed the ladder at PASS 21 / GAP 3 / FAIL 0 — the exact
+shape the gate predeclared before any attempt ran. The last three rungs
+each earned their receipt: v9 proved the invalidation repair in-gate (the
+reset-and-cycle check that failed eight straight attempts finally passed)
+and exposed two refusal-shape defects; the fixes were a one-line lesson
+each. The short-id boundary refusal had always been thrown as a plain
+error, which the platform correctly folds to an opaque handler failure —
+the guide's declared-refusal channel existed all along, and typing the
+refusal made the gate's match precise instead of prose-fragile. And the
+op plan's 👍 collided with a baseline whose 1,746 emoji are all 👍 — the
+kind of fact nobody checks until a unique index refuses three cycles in a
+row, deterministically.
+
+ZB0 also did its job in the middle of all this: its digest pin caught a
+parallel session's in-place edit of the frozen acceptance manifest — the
+freeze rule enforced by machine, not etiquette — and forced the restore
+that the erratum had politely left open.
+
+The receipt's rawest fact may matter most: mutation settle latencies
+under six concurrent streaming observers at 5.5M rows have a median near
+74 seconds. No gate fails on it — the hot profile makes no margin claims
+— but it is now sitting in an immutable receipt where the D2/D4
+live-boundary owners and the acceptance.v2 margin freeze cannot avoid
+it. That is the control doing its job to the end: not proving the
+product good, but making its truths undeniable.

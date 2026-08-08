@@ -69,9 +69,13 @@ author channels, and one of them violated §15's freeze:
 - Repair per §15: this erratum records the mutation explicitly;
   `acceptance.v2` must incorporate the ratification (both records, this
   file canonical) and re-establish a single canonical prose contract.
-  Whether to additionally restore the v1 prose blob to its
-  `36a630f72` bytes is an author decision — the in-place text records a
-  genuine author ruling, so the supervising session did not revert it
-  unilaterally. Independently caught by the GPT-family review of LLP 0183
+  The v1 prose was restored to its `36a630f72` bytes on 2026-08-08:
+  ZB0's `source-pin-coverage` check mechanically enforces the frozen
+  record (`tests/fixtures/fixture-digests.json` pins the manifest's exact
+  byte digest), so the in-place mutation was not merely a process breach
+  but a gate breaker. The mutated paragraph's content survives verbatim in
+  this artifact and in the author-gate packet issue; nothing of the ruling
+  was lost. ZB0 re-receipted `v6` PASS 9/9 on the restored bytes (`v5`
+  FAIL preserved as the detection evidence). Independently caught by the GPT-family review of LLP 0183
   (`llp/reviews/0183-zerobugs-quality-surface.gpt-5.md`, concern 2) and
   verified against repository history.

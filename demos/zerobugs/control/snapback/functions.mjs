@@ -1347,14 +1347,21 @@ export const issueCreate = defineJsMutation({
     'notificationIntent', 'projectUserRead', 'searchEpoch',
   ],
   result: results.value(mutationReceiptValidator()),
+  // W-SHORTID's proof boundary is an application-semantic refusal, not a
+  // handler crash: at stores past the 1,024-row bound the allocator cannot
+  // prove short-id uniqueness, and the caller must receive a typed code
+  // (an undeclared throw folds to SNAPBACK_HANDLER_FAILED and drops the
+  // message — observed live in the zb5-hot v9 receipt).
+  refusals: ['ZBUGS_SHORT_ID_BOUNDARY'],
   outgrewIr: 'conditional-writes',
   handler: async (ctx, args) => {
     const actor = await requireSourceUser(ctx);
     const project = await resolveProjectArgument(ctx, args.projectID);
-    const shortID = nextIssueShortID(assertBoundedRows(
-      await ctx.db.query('issue').take(1_024).collect(),
-      'issue short id allocation',
-    ));
+    const shortIDRows = await ctx.db.query('issue').take(1_024).collect();
+    if (shortIDRows.length >= 1_024) {
+      ctx.refuse('ZBUGS_SHORT_ID_BOUNDARY', {boundary: 1_024});
+    }
+    const shortID = nextIssueShortID(shortIDRows);
     const now = ctx.runtime.now();
     const values = {
       id: args.id,

@@ -111,3 +111,17 @@ every run. After the runtime repair: rerun the instrument (expect zero
 `zb5-hot` `ZBUGS_ATTEMPT=v9`. The zb5-hot settle change (bounded 30 s
 recovery + disclosure) remains correct — a quarantined stream will keep
 failing the gate honestly until the server fix lands, as it should.
+
+## RESOLVED — 2026-08-08
+
+The runtime fix (invalidation resolutions supersede with distinct
+revisions; landed 83fcb01cc) is verified at every level: the instrumented
+probe went from 32 conflicts to zero with all six streams live; zb5-hot
+v9 passed the reset-and-cycle check that had failed eight attempts; and
+zb5-hot v10 is PASS 21 / GAP 3 / FAIL 0 with all eighteen observer
+instances live at settle and zero stale flags
+(`demos/zerobugs/evidence/snapback-control-hot.zb5.v10.json`). The
+persistent diagnosis baseline under
+`demos/zerobugs/fixtures-local/hot-diag-baseline/` can be deleted or kept
+for future stream work; the instrument remains at
+`demos/zerobugs/control/scripts/diag-hot-stream.mts`.

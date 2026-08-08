@@ -227,9 +227,9 @@
   "snapbackRelease": {
     "appId": "zerobugs-control",
     "schemaVersion": "snapback.v1",
-    "inputsHash": "snapback.v1:sessions:inputs:sha256:e42e89134ecc7062e6432d81535151898fa57be5f7b917f2cc3198f42c33ab78",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:f6e4bb6f59cf866a7589971d3a40b44afc6bbe1c1909bb19021d669b4bdde6a3",
     "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
-    "bundleHash": "snapback.v1:sessions:function:sha256:98195b9448c613209a88afd16a957a1e575220cb92b80332d40a9adc4eeafaff",
+    "bundleHash": "snapback.v1:sessions:function:sha256:fa78853180085fdbafbdbc5c9f0da60af316f3607d6ac3a364d5891a46f0a231",
     "targetProfileId": "local-dev-sqlite-ibex"
   },
   "cleanupOwnership": {

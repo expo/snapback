@@ -568,15 +568,6 @@ ratification, or if this threshold is not met while every parity gate and
 future noninferiority rule passes, the strongest permitted whole-product claim
 is parity. No other improvement may be selected after seeing results.
 
-**RATIFIED (author: Charlie Cheever, 2026-08-07, via
-`issues/closed/20260807-local-first-author-gate-packet.md` item 6).**
-Durable disconnected intent is the ratified primary-improvement candidate,
-recorded before any Stage-1 results are known, per the rule above. The
-candidate's remaining delta over landed evidence — the authorized/revocation
-leg — rides the LLP 0129 Phase-0-remainder lane (M1 lease custody +
-authenticated conjunction witness; owner/timebox per the same packet's
-item 2, presented by 2026-08-14).
-
 ## 14. ZB gate hooks
 
 | Gate | Manifest hooks |

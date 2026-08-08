@@ -206,8 +206,14 @@ function buildHotOperationPlan(overlay, cycles) {
       },
       'emoji.addToIssue': {
         id: hotID('emoji-issue', cycle, 6, publicIssues[6].id),
-        unicode: '👍',
-        annotation: 'thumbs up',
+        // The large overlay mints exactly one emoji value (👍) across its
+        // 1,746 rows, so a planned 👍 by a bound actor on a working-set
+        // issue collides with the baseline's unique (subject, creator,
+        // value) key — observed as three deterministic
+        // SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION refusals in the zb5-hot v9
+        // receipt. 🎯 is provably absent from the baseline.
+        unicode: '🎯',
+        annotation: 'direct hit',
         subjectID: publicIssues[6].id,
         created: time(6),
         ...effectIdentity(6),
@@ -339,9 +345,21 @@ function roundedMilliseconds(value) {
 
 function retainedError(error) {
   const value = error && typeof error === 'object' ? error : {};
+  const diagnostic = value.diagnostic && typeof value.diagnostic === 'object'
+    ? value.diagnostic
+    : {};
+  const details = diagnostic.details && typeof diagnostic.details === 'object'
+    ? diagnostic.details
+    : {};
   return {
     name: typeof value.name === 'string' ? value.name : 'Error',
     code: typeof value.code === 'string' ? value.code : null,
+    // Declared application refusals carry their typed code beside the
+    // platform code; retain it so refusal-shaped checks can match the
+    // exact claim instead of message prose.
+    appCode: typeof details.appCode === 'string'
+      ? details.appCode
+      : (typeof diagnostic.appCode === 'string' ? diagnostic.appCode : null),
     message: String(value.message ?? error).slice(0, 800),
   };
 }
@@ -907,7 +925,7 @@ async function main() {
       const onlyScaleCreateRefused = refusedTriggers.length === cycles
         && refusedTriggers.every(sample => (
           sample.name === 'issue.create'
-          && sample.error?.message.includes('issue short id allocation reached the portable 1,024-row boundary')
+          && sample.error?.appCode === 'ZBUGS_SHORT_ID_BOUNDARY'
         ))
         && appliedTriggers.length === cycles * 7
         && appliedNonTriggers.length === cycles * 8;
@@ -972,7 +990,7 @@ async function main() {
           && samples.length === cycles
           && samples.every(sample => (
             sample.outcome === 'refused'
-            && sample.error?.message.includes('issue short id allocation reached the portable 1,024-row boundary')
+            && sample.error?.appCode === 'ZBUGS_SHORT_ID_BOUNDARY'
           ));
         if (scaleCreateRefusal) {
           gate.gap(id, {
