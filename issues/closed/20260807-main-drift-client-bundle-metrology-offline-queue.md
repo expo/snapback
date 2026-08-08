@@ -50,3 +50,21 @@ node scripts/client-bundle-metrology.mjs --write-rollover-baseline
 
 Commit the reconciled record with the measured change, verify the gate, record
 the resolution here, and move this ticket to `issues/closed/`.
+
+## Resolution — 2026-08-07
+
+Reconciled by the Delete-admission lane (which this drift blocked: the rollover
+mint pre-check refuses while any un-superseded ceiling fails). The regression
+is the landed LLP 0043 JS-arm sessions-custody offline queue itself
+(`55564b1018eb1`, `outbox-shared.mjs` +195 lines, `index.mjs` +612 lines), not
+an accident: nine closures grew (largest: `public-subpath-rqs-store-default`
+minified 57,487 → 62,514; `public-subpath-outbox-shared` minified
+18,377 → 21,340; full deltas in the receipt rationale). Reconciled as the
+explicitly reviewed rollover
+`tests/fixtures/client-bundle-metrology/baseline.sessions-custody-offline-queue.v1.json`
+(workload `js-arm-sessions-custody-offline-queue.2026-08-07.v1`) minted via
+`--write-rollover-baseline` with the behavior train green; predecessor
+receipts remain immutable; no other active ceiling moved. `--check` verified
+green on the reconciled record before landing.
+
+**Status:** Closed 2026-08-07.

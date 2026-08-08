@@ -1050,6 +1050,105 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-client/rqs-resume.test.mjs']],
     ]),
   }),
+  Object.freeze({
+    filename: 'baseline.sessions-custody-offline-queue.v1.json',
+    profileFilename: 'sessions-custody-offline-queue-profiles.v1.json',
+    workloadVersion: 'js-arm-sessions-custody-offline-queue.2026-08-07.v1',
+    profileIds: Object.freeze([
+      'external-react-application',
+      'public-subpath-outbox-shared',
+      'public-subpath-rqs-preload',
+      'public-subpath-rqs-registered',
+      'public-subpath-rqs-store',
+      'public-subpath-rqs-store-default',
+      'public-subpath-rqs-store-expo',
+      'public-subpath-rqs-store-file',
+      'react-external',
+    ]),
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.dispatch-degrade-and-omission.v1.json',
+        profileIds: Object.freeze([
+          'external-react-application',
+          'react-external',
+        ]),
+      }),
+      Object.freeze({
+        filename: 'baseline.client-bundle-disposition.v1.json',
+        profileIds: Object.freeze([
+          'public-subpath-outbox-shared',
+          'public-subpath-rqs-registered',
+          'public-subpath-rqs-store-expo',
+        ]),
+      }),
+      Object.freeze({
+        filename: 'baseline.local-persistent-store-review-fixes.v1.json',
+        profileIds: Object.freeze(['public-subpath-rqs-preload']),
+      }),
+      Object.freeze({
+        filename: 'baseline.browser-witness-store-fixes.v1.json',
+        profileIds: Object.freeze([
+          'public-subpath-rqs-store',
+          'public-subpath-rqs-store-default',
+          'public-subpath-rqs-store-file',
+        ]),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0043#design',
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0166#d9--carriers-storage-profiles-arms-and-the-bundle',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-07',
+      fix: 'Reconcile the ticketed main drift: landing 55564b1018eb1 '
+        + '(feat(client): implement LLP 0043 JS-arm sessions-custody offline '
+        + 'queue) grew the shared outbox and every persistent-store arm '
+        + 'without advancing the ratchet record. The bytes are the landed '
+        + 'sessions-custody offline-queue feature, not an accident; this '
+        + 'rollover advances the nine regressed closures to the measured '
+        + 'post-landing sizes.',
+      ticket: 'issues/closed/20260807-main-drift-client-bundle-metrology-offline-queue.md',
+      byteDeltas: 'public-subpath-outbox-shared min 18,377 -> 21,340 (+2,963), '
+        + 'gzip 6,494 -> 7,320 (+826), brotli 5,811 -> 6,573 (+762); '
+        + 'public-subpath-rqs-store min 37,808 -> 41,447 (+3,639), gzip '
+        + '13,199 -> 14,119 (+920), brotli 11,654 -> 12,499 (+845); '
+        + 'public-subpath-rqs-store-default min 57,487 -> 62,514 (+5,027); '
+        + 'public-subpath-rqs-store-expo min 38,946 -> 42,560 (+3,614); '
+        + 'public-subpath-rqs-store-file min 37,481 -> 41,094 (+3,613); '
+        + 'react-external min 92,673 -> 93,496 (+823); '
+        + 'external-react-application min 92,848 -> 93,671 (+823); '
+        + 'public-subpath-rqs-preload brotli 2,177 -> 2,178 (+1); '
+        + 'public-subpath-rqs-registered gzip 10,650 -> 10,651 (+1).',
+      summary: 'Advance the nine closures regressed by the landed LLP 0043 '
+        + 'sessions-custody offline queue to their measured post-landing '
+        + 'bytes, per the drift ticket’s first-parent record-epoch '
+        + 'attribution. Every predecessor receipt remains immutable and no '
+        + 'other active ceiling moves.',
+    }),
+    beforeAfterProfileIds: Object.freeze([
+      'external-react-application',
+      'public-subpath-outbox-shared',
+      'public-subpath-rqs-preload',
+      'public-subpath-rqs-registered',
+      'public-subpath-rqs-store',
+      'public-subpath-rqs-store-default',
+      'public-subpath-rqs-store-expo',
+      'public-subpath-rqs-store-file',
+      'react-external',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+      ['node', ['packages/snapback-client/outbox-store.test.mjs']],
+      ['node', ['packages/snapback-client/outbox-custody.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-store.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-store-file.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-store-expo.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-resume.test.mjs']],
+    ]),
+  }),
 ]);
 
 function fail(message) {
