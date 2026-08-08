@@ -1,6 +1,6 @@
 # Supervised Expo web carrier: bootstrap CORS, AppState deep-import, picker URI schemes
 
-**Status:** Open
+**Status:** Closed — paved 2026-08-07; e2e receipt collected 2026-08-07 (diary 0068)
 **Impact:** 4
 **Urgency:** 4
 **Ease:** 3
@@ -70,3 +70,12 @@ completing the supervised loop with zero app-authored shims — has no
 retained receipt yet. Next measurement lane (diary 0066 "For the W1
 ratchet") should drive Expo web through the supervised loop and retain
 that receipt, then close this ticket.
+
+## Closed — 2026-08-08
+
+The paves shipped in 0.1.13 and the residue (an end-to-end Expo-web
+receipt) was collected by diary 0068's measurement lanes: both web lanes
+ran the supervised Expo loop on the web carrier from the published
+packages with zero app-authored proxies or shims — bootstrap exchange,
+AppState, and the picker path all first-try, including the full
+picker-to-rendered-image proof and the offline cached-binding cold boot.
