@@ -264,8 +264,8 @@ async function main() {
 
     replySocket.send({ type: 'ping', requestId: 'reply-gate' });
     const pongReply = await replySocket.nextFrame();
-    const pongVerdict = validate('live.kit-socket-reply.schema.json', pongReply);
-    check('kit socket serves a schema-valid pong reply',
+    const pongVerdict = validate('live.socket-server.schema.json', pongReply);
+    check('kit socket serves a pong conforming to the committed LiveSocketServerFrame schema',
       pongReply.kind === 'pong' && pongVerdict.ok,
       `${pongVerdict.errors} frame=${JSON.stringify(pongReply).slice(0, 400)}`);
 

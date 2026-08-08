@@ -74,6 +74,7 @@ import {
   RESUME_TOKEN_MAX_AGE_MS,
   activeResumeKey,
   argsHash as rqsArgsHash,
+  compileHostPlanStorageQuery,
   decodeAndVerifyToken,
   digestOfRows,
   ensureResumeKeyTable,
@@ -186,6 +187,7 @@ const DEFAULT_ACTION_TIMEOUT_MS = 30_000;
 const MAX_ACTION_TIMEOUT_MS = 15 * 60 * 1000;
 const SUBSCRIPTION_SCHEMA_VERSION = 3;
 const CRON_CLAIM_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+const STARTUP_REFUSAL_ALARM_RETRY_MS = 60_000;
 const DEFAULT_CONNECTION_GRANT_LIMIT = 1024;
 const MAX_CONNECTION_GRANT_LIMIT = 4096;
 const DEFAULT_CONNECTION_GRANT_TTL_MS = 24 * 60 * 60 * 1000;
@@ -386,6 +388,13 @@ export class Coordinator {
       this.pendingInvocations -= 1;
       if (this.invocationTail === settled) this.invocationTail = null;
     });
+  }
+
+  servablePrecondition() {
+    if (this.socketLimitError) {
+      this.socketLimitError = this.reconcileAcceptedSocketBounds();
+    }
+    return this.startupError || this.socketLimitError;
   }
 
   preparedResponse(response, egress = null, fanOut = []) {
@@ -1248,6 +1257,37 @@ export class Coordinator {
     return this.rqsRoutesCache;
   }
 
+  evaluateHostPlanRows(plan, args) {
+    const compiled = compileHostPlanStorageQuery(plan, args);
+    if (compiled === null) {
+      // Defensive compatibility for a future HostPlan residue. The admitted
+      // Cloudflare grammar is currently all Eq/order/limit and never takes
+      // this branch; an extension must remain correct before it is fast.
+      const stored = [...this.sql.exec(`SELECT row_json FROM ${this.physicalTable(plan.table)}`)]
+        .map((record) => JSON.parse(record.row_json));
+      return evaluateHostPlanQuery(plan, args, stored);
+    }
+    if (compiled.empty) return [];
+    const host = new HostContext({
+      sql: this.sql,
+      mode: 'query',
+      nowMs: Date.now(),
+      epoch: 'host-plan-query',
+      newId: null,
+      tables: APP_TABLES,
+      schemaTables: APP_SCHEMA_TABLES,
+    });
+    try {
+      return host.storageQuery(this.physicalTable(plan.table), compiled.plan);
+    } catch (error) {
+      // The previous strict-JS evaluator answered no rows for a mismatched
+      // caller value. Preserve that behavior while valid typed values take
+      // the indexed SQL path.
+      if (error?.snapbackCode === 'SNAPBACK_QUERY_FILTER_VALUE_INVALID') return [];
+      throw error;
+    }
+  }
+
   /// Per-function derived RQS facts (cached): the rqsEligible digest kind,
   /// the publicInline disclosure fact, and the interim content-derived
   /// queryArtifact identity (LLP 0091 step-1 amendment item 3, standing).
@@ -1487,9 +1527,7 @@ export class Coordinator {
       }
       let rows;
       try {
-        const stored = [...this.sql.exec(`SELECT row_json FROM ${this.physicalTable(plan.table)}`)]
-          .map((record) => JSON.parse(record.row_json));
-        rows = evaluateHostPlanQuery(plan, substituted.args, stored);
+        rows = this.evaluateHostPlanRows(plan, substituted.args);
       } catch (_) {
         return failure(500, 'SNAPBACK_BUNDLE_QUERY_FAILED', `evaluating ${fn.name} failed`);
       }
@@ -1552,10 +1590,7 @@ export class Coordinator {
   async route(request) {
     const url = new URL(request.url);
     const path = url.pathname;
-    if (this.socketLimitError) {
-      this.socketLimitError = this.reconcileAcceptedSocketBounds();
-    }
-    const startupRefusal = this.startupError || this.socketLimitError;
+    const startupRefusal = this.servablePrecondition();
 
     // A deployment/state mismatch refuses the data plane (fail closed) but
     // leaves /health for diagnosis, app/reset for recovery, and config/status
@@ -2170,7 +2205,11 @@ export class Coordinator {
     return run(parsed.value);
   }
 
-  corruptMetaForTest(payload) {
+  async corruptMetaForTest(payload) {
+    if (payload.forceAlarmDue === true) {
+      const job = this.alarmJobs()[0];
+      if (job) this.writeCronState(job.name, { armed: 1, next_nominal_at_ms: Date.now() - 1 });
+    }
     this.sql.exec(
       `INSERT INTO _snapback_meta (key, value) VALUES ('schema_hash', ?)
        ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
@@ -2183,7 +2222,11 @@ export class Coordinator {
     );
     this.sql.exec('UPDATE _snapback_version SET version = 1 WHERE id = 1');
     this.startupError = this.validateDeploymentMetadata();
-    return json(200, { startupError: this.startupError });
+    if (payload.fireAlarm === true) await this.alarm();
+    return json(200, {
+      startupError: this.startupError,
+      ...(payload.fireAlarm === true ? { alarmAtMs: await this.ctx.storage.getAlarm() } : {}),
+    });
   }
 
   // --- config / secrets backend (LLP 0049 Phase 1, LLP 0036 deploy-time-binding)
@@ -3321,6 +3364,13 @@ export class Coordinator {
   // work (demand vanished, or nothing due yet) early-outs without any
   // external fetch; a due armed job runs through the claimed runner.
   async alarm() {
+    if (this.servablePrecondition()) {
+      // @ref LLP 0028#amendment-2026-07-23-platform-alarms-are-lossy-the-durable-schedule-table-stays-authoritative —
+      //   refusal skips execution but preserves a future wakeup over the
+      //   unchanged durable nominal instead of silently dropping the job.
+      await this.ctx.storage.setAlarm(Date.now() + STARTUP_REFUSAL_ALARM_RETRY_MS);
+      return;
+    }
     const nowMs = Date.now();
     for (const job of this.alarmJobs()) {
       const state = this.readCronState(job.name);
@@ -3824,9 +3874,7 @@ export class Coordinator {
       const plan = hostPlanQuery(fn);
       if (plan) {
         try {
-          const stored = [...this.sql.exec(`SELECT row_json FROM ${this.physicalTable(plan.table)}`)]
-            .map((record) => JSON.parse(record.row_json));
-          const rows = evaluateHostPlanQuery(plan, args || {}, stored);
+          const rows = this.evaluateHostPlanRows(plan, args || {});
           return { ok: true, value: rows, observedVersion: this.currentVersion() };
         } catch (error) {
           return {
@@ -5236,8 +5284,10 @@ export class Coordinator {
   }
 
   async webSocketMessage(ws, message) {
-    if (this.socketLimitError) {
-      try { ws.close(1013, 'socket limits reconciling'); } catch (_) {}
+    const startupRefusal = this.servablePrecondition();
+    if (startupRefusal) {
+      const reason = this.startupError ? 'coordinator startup refused' : 'socket limits reconciling';
+      try { ws.close(1013, reason); } catch (_) {}
       return;
     }
     // @ref LLP 0013#transport-contract — refuse over-limit or open-shaped
@@ -5289,7 +5339,7 @@ export class Coordinator {
         // The kit heartbeat expects the local server's `kind` field (any frame
         // refreshes its freshness budget); the proof protocol pins `type`.
         if (this.socketProtocolFor(ws) === 'kit') {
-          ws.send(JSON.stringify({ kind: 'pong', requestId: parsed.requestId }));
+          ws.send(JSON.stringify({ kind: 'pong', requestId: parsed.requestId, serverTimeMs: Date.now() }));
         } else {
           ws.send(JSON.stringify({ type: 'pong' }));
         }

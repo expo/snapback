@@ -22,12 +22,12 @@ const FEED_KEY = 'test-511-key-cron';
 const WARM_POLL_MS = 1200;
 const seed = JSON.parse(fs.readFileSync(new URL('../../demos/all-aboard/snapback/seed.json', import.meta.url), 'utf8'));
 
-const EXPECTED_CHECKS = 12;
+const EXPECTED_CHECKS = 13;
 let checks = 0;
-function check(label, condition) {
+function check(label, condition, detail) {
   checks += 1;
   if (!condition) {
-    throw new Error(`ACCEPTANCE FAILED [${label}]`);
+    throw new Error(`ACCEPTANCE FAILED [${label}]${detail ? ` — ${detail}` : ''}`);
   }
   console.log(`ok ${checks} - ${label}`);
 }
@@ -202,6 +202,36 @@ async function main() {
     const idleFetches = mock.seen.fetches;
     await sleep(WARM_POLL_MS * 2.5);
     check('the idle deployment takes zero warm-poll wakeups after disarm', mock.seen.fetches === idleFetches);
+
+    // --- startup refusal skips a due alarm but preserves its wakeup --------
+    // Install demand without running activation reconciliation, so Miniflare
+    // cannot launch a platform alarm concurrently with this direct probe.
+    await proof.raw('/_snapback/test/schema-hardening', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        operation: 'insert-legacy-subscription',
+        subscriptionId: 'startup-refusal-demand',
+        connectionId: 'startup-refusal-demand',
+        functionName: 'liveTrainStatus',
+        argsJson: '{}',
+      }),
+    });
+    const fetchesBeforeRefusal = mock.seen.fetches;
+    const corrupt = await proof.corruptMeta({
+      schemaHash: 'stale-all-aboard-app-v0',
+      forceAlarmDue: true,
+      fireAlarm: true,
+    });
+    check(
+      'startup refusal skips due alarm work and re-arms the platform wakeup',
+      corrupt.body.startupError?.code === 'SNAPBACK_STALE_CLOUDFLARE_SCHEMA_HASH' &&
+        corrupt.status === 200 &&
+        mock.seen.fetches === fetchesBeforeRefusal &&
+        Number(corrupt.body.alarmAtMs) > Date.now(),
+      JSON.stringify({ corrupt, fetchesBeforeRefusal, fetchesAfter: mock.seen.fetches })
+    );
+    await proof.reset();
 
     if (checks !== EXPECTED_CHECKS) {
       throw new Error(`expected ${EXPECTED_CHECKS} checks, ran ${checks}`);

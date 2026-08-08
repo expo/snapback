@@ -121,14 +121,19 @@ async function main() {
 
     // -- reset/seed ---------------------------------------------------------
     await client.reset();
+    const staleSocket = await client.openLiveSocket();
     const corrupt = await client.corruptMeta({ schemaHash: 'stale-notes-app-v0' });
     check('a stale stored schema hash is detected instead of overwritten on startup',
       corrupt.status === 200 && corrupt.body.startupError?.code === 'SNAPBACK_STALE_CLOUDFLARE_SCHEMA_HASH',
       JSON.stringify(corrupt));
     const staleQuery = await client.query('listNotes', { boardId: 'b1' });
-    check('data-plane requests fail closed while the stored schema hash is stale',
-      staleQuery.ok === false && staleQuery.code === 'SNAPBACK_STALE_CLOUDFLARE_SCHEMA_HASH',
-      JSON.stringify(staleQuery));
+    staleSocket.send({ type: 'ping' });
+    const staleSocketClose = await staleSocket.waitForClose();
+    check('HTTP and retained-socket data-plane requests fail closed while the stored schema hash is stale',
+      staleQuery.ok === false &&
+        staleQuery.code === 'SNAPBACK_STALE_CLOUDFLARE_SCHEMA_HASH' &&
+        staleSocketClose.code === 1013,
+      JSON.stringify({ staleQuery, staleSocketClose }));
     const staleHealth = await client.health();
     check('health exposes the stale deployment diagnostic for operator recovery',
       staleHealth.ok === false && staleHealth.code === 'SNAPBACK_STALE_CLOUDFLARE_SCHEMA_HASH',

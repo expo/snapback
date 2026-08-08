@@ -231,6 +231,34 @@ export function publicInlineFact(fn, schemaTables) {
   return fn?.publicInline === true && rqsEligibleDigestKind(fn, schemaTables) !== null;
 }
 
+/// Compile the closed HostPlan subset this arm admits into the ordinary
+/// storageQuery plan shape. A null return preserves a fail-safe path for a
+/// future HostPlan residue that this compiler does not yet understand.
+export function compileHostPlanStorageQuery(plan, args) {
+  const filters = [];
+  for (const filter of plan.filters || []) {
+    if (!filter || filter.op !== 'Eq' || !supportedFilterValue(filter.value)) return null;
+    const value = Object.hasOwn(filter.value, 'Arg')
+      ? args?.[filter.value.Arg]
+      : filter.value.Literal;
+    // Eq against null/missing matches nothing under the canonical
+    // three-valued semantics; avoid asking the typed storage compiler to
+    // admit a value that cannot produce a row.
+    if (value === null || value === undefined) return { empty: true, plan: null };
+    filters.push({ field: filter.field, op: 'Eq', value: { Literal: value } });
+  }
+  return {
+    empty: false,
+    plan: {
+      table: plan.table,
+      indexed_by: plan.indexed_by ?? plan.indexedBy ?? null,
+      filters,
+      order: plan.order || [],
+      limit: plan.limit ?? null,
+    },
+  };
+}
+
 function compareOrderValues(a, b) {
   if (a === b) return 0;
   if (a === null || a === undefined) return b === null || b === undefined ? 0 : -1;

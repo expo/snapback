@@ -62,7 +62,7 @@ export const LOCAL_SUITES = Object.freeze([
   {
     id: 'acceptance-cron',
     file: 'cloudflare/test/acceptance.cron.mjs',
-    evidence: ['cloudflare cron acceptance: 12/12 checks passed'],
+    evidence: ['cloudflare cron acceptance: 13/13 checks passed'],
   },
   {
     id: 'acceptance-cron-recovery',

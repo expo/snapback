@@ -52,3 +52,6 @@ exists in `storageQuery`), falling back to JS only for the residue.
 
 A: high divergence from the committed schema, latent. B: high mechanics, medium
 ticket-worthiness at current proof scale.
+
+## Resolution (2026-08-08)
+Fixed on main (Lane H). Verified (Node 24.18.0): acceptance 53/53, cron 13/13, rqs 42/42, wire-schema-gate 20/20, index-scaling pass; deployment-identity regenerated + check pass; ref-check clean.

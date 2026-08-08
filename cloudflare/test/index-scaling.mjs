@@ -10,6 +10,7 @@ import { DatabaseSync } from 'node:sqlite';
 import schemaManifest from '../../demos/all-aboard/snapback/generated/schema.manifest.json' with { type: 'json' };
 import functionsManifest from '../../demos/all-aboard/snapback/generated/functions.manifest.json' with { type: 'json' };
 import { HostContext, applyPlan, physicalIndexName } from '../src/host-ops.js';
+import { compileHostPlanStorageQuery } from '../src/rqs-host.mjs';
 import {
   compileSubscriptionSelection,
   compileSubscriptionSelections,
@@ -166,6 +167,24 @@ function executeProductionRowQuery(db, plan) {
     schemaTables: new Map([[table.name, table]]),
   });
   return host.storageQuery(physicalTable, plan);
+}
+
+// Native HostPlan evaluation must compile its admitted Eq filter and limit
+// into the same indexed SQLite query as ctx.db.query, not materialize the
+// entire table for a second JS pass.
+{
+  const compiled = compileHostPlanStorageQuery({
+    table: table.name,
+    indexed_by: index.name,
+    filters: [{ field: index.fields[0], op: 'Eq', value: { Arg: 'targetOrder' } }],
+    order: [],
+    limit: 3,
+  }, { targetOrder });
+  assert.equal(compiled?.empty, false);
+  const captured = captureProductionRowQuery(compiled.plan);
+  assert.match(captured.sql, new RegExp(`INDEXED BY ${declaredIndex}`));
+  assert.match(captured.sql, /WHERE json_extract\(row_json, '\$\.orderIndex'\) = \? LIMIT \?$/);
+  assert.deepEqual(captured.params, [targetOrder, 3]);
 }
 
 // LLP 0007 ordering conformance: Durable Object SQLite and the buffered

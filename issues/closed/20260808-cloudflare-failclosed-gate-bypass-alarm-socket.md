@@ -49,3 +49,6 @@ retained demand). No comment marks the omission deliberate.
 Same class as the broader "one gate, three doors" observation — worth a wire-
 level test that drives `alarm()`/`webSocketMessage` against a forced
 `startupError` and asserts no commit / a 1013 close.
+
+## Resolution (2026-08-08)
+Fixed on main (Lane H). Verified (Node 24.18.0): acceptance 53/53, cron 13/13, rqs 42/42, wire-schema-gate 20/20, index-scaling pass; deployment-identity regenerated + check pass; ref-check clean.
