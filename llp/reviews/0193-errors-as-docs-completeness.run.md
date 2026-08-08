@@ -88,3 +88,29 @@ Final verdicts bind to 601f867da; the r2 revision (this commit) is
 unreviewed by any family. Proposed next step: all five stay Review; an
 optional third delta round on 0194/0196/0197 would close the unreviewed
 gap; acceptance is the author's.
+
+## Round 3 (delta round) — launched 2026-08-08, targets at revision c4c4bb6a5
+
+Capsule sha256:
+94cd9b805719448a8c4a1856e0b0c8dc44c5502333b7042767f556ef4ff017a7  /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r3/0193-errors-as-docs-completeness.plan.md
+c9b1b689285b3c3fd60d4bcccc17ec459a5a31af415e977ba2bb0d8aeebfd80c  /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r3/0194-generated-api-reference.rfc.md
+b9482d5d84e45d0c35e71d96b82442415b22eab36481577106642b70fde309af  /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r3/0195-public-documentation-and-training-surface.rfc.md
+5376a287af06c5d9ad7e9c6fa6ccbee612282a1e6c4e2fa3a77c0d16dc42b601  /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r3/0196-template-and-recipe-portfolio.plan.md
+5b7110b9e17ed6afbc6ccb3acbd03084ef0f0490735bc7ad57effb089bb339ce  /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r3/0197-benchmark-publication-standard.rfc.md
+fe51c2836a0297c78322937c89f02348a56d0a72628723ef2defe4064f7a64d1  /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r3/CONTEXT.md
+CONTEXT.md gains diary 0058's retained wall numbers (round-2 gpt-5 #11
+arose from their absence). Fresh reviewers both families.
+
+## Round 4 (delta round) — launched 2026-08-08, targets at revision 68da5ad37
+
+Capsule sha256:
+4a4dac1a7f78d7f0049106b9f629309b24a4f60d3ff3334540dd329dc6458cd0  /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r4/0193-errors-as-docs-completeness.plan.md
+1847412ebe8831f4f52e7645743029b32c415e3121d6ed744b2bc75a1a954980  /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r4/0194-generated-api-reference.rfc.md
+2f8b0df063e863773048bb33bd55c0ca8a9db729345f203cd60fe70e2cd66ce7  /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r4/0195-public-documentation-and-training-surface.rfc.md
+ef7727c9d84e9b68c2cbc6aa644827aa4721d31b466bec94bd5ab3fd5c7c204a  /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r4/0196-template-and-recipe-portfolio.plan.md
+c243bac401e91c9716e24d9f19bccfe963c7913849de9070f3c3269a77ba76d5  /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r4/0197-benchmark-publication-standard.rfc.md
+fe51c2836a0297c78322937c89f02348a56d0a72628723ef2defe4064f7a64d1  /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r4/CONTEXT.md
+Round-3 artifacts appended below round-2 sections; round-3 verdicts:
+claude ALL READY / SET READY (5 minors); gpt-5 0193/0195/0196 READY,
+0194 (1), 0197 (2,3) — all IN-DELTA, zero PRE-EXISTING MATERIAL.
+r4 applies gpt-5's three finds + claude minors 1,2,3,5.

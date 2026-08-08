@@ -89,3 +89,40 @@ Documents 0193, 0194, and 0195 verifiably carry their r1 changes, and their fact
 0197: NOT READY — blocking: 4, 5, 6
 
 SET: NOT READY
+## Round 3 — 2026-08-08 (claude family, delta round)
+
+Provenance: fresh cold-context subagent, Fable 5, capsule sr-capsule-r3,
+targets at c4c4bb6a5. One launch. Body verbatim from the reviewer's
+final report:
+
+All citations verified against the repository (diaries 0058/0066/0068/0069 figures, closed tickets, benchmark briefs, the 20260808 ticket set, `generate-guide-manifest.mjs`, the export-parity test, the ~2,700-symbol estimate — a unique-identifier sweep finds 2,839). The review follows.
+
+---
+
+# Delta-round (r3) review — LLP 0193/0194/0195/0196/0197
+
+Independent reviewer; documents read in full; cited repository artifacts verified (diary figures, closed tickets, briefs, 2026-08-08 ticket filenames, generation/parity machinery, `SNAPBACK_*` symbol count).
+
+## Concerns
+
+1. **[minor] [IN-DELTA] — 0193 (Summary, Evidence) and 0195 (Summary, Related): diary-number collisions make bare-number citations ambiguous.** The corpus contains two diaries each numbered 0048 (`0048-upload-bakeoff-clip-locker`, `0048-upload-bakeoff-faceplate`), 0058 (`0058-messaging-snapback`, `0058-relay-room-expo-backend-bakeoff`), and 0065 (`0065-fleet-observatory-move1`, `0065-rematch-published-closure-bakeoff`). The r3 delta's exact citations — "diary 0048's `SNAPBACK_ASSET_IMAGE_DECODE_FAILED`", "diary 0058's 'host-ops error response was not JSON'", the 0065/0066/0068/0069 enumerations — all resolve correctly (I verified each quote pins a unique file: the faceplate 0048, the relay-room 0058, the rematch 0065), but only via the quoted content, not the citation itself. Suggested improvement (non-blocking): cite by filename slug where a colliding number is referenced.
+
+2. **[minor] [PRE-EXISTING] — 0197 (Related): "diaries 0058-0069" retains the range form the delta replaced elsewhere.** The range sweeps in seven diaries (0059–0064, 0067) that are not measurement-run diaries; the r3 delta applied enumeration precision to 0193 and 0195 but not here. Suggested improvement: enumerate 0058/0065/0066/0068/0069 as in the sibling documents.
+
+3. **[minor] [IN-DELTA] — 0196 (Summary): the scoped superlative is a class-of-one comparison, and the underlying step is N=1 under demonstrated variance.** "produced the largest improvement of any release whose changes were knowledge-placement rather than defect fixes — bare lane 41m32s→29m35s". The figures are verified (diaries 0068/0069) and the 0.1.13 mechanism distinction (80m33s→41m32s, seven-defect layer) is verified against diary 0066 — the scoping is honest and correct. But with exactly one knowledge-placement release in the series, "largest of any" is vacuously true, and the 29% step is inside diary 0069's own demonstrated ±30% per-lane variance at N=1, which that diary explicitly disclaims as signal. Publication exposure is fully guarded by 0197 rule 1 and the document uses the number only as plan motivation, so this identifies no defective decision — but a one-clause N=1/variance caveat inline would match the candor the rest of the set now practices.
+
+4. **[minor] [IN-DELTA] — 0194 (What this kills / OQ2): the document argues its own most expensive coverage gap should be scheduled, then leaves it an open question.** "the two most expensive named excursions sit behind that exclusion, which is the strongest argument for scheduling OQ2 early." The r2/r3 resolution (no hand-written interim; named exclusion until a `ctx` declaration file lands) is the right call — it preserves the no-drift invariant and the completeness claim simultaneously — but having concluded the `ctx` declaration is the highest-value item, the RFC could promote it from OQ2 to an ordered scope entry in Design 5 rather than a proposal inside an open question. Implementation-phase sequencing note; no defective decision.
+
+5. **[minor] [IN-DELTA] — 0197 (rule 4b): success-only efficiency ratios carry residual survivorship framing.** "efficiency ratios computed only across runs meeting the identical bar, with the capability-failure table published beside them" — computing ratios over qualifying runs only can flatter a lane that fails often but is fast when it succeeds. The adjacent capability-failure table plus preregistered identical budgets (rule 4b) and rule 3's every-chart fairness notes substantially mitigate this; consider additionally requiring per-lane success counts stated on the ratio chart itself rather than only beside it.
+
+No MATERIAL concerns found, in-delta or pre-existing. The delta changes were each verified for correctness and coherence: 0197's restated series matches the retained records (329k/113k = 2.91x in diary 0068; diary 0069 itself states 2.24x and the ±30% variance); the diary-0058 26m03s-vs-11m15s citation is verbatim in the retained diary; the rule-1 preregistration, 4a/4b, and rule-6 publication-safe schema are internally consistent (rule 3's every-chart fairness notes close the historical-narrative-chart exemption; rule 2's rerunnability needs briefs/prompts/harness, not the never-published raw transcripts); 0196's T5 two-gate split, T1/T2 capability-surface wording, and held-out-brief exit rule are coherent and mutually consistent with 0197 4a/4b; 0194's OQ2 resolution removes the earlier contradiction between the no-hand-written rule and the completeness claim; 0193's citations all resolve to retained artifacts, and the referenced tickets (`20260806-llp0146-oq6-remediation-carrier-decision.md`, both closed 20260805 tickets, the four 20260808 recipe/papercut tickets) exist.
+
+## Verdicts
+
+0193: READY
+0194: READY
+0195: READY
+0196: READY
+0197: READY
+
+SET: READY
