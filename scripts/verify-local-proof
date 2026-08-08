@@ -207,6 +207,7 @@ run snapshot-batch-v2-parity -- node tests/conformance/snapshot-batch-sbsb2-pari
 # its qualification-binary edge through tracked runtime-readiness evidence.
 run fleet-observatory-move1-receipt -- node tests/acceptance/fleet-observatory-move1-v1.mjs --check --require-qualified
 run runtime-package-authority-fixtures -- node --test scripts/runtime-package-authority.test.mjs
+run qualified-staging-ledger-fixtures -- node --test scripts/qualified-staging-ledger-check.test.mjs
 run hermes-carrier-staging-fixtures -- node --test scripts/stage-linux-hermes-release.test.mjs
 run package-cold-install-fixtures -- node --test scripts/snapback-package-cold-install.test.mjs
 run local-source-package-closure -- node --test scripts/local-source-package-closure.test.mjs

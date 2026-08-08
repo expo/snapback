@@ -457,6 +457,19 @@ const qualifiedPackageStaging = readFileSync(
   join(ROOT, '.eas', 'workflows', 'qualified-package-staging.yml'),
   'utf8',
 );
+const qualifiedStagingAssembly = readFileSync(
+  join(ROOT, 'scripts', 'qualified-staging-assemble'),
+  'utf8',
+);
+const qualifiedStagingLedgerCheck = readFileSync(
+  join(ROOT, 'scripts', 'qualified-staging-ledger-check.mjs'),
+  'utf8',
+);
+const qualifiedStagingSources = [
+  qualifiedPackageStaging,
+  qualifiedStagingAssembly,
+  qualifiedStagingLedgerCheck,
+].join('\n');
 for (const required of [
   'SNAPBACK_RUNTIME_LINUX_X64_SOURCE_BINARY',
   'SNAPBACK_RUNTIME_LINUX_X64_HERMES_LIBRARY',
@@ -474,14 +487,34 @@ for (const required of [
   'snapback-qualified-release',
 ]) {
   assert(
-    qualifiedPackageStaging.includes(required),
+    qualifiedStagingSources.includes(required),
     `qualified package staging must retain ${required}`,
   );
 }
 assert.match(
-  qualifiedPackageStaging,
+  qualifiedStagingAssembly,
   /candidate_tag="bakeoff-\$\{RELEASE_VERSION\/\/\.\/-\}-\$\{source_revision:0:12\}"/,
   'qualified package staging must bind the candidate tag to version and source revision',
+);
+assert.equal(
+  qualifiedPackageStaging.match(/scripts\/qualified-staging-assemble/g)?.length,
+  2,
+  'qualified staging must assemble once for receipt minting and once for receipt-qualified proof',
+);
+for (const artifact of [
+  'snapback-qualification-tarballs',
+  'snapback-darwin-store-receipt',
+  'snapback-linux-store-receipt',
+]) {
+  assert(
+    qualifiedPackageStaging.includes(artifact),
+    `qualified staging must retain its two-pass artifact ${artifact}`,
+  );
+}
+assert.match(
+  qualifiedStagingAssembly,
+  /SNAPBACK_ALLOW_MISSING_STORE_RECEIPTS=1[\s\S]*qualified-staging-ledger-check\.mjs/u,
+  'only the receipt-minting assembly pass may relax the runtime receipt gate',
 );
 assert.equal(
   qualifiedPackageStaging.match(/SNAPBACK_BOOTSTRAP_CHECK=0 scripts\/bootstrap-ibex-runtime/g)?.length,
@@ -494,7 +527,7 @@ assert.equal(
   'qualified native builds must allow a cold exact-link proof to finish on hosted runners',
 );
 assert.equal(
-  qualifiedPackageStaging.match(/bin\/snapback build-identity/g)?.length,
+  qualifiedStagingSources.match(/bin\/snapback"? build-identity/g)?.length,
   3,
   'qualified native builds must launch both packaged binaries through a supported identity command, and assembly must revision-check the transported macOS runtime',
 );

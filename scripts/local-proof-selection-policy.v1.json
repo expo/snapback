@@ -736,6 +736,7 @@
       "prefixes": [
         "scripts/capability-",
         "scripts/check-agent-safe-publication",
+        "scripts/qualified-staging-",
         "scripts/snapback-github-latest-proof",
         "scripts/snapback-package-",
         "scripts/snapback-promot",
@@ -968,6 +969,7 @@
         "promotion-fixtures",
         "latest-proof-plan-generator-fixtures",
         "prior-vector-observer-fixtures",
+        "qualified-staging-ledger-fixtures",
         "runtime-package-authority-fixtures",
         "runtime-package-stage",
         "snapback-app-cli-package",
