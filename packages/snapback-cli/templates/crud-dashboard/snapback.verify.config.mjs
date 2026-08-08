@@ -14,6 +14,10 @@ export default defineVerifyConfig({
     id: 'crud-dashboard-live',
     title: 'CRUD dashboard starter live acceptance',
     acceptanceFile: new URL('./acceptance.mjs', import.meta.url),
+    additionalTestFiles: [
+      new URL('./carrier.mjs', import.meta.url),
+      new URL(import.meta.resolve('@expo/snapback-cli/carrier-kit')),
+    ],
     paths: [
       { id: 'relational-project-directory', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },
       { id: 'create-project', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },

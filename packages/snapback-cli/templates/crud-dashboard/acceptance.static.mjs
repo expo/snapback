@@ -11,6 +11,7 @@ const functionSource = readFileSync(new URL('./snapback/functions.mjs', import.m
 const runtimeAcceptance = readFileSync(new URL('./acceptance.mjs', import.meta.url), 'utf8');
 const packageManifest = readJson('./package.json');
 const instructions = readFileSync(new URL('./AGENTS.md', import.meta.url), 'utf8');
+const carrierSource = readFileSync(new URL('./carrier.mjs', import.meta.url), 'utf8');
 
 assert.equal(artifacts.artifactKind, 'artifactIndex');
 assert.equal(schema.auth.mode, 'sessions');
@@ -30,6 +31,10 @@ assert.match(appSource, /updateProject/);
 assert.match(appSource, /deleteProject/);
 assert.match(packageManifest.scripts.prove, /^snapback verify snapback /);
 assert.match(instructions, /the acceptance command/);
+assert.equal(packageManifest.scripts['carry:headless'], 'node carrier.mjs headless');
+assert.equal(packageManifest.scripts['carry:web-browser'], 'node carrier.mjs web-browser');
+assert.match(instructions, /carry:web-browser/);
+assert.match(carrierSource, /'web-browser'/);
 assert(!appSource.includes(' as '), 'starter UI must not need generated-result casts');
 assert.match(runtimeAcceptance, /event\.state === 'generated-and-loaded' && event\.managed === true/);
 assert.match(runtimeAcceptance, /loaded: loadedIdentity/);

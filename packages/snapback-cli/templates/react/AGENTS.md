@@ -18,6 +18,13 @@ writes the LLP 0146 D2 receipt to `.snapback/verify-receipt.json`. The
 lower-level `test` and `test:static` scripts are profile/debugging inputs; do
 not substitute them for the D2 receipt when claiming the app is ready.
 
+Use the executable carrier kits instead of rebuilding proof environments:
+`npm run carry:headless` for the Node carrier and
+`npm run carry:web-browser` for the managed backend + Vite + headless-browser
+capture. Both start with the registered `prove` command and write director
+artifacts under `.snapback/carriers/`; they add no receipt format.
+`npm run carry:self-check` validates the kit without starting a server.
+
 Use `snapback guide` for the served Guide, flat projection, and MCP entry
 points. Load the relevant Guide page before using a feature area; do not infer
 that a capability is missing until you have checked the capability index.

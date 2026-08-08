@@ -17,6 +17,8 @@ const personaContext = readFileSync(new URL('./src/test-persona-context.tsx', im
 const runtimeAcceptance = readFileSync(new URL('./acceptance.mjs', import.meta.url), 'utf8');
 const packageManifest = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 const expoManifest = JSON.parse(readFileSync(new URL('./app.json', import.meta.url), 'utf8'));
+const agentInstructions = readFileSync(new URL('./AGENTS.md', import.meta.url), 'utf8');
+const carrierSource = readFileSync(new URL('./carrier.mjs', import.meta.url), 'utf8');
 assert.equal(artifacts.artifactKind, 'artifactIndex');
 assert.deepEqual(
   functions.functions.map((fn) => fn.name).sort(),
@@ -61,6 +63,12 @@ assert.match(personaContext, /production identity must come from adopted authori
 assert.deepEqual(expoManifest.expo.platforms, ['ios', 'android', 'web']);
 assert.equal(packageManifest.scripts.web, 'expo start --web');
 assert.match(packageManifest.scripts.prove, /^snapback verify snapback /);
+assert.equal(packageManifest.scripts['carry:headless'], 'node carrier.mjs headless');
+assert.equal(packageManifest.scripts['carry:web-browser'], 'node carrier.mjs web-browser');
+assert.equal(packageManifest.scripts['carry:native-simulator'], 'node carrier.mjs native-simulator');
+assert.match(agentInstructions, /carry:native-simulator/);
+assert.match(carrierSource, /bundleId:\s*'host\.exp\.Exponent'/);
+assert.match(carrierSource, /driveUrl:\s*'exp:/);
 for (const dependency of ['@expo/metro-runtime', 'react-dom', 'react-native-web']) {
   assert.equal(typeof packageManifest.dependencies[dependency], 'string', `${dependency} must ship in the web-ready template`);
 }

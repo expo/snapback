@@ -4,6 +4,8 @@
 // — mint the receipt against the exact platform-installable staged closure.
 // @ref LLP 0166#public-package-advertisement-amendment--2026-08-06 — each
 // public runtime package carries its own binary/carrier-bound store receipt.
+// @ref LLP 0196#program — template qualification against this exact filtered
+// candidate closure is a blocking peer of packaged-store qualification.
 
 import { spawnSync } from 'node:child_process';
 import {
@@ -35,13 +37,22 @@ Options:
   --staged-dir <dir>  Qualification closure containing publish-ledger.json and *.tgz
   --platform <id>     darwin-arm64 or linux-x64
   --out <path>        Destination for the minted receipt JSON
+  --template-receipt <path>
+                       Destination for the blocking template-portfolio receipt
   --keep              Keep the temporary filtered closure and extracted runtime
   -h, --help          Print this help
 `;
 }
 
 function parseArguments(argv) {
-  const parsed = { stagedDir: null, platform: null, out: null, keep: false, help: false };
+  const parsed = {
+    stagedDir: null,
+    platform: null,
+    out: null,
+    templateReceipt: null,
+    keep: false,
+    help: false,
+  };
   const seen = new Set();
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -57,7 +68,10 @@ function parseArguments(argv) {
       parsed.keep = true;
       continue;
     }
-    if (argument === '--staged-dir' || argument === '--platform' || argument === '--out') {
+    if (argument === '--staged-dir'
+        || argument === '--platform'
+        || argument === '--out'
+        || argument === '--template-receipt') {
       if (seen.has(argument)) throw new TypeError(`duplicate ${argument}`);
       seen.add(argument);
       const value = argv[++index];
@@ -66,7 +80,8 @@ function parseArguments(argv) {
       }
       if (argument === '--staged-dir') parsed.stagedDir = value;
       else if (argument === '--platform') parsed.platform = value;
-      else parsed.out = value;
+      else if (argument === '--out') parsed.out = value;
+      else parsed.templateReceipt = value;
       continue;
     }
     throw new TypeError(`unrecognized argument: ${argument}`);
@@ -125,6 +140,9 @@ async function main() {
 
   const stagedDir = resolve(args.stagedDir);
   const out = resolve(args.out);
+  const templateReceipt = resolve(
+    args.templateReceipt ?? join(dirname(out), `${args.platform}-templates.json`),
+  );
   const stagedMetadata = lstatSync(stagedDir);
   if (!stagedMetadata.isDirectory() || stagedMetadata.isSymbolicLink()) {
     throw new TypeError(`--staged-dir must be a non-symlink directory: ${stagedDir}`);
@@ -206,6 +224,26 @@ async function main() {
     if (!existsSync(mintedReceipt) || !lstatSync(mintedReceipt).isFile()) {
       throw new Error(`packaged-store qualification did not mint ${mintedReceipt}`);
     }
+
+    const templateQualification = spawnSync(process.execPath, [
+      join(ROOT, 'scripts', 'template-staged-qualification.mjs'),
+      '--staged-dir', filtered,
+      '--receipt', templateReceipt,
+      ...(args.keep ? ['--keep'] : []),
+    ], {
+      cwd: ROOT,
+      env: { ...process.env, CI: '1' },
+      stdio: 'inherit',
+    });
+    if (templateQualification.error || templateQualification.status !== 0) {
+      throw new Error(
+        `template portfolio qualification failed for ${args.platform} (${templateQualification.signal ?? templateQualification.status ?? templateQualification.error?.message})`,
+      );
+    }
+    if (!existsSync(templateReceipt) || !lstatSync(templateReceipt).isFile()) {
+      throw new Error(`template portfolio qualification did not mint ${templateReceipt}`);
+    }
+
     mkdirSync(dirname(out), { recursive: true });
     copyFileSync(mintedReceipt, out);
     console.log(JSON.stringify({
@@ -215,6 +253,7 @@ async function main() {
       runtimePackage: requestedPackage,
       stagedPackages: copiedTarballs,
       receipt: out,
+      templateReceipt,
       temporary: args.keep ? temporary : null,
     }));
   } finally {

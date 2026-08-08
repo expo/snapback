@@ -329,6 +329,7 @@ export function defineStarterVerifyProfile({
   id,
   title = id,
   acceptanceFile,
+  additionalTestFiles = [],
   requiredCapabilities = [],
   paths = [],
   timeoutMs = 180_000,
@@ -337,11 +338,14 @@ export function defineStarterVerifyProfile({
   assert(typeof title === 'string' && title.length > 0, 'starter profile title must be a non-empty string');
   assert(Number.isInteger(timeoutMs) && timeoutMs > 0, 'starter profile timeoutMs must be a positive integer');
   const resolvedAcceptanceFile = resolveStarterAcceptanceFile(acceptanceFile);
+  const resolvedAdditionalTestFiles = additionalTestFiles.map((file) => (
+    resolveStarterAcceptanceFile(file)
+  ));
   const normalizedPaths = Object.freeze(paths.map((path, index) => normalizePath(path, id, index)));
   return Object.freeze({
     id,
     title,
-    testFiles: Object.freeze([resolvedAcceptanceFile]),
+    testFiles: Object.freeze([resolvedAcceptanceFile, ...resolvedAdditionalTestFiles]),
     requiredCapabilities: Object.freeze([...requiredCapabilities]),
     paths: normalizedPaths,
     run(context) {

@@ -40,6 +40,7 @@ export interface StarterVerifyProfileOptions {
   readonly id: string;
   readonly title?: string;
   readonly acceptanceFile: string | URL;
+  readonly additionalTestFiles?: readonly (string | URL)[];
   readonly requiredCapabilities?: readonly string[];
   readonly paths?: readonly {
     readonly id: string;

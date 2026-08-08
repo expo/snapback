@@ -14,6 +14,10 @@ export default defineVerifyConfig({
     id: 'media-feed-live',
     title: 'Media feed starter live acceptance',
     acceptanceFile: new URL('./acceptance.mjs', import.meta.url),
+    additionalTestFiles: [
+      new URL('./carrier.mjs', import.meta.url),
+      new URL(import.meta.resolve('@expo/snapback-cli/carrier-kit')),
+    ],
     paths: [
       { id: 'retained-live-feed-pages', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },
       { id: 'session-upload-and-typed-attach', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },

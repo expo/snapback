@@ -179,7 +179,7 @@ jobs:
           scripts/qualified-staging-assemble
           tar -czf .eas-artifacts/qualification.tar.gz -C "$SNAPBACK_PACKAGE_OUT" .
 
-      - name: Mint the macOS packaged-store receipt
+      - name: Qualify macOS
         run: node scripts/qualified-staging-store-qualification.mjs --staged-dir "$HOME/snapback-qualification" --platform darwin-arm64 --out .eas-artifacts/darwin-store.json
 
       - uses: eas/upload_artifact
@@ -193,6 +193,12 @@ jobs:
           type: other
           name: snapback-darwin-store-receipt
           path: .eas-artifacts/darwin-store.json
+
+      - uses: eas/upload_artifact
+        with:
+          type: other
+          name: snapback-darwin-template-receipt
+          path: .eas-artifacts/darwin-arm64-templates.json
 
   linux_store_qualification:
     needs: [assemble]
@@ -215,6 +221,12 @@ jobs:
           type: other
           name: snapback-linux-store-receipt
           path: .eas-artifacts/linux-store.json
+
+      - uses: eas/upload_artifact
+        with:
+          type: other
+          name: snapback-linux-template-receipt
+          path: .eas-artifacts/linux-x64-templates.json
 
   reassemble:
     needs: [linux_store_qualification]

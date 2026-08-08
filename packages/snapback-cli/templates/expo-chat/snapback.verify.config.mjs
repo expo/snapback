@@ -21,6 +21,10 @@ export default defineVerifyConfig({
     id: 'expo-chat-live',
     title: 'Expo chat starter live acceptance',
     acceptanceFile: new URL('./acceptance.mjs', import.meta.url),
+    additionalTestFiles: [
+      new URL('./carrier.mjs', import.meta.url),
+      new URL(import.meta.resolve('@expo/snapback-cli/carrier-kit')),
+    ],
     paths: [
       { id: 'membership-dm-group-shape', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },
       { id: 'test-persona-membership-switch', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },

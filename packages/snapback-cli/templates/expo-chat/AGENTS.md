@@ -19,6 +19,16 @@ writes the LLP 0146 D2 receipt to `.snapback/verify-receipt.json`. The
 lower-level `test` and `test:static` scripts are profile/debugging inputs; do
 not substitute them for the D2 receipt when claiming the app is ready.
 
+Use the executable carrier kits instead of rebuilding proof environments:
+`npm run carry:headless`, `npm run carry:web-browser`, or
+`npm run carry:native-simulator`. The native command owns simulator boot,
+literal dotted-key scheme approval through Python `plistlib`, optional Expo Go
+installation (`-- --app-path /path/to/Expo-Go.app` when it is not installed),
+first-run onboarding dismissal, deep-link drive, online/offline screenshots,
+backend stop, relaunch, and cleanup. Artifacts live under
+`.snapback/carriers/`; the kit starts with `prove` and adds no receipt format.
+Use `npm run carry:self-check` for a no-server/no-simulator validation.
+
 This starter carries a complete conversation surface end to end: explicit
 memberships, direct-message and group inbox rows, reply pointers, reactions,
 image `assetRef` delivery, typing presence, and one bound `send` command. The

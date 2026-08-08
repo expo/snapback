@@ -5,8 +5,12 @@ const artifacts = JSON.parse(readFileSync(new URL('./snapback/generated/artifact
 const functions = JSON.parse(readFileSync(new URL('./snapback/generated/functions.manifest.json', import.meta.url), 'utf8'));
 const packageManifest = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 const agentInstructions = readFileSync(new URL('./AGENTS.md', import.meta.url), 'utf8');
+const carrierSource = readFileSync(new URL('./carrier.mjs', import.meta.url), 'utf8');
 assert.equal(artifacts.artifactKind, 'artifactIndex');
 assert.deepEqual(functions.functions.map((fn) => fn.name).sort(), ['createTodo', 'listTodos']);
 assert.match(packageManifest.scripts.prove, /^snapback verify snapback /);
 assert.match(agentInstructions, /the acceptance command/);
+assert.equal(packageManifest.scripts['carry:headless'], 'node carrier.mjs headless');
+assert.match(agentInstructions, /carry:headless/);
+assert.match(carrierSource, /headless:\s*\{\}/);
 console.log('todo-contract static coherence: generated package surface is coherent');

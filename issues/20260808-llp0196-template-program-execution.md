@@ -206,3 +206,136 @@ not create a commit because the execution sandbox cannot write Git metadata.
   separate intent, rather than making private delivery the main starter path.
 - The earlier T3 request remains: confirm explicitly partial D1 provenance for
   starter receipts now, or schedule an authoritative D1 retrofit later.
+
+## Execution log — 2026-08-08, lane-0196c T4/T5
+
+This lane is implementation-complete in the working tree. It deliberately did
+not create a commit because the execution sandbox cannot write Git metadata.
+
+### T4 — executable carrier kits
+
+- Added the published `@expo/snapback-cli/carrier-kit` helper and one ordinary
+  package command per carrier each template supports: `carry:headless` on all
+  five templates, `carry:web-browser` on the four visual templates, and
+  `carry:native-simulator` on the two Expo templates. Every template also has
+  a no-server/no-simulator `carry:self-check` command.
+- Every carrier begins with the template's existing `prove` command and accepts
+  only its passing LLP 0146 D2 receipt as proof authority. The carrier director
+  retains environment artifacts and a deliberately non-claiming director log;
+  it does not mint another acceptance format. Both the per-template carrier
+  config and the shared carrier implementation are bound into the registered
+  D2 profile's test-byte digest.
+- The web helper owns the managed Snapback/client process, loopback readiness,
+  isolated browser profile, screenshot and DOM artifacts, timeout, and process
+  cleanup. Fixed Vite ports are strict so an unrelated process cannot satisfy
+  readiness accidentally.
+- The native helper owns selection of the newest available shut-down iPhone
+  runtime (or validation of an explicit UDID), simulator shutdown/boot,
+  optional app installation, literal dotted-key scheme approval through Python
+  `plistlib`, Expo Go first-run dismissal, the `simctl openurl` deep-link drive,
+  online screenshot, backend/Metro stop, offline relaunch screenshot, app and
+  process cleanup, simulator shutdown, scheme-approval restoration, and stable
+  artifact paths. It contains no `plutil` fallback.
+- Updated every template's `AGENTS.md` so a cold agent is directed to these
+  commands and artifact paths instead of reconstructing diary 0069 residue 4
+  from prose.
+- **Status:** implementation and self-check complete. Real carrier executions
+  remain unqualified in this lane because they require servers, a browser, or
+  a simulator. After landing, the orchestrator should run, from fresh installed
+  scaffolds, `CI=1 npm run carry:headless`, `CI=1 npm run carry:web-browser`,
+  and for both Expo templates `CI=1 npm run carry:native-simulator -- --udid
+  <dedicated-udid>` (add `--app-path <Expo-Go.app>` when Expo Go is absent).
+
+### T5 — two-gate template freshness
+
+- Added a shared dynamic portfolio qualifier. It discovers the registry from
+  the *installed* CLI package rather than a maintained template list, then for
+  every entry performs fresh scaffold → dependency install → generate →
+  `test:static` and records the installed first-party closure.
+- **Pre-release/blocking:** `template-staged-qualification.mjs` installs the
+  exact candidate tarballs, rewrites template first-party dependencies to
+  their candidate `file:` tarballs, and fails unless every discovered template
+  passes. `qualified-staging-store-qualification.mjs` now runs it immediately
+  beside the existing packaged-store qualification on each platform-filtered
+  candidate closure. The EAS workflow retains separate macOS/Linux template
+  receipts, and either failure blocks the release path.
+- **Post-release/reporting:** `template-registry-canary.mjs` installs the
+  requested published CLI version or dist-tag and re-runs the same dynamic
+  static portfolio against the registry-resolved closure. An observed template
+  failure writes a failed receipt and warning but exits successfully by
+  default; malformed invocation or inability to write a report still fails the
+  harness. `--strict` is available for an explicit diagnostic run.
+- The canary is a named gate in the existing LLP 0175 D2.3/LLP 0189 complete
+  inventory, selected only by scheduled/on-demand complete proof, and its JSON
+  report is retained with the local-proof artifacts. A separate affected
+  self-check covers portfolio/config changes without turning the live registry
+  observation into a landing gate or inventing another cadence class.
+- **Status:** both code paths and their self-checks are complete. No candidate
+  tarballs or live registry were exercised in-lane. After landing, run the
+  blocking path with `CI=1 volta run --node 24.18.0 eas workflow:run
+  .eas/workflows/qualified-package-staging.yml --input version=<semver> --ref
+  <landed-ref> --wait --non-interactive`. The first post-release observation is
+  `CI=1 volta run --node 24.18.0 node scripts/template-registry-canary.mjs
+  --version <released-semver> --receipt
+  target/proof/template-registry-canary.json`; later `latest` observations run
+  through the existing scheduled complete battery.
+
+### Checks
+
+- PASS — Node 24 syntax checks for the carrier helper, both freshness wrappers,
+  their shared qualifier, and the staged-store integration.
+- PASS — both T5 wrapper self-checks; each dynamically found all five templates
+  and the expected headless/web/native carrier registrations.
+- PASS — `CI=1 volta run --node 24.18.0 node
+  packages/snapback-cli/package.test.mjs`; generated scaffolds ran their static
+  acceptance and every executable carrier entry point ran its plistlib-backed
+  self-check.
+- PASS — `CI=1 volta run --node 24.18.0 node
+  packages/snapback-cli/verify.test.mjs` (25 D2 cases, including carrier config
+  and shared-helper digest binding), plus `cli-help.test.mjs`.
+- PASS — package-test inventory (238 declared files), local-proof dependency
+  inventory (147 declarations / 146 stable IDs), local-proof inventory and
+  selection suites, and CI workflow fixtures (9 workflows / 44 immutable
+  action pins).
+- PASS — EAS YAML parsing, the 16 KiB size bound (16,379 bytes), CLI dry-pack
+  inclusion of the new public export and template carrier files (199 entries),
+  `git diff --check`, and `./ref-check --verbose` (200 LLP documents, 3,672
+  references, no errors or unchecked references).
+- BLOCKED BY WORKTREE DEPENDENCY ABSENCE —
+  `scripts/check-package-export-types.mjs` requires the exact root-worktree
+  `node_modules/typescript` and `.bin/tsc`; this linked worktree has no local
+  dependency tree. It exited before compilation and requested
+  `bun install --frozen-lockfile`.
+- BLOCKED BY NETWORK — official `eas workflow:validate` could not resolve
+  `api.expo.dev`. Local YAML parsing, size validation, and repository workflow
+  fixtures passed; the orchestrator should re-run schema validation before the
+  paid workflow invocation.
+- BLOCKED BY PRE-EXISTING GENERATED/GUIDE DRIFT — `CI=1 volta run --node
+  24.18.0 node scripts/check-inventories.mjs` reached `guide-manifest` and
+  reported the already-missing competitive-checkpoint/todo-v2 ignored generated
+  sources plus stale generated symbol-reference projections. This lane did not
+  edit Guide pages or those demos.
+- NOT RUN by constraint — live `prove`, any carrier's real server/browser or
+  simulator path, exact staged-tarball qualification, live registry canary,
+  Cargo, or a paid EAS workflow.
+
+### Whole-program exit position and ratification
+
+- The T0–T5 implementation surface is now present, but LLP 0196 is **not exit-
+  complete**. Fresh live D2 proofs for every template, real carrier runs, the
+  first blocking candidate qualification, and the first published-registry
+  observation are still required external execution.
+- The cold-agent zero-template-gap and zero-source-excavation criteria remain
+  measurements, not implementation assertions. W1 still owes before/after
+  semantic-action counts for T0/T3/T4, and the next CRUD benchmark must be
+  labeled template-assisted and complete with zero template-gap loops. The
+  predeclared unaided holdout required for any portfolio-level comparison also
+  remains open under LLP 0197.
+- Ratification still requested: T3's explicitly partial D1 provenance posture;
+  T1's Sessions schema with public sample CRUD; and T2's public-immutable main
+  feed with private-strict demonstrated separately.
+- New T4 ratification requested: confirm that binding the executable carrier
+  config/helper into D2 while retaining screenshots in a non-claiming director
+  log is the intended “evidence registered under T3” posture. If an LLP 0064
+  tuple claim is desired, the orchestrator must run and retain that tuple's
+  existing OS-specific acceptance rather than promoting the carrier log.

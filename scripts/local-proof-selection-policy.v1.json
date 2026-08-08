@@ -744,6 +744,17 @@
       ]
     },
     {
+      "id": "template-portfolio-qualification",
+      "groups": [
+        "packaging"
+      ],
+      "files": [
+        "scripts/template-portfolio-qualification-lib.mjs",
+        "scripts/template-registry-canary.mjs",
+        "scripts/template-staged-qualification.mjs"
+      ]
+    },
+    {
       "id": "guide-scripts",
       "groups": [
         "guide"
@@ -975,7 +986,14 @@
         "snapback-app-cli-package",
         "snapback-cli-real-server",
         "snapback-contract-package",
-        "snapback-vite-real-server"
+        "snapback-vite-real-server",
+        "template-portfolio-self-check"
+      ]
+    },
+    "scheduled-reporting": {
+      "lane": "affected",
+      "gates": [
+        "template-registry-canary"
       ]
     },
     "demos": {

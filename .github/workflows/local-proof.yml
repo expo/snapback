@@ -223,5 +223,6 @@ jobs:
           name: local-proof-gate-results-${{ github.run_id }}
           path: |
             target/proof/local-proof-results.jsonl
+            target/proof/template-registry-canary.json
             ${{ runner.temp }}/local-proof-selection.json
           if-no-files-found: warn

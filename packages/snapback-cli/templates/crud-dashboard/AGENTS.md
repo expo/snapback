@@ -15,6 +15,13 @@ It delegates the registered live profile to `snapback verify` and writes the
 LLP 0146 D2 receipt to `.snapback/verify-receipt.json`. `test:static` checks
 scaffold coherence without a server; it is not a substitute for that receipt.
 
+Use the executable carrier kits instead of rebuilding proof environments:
+`npm run carry:headless` for the Node carrier and
+`npm run carry:web-browser` for the managed backend + Vite + headless-browser
+capture. Both start with the registered `prove` command and write director
+artifacts under `.snapback/carriers/`; they add no receipt format.
+`npm run carry:self-check` validates the kit without starting a server.
+
 This starter's project directory is deliberately a relational query: projects
 join teams through a uniquely indexed slug. Its detail is a separate live
 query, and edits install a replayable optimistic projection over the directory.

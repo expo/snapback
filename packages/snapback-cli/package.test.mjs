@@ -39,6 +39,10 @@ import {
   verifyRelease,
 } from './index.mjs';
 import { __deploymentTest } from './deployment-control.mjs';
+import {
+  defineTemplateCarrierConfig,
+  selfCheckTemplateCarrierConfig,
+} from './carrier-kit.mjs';
 
 const root = realpathSync.native(mkdtempSync(join(tmpdir(), 'snapback-cli-package-')));
 try {
@@ -64,6 +68,31 @@ try {
     cliPackageManifest.files.includes('fixtures/verify'),
     'the published CLI package must include the copyable verify-config fixture',
   );
+  assert.ok(cliPackageManifest.files.includes('carrier-kit.mjs'));
+  assert.equal(cliPackageManifest.exports['./carrier-kit'].default, './carrier-kit.mjs');
+  const carrierSource = readFileSync(new URL('./carrier-kit.mjs', import.meta.url), 'utf8');
+  assert.match(carrierSource, /import plistlib/u);
+  assert.match(carrierSource, /EXDevMenuIsOnboardingFinished/u);
+  assert.match(carrierSource, /'openurl'/u);
+  assert.match(carrierSource, /native-offline-relaunch\.png/u);
+  const carrierSelfCheck = await selfCheckTemplateCarrierConfig(defineTemplateCarrierConfig({
+    schemaVersion: 'snapback.template-carriers.v1',
+    verifyCommand: ['npm', 'run', 'prove'],
+    verifyReceipt: '.snapback/verify-receipt.json',
+    carriers: {
+      'native-simulator': {
+        command: ['snapback', 'dev', '--ios-udid', '{udid}'],
+        scheme: 'exp',
+        bundleId: 'host.exp.Exponent',
+        driveUrl: 'exp://127.0.0.1:8081/--/proof/carrier-ready',
+      },
+    },
+  }));
+  assert.equal(carrierSelfCheck.ok, true);
+  assert.equal(
+    carrierSelfCheck.plistlib.literalKey,
+    'com.apple.CoreSimulator.CoreSimulatorBridge-->exp',
+  );
 
   const expectedSkillFiles = [
     '.claude/skills/snapback-authoring/SKILL.md',
@@ -85,6 +114,30 @@ try {
       assert.doesNotMatch(emittedContent, /\.\.\/\.\.\/guide\//u);
       assert.match(emittedContent, /\/_snapback\/guide\/capabilities\.md/u);
       assert.match(emittedContent, /snapback guide/u);
+    }
+  };
+  const assertCarrierSelfCheck = (projectRoot, expectedCarriers) => {
+    const scope = join(projectRoot, 'node_modules', '@expo');
+    const installedCli = join(scope, 'snapback-cli');
+    mkdirSync(scope, { recursive: true });
+    symlinkSync(
+      realpathSync(new URL('.', import.meta.url)),
+      installedCli,
+      process.platform === 'win32' ? 'junction' : 'dir',
+    );
+    try {
+      const result = spawnSync(process.execPath, ['carrier.mjs', '--self-check', '--json'], {
+        cwd: projectRoot,
+        encoding: 'utf8',
+        env: { ...process.env, CI: '1' },
+      });
+      assert.equal(result.status, 0, result.stderr);
+      const receipt = JSON.parse(result.stdout);
+      assert.equal(receipt.schemaVersion, 'snapback.template-carrier-self-check.v1');
+      assert.equal(receipt.ok, true);
+      assert.deepEqual(receipt.carriers, [...expectedCarriers].sort());
+    } finally {
+      rmSync(join(projectRoot, 'node_modules'), { recursive: true, force: true });
     }
   };
 
@@ -202,6 +255,8 @@ console.log(JSON.stringify({
   assert.equal(manifest.scripts['test:static'], 'node acceptance.static.mjs');
   assert.equal(manifest.scripts['test:live'], manifest.scripts.test);
   assert.match(manifest.scripts.prove, /^snapback verify snapback /u);
+  assert.equal(manifest.scripts['carry:headless'], 'node carrier.mjs headless');
+  assert.equal(manifest.scripts['carry:self-check'], 'node carrier.mjs --self-check --json');
   assert.equal(existsSync(join(project, 'snapback.verify.config.mjs')), true);
   assert.match(
     readFileSync(join(project, '.gitignore'), 'utf8'),
@@ -225,6 +280,7 @@ console.log(JSON.stringify({
     encoding: 'utf8',
   });
   assert.equal(todoStatic.status, 0, todoStatic.stderr);
+  assertCarrierSelfCheck(project, ['headless']);
   const todoAcceptanceSource = readFileSync(join(project, 'acceptance.mjs'), 'utf8');
   assert.match(todoAcceptanceSource, /snapback\.starter-acceptance\.v1/u);
   assert.match(todoAcceptanceSource, /client\.query\(api\.listTodos/u);
@@ -239,6 +295,7 @@ console.log(JSON.stringify({
   assert.equal(reactManifest.scripts['test:static'], 'node acceptance.static.mjs');
   assert.equal(reactManifest.scripts['test:live'], reactManifest.scripts.test);
   assert.match(reactManifest.scripts.prove, /^snapback verify snapback /u);
+  assert.equal(reactManifest.scripts['carry:web-browser'], 'node carrier.mjs web-browser');
   assert.equal(existsSync(join(reactProject, 'snapback.verify.config.mjs')), true);
   const reactAgentInstructions = readFileSync(join(reactProject, 'AGENTS.md'), 'utf8');
   assert.match(reactAgentInstructions, /capability index first/u);
@@ -258,6 +315,7 @@ console.log(JSON.stringify({
     encoding: 'utf8',
   });
   assert.equal(reactStatic.status, 0, reactStatic.stderr);
+  assertCarrierSelfCheck(reactProject, ['headless', 'web-browser']);
   const reactAcceptanceSource = readFileSync(join(reactProject, 'acceptance.mjs'), 'utf8');
   assert.match(reactAcceptanceSource, /snapback\.starter-acceptance\.v1/u);
   assert.match(reactAcceptanceSource, /observeSnapbackQueries/u);
@@ -270,6 +328,7 @@ console.log(JSON.stringify({
   const crudManifest = JSON.parse(readFileSync(join(crudProject, 'package.json'), 'utf8'));
   assert.match(crudManifest.dependencies['@expo/snapback-react'], /^\^\d+\.\d+\.\d+/);
   assert.match(crudManifest.scripts.prove, /^snapback verify snapback /u);
+  assert.equal(crudManifest.scripts['carry:web-browser'], 'node carrier.mjs web-browser');
   assert.equal(existsSync(join(crudProject, 'snapback.verify.config.mjs')), true);
   const generatedCrud = await generateApp(join(crudProject, 'snapback'));
   assert.equal(generatedCrud.ok, true, JSON.stringify(generatedCrud.diagnostics));
@@ -282,6 +341,7 @@ console.log(JSON.stringify({
   assert.match(readFileSync(join(crudProject, 'src', 'App.tsx'), 'utf8'), /optimistic:\s*\{/u);
   const crudStatic = spawnSync(process.execPath, ['acceptance.static.mjs'], { cwd: crudProject, encoding: 'utf8' });
   assert.equal(crudStatic.status, 0, crudStatic.stderr);
+  assertCarrierSelfCheck(crudProject, ['headless', 'web-browser']);
   assert.match(readFileSync(join(crudProject, 'acceptance.mjs'), 'utf8'), /client\.liveQuery\(api\.projectDetail/u);
 
   const mediaProject = join(root, 'media-feed');
@@ -293,6 +353,7 @@ console.log(JSON.stringify({
   assert.equal(mediaManifest.dependencies['expo-image-picker'], '~57.0.7');
   assert.equal(mediaManifest.scripts.web, 'expo start --web');
   assert.match(mediaManifest.scripts.prove, /^snapback verify snapback /u);
+  assert.equal(mediaManifest.scripts['carry:native-simulator'], 'node carrier.mjs native-simulator');
   assert.equal(existsSync(join(mediaProject, 'snapback.verify.config.mjs')), true);
   const generatedMedia = await generateApp(join(mediaProject, 'snapback'));
   assert.equal(generatedMedia.ok, true, JSON.stringify(generatedMedia.diagnostics));
@@ -304,6 +365,7 @@ console.log(JSON.stringify({
   assert.match(readFileSync(join(mediaProject, 'App.tsx'), 'utf8'), /onEndReached=\{loadOlder\}/u);
   const mediaStatic = spawnSync(process.execPath, ['acceptance.static.mjs'], { cwd: mediaProject, encoding: 'utf8' });
   assert.equal(mediaStatic.status, 0, mediaStatic.stderr);
+  assertCarrierSelfCheck(mediaProject, ['headless', 'native-simulator', 'web-browser']);
   assert.match(readFileSync(join(mediaProject, 'acceptance.mjs'), 'utf8'), /createAssetClient\(client\)/u);
 
   // @ref LLP 0186#w2--context-injection-surface-owned-here — the golden-path scaffold
@@ -326,7 +388,9 @@ console.log(JSON.stringify({
   assert.equal(chatManifest.scripts['test:live'], chatManifest.scripts.test);
   assert.equal(chatManifest.scripts.web, 'expo start --web');
   assert.match(chatManifest.scripts.prove, /^snapback verify snapback /u);
+  assert.equal(chatManifest.scripts['carry:native-simulator'], 'node carrier.mjs native-simulator');
   assert.equal(existsSync(join(chatProject, 'snapback.verify.config.mjs')), true);
+  assertCarrierSelfCheck(chatProject, ['headless', 'native-simulator', 'web-browser']);
   assert.deepEqual(
     ['@expo/metro-runtime', 'react-dom', 'react-native-web'].filter(
       (name) => typeof chatManifest.dependencies[name] === 'string',

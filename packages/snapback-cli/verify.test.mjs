@@ -161,9 +161,10 @@ let cases = 0;
     const starter = defineStarterVerifyProfile({
       id: 'starter-acceptance',
       acceptanceFile,
+      additionalTestFiles: [thisFile],
       paths,
     });
-    assert.deepEqual(starter.testFiles, [realpathSync(acceptanceFile)]);
+    assert.deepEqual(starter.testFiles, [realpathSync(acceptanceFile), thisFile]);
     const identityContext = config().context;
     const outcome = await starter.run({ identityContext });
     assert.equal(outcome.ok, true);
@@ -219,6 +220,10 @@ for (const [template, pathCount] of [
       new URL(`./templates/${template}/acceptance.mjs`, import.meta.url),
       join(scaffold, 'acceptance.mjs'),
     );
+    cpSync(
+      new URL(`./templates/${template}/carrier.mjs`, import.meta.url),
+      join(scaffold, 'carrier.mjs'),
+    );
     symlinkSync(
       dirname(thisFile),
       join(scaffold, 'node_modules', '@expo', 'snapback-cli'),
@@ -227,7 +232,10 @@ for (const [template, pathCount] of [
     const templateConfig = await loadVerifyConfig(join(scaffold, 'snapback.verify.config.mjs'));
     assert.equal(templateConfig.profiles.length, 1);
     assert.equal(templateConfig.profiles[0].paths.length, pathCount);
-    assert.match(templateConfig.profiles[0].testFiles[0], /acceptance\.mjs$/u);
+    assert.equal(templateConfig.profiles[0].testFiles.length, 3);
+    assert.ok(templateConfig.profiles[0].testFiles.some((file) => /acceptance\.mjs$/u.test(file)));
+    assert.ok(templateConfig.profiles[0].testFiles.some((file) => /carrier\.mjs$/u.test(file)));
+    assert.ok(templateConfig.profiles[0].testFiles.some((file) => /carrier-kit\.mjs$/u.test(file)));
     cases += 1;
   } finally {
     rmSync(scratch, { recursive: true, force: true });

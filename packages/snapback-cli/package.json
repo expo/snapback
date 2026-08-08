@@ -6,6 +6,8 @@
   "files": [
     "adapters/fly-machines-vm-driver.mjs",
     "agent-setup.mjs",
+    "carrier-kit.d.mts",
+    "carrier-kit.mjs",
     "cli.mjs",
     "comparator-profile.d.mts",
     "comparator-profile.mjs",
@@ -52,6 +54,10 @@
     "./comparator": {
       "types": "./comparator-profile.d.mts",
       "default": "./comparator-profile.mjs"
+    },
+    "./carrier-kit": {
+      "types": "./carrier-kit.d.mts",
+      "default": "./carrier-kit.mjs"
     },
     "./comparator-receipt.schema.json": "./comparator-receipt.schema.json",
     "./deployment-control": {

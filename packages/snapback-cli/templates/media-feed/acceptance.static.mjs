@@ -12,6 +12,7 @@ const runtimeAcceptance = readFileSync(new URL('./acceptance.mjs', import.meta.u
 const packageManifest = readJson('./package.json');
 const expoManifest = readJson('./app.json');
 const instructions = readFileSync(new URL('./AGENTS.md', import.meta.url), 'utf8');
+const carrierSource = readFileSync(new URL('./carrier.mjs', import.meta.url), 'utf8');
 
 assert.equal(artifacts.artifactKind, 'artifactIndex');
 assert.equal(schema.auth.mode, 'sessions');
@@ -34,6 +35,12 @@ assert.match(appSource, /registerExpoFileSystemRqsFiles/);
 assert.deepEqual(expoManifest.expo.platforms, ['ios', 'android', 'web']);
 assert.match(packageManifest.scripts.prove, /^snapback verify snapback /);
 assert.match(instructions, /the acceptance command/);
+assert.equal(packageManifest.scripts['carry:headless'], 'node carrier.mjs headless');
+assert.equal(packageManifest.scripts['carry:web-browser'], 'node carrier.mjs web-browser');
+assert.equal(packageManifest.scripts['carry:native-simulator'], 'node carrier.mjs native-simulator');
+assert.match(instructions, /carry:native-simulator/);
+assert.match(carrierSource, /bundleId:\s*'host\.exp\.Exponent'/);
+assert.match(carrierSource, /driveUrl:\s*'exp:/);
 assert.match(runtimeAcceptance, /event\.state === 'generated-and-loaded' && event\.managed === true/);
 assert.match(runtimeAcceptance, /createAssetClient\(client\)/);
 assert.match(runtimeAcceptance, /loaded: loadedIdentity/);

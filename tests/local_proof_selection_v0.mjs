@@ -107,6 +107,15 @@ test('package owners select their direct package and harness fixtures', () => {
 
   const publication = select(['scripts/check-agent-safe-publication.mjs']);
   includesAll(publication, ['control-catalog', 'control-catalog-fixtures']);
+
+  const templatePortfolio = select(['scripts/template-registry-canary.mjs']);
+  includesAll(templatePortfolio, ['template-portfolio-self-check']);
+  assert.equal(
+    templatePortfolio.selectedGates.includes('template-registry-canary'),
+    false,
+    'the live registry canary belongs only to complete scheduled/on-demand proof',
+  );
+  includesAll(planSelection({ cadence: 'complete' }), ['template-registry-canary']);
 });
 
 test('native, Cloudflare, seed, and carrier changes select their unique claims', () => {

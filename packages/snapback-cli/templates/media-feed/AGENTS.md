@@ -15,6 +15,16 @@ It delegates the registered live profile to `snapback verify` and writes the
 LLP 0146 D2 receipt to `.snapback/verify-receipt.json`. `test:static` checks
 scaffold coherence without a server; it is not a substitute for that receipt.
 
+Use the executable carrier kits instead of rebuilding proof environments:
+`npm run carry:headless`, `npm run carry:web-browser`, or
+`npm run carry:native-simulator`. The native command owns simulator boot,
+literal dotted-key scheme approval through Python `plistlib`, optional Expo Go
+installation (`-- --app-path /path/to/Expo-Go.app` when it is not installed),
+first-run onboarding dismissal, deep-link drive, online/offline screenshots,
+backend stop, relaunch, and cleanup. Artifacts live under
+`.snapback/carriers/`; the kit starts with `prove` and adds no receipt format.
+Use `npm run carry:self-check` for a no-server/no-simulator validation.
+
 The publish command owns the complete upload → finalize → typed attach path.
 `feedPhotoUpload` strips location metadata, materializes thumbnail and display
 renditions, and deliberately chooses public-immutable delivery for a public

@@ -222,6 +222,11 @@ run qualified-staging-ledger-fixtures -- node --test scripts/qualified-staging-l
 run hermes-carrier-staging-fixtures -- node --test scripts/stage-linux-hermes-release.test.mjs
 run package-cold-install-fixtures -- node --test scripts/snapback-package-cold-install.test.mjs
 run local-source-package-closure -- node --test scripts/local-source-package-closure.test.mjs
+run template-portfolio-self-check -- node scripts/template-registry-canary.mjs --self-check
+# @ref LLP 0196#program — the published-registry half of template freshness
+# is report-only and therefore belongs to LLP 0189's scheduled complete battery,
+# not to the affected landing or pre-release blocking paths.
+run template-registry-canary -- node scripts/template-registry-canary.mjs --receipt target/proof/template-registry-canary.json
 run result-transform-ship-gate -- node tests/conformance/result-transform-ship-gate-v1.mjs --check
 # @ref LLP 0041#unreviewed-post-round-correction-publication-lease-and-rollback
 # — candidate publication and default-tag promotion are separate operations;

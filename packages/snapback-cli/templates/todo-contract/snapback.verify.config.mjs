@@ -21,6 +21,10 @@ export default defineVerifyConfig({
     id: 'todo-contract-live',
     title: 'Todo Contract starter live acceptance',
     acceptanceFile: new URL('./acceptance.mjs', import.meta.url),
+    additionalTestFiles: [
+      new URL('./carrier.mjs', import.meta.url),
+      new URL(import.meta.resolve('@expo/snapback-cli/carrier-kit')),
+    ],
     paths: [
       { id: 'list-todos', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },
       { id: 'create-todo', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },
