@@ -392,7 +392,10 @@ are D2/D3 scope and are not blocked by, nor blocking, these phases.
 - **OQ-2 (ordering-audit findings).** The §2.1 audit is now a Phase-1
   gate; this OQ holds its findings — any dependent that cannot move to
   convergence-gating gets its carve-out recorded here before Phase 1
-  lands.
+  lands. **Carve-out: the stream-attempt/job-claim terminal publication
+  path keeps job-status fan-out inline.** Its fenced CAS transition,
+  job-status publication, and synchronous drain receipt remain one atomic
+  control-plane publication; this low-volume path is not the hot data path.
 - **OQ-3 (watermark wire economics).** §2.1's `current_as_of` watermark
   gives skips a deliverable; its cost under high commit rates (many tiny
   frames) is unmeasured. Piggybacking and coalescing should make it

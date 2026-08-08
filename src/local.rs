@@ -20434,7 +20434,10 @@ impl LocalSnapback {
                 Ok(frame_version) => {
                     self.begin_live_commit_egress(committed_at);
                     self.begin_live_delivery_frame(self.subscriptions.len());
-                    let result = self.dispatch_live_data_fanout(
+                    // @ref LLP 0200#oq-2-ordering-audit-findings — LLP 0200
+                    // OQ-2 carve-out: drain receipts publish job-status
+                    // fan-out synchronously.
+                    let result = self.run_live_data_fanout_frame(
                         std::slice::from_ref(&changed_row),
                         &BTreeSet::new(),
                         frame_version,
