@@ -15,7 +15,12 @@ misreading the open-loop receipt — the two measurements are now stated
 exactly as the artifacts record them and their discrepancy declared an
 open question the OQ4 spike resolves; the current-architecture paragraph
 now describes the captured-dependency matcher `src/live_matcher.rs`
-actually implements, and rung 2 is extend-and-measure, not build)
+actually implements, and rung 2 is extend-and-measure, not build.
+Post-loop repair after round 3 closed the budget: the 8-trigger/
+8-non-trigger inventory partition replaces the false "all 16 touch the
+list" claim, the `live_delta` lane scopes the no-IVM categorical, and
+four review minors are applied — this final repair is **unreviewed**;
+the round-3 verdicts bind to commit `9f30acdb1`)
 **Related:** LLP 0008, LLP 0043, LLP 0053, LLP 0057, LLP 0107, LLP 0108, LLP 0130, LLP 0146, LLP 0155, LLP 0157, LLP 0158, LLP 0166, LLP 0182, LLP 0183, LLP 0189, LLP 0190
 
 ## Summary
@@ -69,8 +74,13 @@ window-boundary read sets to skip provably disjoint changes, with a
 conservative replace fallback where proof is unavailable. A subscription
 that matches (or falls back) is then re-evaluated by re-running its
 handler from scratch, per subscriber, and the result is delivered as a
-fresh frame. The matcher can only *skip*; there is no sharing between
-subscribers and no incremental maintenance of a matched result.
+fresh frame. On this opaque-handler path the matcher can only *skip*:
+no sharing between subscribers, no incremental maintenance. (Analyzable
+single-table `HostPlan` queries already ride a tightly scoped
+`live_delta` fast path — LLP 0008 DK-3, same file — precedent that
+rung 4 below extends an admitted-shapes lane the runtime already has
+rather than building one; the lane never applies to the opaque handlers
+this evidence measures.)
 
 **What the evidence says.** Numbers from two receipts and two local
 traces:
@@ -81,12 +91,16 @@ traces:
 - With six 1,000-row streaming observers open, the 48 sampled mutation
   settle latencies in `zb5-hot.v10` span 111 ms–148 s, **median 72.8 s**
   (cited as ~74 s by the ticket and LLP 0190). Each cycle's sixteen
-  mutations, dispatched open-loop over 400 ms, owe *up to* ~96 full
-  re-evaluations — an upper bound that assumes the matcher wakes every
-  observer for every mutation, plausible here because every mutation
-  touches the observed list, but unmeasured: no artifact records
-  match/skip/fallback decisions or evaluation counts, which is exactly
-  what the OQ4 spike's counters add. Whatever the split, the queue
+  mutations, dispatched open-loop at fixed 25 ms offsets (0–375 ms),
+  owe *up to* ~96 full re-evaluations — a theoretical ceiling, not a
+  plausible count: the receipt's own inventory partition
+  (`eight-trigger-eight-nontrigger-inventory-partition`, PASS) names
+  eight operations that write only tables the list query never reads,
+  so the expected wake fraction is roughly half, and no artifact
+  records actual match/skip/fallback decisions or evaluation counts —
+  exactly what the OQ4 spike's counters add. Notably, non-trigger
+  mutations settled slowly too, which independently motivates the
+  settlement-isolation question below. Whatever the split, the queue
   drains at evaluation speed.
 - Two delivery measurements from two instruments whose counts do not
   reconcile — stated here exactly as the artifacts record them, with
@@ -98,7 +112,8 @@ traces:
   persistent observers, 48 dispatches per run): pre-fix, 676 `update`
   frames plus 676 `authorization_boundary` records (both counts
   byte-verified in `diag-run1.jsonl`); post-fix, **12** update frames
-  for the same 48 dispatches (`diag-run2.jsonl`). The *acceptance
+  plus 12 `authorization_boundary` records for the same 48 dispatches
+  (`diag-run2.jsonl`). The *acceptance
   receipt* (`zb5-hot.v10`, immutable; fresh six-observer set each
   cycle, 3 × 16 mutations): **521 deliveries** in its custody
   accounting, 23–33 per observer per cycle. The instruments differ in
@@ -144,9 +159,13 @@ rung, and cross-principal sharing was overstated as separable.)
    its coverage is measurable (today no artifact records them). The
    field's endpoint — read-set/index-range intersection that lets most
    mutations wake *no* subscriptions — is the same lever. The hot
-   profile cannot show this win (all 16 mutations genuinely touch the
-   list); the general workload — many subscriptions over different
-   data, where sharing collapses nothing — is where precision matters.
+   profile can already measure this rung: its inventory deliberately
+   mixes relevant, disjoint, and principal-local writes (8 trigger /
+   8 non-trigger in the receipt's partition check), so the spike should
+   predeclare expected relevance per mutation × observer and compare it
+   with the matcher counters. The general workload — many subscriptions
+   over different data, where sharing collapses nothing — is where
+   precision matters most.
 3. **Authority-partitioned shared evaluation.** The six hot observers ran
    the same query text under different principals — but principal and
    policy are *ambient query inputs*, and the observers' result
@@ -159,7 +178,7 @@ rung, and cross-principal sharing was overstated as separable.)
    whose authority? — is the same question LLP 0190 §4 poses for
    projected facts; the two designs should share an answer, not invent
    two.
-4. **Incremental view maintenance (the Zero-class answer).** True deltas
+4. **Incremental view maintenance (the admitted-shapes answer).** True deltas
    require declared query shapes; opaque handlers cannot be incrementally
    maintained, only re-run. This is the expensive rung, and the control's
    experience argues it should be scoped to *admitted* shapes (the D2
@@ -514,9 +533,14 @@ split, the fault line is the ruling.
 
 ## Status
 
-Review (super-refine loop opened 2026-08-08, design-partner lens; round-1
-revision applied — both families' reviews are preserved verbatim under
-`llp/reviews/0191-scale-architecture-revisits.{claude,codex}.md`).
-Research synthesis only; commissions nothing by itself. Each
-section names the owner the LLP 0183 structure provides; rulings on the
-open questions turn sections into workstream scope.
+Review. The 2026-08-08 super-refine loop (design-partner lens, three
+rounds, two families per round, all reviews verbatim under
+`llp/reviews/0191-scale-architecture-revisits.{claude,codex}.md`) closed
+at budget without formal convergence: on the final reviewed revision
+(commit `9f30acdb1`) the Claude family was READY and the Codex family
+NOT READY on one pre-existing evidence defect (the trigger-partition
+claim), which the orchestrator verified and repaired in a labeled,
+unreviewed post-loop revision. Both families judged §§2–6 and the five
+open questions sound bases for commissioning. Escalated to the author:
+rulings on the open questions turn sections into workstream scope.
+Research synthesis only; commissions nothing by itself.

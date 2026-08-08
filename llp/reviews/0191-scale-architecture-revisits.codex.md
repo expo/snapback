@@ -334,3 +334,47 @@ I would sign OQ5’s sequencing head. I would not sign OQ1 exactly as written un
 | C4 | PRE-EXISTING · minor | Evidence provenance/counting says immutable “one receipt and one trace” despite local mutable traces and multiple artifacts. | Correct the evidence-base framing. |
 
 VERDICT: NOT READY
+## Round 3 (closing delta round) — 2026-08-08
+
+**Provenance.** Reviewer: Codex CLI 0.146.1, `gpt-5.6-sol`, xhigh,
+read-only sandbox, `codex exec` non-interactive. Orchestrator/reviser:
+Claude Fable 5 session (did not author this review). Lens: design-partner,
+closing delta round. Target revision: commit
+`9f30acdb1280a0757dc91c8c04dcce9f4ac891d1`, target blob
+`106cf5f1417cb76012a812e509e937eb2c1435aa`. Capsule: detached worktree at
+that commit, `llp/reviews/0191*` removed post-checkout,
+`DELTA-0191.diff` (296 lines, `a340e02eb..9f30acdb1`) embedded.
+Instructions: `brief-r3.md` sha256[0:16] `0a339cef9c703e04`, identical to
+both families. Received and recorded verbatim 2026-08-08.
+
+**Verdict: NOT READY** (both round-2 MATERIALs confirmed repaired; one
+new PRE-EXISTING MATERIAL — "all 16 hot mutations touch the list" is
+contradicted by the receipt's own
+`eight-trigger-eight-nontrigger-inventory-partition` PASS check, verified
+by the orchestrator on receipt).
+
+### Verbatim review
+
+## Assessment
+
+The delta honestly repairs both round-2 MATERIAL findings:
+
+- Delivery evidence now preserves the shared open-loop discipline, states the 676/12/521 measurements without reconciling them, and correctly makes reconciliation OQ4’s job.
+- The architecture now accurately identifies captured row/predicate/window-boundary matching with conservative fallback. Rung 2 is correctly framed as extension and measurement.
+- No IN-DELTA MATERIAL defect or newly defective decision found.
+
+## Concern
+
+- **PRE-EXISTING — MATERIAL:** §1 incorrectly says all 16 hot mutations genuinely touch `issueListV2`, concluding the hot profile cannot demonstrate affected-read precision. The declarations disprove this: `issueListV2` does not read `issueNotifications`, `emoji`, or `userPref`, while `notification.update`, `emoji.remove`, and `userPref.set` write only those respective tables. `viewState.set` is also principal-local rather than relevant to every observer. Thus the workload already mixes relevant, disjoint, and authority-partitioned changes. This makes the claimed plausibility of 96 re-evaluations and the stated measurement role of the hot profile unsound.
+
+  Resolve by describing 96 as an unmeasured theoretical ceiling, predeclaring expected relevance per mutation × observer authority, and using OQ4’s matcher counters to compare those expectations with actual match/skip/fallback behavior. Also distinguish existing single-table range/top-N-boundary matching from the relational and authority-partition extensions rung 2 commissions.
+
+## Minor, non-blocking
+
+- **IN-DELTA — minor:** For symmetry, record that `diag-run2` also contains 12 `authorization_boundary` records. The existing “12 update frames” statement is true and appropriately typed, but the omission could invite a total-frame misreading.
+- **IN-DELTA — minor:** Scope “no incremental maintenance” explicitly to the opaque-JavaScript path exercised by Zerobugs; analyzable HostPlan single-table queries already have a `live_delta` fast path.
+- **PRE-EXISTING — minor:** “Zero-class answer” sits awkwardly beside the categorical claim that no Zero comparison is implied. “Incremental-view-maintenance answer” would preserve the non-comparative posture.
+
+Sections 2–6 are sound commissioning bases: retention separates resilience from scaling, identity preserves its three trust domains, custody is operation-specific, relational work is correctly split by kind, and bulk import has bounded session and activation semantics. The five open questions are well shaped, especially OQ4; correcting §1’s workload classification should not require changing their recommended rulings.
+
+VERDICT: NOT READY

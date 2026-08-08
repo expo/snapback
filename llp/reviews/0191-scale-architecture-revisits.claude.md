@@ -212,3 +212,74 @@ Implementation-phase detail items (not blocking, listed per brief): C3, C4, C6, 
 C1 is a misread of the immutable receipt at the exact point round 1 was commissioned to repair, with spillover into OQ4's predeclared metric definition. The fix is narrow (restate both workloads as what the artifacts record, declare the discrepancy open, re-key OQ4's axis), but under this brief's definition it is a MATERIAL in-delta defect, so the document is one targeted revision away, not ready as written.
 
 VERDICT: NOT READY
+
+## Round 3 (closing delta round) — 2026-08-08
+
+**Provenance.** Reviewer: Claude Fable 5, fresh general-purpose subagent,
+context-blind. Orchestrator/reviser: Claude Fable 5 session (did not
+author this review). Lens: design-partner, closing delta round. Target
+revision: commit `9f30acdb1280a0757dc91c8c04dcce9f4ac891d1`, target blob
+`106cf5f1417cb76012a812e509e937eb2c1435aa`. Capsule: detached worktree at
+that commit, `llp/reviews/0191*` removed post-checkout, `DELTA-0191.diff`
+(296 lines) embedded. Instructions: `brief-r3.md` sha256[0:16]
+`0a339cef9c703e04`, identical to both families. Runtime: 477 s, 39 tool
+uses. Received and recorded verbatim 2026-08-08.
+
+**Verdict: READY** (both round-2 MATERIALs verified repaired; no
+PRE-EXISTING MATERIAL; five minors, C1 = scope the "no incremental
+maintenance" categorical to the opaque-JS path given the wired DK-3
+`live_delta` lane).
+
+### Verbatim review
+
+# LLP 0191 round-3 closing delta review — design-partner lens
+
+Reviewed: `llp/0191-scale-architecture-revisits.research.md` at the capsule checkout, against `DELTA-0191.diff`, the zb5 receipts under `demos/zerobugs/evidence/`, `src/live_matcher.rs` and its fan-out call sites, LLP 0183/0190/0158, and the cited tickets under `issues/` and `issues/closed/`. The orchestrator's byte-verified trace counts were treated as ground truth for exactly those counts.
+
+## 1. Delta verification
+
+**Finding (a) — the two delivery measurements.** The repair is honest and now matches every artifact I could check:
+
+- The acceptance-receipt side is stated exactly as `snapback-control-hot.zb5.v10.json` records it. Recomputed from the receipt: `custodyAccounting.perCycle` sums to **521 deliveries** over 3 cycles with per-observer-per-cycle values spanning **23–33**; `sourceAccounting.rawLatencyDistributions` holds 48 samples with min 110.88 ms, max 147,702.6 ms, **median 72,806 ms** — the document's "111 ms–148 s, median 72.8 s" is exact, and the "(cited as ~74 s by the ticket and LLP 0190)" parenthetical is verified in both `issues/20260808-live-query-reevaluation-cost-at-scale.md` and LLP 0190's Revised header.
+- The round-2 defect — claiming the receipt "paces the 48 mutations awaiting each settle" — is fully retracted. The receipt's check `open-loop-arrivals-use-fixed-nonadaptive-offsets` (PASS, offsets 0–375 ms at 25 ms steps, "no prior response is awaited to choose an arrival") and `adaptiveArrivals: false` confirm the new text: both instruments share the open-loop fixed-offset discipline; `ARRIVAL_INTERVAL_MS = 25` is verbatim in `demos/zerobugs/control/scripts/diag-hot-stream.mts` (line 34).
+- The remaining lifecycle distinction is real and receipt-backed: v10's actor identity block reads "fresh per-cycle external sessions", vs the diag runs' six persistent observers (ground truth). The diag counts (676 update + 676 authorization_boundary pre-fix; 12 update post-fix; 48 dispatches per run) match the ground truth exactly.
+- Crucially, the delta no longer *explains* the 521-vs-12 discrepancy ("supersession collapses a burst" / "paced workload gives supersession nothing to collapse" are gone). It declares the reconciliation open and routes it to OQ4's predeclared per-instrument frame-kind accounting. That is the correct epistemics: with different observer lifecycles and undefined frame taxonomies, neither reading is derivable from the artifacts, and the document now says so. What it does still assert — pre-fix frames were overwhelmingly redundant, and the repair eliminates delivery of stale resolutions — is fairly attributed to the closed ticket (`issues/closed/20260807-hot-cycle-live-stream-stale-at-settle.md`, RESOLVED section: 32 conflicts → 0, supersession with distinct revisions, v10 PASS 21 / GAP 3 / FAIL 0).
+- The ~96 re-evaluations figure is now correctly demoted to an *unmeasured upper bound* with the missing counter named.
+
+**Finding (b) — the current-architecture paragraph.** The rewrite correctly describes what `src/live_matcher.rs` implements on the matching side: captured row/predicate/window-boundary read sets (`live_subscription_may_be_affected`, the `@ref LLP 0020` Phase-4 header comment at line 128 says exactly "reuses captured query dependencies and keeps a conservative replace fallback"), and rung 2 is now "extend and measure, not build," with the missing match/skip/fallback observability named. This is an honest repair of the round-2 finding.
+
+However, the rewritten paragraph's closing categorical — "The matcher can only *skip*; there is no sharing between subscribers and **no incremental maintenance of a matched result**" — overstates. The bottom third of the same cited file is the DK-3 op-log delta core (`compute_live_delta`, line 665: "Compute the op-log delta for one live subscription from a commit's changed rows, **without re-running the query**"), and it is wired into the production fan-out (`src/local.rs` `notify_live_subscriptions_in_frame` → `try_live_delta_fanout`, ~lines 23596–24010; `live_delta` wire kind in `src/live_wire.rs`; governed by LLP 0008 DK-3 and LLP 0053, both in Related). The lane is tightly scoped — `HostPlan` single-table queries only, no membership filters, no standard patterns, no ordered/limited windows, schema-derived result contracts — so it **never applies to opaque JS handlers**, which means every §1 measurement, the control's entire workload, and the 72.8 s analysis stand unchanged. It also means rung 4's decision ("scope IVM to *admitted* shapes rather than attempt generically") is *confirmed by existing precedent in the runtime* rather than being greenfield — the same extend-not-build correction round 2 applied to rung 2 applies in miniature to rung 4. No decision flips (the §1 decision already assigns "deltas" to D2, and OQ4's predeclared frame-kind accounting would surface `live_delta` frames at spike time), so I classify this minor, but it is the one sentence I would amend at acceptance.
+
+**Other delta statements checked against artifacts:**
+
+- §4's recount ("two of its four receipted early attempts, the WAL-strand and auth-keyring discoveries, v1–v4") — v1–v4 are all FAIL receipts; the WAL-sidecar rejection appears in v1 and v2, `SNAPBACK_AUTH_PROVIDER_UNAVAILABLE` in v4. The one-defect-per-attempt attribution follows the closed ticket's own boundary accounting. Honest repair of the previously wrong "two full receipted attempts (v1–v4)".
+- §1 decision's new D4-charter caveat — verified: LLP 0183's D-table row is "D4 window controller … Headless lifecycle Spec and React projection" and §"D4 — headless windowed-query controller"; flagging that server-side evaluation scheduling is outside that charter is a genuine catch, not filler.
+- §6 decision's new "an owner the current 0183 D-table does not provide" — verified: no storage/import-export workstream exists in the D1–D8 table.
+- "§13 in corpus shorthand" hedge — 0183's ratified comparator/claim-language protocol exists (Stage 4 + Quality target); the hedge honestly decouples the shorthand from the document's actual numbering.
+- Evidence-base header reframing (two artifact classes, traces labeled as local diagnostics) and the Convex/Firestore prior-art demotions to "external, non-load-bearing" — both correct-direction integrity improvements.
+
+No statement in the delta misreads a receipt or trace. The single overreach found is the "no incremental maintenance" categorical above, against code, not against the measurement artifacts.
+
+## 2. Pre-existing text
+
+Spot-checked carried-over anchors: `raw-list-ready-timing` in `zb5-large.v3` records 1,341 ms (~1.3 s ✓); the 5,549,113-row / 6,176-batch / ~66-minute §6 figures match the closed ticket and receipts; all cited tickets exist at the cited paths (`20260807-server-sigterm-strands-large-sqlite-wal.md`, `20260808-sessions-store-copy-needs-auth-keyring-sibling.md`, `20260807-result-contract-violation-names-no-bound.md`, `20260730-auth-logical-export-import.md`, the four §3 identity tickets, both §5 tickets); LLP 0158's custody manifest with explicit `copy`/`scrub`/`rotate`/`share`/`refuse` rules is verbatim in that RFC, and §4's fork-must-not-carry-keyring reading matches 0158's load-bearing non-inheritance. The §3 trust-domain decomposition, §4's operation-specific-manifest framing, and the nonclaims section (no Zero comparison without pre-registered receipts; refusals were the platform working as designed) are sound on decision quality, evidence integrity, and trust model. No MATERIAL concern found in pre-existing text. Two minor items are in the register.
+
+## 3. Fitness to commission
+
+Yes. The six sections now each end in a decision an owner can execute, with the ownership gaps themselves surfaced rather than papered over (the D4-charter extension question, the §6 missing owner, the §5 W-ENUM dual routing). The five open questions are well-formed rulings: OQ1–OQ3 present real fault lines with both families' arguments; OQ4 is now a properly pre-registered measurement spike whose axes are designed to *resolve* this document's own declared discrepancy at the source — the strongest single page in the document; OQ5 gives a defensible sequencing with the genuine tail divergence named. The document's honesty discipline — labeling trace-vs-receipt provenance, declaring the 521-vs-12 reconciliation open, refusing to lean a Spec on either number — is exactly the posture a design partner should hand an author for rulings. The one caveat a ruling reader should carry is C1 below: rung 4 is slightly more "extend" and slightly less "build" than the text says, which if anything strengthens its own admitted-shapes recommendation.
+
+## Concern register
+
+| # | Concern | Class | Severity |
+|---|---------|-------|----------|
+| C1 | Current-architecture paragraph's categorical "no incremental maintenance of a matched result" contradicts the wired DK-3 `live_delta` lane in the cited file (`src/live_matcher.rs` `compute_live_delta`; `src/local.rs` `try_live_delta_fanout`; LLP 0008 DK-3). Lane is inapplicable to opaque handlers/membership-gated/windowed/standard-pattern queries, so all §1 measurements and the control's workload stand, and rung 4's admitted-shapes decision is confirmed rather than undermined — no ruling flips. Amend with one scoping clause at acceptance so the D2 owner extends rather than reinvents. | IN-DELTA | minor |
+| C2 | "dispatched open-loop over 400 ms": receipt offsets span 0–375 ms (the 400 ms mark is the authority transition). Rounding inherited from the ticket's language. | IN-DELTA | minor |
+| C3 | "two of its four receipted early attempts": the WAL rejection actually appears in both v1 and v2 receipts; the text follows the closed ticket's one-defect-per-attempt accounting, so "two" is defensible but arguably undercounts envelope-caused burns by one. | IN-DELTA | minor |
+| C4 | Status section still cites only the round-1 review artifacts while the Revised header records rounds 1–2; stale bookkeeping once round-2/3 artifacts exist. | PRE-EXISTING | minor |
+| C5 | §2's "~43-gap cluster (ZB2/ZB3/ZB4)" not independently recomputed here (LLP 0190 pins 37 GAP rows for ZB2 alone; the cross-gate sum is plausible). Implementation-phase check, no decision rests on the exact count. | PRE-EXISTING | minor |
+
+C2–C5 are detail-only, identify no defective decision, and belong to implementation/acceptance polish. C1 is the only substantive item; it is a one-clause description fix whose correction reinforces, rather than changes, the decision it sits under, and OQ4's predeclared frame-kind accounting would expose the lane empirically regardless.
+
+Both round-2 MATERIAL findings are repaired honestly, the delta introduces no defective decision and misreads no measurement artifact, and no MATERIAL concern exists in carried-over text.
+
+VERDICT: READY
