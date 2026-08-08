@@ -9,6 +9,7 @@ import test from 'node:test';
 import { PublicationLeaseAuthority } from './authority.mjs';
 import {
   canonicalJcs,
+  LEASE_ISSUED_AT_SKEW_ALLOWANCE_MS,
   LEGACY_PROMOTION_PACKAGE_NAMES,
   PROMOTION_PACKAGE_NAMES,
   publicationAuthoritySigningKeyId,
@@ -102,6 +103,50 @@ test('issue allocates and signs one exact short-lived promotion epoch', () => {
   );
   assert.equal(authority.head().status, 'issued');
   assert.equal(authority.head().publicationEpoch, 1);
+});
+
+test('freshly issued lease validates under bounded authority-ahead clock skew', () => {
+  // The first live promotion (2026-08-08) refused its own just-issued lease:
+  // the authority's clock ran ~100ms ahead of the publisher's, so the
+  // publisher's fresh Date.now() at response receipt was still before the
+  // server-stamped issuedAt. The validator clock lagging issuedAt by less
+  // than the allowance must validate; anything beyond it must refuse, and a
+  // genuinely expired lease must refuse regardless of the allowance.
+  const { authority, publicKey, request } = fixture();
+  const lease = authority.issue(request);
+  const binding = {
+    lease,
+    publicKey,
+    authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+    authorityOrigin: AUTHORITY_ORIGIN,
+    candidateLedgerSha256: request.candidateLedgerSha256,
+    candidateTag: request.candidateTag,
+    publisherInstanceId: request.publisherInstanceId,
+    priorDefaultClosureReceiptSha256: request.priorDefaultClosureReceiptSha256,
+  };
+  const issuedAt = Date.parse(lease.issuedAt);
+  // Publisher clock 100ms behind the authority's issuedAt stamp — the exact
+  // live ordering that refused before the allowance existed.
+  validatePublicationLease({ ...binding, now: issuedAt - 100 });
+  validatePublicationLease({
+    ...binding,
+    now: issuedAt - LEASE_ISSUED_AT_SKEW_ALLOWANCE_MS,
+  });
+  assert.throws(
+    () => validatePublicationLease({
+      ...binding,
+      now: issuedAt - LEASE_ISSUED_AT_SKEW_ALLOWANCE_MS - 1,
+    }),
+    /publication lease is not current/u,
+  );
+  // Expiry stays strict: the allowance never revives an expired lease.
+  assert.throws(
+    () => validatePublicationLease({
+      ...binding,
+      now: Date.parse(lease.expiresAt),
+    }),
+    /publication lease is not current/u,
+  );
 });
 
 test('authority dual-reads historical v2 state but single-writes v4 leases', () => {

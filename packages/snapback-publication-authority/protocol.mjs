@@ -19,6 +19,13 @@ export const LEASE_DOMAIN = Buffer.from('snapback-authorized-publication-lease-v
 // survived the decision-9 generation bump and stranded the entire leased
 // promotion path (issues/closed/20260801-promote-v3-lease-pin-refuses-v4.md).
 export const CURRENT_LEASE_SCHEMA_VERSION = 'snapback.authorized-publication-lease.v4';
+// A publisher validates a freshly received lease with its own clock, which can
+// lag the authority's issuedAt stamp by real-world sub-second skew (HTTP-Date
+// agreement is only second-granular; the first live promotion, 2026-08-08,
+// refused a valid just-issued lease over ~100ms of authority-ahead skew).
+// Tolerate bounded skew on the not-yet-current lower bound only — the expiry
+// bound stays strict, so a lease that has genuinely expired still refuses.
+export const LEASE_ISSUED_AT_SKEW_ALLOWANCE_MS = 2_000;
 export const HEAD_DOMAIN = Buffer.from('snapback-publication-authority-head-v3\0');
 export const RECEIPT_DOMAIN = Buffer.from(
   'snapback-publication-authority-transition-receipt-v2\0',
@@ -452,7 +459,10 @@ export function validatePublicationLease({
   if (expiresAt <= issuedAt || expiresAt - issuedAt > 15 * 60_000) {
     throw new Error('publication lease lifetime must be in (0, 15 minutes]');
   }
-  if (now !== null && (now < issuedAt || now >= expiresAt)) {
+  if (
+    now !== null
+    && (now < issuedAt - LEASE_ISSUED_AT_SKEW_ALLOWANCE_MS || now >= expiresAt)
+  ) {
     throw new Error('publication lease is not current');
   }
   validateLeasePackages(lease.packages, 'publication lease', {

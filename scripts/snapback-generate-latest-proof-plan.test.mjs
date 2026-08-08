@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import {
   BARRIER_STABILITY_RESERVE_MS,
   CURRENT_LEASE_SCHEMA_VERSION,
+  LEASE_ISSUED_AT_SKEW_ALLOWANCE_MS,
   LEASE_LIFETIME_MS,
   MODELED_TAG_MOVE_PHASE_MS,
   PROMOTION_ROLLBACK_RESERVE_MS,
@@ -272,6 +273,20 @@ test('latest proof plan refuses a lease bound to a different candidate ledger', 
   assert.throws(
     () => buildLatestProofPlan(inputs({ lease })),
     /lease is not bound to the candidate ledger/u,
+  );
+});
+
+test('latest proof plan tolerates bounded authority-ahead skew but not more', () => {
+  const issuedAt = Date.parse(leaseFixture().issuedAt);
+  // Plan generation moments after issuance with the local clock trailing the
+  // authority's issuedAt stamp by less than the allowance must build.
+  buildLatestProofPlan(inputs({ now: issuedAt - 100 }));
+  buildLatestProofPlan(inputs({ now: issuedAt - LEASE_ISSUED_AT_SKEW_ALLOWANCE_MS }));
+  assert.throws(
+    () => buildLatestProofPlan(
+      inputs({ now: issuedAt - LEASE_ISSUED_AT_SKEW_ALLOWANCE_MS - 1 }),
+    ),
+    /authorized lease is not current/u,
   );
 });
 
