@@ -126,3 +126,42 @@ branch `spike/oq4-coalescing-measurement`). Headlines for this anchor:
   rung 3 memoization has ~6× measured headroom.
 - The 521-vs-12 delivery discrepancy is resolved as a
   unit-and-lifecycle accounting difference (see the closed spike ticket §7).
+
+## Auth-lane and write-turn diagnostic (2026-08-08, post-spike)
+
+Code-level follow-up resolving the spike's two open "why"s (trace evidence:
+`spike/oq4-coalescing-measurement` arms; code references at main 55566dc0a):
+
+1. **Commit plus fan-out is one exclusive write turn.**
+   `dispatch_live_data_fanout` runs inside the commit path's `&mut self`
+   turn (`src/local.rs` ~22820–22856), so with six auth-scoped observers a
+   frame costs ~5–6 s of serial evaluations and the next mutation's
+   **commit** — not merely its response — waits. Trace: burst-on commits
+   6212–6219 became durable at 6.6/16.5/18.2/18.4/28.2/29.0/36.8/50.4 s for
+   dispatches that all left the client within 400 ms. Corollary: the rung-1
+   coalescer is **structurally starved** on the served path — deferral
+   requires a commit to arrive while a pending frame exists, but serialized
+   commits arrive only after the prior frame finishes (hence 4/24
+   deferrals; the synthetic 15.6× drove `LocalSnapback` with test tunables
+   that widen the window). Settlement isolation — moving fan-out off the
+   write turn — is therefore not only the latency fix but the enabler that
+   makes the already-landed coalescer effective.
+
+2. **Auth-scoped subscriptions never ride the plain replace lane.** In the
+   replace branch, `subscription.authorization.is_some()` routes every
+   re-evaluation through `invoke_authorization_resolution` +
+   `deliver_authorization_snapshot`, emitting `authorization_invalidation`
+   envelopes (`src/local.rs` ~24447–24560). On a sessions-mode store that
+   is *every* subscription — hence 75/84 auth-lane frames — so the
+   coalescer's authorization-lane exclusion covers ~90% of this workload.
+   Not a misrouting defect: it is the designed auth-mode delivery envelope.
+   The D4 Spec must either scope coalescing to include data-driven
+   authorization resolutions or split the lane (data invalidation vs true
+   permission change) so the exclusion protects only the latter.
+
+3. **Quarantine churn is the client's classification of resolution-less
+   auth frames.** Roughly half the delivered auth frames in a burst arm
+   (119 of 231 callbacks) arrived without a usable resolution ticket and
+   quarantined the query boundary until a later resolution restored it
+   (`packages/snapback-contract/index.mjs` ~1651–1666). The
+   quarantine-recovery lifecycle is chartered D4 content.

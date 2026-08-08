@@ -10,6 +10,16 @@ remainder, and scope coalescing's authorization-lane exclusion explicitly;
 rung 2 is not the binding constraint; rung 3 has ~6× measured headroom).
 Drafting is unblocked.
 
+**D4-side drafted (2026-08-08):** LLP 0200
+(`llp/0200-live-evaluation-scheduling-and-settlement.spec.md`, Draft) — it
+extends the D4 charter to server-side evaluation scheduling (§0), decouples
+settlement from subscriber work, splits the authorization lane
+(data-driven resolution refresh vs authority transitions), and phases
+implementation with the spike harness as the A/B instrument. Informed by
+the post-spike diagnostic in the parent evidence ticket (write-turn
+coupling; auth-lane routing; quarantine churn). The D2-side Spec remains
+to be drafted.
+
 Two separable owner-Specs, per LLP 0191 §1's revised ladder:
 
 **D4-side (scheduling/lifecycle Spec):** rung 1 — coalescing,
