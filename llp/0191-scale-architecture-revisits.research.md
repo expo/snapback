@@ -1,7 +1,7 @@
 # LLP 0191: Architectural revisits the Zerobugs control earned
 
 **Type:** Research
-**Status:** Draft
+**Status:** Review
 **Systems:** Live queries, Local sync, Storage, Auth, Schema, Relational queries, Client SDK, Effects, Deployment, Performance
 **Author:** Claude Fable 5 (analysis and synthesis; commissioned by Charlie Cheever, 2026-08-08)
 **Date:** 2026-08-08
@@ -298,6 +298,7 @@ softer.
 
 ## Status
 
-Draft. Research synthesis only; commissions nothing by itself. Each
+Review (super-refine loop opened 2026-08-08, design-partner lens).
+Research synthesis only; commissions nothing by itself. Each
 section names the owner the LLP 0183 structure provides; rulings on the
 open questions turn sections into workstream scope.
