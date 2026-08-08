@@ -100,3 +100,38 @@ and `cargo test --test instance_fork_cli_v1 --no-run` compiles the live suite.
 This closes the three round-1 implementation findings only. It does not publish
 the capability or complete the ticket's fresh-C, evidence, review, acceptance,
 and atomic publication exit sequence.
+
+## Requalification round 2 — finding 4 and closure (2026-08-07)
+
+Codex reviewed C `622d61b9f29c18bdab3e4f0b23fa9de085eb3161` / v3 digest
+`sha256:f4c68ebfc0209659da01c91b30b82d2d54004e746e6683530778dc4f5413d612`
+and verified all three round-1 closures. It returned `NOT READY` on one new
+blocking provenance defect: the v3 checker still required the retained
+`author-acceptance.2026-08-06.v1.json` locator and the old 2026-08-06 author
+line while also requiring a fresh C/digest/scope. The three lifecycle/bounds
+locators were pinned to the same historical date, and the lifecycle emitter
+overwrote a same-date platform receipt.
+
+The round-2 fix separates retained history from current authority:
+
+- legacy v1/v2 receipts remain admissible only while withheld and continue to
+  name the byte-retained 2026-08-06 evidence chain;
+- a current v3 receipt names exact dated lifecycle, bounds, and
+  `author-acceptance.<date>.v3.json` locators; every dated locator must be on or
+  after qualification C's committer date, and the acceptance line's date must
+  equal its own locator date;
+- all semantic evidence reads use the exact paths bound by that receipt, so a
+  later requalification appends new evidence rather than selecting or
+  rewriting a rolling path; and
+- the lifecycle bench now derives its UTC run date and uses exclusive-create
+  output, with a regression proving a collision preserves the first bytes.
+  The emitter defect is resolved in
+  `issues/closed/20260807-lifecycle-bench-overwrites-dated-receipt.md`.
+
+Synthetic publication fixtures now construct a truthful 2026-08-07 v3
+acceptance. Negatives prove that rewriting/substituting the historical v1
+locator refuses, a locator/line date mismatch refuses, a pre-C acceptance
+refuses, and pre-C platform or bounds locators refuse. Both live publication
+records remain `withheld`; this closure neither selects the next C nor supplies
+the still-required real platform runs, review heads, or named-author
+acceptance.

@@ -283,7 +283,7 @@ function validAbsoluteEvidence(commit) {
 function withheldFixture() {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-agent-safe-publication-'));
   for (const record of [storage, derived]) {
-    const evidence = record.id === storage.id ? storageEvidence : derivedEvidence;
+    const evidence = record.id === storage.id ? storageEvidence : historicalDerivedEvidence;
     writeJson(scratch, record.anchor, {
       schemaVersion: 'snapback.local-capability-publication-anchor.v1',
       capabilityId: record.id,
@@ -321,7 +321,7 @@ const storageEvidence = [
   ['authorAcceptance', 'tests/acceptance/fixtures/agent-safe-storage/author-acceptance.2026-08-04.v1.json'],
 ];
 
-const derivedEvidence = [
+const historicalDerivedEvidence = [
   ['lifecycleBenchMacos', 'tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.macos-aarch64.v1.json'],
   ['lifecycleBenchLinux', 'tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.linux-x86_64.v1.json'],
   ['boundsRatification', 'tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.v1.json'],
@@ -336,6 +336,26 @@ const derivedEvidence = [
   ['implementationReviewFableVerdicts', 'llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.verdicts.v1.json'],
   ['authorAcceptance', 'tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-06.v1.json'],
 ];
+
+const DERIVED_FIXTURE_DATE = '2026-08-07';
+
+function currentDerivedEvidence({
+  platformDate = DERIVED_FIXTURE_DATE,
+  boundsDate = DERIVED_FIXTURE_DATE,
+  acceptanceDate = DERIVED_FIXTURE_DATE,
+  authorAcceptancePath =
+    `tests/acceptance/fixtures/instance-forks/author-acceptance.${acceptanceDate}.v3.json`,
+} = {}) {
+  return [
+    ['lifecycleBenchMacos', `tests/acceptance/instance-fork-lifecycle-bench.${platformDate}.macos-aarch64.v1.json`],
+    ['lifecycleBenchLinux', `tests/acceptance/instance-fork-lifecycle-bench.${platformDate}.linux-x86_64.v1.json`],
+    ['boundsRatification', `tests/acceptance/instance-fork-lifecycle-bench.${boundsDate}.v1.json`],
+    ...historicalDerivedEvidence.slice(3, -1),
+    ['authorAcceptance', authorAcceptancePath],
+  ];
+}
+
+const derivedEvidence = currentDerivedEvidence();
 
 function digest(bytes) {
   return `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
@@ -574,9 +594,14 @@ function storageReviewBytes(family, commit, implementationTree) {
 }
 
 function publishedDerivedFixture({
+  acceptanceDate = DERIVED_FIXTURE_DATE,
   acceptMutatedReviewHistories = false,
+  authorAcceptancePath,
+  boundsDate = DERIVED_FIXTURE_DATE,
+  platformDate = DERIVED_FIXTURE_DATE,
   omitReview,
   omitAuthor = false,
+  preexistingDatedEvidenceKind,
   zeroAuthorDigest = false,
   mutateMacos,
   mutateAcceptance,
@@ -589,6 +614,12 @@ function publishedDerivedFixture({
   serializeVerdict,
   reviewRoundCount = 3,
 } = {}) {
+  const fixtureEvidence = currentDerivedEvidence({
+    acceptanceDate,
+    authorAcceptancePath,
+    boundsDate,
+    platformDate,
+  });
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-derived-fork-publication-'));
   execFileSync('git', ['init', '--quiet'], { cwd: scratch });
   execFileSync('git', ['config', 'user.name', 'Snapback Test'], { cwd: scratch });
@@ -600,9 +631,17 @@ function publishedDerivedFixture({
     mkdirSync(dirname(join(scratch, path)), { recursive: true });
     writeFileSync(join(scratch, path), readFileSync(join(root, path)));
   }
+  const preexistingDatedEvidencePath = fixtureEvidence.find(
+    ([kind]) => kind === preexistingDatedEvidenceKind,
+  )?.[1];
+  if (preexistingDatedEvidencePath !== undefined) {
+    mkdirSync(dirname(join(scratch, preexistingDatedEvidencePath)), { recursive: true });
+    writeFileSync(join(scratch, preexistingDatedEvidencePath), 'retained historical bytes\n');
+  }
   execFileSync('git', [
     'add', 'src/qualification-marker.txt',
     ...DERIVED_FORK_IMPLEMENTATION_SCOPE.files.filter((path) => path !== 'vendor/ibex'),
+    ...(preexistingDatedEvidencePath === undefined ? [] : [preexistingDatedEvidencePath]),
   ], { cwd: scratch });
   const ibexGitlink = execFileSync('git', ['rev-parse', 'HEAD:vendor/ibex'], {
     cwd: root,
@@ -611,7 +650,15 @@ function publishedDerivedFixture({
   execFileSync('git', [
     'update-index', '--add', '--cacheinfo', `160000,${ibexGitlink},vendor/ibex`,
   ], { cwd: scratch });
-  execFileSync('git', ['commit', '--quiet', '-m', 'qualification C'], { cwd: scratch });
+  const qualificationDate = `${DERIVED_FIXTURE_DATE}T12:00:00Z`;
+  execFileSync('git', ['commit', '--quiet', '-m', 'qualification C'], {
+    cwd: scratch,
+    env: {
+      ...process.env,
+      GIT_AUTHOR_DATE: qualificationDate,
+      GIT_COMMITTER_DATE: qualificationDate,
+    },
+  });
   const commit = execFileSync('git', ['rev-parse', 'HEAD'], {
     cwd: scratch,
     encoding: 'utf8',
@@ -622,7 +669,7 @@ function publishedDerivedFixture({
   const bindings = [];
   const reviewBytes = new Map();
   const acceptedReviewHistoryHeads = new Map();
-  for (const [kind, path] of derivedEvidence.slice(0, -1)) {
+  for (const [kind, path] of fixtureEvidence.slice(0, -1)) {
     let bytes;
     if (kind === 'lifecycleBenchMacos' || kind === 'lifecycleBenchLinux'
         || kind === 'boundsRatification') {
@@ -645,7 +692,7 @@ function publishedDerivedFixture({
       writeFileSync(join(scratch, path), bytes);
     } else if (kind.endsWith('Verdicts')) {
       const reviewKind = kind.slice(0, -'Verdicts'.length);
-      const reviewPath = derivedEvidence.find(([candidate]) => candidate === reviewKind)[1];
+      const reviewPath = fixtureEvidence.find(([candidate]) => candidate === reviewKind)[1];
       const family = kind.includes('Codex') ? 'codex' : 'fable';
       const value = derivedVerdictContract(
         reviewKind,
@@ -695,7 +742,7 @@ function publishedDerivedFixture({
     schemaVersion: 'snapback.derived-fork-author-acceptance.v3',
     capabilityId: derived.id,
     accepted: true,
-    authorLine: 'Charlie Cheever — accepted 2026-08-06',
+    authorLine: `Charlie Cheever — accepted ${acceptanceDate}`,
     qualifiedSourceCommit: commit,
     implementationDigestVersion: SCOPED_IMPLEMENTATION_DIGEST_VERSION,
     implementationTreeSha256: implementationTree,
@@ -717,7 +764,7 @@ function publishedDerivedFixture({
     reviewHistoryHeads: Object.fromEntries(acceptedReviewHistoryHeads),
   };
   mutateAcceptance?.(acceptance);
-  const [authorKind, authorPath] = derivedEvidence.at(-1);
+  const [authorKind, authorPath] = fixtureEvidence.at(-1);
   const canonicalAuthorBytes = Buffer.from(`${JSON.stringify(acceptance, null, 2)}\n`);
   const authorBytes = serializeJson?.(authorKind, acceptance, canonicalAuthorBytes)
     ?? canonicalAuthorBytes;
@@ -920,6 +967,59 @@ test('named-author acceptance names the residual v2-to-v3 departing class', () =
     () => validatePublicationRecord(scratch, derived),
     /named-author\/source\/component acceptance drifted/u,
   );
+});
+
+test('historical author-acceptance locator cannot be rewritten as the current v3 acceptance', () => {
+  const scratch = publishedDerivedFixture({
+    authorAcceptancePath: historicalDerivedEvidence.at(-1)[1],
+  });
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /evidence 12 drifted/u,
+  );
+});
+
+test('named-author acceptance line date must equal its own locator date', () => {
+  const scratch = publishedDerivedFixture({
+    mutateAcceptance: (acceptance) => {
+      acceptance.authorLine = 'Charlie Cheever — accepted 2026-08-08';
+    },
+  });
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /named-author\/source\/component acceptance drifted/u,
+  );
+});
+
+test('named-author acceptance locator cannot predate qualification C', () => {
+  const scratch = publishedDerivedFixture({ acceptanceDate: '2026-08-06' });
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /authorAcceptance locator date 2026-08-06 predates qualification C commit date 2026-08-07/u,
+  );
+});
+
+test('current author-acceptance locator cannot rewrite bytes already present at C', () => {
+  const scratch = publishedDerivedFixture({
+    preexistingDatedEvidenceKind: 'authorAcceptance',
+  });
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /authorAcceptance locator already existed at qualification C; dated evidence is append-only/u,
+  );
+});
+
+test('platform and bounds evidence locators cannot reuse pre-C dated history', () => {
+  for (const [options, expectedKind] of [
+    [{ platformDate: '2026-08-06' }, 'lifecycleBenchMacos'],
+    [{ boundsDate: '2026-08-06' }, 'boundsRatification'],
+  ]) {
+    const scratch = publishedDerivedFixture(options);
+    assert.throws(
+      () => validatePublicationRecord(scratch, derived),
+      new RegExp(`${expectedKind} locator date 2026-08-06 predates qualification C`),
+    );
+  }
 });
 
 test('published oracle reports out-of-scope post-qualification drift as a standing snapshot', () => {
@@ -1513,7 +1613,7 @@ test('published derived-fork chain refuses zero or missing author acceptance', (
   );
   assert.throws(
     () => validatePublicationRecord(publishedDerivedFixture({ omitAuthor: true }), derived),
-    /evidence bytes drifted.*author-acceptance\.2026-08-06\.v1\.json/u,
+    /evidence bytes drifted.*author-acceptance\.2026-08-07\.v3\.json/u,
   );
 });
 
@@ -1966,15 +2066,19 @@ test('withdrawal scenario keeps all nine wave leaves out of scope but refuses on
   );
 });
 
-test('publication records and qualification evidence do not move the implementation digest', () => {
-  const { scratch, qualification, expectedDigest } = qualifiedImplementationScopeFixture();
+test('publication records and fresh dated evidence stay outside the scoped v3 digest', () => {
+  const {
+    scratch,
+    qualification,
+    scoped,
+    scopedDigest,
+  } = qualifiedImplementationScopeFixture();
   const publicationRecords = [
     derived.receipt,
     derived.carrier,
     derived.anchor,
-    'tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.macos-aarch64.v1.json',
-    'tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.linux-x86_64.v1.json',
-    'tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.v1.json',
+    ...derivedEvidence.slice(0, 3).map(([, path]) => path),
+    derivedEvidence.at(-1)[1],
   ];
   for (const path of publicationRecords) {
     mkdirSync(dirname(join(scratch, path)), { recursive: true });
@@ -1985,8 +2089,8 @@ test('publication records and qualification evidence do not move the implementat
     'add publication-cycle records',
     ...publicationRecords,
   );
-  assert.equal(implementationDigestAt(scratch, qualification), expectedDigest);
-  assert.equal(implementationDigestAt(scratch, carrierCommit), expectedDigest);
+  assert.equal(implementationDigestAt(scratch, qualification, scoped), scopedDigest);
+  assert.equal(implementationDigestAt(scratch, carrierCommit, scoped), scopedDigest);
 
   for (const path of publicationRecords) {
     writeFileSync(join(scratch, path), '{"state":"published"}\n');
@@ -1996,7 +2100,7 @@ test('publication records and qualification evidence do not move the implementat
     'rotate publication-cycle records',
     ...publicationRecords,
   );
-  assert.equal(implementationDigestAt(scratch, publication), expectedDigest);
+  assert.equal(implementationDigestAt(scratch, publication, scoped), scopedDigest);
 });
 
 test('ordinary test files remain implementation-digest-covered', () => {
@@ -2747,6 +2851,24 @@ test('P-vs-C publication path allowlist rejects executable drift', () => {
   ]) {
     assert.equal(allowedPublicationPath(path), true, path);
   }
+  for (const [, path] of [
+    ...derivedEvidence.slice(0, 3),
+    derivedEvidence.at(-1),
+  ]) {
+    assert.equal(allowedPublicationPath(path), true, path);
+    assert.equal(allowedPublicationChange(
+      { status: 'A', path }, new Map(), new Map(),
+    ), true, `${path} may be appended`);
+    assert.equal(allowedPublicationChange(
+      { status: 'M', path }, new Map(), new Map(),
+    ), false, `${path} may not be rewritten`);
+  }
+  assert.equal(
+    allowedPublicationPath(
+      'tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-07.v2.json',
+    ),
+    false,
+  );
   for (const path of ['tests/acceptance/asset-lifecycle-v1-evidence.md']) {
     assert.equal(allowedPublicationPath(path), false, `${path} must stay frozen in C`);
   }

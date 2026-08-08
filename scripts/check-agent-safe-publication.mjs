@@ -23,7 +23,11 @@ const STORAGE_EVIDENCE = [
 
 // @ref LLP 0158#capability-registry-record — the guide-row witness has a
 // closed fork-specific vocabulary; storage evidence cannot substitute for it.
-const DERIVED_FORK_EVIDENCE = [
+// The 2026-08-06 evidence chain is retained history. Legacy v1/v2 receipts may
+// continue to name these exact locators while withheld, but a v3 publication
+// must allocate fresh dated lifecycle/bounds evidence and a dated v3 author
+// acceptance rather than rewriting this chain in place.
+const DERIVED_FORK_HISTORICAL_EVIDENCE = [
   ['lifecycleBenchMacos', 'tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.macos-aarch64.v1.json'],
   ['lifecycleBenchLinux', 'tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.linux-x86_64.v1.json'],
   ['boundsRatification', 'tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.v1.json'],
@@ -38,6 +42,17 @@ const DERIVED_FORK_EVIDENCE = [
   ['implementationReviewFableVerdicts', 'llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.verdicts.v1.json'],
   ['authorAcceptance', 'tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-06.v1.json'],
 ];
+
+const DERIVED_FORK_DATED_LOCATOR_PATTERNS = Object.freeze({
+  lifecycleBenchMacos:
+    /^tests\/acceptance\/instance-fork-lifecycle-bench\.(?<date>[0-9]{4}-[0-9]{2}-[0-9]{2})\.macos-aarch64\.v1\.json$/u,
+  lifecycleBenchLinux:
+    /^tests\/acceptance\/instance-fork-lifecycle-bench\.(?<date>[0-9]{4}-[0-9]{2}-[0-9]{2})\.linux-x86_64\.v1\.json$/u,
+  boundsRatification:
+    /^tests\/acceptance\/instance-fork-lifecycle-bench\.(?<date>[0-9]{4}-[0-9]{2}-[0-9]{2})\.v1\.json$/u,
+  authorAcceptance:
+    /^tests\/acceptance\/fixtures\/instance-forks\/author-acceptance\.(?<date>[0-9]{4}-[0-9]{2}-[0-9]{2})\.v3\.json$/u,
+});
 
 export const IMPLEMENTATION_ROOTS = [
   'Cargo.toml',
@@ -240,10 +255,10 @@ const LEGACY_REVIEW_COMMITS = [
   'ad0ad58748981010204b61eb5002e35b887a5093',
 ];
 const LEGACY_REVIEW_VERDICT_CODES = new Map([
-  [DERIVED_FORK_EVIDENCE[5][1], ['NNN', 'RRN', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RNR', 'RRR']],
-  [DERIVED_FORK_EVIDENCE[7][1], ['RNR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR']],
-  [DERIVED_FORK_EVIDENCE[9][1], ['N', 'N', 'R', 'N', 'N', 'N', 'N', 'N', 'R', 'R', 'N', 'R']],
-  [DERIVED_FORK_EVIDENCE[11][1], ['R', 'N', 'R', 'N', 'N', 'N', 'N', 'N', 'R', 'R', 'N', 'R']],
+  [DERIVED_FORK_HISTORICAL_EVIDENCE[5][1], ['NNN', 'RRN', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RNR', 'RRR']],
+  [DERIVED_FORK_HISTORICAL_EVIDENCE[7][1], ['RNR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR']],
+  [DERIVED_FORK_HISTORICAL_EVIDENCE[9][1], ['N', 'N', 'R', 'N', 'N', 'N', 'N', 'N', 'R', 'R', 'N', 'R']],
+  [DERIVED_FORK_HISTORICAL_EVIDENCE[11][1], ['R', 'N', 'R', 'N', 'N', 'N', 'N', 'N', 'R', 'R', 'N', 'R']],
 ]);
 
 export const PUBLICATION_CYCLE_ALLOWLIST = new Set([
@@ -376,7 +391,9 @@ const PUBLICATION_ONLY_PATHS = new Set([
 ]);
 
 export function allowedPublicationPath(path, generatedPaths = new Map()) {
-  return PUBLICATION_ONLY_PATHS.has(path) || generatedPaths.has(path);
+  return PUBLICATION_ONLY_PATHS.has(path)
+    || isCurrentDerivedForkDatedEvidencePath(path)
+    || generatedPaths.has(path);
 }
 
 function fail(message) {
@@ -547,6 +564,7 @@ export function generatedPublicationPathsOnDisk(root) {
 
 export function allowedPublicationChange(change, generatedPaths, publicationEntries) {
   if (PUBLICATION_ONLY_PATHS.has(change.path)) return true;
+  if (isCurrentDerivedForkDatedEvidencePath(change.path)) return change.status === 'A';
   const expected = generatedPaths.get(change.path);
   const published = publicationEntries.get(change.path);
   return change.status === 'M'
@@ -1114,8 +1132,34 @@ export function implementationDigestWorkingTree(root, scope = undefined) {
 
 function evidenceLocatorsFor(record) {
   if (record.id === 'agent_safe_storage_v1') return STORAGE_EVIDENCE;
-  if (record.id === 'agent_safe_derived_deployment_fork_v1') return DERIVED_FORK_EVIDENCE;
+  if (record.id === 'agent_safe_derived_deployment_fork_v1') {
+    return DERIVED_FORK_HISTORICAL_EVIDENCE;
+  }
   fail(`unknown publication record ${record.id}`);
+}
+
+function validIsoDate(date) {
+  if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/u.test(date ?? '')) return false;
+  const parsed = new Date(`${date}T00:00:00Z`);
+  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === date;
+}
+
+function derivedForkDatedLocatorDate(kind, path) {
+  const pattern = DERIVED_FORK_DATED_LOCATOR_PATTERNS[kind];
+  const date = pattern?.exec(path ?? '')?.groups?.date;
+  return validIsoDate(date) ? date : undefined;
+}
+
+function isCurrentDerivedForkDatedEvidencePath(path) {
+  return Object.entries(DERIVED_FORK_DATED_LOCATOR_PATTERNS)
+    .some(([kind]) => derivedForkDatedLocatorDate(kind, path) !== undefined);
+}
+
+function currentDerivedForkLocatorMatches(kind, path, index) {
+  if (DERIVED_FORK_DATED_LOCATOR_PATTERNS[kind] !== undefined) {
+    return derivedForkDatedLocatorDate(kind, path) !== undefined;
+  }
+  return path === DERIVED_FORK_HISTORICAL_EVIDENCE[index][1];
 }
 
 function validateReceiptShape(receipt, record, published) {
@@ -1168,7 +1212,12 @@ function validateReceiptShape(receipt, record, published) {
   receipt.evidence.forEach((binding, index) => {
     exactKeys(binding, ['kind', 'path', 'sha256'], `${record.id} evidence ${index}`);
     const [kind, path] = evidenceLocators[index];
-    if (binding.kind !== kind || binding.path !== path || !isSha256(binding.sha256, published)) {
+    const currentDerivedLocator = record.id === 'agent_safe_derived_deployment_fork_v1'
+      && receipt.schemaVersion === 'snapback.agent-safe-publication-receipt.v3';
+    const locatorMatches = currentDerivedLocator
+      ? currentDerivedForkLocatorMatches(kind, binding.path, index)
+      : binding.path === path;
+    if (binding.kind !== kind || !locatorMatches || !isSha256(binding.sha256, published)) {
       fail(`${record.id} evidence ${index} drifted`);
     }
   });
@@ -1182,6 +1231,21 @@ function implementationScopeForReceipt(receipt) {
 
 function requireEvidence(condition, message) {
   if (!condition) fail(`published evidence: ${message}`);
+}
+
+function validateCurrentDerivedForkEvidenceDates(root, receipt, commit) {
+  const commitDate = git(root, ['show', '-s', '--format=%cs', commit]);
+  requireEvidence(validIsoDate(commitDate), 'qualification C commit date is invalid');
+  for (const kind of Object.keys(DERIVED_FORK_DATED_LOCATOR_PATTERNS)) {
+    const binding = receipt.evidence.find((candidate) => candidate.kind === kind);
+    const locatorDate = derivedForkDatedLocatorDate(kind, binding?.path);
+    requireEvidence(locatorDate !== undefined,
+      `${kind} does not use its required dated append-only locator`);
+    requireEvidence(locatorDate >= commitDate,
+      `${kind} locator date ${locatorDate} predates qualification C commit date ${commitDate}`);
+    requireEvidence(git(root, ['ls-tree', '--name-only', commit, '--', binding.path]) === '',
+      `${kind} locator already existed at qualification C; dated evidence is append-only`);
+  }
 }
 
 // @ref LLP 0162#source-owned-publication-carrier-amendment--2026-08-04
@@ -1822,10 +1886,10 @@ export function validateDerivedForkLifecycleBenchArtifact(value, commit, os, arc
   `${label} concurrent-create bound failed`);
 }
 
-function validateDerivedForkBoundsRatification(root, commit) {
+function validateDerivedForkBoundsRatification(root, commit, receipt) {
   const value = readCanonicalPublicationJson(
     root,
-    DERIVED_FORK_EVIDENCE[2][1],
+    receipt.evidence[2].path,
     'fork bounds ratification',
   );
   const ratificationCommit = value.environment?.commit;
@@ -1868,9 +1932,10 @@ export function validateDerivedForkReview(root, {
   verdictIndex,
   expectedKind,
   qualificationCommit,
+  receipt,
 }) {
-  const reviewPath = DERIVED_FORK_EVIDENCE[reviewIndex][1];
-  const verdictPath = DERIVED_FORK_EVIDENCE[verdictIndex][1];
+  const reviewPath = receipt.evidence[reviewIndex].path;
+  const verdictPath = receipt.evidence[verdictIndex].path;
   requireEvidence(
     expectedKind === 'forkSpecConformance'
       || expectedKind === 'derivedForkPublication',
@@ -1977,7 +2042,7 @@ export function validateDerivedForkReview(root, {
   return {
     family: authoritative.family,
     headEntrySha256: previousEntrySha256,
-    historyKind: DERIVED_FORK_EVIDENCE[verdictIndex][0],
+    historyKind: receipt.evidence[verdictIndex].kind,
     ready,
     round: authoritative.round,
     roundCount: value.verdicts.length,
@@ -1986,8 +2051,8 @@ export function validateDerivedForkReview(root, {
   };
 }
 
-function validateDerivedForkAssetEvidence(root) {
-  const path = DERIVED_FORK_EVIDENCE[3][1];
+function validateDerivedForkAssetEvidence(root, receipt) {
+  const path = receipt.evidence[3].path;
   const text = readFileSync(join(root, path), 'utf8');
   requireEvidence(text.startsWith('# LLP 0044 `asset-lifecycle-v1` acceptance evidence (local target)\n')
     && text.includes('<!-- @ref LLP 0044#acceptance'),
@@ -2001,7 +2066,8 @@ function validateDerivedForkAuthorAcceptance(
   implementationTree,
   reviewHistories,
 ) {
-  const path = DERIVED_FORK_EVIDENCE.at(-1)[1];
+  const path = receipt.evidence.at(-1).path;
+  const acceptanceDate = derivedForkDatedLocatorDate('authorAcceptance', path);
   const value = readCanonicalPublicationJson(root, path, 'derived-fork author acceptance');
   exactKeys(value, [
     'schemaVersion', 'capabilityId', 'accepted', 'authorLine', 'qualifiedSourceCommit',
@@ -2012,7 +2078,7 @@ function validateDerivedForkAuthorAcceptance(
   requireEvidence(value.schemaVersion === 'snapback.derived-fork-author-acceptance.v3'
     && value.capabilityId === 'agent_safe_derived_deployment_fork_v1'
     && value.accepted === true
-    && value.authorLine === 'Charlie Cheever — accepted 2026-08-06'
+    && value.authorLine === `Charlie Cheever — accepted ${acceptanceDate}`
     && value.qualifiedSourceCommit === commit
     && value.implementationDigestVersion === receipt.implementationDigestVersion
     && value.implementationTreeSha256 === implementationTree
@@ -2058,15 +2124,16 @@ export function validatePublishedDerivedForkEvidenceSemantics(root, record, comm
   } catch {
     fail('published evidence: derived-fork qualification commit is not an ancestor of publication HEAD');
   }
-  validateDerivedForkBoundsRatification(root, commit);
+  validateCurrentDerivedForkEvidenceDates(root, receipt, commit);
+  validateDerivedForkBoundsRatification(root, commit, receipt);
   const macos = readCanonicalPublicationJson(
     root,
-    DERIVED_FORK_EVIDENCE[0][1],
+    receipt.evidence[0].path,
     'macOS fork lifecycle bench',
   );
   const linux = readCanonicalPublicationJson(
     root,
-    DERIVED_FORK_EVIDENCE[1][1],
+    receipt.evidence[1].path,
     'Linux fork lifecycle bench',
   );
   validateDerivedForkLifecycleBenchArtifact(macos, commit, 'macos', 'aarch64');
@@ -2075,30 +2142,34 @@ export function validatePublishedDerivedForkEvidenceSemantics(root, record, comm
     `${macos.environment.os}/${macos.environment.arch}`,
     `${linux.environment.os}/${linux.environment.arch}`,
   ]).size === 2, 'both distinct release platforms were not present');
-  validateDerivedForkAssetEvidence(root);
+  validateDerivedForkAssetEvidence(root, receipt);
   const specCodex = validateDerivedForkReview(root, {
     reviewIndex: 4,
     verdictIndex: 5,
     expectedKind: 'forkSpecConformance',
     qualificationCommit: commit,
+    receipt,
   });
   const specFable = validateDerivedForkReview(root, {
     reviewIndex: 6,
     verdictIndex: 7,
     expectedKind: 'forkSpecConformance',
     qualificationCommit: commit,
+    receipt,
   });
   const implementationCodex = validateDerivedForkReview(root, {
     reviewIndex: 8,
     verdictIndex: 9,
     expectedKind: 'derivedForkPublication',
     qualificationCommit: commit,
+    receipt,
   });
   const implementationFable = validateDerivedForkReview(root, {
     reviewIndex: 10,
     verdictIndex: 11,
     expectedKind: 'derivedForkPublication',
     qualificationCommit: commit,
+    receipt,
   });
   requireEvidence(new Set([specCodex.family, specFable.family]).size === 2
     && new Set([implementationCodex.family, implementationFable.family]).size === 2,
