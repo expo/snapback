@@ -524,9 +524,28 @@ pub fn number_value(number: f64) -> Value {
 }
 
 fn values_equal(left: &Value, right: &Value) -> bool {
-    match (as_number(left), as_number(right)) {
-        // Numeric compare across representations; NaN != NaN (JS parity).
-        (Some(a), Some(b)) => a == b,
+    match (left, right) {
+        (Value::Number(_), Value::Number(_)) => {
+            // Numeric compare across representations; NaN != NaN (JS parity).
+            as_number(left)
+                .zip(as_number(right))
+                .is_some_and(|(a, b)| a == b)
+        }
+        (Value::Array(left), Value::Array(right)) => {
+            left.len() == right.len()
+                && left
+                    .iter()
+                    .zip(right)
+                    .all(|(left, right)| values_equal(left, right))
+        }
+        (Value::Object(left), Value::Object(right)) => {
+            left.len() == right.len()
+                && left.iter().all(|(key, left)| {
+                    right
+                        .get(key)
+                        .is_some_and(|right| values_equal(left, right))
+                })
+        }
         _ => left == right,
     }
 }
@@ -1046,6 +1065,21 @@ mod tests {
             right: Box::new(ValueExpr::Literal(json!(1))),
         };
         assert_eq!(eval(&with_null, &args), Value::Null);
+    }
+
+    #[test]
+    fn equality_compares_nested_numeric_representations_structurally() {
+        let integer = Value::Number(serde_json::Number::from(1));
+        let float = Value::Number(serde_json::Number::from_f64(1.0).unwrap());
+
+        assert!(values_equal(
+            &json!({ "nested": [integer] }),
+            &json!({ "nested": [float] }),
+        ));
+        assert!(!values_equal(
+            &json!({ "nested": [1] }),
+            &json!({ "nested": [1, 2] }),
+        ));
     }
 
     #[test]

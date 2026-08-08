@@ -946,9 +946,9 @@ fn reap_expired_managed_branches_bound(
             continue;
         }
         let path = managed_workspace_path(canonical_path, &profile.branch_id)?;
-        let workspace = MaterializedBase::reopen(&path)?;
-        let branch = inspect_in_app_branch(&workspace.conn, &profile.branch_id)?;
-        drop(workspace);
+        let branch = MaterializedBase::reopen(&path)
+            .and_then(|workspace| inspect_in_app_branch(&workspace.conn, &profile.branch_id))
+            .ok();
         let changed = canonical.execute(
             "UPDATE _snapback_in_app_branch_custody_v1 SET state = 'tearing_down'
               WHERE branch_id = ?1 AND state = 'active'",
@@ -968,17 +968,20 @@ fn reap_expired_managed_branches_bound(
               WHERE branch_id = ?1 AND state = 'tearing_down'",
             params![id, now_ms],
         )?;
-        reaped.push(ManagedInAppBranchReceiptV1 {
-            schema_version: 1,
-            branch: InAppBranchReceiptV1 {
-                branch: BranchRecord {
-                    state: BranchState::TearingDown,
-                    ..branch.branch
+        reaped.push(match branch {
+            Some(branch) => ManagedInAppBranchReceiptV1 {
+                schema_version: 1,
+                branch: InAppBranchReceiptV1 {
+                    branch: BranchRecord {
+                        state: BranchState::TearingDown,
+                        ..branch.branch
+                    },
+                    promotable: false,
+                    ..branch
                 },
-                promotable: false,
-                ..branch
+                custody_state: ManagedBranchStateV1::Dropped,
             },
-            custody_state: ManagedBranchStateV1::Dropped,
+            None => dropped_managed_receipt(profile),
         });
     }
     Ok(reaped)
@@ -6152,6 +6155,50 @@ mod tests {
             )
             .unwrap();
         assert_eq!(survivor_state, "dropped");
+    }
+
+    #[test]
+    fn damaged_expired_branch_does_not_wedge_managed_reap_sweep() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let canonical_path = directory.path().join("app.sqlite3");
+        let mut canonical = file_source(&canonical_path, 7);
+        let damaged = create_request("damaged", "damaged-stream", 7, 100);
+        let healthy = create_request("healthy", "healthy-stream", 7, 101);
+        create_managed_in_app_branch(&mut canonical, &canonical_path, &damaged)
+            .expect("damaged branch fixture");
+        create_managed_in_app_branch(&mut canonical, &canonical_path, &healthy)
+            .expect("healthy branch fixture");
+
+        let damaged_path = managed_workspace_path(&canonical_path, &damaged.branch_id).unwrap();
+        let healthy_path = managed_workspace_path(&canonical_path, &healthy.branch_id).unwrap();
+        fs::remove_file(&damaged_path).expect("remove damaged writable head");
+
+        let receipts = reap_expired_managed_in_app_branches(
+            &mut canonical,
+            &canonical_path,
+            healthy.created_at_ms + healthy.limits.ttl_ms,
+        )
+        .expect("one damaged branch cannot abort the sweep");
+        assert_eq!(receipts.len(), 2);
+        assert_eq!(receipts[0], dropped_managed_receipt(damaged.clone()));
+        assert!(
+            managed_workspace_files(&damaged_path)
+                .into_iter()
+                .chain(managed_workspace_files(&healthy_path))
+                .all(|path| !path.exists())
+        );
+        for branch_id in [&damaged.branch_id.0, &healthy.branch_id.0] {
+            assert_eq!(
+                canonical
+                    .query_row(
+                        "SELECT state FROM _snapback_in_app_branch_custody_v1 WHERE branch_id=?1",
+                        params![branch_id],
+                        |row| row.get::<_, String>(0),
+                    )
+                    .unwrap(),
+                "dropped"
+            );
+        }
     }
 
     #[test]

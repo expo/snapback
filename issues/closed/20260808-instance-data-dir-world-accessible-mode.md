@@ -37,3 +37,6 @@ mirroring `create_staging_directory`.
 Medium. No `@ref`/comment justifies 0o777, and the adjacent staging path
 deliberately does the opposite — reads as an oversight in an otherwise uniformly
 owner-only file-I/O layer.
+
+## Resolution (2026-08-08)
+Fixed on main (Lane C). Verified: cargo build; targeted suites pass (throttle 4/4, instance-lock 11/11, fork 3/3, value_expr 10/10, config 23/23, embed 7/7, workerd 10/10, data-tier corpus 2/2 + 37-case parity); ref-check clean.

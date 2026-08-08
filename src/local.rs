@@ -2584,6 +2584,13 @@ impl EphemeralApi {
         self.store.ensure_collections(collections)
     }
 
+    pub(crate) fn ensure_collections_redacted(
+        &self,
+        collections: Vec<EphemeralCollection>,
+    ) -> Result<CollectionEnsureOutcome, crate::ephemeral::EphemeralError> {
+        self.store.ensure_collections_redacted(collections)
+    }
+
     /// Drain compatibility traffic from a connection's outbox. Once session
     /// authorization fencing is installed, auth-scoped durable data and
     /// protected-room frames remain queued; transport embeddings use

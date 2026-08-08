@@ -35,3 +35,6 @@ invoking app.
 Medium. The crash-recovery design deliberately routes cleanup through `recover`
 (@ref LLP 0158), but that covers crashes; the in-process error path owns the
 UUID it just minted and could clean up after itself.
+
+## Resolution (2026-08-08)
+Fixed on main (Lane C). Verified: cargo build; targeted suites pass (throttle 4/4, instance-lock 11/11, fork 3/3, value_expr 10/10, config 23/23, embed 7/7, workerd 10/10, data-tier corpus 2/2 + 37-case parity); ref-check clean.

@@ -59,3 +59,6 @@ High on the reachable panic mechanics. Medium on urgency because
 `AppState::from_snapback` consumes a fresh owned instance and avoids the two
 caller-state cases; the risk is concentrated in the explicitly exported
 low-level path.
+
+## Resolution (2026-08-08)
+Fixed on main (Lane C). Verified: cargo build; targeted suites pass (throttle 4/4, instance-lock 11/11, fork 3/3, value_expr 10/10, config 23/23, embed 7/7, workerd 10/10, data-tier corpus 2/2 + 37-case parity); ref-check clean.

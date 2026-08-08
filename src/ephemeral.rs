@@ -5555,6 +5555,21 @@ impl LocalEphemeralBackend {
         &self,
         collections: Vec<EphemeralCollection>,
     ) -> Result<CollectionEnsureOutcome, EphemeralError> {
+        self.ensure_collections_with_error_detail(collections, true)
+    }
+
+    pub(crate) fn ensure_collections_redacted(
+        &self,
+        collections: Vec<EphemeralCollection>,
+    ) -> Result<CollectionEnsureOutcome, EphemeralError> {
+        self.ensure_collections_with_error_detail(collections, false)
+    }
+
+    fn ensure_collections_with_error_detail(
+        &self,
+        collections: Vec<EphemeralCollection>,
+        include_names: bool,
+    ) -> Result<CollectionEnsureOutcome, EphemeralError> {
         validate_collection_definitions(&collections)?;
         let _generation = self.lifecycle_read("ephemeral collection ensure");
         let expected = collections
@@ -5578,10 +5593,17 @@ impl LocalEphemeralBackend {
             if !missing.is_empty() {
                 return Err(EphemeralError::new(
                     EphemeralErrorCode::UnknownCollection,
-                    format!(
-                        "ephemeral collection definitions are not loaded: {}",
-                        missing.join(", ")
-                    ),
+                    if include_names {
+                        format!(
+                            "ephemeral collection definitions are not loaded: {}",
+                            missing.join(", ")
+                        )
+                    } else {
+                        format!(
+                            "ephemeral collection definitions are not loaded (missing count: {})",
+                            missing.len()
+                        )
+                    },
                 ));
             }
 
@@ -5601,11 +5623,19 @@ impl LocalEphemeralBackend {
             if !extra.is_empty() || !mismatched.is_empty() {
                 return Err(EphemeralError::new(
                     EphemeralErrorCode::IncompatibleCollectionDefinition,
-                    format!(
-                        "loaded ephemeral collection definitions do not match generated artifacts (mismatched: [{}], extra: [{}])",
-                        mismatched.join(", "),
-                        extra.join(", ")
-                    ),
+                    if include_names {
+                        format!(
+                            "loaded ephemeral collection definitions do not match generated artifacts (mismatched: [{}], extra: [{}])",
+                            mismatched.join(", "),
+                            extra.join(", ")
+                        )
+                    } else {
+                        format!(
+                            "loaded ephemeral collection definitions do not match generated artifacts (mismatched count: {}, extra count: {})",
+                            mismatched.len(),
+                            extra.len()
+                        )
+                    },
                 ));
             }
         }
@@ -9284,6 +9314,30 @@ impl ClientEphemeralOverlay {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn redacted_collection_ensure_errors_report_counts_without_names() {
+        let backend = LocalEphemeralBackend::new();
+        let loaded = EphemeralCollection::local_cursor("privateLoaded", "boardId");
+        let extra = EphemeralCollection::local_cursor("privateExtra", "boardId");
+        backend
+            .replace_collections(vec![loaded.clone(), extra])
+            .unwrap();
+        let mut mismatched = loaded;
+        mismatched.max_value_bytes += 1;
+
+        let error = backend
+            .ensure_collections_redacted(vec![mismatched])
+            .expect_err("sessions-mode projection must collapse collection names");
+        assert_eq!(
+            error.code,
+            EphemeralErrorCode::IncompatibleCollectionDefinition
+        );
+        assert!(error.message.contains("mismatched count: 1"));
+        assert!(error.message.contains("extra count: 1"));
+        assert!(!error.message.contains("privateLoaded"));
+        assert!(!error.message.contains("privateExtra"));
+    }
 
     #[test]
     fn network_deadline_clamp_preserves_fifo_without_leasing_early() {

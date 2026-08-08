@@ -586,11 +586,15 @@ impl ConfigStore {
                 serde_json::Value::String(single) if !single.trim().is_empty() => {
                     vec![single.clone()]
                 }
-                serde_json::Value::Array(members) => members
+                serde_json::Value::Array(members)
+                    if !members.is_empty()
+                        && members.iter().all(|member| {
+                            member
+                                .as_str()
+                                .is_some_and(|member| !member.trim().is_empty())
+                        }) => members
                     .iter()
-                    .filter_map(|member| member.as_str())
-                    .filter(|member| !member.trim().is_empty())
-                    .map(ToOwned::to_owned)
+                    .map(|member| member.as_str().unwrap().to_owned())
                     .collect(),
                 _ => Vec::new(),
             };
@@ -678,6 +682,8 @@ impl ConfigStore {
             let _ = std::fs::remove_file(&tmp);
             store_io_error(path, "rename", &error)
         })?;
+        crate::secure_file::sync_parent(path)
+            .map_err(|error| store_io_error(path, "sync parent", &error))?;
         Ok(())
     }
 }
@@ -1156,6 +1162,25 @@ mod tests {
             .import_env_blob(blob.as_object().unwrap(), &["caltrainFeed".to_owned()], 8)
             .unwrap();
         assert!(outcome.skipped_existing_store);
+    }
+
+    #[test]
+    fn env_import_rejects_an_entire_array_with_invalid_members() {
+        for invalid in [
+            serde_json::json!(["key-1", 42, "key-2"]),
+            serde_json::json!(["key-1", "  ", "key-2"]),
+            serde_json::json!([]),
+        ] {
+            let mut store = ConfigStore::in_memory();
+            let blob = serde_json::Map::from_iter([("caltrainFeed".to_owned(), invalid)]);
+            let outcome = store
+                .import_env_blob(&blob, &["caltrainFeed".to_owned()], 7)
+                .unwrap();
+            assert!(outcome.imported.is_empty());
+            assert_eq!(outcome.ignored, vec!["caltrainFeed".to_owned()]);
+            assert_eq!(store.values("caltrainFeed"), None);
+            assert_eq!(store.state.generation, 0);
+        }
     }
 
     #[test]

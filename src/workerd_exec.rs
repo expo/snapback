@@ -22,6 +22,7 @@ use crate::manifest::IbexModule;
 use crate::runtime::{
     IbexHostContext, dispatch_host_call, parse_handler_output, unhandled_rejection_error,
 };
+use crate::server::constant_time_str_eq;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::cell::{Cell, RefCell};
@@ -922,7 +923,10 @@ fn read_authenticated_response(
     // Authenticate the peer from headers before parsing Content-Length or
     // touching the response reader. A process that wins the bind handoff sees
     // neither this response secret nor the independent host-call secret.
-    if response.header(RESPONSE_TOKEN_HEADER) != Some(expected_token) {
+    if !response
+        .header(RESPONSE_TOKEN_HEADER)
+        .is_some_and(|presented| constant_time_str_eq(presented, expected_token))
+    {
         return Err(format!(
             "{role} response authentication failed before body read"
         ));
@@ -1108,7 +1112,10 @@ fn read_host_call_request<R: BufRead>(
     }
 
     // Authenticate before allocating or reading the attacker-declared body.
-    if sent_token.as_deref() != Some(expected_token) {
+    if !sent_token
+        .as_deref()
+        .is_some_and(|presented| constant_time_str_eq(presented, expected_token))
+    {
         return Err(HostTransportReadError::Unauthorized);
     }
     let content_length = content_length.ok_or(HostTransportReadError::Malformed)?;

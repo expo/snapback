@@ -153,7 +153,7 @@
     {
       "name": "expr-equality-value-model",
       "path": "expr-equality-value-model.case.json",
-      "sha256": "sha256:bde860435eb30e69f0bddd9d5ab048a111d19e59ee95f12264c2c1a0d2c5c80a",
+      "sha256": "sha256:289149a8183e2f954d2c1c53b125e6c8013f80664bbfc882ac19872a167048d7",
       "requiredCapabilities": [
         "irEvaluator"
       ],

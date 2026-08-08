@@ -366,12 +366,53 @@ pub(crate) fn charge_shared_authentication_attempt(
         new_count += u64::from(prior.is_none());
         states.push(prior);
     }
-    if existing < 0
-        || (existing as u64)
-            .checked_add(new_count)
-            .is_none_or(|count| count > config.maximum_key_count)
-    {
+    if existing < 0 {
         return Err(AuthenticationThrottleError::Capacity);
+    }
+    let projected_count = (existing as u64)
+        .checked_add(new_count)
+        .ok_or(AuthenticationThrottleError::Capacity)?;
+    let required_evictions = projected_count.saturating_sub(config.maximum_key_count);
+    if required_evictions > 0 {
+        // Keep every bucket participating in this atomic charge, especially
+        // the deployment-global backstop, and make room by evicting the least
+        // recently used unrelated rows inside the same serialized transaction.
+        // The fixed five-key exclusion is padded with the global key because
+        // one attempt carries between two and five dimensions.
+        let excluded = [
+            charges[0].key.as_slice(),
+            charges.get(1).unwrap_or(&charges[0]).key.as_slice(),
+            charges.get(2).unwrap_or(&charges[0]).key.as_slice(),
+            charges.get(3).unwrap_or(&charges[0]).key.as_slice(),
+            charges.get(4).unwrap_or(&charges[0]).key.as_slice(),
+        ];
+        for _ in 0..required_evictions {
+            let removed = transaction
+                .execute(
+                    &format!(
+                        "DELETE FROM {TABLE}
+                         WHERE rowid = (
+                           SELECT rowid FROM {TABLE}
+                            WHERE limiter_epoch = ?1
+                              AND bucket_key NOT IN (?2, ?3, ?4, ?5, ?6)
+                            ORDER BY last_used_ms, bucket_key
+                            LIMIT 1
+                         )"
+                    ),
+                    params![
+                        epoch,
+                        excluded[0],
+                        excluded[1],
+                        excluded[2],
+                        excluded[3],
+                        excluded[4],
+                    ],
+                )
+                .map_err(|_| AuthenticationThrottleError::Unavailable)?;
+            if removed != 1 {
+                return Err(AuthenticationThrottleError::Capacity);
+            }
+        }
     }
 
     let mut admitted = true;
@@ -538,6 +579,85 @@ mod tests {
                 .unwrap(),
             0
         );
+    }
+
+    #[test]
+    fn full_table_evicts_oldest_unrelated_rows_and_admits_a_new_charge() {
+        let mut db = Connection::open_in_memory().unwrap();
+        initialize_shared_authentication_throttle(&db).unwrap();
+        let key = AuthenticationThrottleKey::from_bytes([9; 32]);
+        let mut bounded = config();
+        bounded.maximum_key_count = 6;
+        let dimensions_for = |subject: &str| AuthenticationThrottleDimensions::for_ip(
+            "deployment-secret-name",
+            "192.0.2.8".parse().unwrap(),
+            Some(subject.to_owned()),
+            None,
+        );
+
+        assert!(
+            charge_shared_authentication_attempt(
+                &mut db,
+                1,
+                &key,
+                &bounded,
+                &dimensions_for("oldest@example.com"),
+                10_000,
+            )
+            .unwrap()
+            .admitted
+        );
+        assert!(
+            charge_shared_authentication_attempt(
+                &mut db,
+                1,
+                &key,
+                &bounded,
+                &dimensions_for("newer@example.com"),
+                20_000,
+            )
+            .unwrap()
+            .admitted
+        );
+        assert_eq!(
+            db.query_row(&format!("SELECT COUNT(*) FROM {TABLE}"), [], |row| row
+                .get::<_, i64>(0))
+                .unwrap(),
+            6
+        );
+
+        let decision = charge_shared_authentication_attempt(
+            &mut db,
+            1,
+            &key,
+            &bounded,
+            &dimensions_for("legitimate@example.com"),
+            30_000,
+        )
+        .unwrap();
+        assert!(decision.admitted, "capacity is not a deployment-wide refusal");
+        assert_eq!(
+            db.query_row(&format!("SELECT COUNT(*) FROM {TABLE}"), [], |row| row
+                .get::<_, i64>(0))
+                .unwrap(),
+            6
+        );
+
+        let oldest_subject = bucket_key(
+            &key,
+            BucketKind::Subject,
+            &["deployment-secret-name", "oldest@example.com"],
+        );
+        let retained: i64 = db
+            .query_row(
+                &format!(
+                    "SELECT COUNT(*) FROM {TABLE} WHERE limiter_epoch = 1 AND bucket_key = ?1"
+                ),
+                params![oldest_subject.as_slice()],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(retained, 0, "the oldest unrelated subject row is evicted first");
     }
 
     #[test]

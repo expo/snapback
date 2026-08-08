@@ -4637,16 +4637,17 @@ fn publish_with_options(
         })?;
     let staging = parent.join(format!(".{destination_name}.staging-{}", Uuid::now_v7()));
     fs::create_dir(&staging).map_err(|error| io_error("create fork staging directory", error))?;
-    let sentinel = staging.join(STAGING_SENTINEL);
-    File::create(&sentinel)
-        .and_then(|file| file.sync_all())
-        .map_err(|error| io_error("write fork staging sentinel", error))?;
-    if let Some(expected) = expected_app {
-        write_staging_app_binding(&staging, expected)?;
-    }
-    maybe_cut(cut_at, PublicationCut::AfterSentinelWrite)?;
-    sync_directory(&staging)?;
-    maybe_cut(cut_at, PublicationCut::AfterSentinelDirectorySync)?;
+    let result = (|| -> SnapbackResult<ForkMintReceiptV1> {
+        let sentinel = staging.join(STAGING_SENTINEL);
+        File::create(&sentinel)
+            .and_then(|file| file.sync_all())
+            .map_err(|error| io_error("write fork staging sentinel", error))?;
+        if let Some(expected) = expected_app {
+            write_staging_app_binding(&staging, expected)?;
+        }
+        maybe_cut(cut_at, PublicationCut::AfterSentinelWrite)?;
+        sync_directory(&staging)?;
+        maybe_cut(cut_at, PublicationCut::AfterSentinelDirectorySync)?;
 
     let database_file = source_database
         .file_name()
@@ -4733,7 +4734,14 @@ fn publish_with_options(
     maybe_cut(cut_at, PublicationCut::AfterSentinelUnlink)?;
     sync_directory(destination)?;
     maybe_cut(cut_at, PublicationCut::AfterPublishedDirectorySync)?;
-    Ok(receipt)
+        Ok(receipt)
+    })();
+    if result.as_ref().is_err_and(|error| {
+        error.diagnostic.code != "SNAPBACK_FORK_TEST_CRASH_CUT"
+    }) {
+        let _ = fs::remove_dir_all(&staging);
+    }
+    result
 }
 
 /// Same-cut fork-private asset custody (LLP 0185 Phase 5). The staged
@@ -5640,6 +5648,16 @@ mod tests {
         let error = publish(&source, &destination, "app-a", "parent-a", 42, None).unwrap_err();
         assert_eq!(error.diagnostic.code, ASSET_CUT_INCOMPLETE_CODE);
         assert_eq!(error.diagnostic.details["physicalKey"], "blob-a-key");
+        assert!(
+            fs::read_dir(missing.path()).unwrap().all(|entry| {
+                !entry
+                    .unwrap()
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with(".fork.staging-")
+            }),
+            "an ordinary publication error removes its credential-bearing staging directory"
+        );
         recover(missing.path(), &destination).unwrap();
         assert!(!destination.exists(), "no metadata-only fork survives");
 

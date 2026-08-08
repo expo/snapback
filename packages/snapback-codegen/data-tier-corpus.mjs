@@ -524,7 +524,13 @@ export function buildCorpusCases() {
     'expr-equality-value-model',
     'Eq/Ne are deep value equality with cross-representation numeric compare.',
     record({
-      intFloat: eqv(lit(1), lit(1.0)),
+      // Raw JSON preserves the lexical float spelling through corpus
+      // generation; an ordinary JS 1.0 would stringify as 1 and neuter this
+      // nested integer-vs-float representation pin.
+      intFloat: eqv(
+        lit({ a: [1] }),
+        lit({ a: [JSON.rawJSON('1.0')] }),
+      ),
       strNum: eqv(lit('1'), lit(1)),
       deepObj: eqv(lit({ a: [1] }), lit({ a: [1] })),
       ne: ne(lit('x'), lit('y')),

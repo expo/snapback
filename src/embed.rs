@@ -7,8 +7,11 @@
 //! listener-derived transport posture, and graceful shutdown.
 //!
 //! The lower-level [`app`] path remains useful for tests and tooling that own
-//! an [`AppState`] directly. It intentionally does not expose Snapback's inner
-//! Axum router or any route/native-capability registration seam.
+//! an [`AppState`] directly. Use [`AppState::try_new`] or its fallible composed
+//! variants so caller state and entropy failures return typed diagnostics. The
+//! compatibility constructors are deprecated because they panic on those
+//! errors. This façade intentionally does not expose Snapback's inner Axum
+//! router or any route/native-capability registration seam.
 
 use std::path::PathBuf;
 
@@ -157,7 +160,9 @@ impl ProductionBuilder {
     }
 
     /// Run the complete server lifecycle until shutdown or a critical worker
-    /// failure.
+    /// failure. Caller configuration, startup, and serving failures are
+    /// returned through the result; this composed path has no caller-triggered
+    /// panic contract.
     pub async fn serve(self) -> anyhow::Result<()> {
         // This assignment is intentionally local and non-configurable through
         // the façade. Native-linked binaries must not claim hosted isolation.

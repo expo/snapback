@@ -51,3 +51,6 @@ behavior it names is inverted (mutation-test the corpus per profile version).
 High on semantics (verified against serde_json source and the JS twin); medium
 on incidence (JS `JSON.stringify` never emits `1.0`, so exposure is non-JS
 clients and hand-authored JSON).
+
+## Resolution (2026-08-08)
+Fixed on main (Lane C). Verified: cargo build; targeted suites pass (throttle 4/4, instance-lock 11/11, fork 3/3, value_expr 10/10, config 23/23, embed 7/7, workerd 10/10, data-tier corpus 2/2 + 37-case parity); ref-check clean.

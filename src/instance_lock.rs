@@ -562,6 +562,7 @@ impl TargetInstanceReservation {
         {
             use std::os::fd::{AsRawFd as _, FromRawFd as _};
             use std::os::unix::ffi::OsStrExt as _;
+            use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
 
             self.ensure_valid()?;
             let name = std::ffi::CString::new(self.target_name.as_bytes())
@@ -577,7 +578,7 @@ impl TargetInstanceReservation {
             let mut created = false;
             let mut fd = open();
             if fd < 0 && io::Error::last_os_error().kind() == io::ErrorKind::NotFound {
-                if unsafe { libc::mkdirat(self.parent.as_raw_fd(), name.as_ptr(), 0o777) } != 0 {
+                if unsafe { libc::mkdirat(self.parent.as_raw_fd(), name.as_ptr(), 0o700) } != 0 {
                     return Err(io::Error::last_os_error())
                         .context("failed to create reserved target instance directory");
                 }
@@ -592,6 +593,14 @@ impl TargetInstanceReservation {
             let identity = FileIdentity::from_file(&directory)?;
             let result = (|| -> anyhow::Result<(File, FileIdentity)> {
                 if created {
+                    directory.set_permissions(std::fs::Permissions::from_mode(0o700))?;
+                    let metadata = directory.metadata()?;
+                    anyhow::ensure!(
+                        metadata.file_type().is_dir()
+                            && metadata.uid() == unsafe { libc::geteuid() }
+                            && metadata.permissions().mode() & 0o777 == 0o700,
+                        "reserved target instance directory is not strictly owner-only"
+                    );
                     self.parent.sync_all()?;
                 }
                 self.ensure_valid()?;
@@ -1518,6 +1527,28 @@ mod tests {
         assert!(lock_path.is_file(), "stale lock entries are never unlinked");
         TargetInstanceReservation::acquire(&db_path).expect("closed stale record can be reused");
         assert!(!db_path.parent().unwrap().exists());
+    }
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    #[test]
+    fn startup_creates_reserved_target_instance_owner_only() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let db_path = dir.path().join("instance").join("snapback.db");
+        let reservation = TargetInstanceReservation::acquire(&db_path).expect("reservation");
+        let (_directory, _identity) = reservation
+            .open_or_create_instance_directory_for_startup()
+            .expect("owner-only target instance");
+
+        assert_eq!(
+            std::fs::metadata(db_path.parent().unwrap())
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o777,
+            0o700
+        );
     }
 
     #[cfg(any(target_vendor = "apple", target_os = "linux"))]

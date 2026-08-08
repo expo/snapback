@@ -29,10 +29,18 @@
               "Binary": {
                 "op": "Eq",
                 "left": {
-                  "Literal": 1
+                  "Literal": {
+                    "a": [
+                      1
+                    ]
+                  }
                 },
                 "right": {
-                  "Literal": 1
+                  "Literal": {
+                    "a": [
+                      1.0
+                    ]
+                  }
                 }
               }
             },

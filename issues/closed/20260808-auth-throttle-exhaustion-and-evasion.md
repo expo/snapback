@@ -48,3 +48,6 @@ Medium. The module's "finite denial debt" comment addresses per-key counter
 growth, not key-cardinality growth — this is not a documented tradeoff. (B) is
 inherent to IP/identifier keying but the design leans on these as independent
 defenses.
+
+## Resolution (2026-08-08)
+Fixed on main (Lane C). Verified: cargo build; targeted suites pass (throttle 4/4, instance-lock 11/11, fork 3/3, value_expr 10/10, config 23/23, embed 7/7, workerd 10/10, data-tier corpus 2/2 + 37-case parity); ref-check clean.

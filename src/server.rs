@@ -6541,7 +6541,7 @@ fn live_finalize_task_failed() -> ApiError {
 }
 
 /// Constant-time token comparison (length is public: tokens are fixed-form).
-fn constant_time_str_eq(a: &str, b: &str) -> bool {
+pub(crate) fn constant_time_str_eq(a: &str, b: &str) -> bool {
     let (a, b) = (a.as_bytes(), b.as_bytes());
     if a.len() != b.len() {
         return false;
@@ -24811,15 +24811,20 @@ fn parse_ephemeral_json<T: serde::de::DeserializeOwned>(
 /// no Hermes, no SQLite — so they run inline on async workers by design (the
 /// L7 exec guard's blocking classes do not apply).
 async fn ensure_ephemeral_collections(
-    State(ephemeral): State<EphemeralApi>,
+    State(runtime): State<AppState>,
     Extension(_authority): Extension<PreparedAuthority>,
     Extension(admission): Extension<AdmissionLease>,
     input: Result<Json<EnsureEphemeralCollectionsInput>, JsonRejection>,
 ) -> Result<Json<crate::ephemeral::CollectionEnsureOutcome>, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
     let _effect = admission.effect_guard("ephemeral collection publication")?;
-    ephemeral
-        .ensure_collections(input.into_collections())
+    let collections = input.into_collections();
+    let outcome = if runtime.active_policy_auth_mode() == PolicyAuthMode::Sessions {
+        runtime.ephemeral.ensure_collections_redacted(collections)
+    } else {
+        runtime.ephemeral.ensure_collections(collections)
+    };
+    outcome
         .map(Json)
         .map_err(ApiError::from_ephemeral)
 }

@@ -7946,12 +7946,13 @@ async fn run_composed(
     let loaded_app_id = snapback.loaded_app_id();
     let state = Arc::new(Mutex::new(snapback));
     debug_assert_eq!(server_context.profile, startup_profile);
-    let (app_state, secret_read_operator) = AppState::new_with_secret_read_operator(
+    let (app_state, secret_read_operator) = AppState::try_new_with_secret_read_operator(
         state.clone(),
         read_lane,
         ephemeral.clone(),
         server_context,
-    );
+    )
+    .map_err(anyhow::Error::new)?;
     // @ref LLP 0060#d1-plaintext-listener-fence — the request-path fence
     // consumes this bit per request; the production profile never honors it.
     // Install the CLI override into the runtime middleware consults per
@@ -10920,7 +10921,7 @@ mod tests {
         // remote drill target).
         let source = include_str!("cli.rs");
         let constructed = source
-            .find("AppState::new_with_secret_read_operator(\n        state.clone(),")
+            .find("AppState::try_new_with_secret_read_operator(\n        state.clone(),")
             .expect("serve-path AppState construction remains explicit");
         let installed = source
             .find(".with_insecure_dev_auth_override(args.allow_insecure_dev_auth)")

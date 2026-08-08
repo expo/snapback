@@ -17,7 +17,7 @@ use crate::auth::lease::AuthorizedLeaseConfig;
 use crate::auth::mode::{AuthModeStateRecord, AuthProgramReadiness};
 use crate::auth::provider::AuthProvider;
 use crate::auth::runtime::{AuthProviderHealth, AuthRuntime};
-use crate::diagnostic::SnapbackError;
+use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::local::{EphemeralApi, InspectState, LocalSnapback, ReadLane};
 use crate::manifest::{AuthMode, FunctionKind, HandlerInput};
 use crate::runtime::CapabilityState;
@@ -2493,52 +2493,80 @@ pub struct AppState {
 }
 
 impl AppState {
+    /// Fallibly wrap the exact shared write/read/ephemeral graph.
+    ///
+    /// Busy mutex ownership, wrapping an already-owned graph, and system
+    /// entropy failure are typed embedding errors; none unwind through this
+    /// supported low-level path.
+    pub fn try_new(
+        snapback: SharedSnapback,
+        read: ReadLane,
+        ephemeral: EphemeralApi,
+        server: ServerContext,
+    ) -> SnapbackResult<Self> {
+        Ok(Self::try_new_with_secret_read_operator(snapback, read, ephemeral, server)?.0)
+    }
+
+    /// Infallible compatibility wrapper for pre-0.1 embedding callers.
+    ///
+    /// Panics if [`Self::try_new`] returns an embedding diagnostic. New code
+    /// should use the fallible constructor.
+    #[deprecated(note = "use AppState::try_new to handle embedding construction failures")]
     pub fn new(
         snapback: SharedSnapback,
         read: ReadLane,
         ephemeral: EphemeralApi,
         server: ServerContext,
     ) -> Self {
-        Self::new_with_secret_read_operator(snapback, read, ephemeral, server).0
+        Self::try_new(snapback, read, ephemeral, server)
+            .expect("AppState::new compatibility wrapper failed; use AppState::try_new")
     }
 
     /// Trusted embedding seam for operator-plane lease minting. The returned
     /// capability is never placed in router state or accepted by a handler.
-    pub(crate) fn new_with_secret_read_operator(
+    pub(crate) fn try_new_with_secret_read_operator(
         snapback: SharedSnapback,
         read: ReadLane,
         ephemeral: EphemeralApi,
         server: ServerContext,
-    ) -> (Self, SecretReadOperator) {
+    ) -> SnapbackResult<(Self, SecretReadOperator)> {
         let (secret_reads, operator) =
             SecretReadLeaseRegistry::new(read.secret_read_reset_generation());
-        let mut telemetry_export_continuation_key = [0_u8; 32];
-        getrandom::fill(&mut telemetry_export_continuation_key)
-            .expect("system entropy is required for telemetry export continuations");
+        let telemetry_export_continuation_key = telemetry_export_continuation_key()?;
         let auth_admission = read.admission_controller();
         let connections = ConnectionRegistry::default();
         let network_profiles = crate::network_profile::NetworkProfileState::new();
         let auth_terminal_lifecycle =
             AuthTerminalLifecycle::new(connections.clone(), &ephemeral, snapback.clone());
         let (service_authority_fences, telemetry, derived_instance_identity) = {
-            let mut instance = snapback
-                .try_lock()
-                .expect("trusted app-state builder owns the detached instance");
+            let mut instance = snapback.try_lock().map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_EMBED_APP_STATE_BUSY",
+                    "embed",
+                    "the SharedSnapback graph is busy; release its write lock before constructing AppState",
+                )
+            })?;
             let telemetry = instance.telemetry();
             let derived_instance_identity = instance.derived_fork_identity().cloned();
+            let service_authority_fences = {
+                let database = instance.auth_database_mut();
+                if !database.claim_app_state_graph() {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_EMBED_APP_STATE_ALREADY_OWNED",
+                        "embed",
+                        "one SharedSnapback graph already belongs to an AppState; clone that AppState for additional routers",
+                    ));
+                }
+                database.service_authority_fence_registry()
+            };
             instance.install_network_profile_state(network_profiles.clone());
-            let database = instance.auth_database_mut();
-            assert!(
-                database.claim_app_state_graph(),
-                "one SharedSnapback may be wrapped by exactly one AppState graph; clone AppState for additional routers",
-            );
             (
-                database.service_authority_fence_registry(),
+                service_authority_fences,
                 telemetry,
                 derived_instance_identity,
             )
         };
-        (
+        Ok((
             Self {
                 snapback,
                 read,
@@ -2583,6 +2611,17 @@ impl AppState {
                 projection_handoff_limit_for_test: crate::ephemeral::MAX_OUTBOX_HANDOFF_BYTES,
             },
             operator,
+        ))
+    }
+
+    pub(crate) fn new_with_secret_read_operator(
+        snapback: SharedSnapback,
+        read: ReadLane,
+        ephemeral: EphemeralApi,
+        server: ServerContext,
+    ) -> (Self, SecretReadOperator) {
+        Self::try_new_with_secret_read_operator(snapback, read, ephemeral, server).expect(
+            "AppState::new_with_secret_read_operator compatibility wrapper failed; use the fallible constructor",
         )
     }
 
@@ -2699,31 +2738,29 @@ impl AppState {
 
     /// Install an already-constructed provider without changing auth-mode
     /// posture or performing catalog activation.
-    pub fn with_auth_provider(mut self, provider: Arc<AuthProvider>) -> Self {
+    pub fn try_with_auth_provider(mut self, provider: Arc<AuthProvider>) -> SnapbackResult<Self> {
         let (coordinator, catalog_ready) = {
-            let mut snapback = self
-                .snapback
-                .try_lock()
-                .expect("trusted auth-provider builder owns the detached instance");
+            let mut snapback = self.snapback.try_lock().map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_EMBED_APP_STATE_BUSY",
+                    "embed",
+                    "the SharedSnapback graph is busy; release its write lock before installing the auth provider",
+                )
+            })?;
             let database = snapback.auth_database_mut();
-            let incarnation = database
-                .ensure_authorization_stream_incarnation()
-                .expect("trusted auth-provider builder creates its stream");
+            let incarnation = database.ensure_authorization_stream_incarnation()?;
             let catalog_ready = match database.inspect_auth_catalog() {
                 Ok(state) => state.is_ready(),
                 Err(error) if error.diagnostic.code == "SNAPBACK_AUTH_TABLE_COLLISION" => false,
-                Err(error) => panic!("trusted auth-provider catalog inspection failed: {error:?}"),
+                Err(error) => return Err(error),
             };
             let source = if catalog_ready {
-                database
-                    .session_projection_source()
-                    .expect("trusted auth-provider builder reads a ready catalog")
+                database.session_projection_source()?
             } else {
                 crate::auth::session_projection::ProjectionSource {
                     authorization_stream_value:
                         crate::auth::session_projection::AuthorizationStreamRecord::new(incarnation)
-                            .encode_bytes()
-                            .expect("trusted auth-provider builder encodes its stream"),
+                            .encode_bytes()?,
                     restore_declaration_id: None,
                     users: Vec::new(),
                     identities: Vec::new(),
@@ -2736,20 +2773,25 @@ impl AppState {
                     source,
                     provider.now_ms(),
                     provider.monotonic_now(),
-                )
-                .expect("trusted auth-provider builder publishes a valid projection");
+                )?;
             (
-                Arc::new(
-                    crate::auth::coordinator::AuthCoordinator::new(projection)
-                        .expect("trusted auth-provider projection invariants"),
-                ),
+                Arc::new(crate::auth::coordinator::AuthCoordinator::new(projection)?),
                 catalog_ready,
             )
         };
         self.auth_provider = Some(provider);
         self.auth_coordinator = Some(coordinator);
         self.auth_catalog_ready = catalog_ready;
-        self
+        Ok(self)
+    }
+
+    /// Infallible compatibility wrapper. Prefer [`Self::try_with_auth_provider`]
+    /// in embedding code so caller and storage failures remain typed.
+    #[deprecated(note = "use AppState::try_with_auth_provider")]
+    pub fn with_auth_provider(self, provider: Arc<AuthProvider>) -> Self {
+        self.try_with_auth_provider(provider).expect(
+            "AppState::with_auth_provider compatibility wrapper failed; use try_with_auth_provider",
+        )
     }
 
     /// The capability tuple carried by a verified hosted admission, if one is
@@ -3171,25 +3213,77 @@ impl AppState {
 
     /// Wrap a fresh instance: the read and ephemeral lanes are extracted
     /// before the instance disappears behind the write mutex.
-    pub fn from_snapback(snapback: LocalSnapback, server: ServerContext) -> Self {
+    pub fn try_from_snapback(
+        snapback: LocalSnapback,
+        server: ServerContext,
+    ) -> SnapbackResult<Self> {
         let read = snapback.read_lane();
         let ephemeral = snapback.ephemeral_api();
-        Self::new(Arc::new(Mutex::new(snapback)), read, ephemeral, server)
+        Self::try_new(Arc::new(Mutex::new(snapback)), read, ephemeral, server)
+    }
+
+    /// Infallible compatibility wrapper. Prefer [`Self::try_from_snapback`].
+    #[deprecated(note = "use AppState::try_from_snapback")]
+    pub fn from_snapback(snapback: LocalSnapback, server: ServerContext) -> Self {
+        Self::try_from_snapback(snapback, server)
+            .expect("AppState::from_snapback compatibility wrapper failed; use try_from_snapback")
     }
 
     /// Trusted embedding variant that retains the non-network minting seam.
+    pub fn try_from_snapback_with_secret_read_operator(
+        snapback: LocalSnapback,
+        server: ServerContext,
+    ) -> SnapbackResult<(Self, SecretReadOperator)> {
+        let read = snapback.read_lane();
+        let ephemeral = snapback.ephemeral_api();
+        Self::try_new_with_secret_read_operator(
+            Arc::new(Mutex::new(snapback)),
+            read,
+            ephemeral,
+            server,
+        )
+    }
+
+    /// Infallible compatibility wrapper. Prefer
+    /// [`Self::try_from_snapback_with_secret_read_operator`].
+    #[deprecated(note = "use AppState::try_from_snapback_with_secret_read_operator")]
     pub fn from_snapback_with_secret_read_operator(
         snapback: LocalSnapback,
         server: ServerContext,
     ) -> (Self, SecretReadOperator) {
-        let read = snapback.read_lane();
-        let ephemeral = snapback.ephemeral_api();
-        Self::new_with_secret_read_operator(Arc::new(Mutex::new(snapback)), read, ephemeral, server)
+        Self::try_from_snapback_with_secret_read_operator(snapback, server).expect(
+            "AppState::from_snapback_with_secret_read_operator compatibility wrapper failed; use the fallible constructor",
+        )
     }
 
-    pub fn detached(snapback: LocalSnapback) -> Self {
-        Self::from_snapback(snapback, ServerContext::detached())
+    pub fn try_detached(snapback: LocalSnapback) -> SnapbackResult<Self> {
+        Self::try_from_snapback(snapback, ServerContext::detached())
     }
+
+    /// Infallible compatibility wrapper. Prefer [`Self::try_detached`].
+    #[deprecated(note = "use AppState::try_detached")]
+    pub fn detached(snapback: LocalSnapback) -> Self {
+        Self::try_detached(snapback)
+            .expect("AppState::detached compatibility wrapper failed; use try_detached")
+    }
+}
+
+fn telemetry_export_continuation_key() -> SnapbackResult<[u8; 32]> {
+    telemetry_export_continuation_key_with(|key| getrandom::fill(key).map_err(|_| ()))
+}
+
+fn telemetry_export_continuation_key_with(
+    fill: impl FnOnce(&mut [u8; 32]) -> Result<(), ()>,
+) -> SnapbackResult<[u8; 32]> {
+    let mut key = [0_u8; 32];
+    fill(&mut key).map_err(|()| {
+        SnapbackError::error(
+            "SNAPBACK_EMBED_ENTROPY_UNAVAILABLE",
+            "embed",
+            "system entropy is unavailable for AppState construction",
+        )
+    })?;
+    Ok(key)
 }
 
 impl FromRef<AppState> for SharedSnapback {
@@ -5701,6 +5795,98 @@ fn now_millis() -> u64 {
 mod tests {
     use super::*;
     use std::collections::BTreeMap;
+
+    #[test]
+    fn fallible_app_state_construction_returns_typed_busy_and_owned_errors() {
+        let snapback = LocalSnapback::memory().expect("memory app");
+        let read = snapback.read_lane();
+        let ephemeral = snapback.ephemeral_api();
+        let shared = Arc::new(Mutex::new(snapback));
+
+        let guard = shared.try_lock().expect("hold shared graph lock");
+        let busy = match AppState::try_new(
+            shared.clone(),
+            read.clone(),
+            ephemeral.clone(),
+            ServerContext::detached(),
+        ) {
+            Ok(_) => panic!("a caller-held graph lock must not construct AppState"),
+            Err(error) => error,
+        };
+        assert_eq!(busy.diagnostic.code, "SNAPBACK_EMBED_APP_STATE_BUSY");
+        drop(guard);
+
+        let _state = AppState::try_new(
+            shared.clone(),
+            read.clone(),
+            ephemeral.clone(),
+            ServerContext::detached(),
+        )
+        .expect("first graph owner");
+        let owned = match AppState::try_new(
+            shared,
+            read,
+            ephemeral,
+            ServerContext::detached(),
+        ) {
+            Ok(_) => panic!("wrapping one graph twice must fail"),
+            Err(error) => error,
+        };
+        assert_eq!(
+            owned.diagnostic.code,
+            "SNAPBACK_EMBED_APP_STATE_ALREADY_OWNED"
+        );
+    }
+
+    #[test]
+    fn fallible_app_state_entropy_failure_has_stable_diagnostic() {
+        let error = telemetry_export_continuation_key_with(|_| Err(()))
+            .expect_err("entropy failure must remain typed");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_EMBED_ENTROPY_UNAVAILABLE"
+        );
+    }
+
+    #[test]
+    fn fallible_embedding_construction_core_contains_no_panic_sites() {
+        let source = include_str!("admin.rs");
+        let embed_source = include_str!("embed.rs");
+        let public_facade = &embed_source[..embed_source
+            .find("#[cfg(test)]")
+            .expect("embed test-module marker")];
+        let construction = &source[source
+            .find("pub(crate) fn try_new_with_secret_read_operator(")
+            .expect("fallible constructor marker")
+            ..source
+                .find("    pub(crate) fn new_with_secret_read_operator(")
+                .expect("constructor end marker")];
+        let provider = &source[source
+            .find("    pub fn try_with_auth_provider(")
+            .expect("fallible provider marker")
+            ..source
+                .find("    /// Infallible compatibility wrapper. Prefer [`Self::try_with_auth_provider`]")
+                .expect("provider end marker")];
+        for (name, body) in [
+            ("constructor", construction),
+            ("provider", provider),
+            ("public facade", public_facade),
+        ] {
+            for forbidden in [
+                ".expect(",
+                "assert!(",
+                "panic!(",
+                ".unwrap(",
+                "todo!(",
+                "unimplemented!(",
+            ] {
+                assert!(
+                    !body.contains(forbidden),
+                    "fallible embedding {name} gained caller-triggerable panic site {forbidden}"
+                );
+            }
+        }
+    }
 
     #[test]
     fn protected_erasure_route_is_admin_write_and_revalidates_concrete_credential() {
