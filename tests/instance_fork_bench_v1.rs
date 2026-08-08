@@ -15,9 +15,10 @@
 use serde_json::{Value, json};
 use snapback::manifest::SchemaManifest;
 use snapback::storage::LocalDatabase;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::time::Instant;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 /// Ratified absolute bounds (LLP 0162 author, 2026-08-06) for the narrow
 /// `operating.instance-forks` claim. Medians are gated (the max column keeps
@@ -102,6 +103,41 @@ fn canonical_receipt_json(value: &Value) -> Vec<u8> {
     bytes
 }
 
+fn utc_date_from_unix_days(days_since_epoch: u64) -> String {
+    // Howard Hinnant's civil-from-days algorithm. Receipt dates are UTC run
+    // dates, independent of the host's local timezone.
+    let z = i64::try_from(days_since_epoch).expect("UTC day count fits i64") + 719_468;
+    let era = z.div_euclid(146_097);
+    let day_of_era = z.rem_euclid(146_097);
+    let year_of_era =
+        (day_of_era - day_of_era / 1_460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
+    let mut year = year_of_era + era * 400;
+    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
+    let month_prime = (5 * day_of_year + 2) / 153;
+    let day = day_of_year - (153 * month_prime + 2) / 5 + 1;
+    let month = month_prime + if month_prime < 10 { 3 } else { -9 };
+    year += i64::from(month <= 2);
+    format!("{year:04}-{month:02}-{day:02}")
+}
+
+fn utc_run_date() -> String {
+    let days_since_epoch = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("bench host clock is before the Unix epoch")
+        .as_secs()
+        / 86_400;
+    utc_date_from_unix_days(days_since_epoch)
+}
+
+fn write_new_receipt(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    let mut output = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)?;
+    output.write_all(bytes)?;
+    output.sync_all()
+}
+
 #[test]
 fn emitted_receipt_json_is_checker_canonical() {
     let directory = tempfile::tempdir().expect("canonical receipt fixture");
@@ -119,6 +155,23 @@ fn emitted_receipt_json_is_checker_canonical() {
     assert!(String::from_utf8_lossy(&bytes).contains("  \"integralBound\": 2000,"));
     assert!(!String::from_utf8_lossy(&bytes).contains("2000.0"));
     assert_eq!(bytes, canonical_receipt_json(&parsed));
+}
+
+#[test]
+fn lifecycle_receipt_run_date_uses_utc_calendar_days() {
+    assert_eq!(utc_date_from_unix_days(0), "1970-01-01");
+    assert_eq!(utc_date_from_unix_days(10_957), "2000-01-01");
+}
+
+#[test]
+fn lifecycle_receipt_writer_refuses_to_overwrite_retained_evidence() {
+    let directory = tempfile::tempdir().expect("append-only receipt fixture");
+    let path = directory.path().join("dated-receipt.json");
+    write_new_receipt(&path, b"retained\n").expect("write first receipt");
+
+    let error = write_new_receipt(&path, b"replacement\n").unwrap_err();
+    assert_eq!(error.kind(), std::io::ErrorKind::AlreadyExists);
+    assert_eq!(std::fs::read(path).unwrap(), b"retained\n");
 }
 
 fn parent_with_schema(directory: &Path, ballast_mb: u64) -> PathBuf {
@@ -469,18 +522,22 @@ fn fork_lifecycle_row13_bench() {
             "diff spans are 10k journal rows, an order of magnitude under the 100k diff-work bound",
         ],
     });
-    // Platform-qualified filename so second-platform receipts (the row-13
-    // Linux leg) land beside the original macOS record instead of clobbering
-    // it. The date stays explicit: a receipt is a dated artifact, not a
-    // rolling latest.
+    // Platform-qualified, run-dated filename so every requalification mints
+    // a new artifact. create_new below makes the same-date/platform collision
+    // fail closed instead of rewriting retained evidence.
     let out = repo.join(format!(
         "tests/acceptance/instance-fork-lifecycle-bench.{}.{}-{}.v1.json",
-        "2026-08-06",
+        utc_run_date(),
         std::env::consts::OS,
         std::env::consts::ARCH,
     ));
     let receipt_bytes = canonical_receipt_json(&receipt);
-    std::fs::write(&out, &receipt_bytes).unwrap();
+    write_new_receipt(&out, &receipt_bytes).unwrap_or_else(|error| {
+        panic!(
+            "refusing to overwrite dated lifecycle receipt {}: {error}",
+            out.display()
+        )
+    });
     println!("receipt written: {}", out.display());
     print!("{}", String::from_utf8(receipt_bytes).unwrap());
 
