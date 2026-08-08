@@ -61,6 +61,10 @@ const admittedPlan = {
   ],
   return_value: { Document: { table: 'todos', id: { Arg: 'id' } } },
 };
+const deletePlan = {
+  steps: [{ Delete: { table: 'todos', id: { Arg: 'id' } } }],
+  return_value: 'ChangedCount',
+};
 
 const stableValue = (value) => {
   if (Array.isArray(value)) return value.map(stableValue);
@@ -163,14 +167,14 @@ test('M1 exposes all four admission classes without fabricating effects', () => 
   assert.equal(serverOnly.execution, null);
 
   const refused = evaluateLocalMutationIrV1({
-    name: 'deleteOutsideCeiling',
+    name: 'deleteWhereOutsideCeiling',
     schema,
     initialRows,
     plan: {
-      steps: [{ Delete: { table: 'todos', id: { Arg: 'id' } } }],
+      steps: [{ DeleteWhere: { table: 'todos', filter: [] } }],
       return_value: 'ChangedCount',
     },
-    args: { id: 'old' },
+    args: {},
     ctxLedger: { version: 1, ids: [], now: 0 },
     layerId: 'refused-layer',
   });
@@ -186,6 +190,80 @@ test('M1 exposes all four admission classes without fabricating effects', () => 
   });
   assert.equal(authoritative.classification, 'server-only');
   assert.equal(authoritative.code, 'SNAPBACK_VALUE_EXPR_AUTHORITATIVE_ONLY');
+});
+
+test('M1 predicts a present-row single Delete', () => {
+  const outcome = evaluateLocalMutationIrV1({
+    name: 'deleteTodo',
+    schema,
+    initialRows,
+    plan: deletePlan,
+    args: { id: 'old' },
+    ctxLedger: { version: 1, ids: [], now: 0 },
+    layerId: 'delete-present-layer',
+  });
+
+  assert.equal(outcome.classification, 'ready');
+  assert.equal(outcome.code, 'SNAPBACK_IR_PREDICTION_READY');
+  assert.equal(outcome.execution.status, 'committed');
+  assert.equal(outcome.execution.changedCount, 1);
+  assert.equal(outcome.execution.result, 1);
+  assert.deepEqual(outcome.layer.writes, [
+    { operation: 'delete', table: 'todos', id: 'old' },
+  ]);
+  assert.deepEqual(outcome.layer.declaredTableRows.todos, []);
+});
+
+test('M1 predicts an absent-row single Delete as a soft no-op', () => {
+  const outcome = evaluateLocalMutationIrV1({
+    name: 'deleteMissingTodo',
+    schema,
+    initialRows,
+    plan: deletePlan,
+    args: { id: 'missing' },
+    ctxLedger: { version: 1, ids: [], now: 0 },
+    layerId: 'delete-absent-layer',
+  });
+
+  assert.equal(outcome.classification, 'ready');
+  assert.equal(outcome.execution.status, 'committed');
+  assert.equal(outcome.execution.changedCount, 0);
+  assert.equal(outcome.execution.result, 0);
+  assert.equal(outcome.layer.writes.length, 0);
+  assert.ok(valuesEqual(outcome.layer.declaredTableRows.todos, initialRows.todos));
+});
+
+test('M1 keeps fanout and multiple Delete effects above the local ceiling', () => {
+  const refusedPlans = [
+    {
+      steps: [{ DeleteWhere: { table: 'todos', filter: [] } }],
+      return_value: 'ChangedCount',
+    },
+    {
+      steps: [{
+        InsertEach: {
+          table: 'todos',
+          source: { Arg: 'rows' },
+          item_as: 'row',
+          values: {},
+        },
+      }],
+      return_value: 'ChangedCount',
+    },
+    {
+      steps: [
+        { Delete: { table: 'todos', id: { Arg: 'firstId' } } },
+        { Delete: { table: 'todos', id: { Arg: 'secondId' } } },
+      ],
+      return_value: 'ChangedCount',
+    },
+  ];
+
+  for (const plan of refusedPlans) {
+    const outcome = classifyLocalMutationIrV1({ plan });
+    assert.equal(outcome.classification, 'refused');
+    assert.equal(outcome.code, 'SNAPBACK_PLAN_EFFECT_CEILING');
+  }
 });
 
 test('a typed guard rejection atomically discards the private write set', () => {

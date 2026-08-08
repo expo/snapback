@@ -297,7 +297,7 @@ const prepareOperationReads = (operation) => {
   const accesses = [];
   for (const step of plan.steps) {
     const kind = Object.keys(step ?? {})[0];
-    if (!['Get', 'Patch'].includes(kind)) continue;
+    if (!['Get', 'Patch', 'Delete'].includes(kind)) continue;
     const body = step[kind];
     if (
       typeof body?.table !== 'string'

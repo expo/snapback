@@ -39,7 +39,7 @@ import { replayDataTierCaseInJs } from '../conformance/data-tier/js-d5-harness.m
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(here, '..', '..');
 const RUN_DATE = '2026-08-07';
-const RECEIPT_VERSION = 'v2';
+const RECEIPT_VERSION = 'v3';
 const CORPUS_DIR = join(ROOT, 'tests', 'conformance', 'data-tier');
 const MANIFEST_PATH = join(CORPUS_DIR, 'corpus.manifest.json');
 const PAGE_MODULE_PATH = join(here, 'browser-ir-coverage-v1-page.mjs');
@@ -665,7 +665,7 @@ receipt.gate = {
         planShapeAdmissionCounts: admissionCounts,
         label:
           'classifyLocalMutationIrV1 plan-shape classification of the full 37-case D5 corpus under the '
-          + 'M1 Insert/Get/Guard/Patch ceiling — contextual evidence, distinct from the designated-set metric above.',
+          + 'M1 Insert/Get/Guard/Patch + single-row Delete ceiling (author ruling 2026-08-07) — contextual evidence, distinct from the designated-set metric above.',
       },
     };
   })(),

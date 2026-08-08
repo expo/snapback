@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import { BROWSER_IR_LOCAL_EFFECT_CLASS } from './ir-evaluator.mjs';
 import { SnapbackClient } from './index.mjs';
 import {
+  applyPrivateOptimisticLayerV1,
   applyPrivateOptimisticLayersV1,
   createOptimisticRebaseEngineV1,
 } from './optimistic-rebase.mjs';
@@ -183,6 +184,36 @@ test('private layers fold in application order without mutating base or layer', 
   assert.equal(JSON.stringify(layers), beforeLayers);
   assert.equal(Object.isFrozen(visible), true);
   assert.equal(Object.isFrozen(visible.cards[0]), true);
+});
+
+test('a private delete fold removes present rows and ignores missing rows', () => {
+  const base = {
+    cards: [
+      { _id: 'card-1', locked: false, position: 0 },
+      { _id: 'card-2', locked: false, position: 1 },
+    ],
+  };
+  const layer = (operation, id) => ({
+    format: 'snapback.private-optimistic-layer.v1',
+    visibility: 'private',
+    layerId: `layer-${id}`,
+    operationName: 'deleteCard',
+    writes: [{ operation, table: 'cards', id }],
+    declaredTableRows: {},
+  });
+
+  const deleted = applyPrivateOptimisticLayerV1(base, layer('delete', 'card-1'));
+  assert.deepEqual(deleted.cards, [
+    { _id: 'card-2', locked: false, position: 1 },
+  ]);
+
+  const missing = applyPrivateOptimisticLayerV1(base, layer('delete', 'missing'));
+  assert.deepEqual(missing, base);
+
+  assert.throws(
+    () => applyPrivateOptimisticLayerV1(base, layer('replace', 'card-1')),
+    /optimistic layer carries unsupported write replace/u,
+  );
 });
 
 test('rebase replays by outbox sequence through M2 and records a changed prediction', async () => {

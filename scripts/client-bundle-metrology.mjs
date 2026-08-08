@@ -1149,6 +1149,60 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-client/rqs-resume.test.mjs']],
     ]),
   }),
+  Object.freeze({
+    filename: 'baseline.single-row-delete-admission.v1.json',
+    profileFilename: 'single-row-delete-admission-profiles.v1.json',
+    workloadVersion: 'single-row-delete-admission.2026-08-07.v1',
+    profileIds: Object.freeze([
+      'public-subpath-ir-evaluator',
+      'public-subpath-optimistic-rebase',
+    ]),
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.client-bundle-disposition.v2.json',
+        profileIds: Object.freeze(['public-subpath-ir-evaluator']),
+      }),
+      Object.freeze({
+        filename: 'baseline.move3-single-table-lifecycle.v1.json',
+        profileIds: Object.freeze(['public-subpath-optimistic-rebase']),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0129#phases',
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0166#d9--carriers-storage-profiles-arms-and-the-bundle',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-07',
+      fix: 'Single-row Delete admitted into the M1 local evaluator verb set '
+        + 'by author ruling 2026-08-07 (LLP 0129 Phase 2a): at most one '
+        + 'Delete step per plan, one row by id, ChangedCount semantics. The '
+        + 'bytes are the classifier admission (ir-evaluator), the Delete '
+        + 'point-read coverage (local-read-admission, absorbed within its '
+        + 'ceiling), and the private-layer delete fold (optimistic-rebase).',
+      ticket: 'issues/closed/20260807-single-row-delete-effect-ceiling.md',
+      byteDeltas: 'public-subpath-ir-evaluator min 21,295 -> 21,407 (+112), '
+        + 'gzip 7,615 -> 7,644 (+29), brotli 6,740 -> 6,760 (+20); '
+        + 'public-subpath-optimistic-rebase brotli 12,744 -> 12,791 (+47).',
+      summary: 'Advance the two closures grown by the 2026-08-07 single-row '
+        + 'Delete admission (browser-IR coverage gate: common-path 11/12 -> '
+        + '12/12, receipt browser-ir-coverage.2026-08-07.v3). Every other '
+        + 'active ceiling and both predecessors remain immutable.',
+    }),
+    beforeAfterProfileIds: Object.freeze([
+      'public-subpath-ir-evaluator',
+      'public-subpath-optimistic-rebase',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+      ['node', ['packages/snapback-client/ir-evaluator.test.mjs']],
+      ['node', ['packages/snapback-client/local-read-admission.test.mjs']],
+      ['node', ['packages/snapback-client/optimistic-rebase.test.mjs']],
+      ['node', ['packages/snapback-client/optimistic-rebase-acceptance.test.mjs']],
+    ]),
+  }),
 ]);
 
 function fail(message) {

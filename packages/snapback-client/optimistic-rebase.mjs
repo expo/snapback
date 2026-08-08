@@ -97,6 +97,12 @@ export function applyPrivateOptimisticLayerV1(baseRows, layerInput) {
       if (index !== -1) {
         tableRows[index] = { ...tableRows[index], ...canonicalClone(write.values) };
       }
+    } else if (write.operation === 'delete') {
+      if (typeof write.id !== 'string') {
+        throw new TypeError('optimistic delete is invalid');
+      }
+      const index = tableRows.findIndex((row) => row?._id === write.id);
+      if (index !== -1) tableRows.splice(index, 1);
     } else {
       throw new TypeError(`optimistic layer carries unsupported write ${write.operation}`);
     }

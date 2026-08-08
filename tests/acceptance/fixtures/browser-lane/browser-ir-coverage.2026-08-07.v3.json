@@ -1,0 +1,815 @@
+{
+  "browser": {
+    "automation": "raw-cdp-over-node-websocket",
+    "executable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "executableSha256": "sha256:a995a39f7997f5cf7ecbf514b87bf0c31aed607bf399ab0b723304dbba6f8576",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
+    "version": "Google Chrome 151.0.7922.76"
+  },
+  "carrier": {
+    "databaseDeleted": true,
+    "databaseName": "snapback-browser-ir-coverage-036ff2c2-cabc-4154-ba99-ad03deb50120",
+    "implementation": "indexeddb-per-case-persist-and-read-back",
+    "profileNote": "Profile placed under literal /tmp on macOS per the scoped workaround in issues/20260806-chrome-indexeddb-profile-macos-tmpdir.md.",
+    "profilePathSpelling": "/tmp/snapback-browser-ir-coverage-yHgTVn",
+    "profileTempRoot": "/tmp"
+  },
+  "cases": [
+    {
+      "admission": {
+        "classification": "server-only",
+        "code": "SNAPBACK_VALUE_EXPR_AUTHORITATIVE_ONLY"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "todo-v2-create-todo",
+      "normalizedOutcomeSha256": "sha256:abe215a1b80a5330c7fc6a2c9a2681bd27267fcbba785681b18506220c3dc4fd",
+      "sha256": "sha256:76f972cb98fd787a2516ebe61b82459007fcc1e0556350775499a32bc6e5f28d",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "ready",
+        "code": "SNAPBACK_IR_READY"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "todo-v2-set-completed",
+      "normalizedOutcomeSha256": "sha256:080d37f989501dcbcbe4d13e2b398f6bd9c0c611a9c6e20b921e9c9741572421",
+      "sha256": "sha256:a0b14071fc3ef6147e663af79e1c2f42da400e64ffb39625472a2cb6a774f52a",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "ready",
+        "code": "SNAPBACK_IR_READY"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "todo-v2-patch-missing-row-is-soft",
+      "normalizedOutcomeSha256": "sha256:15066f4723baab219bb1dd37e8b058eead31862c19745b61d374f1368e6dbe07",
+      "sha256": "sha256:aceceb5eb383ff5b5af69c0e924340075c0e657990f9edc97cb69d83c7c62f9d",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "ready",
+        "code": "SNAPBACK_IR_READY"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "todo-v2-delete-todo",
+      "normalizedOutcomeSha256": "sha256:127e13faa58a1be9020f3464bc2c65ece658dde99fb1a2a7ac480dd6e10cff37",
+      "sha256": "sha256:c904fabb7edc68d7ef30eaedc05e0dde9241ce6055cde6e3c63996fbc0404d32",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "server-only",
+        "code": "SNAPBACK_VALUE_EXPR_AUTHORITATIVE_ONLY"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "todo-create-guarded",
+      "normalizedOutcomeSha256": "sha256:763d97bf3b987fd739d54cf1289cca10e4cc93ec4284c338e03bc8dd1edacd69",
+      "sha256": "sha256:b8ffa88ff5e2f322f697bf901d8dfa567ad207a0d821cabb165b13bce99d7ca5",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "server-only",
+        "code": "SNAPBACK_VALUE_EXPR_AUTHORITATIVE_ONLY"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "todo-create-guarded-empty-title",
+      "normalizedOutcomeSha256": "sha256:e51a4db20af66cfacbfe062052cf374bceeaec838fa97a03cc5ce996552efdd3",
+      "sha256": "sha256:338ae308c994ce899b171d0e886cde28d4fc1eebc75f47edeed0999a93c0ae7a",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "refused",
+        "code": "SNAPBACK_PLAN_EFFECT_CEILING"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "all-aboard-reset-feed",
+      "normalizedOutcomeSha256": "sha256:c98e5d8de2cf5a9a4b3b7746a299fb5e94840ba9c3a39c079facd3cabfa15af3",
+      "sha256": "sha256:d6cae17f0ea92f949ac23c57f3074919b6b83c7a902782090f5497c99325e34a",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "refused",
+        "code": "SNAPBACK_PLAN_EFFECT_CEILING"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "all-aboard-apply-feed-tick",
+      "normalizedOutcomeSha256": "sha256:a7dfaa1231f2e08810ede3fb0a3371e623a54d60ab8218d88bbbb8a69c80b459",
+      "sha256": "sha256:8e8de1845093809d914ae7e52c760ac15f2d0cb4c3e686a7f0a654f680cc637a",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "refused",
+        "code": "SNAPBACK_PLAN_EFFECT_CEILING"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "all-aboard-apply-feed-tick-first-run",
+      "normalizedOutcomeSha256": "sha256:d8372f3c40c4570db49a423604276bc2e2de48aa6c0cbc9af357408045e83f13",
+      "sha256": "sha256:5c7a73dcbe9328da1237c37c630fe53afb7ede0cbf154fc0caa008de991a1a46",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "refused",
+        "code": "SNAPBACK_PLAN_EFFECT_CEILING"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "all-aboard-live-snapshot-fragments",
+      "normalizedOutcomeSha256": "sha256:d907360d33467b18462f6969c2c77ff7872af6be079e3baa511334ece58bd90b",
+      "sha256": "sha256:2ed65a7c329c377cdc52c187a8a56cfaf1daec9ac7db1146d41dcbb141186588",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "ready",
+        "code": "SNAPBACK_IR_READY"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "expr-field-null-propagation",
+      "normalizedOutcomeSha256": "sha256:6b992c2aafadedceca28ea91ee932687b219bc0d57d9a1ab2c12f663689661d0",
+      "sha256": "sha256:6bd1ded9092140d644966da572f2d5e4408a9cec1c07fb557074d395b71fc45a",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "ready",
+        "code": "SNAPBACK_IR_READY"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "expr-arithmetic-three-valued",
+      "normalizedOutcomeSha256": "sha256:4cf4991cb0f57deb534489e104039c408af6df7b6ce4712a40e159f7d40a7e27",
+      "sha256": "sha256:d199fe4b2db02e77517ab6dccf2aa931020eaa428727d857c26a1cf3ad3df613",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "ready",
+        "code": "SNAPBACK_IR_READY"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "expr-truthiness-or-vs-coalesce",
+      "normalizedOutcomeSha256": "sha256:cb1b924473720e9932030113759929ac7ae27c3296d5891a03bba82ac8e470c4",
+      "sha256": "sha256:92cd3f4f5a8d148796540a83b00388c0003bcf5912fb49f0457a246588d28305",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "ready",
+        "code": "SNAPBACK_IR_READY"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "expr-ternary-comparison",
+      "normalizedOutcomeSha256": "sha256:585a24ee0352ce2e3c2bc31c9aeff04a1717001dcca8d9fea12a1265d3bcd71f",
+      "sha256": "sha256:5ee13f7ab3b0caf143f3f10a90e6ef4f4396b595b28fb0912009b4fa74d054ac",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "ready",
+        "code": "SNAPBACK_IR_READY"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "expr-string-template",
+      "normalizedOutcomeSha256": "sha256:c15b3c872fd451af6143c217f470609a065c2dc86b056577ee2ef755d7fdc201",
+      "sha256": "sha256:30a36283ebb948eab44489022891801855801fe27d4ad5ad3498becbfe355d77",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "ready",
+        "code": "SNAPBACK_IR_READY"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "expr-pinned-library",
+      "normalizedOutcomeSha256": "sha256:a6f90bba5f1bbe4c8445b485d43d06c029f8c3b3e9d7fb24693479329bb43135",
+      "sha256": "sha256:2f30a2aa3e0768d5bfa7136727d35db64144c474ba3d6c550794c01bea1a72d8",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "ready",
+        "code": "SNAPBACK_IR_READY"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "expr-equality-value-model",
+      "normalizedOutcomeSha256": "sha256:2a889fc72faf928c4776e284adef8c71a66ce0f2fdbed64836cff56b21c65094",
+      "sha256": "sha256:bde860435eb30e69f0bddd9d5ab048a111d19e59ee95f12264c2c1a0d2c5c80a",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "ready",
+        "code": "SNAPBACK_IR_READY"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "expr-own-property-field-access",
+      "normalizedOutcomeSha256": "sha256:8a14d3d28a34ff006a105879b340fd57fc5d064d4dfbd08f9b0d985cf1299c51",
+      "sha256": "sha256:1a57ca9941c38d75fac00fc013419a70e3b1be4a2d509c99fb275d44f19bc0ab",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "ready",
+        "code": "SNAPBACK_IR_READY"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "reject-inherited-strict-arg",
+      "normalizedOutcomeSha256": "sha256:cbf8d2e95ed6d5f13ce2088d2af3c373e8734e91c6b3ecbfcbeb6e99ebe65914",
+      "sha256": "sha256:8e27e5683d8e7307af0e67ca0bc8248536832e5adc348f4cda0c79fe858a6329",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "ready",
+        "code": "SNAPBACK_IR_READY"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "expr-record-proto-key",
+      "normalizedOutcomeSha256": "sha256:57c577b8654299ef88f4e69b9efc57457c2dfe0dd453d91b5e0e74bcaf722438",
+      "sha256": "sha256:dae78bbdd1285afa3316ecc1884ef447e27b48a278eb0886e089e9dc1f9cb8af",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "ready",
+        "code": "SNAPBACK_IR_READY"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "expr-array-plus-zero-index",
+      "normalizedOutcomeSha256": "sha256:aaf75f0c687f222c47fe556c991e4d7fa80ca76e9a94eae18134535b34f1439c",
+      "sha256": "sha256:854ccc1643a59222495148587ecf770cccd1f1103fc22f66b4b1eb7ee8ffdc77",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "ready",
+        "code": "SNAPBACK_IR_READY"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "expr-unicode-scalar-order",
+      "normalizedOutcomeSha256": "sha256:d0db3593bd06e875b9dec8abef1c04311ecf6dd117c19cbe3c013d09cb94f9f4",
+      "sha256": "sha256:9c53084f02d5ae93967ab71ed2913a52cc3cbfe60cb88bc6ab10b95ea8584109",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "ready",
+        "code": "SNAPBACK_IR_READY"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "expr-portable-trim-whitespace",
+      "normalizedOutcomeSha256": "sha256:83fe499aeb572cc83f26c51df16e6b804d78da30489232b9590c51a1d8c582cc",
+      "sha256": "sha256:5087b27a9801eb2806d99d696e9fd3c98bd9422f31ddb0517535a6069ce6b2a3",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "ready",
+        "code": "SNAPBACK_IR_READY"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "expr-number-concat-boundaries",
+      "normalizedOutcomeSha256": "sha256:6383fb18b0cd738a413e8c2f5a3f00b0b745d4285518c5417d156f647b27cc48",
+      "sha256": "sha256:245fe41e22cfb8fef237b476da069e3a13073833fc30bc72efba7d41f50faed8",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "ready",
+        "code": "SNAPBACK_IR_READY"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "expr-nonfinite-arithmetic-normalizes-null",
+      "normalizedOutcomeSha256": "sha256:97a4d3dd50c535606f1dd9ab63f09e465dbeb6a704c612869451dbadef16e362",
+      "sha256": "sha256:1192e23a444b1b932f03ad9ccca2c845e5c9d918c699649dedcdf30407bddf06",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "ready",
+        "code": "SNAPBACK_IR_READY"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "get-else-error",
+      "normalizedOutcomeSha256": "sha256:cb0f02535a3787b4b249240d5a0bac813f3e0640c4d5f984c180a5ccf43a2fcf",
+      "sha256": "sha256:32cb892b83d04195228cdc8f0cedf300bb86c489e5f12d69a3ba21e52d0d2f38",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "server-only",
+        "code": "SNAPBACK_VALUE_EXPR_AUTHORITATIVE_ONLY"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "get-guard-read-check-write",
+      "normalizedOutcomeSha256": "sha256:855dfc89f956037b821838d5c4c7cbd4442b9c6510ac19e68ab14cfc15b8bc9f",
+      "sha256": "sha256:875c8b616446d7039916c3a4cca4a8e4bd09ca3fcfcd76edd7a26cd3e1631ef3",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "server-only",
+        "code": "SNAPBACK_VALUE_EXPR_AUTHORITATIVE_ONLY"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "get-guard-rejects-non-owner",
+      "normalizedOutcomeSha256": "sha256:a6e569985332d362c653a9c03c5543ec51784f2a0ae142627aacf9b9278776c1",
+      "sha256": "sha256:177f769b3aa6f0e6eae58a4398e6ea8ba4dea9599e65b688a54b058c0d021e82",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "refused",
+        "code": "SNAPBACK_PLAN_EFFECT_CEILING"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "let-binding-chain",
+      "normalizedOutcomeSha256": "sha256:ddecccc3f870e017160d1d84eb6cabdea75c93d5d0c735f3adf441c13073da28",
+      "sha256": "sha256:c78e87625df733ee133d4c8f37ae7f5b74e6656c89d8ae3cd742dd8cfae34d01",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "refused",
+        "code": "SNAPBACK_PLAN_EFFECT_CEILING"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "delete-where-filtered",
+      "normalizedOutcomeSha256": "sha256:a988e42508522b1ed802098ab30d51840305cd0a4db902064965c4e8b7dd29ec",
+      "sha256": "sha256:8757be872220b28dc2c5058dd0b3b18d9360502a10c436b1c4497005b8f5da9b",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "ready",
+        "code": "SNAPBACK_IR_READY"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "reject-unknown-function",
+      "normalizedOutcomeSha256": "sha256:d679775fd0a09823503a1a894526454e5fbfa01ae2fc80f35b8807aeba72c72a",
+      "sha256": "sha256:fd83f6696804c42958bdb03af766ad4d95a512183d01c65c6d4a3d6121815ff6",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "refused",
+        "code": "SNAPBACK_PLAN_BOUNDS"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "reject-plan-over-step-bound",
+      "normalizedOutcomeSha256": "sha256:ba13a4d1c9ffe44b95ac5de4b6c3d50ce3927783691e9aa4e5a082a2a31d8e53",
+      "sha256": "sha256:d54b001275eefe93af3412bc77fd3e6fb0812b07c9383d8017e768a1cb2c6c71",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "ready",
+        "code": "SNAPBACK_IR_READY"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "reject-expr-over-depth-bound",
+      "normalizedOutcomeSha256": "sha256:868fa7cd2bae4511f61054a4a9290863f5e8c48142a2491f52c30ac97d7c1ad3",
+      "sha256": "sha256:a921f926772a318915285122cc6993cd19bfae1fe340913f22e55c94b4cb4055",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "refused",
+        "code": "SNAPBACK_PLAN_EFFECT_CEILING"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "reject-insert-each-non-array",
+      "normalizedOutcomeSha256": "sha256:f75c9a052634a99a8afabc37f80738df2e719c19874c5900a3edeb7373a7ac12",
+      "sha256": "sha256:76417815668dfc422bb0fe92ebb53edfb5c2cf02076be7a5c9af579d916562b6",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "refused",
+        "code": "SNAPBACK_PLAN_EFFECT_CEILING"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "reject-insert-each-over-fanout",
+      "normalizedOutcomeSha256": "sha256:35721177e680400631e23b6a6161ac8b74d2da991ab468feef92573126c0c584",
+      "sha256": "sha256:e8d2e8fc3f5b2c604e40542b184497458ff14dfc1ae7f0a8be9e036334f9f2ae",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "ready",
+        "code": "SNAPBACK_IR_READY"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "reject-missing-binding",
+      "normalizedOutcomeSha256": "sha256:aca92e48255ab24fd91bca3601b659cec304bf3a7accafcdfe6d00a6226045aa",
+      "sha256": "sha256:7de111da6dd4d0ac2f239a03d30b0f4937faa20cdea0552610cdd3df4d222f76",
+      "verdict": "PASS"
+    },
+    {
+      "admission": {
+        "classification": "ready",
+        "code": "SNAPBACK_IR_READY"
+      },
+      "browserVsNodeExact": true,
+      "failureDetail": null,
+      "indexedDb": {
+        "persisted": true,
+        "readBack": true
+      },
+      "name": "reject-strict-arg-missing",
+      "normalizedOutcomeSha256": "sha256:7b3ea7e7e19f8a414df414b62712df4e37c1dbe5f96b392f0d35b8e4d3e34a49",
+      "sha256": "sha256:ab0ceb3c050e517df2314500746e0c391362752c17f287cbcd1bcb8be550d669",
+      "verdict": "PASS"
+    }
+  ],
+  "cleanup": {
+    "browserStopped": true,
+    "harnessServerClosed": true,
+    "profileRemoved": true
+  },
+  "corpus": {
+    "cases": 37,
+    "corpus": "snapback-data-tier",
+    "corpusFormatVersion": 1,
+    "ledgerVersion": 1,
+    "manifestPath": "tests/conformance/data-tier/corpus.manifest.json",
+    "manifestSha256": "sha256:ec6968a66ad7161cd37bdb5059965e08ed071c66cb77344bdb569fa56f98a3e1",
+    "profileVersion": 1
+  },
+  "designation": {
+    "designatedCommonPathCases": 12,
+    "frozenAt": "2026-08-07",
+    "path": "tests/acceptance/fixtures/browser-lane/handler-coverage.v1.json",
+    "provenance": {
+      "delegatedBy": "Charlie Cheever (author), 2026-08-07, author gate packet item 3",
+      "delegationVerbatim": "This whole project is about making something right for agents and you know agents better than I do",
+      "designatedBy": "the orchestrating agent (Claude Fable 5), 2026-08-07, under the author's delegation",
+      "rulingRecord": "issues/closed/20260807-local-first-author-gate-packet.md item 3"
+    },
+    "sha256": "sha256:808d9da3390bedf6146f2bf29e03786dd105295c341eae6bce9365ee66e2521b"
+  },
+  "evidenceClass": "standards-real-browser-process-indexeddb-round-trip-d5-replay",
+  "finishedAt": "2026-08-08T00:30:11.728Z",
+  "gate": {
+    "commonPathExecution": {
+      "cases": [
+        {
+          "admissionCode": "SNAPBACK_IR_READY",
+          "admitted": true,
+          "completedRealBrowserSuite": true,
+          "name": "todo-v2-set-completed",
+          "pass": true
+        },
+        {
+          "admissionCode": "SNAPBACK_IR_READY",
+          "admitted": true,
+          "completedRealBrowserSuite": true,
+          "name": "todo-v2-patch-missing-row-is-soft",
+          "pass": true
+        },
+        {
+          "admissionCode": "SNAPBACK_IR_READY",
+          "admitted": true,
+          "completedRealBrowserSuite": true,
+          "name": "todo-v2-delete-todo",
+          "pass": true
+        },
+        {
+          "admissionCode": "SNAPBACK_IR_READY",
+          "admitted": true,
+          "completedRealBrowserSuite": true,
+          "name": "get-else-error",
+          "pass": true
+        },
+        {
+          "admissionCode": "SNAPBACK_IR_READY",
+          "admitted": true,
+          "completedRealBrowserSuite": true,
+          "name": "expr-field-null-propagation",
+          "pass": true
+        },
+        {
+          "admissionCode": "SNAPBACK_IR_READY",
+          "admitted": true,
+          "completedRealBrowserSuite": true,
+          "name": "expr-equality-value-model",
+          "pass": true
+        },
+        {
+          "admissionCode": "SNAPBACK_IR_READY",
+          "admitted": true,
+          "completedRealBrowserSuite": true,
+          "name": "expr-truthiness-or-vs-coalesce",
+          "pass": true
+        },
+        {
+          "admissionCode": "SNAPBACK_IR_READY",
+          "admitted": true,
+          "completedRealBrowserSuite": true,
+          "name": "expr-string-template",
+          "pass": true
+        },
+        {
+          "admissionCode": "SNAPBACK_IR_READY",
+          "admitted": true,
+          "completedRealBrowserSuite": true,
+          "name": "expr-ternary-comparison",
+          "pass": true
+        },
+        {
+          "admissionCode": "SNAPBACK_IR_READY",
+          "admitted": true,
+          "completedRealBrowserSuite": true,
+          "name": "expr-arithmetic-three-valued",
+          "pass": true
+        },
+        {
+          "admissionCode": "SNAPBACK_IR_READY",
+          "admitted": true,
+          "completedRealBrowserSuite": true,
+          "name": "reject-strict-arg-missing",
+          "pass": true
+        },
+        {
+          "admissionCode": "SNAPBACK_IR_READY",
+          "admitted": true,
+          "completedRealBrowserSuite": true,
+          "name": "reject-unknown-function",
+          "pass": true
+        }
+      ],
+      "denominator": 12,
+      "designation": {
+        "frozenAt": "2026-08-07",
+        "path": "tests/acceptance/fixtures/browser-lane/handler-coverage.v1.json",
+        "sha256": "sha256:808d9da3390bedf6146f2bf29e03786dd105295c341eae6bce9365ee66e2521b"
+      },
+      "evidence": {
+        "label": "classifyLocalMutationIrV1 plan-shape classification of the full 37-case D5 corpus under the M1 Insert/Get/Guard/Patch + single-row Delete ceiling (author ruling 2026-08-07) — contextual evidence, distinct from the designated-set metric above.",
+        "planShapeAdmissionCounts": {
+          "ready": 23,
+          "refused": 9,
+          "server-only": 5
+        }
+      },
+      "failing": [],
+      "numerator": 12,
+      "result": "PASS",
+      "threshold": "100% of designated browser common-path mutations are locally admitted and complete the real-browser suite"
+    },
+    "d5RealBrowserExactness": {
+      "browserVsNodeExact": true,
+      "failed": [],
+      "indexedDbRoundTrip": true,
+      "passed": 37,
+      "result": "PASS",
+      "rustChain": {
+        "baseRevision": "aeba33a8c40f44aff7dd191adf4dd7f7f99786ad",
+        "receipt": "tests/acceptance/fixtures/write-lane/phase1-d5-evidence.2026-08-03.v1.json",
+        "statement": "The retained Phase-1 receipt pins Rust-host == JS outcomes for this exact corpus manifest digest, so browser == Node == Rust follows from manifest identity.",
+        "status": "chained"
+      },
+      "threshold": "exact normalized outcomes for all 37 pinned cases, compared after IndexedDB read-back",
+      "total": 37
+    },
+    "overall": {
+      "detail": "All three components pass against the frozen designation. Per LLP 0129 advancement is author-presented: this receipt records the measurement and declares no phase exit.",
+      "result": "PASS"
+    },
+    "semanticIrCoverage": {
+      "basis": "Carried from the dated audited assessment classification of the frozen LLP 0051 corpus (wasm-assessment.2026-08-05.v1.md §1, pinned by sha256 above); not re-audited by this runner.",
+      "definitionVerbatim": "IR-expressible: the closed v1 plan grammar can represent the semantics and evaluateBrowserIrPlanV1 can execute the resulting data. (Denominator: the 13 durable mutations frozen as LLP 0051’s measured demo corpus.)",
+      "denominator": 13,
+      "numerator": 12,
+      "percent": 92.3,
+      "result": "PASS",
+      "threshold": ">=90%"
+    }
+  },
+  "gateDefinition": {
+    "authority": [
+      "llp/0129-local-first-program.plan.md §Open questions 9 (RESOLVED 2026-08-06, Charlie Cheever)",
+      "tests/acceptance/fixtures/browser-lane/wasm-assessment.2026-08-05.v1.md §5 Option B"
+    ],
+    "designationAuthority": "tests/acceptance/fixtures/browser-lane/handler-coverage.v1.json — the frozen designated-browser-common-path mutation set, delegated by the author to the orchestrating agent 2026-08-07 (issues/closed/20260807-local-first-author-gate-packet.md item 3).",
+    "optionBPassVerbatim": "(1) at least 90% of the frozen corpus is semantically IR-expressible; (2) 100% of mutations designated browser common-path carry a generated local artifact and complete the real-browser suite; (3) D5 is exact on both evaluators; and (4) every remainder is explicitly server-only or offline-nonclaim, with no common-path remainder requiring a general runtime.",
+    "oq9Verbatim": "Phase 2a’s falsifiable exit is therefore the browser-IR-coverage gate (assessment exit option 2): ≥90% semantic IR coverage of the versioned reference-app durable-mutation corpus plus 100% execution coverage for the designated browser common-path mutations, proven by generated artifacts under a real-browser IndexedDB acceptance run with exact LLP 0051 D5 results.",
+    "semanticCoverageDefinitionVerbatim": "IR-expressible: the closed v1 plan grammar can represent the semantics and evaluateBrowserIrPlanV1 can execute the resulting data. (Denominator: the 13 durable mutations frozen as LLP 0051’s measured demo corpus.)"
+  },
+  "nonclaims": [
+    "No Parity, capability, store, settlement, React presentation, or phase-advancement claim: per LLP 0129 advancement is author-presented and none is declared here.",
+    "Semantic IR coverage is carried from the dated audited assessment classification of the frozen 13-mutation corpus, pinned by digest; this runner does not re-audit demo sources.",
+    "The common-path axis is measured against the frozen designation in handler-coverage.v1.json (delegated by the author 2026-08-07); the plan-shape M1 admission counts over the full corpus remain contextual evidence only."
+  ],
+  "ok": true,
+  "runDate": "2026-08-07",
+  "schemaVersion": "snapback.browser-ir-coverage-receipt.v2",
+  "source": {
+    "assessment": {
+      "path": "tests/acceptance/fixtures/browser-lane/wasm-assessment.2026-08-05.v1.md",
+      "sha256": "sha256:83e71961e64bfb250bac4e96e1b22fcb8f0f3d58be8b55790fe3c8551048c44c"
+    },
+    "bundleBytes": 47905,
+    "bundleSha256": "sha256:0f2ecd6090701fbd3c88812778b3c5bbe74d2cc9f724f7d9896ee98831a39a41",
+    "esbuild": "0.28.1",
+    "gitCommit": "fc7af693e35f355ea2de742b10999a6c33d0661e",
+    "gitDirty": true,
+    "gitDirtyNote": "The gate run is produced from the uncommitted gate worktree by design; exact executed bytes are bound by the source hashes below.",
+    "hashes": {
+      "packages/snapback-client/ir-evaluator.mjs": "sha256:54407ac24a301143d2a33131b816b519a8488956ea526416f0f135e5ca91d7c0",
+      "packages/snapback-contract/derived-overlay.mjs": "sha256:8b5324a45a8beaaa7db4eaf93361f8faf1008e152a74f9903844335d0f8e0a32",
+      "packages/snapback-contract/index.mjs": "sha256:a7631cb2c37d32987929b207c3aec279bc97f8884918e2b06780d3eddceeeda7",
+      "tests/acceptance/browser-ir-coverage-v1-page.mjs": "sha256:435f67a84e447a1a202ac22c84ae30f6e826bafedfdb30189b6031761a155f1f",
+      "tests/acceptance/browser-ir-coverage-v1.mjs": "sha256:520bdb9e1e1d44c5c0c286479b29218dd9f697c0684e2913e77a50084a1e6794",
+      "tests/conformance/data-tier/js-d5-harness.mjs": "sha256:6379413001c81895dc9585a14100c8a0cfdb08cb955bca68c2d4b801e4953071"
+    },
+    "node": "v25.9.0"
+  },
+  "startedAt": "2026-08-08T00:30:08.952Z"
+}

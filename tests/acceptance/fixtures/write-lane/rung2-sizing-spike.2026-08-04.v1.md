@@ -289,3 +289,30 @@ Expected measurement output is byte-for-byte identical to
 `measurement.v1.json`. No files under `llp/`, package exports, capability
 manifests, generated registries, shipping evaluator/codegen, or demo
 application paths are modified. No commit is made.
+
+## Dated addendum — 2026-08-07: single-row Delete admitted by author ruling
+
+This artifact's §3 recommendation ("do not export `AllocateSequence`,
+`Delete`, or `Let` on this evidence") anticipated that widening for a broader
+product class "is a fresh scope/rationale decision" for the author. That
+decision has now been taken on new evidence; this addendum records the
+supersession without rewriting the dated artifact above.
+
+The LLP 0129 Phase 2a browser-IR coverage gate, rerun against the frozen
+common-path designation (`handler-coverage.v1.json`, 2026-08-07), measured the
+designated single-row delete `todo-v2-delete-todo` refused by the M1 ceiling
+(11/12 common-path FAIL, `browser-ir-coverage.2026-08-07.v2.{json,md}`).
+Charlie Cheever ruled on 2026-08-07 that single-row `Delete` — at most one
+`Delete` step per plan, one row by id, `ChangedCount` semantics — is admitted
+into the M1 local evaluator verb set. `AllocateSequence` and `Let` stay out;
+nothing here reopens them. `DeleteWhere`, `InsertEach`, and multi-`Delete`
+plans remain refused as designated power-path. §3's Calendar-scoped size
+evidence stands unchanged (this artifact measured `Delete` at +16 minified /
++8 gzip); what changed is the scope premise: the designation freeze made
+single-row delete a measured common-path fact rather than a zero-occurrence
+candidate. The post-ruling gate rerun (semantic 12/13 carried, exact-D5
+37/37, common-path 12/12, whole gate PASS) is retained in
+`browser-ir-coverage.2026-08-07.v3.{json,md}`; the ruling's ticket trail is
+`issues/closed/20260807-single-row-delete-effect-ceiling.md`. The effect-class
+string this section recommends keeping (`snapback.browser-ir.insert-get-guard-patch.v1`)
+is kept — widened in place rather than renamed.

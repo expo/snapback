@@ -888,6 +888,32 @@ the browser story is pinned.
 > presented to the author by **2026-08-14** (the 2026-08-07
 > owner/timebox ruling above); no exit or advancement is declared.
 
+> **Single-row Delete admitted + gate rerun — author ruling,
+> 2026-08-07 (Charlie Cheever).** The author ruled on the ticketed gap:
+> single-row `Delete` is **admitted** into the M1 local evaluator verb
+> set. The admitted shape is exactly the designated
+> `todo-v2-delete-todo` form — a plan whose steps include at most one
+> `Delete` step addressing one row by id (`ChangedCount` semantics; a
+> missing row is the Rust host's soft no-op). Filtered, batch, and
+> fanout deletes (`DeleteWhere`, `InsertEach`, multi-`Delete` plans)
+> remain refused with `SNAPBACK_PLAN_EFFECT_CEILING`: the ruling widens
+> the verb set by one narrow shape, not the effect ceiling generally.
+> The `snapback.browser-ir.insert-get-guard-patch.v1` effect-class
+> string is kept stable and widened in place; codegen still classifies
+> delete handlers `server-only`, so generated-carrier emission is a
+> named follow-up in the closed ticket. The rung-2 sizing write-up's
+> deliberately-unwidened recommendation is superseded on this point by
+> a dated addendum in that artifact. Gate rerun against the UNCHANGED
+> frozen designation and corpus: **semantic 12/13 = 92.3% PASS
+> (carried — the audited miss is all-aboard `applyLiveFeedSnapshot`,
+> not delete); exact-D5 37/37 PASS; common-path 12/12 PASS — whole
+> gate PASS.** Receipt:
+> `tests/acceptance/fixtures/browser-lane/browser-ir-coverage.2026-08-07.v3.{json,md}`,
+> superseding the v2 11/12 measurement; resolution recorded in
+> `issues/closed/20260807-single-row-delete-effect-ceiling.md`.
+> Disposition remains author-presented (2026-08-14 timebox); **no
+> phase exit or advancement is declared here.**
+
 **Phase 2b — Desktop ladder (independent of 2a).** First the sidecar:
 the packaged native runtime spawned next to the app, carrying
 0127 move 5's sealed, attested artifact (LLP 0123) — process

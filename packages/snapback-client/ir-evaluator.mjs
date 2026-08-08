@@ -2,10 +2,12 @@
 //
 // The complete v1 semantic executor below is the D5 conformance consumer. The
 // local-prediction wrapper is intentionally narrower: it admits only the
-// Insert/Get/Guard/Patch step ceiling commissioned for Move 3 lane M1. Keeping
-// these surfaces separate lets the package prove all v1 evaluator semantics
-// without silently claiming every conformant server operation is locally
-// executable.
+// Insert/Get/Guard/Patch step ceiling plus at most one single-row Delete,
+// admitted by author ruling 2026-08-07, for Move 3 lane M1. Keeping these
+// surfaces separate lets the package prove all v1 evaluator semantics without
+// silently claiming every conformant server operation is locally executable.
+// @ref LLP 0129#phases — Phase 2a: single-row Delete admitted into the M1
+//   local verb set by author ruling 2026-08-07
 //
 // @ref LLP 0051#d5-conformance-the-corpus-becomes-the-data-tier-contract —
 //   exact returns, changed counts, declared rows, ctx ledgers, and typed
@@ -29,11 +31,13 @@ export const BROWSER_IR_ADMISSION_CLASSES = Object.freeze([
   'refused',
 ]);
 
+// The v1 class string stays stable and now also admits the single-row Delete
+// shape under the 2026-08-07 author ruling.
 export const BROWSER_IR_LOCAL_EFFECT_CLASS =
   'snapback.browser-ir.insert-get-guard-patch.v1';
 export const BROWSER_IR_CTX_CLAIM_LABEL = 'labeled-client-claim';
 
-const LOCAL_STEPS = new Set(['Insert', 'Get', 'Guard', 'Patch']);
+const LOCAL_STEPS = new Set(['Insert', 'Get', 'Guard', 'Patch', 'Delete']);
 const SERVER_ONLY_STEPS = new Set([
   'AllocateSequence',
   'AssertCurrentRelation',
@@ -601,10 +605,17 @@ export function classifyLocalMutationIrV1({
   if (admittedPlan.steps.length > MAX_PLAN_STEPS) {
     return classification('refused', 'SNAPBACK_PLAN_BOUNDS');
   }
+  let deleteSteps = 0;
   for (const step of admittedPlan.steps) {
     const kinds = Object.keys(step ?? {});
     if (kinds.length !== 1) return classification('refused', 'SNAPBACK_PLAN_INVALID');
     const kind = kinds[0];
+    if (kind === 'Delete') {
+      deleteSteps += 1;
+      if (deleteSteps > 1) {
+        return classification('refused', 'SNAPBACK_PLAN_EFFECT_CEILING', { step: 'Delete' });
+      }
+    }
     if (SERVER_ONLY_STEPS.has(kind)) {
       return classification('server-only', 'SNAPBACK_PLAN_SERVER_ONLY_STEP', { step: kind });
     }

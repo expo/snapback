@@ -56,3 +56,49 @@ ceiling (with the D5/coverage evidence rerun and the receipt superseded) or
 records that single-row delete stays server-round-trip for now with the
 designation retained as the honest 11/12 measurement; LLP 0129's Phase 2a
 section points at the outcome.
+
+## Resolution — 2026-08-07
+
+**Ruled by the author (Charlie Cheever, 2026-08-07): single-row Delete is
+ADMITTED into the M1 local evaluator verb set.** Implemented the same day:
+
+- `packages/snapback-client/ir-evaluator.mjs`: `Delete` joins the M1
+  admission verb set; plans with more than one `Delete` step stay refused with
+  `SNAPBACK_PLAN_EFFECT_CEILING`, as do `DeleteWhere`/`InsertEach`. Execution
+  needed no change — the shipping D5 executor already carried the Rust host's
+  exact semantics (`ChangedCount`; soft no-op on a missing row, matching
+  `delete_document`'s no-change path in `src/storage.rs`).
+- `packages/snapback-client/local-read-admission.mjs`: a `Delete` step's
+  target row is now a declared point read (by `Arg` id, exactly like
+  `Get`/`Patch`), so the admitted workspace materializes the row being
+  deleted and the local prediction sees presence/absence correctly.
+- `packages/snapback-client/optimistic-rebase.mjs`:
+  `applyPrivateOptimisticLayerV1` folds `delete` writes (remove by `_id`,
+  missing row a soft no-op) — previously it threw on any non-insert/patch
+  write, so an admitted Delete layer would have crashed the rebase engine.
+- Effect-class string kept stable
+  (`snapback.browser-ir.insert-get-guard-patch.v1`, widened in place); the D5
+  corpus manifest untouched.
+- Conformance: client suite green including the 37-case D5 replay; new
+  present-row, absent-row, and stays-refused (DeleteWhere / InsertEach /
+  two-Delete) tests; private-layer delete-fold test.
+- Bundle metrology: explicitly reviewed rollover
+  `baseline.single-row-delete-admission.v1.json` (ir-evaluator
+  21,295 → 21,407 min / 7,615 → 7,644 gzip / 6,740 → 6,760 brotli;
+  optimistic-rebase brotli 12,744 → 12,791).
+- Gate rerun against the UNCHANGED frozen designation: semantic 12/13 = 92.3%
+  PASS (carried — the audited miss is `applyLiveFeedSnapshot`, not delete);
+  exact-D5 37/37 PASS; **common-path 12/12 PASS; whole gate PASS**. Receipt:
+  `tests/acceptance/fixtures/browser-lane/browser-ir-coverage.2026-08-07.v3.{json,md}`,
+  superseding the v2 11/12 measurement. LLP 0129 Phase 2a carries the dated
+  note; the rung-2 sizing write-up carries a dated supersession addendum.
+
+**Named follow-up (not blocking this closure):** codegen
+(`packages/snapback-codegen/index.mjs`, `GENERATED_LOCAL_MUTATION_STEPS_V1`)
+still classifies delete handlers `SNAPBACK_GENERATED_IR_EFFECT_SERVER_ONLY`,
+so real-app generated carriers keep delete server-round-trip until the
+emission side is widened with its own artifact rotation. The generated-carrier
+seam (`generated-mutation-ir.mjs`) refuses such plans before evaluation, so
+the state is coherent.
+
+**Status:** Closed 2026-08-07.
