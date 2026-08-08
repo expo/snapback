@@ -1372,6 +1372,10 @@ immediately:
   therefore never stable fixture values: a seeded row naming a pre-reset id
   points at an identity that no longer exists.
 
+Under the supervised Expo dev loop, `snapback reset --dev-fresh` performs the
+reset and supervisor re-mint as one command; standalone dev targets receive a
+verification mint before the command reports readiness.
+
 So do not seed membership or ownership rows with captured principal ids in
 sessions mode. Seed the *resources*, then have each authenticated persona
 join through the declared membership surface —
@@ -4363,6 +4367,13 @@ it — mint personas *after* the install, and never seed captured principal ids
   [loading large deterministic fixtures](../testing/large-fixtures.md).
 - `SNAPBACK_CLIENT_SEED_PROTOCOL_UNSUPPORTED`: the selected target does not
   advertise the required protocol; there is no compatibility fallback.
+
+For the local dev loop, `snapback reset --dev-fresh` is the paved one-shot
+escape from this whole lifecycle cluster: it creates a fresh database,
+re-installs the versioned seed, and has a supervised Expo loop re-mint its
+ordinary session. Every individual refusal above remains unchanged for partial
+operations; the command composes the deterministic destructive path instead of
+weakening those guards.
 
 The local protocol is advertised as **experimental** while LLP 0109 remains in
 Review. The executable manifest is the advertisement gate: every required
@@ -11704,7 +11715,9 @@ managed database, and watches source changes through one coalesced generation
 at a time. Later starts and watch reloads require the exact installed seed
 identity to match; they do not reset or restore user data. A changed
 `seedVersion` therefore reports `SNAPBACK_SEED_MIGRATION_REQUIRED` until you
-choose migration or an explicit destructive reset-install.
+choose migration or an explicit destructive reset-install. For the local dev
+destructive branch, `snapback reset --dev-fresh` is the one-shot path: fresh
+database, seed re-install, and sessions verification or supervised re-mint.
 
 The command infers `dev` versus `sessions` from the generated schema.
 Sessions-mode managed starts supply the complete closed schema/functions

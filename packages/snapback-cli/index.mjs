@@ -1580,6 +1580,39 @@ export function validateDevTarget(descriptor, { readyFile, database }) {
   return descriptor;
 }
 
+async function validateReadyDescriptorHealth(descriptor) {
+  const health = await new SnapbackClient(descriptor.serverUrl).health();
+  if (
+    health?.ok !== true
+    || (
+      typeof descriptor.startupNonce === 'string'
+      && health?.binary?.startupNonce !== descriptor.startupNonce
+    )
+  ) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_SERVER_ATTACH_FAILED',
+      'ready-file health identity did not match the live server',
+      {
+        expectedStartupNonce: descriptor.startupNonce ?? null,
+        observedStartupNonce: health?.binary?.startupNonce ?? null,
+      },
+    );
+  }
+  return health;
+}
+
+function removeManagedDatabaseState(database, readyFile = null) {
+  for (const path of [
+    database,
+    `${database}-wal`,
+    `${database}-shm`,
+    `${database}.admin-token`,
+    ...(readyFile === null ? [] : [readyFile]),
+  ]) {
+    rmSync(path, { force: true });
+  }
+}
+
 export function native(binary, args, options = {}) {
   return spawnSync(binary, args, {
     cwd: options.cwd,
@@ -2266,23 +2299,7 @@ export async function runDev(options = {}) {
     // minted secret-read lease. Dev attachment needs only liveness and process
     // identity, so use the public health projection and never upgrade this
     // check into administrative data-read authority.
-    const health = await new SnapbackClient(descriptor.serverUrl).health();
-    if (
-      health?.ok !== true
-      || (
-        typeof descriptor.startupNonce === 'string'
-        && health?.binary?.startupNonce !== descriptor.startupNonce
-      )
-    ) {
-      throw diagnosticError(
-        'SNAPBACK_DEV_SERVER_ATTACH_FAILED',
-        'ready-file health identity did not match the live server',
-        {
-          expectedStartupNonce: descriptor.startupNonce ?? null,
-          observedStartupNonce: health?.binary?.startupNonce ?? null,
-        },
-      );
-    }
+    await validateReadyDescriptorHealth(descriptor);
     await loadGenerated(runtime.binary, projectRoot, backendRoot, readyFile, adminToken, {
       seed: managed && !databaseExistedBeforeStart,
       database,
@@ -2323,7 +2340,11 @@ export async function runDev(options = {}) {
     return event;
   };
 
-  const regenerateAndLoad = async (filename, extra = {}) => {
+  const regenerateAndLoad = async (
+    filename,
+    extra = {},
+    { seed = false, failureState = null } = {},
+  ) => {
     let next;
     try {
       next = await generateApp(backendRoot);
@@ -2340,7 +2361,7 @@ export async function runDev(options = {}) {
       return emitDevEvent({
         schemaVersion: 'snapback.dev.v1',
         ok: false,
-        state: 'generation-failed',
+        state: failureState ?? 'generation-failed',
         changed: filename,
         ...extra,
         diagnostics: [refined.diagnostic ?? {
@@ -2352,11 +2373,18 @@ export async function runDev(options = {}) {
       });
     }
     if (!next.ok) {
-      return emitDevEvent({ ...next, schemaVersion: 'snapback.dev.v1', state: 'generation-failed', changed: filename, ...extra });
+      return emitDevEvent({
+        ...next,
+        schemaVersion: 'snapback.dev.v1',
+        state: failureState ?? 'generation-failed',
+        changed: filename,
+        ...extra,
+      });
     }
     if (closed) return null;
     try {
       await loadGenerated(runtime.binary, projectRoot, backendRoot, readyFile, adminToken, {
+        seed,
         database,
         runtime,
         runtimeIdentity,
@@ -2365,11 +2393,16 @@ export async function runDev(options = {}) {
     } catch (error) {
       return emitDevEvent({
         schemaVersion: 'snapback.dev.v1',
-        ok: true,
-        state: 'generated-but-not-loaded',
+        ok: failureState === null,
+        state: failureState ?? 'generated-but-not-loaded',
         changed: filename,
         ...extra,
-        diagnostics: [error.diagnostic],
+        diagnostics: [error.diagnostic ?? {
+          code: error.code ?? 'SNAPBACK_DEV_SERVER_LOAD_FAILED',
+          severity: 'error',
+          subsystem: 'cli',
+          message: error.message ?? 'generated artifacts could not be loaded',
+        }],
       });
     }
   };
@@ -2548,7 +2581,7 @@ export async function runDev(options = {}) {
     };
   };
 
-  // The dev-loop verb slice: status / reload / restart, each usable from the
+  // The dev-loop verb slice: status / reload / restart / dev-fresh, each usable from the
   // interactive keybindings and the machine-readable stdin command channel,
   // and available with or without a client arm. Every verb resolves to the
   // event it emitted; none of them throws.
@@ -2665,10 +2698,105 @@ export async function runDev(options = {}) {
     }
   });
 
+  const devFreshVerb = ({ requestId } = {}) => withDevLock(async () => {
+    const tag = requestId === undefined ? {} : { requestId };
+    if (closed) return null;
+    if (!managed || child === null) {
+      return emitDevEvent({
+        schemaVersion: 'snapback.dev.v1',
+        ok: false,
+        state: 'dev-fresh-failed',
+        verb: 'dev-fresh',
+        ...tag,
+        diagnostics: [{
+          code: 'SNAPBACK_DEV_FRESH_UNMANAGED',
+          severity: 'error',
+          subsystem: 'cli',
+          message: 'dev attached to an externally started server; dev-fresh only manages the child this process spawned',
+          details: { readyFile },
+        }],
+      });
+    }
+    restarting = true;
+    try {
+      const previousPid = descriptor.pid ?? null;
+      if (child.exitCode === null && child.signalCode === null) {
+        const stop = native(runtime.binary, ['stop', '--ready-file', readyFile], { cwd: projectRoot });
+        if (stop.status !== 0 && child.exitCode === null) child.kill('SIGTERM');
+      }
+      const deadline = Date.now() + 10_000;
+      while (child.exitCode === null && child.signalCode === null && Date.now() < deadline) {
+        await new Promise((resolveWait) => setTimeout(resolveWait, 50));
+      }
+      if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+      removeManagedDatabaseState(database, readyFile);
+      refreshStartupArtifacts();
+      child = spawnManagedRuntime(runtime.binary, [
+        'start',
+        '--ready-file', readyFile,
+        '--db', database,
+        ...(startupArtifacts ? ['--startup-artifacts', startupArtifacts] : []),
+      ], {
+        cwd: projectRoot,
+        env: scrubDynamicLoaderEnvironment(options.env),
+        stdio: options.serverStdio ?? ['ignore', 2, 2],
+      });
+      attachExitWatch(child);
+      descriptor = validateDevTarget(await waitForReady(readyFile, child), { readyFile, database });
+      adminToken = managedAdminToken(descriptor, database);
+      emitDevEvent({
+        schemaVersion: 'snapback.dev.v1',
+        ok: true,
+        state: 'database-refreshed',
+        verb: 'dev-fresh',
+        ...tag,
+        previousPid,
+        pid: descriptor.pid ?? null,
+        serverUrl: descriptor.serverUrl,
+      });
+      return await regenerateAndLoad(
+        '(dev-fresh)',
+        { verb: 'dev-fresh', ...tag },
+        { seed: true, failureState: 'dev-fresh-failed' },
+      );
+    } catch (error) {
+      const refined = refineGeneratedArtifactFailure(error, {
+        binary: runtime.binary,
+        runtime,
+        runtimeIdentity,
+        database,
+        artifacts: startupArtifacts
+          ? [startupArtifacts, ...startupArtifactSources]
+          : startupArtifactSources,
+      });
+      return emitDevEvent({
+        schemaVersion: 'snapback.dev.v1',
+        ok: false,
+        state: 'dev-fresh-failed',
+        verb: 'dev-fresh',
+        ...tag,
+        diagnostics: [refined.diagnostic ?? {
+          code: refined.code ?? 'SNAPBACK_DEV_FRESH_FAILED',
+          severity: 'error',
+          subsystem: 'cli',
+          message: refined.message,
+        }],
+      });
+    } finally {
+      restarting = false;
+    }
+  });
+
   return {
     ...result,
-    child,
-    verbs: { status: statusVerb, reload: reloadVerb, restart: restartVerb },
+    get serverUrl() { return descriptor.serverUrl; },
+    get child() { return child; },
+    verbs: {
+      status: statusVerb,
+      reload: reloadVerb,
+      restart: restartVerb,
+      'dev-fresh': devFreshVerb,
+    },
     close() {
       closed = true;
       clearTimeout(timer);
@@ -2680,9 +2808,9 @@ export async function runDev(options = {}) {
 }
 
 // The two dev-loop control channels over stdin. A TTY gets single-key verbs
-// (s=status, r=reload, R=restart backend, q=quit); anything else is the
+// (s=status, r=reload, R=restart backend, f=dev-fresh, q=quit); anything else is the
 // machine-readable channel: newline-delimited JSON commands
-// (`{"schemaVersion":"snapback.dev-command.v1","verb":"status"|"reload"|"restart"}`,
+// (`{"schemaVersion":"snapback.dev-command.v1","verb":"status"|"reload"|"restart"|"dev-fresh"}`,
 // optional `requestId` echoed on the response event). Responses and events
 // ride the one `snapback.dev.v1` JSON-line stream on stdout; unknown or
 // malformed commands produce a structured `command-error` event, never a
@@ -2710,6 +2838,7 @@ export function attachDevControlChannel({ verbs, stop, onEvent, stdin = process.
       if (key === 's') invoke('status', {});
       else if (key === 'r') invoke('reload', {});
       else if (key === 'R') invoke('restart', {});
+      else if (key === 'f') invoke('dev-fresh', {});
       else if (key === 'q' || key === '\u0003') stop();
     };
     stdin.on('data', onKey);
@@ -2717,7 +2846,13 @@ export function attachDevControlChannel({ verbs, stop, onEvent, stdin = process.
       ok: true,
       state: 'control-ready',
       channel: 'tty',
-      keys: { s: 'status', r: 'regenerate and reload', R: 'restart backend', q: 'quit' },
+      keys: {
+        s: 'status',
+        r: 'regenerate and reload',
+        R: 'restart backend',
+        f: 'fresh database, restart, seed, and remint',
+        q: 'quit',
+      },
     });
     return () => {
       stdin.off('data', onKey);
@@ -2820,6 +2955,18 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
     description: 'Generate and validate reviewable app artifacts.', lifecycle: 'one-shot',
     output: 'snapback.generate.v1', exits: '0 complete generation; 1 diagnostics contain a refusal',
     recovery: 'Repair the emitted source/artifact diagnostic, then rerun generation.',
+  },
+  {
+    name: 'reset', usage: 'snapback reset [<backend-dir>] --dev-fresh [--db <path>] [--ready-file <path>] [--email <address>] [--json]',
+    description: 'One-shot dev-fresh reset of a managed dev target: fresh database, seed re-apply, supervisor-coordinated session re-mint, one readiness report. All other reset forms delegate to the native app.reset.',
+    lifecycle: 'one-shot',
+    output: 'snapback.dev.v1 JSON-line events followed by one snapback.reset-dev-fresh.v1 report',
+    exits: '0 fresh+seeded(+authority) readiness; 1 structured refusal (individual lifecycle refusals are preserved, not bypassed)',
+    recovery: 'Act on the surfaced diagnostic; for a live dev loop use its control-channel dev-fresh verb; for a stale supervisor descriptor remove it and rerun.',
+    details: Object.freeze([
+      'Without --dev-fresh, snapback reset and all of its arguments delegate unchanged to the native app.reset command.',
+      '--email is used only by the standalone Sessions verification mint; a running supervisor keeps its configured email.',
+    ]),
   },
   {
     name: 'doctor', usage: 'snapback doctor [--json]', description: 'Diagnose the packaged runtime and local prerequisites.', lifecycle: 'one-shot/read-only',
@@ -3099,6 +3246,231 @@ export async function runCli(argv, options = {}) {
     });
     printResult(verdict, json);
     return verdict.ok ? 0 : 1;
+  }
+  if (command === 'reset' && args.includes('--dev-fresh')) {
+    const usage = 'usage: snapback reset [<backend-dir>] --dev-fresh [--db <path>] [--ready-file <path>] [--email <address>] [--json]';
+    takeBooleanFlag(args, '--dev-fresh');
+    const readyFileFlag = takeFlag(args, '--ready-file');
+    const databaseFlag = takeFlag(args, '--db');
+    const email = takeFlag(args, '--email');
+    if (args.some((argument) => argument.startsWith('-'))) {
+      throw diagnosticError('SNAPBACK_CLI_ARGUMENT_INVALID', usage);
+    }
+    const backendDirectory = args.shift() ?? 'snapback';
+    if (args.length > 0) {
+      throw diagnosticError('SNAPBACK_CLI_ARGUMENT_INVALID', usage);
+    }
+    const backendRoot = resolve(backendDirectory);
+    const projectRoot = dirname(backendRoot);
+    const stateRoot = join(projectRoot, '.snapback');
+    const readyFile = resolve(readyFileFlag ?? join(stateRoot, 'dev.ready.json'));
+    const database = resolve(databaseFlag ?? join(stateRoot, 'dev.sqlite3'));
+    const supervisorFile = join(dirname(readyFile), 'expo-supervisor.json');
+    const staleSupervisorError = (cause = null) => {
+      const error = diagnosticError(
+        'SNAPBACK_RESET_SUPERVISOR_STALE',
+        'the Expo supervisor discovery descriptor is stale; remove it and rerun standalone, or restart the supervisor',
+        {
+          descriptorFile: supervisorFile,
+          recovery: {
+            standalone: `remove ${supervisorFile} and rerun snapback reset --dev-fresh`,
+            supervised: 'restart snapback dev --expo and rerun the reset',
+          },
+        },
+      );
+      if (cause !== null) error.cause = cause;
+      return error;
+    };
+
+    if (existsSync(supervisorFile)) {
+      const {
+        SUPERVISED_CONTROL_PATH,
+        SUPERVISED_EXCHANGE_FORMAT,
+        SUPERVISED_EXCHANGE_PATH,
+      } = await import('./expo-dev.mjs');
+      let supervisor;
+      try {
+        const metadata = lstatSync(supervisorFile);
+        if (!metadata.isFile() || metadata.isSymbolicLink() || (metadata.mode & 0o077) !== 0) {
+          throw new TypeError('Expo supervisor discovery descriptor is not owner-only');
+        }
+        supervisor = JSON.parse(readFileSync(supervisorFile, 'utf8'));
+        const exchange = new URL(supervisor?.exchangeOrigin);
+        const exchangeHost = exchange.hostname.toLowerCase().replace(/^\[|\]$/gu, '');
+        if (
+          supervisor?.formatVersion !== 1
+          || typeof supervisor?.exchangeOrigin !== 'string'
+          || supervisor.controlPath !== SUPERVISED_CONTROL_PATH
+          || exchange.protocol !== 'http:'
+          || exchange.origin !== supervisor.exchangeOrigin
+          || !(
+            exchangeHost === '::1'
+            || exchangeHost === 'localhost'
+            || exchangeHost.startsWith('127.')
+          )
+        ) throw new TypeError('invalid Expo supervisor discovery descriptor');
+      } catch (error) {
+        throw staleSupervisorError(error);
+      }
+      try {
+        const probe = await fetch(`${supervisor.exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}`, {
+          redirect: 'error',
+          signal: AbortSignal.timeout(1_500),
+        });
+        const payload = await probe.json();
+        if (
+          probe.status !== 200
+          || payload?.format !== SUPERVISED_EXCHANGE_FORMAT
+          || payload?.correlationId !== supervisor.correlationId
+        ) throw new TypeError('Expo supervisor discovery probe did not match the descriptor');
+      } catch (error) {
+        throw staleSupervisorError(error);
+      }
+      let operatorToken = managedAdminToken(
+        readReadyDescriptor(readyFile),
+        database,
+      );
+      let response;
+      try {
+        response = await fetch(`${supervisor.exchangeOrigin}${supervisor.controlPath}`, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-snapback-operator-token': operatorToken,
+          },
+          body: JSON.stringify({ verb: 'dev-fresh' }),
+          redirect: 'error',
+          signal: AbortSignal.timeout(120_000),
+        });
+      } catch (error) {
+        throw staleSupervisorError(error);
+      } finally {
+        operatorToken = null;
+      }
+      let report;
+      try {
+        report = await response.json();
+      } catch (cause) {
+        const error = diagnosticError(
+          'SNAPBACK_RESET_SUPERVISOR_RESPONSE_INVALID',
+          'the Expo supervisor control route did not return a JSON readiness report',
+          { status: response.status, descriptorFile: supervisorFile },
+        );
+        error.cause = cause;
+        throw error;
+      }
+      printResult(report, json);
+      return report?.ok === true ? 0 : 1;
+    }
+
+    if (existsSync(readyFile)) {
+      try {
+        const descriptor = validateDevTarget(readReadyDescriptor(readyFile), {
+          readyFile,
+          database,
+        });
+        await validateReadyDescriptorHealth(descriptor);
+        throw diagnosticError(
+          'SNAPBACK_RESET_DEV_LOOP_ACTIVE',
+          'a live dev loop owns this target; use its dev-fresh control verb, or stop it before rerunning',
+          {
+            readyFile,
+            recovery: {
+              tty: 'press f in the dev loop terminal',
+              json: '{"schemaVersion":"snapback.dev-command.v1","verb":"dev-fresh"}',
+              standalone: 'stop the dev loop and rerun snapback reset --dev-fresh',
+            },
+          },
+        );
+      } catch (error) {
+        if (error?.code === 'SNAPBACK_RESET_DEV_LOOP_ACTIVE') throw error;
+        // A descriptor naming a different database is another target's live
+        // discovery file, not stale residue of this one — refuse rather than
+        // deleting it out from under its owner.
+        if (error?.code === 'SNAPBACK_DEV_SERVER_TARGET_MISMATCH') throw error;
+        rmSync(readyFile, { force: true });
+      }
+    }
+
+    removeManagedDatabaseState(database, readyFile);
+    let dev = null;
+    let failedResult = null;
+    let report = null;
+    try {
+      dev = await runDev({
+        ...options,
+        backendDirectory: backendRoot,
+        projectRoot,
+        readyFile,
+        database,
+        watch: false,
+        serverStdio: ['ignore', 'ignore', 'ignore'],
+        onEvent(event) { console.log(JSON.stringify(event)); },
+      });
+      if (dev.ok === false) {
+        failedResult = dev;
+      } else {
+        const generatedRoot = join(backendRoot, 'generated');
+        const schemaManifest = JSON.parse(readFileSync(
+          resolveGeneratedArtifact(generatedRoot, 'schema.manifest.json'),
+          'utf8',
+        ));
+        const authMode = schemaManifest?.auth?.mode ?? 'dev';
+        if (authMode === 'sessions') {
+          const { mintSupervisedOrdinarySession } = await import('./expo-dev.mjs');
+          let operatorToken = managedAdminToken(readReadyDescriptor(readyFile), database);
+          let authority;
+          try {
+            authority = mintSupervisedOrdinarySession({
+              runtimeBinary: dev.runtime.binary,
+              readyFile,
+              email: email ?? 'snapback-dev@localhost.invalid',
+              operatorToken,
+              cwd: projectRoot,
+              env: options.env,
+            });
+          } finally {
+            operatorToken = null;
+          }
+          if (authority.status !== 'ready') {
+            const refusal = new Error(authority.diagnostic.message);
+            refusal.code = authority.diagnostic.code;
+            refusal.diagnostic = authority.diagnostic;
+            throw refusal;
+          }
+        }
+        const seedDeclared = existsSync(join(generatedRoot, 'seed.artifact.json'))
+          || existsSync(join(backendRoot, 'seed.json'));
+        report = {
+          schemaVersion: 'snapback.reset-dev-fresh.v1',
+          ok: true,
+          mode: 'standalone',
+          backend: backendRoot,
+          readyFile,
+          database: 'fresh',
+          seed: seedDeclared ? 'applied' : 'no-seed-declared',
+          authority: authMode === 'sessions' ? 'verified' : 'dev-mode',
+          server: 'stopped',
+        };
+      }
+    } finally {
+      dev?.close?.();
+      const child = dev?.child ?? null;
+      if (child && child.exitCode === null && child.signalCode === null) {
+        const deadline = Date.now() + 10_000;
+        while (child.exitCode === null && child.signalCode === null && Date.now() < deadline) {
+          await new Promise((resolveWait) => setTimeout(resolveWait, 50));
+        }
+        if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+      }
+      rmSync(readyFile, { force: true });
+    }
+    if (failedResult !== null) {
+      printResult(failedResult, json);
+      return 1;
+    }
+    printResult(report, json);
+    return 0;
   }
   if (command === 'accept') {
     const subcommand = args.shift();

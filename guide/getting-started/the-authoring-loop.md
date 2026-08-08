@@ -159,7 +159,9 @@ managed database, and watches source changes through one coalesced generation
 at a time. Later starts and watch reloads require the exact installed seed
 identity to match; they do not reset or restore user data. A changed
 `seedVersion` therefore reports `SNAPBACK_SEED_MIGRATION_REQUIRED` until you
-choose migration or an explicit destructive reset-install.
+choose migration or an explicit destructive reset-install. For the local dev
+destructive branch, `snapback reset --dev-fresh` is the one-shot path: fresh
+database, seed re-install, and sessions verification or supervised re-mint.
 
 The command infers `dev` versus `sessions` from the generated schema.
 Sessions-mode managed starts supply the complete closed schema/functions

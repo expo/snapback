@@ -178,6 +178,13 @@ it — mint personas *after* the install, and never seed captured principal ids
 - `SNAPBACK_CLIENT_SEED_PROTOCOL_UNSUPPORTED`: the selected target does not
   advertise the required protocol; there is no compatibility fallback.
 
+For the local dev loop, `snapback reset --dev-fresh` is the paved one-shot
+escape from this whole lifecycle cluster: it creates a fresh database,
+re-installs the versioned seed, and has a supervised Expo loop re-mint its
+ordinary session. Every individual refusal above remains unchanged for partial
+operations; the command composes the deterministic destructive path instead of
+weakening those guards.
+
 The local protocol is advertised as **experimental** while LLP 0109 remains in
 Review. The executable manifest is the advertisement gate: every required
 local row must pass, while hosted compiled-seed custody stays visibly GAP.

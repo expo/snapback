@@ -190,7 +190,7 @@ console.log(JSON.stringify({ event: 'client-listening', origin: 'http://127.0.0.
   clientPid = started.pid;
   const control = await stream.waitFor((event) => event.state === 'control-ready', { label: 'control-ready' });
   assert.equal(control.channel, 'json');
-  assert.deepEqual(control.verbs, ['status', 'reload', 'restart']);
+  assert.deepEqual(control.verbs, ['status', 'reload', 'restart', 'dev-fresh']);
 
   await eventually(async () => (await fetch(`${relay}/health`)).ok, {
     timeoutMs: 60_000,
@@ -320,7 +320,10 @@ console.log(JSON.stringify({ event: 'client-listening', origin: 'http://127.0.0.
     { from: mark, label: 'unknown-verb command-error' },
   );
   assert.equal(unknownVerb.diagnostics[0].code, 'SNAPBACK_DEV_COMMAND_UNKNOWN_VERB');
-  assert.deepEqual(unknownVerb.diagnostics[0].details.supported, ['status', 'reload', 'restart']);
+  assert.deepEqual(
+    unknownVerb.diagnostics[0].details.supported,
+    ['status', 'reload', 'restart', 'dev-fresh'],
+  );
   mark = stream.mark();
   dev.stdin.write('this is not json\n');
   const badJson = await stream.waitFor(

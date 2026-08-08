@@ -209,6 +209,10 @@ immediately:
   therefore never stable fixture values: a seeded row naming a pre-reset id
   points at an identity that no longer exists.
 
+Under the supervised Expo dev loop, `snapback reset --dev-fresh` performs the
+reset and supervisor re-mint as one command; standalone dev targets receive a
+verification mint before the command reports readiness.
+
 So do not seed membership or ownership rows with captured principal ids in
 sessions mode. Seed the *resources*, then have each authenticated persona
 join through the declared membership surface —

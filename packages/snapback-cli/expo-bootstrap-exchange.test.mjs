@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 
 import {
+  SUPERVISED_CONTROL_PATH,
   SUPERVISED_EXCHANGE_PATH,
   admittedBrowserExchangeOrigin,
   startBootstrapExchange,
@@ -95,6 +96,17 @@ try {
   });
   assert.equal(missingGet.status, 404);
   assert.equal(missingGet.headers.get('access-control-allow-origin'), browserOrigin);
+
+  const noHandlerControl = await fetch(`${exchange.origin}${SUPERVISED_CONTROL_PATH}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ verb: 'dev-fresh' }),
+  });
+  assert.equal(noHandlerControl.status, 404);
+  assert.deepEqual(await noHandlerControl.json(), {
+    ok: false,
+    code: 'SNAPBACK_EXPO_BOOTSTRAP_ROUTE_NOT_FOUND',
+  });
 
   const missingPreflight = await fetch(`${exchange.origin}/not-the-bootstrap`, {
     method: 'OPTIONS',

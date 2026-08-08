@@ -148,6 +148,7 @@ export interface PackagedCliCommandHelp {
   readonly output: string;
   readonly exits: string;
   readonly recovery: string;
+  readonly details?: readonly string[];
 }
 
 /** Data-only help metadata for one exact positional subcommand path. */
@@ -438,6 +439,8 @@ export type DevEventState =
   | 'server-exited'
   | 'server-restarted'
   | 'restart-failed'
+  | 'database-refreshed'
+  | 'dev-fresh-failed'
   | 'client-started'
   | 'client-output'
   | 'client-exited'
@@ -466,6 +469,7 @@ export type DevVerbs = {
   status(context?: DevVerbContext): Promise<DevEvent | null>;
   reload(context?: DevVerbContext): Promise<DevEvent | null>;
   restart(context?: DevVerbContext): Promise<DevEvent | null>;
+  'dev-fresh'(context?: DevVerbContext): Promise<DevEvent | null>;
 };
 
 export type DevClientArmSpec =

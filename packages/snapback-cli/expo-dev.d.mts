@@ -15,6 +15,7 @@ export function assessMetroWatchInertness(options?: Readonly<{
   env?: Readonly<Record<string, string | undefined>>;
   directory?: string | null;
 }>): readonly MetroWatchAdvisory[];
+export const SUPERVISED_CONTROL_PATH: '/_snapback/expo/v1/control';
 
 export type ExpoDevicePlatform = 'ios' | 'android';
 export type AndroidExpoTransport = 'adb-reverse' | 'emulator-host-alias';

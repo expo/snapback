@@ -74,6 +74,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'mcp-control.test.mjs',
       'package.test.mjs',
       'packaged-store-qualification.test.mjs',
+      'reset-dev-fresh.test.mjs',
       'sessions-dev-loop.test.mjs',
       'verify.test.mjs',
     ],
@@ -446,7 +447,8 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 235,
+  expectedTotal = 236,
+  expectedTotal = 236,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -725,6 +727,7 @@ export function checkPackageTestInventories(options = {}) {
 // 232 -> 233 (2026-08-06, LLP 0043 sessions-custody queue):
 // @expo/snapback-client gains the custody matrix, cold replay, recovery,
 // privacy deletion, and zerobugs regression suite.
+<<<<<<< HEAD
 // 233 -> 234 (2026-08-08, supervisor Metro watch-inertness advisory):
 // @expo/snapback-cli gains the pure CI/watcher-blind-root assessment suite
 // (issues/20260808-supervisor-warn-metro-watch-blind.md).
@@ -732,6 +735,11 @@ export function checkPackageTestInventories(options = {}) {
 // issues/20260807-client-root-export-createassetclient.md): @expo/snapback-client
 // gains the general declared-vs-runtime export parity check across every typed
 // export entry.
+=======
+// 233 -> 234 (2026-08-08, reset --dev-fresh): @expo/snapback-cli gains the
+// standalone/supervised deterministic reset, auth-boundary, delegation, and
+// lifecycle-refusal acceptance suite.
+>>>>>>> 9d2ffaa06 (feat(cli): snapback reset --dev-fresh — one-shot deterministic dev reset)
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

@@ -1,11 +1,13 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import {
+  chmodSync,
   existsSync,
   mkdtempSync,
   readFileSync,
   realpathSync,
   rmSync,
+  writeFileSync,
 } from 'node:fs';
 import { createServer as createHttpServer } from 'node:http';
 import { createServer as createNetServer } from 'node:net';
@@ -79,6 +81,7 @@ export function assessMetroWatchInertness({ env = process.env, directory = null 
   // (issues/20260808-supervisor-warn-metro-watch-blind.md).
   return Object.freeze(advisories);
 }
+export const SUPERVISED_CONTROL_PATH = '/_snapback/expo/v1/control';
 
 const LOOPBACK_HOST = '127.0.0.1';
 const BROWSER_EXCHANGE_ORIGIN_PREFIXES = Object.freeze([
@@ -91,6 +94,7 @@ const BROWSER_EXCHANGE_ORIGIN_PREFIXES = Object.freeze([
 ]);
 const DEFAULT_BINDING_TTL_MS = 60 * 60 * 1_000;
 const DEFAULT_EMAIL = 'snapback-dev@localhost.invalid';
+const CONTROL_BODY_LIMIT_BYTES = 4 * 1_024;
 
 export function admittedBrowserExchangeOrigin(originHeader) {
   if (typeof originHeader !== 'string') return null;
@@ -101,6 +105,21 @@ export function admittedBrowserExchangeOrigin(originHeader) {
 
 function delay(ms) {
   return new Promise((resolveDelay) => setTimeout(resolveDelay, ms));
+}
+
+function constantTimeTokenEqual(presented, expected) {
+  const presentedHash = createHash('sha256').update(
+    typeof presented === 'string' ? presented : '',
+  ).digest();
+  const expectedHash = createHash('sha256').update(
+    typeof expected === 'string' ? expected : '',
+  ).digest();
+  const hashesEqual = timingSafeEqual(presentedHash, expectedHash);
+  return typeof presented === 'string'
+    && presented.length > 0
+    && typeof expected === 'string'
+    && expected.length > 0
+    && hashesEqual;
 }
 
 function isLoopbackHost(host) {
@@ -874,9 +893,9 @@ async function waitForListenerInventory({
   );
 }
 
-export async function startBootstrapExchange(getPayload) {
+export async function startBootstrapExchange(getPayload, { onControl } = {}) {
   const sockets = new Set();
-  const server = createHttpServer((request, response) => {
+  const handleRequest = async (request, response) => {
     const admittedOrigin = admittedBrowserExchangeOrigin(request.headers.origin);
     response.setHeader('cache-control', 'no-store, max-age=0');
     response.setHeader('pragma', 'no-cache');
@@ -898,6 +917,54 @@ export async function startBootstrapExchange(getPayload) {
       response.end();
       return;
     }
+    if (request.method === 'POST' && request.url === SUPERVISED_CONTROL_PATH) {
+      if (typeof onControl !== 'function') {
+        response.statusCode = 404;
+        response.end(JSON.stringify({ ok: false, code: 'SNAPBACK_EXPO_BOOTSTRAP_ROUTE_NOT_FOUND' }));
+        return;
+      }
+      let body;
+      try {
+        const chunks = [];
+        let bytes = 0;
+        let oversized = false;
+        for await (const chunk of request) {
+          bytes += chunk.length;
+          if (bytes > CONTROL_BODY_LIMIT_BYTES) {
+            oversized = true;
+            continue;
+          }
+          chunks.push(chunk);
+        }
+        if (oversized) throw new SyntaxError('control request body exceeded the size limit');
+        body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+          throw new SyntaxError('control request body must be a JSON object');
+        }
+      } catch {
+        response.statusCode = 400;
+        response.end(JSON.stringify({
+          ok: false,
+          code: 'SNAPBACK_EXPO_CONTROL_BODY_INVALID',
+        }));
+        return;
+      }
+      try {
+        const result = await onControl({
+          operatorToken: request.headers['x-snapback-operator-token'],
+          body,
+        });
+        response.statusCode = result?.statusCode ?? 500;
+        response.end(JSON.stringify(result?.body ?? {
+          ok: false,
+          code: 'SNAPBACK_EXPO_CONTROL_FAILED',
+        }));
+      } catch {
+        response.statusCode = 500;
+        response.end(JSON.stringify({ ok: false, code: 'SNAPBACK_EXPO_CONTROL_FAILED' }));
+      }
+      return;
+    }
     if (request.method !== 'GET' || request.url !== SUPERVISED_EXCHANGE_PATH) {
       response.statusCode = 404;
       response.end(JSON.stringify({ ok: false, code: 'SNAPBACK_EXPO_BOOTSTRAP_ROUTE_NOT_FOUND' }));
@@ -911,6 +978,13 @@ export async function startBootstrapExchange(getPayload) {
     }
     response.statusCode = 200;
     response.end(JSON.stringify(payload));
+  };
+  const server = createHttpServer((request, response) => {
+    void handleRequest(request, response).catch(() => {
+      if (response.writableEnded) return;
+      response.statusCode = 500;
+      response.end(JSON.stringify({ ok: false, code: 'SNAPBACK_EXPO_BOOTSTRAP_UNAVAILABLE' }));
+    });
   });
   server.on('connection', (socket) => {
     sockets.add(socket);
@@ -1112,6 +1186,7 @@ function resolveExpoDeviceSelection(options) {
 export async function runExpoDev(options = {}) {
   const correlationId = options.correlationId ?? `snapback-expo-${randomUUID()}`;
   const generation = options.supervisorGeneration ?? `supervisor-${randomUUID()}`;
+  const startedAt = new Date().toISOString();
   const backendRoot = resolve(options.backendDirectory ?? 'snapback');
   const projectRoot = resolve(options.projectRoot ?? dirname(backendRoot));
   const database = resolve(options.database ?? join(projectRoot, '.snapback', 'dev.sqlite3'));
@@ -1140,6 +1215,7 @@ export async function runExpoDev(options = {}) {
   let closed = false;
   let closePromise = null;
   let closeSupervisor = null;
+  let supervisorDescriptorFile = null;
   try {
     const selectedDevice = resolveExpoDeviceSelection(options);
     emit({
@@ -1175,7 +1251,7 @@ export async function runExpoDev(options = {}) {
       },
     });
     if (dev.ok === false) return dev;
-    const backendRoute = portFromOrigin(dev.serverUrl, 'Snapback backend');
+    let backendRoute = portFromOrigin(dev.serverUrl, 'Snapback backend');
     if (!isLoopbackHost(backendRoute.host)) {
       throw diagnosticError(
         'SNAPBACK_EXPO_LISTENER_EXPOSED',
@@ -1184,19 +1260,36 @@ export async function runExpoDev(options = {}) {
       );
     }
     const appDescriptorPath = join(backendRoot, 'generated', 'app.descriptor.json');
-    const descriptor = JSON.parse(readFileSync(appDescriptorPath, 'utf8'));
+    let descriptor = JSON.parse(readFileSync(appDescriptorPath, 'utf8'));
     const readyDescriptor = readReadyDescriptor(dev.readyFile);
-    let operatorToken = managedAdminToken(readyDescriptor, database);
-    authority = mintSupervisedOrdinarySession({
-      runtimeBinary: dev.runtime.binary,
-      readyFile: dev.readyFile,
-      email: options.email ?? DEFAULT_EMAIL,
-      operatorToken,
-      cwd: projectRoot,
-      env: options.env,
-    });
-    operatorToken = null;
+    const mintAndSwapAuthority = (email, { emitReplacement = true } = {}) => {
+      let operatorToken = managedAdminToken(readReadyDescriptor(dev.readyFile), database);
+      try {
+        authority = mintSupervisedOrdinarySession({
+          runtimeBinary: dev.runtime.binary,
+          readyFile: dev.readyFile,
+          email,
+          operatorToken,
+          cwd: projectRoot,
+          env: options.env,
+        });
+      } finally {
+        operatorToken = null;
+      }
+      if (emitReplacement) {
+        emit({
+          ok: authority.status === 'ready',
+          state: authority.status === 'ready' ? 'authority-replaced' : 'authority-required',
+          authority: authority.status === 'ready'
+            ? { status: 'ready', kind: 'session', authMode: 'sessions' }
+            : authority,
+        });
+      }
+      return authority.status;
+    };
+    mintAndSwapAuthority(options.email ?? DEFAULT_EMAIL, { emitReplacement: false });
     const metroPort = options.metroPort ?? await freeLoopbackPort();
+    let route = null;
     bootstrap = await startBootstrapExchange(() => (
       binding === null || authority === null
         ? null
@@ -1206,8 +1299,138 @@ export async function runExpoDev(options = {}) {
             binding,
             authority,
           })
-    ));
-    const route = createExpoRoutingPlan({
+    ), {
+      onControl: async ({ operatorToken, body }) => {
+        let expectedOperatorToken = null;
+        try {
+          expectedOperatorToken = managedAdminToken(
+            readReadyDescriptor(dev.readyFile),
+            database,
+          );
+          // @ref LLP 0181#provider — the operator capability remains
+          // supervisor-held; the control route authenticates it without ever
+          // projecting either it or the ordinary replacement bearer.
+          if (!constantTimeTokenEqual(operatorToken, expectedOperatorToken)) {
+            return {
+              statusCode: 401,
+              body: { ok: false, code: 'SNAPBACK_EXPO_CONTROL_UNAUTHORIZED' },
+            };
+          }
+        } finally {
+          expectedOperatorToken = null;
+        }
+        if (body?.verb !== 'dev-fresh') {
+          return {
+            statusCode: 400,
+            body: {
+              ok: false,
+              code: 'SNAPBACK_EXPO_CONTROL_VERB_UNKNOWN',
+              supported: ['dev-fresh'],
+            },
+          };
+        }
+        const requestId = typeof body.requestId === 'string' ? body.requestId : undefined;
+        const event = await dev.verbs['dev-fresh']({ requestId });
+        if (event?.ok !== true) {
+          return {
+            statusCode: 200,
+            body: {
+              schemaVersion: 'snapback.reset-dev-fresh.v1',
+              ok: false,
+              mode: 'supervised',
+              diagnostics: event?.diagnostics ?? [{
+                code: 'SNAPBACK_DEV_FRESH_FAILED',
+                severity: 'error',
+                subsystem: 'cli',
+                message: 'the managed dev-fresh operation did not complete',
+              }],
+              ...(requestId === undefined ? {} : { requestId }),
+            },
+          };
+        }
+
+        try {
+          const refreshedReady = readReadyDescriptor(dev.readyFile);
+          backendRoute = portFromOrigin(refreshedReady.serverUrl, 'Snapback backend');
+          if (!isLoopbackHost(backendRoute.host)) {
+            throw diagnosticError(
+              'SNAPBACK_EXPO_LISTENER_EXPOSED',
+              'the refreshed supervised backend is not loopback-bound',
+            );
+          }
+          descriptor = JSON.parse(readFileSync(appDescriptorPath, 'utf8'));
+          route = createExpoRoutingPlan({
+            platform: options.platform ?? 'ios',
+            backendPort: backendRoute.port,
+            metroPort,
+            bootstrapPort: bootstrap.port,
+            androidTransport: options.androidTransport ?? 'adb-reverse',
+            androidSerial: selectedDevice.serial,
+            androidDeviceClass: selectedDevice.class,
+          });
+          binding = bindingFromDescriptor({
+            descriptor,
+            origin: appOrigin(route.appHost, backendRoute.port),
+            routing: route.bindingRouting,
+            generation,
+            now: options.now?.() ?? Date.now(),
+            ttlMs: options.bindingTtlMs ?? DEFAULT_BINDING_TTL_MS,
+          });
+          forwarding?.remove?.();
+          forwarding = installAndroidPortForwarding(route, {
+            adbBinary: options.adbBinary,
+            run: options.adbRun,
+            env: options.env,
+          });
+          listeners = await waitForListenerInventory({
+            backendPid: refreshedReady.pid,
+            metroPid: metro.child.pid,
+            metroProcess: metro.child,
+            expected: [
+              { owner: 'backend', port: backendRoute.port },
+              { owner: 'metro', port: metroPort },
+              { owner: 'bootstrap', port: bootstrap.port },
+            ],
+            timeoutMs: options.metroReadyTimeoutMs ?? 30_000,
+          });
+          emit({ ok: true, state: 'listeners-verified', listeners });
+          mintAndSwapAuthority(options.email ?? DEFAULT_EMAIL);
+          return {
+            statusCode: 200,
+            body: {
+              schemaVersion: 'snapback.reset-dev-fresh.v1',
+              ok: true,
+              mode: 'supervised',
+              correlationId,
+              database: 'fresh',
+              seed: 'applied',
+              authority: {
+                status: authority.status,
+                authMode: 'sessions',
+              },
+              backend: { origin: backendRoute.origin },
+              ...(requestId === undefined ? {} : { requestId }),
+            },
+          };
+        } catch (error) {
+          return {
+            statusCode: 200,
+            body: {
+              schemaVersion: 'snapback.reset-dev-fresh.v1',
+              ok: false,
+              mode: 'supervised',
+              diagnostics: [error?.diagnostic ?? clientDiagnostic(
+                error,
+                'SNAPBACK_EXPO_CONTROL_FAILED',
+                'the supervised dev-fresh refresh did not complete',
+              )],
+              ...(requestId === undefined ? {} : { requestId }),
+            },
+          };
+        }
+      },
+    });
+    route = createExpoRoutingPlan({
       platform: options.platform ?? 'ios',
       backendPort: backendRoute.port,
       metroPort,
@@ -1295,12 +1518,28 @@ export async function runExpoDev(options = {}) {
       bootstrap: { origin: appOrigin(route.appHost, bootstrap.port) },
       adminConsoleCommand: `snapback admin --ready-file ${JSON.stringify(dev.readyFile)}`,
     });
+    supervisorDescriptorFile = join(dirname(dev.readyFile), 'expo-supervisor.json');
+    writeFileSync(supervisorDescriptorFile, `${JSON.stringify({
+      formatVersion: 1,
+      correlationId,
+      supervisorGeneration: generation,
+      pid: process.pid,
+      exchangeOrigin: bootstrap.origin,
+      controlPath: SUPERVISED_CONTROL_PATH,
+      startedAt,
+    }, null, 2)}\n`, { mode: 0o600 });
+    chmodSync(supervisorDescriptorFile, 0o600);
 
     const close = () => {
       if (closePromise !== null) return closePromise;
       closePromise = (async () => {
         closed = true;
         const failures = [];
+        try {
+          if (supervisorDescriptorFile !== null) {
+            rmSync(supervisorDescriptorFile, { force: true });
+          }
+        } catch (error) { failures.push(error); }
         try { forwarding?.remove?.(); } catch (error) { failures.push(error); }
         try { await stopProcessGroup(metro?.child); } catch (error) { failures.push(error); }
         try { await bootstrap?.close?.(); } catch (error) { failures.push(error); }
@@ -1324,40 +1563,22 @@ export async function runExpoDev(options = {}) {
     return Object.freeze({
       schemaVersion: EXPO_DEV_EVENT_FORMAT,
       ok: true,
-      state: finalState,
+      get state() {
+        return authority?.status === 'ready' ? 'ready' : 'authority-required';
+      },
       correlationId,
       supervisorGeneration: generation,
       device: route.device,
-      binding: publicBinding(binding),
+      get binding() { return publicBinding(binding); },
       exchangeOrigin: bootstrap.origin,
       metroOrigin: `http://${LOOPBACK_HOST}:${metroPort}`,
-      listeners,
+      get listeners() { return listeners; },
       verbs: dev.verbs,
       async replaceAuthority(email) {
         if (closed) {
           throw diagnosticError('SNAPBACK_EXPO_SUPERVISOR_CLOSED', 'the Expo supervisor is closed');
         }
-        let replacementOperatorToken = managedAdminToken(
-          readReadyDescriptor(dev.readyFile),
-          database,
-        );
-        authority = mintSupervisedOrdinarySession({
-          runtimeBinary: dev.runtime.binary,
-          readyFile: dev.readyFile,
-          email,
-          operatorToken: replacementOperatorToken,
-          cwd: projectRoot,
-          env: options.env,
-        });
-        replacementOperatorToken = null;
-        emit({
-          ok: authority.status === 'ready',
-          state: authority.status === 'ready' ? 'authority-replaced' : 'authority-required',
-          authority: authority.status === 'ready'
-            ? { status: 'ready', kind: 'session', authMode: 'sessions' }
-            : authority,
-        });
-        return authority.status;
+        return mintAndSwapAuthority(email);
       },
       inspection() {
         return Object.freeze({
@@ -1383,6 +1604,11 @@ export async function runExpoDev(options = {}) {
     });
   } catch (error) {
     closed = true;
+    try {
+      if (supervisorDescriptorFile !== null) {
+        rmSync(supervisorDescriptorFile, { force: true });
+      }
+    } catch { /* original startup refusal wins */ }
     try { forwarding?.remove?.(); } catch { /* original startup refusal wins */ }
     try { await stopProcessGroup(metro?.child); } catch { /* original startup refusal wins */ }
     try { await bootstrap?.close?.(); } catch { /* original startup refusal wins */ }

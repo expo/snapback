@@ -1775,13 +1775,14 @@ exit 0
   assert.equal(commands.filter((line) => line.startsWith('reset ')).length, 1);
 
   // The interactive dev control channel: a TTY stdin gets single-key verbs
-  // (s/r/R/q) instead of the JSON command channel, over the same verb slice.
+  // (s/r/R/f/q) instead of the JSON command channel, over the same verb slice.
   {
     const invoked = [];
     const verbs = {
       status: async (context) => invoked.push(['status', context]),
       reload: async (context) => invoked.push(['reload', context]),
       restart: async (context) => invoked.push(['restart', context]),
+      'dev-fresh': async (context) => invoked.push(['dev-fresh', context]),
     };
     let stopped = 0;
     let rawMode = null;
@@ -1798,10 +1799,14 @@ exit 0
     tty.emit('data', 's');
     tty.emit('data', 'r');
     tty.emit('data', 'R');
+    tty.emit('data', 'f');
     tty.emit('data', 'x');
     tty.emit('data', 'q');
     await new Promise((resolveTick) => setImmediate(resolveTick));
-    assert.deepEqual(invoked.map(([verb]) => verb), ['status', 'reload', 'restart']);
+    assert.deepEqual(
+      invoked.map(([verb]) => verb),
+      ['status', 'reload', 'restart', 'dev-fresh'],
+    );
     assert.equal(stopped, 1);
     detach();
     assert.equal(rawMode, false);
@@ -1816,6 +1821,7 @@ exit 0
       status: async (context) => invoked.push(['status', context]),
       reload: async (context) => invoked.push(['reload', context]),
       restart: async (context) => invoked.push(['restart', context]),
+      'dev-fresh': async (context) => invoked.push(['dev-fresh', context]),
     };
     let stopped = 0;
     const stdin = new PassThrough();
@@ -1827,6 +1833,7 @@ exit 0
     });
     assert.equal(events[0].state, 'control-ready');
     assert.equal(events[0].channel, 'json');
+    assert.deepEqual(events[0].verbs, ['status', 'reload', 'restart', 'dev-fresh']);
     stdin.write('not json\n');
     stdin.write(`${JSON.stringify({ schemaVersion: 'snapback.dev-command.v1', verb: 'status', requestId: 'u-1' })}\n`);
     stdin.write(`${JSON.stringify({ schemaVersion: 'wrong.schema', verb: 'status' })}\n`);
