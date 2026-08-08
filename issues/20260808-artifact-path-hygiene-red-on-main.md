@@ -1,0 +1,54 @@
+# Checked-in production artifacts embed absolute checkout paths; artifact hygiene is red
+
+**Opened:** 2026-08-08 · **Severity:** P1 (publication integrity / privacy) · **Area:** generated demo distributions
+
+## What
+
+The pinned-toolchain canonical check fails on five committed surface trees:
+
+```text
+$ node scripts/check-artifact-path-hygiene.mjs
+[artifact-path-hygiene] FAIL: 5 surface dist tree(s) embed absolute checkout paths
+```
+
+Affected surfaces include:
+
+- `demos/partiful-matrix/surfaces/contract/dist/` — embedded
+  `/private/tmp/snapback-attribution-repro-20260726...` source paths in HTML
+  and attribution JSON;
+- `demos/partiful-matrix/surfaces/react/dist/` and
+  `demos/partiful-matrix/surfaces/vanilla/dist/` — the same retained temporary
+  checkout identity;
+- `demos/todo/surfaces/contract/dist/web/` and
+  `demos/todo-v2/surfaces/contract/dist/web/` — embedded
+  `/Users/ccheever/projects/snapback/...` source/provenance paths.
+
+These are present in committed `HEAD`, not introduced by the review's working
+tree. The paired fixture `node tests/artifact_path_hygiene_v0.mjs` fails too.
+The canonical complete proof therefore has a real root failure independent of
+the local Node-version mismatch seen in the first proof attempt.
+
+Absolute source paths disclose builder-local identities and make production
+artifacts location-dependent. More importantly, this is a frozen publication
+gate that has gone red again after its previous closure.
+
+## Fix
+
+Rebuild the affected distributions with the portable-artifact toolchain and
+verify that provenance is repository-relative or deliberately redacted. Do not
+hand-edit minified artifacts. Trace which landing regenerated these surfaces
+without running the hygiene gate, and add/repair the affected-scope selection
+so any committed `dist/` leaf selects both the checker and its fixture.
+
+## Acceptance
+
+- `node scripts/check-artifact-path-hygiene.mjs` passes across every inventoried
+  production distribution.
+- `node tests/artifact_path_hygiene_v0.mjs` passes.
+- The affected selector has a regression proving a changed generated
+  distribution cannot land without the hygiene gate.
+
+## Confidence
+
+High. Both the production checker and its fixture reproduce under pinned Node
+24, and the offending bytes are in clean committed files.

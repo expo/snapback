@@ -1,0 +1,45 @@
+# Integration coverage gaps: JS wire-fixture conformance, fork/branch promotion black-box, push delivery
+
+**Opened:** 2026-08-08 · **Severity:** P2 (risk-weighted coverage holes on data-integrity paths) · **Area:** tests / cross-arm conformance
+
+Three areas whose product risk is high relative to their current black-box test
+presence.
+
+## A) No JS consumer of the shared wire-fixture corpus
+
+`schemas/live.wire-fixtures.v1.json` is replayed by Rust and Swift
+(`clients/swift/.../FixtureConformanceTests.swift:160`) but **not** by any JS
+package — `rg "live.wire-fixtures" packages/ cloudflare/` is empty. The JS
+client's wire correctness rests on its own unit suite, not the cross-arm corpus
+LLP 0095 designed; a coordinator/kit frame that diverges from the schema (see
+the pong `serverTimeMs` ticket) isn't caught cross-arm. *Ask:* add a JS replay
+harness of the same corpus — a test-only change with outsized drift-protection
+value.
+
+## B) In-app fork/branch promotion has zero black-box coverage
+
+`src/fork_promotion.rs` (9,322 lines) has 37 in-file unit tests but **zero**
+references from `tests/` (`rg "fork_promotion|promote_branch|promotable|
+OverlayWrite" tests/*.rs` is empty). Promotion-by-re-execution inside a hidden
+canonical transaction is precisely the data-integrity path that needs black-box
+coverage through the server/CLI surface. *Ask:* one integration binary that
+drives a promotion end-to-end and asserts the boundary digest / effect
+settlement.
+
+## C) Push delivery state machine has no integration exercise
+
+`src/push.rs` (5,649 lines) + `src/push/fake_expo.rs` have 19 unit tests; the
+fake provider is referenced only from `src/push.rs` itself. No integration/
+acceptance test exercises queueing, retry, or provider-error paths. Thin-layer
+by design (LLP 0000), but the delivery state machine is nontrivial. *Ask:* an
+acceptance script driving enqueue → fake-provider error → retry → settle.
+
+## Also noted (lower priority)
+
+Error tracking (`error_tracking.rs` + `errors_query.rs`, ~3.4k lines) has 13
+unit tests and no `tests/` presence; the query surface is user-facing.
+
+## Confidence
+
+High — these are measured absences (grep-verified), not judgment calls. Severity
+is risk-weighted, not defect-driven.

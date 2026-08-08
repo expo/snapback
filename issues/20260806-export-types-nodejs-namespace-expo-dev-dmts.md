@@ -1,4 +1,4 @@
-# check-package-export-types global fixture red: `NodeJS` namespace unresolved in `expo-dev.d.mts`
+# `check-package-export-types` is red: public runtime exports are missing declarations
 
 **Status:** Open
 **Filed:** 2026-08-06
@@ -47,3 +47,28 @@ intentional. Whoever owns the LLP 0181/0176 CLI surface should choose.
 
 `node scripts/check-package-export-types.mjs` passes its global consumer
 fixture with no `TS2503 Cannot find namespace 'NodeJS'` error.
+
+## Re-triage — 2026-08-08
+
+The original `NodeJS.ProcessEnv` failure is no longer the active failure: the
+checker compiles 95 subpaths successfully. The same canonical gate remains red
+on runtime-vs-declaration parity:
+
+```text
+@expo/snapback-cli ./expo-dev
+  runtime exports missing from the declaration:
+  admittedBrowserExchangeOrigin, startBootstrapExchange
+
+@expo/snapback-client .
+  runtime exports missing from the declaration:
+  rqsRetentionIneligibilityReason
+```
+
+These symbols are present in the shipped runtime entry points but absent from
+their `.d.mts` surfaces, so JavaScript consumers can call APIs TypeScript
+consumers cannot name. Keep this ticket open, but treat the old ambient-Node
+description as history rather than the current repair target.
+
+Revised acceptance: `node scripts/check-package-export-types.mjs` passes both
+consumer compilation and declared-vs-runtime export parity for all 95 public
+subpaths.
