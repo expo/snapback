@@ -4,8 +4,8 @@ id: backend.mutations
 order: 2
 audience: agent-first
 capabilities: [backend.query-semantics]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0174-authoring-incidents-at-security-fences.research.md, src/server.rs, src/runtime.rs, src/result_contract.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/refusal-tracking-authoring.test.mjs, tests/conformance/twin-corpus.handlers.js, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
-examples: [demos/todo, demos/todo-v2, demos/signal-desk]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0174-authoring-incidents-at-security-fences.research.md, src/server.rs, src/runtime.rs, src/result_contract.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/refusal-tracking-authoring.test.mjs, tests/conformance/twin-corpus.handlers.js, demos/messaging-snapback/snapback/functions.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
+examples: [demos/todo, demos/todo-v2, demos/messaging-snapback, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
@@ -126,6 +126,50 @@ with `authorityCreating: true`. Authors may explicitly mark an opaque mutation
 conservatively, but cannot clear a derived marker. Under the partial local
 agent-auth slice this requires grant consent at admission, and the host still
 enforces the exact permission-backing write dynamically.
+
+## Read and delete through `ctx.db`
+
+The mutation context exposes the same bounded query builder used by JS
+queries. Start with `query(table)`, select a declared index with
+`withIndex(indexName)`, and add one `eq(field, value)` per equality-bound index
+field. `take(limit)` supplies the explicit row ceiling; `collect()` is the
+terminal that executes the builder and returns the bounded array:
+
+```js source=demos/messaging-snapback/snapback/functions.mjs fragment="bounded indexed collection inside startDirectMessage"
+    const mine = await ctx.db
+      .query('conversationMembers')
+      .withIndex('by_user')
+      .eq('userHandle', args.selfHandle)
+      .take(500)
+      .collect();
+```
+
+Do not omit the bound merely because the query uses an index: index selection
+limits *which* rows qualify, while `take` limits how many qualifying rows the
+handler can materialize. Chain compound-index equalities in declared index
+field order.
+
+`delete(table, id)` buffers deletion of one row in the mutation's atomic write
+set. A common toggle shape reads the indexed row first, then deletes by its
+server-owned `_id`:
+
+```js source=demos/messaging-snapback/snapback/functions.mjs fragment="indexed lookup and delete inside toggleReaction"
+    const existing = await ctx.db
+      .query('reactions')
+      .withIndex('by_message_user_emoji')
+      .eq('messageId', args.messageId)
+      .eq('userHandle', args.userHandle)
+      .eq('emoji', args.emoji)
+      .first();
+    if (existing) {
+      await ctx.db.delete('reactions', existing._id);
+      return { reacted: false };
+    }
+```
+
+Here `first()` is the single-row terminal; use `take(...).collect()` when the
+handler genuinely needs a bounded list. `delete` remains buffered until the
+mutation commits, so a later refusal or conflict removes nothing.
 
 ## Consume the structured result
 

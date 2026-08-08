@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "316d1cc1b1b9b6bab0b6890003873458bf19b105"
+    "commit": "b5a1a7d6a96e255fc4978bcb1c5aa415cdb30c93"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -1130,22 +1130,34 @@
         "packages/snapback-harness/ctx-bootstrap.js",
         "packages/snapback-codegen/refusal-tracking-authoring.test.mjs",
         "tests/conformance/twin-corpus.handlers.js",
+        "demos/messaging-snapback/snapback/functions.mjs",
         "demos/signal-desk/snapback/functions.mjs",
         "demos/todo/tests/acceptance/headless.mjs"
       ],
       "examples": [
         "demos/todo",
         "demos/todo-v2",
+        "demos/messaging-snapback",
         "demos/signal-desk"
       ],
       "reviewed": "2026-08-08",
       "reviewedCommit": "effa2773760fd0d740c49f06990b3fde5e82a66b",
-      "sha256": "cc03e84659324ad9c75c6f11a0b79485b445ab1b9216ada478dcfbe4d585e655",
+      "sha256": "05b698afa302773e2e2694c6367b286ac59f484b51b8eec1140837885da7650c",
       "snippets": [
         {
           "lang": "js",
           "class": "transcluded",
           "source": "demos/signal-desk/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/messaging-snapback/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/messaging-snapback/snapback/functions.mjs"
         },
         {
           "lang": "js",
@@ -3384,7 +3396,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedCommit": "effa2773760fd0d740c49f06990b3fde5e82a66b",
-      "sha256": "3655a7943f2ada3024e8ef196197c6285a1fd750775c078f06cafb73cd203d95",
+      "sha256": "43da3dc1463c99686edcae7e2fdd805d210db6fa48e2e2bd1222e3b55769445d",
       "snippets": []
     },
     "meta.surface-map": {
@@ -3780,5 +3792,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "35d277d23485ce74c4b20c807381a05a7b96f510429a67599f7c1c1cb0836c95"
+  "contentHash": "e60edd08c5d1ff7823c46e1d84ade8c1a589bb6eda2defc36e6333e21d100e28"
 }

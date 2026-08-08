@@ -232,6 +232,17 @@ store copy, and nothing in the guide named the sibling.
     Route terms: "backup", "copy database", "clone database",
     "auth-keyring.json", "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE".
 
+Case 22 absorbs the replicated mutation-authoring miss recorded in
+`issues/20260808-ctx-db-verbs-undocumented.md`.
+
+22. **Mutation database verbs:** "Inside a JS mutation, query a declared
+    index, collect at most 500 rows, and delete one matched row." The run fails
+    if the plan invents raw SQL, scans without a bound, or cannot name the
+    `query` → `withIndex` → `eq` → `take` → `collect` builder chain and the
+    `ctx.db.delete(table, id)` write.
+    Expected pages: `backend/mutations.md`.
+    Route terms: "ctx.db", "withIndex", "bounded collection", "delete row".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:
