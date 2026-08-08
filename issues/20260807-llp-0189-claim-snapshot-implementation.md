@@ -111,12 +111,12 @@ round-1 fix branch:
   `DERIVED_FORK_IMPLEMENTATION_SCOPE` before the receipt can select digest,
   snapshot, review, or evidence behavior. The v3 named-author acceptance
   contract carries and exactly matches that scope too.
-- `scripts/local-proof-selection-policy.v1.json` is now part of the canonical
-  scope. Transfer validation accepts only the four exact reviewed registry
-  entries, verifies their committed record paths exist, requires trigger rules
-  (not record prose) to cover each transferred leaf, and pins each registered
-  regeneration command. Post-C deletion/remapping/command-tamper fixtures all
-  invalidate the claim.
+- The round-1 repair put `scripts/local-proof-selection-policy.v1.json` in the
+  canonical scope. Transfer validation accepts only the four exact reviewed
+  registry entries, verifies their committed record paths exist, requires
+  trigger rules (not record prose) to cover each transferred leaf, and pins
+  each registered regeneration command. Post-C
+  deletion/remapping/command-tamper fixtures all invalidate the claim.
 
 The fresh named-author acceptance must also state Fable F3's residual v2→v3
 departing class: `packages/snapback-codegen/`,
@@ -134,3 +134,28 @@ winner; the same identity succeeds idempotently, while a different identity
 returns `SNAPBACK_FORK_APP_BINDING_MISMATCH` before mint or launch. Deterministic
 two-party barrier tests cover both outcomes, the original 32-writer regression
 still passes, and the complete `instance_fork::` library filter passes 52/52.
+
+## 2026-08-07 selection-policy custody refinement
+
+The round-1 Codex finding 2 explicitly sanctioned either scope membership or
+an exact content pin read from qualification C. The first repair chose scope
+membership, but routine fleet-selector registrations immediately demonstrated
+that this would rotate the derived-fork qualification digest for wave-shared
+policy evolution. This refinement takes the sanctioned content-pin branch and
+supersedes only the second round-1 bullet above.
+
+`scripts/local-proof-selection-policy.v1.json` is no longer in
+`DERIVED_FORK_IMPLEMENTATION_SCOPE`. The v3 receipt and v3 named-author
+acceptance instead carry `selectionPolicySha256`, the SHA-256 of the exact
+policy bytes committed at C. Transfer validation reads those bytes through
+Git at `C:path`, requires the receipt pin to match, parses that frozen policy,
+and verifies its admitted gate record paths in C's tree. The acceptance pin
+must exactly match the receipt pin.
+
+Consequently, later working-tree or committed policy evolution is visible as
+out-of-scope drift and does not rotate or invalidate the claim; it also cannot
+change the transfer result already validated for C. Synthetic fixtures make
+the live policy deliberately disagree with C, prove the claim still stands on
+the C-bound transfer result, and refuse receipt/C or acceptance/receipt digest
+mismatches. Both live anchors remain `withheld`, and no historical publication,
+review, receipt, carrier, or acceptance artifact is changed.

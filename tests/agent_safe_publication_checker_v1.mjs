@@ -338,6 +338,8 @@ const historicalDerivedEvidence = [
 ];
 
 const DERIVED_FIXTURE_DATE = '2026-08-07';
+const DERIVED_FORK_SELECTION_POLICY_PATH =
+  'scripts/local-proof-selection-policy.v1.json';
 
 function currentDerivedEvidence({
   platformDate = DERIVED_FIXTURE_DATE,
@@ -359,6 +361,10 @@ const derivedEvidence = currentDerivedEvidence();
 
 function digest(bytes) {
   return `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
+}
+
+function committedDigestAt(rootPath, commit, path) {
+  return digest(execFileSync('git', ['show', `${commit}:${path}`], { cwd: rootPath }));
 }
 
 function legacyImplementationDigestV1At(rootPath, commit) {
@@ -631,6 +637,14 @@ function publishedDerivedFixture({
     mkdirSync(dirname(join(scratch, path)), { recursive: true });
     writeFileSync(join(scratch, path), readFileSync(join(root, path)));
   }
+  const qualificationContextPaths = [
+    DERIVED_FORK_SELECTION_POLICY_PATH,
+    ...DERIVED_FORK_COVERAGE_TRANSFERS.map(({ path }) => path),
+  ];
+  for (const path of qualificationContextPaths) {
+    mkdirSync(dirname(join(scratch, path)), { recursive: true });
+    writeFileSync(join(scratch, path), readFileSync(join(root, path)));
+  }
   const preexistingDatedEvidencePath = fixtureEvidence.find(
     ([kind]) => kind === preexistingDatedEvidenceKind,
   )?.[1];
@@ -641,6 +655,7 @@ function publishedDerivedFixture({
   execFileSync('git', [
     'add', 'src/qualification-marker.txt',
     ...DERIVED_FORK_IMPLEMENTATION_SCOPE.files.filter((path) => path !== 'vendor/ibex'),
+    ...qualificationContextPaths,
     ...(preexistingDatedEvidencePath === undefined ? [] : [preexistingDatedEvidencePath]),
   ], { cwd: scratch });
   const ibexGitlink = execFileSync('git', ['rev-parse', 'HEAD:vendor/ibex'], {
@@ -665,6 +680,11 @@ function publishedDerivedFixture({
   }).trim();
   const implementationScope = structuredClone(DERIVED_FORK_IMPLEMENTATION_SCOPE);
   const implementationTree = implementationDigestAt(scratch, commit, implementationScope);
+  const selectionPolicySha256 = committedDigestAt(
+    scratch,
+    commit,
+    DERIVED_FORK_SELECTION_POLICY_PATH,
+  );
 
   const bindings = [];
   const reviewBytes = new Map();
@@ -748,6 +768,7 @@ function publishedDerivedFixture({
     implementationTreeSha256: implementationTree,
     candidateFactsSha256,
     implementationScope: structuredClone(implementationScope),
+    selectionPolicySha256,
     residualV2DepartingClass: {
       schemaVersion: 'snapback.derived-fork-residual-v2-departing-class.v1',
       departingRoots: [
@@ -783,6 +804,7 @@ function publishedDerivedFixture({
     qualifiedSourceCommit: commit,
     implementationDigestVersion: SCOPED_IMPLEMENTATION_DIGEST_VERSION,
     implementationScope,
+    selectionPolicySha256,
     implementationTreeSha256: implementationTree,
     candidateFactsSha256,
     qualifiedTargetProfileId: 'local-dev-sqlite-ibex',
@@ -919,6 +941,13 @@ const derivedScopeOmissionCases = [
     (scope) => { scope.files = scope.files.filter((candidate) => candidate !== path); },
   ]),
   [
+    'content-pinned selection policy redundantly scoped',
+    (scope) => {
+      scope.files.push(DERIVED_FORK_SELECTION_POLICY_PATH);
+      scope.files.sort();
+    },
+  ],
+  [
     'otherwise valid nonempty substitute',
     (scope) => {
       scope.roots = [];
@@ -1048,7 +1077,7 @@ test('publication-chain JSON has one canonical parser boundary and no legacy evi
   assert.equal(parseSites.length, 5, `unexpected bare JSON.parse site:\n${parseSites.join('\n')}`);
   assert.ok(parseSites.some((line) => line.includes('value = JSON.parse(text)')));
   assert.ok(parseSites.some((line) => line.includes('const schema = JSON.parse(')));
-  assert.ok(parseSites.some((line) => line.includes('const policy = JSON.parse(')));
+  assert.ok(parseSites.some((line) => line.includes('policy = JSON.parse(')));
 });
 
 test('published derived-fork chain accepts final READY after historical NOT READY verdicts', () => {
@@ -1885,11 +1914,19 @@ test('v3 binds the reviewed scope even when two scopes select the same leaves', 
 
 test('coverage transfer refuses any departing leaf without a registered frozen-record gate', () => {
   const policy = JSON.parse(readFileSync(
-    join(root, 'scripts/local-proof-selection-policy.v1.json'),
+    join(root, DERIVED_FORK_SELECTION_POLICY_PATH),
     'utf8',
   ));
   const departingPaths = DERIVED_FORK_COVERAGE_TRANSFERS.map(({ path }) => path);
-  assert.equal(validateDerivedForkCoverageTransfers(root).length, 9);
+  const qualificationCommit = execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd: root,
+    encoding: 'utf8',
+  }).trim();
+  assert.equal(validateDerivedForkCoverageTransfers(
+    root,
+    qualificationCommit,
+    committedDigestAt(root, qualificationCommit, DERIVED_FORK_SELECTION_POLICY_PATH),
+  ).length, 9);
   assert.throws(
     () => assertCoverageTransfers({
       root,
@@ -1904,7 +1941,7 @@ test('coverage transfer refuses any departing leaf without a registered frozen-r
 
 test('coverage transfer refuses a named gate that does not canonically cover its leaf', () => {
   const policy = JSON.parse(readFileSync(
-    join(root, 'scripts/local-proof-selection-policy.v1.json'),
+    join(root, DERIVED_FORK_SELECTION_POLICY_PATH),
     'utf8',
   ));
   const transfers = DERIVED_FORK_COVERAGE_TRANSFERS.map((transfer) => ({ ...transfer }));
@@ -1923,7 +1960,7 @@ test('coverage transfer refuses a named gate that does not canonically cover its
 
 test('coverage transfers require the exact admitted records, triggers, and regeneration command', () => {
   const source = JSON.parse(readFileSync(
-    join(root, 'scripts/local-proof-selection-policy.v1.json'),
+    join(root, DERIVED_FORK_SELECTION_POLICY_PATH),
     'utf8',
   ));
   const mutations = [
@@ -1954,7 +1991,56 @@ test('coverage transfers require the exact admitted records, triggers, and regen
   }
 });
 
-test('post-C transfer-policy tampering invalidates the published claim', () => {
+test('C-bound transfer validation ignores different post-C working-tree policy bytes', () => {
+  const scratch = publishedDerivedFixture();
+  const receipt = JSON.parse(readFileSync(join(scratch, derived.receipt), 'utf8'));
+  const livePolicy = JSON.parse(readFileSync(
+    join(scratch, DERIVED_FORK_SELECTION_POLICY_PATH),
+    'utf8',
+  ));
+  delete livePolicy.driftProneGates['local-proof-inventory'];
+  writeJson(scratch, DERIVED_FORK_SELECTION_POLICY_PATH, livePolicy);
+
+  assert.throws(
+    () => assertCoverageTransfers({
+      root: scratch,
+      recordCommit: receipt.qualifiedSourceCommit,
+      scope: DERIVED_FORK_IMPLEMENTATION_SCOPE,
+      departingPaths: DERIVED_FORK_COVERAGE_TRANSFERS.map(({ path }) => path),
+      transfers: DERIVED_FORK_COVERAGE_TRANSFERS,
+      driftProneGates: livePolicy.driftProneGates,
+    }),
+    /is not covered by registered drift gate/u,
+  );
+  assert.equal(validateDerivedForkCoverageTransfers(
+    scratch,
+    receipt.qualifiedSourceCommit,
+    receipt.selectionPolicySha256,
+  ).length, 9);
+  assert.equal(validatePublicationRecord(scratch, derived).state, 'published');
+});
+
+test('receipt and named-author acceptance bind the exact C selection-policy digest', () => {
+  for (const [options, refusal] of [
+    [{
+      mutateReceipt: (receipt) => {
+        receipt.selectionPolicySha256 = `sha256:${'e'.repeat(64)}`;
+      },
+    }, /selection policy digest does not match qualification-C bytes/u],
+    [{
+      mutateAcceptance: (acceptance) => {
+        acceptance.selectionPolicySha256 = `sha256:${'e'.repeat(64)}`;
+      },
+    }, /named-author\/source\/component acceptance drifted/u],
+  ]) {
+    assert.throws(
+      () => validatePublicationRecord(publishedDerivedFixture(options), derived),
+      refusal,
+    );
+  }
+});
+
+test('post-C transfer-policy evolution is out-of-scope and leaves the claim standing', () => {
   const mutations = [
     (policy) => { delete policy.driftProneGates['local-proof-inventory']; },
     (policy) => {
@@ -1969,7 +2055,7 @@ test('post-C transfer-policy tampering invalidates the published claim', () => {
   ];
   for (const mutate of mutations) {
     const scratch = publishedDerivedFixture();
-    const policyPath = 'scripts/local-proof-selection-policy.v1.json';
+    const policyPath = DERIVED_FORK_SELECTION_POLICY_PATH;
     const policy = JSON.parse(readFileSync(join(scratch, policyPath), 'utf8'));
     mutate(policy);
     writeJson(scratch, policyPath, policy);
@@ -1982,10 +2068,12 @@ test('post-C transfer-policy tampering invalidates the published claim', () => {
       derived.anchor,
       policyPath,
     );
-    assert.throws(
-      () => validatePublicationRecord(scratch, derived),
-      /scoped surface changed without requalification: M:scripts\/local-proof-selection-policy\.v1\.json/u,
-    );
+    const result = validatePublicationRecord(scratch, derived);
+    assert.equal(result.snapshot.state, 'stands');
+    assert.deepEqual(result.snapshot.scopedChanges, []);
+    assert.ok(result.snapshot.outOfScopeChanges.some(({ status, path }) => (
+      status === 'M' && path === policyPath
+    )));
   }
 });
 

@@ -89,15 +89,17 @@ export const DERIVED_FORK_IMPLEMENTATION_SCOPE = Object.freeze({
     'build.rs',
     'scripts/check-agent-safe-publication.mjs',
     'scripts/generated-artifact-policy.mjs',
-    'scripts/local-proof-selection-policy.v1.json',
     'vendor/ibex',
   ]),
 });
 
+const DERIVED_FORK_SELECTION_POLICY_PATH =
+  'scripts/local-proof-selection-policy.v1.json';
+
 // D-4 transfer custody is admitted against these exact registry entries. The
-// policy file itself is in the derived-fork digest, and this in-checker mirror
-// keeps a shape-valid prose stub from impersonating a recomputed frozen-record
-// gate without rotating both authorities through requalification.
+// policy's qualification-C content digest is bound by the receipt and named-
+// author acceptance, and this in-checker mirror keeps a shape-valid prose stub
+// from impersonating a recomputed frozen-record gate.
 const DERIVED_FORK_ADMITTED_COVERAGE_GATES = Object.freeze({
   'agent-safe-publication-fixtures': Object.freeze({
     records: Object.freeze([
@@ -699,8 +701,8 @@ function gateTriggerMatchesPath(metadata, path) {
     || (trigger.suffixes ?? []).some((suffix) => path.endsWith(suffix));
 }
 
-function gateRecordsExistAtHead(root, metadata) {
-  const entries = treeEntriesAt(root, 'HEAD', metadata.recordPaths);
+function gateRecordsExistAtCommit(root, commit, metadata) {
+  const entries = treeEntriesAt(root, commit, metadata.recordPaths);
   return metadata.recordPaths.every((recordPath) => [...entries].some(([path, entry]) => (
     entry.type === 'blob'
       && entry.mode.startsWith('100')
@@ -714,6 +716,7 @@ function gateRecordsExistAtHead(root, metadata) {
 // real canonical frozen-record gate rather than prose or a stub.
 export function assertCoverageTransfers({
   root,
+  recordCommit = 'HEAD',
   scope,
   departingPaths,
   transfers,
@@ -721,6 +724,7 @@ export function assertCoverageTransfers({
 }) {
   validateImplementationScope(scope);
   if (typeof root !== 'string' || root.length === 0
+      || typeof recordCommit !== 'string' || recordCommit.length === 0
       || !Array.isArray(departingPaths) || !Array.isArray(transfers)) {
     fail('coverage transfer inputs must be arrays');
   }
@@ -745,7 +749,7 @@ export function assertCoverageTransfers({
     const admitted = DERIVED_FORK_ADMITTED_COVERAGE_GATES[gate];
     if (metadata === undefined || admitted === undefined
         || !canonicallyEqual(metadata, admitted)
-        || !gateRecordsExistAtHead(root, metadata)
+        || !gateRecordsExistAtCommit(root, recordCommit, metadata)
         || !gateTriggerMatchesPath(metadata, path)) {
       fail(`coverage transfer ${path} is not covered by registered drift gate ${gate}`);
     }
@@ -753,16 +757,39 @@ export function assertCoverageTransfers({
   return transfers;
 }
 
-export function validateDerivedForkCoverageTransfers(root) {
-  // @ref LLP 0189#decision — this semantics-affecting policy input is inside
-  // the v3 scope, and its admitted gate entries must match the in-checker
-  // authority exactly before any transfer can carry claim custody.
-  const policy = JSON.parse(readFileSync(
-    join(root, 'scripts/local-proof-selection-policy.v1.json'),
-    'utf8',
-  ));
+export function validateDerivedForkCoverageTransfers(
+  root,
+  qualificationCommit,
+  selectionPolicySha256,
+) {
+  // @ref LLP 0189#decision — D-4 closes this semantics-affecting checker input
+  // by content in the claim record. Read the exact qualification-C bytes so
+  // later fleet-selector evolution cannot change the standing snapshot's
+  // transfer verdict.
+  if (!/^[0-9a-f]{40}$/u.test(qualificationCommit ?? '')
+      || !isSha256(selectionPolicySha256, true)) {
+    fail('derived-fork selection policy binding is invalid');
+  }
+  let policyBytes;
+  try {
+    policyBytes = committedBytes(root, qualificationCommit, DERIVED_FORK_SELECTION_POLICY_PATH);
+  } catch (error) {
+    fail(`could not read qualification-C selection policy: ${error.message}`);
+  }
+  const actualSelectionPolicySha256 = sha256(policyBytes);
+  if (selectionPolicySha256 !== actualSelectionPolicySha256) {
+    fail('derived-fork selection policy digest does not match qualification-C bytes; '
+      + `expected ${selectionPolicySha256}; actual ${actualSelectionPolicySha256}`);
+  }
+  let policy;
+  try {
+    policy = JSON.parse(policyBytes.toString('utf8'));
+  } catch (error) {
+    fail(`qualification-C selection policy is not valid JSON: ${error.message}`);
+  }
   return assertCoverageTransfers({
     root,
+    recordCommit: qualificationCommit,
     scope: DERIVED_FORK_IMPLEMENTATION_SCOPE,
     departingPaths: DERIVED_FORK_COVERAGE_TRANSFERS.map(({ path }) => path),
     transfers: DERIVED_FORK_COVERAGE_TRANSFERS,
@@ -1170,6 +1197,7 @@ function validateReceiptShape(receipt, record, published) {
   ];
   const currentKeys = [...legacyKeys, 'implementationDigestVersion'];
   const scopedKeys = [...currentKeys, 'implementationScope'];
+  const derivedScopedKeys = [...scopedKeys, 'selectionPolicySha256'];
   if (receipt.schemaVersion === 'snapback.agent-safe-publication-receipt.v1') {
     exactKeys(receipt, legacyKeys, `${record.id} receipt`);
     if (published) {
@@ -1184,11 +1212,21 @@ function validateReceiptShape(receipt, record, published) {
         + `re-qualification with ${SCOPED_IMPLEMENTATION_DIGEST_VERSION} is required`);
     }
   } else if (receipt.schemaVersion === 'snapback.agent-safe-publication-receipt.v3') {
-    exactKeys(receipt, scopedKeys, `${record.id} receipt`);
+    exactKeys(
+      receipt,
+      record.id === 'agent_safe_derived_deployment_fork_v1'
+        ? derivedScopedKeys
+        : scopedKeys,
+      `${record.id} receipt`,
+    );
     validateImplementationScope(receipt.implementationScope, `${record.id} receipt scope`);
     if (record.id === 'agent_safe_derived_deployment_fork_v1'
         && !canonicallyEqual(receipt.implementationScope, DERIVED_FORK_IMPLEMENTATION_SCOPE)) {
       fail(`${record.id} receipt scope does not equal the canonical derived-fork scope`);
+    }
+    if (record.id === 'agent_safe_derived_deployment_fork_v1'
+        && !isSha256(receipt.selectionPolicySha256, true)) {
+      fail(`${record.id} receipt selection policy digest is invalid`);
     }
     assertImplementationDigestVersion(
       receipt.implementationDigestVersion,
@@ -2072,8 +2110,8 @@ function validateDerivedForkAuthorAcceptance(
   exactKeys(value, [
     'schemaVersion', 'capabilityId', 'accepted', 'authorLine', 'qualifiedSourceCommit',
     'implementationDigestVersion', 'implementationTreeSha256', 'candidateFactsSha256',
-    'implementationScope', 'residualV2DepartingClass', 'qualifiedComponents', 'evidenceSha256',
-    'reviewHistoryHeads',
+    'implementationScope', 'selectionPolicySha256', 'residualV2DepartingClass',
+    'qualifiedComponents', 'evidenceSha256', 'reviewHistoryHeads',
   ], 'derived-fork author acceptance');
   requireEvidence(value.schemaVersion === 'snapback.derived-fork-author-acceptance.v3'
     && value.capabilityId === 'agent_safe_derived_deployment_fork_v1'
@@ -2086,6 +2124,7 @@ function validateDerivedForkAuthorAcceptance(
     && value.candidateFactsSha256 === receipt.candidateFactsSha256
     && canonicallyEqual(value.implementationScope, receipt.implementationScope)
     && canonicallyEqual(value.implementationScope, DERIVED_FORK_IMPLEMENTATION_SCOPE)
+    && value.selectionPolicySha256 === receipt.selectionPolicySha256
     && canonicallyEqual(
       value.residualV2DepartingClass,
       DERIVED_FORK_RESIDUAL_V2_DEPARTING_CLASS,
@@ -2268,6 +2307,13 @@ export function validatePublicationRecord(root, record) {
       || !isSha256(carrier.implementationTreeSha256, true)) {
     fail(`${record.id} source/tree identity is invalid`);
   }
+  if (record.id === 'agent_safe_derived_deployment_fork_v1') {
+    validateDerivedForkCoverageTransfers(
+      root,
+      carrier.qualifiedSourceCommit,
+      receipt.selectionPolicySha256,
+    );
+  }
   for (const binding of receipt.evidence) {
     const path = join(root, binding.path);
     if (!existsSync(path) || sha256(readFileSync(path)) !== binding.sha256) {
@@ -2401,7 +2447,6 @@ export function validateAgentSafeCodegenDeclarations(root) {
 
 export function runChecker(root) {
   validateAgentSafeCodegenDeclarations(root);
-  validateDerivedForkCoverageTransfers(root);
   const results = RECORDS.map((record) => validatePublicationRecord(root, record));
   for (const result of results.filter(({ state }) => state === 'published')) {
     validateLocalStorePublicationTransform(root, result.commit);
