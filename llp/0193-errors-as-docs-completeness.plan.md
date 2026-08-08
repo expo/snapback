@@ -1,21 +1,28 @@
 # LLP 0193: Errors-as-docs completeness program
 
 **Type:** Plan
-**Status:** Draft
+**Status:** Review
 **Systems:** Diagnostics, Error handling, Guide, Agent experience, CI
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
+**Revised:** 2026-08-08 (r1) — super-refine round-1 revision against the
+dual-family cluster reviews (llp/reviews/0193-*.{claude,gpt-5}.md):
+unretained/incorrect quantitative claims corrected to retained-artifact
+citations; see the review artifacts for the concern ledger.
 **Related:** LLP 0186 (W3 states the bar), LLP 0146 (D7 — typed
 remediations, ratified at sitting #4), LLP 0010 (diagnostic codes),
 diaries 0065-0069
 
 ## Summary
 
-Five measurement runs agree that error quality is Snapback's
-best-performing agent-efficiency investment: lanes repeatedly resolved
-failures fastest when the refusal named its own fix (the PNG-CRC
-diagnostic naming the failing chunk is the exemplar), and every remaining
-expensive detour traces to a code that didn't. LLP 0186 W3 states the
+Across the retained measurement series, refusal-quality incidents
+resolved fastest when the refusal named its own fix — diary 0048's
+`SNAPBACK_ASSET_IMAGE_DECODE_FAILED` carrying the exact upstream parser
+error, and the anonymous-upload refusal naming `snapback assets put
+--user` (diary 0065's tickets) are retained exemplars — while several of
+the expensive detours trace to refusals that carried neither rule nor
+fix. (Additional unretained lane-report incidents exist but are not
+cited as evidence here.) LLP 0186 W3 states the
 bar — **every `SNAPBACK_*` refusal an authoring agent can trigger names
 the violated rule and either the fix or a resolving guide anchor** — but
 the bar has only ever been applied to codes that happened to appear in
@@ -24,14 +31,14 @@ bar structural, so it can never regress.
 
 ## Evidence
 
-- Diary 0069: zero framework defects, yet six of the run's expensive
-  moments were knowledge-shaped — half of them reachable from a refusal
-  that could have carried the answer.
-- The counterexamples prove the mechanism in both directions: refusals
-  that named remediations (`snapback assets put --user`, the CRC chunk,
-  seed-recovery messages) cost near-zero; refusals that did not (the
-  0.1.10-era `host-ops response was not JSON`, the hashed field path)
-  each cost a bisection session.
+- Diary 0069: zero framework defects, yet the run's expensive moments
+  were knowledge-shaped — several reachable from a refusal that could
+  have carried the answer.
+- The retained record shows the mechanism in both directions: refusals
+  that named remediations (`snapback assets put --user`, diary 0048's
+  decode diagnostic, the seed-recovery messages) cost near-zero;
+  refusals that did not (the 0.1.10-era `host-ops response was not
+  JSON`, the hashed field path) each cost a bisection session.
 - The infrastructure half-exists: stable code registry, the
   production diagnostic-inventory drift gate, and 0146 D7 ratified as
   the remediation carrier.
@@ -39,7 +46,9 @@ bar structural, so it can never regress.
 ## Program
 
 **Phase 1 — enumerate and grade.** Extract the complete `SNAPBACK_*`
-code inventory (estimated 200-500 codes) from the diagnostic registry
+code inventory (a raw identifier sweep finds ~2,700 `SNAPBACK_*` symbols
+including env vars and test constants; the diagnostic subset is the
+real population and Phase 1 establishes its size) from the diagnostic registry
 plus a grep sweep for unregistered emissions. Fan out grading lanes:
 each code graded A (names rule + fix/anchor), B (names rule only), or
 C (bare), with the emitting site and agent-triggerability recorded.
@@ -53,9 +62,14 @@ that are genuinely internal (never agent-triggerable) are marked so in
 the ledger rather than polished.
 
 **Phase 3 — the ratchet.** Extend the diagnostic-inventory drift gate:
-a new agent-triggerable code cannot land without a remediation field or
-resolving guide anchor (this is 0146 D7's enforcement carrier — the
-typed `remediations` shape lands here if not already built). Anchor
+a new agent-triggerable code cannot land without a remediation in the
+carrier LLP 0146 OQ6 selects, or a resolving guide anchor as the interim
+floor. The typed-remediation end state is 0146's ratified D7 and is not
+reopened here; the carrier choice is OQ6's open ruling
+(`issues/20260806-llp0146-oq6-remediation-carrier-decision.md`) and is a
+named dependency of this phase's structured half — until it rules, the
+gate enforces text+anchor as a bounded interim floor, upgraded
+code-by-code as the carrier lands. Anchor
 resolution joins CI. The graded ledger becomes the gate's baseline;
 grade regressions fail.
 
@@ -67,18 +81,21 @@ recurring audit input.
 
 1. Graded ledger covers 100% of registered codes; zero ungraded
    emissions in the sweep.
-2. Every diary-cited code is grade A.
+2. **Every ledger entry classified agent-triggerable is grade A** (the
+   program's declared bar; diary-cited codes are merely the first
+   batch).
 3. The drift gate refuses a new agent-triggerable code without
-   remediation/anchor (negative test).
-4. A benchmark run passes with zero C-grade refusals encountered.
+   remediation/anchor (negative test), and refuses grade regressions.
+4. A benchmark run encounters zero B- or C-grade refusals — as
+   validation of criterion 2, not a substitute for it.
 
 ## Open questions
 
-- OQ1: Whether D7's typed `remediations` array (structured) or message
-  text + anchor (unstructured) is the Phase 3 minimum — structured is
-  the 0146 design; text+anchor may be the pragmatic floor for the long
-  tail. Proposal: structured for new codes, text+anchor acceptable for
-  audited legacy codes until touched.
+- OQ1: The migration bound — how long audited legacy codes may remain
+  on the text+anchor floor after the OQ6 carrier ruling lands. Proposal:
+  structured on next touch, with a dated full-migration milestone set
+  when the carrier ships (the typed end state itself is settled by
+  0146's ratified D7, not by this Plan).
 - OQ2: Grading authority for "agent-triggerable" — proposal: reachable
   from any published-surface operation, decided by the grading lane,
   spot-checked in review.

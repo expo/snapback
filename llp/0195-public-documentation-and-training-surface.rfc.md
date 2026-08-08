@@ -1,11 +1,15 @@
 # LLP 0195: Public documentation, examples, and training-data surface
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Review
 **Systems:** Documentation, Publishing, Guide, Templates, Competitive
 evaluation
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
+**Revised:** 2026-08-08 (r1) — super-refine round-1 revision against the
+dual-family cluster reviews (llp/reviews/0193-*.{claude,gpt-5}.md):
+unretained/incorrect quantitative claims corrected to retained-artifact
+citations; see the review artifacts for the concern ledger.
 **Related:** LLP 0186 (the orientation-gap evidence), LLP 0061 (guide),
 LLP 0041 (packaging), diaries 0065-0069
 
@@ -15,13 +19,16 @@ Snapback currently has **no public documentation surface**. The guide
 exists only in this repository and served from installed binaries: an
 agent cannot read a word of it before installing, search engines and
 training pipelines never see it, and `llms.txt` exists only on loopback
-origins. Meanwhile the measurement series attributes roughly a third of
-the remaining efficiency gap to orientation cost that Convex does not
-pay because `docs.convex.dev` is in every model's training set. A public
-surface is simultaneously the pre-install orientation fix, the
-discoverability fix, and the **only available lever on the training-data
-moat** — and it is the largest unstarted item this program has
-identified. It is proposed here rather than executed because publishing
+origins. Meanwhile the measurement series calls orientation cost "the dominant
+term" in the remaining efficiency gap (diary 0069) — cost the Convex
+lanes did not pay: across all five runs they consumed no documentation
+at all, working from prior model familiarity. A public surface is the pre-install orientation fix and the
+discoverability fix on its face; that it also feeds future model
+training is a plausible but **unverified hypothesis** — prior
+familiarity is measured, its provenance is not. The decision case rests
+on discoverability and retrieval; the training effect, if real, is
+upside this RFC proposes to instrument rather than assume (OQ4). It
+remains the largest unstarted item this program has identified. It is proposed here rather than executed because publishing
 is the author's decision.
 
 ## Proposal
@@ -43,20 +50,22 @@ is the author's decision.
 3. **Skill distribution beyond scaffolds:** publish
    `snapback-authoring` wherever agent harnesses discover skills, so
    pre-scaffold orientation exists off-checkout.
-4. **Deliberate training-data posture:** the site, examples, README
-   funnels, and npm packages are the corpus future models learn
-   Snapback from. Write them with that audience explicitly in mind
-   (stable vocabulary, the Rosetta aliases, canonical snippets) — the
-   measurement series is the feedback loop that will eventually show
-   the moat eroding (orientation tokens per lane trending toward
-   Convex's zero).
+4. **Deliberate training-data posture (hypothesis, instrumented):**
+   write the site, examples, README funnels, and packages with a
+   future-model audience in mind (stable vocabulary, Rosetta aliases,
+   canonical snippets). Whether the moat actually erodes is testable
+   but confounded — skills, templates, and error improvements also cut
+   orientation cost — so the posture claims no timeline; OQ4 sketches
+   the pinned-model knowledge evaluation that could isolate the
+   training effect if it becomes worth measuring.
 
 ## What this does not claim
 
 No hosted-service claims change; the site documents the local-first
 surface the capability index already asserts, GAP rows included. The
-honesty discipline that survived five external-consumer audits is the
-asset being published, not marketing copy.
+honesty discipline that survived four published-consumer audits
+(diaries 0065-0069; the 0058 run was in-checkout) is the asset being
+published, not marketing copy.
 
 ## Author decisions required
 
@@ -76,3 +85,7 @@ asset being published, not marketing copy.
   as the site's acceptance test).
 - OQ3: Whether `snapback guide <query>` gains a `--web` mode linking the
   public anchors, unifying citations across surfaces.
+- OQ4: The pinned-model knowledge evaluation — a fixed question set
+  about Snapback answered by pinned model builds over time, isolating
+  training-data presence from in-context aids; only worth building if
+  the training hypothesis starts driving decisions.

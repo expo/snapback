@@ -1,10 +1,14 @@
 # LLP 0197: Competitive benchmark publication standard
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Review
 **Systems:** Competitive evaluation, Publishing, Documentation
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
+**Revised:** 2026-08-08 (r1) — super-refine round-1 revision against the
+dual-family cluster reviews (llp/reviews/0193-*.{claude,gpt-5}.md):
+unretained/incorrect quantitative claims corrected to retained-artifact
+citations; see the review artifacts for the concern ledger.
 **Related:** LLP 0186 (OQ5 — this RFC develops it), benchmarks/
 (harness, records), LLP 0195 (public surface), diaries 0058-0069
 
