@@ -44,3 +44,34 @@ success.
 - **LLP 0183 acceptance:** an LLP 0005 review loop scaled to foundational
   product work is commissioned now, with the Stage 0.5 receipts as evidence;
   acceptance follows the loop.
+
+## Erratum note — 2026-08-07 (recorded by the supervising session)
+
+The same ruling was recorded twice on 2026-08-07 through two concurrent
+author channels, and one of them violated §15's freeze:
+
+- Commit `7f57cae0b` (the local-first author-gate packet session,
+  `issues/closed/20260807-local-first-author-gate-packet.md` item 6)
+  inserted a `RATIFIED` paragraph **in place** into the frozen
+  `acceptance.v1.md` prose — which §15 forbids once receipts name the
+  manifest. This artifact (landed later the same day) is the
+  §15-compliant append.
+- The two records **agree in substance**: durable disconnected intent is
+  the ratified primary-improvement candidate, recorded before Stage 1/2
+  results. The packet's record adds one detail this artifact adopts: the
+  candidate's authorized/revocation leg rides the LLP 0129
+  Phase-0-remainder lane (M1 lease custody + authenticated conjunction
+  witness), owner/timebox presented by 2026-08-14.
+- Damage bound: the receipt-pinned machine-readable companion
+  `acceptance.v1.json` was **not** modified by either record — every
+  existing receipt's pinned digest remains valid. Only the prose v1
+  drifted.
+- Repair per §15: this erratum records the mutation explicitly;
+  `acceptance.v2` must incorporate the ratification (both records, this
+  file canonical) and re-establish a single canonical prose contract.
+  Whether to additionally restore the v1 prose blob to its
+  `36a630f72` bytes is an author decision — the in-place text records a
+  genuine author ruling, so the supervising session did not revert it
+  unilaterally. Independently caught by the GPT-family review of LLP 0183
+  (`llp/reviews/0183-zerobugs-quality-surface.gpt-5.md`, concern 2) and
+  verified against repository history.
