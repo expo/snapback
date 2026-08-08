@@ -3253,6 +3253,19 @@ impl LocalInvalidationState {
     }
 }
 
+fn authorization_resolution_snapshot_identity(
+    snapshot: &impl Serialize,
+) -> SnapbackResult<Vec<u8>> {
+    serde_json::to_vec(snapshot).map_err(|error| {
+        SnapbackError::error(
+            "SNAPBACK_AUTH_INVALIDATION_SERIALIZE_FAILED",
+            "realtime",
+            "authorization invalidation snapshot identity could not be serialized",
+        )
+        .with_details(json!({ "error": error.to_string() }))
+    })
+}
+
 /// Durable half of a coordinator-owned destructive reset. These process-local
 /// generation changes remain unpublished until the authorization stream has
 /// finalized its exact successor.
@@ -16899,10 +16912,13 @@ impl LocalSnapback {
                                 min_commit_version: query.output.version,
                             }),
                         };
+                        let snapshot_identity =
+                            authorization_resolution_snapshot_identity(&query.output)?;
                         state.obligations.issue_resolution(
                             &scope_id,
                             ResolutionKind::Snapshot,
                             witness,
+                            &snapshot_identity,
                         )?;
                         authorization_invalidation = state.obligations.projection(&scope_id);
                     }
@@ -17971,6 +17987,7 @@ impl LocalSnapback {
                 .as_ref()
                 .expect("state remains installed")
                 .witness(query.output.version);
+            let snapshot_identity = authorization_resolution_snapshot_identity(&query.output)?;
             let resolution = {
                 let state = self
                     .auth_invalidation
@@ -17980,6 +17997,7 @@ impl LocalSnapback {
                     &authorization.scope_id,
                     ResolutionKind::Snapshot,
                     resolution_witness.clone(),
+                    &snapshot_identity,
                 )
             };
             if let Err(error) = resolution {
@@ -21899,6 +21917,7 @@ impl LocalSnapback {
                         &scope,
                         ResolutionKind::TerminalDelete,
                         witness,
+                        b"null",
                     )?;
                     let projection = state.obligations.projection(&scope).ok_or_else(|| {
                         SnapbackError::error(
@@ -22780,6 +22799,13 @@ impl LocalSnapback {
             )
         })?;
         let snapshot_version = query.output.version;
+        let snapshot = AuthorizationInvalidationSnapshot {
+            subscription_id: subscription.id.clone(),
+            function: subscription.function.clone(),
+            version: snapshot_version,
+            rows: query.output.rows,
+        };
+        let snapshot_identity = authorization_resolution_snapshot_identity(&snapshot)?;
         let (projection, proof) = {
             let state = self.auth_invalidation.as_mut().ok_or_else(|| {
                 SnapbackError::error(
@@ -22804,6 +22830,7 @@ impl LocalSnapback {
                 &authorization.scope_id,
                 ResolutionKind::Snapshot,
                 witness.clone(),
+                &snapshot_identity,
             )?;
             (
                 state
@@ -22819,12 +22846,7 @@ impl LocalSnapback {
         let payload = serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
             projection.obligation,
             projection.resolution,
-            Some(AuthorizationInvalidationSnapshot {
-                subscription_id: subscription.id.clone(),
-                function: subscription.function.clone(),
-                version: snapshot_version,
-                rows: query.output.rows,
-            }),
+            Some(snapshot),
         ))
         .map_err(|error| {
             SnapbackError::error(
@@ -23111,6 +23133,13 @@ impl LocalSnapback {
                     let _publication =
                         admission.effect_guard("authorization snapshot drain publication")?;
                     let snapshot_version = query.output.version;
+                    let snapshot = AuthorizationInvalidationSnapshot {
+                        subscription_id: subscription.id.clone(),
+                        function: subscription.function.clone(),
+                        version: snapshot_version,
+                        rows: query.output.rows,
+                    };
+                    let snapshot_identity = authorization_resolution_snapshot_identity(&snapshot)?;
                     let proof = self
                         .auth_invalidation
                         .as_ref()
@@ -23123,7 +23152,12 @@ impl LocalSnapback {
                             .expect("pending obligation has installed state");
                         if state
                             .obligations
-                            .issue_resolution(scope, ResolutionKind::Snapshot, proof.clone())
+                            .issue_resolution(
+                                scope,
+                                ResolutionKind::Snapshot,
+                                proof.clone(),
+                                &snapshot_identity,
+                            )
                             .is_err()
                         {
                             continue;
@@ -23144,12 +23178,7 @@ impl LocalSnapback {
                             serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
                                 projection.obligation,
                                 projection.resolution,
-                                Some(AuthorizationInvalidationSnapshot {
-                                    subscription_id: subscription.id.clone(),
-                                    function: subscription.function.clone(),
-                                    version: snapshot_version,
-                                    rows: query.output.rows,
-                                }),
+                                Some(snapshot),
                             ))
                         && !append_frame(crate::ephemeral::DurableMessage::authorized(
                             frame,
@@ -24259,6 +24288,7 @@ impl LocalSnapback {
                                 &authorization.scope_id,
                                 ResolutionKind::TerminalDelete,
                                 witness.clone(),
+                                b"null",
                             )
                             .ok()?;
                     }
@@ -52139,6 +52169,103 @@ globalThis.__snapbackHandlers = {
         );
     }
 
+    // @ref LLP 0053#invalidation-is-an-obligation-not-a-message — a later
+    //   satisfying snapshot may supersede an unacknowledged resolution, but
+    //   its distinct frame must advance the exact per-scope ACK identity.
+    #[test]
+    fn mutation_fanout_resolution_supersession_never_reuses_frame_key() {
+        let mut snapback = live_limit_snapback();
+        let connection = install_test_invalidation(&mut snapback);
+        let admission = test_session_admission();
+        snapback
+            .subscribe_live_with_invalidation(
+                "listItemsByValue",
+                LiveSubscribeInput {
+                    connection_id: "session-overlap".to_owned(),
+                    input: HandlerInput {
+                        args: json!({ "value": "target" }),
+                        ..HandlerInput::default()
+                    },
+                    authorization_namespace: Some(QueryNamespace {
+                        client_store_id: "store_overlap".to_owned(),
+                        query_key: "listItemsByValue:{target}".to_owned(),
+                        query_instance_id: 3,
+                    }),
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+                LiveInvalidationAdmission {
+                    session_mode: true,
+                    connection: Some(connection),
+                    effect_fence: None,
+                },
+            )
+            .expect("auth-scoped filtered subscription");
+        assert!(drain_live_stream_through_test_sink(&mut snapback, "session-overlap").is_empty());
+
+        invoke_test_session_mutation(
+            &mut snapback,
+            "insertItem",
+            HandlerInput {
+                args: json!({ "value": "target" }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("matching mutation raises and resolves one obligation");
+        let first = drain_live_stream_through_test_sink(&mut snapback, "session-overlap")
+            .into_iter()
+            .filter_map(|message| serde_json::from_str::<Value>(&message).ok())
+            .find(|message| message["kind"] == "authorization_invalidation")
+            .expect("first unacknowledged resolution frame");
+
+        // This commit is disjoint from the filtered query, so fan-out leaves
+        // the prior obligation pending. The next level-triggered drain still
+        // re-evaluates it at the new store version, overlapping the first
+        // unacknowledged resolution exactly as the hot-cycle workload does.
+        invoke_test_session_mutation(
+            &mut snapback,
+            "insertItem",
+            HandlerInput {
+                args: json!({ "value": "other" }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("disjoint mutation advances the store under the pending obligation");
+        assert!(
+            drain_live_stream_through_test_sink(&mut snapback, "session-overlap").is_empty(),
+            "the disjoint mutation itself must not mint another obligation cause",
+        );
+        let second_message = snapback
+            .authorization_invalidation_frames("session-overlap", &admission)
+            .expect("reproject pending resolution")
+            .into_iter()
+            .next()
+            .expect("superseding resolution frame");
+        let second =
+            serde_json::from_slice::<Value>(&second_message.payload).expect("second frame JSON");
+
+        assert_ne!(
+            first["resolution"]["ackToken"], second["resolution"]["ackToken"],
+            "distinct resolution frames require distinct acknowledgement tokens",
+        );
+        assert!(
+            second["resolution"]["revision"].as_u64().unwrap()
+                > first["resolution"]["revision"].as_u64().unwrap(),
+            "distinct resolution frames must not reuse one scope revision",
+        );
+        assert_ne!(first["snapshot"]["version"], second["snapshot"]["version"]);
+        let redelivery = snapback
+            .authorization_invalidation_frames("session-overlap", &admission)
+            .expect("re-fire current resolution")
+            .into_iter()
+            .next()
+            .expect("current resolution remains pending");
+        assert_eq!(
+            redelivery.payload, second_message.payload,
+            "the same resolution re-fires byte-identically",
+        );
+    }
+
     #[test]
     fn overflow_root_waits_for_every_auth_scoped_child() {
         let mut snapback = live_limit_snapback();
@@ -52998,7 +53125,7 @@ globalThis.__snapbackHandlers = {
         let scope = ScopeId::ClientQuery { namespace };
         let ticket = state
             .obligations
-            .issue_resolution(&scope, ResolutionKind::Snapshot, witness)
+            .issue_resolution(&scope, ResolutionKind::Snapshot, witness, b"test-snapshot")
             .expect("issue test resolution");
         assert!(matches!(
             state

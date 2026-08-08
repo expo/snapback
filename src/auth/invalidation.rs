@@ -998,6 +998,17 @@ pub struct ResolutionTicket {
     pub owner_continuity_id: Option<String>,
 }
 
+#[derive(Clone, Debug)]
+struct IssuedResolution {
+    ticket: ResolutionTicket,
+    /// Digest of the exact serialized value passed to the client's
+    /// resolution-frame identity as `snapshot`. This is server-held only: it
+    /// prevents a fresh snapshot from reusing the prior scope revision merely
+    /// because both snapshots satisfy the same obligation witness, without
+    /// retaining another copy of a potentially large result window.
+    snapshot_identity_sha256: [u8; 32],
+}
+
 /// One level-triggered live projection. Delivery is only a hint; the exact
 /// obligation remains authoritative until the optional resolution ticket is
 /// acknowledged after the client commits its local transition.
@@ -1027,7 +1038,7 @@ pub struct ObligationRegistry {
     expectation: ObligationExpectation,
     obligations: BTreeMap<ScopeId, ObligationEntry>,
     revision_high_water: BTreeMap<ScopeId, u64>,
-    resolution_by_scope: BTreeMap<ScopeId, ResolutionTicket>,
+    resolution_by_scope: BTreeMap<ScopeId, IssuedResolution>,
     last_discharged: BTreeMap<ScopeId, (u64, String)>,
     connection_children: BTreeMap<ScopeId, BTreeSet<ScopeId>>,
     active_subscription_scopes: BTreeSet<ScopeId>,
@@ -1313,7 +1324,10 @@ impl ObligationRegistry {
     pub fn projection(&self, scope_id: &ScopeId) -> Option<AuthorizationInvalidationProjection> {
         Some(AuthorizationInvalidationProjection {
             obligation: self.pending(scope_id)?.clone(),
-            resolution: self.resolution_by_scope.get(scope_id).cloned(),
+            resolution: self
+                .resolution_by_scope
+                .get(scope_id)
+                .map(|issued| issued.ticket.clone()),
         })
     }
 
@@ -1352,8 +1366,18 @@ impl ObligationRegistry {
         scope_id: &ScopeId,
         kind: ResolutionKind,
         witness: CompositeWitness,
+        snapshot_identity: &[u8],
     ) -> SnapbackResult<ResolutionTicket> {
         witness.validate()?;
+        if snapshot_identity.is_empty() {
+            return Err(corrupt(
+                "resolution snapshot identity must contain the exact serialized client value",
+            ));
+        }
+        let snapshot_identity_sha256: [u8; 32] = {
+            use sha2::Digest as _;
+            Sha256::digest(snapshot_identity).into()
+        };
         let current = self.obligations.get(scope_id).ok_or_else(|| {
             invalidation_error(
                 "SNAPBACK_AUTH_INVALIDATION_RESOLUTION_STALE",
@@ -1367,12 +1391,49 @@ impl ObligationRegistry {
             ));
         }
         if let Some(existing) = self.resolution_by_scope.get(scope_id)
-            && existing.revision == current.obligation.revision
-            && existing.kind == kind
-            && existing.witness == witness
+            && existing.ticket.revision == current.obligation.revision
+            && existing.ticket.kind == kind
+            && existing.ticket.witness == witness
+            && existing.snapshot_identity_sha256 == snapshot_identity_sha256
         {
-            return Ok(existing.clone());
+            return Ok(existing.ticket.clone());
         }
+
+        // A resolution may be re-evaluated while its predecessor is already
+        // queued or applied but not yet ACKed. A different witness or exact
+        // snapshot value is a different client-visible frame, so it must not
+        // reuse that predecessor's per-scope revision. Advancing here makes
+        // the old ACK stale and preserves byte-identical retransmission for an
+        // exact retry of the current resolution.
+        //
+        // @ref LLP 0053#invalidation-is-an-obligation-not-a-message — scope
+        // revisions are monotone and never reused; an exact ACK discharges
+        // only the resolution frame it names.
+        if self.resolution_by_scope.contains_key(scope_id) {
+            let revision = self
+                .revision_high_water
+                .get(scope_id)
+                .copied()
+                .unwrap_or(current.obligation.revision)
+                .checked_add(1)
+                .filter(|value| *value <= MAX_PROTOCOL_COUNTER)
+                .ok_or_else(|| {
+                    invalidation_error(
+                        "SNAPBACK_AUTH_INVALIDATION_REVISION_EXHAUSTED",
+                        "obligation revision exhausted the JavaScript-safe range",
+                    )
+                })?;
+            self.revision_high_water.insert(scope_id.clone(), revision);
+            self.obligations
+                .get_mut(scope_id)
+                .expect("resolution scope remained pending")
+                .obligation
+                .revision = revision;
+        }
+        let current = self
+            .obligations
+            .get(scope_id)
+            .expect("resolution scope remained pending");
         let ticket = ResolutionTicket {
             protocol_version: AUTH_INVALIDATION_PROTOCOL_VERSION,
             kind,
@@ -1383,8 +1444,13 @@ impl ObligationRegistry {
             ack_token: crate::ids::mint_time_ordered(crate::ids::Kind::AckToken),
             owner_continuity_id: current.obligation.owner_continuity_id.clone(),
         };
-        self.resolution_by_scope
-            .insert(scope_id.clone(), ticket.clone());
+        self.resolution_by_scope.insert(
+            scope_id.clone(),
+            IssuedResolution {
+                ticket: ticket.clone(),
+                snapshot_identity_sha256,
+            },
+        );
         Ok(ticket)
     }
 
@@ -1412,8 +1478,8 @@ impl ObligationRegistry {
         let Some((scope_id, ticket)) = self
             .resolution_by_scope
             .iter()
-            .find(|(_, ticket)| ticket.ack_token == ack_token)
-            .map(|(scope, ticket)| (scope.clone(), ticket.clone()))
+            .find(|(_, issued)| issued.ticket.ack_token == ack_token)
+            .map(|(scope, issued)| (scope.clone(), issued.ticket.clone()))
         else {
             return Ok(AcknowledgeOutcome::Stale);
         };
@@ -1421,7 +1487,7 @@ impl ObligationRegistry {
             return Ok(AcknowledgeOutcome::Stale);
         };
         if current.obligation.revision != ticket.revision
-            || current.obligation.witness != ticket.witness
+            || !ticket.witness.covers(&current.obligation.witness)
             || current.obligation.max_disposition != ticket.max_disposition
         {
             return Ok(AcknowledgeOutcome::Stale);
@@ -1444,7 +1510,7 @@ impl ObligationRegistry {
         let belongs = self
             .resolution_by_scope
             .iter()
-            .find(|(_, ticket)| ticket.ack_token == ack_token)
+            .find(|(_, issued)| issued.ticket.ack_token == ack_token)
             .map(|(scope, _)| scope)
             .or_else(|| {
                 self.last_discharged
@@ -2458,7 +2524,7 @@ mod tests {
             Some("tab-continuity-1")
         );
         let resolution = registry
-            .issue_resolution(&scope, ResolutionKind::Snapshot, witness(1))
+            .issue_resolution(&scope, ResolutionKind::Snapshot, witness(1), b"snapshot-1")
             .unwrap();
         assert_eq!(
             resolution.owner_continuity_id.as_deref(),
@@ -2528,11 +2594,21 @@ mod tests {
             .unwrap();
         assert!(
             registry
-                .issue_resolution(&pending.scope_id, ResolutionKind::Snapshot, witness(99))
+                .issue_resolution(
+                    &pending.scope_id,
+                    ResolutionKind::Snapshot,
+                    witness(99),
+                    b"snapshot-99",
+                )
                 .is_err()
         );
         let ticket = registry
-            .issue_resolution(&pending.scope_id, ResolutionKind::Snapshot, witness(100))
+            .issue_resolution(
+                &pending.scope_id,
+                ResolutionKind::Snapshot,
+                witness(100),
+                b"snapshot-100",
+            )
             .unwrap();
         assert!(registry.acknowledge(&ticket.ack_token, false).is_err());
 
@@ -2551,7 +2627,12 @@ mod tests {
             AcknowledgeOutcome::Stale
         );
         let ticket = registry
-            .issue_resolution(&scope(1), ResolutionKind::Snapshot, witness(105))
+            .issue_resolution(
+                &scope(1),
+                ResolutionKind::Snapshot,
+                witness(105),
+                b"snapshot-105",
+            )
             .unwrap();
         assert_eq!(
             registry.acknowledge(&ticket.ack_token, true).unwrap(),
@@ -2560,6 +2641,66 @@ mod tests {
         assert_eq!(
             registry.acknowledge(&ticket.ack_token, true).unwrap(),
             AcknowledgeOutcome::Duplicate
+        );
+    }
+
+    #[test]
+    fn superseding_unacknowledged_resolution_advances_scope_revision() {
+        let mut registry = registry();
+        register_scope(&mut registry, 1);
+        let pending = registry
+            .raise(
+                scope(1),
+                100,
+                "commit-100",
+                InvalidationDisposition::Quarantine,
+                witness(100),
+                None,
+            )
+            .unwrap();
+
+        let first = registry
+            .issue_resolution(
+                &pending.scope_id,
+                ResolutionKind::Snapshot,
+                witness(100),
+                br#"{"version":100,"rows":["first"]}"#,
+            )
+            .unwrap();
+        let duplicate = registry
+            .issue_resolution(
+                &pending.scope_id,
+                ResolutionKind::Snapshot,
+                witness(100),
+                br#"{"version":100,"rows":["first"]}"#,
+            )
+            .unwrap();
+        assert_eq!(duplicate, first, "an exact re-fire stays byte-identical");
+
+        // A later drain can satisfy the still-pending obligation with a newer
+        // store snapshot before the first ticket is ACKed. That is a distinct
+        // client-visible frame even though no new invalidation cause was
+        // raised for this scope.
+        let second = registry
+            .issue_resolution(
+                &pending.scope_id,
+                ResolutionKind::Snapshot,
+                witness(101),
+                br#"{"version":101,"rows":["first"]}"#,
+            )
+            .unwrap();
+        assert_ne!(second.ack_token, first.ack_token);
+        assert_eq!(second.revision, first.revision + 1);
+        let projection = registry.projection(&pending.scope_id).unwrap();
+        assert_eq!(projection.obligation.revision, second.revision);
+        assert_eq!(projection.resolution.as_ref(), Some(&second));
+        assert_eq!(
+            registry.acknowledge(&first.ack_token, true).unwrap(),
+            AcknowledgeOutcome::Stale,
+        );
+        assert_eq!(
+            registry.acknowledge(&second.ack_token, true).unwrap(),
+            AcknowledgeOutcome::Discharged,
         );
     }
 
