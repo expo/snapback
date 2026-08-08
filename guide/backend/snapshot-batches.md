@@ -9,8 +9,8 @@ examples: [packages/snapback-codegen/relation-activity-authoring.test.mjs, packa
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-07
-reviewed-commit: f4d4d8c184a8994b747a8e83b1ee74abfcb8a09b
+reviewed: 2026-08-08
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # Snapshot batches
@@ -136,8 +136,10 @@ at most 1,024.
 The `sbsb2` cursor budget is proved before the first storage read, so a v2
 relational node's declared root order fields must come from the closed
 template set: a portable string or a table-scoped id carrying a
-storage-enforced `maxEncodedBytes` declaration, a JavaScript-safe integer, or
-a boolean. Declaring any other order-field type — a float (`v.real()`),
+storage-enforced `maxEncodedBytes` declaration (the
+`asc('field', { maxEncodedBytes: n })` order syntax —
+[bound string order fields](./sequences.md#bound-string-order-fields)), a
+JavaScript-safe integer, or a boolean. Declaring any other order-field type — a float (`v.real()`),
 `principal`, or `assetRef` — refuses composition at establishment with
 `SNAPBACK_SNAPSHOT_BATCH_CURSOR_BUDGET_EXCEEDED`; the node's standalone
 admission is unchanged.
@@ -210,7 +212,11 @@ subscribe request carrying a cursor refuses before storage access with
   reads; an over-budget plan refuses instead of risking an unmintable page.
 - String and id order fields need storage-enforced `maxEncodedBytes`
   declarations so the cursor budget is a proof over stored values, not a
-  hopeful estimate.
+  hopeful estimate. The declaration syntax —
+  `asc('field', { maxEncodedBytes: n })` on the order expression, agreement
+  across all declarations for one `(table, field)`, and the
+  `SNAPBACK_ORDER_FIELD_MAX_ENCODED_BYTES_EXCEEDED` write-side refusal — is
+  [bound string order fields](./sequences.md#bound-string-order-fields).
 - Cross-page snapshot consistency is not claimed. Each invocation has exactly
   one snapshot; the coordinated cursor binds plan, arguments, authority,
   parent versions, and all node boundaries for honest resume behavior.

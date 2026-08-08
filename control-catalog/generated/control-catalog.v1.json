@@ -1,11 +1,11 @@
 {
   "schemaVersion": "snapback.control-catalog.v1",
-  "catalogDigest": "sha256:3727bea45be4d72acf856b36b7158b91fc835a7f7f9d81b43d1e4d9635e245d0",
+  "catalogDigest": "sha256:5a78cfa1c449bf635339d43458d5b819a4f697914c566f56a3c799314882fb51",
   "buildIdentity": {
-    "sourceCommit": "826bfcd3fd280f6d842536be9eb87cf4a8b053e7",
+    "sourceCommit": "eac098a99fb89b07e67cb72430106117b7fee86b",
     "dirty": true
   },
-  "generatedAtCommit": "826bfcd3fd280f6d842536be9eb87cf4a8b053e7",
+  "generatedAtCommit": "eac098a99fb89b07e67cb72430106117b7fee86b",
   "entries": [
     {
       "operation": "acceptance.run",
@@ -367,7 +367,7 @@
         "persistsAcrossRestart": false
       },
       "projections": {
-        "cli": "snapback host inspect",
+        "cli": "snapback inspect",
         "mcp": "snapback_inspect",
         "hostOps": "app.inspect",
         "http": "POST /_snapback/api/host-ops",
@@ -420,7 +420,7 @@
         "persistsAcrossRestart": false
       },
       "projections": {
-        "cli": "snapback host reset",
+        "cli": "snapback reset",
         "mcp": "snapback_reset",
         "hostOps": "app.reset",
         "http": "POST /_snapback/api/host-ops",
@@ -2026,7 +2026,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "backend/migrations.md#run-the-reviewed-loop",
       "authorities": [
         "llp/0184-agent-accessible-control-plane"
       ],
@@ -2071,7 +2071,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "backend/migrations.md#run-the-reviewed-loop",
       "authorities": [
         "llp/0184-agent-accessible-control-plane"
       ],
@@ -2116,7 +2116,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "backend/migrations.md#run-the-reviewed-loop",
       "authorities": [
         "llp/0184-agent-accessible-control-plane"
       ],
@@ -2162,7 +2162,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "backend/migrations.md#run-the-reviewed-loop",
       "authorities": [
         "llp/0184-agent-accessible-control-plane"
       ],
@@ -2209,7 +2209,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "backend/migrations.md#run-the-reviewed-loop",
       "authorities": [
         "llp/0184-agent-accessible-control-plane"
       ],
@@ -2254,7 +2254,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "backend/migrations.md#verify-cancel-and-the-unbuilt-rollback",
       "authorities": [
         "llp/0184-agent-accessible-control-plane"
       ],
@@ -2304,7 +2304,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "backend/migrations.md#run-the-reviewed-loop",
       "authorities": [
         "llp/0184-agent-accessible-control-plane"
       ],
@@ -3635,7 +3635,7 @@
         "adminClient": "forceLiveResync",
         "console": null
       },
-      "guide": "operating/host-ops.md",
+      "guide": "operating/host-ops.md#served-request-operations",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -4258,7 +4258,7 @@
         "persistsAcrossRestart": false
       },
       "projections": {
-        "cli": "snapback host run",
+        "cli": "snapback run",
         "mcp": "snapback_run_function",
         "hostOps": "function.run",
         "http": "POST /_snapback/api/host-ops",
@@ -4307,7 +4307,7 @@
         "persistsAcrossRestart": false
       },
       "projections": {
-        "cli": "snapback host load --functions <path>",
+        "cli": "snapback load --functions <path>",
         "mcp": "snapback_load_functions",
         "hostOps": "functions.load",
         "http": "POST /_snapback/api/host-ops",
@@ -4560,7 +4560,7 @@
         "persistsAcrossRestart": false
       },
       "projections": {
-        "cli": "snapback host start",
+        "cli": "snapback start",
         "mcp": "snapback_start",
         "hostOps": "host.start",
         "http": "POST /_snapback/api/host-ops",
@@ -4610,7 +4610,7 @@
         "persistsAcrossRestart": false
       },
       "projections": {
-        "cli": "snapback host stop",
+        "cli": "snapback stop",
         "mcp": "snapback_stop",
         "hostOps": "host.stop",
         "http": "POST /_snapback/api/host-ops",
@@ -5110,7 +5110,7 @@
         "persistsAcrossRestart": false
       },
       "projections": {
-        "cli": "snapback host load --schema <path>",
+        "cli": "snapback load --schema <path>",
         "mcp": "snapback_load_schema",
         "hostOps": "schema.load",
         "http": "POST /_snapback/api/host-ops",
@@ -5216,7 +5216,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/host-ops.md#mint-a-scoped-secret-read-lease",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],

@@ -1,16 +1,16 @@
 ---
 title: Authenticate a native app
 id: auth.native-apps
-order: 6
+order: 3
 audience: agent-first
 capabilities: [auth.external-identity-broker]
-authorities: [llp/0024-agent-operating-surface.spec.md, llp/0045-notifications-outbox.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, packages/snapback-client/index.mjs, clients/swift/SnapbackClient/Sources/SnapbackClient/SnapbackClient.swift]
+authorities: [llp/0024-agent-operating-surface.spec.md, llp/0045-notifications-outbox.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0181-zero-configuration-expo.rfc.md, packages/snapback-client/index.mjs, packages/snapback-expo/supervised-environment.mjs, src/cli.rs, clients/swift/SnapbackClient/Sources/SnapbackClient/SnapbackClient.swift]
 examples: []
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-08
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # Authenticate a native app
@@ -33,6 +33,13 @@ hand-write a second Snapback protocol client after the bearer is issued:
 JavaScript uses `createExternalSessionClient(baseUrl, { bearerToken })`, while
 Swift sets `Configuration.sessionBearer`.
 
+**Expo apps in local development rarely need to hand-build either shape**:
+the supervised dev loop (`snapback dev --expo`) already auto-mints an
+ordinary session through its loopback-only
+`GET /_snapback/expo/v1/bootstrap` exchange under `SnapbackExpoProvider` —
+see [the supervised Expo development loop](../clients/react-expo.md#run-the-supervised-expo-development-loop)
+before wiring a broker by hand.
+
 ## Keep the broker server-side
 
 `auth.mintSession` is a host operation available only in dev/test/demo. It
@@ -41,6 +48,12 @@ process-bound impersonation capability, and active sessions mode. The broker
 must live in the trusted server deployment that can hold those authorities.
 It authenticates the external user, maps that identity to the email passed to
 the host operation, and releases the returned bearer only to that same user.
+
+From a terminal, the paved spelling of the same operation is
+`snapback session mint --email <email> --ready-file <ready-file>` (or
+`--url` plus the admin token, reading the impersonation capability from
+stdin): it attaches the same authorities from the readiness descriptor
+instead of you assembling the host-op request by hand.
 
 Never put the admin token, impersonation capability, ready-file, or mailbox
 reader in a browser or native bundle. Never expose a generic “mint for email”

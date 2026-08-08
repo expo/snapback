@@ -1,7 +1,7 @@
 ---
 title: Protecting live and retained data
 id: auth.protecting-data
-order: 2
+order: 4
 audience: agent-first
 capabilities: [auth.invalidation-barrier, auth.authorized-leases]
 authorities: [llp/0053-authorization-invalidation.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, src/auth/invalidation.rs, src/auth/mode.rs, src/auth/service_fence.rs, src/local.rs, src/local/authorization_acceptance.rs, src/server.rs, demos/_kit/tests/auth-invalidation-client.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/authorized-lease.mjs]
@@ -9,8 +9,8 @@ examples: [demos/card-game, demos/_kit/tests/auth-invalidation-client.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-08
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # Protecting live and retained data
@@ -56,7 +56,9 @@ reopen a stale connection with it before retrying.
 
 The string your app supplies as `connectionId` is a logical sharing label. On
 open, Snapback returns a granted id, a secret connection token, and the exact
-authorization-invalidation expectation:
+authorization-invalidation expectation. The snippet below is the kit test's
+**mock server fixture** answering an open — it models the wire shape a real
+server returns, not application code you write:
 
 ```js source=demos/_kit/tests/auth-invalidation-client.mjs
       return response({

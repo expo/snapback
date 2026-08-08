@@ -78,6 +78,12 @@ partial: specialized validators — typed asset references (`v.assetRef`,
 [assets](../backend/assets.md)), result-side `v.doc(table)` references
 ([queries](../backend/queries.md)) — are taught with their features.
 
+<!-- since: 0.1.16 unreleased -->
+
+> **Unreleased.** Stored enum fields are newer than the newest published
+> closure, 0.1.15; until the next closure publishes, they are available on
+> contributor-source builds of the local target only.
+
 **Closed string domains (enums).** A field whose values come from a fixed set
 — a role, a status, a visibility — declares that set directly, instead of
 storing `v.string()` and re-checking the domain in every writer:

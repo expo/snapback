@@ -9,8 +9,8 @@ examples: [packages/snapback-cli/templates/todo-contract, packages/snapback-cli/
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-07
-reviewed-commit: 15b97f358d112c72d475049cc6757648a91b505f
+reviewed: 2026-08-08
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # The authoring loop
@@ -23,6 +23,13 @@ The cycle you repeat while building on Snapback:
 
 ```text
 edit snapback/*.mjs  ->  regenerate  ->  run the acceptance suite  ->  inspect
+```
+
+The `snapback` command ships in the published `@expo/snapback-cli` package.
+Install it once, globally, with whichever package manager you use:
+
+```sh
+npm install -g @expo/snapback-cli    # or: bun add -g @expo/snapback-cli
 ```
 
 The current source and packed-package React path is:
@@ -47,14 +54,20 @@ mutation, the composed `send` command with optional image upload, and
 typing presence), and a React Native chat screen driving all of it
 through `useSurface`. Scaffold it with
 `snapback new my-chat --template expo-chat` and edit the working example
-instead of composing that wiring from prose. The starter deliberately
-keeps the dev auth profile and seeded personas; a production chat adopts
-sessions auth and derives sender identity from the adopted session
+instead of composing that wiring from prose. The starter ships sessions
+mode (`auth: { mode: 'sessions' }`) with seeded personas: the supervised
+dev loop mints an ordinary session automatically, so authenticated send
+and image upload work with zero edits. It still passes the seeded persona
+as an explicit `senderId` argument and keeps chat history public-read; a
+production chat derives sender identity from the adopted session and
+scopes reads to conversation membership
 ([auth](../auth/sessions-and-principals.md)).
 
+<!-- since: 0.1.15 -->
+
 The same scaffold is also reachable through the ecosystem-standard entry
-point, the `create-snapback-app` package (in-repo now; its npm publication
-rides the next promotion sweep):
+point, the `create-snapback-app` package (first published with the 0.1.15
+closure):
 
 ```sh
 npm create snapback-app my-chat
@@ -83,26 +96,30 @@ terminal npm identity (LLP 0115 decision 9): the workspace name and the
 registry name are the same. The recorded pre-migration public closure
 (`0.1.x`) was published under the interim `@ccheever/snapback-*` aliases from
 the then-`@snapback/*` source names; those receipts remain verifiable as
-lineage. The byte-verified public closure contains the macOS/arm64 and
-Linux/x64 runtimes plus Contract, client, codegen, React, app CLI, and
-developer-loop CLI packages. Clean GitHub-hosted machines on both supported
-runtime tuples installed that exact closure and passed the original
-`todo-contract` scaffold/generate/dev/watch proof.
+lineage. The original byte-verified `0.1.0` closure contained the
+macOS/arm64 and Linux/x64 runtimes plus Contract, client, codegen, React,
+app CLI, and developer-loop CLI packages; clean GitHub-hosted machines on
+both supported runtime tuples installed that exact closure and passed the
+original `todo-contract` scaffold/generate/dev/watch proof. The published
+closure has since widened to eleven packages, including
+`@expo/snapback-expo` and `create-snapback-app`.
 
-The `@expo/snapback-*` **0.1.7** closure (publication ledger
-`terminal-package-publication-0.1.7-fdd49db8.json`) carries the complete
-public React path: `snapback new --template react`, `bun install`,
-`snapback generate`, a strict typecheck, `vite build`, the `snapback dev`
-lifecycle, template live acceptance with real handler execution, and a clean
-stop — proven from a clean external directory by the LLP 0137 G1
-qualification arm
-(`demos/improvement-sweep/arms/g1-public-package-qualification/`). Treat
-0.1.7 as the newest closure carrying that proof. The registry's `latest` tag
-now selects the 0.1.8 closure, published 2026-08-01 as a deliberate
-pre-consumer fast-path release with no qualification-arm receipt of its own
+Which closure you get from npm is recorded, not remembered:
+[`published-closure.json`](../published-closure.json) is the authority, and
+its two fields carry the tradeoff. `newestPublished` is the newest closure on
+the registry — what the `latest` tag installs. `newestQualified` is the
+newest closure that also carries a complete public-qualification receipt from
+the LLP 0137 G1 arm
+(`demos/improvement-sweep/arms/g1-public-package-qualification/`):
+`snapback new --template react`, `bun install`, `snapback generate`, a strict
+typecheck, `vite build`, the `snapback dev` lifecycle, template live
+acceptance with real handler execution, and a clean stop, proven from a clean
+external directory. When the two fields differ, the newer publications are
+deliberate fast-path releases with no qualification-arm receipt of their own
 (the "Fast-path pre-consumer release" section of
-[LLP 0041](repo:llp/0041-packaged-dev-loop.rfc.md)); pin `0.1.7` when you
-need the proven closure.
+[LLP 0041](repo:llp/0041-packaged-dev-loop.rfc.md)): install `latest` for
+the newest surface and fixes, or pin the recorded `newestQualified` version
+when you need the independently proven closure.
 
 Still do not infer that a published closure contains every surface in the
 current source tree: source lands continuously, and a packaged consumer has
@@ -234,7 +251,8 @@ Additive changes (new optional fields, new tables, new indexes) are what this
 loop supports. Destructive changes — dropping a field, tightening an optional
 field to required, changing a field's type — are refused by the conservative
 applier; they need the reviewed migration path
-([LLP 0081](repo:llp/0081-reviewed-storage-evolution-and-migrations.rfc.md)),
+([reviewed migrations](../backend/migrations.md#run-the-reviewed-loop);
+design: [LLP 0081](repo:llp/0081-reviewed-storage-evolution-and-migrations.rfc.md)),
 not a redeploy. Seeded data is separate again: a changed seed identity reports
 `SNAPBACK_SEED_MIGRATION_REQUIRED` and is resolved on the
 [versioned seeds](../backend/versioned-seeds.md) page, not here.
@@ -247,15 +265,18 @@ product path:
 
 ```sh
 cd <generated-app>
-npm test
+bun run test
 ```
 
 The generated todo and React starters make that default live: it boots and
 loads an isolated Snapback target, executes generated query and mutation
 references, verifies loaded artifact identity, cleans up, and prints a
-`snapback.starter-acceptance.v1` receipt. Use `npm run test:static` for the
+`snapback.starter-acceptance.v1` receipt. Use `bun run test:static` for the
 faster generated-file/source-coherence check; it does not boot Snapback and
-does not satisfy acceptance. Repository demos that do not use a generated
+does not satisfy acceptance. The templates declare `packageManager: bun`, so
+Bun is the paved runner; the scripts themselves are package-manager-agnostic
+(`npm test` / `npm run test:static` are the equivalents if you manage the
+generated app with npm). Repository demos that do not use a generated
 starter run their named headless suite directly, for example
 `node <app>/tests/acceptance/headless.mjs`.
 
@@ -270,12 +291,17 @@ deliberately core-only iteration; merge CI requires the Exact-gated block).
 
 ## 4. Inspect
 
-A running server tells you what it is actually serving:
+A running server tells you what it is actually serving. `snapback dev`
+prints the admin console URL on startup, and the packaged CLI opens the
+console against the supervised server's ready descriptor:
 
 ```sh
-cargo run                      # prints the admin URL on startup
+snapback admin --ready-file .snapback/dev.ready.json
 curl http://127.0.0.1:4287/inspect
 ```
+
+(Contributors running the server from a source checkout get the same admin
+URL printed by `cargo run`.)
 
 `GET /inspect` is the public projection (instance, capability facts);
 `GET /_snapback/api/inspect` is the admin-gated full view, and the admin

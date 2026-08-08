@@ -37,7 +37,8 @@ Local target; hosted targets make deliberately weaker claims
 ([auth/targets](../../guide/auth/targets.md)).
 
 1. **Install and scaffold.** The `snapback` command ships in
-   `@expo/snapback-cli`. Check the toolchain, then scaffold:
+   `@expo/snapback-cli`: `npm install -g @expo/snapback-cli` (or
+   `bun add -g @expo/snapback-cli`). Check the toolchain, then scaffold:
    `snapback doctor --json`, then `snapback new my-app --template react`
    (messaging-shaped briefs: `--template expo-chat`, a full chat starter),
    `cd my-app`, `bun install`.
@@ -108,12 +109,17 @@ is in [verify](../../guide/testing/verify.md).
 5. **Headless `liveQuery` defaults to manual-poll transport.** Pass
    `liveQuery({ transport: 'stream' })` for managed WebSocket push
    ([headless client](../../guide/clients/headless.md)).
-6. **Strict asset delivery vs plain `<img>` on sessions servers.**
-   `useSnapbackAssetImage.src` uses the strict-delivery URL unless the asset's
-   delivery profile is `public-immutable`; a bare `<img>` cannot send the
-   required protocol header, so the image renders empty. Choose the delivery
-   profile deliberately ([assets](../../guide/backend/assets.md);
-   `issues/20260806-asset-image-src-strict-url-sessions.md`).
+6. **Strict asset delivery vs plain `<img>` on sessions servers.** Since
+   `0.1.12`, `useSnapbackAssetImage.src` picks the most-permissive delivery
+   the asset's policy actually grants — the pasteable public URL when the
+   intent declares `public-immutable` and a rendition is ready, the
+   strict-delivery URL only when nothing more permissive exists — and a
+   sessions-mode server whose policy grants only strict delivery warns
+   loudly (`SNAPBACK_REACT_ASSET_STRICT_DELIVERY_SESSIONS`): a bare `<img>`
+   cannot send the required protocol header, so a strict URL renders empty
+   pixels. Choose the delivery profile deliberately
+   ([assets](../../guide/backend/assets.md);
+   `issues/closed/20260806-asset-image-src-strict-url-sessions.md`).
 7. **A doc-comment-only edit rotates function-bundle identity.** There is no
    successor migration yet, so it can cost a manual local-store rollover —
    batch comment churn with real edits

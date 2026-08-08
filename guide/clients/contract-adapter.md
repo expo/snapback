@@ -9,8 +9,8 @@ examples: [demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, 
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
+reviewed: 2026-08-08
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # The Contract adapter
@@ -188,6 +188,20 @@ entries, and the surface adopts each one instead of opening its own
 snapshot-with-subscribe (zero `/live/*/subscribe` round trips at boot). Any
 failure degrades to the ordinary fresh-subscribe boot, so the spread is
 strictly an optimization.
+
+Boot-order variants: `createSnapbackContractSurface` treats the connection
+as a precondition — links return only after ensure and every live
+snapshot-with-subscribe. When the app needs a useful first paint before the
+backend answers, use the **render-first** pair instead:
+`createDeferredContractLinks()` returns links synchronously with every
+binding pending (the `.contract` `loading` arm renders with zero backend),
+and `createRenderFirstSnapbackContractSurface(...)` runs connection, ensure,
+and subscription establishment behind the mounted app, attaching bindings
+live in place. Both are package-root exports (ENG-23736; LLP 0034 §10.7).
+`mountSnapbackContractHeadless(runtime, component, options)` is the shared
+mount helper for driving a compiled Contract component without a DOM shell —
+acceptance suites and headless hosts use it; the surface's own mount paths
+compose it.
 
 Agent clients use the same surface constructor. A `SnapbackClient` configured
 with `AgentAuthorityFence` is resolved as explicit custody; Contract does not

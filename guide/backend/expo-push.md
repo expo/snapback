@@ -9,8 +9,8 @@ examples: [packages/snapback-cli/fixtures/push-seam]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-08
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # Expo push notifications
@@ -93,8 +93,11 @@ export default defineSchema({ events, eventMembers }, {
 Declare `expoPushAccessToken` as an optional deployment config entry and grant
 it in every sending action's `uses`. Accounts without enhanced push security
 may leave it unset. Snapback then attempts the request without a bearer; if
-Expo requires one, `UNAUTHORIZED` settles as `failed-config` rather than being
-retried. Config values never enter source, handler arguments, or the ledger.
+Expo requires one, `UNAUTHORIZED` settles as `failed-config` — an
+intent-level aggregate state, distinct from the per-message
+`expo-error-config` classification (see
+[two state vocabularies](#two-state-vocabularies-intent-aggregates-and-per-message-lifecycle))
+— rather than being retried. Config values never enter source, handler arguments, or the ledger.
 See [Secrets and deployment config](../operating/secrets-and-config.md).
 
 ## Register the current installation
@@ -164,6 +167,17 @@ export async function notifyGuests(ctx, { eventId }) {
 }
 ```
 
+The reference itself can be built two equivalent ways. The schema-side form
+above (`pushSeam.audiences.guests({ eventId })`) works wherever the schema
+module's `pushSeam` export is in scope. Inside a generated action handler,
+the context exposes the same helpers without importing the schema:
+`ctx.push.audience('guests', { eventId })` and its property twin
+`ctx.push.audiences.guests({ eventId })`. Generated contexts type both
+through `GeneratedPush`, closing the audience name union and each audience's
+exact argument shape; an empty or non-string audience name refuses with
+`SNAPBACK_PUSH_SEND_INVALID`. All three spellings produce the same audience
+reference — an `{ audience, args }` value, never resolved tokens.
+
 The host validates the reference, authorizes it against current membership,
 resolves current members and live registry rows, reserves the durable ledger,
 marks `transmitting` before the first provider byte, and sends serial batches
@@ -228,10 +242,31 @@ Tests may call `POST /_snapback/api/push/maintenance` with an injected clock
 only when a Dev/Test profile uses a loopback provider override; injected time
 is refused against the real Expo endpoint.
 
+### Two state vocabularies: intent aggregates and per-message lifecycle
+
+The seam records state at two granularities, and the two closed vocabularies
+overlap without being equal — do not switch on one expecting the other's
+values:
+
+- **Intent-level aggregate state** — what `ctx.push.send` returns as `state`
+  and what an intent row carries. Closed set: `reserved`, `handed-to-expo`,
+  `expo-accepted`, `expo-error`, `failed-permanent`, `failed-config`,
+  `failed-retryable`, `ambiguous`, `ambiguous-receipt`, `zero-target`. The
+  `failed-config` settlement from an unset-but-required
+  `expoPushAccessToken` and the `zero-target` empty-audience outcome exist
+  only here.
+- **Per-message lifecycle state** — what the ledger query's per-recipient
+  rows carry. Closed set: `reserved`, `handed-to-expo`, `expo-accepted`,
+  `expo-error`, `expo-error-config`, `expo-error-rate`, `failed-permanent`,
+  `ambiguous`, `ambiguous-receipt`. The receipt-stage provider
+  classifications `expo-error-config` and `expo-error-rate` exist only here.
+
+Reading the shared names:
+
 - `handed-to-expo` means the send endpoint returned a successful ticket.
 - `expo-accepted` means Expo's receipt says it handed the message to APNs/FCM.
-- `expo-error`, `expo-error-config`, and `expo-error-rate` are closed provider
-  classifications.
+- `expo-error` (both vocabularies), plus the message-level `expo-error-config`
+  and `expo-error-rate`, are closed provider classifications.
 - `ambiguous` means request response certainty was lost.
 - `ambiguous-receipt` means the bounded receipt window ended without an
   answer.

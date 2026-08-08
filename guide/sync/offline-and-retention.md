@@ -4,13 +4,13 @@ id: sync.offline-and-retention
 order: 1
 audience: agent-first
 capabilities: [backend.single-table-v1, sync.offline, sync.offline-js-arm, sync.offline-js-arm-sessions, sync.local-persistent-store]
-authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, src/local-persistent-store-publication.v1.json, packages/snapback-codegen/index.mjs, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs, demos/warble/snapback/functions.mjs, demos/warble/tests/acceptance/offline-local-first.mjs]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, src/local-persistent-store-publication.v1.json, packages/snapback-codegen/index.mjs, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-shared.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs, demos/warble/snapback/functions.mjs, demos/warble/tests/acceptance/offline-local-first.mjs]
 examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, demos/warble, demos/browser-local-first, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-client/rqs-resume.test.mjs, tests/acceptance/desktop-sidecar-v1.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-07
-reviewed-commit: 6a1de382fade55da910e3ab1f40115e1e0cfad48
+reviewed: 2026-08-08
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # Offline retention and mutation replay
@@ -200,6 +200,26 @@ proof of the same contracts. The headless witness proves:
   2026-08-01 rendering note). Render the queued-changes state next to the
   retained rows from `client.outboxStatus()` (React:
   `useSnapbackOutbox()`), never by faking the rows themselves.
+
+**Queueing requires writer custody of the durable store.** The client store
+is single-writer: the first client over a store directory (or IndexedDB
+identity) acquires writer ownership, and a second client over the same
+store — another process, or a second casually constructed client in the same
+process — is a *reader*. A reader can still render retained rows and see
+pending intent, but a mutation that must queue refuses with
+`SNAPBACK_OUTBOX_NOT_WRITER` ("this context does not hold single-writer
+ownership of the client store; the mutation was not queued") rather than
+silently queueing into a store it does not own. One deliberate degradation
+exists: a generated declarative mutation with the default `queue: 'auto'`
+falls back to ordinary server-delegated dispatch when it hits the non-writer
+refusal (LLP 0155's server-only admission rule) — it does not queue, and it
+does not fail while the server is reachable. Separately, a client whose
+queue custody is unavailable — `offlineQueue: false`, or only the volatile
+memory store — refuses an explicit `queue: true` with
+`SNAPBACK_OFFLINE_QUEUE_DISABLED` before any network dispatch. Run mutations
+that must queue from the store-owning client; this is the outbox twin of the
+`SNAPBACK_RQS_STORE_NOT_WRITER` rule the materialization section names for
+registrations.
 
 ```js source=packages/snapback-client/outbox-store.test.mjs
   // Offline: fetch refuses at the transport (TypeError, like undici).
@@ -737,7 +757,8 @@ server compares it before GC and the client removes only matching local
 proofs. An authority change therefore retains the predecessor proof rather
 than leaking its id into, or deleting it under, the successor. A volatile
 memory fallback reports `durable: false`, does not auto-queue, and refuses
-`queue: true` before network dispatch. The current Expo file adapter makes the
+`queue: true` with `SNAPBACK_OFFLINE_QUEUE_DISABLED` before network
+dispatch. The current Expo file adapter makes the
 same conservative report because its File/Directory API exposes no fsync cut
 and has a non-atomic compatibility replacement; it can cache RQS rows but does
 not own durable settlement publication.

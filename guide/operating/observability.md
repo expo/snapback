@@ -9,8 +9,8 @@ examples: []
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
+reviewed: 2026-08-08
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # Backend observability
@@ -71,9 +71,11 @@ snapshot and emits a self-describing NDJSON header followed by the visible
 records.
 
 When addressing `--url` instead, supply the admin token and a separately
-minted `--secret-read-lease` for `events` or `export`. An admin token alone is
-deliberately insufficient for raw records. Responses from raw HTTP carriers
-are `no-store`.
+minted `--secret-read-lease` for `events` or `export` — mint it with
+`snapback secret-read-mint` as described in
+[host operations — "Mint a scoped secret-read lease"](./host-ops.md#mint-a-scoped-secret-read-lease).
+An admin token alone is deliberately insufficient for raw records. Responses
+from raw HTTP carriers are `no-store`.
 
 ## Query from an agent tool
 

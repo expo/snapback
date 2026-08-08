@@ -9,8 +9,8 @@ examples: [packages/snapback-app-cli/package.test.mjs, packages/snapback-app-cli
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-05
-reviewed-commit: c1017fb28806ab202112819eccd165018fda4c1c
+reviewed: 2026-08-08
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # The artifact-driven app CLI
@@ -247,7 +247,13 @@ contract; it does not by itself create or promise a public download channel.
 The returned result includes redacted grant/scope facts and operation results,
 never credential or token plaintext. Use the lower-level `pairAgent`,
 `mintAgentToken`, `invokeAppFunction`, and `subscribeAppFunction` exports when a
-coordinator owns the approval pause or needs multiple calls. For agent auth
+coordinator owns the approval pause or needs multiple calls. Two further
+library exports round out that seam: `loadAppArtifacts(directory)` loads and
+identity-validates a generated artifact directory into the inert surface the
+other calls consume, and `startAppFunctionLive(client, artifacts, name,
+options)` opens a **managed** live-query handle over a declared live query
+through `client.startLiveQuery` (where `subscribeAppFunction` performs the
+one-shot low-level subscribe). For agent auth
 semantics and durable daemon custody, read
 [Agent principals](../auth/agent-principals.md).
 

@@ -9,8 +9,8 @@ examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receip
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-07
-reviewed-commit: 6a1de382fade55da910e3ab1f40115e1e0cfad48
+reviewed: 2026-08-08
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # React Expo Online clients
@@ -39,27 +39,40 @@ rather than component state plus a local counter delta.
 
 <!-- since: 0.1.11 -->
 
-In a standalone Expo 57 app, install the package roots that the app imports
-plus the native file, random, and picker modules used by the durable image
-path:
+For a **new** Expo app, start from the Expo-native `expo-chat` template
+instead of assembling packages by hand: `npx snapback new my-app --template
+expo-chat`, or `npm create snapback-app`, whose default template is the same
+one. It ships the conventional `snapback/` backend and the root
+file-store/crypto registration described below already wired.
+
+When adding Snapback to an **existing** standalone Expo 57 app, install the
+package roots that the app imports plus the native file, random, and picker
+modules used by the durable image path. Install the five Snapback roots
+together so the lock holds one coherent version vector — the newest
+published closure is the checked-in record in
+[`published-closure.json`](../published-closure.json):
 
 ```sh
 npx expo install \
-  @expo/snapback-cli@^0.1.11 \
-  @expo/snapback-client@^0.1.11 \
-  @expo/snapback-codegen@^0.1.11 \
-  @expo/snapback-expo@^0.1.11 \
-  @expo/snapback-react@^0.1.11 \
+  @expo/snapback-cli@latest \
+  @expo/snapback-client@latest \
+  @expo/snapback-codegen@latest \
+  @expo/snapback-expo@latest \
+  @expo/snapback-react@latest \
   expo-file-system expo-crypto expo-image-picker
 ```
 
 Do not add `@expo/snapback-contract` directly; the client/codegen packages
 own their exact Contract edge. Keep one coherent version vector in the lock,
-with no `file:`, `link:`, workspace, override, or checkout path.
+with no `file:`, `link:`, workspace, override, or checkout path. If the app
+will register for push notifications, the client's
+`@expo/snapback-client/push-installation-expo` subpath is the Expo carrier
+for installation storage — see
+[Expo push notifications](../backend/expo-push.md).
 
-The current CLI has no backend-only initializer. `snapback new` creates a
-whole project, so when adding Snapback to an existing blank Expo app, create
-the packaged React scaffold in a clean sibling directory and copy its
+The CLI has no backend-only initializer — `snapback new` creates a whole
+project — so when adding Snapback to an existing blank Expo app, create the
+packaged React scaffold in a clean sibling directory and copy its
 conventional `snapback/` child into the Expo root before authoring and
 generating:
 
@@ -165,18 +178,24 @@ back to `curl`, raw host operations, or a one-off verification script.
 
 <!-- since: 0.1.10 -->
 
-> **Published 0.1.11 boundary.** The dated 0.1.10
+> **Closure-version boundaries.** State these by closure version, not by
+> "current" — the newest published closure is the checked-in record in
+> [`published-closure.json`](../published-closure.json). The dated 0.1.10
 > [external-consumer G4 proof](repo:demos/expo-golden-path-fixture/receipts/20260806-g4-external-summary.md)
-> found a runtime-capability and ImagePicker-closure mismatch. The live 0.1.11
-> vector repairs both: the external iOS simulator reached its complete
-> live-query/image-send marker, and the same app reached the Android marker
-> after a verification-only adb compatibility wrapper. G4 still fails as a
-> distribution gate: current adb may label selected reverse rules `host-16`,
-> which 0.1.11 rejects; EAS CLI cannot resolve the documented package-root
-> config-plugin entry; and release exports still retain the supervised
-> bootstrap path, origin-symbol vocabulary, and development host literals.
-> Source repairs for the first two await a successor package. Do not patch
-> `node_modules` or mix source and registry packages to hide those boundaries.
+> found a runtime-capability and ImagePicker-closure mismatch; 0.1.11
+> repairs both. Two further boundaries hold at exactly 0.1.11: current adb
+> may label selected reverse rules with a transport token such as
+> `host-16`, which the 0.1.11 supervisor rejects, and EAS CLI cannot
+> resolve the package-root config-plugin entry. Closures 0.1.12 and newer
+> carry both repairs (verified against the published registry bytes).
+> Release exports up to and including 0.1.12 retain the supervised
+> bootstrap path, origin-symbol vocabulary, and development host literals;
+> 0.1.13 and newer gate that vocabulary behind Metro's production
+> transform. The LLP 0176 G4 distribution gate itself stays open until a
+> successor-closure ceremony rerun lands its receipts
+> ([the G4 ticket](repo:issues/20260806-guide-gap-g4-live-0110-external-vector.md)).
+> Do not patch `node_modules` or mix source and registry packages to hide a
+> boundary on an older closure.
 
 The north-star boot has three application-visible pieces: the config-plugin
 entry, the generated `app`, and `SnapbackExpoProvider`. There is no backend URL
@@ -195,10 +214,10 @@ subpath instead:
     "plugins": ["@expo/snapback-expo/app.plugin"]
 ```
 
-The package-root entry works with `expo config` but 0.1.11 exposes no CommonJS
-root for EAS's resolver. The source package now supplies that conditional root
-and retains the subpath; either spelling will work after the successor is
-published.
+At 0.1.11 the package root exposes no CommonJS entry for EAS's resolver
+(`expo config` still accepts it). Closures 0.1.12 and newer publish the
+conditional root export and retain the subpath, so either spelling works
+there.
 
 Its application root mounts the provider with the generated descriptor and an
 optional boot-state fallback, still with no URL or binding prop:
@@ -300,14 +319,15 @@ the unchanged binding `source: "supervised-dev"`; Android USB remains
 refuses rather than allowing adb to choose whichever target happens to be
 first.
 
-Published 0.1.11 has one current-adb compatibility boundary: a selected-device
-`adb reverse --list` row may begin with a transport token such as `host-16`
-instead of echoing `emulator-5554`. The 0.1.11 supervisor mistakes that token
-for the selected serial and refuses after installing its rules. The source
-repair treats the already `adb -s <serial>`-scoped listing as belonging to the
-selected device; until that ships, an unmodified 0.1.11 Android supervised run
-on an affected adb is expected to fail with
-`SNAPBACK_EXPO_ADB_REVERSE_FAILED`.
+Closure 0.1.11 exactly has one current-adb compatibility boundary: a
+selected-device `adb reverse --list` row may begin with a transport token
+such as `host-16` instead of echoing `emulator-5554`. The 0.1.11 supervisor
+mistakes that token for the selected serial and refuses after installing its
+rules, so an unmodified 0.1.11 Android supervised run on an affected adb
+fails with `SNAPBACK_EXPO_ADB_REVERSE_FAILED`. Closures 0.1.12 and newer
+treat the already `adb -s <serial>`-scoped listing as belonging to the
+selected device and verify its device/host port pairs independently of the
+transport label.
 
 Supervised binding admission tolerates at most 60 seconds of the host issuer's
 clock running ahead of the simulator/emulator clock. Expiry remains strict; a
@@ -393,18 +413,18 @@ import {
   SnapbackProvider,
   createSnapbackReactProvider,
 } from '@expo/snapback-react';
-import api from './generated/api.mjs';
-import schema from './generated/schema.manifest.json';
-import functions from './generated/functions.manifest.json';
-import capabilityManifest from './generated/capability.manifest.json';
+import { app } from './snapback/generated/app.mjs';
 
 const client = createExternalSessionClient(serverUrl, { bearerToken });
-const binding = await client.prepareReactBinding({
-  generatedManifest: { schema, functions, capabilityManifest },
-});
+const binding = await client.prepareReactBinding({ generatedManifest: app });
 const provider = createSnapbackReactProvider(binding);
 // <SnapbackProvider provider={provider}> ... </SnapbackProvider>
 ```
+
+`app` is the generated `snapback.app.v1` descriptor — the same complete
+descriptor [the React page](./react.md) teaches. (The older
+`{ schema, functions, capabilityManifest }` manifest carrier remains
+admitted for compatibility.)
 
 The first preparation needs the server reachable (deployment verification).
 After one successful online preparation over a registered durable store, an
@@ -758,7 +778,10 @@ xcrun simctl io "$UDID" screenshot "$EVIDENCE_DIR/message-sent.png"
 For an unattended proof build, route a small closed set of `proof/*` URLs from
 the ordinary React Native `Linking` listener to the same actions the UI invokes
 (send, navigate, background-test setup), then emit the normal in-app/server
-witness. Do not let the drive channel call private backend seams, skip
+witness. A record id arriving in any deep-link or route URL is untyped: admit
+it into the generated branded id type with `admitSnapbackId(table, value)`
+from `@expo/snapback-client` (wire-grammar admission only — it deliberately
+does not claim the row exists) instead of casting. Do not let the drive channel call private backend seams, skip
 authority, or declare success by receiving the URL alone. Keep secrets out of
 URLs, gate the channel to the proof build, and pair every drive command with an
 independent observation or screenshot. Invitation/share URLs remain real
@@ -779,12 +802,17 @@ snapshot-with-subscribe. During the gap, keep the prior rows visible under a
 `stale` or disconnected connection fact; never relabel them live.
 
 `bindSnapbackAppLifecycle(AppState, handle)` from `@expo/snapback-client`
-(re-exported by `@expo/snapback-react`) serializes AppState changes onto a
-**headless** `client.liveQuery` handle's `pause()`/`resume()` methods. It
-applies to handles you opened yourself; the React provider path does not
-expose its internal handles, and the provider currently has no app-lifecycle
-seam of its own — on that path leave the provider attached and let the
-stream manager's reconnect own recovery.
+(re-exported by `@expo/snapback-react`) serializes AppState changes onto
+anything with `pause()`/`resume()` methods — a **headless**
+`client.liveQuery` handle you opened yourself, or the React provider itself,
+which exposes exactly that app-lifecycle seam at provider granularity
+(`provider.pause()` / `provider.resume()`;
+[the React client page](./react.md)). `SnapbackExpoProvider` already binds
+AppState to those provider methods internally, so on the supervised path do
+not add a second AppState binding — leave the provider attached and let the
+stream manager's reconnect own transport recovery. A custom shell that owns
+its environment wiring binds host lifecycle once at the provider boundary
+([framework bindings](./framework-bindings.md)).
 
 A token-resume re-establishment can complete **rowlessly**: the HTTP
 acknowledgement names the new subscription while the authoritative

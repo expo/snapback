@@ -86,7 +86,7 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **114 operations** at digest `sha256:3727bea45be4d72acf856b36b7158b91fc835a7f7f9d81b43d1e4d9635e245d0`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **114 operations** at digest `sha256:5a78cfa1c449bf635339d43458d5b819a4f697914c566f56a3c799314882fb51`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
@@ -108,8 +108,8 @@ The embedded build catalog contains **114 operations** at digest `sha256:3727bea
 | `admin.link.revoke` | `cliOnly` | `mediated` | `shipped` | snapback admin link --revoke <claim> | — | — |
 | `admin.link.status` | `cliOnly` | `mediated` | `shipped` | snapback admin link --status <claim> | — | — |
 | `app.ensure.provision` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `app.inspect` | `native` | `direct` | `shipped` | snapback host inspect | snapback_inspect | operating/host-ops.md |
-| `app.reset` | `native` | `direct` | `shipped` | snapback host reset | snapback_reset | — |
+| `app.inspect` | `native` | `direct` | `shipped` | snapback inspect | snapback_inspect | operating/host-ops.md |
+| `app.reset` | `native` | `direct` | `shipped` | snapback reset | snapback_reset | — |
 | `app.seed.clear.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `app.seed.ensure.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `app.seed.preview.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
@@ -142,13 +142,13 @@ The embedded build catalog contains **114 operations** at digest `sha256:3727bea
 | `cli.fork.drop` | `cliOnly` | `direct` | `shipped` | snapback fork drop | — | — |
 | `cli.fork.list` | `cliOnly` | `direct` | `shipped` | snapback fork list | — | — |
 | `cli.fork.reap` | `cliOnly` | `direct` | `shipped` | snapback fork reap | — | — |
-| `cli.migrate.apply` | `cliOnly` | `direct` | `shipped` | snapback migrate apply | — | — |
-| `cli.migrate.approve` | `cliOnly` | `direct` | `shipped` | snapback migrate approve | — | — |
-| `cli.migrate.cancel` | `cliOnly` | `direct` | `shipped` | snapback migrate cancel | — | — |
-| `cli.migrate.preview` | `cliOnly` | `direct` | `shipped` | snapback migrate preview | — | — |
-| `cli.migrate.rehearse` | `cliOnly` | `direct` | `shipped` | snapback migrate rehearse | — | — |
-| `cli.migrate.rollback` | `cliOnly` | `unavailable` | `unbuilt` | snapback migrate rollback | — | — |
-| `cli.migrate.verify` | `cliOnly` | `direct` | `shipped` | snapback migrate verify | — | — |
+| `cli.migrate.apply` | `cliOnly` | `direct` | `shipped` | snapback migrate apply | — | backend/migrations.md#run-the-reviewed-loop |
+| `cli.migrate.approve` | `cliOnly` | `direct` | `shipped` | snapback migrate approve | — | backend/migrations.md#run-the-reviewed-loop |
+| `cli.migrate.cancel` | `cliOnly` | `direct` | `shipped` | snapback migrate cancel | — | backend/migrations.md#run-the-reviewed-loop |
+| `cli.migrate.preview` | `cliOnly` | `direct` | `shipped` | snapback migrate preview | — | backend/migrations.md#run-the-reviewed-loop |
+| `cli.migrate.rehearse` | `cliOnly` | `direct` | `shipped` | snapback migrate rehearse | — | backend/migrations.md#run-the-reviewed-loop |
+| `cli.migrate.rollback` | `cliOnly` | `unavailable` | `unbuilt` | snapback migrate rollback | — | backend/migrations.md#verify-cancel-and-the-unbuilt-rollback |
+| `cli.migrate.verify` | `cliOnly` | `direct` | `shipped` | snapback migrate verify | — | backend/migrations.md#run-the-reviewed-loop |
 | `cli.telemetry.query` | `cliOnly` | `direct` | `shipped` | snapback telemetry query | — | — |
 | `client-mutations.purge` | `apiOnly` | `internal` | `shipped` | — | — | — |
 | `config.plan` | `native` | `direct` | `shipped` | snapback config plan | snapback_config_plan | operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify |
@@ -175,7 +175,7 @@ The embedded build catalog contains **114 operations** at digest `sha256:3727bea
 | `data.patch.apply` | `native` | `direct` | `shipped` | snapback data patch --apply --input <file\|-> | snapback_data_patch_apply | operating/data-patch.md#apply |
 | `data.patch.preview` | `native` | `direct` | `shipped` | snapback data patch --preview --input <file\|-> | snapback_data_patch_preview | operating/data-patch.md#preview |
 | `data.scan` | `native` | `direct` | `shipped` | snapback data scan <table> | snapback_data_scan | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
-| `debug.live.forceResync` | `native` | `direct` | `shipped` | snapback debug force-resync | snapback_live_force_resync | operating/host-ops.md |
+| `debug.live.forceResync` | `native` | `direct` | `shipped` | snapback debug force-resync | snapback_live_force_resync | operating/host-ops.md#served-request-operations |
 | `debug.networkProfileGet` | `native` | `direct` | `shipped` | snapback network-profile get | snapback_network_profile_get | operating/network-profiles.md#read-the-active-profile |
 | `debug.networkProfileSet` | `native` | `direct` | `shipped` | snapback network-profile set | snapback_network_profile_set | operating/network-profiles.md#set-a-profile |
 | `direct_runner.action` | `apiOnly` | `direct` | `shipped` | — | — | — |
@@ -188,14 +188,14 @@ The embedded build catalog contains **114 operations** at digest `sha256:3727bea
 | `errors.issues` | `native` | `direct` | `shipped` | snapback errors issues | snapback_errors_issues | operating/host-ops.md |
 | `errors.transition` | `native` | `direct` | `shipped` | snapback errors transition | snapback_errors_transition | operating/host-ops.md |
 | `function.explain` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `function.run` | `native` | `direct` | `shipped` | snapback host run | snapback_run_function | — |
-| `functions.load` | `native` | `direct` | `shipped` | snapback host load --functions <path> | snapback_load_functions | — |
+| `function.run` | `native` | `direct` | `shipped` | snapback run | snapback_run_function | — |
+| `functions.load` | `native` | `direct` | `shipped` | snapback load --functions <path> | snapback_load_functions | — |
 | `functions.reload` | `apiOnly` | `unavailable` | `unbuilt` | — | — | — |
 | `health` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `health.read` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `host.restart` | `native` | `direct` | `shipped` | snapback restart | snapback_restart | operating/host-ops.md#restart-with-one-credential-bound-receipt |
-| `host.start` | `cliOnly` | `direct` | `shipped` | snapback host start | snapback_start | — |
-| `host.stop` | `cliOnly` | `direct` | `shipped` | snapback host stop | snapback_stop | — |
+| `host.start` | `cliOnly` | `direct` | `shipped` | snapback start | snapback_start | — |
+| `host.stop` | `cliOnly` | `direct` | `shipped` | snapback stop | snapback_stop | — |
 | `hostCall.dispatch` | `none` | `internal` | `shipped` | — | — | — |
 | `inspect` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `jobs.drain` | `native` | `direct` | `shipped` | snapback jobs drain | snapback_jobs_drain | — |
@@ -206,9 +206,9 @@ The embedded build catalog contains **114 operations** at digest `sha256:3727bea
 | `push.maintenance` | `apiOnly` | `internal` | `shipped` | — | — | — |
 | `receipts` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `route.unknown.refuse` | `none` | `internal` | `shipped` | — | — | — |
-| `schema.load` | `native` | `direct` | `shipped` | snapback host load --schema <path> | snapback_load_schema | — |
+| `schema.load` | `native` | `direct` | `shipped` | snapback load --schema <path> | snapback_load_schema | — |
 | `schema.reload` | `apiOnly` | `unavailable` | `unbuilt` | — | — | — |
-| `secretRead.mint` | `cliOnly` | `direct` | `shipped` | snapback secret-read-mint | — | — |
+| `secretRead.mint` | `cliOnly` | `direct` | `shipped` | snapback secret-read-mint | — | operating/host-ops.md#mint-a-scoped-secret-read-lease |
 | `storage.operation-coverage.activate` | `apiOnly` | `direct` | `shipped` | — | — | operating/agent-controls.md#specialist-api-operations-apionly |
 | `storage.protected-erasure` | `apiOnly` | `direct` | `shipped` | — | — | operating/agent-controls.md#specialist-api-operations-apionly |
 | `telemetry.events` | `native` | `direct` | `shipped` | snapback telemetry events | snapback_telemetry_events | operating/host-ops.md |

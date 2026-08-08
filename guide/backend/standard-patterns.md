@@ -9,8 +9,8 @@ examples: [packages/snapback-codegen/standard-patterns.test.mjs, packages/snapba
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-04
-reviewed-commit: 30e3d09c7e5063a1233773742c2b69e0b6981e07
+reviewed: 2026-08-08
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # Safe standard data patterns
@@ -221,7 +221,9 @@ read.
 
 The v1 helpers do not authorize joins, projections, migrations, shared ACLs,
 or public rows. Express those semantics directly with the declarative builders
-or a JavaScript handler under their governing design. A schema field or index
+— the complete `defineMutation` step/expression vocabulary is
+[declarative mutation plans](./declarative-plans.md) — or a JavaScript
+handler under their governing design. A schema field or index
 can prove structure; it cannot prove who may see or mutate a row.
 
 ## Design reference: write plus one activity row

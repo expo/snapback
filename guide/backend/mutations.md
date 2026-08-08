@@ -3,14 +3,14 @@ title: Mutations
 id: backend.mutations
 order: 2
 audience: agent-first
-capabilities: [backend.query-semantics]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0174-authoring-incidents-at-security-fences.research.md, src/server.rs, src/runtime.rs, src/result_contract.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/refusal-tracking-authoring.test.mjs, tests/conformance/twin-corpus.handlers.js, demos/messaging-snapback/snapback/functions.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
+capabilities: [backend.query-semantics, backend.record-history]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0162-agent-safe-storage-profile.rfc.md, llp/0174-authoring-incidents-at-security-fences.research.md, src/server.rs, src/runtime.rs, src/result_contract.rs, src/proof_checkpoint.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, packages/snapback-codegen/history-authoring-types.fixture.ts, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/refusal-tracking-authoring.test.mjs, tests/conformance/twin-corpus.handlers.js, demos/messaging-snapback/snapback/functions.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
 examples: [demos/todo, demos/todo-v2, demos/messaging-snapback, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: effa2773760fd0d740c49f06990b3fde5e82a66b
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # Mutations
@@ -87,6 +87,22 @@ the reason — retry with a different value, be shown copy — declare the code
 instead; see
 [refuse with a declared code](#refuse-with-a-declared-code-not-a-bare-throw).
 
+<!-- since: 0.1.16 unreleased -->
+
+> **Unreleased.** Stored enum fields are newer than the newest published
+> closure, 0.1.15; until the next closure publishes, they are available on
+> contributor-source builds of the local target only.
+
+The hand-rolled severity domain guard above predates **stored enums**: a
+field whose values come from a fixed set now declares that set on the schema
+— `severity: v.union([v.literal('SEV-1'), v.literal('SEV-2'), v.literal('SEV-3')])`
+— and every central writer then enforces the domain, refusing an
+out-of-domain string with `SNAPBACK_FIELD_ENUM_VALUE_INVALID` (naming the
+field and admitted values) and committing nothing. Declare the domain once
+instead of re-checking it in every mutation; declaration rules and
+narrowing semantics are
+[closed string domains](../getting-started/your-first-backend.md#declare-the-schema).
+
 The handler writes only through `ctx.db`. Server-owned ids, row versions, and
 storage timestamps are never authored by the handler. An inline handler
 captures no imports or top-level `const` bindings; statically reachable
@@ -98,7 +114,9 @@ packages, and multi-file graphs are not admitted by that compatibility lane.
 
 `defineMutation` is the declarative twin: compose `insert`, `patch`,
 `delete`, conditions, and a declared return binding without running a JS
-handler.
+handler. The complete plan vocabulary — every step helper, the expression
+algebra, return bindings, and the spec keys — is
+[declarative mutation plans](./declarative-plans.md).
 
 Strict `arg('name')` requires the property, so generation refuses a
 caller-optional argument consumed by it with
@@ -293,7 +311,9 @@ as `diagnostic.code` itself, not wrapped in `SNAPBACK_APP_REFUSAL` with an
 `appCode`. Codegen does not cross-check plan codes against `refusals`, so
 declaring the same string in both places documents intent but changes
 nothing. Match plan refusals on `diagnostic.code` and JS-handler refusals on
-`details.appCode`; do not write one client branch expecting both shapes.
+`details.appCode`; do not write one client branch expecting both shapes. The
+plan channel's complete semantics are
+[refusals from a plan](./declarative-plans.md#refuse-from-a-plan-elseerror-and-guard).
 
 ## Preserve invariants with read sets
 
@@ -406,6 +426,38 @@ app database, not a wall-clock timestamp. It is an exact integer in
 `0..=Number.MAX_SAFE_INTEGER`. The maximum commit is usable, but an operation
 that needs its successor fails before writing with
 `SNAPBACK_STORAGE_VERSION_EXHAUSTED`; never round or synthesize a cursor.
+
+## Retain bounded record history
+
+By default a committed write replaces the prior row image. A table that needs
+its recent prior versions retained inside storage — the substrate host
+machinery uses to prove facts about past states — declares finite per-record
+history on the schema:
+
+```ts source=packages/snapback-codegen/history-authoring-types.fixture.ts
+const policy: HistoryRetentionSpec = {
+  retainMs: 60_000,
+  maxVersionsPerRecord: 12,
+};
+
+defineTable({ title: v.string() }).history(policy).sync();
+```
+
+The declaration is a closed typed object of exactly `retainMs` (an integer
+from 1 through 2,592,000,000 — at most 30 days) and `maxVersionsPerRecord`
+(1 through 1,000), declared at most once per table; there is deliberately no
+unbounded spelling. It activates atomically with schema publication: central
+writers then capture each committed change into the bounded history store,
+and pruning enforces both the age window and the per-record version cap.
+
+Retained versions are storage-side facts consumed by host machinery — the
+operation ledger's historical-owner reads when it explains an owner
+mutation, and the instance-fork promotion proof tail — not an application
+read surface. There is no author-facing history query: a JS handler cannot
+read a row's prior versions, and an app that needs user-visible revision
+history keeps modeling it as ordinary application rows. Declaring
+`history()` without a reason costs a write and storage per commit for
+nothing.
 
 ## Anti-patterns
 

@@ -11,18 +11,44 @@
 prototype on for free, built to scale to real production load. MIT licensed,
 host it anywhere, including for other people.**
 
-> **Status: early design with a first local-dev core slice.** Snapback is still
-> primarily in the vision-and-design stage, worked out in the open as a corpus
-> of [LLP design documents](./llp/). The repository now contains a Rust local
-> development server with SQLite storage, manifest-backed query/mutation
-> invocation, live-query updates, and the in-memory ephemeral realtime state
-> backend from
-> [`llp/0013-ephemeral-realtime-state.rfc.md`](./llp/0013-ephemeral-realtime-state.rfc.md).
-> The local target also has built-in email-code sessions,
-> authorization-scoped live delivery, coordinator-backed credential
-> transitions, and lease-gated retained reads.
+> **Status: the local-target product is shipped; hosted targets are honest
+> partial profiles.** Snapback is designed in the open as a corpus of
+> [LLP design documents](./llp/), and the design has been built: an
+> eleven-package `@expo/snapback-*` closure is published on npm (the newest
+> published and newest independently qualified versions are recorded in
+> [`guide/published-closure.json`](./guide/published-closure.json)), carrying
+> the Rust/SQLite server and Ibex (Hermes) JavaScript runtime with
+> server-authoritative queries and mutations, live queries, ephemeral
+> realtime state, email-code sessions auth, assets and media, scheduled and
+> one-off jobs, and first-party React, Expo, Swift, Contract/Exact, and
+> headless clients. The CI-verified authoring guide at
+> [`guide/index.md`](./guide/index.md) documents that surface intent-first,
+> and its [capability index](./guide/capabilities.md) is the authority on
+> what is shipped, partial, or an explicit GAP — including the honest hosted
+> gaps: no hosted target advertises the local target's full capability set.
 > Start with the project explainer,
 > [`llp/0000-snapback.explainer.md`](./llp/0000-snapback.explainer.md).
+
+## Build an app on Snapback
+
+Application authors start with the packaged CLI and the guide — no repository
+checkout or submodules required:
+
+```sh
+npm install -g @expo/snapback-cli     # or: bun add -g @expo/snapback-cli
+snapback new my-app --template react  # chat-shaped apps: --template expo-chat
+cd my-app
+bun install
+bun run dev
+```
+
+Then read [`guide/index.md`](./guide/index.md) — the agent-first authoring
+guide (intent-indexed pages, CI-verified snippets) — and check the
+[capability index](./guide/capabilities.md) before designing around any
+feature. The canonical edit → regenerate → acceptance → inspect loop is
+[`guide/getting-started/the-authoring-loop.md`](./guide/getting-started/the-authoring-loop.md).
+Building Snapback itself is a different job: see
+[`AGENTS.md`](./AGENTS.md) and "Current code" below.
 
 ## What it is
 
@@ -110,24 +136,33 @@ version hard; recovering those lessons is early design work, not historical
 cleanup. See
 [`llp/0000-snapback.explainer.md`](./llp/0000-snapback.explainer.md) for details.
 
-## Next design work
+## What's next
 
-The immediate LLP work should make the broad claims above implementable:
-
-- Storage abstraction and the SQLite-to-Postgres portability contract.
-- Local-first partial sync and realtime update semantics.
-- Runtime and deployment matrix, including Cloudflare-specific constraints.
-- Agent DX and validation feedback loops.
-- Auth/login and the bring-your-own-provider boundary.
-- Valet retrospective and benchmark lessons.
+The broad claims above are implemented for the local target; what remains
+open is tracked as explicit GAP rows in the
+[capability index](./guide/capabilities.md), not in this README — currently
+including first-class notifications, native stored arrays/objects, non-JS
+clients beyond Swift (Kotlin, Dart), and the hosted lifecycle/publication
+train beyond the honest partial Cloudflare and container-VM profiles. The
+SQLite-to-Postgres graduation contract remains design work. This README
+deliberately does not duplicate the capability index; where they disagree,
+the capability index wins.
 
 ## Current code
 
-The first implemented slice is a local development server focused on SQLite and
-the canonical Ibex runtime target:
+This section is for building Snapback itself — contributors and runtime
+developers. Application authors need none of it (see "Build an app on
+Snapback" above). The repository builds the local development server (Rust,
+SQLite, the canonical Ibex runtime target) plus the JS packages.
+
+Do **not** start with recursive submodule initialization. The normal
+checkout path initializes only the small `vendor/llp` and
+`vendor/ccheever-skills` submodules; the large `vendor/ibex` runtime
+checkout is deliberately initialized on demand by the supported bootstrap
+entry point, which also prepares the ignored Hermes artifacts and validates
+by building, launching, and handler-VM-qualifying the binary:
 
 ```sh
-git submodule update --init --recursive
 scripts/bootstrap-ibex-runtime
 cargo test
 cargo run
@@ -248,8 +283,13 @@ agent-first authoring guide (intent-indexed pages, a capability index with
 explicit gaps, CI-verified snippets; LLP 0061). The demos below are the full
 working applications the guide distills.
 
-Runnable reference apps live under [`demos/`](./demos), with shared
-codegen/client/bridge in [`demos/_kit/`](./demos/_kit). The first is the todo
+Runnable reference apps live under [`demos/`](./demos) — a metadata-declared
+portfolio of about forty applications. Each demo carries a
+`demo.snapback.json` record (id, title, description, required capabilities)
+audited by `node scripts/check-inventories.mjs`, and guide pages name the
+demos that exercise them in their `examples:` frontmatter, so the catalog is
+checked rather than hand-curated. Shared codegen/client/bridge lives in
+[`demos/_kit/`](./demos/_kit). The earliest is the todo
 list ([`demos/todo/`](./demos/todo)): one source-authored Snapback backend
 consumed by a required headless surface and an optional, working Contract/Exact
 surface. See [LLP 0015](./llp/0015-demo-application-suite.plan.md) for the plan

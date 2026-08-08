@@ -3,14 +3,14 @@ title: The headless client
 id: clients.headless
 order: 1
 audience: agent-first
-capabilities: [clients.headless, clients.external-store]
+capabilities: [clients.headless, clients.external-store, clients.micro]
 authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/online.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, packages/snapback-client/exact-reference-types.fixture.ts, demos/_kit/agent-authority-filesystem.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game, demos/partiful-matrix/surfaces/vanilla]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-08
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # The headless client
@@ -30,6 +30,19 @@ import `SnapbackClient` from `@expo/snapback-client/online`. It re-exports the s
 class while keeping optional agent-custody and external-store package exports
 out of consumers that did not select them. Use the root entry when those
 additional exports are required.
+
+The compiled **Micro profile** is a third entry-point family: three published
+subpaths, `@expo/snapback-client/micro`, `./micro/core`, and `./micro/live`
+([LLP 0147](repo:llp/0147-compiled-microclient.rfc.md)). `./micro` re-exports
+the capability-minimal core runtime (`createMicroRuntime`); `./micro/core` is
+the standalone core/operations/authority-fence graph with no live, outbox,
+socket, or storage imports; `./micro/live` is the smallest polling live
+composition and is imported only when a generated Micro entry selects a live
+operation, so a core-only compiled entry can never make the live lane
+reachable through a barrel. Selection rule: the package root when
+agent-custody or external-store exports are needed, `./online` for browser
+dynamic-namespace bundles, and the Micro subpaths only for LLP 0147 compiled
+profiles.
 
 For declaration-exact constructor options and method signatures, use the
 generated [`SnapbackClient`](../reference/expo-snapback-client.md#symbol-snapbackclient-cabf32a88f)
@@ -300,6 +313,15 @@ authority/carrier generation: an overlapping logout, user switch, or bearer
 replacement fails with `SNAPBACK_CLIENT_AUTHORITY_STALE` and never replays the
 old arguments as the successor.
 
+Asset-bearing generated **commands** need no React provider:
+`createCommandClient(client)` (the root also exports the
+`SnapbackCommandClient` class) is the LLP 0180 command owner over a bare
+`SnapbackClient`, and `commandClient.start(app.commands.<name>, inputs)`
+returns the same phased command task documented in
+[application surfaces](./surfaces.md#run-a-command-and-read-its-truthful-outcome).
+`useSnapbackCommand` and `provider.surface(...)` compose this same owner
+rather than a second one.
+
 ## Subscribe to durable state
 
 `liveQuery(ref, options)` is the author-facing composite. It performs the
@@ -490,6 +512,9 @@ intent so source additions cannot hide as “advanced” APIs:
 | Route bundles | `fetchBundle` |
 | Durable live | `liveQuery`, `startLiveQuery`, `subscribeLive`, `unsubscribeLive`, `openLiveStream`, `liveStreamManager`, `acknowledgeAuthorizationInvalidation` |
 | Offline queue and settlement | `outboxStatus`, `subscribeOutbox`, `outboxDiagnostics` (getter), `replayQueuedMutations`, `adoptQueuedMutations`, `settledMutations`, `markMutationSettlementsConsumed` |
+| Offline quarantine and stranded intents | `quarantinedMutations`, `reenterQuarantinedMutations`, `strandedMutations`, `discardStrandedMutations`, `reRecordStrandedMutation` |
+| Local store runtime | `storePolicyInspection`, `registerQuery`, `evaluateLocalResultTransform`, `releaseQueryRegistration` |
+| Optimistic mutation view | `createOptimisticMutationView` |
 | Ephemeral | `subscribeEphemeral`, `startEphemeralRoom`, `publishEphemeral`, `deleteEphemeral`, `unsubscribeEphemeral`, `registerEphemeralRepublisher` |
 | Connections/drains | `connectionGrant`, `refreshConnectionGrant`, `disconnect`, `releaseConnection`, `drainEnvelopes`, `drainConnection`, `drainUpdates`, `registerDurableConsumer`, `registerEphemeralConsumer` |
 | Framework bindings | `prepareReactBinding` |
@@ -497,6 +522,25 @@ intent so source additions cannot hide as “advanced” APIs:
 | Receipts and retry evidence | `recordReceipt`, `receipts`, `onReceipt`, `reservationRetryDiagnostics` |
 | Session/auth | `authSession`, `authRequestCode`, `authExchange`, `authRefresh`, `authLogout`, `closeAuth`, `setBearerToken`, `replaceBearerToken`, `replaceAgentCredential`, `clearAuthSession`, `currentAuthorityDescriptor`, `currentAuthorizationScope`, `authTerminalStatus`, `subscribeAuthTerminal`, `registerAuthBarrierParticipant` |
 | Auth adapter/coordinator seam | `captureAuthority`, `authorityCaptureFor`, `isAuthorityCaptureCurrent`, `allocateLiveQueryNamespace`, `registerAuthMaterialization`, `commitAuthorityPublication`, `commitSenderSocketNonce`, `handleTerminalAuthLoss`, `liveStreamProtocolsFor` |
+
+The quarantine/stranded family projects the durable offline queue's terminal
+custody states: `quarantinedMutations()` lists payload-free tombstones for
+server-replay refusals, `reenterQuarantinedMutations()` moves the whole
+quarantine back to pending after successor artifacts load,
+`strandedMutations()` lists the rerecordable intents owned by the current
+re-attested principal, `discardStrandedMutations(ids)` deletes selected ones,
+and `reRecordStrandedMutation(id, options)` re-records one under a fresh
+queued identity — semantics in
+[offline retention](../sync/offline-and-retention.md#replay-and-settle-without-guessing).
+The local store runtime methods load the LLP 0166 full-profile store module
+on demand: `registerQuery`/`releaseQueryRegistration`
+[record and release a durable local-store query registration without a live handle](../sync/offline-and-retention.md#keep-a-generated-query-registered-without-a-live-handle),
+`evaluateLocalResultTransform`
+[evaluates a generated result-transform plan over proof-verified retained rows](../sync/offline-and-retention.md#evaluate-an-owner-reclassified-retained-result),
+and `storePolicyInspection` is the value-free retention/policy inspection for
+one authority partition. `createOptimisticMutationView` is the public
+LLP 0155 rebase view: app code supplies the authoritative rows and every
+private optimistic layer is replayed from the durable outbox in sequence.
 
 Members whose names start with `__` (for example
 `__registerExternalBearerHandle`) are internal composition seams between the

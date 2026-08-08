@@ -9,8 +9,8 @@ examples: [demos/partiful-matrix/surfaces/vanilla]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-08
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # Framework bindings
@@ -19,19 +19,32 @@ reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-A query hook is the small part. React and Contract bindings ship today; no
+A query hook is the small part. The [React](./react.md) and
+[Contract](./contract-adapter.md) bindings ship today; no
 first-party Vue, Svelte, or Solid package is claimed. Those systems can
 adapt “current rows plus subscribe” in well under 100 lines. A valuable
 Snapback binding centralizes the lifecycle and failure behavior that otherwise
 fails silently.
+
+This page also owns the map of the **framework-neutral seam layer** — the
+twins that let a non-React shell reach every React capability. On the
+provider: `observeSnapbackQueries`, `observeSnapbackPresence`,
+`observeSnapbackOutbox` ([React page](./react.md)) and
+`observeSnapbackSurface`/`provider.surface(...)`
+([surfaces](./surfaces.md#observe-the-same-surface-without-react)); actions:
+`invokeSnapbackMutation` and `invokeSnapbackCommand`
+([React page](./react.md#run-a-mutation)). Below the provider entirely:
+`createCommandClient` over a bare client and the Micro entry-point family
+([headless client](./headless.md)).
 
 ## Build on the external store
 
 Use `snapback.external-store.v1` from `@expo/snapback-client/external-store`.
 It owns canonical query identity, same-key sibling sharing, late-handle
 resolution, stale-generation fencing, error/connection snapshots, optimistic
-settlement, refcounts, and final disposal. Project that store into the
-framework's native subscription primitive.
+settlement, refcounts, and final disposal
+([the headless client's external-store contract](./headless.md#project-live-state-into-a-framework-neutral-external-store)).
+Project that store into the framework's native subscription primitive.
 
 Do not add a second query cache, socket owner, or mutation settlement model.
 

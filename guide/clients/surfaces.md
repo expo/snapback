@@ -10,8 +10,8 @@ status: current
 targets: [local]
 maturity: partial
 since: 0.1.11
-reviewed: 2026-08-07
-reviewed-commit: 71dde5e667d2a13c42491cef8eb2895326583c33
+reviewed: 2026-08-08
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # Application surfaces
@@ -198,8 +198,12 @@ explicitly is refused before any network work.
 ## Run a command and read its truthful outcome
 
 Call a bound command through `surface.commands.<name>(inputs)`, or obtain the
-same owner directly with `useSnapbackCommand(app.commands.<name>)`. Both return
-one stable command task. The task snapshot derives these phases from its
+same owner directly with `useSnapbackCommand(app.commands.<name>)` — without
+React, `invokeSnapbackCommand(provider, app.commands.<name>, inputs)` from
+`@expo/snapback-react`, or `createCommandClient(client)` over a bare
+`SnapbackClient` with no provider at all
+([the headless client](./headless.md#call-ordinary-functions)). All of these
+return one stable command task. The task snapshot derives these phases from its
 existing asset-task and mutation-attempt children:
 
 | Phase | Fact |

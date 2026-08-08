@@ -9,8 +9,8 @@ examples: [demos/todo/tests/acceptance/headless.mjs, demos/_kit/tests/live-delta
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-08
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # Live queries
@@ -116,20 +116,39 @@ mode and its current live-push/no-offline profile boundary.
 
 ## What arrives: replace and delta
 
-Durable updates carry a `meta.kind`: `live_replace` (a full snapshot of the
-result) or `live_delta` (incremental add/remove — the analyzable
+Two vocabularies meet here, and they are not the same list. **Wire frames**
+on the durable lane carry one of five kinds: `live_replace` (a full snapshot
+of the result), `live_delta` (incremental add/remove — the analyzable
 unordered/filtered subset gets deltas; ordered queries fall back to
-replace; LLP 0008 §DK-3). `resync_required` tells the client to
-re-snapshot; `authorization_invalidation` is the auth barrier
-([protecting data](../auth/protecting-data.md)). Auth-scoped
-subscriptions — anything gated by a membership predicate or another
-protected-query input — deliver through the witnessed lane instead of
-the plain kinds: expect `authorization_snapshot` (an auth-verified
-result snapshot) and `authorization_quarantine` (the result blanked at
-a governed boundary, e.g. when the caller leaves the membership). A
-membership-gated feed never sees a bare `live_replace`; handle all
-four kinds. A subscription
-asserts on delta kinds like this:
+replace; LLP 0008 §DK-3), `resync_required` (the client must re-snapshot),
+`authorization_invalidation` (the auth barrier —
+[protecting data](../auth/protecting-data.md)), and `current_as_of` (the
+answer to a resume-token subscribe: version advances, rows untouched).
+Two of those never reach your callback as-is: the client consumes
+`resync_required` by re-snapshotting, and it consumes
+`authorization_invalidation` internally, resurfacing the boundary as the
+`authorization_*` events below.
+
+**What your `onUpdate(rows, meta)` receives** is different. A plain
+(non-auth-scoped) subscription sees `meta.kind: 'live_replace'` or
+`'live_delta'` (plus `'current_as_of'` when it resumed from a token). An
+auth-scoped subscription — anything gated by a membership predicate or
+another protected-query input — delivers through the witnessed lane instead
+and never sees a bare `live_replace`. Its `meta.kind` values are this closed
+set; handle all five:
+
+- `authorization_snapshot` — an auth-verified result snapshot;
+- `authorization_quarantine` — the result blanked at a governed boundary
+  (e.g. the caller leaves the membership), awaiting a fresh satisfying
+  snapshot or a trusted denial;
+- `authorization_delete` — the terminal denial: rows deleted, fresh reads
+  stay denied ([protecting data](../auth/protecting-data.md) describes the
+  quarantine→delete ladder);
+- `authorization_error` — the boundary machinery itself faulted; the handle
+  blanks and the connection reports stale;
+- `authorization_denied` — a server-answered denial on a fresh subscribe or
+  authority transition; the same fact freezes on
+  `handle.authorizationDenial` for rendering.
 
 Incremental publication also requires the query's exact, schema-derived
 `Documents` result contract. A `live_delta` publishes committed storage rows
@@ -148,6 +167,10 @@ queries, generated standard patterns, opaque handlers, and manifests without
 the exact schema-derived document contract are replace-only. This fallback is
 intentional and correctness-preserving, not evidence that durable push failed.
 
+The kit's end-to-end delta witness
+(`demos/_kit/tests/live-delta-e2e.mjs`) drives all of this over a real
+socket. Its subscription records every delivered `meta.kind`:
+
 ```js source=demos/_kit/tests/live-delta-e2e.mjs
   const handle = await db.liveQuery('listMine', {
     connectionId: 'delta_conn',
@@ -156,6 +179,13 @@ intentional and correctness-preserving, not evidence that durable push failed.
     stream: { heartbeatIntervalMs: 200, freshnessBudgetMs: 800, reconnectBaseDelayMs: 100, reconnectMaxDelayMs: 400 },
     onUpdate: rec.onUpdate,
   });
+```
+
+and it asserts a matching insert arrived as a delta, not a replace:
+
+```js source=demos/_kit/tests/live-delta-e2e.mjs
+      const delta = rec.updates.find((u) => u.kind === 'live_delta');
+      assert(delta, `expected a live_delta update; saw kinds ${rec.updates.map((u) => u.kind)}`);
 ```
 
 Membership-gated live replacement does not make a query safe for offline

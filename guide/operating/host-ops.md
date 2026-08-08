@@ -4,13 +4,13 @@ id: operating.host-ops
 order: 2
 audience: agent-first
 capabilities: [operating.host-ops]
-authorities: [llp/0024-agent-operating-surface.spec.md, src/cli.rs, src/host_ops.rs, src/server.rs, tests/host_ops_v0.rs]
+authorities: [llp/0024-agent-operating-surface.spec.md, src/cli.rs, src/host_ops.rs, src/server.rs, src/admin_secret_read.rs, packages/snapback-cli/mcp-control.mjs, tests/host_ops_v0.rs]
 examples: [demos/todo]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-06
-reviewed-commit: acbb7b922a060788fd09f3f98211eb9ce35f23f4
+reviewed: 2026-08-08
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # Host operations
@@ -100,6 +100,16 @@ The endpoint serves **40 request spellings**. This count and table are generated
 `snapback session mint --email <address> --ready-file <path>` projects
 `auth.mintSession` through the same target and authority handling and prints only
 the resulting `hostOpsResult` JSON.
+
+`snapback debug force-resync` projects `debug.live.forceResync`: a
+non-production debug perturbation forcing exactly one live subscription
+through the normal `resync_required` recovery path, changing no application
+data. `--connection-id` and `--subscription-id` name the one subscription;
+`--reason` is recorded in the printed receipt; `--clear-retained` makes the
+client also discard retained rows rather than keep them until the fresh
+snapshot lands; `--startup-nonce` defaults from the `--ready-file`
+descriptor and must be given explicitly only when targeting `--url`
+directly. The MCP projection is `snapback_live_force_resync`.
 
 The six `branch.*.v1` operations are the closed operator surface for managed
 in-app branches
@@ -240,9 +250,11 @@ paths (`snapback assets list|inspect|retry`) were already shipped:
 | `asset.inspect` | `snapback_asset_inspect` |
 | `asset.retry` | `snapback_asset_retry` |
 
-The remaining asset operations (`put`, `gcSweep`, `delete`,
-`rotateSigningKey`, `exportCut`, `importCut`, `ensureSeedFixture`) stay
-CLI-only for now — see `snapback assets --help`.
+The mutating asset operations also have direct MCP tools:
+`snapback_asset_delete`, `snapback_asset_gc_sweep`,
+`snapback_asset_rotate_signing_key`, `snapback_asset_export_cut`, and
+`snapback_asset_import_cut`. Only `asset.put` and `asset.ensureSeedFixture`
+stay CLI-only — see `snapback assets --help`.
 
 ## Respect admin, secret-read, and impersonation gates
 
@@ -261,6 +273,34 @@ generated app-data calls. Host operations—including `function.run`—do not
 resolve scoped tokens into authority; use the operation's explicit admin or
 dev-impersonation gate instead.
 
+## Mint a scoped secret-read lease
+
+Sensitive raw reads — telemetry events and export, error-issue detail,
+admin-credentialed inspect projections, receipts — require a short-lived,
+budgeted secret-read lease in addition to the admin credential. Commands
+addressed by `--ready-file` mint one automatically. When a command targets
+`--url` directly, or another tool needs an explicit lease, mint one from the
+readiness descriptor:
+
+```sh
+snapback secret-read-mint --ready-file .snapback/dev.ready.json --telemetry-events
+```
+
+This is deliberately a ready-file-only operation: the proof root is local
+operator authority and can never be discovered from a URL. The printed JSON
+carries the `sbrl_` bearer in its `lease` field; pass it as
+`--secret-read-lease` on `snapback telemetry events|export` and
+`snapback errors issue`, or as the `x-snapback-secret-read-lease` header on
+a raw HTTP request.
+
+Scope flags select what the lease can read, and every scope must be named
+explicitly: `--table <name>`, `--function <name>`, and
+`--explain-function <name>` (each repeatable), plus the boolean scopes
+`--telemetry-events`, `--telemetry-export`, `--errors-issue`,
+`--admin-inspect`, and `--receipts`. Budget flags bound the lease:
+`--ttl-seconds` (default 60), `--row-budget` (default 500), and
+`--byte-budget` (default 1,048,576).
+
 ## Controlled mutations: config, cron, jobs, connections
 
 These operations sit beside the host-ops multiplexer — each is its own
@@ -268,7 +308,7 @@ admin-gated `POST /_snapback/api/...` route, not a `host-ops` request — but
 now have the same direct CLI and control-MCP shape (LLP 0184 §P2's
 "controlled mutations" projections). Each is `AdminWrite` and every CLI form
 below accepts the same `--url`/`--ready-file`/`--token` target flags as
-`host inspect`.
+`snapback inspect`.
 
 `config.unset` removes one config entry's stored value. It carries only the
 entry identifier — no secret value crosses the wire, so it needs no secret

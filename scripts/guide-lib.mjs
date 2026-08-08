@@ -27,7 +27,11 @@ const MATURITY_RANK = { 'design-only': 0, partial: 1, shipped: 2 };
 // absorption rows). Raise only alongside genuinely new
 // rows — the budget exists to force alias/wording discipline, not to be
 // outgrown silently.
-const CAPABILITIES_SIZE_BUDGET_BYTES = 48128;
+// Bumped 48128 -> 51200 on 2026-08-08 for the docs-review integration: four
+// new rows (backend.migrations, backend.record-history, clients.micro,
+// auth.agent-registration GAP) plus alias additions. Keep the budget tight —
+// grow it only with a deliberate row addition, never to absorb prose creep.
+const CAPABILITIES_SIZE_BUDGET_BYTES = 51200;
 const SURFACE_MAP_SIZE_BUDGET_BYTES = 16384;
 // Vacuous-pass guards for the source scans: extraction returning fewer
 // entries than these floors means the scan broke, not that surface shrank.

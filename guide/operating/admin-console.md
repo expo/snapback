@@ -4,13 +4,13 @@ id: operating.admin-console
 order: 4
 audience: agent-first
 capabilities: [operating.admin-console]
-authorities: [llp/0017-admin-console-inspection-surface.rfc.md, src/admin.rs, src/admin_link.rs, src/cli.rs, packages/snapback-admin-client/index.mjs, admin-ui/auth-prompt.mjs, admin-ui/app.contract, admin-ui/build.mjs, admin-ui/dev.mjs, packages/snapback-contract/build-preset.mjs, admin-ui/tests/fatal-rendering.mjs, tests/admin_claim_link_v0.rs, tests/admin_reachability_v0.rs, tests/admin_tailscale_v0.rs]
+authorities: [llp/0017-admin-console-inspection-surface.rfc.md, src/admin.rs, src/admin_link.rs, src/cli.rs, packages/snapback-admin-client/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-cli/expo-dev.mjs, admin-ui/auth-prompt.mjs, admin-ui/app.contract, admin-ui/build.mjs, admin-ui/dev.mjs, packages/snapback-contract/build-preset.mjs, admin-ui/tests/fatal-rendering.mjs, tests/admin_claim_link_v0.rs, tests/admin_reachability_v0.rs, tests/admin_tailscale_v0.rs]
 examples: [admin-ui]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: ce69de09e
+reviewed: 2026-08-08
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # Admin console
@@ -26,34 +26,21 @@ from the same inspect/scan/runner/config boundaries used by tests and tools. Its
 renders the build-matched served guide from the generated manifest; the
 console's text renderer never injects guide HTML.
 
-## Launch the built console
+## Launch the console
 
-Build the static browser and native Exact artifacts, then start Snapback:
+With a server running against a readiness descriptor (the packaged
+authoring loop's `snapback dev` writes `.snapback/dev.ready.json`),
+discover the token, mint a browser credential, and open the console:
 
 ```sh
-cd admin-ui
-./build.sh
-cargo run --manifest-path ../Cargo.toml -- --memory
+snapback admin --ready-file .snapback/dev.ready.json
 ```
 
-The server serves the immutable `dist/` snapshot at
-`/_snapback/admin/`. Set `SNAPBACK_ADMIN_DIST` to pin another snapshot; in
-a checkout, an unset value discovers `admin-ui/dist` when it exists. If no
-dist is available, the route returns a structured missing-dist diagnostic
-instead of a second embedded implementation.
-
-Browser baseline:
+This is the exact command the Expo supervisor prints as its
+`adminConsoleCommand`. For a headless machine, print the URL instead:
 
 ```sh
-cargo run -- --memory --ready-file .snapback/dev.ready.json
-# in another terminal: discover the token, mint a browser credential, and open
-cargo run -- admin --ready-file .snapback/dev.ready.json
-```
-
-For a headless machine, print the URL instead:
-
-```sh
-cargo run -- admin --ready-file .snapback/dev.ready.json --no-open
+snapback admin --ready-file .snapback/dev.ready.json --no-open
 ```
 
 The URL carries only a derived `sbcc_` credential and its expiry in the
@@ -61,6 +48,28 @@ fragment. It never carries the `sbat_` master token in either the query or the
 fragment. The page removes the fragment before boot and stores the derived
 record through the same `snapback_console_credential_v1` path used by the paste
 fallback.
+
+The server serves the immutable `dist/` snapshot at
+`/_snapback/admin/`. Set `SNAPBACK_ADMIN_DIST` to pin another snapshot; in
+a source checkout, an unset value discovers `admin-ui/dist` when it exists.
+If no dist is available, the route returns a structured missing-dist
+diagnostic instead of a second embedded implementation.
+
+**Contributor variant (source checkout).** Build the static browser and
+native Exact artifacts, then run the same commands through cargo:
+
+```sh
+cd admin-ui
+./build.sh
+cd ..
+cargo run -- --memory --ready-file .snapback/dev.ready.json
+# in another terminal: discover the token, mint a browser credential, and open
+cargo run -- admin --ready-file .snapback/dev.ready.json
+```
+
+Every `snapback …` command on this page is the packaged spelling of the
+same native binary; a checkout can always substitute `cargo run -- …` for
+`snapback …`.
 
 For a native Exact shell, point `EXACT_APP_CUSTOM_URL` at the
 Snapback-served static admin URL. A browser-only dist returns a specific
@@ -120,7 +129,7 @@ the token prompt also displays a short-lived user code. Approve it from a
 terminal with ready-file access:
 
 ```sh
-cargo run -- admin approve ABCD-1234 --ready-file .snapback/dev.ready.json
+snapback admin approve ABCD-1234 --ready-file .snapback/dev.ready.json
 ```
 
 The browser polls for its derived credential. Codes expire after ten minutes,
@@ -136,7 +145,7 @@ the browser handoff from the trusted ready file, substituting only the tunnel's
 public origin in the printed link:
 
 ```sh
-cargo run -- admin link \
+snapback admin link \
   --ready-file .snapback/dev.ready.json \
   --url-base https://snapback-console.example
 ```
@@ -157,9 +166,9 @@ browser. For detached automation, print and exit, then reattach or revoke with
 the raw claim code:
 
 ```sh
-cargo run -- admin link --no-wait --ready-file .snapback/dev.ready.json
-cargo run -- admin link --status sbcl_… --ready-file .snapback/dev.ready.json
-cargo run -- admin link --revoke sbcl_… --ready-file .snapback/dev.ready.json
+snapback admin link --no-wait --ready-file .snapback/dev.ready.json
+snapback admin link --status sbcl_… --ready-file .snapback/dev.ready.json
+snapback admin link --revoke sbcl_… --ready-file .snapback/dev.ready.json
 ```
 
 Claim-derived credentials have distinct provenance. Active use renews their
@@ -177,7 +186,7 @@ Keep the Snapback server on loopback and let the attached command own a
 short-lived relay on the one eligible physical LAN interface:
 
 ```sh
-cargo run -- admin link --lan --qr \
+snapback admin link --lan --qr \
   --ready-file .snapback/dev.ready.json
 ```
 
@@ -206,7 +215,7 @@ With tailscaled running and the target server on `127.0.0.1`, publish only the
 Snapback namespace through tailnet-terminated HTTPS:
 
 ```sh
-cargo run -- admin link --tailscale --qr \
+snapback admin link --tailscale --qr \
   --ready-file .snapback/dev.ready.json
 ```
 

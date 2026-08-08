@@ -1,7 +1,7 @@
 ---
 title: Agent principals and scoped grants
 id: auth.agent-principals
-order: 4
+order: 6
 audience: agent-first
 capabilities: [auth.agent-principals]
 authorities: [llp/0055-agent-principals-and-scoped-grants.rfc.md, packages/snapback-client/agent-authority.mjs, packages/snapback-app-cli/auth.mjs, packages/snapback-app-cli/package.test.mjs, packages/snapback-app-cli/auth.test.mjs, src/server.rs]
@@ -9,8 +9,8 @@ examples: [packages/snapback-app-cli/package.test.mjs, packages/snapback-app-cli
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-08
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # Agent principals and scoped grants
@@ -26,12 +26,31 @@ credential generation, grant, and token carrier. The server still applies
 ordinary auth requirements, row scoping, and
 [roles](./scoped-roles.md); a token never bypasses those gates.
 
-## Pair an already registered agent
+## Where the agent credential comes from: the provisioning boundary
 
-Registration is an owner or invitation flow that creates the agent and returns
-its one-time credential. Keep that credential outside source, logs, generated
-artifacts, and model output. Pairing then delegates a user's authority without
-letting the agent name or enumerate users:
+**There is no user-reachable registration surface today.** No route in the
+complete `/auth/*` list creates an agent principal or issues its initial
+`sbac_` credential — registration ("create an agent", "invite an agent") is
+not something an app, its owner, or the agent itself can currently do over
+the wire. The server-side creation functions (`create_agent_principal`,
+`issue_initial_agent_credential`) are invoked only from test setup and
+internal activation fixtures, so in practice an agent credential comes from
+**harness or test-lane provisioning**: the acceptance suite creates the agent
+server-side and hands the credential to the client under test. The app CLI
+likewise only *consumes* an existing `sbac_` credential — `--agent-profile`
+names a 0600 profile referencing the credential by file path or environment
+name — and `snapback agent setup` writes agent/MCP configuration; neither
+registers anything. Keep the credential outside source, logs, generated
+artifacts, and model output.
+
+Everything downstream of the credential — pairing, grant approval, scoped
+tokens, the custody fence, release, rotation, and revocation — is fully
+shipped on the local target and taught below.
+
+## Pair a provisioned agent
+
+Pairing delegates a user's authority without letting the agent name or
+enumerate users:
 
 1. A signed-in user calls `POST /auth/pairing-codes` and conveys the short-lived
    code out of band.

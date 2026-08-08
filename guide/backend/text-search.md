@@ -9,8 +9,8 @@ examples: [demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-05
-reviewed-commit: 4a6000ac6f17a8c94bc2aecf573c0654e850b758
+reviewed: 2026-08-08
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # Portable indexed text search
@@ -109,6 +109,15 @@ no membership indexes), but it is gated on `live_full_text_search_v1`, which
 the local target declares as a capability gap — codegen refuses such an
 artifact with `SNAPBACK_CAPABILITY_UNSUPPORTED`, and live search remains a
 nonclaim of this page.
+
+A table that declares a search index may also declare that successor's
+table-wide live-subscription ceiling now:
+`defineTable(...).searchLiveLimits({ maxLiveSubscriptionsPerTable })` takes an
+integer from 1 through 128 (default 128), may be declared once per table, and
+requires at least one `searchIndex` on the same table — declaring it without
+one refuses generation with `SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID`. The
+declaration is projected into the generated manifest today; its enforcement
+belongs to the gated live-search capability and is not a live-search claim.
 
 ## Search from a client
 

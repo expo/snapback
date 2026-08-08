@@ -124,6 +124,9 @@ you never build around a feature because you didn't know it existed.
   and the ordinary-vs-live boundary.
 - [Mutations](./backend/mutations.md) — buffered writes, one commit version,
   read-set conflict validation, and structured results.
+- [Declarative mutation plans](./backend/declarative-plans.md) — the complete
+  `defineMutation` vocabulary: plan steps, return bindings, the expression
+  algebra, spec keys, and the plan-refusal channel.
 - [Scoped sequences](./backend/sequences.md) — the unpublished local
   handler-tier substrate for atomic, incarnation-scoped human-facing numbers,
   its A6 evidence, and the remaining qualification GAP.
@@ -147,6 +150,9 @@ you never build around a feature because you didn't know it existed.
   fixed-width embeddings, pinned `dot`/`l2sq` arithmetic, bounded exact k-NN,
   authorization partitions, and explicit ANN/live/hosted nonclaims
   (experimental).
+- [Reviewed migrations](./backend/migrations.md) — the `snapback migrate`
+  preview → approve → rehearse → apply → verify loop for destructive schema
+  changes, its intents, and its refusal codes.
 - [Assets](./backend/assets.md) — generated upload intents, an authenticated
   Expo ImagePicker-to-Blob recipe, TUS resumable transfer, trusted SHA-256
   finalization, typed `v.assetRef` attachment, private-strict delivery,
@@ -195,8 +201,9 @@ you never build around a feature because you didn't know it existed.
   connection grants, invalidation obligations, recovery, and authorized leases.
 - [Scoped roles and memberships](./auth/scoped-roles.md) — declare app-wide or
   per-resource roles; gate queries; check and change membership safely.
-- [Agent principals](./auth/agent-principals.md) — register, pair, mint scoped
-  tokens, fence custody, revoke, and verify an agent journey.
+- [Agent principals](./auth/agent-principals.md) — pair a provisioned agent,
+  mint scoped tokens, fence custody, revoke, and verify an agent journey
+  (agent creation has no user-reachable surface yet).
 - [Targets — what each one claims](./auth/targets.md) — local vs hosted
   honesty; how to check the server instead of trusting prose.
 
@@ -267,9 +274,6 @@ you never build around a feature because you didn't know it existed.
 - [Backend error tracking](./operating/error-tracking.md) — group eligible
   backend failures, inspect raw exemplars under scoped authority, and triage
   release-aware issue state from the console, CLI, or MCP.
-- [Local instance forks](./operating/instance-forks.md) — give each worktree a
-  finite-TTL, quarantined copy of realistic local state; run fork-aware
-  acceptance and retain bounded app-row diff receipts (partial/unpublished).
 
 ### Deploying
 - [Immutable releases and deploy plans](./deploying/releases.md) — build the

@@ -393,7 +393,8 @@ serialization, so one oversized value refuses before proportional expansion.
 Past `--max-rows` (default 100k), or past the fixed byte budget on net diff,
 the operation refuses with
 `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` and observed usage instead of
-materializing an unbounded receipt. Use the reviewed migration rehearsal flow
+materializing an unbounded receipt. Use the
+[reviewed migration rehearsal flow](../backend/migrations.md#rehearse-against-a-restore-derived-instance)
 for production apply decisions.
 
 The upgraded completeness class covers only Snapback-registered writable

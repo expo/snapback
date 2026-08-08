@@ -9,8 +9,8 @@ examples: [packages/snapback-codegen/vector-authoring.test.mjs, packages/snapbac
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-05
-reviewed-commit: 4a6000ac6f17a8c94bc2aecf573c0654e850b758
+reviewed: 2026-08-08
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # Portable exact vector search
@@ -85,6 +85,14 @@ declared field may occur once, and at most eight filters are admitted.
       filters: [{ field: 'category', op: 'eq', value: true }],
     });
 ```
+
+A filter `value` may be any string, finite real, or boolean — that closed
+union is the whole admitted contract, per filter field, regardless of the
+stored field's declared type. Equality is exact and typed, so a value whose
+type does not match the stored field (the test fixture above filters the
+string field `category` with `true`) is admitted by the contract but matches
+no rows; it is not a validation error. Match the stored field's type when you
+intend the filter to select anything.
 
 `l2sq` ranks ascending squared Euclidean distance; `dot` ranks descending dot
 product. Both use `snapback-vector-distance-v1`: strict sequential binary64

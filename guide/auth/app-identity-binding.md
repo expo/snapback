@@ -1,16 +1,16 @@
 ---
 title: Bind a principal to your app's user identity
 id: auth.app-identity-binding
-order: 5
+order: 2
 audience: agent-first
 capabilities: [auth.sessions, auth.external-identity-broker]
-authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0183-zerobugs-quality-surface.rfc.md, packages/snapback-client/index.mjs, demos/zerobugs/control/snapback/schema.mjs, demos/zerobugs/control/snapback/functions.mjs]
+authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0183-zerobugs-quality-surface.rfc.md, packages/snapback-client/index.mjs, src/cli.rs, demos/zerobugs/control/snapback/schema.mjs, demos/zerobugs/control/snapback/functions.mjs]
 examples: [demos/zerobugs/control]
 status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: effa2773760fd0d740c49f06990b3fde5e82a66b
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # Bind a principal to your app's user identity
@@ -105,6 +105,10 @@ export async function requireSourceUser(ctx) {
 }
 ```
 
+(`requireFixtureSession(ctx)` is the Zerobugs control's own fixture gate — it
+just refuses an unauthenticated `ctx` before fixture work; your port omits it
+and relies on `auth: 'authenticated'` plus the binding resolution below.)
+
 Roles come from the resolved app row, never from a mint argument or a request
 body:
 
@@ -195,7 +199,9 @@ in [authenticate a native app](./native-apps.md).
 
 **Honest boundary:** `auth.mintSession` is a dev/test/demo host operation
 requiring the admin token, the process-bound impersonation capability, and
-active sessions mode. LLP 0045's production email delivery adapter is unbuilt
+active sessions mode. From a terminal, the paved spelling of the same
+operation is `snapback session mint --email <email> --ready-file <ready-file>`.
+LLP 0045's production email delivery adapter is unbuilt
 and the Cloudflare arm exposes no sessions routes, so this page does not claim
 hosted production identity. The *pattern* is the production shape; the
 current mint mechanism is local.

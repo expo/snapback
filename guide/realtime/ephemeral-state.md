@@ -9,8 +9,8 @@ examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-06
-reviewed-commit: 6e158169b3c908b8be149db4487a71dc35738470
+reviewed: 2026-08-08
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # Ephemeral realtime state
@@ -82,6 +82,11 @@ export function useTyping(conversationId: string, selfHandle: string) {
   return { typers, publishTyping, clearTyping };
 }
 ```
+
+(That import path, `@messenger/snapback-react`, is the messaging demo's own
+tsconfig/metro alias for **`@expo/snapback-react`** — there is no published
+`@messenger/*` package. In your app, install and import
+`@expo/snapback-react`.)
 
 See [the React client](../clients/react.md#publish-and-observe-ephemeral-presence)
 for the hook's state and lifecycle contract. Reach for the lower-level

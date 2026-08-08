@@ -9,8 +9,8 @@ examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-07
-reviewed-commit: cca0db7d8e94c8d4943eb808d4e10238a506c70c
+reviewed: 2026-08-08
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # The React client
@@ -63,6 +63,17 @@ declarations, and capability identity. The provider borrows the client;
 `provider.dispose()` drains provider-owned
 subscriptions, rooms, stores, listeners, timers, connection grant, socket
 demand, and its auth-barrier participant.
+
+The provider also owns the host **app-lifecycle seam**: `await
+provider.pause()` releases demand and quiesces every provider-owned
+subscription and room, and `await provider.resume()` re-establishes them.
+The pair rides the same registry operations as the auth barrier with an
+independent reason bit, so a host resume cannot race an authority
+transition. Bind host lifecycle once at the provider boundary — the Expo
+shell drives exactly these two methods from `AppState`
+([React Expo](./react-expo.md)); see
+[framework bindings](./framework-bindings.md) for the transition table.
+Components never pause individual hooks.
 
 Preparation also works process-cold offline: a successful online
 preparation persists a digest-bound **binding receipt** into the client's
@@ -155,7 +166,11 @@ returned by `snapback guide QueryState`.
 - `freshness`: `unknown | retained | current` — `retained` rows came from
   the persisted cache (an offline cold boot) and are never presented as
   settled: a retained frame keeps `status: 'refreshing'` even on a live
-  connection until the authoritative answer makes it `current`;
+  connection until the authoritative answer makes it `current`. A fourth
+  value, `'snapshot'`, is emitted only by the read-only children of a
+  mixed-route query group (paired with `status: 'ready'` and
+  `connection: 'idle'` — see [Read a query group](#read-a-query-group));
+  switch on all four when rendering freshness exhaustively;
 - `retention`: the headless handle's refuse-with-clarity retainability fact
   (`{ retainable, code, reason, store }`, `null` until classified) — see
   [offline retention](../sync/offline-and-retention.md) for the opt-in that
@@ -165,6 +180,14 @@ Same-reference, same-argument siblings under one provider share one store and
 one upstream subscription while retaining independent React consumers.
 Different provider objects, complete generated references, or canonical
 arguments stay isolated.
+
+When one screen composes several reads plus mutations, commands, or
+presence, prefer the generated **application surface** — `useSurface` on
+[application surfaces](./surfaces.md) — over hand-wiring a stack of
+`useSnapbackQuery` calls (its
+[first anti-pattern](./surfaces.md#anti-patterns) is exactly that
+composition). The low-level hook remains right for reads outside a surface's
+closed grammar; both share the same canonical stores.
 
 > **Coming from Convex/Supabase?** Convex's `useQuery` is automatically
 > reactive client-side; Snapback separates the live-query declaration
@@ -253,6 +276,10 @@ Groups contain 1–64 entries. Each non-skipped child counts as one consumer and
 one live subscription unless it shares an existing canonical store. Changing
 one entry preserves unrelated entry snapshots. Validation and cap admission
 are transactional: a refused update leaves the previous group attached.
+If the group is really one screen's resource composition, declare it as an
+[application surface](./surfaces.md) instead of growing a hand-maintained
+entry map. `observeSnapbackQueries(provider, entries, listener)` is this
+hook's framework-neutral twin for acceptance adapters.
 
 ## Run a mutation
 
@@ -263,7 +290,14 @@ const taskId = await addTask({ incidentId, body: 'Check headers' });
 
 The returned function infers exact arguments and the unwrapped result from the
 generated mutation reference. Runtime refusals reject with Snapback's
-structured diagnostic.
+structured diagnostic. Without React,
+`invokeSnapbackMutation(provider, ref, args, { optimistic })` runs the exact
+hook-path admission and mutation, and
+`invokeSnapbackCommand(provider, commandRef, inputs)` starts a generated
+[command task](./surfaces.md#run-a-command-and-read-its-truthful-outcome)
+over the same provider-owned command client. The hooks for asset-bearing
+commands (`useSnapbackCommand`) and whole-screen compositions (`useSurface`)
+live on [application surfaces](./surfaces.md).
 
 For a mutation whose optimistic projection updates a currently authoritative
 live query, declare that projection beside the hook:
@@ -318,7 +352,11 @@ whose canonical `_id` the server mints: the projected rows are validated
 against the generated result contract, and the row identity is a branded
 generated ID that only the server produces — TypeScript refuses a forged
 provisional ID, and that refusal is deliberate (a fake ID could leak into
-mutation arguments and durable state). An append-shaped reducer
+mutation arguments and durable state). When a **genuine** external id
+arrives through an untyped boundary — a route param, a deep-link token —
+admit it with `admitSnapbackId(table, value)` from `@expo/snapback-client`
+rather than casting: it proves only the bounded wire grammar and
+deliberately claims nothing about row existence. An append-shaped reducer
 (`rows => [...rows, capturedRow]`) is also not idempotent over its own
 output, so it trips the development replay advisory above.
 
@@ -326,11 +364,12 @@ The current paved shape is a **component-local pending sidecar keyed by an
 app-generated intent key** — never a forged row ID:
 
 ```tsx fragment reason="illustrative pending-sidecar shape; row fields come from the application schema"
+let intentSequence = 0; // module-local; the key needs uniqueness, not unpredictability
 const [pending, setPending] = useState<Array<{ intentKey: string; title: string }>>([]);
 const createTask = useSnapbackMutation(api.createTask);
 
 async function submit(title: string) {
-  const intentKey = crypto.randomUUID(); // app-local presentation key only
+  const intentKey = `intent-${Date.now()}-${intentSequence++}`; // app-local presentation key only
   setPending((rows) => [...rows, { intentKey, title }]);
   try {
     await createTask({ title });
@@ -341,6 +380,11 @@ async function submit(title: string) {
   }
 }
 ```
+
+The time+sequence key is carrier-safe: `crypto.randomUUID()` also works on
+web, but Hermes ships no `globalThis.crypto`
+([React Expo crypto prerequisites](./react-expo.md#crypto-prerequisites-react-native-ships-no-webcrypto)),
+and a presentation-only key needs no unpredictability.
 
 Render the pending items beside the query rows, marked as unsettled. On
 rejection, only the corresponding pending item disappears; on success the
@@ -434,6 +478,14 @@ entries are blanked. Presence is never persisted, hydrated, or counted as a
 durable mutation. This first-class surface is deliberately local-target only;
 a hosted binding returns `unsupported` without starting a room or socket.
 
+`observeSnapbackPresence(provider, reference, options, listener)` is the
+framework-neutral twin (the same pattern as `observeSnapbackOutbox` below).
+A component that actively produces an ephemeral value outside managed
+presence registers with `useEphemeralRepublisher(reference, callback)` — the
+React wrapper over the client's `registerEphemeralRepublisher` that re-asks
+the mounted producer for its value after an authority replacement blanks the
+room; disposal follows the component lifecycle.
+
 ## Render connection state honestly
 
 `useSnapbackConnection()` observes the provider-wide weakest connection state
@@ -473,9 +525,28 @@ persisted rows with `freshness: 'retained'` and `status: 'refreshing'`
 
 `useSnapbackOutbox()` projects the durable queued-intent state
 ([`SnapbackOutboxState` exact type](../reference/expo-snapback-react.md#symbol-snapbackoutboxstate-904e9d7007),
-LLP 0043 M2): `{ status, supported, pending, failed, replaying }` plus a
-`replay()` action that drains through the client's single-flight
-`replayQueuedMutations()`. Render a queued-changes badge from it next to
+LLP 0043 M2). Its complete field list:
+
+- `status`: `loading | ready` — the projection's own read axis;
+- `supported`: whether the bound client has a durable queue at all;
+- `pending`: queued intents awaiting replay;
+- `failed`: intents whose replay terminally failed;
+- `stranded`: rerecordable intents parked by a same-principal authority
+  replacement, recovered explicitly via the client's stranded family;
+- `quarantined`: intents refused by server replay and held as payload-free
+  tombstones until successor artifacts re-enter them;
+- `resultGone`: intents whose terminal outcome is known (committed or
+  refused) but whose result payload expired before it could be read — never
+  re-executed, held until the application discards them;
+- `replaying`: whether the single-flight drain is currently running;
+
+plus a `replay()` action that drains through the client's single-flight
+`replayQueuedMutations()`. The stranded/quarantine semantics and their
+recovery methods are on
+[offline retention](../sync/offline-and-retention.md#replay-and-settle-without-guessing)
+(and its
+[migration-quarantine boundary](../sync/offline-and-retention.md#migration-boundaries-quarantine-dont-fail)).
+Render a queued-changes badge from it next to
 retained rows — the retained rows themselves stay **pre-intent** (this arm
 runs no local execution, so queued writes are never fabricated into the
 frame; LLP 0090 D3's rendering note). A client without the projection seam

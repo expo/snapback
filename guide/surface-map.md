@@ -9,8 +9,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 7b467cf16
+reviewed: 2026-08-08
+reviewed-commit: eac098a99
 ---
 
 # Surface map
@@ -96,8 +96,6 @@ here (or listed here but gone from the code).
 | /app-api/envelope/{sha256} | clients.app-cli |
 | /app/bundle | realtime.snapshot-bundles |
 | /app/ensure | backend.provisioning |
-| /app-api/current | clients.app-cli |
-| /app-api/envelope/{sha256} | clients.app-cli |
 | /assets/attempts | backend.assets |
 | /assets/attempts/{id} | backend.assets |
 | /assets/attempts/{id}/cancel | backend.assets |

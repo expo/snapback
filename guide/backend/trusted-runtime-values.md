@@ -9,8 +9,8 @@ examples: [demos/competitive-checkpoint/snapback/handlers.mjs, demos/competitive
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-08
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # Trusted runtime time and identifiers
@@ -52,8 +52,11 @@ That is why ambient clock and randomness APIs are not interchangeable with the
 context methods. An `id()` result belongs in a plain required string field; it
 is not a principal and does not manufacture a table foreign key. Neither value
 yields a dense per-scope ordinal (JOB-42): `id()` is opaque and `now()` is not
-gap-free. That is the [scoped sequences](./sequences.md) surface, which is not
-yet a published capability — do not hand-roll it from these values either.
+gap-free. That is the [scoped sequences](./sequences.md) surface — an
+experimental, contributor-local-only publication (`sequence_allocation_v1` on
+contributor-source builds of the local target since 2026-08-04); public
+runtime packages and hosted targets retain a structured GAP. Do not hand-roll
+it from these values either.
 
 For owner-scoped generated CRUD, declare the same policy as
 `createDefaults: { createdAt: 'now', pageKey: 'id' }` instead of writing a
@@ -122,11 +125,11 @@ callers together: the closed schema deliberately rejects an old client that
 continues sending the removed property. Existing stored values can remain;
 the trust boundary changes at the write path.
 
-Snapback does not currently provide a general schema-migration or backfill
-workflow. For disposable local data, reset and reseed after changing the
-schema. If preserved data must be reshaped or backfilled, treat that as an
-application-specific migration with its own authorization and acceptance
-plan; this guide makes no hosted rollout or zero-downtime migration claim.
+For disposable local data, reset and reseed after changing the schema. When
+preserved local data must be reshaped or backfilled, use the reviewed
+`snapback migrate` loop — [reviewed migrations](./migrations.md) — rather
+than an ad-hoc script; this guide makes no hosted rollout or zero-downtime
+migration claim.
 
 ## Anti-patterns
 

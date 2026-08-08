@@ -4,13 +4,13 @@ id: backend.queries
 order: 1
 audience: agent-first
 capabilities: [backend.functions, backend.query-semantics]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0174-authoring-incidents-at-security-fences.research.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/result-contracts.mjs, src/result_contract.rs, demos/signal-desk/snapback/functions.mjs]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0174-authoring-incidents-at-security-fences.research.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/result-contracts.mjs, packages/snapback-harness/ctx-bootstrap.js, src/result_contract.rs, demos/signal-desk/snapback/functions.mjs]
 examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-05
-reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
+reviewed: 2026-08-08
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # Queries
@@ -118,6 +118,33 @@ hashing and refuses unknown tables; adding or changing a table field therefore
 regenerates the contract and generated types. It is not accepted in function
 arguments or stored schema fields.
 
+`results.records` accepts two shapes beyond a single `v.object`: the record
+validator may be a **discriminated union of closed record variants** —
+`results.records(v.union([v.object({...}), v.doc('todos')]))`, every variant
+a `v.object(...)` or `v.doc(...)` — and an optional second argument declares
+**row bounds**: `results.records(shape, { minItems, maxItems })`. Bounds are
+declared together (supplying only one refuses generation) and must satisfy
+0 ≤ `minItems` ≤ `maxItems` ≤ 1,024. A result violating a declared bound is
+rejected pre-egress with `SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION` whose
+details name the `minItems`/`maxItems` constraint — the same closed
+constraint vocabulary [mutations](./mutations.md#consume-the-structured-result)
+documents.
+
+<!-- since: 0.1.16 unreleased -->
+
+> **Unreleased.** Stored enum fields are newer than the newest published
+> closure, 0.1.15; until the next closure publishes, they are available on
+> contributor-source builds of the local target only.
+
+A field declared as a **closed string domain (stored enum)** —
+`v.union([v.literal('crew'), v.literal('user')])` on a stored field — stays
+an ordinary `TEXT` column, so it indexes, `.eq`-filters, and orders exactly
+like `v.string()`, while generated result types carry the literal union
+(`"crew" | "user"`). Every central writer enforces the domain with
+`SNAPBACK_FIELD_ENUM_VALUE_INVALID`, so a query never needs a defensive
+domain re-check on values it reads. Declaration rules and narrowing
+semantics: [closed string domains](../getting-started/your-first-backend.md#declare-the-schema).
+
 `v.tuple([a, b, ...])` declares a fixed-length heterogeneous array: it takes
 1–8 element validators and validates each position against its own validator.
 It is exported and usable in result contracts; its consumer in the shipped
@@ -186,8 +213,10 @@ the global top rows—the omitted rows may contain the actual winners.
 
 ### The complete builder chain
 
-`ctx.db.query(table)` accepts exactly these verbs, in any order after
-`.withIndex(name)`:
+`ctx.db.query(table)` accepts exactly these verbs, in any order —
+`.withIndex(name)` included. `withIndex` is a plain setter that records the
+selected index wherever it appears in the chain; it is not a required prefix
+and imposes no ordering on the other verbs:
 
 | Verb | Meaning |
 | --- | --- |
@@ -216,10 +245,31 @@ const page = await ctx.db
 
 Do not collect the whole partition and slice it in JavaScript — that is
 O(partition) per page and reaches the implicit ceiling on a busy channel.
-(`defineOwnedKeysetPages` generates this shape for *owner*-scoped history;
+(`defineOwnedKeysetPages` generates this shape for *owner*-scoped history —
+see [generate keyset pages](./standard-patterns.md#generate-keyset-pages);
 the chain above is how you page anything else.) A verb outside this table
 refuses during generation with a named diagnostic rather than failing at
 runtime.
+
+#### Builder bounds and their refusal codes
+
+The builder enforces its own caps, each with a stable diagnostic:
+
+- `.take(n)` admits a non-negative safe integer of at most 1,024; anything
+  else throws `SNAPBACK_QUERY_LIMIT_INVALID` at the call site.
+- `.in(field, values)` requires an array
+  (`SNAPBACK_QUERY_FILTER_VALUE_INVALID` otherwise), and one builder admits
+  at most **500 total `in` operands** summed across all its `.in()` calls —
+  the 501st operand throws `SNAPBACK_QUERY_IN_ITEMS_EXCEEDED`.
+- One builder admits at most **500 total filter bindings**: each
+  `.eq`/`.lt`/`.lte`/`.gt`/`.gte` call adds one binding and each `.in()` adds
+  one per operand; exceeding the cap throws
+  `SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED`.
+
+These are authoring-shape refusals raised while the chain is being built,
+before any storage read. A predicate that needs more than 500 operands is a
+sign the membership set belongs in a table the query can join or index, not
+in an argument list.
 
 ## Scope on the server
 
@@ -227,6 +277,15 @@ Put authorization predicates in the query, not in client arguments or UI
 filters. `authUserId()` in declarative plans and `ctx.auth.userId` in JS
 handlers are server-derived. For sessions-mode details, see
 [sessions and principals](../auth/sessions-and-principals.md).
+
+JS handlers also get the LLP 0055 authority verb **`ctx.isDirectHuman()`**:
+`true` exactly when the server-resolved principal is a human acting directly
+— `auth.kind === "human"` **and** no delegated actor is present
+(`auth.actor == null`). Both conjuncts are load-bearing: kind alone would
+admit a delegated agent acting *as* the human, and actor absence alone would
+admit an autonomous agent principal. Use it to gate behavior reserved for a
+directly present human instead of re-deriving the conjunction from
+`ctx.auth` fields; it is exported on every generated context type.
 
 > **Coming from Convex/Supabase?** See
 > [Protected live CRUD, end to end](../recipes/coming-from-convex-and-supabase.md#protected-live-crud)

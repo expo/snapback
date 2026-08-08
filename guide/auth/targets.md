@@ -1,7 +1,7 @@
 ---
 title: Targets — what each one claims
 id: auth.targets
-order: 3
+order: 7
 audience: agent-first
 capabilities: [auth.target-honesty, auth.sender-constrained-browser]
 authorities: [llp/0060-hosted-auth-security.rfc.md, llp/0072-trusted-single-tenant-control-plane.rfc.md, llp/0077-sender-constrained-browser-auth.spec.md, llp/0002-canonical-local-target.decision.md, llp/0014-cloudflare-strategy.rfc.md, packages/snapback-client/hosted-browser.mjs, README.md]

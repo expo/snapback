@@ -9,8 +9,8 @@ examples: [demos/card-game, demos/expo-golden-path-fixture, demos/competitive-ch
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-07
-reviewed-commit: 386ab3d4a62f3b4f1a8406595729eefea60aa8ef
+reviewed: 2026-08-08
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # Recipe: coming from Convex and Supabase
@@ -43,7 +43,7 @@ Routes that need no code at all — go straight there:
 
 | Convex / Supabase | Snapback |
 | --- | --- |
-| Convex dashboard / Supabase Studio | The `snapback dev`-printed [admin console](../operating/admin-console.md) URL |
+| Convex dashboard / Supabase Studio | The [admin console](../operating/admin-console.md), opened with `snapback admin --ready-file .snapback/dev.ready.json` (the command `snapback dev --expo` prints as `adminConsoleCommand`) |
 | `convex dev` / Supabase local dev | The generate → dev → verify [authoring loop](../getting-started/the-authoring-loop.md) |
 | Schema and indexes | [`defineSchema`](../getting-started/your-first-backend.md) |
 | Seed functions / SQL seed scripts | [Versioned seed and reset](../backend/versioned-seeds.md) |
@@ -146,8 +146,8 @@ picture.
 
 **Not equivalent when** you need a client-supplied identity for
 service-to-service or admin tooling — use the
-[admin-impersonated CLI lane](../operating/admin-console.md) or an
-explicit [agent principal](../auth/agent-principals.md), not a query
+[admin-impersonated CLI lane](../operating/host-ops.md#respect-admin-secret-read-and-impersonation-gates)
+or an explicit [agent principal](../auth/agent-principals.md), not a query
 argument; passing identity through the request body is rejected outright.
 
 **Verify it yourself:** `demos/card-game/tests/acceptance/authority-scope.mjs`

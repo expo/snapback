@@ -9,8 +9,8 @@ examples: []
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-04
-reviewed-commit: eed1203d844d59ce98f10d80f8d166b46462b3b5
+reviewed: 2026-08-08
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # Backend error tracking
@@ -77,7 +77,10 @@ known retained releases.
 stack-head exemplars, bounded transition history, and a ready-to-run
 `telemetry.events` correlation query per exemplar. With `--url` instead of a
 readiness file, provide both the admin token and a separately minted
-`--secret-read-lease`; an admin token alone cannot read raw detail.
+`--secret-read-lease` (minted with `snapback secret-read-mint --errors-issue`
+— see [host operations — "Mint a scoped secret-read
+lease"](./host-ops.md#mint-a-scoped-secret-read-lease)); an admin token alone
+cannot read raw detail.
 
 ## Transition state without losing a concurrent update
 

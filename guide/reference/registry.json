@@ -2,8 +2,8 @@
   "schemaVersion": "snapback-symbol-registry.v1",
   "generatedBy": "scripts/generate-symbol-registry.mjs",
   "buildIdentity": {
-    "commit": "ace18d5d7cc9ae9a8087aef1f5d8a973f17b896f",
-    "sourceDigest": "sha256:182738466509e92d1a8f1d5a47488941b7fee3eb823fed847fb3b58fd031c2ec",
+    "commit": "eac098a99fb89b07e67cb72430106117b7fee86b",
+    "sourceDigest": "sha256:e2480c27a4719a217bd42ec4feac6eb51295cedfae7165118d009790980b0704",
     "packageVersions": {
       "@expo/snapback-cli": "0.1.0",
       "@expo/snapback-client": "0.1.0",
@@ -60779,16 +60779,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 630,
+        "line": 634,
         "column": 1,
-        "endLine": 630
+        "endLine": 634
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 630,
+          "line": 634,
           "column": 1,
-          "endLine": 630
+          "endLine": 634
         }
       ],
       "publicDeclaration": {
@@ -60823,16 +60823,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 629,
+        "line": 633,
         "column": 1,
-        "endLine": 629
+        "endLine": 633
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 629,
+          "line": 633,
           "column": 1,
-          "endLine": 629
+          "endLine": 633
         }
       ],
       "publicDeclaration": {
@@ -60874,9 +60874,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 633,
+              "line": 637,
               "column": 3,
-              "endLine": 633
+              "endLine": 637
             }
           ]
         },
@@ -60893,9 +60893,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 634,
+              "line": 638,
               "column": 3,
-              "endLine": 634
+              "endLine": 638
             }
           ]
         },
@@ -60912,9 +60912,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 635,
+              "line": 639,
               "column": 3,
-              "endLine": 635
+              "endLine": 639
             }
           ]
         },
@@ -60931,9 +60931,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 636,
+              "line": 640,
               "column": 3,
-              "endLine": 636
+              "endLine": 640
             }
           ]
         },
@@ -60950,9 +60950,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 637,
+              "line": 641,
               "column": 3,
-              "endLine": 637
+              "endLine": 641
             }
           ]
         },
@@ -60969,9 +60969,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 638,
+              "line": 642,
               "column": 3,
-              "endLine": 638
+              "endLine": 642
             }
           ]
         },
@@ -60988,9 +60988,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 639,
+              "line": 643,
               "column": 3,
-              "endLine": 639
+              "endLine": 643
             }
           ]
         }
@@ -61001,16 +61001,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 632,
+        "line": 636,
         "column": 1,
-        "endLine": 640
+        "endLine": 644
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 632,
+          "line": 636,
           "column": 1,
-          "endLine": 640
+          "endLine": 644
         }
       ],
       "publicDeclaration": {
@@ -61287,9 +61287,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 603,
+              "line": 607,
               "column": 3,
-              "endLine": 603
+              "endLine": 607
             }
           ]
         },
@@ -61306,9 +61306,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 604,
+              "line": 608,
               "column": 3,
-              "endLine": 613
+              "endLine": 617
             }
           ]
         },
@@ -61325,9 +61325,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 614,
+              "line": 618,
               "column": 3,
-              "endLine": 618
+              "endLine": 622
             }
           ]
         },
@@ -61344,9 +61344,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 619,
+              "line": 623,
               "column": 3,
-              "endLine": 619
+              "endLine": 623
             }
           ]
         },
@@ -61363,9 +61363,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 620,
+              "line": 624,
               "column": 3,
-              "endLine": 620
+              "endLine": 624
             }
           ]
         },
@@ -61382,9 +61382,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 621,
+              "line": 625,
               "column": 3,
-              "endLine": 621
+              "endLine": 625
             }
           ]
         },
@@ -61401,9 +61401,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 622,
+              "line": 626,
               "column": 3,
-              "endLine": 622
+              "endLine": 626
             }
           ]
         }
@@ -61414,16 +61414,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 602,
+        "line": 606,
         "column": 1,
-        "endLine": 623
+        "endLine": 627
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 602,
+          "line": 606,
           "column": 1,
-          "endLine": 623
+          "endLine": 627
         }
       ],
       "publicDeclaration": {
@@ -61458,16 +61458,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 595,
+        "line": 599,
         "column": 1,
-        "endLine": 600
+        "endLine": 604
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 595,
+          "line": 599,
           "column": 1,
-          "endLine": 600
+          "endLine": 604
         }
       ],
       "publicDeclaration": {
@@ -61502,16 +61502,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 583,
+        "line": 587,
         "column": 1,
-        "endLine": 593
+        "endLine": 597
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 583,
+          "line": 587,
           "column": 1,
-          "endLine": 593
+          "endLine": 597
         }
       ],
       "publicDeclaration": {
@@ -61728,16 +61728,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 569,
+        "line": 573,
         "column": 1,
-        "endLine": 579
+        "endLine": 583
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 569,
+          "line": 573,
           "column": 1,
-          "endLine": 579
+          "endLine": 583
         }
       ],
       "publicDeclaration": {
@@ -61776,16 +61776,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 353,
+        "line": 357,
         "column": 1,
-        "endLine": 358
+        "endLine": 362
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 353,
+          "line": 357,
           "column": 1,
-          "endLine": 358
+          "endLine": 362
         }
       ],
       "publicDeclaration": {
@@ -61827,9 +61827,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 337,
+              "line": 341,
               "column": 3,
-              "endLine": 337
+              "endLine": 341
             }
           ]
         },
@@ -61846,9 +61846,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 338,
+              "line": 342,
               "column": 3,
-              "endLine": 338
+              "endLine": 342
             }
           ]
         },
@@ -61865,9 +61865,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 339,
+              "line": 343,
               "column": 3,
-              "endLine": 344
+              "endLine": 348
             }
           ]
         },
@@ -61884,9 +61884,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 345,
+              "line": 349,
               "column": 3,
-              "endLine": 345
+              "endLine": 349
             }
           ]
         },
@@ -61903,9 +61903,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 346,
+              "line": 350,
               "column": 3,
-              "endLine": 346
+              "endLine": 350
             }
           ]
         },
@@ -61922,9 +61922,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 347,
+              "line": 351,
               "column": 3,
-              "endLine": 347
+              "endLine": 351
             }
           ]
         },
@@ -61941,9 +61941,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 348,
+              "line": 352,
               "column": 3,
-              "endLine": 348
+              "endLine": 352
             }
           ]
         },
@@ -61960,9 +61960,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 349,
+              "line": 353,
               "column": 3,
-              "endLine": 349
+              "endLine": 353
             }
           ]
         },
@@ -61979,9 +61979,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 350,
+              "line": 354,
               "column": 3,
-              "endLine": 350
+              "endLine": 354
             }
           ]
         },
@@ -61998,9 +61998,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 351,
+              "line": 355,
               "column": 3,
-              "endLine": 351
+              "endLine": 355
             }
           ]
         }
@@ -62011,16 +62011,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 336,
+        "line": 340,
         "column": 1,
-        "endLine": 352
+        "endLine": 356
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 336,
+          "line": 340,
           "column": 1,
-          "endLine": 352
+          "endLine": 356
         }
       ],
       "publicDeclaration": {
@@ -62530,16 +62530,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 98,
+        "line": 100,
         "column": 1,
-        "endLine": 102
+        "endLine": 104
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 98,
+          "line": 100,
           "column": 1,
-          "endLine": 102
+          "endLine": 104
         }
       ],
       "publicDeclaration": {
@@ -62578,16 +62578,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 158,
+        "line": 162,
         "column": 1,
-        "endLine": 181
+        "endLine": 185
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 158,
+          "line": 162,
           "column": 1,
-          "endLine": 181
+          "endLine": 185
         }
       ],
       "publicDeclaration": {
@@ -62626,16 +62626,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 563,
+        "line": 567,
         "column": 1,
-        "endLine": 567
+        "endLine": 571
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 563,
+          "line": 567,
           "column": 1,
-          "endLine": 567
+          "endLine": 571
         }
       ],
       "publicDeclaration": {
@@ -62674,16 +62674,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 547,
+        "line": 551,
         "column": 1,
-        "endLine": 562
+        "endLine": 566
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 547,
+          "line": 551,
           "column": 1,
-          "endLine": 562
+          "endLine": 566
         }
       ],
       "publicDeclaration": {
@@ -62858,16 +62858,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 92,
+        "line": 94,
         "column": 1,
-        "endLine": 96
+        "endLine": 98
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 92,
+          "line": 94,
           "column": 1,
-          "endLine": 96
+          "endLine": 98
         }
       ],
       "publicDeclaration": {
@@ -62906,16 +62906,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 493,
+        "line": 497,
         "column": 1,
-        "endLine": 496
+        "endLine": 500
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 493,
+          "line": 497,
           "column": 1,
-          "endLine": 496
+          "endLine": 500
         }
       ],
       "publicDeclaration": {
@@ -62954,16 +62954,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 521,
+        "line": 525,
         "column": 1,
-        "endLine": 532
+        "endLine": 536
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 521,
+          "line": 525,
           "column": 1,
-          "endLine": 532
+          "endLine": 536
         }
       ],
       "publicDeclaration": {
@@ -63005,22 +63005,22 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 533,
+        "line": 537,
         "column": 1,
-        "endLine": 537
+        "endLine": 541
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 533,
+          "line": 537,
           "column": 1,
-          "endLine": 537
+          "endLine": 541
         },
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 538,
+          "line": 542,
           "column": 1,
-          "endLine": 546
+          "endLine": 550
         }
       ],
       "publicDeclaration": {
@@ -63059,16 +63059,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 359,
+        "line": 363,
         "column": 1,
-        "endLine": 373
+        "endLine": 377
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 359,
+          "line": 363,
           "column": 1,
-          "endLine": 373
+          "endLine": 377
         }
       ],
       "publicDeclaration": {
@@ -63107,16 +63107,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 668,
+        "line": 672,
         "column": 1,
-        "endLine": 668
+        "endLine": 672
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 668,
+          "line": 672,
           "column": 1,
-          "endLine": 668
+          "endLine": 672
         }
       ],
       "publicDeclaration": {
@@ -63151,16 +63151,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 205,
+        "line": 209,
         "column": 1,
-        "endLine": 209
+        "endLine": 213
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 205,
+          "line": 209,
           "column": 1,
-          "endLine": 209
+          "endLine": 213
         }
       ],
       "publicDeclaration": {
@@ -63195,16 +63195,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 194,
+        "line": 198,
         "column": 1,
-        "endLine": 201
+        "endLine": 205
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 194,
+          "line": 198,
           "column": 1,
-          "endLine": 201
+          "endLine": 205
         }
       ],
       "publicDeclaration": {
@@ -63239,16 +63239,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 210,
+        "line": 214,
         "column": 1,
-        "endLine": 231
+        "endLine": 235
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 210,
+          "line": 214,
           "column": 1,
-          "endLine": 231
+          "endLine": 235
         }
       ],
       "publicDeclaration": {
@@ -63287,16 +63287,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 433,
+        "line": 437,
         "column": 1,
-        "endLine": 440
+        "endLine": 444
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 433,
+          "line": 437,
           "column": 1,
-          "endLine": 440
+          "endLine": 444
         }
       ],
       "publicDeclaration": {
@@ -63331,16 +63331,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 202,
+        "line": 206,
         "column": 1,
-        "endLine": 204
+        "endLine": 208
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 202,
+          "line": 206,
           "column": 1,
-          "endLine": 204
+          "endLine": 208
         }
       ],
       "publicDeclaration": {
@@ -63375,16 +63375,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 380,
+        "line": 384,
         "column": 1,
-        "endLine": 383
+        "endLine": 387
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 380,
+          "line": 384,
           "column": 1,
-          "endLine": 383
+          "endLine": 387
         }
       ],
       "publicDeclaration": {
@@ -63419,16 +63419,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 385,
+        "line": 389,
         "column": 1,
-        "endLine": 385
+        "endLine": 389
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 385,
+          "line": 389,
           "column": 1,
-          "endLine": 385
+          "endLine": 389
         }
       ],
       "publicDeclaration": {
@@ -63463,16 +63463,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 397,
+        "line": 401,
         "column": 1,
-        "endLine": 408
+        "endLine": 412
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 397,
+          "line": 401,
           "column": 1,
-          "endLine": 408
+          "endLine": 412
         }
       ],
       "publicDeclaration": {
@@ -63507,16 +63507,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 86,
+        "line": 88,
         "column": 1,
-        "endLine": 90
+        "endLine": 92
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 86,
+          "line": 88,
           "column": 1,
-          "endLine": 90
+          "endLine": 92
         }
       ],
       "publicDeclaration": {
@@ -63542,7 +63542,7 @@
         "exportNames": [],
         "conditions": []
       },
-      "signature": "export type QueryState<Result> =\n  | Readonly<{ status: 'pending'; data: undefined; error: null; connection: SnapbackConnection; freshness: 'unknown'; retention: SnapbackRetention | null }>\n  | Readonly<{ status: 'ready'; data: Result; error: null; connection: SnapbackConnection; freshness: 'current'; retention: SnapbackRetention | null }>\n  | Readonly<{ status: 'refreshing'; data: Result; error: null; connection: SnapbackConnection; freshness: 'retained' | 'current'; retention: SnapbackRetention | null }>\n  | Readonly<{ status: 'error'; data: undefined; error: SnapbackDiagnostic; connection: SnapbackConnection; freshness: 'unknown'; retention: SnapbackRetention | null }>\n  | Readonly<{ status: 'skipped'; data: undefined; error: null; connection: SnapbackConnection; freshness: 'unknown'; retention: null }>;",
+      "signature": "export type QueryState<Result> =\n  | Readonly<{ status: 'pending'; data: undefined; error: null; connection: SnapbackConnection; freshness: 'unknown'; retention: SnapbackRetention | null }>\n  | Readonly<{ status: 'ready'; data: Result; error: null; connection: SnapbackConnection; freshness: 'current' | 'snapshot'; retention: SnapbackRetention | null }>\n  | Readonly<{ status: 'refreshing'; data: Result; error: null; connection: SnapbackConnection; freshness: 'retained' | 'current'; retention: SnapbackRetention | null }>\n  | Readonly<{ status: 'error'; data: undefined; error: SnapbackDiagnostic; connection: SnapbackConnection; freshness: 'unknown'; retention: SnapbackRetention | null }>\n  | Readonly<{ status: 'skipped'; data: undefined; error: null; connection: SnapbackConnection; freshness: 'unknown'; retention: null }>;",
       "overloads": [],
       "members": [],
       "documentation": {
@@ -63551,16 +63551,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 79,
+        "line": 81,
         "column": 1,
-        "endLine": 84
+        "endLine": 86
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 79,
+          "line": 81,
           "column": 1,
-          "endLine": 84
+          "endLine": 86
         }
       ],
       "publicDeclaration": {
@@ -63595,16 +63595,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 393,
+        "line": 397,
         "column": 1,
-        "endLine": 395
+        "endLine": 399
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 393,
+          "line": 397,
           "column": 1,
-          "endLine": 395
+          "endLine": 399
         }
       ],
       "publicDeclaration": {
@@ -63643,16 +63643,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 666,
+        "line": 670,
         "column": 1,
-        "endLine": 666
+        "endLine": 670
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 666,
+          "line": 670,
           "column": 1,
-          "endLine": 666
+          "endLine": 670
         }
       ],
       "publicDeclaration": {
@@ -63691,16 +63691,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 104,
+        "line": 106,
         "column": 14,
-        "endLine": 104
+        "endLine": 106
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 104,
+          "line": 106,
           "column": 14,
-          "endLine": 104
+          "endLine": 106
         }
       ],
       "publicDeclaration": {
@@ -63739,16 +63739,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 650,
+        "line": 654,
         "column": 1,
-        "endLine": 658
+        "endLine": 662
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 650,
+          "line": 654,
           "column": 1,
-          "endLine": 658
+          "endLine": 662
         }
       ],
       "publicDeclaration": {
@@ -63871,16 +63871,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 466,
+        "line": 470,
         "column": 1,
-        "endLine": 470
+        "endLine": 474
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 466,
+          "line": 470,
           "column": 1,
-          "endLine": 470
+          "endLine": 474
         }
       ],
       "publicDeclaration": {
@@ -63950,25 +63950,25 @@
         "exportNames": [],
         "conditions": []
       },
-      "signature": "export type SnapbackFreshness = 'unknown' | 'retained' | 'current';",
+      "signature": "export type SnapbackFreshness = 'unknown' | 'retained' | 'current' | 'snapshot';",
       "overloads": [],
       "members": [],
       "documentation": {
-        "text": "Channel B freshness axis (LLP 0090 D1 / LLP 0114): 'retained' rows come\nfrom persistence/preload and are never presented as settled; 'current'\nrows are authoritative; 'unknown' means no rows are held.",
+        "text": "Channel B freshness axis (LLP 0090 D1 / LLP 0114): 'retained' rows come\nfrom persistence/preload and are never presented as settled; 'current'\nrows are authoritative; 'unknown' means no rows are held; 'snapshot'\nrows come from a mixed-route read-only child's boot snapshot — they are\nserver-authored and presented as settled ('ready') but never refresh.",
         "tags": []
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 73,
+        "line": 75,
         "column": 1,
-        "endLine": 73
+        "endLine": 75
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 73,
+          "line": 75,
           "column": 1,
-          "endLine": 73
+          "endLine": 75
         }
       ],
       "publicDeclaration": {
@@ -64003,16 +64003,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 480,
+        "line": 484,
         "column": 1,
-        "endLine": 484
+        "endLine": 488
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 480,
+          "line": 484,
           "column": 1,
-          "endLine": 484
+          "endLine": 488
         }
       ],
       "publicDeclaration": {
@@ -64054,9 +64054,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 489,
+              "line": 493,
               "column": 3,
-              "endLine": 489
+              "endLine": 493
             }
           ]
         },
@@ -64073,9 +64073,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 490,
+              "line": 494,
               "column": 3,
-              "endLine": 490
+              "endLine": 494
             }
           ]
         },
@@ -64092,9 +64092,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 491,
+              "line": 495,
               "column": 3,
-              "endLine": 491
+              "endLine": 495
             }
           ]
         }
@@ -64105,16 +64105,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 488,
+        "line": 492,
         "column": 1,
-        "endLine": 492
+        "endLine": 496
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 488,
+          "line": 492,
           "column": 1,
-          "endLine": 492
+          "endLine": 496
         }
       ],
       "publicDeclaration": {
@@ -64149,16 +64149,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 476,
+        "line": 480,
         "column": 1,
-        "endLine": 478
+        "endLine": 482
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 476,
+          "line": 480,
           "column": 1,
-          "endLine": 478
+          "endLine": 482
         }
       ],
       "publicDeclaration": {
@@ -64200,9 +64200,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 511,
+              "line": 515,
               "column": 3,
-              "endLine": 515
+              "endLine": 519
             }
           ]
         },
@@ -64219,9 +64219,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 516,
+              "line": 520,
               "column": 3,
-              "endLine": 516
+              "endLine": 520
             }
           ]
         },
@@ -64238,9 +64238,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 517,
+              "line": 521,
               "column": 3,
-              "endLine": 517
+              "endLine": 521
             }
           ]
         },
@@ -64257,9 +64257,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 518,
+              "line": 522,
               "column": 3,
-              "endLine": 518
+              "endLine": 522
             }
           ]
         },
@@ -64276,9 +64276,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 519,
+              "line": 523,
               "column": 3,
-              "endLine": 519
+              "endLine": 523
             }
           ]
         }
@@ -64289,16 +64289,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 510,
+        "line": 514,
         "column": 1,
-        "endLine": 520
+        "endLine": 524
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 510,
+          "line": 514,
           "column": 1,
-          "endLine": 520
+          "endLine": 524
         }
       ],
       "publicDeclaration": {
@@ -64337,16 +64337,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 183,
+        "line": 187,
         "column": 1,
-        "endLine": 187
+        "endLine": 191
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 183,
+          "line": 187,
           "column": 1,
-          "endLine": 187
+          "endLine": 191
         }
       ],
       "publicDeclaration": {
@@ -64388,9 +64388,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 506,
+              "line": 510,
               "column": 3,
-              "endLine": 506
+              "endLine": 510
             }
           ]
         },
@@ -64407,9 +64407,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 507,
+              "line": 511,
               "column": 3,
-              "endLine": 507
+              "endLine": 511
             }
           ]
         },
@@ -64426,9 +64426,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 508,
+              "line": 512,
               "column": 3,
-              "endLine": 508
+              "endLine": 512
             }
           ]
         }
@@ -64439,16 +64439,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 505,
+        "line": 509,
         "column": 1,
-        "endLine": 509
+        "endLine": 513
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 505,
+          "line": 509,
           "column": 1,
-          "endLine": 509
+          "endLine": 513
         }
       ],
       "publicDeclaration": {
@@ -64474,7 +64474,7 @@
         "exportNames": [],
         "conditions": []
       },
-      "signature": "export interface SnapbackReactProvider {\n  readonly kind: 'snapback.react-provider.v1';\n  readonly providerInstanceId: string;\n  readonly binding: PreparedReactBinding;\n  readonly assets: unknown | null;\n  readonly assetSourceAdapter: import('@expo/snapback-client').CommandAssetSourceAdapter | null;\n  surface<Surface extends SnapbackSurfaceDescriptor>(\n    descriptor: Surface,\n    params: SurfaceParams<Surface>,\n    options?: SurfaceOptions<Surface>,\n  ): BoundSnapbackSurface<Surface>;\n  registerEphemeralRepublisher(\n    reference: string,\n    callback: (context: Readonly<{\n      collection: string;\n      publish(value: unknown, options?: Readonly<Record<string, unknown>>): Promise<unknown>;\n    }>) => unknown,\n  ): Readonly<{ dispose(): void }>;\n  /** Quiesce provider-owned live query and presence handles for host lifecycle. */\n  pause(): Promise<void>;\n  /** Resume provider-owned live query and presence handles after host activation. */\n  resume(): Promise<void>;\n  inspection(): Readonly<{\n    providerInstanceId: string;\n    terminal: boolean;\n    custodyPaused: boolean;\n    hostPaused: boolean;\n    stores: number;\n    consumers: number;\n    serverSubscriptions: number;\n    leases: number;\n    reservations: number;\n    timers: number;\n    listeners: number;\n    presenceStores: number;\n    presenceConsumers: number;\n    presenceSubscriptions: number;\n    publishers: number;\n    presenceTimers: number;\n    presenceListeners: number;\n    resyncReasons: readonly string[];\n    diagnostics: readonly SnapbackDiagnostic[];\n    preparedRegistrations: number;\n    preparedGroupSource: PreparedReactQueryGroup['source'] | null;\n    preparedGroupReason: string | null;\n    preparedGroupBoot: PreparedReactQueryGroup['boot'];\n    /** Mounted-provider HMR generation handoff state (development only). */\n    generationHandoff: 'active' | 'ok' | 'failed' | null;\n  }>;\n  dispose(): Promise<void>;\n}",
+      "signature": "export interface SnapbackReactProvider {\n  readonly kind: 'snapback.react-provider.v1';\n  readonly providerInstanceId: string;\n  readonly binding: PreparedReactBinding;\n  readonly assets: unknown | null;\n  readonly assetSourceAdapter: import('@expo/snapback-client').CommandAssetSourceAdapter | null;\n  /** Activate provider-owned registrations. Idempotent for an active provider. */\n  start(): SnapbackReactProvider;\n  surface<Surface extends SnapbackSurfaceDescriptor>(\n    descriptor: Surface,\n    params: SurfaceParams<Surface>,\n    options?: SurfaceOptions<Surface>,\n  ): BoundSnapbackSurface<Surface>;\n  registerEphemeralRepublisher(\n    reference: string,\n    callback: (context: Readonly<{\n      collection: string;\n      publish(value: unknown, options?: Readonly<Record<string, unknown>>): Promise<unknown>;\n    }>) => unknown,\n  ): Readonly<{ dispose(): void }>;\n  /** Quiesce provider-owned live query and presence handles for host lifecycle. */\n  pause(): Promise<void>;\n  /** Resume provider-owned live query and presence handles after host activation. */\n  resume(): Promise<void>;\n  inspection(): Readonly<{\n    providerInstanceId: string;\n    terminal: boolean;\n    custodyPaused: boolean;\n    hostPaused: boolean;\n    stores: number;\n    consumers: number;\n    serverSubscriptions: number;\n    leases: number;\n    reservations: number;\n    timers: number;\n    listeners: number;\n    presenceStores: number;\n    presenceConsumers: number;\n    presenceSubscriptions: number;\n    publishers: number;\n    presenceTimers: number;\n    presenceListeners: number;\n    resyncReasons: readonly string[];\n    diagnostics: readonly SnapbackDiagnostic[];\n    preparedRegistrations: number;\n    preparedGroupSource: PreparedReactQueryGroup['source'] | null;\n    preparedGroupReason: string | null;\n    preparedGroupBoot: PreparedReactQueryGroup['boot'];\n    /** Mounted-provider HMR generation handoff state (development only). */\n    generationHandoff: 'active' | 'ok' | 'failed' | null;\n  }>;\n  dispose(): Promise<void>;\n}",
       "overloads": [],
       "members": [
         {
@@ -64490,9 +64490,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 107,
+              "line": 109,
               "column": 3,
-              "endLine": 107
+              "endLine": 109
             }
           ]
         },
@@ -64509,9 +64509,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 108,
+              "line": 110,
               "column": 3,
-              "endLine": 108
+              "endLine": 110
             }
           ]
         },
@@ -64528,9 +64528,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 109,
+              "line": 111,
               "column": 3,
-              "endLine": 109
+              "endLine": 111
             }
           ]
         },
@@ -64547,9 +64547,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 110,
+              "line": 112,
               "column": 3,
-              "endLine": 110
+              "endLine": 112
             }
           ]
         },
@@ -64566,9 +64566,28 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 111,
+              "line": 113,
               "column": 3,
-              "endLine": 111
+              "endLine": 113
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-react#SnapbackReactProvider.start",
+          "name": "start",
+          "kind": "method",
+          "signature": "start(): SnapbackReactProvider;",
+          "overloads": [],
+          "documentation": {
+            "text": "Activate provider-owned registrations. Idempotent for an active provider.",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-react/index.d.mts",
+              "line": 115,
+              "column": 3,
+              "endLine": 115
             }
           ]
         },
@@ -64585,9 +64604,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 112,
+              "line": 116,
               "column": 3,
-              "endLine": 116
+              "endLine": 120
             }
           ]
         },
@@ -64604,9 +64623,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 117,
+              "line": 121,
               "column": 3,
-              "endLine": 123
+              "endLine": 127
             }
           ]
         },
@@ -64623,9 +64642,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 125,
+              "line": 129,
               "column": 3,
-              "endLine": 125
+              "endLine": 129
             }
           ]
         },
@@ -64642,9 +64661,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 127,
+              "line": 131,
               "column": 3,
-              "endLine": 127
+              "endLine": 131
             }
           ]
         },
@@ -64661,9 +64680,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 128,
+              "line": 132,
               "column": 3,
-              "endLine": 154
+              "endLine": 158
             }
           ]
         },
@@ -64680,9 +64699,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 155,
+              "line": 159,
               "column": 3,
-              "endLine": 155
+              "endLine": 159
             }
           ]
         }
@@ -64693,16 +64712,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 106,
+        "line": 108,
         "column": 1,
-        "endLine": 156
+        "endLine": 160
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 106,
+          "line": 108,
           "column": 1,
-          "endLine": 156
+          "endLine": 160
         }
       ],
       "publicDeclaration": {
@@ -64737,16 +64756,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 77,
+        "line": 79,
         "column": 1,
-        "endLine": 77
+        "endLine": 79
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 77,
+          "line": 79,
           "column": 1,
-          "endLine": 77
+          "endLine": 79
         }
       ],
       "publicDeclaration": {
@@ -64788,9 +64807,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 268,
+              "line": 272,
               "column": 3,
-              "endLine": 268
+              "endLine": 272
             }
           ]
         },
@@ -64807,9 +64826,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 269,
+              "line": 273,
               "column": 3,
-              "endLine": 269
+              "endLine": 273
             }
           ]
         },
@@ -64826,9 +64845,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 270,
+              "line": 274,
               "column": 3,
-              "endLine": 270
+              "endLine": 274
             }
           ]
         },
@@ -64845,9 +64864,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 271,
+              "line": 275,
               "column": 3,
-              "endLine": 271
+              "endLine": 275
             }
           ]
         },
@@ -64864,9 +64883,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 272,
+              "line": 276,
               "column": 3,
-              "endLine": 272
+              "endLine": 276
             }
           ]
         },
@@ -64883,9 +64902,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 273,
+              "line": 277,
               "column": 3,
-              "endLine": 273
+              "endLine": 277
             }
           ]
         },
@@ -64902,9 +64921,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 274,
+              "line": 278,
               "column": 3,
-              "endLine": 274
+              "endLine": 278
             }
           ]
         },
@@ -64921,9 +64940,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 275,
+              "line": 279,
               "column": 3,
-              "endLine": 275
+              "endLine": 279
             }
           ]
         },
@@ -64940,9 +64959,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 276,
+              "line": 280,
               "column": 3,
-              "endLine": 276
+              "endLine": 280
             }
           ]
         }
@@ -64953,16 +64972,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 260,
+        "line": 264,
         "column": 1,
-        "endLine": 277
+        "endLine": 281
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 260,
+          "line": 264,
           "column": 1,
-          "endLine": 277
+          "endLine": 281
         }
       ],
       "publicDeclaration": {
@@ -65004,9 +65023,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 256,
+              "line": 260,
               "column": 3,
-              "endLine": 256
+              "endLine": 260
             }
           ]
         },
@@ -65023,9 +65042,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 257,
+              "line": 261,
               "column": 3,
-              "endLine": 257
+              "endLine": 261
             }
           ]
         },
@@ -65042,9 +65061,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 258,
+              "line": 262,
               "column": 3,
-              "endLine": 258
+              "endLine": 262
             }
           ]
         }
@@ -65055,16 +65074,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 255,
+        "line": 259,
         "column": 1,
-        "endLine": 259
+        "endLine": 263
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 255,
+          "line": 259,
           "column": 1,
-          "endLine": 259
+          "endLine": 263
         }
       ],
       "publicDeclaration": {
@@ -65099,16 +65118,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 288,
+        "line": 292,
         "column": 1,
-        "endLine": 294
+        "endLine": 298
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 288,
+          "line": 292,
           "column": 1,
-          "endLine": 294
+          "endLine": 298
         }
       ],
       "publicDeclaration": {
@@ -65143,16 +65162,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 278,
+        "line": 282,
         "column": 1,
-        "endLine": 280
+        "endLine": 284
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 278,
+          "line": 282,
           "column": 1,
-          "endLine": 280
+          "endLine": 284
         }
       ],
       "publicDeclaration": {
@@ -65187,16 +65206,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 295,
+        "line": 299,
         "column": 1,
-        "endLine": 335
+        "endLine": 339
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 295,
+          "line": 299,
           "column": 1,
-          "endLine": 335
+          "endLine": 339
         }
       ],
       "publicDeclaration": {
@@ -65235,16 +65254,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 665,
+        "line": 669,
         "column": 1,
-        "endLine": 665
+        "endLine": 669
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 665,
+          "line": 669,
           "column": 1,
-          "endLine": 665
+          "endLine": 669
         }
       ],
       "publicDeclaration": {
@@ -65283,16 +65302,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 667,
+        "line": 671,
         "column": 1,
-        "endLine": 667
+        "endLine": 671
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 667,
+          "line": 671,
           "column": 1,
-          "endLine": 667
+          "endLine": 671
         }
       ],
       "publicDeclaration": {
@@ -65331,16 +65350,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 660,
+        "line": 664,
         "column": 1,
-        "endLine": 664
+        "endLine": 668
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 660,
+          "line": 664,
           "column": 1,
-          "endLine": 664
+          "endLine": 668
         }
       ],
       "publicDeclaration": {
@@ -65538,16 +65557,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 497,
+        "line": 501,
         "column": 1,
-        "endLine": 503
+        "endLine": 507
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 497,
+          "line": 501,
           "column": 1,
-          "endLine": 503
+          "endLine": 507
         }
       ],
       "publicDeclaration": {
@@ -65586,16 +65605,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 642,
+        "line": 646,
         "column": 1,
-        "endLine": 648
+        "endLine": 652
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 642,
+          "line": 646,
           "column": 1,
-          "endLine": 648
+          "endLine": 652
         }
       ],
       "publicDeclaration": {
@@ -65634,16 +65653,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 625,
+        "line": 629,
         "column": 1,
-        "endLine": 627
+        "endLine": 631
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 625,
+          "line": 629,
           "column": 1,
-          "endLine": 627
+          "endLine": 631
         }
       ],
       "publicDeclaration": {
@@ -65682,16 +65701,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 462,
+        "line": 466,
         "column": 1,
-        "endLine": 464
+        "endLine": 468
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 462,
+          "line": 466,
           "column": 1,
-          "endLine": 464
+          "endLine": 468
         }
       ],
       "publicDeclaration": {
@@ -65730,16 +65749,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 472,
+        "line": 476,
         "column": 1,
-        "endLine": 472
+        "endLine": 476
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 472,
+          "line": 476,
           "column": 1,
-          "endLine": 472
+          "endLine": 476
         }
       ],
       "publicDeclaration": {
@@ -65778,16 +65797,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 442,
+        "line": 446,
         "column": 1,
-        "endLine": 461
+        "endLine": 465
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 442,
+          "line": 446,
           "column": 1,
-          "endLine": 461
+          "endLine": 465
         }
       ],
       "publicDeclaration": {
@@ -65826,16 +65845,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 486,
+        "line": 490,
         "column": 1,
-        "endLine": 486
+        "endLine": 490
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 486,
+          "line": 490,
           "column": 1,
-          "endLine": 486
+          "endLine": 490
         }
       ],
       "publicDeclaration": {
@@ -65874,16 +65893,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 244,
+        "line": 248,
         "column": 1,
-        "endLine": 253
+        "endLine": 257
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 244,
+          "line": 248,
           "column": 1,
-          "endLine": 253
+          "endLine": 257
         }
       ],
       "publicDeclaration": {
@@ -65925,22 +65944,22 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 410,
+        "line": 414,
         "column": 1,
-        "endLine": 412
+        "endLine": 416
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 410,
+          "line": 414,
           "column": 1,
-          "endLine": 412
+          "endLine": 416
         },
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 420,
+          "line": 424,
           "column": 1,
-          "endLine": 424
+          "endLine": 428
         }
       ],
       "publicDeclaration": {
@@ -65979,16 +65998,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 189,
+        "line": 193,
         "column": 1,
-        "endLine": 192
+        "endLine": 196
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 189,
+          "line": 193,
           "column": 1,
-          "endLine": 192
+          "endLine": 196
         }
       ],
       "publicDeclaration": {
@@ -66027,16 +66046,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 374,
+        "line": 378,
         "column": 1,
-        "endLine": 378
+        "endLine": 382
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 374,
+          "line": 378,
           "column": 1,
-          "endLine": 378
+          "endLine": 382
         }
       ],
       "publicDeclaration": {
@@ -67277,16 +67296,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 630,
+        "line": 634,
         "column": 1,
-        "endLine": 630
+        "endLine": 634
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 630,
+          "line": 634,
           "column": 1,
-          "endLine": 630
+          "endLine": 634
         }
       ],
       "publicDeclaration": {
@@ -67321,16 +67340,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 629,
+        "line": 633,
         "column": 1,
-        "endLine": 629
+        "endLine": 633
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 629,
+          "line": 633,
           "column": 1,
-          "endLine": 629
+          "endLine": 633
         }
       ],
       "publicDeclaration": {
@@ -67372,9 +67391,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 633,
+              "line": 637,
               "column": 3,
-              "endLine": 633
+              "endLine": 637
             }
           ]
         },
@@ -67391,9 +67410,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 634,
+              "line": 638,
               "column": 3,
-              "endLine": 634
+              "endLine": 638
             }
           ]
         },
@@ -67410,9 +67429,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 635,
+              "line": 639,
               "column": 3,
-              "endLine": 635
+              "endLine": 639
             }
           ]
         },
@@ -67429,9 +67448,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 636,
+              "line": 640,
               "column": 3,
-              "endLine": 636
+              "endLine": 640
             }
           ]
         },
@@ -67448,9 +67467,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 637,
+              "line": 641,
               "column": 3,
-              "endLine": 637
+              "endLine": 641
             }
           ]
         },
@@ -67467,9 +67486,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 638,
+              "line": 642,
               "column": 3,
-              "endLine": 638
+              "endLine": 642
             }
           ]
         },
@@ -67486,9 +67505,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 639,
+              "line": 643,
               "column": 3,
-              "endLine": 639
+              "endLine": 643
             }
           ]
         }
@@ -67499,16 +67518,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 632,
+        "line": 636,
         "column": 1,
-        "endLine": 640
+        "endLine": 644
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 632,
+          "line": 636,
           "column": 1,
-          "endLine": 640
+          "endLine": 644
         }
       ],
       "publicDeclaration": {
@@ -67785,9 +67804,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 603,
+              "line": 607,
               "column": 3,
-              "endLine": 603
+              "endLine": 607
             }
           ]
         },
@@ -67804,9 +67823,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 604,
+              "line": 608,
               "column": 3,
-              "endLine": 613
+              "endLine": 617
             }
           ]
         },
@@ -67823,9 +67842,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 614,
+              "line": 618,
               "column": 3,
-              "endLine": 618
+              "endLine": 622
             }
           ]
         },
@@ -67842,9 +67861,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 619,
+              "line": 623,
               "column": 3,
-              "endLine": 619
+              "endLine": 623
             }
           ]
         },
@@ -67861,9 +67880,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 620,
+              "line": 624,
               "column": 3,
-              "endLine": 620
+              "endLine": 624
             }
           ]
         },
@@ -67880,9 +67899,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 621,
+              "line": 625,
               "column": 3,
-              "endLine": 621
+              "endLine": 625
             }
           ]
         },
@@ -67899,9 +67918,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 622,
+              "line": 626,
               "column": 3,
-              "endLine": 622
+              "endLine": 626
             }
           ]
         }
@@ -67912,16 +67931,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 602,
+        "line": 606,
         "column": 1,
-        "endLine": 623
+        "endLine": 627
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 602,
+          "line": 606,
           "column": 1,
-          "endLine": 623
+          "endLine": 627
         }
       ],
       "publicDeclaration": {
@@ -67956,16 +67975,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 595,
+        "line": 599,
         "column": 1,
-        "endLine": 600
+        "endLine": 604
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 595,
+          "line": 599,
           "column": 1,
-          "endLine": 600
+          "endLine": 604
         }
       ],
       "publicDeclaration": {
@@ -68000,16 +68019,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 583,
+        "line": 587,
         "column": 1,
-        "endLine": 593
+        "endLine": 597
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 583,
+          "line": 587,
           "column": 1,
-          "endLine": 593
+          "endLine": 597
         }
       ],
       "publicDeclaration": {
@@ -68271,16 +68290,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 569,
+        "line": 573,
         "column": 1,
-        "endLine": 579
+        "endLine": 583
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 569,
+          "line": 573,
           "column": 1,
-          "endLine": 579
+          "endLine": 583
         }
       ],
       "publicDeclaration": {
@@ -68320,16 +68339,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 353,
+        "line": 357,
         "column": 1,
-        "endLine": 358
+        "endLine": 362
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 353,
+          "line": 357,
           "column": 1,
-          "endLine": 358
+          "endLine": 362
         }
       ],
       "publicDeclaration": {
@@ -68371,9 +68390,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 337,
+              "line": 341,
               "column": 3,
-              "endLine": 337
+              "endLine": 341
             }
           ]
         },
@@ -68390,9 +68409,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 338,
+              "line": 342,
               "column": 3,
-              "endLine": 338
+              "endLine": 342
             }
           ]
         },
@@ -68409,9 +68428,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 339,
+              "line": 343,
               "column": 3,
-              "endLine": 344
+              "endLine": 348
             }
           ]
         },
@@ -68428,9 +68447,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 345,
+              "line": 349,
               "column": 3,
-              "endLine": 345
+              "endLine": 349
             }
           ]
         },
@@ -68447,9 +68466,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 346,
+              "line": 350,
               "column": 3,
-              "endLine": 346
+              "endLine": 350
             }
           ]
         },
@@ -68466,9 +68485,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 347,
+              "line": 351,
               "column": 3,
-              "endLine": 347
+              "endLine": 351
             }
           ]
         },
@@ -68485,9 +68504,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 348,
+              "line": 352,
               "column": 3,
-              "endLine": 348
+              "endLine": 352
             }
           ]
         },
@@ -68504,9 +68523,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 349,
+              "line": 353,
               "column": 3,
-              "endLine": 349
+              "endLine": 353
             }
           ]
         },
@@ -68523,9 +68542,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 350,
+              "line": 354,
               "column": 3,
-              "endLine": 350
+              "endLine": 354
             }
           ]
         },
@@ -68542,9 +68561,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 351,
+              "line": 355,
               "column": 3,
-              "endLine": 351
+              "endLine": 355
             }
           ]
         }
@@ -68555,16 +68574,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 336,
+        "line": 340,
         "column": 1,
-        "endLine": 352
+        "endLine": 356
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 336,
+          "line": 340,
           "column": 1,
-          "endLine": 352
+          "endLine": 356
         }
       ],
       "publicDeclaration": {
@@ -69118,16 +69137,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 98,
+        "line": 100,
         "column": 1,
-        "endLine": 102
+        "endLine": 104
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 98,
+          "line": 100,
           "column": 1,
-          "endLine": 102
+          "endLine": 104
         }
       ],
       "publicDeclaration": {
@@ -69265,16 +69284,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 158,
+        "line": 162,
         "column": 1,
-        "endLine": 181
+        "endLine": 185
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 158,
+          "line": 162,
           "column": 1,
-          "endLine": 181
+          "endLine": 185
         }
       ],
       "publicDeclaration": {
@@ -69689,16 +69708,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 563,
+        "line": 567,
         "column": 1,
-        "endLine": 567
+        "endLine": 571
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 563,
+          "line": 567,
           "column": 1,
-          "endLine": 567
+          "endLine": 571
         }
       ],
       "publicDeclaration": {
@@ -69738,16 +69757,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 547,
+        "line": 551,
         "column": 1,
-        "endLine": 562
+        "endLine": 566
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 547,
+          "line": 551,
           "column": 1,
-          "endLine": 562
+          "endLine": 566
         }
       ],
       "publicDeclaration": {
@@ -70020,16 +70039,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 92,
+        "line": 94,
         "column": 1,
-        "endLine": 96
+        "endLine": 98
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 92,
+          "line": 94,
           "column": 1,
-          "endLine": 96
+          "endLine": 98
         }
       ],
       "publicDeclaration": {
@@ -70069,16 +70088,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 493,
+        "line": 497,
         "column": 1,
-        "endLine": 496
+        "endLine": 500
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 493,
+          "line": 497,
           "column": 1,
-          "endLine": 496
+          "endLine": 500
         }
       ],
       "publicDeclaration": {
@@ -70118,16 +70137,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 521,
+        "line": 525,
         "column": 1,
-        "endLine": 532
+        "endLine": 536
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 521,
+          "line": 525,
           "column": 1,
-          "endLine": 532
+          "endLine": 536
         }
       ],
       "publicDeclaration": {
@@ -70170,22 +70189,22 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 533,
+        "line": 537,
         "column": 1,
-        "endLine": 537
+        "endLine": 541
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 533,
+          "line": 537,
           "column": 1,
-          "endLine": 537
+          "endLine": 541
         },
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 538,
+          "line": 542,
           "column": 1,
-          "endLine": 546
+          "endLine": 550
         }
       ],
       "publicDeclaration": {
@@ -70225,16 +70244,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 359,
+        "line": 363,
         "column": 1,
-        "endLine": 373
+        "endLine": 377
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 359,
+          "line": 363,
           "column": 1,
-          "endLine": 373
+          "endLine": 377
         }
       ],
       "publicDeclaration": {
@@ -70274,16 +70293,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 668,
+        "line": 672,
         "column": 1,
-        "endLine": 668
+        "endLine": 672
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 668,
+          "line": 672,
           "column": 1,
-          "endLine": 668
+          "endLine": 672
         }
       ],
       "publicDeclaration": {
@@ -70318,16 +70337,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 205,
+        "line": 209,
         "column": 1,
-        "endLine": 209
+        "endLine": 213
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 205,
+          "line": 209,
           "column": 1,
-          "endLine": 209
+          "endLine": 213
         }
       ],
       "publicDeclaration": {
@@ -70362,16 +70381,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 194,
+        "line": 198,
         "column": 1,
-        "endLine": 201
+        "endLine": 205
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 194,
+          "line": 198,
           "column": 1,
-          "endLine": 201
+          "endLine": 205
         }
       ],
       "publicDeclaration": {
@@ -70406,16 +70425,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 210,
+        "line": 214,
         "column": 1,
-        "endLine": 231
+        "endLine": 235
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 210,
+          "line": 214,
           "column": 1,
-          "endLine": 231
+          "endLine": 235
         }
       ],
       "publicDeclaration": {
@@ -70455,16 +70474,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 433,
+        "line": 437,
         "column": 1,
-        "endLine": 440
+        "endLine": 444
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 433,
+          "line": 437,
           "column": 1,
-          "endLine": 440
+          "endLine": 444
         }
       ],
       "publicDeclaration": {
@@ -70636,16 +70655,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 202,
+        "line": 206,
         "column": 1,
-        "endLine": 204
+        "endLine": 208
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 202,
+          "line": 206,
           "column": 1,
-          "endLine": 204
+          "endLine": 208
         }
       ],
       "publicDeclaration": {
@@ -70680,16 +70699,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 380,
+        "line": 384,
         "column": 1,
-        "endLine": 383
+        "endLine": 387
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 380,
+          "line": 384,
           "column": 1,
-          "endLine": 383
+          "endLine": 387
         }
       ],
       "publicDeclaration": {
@@ -70724,16 +70743,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 385,
+        "line": 389,
         "column": 1,
-        "endLine": 385
+        "endLine": 389
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 385,
+          "line": 389,
           "column": 1,
-          "endLine": 385
+          "endLine": 389
         }
       ],
       "publicDeclaration": {
@@ -70768,16 +70787,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 397,
+        "line": 401,
         "column": 1,
-        "endLine": 408
+        "endLine": 412
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 397,
+          "line": 401,
           "column": 1,
-          "endLine": 408
+          "endLine": 412
         }
       ],
       "publicDeclaration": {
@@ -70812,16 +70831,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 86,
+        "line": 88,
         "column": 1,
-        "endLine": 90
+        "endLine": 92
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 86,
+          "line": 88,
           "column": 1,
-          "endLine": 90
+          "endLine": 92
         }
       ],
       "publicDeclaration": {
@@ -70847,7 +70866,7 @@
         "exportNames": [],
         "conditions": []
       },
-      "signature": "export type QueryState<Result> =\n  | Readonly<{ status: 'pending'; data: undefined; error: null; connection: SnapbackConnection; freshness: 'unknown'; retention: SnapbackRetention | null }>\n  | Readonly<{ status: 'ready'; data: Result; error: null; connection: SnapbackConnection; freshness: 'current'; retention: SnapbackRetention | null }>\n  | Readonly<{ status: 'refreshing'; data: Result; error: null; connection: SnapbackConnection; freshness: 'retained' | 'current'; retention: SnapbackRetention | null }>\n  | Readonly<{ status: 'error'; data: undefined; error: SnapbackDiagnostic; connection: SnapbackConnection; freshness: 'unknown'; retention: SnapbackRetention | null }>\n  | Readonly<{ status: 'skipped'; data: undefined; error: null; connection: SnapbackConnection; freshness: 'unknown'; retention: null }>;",
+      "signature": "export type QueryState<Result> =\n  | Readonly<{ status: 'pending'; data: undefined; error: null; connection: SnapbackConnection; freshness: 'unknown'; retention: SnapbackRetention | null }>\n  | Readonly<{ status: 'ready'; data: Result; error: null; connection: SnapbackConnection; freshness: 'current' | 'snapshot'; retention: SnapbackRetention | null }>\n  | Readonly<{ status: 'refreshing'; data: Result; error: null; connection: SnapbackConnection; freshness: 'retained' | 'current'; retention: SnapbackRetention | null }>\n  | Readonly<{ status: 'error'; data: undefined; error: SnapbackDiagnostic; connection: SnapbackConnection; freshness: 'unknown'; retention: SnapbackRetention | null }>\n  | Readonly<{ status: 'skipped'; data: undefined; error: null; connection: SnapbackConnection; freshness: 'unknown'; retention: null }>;",
       "overloads": [],
       "members": [],
       "documentation": {
@@ -70856,16 +70875,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 79,
+        "line": 81,
         "column": 1,
-        "endLine": 84
+        "endLine": 86
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 79,
+          "line": 81,
           "column": 1,
-          "endLine": 84
+          "endLine": 86
         }
       ],
       "publicDeclaration": {
@@ -70900,16 +70919,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 393,
+        "line": 397,
         "column": 1,
-        "endLine": 395
+        "endLine": 399
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 393,
+          "line": 397,
           "column": 1,
-          "endLine": 395
+          "endLine": 399
         }
       ],
       "publicDeclaration": {
@@ -71091,16 +71110,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 666,
+        "line": 670,
         "column": 1,
-        "endLine": 666
+        "endLine": 670
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 666,
+          "line": 670,
           "column": 1,
-          "endLine": 666
+          "endLine": 670
         }
       ],
       "publicDeclaration": {
@@ -71140,16 +71159,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 104,
+        "line": 106,
         "column": 14,
-        "endLine": 104
+        "endLine": 106
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 104,
+          "line": 106,
           "column": 14,
-          "endLine": 104
+          "endLine": 106
         }
       ],
       "publicDeclaration": {
@@ -71238,16 +71257,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 650,
+        "line": 654,
         "column": 1,
-        "endLine": 658
+        "endLine": 662
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 650,
+          "line": 654,
           "column": 1,
-          "endLine": 658
+          "endLine": 662
         }
       ],
       "publicDeclaration": {
@@ -71370,16 +71389,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 466,
+        "line": 470,
         "column": 1,
-        "endLine": 470
+        "endLine": 474
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 466,
+          "line": 470,
           "column": 1,
-          "endLine": 470
+          "endLine": 474
         }
       ],
       "publicDeclaration": {
@@ -71854,25 +71873,25 @@
         "exportNames": [],
         "conditions": []
       },
-      "signature": "export type SnapbackFreshness = 'unknown' | 'retained' | 'current';",
+      "signature": "export type SnapbackFreshness = 'unknown' | 'retained' | 'current' | 'snapshot';",
       "overloads": [],
       "members": [],
       "documentation": {
-        "text": "Channel B freshness axis (LLP 0090 D1 / LLP 0114): 'retained' rows come\nfrom persistence/preload and are never presented as settled; 'current'\nrows are authoritative; 'unknown' means no rows are held.",
+        "text": "Channel B freshness axis (LLP 0090 D1 / LLP 0114): 'retained' rows come\nfrom persistence/preload and are never presented as settled; 'current'\nrows are authoritative; 'unknown' means no rows are held; 'snapshot'\nrows come from a mixed-route read-only child's boot snapshot — they are\nserver-authored and presented as settled ('ready') but never refresh.",
         "tags": []
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 73,
+        "line": 75,
         "column": 1,
-        "endLine": 73
+        "endLine": 75
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 73,
+          "line": 75,
           "column": 1,
-          "endLine": 73
+          "endLine": 75
         }
       ],
       "publicDeclaration": {
@@ -71907,16 +71926,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 480,
+        "line": 484,
         "column": 1,
-        "endLine": 484
+        "endLine": 488
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 480,
+          "line": 484,
           "column": 1,
-          "endLine": 484
+          "endLine": 488
         }
       ],
       "publicDeclaration": {
@@ -71958,9 +71977,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 489,
+              "line": 493,
               "column": 3,
-              "endLine": 489
+              "endLine": 493
             }
           ]
         },
@@ -71977,9 +71996,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 490,
+              "line": 494,
               "column": 3,
-              "endLine": 490
+              "endLine": 494
             }
           ]
         },
@@ -71996,9 +72015,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 491,
+              "line": 495,
               "column": 3,
-              "endLine": 491
+              "endLine": 495
             }
           ]
         }
@@ -72009,16 +72028,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 488,
+        "line": 492,
         "column": 1,
-        "endLine": 492
+        "endLine": 496
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 488,
+          "line": 492,
           "column": 1,
-          "endLine": 492
+          "endLine": 496
         }
       ],
       "publicDeclaration": {
@@ -72053,16 +72072,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 476,
+        "line": 480,
         "column": 1,
-        "endLine": 478
+        "endLine": 482
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 476,
+          "line": 480,
           "column": 1,
-          "endLine": 478
+          "endLine": 482
         }
       ],
       "publicDeclaration": {
@@ -72104,9 +72123,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 511,
+              "line": 515,
               "column": 3,
-              "endLine": 515
+              "endLine": 519
             }
           ]
         },
@@ -72123,9 +72142,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 516,
+              "line": 520,
               "column": 3,
-              "endLine": 516
+              "endLine": 520
             }
           ]
         },
@@ -72142,9 +72161,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 517,
+              "line": 521,
               "column": 3,
-              "endLine": 517
+              "endLine": 521
             }
           ]
         },
@@ -72161,9 +72180,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 518,
+              "line": 522,
               "column": 3,
-              "endLine": 518
+              "endLine": 522
             }
           ]
         },
@@ -72180,9 +72199,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 519,
+              "line": 523,
               "column": 3,
-              "endLine": 519
+              "endLine": 523
             }
           ]
         }
@@ -72193,16 +72212,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 510,
+        "line": 514,
         "column": 1,
-        "endLine": 520
+        "endLine": 524
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 510,
+          "line": 514,
           "column": 1,
-          "endLine": 520
+          "endLine": 524
         }
       ],
       "publicDeclaration": {
@@ -72242,16 +72261,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 183,
+        "line": 187,
         "column": 1,
-        "endLine": 187
+        "endLine": 191
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 183,
+          "line": 187,
           "column": 1,
-          "endLine": 187
+          "endLine": 191
         }
       ],
       "publicDeclaration": {
@@ -72293,9 +72312,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 506,
+              "line": 510,
               "column": 3,
-              "endLine": 506
+              "endLine": 510
             }
           ]
         },
@@ -72312,9 +72331,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 507,
+              "line": 511,
               "column": 3,
-              "endLine": 507
+              "endLine": 511
             }
           ]
         },
@@ -72331,9 +72350,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 508,
+              "line": 512,
               "column": 3,
-              "endLine": 508
+              "endLine": 512
             }
           ]
         }
@@ -72344,16 +72363,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 505,
+        "line": 509,
         "column": 1,
-        "endLine": 509
+        "endLine": 513
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 505,
+          "line": 509,
           "column": 1,
-          "endLine": 509
+          "endLine": 513
         }
       ],
       "publicDeclaration": {
@@ -72379,7 +72398,7 @@
         "exportNames": [],
         "conditions": []
       },
-      "signature": "export interface SnapbackReactProvider {\n  readonly kind: 'snapback.react-provider.v1';\n  readonly providerInstanceId: string;\n  readonly binding: PreparedReactBinding;\n  readonly assets: unknown | null;\n  readonly assetSourceAdapter: import('@expo/snapback-client').CommandAssetSourceAdapter | null;\n  surface<Surface extends SnapbackSurfaceDescriptor>(\n    descriptor: Surface,\n    params: SurfaceParams<Surface>,\n    options?: SurfaceOptions<Surface>,\n  ): BoundSnapbackSurface<Surface>;\n  registerEphemeralRepublisher(\n    reference: string,\n    callback: (context: Readonly<{\n      collection: string;\n      publish(value: unknown, options?: Readonly<Record<string, unknown>>): Promise<unknown>;\n    }>) => unknown,\n  ): Readonly<{ dispose(): void }>;\n  /** Quiesce provider-owned live query and presence handles for host lifecycle. */\n  pause(): Promise<void>;\n  /** Resume provider-owned live query and presence handles after host activation. */\n  resume(): Promise<void>;\n  inspection(): Readonly<{\n    providerInstanceId: string;\n    terminal: boolean;\n    custodyPaused: boolean;\n    hostPaused: boolean;\n    stores: number;\n    consumers: number;\n    serverSubscriptions: number;\n    leases: number;\n    reservations: number;\n    timers: number;\n    listeners: number;\n    presenceStores: number;\n    presenceConsumers: number;\n    presenceSubscriptions: number;\n    publishers: number;\n    presenceTimers: number;\n    presenceListeners: number;\n    resyncReasons: readonly string[];\n    diagnostics: readonly SnapbackDiagnostic[];\n    preparedRegistrations: number;\n    preparedGroupSource: PreparedReactQueryGroup['source'] | null;\n    preparedGroupReason: string | null;\n    preparedGroupBoot: PreparedReactQueryGroup['boot'];\n    /** Mounted-provider HMR generation handoff state (development only). */\n    generationHandoff: 'active' | 'ok' | 'failed' | null;\n  }>;\n  dispose(): Promise<void>;\n}",
+      "signature": "export interface SnapbackReactProvider {\n  readonly kind: 'snapback.react-provider.v1';\n  readonly providerInstanceId: string;\n  readonly binding: PreparedReactBinding;\n  readonly assets: unknown | null;\n  readonly assetSourceAdapter: import('@expo/snapback-client').CommandAssetSourceAdapter | null;\n  /** Activate provider-owned registrations. Idempotent for an active provider. */\n  start(): SnapbackReactProvider;\n  surface<Surface extends SnapbackSurfaceDescriptor>(\n    descriptor: Surface,\n    params: SurfaceParams<Surface>,\n    options?: SurfaceOptions<Surface>,\n  ): BoundSnapbackSurface<Surface>;\n  registerEphemeralRepublisher(\n    reference: string,\n    callback: (context: Readonly<{\n      collection: string;\n      publish(value: unknown, options?: Readonly<Record<string, unknown>>): Promise<unknown>;\n    }>) => unknown,\n  ): Readonly<{ dispose(): void }>;\n  /** Quiesce provider-owned live query and presence handles for host lifecycle. */\n  pause(): Promise<void>;\n  /** Resume provider-owned live query and presence handles after host activation. */\n  resume(): Promise<void>;\n  inspection(): Readonly<{\n    providerInstanceId: string;\n    terminal: boolean;\n    custodyPaused: boolean;\n    hostPaused: boolean;\n    stores: number;\n    consumers: number;\n    serverSubscriptions: number;\n    leases: number;\n    reservations: number;\n    timers: number;\n    listeners: number;\n    presenceStores: number;\n    presenceConsumers: number;\n    presenceSubscriptions: number;\n    publishers: number;\n    presenceTimers: number;\n    presenceListeners: number;\n    resyncReasons: readonly string[];\n    diagnostics: readonly SnapbackDiagnostic[];\n    preparedRegistrations: number;\n    preparedGroupSource: PreparedReactQueryGroup['source'] | null;\n    preparedGroupReason: string | null;\n    preparedGroupBoot: PreparedReactQueryGroup['boot'];\n    /** Mounted-provider HMR generation handoff state (development only). */\n    generationHandoff: 'active' | 'ok' | 'failed' | null;\n  }>;\n  dispose(): Promise<void>;\n}",
       "overloads": [],
       "members": [
         {
@@ -72395,9 +72414,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 107,
+              "line": 109,
               "column": 3,
-              "endLine": 107
+              "endLine": 109
             }
           ]
         },
@@ -72414,9 +72433,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 108,
+              "line": 110,
               "column": 3,
-              "endLine": 108
+              "endLine": 110
             }
           ]
         },
@@ -72433,9 +72452,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 109,
+              "line": 111,
               "column": 3,
-              "endLine": 109
+              "endLine": 111
             }
           ]
         },
@@ -72452,9 +72471,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 110,
+              "line": 112,
               "column": 3,
-              "endLine": 110
+              "endLine": 112
             }
           ]
         },
@@ -72471,9 +72490,28 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 111,
+              "line": 113,
               "column": 3,
-              "endLine": 111
+              "endLine": 113
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-expo#SnapbackReactProvider.start",
+          "name": "start",
+          "kind": "method",
+          "signature": "start(): SnapbackReactProvider;",
+          "overloads": [],
+          "documentation": {
+            "text": "Activate provider-owned registrations. Idempotent for an active provider.",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-react/index.d.mts",
+              "line": 115,
+              "column": 3,
+              "endLine": 115
             }
           ]
         },
@@ -72490,9 +72528,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 112,
+              "line": 116,
               "column": 3,
-              "endLine": 116
+              "endLine": 120
             }
           ]
         },
@@ -72509,9 +72547,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 117,
+              "line": 121,
               "column": 3,
-              "endLine": 123
+              "endLine": 127
             }
           ]
         },
@@ -72528,9 +72566,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 125,
+              "line": 129,
               "column": 3,
-              "endLine": 125
+              "endLine": 129
             }
           ]
         },
@@ -72547,9 +72585,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 127,
+              "line": 131,
               "column": 3,
-              "endLine": 127
+              "endLine": 131
             }
           ]
         },
@@ -72566,9 +72604,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 128,
+              "line": 132,
               "column": 3,
-              "endLine": 154
+              "endLine": 158
             }
           ]
         },
@@ -72585,9 +72623,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 155,
+              "line": 159,
               "column": 3,
-              "endLine": 155
+              "endLine": 159
             }
           ]
         }
@@ -72598,16 +72636,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 106,
+        "line": 108,
         "column": 1,
-        "endLine": 156
+        "endLine": 160
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 106,
+          "line": 108,
           "column": 1,
-          "endLine": 156
+          "endLine": 160
         }
       ],
       "publicDeclaration": {
@@ -72642,16 +72680,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 77,
+        "line": 79,
         "column": 1,
-        "endLine": 77
+        "endLine": 79
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 77,
+          "line": 79,
           "column": 1,
-          "endLine": 77
+          "endLine": 79
         }
       ],
       "publicDeclaration": {
@@ -72693,9 +72731,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 268,
+              "line": 272,
               "column": 3,
-              "endLine": 268
+              "endLine": 272
             }
           ]
         },
@@ -72712,9 +72750,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 269,
+              "line": 273,
               "column": 3,
-              "endLine": 269
+              "endLine": 273
             }
           ]
         },
@@ -72731,9 +72769,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 270,
+              "line": 274,
               "column": 3,
-              "endLine": 270
+              "endLine": 274
             }
           ]
         },
@@ -72750,9 +72788,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 271,
+              "line": 275,
               "column": 3,
-              "endLine": 271
+              "endLine": 275
             }
           ]
         },
@@ -72769,9 +72807,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 272,
+              "line": 276,
               "column": 3,
-              "endLine": 272
+              "endLine": 276
             }
           ]
         },
@@ -72788,9 +72826,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 273,
+              "line": 277,
               "column": 3,
-              "endLine": 273
+              "endLine": 277
             }
           ]
         },
@@ -72807,9 +72845,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 274,
+              "line": 278,
               "column": 3,
-              "endLine": 274
+              "endLine": 278
             }
           ]
         },
@@ -72826,9 +72864,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 275,
+              "line": 279,
               "column": 3,
-              "endLine": 275
+              "endLine": 279
             }
           ]
         },
@@ -72845,9 +72883,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 276,
+              "line": 280,
               "column": 3,
-              "endLine": 276
+              "endLine": 280
             }
           ]
         }
@@ -72858,16 +72896,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 260,
+        "line": 264,
         "column": 1,
-        "endLine": 277
+        "endLine": 281
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 260,
+          "line": 264,
           "column": 1,
-          "endLine": 277
+          "endLine": 281
         }
       ],
       "publicDeclaration": {
@@ -72909,9 +72947,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 256,
+              "line": 260,
               "column": 3,
-              "endLine": 256
+              "endLine": 260
             }
           ]
         },
@@ -72928,9 +72966,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 257,
+              "line": 261,
               "column": 3,
-              "endLine": 257
+              "endLine": 261
             }
           ]
         },
@@ -72947,9 +72985,9 @@
           "sources": [
             {
               "file": "packages/snapback-react/index.d.mts",
-              "line": 258,
+              "line": 262,
               "column": 3,
-              "endLine": 258
+              "endLine": 262
             }
           ]
         }
@@ -72960,16 +72998,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 255,
+        "line": 259,
         "column": 1,
-        "endLine": 259
+        "endLine": 263
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 255,
+          "line": 259,
           "column": 1,
-          "endLine": 259
+          "endLine": 263
         }
       ],
       "publicDeclaration": {
@@ -73400,16 +73438,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 288,
+        "line": 292,
         "column": 1,
-        "endLine": 294
+        "endLine": 298
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 288,
+          "line": 292,
           "column": 1,
-          "endLine": 294
+          "endLine": 298
         }
       ],
       "publicDeclaration": {
@@ -73444,16 +73482,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 278,
+        "line": 282,
         "column": 1,
-        "endLine": 280
+        "endLine": 284
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 278,
+          "line": 282,
           "column": 1,
-          "endLine": 280
+          "endLine": 284
         }
       ],
       "publicDeclaration": {
@@ -73488,16 +73526,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 295,
+        "line": 299,
         "column": 1,
-        "endLine": 335
+        "endLine": 339
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 295,
+          "line": 299,
           "column": 1,
-          "endLine": 335
+          "endLine": 339
         }
       ],
       "publicDeclaration": {
@@ -73537,16 +73575,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 665,
+        "line": 669,
         "column": 1,
-        "endLine": 665
+        "endLine": 669
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 665,
+          "line": 669,
           "column": 1,
-          "endLine": 665
+          "endLine": 669
         }
       ],
       "publicDeclaration": {
@@ -73586,16 +73624,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 667,
+        "line": 671,
         "column": 1,
-        "endLine": 667
+        "endLine": 671
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 667,
+          "line": 671,
           "column": 1,
-          "endLine": 667
+          "endLine": 671
         }
       ],
       "publicDeclaration": {
@@ -73635,16 +73673,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 660,
+        "line": 664,
         "column": 1,
-        "endLine": 664
+        "endLine": 668
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 660,
+          "line": 664,
           "column": 1,
-          "endLine": 664
+          "endLine": 668
         }
       ],
       "publicDeclaration": {
@@ -73728,16 +73766,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 497,
+        "line": 501,
         "column": 1,
-        "endLine": 503
+        "endLine": 507
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 497,
+          "line": 501,
           "column": 1,
-          "endLine": 503
+          "endLine": 507
         }
       ],
       "publicDeclaration": {
@@ -73777,16 +73815,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 642,
+        "line": 646,
         "column": 1,
-        "endLine": 648
+        "endLine": 652
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 642,
+          "line": 646,
           "column": 1,
-          "endLine": 648
+          "endLine": 652
         }
       ],
       "publicDeclaration": {
@@ -73826,16 +73864,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 625,
+        "line": 629,
         "column": 1,
-        "endLine": 627
+        "endLine": 631
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 625,
+          "line": 629,
           "column": 1,
-          "endLine": 627
+          "endLine": 631
         }
       ],
       "publicDeclaration": {
@@ -73875,16 +73913,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 462,
+        "line": 466,
         "column": 1,
-        "endLine": 464
+        "endLine": 468
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 462,
+          "line": 466,
           "column": 1,
-          "endLine": 464
+          "endLine": 468
         }
       ],
       "publicDeclaration": {
@@ -73924,16 +73962,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 472,
+        "line": 476,
         "column": 1,
-        "endLine": 472
+        "endLine": 476
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 472,
+          "line": 476,
           "column": 1,
-          "endLine": 472
+          "endLine": 476
         }
       ],
       "publicDeclaration": {
@@ -74022,16 +74060,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 442,
+        "line": 446,
         "column": 1,
-        "endLine": 461
+        "endLine": 465
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 442,
+          "line": 446,
           "column": 1,
-          "endLine": 461
+          "endLine": 465
         }
       ],
       "publicDeclaration": {
@@ -74071,16 +74109,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 486,
+        "line": 490,
         "column": 1,
-        "endLine": 486
+        "endLine": 490
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 486,
+          "line": 490,
           "column": 1,
-          "endLine": 486
+          "endLine": 490
         }
       ],
       "publicDeclaration": {
@@ -74120,16 +74158,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 244,
+        "line": 248,
         "column": 1,
-        "endLine": 253
+        "endLine": 257
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 244,
+          "line": 248,
           "column": 1,
-          "endLine": 253
+          "endLine": 257
         }
       ],
       "publicDeclaration": {
@@ -74172,22 +74210,22 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 410,
+        "line": 414,
         "column": 1,
-        "endLine": 412
+        "endLine": 416
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 410,
+          "line": 414,
           "column": 1,
-          "endLine": 412
+          "endLine": 416
         },
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 420,
+          "line": 424,
           "column": 1,
-          "endLine": 424
+          "endLine": 428
         }
       ],
       "publicDeclaration": {
@@ -74227,16 +74265,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 189,
+        "line": 193,
         "column": 1,
-        "endLine": 192
+        "endLine": 196
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 189,
+          "line": 193,
           "column": 1,
-          "endLine": 192
+          "endLine": 196
         }
       ],
       "publicDeclaration": {
@@ -74276,16 +74314,16 @@
       },
       "source": {
         "file": "packages/snapback-react/index.d.mts",
-        "line": 374,
+        "line": 378,
         "column": 1,
-        "endLine": 378
+        "endLine": 382
       },
       "sources": [
         {
           "file": "packages/snapback-react/index.d.mts",
-          "line": 374,
+          "line": 378,
           "column": 1,
-          "endLine": 378
+          "endLine": 382
         }
       ],
       "publicDeclaration": {
@@ -83879,6 +83917,10 @@
         "npm:@expo/snapback-expo#SnapbackReactProvider"
       ],
       "SnapbackReactProvider.assetSourceAdapter": [
+        "npm:@expo/snapback-react#SnapbackReactProvider",
+        "npm:@expo/snapback-expo#SnapbackReactProvider"
+      ],
+      "SnapbackReactProvider.start": [
         "npm:@expo/snapback-react#SnapbackReactProvider",
         "npm:@expo/snapback-expo#SnapbackReactProvider"
       ],

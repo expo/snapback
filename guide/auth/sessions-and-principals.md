@@ -4,13 +4,13 @@ id: auth.sessions-and-principals
 order: 1
 audience: agent-first
 capabilities: [auth.sessions, auth.scoped-queries]
-authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0172-explicit-function-authorization.rfc.md, packages/snapback-codegen/index.mjs, src/auth/mode.rs, packages/snapback-client/index.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
-examples: [demos/card-game]
+authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0172-explicit-function-authorization.rfc.md, packages/snapback-codegen/index.mjs, src/auth/mode.rs, src/auth/provider.rs, src/host_ops.rs, src/server.rs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, demos/_kit/server-process.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+examples: [demos/card-game, demos/party-wall]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # Sessions and principals
@@ -123,6 +123,19 @@ gated non-production session-mint host operation and the first-party client
 adopts the resulting bearer with exact protocol offers. Neither path is a
 hosted-production auth claim.
 
+Two more session routes are shipped and deliberately narrow.
+`POST /auth/step-up/request` mints a five-minute, operation-bound
+re-authentication challenge for authority-creating consent (approving an
+agent grant can demand one via `SNAPBACK_AUTH_STEP_UP_REQUIRED`); its code
+delivery shares the mailbox boundary above — on a deployment profile without
+the capture mailbox there is no delivery path until LLP 0045's mail adapter
+exists, and the request refuses with
+`SNAPBACK_AUTH_STEP_UP_DELIVERY_UNAVAILABLE`. `POST /auth/family-alarm` is
+the opaque, revoke-only alarm for a bearer you believe leaked: it revokes the
+still-live session behind the presented bearer's token family and returns a
+deliberately delayed, uniform, empty response, so it cannot be used to probe
+which bearers are live.
+
 ## Mint test personas: the complete local recipe
 
 A sessions-mode acceptance suite needs two or more genuine principals. The
@@ -161,7 +174,16 @@ The two carriers, exactly:
 | Carrier | Header | Where it comes from |
 | --- | --- | --- |
 | Admin token | `x-snapback-admin-token` | the dev server's admin token |
-| Impersonation capability | `x-snapback-impersonation-capability` | the `impersonation` field of the server's `dev.ready.json` startup sidecar |
+| Impersonation capability | `x-snapback-impersonation-capability` | the sibling file named by the ready file's `impersonationCapabilityFile` (always `<ready-file>.impersonation`) |
+
+The ready descriptor itself carries only that mechanically validated sibling
+*path*, never the capability bytes: consumers accept the path only when it
+exactly equals `<ready-file>.impersonation`, then read the `sbic_…` value from
+that owner-only file (`src/host_ops.rs`; the kit's
+`readSpawnedImpersonationCapability` in `demos/_kit/server-process.mjs` is the
+reference reader). There is no `impersonation` field inside `dev.ready.json`.
+The server-lifecycle kit's `captureImpersonationCapability: true` does this
+read for you and exposes the value as `server.impersonationCapability`.
 
 `SNAPBACK_AUTH_IMPERSONATION_REQUIRED` means the second header is missing.
 Call each persona's loop once per email; the returned
@@ -176,6 +198,49 @@ An already-authenticated **headless** client (one that obtained a bearer some
 other way, such as an identity broker) is constructed with
 `createExternalSessionClient(baseUrl, { bearerToken })`; a bare
 `authClientProtocol: 1` construction without declared custody is refused.
+
+## A browser app under sessions today
+
+There is no production email delivery yet, so a real end user in a browser
+cannot receive a sign-in code from the shipped provider — "email-code login,
+React web" has no self-serve path today. The mailbox recipe above is
+local-test material (admin- and impersonation-gated; never in a browser
+bundle). What a web author actually does today is one of these:
+
+- **Dev mode** (`auth: { mode: 'dev' }`) for the authoring loop — trusted
+  client-passed `userId`, no sign-in UI at all.
+- **Test personas** for acceptance suites — the mailbox loop above, driven
+  by the suite's server-side harness, never by page code.
+- **The broker seam** for a product-shaped flow — a trusted server-side
+  component authenticates the user through its own front door, mints the
+  session (`auth.mintSession`), and the browser adopts the bearer; the
+  mechanics on [authenticate a native app](./native-apps.md) apply to a web
+  client unchanged.
+- **The supervised Expo dev loop's web carrier** — `snapback dev --expo`
+  auto-mints an ordinary session for the Expo web app through its
+  loopback-only bootstrap exchange
+  ([supervised loop on Expo web](../clients/react-expo.md#run-the-supervised-loop-on-expo-web)).
+
+Whichever entry path delivers the credential, a browser client under sessions
+constructs an `AuthCoordinator` (from `@expo/snapback-contract`) and passes it
+as `authCoordinator:`; the coordinator owns custody, refresh, and the logout
+barrier. The CI-executed construction from the persona witness:
+
+```js source=demos/party-wall/tests/acceptance/headless.mjs
+    const coordinator = new AuthCoordinator({
+      appId,
+      storage: createMemoryAuthCustodyStorage({ state: { custody: {} } }),
+      broadcastChannelFactory: null,
+      hintStorage: null,
+    });
+```
+
+That test uses the volatile memory custody adapter, which does not survive a
+full-page navigation. A real browser app substitutes the shipped
+`createIndexedDbAuthCustodyStorage()` (same package) as `storage:` so custody
+persists across reloads; everything else is identical. A worked
+real-auth sign-in recipe beyond test personas is queued as LLP 0196 T4 work
+([LLP 0196](repo:llp/0196-template-and-recipe-portfolio.plan.md)).
 
 ## Read public data anonymously
 
@@ -227,7 +292,9 @@ immediately:
   therefore never stable fixture values: a seeded row naming a pre-reset id
   points at an identity that no longer exists.
 
-Under the supervised Expo dev loop, `snapback reset --dev-fresh` performs the
+Under the
+[supervised Expo dev loop](../clients/react-expo.md#run-the-supervised-expo-development-loop),
+`snapback reset --dev-fresh` performs the
 reset and supervisor re-mint as one command; standalone dev targets receive a
 verification mint before the command reports readiness.
 
@@ -308,9 +375,10 @@ it; teach your tooling to read it. This is the boundary rule this guide
 itself follows: an auth behavior is teachable only when it has an
 acceptance witness or shows as ready here.
 
-Local agent principals and scoped grants (LLP 0055) — registration, pairing,
-scoped-token app invocation, and the headless `AgentAuthorityFence` — are
-shipped on the local target and have their own page:
+Local agent principals and scoped grants (LLP 0055) — pairing, scoped-token
+app invocation, and the headless `AgentAuthorityFence` — are
+shipped on the local target and have their own page (agent *creation* has no
+user-reachable surface yet; credentials come from harness provisioning):
 [agent principals and scoped grants](./agent-principals.md). The
 [capability index](../capabilities.md) carries the row with its route
 witnesses. For the shipped local role-per-resource surface, continue to
