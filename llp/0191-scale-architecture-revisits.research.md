@@ -459,6 +459,41 @@ migration program as acceptance consumers: D8 qualifies targets against
 the protocol rather than owning its semantics. Do not build a fourth
 bespoke loader.
 
+## Author rulings — 2026-08-08 (Charlie Cheever)
+
+All five open questions were ruled on 2026-08-08, in each case on the
+cross-family convergent recommendation:
+
+1. **OQ1 — ruled yes.** D2 and D4 owner-Specs are commissioned with the
+   five-rung ladder as required content (rungs 1–4; rung 5 referenced D3
+   scope), commissioned separably; the D4-charter-extension question
+   (server-side evaluation scheduling vs a named runtime owner) is
+   resolved at commissioning. Drafting waits for spike data. Ticket:
+   `issues/20260808-d2-d4-owner-specs-commission.md`.
+2. **OQ2 — ruled distributed.** One coordinating identity-architecture
+   Decision (namespaces, provenance, uniqueness, conversion rules) with
+   implementation distributed to the schema, auth/D7, and D5/effects
+   owners as amendments; one Zerobugs acceptance corpus; LLP 0129 keeps
+   mutation-IR admission. Ticket:
+   `issues/20260808-identity-architecture-decision.md`.
+3. **OQ3 — ruled standalone.** A state-capture/custody Spec generalizing
+   LLP 0158's custody manifest into operation-specific profiles; 0158
+   remains the fork profile and a consumer/conformance witness; the
+   shutdown-checkpoint repair proceeds as a bounded runtime fix. Ticket:
+   `issues/20260808-state-capture-custody-spec.md`.
+4. **OQ4 — ruled yes, immediately.** The coalescing measurement spike
+   runs now against the persistent diagnosis baseline with the
+   predeclared axes in OQ4 above; measurement only per LLP 0189. Ticket:
+   `issues/20260808-oq4-coalescing-measurement-spike.md`.
+5. **OQ5 — ruled: envelope-early tail.** Head as agreed (D3 continues;
+   spike immediate and parallel; identity Decision + §5 schema
+   quick-wins next; D2/D4 Specs after spike data); then the §4
+   state-capture lane as a small independent lane early, §6 bulk
+   demand-gated, and the §1+§2 strategic convergence waiting on its
+   D2/D3 prerequisites.
+
+These rulings turn §§1–6 into workstream scope per the Status note below.
+
 ## What this document deliberately does not claim
 
 No comparative statement against Zero is made or implied — no Zero-arm
@@ -541,6 +576,8 @@ at budget without formal convergence: on the final reviewed revision
 NOT READY on one pre-existing evidence defect (the trigger-partition
 claim), which the orchestrator verified and repaired in a labeled,
 unreviewed post-loop revision. Both families judged §§2–6 and the five
-open questions sound bases for commissioning. Escalated to the author:
-rulings on the open questions turn sections into workstream scope.
-Research synthesis only; commissions nothing by itself.
+open questions sound bases for commissioning. The escalation was taken
+up same-day: all five open questions were ruled 2026-08-08 (see "Author
+rulings"), turning the sections into commissioned workstream scope via
+the four tickets named there. Research synthesis plus recorded rulings;
+the commissioned documents carry the design authority.

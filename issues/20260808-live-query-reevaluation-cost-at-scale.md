@@ -30,3 +30,12 @@ measurement in ~80 min; `demos/zerobugs/control/scripts/diag-hot-stream.mts`
 iterates in minutes against a persistent baseline.
 
 - **Claimed 2026-08-08:** session dc26442d (13-ticket sweep orchestrator) is executing this ticket now; sibling sessions should not duplicate.
+
+## Ruling (2026-08-08)
+
+LLP 0191's author rulings commission this seam: the coalescing
+measurement spike runs immediately
+(`20260808-oq4-coalescing-measurement-spike.md`), and the D2/D4
+owner-Specs are commissioned with the five-rung ladder, drafted after
+spike data (`20260808-d2-d4-owner-specs-commission.md`). This ticket
+remains the evidence anchor.
