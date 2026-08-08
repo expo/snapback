@@ -1,0 +1,15 @@
+# Sourced (not executed) by the qualified-staging staged-proof jobs so the
+# cold-install receipt minter (computePublicationReceiptProvenance) sees the
+# EAS identity set. EAS workflow step shells do not reliably carry the
+# documented ${{ workflow.* }} expressions or classic-build env names, so this
+# maps the native vars with explicit fallbacks and prints the observed
+# environment for auditability. The build/project UUIDs are never fabricated —
+# if EAS does not provide them, the receipt honestly refuses provenance.
+echo '--- qualified-staging provenance environment (observed) ---'
+env | LC_ALL=C sort | grep -E '^(EAS_|__WORKFLOW|RUNNER_)' || true
+echo '--- end provenance environment ---'
+export SNAPBACK_EAS_WORKFLOW_FILENAME="${EAS_WORKFLOW_FILENAME:-qualified-package-staging.yml}"
+export SNAPBACK_EAS_WORKFLOW_RUN_ID="${EAS_WORKFLOW_RUN_ID:-${__WORKFLOW_JOB_ID:-}}"
+export EAS_BUILD="${EAS_BUILD:-true}"
+export EAS_BUILD_RUNNER="${EAS_BUILD_RUNNER:-eas-build}"
+export EAS_BUILD_GIT_COMMIT_HASH="${EAS_BUILD_GIT_COMMIT_HASH:-$(git rev-parse HEAD)}"
