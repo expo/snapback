@@ -5486,6 +5486,150 @@
         "carrierCategory": "diagnostic",
         "name": "function_run.fixture",
         "operationClass": "function.query",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "function_run.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Diagnostic.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "diagnostic",
+        "name": "function_run.fixture",
+        "operationClass": "function.query",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "function_run.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Diagnostic.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "app_refusal",
+        "name": "function_run.fixture",
+        "operationClass": "function.query",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "function_run.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.AppRefusal.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "app_refusal",
+        "name": "function_run.fixture",
+        "operationClass": "function.query",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "function_run.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.AppRefusal.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "exception",
+        "name": "function_run.fixture",
+        "operationClass": "function.query",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "function_run.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Exception.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "exception",
+        "name": "function_run.fixture",
+        "operationClass": "function.query",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "function_run.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Exception.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "transport",
+        "name": "function_run.fixture",
+        "operationClass": "function.query",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "function_run.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Transport.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "transport",
+        "name": "function_run.fixture",
+        "operationClass": "function.query",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "function_run.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Transport.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "diagnostic",
+        "name": "function_run.fixture",
+        "operationClass": "function.query",
         "platformCode": "SNAPBACK_FIELD_MISSING",
         "statusClass": null
       },
@@ -14544,6 +14688,150 @@
         "statusClass": null
       },
       "name": "http_request.caller_code.SNAPBACK_EXPECTED_STRING.Transport.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "diagnostic",
+        "name": "http_request.fixture",
+        "operationClass": "transport.http-standalone",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "http_request.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Diagnostic.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "diagnostic",
+        "name": "http_request.fixture",
+        "operationClass": "transport.http-standalone",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "http_request.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Diagnostic.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "app_refusal",
+        "name": "http_request.fixture",
+        "operationClass": "transport.http-standalone",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "http_request.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.AppRefusal.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "app_refusal",
+        "name": "http_request.fixture",
+        "operationClass": "transport.http-standalone",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "http_request.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.AppRefusal.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "exception",
+        "name": "http_request.fixture",
+        "operationClass": "transport.http-standalone",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "http_request.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Exception.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "exception",
+        "name": "http_request.fixture",
+        "operationClass": "transport.http-standalone",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "http_request.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Exception.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "transport",
+        "name": "http_request.fixture",
+        "operationClass": "transport.http-standalone",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "http_request.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Transport.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "transport",
+        "name": "http_request.fixture",
+        "operationClass": "transport.http-standalone",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "http_request.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Transport.tracked-true"
     },
     {
       "expected": {
@@ -23630,6 +23918,150 @@
         "carrierCategory": "diagnostic",
         "name": "live_subscribe.fixture",
         "operationClass": "live.subscribe",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "live_subscribe.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Diagnostic.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "diagnostic",
+        "name": "live_subscribe.fixture",
+        "operationClass": "live.subscribe",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "live_subscribe.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Diagnostic.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "app_refusal",
+        "name": "live_subscribe.fixture",
+        "operationClass": "live.subscribe",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "live_subscribe.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.AppRefusal.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "app_refusal",
+        "name": "live_subscribe.fixture",
+        "operationClass": "live.subscribe",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "live_subscribe.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.AppRefusal.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "exception",
+        "name": "live_subscribe.fixture",
+        "operationClass": "live.subscribe",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "live_subscribe.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Exception.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "exception",
+        "name": "live_subscribe.fixture",
+        "operationClass": "live.subscribe",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "live_subscribe.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Exception.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "transport",
+        "name": "live_subscribe.fixture",
+        "operationClass": "live.subscribe",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "live_subscribe.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Transport.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "transport",
+        "name": "live_subscribe.fixture",
+        "operationClass": "live.subscribe",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "live_subscribe.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Transport.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "diagnostic",
+        "name": "live_subscribe.fixture",
+        "operationClass": "live.subscribe",
         "platformCode": "SNAPBACK_FIELD_MISSING",
         "statusClass": null
       },
@@ -32688,6 +33120,150 @@
         "statusClass": null
       },
       "name": "ws_connect.caller_code.SNAPBACK_EXPECTED_STRING.Transport.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "diagnostic",
+        "name": "ws_connect.fixture",
+        "operationClass": "stream.connect",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "ws_connect.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Diagnostic.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "diagnostic",
+        "name": "ws_connect.fixture",
+        "operationClass": "stream.connect",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "ws_connect.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Diagnostic.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "app_refusal",
+        "name": "ws_connect.fixture",
+        "operationClass": "stream.connect",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "ws_connect.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.AppRefusal.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "app_refusal",
+        "name": "ws_connect.fixture",
+        "operationClass": "stream.connect",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "ws_connect.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.AppRefusal.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "exception",
+        "name": "ws_connect.fixture",
+        "operationClass": "stream.connect",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "ws_connect.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Exception.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "exception",
+        "name": "ws_connect.fixture",
+        "operationClass": "stream.connect",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "ws_connect.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Exception.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "transport",
+        "name": "ws_connect.fixture",
+        "operationClass": "stream.connect",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "ws_connect.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Transport.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "transport",
+        "name": "ws_connect.fixture",
+        "operationClass": "stream.connect",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "ws_connect.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Transport.tracked-true"
     },
     {
       "expected": {
@@ -41774,6 +42350,150 @@
         "carrierCategory": "diagnostic",
         "name": "job_run.fixture",
         "operationClass": "job.scheduler",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "job_run.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Diagnostic.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "diagnostic",
+        "name": "job_run.fixture",
+        "operationClass": "job.scheduler",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "job_run.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Diagnostic.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "app_refusal",
+        "name": "job_run.fixture",
+        "operationClass": "job.scheduler",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "job_run.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.AppRefusal.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "app_refusal",
+        "name": "job_run.fixture",
+        "operationClass": "job.scheduler",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "job_run.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.AppRefusal.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "exception",
+        "name": "job_run.fixture",
+        "operationClass": "job.scheduler",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "job_run.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Exception.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "exception",
+        "name": "job_run.fixture",
+        "operationClass": "job.scheduler",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "job_run.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Exception.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "transport",
+        "name": "job_run.fixture",
+        "operationClass": "job.scheduler",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "job_run.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Transport.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "transport",
+        "name": "job_run.fixture",
+        "operationClass": "job.scheduler",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "job_run.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Transport.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "diagnostic",
+        "name": "job_run.fixture",
+        "operationClass": "job.scheduler",
         "platformCode": "SNAPBACK_FIELD_MISSING",
         "statusClass": null
       },
@@ -50832,6 +51552,150 @@
         "statusClass": null
       },
       "name": "lifecycle.caller_code.SNAPBACK_EXPECTED_STRING.Transport.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "diagnostic",
+        "name": "lifecycle.fixture",
+        "operationClass": "lifecycle",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "lifecycle.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Diagnostic.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "diagnostic",
+        "name": "lifecycle.fixture",
+        "operationClass": "lifecycle",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "lifecycle.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Diagnostic.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "app_refusal",
+        "name": "lifecycle.fixture",
+        "operationClass": "lifecycle",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "lifecycle.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.AppRefusal.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "app_refusal",
+        "name": "lifecycle.fixture",
+        "operationClass": "lifecycle",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "lifecycle.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.AppRefusal.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "exception",
+        "name": "lifecycle.fixture",
+        "operationClass": "lifecycle",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "lifecycle.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Exception.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "exception",
+        "name": "lifecycle.fixture",
+        "operationClass": "lifecycle",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "lifecycle.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Exception.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "transport",
+        "name": "lifecycle.fixture",
+        "operationClass": "lifecycle",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "lifecycle.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Transport.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "transport",
+        "name": "lifecycle.fixture",
+        "operationClass": "lifecycle",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "lifecycle.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Transport.tracked-true"
     },
     {
       "expected": {
@@ -59918,6 +60782,150 @@
         "carrierCategory": "diagnostic",
         "name": "log.fixture",
         "operationClass": "log",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "log.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Diagnostic.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "diagnostic",
+        "name": "log.fixture",
+        "operationClass": "log",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "log.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Diagnostic.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "app_refusal",
+        "name": "log.fixture",
+        "operationClass": "log",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "log.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.AppRefusal.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "app_refusal",
+        "name": "log.fixture",
+        "operationClass": "log",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "log.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.AppRefusal.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "exception",
+        "name": "log.fixture",
+        "operationClass": "log",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "log.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Exception.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "exception",
+        "name": "log.fixture",
+        "operationClass": "log",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "log.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Exception.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "transport",
+        "name": "log.fixture",
+        "operationClass": "log",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "log.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Transport.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "transport",
+        "name": "log.fixture",
+        "operationClass": "log",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "log.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Transport.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "diagnostic",
+        "name": "log.fixture",
+        "operationClass": "log",
         "platformCode": "SNAPBACK_FIELD_MISSING",
         "statusClass": null
       },
@@ -68976,6 +69984,150 @@
         "statusClass": null
       },
       "name": "diagnostic.caller_code.SNAPBACK_EXPECTED_STRING.Transport.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "diagnostic",
+        "name": "diagnostic.fixture",
+        "operationClass": "diagnostic",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "diagnostic.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Diagnostic.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "diagnostic",
+        "name": "diagnostic.fixture",
+        "operationClass": "diagnostic",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "diagnostic.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Diagnostic.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "app_refusal",
+        "name": "diagnostic.fixture",
+        "operationClass": "diagnostic",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "diagnostic.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.AppRefusal.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "app_refusal",
+        "name": "diagnostic.fixture",
+        "operationClass": "diagnostic",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "diagnostic.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.AppRefusal.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "exception",
+        "name": "diagnostic.fixture",
+        "operationClass": "diagnostic",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "diagnostic.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Exception.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "exception",
+        "name": "diagnostic.fixture",
+        "operationClass": "diagnostic",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "diagnostic.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Exception.tracked-true"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": false,
+        "carrierCategory": "transport",
+        "name": "diagnostic.fixture",
+        "operationClass": "diagnostic",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "diagnostic.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Transport.tracked-false"
+    },
+    {
+      "expected": {
+        "classifierVersion": 1,
+        "failureDisposition": "caller_error",
+        "issueEligible": false
+      },
+      "input": {
+        "appCode": null,
+        "appRefusalAdmitted": false,
+        "appRefusalTracked": true,
+        "carrierCategory": "transport",
+        "name": "diagnostic.fixture",
+        "operationClass": "diagnostic",
+        "platformCode": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+        "statusClass": null
+      },
+      "name": "diagnostic.caller_code.SNAPBACK_FIELD_ENUM_VALUE_INVALID.Transport.tracked-true"
     },
     {
       "expected": {

@@ -1636,6 +1636,7 @@ fn validate_filter_values(table: &TableManifest, query: &SearchQueryAstV1) -> Sn
         })?;
         let valid = match &declared.field_type {
             FieldType::String
+            | FieldType::Enum { .. }
             | FieldType::Principal
             | FieldType::Id { .. }
             | FieldType::AssetRef { .. } => filter.value.is_string(),

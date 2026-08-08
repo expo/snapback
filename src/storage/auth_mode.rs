@@ -11,7 +11,7 @@ use super::{
     LocalDatabase, create_index, create_or_update_table, current_version_on, next_storage_version,
     physical_user_tables, reject_field_retypes, reject_unsafe_required_field_changes, schema_table,
     seed_into_transaction, set_version, validate_managed_row_versions,
-    validate_managed_table_versions_by_name, validate_schema,
+    validate_enum_domain_evolution, validate_managed_table_versions_by_name, validate_schema,
 };
 use crate::auth::mode::{
     AUTH_MODE_FORMAT_VERSION, AppDataAvailability, AuthModeQuarantine, AuthModeStateRecord,
@@ -605,6 +605,7 @@ impl LocalDatabase {
             .into_iter()
             .map(ToOwned::to_owned)
             .collect();
+        let predecessor_schema = self.schema.clone();
         let track_data_marker = seed.is_some();
         commit_mode_transaction(
             &mut self.conn,
@@ -622,6 +623,11 @@ impl LocalDatabase {
                 if seed.is_some() {
                     require_fresh_seed_target(tx, &current.state)?;
                 }
+                validate_enum_domain_evolution(
+                    tx,
+                    &predecessor_schema,
+                    &schema_manifest,
+                )?;
                 let predecessor_head = current_version_on(tx)?;
                 super::preflight_membership_activation_sources(
                     tx,
@@ -1135,6 +1141,7 @@ impl LocalDatabase {
                 "same-mode deployment differs from active auth mode",
             ));
         }
+        validate_enum_domain_evolution(&tx, &self.schema, &manifest)?;
         let activation_changed = current.active_manifest.as_ref() != Some(&manifest)
             || current.state.active_deployment.as_ref() != Some(&deployment);
         let predecessor_head = current_version_on(&tx)?;
@@ -1306,6 +1313,7 @@ impl LocalDatabase {
             .into_iter()
             .map(ToOwned::to_owned)
             .collect();
+        let predecessor_schema = self.schema.clone();
         let track_data_marker = seed.is_some();
         let committed = commit_mode_transaction(
             &mut self.conn,
@@ -1325,6 +1333,8 @@ impl LocalDatabase {
                         "same-mode network deployment differs from active auth mode",
                     ));
                 }
+
+                validate_enum_domain_evolution(tx, &predecessor_schema, &manifest)?;
 
                 let predecessor_head = current_version_on(tx)?;
                 super::preflight_membership_activation_sources(tx, &manifest, predecessor_head)?;
@@ -1506,6 +1516,7 @@ impl LocalDatabase {
         if let Some(identity) = &current.state.active_deployment {
             identity.validate_schema_half(&manifest)?;
         }
+        validate_enum_domain_evolution(&tx, &self.schema, &manifest)?;
         let activation_changed = current.active_manifest.as_ref() != Some(&manifest);
         let predecessor_head = current_version_on(&tx)?;
         super::preflight_membership_activation_sources(&tx, &manifest, predecessor_head)?;

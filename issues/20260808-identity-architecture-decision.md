@@ -28,3 +28,14 @@ not implementation.
 
 Evidence base: LLP 0191 §3 (four workaround clusters: W-IDENTITY,
 W-MUTATION-IR, W-SHORTID, settlement identity).
+
+- **2026-08-08, schema lane:** `20260808-numeric-identity-default-columns.md`
+  now carries a worked design proposal for the identity-column half —
+  substrate (extend LLP 0135's `_snapback_sequence_counters_v1` with a
+  table-scoped counter identity under a successor profile, rather than a
+  second counter authority), gap semantics, the client-supplied-value posture,
+  exhaustion, indexing, the non-empty-table evolution cost, and naming — plus
+  the two standing fences the Decision has to clear (LLP 0135 §1.1 "no
+  authored start" and §1.9 "no cross-scope or global counter"). Consume it
+  rather than re-deriving. LLP 0007's 2026-08-08 amendment records the same
+  boundary in the storage authority.

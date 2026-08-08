@@ -967,7 +967,9 @@ class TableBuilder {
         || (fieldType !== null
           && typeof fieldType === 'object'
           && !Array.isArray(fieldType)
-          && (Object.hasOwn(fieldType, 'Id') || Object.hasOwn(fieldType, 'AssetRef')));
+          && (Object.hasOwn(fieldType, 'Enum')
+            || Object.hasOwn(fieldType, 'Id')
+            || Object.hasOwn(fieldType, 'AssetRef')));
       assert(
         stringLike || fieldType === 'Boolean' || fieldType === 'Integer',
         `vector index ${name} equality filter ${field} must use LLP 0080 portable exact scalar equality`,
@@ -1518,6 +1520,7 @@ export function defineSearchQuery(spec) {
     if (typeof idTable === 'string' && idTable.length > 0) resourceValidator = v.id(idTable);
     else if (source?.fieldType === 'Principal') resourceValidator = v.principal();
     else if (source?.fieldType === 'String') resourceValidator = v.string(source.resultOptions ?? {});
+    else if (source?.fieldType?.Enum) resourceValidator = { ...source, optional: false };
     else {
       assert(
         false,
@@ -2064,6 +2067,7 @@ function boundedProjectionValidator(facts, leaf, where) {
   assert(field, `${where} projection names unknown field ${facts.name}.${leaf.field}`);
   const portable = (
     ['String', 'Boolean', 'Integer', 'Real', 'Principal'].includes(field.fieldType)
+    || field.fieldType?.Enum
     || field.fieldType?.Id
   );
   assert(
@@ -2113,7 +2117,8 @@ export function defineBoundedChildrenQuery(spec) {
     const validator = childFacts.fields[entry.field];
     assert(
       validator && !validator.optional
-        && ['String', 'Integer', 'Boolean'].includes(validator.fieldType)
+        && (['String', 'Integer', 'Boolean'].includes(validator.fieldType)
+          || validator.fieldType?.Enum)
           || (!validator?.optional && validator?.fieldType?.Id),
       `children order field ${entry.field} must be required string, integer, boolean, or id`,
     );
@@ -2300,6 +2305,9 @@ function relationalJoinKeyClass(validator, where) {
   if (type && typeof type === 'object' && type.Id && typeof type.Id.table === 'string') {
     return `Id<${type.Id.table}>`;
   }
+  if (type && typeof type === 'object' && type.Enum) {
+    return `Enum<${JSON.stringify(type.Enum.values)}>`;
+  }
   assert(false, `${where} has non-portable join-key type ${JSON.stringify(type)}`);
   return undefined;
 }
@@ -2312,7 +2320,7 @@ function relationalProjectionScalar(validator, where) {
     || type === 'Boolean'
     || type === 'Integer'
     || type === 'Real'
-    || (type && typeof type === 'object' && (type.Id || type.AssetRef))
+    || (type && typeof type === 'object' && (type.Enum || type.Id || type.AssetRef))
   );
   assert(
     scalar,

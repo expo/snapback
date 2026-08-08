@@ -5,7 +5,10 @@
 **Systems:** Competitive evaluation, Developer experience, Authoring, Application data API, Code generation, Runtime, Bootstrap, Packaging, Search, Relational queries, Scheduled work, Client integration, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-08-03 (CV-8 move-6 snapshot-batch landing: the contributor
+**Revised:** 2026-08-08 (CV-4b union-of-literals carve-out: stored
+string-literal unions landed under LLP 0004/0007 per LLP 0191 §5 and OQ5's
+schema-quick-win sequencing; the row's Spec commission for stored arrays and
+objects is unchanged and no new authoring grammar was introduced.) 2026-08-03 (CV-8 move-6 snapshot-batch landing: the contributor
 local target now supports the Experimental `snapshot_batch_v1` profile with
 LLP 0157 plan identity, exact `sbsb1`, one-snapshot execution, sealed tuples,
 coordinated resume, and cursor-free-first-page live replacement; the separate
@@ -466,7 +469,7 @@ relational query exist — and the remainder is CV-8, not a rediscovery.
 | CV-2 | Bootstrap qualifies the real handler VM | A (P0) | 5 | 0010 | 0123 | M | Landed 2026-07-30 (`814acd77`: `snapback runtime-qualify` create/destroy gate + relink invalidation + regression fixture; ticket closed; residue = persisted receipt → CV-3, kit rungs → issues/20260730-kit-rungs-skip-handler-vm-qualification.md) |
 | CV-3 | Persisted runtime readiness receipt across doctor/bootstrap/harness | A (P0) | 5 | 0010, 0030, 0031 | 0123 | M | Landed 2026-07-31 (`63dacde2` + `5ac77b8d`: `snapback.runtime-readiness.v1` receipt beside the binary; digest-recompute consumption; kept-target probe + verify-local-proof issue it; doctor read-only served-binary check; all four kit rungs covered; `SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID`; kit-rungs ticket closed; posture-neutrality finding + test per 0123) |
 | CV-4a | Structured collection validators for arguments | B (P1) | 1 | LLP 0131 + 0004 alignment | 0117 | M | Design accepted 2026-07-31 (LLP 0131 under SD-4 — one argument grammar carrying CV-4a and CV-5 together); implementation LANDED 2026-07-31 (wave-1 lane C6): one argument grammar admitting the full 0108 vocabulary, FunctionArgsContractV1 carried beside resultContract with the v2 recomputed witness, `validate_function_args` ingress seam on every fresh lane with bounded RFC 6901 pointers, app-wide `args_contract_v1`; exits proved by the split-ledger fixture (valid vector commits, `/splits/2/amountCents` refusal, no partial write) |
-| CV-4b | Structured collection stored fields | B (P1) | 1 | new Spec + 0004/0007/0081 | 0117 | L | Open |
+| CV-4b | Structured collection stored fields | B (P1) | 1 | new Spec + 0004/0007/0081 | 0117 | L | Open for arrays and objects (the Spec commission is unchanged). The union-of-string-literals slice is carved out and LANDED 2026-08-08 under LLP 0004's dated stored-literal-union alignment plus LLP 0007's closed-string-domain amendment, per LLP 0191 §5 / OQ5's schema-quick-win sequencing: `FieldType::Enum`, a `TEXT` column, a central fail-closed write-path domain check, generated literal-union types, and one conservative-applier narrowing rule. It introduces no new physical representation, no element/containment vocabulary, and no index or matcher change — which is why it did not need the Spec the array/object half still does |
 | CV-5 | Typed search AST: schema export + carrier alignment | B (P1) | 1 | 0073, 0037, LLP 0131 | 0117 | M | Design accepted 2026-07-31 (folded into LLP 0131's unified grammar — the 0108 recursive vocabulary at args positions); implementation LANDED 2026-07-31 (wave-1 lane C6): `search.request.schema.json` exported + drift-gated; `defineSearchQuery` carries the PlatformSchemaRef node replacing `v.json()`; generated client/provider/operation-schema carriers derive from the export; shared accept/reject corpus (`search.request.fixtures-v1.json`) agrees across Rust serde, the exported schema, embedded expansions, generated types, and published typings; no `unknown` remains at the search argument boundary; client search pin generated with coded skew refusal |
 | CV-6 | Precise mutation results as the paved default | B (P1) | 1 | 0108 amendment, guide | 0117 | S | Open (OQ3 answered — decision 5: deferral confirmed, provisional lean recorded; sequenced post-A+E) |
 | CV-7 | Helper reuse via revived bounded static bundling | C (P1) | 2 | 0108 follow-on | 0118 | L | Landed 2026-07-31 (`4d72c407`: full option-1a same-file slice — context-readers admitted per 0127 decision 6, splice emission, v2 named-helper-content hash, cross-helper adversarial fixtures, spliced-bytes capability rescan; ticket issues/20260730-move2-capability-free-helper-cut.md; benchmark receipts against LLP 0035's baseline still open) |
@@ -788,6 +791,19 @@ LLP 0004's portability rules and LLP 0007, index/`arrayContains`/live-matcher
 semantics, and LLP 0081 migration interaction. None of this is de-risked by
 0108. Exit: Pantry's structured stored fields expressed natively with defined
 index and sync behavior.
+
+**Union-of-literals carve-out, landed 2026-08-08.** The four costs above are
+array/object costs. A stored union of string literals pays none of them: it is
+a `TEXT` column identical to `v.string()`, string-like for every filter, order,
+index, and matcher, with no element vocabulary to design. LLP 0191 §5 classes
+closed stored domains as a schema-fidelity quick win and its OQ5 ruling
+sequences the §5 quick-wins ahead of the owner-Specs, so that slice landed
+under LLP 0004's dated stored-literal-union alignment and LLP 0007's
+closed-string-domain amendment rather than waiting here. Spelling is the
+existing `v.union([v.literal('a'), v.literal('b')])` — no second grammar — so
+0127 move 1's one-grammar proposal stays entirely unadjudicated and this row's
+Spec commission is unchanged. Arrays, objects, `arrayContains`, structured
+indexing, and sync semantics remain exactly as scoped above.
 
 **v0.5 (0127 move 1).** Three proposals now ride the new Spec, each
 pending its own adjudication in that Spec's loop — recorded here,

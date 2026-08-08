@@ -5,7 +5,12 @@
 **Systems:** Storage, API, Runtime, Sync, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-06 (bounded managed-version integrity proofs: the
+**Revised:** 2026-08-08 (closed string domains join the portable field
+vocabulary as a `TEXT` column plus a manifest-owned domain check — explicitly
+not a native Postgres enum type — and the conservative applier gains one
+narrowing rule on the optional-to-required precedent; the same amendment
+records why identity/default columns deliberately did not land here and routes
+them to LLP 0191's commissioned identity-architecture Decision). 2026-08-06 (bounded managed-version integrity proofs: the
 local target's healthy-case `_version` validation is pinned to runtime-owned
 per-table indexes — an invalid-domain partial index plus a head index —
 mirroring the change-journal sentinel; dated note inside the DK-2
@@ -870,6 +875,83 @@ referenced from the table's rows, independent of any function-level gate a
 query adds. When a general row-visibility language lands (LLP 0011's open
 question), `.assetSharing` becomes a citation into it rather than a
 parallel dialect.
+
+## Dated amendment: closed string domains and the identity-column boundary (2026-08-08)
+
+**The portable field vocabulary gains one entry: a closed string domain.** A
+declared stored field may carry a closed set of two to seven unique string
+values (LLP 0004 §Dated alignment: stored literal-union domains owns the
+authoring grammar and the admission rules). This is a *domain*, not a new
+physical type. The single-sourced physical mapping this section demands is one
+row long and deliberately unsurprising:
+
+| portable type | SQLite | Postgres (intended) |
+| --- | --- | --- |
+| closed string domain | `TEXT` (identical to `string`) | `text` plus the same server-side check — **not** `CREATE TYPE ... AS ENUM` |
+
+The Postgres choice is the load-bearing part of the row. A native enum type
+would move the domain into engine DDL, where adding a value is an `ALTER TYPE`
+that cannot run inside every transaction and removing one is not expressible
+at all — the domain would then evolve on two different schedules on two
+engines, which is exactly the drift this section exists to prevent. Keeping the
+domain in the manifest and the check in the central writer keeps one authority
+on every target. The domain is invisible to the query surface: a closed-domain
+field is string-like for equality filters, ordering, index eligibility, unique
+indexes, and the live matcher, and the wire encoding is a plain JSON string.
+
+**§Schema Evolution gains one conservative-applier rule.** The existing list
+admits added nullable fields and refuses type changes that require rewriting
+rows. A domain *narrowing* rewrites no rows — the physical column does not move
+— so it is admitted on exactly the terms the optional → required tightening
+already uses: an in-transaction check over existing non-NULL values, the
+physical column untouched, and a whole refusal that advances neither the stored
+manifest nor any DDL when a row does not satisfy the successor domain
+(`SNAPBACK_SCHEMA_ENUM_DOMAIN_BACKFILL_REQUIRED`, carrying one representative
+offending value). Concretely: `string` → closed domain and closed-domain
+narrowing take the check; widening a domain and closed domain → `string` are
+admitted without a scan; every other type transition into or out of a closed
+domain remains `SNAPBACK_SCHEMA_FIELD_RETYPED`. Accepted LLP 0081 remains the
+authority for everything this applier still refuses, and its closed intent
+vocabulary is unchanged by this amendment.
+
+**The identity-column boundary, recorded so it is not rediscovered.** The
+companion porting gap — a server-owned monotonic numeric column with a
+configurable start, PostgreSQL's `GENERATED ... AS IDENTITY`
+(`issues/20260808-numeric-identity-default-columns.md`) — is deliberately
+*not* answered by this amendment, and the schema surface deliberately did not
+grow a counter of its own. Three standing facts converge:
+
+- `FieldManifest` has no default/server-assigned slot, and the only existing
+  server-assigned column values are `_id`, the three system columns, the
+  framework-owned relation-incarnation stamp, and membership provenance —
+  every one of them a *closed framework concept*, not an app-declared default.
+  A general default expression is a vocabulary question, not a column question.
+- Framework-owned monotonic counters already exist and are owned elsewhere:
+  Accepted LLP 0135 §1.1 defines them, stores them in
+  `_snapback_sequence_counters_v1`, and pins v1 to "JavaScript-safe integers,
+  first value 1, step 1, no authored start, step, or format", with "any
+  cross-scope or global counter" named as not lifted. A table-level identity
+  column is precisely a global counter with an authored start. Building a
+  second counter authority beside that one would recreate the disagreement
+  §1.1 rejects with rationale.
+- LLP 0191 §3 reaches the same place from the other side and adds the sizing
+  fact: an identity column wants *sequence* semantics — monotonic, **gaps
+  allowed**, rollback burns values, a display/permalink identity rather than
+  the canonical relationship key — because a gapless transactional counter
+  serializes every write to the table and recreates a scale cliff at exactly
+  the store size that exposed the gap. Charlie's 2026-08-08 OQ2 ruling routes
+  it, with declared source keys, defaults, and alternate-key lookup, through
+  one coordinating identity-architecture Decision whose implementation reaches
+  this Spec and LLP 0004 as owner amendments
+  (`issues/20260808-identity-architecture-decision.md`).
+
+So the boundary is: closed string domains land now because they add a
+predicate to an existing column; identity and default columns wait for the
+Decision that fixes the identity vocabulary, because they add a new kind of
+server-owned value and a second allocation authority. Whichever design that
+Decision distributes here must state its gap semantics, its exhaustion refusal
+against this Spec's JavaScript-safe integer bound, and its relationship to
+LLP 0135's counters explicitly.
 
 ## Open Questions
 

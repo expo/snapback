@@ -26084,7 +26084,11 @@ fn validate_bounded_children_schema_plan(
         if field.optional
             || !matches!(
                 field.field_type,
-                FieldType::String | FieldType::Integer | FieldType::Boolean | FieldType::Id { .. }
+                FieldType::String
+                    | FieldType::Enum { .. }
+                    | FieldType::Integer
+                    | FieldType::Boolean
+                    | FieldType::Id { .. }
             )
         {
             return Err(invalid(format!(
@@ -26132,6 +26136,7 @@ fn validate_bounded_children_node_schema_references(
                     matches!(
                         declared.field_type,
                         FieldType::String
+                            | FieldType::Enum { .. }
                             | FieldType::Boolean
                             | FieldType::Integer
                             | FieldType::Real
@@ -26186,6 +26191,15 @@ fn bounded_projection_result_contract(
                     FieldType::String => ResultValueContract::String {
                         max_bytes: 1_048_576,
                     },
+                    FieldType::Enum { values } => ResultValueContract::Union {
+                        variants: values
+                            .iter()
+                            .cloned()
+                            .map(|value| ResultValueContract::Literal {
+                                value: Value::String(value),
+                            })
+                            .collect(),
+                    },
                     FieldType::Boolean => ResultValueContract::Boolean,
                     FieldType::Integer => ResultValueContract::Integer {
                         min: -9_007_199_254_740_991,
@@ -26213,8 +26227,14 @@ fn bounded_projection_result_contract(
                 name: projection.name.clone(),
                 required: true,
                 value: if optional {
-                    ResultValueContract::Union {
-                        variants: vec![ResultValueContract::Null, scalar],
+                    match scalar {
+                        ResultValueContract::Union { mut variants } => {
+                            variants.insert(0, ResultValueContract::Null);
+                            ResultValueContract::Union { variants }
+                        }
+                        scalar => ResultValueContract::Union {
+                            variants: vec![ResultValueContract::Null, scalar],
+                        },
                     }
                 } else {
                     scalar
@@ -26251,6 +26271,15 @@ fn snapshot_batch_relational_result_contract(
             FieldType::String => ResultValueContract::String {
                 max_bytes: 1_048_576,
             },
+            FieldType::Enum { values } => ResultValueContract::Union {
+                variants: values
+                    .iter()
+                    .cloned()
+                    .map(|value| ResultValueContract::Literal {
+                        value: Value::String(value),
+                    })
+                    .collect(),
+            },
             FieldType::Boolean => ResultValueContract::Boolean,
             FieldType::Integer => ResultValueContract::Integer {
                 min: -9_007_199_254_740_991,
@@ -26270,8 +26299,14 @@ fn snapshot_batch_relational_result_contract(
             }
         };
         if field.optional {
-            ResultValueContract::Union {
-                variants: vec![ResultValueContract::Null, value],
+            match value {
+                ResultValueContract::Union { mut variants } => {
+                    variants.insert(0, ResultValueContract::Null);
+                    ResultValueContract::Union { variants }
+                }
+                value => ResultValueContract::Union {
+                    variants: vec![ResultValueContract::Null, value],
+                },
             }
         } else {
             value
@@ -26359,7 +26394,9 @@ fn order_field_bounds_from_functions(
                 || max_encoded_bytes > 9_007_199_254_740_991
                 || !matches!(
                     &field.field_type,
-                    crate::manifest::FieldType::String | crate::manifest::FieldType::Id { .. }
+                    crate::manifest::FieldType::String
+                        | crate::manifest::FieldType::Enum { .. }
+                        | crate::manifest::FieldType::Id { .. }
                 )
             {
                 return Err(SnapbackError::error(
@@ -26991,6 +27028,7 @@ fn validate_function_schema_references(
                             matches!(
                                 declared.field_type,
                                 crate::manifest::FieldType::String
+                                    | crate::manifest::FieldType::Enum { .. }
                                     | crate::manifest::FieldType::Boolean
                                     | crate::manifest::FieldType::Integer
                                     | crate::manifest::FieldType::Real
@@ -27016,6 +27054,7 @@ fn validate_function_schema_references(
                             matches!(
                                 declared.field_type,
                                 crate::manifest::FieldType::String
+                                    | crate::manifest::FieldType::Enum { .. }
                                     | crate::manifest::FieldType::Boolean
                                     | crate::manifest::FieldType::Integer
                                     | crate::manifest::FieldType::Real
@@ -27059,6 +27098,17 @@ fn validate_function_schema_references(
                                         FieldType::String => ResultValueContract::String {
                                             max_bytes: 1_048_576,
                                         },
+                                        FieldType::Enum { values } => {
+                                            ResultValueContract::Union {
+                                                variants: values
+                                                    .iter()
+                                                    .cloned()
+                                                    .map(|value| ResultValueContract::Literal {
+                                                        value: Value::String(value),
+                                                    })
+                                                    .collect(),
+                                            }
+                                        }
                                         FieldType::Boolean => ResultValueContract::Boolean,
                                         FieldType::Integer => ResultValueContract::Integer {
                                             min: -9_007_199_254_740_991,
@@ -27092,8 +27142,14 @@ fn validate_function_schema_references(
                                     name: projection.name.clone(),
                                     required: true,
                                     value: if optional {
-                                        ResultValueContract::Union {
-                                            variants: vec![ResultValueContract::Null, scalar],
+                                        match scalar {
+                                            ResultValueContract::Union { mut variants } => {
+                                                variants.insert(0, ResultValueContract::Null);
+                                                ResultValueContract::Union { variants }
+                                            }
+                                            scalar => ResultValueContract::Union {
+                                                variants: vec![ResultValueContract::Null, scalar],
+                                            },
                                         }
                                     } else {
                                         scalar
@@ -28180,7 +28236,7 @@ fn snapshot_batch_max_boundary_for(
                 .field(&order.field)
                 .ok_or_else(snapshot_batch_cursor_invalid)?;
             Ok(match &field.field_type {
-                FieldType::String | FieldType::Id { .. } => {
+                FieldType::String | FieldType::Enum { .. } | FieldType::Id { .. } => {
                     let bound = order
                         .max_encoded_bytes
                         .ok_or_else(snapshot_batch_cursor_budget_exceeded)?;
@@ -56061,6 +56117,15 @@ globalThis.__snapbackHandlers = {
                 FieldType::String => ResultValueContract::String {
                     max_bytes: 1024 * 1024,
                 },
+                FieldType::Enum { values } => ResultValueContract::Union {
+                    variants: values
+                        .iter()
+                        .cloned()
+                        .map(|value| ResultValueContract::Literal {
+                            value: Value::String(value),
+                        })
+                        .collect(),
+                },
                 FieldType::Boolean => ResultValueContract::Boolean,
                 FieldType::Integer => ResultValueContract::Integer {
                     min: -9_007_199_254_740_991,
@@ -56087,8 +56152,14 @@ globalThis.__snapbackHandlers = {
                 FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
             };
             let value = if field.optional && !matches!(value, ResultValueContract::Json { .. }) {
-                ResultValueContract::Union {
-                    variants: vec![ResultValueContract::Null, value],
+                match value {
+                    ResultValueContract::Union { mut variants } => {
+                        variants.insert(0, ResultValueContract::Null);
+                        ResultValueContract::Union { variants }
+                    }
+                    value => ResultValueContract::Union {
+                        variants: vec![ResultValueContract::Null, value],
+                    },
                 }
             } else {
                 value

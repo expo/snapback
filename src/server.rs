@@ -25987,6 +25987,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_EXPR_TYPE"
         | "SNAPBACK_EXPR_UNANALYZABLE"
         | "SNAPBACK_EXPR_UNSUPPORTED_FUNCTION"
+        | "SNAPBACK_FIELD_ENUM_VALUE_INVALID"
         | "SNAPBACK_FIELD_MISSING"
         | "SNAPBACK_FIELD_TYPE_MISMATCH"
         | "SNAPBACK_FUNCTION_IDENTITY_COLLISION"
@@ -26239,6 +26240,8 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_SCHEMA_DUPLICATE_INDEX"
         | "SNAPBACK_SCHEMA_DUPLICATE_TABLE"
         | "SNAPBACK_SCHEMA_EMPTY_INDEX"
+        | "SNAPBACK_SCHEMA_ENUM_DOMAIN_BACKFILL_REQUIRED"
+        | "SNAPBACK_SCHEMA_ENUM_DOMAIN_INVALID"
         | "SNAPBACK_SCHEMA_FIELD_RETYPED"
         | "SNAPBACK_SCHEMA_INDEX_NAME_COLLISION"
         | "SNAPBACK_SCHEMA_PERMISSION_FIELDS_WITHOUT_BACKING"
@@ -33808,7 +33811,9 @@ globalThis.__snapbackHandlers = {
         assert_eq!(unknown["diagnostic"]["code"], "SNAPBACK_UNKNOWN_FUNCTION");
         assert_eq!(details["candidateFunctions"][0]["name"], "listTodos");
         assert_eq!(details["candidateFunctions"][0]["kind"], "LiveQuery");
-        assert_eq!(details["artifactHash"], "sha256:f41b9f6133737ac4");
+        // Rotates with the embedded todo demo's generated artifacts; the
+        // stored-enum codegen change is the 2026-08-08 rotation.
+        assert_eq!(details["artifactHash"], "sha256:5cd154d7fce7fe93");
         assert!(
             details["localMissSummary"]["sameMissCount"]
                 .as_u64()
@@ -41263,6 +41268,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_EXPR_TYPE",
         "SNAPBACK_EXPR_UNANALYZABLE",
         "SNAPBACK_EXPR_UNSUPPORTED_FUNCTION",
+        "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
         "SNAPBACK_FIELD_MISSING",
         "SNAPBACK_FIELD_TYPE_MISMATCH",
         "SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID",
@@ -41459,6 +41465,8 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_SCHEMA_DUPLICATE_INDEX",
         "SNAPBACK_SCHEMA_DUPLICATE_TABLE",
         "SNAPBACK_SCHEMA_EMPTY_INDEX",
+        "SNAPBACK_SCHEMA_ENUM_DOMAIN_BACKFILL_REQUIRED",
+        "SNAPBACK_SCHEMA_ENUM_DOMAIN_INVALID",
         "SNAPBACK_SCHEMA_FIELD_RETYPED",
         "SNAPBACK_SCHEMA_INDEX_NAME_COLLISION",
         "SNAPBACK_SCHEMA_PERMISSION_FIELDS_WITHOUT_BACKING",

@@ -4435,6 +4435,7 @@ fn manifest_value_work_bound(
             _,
             Some(
                 FieldType::String
+                | FieldType::Enum { .. }
                 | FieldType::Principal
                 | FieldType::Id { .. }
                 | FieldType::RelationIncarnation { .. }

@@ -3,13 +3,13 @@ title: Your first backend
 id: getting-started.your-first-backend
 order: 1
 audience: agent-first
-capabilities: [backend.schema, backend.functions, backend.seed, backend.provisioning, backend.codegen]
+capabilities: [backend.schema, backend.stored-enums, backend.functions, backend.seed, backend.provisioning, backend.codegen]
 authorities: [llp/0004-application-data-api.rfc.md, llp/0037-schema-source-of-truth.decision.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0115-convex-parity-course-corrections.plan.md, llp/0174-authoring-incidents-at-security-fences.research.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs]
-examples: [demos/todo/snapback, demos/todo-v2/snapback, demos/signal-desk/snapback, packages/snapback-codegen/inline-result-contracts.test.mjs]
+examples: [demos/todo/snapback, demos/todo-v2/snapback, demos/signal-desk/snapback, packages/snapback-codegen/inline-result-contracts.test.mjs, packages/snapback-codegen/stored-enum-authoring.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-05
+reviewed: 2026-08-08
 reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
 ---
 
@@ -78,17 +78,59 @@ partial: specialized validators — typed asset references (`v.assetRef`,
 [assets](../backend/assets.md)), result-side `v.doc(table)` references
 ([queries](../backend/queries.md)) — are taught with their features.
 
+**Closed string domains (enums).** A field whose values come from a fixed set
+— a role, a status, a visibility — declares that set directly, instead of
+storing `v.string()` and re-checking the domain in every writer:
+
+```js source=packages/snapback-codegen/stored-enum-authoring.test.mjs
+  todos: defineTable({
+    role: v.union([v.literal('crew'), v.literal('user')]),
+    visibility: v.optional(v.union([v.literal('internal'), v.literal('public')])),
+    title: v.string(),
+  }).index('by_role', ['role']).sync(),
+```
+
+Two to seven unique string literals, each at most 64 UTF-8 bytes; authored
+order is the order of the generated type. The column is ordinary `TEXT`, so
+the field indexes, filters, orders, and syncs exactly like `v.string()`, and
+the generated TypeScript is the literal union (`"crew" | "user"`, or
+`null | "internal" | "public"` when optional). Every central writer enforces
+the domain: an out-of-domain string refuses with
+`SNAPBACK_FIELD_ENUM_VALUE_INVALID` naming the field and the admitted values,
+and commits nothing — which is why authorization-relevant fields belong here
+rather than in a hand-written guard. Seven, not eight, because an optional
+field's result contract adds a `null` variant against the eight-variant union
+bound.
+
+Changing a domain is a schema change with a data rule. Widening one (or going
+back to `v.string()`) applies without a scan. Narrowing one — including
+tightening an existing `v.string()` field into a domain — is applied only when
+every stored value already satisfies it; otherwise the whole activation
+refuses with `SNAPBACK_SCHEMA_ENUM_DOMAIN_BACKFILL_REQUIRED` naming an
+offending value, and neither the manifest nor the table moves.
+
 **Array-shaped table fields are a workaround, not a shipped structured-field
-capability.** A table field cannot use `v.array(...)` directly. The immediate
-workaround is to store the value as opaque `v.json()`, then narrow every
-function result that exposes it with the appropriate `v.array(...)` result
-validator. That result contract validates the returned JSON shape; it does
-not add write-time item validation, array indexing, portable structured-field
-semantics, or sync-aware array behavior to the stored column. Native stored
-arrays/unions remain the explicit
+capability.** A table field cannot use `v.array(...)` or `v.object(...)`
+directly. The immediate workaround is to store the value as opaque
+`v.json()`, then narrow every function result that exposes it with the
+appropriate `v.array(...)` result validator. That result contract validates
+the returned JSON shape; it does not add write-time item validation, array
+indexing, portable structured-field semantics, or sync-aware array behavior to
+the stored column. Native stored arrays and objects remain the explicit
 [`backend.structured-stored-fields` GAP](../capabilities.md) owned by
-[LLP 0115 CV-4b](repo:llp/0115-convex-parity-course-corrections.plan.md#cv-4-structured-collection-validators-split-arguments-then-storage).
-Do not describe the `v.json()` pairing as that missing capability.
+[LLP 0115 CV-4b](repo:llp/0115-convex-parity-course-corrections.plan.md#cv-4-structured-collection-validators-split-arguments-then-storage);
+the closed-string-domain slice above is carved out of it and shipped. Do not
+describe the `v.json()` pairing as that missing capability.
+
+**There is no numeric identity or default column.** A server-owned monotonic
+number (PostgreSQL's `GENERATED ... AS IDENTITY`, a `SERIAL`) has no
+declaration here, and neither does a per-field default. Mint ids with
+`v.id(table)`/`_id`, or allocate a human-facing number with a
+[scoped sequence](../backend/sequences.md), which is dense, transactional, and
+scoped to a row of a parent table. The identity-column gap is owned by
+`issues/20260808-numeric-identity-default-columns.md` under
+[LLP 0191](repo:llp/0191-scale-architecture-revisits.research.md)'s
+commissioned identity-architecture Decision.
 
 `defineSchema` also takes an
 options object:

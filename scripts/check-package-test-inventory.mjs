@@ -298,6 +298,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'settlement-bounded-skew.test.mjs',
       'snapshot-batch-v2-authoring.test.mjs',
       'standard-patterns.test.mjs',
+      'stored-enum-authoring.test.mjs',
       'vector-authoring.test.mjs',
       'vector-distance-profile.test.mjs',
     ],
@@ -447,7 +448,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 236,
+  expectedTotal = 237,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -736,6 +737,8 @@ export function checkPackageTestInventories(options = {}) {
 // 235 -> 236 (2026-08-08, reset --dev-fresh): @expo/snapback-cli gains the
 // standalone/supervised deterministic reset, auth-boundary, delegation, and
 // lifecycle-refusal acceptance suite.
+// 236 -> 237 (2026-08-08, stored literal-union enums):
+// @expo/snapback-codegen gains end-to-end stored enum authoring coverage.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

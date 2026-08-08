@@ -142,6 +142,7 @@ fn request_value_matches_type(value: &VectorFilterValueV1, field_type: &FieldTyp
     match (field_type, value) {
         (
             FieldType::String
+            | FieldType::Enum { .. }
             | FieldType::Principal
             | FieldType::Id { .. }
             | FieldType::AssetRef { .. },
@@ -160,6 +161,7 @@ fn stored_value_matches_type(value: &Value, field_type: &FieldType, optional: bo
     match (field_type, value) {
         (
             FieldType::String
+            | FieldType::Enum { .. }
             | FieldType::Principal
             | FieldType::Id { .. }
             | FieldType::AssetRef { .. },

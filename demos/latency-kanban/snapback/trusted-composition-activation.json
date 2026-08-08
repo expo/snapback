@@ -9,13 +9,13 @@
     "expectedGeneration": {
       "schemaVersion": "snapback.v0",
       "appId": "latency-kanban",
-      "schemaHash": "sha256:66c136e52406f6bd",
-      "bundleHash": "sha256:20c54d46aab1f9d8",
-      "inputsHash": "1f7ec7a99d7db04b7daf8460b300212b2ae930672bd5414b37e3a00d6467818d"
+      "schemaHash": "sha256:3cbcb02ae2e8f5cd",
+      "bundleHash": "sha256:d68feae657b72ae2",
+      "inputsHash": "ed7410427e4cd558f1243a83c829dea7091b63035aa3ebb08f8c1919d99cc7a3"
     },
     "proofKeyManifestDigest": "sha256:e8a3e1e6546701d3491e6ee54e53c09f952e57a0bf5277260c0849f6f6477615"
   },
-  "activationHash": "sha256:b0980e34dc46dbfc5ee0c365f3b1bc458dd7362c378a65f1fb6a1ae1a293f8cb",
+  "activationHash": "sha256:ce253b1190d1190b5d49e25784eed4f52e089e0f2069413fe2faa73dd3556489",
   "proofKeys": {
     "format": "snapback.completeness-proof-keys.v1",
     "keys": [

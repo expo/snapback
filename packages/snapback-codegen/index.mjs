@@ -1479,9 +1479,16 @@ export async function generateInProcess(backendDir, options = {}) {
         err('SCHEMA_DUPLICATE_FIELD', 'schema', `duplicate field ${name}.${fieldName}`, { table: name, field: fieldName });
       }
       seenFields.add(fieldName);
-      validateAuthoringValidator(val, `${name}.${fieldName}`, (message) => {
+      const storedEnum = validateStoredLiteralUnion(val, `${name}.${fieldName}`, (message) => {
         err('SCHEMA_INVALID_VALIDATOR', 'schema', message, { table: name, field: fieldName });
       });
+      if (!storedEnum.matched) {
+        validateAuthoringValidator(val, `${name}.${fieldName}`, (message) => {
+          err('SCHEMA_INVALID_VALIDATOR', 'schema', message, { table: name, field: fieldName });
+        });
+      } else if (storedEnum.values !== null) {
+        val.fieldType = { Enum: { values: storedEnum.values } };
+      }
       const idTable = idFieldTypeTable(val.fieldType);
       if (idTable !== null && !Object.hasOwn(schemaDef.tables, idTable)) {
         err('SCHEMA_ID_TARGET_UNKNOWN', 'schema', `${name}.${fieldName} references unknown id table ${idTable}`, {
@@ -1503,7 +1510,11 @@ export async function generateInProcess(backendDir, options = {}) {
           });
         }
       }
-      fields.push({ name: fieldName, field_type: val.fieldType, optional: val.optional });
+      fields.push({
+        name: fieldName,
+        field_type: val.fieldType,
+        optional: val.optional,
+      });
     }
 
     const indexes = [];
@@ -1610,7 +1621,8 @@ export async function generateInProcess(backendDir, options = {}) {
       for (const field of search.equalityFilters ?? []) {
         const type = table.fields[field]?.fieldType;
         const portable = ['String', 'Principal', 'Integer', 'Boolean'].includes(type)
-          || idFieldTypeTable(type) !== null;
+          || idFieldTypeTable(type) !== null
+          || type?.Enum !== undefined;
         if (!portable) {
           err('SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID', 'search', `search index ${name}.${search.name} equality filter ${field} has a non-portable type`, { table: name, index: search.name, field });
         }
@@ -1670,7 +1682,9 @@ export async function generateInProcess(backendDir, options = {}) {
           || (fieldType !== null
             && typeof fieldType === 'object'
             && !Array.isArray(fieldType)
-            && (Object.hasOwn(fieldType, 'Id') || Object.hasOwn(fieldType, 'AssetRef')));
+            && (Object.hasOwn(fieldType, 'Id')
+              || Object.hasOwn(fieldType, 'AssetRef')
+              || Object.hasOwn(fieldType, 'Enum')));
         if (!stringLike && !['Boolean', 'Integer'].includes(fieldType)) fail(`equality filter ${field} has a non-portable scalar type`, { field });
       }
       for (const field of vector.storedFields ?? []) {
@@ -2535,6 +2549,9 @@ export async function generateInProcess(backendDir, options = {}) {
             && resourceArg?.optional === false
             && (
               (resourceField.field_type === 'String' && resourceArg.fieldType === 'String')
+              || (resourceField.field_type?.Enum && resourceArg.fieldType?.Enum
+                && JSON.stringify(resourceField.field_type.Enum.values)
+                  === JSON.stringify(resourceArg.fieldType.Enum.values))
               || (resourceField.field_type === 'Principal' && resourceArg.fieldType === 'Principal')
               || (fieldIdTable !== null && argIdTable === fieldIdTable)
             );
@@ -5786,6 +5803,61 @@ function checkObjectValidatorFieldIdents(val, where, report) {
   }
 }
 
+// Stored unions are the one deliberately admitted recursive shape at the
+// schema-field position. Keep this pre-check separate so no other closed
+// position (ephemeral scope/value or legacy result) inherits the widening.
+// @ref LLP 0004#dated-alignment-stored-literal-union-domains-2026-08-08
+function validateStoredLiteralUnion(val, where, report) {
+  if (val?.resultKind !== 'union') return { matched: false, values: null };
+  const fail = (message) => {
+    report(`${where} ${message}; stored unions must be closed string-literal domains`);
+    return { matched: true, values: null };
+  };
+  if (val.__validator !== true || val.primitive !== 'union') {
+    return fail('must be a Snapback v.union(...) validator');
+  }
+  if (!Array.isArray(val.variants)) {
+    return fail('union validator must carry a variants array');
+  }
+  // Seven, not the argument grammar's eight: an optional field's document
+  // contract expands to null|…, and LLP 0108 bounds a result union at eight.
+  // One bound for required and optional avoids an evolution trap where making
+  // an eight-value domain optional would refuse later.
+  if (val.variants.length < 2 || val.variants.length > 7) {
+    return fail(`union validator must carry 2–7 variants (got ${val.variants.length})`);
+  }
+  if (typeof val.optional !== 'boolean') {
+    return fail('union validator optional must be boolean');
+  }
+  const values = [];
+  const seen = new Set();
+  for (const [index, variant] of val.variants.entries()) {
+    const label = `union variant ${index + 1}`;
+    if (variant?.__validator !== true || variant.resultKind !== 'literal') {
+      return fail(`${label} must be v.literal(...)`);
+    }
+    if (variant.optional !== false) {
+      return fail(`${label} must be required, not v.optional(...)`);
+    }
+    if (typeof variant.literal !== 'string') {
+      return fail(`${label} must be a string literal`);
+    }
+    const bytes = Buffer.byteLength(variant.literal, 'utf8');
+    if (bytes === 0) {
+      return fail(`${label} must be a non-empty string literal`);
+    }
+    if (bytes > 64) {
+      return fail(`${label} is ${bytes} UTF-8 bytes; the maximum is 64`);
+    }
+    if (seen.has(variant.literal)) {
+      return fail(`${label} duplicates ${JSON.stringify(variant.literal)}; values must be unique`);
+    }
+    seen.add(variant.literal);
+    values.push(variant.literal);
+  }
+  return { matched: true, values };
+}
+
 // One recursive gate for every authoring position that accepts a validator:
 // schema fields, function args/results, and ephemeral scope/value shapes.
 // Builders catch ordinary mistakes early, but definition objects are mutable
@@ -5994,6 +6066,9 @@ function jsonSchemaObjectProperties(fields) {
 
 function jsonSchemaForValidator(validator) {
   if (!validator || validator.primitive === 'unknown') return {};
+  if (validator.fieldType?.Enum) {
+    return { type: 'string', enum: [...validator.fieldType.Enum.values] };
+  }
   if (validator.primitive === 'platformSchemaRef') {
     // Operation schemas stay self-contained: the reference's expansion is
     // embedded by value from the exported Rust-owned schema (LLP 0131).
@@ -6323,6 +6398,15 @@ function rowDescriptor(table) {
     _updatedAt: { shape: 'primitive', name: 'number' },
   });
   for (const f of table.fields) {
+    if (f.field_type?.Enum) {
+      const descriptor = {
+        shape: 'union',
+        variants: f.field_type.Enum.values.map((value) => ({ shape: 'literal', value })),
+      };
+      if (f.optional) descriptor.optional = true;
+      fields[f.name] = descriptor;
+      continue;
+    }
     if (f.field_type?.Vector) {
       const descriptor = {
         shape: 'array',

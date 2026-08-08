@@ -319,6 +319,7 @@ pub(crate) fn enrich_argument_details(
 fn field_type_name(field_type: &FieldType) -> &'static str {
     match field_type {
         FieldType::String => "string",
+        FieldType::Enum { .. } => "enum",
         FieldType::Integer => "integer",
         FieldType::Real => "real",
         FieldType::Boolean => "boolean",

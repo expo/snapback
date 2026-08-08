@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "7b8df2715264191f63e5efe71f9cc37cf25dd2c9"
+    "commit": "316d1cc1b1b9b6bab0b6890003873458bf19b105"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -1650,7 +1650,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedCommit": "effa2773760fd0d740c49f06990b3fde5e82a66b",
-      "sha256": "e6a04fddaf1fddc61ae8f35847459e2cec9e4b640025768488afa3e8ae6a5604",
+      "sha256": "8cf2195c17422a34c8796e1059a85f7a87d3b21e66ebfef974d673dd95d47896",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2358,6 +2358,7 @@
       "maturity": "shipped",
       "capabilities": [
         "backend.schema",
+        "backend.stored-enums",
         "backend.functions",
         "backend.seed",
         "backend.provisioning",
@@ -2379,16 +2380,22 @@
         "demos/todo/snapback",
         "demos/todo-v2/snapback",
         "demos/signal-desk/snapback",
-        "packages/snapback-codegen/inline-result-contracts.test.mjs"
+        "packages/snapback-codegen/inline-result-contracts.test.mjs",
+        "packages/snapback-codegen/stored-enum-authoring.test.mjs"
       ],
-      "reviewed": "2026-08-05",
+      "reviewed": "2026-08-08",
       "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "923b681505b39e44b9597672c2d936c05e4023aa449d2188d7c0efbd6f0db28d",
+      "sha256": "062a451abb89c954b49ee90c5da3239a19c34c2d401a4b17dfdf20a6591d53f1",
       "snippets": [
         {
           "lang": "js",
           "class": "transcluded",
           "source": "demos/todo/snapback/schema.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/stored-enum-authoring.test.mjs"
         },
         {
           "lang": "js",
@@ -3705,6 +3712,7 @@
       "backend.single-table-v1",
       "backend.snapshot-batch-v1",
       "backend.standard-patterns",
+      "backend.stored-enums",
       "backend.streamed-actions",
       "backend.text-search",
       "backend.vector-search",
@@ -3753,6 +3761,7 @@
     ],
     "gaps": [
       "backend.bounded-children-v1",
+      "backend.identity-columns",
       "backend.notifications",
       "backend.sequences",
       "backend.structured-stored-fields",
@@ -3771,5 +3780,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "286554c1e8372653992834b027fd3396e3ef834032c89982b2e47c6d60b8e80c"
+  "contentHash": "35d277d23485ce74c4b20c807381a05a7b96f510429a67599f7c1c1cb0836c95"
 }

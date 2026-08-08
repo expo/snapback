@@ -1190,6 +1190,15 @@ pub struct FieldManifest {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum FieldType {
     String,
+    /// A closed, declaration-ordered domain of two through eight exact string
+    /// values. The authored order is part of manifest identity and generated
+    /// TypeScript projection; storage remains the ordinary portable text
+    /// representation.
+    ///
+    /// @ref LLP 0004#dated-alignment-stored-literal-union-domains-2026-08-08
+    Enum {
+        values: Vec<String>,
+    },
     Boolean,
     Integer,
     Real,
@@ -4307,6 +4316,7 @@ pub fn validate_vector_index_manifest(
         if !matches!(
             filter.field_type,
             FieldType::String
+                | FieldType::Enum { .. }
                 | FieldType::Boolean
                 | FieldType::Integer
                 | FieldType::Principal
@@ -4421,6 +4431,15 @@ pub(crate) fn expected_search_result_contract(
             FieldType::String => ResultValueContract::String {
                 max_bytes: RESULT_CONTRACT_MAX_VALUE_BYTES,
             },
+            FieldType::Enum { values } => ResultValueContract::Union {
+                variants: values
+                    .iter()
+                    .cloned()
+                    .map(|value| ResultValueContract::Literal {
+                        value: Value::String(value),
+                    })
+                    .collect(),
+            },
             FieldType::Boolean => ResultValueContract::Boolean,
             FieldType::Integer => ResultValueContract::Integer {
                 min: -RESULT_CONTRACT_JS_SAFE_INTEGER,
@@ -4445,8 +4464,14 @@ pub(crate) fn expected_search_result_contract(
             FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
         };
         if field.optional && !matches!(&field.field_type, FieldType::Json) {
-            ResultValueContract::Union {
-                variants: vec![ResultValueContract::Null, value],
+            match value {
+                ResultValueContract::Union { mut variants } => {
+                    variants.insert(0, ResultValueContract::Null);
+                    ResultValueContract::Union { variants }
+                }
+                value => ResultValueContract::Union {
+                    variants: vec![ResultValueContract::Null, value],
+                },
             }
         } else {
             value
@@ -4541,6 +4566,160 @@ pub(crate) fn expected_search_result_contract(
     })
 }
 
+#[cfg(test)]
+mod stored_enum_result_contract_tests {
+    use super::*;
+
+    fn enum_table() -> TableManifest {
+        TableManifest {
+            name: "todos".to_owned(),
+            fields: vec![FieldManifest {
+                name: "role".to_owned(),
+                field_type: FieldType::Enum {
+                    values: vec!["crew".to_owned(), "user".to_owned()],
+                },
+                optional: false,
+            }],
+            indexes: Vec::new(),
+            syncable: false,
+            permission_backing: false,
+            permission_fields: None,
+            search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
+            search_live_limits: None,
+            membership: None,
+            asset_sharing: None,
+            history: None,
+        }
+    }
+
+    #[test]
+    fn stored_enum_expands_to_literal_union_in_effective_search_result_contract() {
+        let table = enum_table();
+        let index = SearchIndexManifestV1 {
+            format_version: 1,
+            name: "search_todos".to_owned(),
+            semantic_version: "todos.v1".to_owned(),
+            analyzer: "unused-by-contract-expansion".to_owned(),
+            analyzer_tables_digest: "unused-by-contract-expansion".to_owned(),
+            text_fields: BTreeMap::new(),
+            field_classifications: BTreeMap::new(),
+            equality_filters: Vec::new(),
+            stored_fields: vec!["role".to_owned()],
+            highlight_fields: Vec::new(),
+            visibility: SearchVisibilityV1::PublicRead,
+            tie_break: "score-desc-row-id-asc.v1".to_owned(),
+            source_limits: SearchSourceLimitsV1::default(),
+            query_limits: SearchQueryLimitsV1::default(),
+            cursor_limits: SearchCursorLimitsV1::default(),
+            maintenance_limits: SearchMaintenanceLimitsV1::default(),
+            live_limits: None,
+        };
+
+        let FunctionResultContract::Records { record, .. } =
+            expected_search_result_contract(&table, &index).expect("expand search contract")
+        else {
+            panic!("search contract must be records");
+        };
+        let ResultValueContract::Object { fields, .. } = record else {
+            panic!("search record must be an object");
+        };
+        let stored = fields
+            .iter()
+            .find(|field| field.name == "fields")
+            .expect("stored-fields object");
+        let ResultValueContract::Object { fields, .. } = &stored.value else {
+            panic!("stored fields must be an object");
+        };
+        assert_eq!(
+            fields,
+            &[ResultObjectFieldContract {
+                name: "role".to_owned(),
+                required: true,
+                value: ResultValueContract::Union {
+                    variants: vec![
+                        ResultValueContract::Literal {
+                            value: Value::String("crew".to_owned()),
+                        },
+                        ResultValueContract::Literal {
+                            value: Value::String("user".to_owned()),
+                        },
+                    ],
+                },
+            }]
+        );
+    }
+
+    #[test]
+    fn stored_enum_expands_to_literal_union_in_document_result_contract() {
+        let table = enum_table();
+        let safe_integer = ResultValueContract::Integer {
+            min: 0,
+            max: 9_007_199_254_740_991,
+        };
+        let contract = FunctionResultContract::Documents {
+            table: "todos".to_owned(),
+            document: ResultValueContract::Object {
+                fields: vec![
+                    ResultObjectFieldContract {
+                        name: "_id".to_owned(),
+                        required: true,
+                        value: ResultValueContract::Id {
+                            table: "todos".to_owned(),
+                        },
+                    },
+                    ResultObjectFieldContract {
+                        name: "_version".to_owned(),
+                        required: true,
+                        value: safe_integer.clone(),
+                    },
+                    ResultObjectFieldContract {
+                        name: "_createdAt".to_owned(),
+                        required: true,
+                        value: safe_integer.clone(),
+                    },
+                    ResultObjectFieldContract {
+                        name: "_updatedAt".to_owned(),
+                        required: true,
+                        value: safe_integer,
+                    },
+                    ResultObjectFieldContract {
+                        name: "role".to_owned(),
+                        required: true,
+                        value: ResultValueContract::Union {
+                            variants: vec![
+                                ResultValueContract::Literal {
+                                    value: Value::String("crew".to_owned()),
+                                },
+                                ResultValueContract::Literal {
+                                    value: Value::String("user".to_owned()),
+                                },
+                            ],
+                        },
+                    },
+                ],
+                allow_extra: false,
+            },
+        };
+        let plan = QueryPlan {
+            table: "todos".to_owned(),
+            filters: Vec::new(),
+            membership_filters: Vec::new(),
+            order: Vec::new(),
+            limit: None,
+            indexed_by: None,
+        };
+        let schema = SchemaManifest {
+            tables: vec![table],
+            ..SchemaManifest::default()
+        };
+
+        assert!(single_table_delta_contract_matches_schema(
+            &contract, &plan, &schema
+        ));
+    }
+}
+
 /// Rust projection of the exact row contract carried inside the ordinary
 /// QueryOutput envelope. The public adapter projects these rows to
 /// `VectorPageV1 { items }`; vector source values are never stored fields.
@@ -4560,6 +4739,15 @@ pub(crate) fn expected_vector_result_contract(
         let value = match &field.field_type {
             FieldType::String => ResultValueContract::String {
                 max_bytes: RESULT_CONTRACT_MAX_VALUE_BYTES,
+            },
+            FieldType::Enum { values } => ResultValueContract::Union {
+                variants: values
+                    .iter()
+                    .cloned()
+                    .map(|value| ResultValueContract::Literal {
+                        value: Value::String(value),
+                    })
+                    .collect(),
             },
             FieldType::Boolean => ResultValueContract::Boolean,
             FieldType::Integer => ResultValueContract::Integer {
@@ -4589,8 +4777,14 @@ pub(crate) fn expected_vector_result_contract(
         };
         Ok(
             if field.optional && !matches!(&field.field_type, FieldType::Json) {
-                ResultValueContract::Union {
-                    variants: vec![ResultValueContract::Null, value],
+                match value {
+                    ResultValueContract::Union { mut variants } => {
+                        variants.insert(0, ResultValueContract::Null);
+                        ResultValueContract::Union { variants }
+                    }
+                    value => ResultValueContract::Union {
+                        variants: vec![ResultValueContract::Null, value],
+                    },
                 }
             } else {
                 value
@@ -4974,6 +5168,15 @@ pub fn single_table_delta_contract_matches_schema(
             FieldType::String => ResultValueContract::String {
                 max_bytes: 1024 * 1024,
             },
+            FieldType::Enum { values } => ResultValueContract::Union {
+                variants: values
+                    .iter()
+                    .cloned()
+                    .map(|value| ResultValueContract::Literal {
+                        value: Value::String(value),
+                    })
+                    .collect(),
+            },
             FieldType::Boolean => ResultValueContract::Boolean,
             FieldType::Integer => ResultValueContract::Integer {
                 min: -9_007_199_254_740_991,
@@ -4998,8 +5201,14 @@ pub fn single_table_delta_contract_matches_schema(
             FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
         };
         let value = if field.optional && !matches!(value, ResultValueContract::Json { .. }) {
-            ResultValueContract::Union {
-                variants: vec![ResultValueContract::Null, value],
+            match value {
+                ResultValueContract::Union { mut variants } => {
+                    variants.insert(0, ResultValueContract::Null);
+                    ResultValueContract::Union { variants }
+                }
+                value => ResultValueContract::Union {
+                    variants: vec![ResultValueContract::Null, value],
+                },
             }
         } else {
             value

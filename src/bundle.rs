@@ -790,6 +790,7 @@ pub fn function_route_arg_types(
         };
         let inferred = match &field.field_type {
             FieldType::String
+            | FieldType::Enum { .. }
             | FieldType::Principal
             | FieldType::Id { .. }
             | FieldType::RelationIncarnation { .. }

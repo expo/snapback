@@ -5,7 +5,12 @@
 **Systems:** API, Storage, Runtime, Sync, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-03 (`single_table_v1@1` owner amendment accepted by
+**Revised:** 2026-08-08 (stored literal-union domains admitted at table fields:
+`v.union([v.literal('a'), v.literal('b')])` lowers to `FieldType::Enum`, a
+`TEXT` column with a central fail-closed write-path domain check, generated
+literal-union types, and one added conservative-applier rule for domain
+narrowing; the CV-4b Spec commission for stored arrays and objects is
+unchanged — see §Dated alignment: stored literal-union domains). 2026-08-03 (`single_table_v1@1` owner amendment accepted by
 Charlie: `SingleTablePlanV1` is the closed normalization of the exact shipped
 `rqsEligible` predicate, with a new class-only 1,024 examined-entry
 establishment refusal; ordinary Query/LiveQuery APIs are unchanged and no
@@ -758,6 +763,105 @@ are not rediscovered:
   a SQLite/Postgres representation decision under §Portability Rules,
   index/`arrayContains`/live-matcher semantics, and LLP 0081 migration
   interaction. Nothing in the result-contract lane de-risks it.
+
+## Dated alignment: stored literal-union domains (2026-08-08)
+
+The 2026-07-30 alignment above split CV-4 into arguments (LLP 0131, shipped)
+and stored fields (CV-4b, Open), and named the stored-field lane "a separate,
+larger design": a `FieldType` extension, a SQLite/Postgres representation
+decision, index/`arrayContains`/live-matcher semantics, and an LLP 0081
+migration interaction. That framing is right for **arrays and objects**. It
+over-charges the **union-of-string-literals** case, which is why LLP 0191 §5
+classes closed stored domains as a schema-fidelity quick win and LLP 0191's
+2026-08-08 ruling OQ5 sequences the §5 schema quick-wins immediately rather
+than behind the CV-4b Spec. This alignment lands that slice under this RFC's
+portability rules; the CV-4b Spec's commission is unchanged and still owns
+arrays, objects, and every question below.
+
+**What is admitted.** A stored table field may declare a closed union of
+string literals:
+
+```js
+role: v.union([v.literal('crew'), v.literal('user')]),
+visibility: v.optional(v.union([v.literal('internal'), v.literal('public')])),
+```
+
+Two to **seven** variants. That is one fewer than LLP 0131's argument bound,
+and the reason is worth recording because it is not arbitrary: an *optional*
+enum field's document contract expands to `null | 'a' | 'b' | …`, and LLP 0108
+bounds a result-contract union at eight variants, so an eight-value optional
+domain would produce a nine-variant contract and refuse. One bound for both
+required and optional fields avoids the evolution trap of the alternative,
+where making an eight-value domain optional later would be refused by a rule
+the author never saw when declaring it. Every variant must be a non-empty
+string literal of at most 64 UTF-8 bytes, and the values must be unique.
+Authored order is identity-significant: it is the order of the generated
+TypeScript union and it feeds the schema hash. Anything else
+— a numeric or boolean literal, a mixed union, a duplicate, the wrong arity —
+still refuses with `SCHEMA_INVALID_VALIDATOR`. `v.array` and `v.object` at
+stored fields are unchanged: still refused, still CV-4b's.
+
+No new authoring spelling is introduced. A dedicated `v.enum([...])` sugar was
+considered and deliberately deferred: LLP 0127 move 1's "one grammar spanning
+arguments, stored fields, results, and failure variants" proposal is still
+unadjudicated in the CV-4b Spec's loop, and admitting the union spelling that
+already exists pre-empts none of it while a second spelling would.
+
+**Why this slice does not need the larger Spec.** Each of CV-4b's four costs
+is absent here. The physical representation is not a decision — an enum field
+is a `TEXT` column, byte-identical to `v.string()`, so `sqlite_type` gains an
+alias, not a mapping. Index, filter, order, and live-matcher semantics are not
+a decision — an enum field is string-like everywhere, so nothing in the query
+surface changes shape. There is no element/containment vocabulary to design,
+because there are no elements. What remains is a domain predicate, and this
+RFC already has the right home for it.
+
+**The `FieldType` extension.** `FieldType::Enum { values }` joins the closed
+vocabulary in `src/manifest.rs`. It is a distinct variant rather than a
+`String` carrying a constraint because the retype gates compare `FieldType`
+values, and the transitions below have to be distinguishable from each other.
+Codegen emits `{"Enum": {"values": ["crew", "user"]}}` in the schema manifest;
+the server re-establishes the same closed rules on ingest and refuses a
+hand-written manifest that violates them with
+`SNAPBACK_SCHEMA_ENUM_DOMAIN_INVALID`.
+
+**Enforcement is central and fail-closed.** The domain is checked at the one
+place every writer funnels through — the declared-field coercion inside
+`insert_document` and `patch_document` — not by a `CHECK` constraint, because
+the server is the single central writer and a constraint would duplicate the
+rule in a place the diagnostics cannot reach. An out-of-domain string refuses
+with `SNAPBACK_FIELD_ENUM_VALUE_INVALID` naming the table, the field, the
+rejected value, and the admitted list; a non-string still refuses with
+`SNAPBACK_FIELD_TYPE_MISMATCH`. This is the point of the change: closed
+authorization-relevant domains (role, visibility) can no longer reach storage
+through a writer that forgot its guard, so query authorization cannot observe
+an unknown role.
+
+**Evolution.** LLP 0007 §Schema Evolution's conservative applier gains one
+rule, recorded there as its own dated amendment: a transition that *narrows*
+an existing field's domain — `String` → `Enum`, or `Enum(A)` → `Enum(B)` where
+A ⊄ B — is admitted only after an in-transaction check proves every existing
+non-NULL value satisfies the successor domain, and otherwise refuses whole
+with `SNAPBACK_SCHEMA_ENUM_DOMAIN_BACKFILL_REQUIRED` naming one offending
+value. Widening — `Enum(A)` → `Enum(B)` with A ⊆ B, or `Enum` → `String` — is
+admitted without a scan. This is the shape of the null-count precedent that
+already governs optional → required, for the same reason: the physical column
+does not move, so the only question is whether the data satisfies the tighter
+declaration. Every other type ↔ `Enum` transition remains
+`SNAPBACK_SCHEMA_FIELD_RETYPED`. The reviewed LLP 0081 lane is untouched: its
+closed intent vocabulary still classes an enum type change as a declared
+`ConvertField`, and aligning `derive_intents` with the admitted transitions
+above is a named follow-on, not a claim made here.
+
+**What is not claimed.** Postgres is unimplemented, as everywhere else in this
+RFC; the portable intent is `GENERATED`-free plain `TEXT` plus the same
+server-side domain check, deliberately *not* a native `CREATE TYPE ... AS
+ENUM`, whose ALTER story is worse than the manifest's. Nothing here narrows or
+widens CV-4b. Nothing here touches numeric identity or default columns, which
+LLP 0191's OQ2 ruling routes through the commissioned coordinating
+identity-architecture Decision (`issues/20260808-identity-architecture-decision.md`);
+see the companion note under §Portability Rules' owner, LLP 0007, for why the
+schema surface deliberately did not grow a counter of its own.
 
 ## Status
 

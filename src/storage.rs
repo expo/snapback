@@ -12717,6 +12717,42 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
                     format!("duplicate field {}.{}", table.name, field.name),
                 ));
             }
+            if let FieldType::Enum { values } = &field.field_type {
+                // Seven, not the argument grammar's eight: an optional field's
+                // document contract expands to `null | …`, and LLP 0108 bounds
+                // a result union at eight variants. One bound for required and
+                // optional fields keeps a later optional-ization from refusing.
+                let invalid = if values.len() < 2 || values.len() > 7 {
+                    Some(format!(
+                        "enum domain must contain 2–7 values, got {}",
+                        values.len()
+                    ))
+                } else if values.iter().any(String::is_empty) {
+                    Some("enum domain values must be non-empty".to_owned())
+                } else if let Some(value) = values.iter().find(|value| value.len() > 64) {
+                    Some(format!(
+                        "enum value {value:?} is {} UTF-8 bytes; the maximum is 64",
+                        value.len()
+                    ))
+                } else if values.iter().collect::<BTreeSet<_>>().len() != values.len() {
+                    Some("enum domain values must be unique".to_owned())
+                } else {
+                    None
+                };
+                if let Some(reason) = invalid {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SCHEMA_ENUM_DOMAIN_INVALID",
+                        "schema",
+                        format!(
+                            "stored enum {}.{} is invalid: {reason}",
+                            table.name, field.name
+                        ),
+                    )
+                    .with_detail("table", table.name.clone())
+                    .with_detail("field", field.name.clone())
+                    .with_detail("reason", reason));
+                }
+            }
             if let FieldType::RelationIncarnation {
                 foreign_key_field,
                 parent_table,
@@ -12963,6 +12999,7 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
                 if !matches!(
                     declared.field_type,
                     FieldType::String
+                        | FieldType::Enum { .. }
                         | FieldType::Boolean
                         | FieldType::Integer
                         | FieldType::Principal
@@ -13218,7 +13255,13 @@ fn reject_field_retypes(current: &SchemaManifest, next: &SchemaManifest) -> Snap
             let Some(current_field) = current_table.field(&field.name) else {
                 continue;
             };
-            if current_field.field_type != field.field_type {
+            let enum_transition = matches!(
+                (&current_field.field_type, &field.field_type),
+                (FieldType::Enum { .. }, FieldType::Enum { .. })
+                    | (FieldType::String, FieldType::Enum { .. })
+                    | (FieldType::Enum { .. }, FieldType::String)
+            );
+            if current_field.field_type != field.field_type && !enum_transition {
                 return Err(SnapbackError::error(
                     "SNAPBACK_SCHEMA_FIELD_RETYPED",
                     "schema",
@@ -13235,6 +13278,73 @@ fn reject_field_retypes(current: &SchemaManifest, next: &SchemaManifest) -> Snap
                 .with_detail("field", field.name.clone())
                 .with_detail("existingType", field_type_name(&current_field.field_type))
                 .with_detail("requestedType", field_type_name(&field.field_type)));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Prove every representation-preserving enum tightening against the exact
+/// predecessor rows before additive DDL or manifest publication. Widening an
+/// enum and widening an enum back to String are declaration-only changes.
+///
+/// @ref LLP 0004#dated-alignment-stored-literal-union-domains-2026-08-08
+fn validate_enum_domain_evolution(
+    conn: &Connection,
+    current: &SchemaManifest,
+    next: &SchemaManifest,
+) -> SnapbackResult<()> {
+    for table in &next.tables {
+        let Some(current_table) = current.table(&table.name) else {
+            continue;
+        };
+        for field in &table.fields {
+            let Some(previous) = current_table.field(&field.name) else {
+                continue;
+            };
+            let admitted = match (&previous.field_type, &field.field_type) {
+                (FieldType::Enum { values: before }, FieldType::Enum { values: after })
+                    if before.iter().all(|value| after.contains(value)) =>
+                {
+                    continue;
+                }
+                (FieldType::Enum { .. }, FieldType::Enum { values })
+                | (FieldType::String, FieldType::Enum { values }) => values,
+                (FieldType::Enum { .. }, FieldType::String) => continue,
+                _ => continue,
+            };
+
+            let placeholders = (1..=admitted.len())
+                .map(|index| format!("?{index}"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            let quoted_table = quote_ident(&table.name)?;
+            let quoted_field = quote_ident(&field.name)?;
+            let offending: Option<String> = conn
+                .query_row(
+                    &format!(
+                        "SELECT {quoted_field} FROM {quoted_table} \
+                         WHERE {quoted_field} IS NOT NULL \
+                           AND {quoted_field} NOT IN ({placeholders}) \
+                         LIMIT 1"
+                    ),
+                    params_from_iter(admitted.iter()),
+                    |row| row.get(0),
+                )
+                .optional()?;
+            if let Some(offending_value) = offending {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_SCHEMA_ENUM_DOMAIN_BACKFILL_REQUIRED",
+                    "schema",
+                    reviewed_migration_next_step(format!(
+                        "field {}.{} cannot adopt enum domain {:?} while stored value {:?} is outside it",
+                        table.name, field.name, admitted, offending_value
+                    )),
+                )
+                .with_detail("table", table.name.clone())
+                .with_detail("field", field.name.clone())
+                .with_detail("admitted", admitted.clone())
+                .with_detail("offendingValue", offending_value));
             }
         }
     }
@@ -13362,6 +13472,7 @@ fn reject_unsafe_required_field_changes(
 fn field_type_name(field_type: &FieldType) -> &'static str {
     match field_type {
         FieldType::String => "String",
+        FieldType::Enum { .. } => "Enum",
         FieldType::Boolean => "Boolean",
         FieldType::Integer => "Integer",
         FieldType::Real => "Real",
@@ -14398,6 +14509,7 @@ fn validate_query_filter_value(
         } else {
             match field.field_type {
                 FieldType::String
+                | FieldType::Enum { .. }
                 | FieldType::Principal
                 | FieldType::Id { .. }
                 | FieldType::RelationIncarnation { .. }
@@ -18807,7 +18919,12 @@ fn insert_document(
                 ));
             }
         };
-        values.push(json_to_sql_value(&value, Some(&field.field_type))?);
+        values.push(json_to_sql_value_for_field(
+            &value,
+            &field.field_type,
+            &table.name,
+            &field.name,
+        )?);
         columns.push(field.name.clone());
         document.insert(
             field.name.clone(),
@@ -19592,7 +19709,12 @@ fn patch_document(
             return Err(relation_incarnation_write_protected(table, field));
         }
         validate_declared_field_value(field_manifest, value)?;
-        json_to_sql_value(value, Some(&field_manifest.field_type))?;
+        json_to_sql_value_for_field(
+            value,
+            &field_manifest.field_type,
+            &table.name,
+            field,
+        )?;
     }
 
     let current = get_document_from_tx(tx, table, id, version)?;
@@ -19661,7 +19783,12 @@ fn patch_document(
         validate_declared_field_value(field_manifest, value)?;
         validate_order_field_bound(order_field_bounds, table, id, field_manifest, value)?;
         assignments.push(format!("{} = ?", quote_ident(field)?));
-        values.push(json_to_sql_value(value, Some(&field_manifest.field_type))?);
+        values.push(json_to_sql_value_for_field(
+            value,
+            &field_manifest.field_type,
+            &table.name,
+            field,
+        )?);
     }
     values.push(SqlValue::Text(id.to_owned()));
 
@@ -20231,6 +20358,7 @@ fn sqlite_to_json_with_staged_null(
     match (&field.field_type, value) {
         (
             FieldType::String
+            | FieldType::Enum { .. }
             | FieldType::Principal
             | FieldType::Id { .. }
             | FieldType::RelationIncarnation { .. }
@@ -20354,6 +20482,23 @@ fn portable_integer_value(value: &Value) -> Option<i64> {
 }
 
 fn json_to_sql_value(value: &Value, field_type: Option<&FieldType>) -> SnapbackResult<SqlValue> {
+    json_to_sql_value_with_context(value, field_type, None)
+}
+
+fn json_to_sql_value_for_field(
+    value: &Value,
+    field_type: &FieldType,
+    table: &str,
+    field: &str,
+) -> SnapbackResult<SqlValue> {
+    json_to_sql_value_with_context(value, Some(field_type), Some((table, field)))
+}
+
+fn json_to_sql_value_with_context(
+    value: &Value,
+    field_type: Option<&FieldType>,
+    write_context: Option<(&str, &str)>,
+) -> SnapbackResult<SqlValue> {
     if value.is_null() {
         return Ok(SqlValue::Null);
     }
@@ -20395,6 +20540,31 @@ fn json_to_sql_value(value: &Value, field_type: Option<&FieldType>) -> SnapbackR
             .as_str()
             .map(|value| SqlValue::Text(value.to_owned()))
             .ok_or_else(|| type_error("string", value)),
+        Some(FieldType::Enum { values }) => {
+            let string = value
+                .as_str()
+                .ok_or_else(|| type_error("enum string", value))?;
+            // @ref LLP 0004#dated-alignment-stored-literal-union-domains-2026-08-08
+            //   the central stored-value coercion is the sole domain guard for
+            //   inserts, patches, seeds, and every buffered writer.
+            if let Some((table, field)) = write_context
+                && !values.iter().any(|admitted| admitted == string)
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
+                    "storage",
+                    format!(
+                        "field {table}.{field} must be one of the admitted values {:?}",
+                        values
+                    ),
+                )
+                .with_detail("table", table.to_owned())
+                .with_detail("field", field.to_owned())
+                .with_detail("value", string.to_owned())
+                .with_detail("admitted", values.clone()));
+            }
+            Ok(SqlValue::Text(string.to_owned()))
+        }
         Some(FieldType::Boolean) => value
             .as_bool()
             .map(|value| SqlValue::Integer(i64::from(value)))
@@ -20438,6 +20608,10 @@ fn json_to_sql_value(value: &Value, field_type: Option<&FieldType>) -> SnapbackR
 fn normalize_json_value(value: Value, field_type: &FieldType) -> SnapbackResult<Value> {
     match field_type {
         FieldType::Json => Ok(value),
+        FieldType::Enum { .. } => {
+            json_to_sql_value(&value, Some(field_type))?;
+            Ok(value)
+        }
         // @ref LLP 0073#authorization-and-result-release — a validator-accepted
         // integral Real (JSON `5`) would otherwise stay an integer in the
         // in-memory document while the same row reloads from a SQLite REAL
@@ -20592,6 +20766,7 @@ fn is_system_field(field: &str) -> bool {
 fn sqlite_type(field_type: &FieldType) -> &'static str {
     match field_type {
         FieldType::String
+        | FieldType::Enum { .. }
         | FieldType::Json
         | FieldType::Principal
         | FieldType::Id { .. }
@@ -21576,6 +21751,485 @@ mod vector_storage_carrier_tests {
             .expect("row reload")
             .expect("stored row");
         assert_eq!(row["embedding"], json!([0.0, 2.0, 3.0]));
+    }
+}
+
+#[cfg(test)]
+mod stored_enum_tests {
+    use super::*;
+
+    fn field(name: &str, field_type: FieldType, optional: bool) -> FieldManifest {
+        FieldManifest {
+            name: name.to_owned(),
+            field_type,
+            optional,
+        }
+    }
+
+    fn domain(values: &[&str]) -> FieldType {
+        FieldType::Enum {
+            values: values.iter().map(|value| (*value).to_owned()).collect(),
+        }
+    }
+
+    fn schema(fields: Vec<FieldManifest>) -> SchemaManifest {
+        SchemaManifest {
+            tables: vec![TableManifest {
+                name: "items".to_owned(),
+                fields,
+                indexes: Vec::new(),
+                syncable: false,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
+                search_live_limits: None,
+                membership: None,
+                asset_sharing: None,
+                history: None,
+            }],
+            ..SchemaManifest::default()
+        }
+    }
+
+    fn insert(db: &mut LocalDatabase, id: &str, values: Map<String, Value>) -> SnapbackResult<()> {
+        db.commit_buffered_writes(
+            &HandlerInput::default(),
+            vec![BufferedWrite::Insert {
+                table: "items".to_owned(),
+                id: id.to_owned(),
+                values,
+            }],
+            Vec::new(),
+            Value::Null,
+        )?;
+        Ok(())
+    }
+
+    #[test]
+    fn enum_manifest_wire_shape_and_domain_admission_are_closed() {
+        assert_eq!(
+            serde_json::to_value(domain(&["admin", "member"])).expect("serialize enum"),
+            json!({ "Enum": { "values": ["admin", "member"] } })
+        );
+
+        let invalid_domains = vec![
+            vec!["only".to_owned()],
+            // Eight refuses: the stored bound is seven so an optional field's
+            // `null | …` document contract stays inside LLP 0108's eight.
+            (0..8).map(|index| format!("v{index}")).collect(),
+            vec!["".to_owned(), "ok".to_owned()],
+            vec!["a".repeat(65), "ok".to_owned()],
+            vec!["same".to_owned(), "same".to_owned()],
+        ];
+        for values in invalid_domains {
+            let mut db = LocalDatabase::memory().expect("memory database");
+            let error = db
+                .apply_schema(schema(vec![field(
+                    "role",
+                    FieldType::Enum { values },
+                    false,
+                )]))
+                .expect_err("invalid enum domain must refuse");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_SCHEMA_ENUM_DOMAIN_INVALID");
+            let physical: i64 = db
+                .conn
+                .query_row(
+                    "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='items'",
+                    [],
+                    |row| row.get(0),
+                )
+                .expect("physical table probe");
+            assert_eq!(physical, 0, "invalid enum must refuse before DDL");
+            assert!(db.schema().table("items").is_none());
+        }
+    }
+
+    #[test]
+    fn enum_lowers_to_text_and_central_writes_enforce_the_domain() {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(schema(vec![field(
+            "role",
+            domain(&["admin", "member"]),
+            false,
+        ), field(
+            "visibility",
+            domain(&["internal", "public"]),
+            true,
+        )]))
+        .expect("apply enum schema");
+
+        let (declared, not_null): (String, i64) = db
+            .conn
+            .query_row(
+                "SELECT type, \"notnull\" FROM pragma_table_info('items') WHERE name='role'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("enum column declaration");
+        assert_eq!(declared, "TEXT");
+        assert_eq!(not_null, 1);
+        let (optional_declared, optional_not_null): (String, i64) = db
+            .conn
+            .query_row(
+                "SELECT type, \"notnull\" FROM pragma_table_info('items') WHERE name='visibility'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("optional enum column declaration");
+        assert_eq!(optional_declared, "TEXT");
+        assert_eq!(optional_not_null, 0);
+
+        insert(
+            &mut db,
+            "item_ok",
+            Map::from_iter([("role".to_owned(), json!("admin"))]),
+        )
+        .expect("admitted enum insert");
+        assert_eq!(db.get("items", "item_ok").unwrap().unwrap()["role"], "admin");
+
+        let non_string = insert(
+            &mut db,
+            "item_number",
+            Map::from_iter([("role".to_owned(), json!(7))]),
+        )
+        .expect_err("non-string enum insert refuses");
+        assert_eq!(non_string.diagnostic.code, "SNAPBACK_FIELD_TYPE_MISMATCH");
+
+        let outside = insert(
+            &mut db,
+            "item_outside",
+            Map::from_iter([("role".to_owned(), json!("owner"))]),
+        )
+        .expect_err("out-of-domain enum insert refuses");
+        assert_eq!(outside.diagnostic.code, "SNAPBACK_FIELD_ENUM_VALUE_INVALID");
+        assert_eq!(outside.diagnostic.details["table"], "items");
+        assert_eq!(outside.diagnostic.details["field"], "role");
+        assert_eq!(outside.diagnostic.details["value"], "owner");
+        assert_eq!(outside.diagnostic.details["admitted"], json!(["admin", "member"]));
+        assert!(db.get("items", "item_outside").unwrap().is_none());
+
+        let required_null = insert(
+            &mut db,
+            "item_required_null",
+            Map::from_iter([("role".to_owned(), Value::Null)]),
+        )
+        .expect_err("null required enum refuses");
+        assert_eq!(required_null.diagnostic.code, "SNAPBACK_FIELD_TYPE_MISMATCH");
+        assert!(db.get("items", "item_required_null").unwrap().is_none());
+        insert(
+            &mut db,
+            "item_optional_null",
+            Map::from_iter([
+                ("role".to_owned(), json!("member")),
+                ("visibility".to_owned(), Value::Null),
+            ]),
+        )
+        .expect("null optional enum commits");
+        assert_eq!(
+            db.get("items", "item_optional_null").unwrap().unwrap()["visibility"],
+            Value::Null
+        );
+
+        db.commit_buffered_writes(
+            &HandlerInput::default(),
+            vec![BufferedWrite::Patch {
+                table: "items".to_owned(),
+                id: "item_ok".to_owned(),
+                values: Map::from_iter([("role".to_owned(), json!("member"))]),
+            }],
+            Vec::new(),
+            Value::Null,
+        )
+        .expect("admitted enum patch");
+        let refused_patch = db
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Patch {
+                    table: "items".to_owned(),
+                    id: "item_ok".to_owned(),
+                    values: Map::from_iter([("role".to_owned(), json!("owner"))]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect_err("out-of-domain enum patch refuses");
+        assert_eq!(
+            refused_patch.diagnostic.code,
+            "SNAPBACK_FIELD_ENUM_VALUE_INVALID"
+        );
+        assert_eq!(db.get("items", "item_ok").unwrap().unwrap()["role"], "member");
+    }
+
+    #[test]
+    fn optional_enum_field_addition_admits_on_a_nonempty_table() {
+        let base = schema(vec![field("title", FieldType::String, false)]);
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(base).expect("apply base schema");
+        insert(
+            &mut db,
+            "nonempty",
+            Map::from_iter([("title".to_owned(), json!("hello"))]),
+        )
+        .expect("seed nonempty table");
+        db
+            .apply_schema(schema(vec![
+                field("title", FieldType::String, false),
+                field("state", domain(&["open", "closed"]), true),
+            ]))
+            .expect("optional enum field can be added to nonempty table");
+        assert_eq!(
+            db.schema().table("items").unwrap().field("state").unwrap().field_type,
+            domain(&["open", "closed"])
+        );
+    }
+
+    #[test]
+    fn required_enum_field_addition_admits_only_on_an_empty_table() {
+        let base = schema(vec![field("title", FieldType::String, false)]);
+        let mut empty = LocalDatabase::memory().expect("memory database");
+        empty.apply_schema(base.clone()).expect("apply base schema");
+        empty
+            .apply_schema(schema(vec![
+                field("title", FieldType::String, false),
+                field("state", domain(&["open", "closed"]), false),
+            ]))
+            .expect("required enum field can be added to empty table");
+
+        let mut nonempty = LocalDatabase::memory().expect("memory database");
+        nonempty.apply_schema(base).expect("apply base schema");
+        insert(
+            &mut nonempty,
+            "nonempty",
+            Map::from_iter([("title".to_owned(), json!("hello"))]),
+        )
+        .expect("seed nonempty table");
+        let error = nonempty
+            .apply_schema(schema(vec![
+                field("title", FieldType::String, false),
+                field("state", domain(&["open", "closed"]), false),
+            ]))
+            .expect_err("required enum field needs a backfill");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED"
+        );
+        assert!(
+            nonempty.schema().table("items").unwrap().field("state").is_none(),
+            "refusal leaves the manifest unchanged"
+        );
+        let state_columns: i64 = nonempty
+            .conn
+            .query_row(
+                "SELECT count(*) FROM pragma_table_info('items') WHERE name='state'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("new-column probe");
+        assert_eq!(state_columns, 0, "refusal occurs before additive DDL");
+    }
+
+    #[test]
+    fn enum_domain_widening_admits_without_touching_rows() {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db
+            .apply_schema(schema(vec![field(
+                "state",
+                domain(&["open", "closed"]),
+                false,
+            )]))
+            .expect("apply narrow enum");
+        insert(
+            &mut db,
+            "open_item",
+            Map::from_iter([("state".to_owned(), json!("open"))]),
+        )
+        .expect("seed admitted value");
+        db
+            .apply_schema(schema(vec![field(
+                "state",
+                domain(&["closed", "open", "archived"]),
+                false,
+            )]))
+            .expect("enum subset widening is declaration-only");
+        assert_eq!(db.get("items", "open_item").unwrap().unwrap()["state"], "open");
+    }
+
+    #[test]
+    fn enum_domain_narrowing_scans_existing_rows_in_the_activation_transaction() {
+        let mut conforming = LocalDatabase::memory().expect("memory database");
+        conforming
+            .apply_schema(schema(vec![field(
+                "state",
+                domain(&["open", "closed", "archived"]),
+                false,
+            )]))
+            .expect("apply wide enum");
+        insert(
+            &mut conforming,
+            "open_item",
+            Map::from_iter([("state".to_owned(), json!("open"))]),
+        )
+        .expect("seed conforming value");
+        conforming
+            .apply_schema(schema(vec![field(
+                "state",
+                domain(&["open", "closed"]),
+                false,
+            )]))
+            .expect("conforming enum narrowing succeeds");
+
+        let mut refusing = LocalDatabase::memory().expect("memory database");
+        refusing
+            .apply_schema(schema(vec![field(
+                "state",
+                domain(&["open", "closed", "archived"]),
+                false,
+            )]))
+            .expect("apply wide enum");
+        insert(
+            &mut refusing,
+            "archived_item",
+            Map::from_iter([("state".to_owned(), json!("archived"))]),
+        )
+        .expect("seed soon-to-be excluded value");
+        let error = refusing
+            .apply_schema(schema(vec![
+                field("state", domain(&["open", "closed"]), false),
+                field("note", FieldType::String, true),
+            ]))
+            .expect_err("nonconforming enum narrowing refuses");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_SCHEMA_ENUM_DOMAIN_BACKFILL_REQUIRED"
+        );
+        assert_eq!(error.diagnostic.details["table"], "items");
+        assert_eq!(error.diagnostic.details["field"], "state");
+        assert_eq!(error.diagnostic.details["offendingValue"], "archived");
+        assert_eq!(error.diagnostic.details["admitted"], json!(["open", "closed"]));
+        assert!(error.diagnostic.message.contains("snapback migrate preview --help"));
+        assert_eq!(
+            refusing.schema().table("items").unwrap().field("state").unwrap().field_type,
+            domain(&["open", "closed", "archived"]),
+            "refusal leaves the manifest unchanged"
+        );
+        let note_columns: i64 = refusing
+            .conn
+            .query_row(
+                "SELECT count(*) FROM pragma_table_info('items') WHERE name='note'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("new-column probe");
+        assert_eq!(note_columns, 0, "refusal occurs before additive DDL");
+    }
+
+    #[test]
+    fn string_to_enum_scans_existing_rows_in_the_activation_transaction() {
+        let mut conforming = LocalDatabase::memory().expect("memory database");
+        conforming
+            .apply_schema(schema(vec![field("state", FieldType::String, false)]))
+            .expect("apply string schema");
+        insert(
+            &mut conforming,
+            "open_item",
+            Map::from_iter([("state".to_owned(), json!("open"))]),
+        )
+        .expect("seed conforming string");
+        conforming
+            .apply_schema(schema(vec![field(
+                "state",
+                domain(&["open", "closed"]),
+                false,
+            )]))
+            .expect("conforming string to enum succeeds");
+
+        let mut refusing = LocalDatabase::memory().expect("memory database");
+        refusing
+            .apply_schema(schema(vec![field("state", FieldType::String, false)]))
+            .expect("apply string schema");
+        insert(
+            &mut refusing,
+            "pending_item",
+            Map::from_iter([("state".to_owned(), json!("pending"))]),
+        )
+        .expect("seed nonconforming string");
+        let error = refusing
+            .apply_schema(schema(vec![
+                field("state", domain(&["open", "closed"]), false),
+                field("note", FieldType::String, true),
+            ]))
+            .expect_err("nonconforming string to enum refuses");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_SCHEMA_ENUM_DOMAIN_BACKFILL_REQUIRED"
+        );
+        assert_eq!(error.diagnostic.details["offendingValue"], "pending");
+        assert_eq!(
+            refusing.schema().table("items").unwrap().field("state").unwrap().field_type,
+            FieldType::String
+        );
+        let note_columns: i64 = refusing
+            .conn
+            .query_row(
+                "SELECT count(*) FROM pragma_table_info('items') WHERE name='note'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("new-column probe");
+        assert_eq!(note_columns, 0, "refusal occurs before additive DDL");
+    }
+
+    #[test]
+    fn enum_to_string_admits_without_touching_rows() {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(schema(vec![field(
+            "state",
+            domain(&["open", "closed"]),
+            false,
+        )]))
+        .expect("apply enum schema");
+        insert(
+            &mut db,
+            "open_item",
+            Map::from_iter([("state".to_owned(), json!("open"))]),
+        )
+        .expect("seed enum row");
+        db.apply_schema(schema(vec![field("state", FieldType::String, false)]))
+            .expect("enum to string is declaration-only");
+        assert_eq!(
+            db.schema().table("items").unwrap().field("state").unwrap().field_type,
+            FieldType::String
+        );
+        assert_eq!(db.get("items", "open_item").unwrap().unwrap()["state"], "open");
+    }
+
+    #[test]
+    fn non_string_scalar_to_enum_remains_a_logical_retype() {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(schema(vec![field("state", FieldType::Integer, false)]))
+            .expect("apply integer schema");
+        let error = db
+            .apply_schema(schema(vec![field(
+                "state",
+                domain(&["open", "closed"]),
+                false,
+            )]))
+            .expect_err("integer to enum remains a retype");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_SCHEMA_FIELD_RETYPED");
+        assert_eq!(
+            db.schema().table("items").unwrap().field("state").unwrap().field_type,
+            FieldType::Integer
+        );
+        let declared: String = db
+            .conn
+            .query_row(
+                "SELECT type FROM pragma_table_info('items') WHERE name='state'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("integer column declaration");
+        assert_eq!(declared, "INTEGER");
     }
 }
 

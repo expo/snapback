@@ -311,6 +311,10 @@ export function validatorResultValue(validator, {
       value = scalar('string', {
         maxBytes: options.maxBytes ?? RESULT_MAX_STRING_BYTES,
       });
+    } else if (fieldType && typeof fieldType === 'object' && fieldType.Enum) {
+      value = scalar('union', {
+        variants: fieldType.Enum.values.map((literal) => scalar('literal', { value: literal })),
+      });
     } else if (fieldType === 'Boolean') value = scalar('boolean');
     else if (fieldType === 'Integer') {
       value = scalar('integer', {
@@ -402,9 +406,7 @@ function tableDocumentValue(table, tables) {
       value: field.optional
         // JSON already includes null. Wrapping it in null|json creates an
         // overlapping union that the closed contract grammar must reject.
-        ? (stored.kind === 'json' ? stored : scalar('union', {
-            variants: [scalar('null'), stored],
-          }))
+        ? (stored.kind === 'json' ? stored : nullableValue(stored))
         : stored,
     });
   }
@@ -423,7 +425,7 @@ function tableFieldValue(field) {
   // Search stores every declared projection key. An absent optional source
   // value is materialized as JSON null by the Rust authority.
   return field.optional
-    ? (value.kind === 'json' ? value : scalar('union', { variants: [scalar('null'), value] }))
+    ? (value.kind === 'json' ? value : nullableValue(value))
     : value;
 }
 
@@ -433,6 +435,9 @@ function nullableValue(value) {
     value.kind === 'union'
     && value.variants.some((variant) => variant.kind === 'null')
   ) return value;
+  if (value.kind === 'union') {
+    return scalar('union', { variants: [scalar('null'), ...value.variants] });
+  }
   return scalar('union', { variants: [scalar('null'), value] });
 }
 
