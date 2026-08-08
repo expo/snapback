@@ -48,6 +48,11 @@ pub const JOBS_DRAIN_MAX_WAVES: usize = 16;
 pub const JOBS_BACKOFF_BASE_MS: u64 = 1_000;
 pub const JOBS_BACKOFF_CAP_MS: u64 = 60_000;
 pub const JOBS_JITTER_CEILING_MS: u64 = 1_000;
+/// Terminal job detail remains inspectable for 30 days. Later bounded sweeps
+/// discard canonical args and attempt receipts while preserving the scoped
+/// idempotency tombstone below.
+pub const JOBS_TERMINAL_RETENTION_MS: u64 = 2_592_000_000;
+pub const JOBS_RETENTION_SWEEP_LIMIT: usize = 64;
 
 /// One enqueue buffered by a mutation handler, carried with the mutation's
 /// other buffered effects to the single SQLite commit. Validation happened at
@@ -350,9 +355,124 @@ pub fn create_jobs_infra(conn: &Connection) -> SnapbackResult<()> {
           grant_digest TEXT NOT NULL,
           FOREIGN KEY(job_id) REFERENCES _snapback_jobs_v1(job_id) ON DELETE CASCADE
         );
+        CREATE TABLE IF NOT EXISTS _snapback_job_idempotency_tombstones_v1 (
+          queue TEXT NOT NULL,
+          action TEXT NOT NULL,
+          idempotency_key TEXT NOT NULL,
+          job_id TEXT NOT NULL,
+          args_digest TEXT NOT NULL,
+          max_attempts INTEGER NOT NULL,
+          push_grant_digest TEXT,
+          available_at_ms INTEGER NOT NULL,
+          terminal_state TEXT NOT NULL,
+          terminal_at_ms INTEGER NOT NULL,
+          successor_job_id TEXT,
+          PRIMARY KEY (queue, action, idempotency_key)
+        );
         ",
     )?;
     Ok(())
+}
+
+/// Compact at most `limit` expired terminal jobs. The large/user-bearing
+/// rows are removed atomically; keyed jobs leave only the identity and
+/// fingerprint needed to preserve enqueue idempotency.
+///
+/// @ref LLP 0070#inspection-audit-and-recovery — canonical args and attempt
+/// detail expire after the terminal window while the scoped key, canonical
+/// digest, action/queue identity, terminal disposition, and successor link
+/// remain as the minimal tombstone.
+pub fn reap_terminal_jobs_in_tx(
+    tx: &Connection,
+    now_ms: u64,
+    limit: usize,
+) -> SnapbackResult<Vec<String>> {
+    let Some(cutoff_ms) = now_ms.checked_sub(JOBS_TERMINAL_RETENTION_MS) else {
+        return Ok(Vec::new());
+    };
+    if limit == 0 {
+        return Ok(Vec::new());
+    }
+    struct ExpiredJob {
+        job_id: String,
+        queue: String,
+        action: String,
+        idempotency_key: Option<String>,
+        args_digest: String,
+        max_attempts: u32,
+        push_grant_digest: Option<String>,
+        available_at_ms: u64,
+        terminal_state: String,
+        terminal_at_ms: u64,
+    }
+    let mut statement = tx.prepare(
+        "SELECT job.job_id, job.queue, job.action, job.idempotency_key,
+                job.args_digest, job.max_attempts, grant.grant_digest,
+                job.available_at_ms, job.state, job.terminal_at_ms
+           FROM _snapback_jobs_v1 AS job
+           LEFT JOIN _snapback_job_push_grants_v1 AS grant ON grant.job_id = job.job_id
+          WHERE job.state IN ('succeeded', 'dead', 'cancelled')
+            AND job.terminal_at_ms IS NOT NULL
+            AND job.terminal_at_ms <= ?1
+          ORDER BY job.terminal_at_ms ASC, job.job_id ASC
+          LIMIT ?2",
+    )?;
+    let expired = statement
+        .query_map(params![cutoff_ms, limit as i64], |row| {
+            Ok(ExpiredJob {
+                job_id: row.get(0)?,
+                queue: row.get(1)?,
+                action: row.get(2)?,
+                idempotency_key: row.get(3)?,
+                args_digest: row.get(4)?,
+                max_attempts: row.get(5)?,
+                push_grant_digest: row.get(6)?,
+                available_at_ms: row.get(7)?,
+                terminal_state: row.get(8)?,
+                terminal_at_ms: row.get(9)?,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    drop(statement);
+
+    let mut reaped = Vec::with_capacity(expired.len());
+    for job in expired {
+        if let Some(idempotency_key) = job.idempotency_key {
+            tx.execute(
+                "INSERT INTO _snapback_job_idempotency_tombstones_v1 (
+                   queue, action, idempotency_key, job_id, args_digest,
+                   max_attempts, push_grant_digest, available_at_ms,
+                   terminal_state, terminal_at_ms, successor_job_id
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, NULL)",
+                params![
+                    job.queue,
+                    job.action,
+                    idempotency_key,
+                    job.job_id,
+                    job.args_digest,
+                    job.max_attempts,
+                    job.push_grant_digest,
+                    job.available_at_ms,
+                    job.terminal_state,
+                    job.terminal_at_ms,
+                ],
+            )?;
+        }
+        tx.execute(
+            "DELETE FROM _snapback_job_attempts_v1 WHERE job_id = ?1",
+            params![job.job_id],
+        )?;
+        tx.execute(
+            "DELETE FROM _snapback_job_push_grants_v1 WHERE job_id = ?1",
+            params![job.job_id],
+        )?;
+        tx.execute(
+            "DELETE FROM _snapback_jobs_v1 WHERE job_id = ?1",
+            params![job.job_id],
+        )?;
+        reaped.push(job.job_id);
+    }
+    Ok(reaped)
 }
 
 /// Canonical argument bytes and their digest (LLP 0070: canonical,
@@ -464,13 +584,34 @@ pub fn find_job_by_scoped_idempotency(
     action: &str,
     idempotency_key: &str,
 ) -> SnapbackResult<Option<ExistingIdempotentJob>> {
-    Ok(conn
+    let live = conn
         .query_row(
             "SELECT job.job_id, job.args_digest, job.max_attempts, job.available_at_ms,
                     grant.grant_digest
                FROM _snapback_jobs_v1 AS job
                LEFT JOIN _snapback_job_push_grants_v1 AS grant ON grant.job_id = job.job_id
               WHERE job.queue = ?1 AND job.action = ?2 AND job.idempotency_key = ?3",
+            params![queue, action, idempotency_key],
+            |row| {
+                Ok(ExistingIdempotentJob {
+                    job_id: row.get(0)?,
+                    args_digest: row.get(1)?,
+                    max_attempts: row.get(2)?,
+                    available_at_ms: row.get(3)?,
+                    push_grant_digest: row.get(4)?,
+                })
+            },
+        )
+        .optional()?;
+    if live.is_some() {
+        return Ok(live);
+    }
+    Ok(conn
+        .query_row(
+            "SELECT job_id, args_digest, max_attempts, available_at_ms,
+                    push_grant_digest
+               FROM _snapback_job_idempotency_tombstones_v1
+              WHERE queue = ?1 AND action = ?2 AND idempotency_key = ?3",
             params![queue, action, idempotency_key],
             |row| {
                 Ok(ExistingIdempotentJob {
@@ -1396,5 +1537,92 @@ mod tests {
         identical.idempotency_key = Some("key".into());
         let error = insert_enqueued_jobs_in_tx(&tx, &producer(), 2, &[identical], 1).unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_JOB_IDEMPOTENCY_KEY_RACED");
+    }
+
+    #[test]
+    fn terminal_retention_sweep_is_bounded_and_keeps_only_idempotency_tombstones() {
+        let conn = memory_conn();
+        let mut keyed = enqueue("job_a", 0);
+        keyed.args = json!({ "private": "terminal-payload" });
+        keyed.idempotency_key = Some("stable-key".into());
+        let (_, expected_args_digest) = canonical_args(&keyed.args).unwrap();
+        let unkeyed = enqueue("job_b", 0);
+        insert_enqueued_jobs_in_tx(&conn, &producer(), 1, &[keyed, unkeyed], 0).unwrap();
+
+        let mut claim_number = 0;
+        let mut claim_ids = || {
+            claim_number += 1;
+            format!("claim_{claim_number}")
+        };
+        let claims = claim_due_jobs_in_tx(&conn, 0, 2, "forced-drain", &mut claim_ids).unwrap();
+        for claim in &claims {
+            assert_eq!(
+                finish_job_in_tx(&conn, claim, &JobAttemptOutcome::Succeeded, 10).unwrap(),
+                JobFinishDisposition::Succeeded
+            );
+        }
+
+        assert!(
+            reap_terminal_jobs_in_tx(&conn, 10 + JOBS_TERMINAL_RETENTION_MS - 1, 1)
+                .unwrap()
+                .is_empty(),
+            "terminal detail remains through the declared retention window"
+        );
+        assert_eq!(
+            reap_terminal_jobs_in_tx(&conn, 10 + JOBS_TERMINAL_RETENTION_MS, 1).unwrap(),
+            vec!["job_a"],
+            "one sweep cannot exceed its explicit row bound"
+        );
+        assert!(job_status_row(&conn, "job_a").unwrap().is_none());
+        assert!(job_attempts(&conn, "job_a").unwrap().is_empty());
+        assert!(job_status_row(&conn, "job_b").unwrap().is_some());
+
+        let tombstone = find_job_by_scoped_idempotency(
+            &conn,
+            JOBS_DEFAULT_QUEUE,
+            "notify",
+            "stable-key",
+        )
+        .unwrap()
+        .expect("keyed terminal job leaves its idempotency tombstone");
+        assert_eq!(tombstone.job_id, "job_a");
+        assert_eq!(tombstone.max_attempts, 1);
+        assert_eq!(tombstone.args_digest, expected_args_digest);
+        assert!(!tombstone.args_digest.contains("terminal-payload"));
+
+        let mut identical = enqueue("job_retry", 0);
+        identical.args = json!({ "private": "terminal-payload" });
+        identical.idempotency_key = Some("stable-key".into());
+        assert_eq!(
+            insert_enqueued_jobs_in_tx(&conn, &producer(), 2, &[identical], 1)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_JOB_IDEMPOTENCY_KEY_RACED"
+        );
+        let mut divergent = enqueue("job_reuse", 0);
+        divergent.args = json!({ "private": "different" });
+        divergent.idempotency_key = Some("stable-key".into());
+        assert_eq!(
+            insert_enqueued_jobs_in_tx(&conn, &producer(), 2, &[divergent], 1)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_JOB_IDEMPOTENCY_KEY_REUSED"
+        );
+
+        assert_eq!(
+            reap_terminal_jobs_in_tx(&conn, 10 + JOBS_TERMINAL_RETENTION_MS, 1).unwrap(),
+            vec!["job_b"]
+        );
+        assert!(job_status_row(&conn, "job_b").unwrap().is_none());
+        let tombstone_count: u64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM _snapback_job_idempotency_tombstones_v1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(tombstone_count, 1, "unkeyed jobs leave no tombstone");
     }
 }

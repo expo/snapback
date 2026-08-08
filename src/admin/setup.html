@@ -412,7 +412,7 @@
       howto.appendChild(linkify(entry.howToGet));
       card.appendChild(howto);
     }
-    if (entry.acquisition && entry.acquisition.url) {
+    if (entry.acquisition && /^https?:\/\//.test(entry.acquisition.url)) {
       var acquire = el("p", { class: "meta" });
       acquire.appendChild(el("a", {
         href: entry.acquisition.url, target: "_blank", rel: "noreferrer",

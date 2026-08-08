@@ -34,3 +34,6 @@ High that nothing removes records (verified across the repo); medium on impact
 (streaming-action workloads only). No `@ref` marks in-memory retention as
 deliberate. Part of the "every registry names its retention bound" theme —
 see the jobs-table sibling ticket filed the same day.
+
+## Resolution (2026-08-08)
+Fixed on main (Lane J). Verified: cargo build; stream-attempt 8 pass, jobs 9 pass, production diagnostic inventory + reviewed-HTTP families pass, fork custody test pass; ref-check clean.

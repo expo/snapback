@@ -30,3 +30,6 @@ they belong in the served table at all or should be excluded from the
 production-diagnostic scan), and add them to
 `packages/snapback-harness/envelope.mjs` passthrough if they can reach a
 handler envelope.
+
+## Resolution (2026-08-08)
+Fixed on main (Lane J). Verified: cargo build; stream-attempt 8 pass, jobs 9 pass, production diagnostic inventory + reviewed-HTTP families pass, fork custody test pass; ref-check clean.

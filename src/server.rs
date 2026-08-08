@@ -1129,14 +1129,12 @@ impl DetachedActionHost {
             return Ok(());
         }
         let mut rows = Vec::with_capacity(snapshots.len());
-        let mut tokens = Vec::with_capacity(snapshots.len());
         for snapshot in &snapshots {
             rows.push(snapshot.to_row()?);
-            tokens.push(snapshot.token.clone());
         }
         snapback.persist_stream_attempts(&rows)?;
         drop(snapback);
-        registry.clear_dirty(&tokens);
+        registry.clear_flushed(&snapshots);
         Ok(())
     }
 
@@ -1164,15 +1162,13 @@ impl DetachedActionHost {
                         return;
                     }
                     let mut rows = Vec::with_capacity(snapshots.len());
-                    let mut tokens = Vec::with_capacity(snapshots.len());
                     for snapshot in &snapshots {
                         let Ok(row) = snapshot.to_row() else { return };
                         rows.push(row);
-                        tokens.push(snapshot.token.clone());
                     }
                     if guard.persist_stream_attempts(&rows).is_ok() {
                         drop(guard);
-                        registry.clear_dirty(&tokens);
+                        registry.clear_flushed(&snapshots);
                     }
                     return;
                 }
@@ -8927,7 +8923,7 @@ fn apply_registered_response_controls(
     response
 }
 
-const SETUP_SCRIPT_SHA256: &str = "5grG++9aTZFNO1qC4nuJhQ2eqH+aun7vAbJ0NmqmiGo=";
+const SETUP_SCRIPT_SHA256: &str = "hI3cw8Q0uOFE0WNfpu7y4/wmpx3phunwNAiXR31Qg+Y=";
 
 /// Construct the one restrictive policy shared by Snapback-owned documents,
 /// admitting only same-origin external scripts and explicitly hashed inline
@@ -25355,6 +25351,13 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
 
 fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
     match code {
+        // These are operator-only shutdown controls/failures rather than
+        // served request outcomes. Inventory still classifies them explicitly
+        // so an accidental HTTP projection remains fail-safe.
+        "SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS"
+        | "SNAPBACK_SHUTDOWN_WAL_CHECKPOINT_INCOMPLETE" => {
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
         "SNAPBACK_JOB_PUSH_GRANT_INVALID"
         | "SNAPBACK_PUSH_CONFIG_GRANT_MISSING"
         | "SNAPBACK_PUSH_FIXTURE_CLOCK_REFUSED"
@@ -26049,6 +26052,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_HANDLER_UNDECLARED_READ"
         | "SNAPBACK_HANDLER_UNDECLARED_WRITE"
         | "SNAPBACK_HANDLER_WRITE_IN_QUERY"
+        | "SNAPBACK_MUTATION_SETTLEMENT_UNAVAILABLE"
         | "SNAPBACK_SEQUENCE_DECLARATION_INVALID"
         | "SNAPBACK_SEQUENCE_UNDECLARED"
         | "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID"
@@ -41345,6 +41349,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_HANDLER_UNDECLARED_READ",
         "SNAPBACK_HANDLER_UNDECLARED_WRITE",
         "SNAPBACK_HANDLER_WRITE_IN_QUERY",
+        "SNAPBACK_MUTATION_SETTLEMENT_UNAVAILABLE",
         "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
         "SNAPBACK_SEQUENCE_UNDECLARED",
         "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
@@ -42030,6 +42035,21 @@ globalThis.__snapbackHandlers = {
     // diagnostics that never normally become an `ApiError`. If one does reach
     // that boundary, the fail-safe class is still 500 rather than a false 4xx.
     const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
+        // Local CLI, embedded-runtime, Guide-integrity, and migration-recovery
+        // diagnostics already use the mapper's fail-safe 500 projection. Keep
+        // them explicit so the production inventory remains exhaustive.
+        "SNAPBACK_CLI_ARGUMENT_INVALID",
+        "SNAPBACK_EMBED_APP_STATE_ALREADY_OWNED",
+        "SNAPBACK_EMBED_APP_STATE_BUSY",
+        "SNAPBACK_EMBED_ENTROPY_UNAVAILABLE",
+        "SNAPBACK_GUIDE_LOOKUP_BUDGET_EXCEEDED",
+        "SNAPBACK_GUIDE_REGISTRY_IDENTITY_MISMATCH",
+        "SNAPBACK_MIGRATION_PREDECESSOR_SCHEMA_UNAVAILABLE",
+        // Shutdown configuration and checkpoint failures are CLI/operator
+        // diagnostics. They do not have a served request path, but retain an
+        // explicit fail-safe projection in the exhaustive HTTP inventory.
+        "SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS",
+        "SNAPBACK_SHUTDOWN_WAL_CHECKPOINT_INCOMPLETE",
         // @ref LLP 0184#b-forced-live-resync--add-now
         "SNAPBACK_LIVE_FORCE_RESYNC_ENCODE_FAILED",
         // @ref LLP 0184#a-bounded-direct-row-patch--add-now — these surface

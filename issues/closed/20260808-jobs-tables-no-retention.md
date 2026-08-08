@@ -31,3 +31,6 @@ High that no purge exists; medium on severity — the module header narrows v1
 regression. But peer subsystems (operation ledger, client-mutation settlements)
 already ship purges, and nothing currently tracks this gap. Part of the "every
 registry names its retention bound" theme.
+
+## Resolution (2026-08-08)
+Fixed on main (Lane J). Verified: cargo build; stream-attempt 8 pass, jobs 9 pass, production diagnostic inventory + reviewed-HTTP families pass, fork custody test pass; ref-check clean.

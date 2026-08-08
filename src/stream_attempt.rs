@@ -245,6 +245,26 @@ impl RegistryInner {
             terminal: record.terminal.clone(),
         })
     }
+
+    fn reap_terminal(&mut self, token: &str) {
+        let Some(record) = self.by_token.remove(token) else {
+            return;
+        };
+        debug_assert!(record.terminal.is_some());
+        let client_key = (record.namespace, record.client_key);
+        if self.by_client_key.get(&client_key).map(String::as_str) == Some(token) {
+            self.by_client_key.remove(&client_key);
+        }
+        for cursor_id in record.cursors.keys() {
+            if self.by_cursor.get(cursor_id).map(String::as_str) == Some(token) {
+                self.by_cursor.remove(cursor_id);
+            }
+        }
+        self.by_invocation.retain(|_, tokens| {
+            tokens.remove(token);
+            !tokens.is_empty()
+        });
+    }
 }
 
 /// Identity of one detached action invocation as the control plane sees it:
@@ -431,10 +451,20 @@ impl StreamAttemptRegistry {
             .collect()
     }
 
-    pub fn clear_dirty(&self, tokens: &[String]) {
+    /// Acknowledge the exact snapshots that committed. A concurrent registry
+    /// update remains dirty; an exact terminal snapshot is no longer needed
+    /// process-live because the durable row is authoritative on the next
+    /// client-key lookup.
+    pub fn clear_flushed(&self, snapshots: &[PersistedStreamAttempt]) {
         let mut inner = self.lock();
-        for token in tokens {
-            inner.dirty.remove(token);
+        for snapshot in snapshots {
+            if inner.snapshot(&snapshot.token).as_ref() != Some(snapshot) {
+                continue;
+            }
+            inner.dirty.remove(&snapshot.token);
+            if snapshot.terminal.is_some() {
+                inner.reap_terminal(&snapshot.token);
+            }
         }
     }
 
@@ -686,6 +716,18 @@ impl StreamAttemptRegistry {
             .get(attempt_token)
             .and_then(|record| record.terminal.clone())
     }
+
+    #[cfg(test)]
+    fn index_counts(&self) -> (usize, usize, usize, usize, usize) {
+        let inner = self.lock();
+        (
+            inner.by_token.len(),
+            inner.by_client_key.len(),
+            inner.by_invocation.len(),
+            inner.by_cursor.len(),
+            inner.dirty.len(),
+        )
+    }
 }
 
 /// Process-global registry, namespaced per instance by the caller (the local
@@ -788,6 +830,31 @@ mod tests {
             authored.effect_may_have_executed,
             "a bound cursor is initiation_possible until proven otherwise"
         );
+    }
+
+    #[test]
+    fn durably_flushed_terminal_attempt_is_reaped_from_every_registry_index() {
+        let registry = registry();
+        let holder = runner();
+        let started = registry.start(1, "reap", &holder, None).expect("start");
+        registry
+            .bind_cursor(&started.attempt_token, "cursor-reap", &holder)
+            .expect("bind");
+        registry
+            .settle(
+                &started.attempt_token,
+                StreamAttemptCause::Complete,
+                &holder,
+            )
+            .expect("settle");
+
+        let snapshots = registry.dirty_snapshots(1);
+        assert_eq!(snapshots.len(), 1);
+        assert!(snapshots[0].terminal.is_some());
+        registry.clear_flushed(&snapshots);
+
+        assert_eq!(registry.index_counts(), (0, 0, 0, 0, 0));
+        assert_eq!(registry.terminal(&started.attempt_token), None);
     }
 
     #[test]

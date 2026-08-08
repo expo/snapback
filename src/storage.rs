@@ -7358,9 +7358,21 @@ impl LocalDatabase {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let reaped_job_ids = crate::jobs::reap_terminal_jobs_in_tx(
+            &tx,
+            now_ms,
+            crate::jobs::JOBS_RETENTION_SWEEP_LIMIT,
+        )?;
         let mut claim_ids = new_id_source();
         let claims = crate::jobs::claim_due_jobs_in_tx(&tx, now_ms, limit, drive, &mut claim_ids)?;
-        let mut job_changes = Vec::with_capacity(claims.len());
+        let mut job_changes = Vec::with_capacity(reaped_job_ids.len() + claims.len());
+        job_changes.extend(reaped_job_ids.into_iter().map(|job_id| ChangedRow {
+            table: crate::jobs::JOBS_STATUS_TABLE.to_owned(),
+            id: job_id,
+            op: ChangeOp::Delete,
+            row: None,
+            changed_fields: Vec::new(),
+        }));
         for claim in &claims {
             if let Some(row) = crate::jobs::job_status_row(&tx, &claim.job_id)? {
                 job_changes.push(job_status_changed_row(&row));

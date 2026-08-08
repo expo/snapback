@@ -55,3 +55,6 @@ enforces `https?://` while this path enforces nothing. *Fix:* mirror `linkify`'s
 High on all three mechanisms; A and B are explicitly documented tradeoffs (lower
 confidence they're "wrong"), C is a small missing check with CSP backstop. File
 as a revisit anchor, not an urgent defect.
+
+## Progress (2026-08-08 Lane J) — part C fixed
+Part C landed on main: src/admin/setup.html renders the app-manifest acquisition.url <a href> only for http(s) URLs (mirrors linkify), and src/server.rs SETUP_SCRIPT_SHA256 was recomputed so the CSP still matches (independently verified; CSP test passes). Parts A (app-origin console-credential custody) and B (loopback read exposure / DNS rebinding) remain OPEN as documented, author-gated hardening tradeoffs.

@@ -620,6 +620,10 @@ pub const TABLE_CUSTODY: &[CustodyRule] = &[
         name: "_snapback_job_push_grants_v1",
         disposition: CustodyDisposition::Copy,
     },
+    CustodyRule {
+        name: "_snapback_job_idempotency_tombstones_v1",
+        disposition: CustodyDisposition::Copy,
+    },
     // Asset custody (LLP 0185 Phase 5, implementing LLP 0158 OQ5's decided
     // posture): durable asset metadata copies together with a digest-verified
     // fork-private blob-tree copy taken from the same consistent cut;
