@@ -53,3 +53,6 @@ class is currently untested.
 High. Verified by reading the call sites and the cancellation semantics
 (`Task.cancel()` sets `isCancelled` on the running task; execution continues to
 the guard, which then short-circuits). No comment marks the behavior deliberate.
+
+## Resolution (2026-08-08)
+Fixed on main (Lane E). Verified: swift build && swift test (55 tests, 0 failures); strict-concurrency=complete clean; ref-check clean. Regression tests added for the cancelled-task reconnect, grant-loss events/shutdown, diagnostics bound, and missing-_id handling.

@@ -52,3 +52,6 @@ High on the Sendable and collection-growth mechanics; medium-high on the
 grant-loss surface gap. The T-GRANT-LOSS quiesce itself is partly deliberate
 (@ref LLP 0095 §4.4); the absence of any error/event surface is not documented
 as intended.
+
+## Resolution (2026-08-08)
+Fixed on main (Lane E). Verified: swift build && swift test (55 tests, 0 failures); strict-concurrency=complete clean; ref-check clean. Regression tests added for the cancelled-task reconnect, grant-loss events/shutdown, diagnostics bound, and missing-_id handling.

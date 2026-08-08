@@ -10,6 +10,10 @@ import FoundationNetworking
 /// `live/local`. `live/hosted` is future work; `poll/hosted` is not claimable
 /// (LLP 0095 §2.2).
 public actor SnapbackClient {
+    public enum ClientEvent: Equatable, Sendable {
+        case connectionStateChanged(ConnectionPhase)
+    }
+
     public struct Configuration: Sendable {
         public var baseURL: URL
         /// Lane P declared cadence (LLP 0095 §1.2 ATTACHED_POLL: a declared,
@@ -72,13 +76,18 @@ public actor SnapbackClient {
 
     public typealias EphemeralRepublisher = @Sendable () async throws -> JSONValue?
     public typealias EphemeralPublisher = @Sendable (JSONValue) async throws -> Void
+    public typealias ConnectionStateChangeHandler =
+        @Sendable (ConnectionPhase) -> Void
 
     static let wireVersionToken = "snapback.v1"
     static let connectionTokenHeader = "x-snapback-connection-token"
+    static let diagnosticsLimit = 256
 
     private let configuration: Configuration
     private let session: URLSession
-    public let machine = ClientStateMachine()
+    let machine = ClientStateMachine()
+    private let reconnectLiveStreamOverride:
+        (@Sendable () async throws -> Void)?
 
     private var grant: ConnectionGrant?
     /// LLP 0094 §0B.6: the legacy-server verdict is cached per endpoint for
@@ -90,8 +99,14 @@ public actor SnapbackClient {
     private var socketTask: URLSessionWebSocketTask?
     private var socketReadTask: Task<Void, Never>?
     private var heartbeatTask: Task<Void, Never>?
+    private var reconnectTask: Task<Void, Never>?
+    private var reconnectAttemptId: UUID?
     private var lastPongAt: ContinuousClock.Instant?
     private var updateHandlers: [@Sendable (String, [JSONValue]) -> Void] = []
+    private var connectionStateChangeHandler: ConnectionStateChangeHandler?
+    private var eventContinuations:
+        [UUID: AsyncStream<ClientEvent>.Continuation] = [:]
+    private var lastPublishedConnectionPhase: ConnectionPhase = .idle
     private let clientStoreId = "swift_" + UUID().uuidString.replacingOccurrences(of: "-", with: "")
     private var nextQueryInstanceId: UInt64 = 1
     private var isPausedForBackground = false
@@ -104,10 +119,47 @@ public actor SnapbackClient {
     public init(configuration: Configuration, session: URLSession? = nil) {
         self.configuration = configuration
         self.session = session ?? URLSession(configuration: .ephemeral)
+        reconnectLiveStreamOverride = nil
+    }
+
+    init(
+        configuration: Configuration,
+        session: URLSession,
+        reconnectLiveStream: @escaping @Sendable () async throws -> Void
+    ) {
+        self.configuration = configuration
+        self.session = session
+        reconnectLiveStreamOverride = reconnectLiveStream
     }
 
     public func onUpdate(_ handler: @escaping @Sendable (String, [JSONValue]) -> Void) {
         updateHandlers.append(handler)
+    }
+
+    /// Installs one replaceable connection-state observer. The callback runs
+    /// on the client actor's executor and immediately receives the current
+    /// state. Use `events()` when more than one consumer needs state changes.
+    public func onConnectionStateChange(
+        _ handler: @escaping ConnectionStateChangeHandler
+    ) {
+        connectionStateChangeHandler = handler
+        handler(machine.phase)
+    }
+
+    /// A typed stream of connection-state changes. The first element is the
+    /// current state. Call `shutdown()` before releasing the client so its
+    /// managed drain, socket, heartbeat, and reconnect tasks are cancelled.
+    public func events() -> AsyncStream<ClientEvent> {
+        let id = UUID()
+        let (stream, continuation) = AsyncStream.makeStream(
+            of: ClientEvent.self
+        )
+        eventContinuations[id] = continuation
+        continuation.onTermination = { [weak self] _ in
+            Task { await self?.removeEventContinuation(id) }
+        }
+        continuation.yield(.connectionStateChanged(machine.phase))
+        return stream
     }
 
     /// Register application-owned presence production for a successor
@@ -168,6 +220,10 @@ public actor SnapbackClient {
     }
 
     public var connectionId: String? { grant?.connectionId }
+    public var connectionPhase: ConnectionPhase { machine.phase }
+    public var subscriptions: [String: SubscriptionEntry] {
+        machine.subscriptions
+    }
 
     // MARK: - T-OPEN: POST /connection/open
 
@@ -192,6 +248,7 @@ public actor SnapbackClient {
             machine.noteGranted(
                 authorizationInvalidation: grant.authorizationInvalidation
             )
+            publishConnectionPhase()
             return grant
         } catch let ClientError.refusal(error, status) {
             let decodeClass =
@@ -207,11 +264,12 @@ public actor SnapbackClient {
             body.removeValue(forKey: "wireVersion")
             let grant = try await postForGrant(body)
             legacyServerVerdict = true
-            diagnostics.append("SNAPBACK_CLIENT_WIRE_VERSION_DOWNGRADE: pre-B1 server rejected the wireVersion offer (\(error.code)); reopened as a legacy (implicitly v1-bound) connection")
+            record("SNAPBACK_CLIENT_WIRE_VERSION_DOWNGRADE: pre-B1 server rejected the wireVersion offer (\(error.code)); reopened as a legacy (implicitly v1-bound) connection")
             self.grant = grant
             machine.noteGranted(
                 authorizationInvalidation: grant.authorizationInvalidation
             )
+            publishConnectionPhase()
             return grant
         }
     }
@@ -402,6 +460,7 @@ public actor SnapbackClient {
                 acceptedAuthorization: acceptedAuthorization,
                 authorizationVersionStream: versionStream
             )
+            record(machine.lastSnapshotDiagnostics)
         } else {
             installed = machine.registerPending(
                 subscriptionId: output.subscriptionId,
@@ -449,7 +508,7 @@ public actor SnapbackClient {
                     hadUnknownFields: false
                 )
             )
-            diagnostics.append(contentsOf: event.diagnostics)
+            record(event.diagnostics)
             if event.actions.contains(.surfaceProtocolDiagnostic)
                 || event.actions.contains(.ignoreFrame) {
                 throw await rejectedSubscribeOutput(
@@ -472,7 +531,7 @@ public actor SnapbackClient {
                 // succeeded. Keep the exact scope and its reinstalled pending
                 // obligation so level-triggered redelivery can recover; tearing
                 // it down here would forget the quarantine or terminal fence.
-                diagnostics.append(
+                record(
                     "auth/live subscribe invalidation acknowledgement remains pending: \(error)"
                 )
             }
@@ -577,7 +636,7 @@ public actor SnapbackClient {
             throw ClientError.undecodableResponse("outbox drain batch (expected JSON array)")
         }
         let event = machine.ingestDrainBatch(items)
-        diagnostics.append(contentsOf: event.diagnostics)
+        record(event.diagnostics)
         for subscriptionId in changedSubscriptions(event) { emitUpdate(subscriptionId) }
         try await performAcknowledgements(event)
         try await performResubscribes(event)
@@ -589,6 +648,7 @@ public actor SnapbackClient {
     public func startDrainLoop() {
         guard drainTask == nil else { return }
         machine.noteAttached(poll: true)
+        publishConnectionPhase()
         drainTask = Task { [weak self] in
             guard let self else { return }
             var backoff: Duration? = nil
@@ -634,6 +694,7 @@ public actor SnapbackClient {
         socketTask = task
         task.resume()
         machine.noteAttached(poll: false)
+        publishConnectionPhase()
         lastPongAt = ContinuousClock.now
         socketReadTask = Task { [weak self] in
             await self?.socketReadLoop(task)
@@ -644,6 +705,13 @@ public actor SnapbackClient {
     }
 
     public func closeLiveStream() {
+        reconnectTask?.cancel()
+        reconnectTask = nil
+        reconnectAttemptId = nil
+        closeLiveTransport()
+    }
+
+    private func closeLiveTransport() {
         socketReadTask?.cancel()
         heartbeatTask?.cancel()
         socketTask?.cancel(with: .normalClosure, reason: nil)
@@ -675,7 +743,7 @@ public actor SnapbackClient {
                         reason: "expired",
                         disposition: "carrier"
                     )
-                    diagnostics.append(
+                    record(
                         "close-only 4401 terminal signal classified as carrier"
                     )
                     applyDiagnosticEvent(event)
@@ -685,7 +753,7 @@ public actor SnapbackClient {
                     return
                 }
                 record("socket lost (\(error)); entering RECOVERING")
-                await handleSocketLoss()
+                handleSocketLoss()
                 return
             }
         }
@@ -700,7 +768,8 @@ public actor SnapbackClient {
            case .pong = decoded.value {
             lastPongAt = ContinuousClock.now
         }
-        diagnostics.append(contentsOf: event.diagnostics)
+        record(event.diagnostics)
+        publishConnectionPhase()
         // Publication changes, including terminal blanking, are observable
         // before the post-commit invalidation ACK.
         for subscriptionId in changedSubscriptions(event) {
@@ -731,7 +800,7 @@ public actor SnapbackClient {
             if let lastPongAt, ContinuousClock.now - lastPongAt > configuration.freshnessBudget {
                 record("freshness budget missed; forcing socket loss path")
                 task.cancel(with: .goingAway, reason: nil)
-                await handleSocketLoss()
+                handleSocketLoss()
                 return
             }
         }
@@ -740,16 +809,42 @@ public actor SnapbackClient {
     /// T-LOSS → T-RECONNECT: socket loss drops the connection's durable
     /// subscriptions server-side; reconnect is fresh subscribe with
     /// `supersedes`, never implicit resumption.
-    private func handleSocketLoss() async {
-        closeLiveStream()
+    func handleSocketLoss() {
+        reconnectTask?.cancel()
+        reconnectTask = nil
+        reconnectAttemptId = nil
+        closeLiveTransport()
         guard machine.phase != .terminalAuth else { return }
         if isPausedForBackground { return }
         let dropped = machine.noteSocketLost()
+        publishConnectionPhase()
+        let attemptId = UUID()
+        reconnectAttemptId = attemptId
+        reconnectTask = Task { [weak self] in
+            await self?.reconnectAfterSocketLoss(
+                dropped,
+                attemptId: attemptId
+            )
+        }
+    }
+
+    private func reconnectAfterSocketLoss(
+        _ dropped: [String],
+        attemptId: UUID
+    ) async {
+        defer { finishReconnectAttempt(attemptId) }
         var backoff: Duration? = nil
         while !Task.isCancelled {
             do {
-                try await openLiveStream()
+                if let reconnectLiveStreamOverride {
+                    try await reconnectLiveStreamOverride()
+                    machine.noteAttached(poll: false)
+                    publishConnectionPhase()
+                } else {
+                    try await openLiveStream()
+                }
                 for subscriptionId in dropped {
+                    if Task.isCancelled { return }
                     guard let entry = machine.subscriptions[subscriptionId] else { continue }
                     _ = try await subscribe(
                         function: entry.function,
@@ -761,6 +856,7 @@ public actor SnapbackClient {
                 }
                 return
             } catch {
+                if Task.isCancelled { return }
                 let next = nextBackoff(after: backoff)
                 backoff = next
                 record("reconnect failed (\(error)); backing off \(next)")
@@ -858,6 +954,36 @@ public actor SnapbackClient {
     }
 
     // @ref LLP 0064#5-host-lifecycle — hosts translate lifecycle once at the provider boundary, never per view.
+    /// Terminal ownership release. Call this before dropping the last strong
+    /// reference to the client; it cancels every managed transport/reconnect
+    /// task, best-effort releases live demand, and finishes event streams.
+    public func shutdown() async {
+        let active = machine.subscriptions.compactMap {
+            (id, entry) -> (String, String, String?)? in
+            switch entry.state {
+            case .released, .terminalDeleted: return nil
+            default: return (id, entry.function, entry.authUserId)
+            }
+        }
+        stopDrainLoop()
+        closeLiveStream()
+        for (id, function, userId) in active {
+            _ = try? await unsubscribe(
+                function: function,
+                subscriptionId: id,
+                userId: userId
+            )
+        }
+        machine.noteClosed()
+        publishConnectionPhase()
+        for continuation in eventContinuations.values {
+            continuation.finish()
+        }
+        eventContinuations.removeAll()
+        connectionStateChangeHandler = nil
+        updateHandlers.removeAll()
+    }
+
     /// Platform-neutral mobile lifecycle hook. iOS/SwiftUI hosts call this
     /// from the background/inactive transition. It releases demand before
     /// quiescing transports and retains only the desired subscription specs.
@@ -884,6 +1010,7 @@ public actor SnapbackClient {
         stopDrainLoop()
         closeLiveStream()
         machine.noteSuspended(subscriptionIds: resumeSubscriptionIds)
+        publishConnectionPhase()
     }
 
     /// Platform-neutral foreground hook. Re-attaches the selected lane and
@@ -932,6 +1059,7 @@ public actor SnapbackClient {
             stopDrainLoop()
             closeLiveStream()
             machine.noteSuspended(subscriptionIds: partial)
+            publishConnectionPhase()
             resumeSubscriptionIds = partial
             isPausedForBackground = true
             throw error
@@ -958,7 +1086,8 @@ public actor SnapbackClient {
     }
 
     private func applyDiagnosticEvent(_ event: MachineEvent) {
-        diagnostics.append(contentsOf: event.diagnostics)
+        record(event.diagnostics)
+        publishConnectionPhase()
         for subscriptionId in event.materializationChanges {
             emitUpdate(subscriptionId)
         }
@@ -998,7 +1127,37 @@ public actor SnapbackClient {
     }
 
     private func record(_ line: String) {
-        diagnostics.append(line)
+        record([line])
+    }
+
+    private func record(_ lines: [String]) {
+        guard !lines.isEmpty else { return }
+        diagnostics.append(contentsOf: lines)
+        if diagnostics.count > Self.diagnosticsLimit {
+            diagnostics.removeFirst(
+                diagnostics.count - Self.diagnosticsLimit
+            )
+        }
+    }
+
+    private func publishConnectionPhase() {
+        let phase = machine.phase
+        guard phase != lastPublishedConnectionPhase else { return }
+        lastPublishedConnectionPhase = phase
+        connectionStateChangeHandler?(phase)
+        for continuation in eventContinuations.values {
+            continuation.yield(.connectionStateChanged(phase))
+        }
+    }
+
+    private func removeEventContinuation(_ id: UUID) {
+        eventContinuations.removeValue(forKey: id)
+    }
+
+    private func finishReconnectAttempt(_ attemptId: UUID) {
+        guard reconnectAttemptId == attemptId else { return }
+        reconnectTask = nil
+        reconnectAttemptId = nil
     }
 
     func request(
@@ -1052,7 +1211,8 @@ public actor SnapbackClient {
                 stopDrainLoop()
                 closeLiveStream()
                 machine.noteGrantLost()
-                diagnostics.append(
+                publishConnectionPhase()
+                record(
                     "SNAPBACK_CONNECTION_TOKEN_INVALID: discarded refused grant; next recovery opens a fresh connection"
                 )
             }

@@ -486,11 +486,11 @@ final class TolerantDecodingTests: XCTestCase {
         let machine = ClientStateMachine()
         machine.applySnapshot(subscriptionId: "s1", function: "f", snapshot: QuerySnapshot(version: 10, rows: [], cursor: nil))
         for version in [9, 10] {
-            let json = try JSONValue.parse(#"{"kind":"live_replace","subscription_id":"s1","function":"f","version":\#(version),"rows":[{"id":"r"}]}"#)
+            let json = try JSONValue.parse(#"{"kind":"live_replace","subscription_id":"s1","function":"f","version":\#(version),"rows":[{"_id":"r"}]}"#)
             let event = machine.ingestFrame(json, postOwnershipCut: true)
             XCTAssertEqual(event.actions, [.dropStale], "version \(version)")
         }
-        let json = try JSONValue.parse(#"{"kind":"live_replace","subscription_id":"s1","function":"f","version":11,"rows":[{"id":"r"}]}"#)
+        let json = try JSONValue.parse(#"{"kind":"live_replace","subscription_id":"s1","function":"f","version":11,"rows":[{"_id":"r"}]}"#)
         XCTAssertEqual(machine.ingestFrame(json, postOwnershipCut: true).actions, [.replaceRows])
         XCTAssertEqual(machine.subscriptions["s1"]?.state, .live(version: 11))
     }
@@ -514,6 +514,53 @@ final class TolerantDecodingTests: XCTestCase {
         XCTAssertNotNil(machine.subscriptions["s_identity"]?.rows["row_b"])
     }
 
+    func testSnapshotRowMissingUnderscoreIdIsDiagnosedAndSkipped() throws {
+        let machine = ClientStateMachine()
+        machine.applySnapshot(
+            subscriptionId: "s_identity",
+            function: "f",
+            snapshot: QuerySnapshot(version: 1, rows: [], cursor: nil)
+        )
+        let frame = try JSONValue.parse(
+            #"{"kind":"live_replace","subscription_id":"s_identity","function":"f","version":2,"rows":[{"id":"application-only"},{"_id":"wire-row"}]}"#
+        )
+
+        let event = machine.ingestFrame(frame, postOwnershipCut: true)
+        XCTAssertEqual(
+            event.actions,
+            [.surfaceDecodeDiagnostic, .replaceRows]
+        )
+        XCTAssertEqual(
+            event.diagnostics,
+            [
+                "undecodable snapshot row 0 for s_identity: missing string _id",
+            ]
+        )
+        XCTAssertEqual(machine.subscriptions["s_identity"]?.rows.count, 1)
+        XCTAssertNotNil(machine.subscriptions["s_identity"]?.rows["wire-row"])
+        XCTAssertNil(
+            machine.subscriptions["s_identity"]?.rows["application-only"]
+        )
+    }
+
+    func testClientMutationSettlementHistoryIsBounded() {
+        let machine = ClientStateMachine()
+        for index in 0...ClientStateMachine.historyLimit {
+            machine.noteMutationSettled(clientMutationId: "m\(index)")
+        }
+        XCTAssertEqual(
+            machine.clientMutationSettlements.count,
+            ClientStateMachine.historyLimit
+        )
+        XCTAssertNil(machine.clientMutationSettlements["m0"])
+        XCTAssertEqual(
+            machine.clientMutationSettlements[
+                "m\(ClientStateMachine.historyLimit)"
+            ],
+            1
+        )
+    }
+
     func testAuthorizationInvalidationAtEqualDataVersionAppliesBeforeAckAndDuplicateAcksAgain() throws {
         let machine = ClientStateMachine()
         seedInvalidationCustody(
@@ -521,7 +568,7 @@ final class TolerantDecodingTests: XCTestCase {
             subscriptionId: "sub_auth",
             rows: [
                 .object([
-                    "id": .string("old"), "value": .string("old"),
+                    "_id": .string("old"), "value": .string("old"),
                 ]),
             ],
             expectedEpoch: 2
@@ -564,7 +611,7 @@ final class TolerantDecodingTests: XCTestCase {
                 "subscriptionId": "sub_auth",
                 "function": "listPrivate",
                 "version": 4,
-                "rows": [{"id": "new", "value": "new"}]
+                "rows": [{"_id": "new", "value": "new"}]
               },
               "resolution": {
                 "protocolVersion": 1,
@@ -609,7 +656,7 @@ final class TolerantDecodingTests: XCTestCase {
         XCTAssertEqual(applied.acknowledgements, ["ack_auth_4"])
         XCTAssertEqual(
             machine.subscriptions["sub_auth"]?.orderedRows,
-            [.object(["id": .string("new"), "value": .string("new")])]
+            [.object(["_id": .string("new"), "value": .string("new")])]
         )
         XCTAssertEqual(
             machine.subscriptions["sub_auth"]?
@@ -633,8 +680,11 @@ final class TolerantDecodingTests: XCTestCase {
         XCTAssertEqual(duplicate.acknowledgements, ["ack_auth_4"])
         XCTAssertEqual(
             machine.subscriptions["sub_auth"]?.orderedRows,
-            [.object(["id": .string("new"), "value": .string("new")])]
+            [.object(["_id": .string("new"), "value": .string("new")])]
         )
+        XCTAssertEqual(machine.appliedAuthorizationInvalidationCount, 1)
+        machine.noteReleased(subscriptionId: "sub_auth")
+        XCTAssertEqual(machine.appliedAuthorizationInvalidationCount, 0)
     }
 
     func testTerminalDeleteDestroysRowsBeforeAckAndNeverResubscribes() throws {

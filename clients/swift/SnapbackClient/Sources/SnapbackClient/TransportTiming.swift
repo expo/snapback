@@ -11,7 +11,7 @@ import Foundation
 /// abstract model pins — 5 s heartbeat ping, 15 s freshness budget,
 /// 250 ms → 10 s bounded reconnect backoff — and forces the loss and lease
 /// transitions on the machine when their deadlines pass.
-public final class VirtualTransportSupervisor {
+final class VirtualTransportSupervisor {
     public static let heartbeatIntervalMs: UInt64 = 5000
     public static let freshnessBudgetMs: UInt64 = 15000
     public static let reconnectBackoffFloorMs: UInt64 = 250

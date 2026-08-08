@@ -173,7 +173,9 @@ public struct RecoveryPlan: Sendable {
     public var supersession: [String: String]
 }
 
-public final class ClientStateMachine {
+final class ClientStateMachine {
+    static let historyLimit = 1_024
+
     public private(set) var phase: ConnectionPhase = .idle
     public private(set) var subscriptions: [String: SubscriptionEntry] = [:]
     /// Whether retained ephemeral overlays exist; the connection-wide
@@ -189,12 +191,15 @@ public final class ClientStateMachine {
     /// queue redelivers idempotently (LLP 0043), so a settlement applies to
     /// the client's queue entry exactly once.
     public private(set) var clientMutationSettlements: [String: UInt64] = [:]
+    private var clientMutationSettlementOrder: [String] = []
     public private(set) var replayQueue: ReplayQueueState?
     public private(set) var retainedReads: [String: RetainedReadEntry] = [:]
     /// An ACK token is bound to one exact committed ticket. Retaining that
     /// binding prevents a later scope or revision from reusing the token.
     private var appliedAuthorizationInvalidationsByAckToken:
         [String: AppliedAuthorizationInvalidation] = [:]
+    private var appliedAuthorizationInvalidationAckTokenOrder: [String] = []
+    public private(set) var lastSnapshotDiagnostics: [String] = []
 
     public init() {}
 
@@ -258,6 +263,7 @@ public final class ClientStateMachine {
         acceptedAuthorization: AuthorizationVersion? = nil,
         authorizationVersionStream: String? = nil
     ) -> Bool {
+        lastSnapshotDiagnostics = []
         // @ref LLP 0053#invalidation-is-an-obligation-not-a-message — terminal retirement is one-way for the exact materialization instance.
         guard subscriptions[subscriptionId]?.state != .terminalDeleted else {
             return false
@@ -277,6 +283,7 @@ public final class ClientStateMachine {
     func removeSubscription(id: String) {
         guard subscriptions[id]?.state != .terminalDeleted else { return }
         subscriptions.removeValue(forKey: id)
+        pruneAuthorizationInvalidationAckTokens(subscriptionId: id)
     }
 
     /// Snapshot-with-subscribe (LLP 0034 §1): the subscribe response carries
@@ -314,17 +321,41 @@ public final class ClientStateMachine {
             entry.dataVersionHighWater ?? 0,
             snapshot.version
         )
-        entry.rows = [:]
-        entry.rowOrder = []
-        for row in snapshot.rows {
-            // `_id` is wire row identity. An app field named `id` is ordinary
-            // data and may collide across rows without changing membership.
-            let id = row["_id"]?.stringValue ?? row["id"]?.stringValue ?? UUID().uuidString
-            entry.rows[id] = row
-            entry.rowOrder.append(id)
-        }
+        let decodedRows = decodeSnapshotRows(
+            snapshot.rows,
+            subscriptionId: subscriptionId
+        )
+        lastSnapshotDiagnostics = decodedRows.diagnostics
+        entry.rows = decodedRows.rows
+        entry.rowOrder = decodedRows.order
         subscriptions[subscriptionId] = entry
         return true
+    }
+
+    private func decodeSnapshotRows(
+        _ rows: [JSONValue],
+        subscriptionId: String
+    ) -> (
+        rows: [String: JSONValue],
+        order: [String],
+        diagnostics: [String]
+    ) {
+        var decoded: [String: JSONValue] = [:]
+        var order: [String] = []
+        var diagnostics: [String] = []
+        for (index, row) in rows.enumerated() {
+            // `_id` is wire row identity. An app field named `id` is ordinary
+            // data and may collide across rows without changing membership.
+            guard let id = row["_id"]?.stringValue else {
+                diagnostics.append(
+                    "undecodable snapshot row \(index) for \(subscriptionId): missing string _id"
+                )
+                continue
+            }
+            decoded[id] = row
+            order.append(id)
+        }
+        return (decoded, order, diagnostics)
     }
 
     /// T-UNSUB: explicit release, the only normal demand-release path.
@@ -333,6 +364,9 @@ public final class ClientStateMachine {
             return
         }
         subscriptions[subscriptionId]?.state = .released
+        pruneAuthorizationInvalidationAckTokens(
+            subscriptionId: subscriptionId
+        )
     }
 
     public func noteSuspended(subscriptionIds: [String]) {
@@ -368,6 +402,10 @@ public final class ClientStateMachine {
                 break
             }
             applySnapshot(subscriptionId: subscriptionId, function: function, snapshot: QuerySnapshot(version: version, rows: rows, cursor: nil))
+            if !lastSnapshotDiagnostics.isEmpty {
+                actions.append(.surfaceDecodeDiagnostic)
+                diagnostics.append(contentsOf: lastSnapshotDiagnostics)
+            }
             actions.append(.replaceRows)
         case .liveDelta(let subscriptionId, let function, let version, let ops, _, _):
             if subscriptions[subscriptionId]?.state == .terminalDeleted {
@@ -630,15 +668,16 @@ public final class ClientStateMachine {
                 scopedEntry.rowOrder.removeAll()
                 scopedEntry.state = .terminalDeleted
                 scopedEntry.pendingAuthorizationObligation = nil
-                scopedEntry.appliedAuthorizationInvalidation =
-                    AppliedAuthorizationInvalidation(
-                        obligation: obligation.raw,
-                        resolution: resolution.raw
-                    )
+                let applied = AppliedAuthorizationInvalidation(
+                    obligation: obligation.raw,
+                    resolution: resolution.raw
+                )
+                scopedEntry.appliedAuthorizationInvalidation = applied
                 subscriptions[scopeSubscriptionId] = scopedEntry
-                appliedAuthorizationInvalidationsByAckToken[
-                    resolution.ackToken
-                ] = scopedEntry.appliedAuthorizationInvalidation
+                rememberAuthorizationInvalidation(
+                    applied,
+                    ackToken: resolution.ackToken
+                )
                 actions.append(.applyInvalidationTerminalDelete)
             } else {
                 guard let snapshot else {
@@ -676,18 +715,22 @@ public final class ClientStateMachine {
                         cursor: nil
                     )
                 )
+                if !lastSnapshotDiagnostics.isEmpty {
+                    actions.append(.surfaceDecodeDiagnostic)
+                    diagnostics.append(contentsOf: lastSnapshotDiagnostics)
+                }
                 subscriptions[scopeSubscriptionId]?
                     .pendingAuthorizationObligation = nil
+                let applied = AppliedAuthorizationInvalidation(
+                    obligation: obligation.raw,
+                    resolution: resolution.raw
+                )
                 subscriptions[scopeSubscriptionId]?
-                    .appliedAuthorizationInvalidation =
-                    AppliedAuthorizationInvalidation(
-                        obligation: obligation.raw,
-                        resolution: resolution.raw
-                    )
-                appliedAuthorizationInvalidationsByAckToken[
-                    resolution.ackToken
-                ] = subscriptions[scopeSubscriptionId]?
-                    .appliedAuthorizationInvalidation
+                    .appliedAuthorizationInvalidation = applied
+                rememberAuthorizationInvalidation(
+                    applied,
+                    ackToken: resolution.ackToken
+                )
                 actions.append(.applyInvalidationSnapshot)
             }
             actions.append(.acknowledgeObligation)
@@ -1200,6 +1243,7 @@ public final class ClientStateMachine {
             localDurableAuthorityDeleted = true
             authorizationInvalidationConnection = nil
             appliedAuthorizationInvalidationsByAckToken = [:]
+            appliedAuthorizationInvalidationAckTokenOrder = []
             actions.append(.deleteLocalDurableAuthority)
         }
         let recognized = ["carrier", "durableDelete"].contains(disposition)
@@ -1327,6 +1371,11 @@ public final class ClientStateMachine {
             )
         }
         clientMutationSettlements[clientMutationId] = 1
+        clientMutationSettlementOrder.append(clientMutationId)
+        if clientMutationSettlementOrder.count > Self.historyLimit {
+            let evicted = clientMutationSettlementOrder.removeFirst()
+            clientMutationSettlements.removeValue(forKey: evicted)
+        }
         return MachineEvent(
             actions: [.settleClientMutation],
             resubscribe: [],
@@ -1435,6 +1484,49 @@ public final class ClientStateMachine {
         var actions: [ClientAction] = [.attemptReconnect]
         if !supersession.isEmpty { actions.append(.resubscribeAll) }
         return RecoveryPlan(actions: actions, supersession: supersession)
+    }
+
+    var appliedAuthorizationInvalidationCount: Int {
+        appliedAuthorizationInvalidationsByAckToken.count
+    }
+
+    private func rememberAuthorizationInvalidation(
+        _ invalidation: AppliedAuthorizationInvalidation,
+        ackToken: String
+    ) {
+        if appliedAuthorizationInvalidationsByAckToken[ackToken] == nil {
+            appliedAuthorizationInvalidationAckTokenOrder.append(ackToken)
+        }
+        appliedAuthorizationInvalidationsByAckToken[ackToken] = invalidation
+        if appliedAuthorizationInvalidationAckTokenOrder.count
+            > Self.historyLimit {
+            let evicted =
+                appliedAuthorizationInvalidationAckTokenOrder.removeFirst()
+            appliedAuthorizationInvalidationsByAckToken.removeValue(
+                forKey: evicted
+            )
+        }
+    }
+
+    private func pruneAuthorizationInvalidationAckTokens(
+        subscriptionId: String
+    ) {
+        let removed = Set(
+            appliedAuthorizationInvalidationsByAckToken.compactMap {
+                ackToken, invalidation in
+                invalidation.obligation["scopeId"]?["subscriptionId"]?
+                    .stringValue == subscriptionId ? ackToken : nil
+            }
+        )
+        guard !removed.isEmpty else { return }
+        for ackToken in removed {
+            appliedAuthorizationInvalidationsByAckToken.removeValue(
+                forKey: ackToken
+            )
+        }
+        appliedAuthorizationInvalidationAckTokenOrder.removeAll {
+            removed.contains($0)
+        }
     }
 
     private func merge(_ event: MachineEvent, into actions: inout [ClientAction], _ resubscribe: inout [String], _ diagnostics: inout [String]) {

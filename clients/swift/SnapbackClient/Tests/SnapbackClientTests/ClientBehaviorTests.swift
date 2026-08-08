@@ -220,6 +220,76 @@ private final class GrantRecoveryStubProtocol: URLProtocol, @unchecked Sendable 
     override func stopLoading() {}
 }
 
+private final class SocketRecoveryStubProtocol:
+    URLProtocol, @unchecked Sendable
+{
+    struct SeenRequest: Sendable {
+        var path: String
+        var body: String
+    }
+
+    private static let lock = NSLock()
+    private static var requests: [SeenRequest] = []
+
+    static func reset() {
+        lock.lock()
+        requests = []
+        lock.unlock()
+    }
+
+    static var seen: [SeenRequest] {
+        lock.lock()
+        defer { lock.unlock() }
+        return requests
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+        request
+    }
+
+    override func startLoading() {
+        let path = request.url?.path ?? "?"
+        let body = request.httpBody.map {
+            String(decoding: $0, as: UTF8.self)
+        } ?? ""
+        Self.lock.lock()
+        Self.requests.append(SeenRequest(path: path, body: body))
+        let subscribeCount = Self.requests.filter {
+            $0.path == "/live/list/subscribe"
+        }.count
+        Self.lock.unlock()
+
+        let responseBody: String
+        if path == "/connection/open" {
+            responseBody =
+                #"{"connectionId":"conn","connectionToken":"token"}"#
+        } else if path == "/live/list/subscribe", subscribeCount == 1 {
+            responseBody =
+                #"{"subscription_id":"sub_old","snapshot":{"version":1,"rows":[]},"receipt":null,"resume":null}"#
+        } else if path == "/live/list/subscribe" {
+            responseBody =
+                #"{"subscription_id":"sub_fresh","snapshot":{"version":2,"rows":[]},"receipt":null,"resume":null,"superseded":"sub_old"}"#
+        } else {
+            responseBody = #"{"receipt":null}"#
+        }
+        client?.urlProtocol(
+            self,
+            didReceive: HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: "HTTP/1.1",
+                headerFields: ["content-type": "application/json"]
+            )!,
+            cacheStoragePolicy: .notAllowed
+        )
+        client?.urlProtocol(self, didLoad: Data(responseBody.utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}
+
 private final class ResponseQueueStubProtocol: URLProtocol, @unchecked Sendable {
     struct Response {
         var status: Int
@@ -605,6 +675,23 @@ private final class UpdateCollector: @unchecked Sendable {
     func append(_ rows: [JSONValue]) {
         lock.lock()
         values.append(rows)
+        lock.unlock()
+    }
+}
+
+private final class PhaseCollector: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: [ConnectionPhase] = []
+
+    var values: [ConnectionPhase] {
+        lock.lock()
+        defer { lock.unlock() }
+        return stored
+    }
+
+    func append(_ phase: ConnectionPhase) {
+        lock.lock()
+        stored.append(phase)
         lock.unlock()
     }
 }
@@ -1423,6 +1510,114 @@ final class ClientBehaviorTests: XCTestCase {
         }
     }
 
+    func testSocketLossReconnectRunsOutsideCancelledCallerTask() async throws {
+        SocketRecoveryStubProtocol.reset()
+        let sessionConfiguration = URLSessionConfiguration.ephemeral
+        sessionConfiguration.protocolClasses = [
+            SocketRecoveryStubProtocol.self,
+        ]
+        let session = URLSession(configuration: sessionConfiguration)
+        let configuration = SnapbackClient.Configuration(
+            baseURL: URL(string: "https://snapback.invalid")!
+        )
+        let subject = SnapbackClient(
+            configuration: configuration,
+            session: session,
+            reconnectLiveStream: {}
+        )
+
+        _ = try await subject.openConnection()
+        _ = try await subject.subscribe(function: "list")
+
+        let cancelledCaller = Task {
+            while !Task.isCancelled { await Task.yield() }
+            await subject.handleSocketLoss()
+        }
+        cancelledCaller.cancel()
+        await cancelledCaller.value
+
+        for _ in 0..<100 where SocketRecoveryStubProtocol.seen.count < 3 {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        let seen = SocketRecoveryStubProtocol.seen
+        guard seen.count >= 3 else {
+            return XCTFail("reconnect never sent a fresh subscribe")
+        }
+        XCTAssertEqual(Array(seen.map(\.path).prefix(3)), [
+            "/connection/open",
+            "/live/list/subscribe",
+            "/live/list/subscribe",
+        ])
+        let subscriptions = await subject.subscriptions
+        XCTAssertNil(subscriptions["sub_old"])
+        XCTAssertEqual(
+            subscriptions["sub_fresh"]?.state,
+            .live(version: 2)
+        )
+        await subject.shutdown()
+    }
+
+    func testGrantLossPublishesConnectionEventsAndShutdownFinishesStream() async throws {
+        ResponseQueueStubProtocol.configure([
+            .init(status: 200, body: custodyGrant),
+            .init(
+                status: 403,
+                body:
+                    #"{"diagnostic":{"code":"SNAPBACK_CONNECTION_TOKEN_INVALID","severity":"error","subsystem":"connection","message":"expired","details":{}}}"#
+            ),
+        ])
+        let subject = responseQueueClient()
+        let phases = PhaseCollector()
+        await subject.onConnectionStateChange { phases.append($0) }
+        let stream = await subject.events()
+        var iterator = stream.makeAsyncIterator()
+
+        let initial = await iterator.next()
+        XCTAssertEqual(initial, .connectionStateChanged(.idle))
+        _ = try await subject.openConnection()
+        let granted = await iterator.next()
+        XCTAssertEqual(granted, .connectionStateChanged(.granted))
+        do {
+            _ = try await subject.request(
+                method: "GET",
+                path: "/outbox/conn_custody",
+                body: nil,
+                connectionScoped: true
+            )
+            XCTFail("expected grant loss refusal")
+        } catch let SnapbackClient.ClientError.refusal(error, status) {
+            XCTAssertEqual(status, 403)
+            XCTAssertEqual(error.code, "SNAPBACK_CONNECTION_TOKEN_INVALID")
+        }
+        let lost = await iterator.next()
+        XCTAssertEqual(lost, .connectionStateChanged(.grantLost))
+
+        await subject.shutdown()
+        let closed = await iterator.next()
+        XCTAssertEqual(closed, .connectionStateChanged(.closed))
+        let finished = await iterator.next()
+        XCTAssertNil(finished)
+        XCTAssertEqual(phases.values, [.idle, .granted, .grantLost, .closed])
+    }
+
+    func testDiagnosticsKeepOnlyTheNewestEntries() async {
+        let subject = client(maxAttempts: 1)
+        for index in 0..<(SnapbackClient.diagnosticsLimit + 10) {
+            await subject.processSocketFrame(.object([
+                "kind": .string("unknown_\(index)"),
+            ]))
+        }
+        let diagnostics = await subject.diagnostics
+        XCTAssertEqual(diagnostics.count, SnapbackClient.diagnosticsLimit)
+        XCTAssertTrue(diagnostics.first?.contains("unknown_10") == true)
+        XCTAssertTrue(
+            diagnostics.last?.contains(
+                "unknown_\(SnapbackClient.diagnosticsLimit + 9)"
+            ) == true
+        )
+        await subject.shutdown()
+    }
+
     func testForegroundTokenRefusalDiscardsGrantThenFreshResumeSucceeds() async throws {
         GrantRecoveryStubProtocol.reset()
         let sessionConfiguration = URLSessionConfiguration.ephemeral
@@ -1475,7 +1670,7 @@ final class ClientBehaviorTests: XCTestCase {
             GrantRecoveryStubProtocol.seen[5].connectionToken,
             "token_fresh"
         )
-        let recoveredSubscriptions = await subject.machine.subscriptions
+        let recoveredSubscriptions = await subject.subscriptions
         XCTAssertNil(recoveredSubscriptions["sub_old"])
         XCTAssertEqual(recoveredSubscriptions["sub_fresh"]?.state, .live(version: 2))
     }
