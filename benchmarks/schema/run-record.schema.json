@@ -10,14 +10,37 @@
     "brief",
     "harness",
     "timestamps",
+    "firstGreenProofAt",
     "wallClock",
     "tokens",
     "correctionLoops",
     "handAuthoredLoc",
-    "rubric",
     "diary"
   ],
   "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "brief": {
+            "enum": ["messaging", "messaging-equal-proof-bar"]
+          }
+        },
+        "required": ["brief"]
+      },
+      "then": {
+        "properties": { "rubric": true },
+        "required": ["rubric"]
+      },
+      "else": {
+        "properties": {
+          "outcomeRubric": true,
+          "invariantPlatformScore": true
+        },
+        "required": ["outcomeRubric", "invariantPlatformScore"]
+      }
+    }
+  ],
   "properties": {
     "schemaVersion": {
       "const": 1,
@@ -73,6 +96,11 @@
         "finishedAt": { "type": "string", "format": "date-time" }
       }
     },
+    "firstGreenProofAt": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Epoch timestamp of the lane's first passing acceptance proof; null when the lane never produced green proof."
+    },
     "wallClock": {
       "type": "object",
       "description": "Wall-clock accounting in seconds. totalSeconds is authoritative; the phase split is recorded where the transcript supports recovering it, null where it does not. Orientation is measured, not excluded (diary 0058 excluded it, biasing the baseline).",
@@ -95,8 +123,8 @@
     },
     "tokens": {
       "type": "object",
-      "description": "Model token usage for the lane. source names the accounting channel per LLP 0186 OQ1 (which harness meter is trustworthy is OPEN); null source with null counts records an un-metered run honestly, as diary 0058 had to.",
-      "required": ["input", "output", "source"],
+      "description": "Model token usage for the lane. source names the accounting channel per LLP 0186 OQ1 (which harness meter is trustworthy is OPEN); null source with null counts records an un-metered run honestly, as diary 0058 had to. The phase split uses the same boundaries as wallClock.phases.",
+      "required": ["input", "output", "source", "phases"],
       "additionalProperties": false,
       "properties": {
         "input": { "type": ["integer", "null"], "minimum": 0 },
@@ -104,6 +132,17 @@
         "source": {
           "type": ["string", "null"],
           "description": "Accounting channel, e.g. 'claude-code-session-accounting', 'api-usage-header', 'wrapping-proxy'; null when no per-lane meter existed."
+        },
+        "phases": {
+          "type": "object",
+          "required": ["orientation", "authoring", "verification", "diagnosis"],
+          "additionalProperties": false,
+          "properties": {
+            "orientation": { "type": ["integer", "null"], "minimum": 0 },
+            "authoring": { "type": ["integer", "null"], "minimum": 0 },
+            "verification": { "type": ["integer", "null"], "minimum": 0 },
+            "diagnosis": { "type": ["integer", "null"], "minimum": 0 }
+          }
         }
       }
     },
@@ -119,10 +158,31 @@
         "type": "object",
         "required": ["attribution", "summary", "evidence"],
         "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "attribution": { "const": "snapback-defect" }
+              },
+              "required": ["attribution"]
+            },
+            "then": {
+              "properties": { "subAttribution": true },
+              "required": ["subAttribution"]
+            },
+            "else": {
+              "properties": { "subAttribution": false }
+            }
+          }
+        ],
         "properties": {
           "attribution": {
             "enum": ["snapback-defect", "agent-error", "environment", "ambiguous"],
             "description": "snapback-defect: platform-under-test defect or doc/type/runtime disagreement (named for the Snapback lane's ratchet but recorded for every lane about its own platform). agent-error: the agent's own authoring mistake. environment: harness/OS/network, not the platform or the agent. ambiguous: could not be attributed under the rule; counts against no one but is reported."
+          },
+          "subAttribution": {
+            "enum": ["defect", "knowledge-gap"],
+            "description": "Required only for snapback-defect: defect means platform misbehavior; knowledge-gap means missing or undiscoverable knowledge caused the loop."
           },
           "summary": { "type": "string" },
           "evidence": {
@@ -175,6 +235,27 @@
         "testabilityDiagnostics": { "type": "number", "minimum": 0, "maximum": 100 },
         "operationsMaturity": { "type": "number", "minimum": 0, "maximum": 100 },
         "weightedOverall": { "type": "number", "minimum": 0, "maximum": 100 }
+      }
+    },
+    "outcomeRubric": {
+      "type": "object",
+      "description": "Scores for the outcome dimensions preregistered with a non-messaging brief. Each free-form dimension and weightedOverall is scored from 0 to 100.",
+      "required": ["weightedOverall"],
+      "minProperties": 2,
+      "properties": {
+        "weightedOverall": { "type": "number", "minimum": 0, "maximum": 100 }
+      },
+      "additionalProperties": { "type": "number", "minimum": 0, "maximum": 100 }
+    },
+    "invariantPlatformScore": {
+      "type": "object",
+      "description": "Invariant platform dimensions used with every non-messaging outcome rubric.",
+      "required": ["dx", "diagnostics", "operations"],
+      "additionalProperties": false,
+      "properties": {
+        "dx": { "type": "number", "minimum": 0, "maximum": 100 },
+        "diagnostics": { "type": "number", "minimum": 0, "maximum": 100 },
+        "operations": { "type": "number", "minimum": 0, "maximum": 100 }
       }
     },
     "authParity": {

@@ -21,11 +21,19 @@ run the comparison, and produce a durable record using this directory alone.
 | Metric | Definition | Provenance |
 |---|---|---|
 | Wall-clock | Epoch-timestamped start/finish of the lane, split into orientation / authoring / verification / diagnosis where the transcript supports it | Diary 0058 recorded 26m03s (Snapback) vs 11m15s (Convex) from local epoch timestamps — the calibrated baseline pair. That clock excluded Snapback-only orientation reading, biasing it in Snapback's favor; the instrument makes orientation an explicit split instead of an exclusion. |
-| Input + output tokens | Usage accounting from the orchestration harness, with the accounting channel named in the record (`tokens.source`) | Metering is no longer hypothetical: the 0065/0066/0068 runs metered per-lane tokens through the harness. **OPEN (LLP 0186 OQ1):** which channels are trustworthy, and whether cross-model token comparison is fair or the ratchet pins one model per epoch. |
+| Input + output tokens | Usage accounting from the orchestration harness, with the accounting channel named in the record (`tokens.source`) and orientation / authoring / verification / diagnosis counts in `tokens.phases` | Metering is no longer hypothetical: the 0065/0066/0068 runs metered per-lane tokens through the harness. **OPEN (LLP 0186 OQ1):** which channels are trustworthy, and whether cross-model token comparison is fair or the ratchet pins one model per epoch. |
+| First green proof | `firstGreenProofAt`, the per-lane timestamp of the first passing acceptance proof; null if the lane never reaches green | Turns the first-fifteen-minutes target into a recorded milestone rather than treating lane completion as a proxy. |
 | Tool uses | Per-lane tool invocations from the same orchestration-harness accounting | Recorded for diaries 0065/0066; where a harness count is not retained, as in the 0068 standing record, mark it unmeasured rather than reconstructing it. |
 | Correction loops | Recorded count of correction loops, each carrying an attribution (`snapback-defect`, `agent-error`, `environment`, `ambiguous`) and an evidence pointer | Diaries 0065/0066/0068 recorded counts during the runs. The earlier ~11 / ~4-heavy figures remain qualitative reconstructions and are not substituted for measured counts. |
 | Hand-authored LOC | Hand-authored source/test lines, generated artifacts excluded | Diary 0058: Snapback 1,202 lines / 14 files vs Convex 868 / 13. A ceremony proxy only — see fairness rules. |
-| Rubric scores | Diary 0058's weighted dimensions, unchanged (see `schema/run-record.schema.json`) | Functional completeness 20%, realtime + typing 10%, offline behavior 20%, images/assets 10%, data model + type safety 10%, DX/docs/setup 15%, testability + diagnostics 5%, operations + current maturity 10%. |
+| Rubric scores | Required for every lane (see `schema/run-record.schema.json`) | Messaging-family briefs retain diary 0058's frozen eight dimensions and weights. Every other brief uses its preregistered outcome rubric plus the invariant DX / diagnostics / operations platform score. |
+
+Rubric scoring is part of the record format, not an optional analysis pass.
+For messaging and messaging-equal-proof-bar, record all frozen 0058 dimensions
+and `weightedOverall`. For every other brief, freeze the outcome dimensions
+with the brief and record `outcomeRubric` plus `invariantPlatformScore` for
+every lane. Cross-brief conclusions use preregistered noninferiority/dominance
+counts; they never average dimensions a brief did not exercise.
 
 ## Lanes
 
@@ -55,6 +63,15 @@ keeps them so is not settled.
   yet run.
 - `briefs/media.md` — a trip-photo-journal media shape, scaffolded 2026-08-06
   and not yet run.
+- `briefs/messaging-trust-boundary.md` — the same app with real auth and
+  vendor-neutral trust-boundary outcomes (negative proofs mandatory;
+  LLP 0198 P3); authored 2026-08-08, not yet run.
+- `briefs/messaging-day2-evolution.md` — three scripted change requests
+  against a frozen, acceptance-equivalent post-messaging artifact
+  (LLP 0198 P3); authored 2026-08-08, not yet run.
+- `probe-pick-and-build.md` — the LLP 0198 L5 revealed-preference probe
+  (choice under commitment, per-cell verdicts); authored 2026-08-08, not
+  yet run.
 
 ## Fairness rules
 
@@ -107,10 +124,14 @@ keeps them so is not settled.
 4. Instantiate the appropriate templates from `lanes/`. When the expanded
    prompt is too long for a harness field, write it to a lane-private file and
    deliver the proven one-line instruction documented in `lanes/skill.md`.
-5. Run the lanes serially and cold. Collect start/end epochs, per-lane token and
-   tool-use counts from the orchestration harness, and each lane's final report.
+5. Run the lanes serially and cold. Collect start/end epochs,
+   `firstGreenProofAt`, per-lane token and tool-use counts from the orchestration
+   harness, the four wall-clock and token phase splits, and each lane's final
+   report. P0 runs must provide all phase values; ordinary records may mark a
+   phase unavailable with a reason.
 6. Attribute correction loops under `protocol.md`, then independently check
-   each claimed proof result against the selected brief's acceptance bar.
+   each claimed proof result against the selected brief's acceptance bar and
+   score every lane with the required messaging or non-messaging rubric.
 7. Write the comparison record under `records/` following `records/schema.md`,
    append its series row, and file one repository ticket per
    framework-attributed loop. That fix-measure loop closed the walls found by

@@ -26,9 +26,15 @@ Snapback lanes, and the token-accounting channel required by LLP 0186 OQ1
 
 Give one row per lane with wall time; total tokens and, when the accounting
 channel splits them, input/output tokens; tool uses; and correction loops with
-the framework/self/tooling split. Record an unavailable metric as unmeasured
-with a reason; never reconstruct it. `../protocol.md` governs that rule, and
-diary 0058 is its precedent.
+the framework/self/tooling split. Record the orientation, authoring,
+verification, and diagnosis splits for both wall time and tokens. Record an
+unavailable metric as unmeasured with a reason; never reconstruct it. P0 runs
+must supply every phase split under `../protocol.md`; ordinary records may use
+unavailable phase values. Diary 0058 is the no-reconstruction precedent.
+
+For every lane, record `firstGreenProofAt` as the timestamp of its first
+passing acceptance proof. Use null when the lane never produced green proof;
+do not substitute the finish time.
 
 ### Correction-loop attribution
 
@@ -36,13 +42,30 @@ Give one line per loop with its shorthand class. Map framework to
 `snapback-defect` (every lane records defects in its own platform under this
 value), self to `agent-error`, and tooling/environment to `environment`;
 contested loops are `ambiguous`. The definitions and evidence requirements in
-`../protocol.md` govern.
+`../protocol.md` govern. Every `snapback-defect` line also carries the
+`defect` or `knowledge-gap` sub-attribution; other classes do not.
 
 ### Proof results
 
 For each lane, state which brief proofs passed, any fallbacks or DNFs, and the
 offline-guarantee label required by fairness rule 2: platform contract or
 app-built.
+
+### Rubric scoring
+
+Rubric scoring is required for every lane record going forward. Messaging and
+messaging-equal-proof-bar records use the frozen diary 0058 `rubric`: all eight
+dimensions and `weightedOverall`, with the existing weights unchanged. Every
+other brief uses both scoring layers frozen at brief preregistration:
+
+- `outcomeRubric`: the brief-specific outcome dimension names and 0–100 scores,
+  plus `weightedOverall`;
+- `invariantPlatformScore`: 0–100 scores for `dx`, `diagnostics`, and
+  `operations`.
+
+Publish every dimension. Across briefs, aggregate with preregistered
+noninferiority/dominance counts, never by averaging dimensions a brief did not
+exercise.
 
 ### Ratios
 

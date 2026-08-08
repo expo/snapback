@@ -45,7 +45,10 @@ diary 0058 excluded shared Snapback-heavy orientation and flagged that
 as a bias in Snapback's favor; the instrument does not repeat that.
 Phase splits (orientation / authoring / verification / diagnosis) are
 recovered from the transcript where possible and recorded as null where
-not.
+not. For LLP 0198 P0-protocol runs, phase attribution is required: all
+four `wallClock.phases` and all four `tokens.phases` values must be
+recorded rather than marked unavailable. Ordinary records may continue
+to use null phase values, with the reason stated in the record.
 
 ## Token metering
 
@@ -56,6 +59,10 @@ through the orchestration harness, and 0065/0066 also retained tool-use
 counts. Where no trustworthy per-lane meter exists, record nulls with an
 explanation rather than reconstructing counts (diary 0058: reconstructing
 from visible prose "would be fictional").
+
+`tokens.phases` uses the same orientation / authoring / verification /
+diagnosis boundaries as the wall clock. Its values are token counts,
+not elapsed-time estimates.
 
 Wall-clock comparisons across runs can be muddied by changing machine
 load (diary 0066). Tokens are therefore the better cross-run metric,
@@ -69,17 +76,19 @@ figures are recorded but make no cross-model claims.
 
 ## Repetitions and variance
 
-Agent runs are nondeterministic. **No variance claim — and no ratchet
-breach report treating a delta as real — is made from fewer than 8
-repetitions per lane** of the configuration in question. This floor
-carries the operational lesson LLP 0186 OQ2 cites ("measure N≥8 before
-blaming a commit", the Minisforum telemetry lane).
+Agent runs are nondeterministic. A preregistered series with **N>=3 per
+configuration** is ratchet-eligible and reports the median, range, and
+every constituent value. Single runs remain recorded existence evidence,
+never evidence of magnitude.
 
-**No ratchet claim is made from fewer than 3 runs of the configuration.**
-Single runs remain recorded existence evidence; N>=3 is the W1 harness's
-operational minimum, while N>=8 remains the floor for a variance claim or
-for attributing a real regression to a commit or release
-(`issues/closed/20260808-w1-benchmark-harness-formalization.md`).
+**No variance claim — and no ratchet breach report treating a delta as
+real — is made from fewer than N>=8 repetitions per lane of the
+configuration in question.** An ordering claim likewise requires N>=8
+on that configuration unless its rung matrix row states a preregistered
+variance-transfer rule. This floor carries the operational lesson LLP
+0186 OQ2 cites ("measure N≥8 before blaming a commit", the Minisforum
+telemetry lane) and governs attribution of a real regression to a commit
+or release (`issues/closed/20260808-w1-benchmark-harness-formalization.md`).
 
 **OPEN (LLP 0186 OQ2):** the actual calibration answer — how many
 repetitions make the ratchet stable enough to gate a release without
@@ -145,6 +154,11 @@ loop with three iterations noted in the summary.
   evidence. Counts toward no lane's ratchet figure, but is reported;
   a run with many `ambiguous` loops is a signal the rule needs
   refinement, and the calibration phase should revise the draft.
+
+Every `snapback-defect` loop also records `subAttribution`; no other
+attribution may carry the field. `defect` means platform misbehavior.
+`knowledge-gap` means missing or undiscoverable knowledge caused the
+loop.
 
 Tie-break: if accurate documentation existed but was undiscoverable at
 the point of need (the shipped-but-undiscovered class of LLP 0186's
