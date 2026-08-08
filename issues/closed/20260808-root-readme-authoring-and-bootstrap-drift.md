@@ -59,3 +59,17 @@ unowned product description.
 - A check or explicit ownership rule prevents the entry point from becoming an
   unreviewed shadow capability index again.
 
+
+## Resolution
+
+Fixed 2026-08-08 (docs-review execution, 1284ae8a5). The status blockquote
+now reflects the shipped local-target product and eleven-package 0.1.15
+closure; a "Build an app on Snapback" section routes app authors before
+contributor content; "Next design work" became a GAP-row-deferring
+"What's next" with the explicit rule that the capability index wins where
+they disagree; and the recursive `git submodule update --init --recursive`
+advice was replaced with `scripts/bootstrap-ibex-runtime` per the
+on-demand Ibex policy. The acceptance bullet asking for a mechanical
+README-ownership check was not built — the stated ownership rule is the
+interim substitute, and the freshness-program ticket
+(20260808-guide-freshness-warning-saturation.md) owns the mechanical class.

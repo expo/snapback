@@ -58,3 +58,17 @@ template/recipe portfolio in LLP 0196, not create an unrelated gallery.
 - The inventory check covers the catalog/documentation joins and has failure
   fixtures for an undocumented demo and an unqualified stale GAP claim.
 
+
+## Status (2026-08-08 docs-review execution)
+
+Partially absorbed (124ecd39a): demos/README.md now carries a
+hand-maintained catalog of all 25 declared demos (purpose, declared
+surfaces with requirement labels, README presence, maintenance contract);
+new honest READMEs for browser-local-first, chirp, and cursors-web; and
+the todo/todo-v2/graffiti manifests carry explicit asOf boundaries on
+their historical capability facts (tracked to closure in the
+canonical-demo-manifests ticket). Remains: the machine-checkable
+README/catalog contract, inventory-check coverage of catalog joins, and
+capability-contradiction detection. New observation: the crud-dashboard
+and media-feed templates (landed 2026-08-08, after the lane's scope froze)
+still lack READMEs.

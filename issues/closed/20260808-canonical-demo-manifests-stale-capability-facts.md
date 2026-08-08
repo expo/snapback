@@ -30,3 +30,16 @@ Ask: refresh both manifests against current capability truth (or scope
 and add the legacy-form banner to demos/todo.
 
 Found by the 2026-08-08 comprehensive docs review (templates/examples slice).
+
+## Resolution
+
+Fixed 2026-08-08 (docs-review execution, 124ecd39a + 6989df1ac). All three
+manifests (todo, todo-v2, graffiti) replaced the false
+`blocked/REACT_ADAPTER_NOT_BUILT` surface facts with current truth plus
+explicit asOf scoping on the historical `capabilityGaps` (phrased against
+the capability index's actual shipped/partial/design-only statuses, not a
+blanket "shipped"). Because manifest bytes feed codegen's `inputsHash`,
+every committed artifacts.json was regenerated — including todo-v2's
+second `generated-remote-service` projection, which the pre-push
+generated-artifacts gate caught on the first landing attempt. demos/todo
+also gained the "legacy authoring form on purpose" banner.

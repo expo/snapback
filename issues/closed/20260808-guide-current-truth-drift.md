@@ -56,3 +56,17 @@ both version values from one authority or otherwise make their drift checked.
   and GAP facts without reading as contradictory capability claims.
 - `node scripts/check-guide.mjs` and the relevant template/package tests pass.
 
+
+## Resolution
+
+Fixed 2026-08-08 (docs-review execution, 1284ae8a5). All five bullets: the
+expo-chat auth-mode and registry-version claims were repaired on
+the-authoring-loop.md (version prose now sources published-closure.json);
+generated-app commands now speak bun consistently (templates declare
+`packageManager: bun`) with an npm-equivalence note; the
+`operating.packaged-dev-loop` capability row was rewritten against the
+published closure record (React path published and G1-qualified since
+0.1.7); and `clients.non-js` was rewritten as an honest design-only
+aspirational gap (targets `none`, no shipped witness implied). Filed by
+the Codex audit; converged independently with the Claude review's
+authoring-loop ticket (also closed today).

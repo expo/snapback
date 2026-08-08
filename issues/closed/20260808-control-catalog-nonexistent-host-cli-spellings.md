@@ -34,3 +34,15 @@ Ask: correct the spellings in generate-control-catalog.mjs's CLI map,
 regenerate the catalog/inventory projections, and fix the host-ops.md prose.
 
 Found by the 2026-08-08 comprehensive docs review (operating slice).
+
+## Resolution
+
+Fixed 2026-08-08 (docs-review execution, 47ab42dd6 generator fix,
+1284ae8a5 projections). The seven `snapback host …` spellings in
+scripts/generate-control-catalog.mjs were corrected to the real top-level
+verbs (verified against src/cli.rs and a live binary probe), the catalog
+and guide/operating/agent-controls.md regenerated, and the host-ops.md
+"`host inspect`" prose fixed. At integration the migrate and
+secretRead.mint rows also gained real Guide anchors. The new
+scripts/check-guide-shell-commands.mjs advisory (124ecd39a) now flags any
+fictional `snapback host` spelling that reappears.

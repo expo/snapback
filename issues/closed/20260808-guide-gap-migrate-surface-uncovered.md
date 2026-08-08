@@ -32,3 +32,16 @@ pointers.
 
 Found independently by two lanes of the 2026-08-08 comprehensive docs
 review (entry-points and operating slices).
+
+## Resolution
+
+Fixed 2026-08-08 (docs-review execution, 1284ae8a5). New page
+guide/backend/migrations.md teaches the seven-verb `snapback migrate`
+loop (all flags verified against src/cli.rs, the 12-variant intent
+vocabulary, rehearsal binding, `rollback` declared-but-unbuilt, and all 22
+`SNAPBACK_MIGRATION_*` codes); the `backend.migrations` capability row
+(with migration/alter-column/drop-field aliases) and index entry landed at
+integration; both dangling prose pointers (instance-forks.md,
+the-authoring-loop.md) now link real anchors; and the seven
+`cli.migrate.*` control-catalog rows gained Guide cells pointing at the
+page.

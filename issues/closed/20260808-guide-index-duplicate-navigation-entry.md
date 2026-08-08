@@ -32,3 +32,13 @@ contexts are intentionally distinct.
 - A fixture proves an exact duplicate in one section fails the guide check.
 - Intentional cross-section routing remains supported.
 
+
+## Resolution
+
+Fixed 2026-08-08 (docs-review execution, 1284ae8a5): the second "Local
+instance forks" entry was deleted from guide/index.md's Operating section.
+The proposed duplicate-entry checker was not built — a recurrence would
+surface in ordinary review, and the one-line check remains a cheap
+follow-up if the class ever recurs. Independently found and fixed by both
+the Codex and Claude audits (the Claude side tracked it in the
+guide-meta-hygiene-sweep ticket, also closed today).

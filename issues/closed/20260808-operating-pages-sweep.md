@@ -35,3 +35,15 @@ these:
    src/cli.rs:1311-1341) are documented nowhere. Three-line usage note.
 
 Found by the 2026-08-08 comprehensive docs review (operating slice).
+
+## Resolution
+
+Fixed 2026-08-08 (docs-review execution, 1284ae8a5). All five items:
+admin-console.md restructured packaged-first (`snapback admin
+--ready-file …` leads; cargo forms are labeled contributor variants);
+host-ops.md's stale "CLI-only" claim now names the five MCP asset tools
+with only `asset.put`/`asset.ensureSeedFixture` remaining cliOnly;
+cloudflare.md references the `EXPECTED_LOCAL_SUITE_CHECKS` manifest
+constant instead of a drifting literal; the hub page's two cells were
+reworded/retargeted; and `debug.live.forceResync` gained a usage note with
+its five arguments.

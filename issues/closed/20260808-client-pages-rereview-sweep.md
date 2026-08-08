@@ -42,3 +42,16 @@ issues/20260808-react-freshness-snapshot-missing-from-types.md because it
 includes a published-types fix.)
 
 Found by the 2026-08-08 comprehensive docs review (clients slice).
+
+## Resolution
+
+Fixed 2026-08-08 (docs-review execution, 1284ae8a5). All four items:
+headless.md's inventory gained the ten missing methods and its
+completeness claim was re-derived programmatically (94 public members
+enumerated; missing-from-table now empty); react-expo.md was reframed
+version-agnostically as closure-version boundaries (re-verified against
+the published npm tarballs, not just source) and its false "no
+app-lifecycle seam" claim replaced with the documented
+`provider.pause()`/`resume()` seam (react.md documents it too);
+`useSnapbackOutbox` is completed to all returned fields with
+offline-page links.

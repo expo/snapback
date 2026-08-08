@@ -35,3 +35,19 @@ snippets, cross-linked from mutations.md and standard-patterns.md; add
 retrieval aliases (mutationPlan, letBind, insertEach, return binding).
 
 Found by the 2026-08-08 comprehensive docs review (backend slice).
+
+## Resolution
+
+Fixed 2026-08-08 (docs-review execution, 1284ae8a5). New page
+guide/backend/declarative-plans.md carries the complete `defineMutation`
+reference — spec keys, all step helpers, all five return bindings, the
+grouped expression algebra (including `authActivityActorKind`, which this
+ticket's inventory missed), the pinned function library, `outgrewIr`
+classes, anti-patterns, and the plan-refusal channel documenting the
+CURRENT envelope split (cross-linked to the still-open
+plan-refusal-codes-not-crosschecked ticket) — plus the index entry and
+cross-links from mutations.md/standard-patterns.md. Two ticket-adjacent
+corrections surfaced during verified authoring: an omitted `returns`
+defaults to the changed count (not null), and `mutationPlan()` is the
+`defineWriteWithActivity` container rather than defineMutation's array
+form.

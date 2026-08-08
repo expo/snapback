@@ -37,3 +37,14 @@ CLI — lead with the `snapback dev`-printed URL and keep `cargo run` as the
 contributor variant.
 
 Found by the 2026-08-08 comprehensive docs review (entry-points slice).
+
+## Resolution
+
+Fixed 2026-08-08 (docs-review execution, 1284ae8a5). All four items: the
+expo-chat paragraph now states the real sessions-mode default with
+supervised auto-mint; the hardcoded 0.1.8/"pin 0.1.7" prose was replaced
+with version-agnostic text sourcing `newestPublished`/`newestQualified`
+from guide/published-closure.json (so a later publication cannot silently
+stale it again); an install line was added to the page top and SKILL.md
+step 1; and the Inspect section leads with `snapback admin --ready-file …`
+with `cargo run` demoted to a contributor variant.

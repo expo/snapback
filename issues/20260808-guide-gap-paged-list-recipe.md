@@ -19,3 +19,11 @@ CI-verified demo source; propose it for the LLP 0196 T4 queue since recipes
 graduate into template code there.
 
 Found by the 2026-08-08 comprehensive docs review (recipes slice).
+
+## Status (2026-08-08 docs-review execution)
+
+Not addressed — a CI-verified recipe needs a demo source to transclude,
+which is real demo work, and LLP 0196 T4's queue (real-auth sign-in,
+offline supervisor-origin, verify-config) still does not include
+pagination. This remains the strongest unowned recipe candidate; propose
+it for the T4 queue when the current queue drains.

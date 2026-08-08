@@ -33,3 +33,14 @@ not less:
 Ask: absorb these in the same pages the ctx.db landing touched
 (queries.md/mutations.md/expo-push.md), with retrieval aliases for the
 refusal codes.
+
+## Resolution
+
+Fixed 2026-08-08 (docs-review execution, 1284ae8a5). All four items:
+builder caps with their refusal codes plus the `withIndex`
+plain-setter rewording on queries.md; `ctx.isDirectHuman()` beside server
+scoping; `ctx.push.audience`/`ctx.push.audiences.<name>` helpers on
+expo-push.md; and the `results.records` union variants with the
+`{minItems,maxItems}` bounds on queries.md. The
+`backend.functions` capability row gained the plan-vocabulary aliases at
+integration.

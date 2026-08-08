@@ -37,3 +37,14 @@ resolution; the open copy (15:33) was an identical-body leftover that
 contradicted it.
 
 Found by the 2026-08-08 comprehensive docs review (entry-points slice).
+
+## Resolution
+
+Fixed 2026-08-08 (docs-review execution, 1284ae8a5). All five items: the
+duplicate index entry and duplicate surface-map row pair were deleted;
+SKILL.md trap 6 now cites the issues/closed/ path and states the 0.1.12+
+most-permissive-delivery warn behavior (both skill copies, byte-identical
+per the packaging test's invariant); conventions.md was fully re-reviewed
+and restamped; surface-map.md was restamped at integration; and the README
+status refresh landed with the root-readme ticket. The stale duplicate
+open copy of the surface-command ticket was removed earlier (f06ff3bf0).

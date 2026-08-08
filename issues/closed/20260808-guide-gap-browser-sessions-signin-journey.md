@@ -29,3 +29,14 @@ Scope boundaries with existing work:
   snippet, so the sessions page stops routing web authors into silence.
 
 Found by the 2026-08-08 comprehensive docs review (auth slice).
+
+## Resolution
+
+Fixed at the ticket's stated minimum 2026-08-08 (docs-review execution,
+1284ae8a5): guide/auth/sessions-and-principals.md now carries "A browser
+app under sessions today" — the honest options (dev mode, test personas as
+local-test material, the broker seam, the supervised Expo web carrier), a
+CI-executed `new AuthCoordinator({...})` transclusion from
+demos/party-wall/tests/acceptance/headless.mjs, the
+memory-vs-IndexedDB custody choice, and the pointer that the full worked
+recipe remains queued as LLP 0196 T4.

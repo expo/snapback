@@ -18,3 +18,13 @@ Ask: one short "mint a scoped secret-read lease" section (host-ops.md or
 observability.md) that both dependent pages and the catalog row can link.
 
 Found by the 2026-08-08 comprehensive docs review (operating slice).
+
+## Resolution
+
+Fixed 2026-08-08 (docs-review execution, 1284ae8a5). host-ops.md gained
+"Mint a scoped secret-read lease" — the `snapback secret-read-mint`
+example, the `sbrl_` lease-field-to-flag/header mapping, all eight scope
+flags, and the three budget flags with their defaults (60 s / 500 rows /
+1 MiB, verified against src/cli.rs) — and both dependent pages
+(observability.md, error-tracking.md) now link it. The `secretRead.mint`
+catalog row's Guide cell was wired to the new anchor at integration.

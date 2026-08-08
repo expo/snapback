@@ -33,3 +33,14 @@ Ask:
    the class cannot recur.
 
 Found by the 2026-08-08 comprehensive docs/templates review.
+
+## Resolution
+
+Fixed 2026-08-08 (docs-review execution, 47ab42dd6). The defect class was
+three templates wide, not one: crud-dashboard and media-feed (landed after
+this ticket was filed) shipped literal `.gitignore` files too. All three
+renamed to `gitignore.template` (scaffoldApp's rename is template-generic),
+and `packages/snapback-cli/package.test.mjs` gained a recursive assertion
+that every template ships `gitignore.template` and zero literal `.gitignore`
+— teeth-tested by planting one. `npm pack --dry-run` now lists all five
+carriers.

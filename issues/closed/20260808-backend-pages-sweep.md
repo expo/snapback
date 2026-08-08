@@ -41,3 +41,16 @@ vocabulary, table history, migrate surface, ctx addenda on
 issues/20260808-ctx-db-verbs-undocumented.md.)
 
 Found by the 2026-08-08 comprehensive docs review (backend slice).
+
+## Resolution
+
+Fixed 2026-08-08 (docs-review execution, 1284ae8a5). All six items: the
+sequences-publication contradiction on trusted-runtime-values.md (now
+"experimental, contributor-local-only publication"; the same pass also
+fixed that page's false "no general schema-migration workflow" claim,
+routing to the new migrations.md); stored-enum notes with `since: 0.1.16
+unreleased` fences on mutations.md and queries.md; `searchLiveLimits` on
+text-search.md; the two push state vocabularies distinguished on
+expo-push.md; the vector filter-value pedagogy note; and both missing
+links (snapshot-batches→sequences order-declaration syntax,
+queries→standard-patterns keyset pages).

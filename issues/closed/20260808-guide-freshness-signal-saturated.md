@@ -49,3 +49,16 @@ The mechanism should distinguish:
 - High-risk current-truth pages have a stricter or more explicit review policy.
 - The design preserves LLP 0189's affected-scope landing cadence.
 
+
+## Resolution
+
+Closed 2026-08-08 as CONSOLIDATED into
+issues/20260808-guide-freshness-warning-saturation.md — the independently
+filed program ticket dispositioned the same day (scoped per-area
+reconciliation, warning-only policy retained, new-vs-baseline reporting as
+the actionable core). This docs-review execution contributed the first
+large reconciliation tranche: ~40 pages re-verified against their
+authorities and restamped, taking warnings from 62 to 46 while the corpus
+grew from 64 to 108 pages (97% → 43% saturation). Remaining program work
+(new-vs-baseline reporting, the threshold-triggered dedup ticket) lives in
+the surviving ticket.

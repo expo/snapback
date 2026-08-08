@@ -44,3 +44,15 @@ than assuming `main` stays quiet.
 - “Diary NNNN” resolves unambiguously in generated indexes and future prose, or
   the convention is changed so authors no longer rely on a bare numeric ID.
 
+
+## Status (2026-08-08 docs-review execution)
+
+Guard landed (124ecd39a): scripts/check-diary-identity.mjs verifies the
+collision set — the ticket's claimed 11 prefixes confirmed exactly, each
+baselined with its file pair, so KNOWN and NEW collisions are
+distinguishable; `--strict` exits nonzero only on NEW collisions or a
+stale baseline, and the header documents the concurrency-safe numbering
+recipe (fetch origin, number above the union of local and origin trees,
+land promptly). Remains: the canonical disposition for the existing 11
+(rename vs alias) is an author call; recommended wiring is `--strict` in
+the scheduled drift backstop so a new collision files a ticket.

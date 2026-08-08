@@ -17,3 +17,12 @@ on its first command. Fix the cell to: "the sibling file named by the ready
 file's `impersonationCapabilityFile` (always `<ready-file>.impersonation`)".
 
 Found by the 2026-08-08 comprehensive docs review (auth slice).
+
+## Resolution
+
+Fixed 2026-08-08 (docs-review execution, 1284ae8a5). The carriers-table
+cell now says the capability is the sibling file named by the ready file's
+`impersonationCapabilityFile` (always `<ready-file>.impersonation`), with a
+short paragraph stating the descriptor carries only the validated sibling
+path — never bytes — and pointing at the kit's
+`captureImpersonationCapability` reader.

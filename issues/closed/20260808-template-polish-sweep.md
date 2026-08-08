@@ -45,3 +45,17 @@ ticketed here — LLP 0196 owns portfolio breadth (T1/T2, OQ1) and its T4
 recipe queue; this review's findings confirm the demand it already models.
 
 Found by the 2026-08-08 comprehensive docs review (templates slice).
+
+## Resolution
+
+Fixed 2026-08-08 (docs-review execution, 47ab42dd6 + 1284ae8a5). Item 1:
+the react template's entries map is hoisted to module scope (and the
+template acceptance still passes). Item 2 took the low-risk option: a
+prominent AGENTS.md caveat plus call-site comments that client-supplied
+`senderId` is a demo convenience, never a security boundary — no auth-flow
+restructure. Item 3: per-template READMEs, the react index.html title, the
+create-snapback-app hedge dropped. Item 4: both hardcoded template lists
+now derive from `listTemplates()` and `snapback new`'s help names its
+default; todo-contract's AGENTS.md states it is backend+headless only.
+Item 5 (expo-chat visibility in react-expo.md's install section) landed
+via the clients lane.

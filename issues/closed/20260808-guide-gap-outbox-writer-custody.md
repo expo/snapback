@@ -20,3 +20,17 @@ ticket's repair, which may make writer acquisition awaited in the
 high-level client (in which case document the awaited behavior instead).
 
 Found by the 2026-08-08 comprehensive docs review (sync slice).
+
+## Resolution
+
+Fixed 2026-08-08 (docs-review execution, 1284ae8a5).
+guide/sync/offline-and-retention.md now teaches writer custody: the store
+is single-writer, a second client over the same directory is a reader that
+refuses `SNAPBACK_OUTBOX_NOT_WRITER` rather than queuing, generated
+declarative mutations degrade via `queue: 'auto'` server delegation, and
+explicit `queue: true` without queue custody refuses
+`SNAPBACK_OFFLINE_QUEUE_DISABLED` (the memory-fallback prose now names the
+code too). Checked before writing: the misrouted-offline repair
+(20260807 ticket) has not landed, so refuse-not-queue is the honest
+current behavior; if writer acquisition later becomes awaited, this
+paragraph should be updated with that repair.

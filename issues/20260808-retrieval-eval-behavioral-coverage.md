@@ -49,3 +49,13 @@ program exits. Make uncovered and stale cases visible.
 - The static checker remains the fast gate but no longer reads as the only
   current evidence for discovery quality.
 
+
+## Status (2026-08-08 docs-review execution)
+
+Not addressed by this execution — the behavioral registry and sampler need
+model/budget decisions the docs lanes could not make. Note that the same
+landing materially changed the corpus the eval targets (new
+declarative-plans and migrations pages, four new capability rows, new
+aliases, ~40 pages restamped), which strengthens the case for a behavioral
+run soon: the lexical static check still passes, but no current transcript
+shows an agent retrieving the new pages.

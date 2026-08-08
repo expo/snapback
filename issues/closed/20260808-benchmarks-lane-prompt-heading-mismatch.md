@@ -12,3 +12,11 @@ or quote it in the README).
 
 Filed by the 2026-08-08 comprehensive docs review (dedup sweep of recent
 diaries).
+
+## Resolution
+
+Fixed 2026-08-08 (docs-review execution, 47ab42dd6). The brief's heading is
+now `## Lane-prompt block`, matching the three sibling briefs and the
+README extraction instruction; the runs-provenance parenthetical was
+preserved as a body line ("Used verbatim by runs 0065–0068."). Repo grep
+confirmed nothing extracted the parenthetical form.

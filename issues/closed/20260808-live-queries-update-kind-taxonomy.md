@@ -28,3 +28,15 @@ enumerate the auth-boundary kinds completely, and fix or delete the
 dangling lead-in.
 
 Found by the 2026-08-08 comprehensive docs review (realtime slice).
+
+## Resolution
+
+Fixed 2026-08-08 (docs-review execution, 1284ae8a5). live-queries.md now
+separates wire-frame kinds (all five, including `current_as_of`, with
+`resync_required`/`authorization_invalidation` noted as consumed
+internally) from what `onUpdate` receives, and enumerates the auth-boundary
+set completely — `authorization_snapshot | authorization_quarantine |
+authorization_delete | authorization_error | authorization_denied` — with
+"handle all five" replacing the unnamed "four". The dangling lead-in was
+repaired by restoring the promised assertion as a verbatim
+`source=demos/_kit/tests/live-delta-e2e.mjs` transclusion.

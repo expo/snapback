@@ -16,3 +16,11 @@ witness build; treat as demand-gated until a second consumer appears.
 
 Filed by the 2026-08-08 comprehensive docs review (dedup sweep of recent
 diaries).
+
+## Status (2026-08-08 docs-review execution)
+
+Not addressed; remains demand-gated as filed (one witness build so far).
+The client-pages re-review that landed today did not add the projection,
+but headless.md's completed method inventory now names the receipt-bearing
+surfaces a wrapper would project, which slightly lowers the cost of a
+future first-party implementation.

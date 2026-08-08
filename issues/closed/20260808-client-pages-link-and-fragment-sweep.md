@@ -32,3 +32,14 @@ One editing pass over guide/clients/ closes all of these:
    or store section.
 
 Found by the 2026-08-08 comprehensive docs review (clients slice).
+
+## Resolution
+
+Fixed 2026-08-08 (docs-review execution, 1284ae8a5). All five items:
+react.md↔surfaces.md routing (with the anti-pattern the reader can now
+actually find), the Hermes-unsafe `crypto.randomUUID()` fragment replaced
+with a carrier-safe intent key plus an explicit no-globalThis.crypto
+clause, the dead `api` import/legacy manifest triple replaced with the
+descriptor form, framework-bindings.md's links to the shipped bindings and
+the external-store docs, and the react-expo→expo-push link via the
+`push-installation-expo` subpath.

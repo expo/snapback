@@ -29,3 +29,15 @@ provisioning), or document the real surface if one exists; align the
 index.md one-liner and consider a GAP row for the registration half.
 
 Found by the 2026-08-08 comprehensive docs review (auth slice).
+
+## Resolution
+
+Fixed 2026-08-08 (docs-review execution, 1284ae8a5).
+guide/auth/agent-principals.md gained a "Where the agent credential comes
+from: the provisioning boundary" section stating the honest truth (no
+user-reachable registration surface; creation functions have only
+test/internal call sites; the app CLI only consumes an existing `sbac_`
+credential), the guide/index.md one-liner now says "pair a provisioned
+agent … (agent creation has no user-reachable surface yet)", and a new
+`auth.agent-registration` design-only GAP row (owner: Charlie, review
+2026-09-30) makes the missing half discoverable in the capability index.

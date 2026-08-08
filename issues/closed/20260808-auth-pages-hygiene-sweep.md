@@ -31,3 +31,15 @@ these:
    agents don't install a nonexistent package.
 
 Found by the 2026-08-08 comprehensive docs review (auth/realtime slice).
+
+## Resolution
+
+Fixed 2026-08-08 (docs-review execution, 1284ae8a5). All six items landed:
+supervised-loop routing on native-apps.md, the mock-server lead-in on
+protecting-data.md, the `requireFixtureSession` gloss, the duplicate
+`order: 3` renumbering (whole auth section now matches the index order),
+the paved CLI mint mention, and the `@messenger/*` alias note on
+ephemeral-state.md. Correction found during execution: this ticket's own
+suggested spelling `snapback host session mint` was fictional — the landed
+docs say `snapback session mint`, verified against src/cli.rs and the
+built binary.

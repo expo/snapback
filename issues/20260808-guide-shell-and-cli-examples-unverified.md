@@ -53,3 +53,19 @@ an unchecked default.
 - Regression fixtures prove the checker catches a nonexistent flag and a stale
   closure/package-manager fact.
 
+
+## Status (2026-08-08 docs-review execution)
+
+First mechanical guard landed (124ecd39a):
+scripts/check-guide-shell-commands.mjs extracts `snapback` invocations
+from shell fences across guide/ and both SKILL.md copies and validates
+them against a truth set parsed from BOTH the packaged CLI registry and
+src/cli.rs's clap enums (49 top-level commands, 25 with validated
+second-level verbs; parser-drift sanity gates exit 2). First harvest:
+138 invocations, 0 findings after the flat-projection regeneration — the
+hand-authored corpus is clean at the subcommand level; the only true
+positives found were stale `snapback host` residue in the generated flat
+file, which the same landing cleared. Remains: wiring (recommended:
+`--strict` in the scheduled backstop for an observation period, then
+promote into check-guide), plus the ticket's deeper asks — flag
+validation, version/package-manager binding, depth-3 subcommands.

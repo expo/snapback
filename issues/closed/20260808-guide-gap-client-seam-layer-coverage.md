@@ -43,3 +43,17 @@ the capability index. Consider giving framework-bindings.md explicit
 ownership of "the seam layer" so future twins have a home.
 
 Found by the 2026-08-08 comprehensive docs review (clients slice).
+
+## Resolution
+
+Fixed 2026-08-08 (docs-review execution, 1284ae8a5). All six doc items:
+the Micro-profile entry-point paragraph on headless.md,
+`createCommandClient`/`SnapbackCommandClient` on headless.md and
+surfaces.md, `admitSnapbackId` beside branded IDs (react.md) and deep
+links (react-expo.md), the observe*/invoke*/republisher twin one-liners,
+the Contract render-first boot-variants note, and the two app-cli library
+exports. framework-bindings.md now explicitly owns the seam-layer map so
+future twins have a home. The `clients.micro` capability row landed at
+integration — maturity `shipped` rather than the drafted `partial`,
+because the maturity-join rule requires capability ≥ claiming-page
+maturity and the row's What describes exactly the published surface.

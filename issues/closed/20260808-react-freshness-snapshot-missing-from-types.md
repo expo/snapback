@@ -25,3 +25,11 @@ Ask:
 2. Footnote the fourth value in react.md's return-contract list.
 
 Found by the 2026-08-08 comprehensive docs review (clients slice).
+
+## Resolution
+
+Fixed 2026-08-08 (docs-review execution). The `'snapshot'` arm was added to
+the `SnapbackFreshness` union in packages/snapback-react/index.d.mts
+(47ab42dd6) — verification established it co-occurs only with
+`status: 'ready'` — and react.md's return-contract list now footnotes the
+fourth value with the read-only mixed-route context (1284ae8a5).
