@@ -3222,6 +3222,14 @@ successful settlement survives, and the diagnostic never echoes the rejected
 value. The general result ceiling is 4 MiB, while retained mutation output
 also keeps its existing 65,536-byte ceiling.
 
+The violation details name the failing bound so you do not have to guess which
+one it was: `constraint` carries one closed name (`maxResultBytes`, `maxBytes`,
+`maxDepth`, `maxItems`, `minItems`, `nodeBudget`, `arity`, `dimensions`,
+`requiredField`, `extraField`, `type`, `literal`, `range`, `union`, or
+`serialize`) beside the JSON `path`, and size, count, depth, and budget bounds
+also report numeric `limit` and `observed`. Those measurements are aggregate
+magnitudes only — a rejected value, string, or dynamic key never appears.
+
 An error is a structured `SNAPBACK_*` diagnostic. A rejected queued mutation
 still has a terminal receipt on the error envelope so the client store can
 settle it without guessing. A confirmed receipt always carries a non-null

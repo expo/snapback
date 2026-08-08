@@ -49,3 +49,38 @@ for whole-value size violations, where it degenerates to `"$"`.
   `demos/zerobugs/evidence/snapback-control-large.zb5.v2.json`).
 
 - **Claimed 2026-08-08:** session dc26442d (13-ticket sweep orchestrator) is executing this ticket now; sibling sessions should not duplicate.
+
+## Resolution
+
+**2026-08-08.** `SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION` details now name the
+violated bound. `src/result_contract.rs` threads a `Violation { path,
+constraint, limit, observed }` through every validator instead of a bare path
+string, and the diagnostic adds:
+
+- `constraint` — one closed, value-free name: `maxResultBytes` (the 4 MiB
+  whole-result ceiling), `maxBytes` (a declared `v.string({maxBytes})` or
+  `v.json({maxBytes})` bound), `maxDepth`, `nodeBudget`, `maxItems`,
+  `minItems`, `arity`, `dimensions`, `requiredField`, `extraField`, `type`,
+  `literal`, `range`, `union`, and `serialize`.
+- `limit` and `observed` — plain numbers, emitted only for size, count, depth,
+  and budget bounds. They are deliberately absent for `range`, so an
+  out-of-bounds scalar's own value never reaches a diagnostic.
+
+The ticket's motivating case — `results.value(v.json())` whose 1 MiB `maxBytes`
+was crossed by an echoed batch — now reports
+`{constraint: "maxBytes", limit: 1048576, observed: <bytes>, path: "$"}`
+instead of `path: "$"` alone. The global ceiling is deliberately named
+`maxResultBytes` rather than `maxBytes` so the two bounds this ticket's reporter
+had to disambiguate by hand are distinguishable at a glance.
+
+Existing detail fields (`functionId`, `resultContractHash`, `path`) are
+unchanged; the change is purely additive. Validation behavior — which values
+pass and which refuse — is unchanged; only the diagnostic gained fields, and
+several arms that previously collapsed two distinct failures into one path
+(string type vs length, number type vs range, JSON serialize vs size, node
+budget vs depth) now report which of the two it was.
+
+Documented in LLP 0108 §Diagnostics and in `guide/backend/mutations.md`. Unit
+tests in `src/result_contract.rs` pin the constraint name and the numeric
+`limit`/`observed` per bound kind, and assert that neither the message nor the
+serialized details contain the rejected value, string, or dynamic key.

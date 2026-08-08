@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "95e0a3787e09b6a765861bdf8c27723f411386eb"
+    "commit": "b4de3a14dc04a16b3bfc7be05f8834716e2e4633"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -1130,7 +1130,7 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedCommit": "effa2773760fd0d740c49f06990b3fde5e82a66b",
-      "sha256": "864a715bfb084fab1f66f47236b4465f1b328af526c668a3c833bf62b9034c18",
+      "sha256": "cc03e84659324ad9c75c6f11a0b79485b445ab1b9216ada478dcfbe4d585e655",
       "snippets": [
         {
           "lang": "js",
@@ -3727,5 +3727,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "9262298d15954585196bc86fe57104c90bf7a21a531a0da69c5b7c375b6a7df2"
+  "contentHash": "b2fea5872a18eba881394e050c79ca262b4fa29a04faa92c1aaa150dd368a0ff"
 }

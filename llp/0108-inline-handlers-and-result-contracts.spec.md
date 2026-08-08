@@ -5,7 +5,9 @@
 **Systems:** Authoring, Code generation, Runtime, Data API, Client integration, Contract, Security, Artifacts, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-03 (Accepted 2026-08-03 by the author — decision
+**Revised:** 2026-08-08 (result-contract violations name the closed,
+value-free constraint and report aggregate bound measurements only); 2026-08-03
+(Accepted 2026-08-03 by the author — decision
 sitting #2, "accept all that verify",
 `issues/20260803-author-decision-sitting-2.md`; gate verified: the round-3
 NOT-READY material findings were all absorbed by the §Final author
@@ -604,6 +606,13 @@ path when available, otherwise the first variant's first failure plus the
 bounded count of failed variants. Expected/actual kinds use closed enums, never
 the rejected value. Public detail fields are capped independently and have
 schema-owned gated/public projections.
+
+Result-contract violations use the closed constraint vocabulary
+`maxResultBytes`, `serialize`, `type`, `literal`, `range`, `maxBytes`,
+`maxDepth`, `nodeBudget`, `maxItems`, `minItems`, `arity`, `dimensions`,
+`requiredField`, `extraField`, and `union`. `limit` and `observed` appear only
+for size, count, depth, and budget bounds; they are omitted for all other
+constraints and never carry a rejected scalar's own value.
 
 Generation diagnostics use original authored paths/spans only in local and
 gated custody. Internal transformed or synthetic module text is never presented

@@ -16,10 +16,71 @@ pub const MAX_HANDLER_RESULT_BYTES: usize = 4 * 1024 * 1024;
 const MAX_RESULT_NODES: usize = 65_536;
 const MAX_RESULT_DEPTH: usize = 16;
 
+const MAX_RESULT_BYTES: &str = "maxResultBytes";
+const SERIALIZE: &str = "serialize";
+const TYPE: &str = "type";
+const LITERAL: &str = "literal";
+const RANGE: &str = "range";
+const MAX_BYTES: &str = "maxBytes";
+const MAX_DEPTH: &str = "maxDepth";
+const NODE_BUDGET: &str = "nodeBudget";
+const MAX_ITEMS: &str = "maxItems";
+const MIN_ITEMS: &str = "minItems";
+const ARITY: &str = "arity";
+const DIMENSIONS: &str = "dimensions";
+const REQUIRED_FIELD: &str = "requiredField";
+const EXTRA_FIELD: &str = "extraField";
+const UNION: &str = "union";
+
+/// A result-contract failure with a closed, value-free constraint vocabulary:
+/// `maxResultBytes`, `serialize`, `type`, `literal`, `range`, `maxBytes`,
+/// `maxDepth`, `nodeBudget`, `maxItems`, `minItems`, `arity`, `dimensions`,
+/// `requiredField`, `extraField`, and `union`. Measurements are aggregate
+/// sizes, counts, depths, or budgets only; rejected scalar values never appear.
+///
+/// @ref LLP 0108#diagnostics — public constraint names are closed and
+/// value-free by design, including their optional measurements.
+#[derive(Debug)]
+struct Violation {
+    path: String,
+    constraint: &'static str,
+    limit: Option<u64>,
+    observed: Option<u64>,
+}
+
+impl Violation {
+    fn at(path: impl Into<String>, constraint: &'static str) -> Self {
+        Self {
+            path: path.into(),
+            constraint,
+            limit: None,
+            observed: None,
+        }
+    }
+
+    fn bound(
+        path: impl Into<String>,
+        constraint: &'static str,
+        limit: usize,
+        observed: usize,
+    ) -> Self {
+        Self {
+            path: path.into(),
+            constraint,
+            limit: Some(limit as u64),
+            observed: Some(observed as u64),
+        }
+    }
+}
+
 pub fn validate_handler_result(function: &FunctionDefinition, value: &Value) -> SnapbackResult<()> {
-    let bytes = serde_json::to_vec(value).map_err(|_| violation(function, "$"))?;
+    let bytes = serde_json::to_vec(value)
+        .map_err(|_| violation(function, Violation::at("$", SERIALIZE)))?;
     if bytes.len() > MAX_HANDLER_RESULT_BYTES {
-        return Err(violation(function, "$"));
+        return Err(violation(
+            function,
+            Violation::bound("$", MAX_RESULT_BYTES, MAX_HANDLER_RESULT_BYTES, bytes.len()),
+        ));
     }
     let mut budget = ValidationBudget { nodes: 0 };
     match &function.result_contract {
@@ -40,7 +101,7 @@ pub fn validate_handler_result(function: &FunctionDefinition, value: &Value) -> 
             validate_value(function, value, contract, "$", 0, &mut budget)
         }
     }
-    .map_err(|path| violation(function, &path))
+    .map_err(|failure| violation(function, failure))
 }
 
 fn validate_rows(
@@ -49,10 +110,25 @@ fn validate_rows(
     row: &ResultValueContract,
     bound: Option<&crate::manifest::ResultRowsBound>,
     budget: &mut ValidationBudget,
-) -> Result<(), String> {
-    let rows = value.as_array().ok_or_else(|| "$".to_owned())?;
-    if bound.is_some_and(|bound| rows.len() < bound.min_items || rows.len() > bound.max_items) {
-        return Err("$".to_owned());
+) -> Result<(), Violation> {
+    let rows = value.as_array().ok_or_else(|| Violation::at("$", TYPE))?;
+    if let Some(bound) = bound {
+        if rows.len() < bound.min_items {
+            return Err(Violation::bound(
+                "$",
+                MIN_ITEMS,
+                bound.min_items,
+                rows.len(),
+            ));
+        }
+        if rows.len() > bound.max_items {
+            return Err(Violation::bound(
+                "$",
+                MAX_ITEMS,
+                bound.max_items,
+                rows.len(),
+            ));
+        }
     }
     for (index, value) in rows.iter().enumerate() {
         validate_value(function, value, row, &format!("$[{index}]"), 1, budget)?;
@@ -64,13 +140,20 @@ struct ValidationBudget {
     nodes: usize,
 }
 
-fn consume(budget: &mut ValidationBudget, depth: usize, path: &str) -> Result<(), String> {
+fn consume(budget: &mut ValidationBudget, depth: usize, path: &str) -> Result<(), Violation> {
     budget.nodes = budget.nodes.saturating_add(1);
-    if budget.nodes > MAX_RESULT_NODES || depth > MAX_RESULT_DEPTH {
-        Err(path.to_owned())
-    } else {
-        Ok(())
+    if budget.nodes > MAX_RESULT_NODES {
+        return Err(Violation::bound(
+            path,
+            NODE_BUDGET,
+            MAX_RESULT_NODES,
+            budget.nodes,
+        ));
     }
+    if depth > MAX_RESULT_DEPTH {
+        return Err(Violation::bound(path, MAX_DEPTH, MAX_RESULT_DEPTH, depth));
+    }
+    Ok(())
 }
 
 fn validate_value(
@@ -80,48 +163,64 @@ fn validate_value(
     path: &str,
     depth: usize,
     budget: &mut ValidationBudget,
-) -> Result<(), String> {
+) -> Result<(), Violation> {
     let _ = function;
     consume(budget, depth, path)?;
     match contract {
         ResultValueContract::Null if value.is_null() => Ok(()),
         ResultValueContract::Boolean if value.is_boolean() => Ok(()),
-        ResultValueContract::String { max_bytes } => value
-            .as_str()
-            .filter(|text| text.len() <= *max_bytes)
-            .map(|_| ())
-            .ok_or_else(|| path.to_owned()),
-        ResultValueContract::Integer { min, max } => value
-            .as_i64()
-            .filter(|number| number >= min && number <= max)
-            .map(|_| ())
-            .ok_or_else(|| path.to_owned()),
-        ResultValueContract::FiniteReal { min, max } => value
-            .as_f64()
-            .filter(|number| number.is_finite() && number >= min && number <= max)
-            .map(|_| ())
-            .ok_or_else(|| path.to_owned()),
+        ResultValueContract::String { max_bytes } => {
+            let text = value.as_str().ok_or_else(|| Violation::at(path, TYPE))?;
+            if text.len() > *max_bytes {
+                return Err(Violation::bound(path, MAX_BYTES, *max_bytes, text.len()));
+            }
+            Ok(())
+        }
+        ResultValueContract::Integer { min, max } => {
+            let Some(number) = value.as_number() else {
+                return Err(Violation::at(path, TYPE));
+            };
+            if let Some(number) = number.as_i64() {
+                if number < *min || number > *max {
+                    return Err(Violation::at(path, RANGE));
+                }
+                return Ok(());
+            }
+            Err(Violation::at(
+                path,
+                if number.is_u64() { RANGE } else { TYPE },
+            ))
+        }
+        ResultValueContract::FiniteReal { min, max } => {
+            let number = value.as_f64().ok_or_else(|| Violation::at(path, TYPE))?;
+            if !number.is_finite() || number < *min || number > *max {
+                return Err(Violation::at(path, RANGE));
+            }
+            Ok(())
+        }
         ResultValueContract::Principal
         | ResultValueContract::AssetRef
         | ResultValueContract::Id { .. } => value
             .as_str()
             .filter(|text| !text.is_empty())
             .map(|_| ())
-            .ok_or_else(|| path.to_owned()),
+            .ok_or_else(|| Violation::at(path, TYPE)),
         ResultValueContract::Literal { value: expected } if value == expected => Ok(()),
+        ResultValueContract::Literal { .. } => Err(Violation::at(path, LITERAL)),
         ResultValueContract::Json {
             max_depth,
             max_bytes,
         } => {
-            if serde_json::to_vec(value).map_or(true, |bytes| bytes.len() > *max_bytes) {
-                return Err(path.to_owned());
+            let bytes = serde_json::to_vec(value).map_err(|_| Violation::at(path, SERIALIZE))?;
+            if bytes.len() > *max_bytes {
+                return Err(Violation::bound(path, MAX_BYTES, *max_bytes, bytes.len()));
             }
             validate_json_children_with_limit(value, depth, *max_depth, budget, path)
         }
         ResultValueContract::Array { element, max_items } => {
-            let values = value.as_array().ok_or_else(|| path.to_owned())?;
+            let values = value.as_array().ok_or_else(|| Violation::at(path, TYPE))?;
             if values.len() > *max_items {
-                return Err(path.to_owned());
+                return Err(Violation::bound(path, MAX_ITEMS, *max_items, values.len()));
             }
             for (index, value) in values.iter().enumerate() {
                 validate_value(
@@ -136,9 +235,9 @@ fn validate_value(
             Ok(())
         }
         ResultValueContract::Tuple { elements } => {
-            let values = value.as_array().ok_or_else(|| path.to_owned())?;
+            let values = value.as_array().ok_or_else(|| Violation::at(path, TYPE))?;
             if values.len() != elements.len() {
-                return Err(path.to_owned());
+                return Err(Violation::bound(path, ARITY, elements.len(), values.len()));
             }
             for (index, (value, element)) in values.iter().zip(elements).enumerate() {
                 validate_value(
@@ -153,19 +252,24 @@ fn validate_value(
             Ok(())
         }
         ResultValueContract::Vector { dimensions } => {
-            let values = value.as_array().ok_or_else(|| path.to_owned())?;
+            let values = value.as_array().ok_or_else(|| Violation::at(path, TYPE))?;
             if values.len() != *dimensions as usize {
-                return Err(path.to_owned());
+                return Err(Violation::bound(
+                    path,
+                    DIMENSIONS,
+                    *dimensions as usize,
+                    values.len(),
+                ));
             }
             for (index, value) in values.iter().enumerate() {
                 consume(budget, depth + 1, &format!("{path}[{index}]"))?;
                 let Some(component) = value.as_f64() else {
-                    return Err(path.to_owned());
+                    return Err(Violation::at(path, TYPE));
                 };
                 if !component.is_finite()
                     || component.abs() > crate::vector::VECTOR_COMPONENT_ABS_MAX
                 {
-                    return Err(path.to_owned());
+                    return Err(Violation::at(path, RANGE));
                 }
             }
             Ok(())
@@ -180,13 +284,13 @@ fn validate_value(
                     return Ok(());
                 }
             }
-            Err(path.to_owned())
+            Err(Violation::at(path, UNION))
         }
         ResultValueContract::Object {
             fields,
             allow_extra,
         } => validate_object(function, value, fields, *allow_extra, path, depth, budget),
-        _ => Err(path.to_owned()),
+        _ => Err(Violation::at(path, TYPE)),
     }
 }
 
@@ -198,14 +302,17 @@ fn validate_object(
     path: &str,
     depth: usize,
     budget: &mut ValidationBudget,
-) -> Result<(), String> {
-    let object = value.as_object().ok_or_else(|| path.to_owned())?;
+) -> Result<(), Violation> {
+    let object = value.as_object().ok_or_else(|| Violation::at(path, TYPE))?;
     let names = fields
         .iter()
         .map(|field| field.name.as_str())
         .collect::<BTreeSet<_>>();
     if !allow_extra && let Some(name) = object.keys().find(|name| !names.contains(name.as_str())) {
-        return Err(format!("{path}.{}", path_segment(name)));
+        return Err(Violation::at(
+            format!("{path}.{}", path_segment(name)),
+            EXTRA_FIELD,
+        ));
     }
     for field in fields {
         match object.get(&field.name) {
@@ -218,7 +325,10 @@ fn validate_object(
                 budget,
             )?,
             None if field.required => {
-                return Err(format!("{path}.{}", path_segment(&field.name)));
+                return Err(Violation::at(
+                    format!("{path}.{}", path_segment(&field.name)),
+                    REQUIRED_FIELD,
+                ));
             }
             None => {}
         }
@@ -251,7 +361,7 @@ fn validate_json_budget(
     value: &Value,
     depth: usize,
     budget: &mut ValidationBudget,
-) -> Result<(), String> {
+) -> Result<(), Violation> {
     validate_json_budget_with_limit(value, depth, MAX_RESULT_DEPTH, budget, "$")
 }
 
@@ -261,10 +371,10 @@ fn validate_json_budget_with_limit(
     max_depth: usize,
     budget: &mut ValidationBudget,
     path: &str,
-) -> Result<(), String> {
+) -> Result<(), Violation> {
     consume(budget, depth, path)?;
     if depth > max_depth {
-        return Err(path.to_owned());
+        return Err(Violation::bound(path, MAX_DEPTH, max_depth, depth));
     }
     match value {
         Value::Array(values) => {
@@ -300,9 +410,9 @@ fn validate_json_children_with_limit(
     max_depth: usize,
     budget: &mut ValidationBudget,
     path: &str,
-) -> Result<(), String> {
+) -> Result<(), Violation> {
     if depth > max_depth {
-        return Err(path.to_owned());
+        return Err(Violation::bound(path, MAX_DEPTH, max_depth, depth));
     }
     match value {
         Value::Array(values) => {
@@ -332,7 +442,23 @@ fn validate_json_children_with_limit(
     Ok(())
 }
 
-fn violation(function: &FunctionDefinition, path: &str) -> SnapbackError {
+fn violation(function: &FunctionDefinition, failure: Violation) -> SnapbackError {
+    let mut details = json!({
+        "functionId": function.id,
+        "resultContractHash": function.result_contract_hash,
+        "path": failure.path,
+        "constraint": failure.constraint,
+    });
+    let object = details
+        .as_object_mut()
+        .expect("result-contract violation details are an object");
+    if let Some(limit) = failure.limit {
+        object.insert("limit".to_owned(), json!(limit));
+    }
+    if let Some(observed) = failure.observed {
+        object.insert("observed".to_owned(), json!(observed));
+    }
+
     SnapbackError::error(
         "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION",
         "runtime",
@@ -341,11 +467,7 @@ fn violation(function: &FunctionDefinition, path: &str) -> SnapbackError {
             function.id
         ),
     )
-    .with_details(json!({
-        "functionId": function.id,
-        "resultContractHash": function.result_contract_hash,
-        "path": path,
-    }))
+    .with_details(details)
 }
 
 #[cfg(test)]
@@ -371,6 +493,99 @@ mod tests {
         function
     }
 
+    fn assert_redacted(error: &SnapbackError, secret: &str) {
+        assert_eq!(
+            error.to_string(),
+            "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION: handler \"fn:rows\" returned a value outside its declared result contract"
+        );
+        let serialized_details =
+            serde_json::to_string(&error.diagnostic.details).expect("diagnostic details serialize");
+        assert!(!error.to_string().contains(secret));
+        assert!(!serialized_details.contains(secret), "{serialized_details}");
+    }
+
+    #[test]
+    fn nested_type_violation_names_constraint_without_echoing_scalar() {
+        let function = function(FunctionResultContract::Value {
+            value: ResultValueContract::Object {
+                fields: vec![ResultObjectFieldContract {
+                    name: "title".to_owned(),
+                    required: true,
+                    value: ResultValueContract::String { max_bytes: 32 },
+                }],
+                allow_extra: false,
+            },
+        });
+        let user_number = 987_654_321_u64;
+        let error = validate_handler_result(&function, &json!({ "title": user_number }))
+            .expect_err("a number is not a declared string");
+
+        assert_eq!(error.diagnostic.details["path"], "$.title");
+        assert_eq!(error.diagnostic.details["constraint"], TYPE);
+        assert!(error.diagnostic.details.get("limit").is_none());
+        assert!(error.diagnostic.details.get("observed").is_none());
+        assert_redacted(&error, &user_number.to_string());
+    }
+
+    #[test]
+    fn bounded_json_max_bytes_reports_aggregate_measurements_without_payload() {
+        let max_bytes = 64;
+        let function = function(FunctionResultContract::Value {
+            value: ResultValueContract::Json {
+                max_depth: 16,
+                max_bytes,
+            },
+        });
+        let marker = "ticket-private-payload";
+        let value = json!({ "payload": format!("{marker}-{}", "z".repeat(max_bytes)) });
+        let observed = serde_json::to_vec(&value).unwrap().len();
+        let error = validate_handler_result(&function, &value)
+            .expect_err("encoded JSON exceeds its declared maxBytes");
+
+        assert_eq!(error.diagnostic.details["path"], "$");
+        assert_eq!(error.diagnostic.details["constraint"], MAX_BYTES);
+        assert_eq!(error.diagnostic.details["limit"], json!(max_bytes));
+        assert_eq!(error.diagnostic.details["observed"], json!(observed));
+        assert!(observed > max_bytes);
+        assert_redacted(&error, marker);
+    }
+
+    #[test]
+    fn global_result_max_bytes_reports_aggregate_measurements_without_payload() {
+        let function = function(FunctionResultContract::Unknown);
+        let marker = "private-global-result-payload";
+        let value = Value::String(format!("{marker}{}", "z".repeat(MAX_HANDLER_RESULT_BYTES)));
+        let observed = serde_json::to_vec(&value).unwrap().len();
+        let error = validate_handler_result(&function, &value)
+            .expect_err("encoded handler result exceeds the global ceiling");
+
+        assert_eq!(error.diagnostic.details["path"], "$");
+        assert_eq!(error.diagnostic.details["constraint"], MAX_RESULT_BYTES);
+        assert_eq!(
+            error.diagnostic.details["limit"],
+            json!(MAX_HANDLER_RESULT_BYTES)
+        );
+        assert_eq!(error.diagnostic.details["observed"], json!(observed));
+        assert!(observed > MAX_HANDLER_RESULT_BYTES);
+        assert_redacted(&error, marker);
+    }
+
+    #[test]
+    fn string_max_bytes_reports_utf8_byte_lengths_without_content() {
+        let max_bytes = 4;
+        let function = function(FunctionResultContract::Value {
+            value: ResultValueContract::String { max_bytes },
+        });
+        let value = "private-é";
+        let error = validate_handler_result(&function, &json!(value))
+            .expect_err("string exceeds its declared UTF-8 maxBytes");
+
+        assert_eq!(error.diagnostic.details["constraint"], MAX_BYTES);
+        assert_eq!(error.diagnostic.details["limit"], json!(max_bytes));
+        assert_eq!(error.diagnostic.details["observed"], json!(value.len()));
+        assert_redacted(&error, value);
+    }
+
     #[test]
     fn exact_record_contract_rejects_extra_fields_without_echoing_values() {
         let function = function(FunctionResultContract::Records {
@@ -394,8 +609,33 @@ mod tests {
             "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION"
         );
         assert_eq!(error.diagnostic.details["path"], "$[0].secret");
+        assert_eq!(error.diagnostic.details["constraint"], EXTRA_FIELD);
+        assert!(error.diagnostic.details.get("limit").is_none());
+        assert!(error.diagnostic.details.get("observed").is_none());
         assert!(error.diagnostic.details.get("pathHash").is_none());
-        assert!(!error.to_string().contains("do-not-echo"));
+        assert_redacted(&error, "do-not-echo");
+    }
+
+    #[test]
+    fn exact_record_contract_names_missing_required_field() {
+        let function = function(FunctionResultContract::Records {
+            record: ResultValueContract::Object {
+                fields: vec![ResultObjectFieldContract {
+                    name: "title".to_owned(),
+                    required: true,
+                    value: ResultValueContract::String { max_bytes: 8 },
+                }],
+                allow_extra: false,
+            },
+            rows: None,
+        });
+        let error =
+            validate_handler_result(&function, &json!([{}])).expect_err("required title is absent");
+
+        assert_eq!(error.diagnostic.details["path"], "$[0].title");
+        assert_eq!(error.diagnostic.details["constraint"], REQUIRED_FIELD);
+        assert!(error.diagnostic.details.get("limit").is_none());
+        assert!(error.diagnostic.details.get("observed").is_none());
     }
 
     #[test]
@@ -447,8 +687,11 @@ mod tests {
             .expect("legible redacted path");
         assert!(path.starts_with("$.<unknown>#"), "{path}");
         assert!(!path.contains(dynamic_key), "{path}");
-        assert!(!error.to_string().contains(dynamic_key));
-        assert!(!error.to_string().contains(offending_value));
+        assert_eq!(error.diagnostic.details["constraint"], MAX_DEPTH);
+        assert_eq!(error.diagnostic.details["limit"], json!(0));
+        assert_eq!(error.diagnostic.details["observed"], json!(1));
+        assert_redacted(&error, dynamic_key);
+        assert_redacted(&error, offending_value);
     }
 
     #[test]
@@ -483,12 +726,18 @@ mod tests {
                 max_items: 1,
             }),
         });
-        assert!(validate_handler_result(&function, &json!([])).is_err());
+        let too_few = validate_handler_result(&function, &json!([]))
+            .expect_err("rows minItems must be enforced");
+        assert_eq!(too_few.diagnostic.details["constraint"], MIN_ITEMS);
+        assert_eq!(too_few.diagnostic.details["limit"], json!(1));
+        assert_eq!(too_few.diagnostic.details["observed"], json!(0));
         validate_handler_result(&function, &json!([{"title": "one"}])).unwrap();
-        assert!(
+        let too_many =
             validate_handler_result(&function, &json!([{"title": "one"}, {"title": "two"}]))
-                .is_err()
-        );
+                .expect_err("rows maxItems must be enforced");
+        assert_eq!(too_many.diagnostic.details["constraint"], MAX_ITEMS);
+        assert_eq!(too_many.diagnostic.details["limit"], json!(1));
+        assert_eq!(too_many.diagnostic.details["observed"], json!(2));
     }
 
     #[test]
@@ -497,10 +746,14 @@ mod tests {
             value: ResultValueContract::Vector { dimensions: 3 },
         });
         validate_handler_result(&function, &json!([0.0, -0.0, 3.5])).expect("exact D passes");
-        for rejected in [
-            json!([0.0, 1.0]),
-            json!([0.0, 1.0, 2.0, 3.0]),
-            json!([0.0, 1.0, crate::vector::VECTOR_COMPONENT_ABS_MAX * 2.0]),
+        for (rejected, constraint, observed) in [
+            (json!([0.0, 1.0]), DIMENSIONS, Some(2)),
+            (json!([0.0, 1.0, 2.0, 3.0]), DIMENSIONS, Some(4)),
+            (
+                json!([0.0, 1.0, crate::vector::VECTOR_COMPONENT_ABS_MAX * 2.0]),
+                RANGE,
+                None,
+            ),
         ] {
             let error = validate_handler_result(&function, &rejected)
                 .expect_err("D-1, D+1, and out-of-domain components refuse");
@@ -508,6 +761,14 @@ mod tests {
                 error.diagnostic.code,
                 "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION"
             );
+            assert_eq!(error.diagnostic.details["constraint"], constraint);
+            if let Some(observed) = observed {
+                assert_eq!(error.diagnostic.details["limit"], json!(3));
+                assert_eq!(error.diagnostic.details["observed"], json!(observed));
+            } else {
+                assert!(error.diagnostic.details.get("limit").is_none());
+                assert!(error.diagnostic.details.get("observed").is_none());
+            }
         }
     }
 
@@ -534,22 +795,35 @@ mod tests {
             error.diagnostic.code,
             "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION"
         );
+        assert_eq!(error.diagnostic.details["constraint"], NODE_BUDGET);
+        assert_eq!(error.diagnostic.details["limit"], json!(MAX_RESULT_NODES));
+        assert_eq!(
+            error.diagnostic.details["observed"],
+            json!(MAX_RESULT_NODES + 1)
+        );
     }
 
     #[test]
     fn value_contract_matrix_covers_every_recursive_variant() {
         let cases = vec![
-            (ResultValueContract::Null, Value::Null, json!(false)),
-            (ResultValueContract::Boolean, json!(true), json!("true")),
+            (ResultValueContract::Null, Value::Null, json!(false), TYPE),
+            (
+                ResultValueContract::Boolean,
+                json!(true),
+                json!("true"),
+                TYPE,
+            ),
             (
                 ResultValueContract::String { max_bytes: 4 },
                 json!("éé"),
                 json!("ééé"),
+                MAX_BYTES,
             ),
             (
                 ResultValueContract::Integer { min: -2, max: 2 },
                 json!(2),
                 json!(3),
+                RANGE,
             ),
             (
                 ResultValueContract::FiniteReal {
@@ -558,12 +832,19 @@ mod tests {
                 },
                 json!(1.25),
                 json!(2.0),
+                RANGE,
             ),
-            (ResultValueContract::Principal, json!("usr_1"), json!("")),
+            (
+                ResultValueContract::Principal,
+                json!("usr_1"),
+                json!(""),
+                TYPE,
+            ),
             (
                 ResultValueContract::AssetRef,
                 json!("asset_0198"),
                 json!({"assetId": "asset_0198"}),
+                TYPE,
             ),
             (
                 ResultValueContract::Id {
@@ -571,6 +852,7 @@ mod tests {
                 },
                 json!("item_1"),
                 json!(""),
+                TYPE,
             ),
             (
                 ResultValueContract::Literal {
@@ -578,6 +860,7 @@ mod tests {
                 },
                 json!("ready"),
                 json!("waiting"),
+                LITERAL,
             ),
             (
                 ResultValueContract::Json {
@@ -586,6 +869,7 @@ mod tests {
                 },
                 json!({"ok": true}),
                 json!({"too": {"deep": true}}),
+                MAX_DEPTH,
             ),
             (
                 ResultValueContract::Array {
@@ -594,6 +878,15 @@ mod tests {
                 },
                 json!([true, false]),
                 json!([true, false, true]),
+                MAX_ITEMS,
+            ),
+            (
+                ResultValueContract::Tuple {
+                    elements: vec![ResultValueContract::Boolean],
+                },
+                json!([true]),
+                json!([]),
+                ARITY,
             ),
             (
                 ResultValueContract::Union {
@@ -601,6 +894,7 @@ mod tests {
                 },
                 json!(false),
                 json!("neither"),
+                UNION,
             ),
             (
                 ResultValueContract::Object {
@@ -620,10 +914,11 @@ mod tests {
                 },
                 json!({"required": true}),
                 json!({"optional": "ok"}),
+                REQUIRED_FIELD,
             ),
         ];
 
-        for (contract, accepted, rejected) in cases {
+        for (contract, accepted, rejected, expected_constraint) in cases {
             let function = function(FunctionResultContract::Value { value: contract });
             validate_handler_result(&function, &accepted)
                 .unwrap_or_else(|error| panic!("accepted fixture refused: {error}"));
@@ -633,11 +928,30 @@ mod tests {
                 error.diagnostic.code,
                 "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION"
             );
+            assert_eq!(
+                error.diagnostic.details["constraint"], expected_constraint,
+                "unexpected constraint for rejected fixture {rejected}"
+            );
             assert!(
                 !error.to_string().contains(&rejected.to_string()),
                 "result diagnostics must not echo the rejected value"
             );
         }
+    }
+
+    #[test]
+    fn scalar_range_violation_never_reports_the_rejected_number() {
+        let function = function(FunctionResultContract::Value {
+            value: ResultValueContract::Integer { min: -2, max: 2 },
+        });
+        let rejected = 9_876_543_210_i64;
+        let error = validate_handler_result(&function, &json!(rejected))
+            .expect_err("out-of-range integer must be refused");
+
+        assert_eq!(error.diagnostic.details["constraint"], RANGE);
+        assert!(error.diagnostic.details.get("limit").is_none());
+        assert!(error.diagnostic.details.get("observed").is_none());
+        assert_redacted(&error, &rejected.to_string());
     }
 
     #[test]
