@@ -44,3 +44,6 @@ it's a landmine for when the native-multipart lane activates.
 
 High on all three mechanisms; medium on impact given the experimental fence.
 Land as a set before ungating S3.
+
+## Resolution (2026-08-08)
+Fixed on main (Lane B). Verified: cargo build; cargo test --lib asset 135 pass (single-threaded); ref-check clean.

@@ -8057,6 +8057,23 @@ impl LocalSnapback {
                 ),
             ));
         }
+        if (intent.image.is_some() || intent.video.is_some())
+            && declared_length > assets::ASSET_BUFFERED_FINALIZE_MAX_BYTES
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED",
+                "assets",
+                format!(
+                    "declared length {declared_length} exceeds the buffered finalizer ceiling {}",
+                    assets::ASSET_BUFFERED_FINALIZE_MAX_BYTES
+                ),
+            )
+            .with_details(serde_json::json!({
+                "limit": assets::ASSET_BUFFERED_FINALIZE_MAX_BYTES,
+                "observed": declared_length,
+                "path": "buffered-finalizer",
+            })));
+        }
         if let Some(declared) = &request.declared_content_type
             && !asset_media_type_admitted(&intent.accept.media_types, declared)
         {
@@ -10095,6 +10112,28 @@ impl LocalSnapback {
         } else {
             image_location
         };
+        if location_policy.is_some()
+            && staged.byte_length > assets::ASSET_BUFFERED_FINALIZE_MAX_BYTES
+        {
+            return self.asset_fail_attempt(
+                &attempt,
+                assets::AssetAvailability::Pending,
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED",
+                    "assets",
+                    format!(
+                        "staged media length {} exceeds the buffered finalizer ceiling {}",
+                        staged.byte_length,
+                        assets::ASSET_BUFFERED_FINALIZE_MAX_BYTES
+                    ),
+                )
+                .with_details(serde_json::json!({
+                    "limit": assets::ASSET_BUFFERED_FINALIZE_MAX_BYTES,
+                    "observed": staged.byte_length,
+                    "path": "buffered-finalizer",
+                })),
+            );
+        }
         if location_policy.is_none() && (detected_video_container || detected.starts_with("image/"))
         {
             // A pre-amendment or hand-built video manifest may still put its
@@ -10377,8 +10416,7 @@ impl LocalSnapback {
         // Phase B — idempotent object put: copy staging to the recorded
         // opaque key and verify the copy by digest before anything durable
         // points at it.
-        let canonical_bytes = store.read(canonical.object.as_ref())?;
-        store.put_blob_idempotent(&publication.planned_key, &canonical_bytes)?;
+        store.copy_from_staging(canonical.object.as_ref(), &publication.planned_key)?;
         let copied = store.hash(crate::assets_store::AssetObjectRef::Blob(
             &publication.planned_key,
         ))?;
@@ -12112,6 +12150,14 @@ impl LocalSnapback {
             })?;
             report.tombstones_purged += 1;
         }
+
+        // Delivery receipts arrive at read rate. Bound only that event class;
+        // lifecycle, publication, processing, and GC evidence is unchanged.
+        let delivery_receipt_cutoff =
+            now_ms.saturating_sub(assets::ASSET_DELIVERY_RECEIPT_RETENTION_MS);
+        report.delivery_receipts_purged = self
+            .db
+            .asset_transaction(|tx| assets::purge_delivery_receipts(tx, delivery_receipt_cutoff))?;
 
         // Blob GC: condemn transactionally, delete the object, then drop the
         // condemned row — each step receipted and crash-recoverable (a
@@ -30895,6 +30941,7 @@ pub(crate) struct AssetGcReport {
     pub pending_reclaimed: u64,
     pub reference_reclaimed: u64,
     pub tombstones_purged: u64,
+    pub delivery_receipts_purged: u64,
     pub blobs_condemned: u64,
     pub blob_objects_deleted: u64,
     pub blob_rows_removed: u64,
@@ -37475,6 +37522,24 @@ globalThis.__snapbackHandlers = {
         snapback
     }
 
+    #[test]
+    fn asset_buffered_finalizer_refuses_above_the_global_ceiling() {
+        let declared_length = crate::assets::ASSET_BUFFERED_FINALIZE_MAX_BYTES + 1;
+        let mut snapback = asset_image_snapback(
+            crate::manifest::AssetLocationPolicy::Retain,
+            declared_length,
+        );
+        let creator = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+        let error = snapback
+            .asset_attempt_create(&creator, asset_create_request(Some(declared_length)))
+            .expect_err("buffered media cannot reserve above the process ceiling");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED");
+        assert_eq!(
+            error.diagnostic.details["limit"],
+            serde_json::json!(crate::assets::ASSET_BUFFERED_FINALIZE_MAX_BYTES)
+        );
+    }
+
     fn asset_primary_rendition(
         snapback: &mut LocalSnapback,
         asset_id: &str,
@@ -38843,6 +38908,51 @@ globalThis.__snapbackHandlers = {
         assert!(
             events.iter().filter(|e| *e == "delivery-admitted").count() >= 3,
             "every admitted request receipts: {events:?}"
+        );
+    }
+
+    #[test]
+    fn asset_gc_retires_only_delivery_receipts_after_their_window() {
+        let mut snapback = asset_test_snapback();
+        let asset_id = asset_ready(&mut snapback, "user_a", b"receipt-retention");
+        asset_deliver_content(&mut snapback, "user_a", &asset_id, "primary", None)
+            .expect("full delivery");
+        asset_deliver_content(
+            &mut snapback,
+            "user_a",
+            &asset_id,
+            "primary",
+            Some("bytes=0-3"),
+        )
+        .expect("range delivery");
+
+        let count_event = |snapback: &mut LocalSnapback, event: &str| {
+            snapback
+                .db
+                .asset_transaction(|tx| {
+                    Ok(tx.query_row(
+                        "SELECT COUNT(*) FROM _snapback_asset_receipts_v1
+                         WHERE asset_id = ?1 AND event = ?2",
+                        rusqlite::params![asset_id, event],
+                        |row| row.get::<_, u64>(0),
+                    )?)
+                })
+                .expect("receipt count")
+        };
+        assert_eq!(count_event(&mut snapback, "delivery-admitted"), 2);
+        assert_eq!(count_event(&mut snapback, "asset-ready"), 1);
+
+        let report = snapback
+            .asset_gc_sweep(
+                now_millis() + crate::assets::ASSET_DELIVERY_RECEIPT_RETENTION_MS + 1,
+            )
+            .expect("retention sweep");
+        assert_eq!(report.delivery_receipts_purged, 2);
+        assert_eq!(count_event(&mut snapback, "delivery-admitted"), 0);
+        assert_eq!(
+            count_event(&mut snapback, "asset-ready"),
+            1,
+            "lifecycle evidence is not part of delivery retention"
         );
     }
 

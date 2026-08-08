@@ -56,6 +56,26 @@ pub trait AssetStore: Send + Sync {
     /// object already exists at the key. Callers verify by re-hashing.
     fn put_blob_idempotent(&self, key: &str, bytes: &[u8]) -> SnapbackResult<()>;
 
+    /// Stream a restricted staging object into an immutable blob. Store
+    /// implementations should avoid buffering the whole object; the default
+    /// preserves compatibility for stores whose native copy lane is not yet
+    /// active.
+    fn copy_from_staging(
+        &self,
+        source: AssetObjectRef<'_>,
+        blob_key: &str,
+    ) -> SnapbackResult<()> {
+        if matches!(source, AssetObjectRef::Blob(_)) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_STORE_OP_UNSUPPORTED",
+                "assets",
+                "copy_from_staging requires a restricted staging object",
+            ));
+        }
+        let bytes = self.read(source)?;
+        self.put_blob_idempotent(blob_key, &bytes)
+    }
+
     fn read(&self, object: AssetObjectRef<'_>) -> SnapbackResult<Vec<u8>>;
 
     /// Up to `max_len` bytes at `offset`; empty at EOF. Delivery streams
@@ -101,6 +121,53 @@ fn store_unavailable(context: &str, error: impl std::fmt::Display) -> SnapbackEr
         "assets",
         format!("{context}: {error}"),
     )
+}
+
+/// Same-directory temp write followed by file and directory durability. The
+/// rename is the publication cut: callers never expose a partially written
+/// canonical or blob object at its final path.
+fn durable_replace(
+    path: &std::path::Path,
+    context: &str,
+    write: impl FnOnce(&mut std::fs::File) -> std::io::Result<()>,
+) -> SnapbackResult<()> {
+    use std::io::Write as _;
+
+    let file_name = path.file_name().and_then(|name| name.to_str()).ok_or_else(|| {
+        store_unavailable(context, "object path has no valid file name")
+    })?;
+    let temporary_name = file_name
+        .strip_suffix(crate::assets::ASSET_CANONICAL_SUFFIX)
+        .map(|key| format!("{key}-tmp{}", crate::assets::ASSET_CANONICAL_SUFFIX))
+        .unwrap_or_else(|| format!("{file_name}-tmp"));
+    let temporary = path.with_file_name(temporary_name);
+    match std::fs::remove_file(&temporary) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(store_unavailable(context, error)),
+    }
+    let result = (|| {
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temporary)?;
+        write(&mut file)?;
+        file.flush()?;
+        file.sync_data()?;
+        std::fs::rename(&temporary, path)?;
+        crate::secure_file::sync_parent(path)
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_file(&temporary);
+    }
+    result.map_err(|error| store_unavailable(context, error))
+}
+
+fn sync_existing(path: &std::path::Path, context: &str) -> SnapbackResult<()> {
+    std::fs::File::open(path)
+        .and_then(|file| file.sync_data())
+        .and_then(|()| crate::secure_file::sync_parent(path))
+        .map_err(|error| store_unavailable(context, error))
 }
 
 impl AssetFsStore {
@@ -176,17 +243,44 @@ impl AssetStore for AssetFsStore {
 
     fn write_canonical(&self, key: &str, bytes: &[u8]) -> SnapbackResult<()> {
         let path = self.canonical_staging_path(key)?;
-        std::fs::write(path, bytes)
-            .map_err(|error| store_unavailable("cannot stage canonical rewrite", error))
+        durable_replace(&path, "cannot stage canonical rewrite", |file| {
+            use std::io::Write as _;
+            file.write_all(bytes)
+        })
     }
 
     fn put_blob_idempotent(&self, key: &str, bytes: &[u8]) -> SnapbackResult<()> {
         let path = self.blob_path(key)?;
         if path.exists() {
-            return Ok(());
+            return sync_existing(&path, "cannot confirm published object durability");
         }
-        std::fs::write(path, bytes)
-            .map_err(|error| store_unavailable("cannot publish object", error))
+        durable_replace(&path, "cannot publish object", |file| {
+            use std::io::Write as _;
+            file.write_all(bytes)
+        })
+    }
+
+    fn copy_from_staging(
+        &self,
+        source: AssetObjectRef<'_>,
+        blob_key: &str,
+    ) -> SnapbackResult<()> {
+        if matches!(source, AssetObjectRef::Blob(_)) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_STORE_OP_UNSUPPORTED",
+                "assets",
+                "copy_from_staging requires a restricted staging object",
+            ));
+        }
+        let target = self.blob_path(blob_key)?;
+        if target.exists() {
+            return sync_existing(&target, "cannot confirm published object durability");
+        }
+        let source = self.resolve(source)?;
+        durable_replace(&target, "cannot publish staged object", |target| {
+            let mut source = std::fs::File::open(source)?;
+            std::io::copy(&mut source, target).map(|_| ())
+        })
     }
 
     fn read(&self, object: AssetObjectRef<'_>) -> SnapbackResult<Vec<u8>> {
@@ -263,5 +357,59 @@ impl AssetStore for AssetFsStore {
 
     fn wipe_all(&self) -> SnapbackResult<()> {
         AssetFsStore::wipe_all(self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{AssetObjectRef, AssetStore};
+
+    #[test]
+    fn assets_store_durable_publication_replaces_canonical_and_keeps_blobs_immutable() {
+        let root = tempfile::tempdir().expect("temp asset store");
+        let store = crate::assets::AssetFsStore::open(root.path()).expect("open store");
+        let staging_key = crate::assets::AssetFsStore::new_opaque_key();
+        let blob_key = crate::assets::AssetFsStore::new_opaque_key();
+
+        store
+            .append_staging(&staging_key, 0, b"staged bytes")
+            .expect("durable staging");
+        store
+            .copy_from_staging(AssetObjectRef::Staging(&staging_key), &blob_key)
+            .expect("streamed publication");
+        assert_eq!(
+            store.read(AssetObjectRef::Blob(&blob_key)).expect("blob"),
+            b"staged bytes"
+        );
+
+        store
+            .put_blob_idempotent(&blob_key, b"different bytes")
+            .expect("idempotent existing blob");
+        assert_eq!(
+            store.read(AssetObjectRef::Blob(&blob_key)).expect("blob"),
+            b"staged bytes",
+            "an immutable blob is never overwritten"
+        );
+
+        store
+            .write_canonical(&staging_key, b"first canonical")
+            .expect("first canonical");
+        store
+            .write_canonical(&staging_key, b"second canonical")
+            .expect("replacement canonical");
+        assert_eq!(
+            store
+                .read(AssetObjectRef::Canonical(&staging_key))
+                .expect("canonical"),
+            b"second canonical"
+        );
+        let temporary_entries = std::fs::read_dir(
+            crate::assets::AssetFsStore::staging_directory(root.path()),
+        )
+        .expect("list staging")
+        .filter_map(Result::ok)
+        .filter(|entry| entry.file_name().to_string_lossy().contains("-tmp"))
+        .count();
+        assert_eq!(temporary_entries, 0, "publication leaves no temp files");
     }
 }

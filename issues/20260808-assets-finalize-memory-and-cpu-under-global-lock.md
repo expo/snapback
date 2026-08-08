@@ -42,3 +42,6 @@ ceiling on `accept.max_bytes` for the buffered paths.
 High on mechanics. The single-writer design is deliberate (@ref LLP 0059), but
 that the CPU/IO-heavy phase happens *inside* the lock rather than staging renders
 outside it reads as an unexamined consequence, not a decision.
+
+## Progress (2026-08-08 Lane B)
+Streaming copy_from_staging added and used for primary publication; buffered image/video paths now enforce a 256 MiB ceiling at admission and finalize. The larger move of render/canonicalize CPU OUTSIDE the global writer lock is DEFERRED (it crosses the LLP 0044 write-ahead/re-drive choreography; too risky for a fix lane) and is the natural home for LLP 0199 "background services do CPU/network preparation outside the global writer." Keep open for that refactor.

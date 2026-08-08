@@ -113,7 +113,24 @@ pub struct UreqTransport;
 
 impl S3Transport for UreqTransport {
     fn execute(&self, request: S3Request) -> SnapbackResult<S3Response> {
-        let mut call = ureq::request(request.method, &request.url);
+        let timeout = std::time::Duration::from_secs(30);
+        let agent = ureq::AgentBuilder::new()
+            .timeout_connect(timeout)
+            .timeout_read(timeout)
+            .timeout_write(timeout)
+            .build();
+        let response_body_limit = if request
+            .headers
+            .iter()
+            .any(|(name, _)| name.eq_ignore_ascii_case("range"))
+        {
+            CHUNK_READ_LIMIT as u64
+        } else {
+            S3_RESPONSE_BODY_MAX_BYTES
+        };
+        let mut call = agent
+            .request(request.method, &request.url)
+            .timeout(timeout);
         for (name, value) in &request.headers {
             call = call.set(name, value);
         }
@@ -147,6 +164,7 @@ impl S3Transport for UreqTransport {
         use std::io::Read as _;
         response
             .into_reader()
+            .take(response_body_limit + 1)
             .read_to_end(&mut body)
             .map_err(|error| {
                 SnapbackError::error(
@@ -155,6 +173,15 @@ impl S3Transport for UreqTransport {
                     format!("s3 transport read error: {error}"),
                 )
             })?;
+        if body.len() as u64 > response_body_limit {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                "assets",
+                format!(
+                    "s3 response exceeded the {response_body_limit}-byte transport limit"
+                ),
+            ));
+        }
         Ok(S3Response {
             status,
             headers,
@@ -230,6 +257,7 @@ pub struct AssetS3Store {
 }
 
 const CHUNK_READ_LIMIT: usize = 8 * 1024 * 1024;
+const S3_RESPONSE_BODY_MAX_BYTES: u64 = crate::assets::ASSET_BUFFERED_FINALIZE_MAX_BYTES;
 
 impl AssetS3Store {
     pub fn new(config: AssetS3Config, transport: Box<dyn S3Transport>) -> Self {
@@ -489,7 +517,8 @@ impl AssetS3Store {
         let mut body = String::from("<CompleteMultipartUpload>");
         for (number, etag) in parts {
             body.push_str(&format!(
-                "<Part><PartNumber>{number}</PartNumber><ETag>{etag}</ETag></Part>"
+                "<Part><PartNumber>{number}</PartNumber><ETag>{}</ETag></Part>",
+                xml_escape_text(etag)
             ));
         }
         body.push_str("</CompleteMultipartUpload>");
@@ -590,6 +619,21 @@ fn extract_xml_tag(body: &[u8], tag: &str) -> Option<String> {
     Some(text[start..end].to_owned())
 }
 
+fn xml_escape_text(value: &str) -> String {
+    let mut escaped = String::with_capacity(value.len());
+    for character in value.chars() {
+        match character {
+            '&' => escaped.push_str("&amp;"),
+            '<' => escaped.push_str("&lt;"),
+            '>' => escaped.push_str("&gt;"),
+            '"' => escaped.push_str("&quot;"),
+            '\'' => escaped.push_str("&apos;"),
+            other => escaped.push(other),
+        }
+    }
+    escaped
+}
+
 impl AssetStore for AssetS3Store {
     fn kind(&self) -> &'static str {
         ASSET_STORE_S3_COMPATIBLE
@@ -653,10 +697,20 @@ impl AssetStore for AssetS3Store {
         if max_len == 0 {
             return Ok(Vec::new());
         }
-        let end_inclusive = offset + (max_len as u64) - 1;
+        let end_inclusive = offset.saturating_add(max_len as u64 - 1);
         let response = self.get_object(&self.object_key(object), Some((offset, end_inclusive)))?;
         match response.status {
-            200 | 206 => Ok(response.body),
+            200 => Err(SnapbackError::error(
+                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                "assets",
+                "s3 provider ignored a ranged object read",
+            )),
+            206 if response.body.len() <= max_len => Ok(response.body),
+            206 => Err(SnapbackError::error(
+                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                "assets",
+                "s3 ranged object read exceeded the requested window",
+            )),
             // Past EOF: the fs store returns empty at EOF; mirror it.
             416 => Ok(Vec::new()),
             404 => Err(SnapbackError::error(
@@ -1352,6 +1406,51 @@ mod tests {
                 .read_chunk(AssetObjectRef::Blob("ranged"), 0, 0)
                 .expect("zero")
                 .is_empty()
+        );
+    }
+
+    #[test]
+    fn s3_store_refuses_a_provider_that_ignores_ranges() {
+        #[derive(Clone)]
+        struct RangeIgnoringS3(FakeS3);
+
+        impl S3Transport for RangeIgnoringS3 {
+            fn execute(&self, request: S3Request) -> SnapbackResult<S3Response> {
+                let ranged = request
+                    .headers
+                    .iter()
+                    .any(|(name, _)| name.eq_ignore_ascii_case("range"));
+                let mut response = self.0.execute(request)?;
+                if ranged && response.status == 206 {
+                    response.status = 200;
+                }
+                Ok(response)
+            }
+        }
+
+        let (fake, config, clock) = FakeS3::new();
+        let store = AssetS3Store::with_clock(
+            config,
+            Box::new(RangeIgnoringS3(fake)),
+            Box::new(move || clock.load(Ordering::SeqCst)),
+        );
+        store
+            .put_blob_idempotent("ignored-range", b"0123456789")
+            .expect("put");
+        let error = store
+            .read_chunk(AssetObjectRef::Blob("ignored-range"), 2, 3)
+            .expect_err("status 200 cannot satisfy the ranged-read contract");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_STORE_UNAVAILABLE"
+        );
+    }
+
+    #[test]
+    fn multipart_etags_are_xml_escaped() {
+        assert_eq!(
+            xml_escape_text("\"abc</ETag><Part>&'\""),
+            "&quot;abc&lt;/ETag&gt;&lt;Part&gt;&amp;&apos;&quot;"
         );
     }
 

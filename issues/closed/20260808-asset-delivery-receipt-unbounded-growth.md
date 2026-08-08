@@ -30,3 +30,6 @@ is deliberate (LLP 0044 vocabulary), but per-request *delivery* receipts at read
 rate are a different growth class that no `@ref` addresses. Part of the "every
 registry names its retention bound" theme (see the jobs / stream-attempt /
 migration-checkpoint sibling tickets).
+
+## Resolution (2026-08-08)
+Fixed on main (Lane B). Verified: cargo build; cargo test --lib asset 135 pass (single-threaded); ref-check clean.

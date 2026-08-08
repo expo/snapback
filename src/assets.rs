@@ -40,6 +40,12 @@ pub const ASSET_APP_LOGICAL_QUOTA_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 /// assets are not free (LLP 0044 §Deduplication/quotas).
 pub const ASSET_MIN_ACCOUNTING_UNIT_BYTES: u64 = 4096;
 pub const ASSET_MAX_CHUNK_BYTES: u64 = 8 * 1024 * 1024;
+/// Whole-object media helpers still accept byte slices. Until those decode
+/// and container APIs become streaming, no image/video attempt may admit a
+/// source larger than this process-wide bound.
+// @ref LLP 0044#deduplication-keys-and-quotas — buffered finalization is an
+//   enforced resource bound, never an author-selected path to unbounded RSS.
+pub const ASSET_BUFFERED_FINALIZE_MAX_BYTES: u64 = 256 * 1024 * 1024;
 // @ref LLP 0044#ceremony-floor-and-bounded-on-demand-widths-dated-amendment-2026-08-01 —
 //   `?width=N` normalizes UP this fixed ladder, bounding the on-demand
 //   variant space per asset; renditions materialize once and serve
@@ -92,6 +98,10 @@ pub const ASSET_BLOB_RETENTION_MS: u64 = 60 * 60 * 1000;
 /// How long a deleted-asset tombstone (and its receipts) stays queryable
 /// before the sweep purges the rows.
 pub const ASSET_TOMBSTONE_RETENTION_MS: u64 = 7 * 24 * 60 * 60 * 1000;
+/// Per-request delivery admissions are operational evidence, not lifecycle
+/// history. The GC sweep removes only this high-rate receipt class after the
+/// window; lifecycle receipts retain their existing semantics.
+pub const ASSET_DELIVERY_RECEIPT_RETENTION_MS: u64 = 7 * 24 * 60 * 60 * 1000;
 /// Streaming chunk size for strict delivery.
 pub const ASSET_DELIVERY_CHUNK_BYTES: usize = 64 * 1024;
 /// Committed publication records retire after this window — the blob row is
@@ -958,6 +968,8 @@ pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
          );
          CREATE INDEX IF NOT EXISTS _snapback_asset_receipts_by_asset_v1
              ON _snapback_asset_receipts_v1(asset_id, at_ms);
+         CREATE INDEX IF NOT EXISTS _snapback_asset_receipts_by_event_v1
+             ON _snapback_asset_receipts_v1(event, at_ms);
          CREATE TABLE IF NOT EXISTS _snapback_asset_intent_generations_v1 (
              intent_id TEXT PRIMARY KEY NOT NULL,
              intent_policy_hash TEXT NOT NULL,
@@ -1227,6 +1239,19 @@ pub fn receipts_for_asset(
         parsed.push(decode_record(&json?)?);
     }
     Ok(parsed)
+}
+
+/// Bound the read-rate receipt class without changing lifecycle evidence.
+pub fn purge_delivery_receipts(
+    tx: &Transaction<'_>,
+    cutoff_ms: u64,
+) -> SnapbackResult<u64> {
+    let removed = tx.execute(
+        "DELETE FROM _snapback_asset_receipts_v1
+         WHERE event = 'delivery-admitted' AND at_ms <= ?1",
+        [cutoff_ms],
+    )?;
+    Ok(removed as u64)
 }
 
 /// Ledger rows for one asset, any state — operator inspection of runner

@@ -21195,9 +21195,11 @@ async fn stream_asset_delivery(
                 ));
             }
             let read = chunk.len() as u64;
+            let (position, remaining) =
+                advance_asset_delivery_window(position, remaining, read)?;
             Ok(Some((
                 Bytes::from(chunk),
-                (store, blob_key, position + read, remaining - read),
+                (store, blob_key, position, remaining),
             )))
         },
     );
@@ -21229,6 +21231,26 @@ async fn stream_asset_delivery(
     builder
         .body(Body::from_stream(stream))
         .map_err(|_| ApiError::from(asset_delivery_header_error()))
+}
+
+fn advance_asset_delivery_window(
+    position: u64,
+    remaining: u64,
+    read: u64,
+) -> std::io::Result<(u64, u64)> {
+    if read > remaining {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "asset store returned more bytes than the delivery window",
+        ));
+    }
+    let position = position.checked_add(read).ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "asset delivery position overflowed",
+        )
+    })?;
+    Ok((position, remaining - read))
 }
 
 async fn asset_signed_url_issue_route(
@@ -26587,6 +26609,17 @@ mod tests {
         run_detached_ibex_action_with_admission_and_counters, spawn_detached_action_worker,
         status_for_diagnostic_code, with_snapback, with_snapback_staged_authorization_write,
     };
+
+    #[test]
+    fn asset_delivery_window_refuses_oversized_store_chunks() {
+        let error = super::advance_asset_delivery_window(10, 4, 5)
+            .expect_err("an oversized store chunk must not wrap remaining");
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+        assert_eq!(
+            super::advance_asset_delivery_window(10, 4, 4).expect("exact window"),
+            (14, 0)
+        );
+    }
 
     #[tokio::test]
     async fn network_profile_http_release_marks_delay_and_keeps_normal_identity() {

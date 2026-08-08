@@ -52,3 +52,6 @@ rename-into-place also removes the current non-atomic overwrite window.)
 High on the mechanics; medium that it's unintended — no `@ref`/comment blesses
 the gap, and the adjacent staging path's durability comment argues against it
 being a decided tradeoff.
+
+## Resolution (2026-08-08)
+Fixed on main (Lane B). Verified: cargo build; cargo test --lib asset 135 pass (single-threaded); ref-check clean.
