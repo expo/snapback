@@ -855,7 +855,8 @@
         "github-latest-proof-fixtures",
         "revision-set-fixtures",
         "control-catalog",
-        "control-catalog-fixtures"
+        "control-catalog-fixtures",
+        "js-production-audit"
       ]
     },
     "client": {
@@ -882,6 +883,7 @@
         "regression-durable-bytes-resync",
         "regression-poll-decode-resync",
         "live-delta-e2e",
+        "js-production-audit",
         "snapback-client-package",
         "snapback-react-package"
       ]
@@ -898,6 +900,7 @@
         "demo-surfaces",
         "required-surface-builds",
         "headsign-typecheck",
+        "js-production-audit",
         "artifact-path-hygiene",
         "required-surface-build-fixtures",
         "artifact-path-hygiene-fixtures",
@@ -973,6 +976,7 @@
         "expo-chat-template-typecheck",
         "github-latest-proof-fixtures",
         "hermes-carrier-staging-fixtures",
+        "js-production-audit",
         "local-source-package-closure",
         "package-cold-install-fixtures",
         "package-export-types",
@@ -1041,6 +1045,7 @@
         "generated-artifacts",
         "generated-types",
         "graffiti-widget-read",
+        "js-production-audit",
         "harness-cleanup-fixtures",
         "harness-envelope-fixtures",
         "headsign-typecheck",

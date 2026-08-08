@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "snapback.js-production-audit-dispositions.v1",
+  "dispositions": [
+    {
+      "package": "image-size",
+      "advisory": "GHSA-w3rx-r6r6-pgpr",
+      "severity": "high",
+      "vulnerableVersions": "<=2.0.2",
+      "lockedVersion": "1.2.1",
+      "expiresOn": "2026-09-08",
+      "reachability": "Reachable only in the optional Expo/React Native peer closure at Metro build time: metro@0.84.4 calls image-size on application asset bytes. @expo/snapback-expo neither imports image-size nor parses image assets at runtime. A malicious ICNS build asset can therefore stall a developer build, but not a running Snapback client or server.",
+      "upstreamStatus": "No patched image-size release exists: 2.0.2 is the newest published version and the advisory covers every published version through 2.0.2. Metro 0.84.4 requires ^1.0.2, so forcing the 2.x API would also violate its declared range without removing the advisory.",
+      "action": "Track image-size and Metro for a compatible patched release; remove this disposition and lock the patched version by 2026-09-08."
+    },
+    {
+      "package": "image-size",
+      "advisory": "GHSA-5p2g-fcmc-qvqq",
+      "severity": "high",
+      "vulnerableVersions": "<=2.0.2",
+      "lockedVersion": "1.2.1",
+      "expiresOn": "2026-09-08",
+      "reachability": "Reachable only in the optional Expo/React Native peer closure at Metro build time: metro@0.84.4 calls image-size on application asset bytes. @expo/snapback-expo neither imports image-size nor parses image assets at runtime. A malicious JXL or HEIF build asset can therefore stall a developer build, but not a running Snapback client or server.",
+      "upstreamStatus": "No patched image-size release exists: 2.0.2 is the newest published version and the advisory covers every published version through 2.0.2. Metro 0.84.4 requires ^1.0.2, so forcing the 2.x API would also violate its declared range without removing the advisory.",
+      "action": "Track image-size and Metro for a compatible patched release; remove this disposition and lock the patched version by 2026-09-08."
+    },
+    {
+      "package": "uuid",
+      "advisory": "GHSA-w5hq-g745-h8pq",
+      "severity": "moderate",
+      "vulnerableVersions": "<11.1.1",
+      "lockedVersion": "7.0.3",
+      "expiresOn": "2026-09-08",
+      "reachability": "Not reachable through the locked parent: xcode@3.0.1 calls only uuid.v4() with no caller-supplied buffer, while the advisory is limited to v3/v5/v6 calls that receive a supplied buffer.",
+      "upstreamStatus": "uuid is patched in 11.1.1, but xcode@3.0.1 is the newest published xcode release and declares uuid ^7.0.3. An override to 11.1.1 would cross four unsupported major versions in a published Expo config-plugin closure.",
+      "action": "Track xcode/Expo for a compatible uuid range; remove this disposition and lock uuid >=11.1.1 by 2026-09-08."
+    }
+  ]
+}

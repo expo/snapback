@@ -184,6 +184,9 @@ run proof-runner-fixtures -- node --test tests/proof_runner_v0.mjs
 run local-proof-inventory -- node --test tests/local_proof_inventory_v0.mjs
 run affected-selector-fixtures -- node --test tests/local_proof_selection_v0.mjs
 run package-test-inventory -- node scripts/check-package-test-inventory.mjs
+# Root production dependencies include the published workspace closure. This
+# gate is deliberately independent of the separately selected admin-ui audit.
+run js-production-audit -- node scripts/check-js-production-audit.mjs
 # @ref LLP 0134#9-acceptance — closed maturity records and the pushed-range
 # transition pin are checked before generated artifacts or native builds.
 run capability-maturity-fixtures -- node tests/capability-maturity.test.mjs

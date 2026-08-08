@@ -118,6 +118,30 @@ test('package owners select their direct package and harness fixtures', () => {
   includesAll(planSelection({ cadence: 'complete' }), ['template-registry-canary']);
 });
 
+test('root production audit selection does not depend on Exact/admin baseline gates', () => {
+  const isolated = structuredClone(context);
+  isolated.policy.affectedBaselineGroups = [];
+
+  const packageManifest = selectChangedPaths(
+    ['packages/snapback-client/package.json'],
+    isolated,
+  );
+  includesAll(packageManifest, ['js-production-audit']);
+  assert.equal(packageManifest.selectedGates.includes('admin-acceptance'), false);
+
+  const publication = selectChangedPaths(
+    ['scripts/check-agent-safe-publication.mjs'],
+    isolated,
+  );
+  includesAll(publication, ['js-production-audit']);
+  assert.equal(publication.selectedGates.includes('admin-acceptance'), false);
+
+  for (const rootAuthority of ['bun.lock', 'package.json']) {
+    const full = selectChangedPaths([rootAuthority], isolated);
+    includesAll(full, ['js-production-audit']);
+  }
+});
+
 test('native, Cloudflare, seed, and carrier changes select their unique claims', () => {
   const native = select(['src/storage.rs']);
   includesAll(native, [

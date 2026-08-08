@@ -59,3 +59,8 @@ tooling-shaped.
 High on the red audit and missing gate; high that `fast-uri` is in a published
 production path. Medium on exploitability of the Expo/Vite peer-closure
 findings until their shipped/install-time reachability is traced.
+
+## Resolution (2026-08-08)
+Fixed on main (Lane K). fast-uri/nanoid/postcss bumped via overrides to patched versions; image-size and uuid have no compatible patched release (pinned by Metro ^1.0.2 and xcode ^7.0.3 respectively) and carry time-bounded reachability dispositions expiring 2026-09-08 (re-check then). Added scripts/check-js-production-audit.mjs (fails on undispositioned high/critical, validates disposition severity/range/version/expiry/docs, stable SNAPBACK_JS_PRODUCTION_AUDIT_* diagnostics), wired into the canonical proof + selection policy (publication + workspace groups) with a selector fixture. Verified: frozen install clean; gate PASS on fixed tree, exit 1 on injected advisory; selection fixtures 10/10; ref-check clean.
+
+**Follow-up:** the image-size/uuid dispositions expire 2026-09-08 — re-check upstream patched releases then.
