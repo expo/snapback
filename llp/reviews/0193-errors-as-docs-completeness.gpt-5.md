@@ -5906,3 +5906,1263 @@ tokens used
 ## 3) SET verdict
 
 SET VERDICT: REVISE — r7 is not ready for author acceptance.
+
+## Round 7 — 2026-08-08 (gpt-5 family, delta round)
+
+Provenance: codex exec, gpt-5.6-sol, xhigh, capsule sr-capsule-r7,
+targets at 5aec0969e (r8). One launch. Capsule-only review (no repo
+access). Verbatim body follows.
+
+Reading additional input from stdin...
+OpenAI Codex v0.147.0
+--------
+workdir: /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r7
+model: gpt-5.6-sol
+provider: openai
+approval: never
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: xhigh
+reasoning summaries: none
+session id: 019fe24d-e05b-75f1-9a64-b9e220dbd292
+--------
+user
+You are reviewing a five-document LLP set as one cluster in a DELTA
+ROUND (seventh round). The five documents went through six prior review
+rounds; round 6 was an author-merge review that found nine MATERIAL
+concerns in the merged text; revision r8 applied the full union fix
+set. Your job: verify the r8 fixes resolve the round-6 concerns without
+introducing new defects, and confirm no MATERIAL concern remains.
+
+THE r8 DELTA (everything else is previously-reviewed text):
+- 0193 (errors-as-docs plan):
+  (a) The ledger's remediation description replaced a single conflated
+  enum with three orthogonal fields: emitted representation
+  (structured | message-text), remediation target kind
+  (inline-fix | guide-anchor | reference-symbol), and the OQ6-selected
+  enforcement/storage mechanism once ruled; a structured remediation
+  targeting an exact registry symbol is called out as valid.
+  (b) Anchor validation: unreleased diagnostics validate against the
+  exact candidate/build closure digest and are revalidated against the
+  qualified published digest at release; remediation and anchor must
+  name the same closure.
+  (c) Exit criterion 5 rewritten: bounded to the first post-ratchet
+  benchmark run; an ineffective A-grade remediation triggers downgrade
+  and refix with a successful retest before the criterion passes;
+  classes where one-attempt recovery is intrinsically inappropriate get
+  a bounded alternative witness named in the ledger; the standing
+  per-run audit rule stays in Phase 4.
+  (d) OQ1's trigger unified on the OQ6 carrier SHIPPING (not the ruling
+  landing).
+  (e) The Evidence section now enumerates the refusal-reachable subset
+  as diary-0069 residues 1, 4, and 6 (graded in the Phase 1 ledger's
+  first rows) vs the signature-shaped remainder (residues 2, 3, 5 →
+  LLP 0194) and the template gap (→ LLP 0196).
+- 0194 (generated API reference RFC):
+  (f) Acceptance 1 split: value-space declared symbols must exist at
+  runtime under applicable export conditions; every public runtime
+  export needs a registry entry; type-space-only symbols carry an
+  explicit non-runtime kind and are exempt from the runtime check.
+  (g) Acceptance 2 extended: the hand-fenced ctx bootstrap must be
+  removed or converted to a generated projection; CI rejects duplicate
+  symbol ownership from the moment the declaration source lands; while
+  the bootstrap lives it passes check-guide, its retirement trigger is
+  OQ2's declaration landing, and ctx fix-pointers use the 0193
+  text+anchor floor until then.
+- 0195 (public docs/training RFC):
+  (h) OQ4 rewritten as familiarity surveillance only: closure, harness,
+  questions, and aids held fixed within each separately reported model
+  epoch; epoch changes cannot establish corpus presence or isolate
+  training-data inclusion; attribution to training requires corpus
+  evidence or a controlled ablation.
+  (i) Proposal 1's per-release snapshots labeled as the proposed D3
+  default, not settled design.
+- 0196 (template portfolio plan):
+  (j) The stale "(LLP 0197 rules 4a/4b govern)" pointer corrected to
+  rule 10; the holdout rule adopts rule 10's full aid scope
+  ("not substantially implemented by ANY vendor-authored aid —
+  template, T0 feature module, recipe, published example, or skill
+  content") with D4 owning publication timing; OQ3 updated to defer to
+  rule 10's "substantially implemented" test.
+- 0197 (benchmark publication RFC):
+  (k) Rule 5 gains an explicit public/private boundary: public records
+  carry normalized invocation metadata and opaque evidence IDs; raw
+  tool arguments/transcripts/sensitive originals stay in an
+  access-controlled private store keyed by those IDs, with keyed
+  integrity commitments rather than plain hashes of low-entropy values;
+  the publisher fails closed when safe redaction would destroy required
+  auditability.
+  (l) Rule 2 defines "balanced": position counts differing by at most
+  one at odd N; exact balance requires repetition counts divisible by
+  the lane count.
+  (m) Rule 3 made conditional on 0195 D4 admitting benchmark artifacts,
+  with a named alternate public home required before any claim
+  publishes otherwise.
+- All five: an r8 entry prepended to the Revised header.
+
+REVIEW RULES:
+1. Read all five documents in full. Classify every concern IN-DELTA
+   (introduced or touched by the r8 delta above) or PRE-EXISTING, and
+   MATERIAL (correctness, coherence, feasibility, safety, or
+   decision-quality defect) or minor.
+2. Altitude rule: a detail-only demand that identifies no defective
+   decision is implementation-phase material — note it, do not block
+   on it.
+3. Do not review writing style. Do not propose enhancements beyond the
+   delta unless they are MATERIAL defects.
+4. Verify cross-document coherence of the delta: 0193(b) against the
+   release/fence machinery described in the documents; 0193(a) against
+   LLP 0146 D7/OQ6 as described; 0196(j) against 0197 rule 10; 0197(k)
+   against rules 3 and 8.
+5. End with per-target verdicts (READY or NOT READY, one line of
+   reason) and a SET verdict on one line: "SET: READY" or
+   "SET: NOT READY". READY means no unresolved MATERIAL concern.
+
+The five documents and CONTEXT.md (a neutral facts sheet) are in the current directory. Review only these files; you have no repository access — where a factual claim cannot be checked from the capsule, evaluate internal coherence rather than guessing.
+
+Deliverables (your final message is preserved verbatim as the review artifact):
+1. Numbered concerns, each tagged [MATERIAL]/[minor] and [IN-DELTA]/[PRE-EXISTING], each with a quote, the defect, and a resolving change.
+2. Per-target verdicts (0193, 0194, 0195, 0196, 0197): READY or NOT READY, one line of reason each.
+3. A final line: 'SET: READY' or 'SET: NOT READY'.
+warning: `--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.
+warning: `--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.
+2026-08-08T16:56:23.003324Z ERROR codex_rmcp_client::oauth::refresh_transaction: error=failed to refresh OAuth tokens for server linear: OAuth refresh token was rejected: Server returned error response: invalid_grant: Grant not found
+codex
+I’m using the `llp-review` skill because this is an explicit multi-document LLP review. I’ll first load its review protocol, then read only the five LLPs and `CONTEXT.md` in full and audit the r8 delta against the stated cross-document checks.
+exec
+/bin/zsh -lc "sed -n '1,240p' /Users/ccheever/.codex/skills/llp-review/SKILL.md" in /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r7
+ succeeded in 0ms:
+---
+name: llp-review
+description: Run the LLP 0005 review loop for an LLP document — orchestrate reviews from other model families, write one provenance-tracked artifact per review actually received under llp/reviews/, and never fabricate a review or accept on the author's behalf. Review intensity scales with stakes; the author decides when it's enough.
+source: ccheever/llp@v0.3.0
+---
+
+# llp-review
+
+<!-- @ref https://github.com/ccheever/llp/blob/v0.3.0/llp/0005-rfc-process.guide.md#honesty-rules-always-in-force — the rules this enforces -->
+<!-- @ref https://github.com/ccheever/llp/blob/v0.3.0/llp/0005-rfc-process.guide.md#review-artifacts — artifact + provenance header format -->
+
+Review an LLP the way LLP 0005 prescribes: as much critical review as the stakes warrant, captured honestly. Different model families catch different blind spots, so a single session cannot stand in for a multi-family loop — this skill makes the honest path the only path.
+
+Invoke as `/llp-review <number | slug | filename>`. Bare: list `Draft`/`Review` LLPs and ask.
+
+## Trigger
+
+A document enters `Review` (the author's opt-in to a formal loop), or review is explicitly requested. Otherwise *offer* review scaled to stakes (LLP 0005 §How much review to buy) — don't impose it.
+
+## Invariants
+
+- MUST NOT fabricate a review, record one that wasn't actually provided, or mark a loop complete by intent.
+- MUST NOT count the session that authored the draft as an independent reviewer — if this session wrote the document, say so and gather reviews elsewhere.
+- MUST NOT change `**Status:**` or accept/reject — propose transitions; the author decides.
+- MUST write one artifact per review actually received: `llp/reviews/NNNN-slug.<family>.md`, opening with the LLP 0005 provenance header (family · provider/runtime · date · redacted? · method). Re-reviews by the same family get a dated section, never an overwrite.
+- MUST NOT send content to an external provider without an explicit human action; redact secrets by default.
+
+## Workflow
+
+> **Recipe (advisory)** — locate and read the document fully. If this session can act as one independent family reviewer (and didn't author the draft), write that review using the LLP 0005 standard prompt. For each further input the author wants — pasted manual review, sub-agent on a different family, CLI runner — prepare the prompt and **stop until it is actually provided**. Structure each review body: overall assessment · strengths (cite sections) · concerns (with severity and what would resolve each) · suggestions · open questions · recommended next step.
+
+## Artifact
+
+Review files under `llp/reviews/` with provenance headers, plus a summary of the feedback and a *proposed* next step (revise and stay `Draft` / gather another family / ready for the author to accept).
+
+## Hand-offs
+
+- Feedback that amounts to a new design direction → a fresh LLP via `llp-create`.
+- The author applies status changes; this skill never does.
+
+exec
+/bin/zsh -lc "rg --files -g '*.md' -g '"'!.*'"' | sort" in /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r7
+ succeeded in 0ms:
+0193-errors-as-docs-completeness.plan.md
+0194-generated-api-reference.rfc.md
+0195-public-documentation-and-training-surface.rfc.md
+0196-template-and-recipe-portfolio.plan.md
+0197-benchmark-publication-standard.rfc.md
+CONTEXT.md
+
+exec
+/bin/zsh -lc "wc -l *.md && sed -n '1,260p' CONTEXT.md && sed -n '1,320p' 0193-errors-as-docs-completeness.plan.md" in /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r7
+ succeeded in 0ms:
+     161 0193-errors-as-docs-completeness.plan.md
+     133 0194-generated-api-reference.rfc.md
+     124 0195-public-documentation-and-training-surface.rfc.md
+     135 0196-template-and-recipe-portfolio.plan.md
+     234 0197-benchmark-publication-standard.rfc.md
+      39 CONTEXT.md
+     826 total
+# Context sheet (facts only; for reviewing the five-document set)
+
+Snapback is a local-first backend framework: declarative schema/functions
+with codegen, live queries, ephemeral state, typed assets, sessions auth,
+React/Expo/headless clients, a Rust runtime shipped as prebuilt npm
+binaries. Its docs are an in-repo "guide" (CI-verified snippets,
+capability index with explicit GAP rows, version fences against the
+published npm closure) served by running servers at /_snapback/guide and
+an embedded `snapback guide` search; there is currently no public web
+documentation. Packages @expo/snapback-* are on npm at 0.1.15 (eleven
+packages incl. create-snapback-app). An agent skill (snapback-authoring)
+ships inside scaffolded apps. A committed benchmark harness exists under
+benchmarks/ (briefs, lane prompt templates, run-record schema, fairness
+rules) from LLP 0186 W1.
+
+Measurement facts cited by the documents (five serial cold-agent runs,
+same brief/machine/model, token-metered): wall/tokens for the
+Snapback-with-skill lane vs a Convex lane moved 26m22s/329k vs
+16m36s/113k (npm 0.1.13) to 19m00s/201k vs 10m18s/90k (npm 0.1.15);
+observed per-lane run-to-run variance ±30% at N=1; latest run had zero
+framework-caused defects in any Snapback lane; remaining friction was
+knowledge-shaped (signature/contract questions resolved by reading
+package source; one case by extracting strings from the runtime binary).
+Convex lanes across all runs consumed no documentation (prior model
+familiarity). Diaries 0058, 0065, 0066, 0068, 0069 record the runs.
+Existing related LLPs: 0186 (agent authoring efficiency program: W0
+plumbing fixes shipped; W1 benchmark harness; W2 skill/scaffolds; W3
+errors bar; W4 edit-loop taxes), 0146 (agent affordances; D7 = typed
+remediations carried by refusals, ratified, enforcement carrier not yet
+built), 0061 (guide design, intent-indexed), 0041 (packaging/releases).
+A diagnostic-inventory drift gate exists in CI (production diagnostic
+codes are classified; new unclassified codes fail).
+
+Additional retained fact for this round: diary 0058 records the first
+run (in-checkout, Codex-model era): Snapback 26m03s vs Convex 11m15s.
+
+Additional fact: packages/snapback-cli/verify.d.mts exists on main
+(landed 2026-08-04) exporting the typed verify-config contract via the
+package exports map ("./verify": types verify.d.mts).
+# LLP 0193: Errors-as-docs completeness program
+
+**Type:** Plan
+**Status:** Review
+**Systems:** Diagnostics, Error handling, Guide, Agent experience, CI
+**Author:** Charlie Cheever / Claude
+**Date:** 2026-08-08
+**Revised:** 2026-08-08 (r8, round-6 fixes: ledger fields made orthogonal (representation / target kind / OQ6 mechanism); candidate-vs-published closure validation so unreleased diagnostics stay landable; exit criterion 5 requires downgrade+refix+retest for ineffective A-grades, bounded to the first post-ratchet run; carrier trigger = OQ6 carrier SHIPS; three-of-six residues enumerated.) 2026-08-08 (r7, author-merge: Charlie's reconciliation —
+the evidence claim narrowed to the refusal-reachable three-of-six subset
+with the rest routed to 0194/0196; the ledger grades resolution quality
+and closure binding (carrier/target/applicability/one-attempt witness
+fields); exit criterion 5 adds the one-attempt recovery test; OQ1 recast
+as migration cadence — merged onto the r6 review spine, keeping the
+retained-exemplar corrections, the ~2,700-symbol population note, the
+OQ6 carrier dependency, mechanical reclassification refusal, and
+post-run grading.) 2026-08-08 (r6, this document: sibling-ticket provenance corrected (excursion vs product-half fix), retrofit removed from the observed list, reclassification refusal made mechanical + exit-criterion negative test, post-run grading outside the metered window. UNREVIEWED — applied after the final authorized round; every change resolves an enumerated round-5 concern.) 2026-08-08 (r5, this document: exemplar reattributed (assets-put-user is the retrofit case, ticket-cited); reclassification gating in Phase 3; 0065 slug.) 2026-08-08 (r4) — round-3 fixes: 0194 verify-config declaration path + scope ordering; 0197 aid symmetry beyond templates, no cross-vendor numbers in the history narrative, success counts on ratio charts, Related enumerated; slug-precision citations; 0196 N=1 caveat. 2026-08-08 (r3) — pre-round-3 minors (citation precision, diary enumeration). 2026-08-08 (r1) — super-refine round-1 revision against the
+dual-family cluster reviews (llp/reviews/0193-*.{claude,gpt-5}.md):
+unretained/incorrect quantitative claims corrected to retained-artifact
+citations; see the review artifacts for the concern ledger.
+**Related:** LLP 0186 (W3 states the bar), LLP 0146 (D7 — typed
+remediations, ratified at sitting #4), LLP 0010 (diagnostic codes),
+LLP 0194 (generated reference anchors), LLP 0197 (benchmark
+disclosure), diaries 0065
+(`0065-rematch-published-closure-bakeoff`)/0066/0068/0069
+
+## Summary
+
+Across the retained measurement series, refusal-quality incidents
+resolved fastest when the refusal named its own fix — diary 0048's (`0048-upload-bakeoff-faceplate`)
+`SNAPBACK_ASSET_IMAGE_DECODE_FAILED` carrying the exact upstream parser
+error, is the retained observed exemplar; the anonymous-upload refusal
+(`SNAPBACK_ASSET_OWNER_CUSTODY_UNSATISFIABLE`, which now names
+`snapback assets put --user`) is the retained RETROFIT exemplar — the
+0058-era run paid the source-reading excursion (recorded in
+`issues/closed/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`)
+and the remediation-carrying message is the sibling product-half fix
+(`issues/closed/20260805-expo-asset-upload-guide-gap.md`, resolved
+2026-08-06), exactly the before/after this program generalizes — while several of
+the expensive detours trace to refusals that carried neither rule nor
+fix. (Additional unretained lane-report incidents exist but are not
+cited as evidence here.) Refusal quality is one high-leverage subset of
+the remaining cost, not the whole remainder: run 5 also paid for a
+template defect, simulator-proof assembly, and signature discovery that
+no refusal could repair — those route to LLP 0196 and LLP 0194 and keep
+this Plan's causal claim bounded. LLP 0186 W3 states the
+bar — **every `SNAPBACK_*` refusal an authoring agent can trigger names
+the violated rule and either the fix or a resolving guide anchor** — but
+the bar has only ever been applied to codes that happened to appear in
+diaries. This Plan audits the entire population once and then makes the
+bar structural, so it can never regress.
+
+## Evidence
+
+- Diary 0069: six expensive moments were knowledge-shaped. The
+  refusal-reachable subset this Plan owns is graded in the Phase 1
+  ledger's first rows (residues 1, 4, and 6 of that diary's list); the
+  signature-shaped remainder (residues 2, 3, 5) routes to LLP 0194 and
+  the template gap to LLP 0196, keeping this Plan's causal claim
+  bounded.
+- The retained record shows the mechanism in both directions: observed
+  refusals that named remediations (diary 0048's decode diagnostic, the
+  seed-recovery messages) cost near-zero (the `assets put --user`
+  remediation is the retrofit case above, not an observed resolution);
+  refusals that did not each cost a bisection session — diary 0058's (`0058-relay-room-expo-backend-bakeoff`)
+  "host-ops error response was not JSON" (in-checkout era;
+  `issues/closed/20260805-managed-dev-multi-json-load.md`) and the
+  SHA-256-hashed field path
+  (`issues/closed/20260805-result-contract-violation-hashes-field-path.md`).
+- The infrastructure half-exists: stable code registry, the
+  production diagnostic-inventory drift gate, and 0146 D7 ratified as
+  the remediation carrier.
+
+## Program
+
+**Phase 1 — enumerate and grade.** Extract the complete `SNAPBACK_*`
+code inventory (a raw identifier sweep finds ~2,700 `SNAPBACK_*` symbols
+including env vars and test constants; the diagnostic subset is the
+real population and Phase 1 establishes its size) from the diagnostic registry
+plus a grep sweep for unregistered emissions. Fan out grading lanes:
+each code graded A (names rule + current fix/anchor), B (names rule
+only), or C (bare). The ledger also records the emitting site, agent-triggerability, and
+three orthogonal remediation fields — emitted representation
+(`structured | message-text`), remediation target kind
+(`inline-fix | guide-anchor | reference-symbol`), and the OQ6-selected
+enforcement/storage mechanism once ruled — plus closure/version
+applicability, anchor/symbol resolution, and whether a cold one-attempt
+recovery witness exists. A structured remediation targeting an exact
+registry symbol is an ordinary valid combination. Output: a checked-in graded ledger under
+`tests/acceptance/diagnostics/`.
+
+**Phase 2 — fix in evidence order.** First: every B/C code that appears
+in any diary's correction-loop list. Then B/C codes on
+agent-triggerable paths, batched by subsystem. Message edits follow the
+house style; guide and LLP 0194 reference anchors must resolve against
+the closure the remediation names: unreleased diagnostics validate
+against the exact candidate/build closure digest and are revalidated
+against the qualified published digest at release (so the ratchet never
+makes an unreleased diagnostic unlandable), and the remediation and its
+anchor must name the same closure (check-guide and the reference checks
+enforce). Codes
+that are genuinely internal (never agent-triggerable) are marked so in
+the ledger rather than polished; later reclassification of an
+agent-triggerable code to internal is refused mechanically by the drift
+gate absent an explicit override marker, under the same review bar as a
+grade regression.
+
+**Phase 3 — the ratchet.** Extend the diagnostic-inventory drift gate:
+a new agent-triggerable code cannot land without a remediation in the
+carrier LLP 0146 OQ6 selects, or a resolving guide anchor as the interim
+floor. The typed-remediation end state is 0146's ratified D7 and is not
+reopened here; the carrier choice is OQ6's open ruling
+(`issues/20260806-llp0146-oq6-remediation-carrier-decision.md`) and is a
+named dependency of this phase's structured half — until it rules, the
+gate enforces text+anchor as a bounded interim floor, upgraded
+code-by-code as the carrier lands (new codes use the structured carrier
+once it exists; audited legacy codes may hold the floor until touched).
+Anchor and generated-symbol resolution join CI. The graded ledger
+becomes the gate's baseline; grade or closure-applicability regressions
+fail.
+
+**Phase 4 — close the loop with measurement.** Refusal grading happens
+post-run from retained lane reports and transcripts — outside the
+metered window, so Snapback-only grading duty never skews the
+comparison (LLP 0197's fairness rules assume this) — and records
+whether each supplied remediation resolved the condition in one
+attempt. New B/C sightings and A-grade remediations that still caused
+search or bisection are the recurring audit input.
+
+## Exit criteria
+
+1. Graded ledger covers 100% of registered codes; zero ungraded
+   emissions in the sweep.
+2. **Every ledger entry classified agent-triggerable is grade A** (the
+   program's declared bar; diary-cited codes are merely the first
+   batch).
+3. The drift gate refuses a new agent-triggerable code without
+   remediation/anchor, refuses grade regressions, and refuses
+   unmarked agent-triggerable-to-internal reclassification (negative
+   tests for all three).
+4. A benchmark run encounters zero B- or C-grade refusals — as
+   validation of criterion 2, not a substitute for it.
+5. In the first post-ratchet benchmark run, every encountered A-grade
+   refusal produces a one-attempt recovery; an ineffective A-grade
+   remediation triggers downgrade and refix with a successful retest
+   before this criterion passes (classes where one-attempt recovery is
+   intrinsically inappropriate get a bounded alternative witness,
+   named in the ledger). The standing per-run audit rule lives in
+   Phase 4.
+
+## Open questions
+
+- OQ1: Migration cadence — how quickly audited legacy codes graduate
+  from the text+anchor floor to D7's structured `remediations` carrier
+  once the 0146 OQ6-selected carrier ships. New codes use the structured
+  carrier from the moment it ships (the ruling alone does not end the
+  text+anchor floor); the open question is cadence, not the target
+  shape (settled by 0146's ratified D7). Proposal: structured on next
+  touch, dated full-migration milestone set when the carrier ships.
+- OQ2: Grading authority for "agent-triggerable" — proposal: reachable
+  from any published-surface operation, decided by the grading lane,
+  spot-checked in review.
+
+codex
+The first document’s r8 edits are present as described. I’m now tracing the shared terms—closure identity, OQ6 carrier timing, bootstrap retirement, holdout scope, and publication privacy—across the remaining four documents rather than judging each edit in isolation.
+exec
+/bin/zsh -lc "sed -n '1,260p' 0194-generated-api-reference.rfc.md && sed -n '1,260p' 0195-public-documentation-and-training-surface.rfc.md" in /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r7
+ succeeded in 0ms:
+# LLP 0194: Generated API reference surface
+
+**Type:** RFC
+**Status:** Review
+**Systems:** Guide, Documentation, Client packages, Types, Build
+**Author:** Charlie Cheever / Claude
+**Date:** 2026-08-08
+**Revised:** 2026-08-08 (r8, round-6 fixes: export parity split value-space vs type-space (non-runtime registry kinds exempt from the runtime check); acceptance 2 requires bootstrap removal/conversion + CI duplicate-ownership rejection once the ctx declaration lands.) 2026-08-08 (r7, author-merge: Charlie's action-economy revision
+— a canonical machine-readable symbol registry becomes the authority behind
+Markdown, CLI, and MCP projections; a published `ctx` declaration source is
+required with hand-fenced prose permitted only as a temporary bootstrap
+[author decision, reversing the loop's no-interim rule]; Acceptance section
+added — merged onto the r6 review spine, keeping the round-verified facts:
+verify-config's declaration source already exists and sits in the initial
+scope; no numeric orientation fraction is claimed.) 2026-08-08 (r5, this
+document: verify-config moved to the INITIAL scope — its verify.d.mts
+declaration source already exists and is published (round-4 find); OQ2
+narrows to the ctx declaration file.) 2026-08-08 (r4/r3/r1 — see
+llp/reviews/0193-*.run.md for the full round ledger.)
+**Related:** LLP 0061 (guide design — intent-indexed by choice), LLP 0186
+(measurement evidence), LLP 0193 (diagnostic remediations), LLP 0195
+(public projection), diaries 0068-0069
+
+## Summary
+
+Across five measurement runs, every remaining package-source excursion
+shares one shape: a **signature or contract question** — headless
+`query`/`liveQuery` call shapes, hook fact types, the `ctx.db` verb set
+(extracted from runtime binary strings in run 5), the verify-config
+contract, client constructor option pairs. The guide is deliberately
+intent-indexed (LLP 0061) and should stay that way; what is missing is
+the complementary layer: a **complete, generated, build-bound API
+reference** derived from the packages' own declarations — the types
+agents consistently praise — so that no signature question ever requires
+opening `node_modules`. The authority is a queryable symbol registry,
+not a pile of Markdown pages; Markdown is one projection for humans and
+broad retrieval.
+
+## Design
+
+1. **Declaration sources:** the published packages' `.d.mts` files plus
+   doc comments, checked against the runtime export map. The handler
+   `ctx` surface gains a published declaration source too; a hand-fenced
+   prose section is permitted only as a temporary bootstrap and is not
+   the target design.
+2. **Canonical symbol registry:** a build step using the TypeScript
+   compiler API and the export-parity traversal emits one build-bound
+   registry. Each symbol records package/module, runtime export names,
+   complete signature, overload/member structure, doc text, source
+   provenance, stable identity, and closure applicability. No projection
+   independently parses or rewrites the public API.
+3. **Generated projections:** the registry emits size-bounded Markdown
+   under `guide/reference/` with stable per-symbol anchors, plus a
+   compact index. Output is a committed generated artifact in the same
+   pipeline as `generate-guide-manifest`, checked like the flat guide.
+4. **Budgeted exact lookup:** `snapback guide <exact-symbol>` and the
+   docs-only MCP surface can return one symbol or bounded module slice
+   directly from the registry, without forcing a package-sized Markdown
+   read. Results carry the same guide/build identity and explicit
+   truncation markers.
+5. **Serving:** the Markdown, compact index, and registry resources join
+   the guide manifest — served under `/_snapback/guide/reference/`,
+   indexed by `snapback guide <query>` and MCP, and listed in
+   `/llms.txt`. The oversized flat projection remains an explicit
+   fallback, not the primary reference carrier
+   (`issues/20260806-guide-flat-projection-oversize.md`).
+6. **Joins:** intent pages link into reference anchors ("full signature:
+   reference/…#liveQuery"); diagnostics and D7 remediations (LLP 0193)
+   may cite reference or exact-symbol targets as their fix pointer.
+7. **Scope order:** `@expo/snapback-client` (headless surface — the
+   largest excursion source), `snapback-react` hooks and fact types,
+   `snapback-expo`, and the verify-config contract — whose declaration
+   source already exists and is published (`@expo/snapback-cli/verify` →
+   `verify.d.mts`, landed 2026-08-04; its measured excursions were pure
+   discoverability), so it sits in the initial declaration-sourced
+   scope. The `ctx` handler surface joins when its declaration source
+   lands (OQ2 owns placement), ordered immediately after.
+
+## What this kills
+
+Retained-record attributions: headless args nesting (diary 0069 residue
+3), `createAssetClient` root-export discovery (diary 0068), the sessions
+client-construction option pair (0068 residue 4, hit by two lanes), and
+the verify-config contract (0068 and 0069 residue 5) — all in the
+initial scope. Contingent on OQ2's `ctx` declaration landing: `ctx.db`
+verbs via binary strings (0069 residue 2) — the most expensive named
+excursion, the strongest argument for scheduling OQ2 early. Diary 0069
+did not retain a numeric phase decomposition, so this is a qualitative,
+enumerated target set rather than a claimed fraction of the remaining
+gap.
+
+## Acceptance
+
+1. Registry/runtime export parity: value-space declared symbols must
+   exist at runtime under their applicable export conditions, and every
+   public runtime export must have a registry entry; type-space-only
+   symbols (hook fact types, contract interfaces) appear in the
+   registry with an explicit non-runtime kind and are exempt from the
+   runtime check.
+2. The `ctx` handler surface is available to consumers as declarations
+   and in the same registry as package APIs, the hand-fenced bootstrap
+   prose is removed or converted to a generated projection, and CI
+   rejects duplicate symbol ownership from the moment the declaration
+   source lands. While the bootstrap lives, it passes check-guide like
+   any page and its retirement trigger is OQ2's declaration landing;
+   ctx fix-pointers use the 0193 text+anchor floor until then.
+3. A cold signature-task suite covering headless args nesting,
+   constructor custody pairs, verify-config, hook facts, and `ctx.db`
+   completes with zero package-source reads and zero binary-string
+   excavation.
+4. Exact-symbol lookup returns a bounded, identity-bearing result; a
+   request exceeding its budget names what was elided and how to request
+   the next slice.
+5. Markdown, CLI, MCP, diagnostics, and the public LLP 0195 projection
+   resolve the same stable symbol identities.
+
+## Open questions
+
+- OQ1: Initial registry and projection size budgets. Per-package
+  Markdown may exceed the flat-guide discipline; module/symbol slicing
+  must be measured.
+- OQ2: Which published package/module owns the `ctx` declaration file.
+  The requirement for a declaration source is decided here; only its
+  placement and compatibility rollout remain open. (Verify-config needs
+  no OQ: its `verify.d.mts` export exists and is `.d.mts`-traversable
+  by the Design-2 registry builder.)
+- OQ3: Whether doc comments in `.d.mts` are complete enough to render
+  useful prose, and whether improving them (which rotates artifact
+  identity — the doc-comment lesson) batches with releases.
+- OQ4: Versioning — the served reference is build-bound, which is
+  correct; whether the public docs surface (LLP 0195) pins per-release
+  snapshots is that RFC's question, and reference entries for symbols
+  newer than the published closure carry the guide's fence treatment.
+# LLP 0195: Public documentation, examples, and training-data surface
+
+**Type:** RFC
+**Status:** Review
+**Systems:** Documentation, Publishing, Guide, Templates, Competitive
+evaluation
+**Author:** Charlie Cheever / Claude
+**Date:** 2026-08-08
+**Revised:** 2026-08-08 (r8, round-6 fixes: OQ4 recast as familiarity surveillance only — epoch changes cannot establish corpus presence; per-release snapshots marked as proposed D3 default.) 2026-08-08 (r7, author-merge: Charlie's revision — publication
+binds to a qualified closure/content digest rather than moving HEAD; public
+examples become generated projections with a single canonical owner; the
+two-clocks success measures separate immediate retrieval from long-horizon
+training familiarity — merged onto the r6 review spine, which keeps the
+retained "dominant term" citation, the four-audit count, and the
+instrumented-hypothesis framing.) 2026-08-08 (r5, this document: 0065 citation slug only.) 2026-08-08 (r4) — round-3 fixes: 0194 verify-config declaration path + scope ordering; 0197 aid symmetry beyond templates, no cross-vendor numbers in the history narrative, success counts on ratio charts, Related enumerated; slug-precision citations (0193); 0196 N=1 caveat. 2026-08-08 (r3) — pre-round-3 minors (citation precision, diary enumeration). 2026-08-08 (r1) — super-refine round-1 revision against the
+dual-family cluster reviews (llp/reviews/0193-*.{claude,gpt-5}.md):
+unretained/incorrect quantitative claims corrected to retained-artifact
+citations; see the review artifacts for the concern ledger.
+**Related:** LLP 0186 (the orientation-gap evidence), LLP 0061 (guide),
+LLP 0041 (packaging), diaries 0065 (`0065-rematch-published-closure-bakeoff`)/0066/0068/0069
+
+## Summary
+
+Snapback currently has **no public documentation surface**. The guide
+exists only in this repository and served from installed binaries: an
+agent cannot read a word of it before installing, search engines and
+training pipelines never see it, and `llms.txt` exists only on loopback
+origins. Meanwhile the measurement series calls orientation cost "the dominant
+term" in the remaining efficiency gap (diary 0069) — cost the Convex
+lanes did not pay: across all five runs they consumed no documentation
+at all, working from prior model familiarity. A public surface is the pre-install orientation fix and the
+discoverability fix on its face; that it also feeds future model
+training is a plausible but **unverified hypothesis** — prior
+familiarity is measured, its provenance is not. The decision case rests
+on discoverability and retrieval; the training effect, if real, is
+upside this RFC proposes to instrument rather than assume (OQ4). It
+remains the largest unstarted item this program has identified. It is proposed here rather than executed because publishing
+is the author's decision.
+
+## Proposal
+
+1. **Public docs site, generated from `guide/`.** The corpus is already
+   CI-verified, version-fenced (`published-closure.json` + `since:`
+   machinery), and honest by construction (GAP rows). A static site
+   generator over `guide/` — same markdown, same snippets, the 0194
+   reference included — published on a real domain, with `/llms.txt` at
+   the root and — as the proposed D3 default, not settled design —
+   per-release snapshots pinned to published closures (the fence
+   machinery already knows what each closure contains). The
+   in-repo/served guide remains canonical; the site is a projection with
+   the same content hashes. Publication consumes a qualified
+   closure/content digest, not whatever commit happens to be HEAD while
+   `main` moves.
+2. **Public examples repository**, projecting the template outputs and
+   selected demo apps (the benchmark lanes' apps are strong candidates:
+   complete, proof-carrying, honestly scoped — LLP 0197 rule 10's aid
+   disclosure applies once published). Each example pinned to a closure
+   version and CI-cold-installed against the registry — the examples
+   repo doubles as an external consumer canary. Generated examples are
+   not independently editable: changes land at the canonical template or
+   demo owner and regenerate the public projection, preventing two
+   sources of truth.
+3. **Skill distribution beyond scaffolds:** publish
+   `snapback-authoring` wherever agent harnesses discover skills, so
+   pre-scaffold orientation exists off-checkout.
+4. **Deliberate training-data posture (hypothesis, instrumented):**
+   write the site, examples, README funnels, and packages with a
+   future-model audience in mind (stable vocabulary, Rosetta aliases,
+   canonical snippets). Whether the moat actually erodes is testable
+   but confounded — skills, templates, and error improvements also cut
+   orientation cost — so the posture claims no timeline; OQ4 sketches
+   the pinned-model knowledge evaluation that could isolate the
+   training effect if it becomes worth measuring.
+
+## Success measures: two clocks
+
+**Immediate retrieval.** Before installing Snapback, a cold agent can
+answer the existing retrieval-eval intents and reach the exact LLP 0194
+symbol or guide decision within the same tool budget as the served
+corpus. Public bytes carry a qualified closure/content identity that
+matches the canonical guide, and a stale or unqualified projection is
+not published.
+
+**Long-horizon familiarity.** A later pinned model epoch may show
+reduced orientation time, source reads, or tokens in LLP 0186 W1. That
+trend is measured only when the model/harness epoch changes
+deliberately; it is not retroactively attributed to crawler
+availability, and no date is promised for training uptake. (OQ4's
+pinned-model knowledge evaluation is this clock's instrument.)
+
+## What this does not claim
+
+No hosted-service claims change; the site documents the local-first
+surface the capability index already asserts, GAP rows included. The
+honesty discipline that survived four published-consumer audits
+(diaries 0065/0066/0068/0069; the 0058 run was in-checkout) is the asset being
+published, not marketing copy.
+
+## Author decisions required
+
+- D1: Publish at all, and where (domain; whether the repo itself goes
+  public or only generated projections).
+- D2: Examples licensing and repo location.
+- D3: Snapshot policy (per-release docs versions vs latest-only).
+- D4: Whether benchmark artifacts (briefs, records) belong on the public
+  site — interacts with LLP 0197's publication standard.
+
+## Open questions
+
+- OQ1: Site generator and hosting (the repo has EAS/Cloudflare lanes;
+  either works — pick for boring reliability).
+- OQ2: How the site's `llms.txt` and sitemap best serve crawler and
+  agent retrieval (the served-guide retrieval-eval corpus can be reused
+  as the site's acceptance test).
+- OQ3: Whether `snapback guide <query>` gains a `--web` mode linking the
+  public anchors, unifying citations across surfaces.
+- OQ4: The pinned-model familiarity surveillance — a fixed question
+  set about Snapback answered by pinned model builds, with closure,
+  harness, questions, and aids held fixed within each separately
+  reported model epoch. It observes familiarity trends only; changing
+  epochs cannot establish corpus presence or isolate training-data
+  inclusion from other model changes, so attribution to training
+  requires corpus evidence or a controlled ablation. Only worth
+  building if the training hypothesis starts driving decisions.
+
+exec
+/bin/zsh -lc "sed -n '1,280p' 0196-template-and-recipe-portfolio.plan.md && sed -n '1,360p' 0197-benchmark-publication-standard.rfc.md" in /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r7
+ succeeded in 0ms:
+# LLP 0196: Template and recipe portfolio
+
+**Type:** Plan
+**Status:** Review
+**Systems:** Templates, CLI, Guide, Testing, Agent experience
+**Author:** Charlie Cheever / Claude
+**Date:** 2026-08-08
+**Revised:** 2026-08-08 (r8, round-6 fixes: stale 0197 "rules 4a/4b" pointer corrected to rule 10; holdout adopts rule 10's full aid scope and "substantially implemented" test incl. OQ3.) 2026-08-08 (r7, author-merge: Charlie's action-economy
+revision — T0 completes the existing chat starter before portfolio breadth;
+every template exposes one proof command delegating to LLP 0146 D2's
+`snapback verify`; the headless-simulator recipe becomes an executable
+carrier kit registered under the verify profile; exit criteria add
+zero-source-read and semantic-action measures; OQ3 holdout/starter
+eligibility — merged onto the r6 review spine, keeping the two-gate T5
+split, capability-surface wording, and template-assisted labeling.) 2026-08-08 (r5, this document: no body change this round.) 2026-08-08 (r4) — round-3 fixes: 0194 verify-config declaration path + scope ordering; 0197 aid symmetry beyond templates, no cross-vendor numbers in the history narrative, success counts on ratio charts, Related enumerated; slug-precision citations (0193); 0196 N=1 caveat. 2026-08-08 (r2) — r2 applies the full round-1 revision set that r1 header claimed but (reviser error, caught by the round-2 delta reviews) did not contain: capability-surface wording, T5 two-gate split, template-assisted labeling + held-out-brief rule. 2026-08-08 (r1) — super-refine round-1 revision against the
+dual-family cluster reviews (llp/reviews/0193-*.{claude,gpt-5}.md):
+unretained/incorrect quantitative claims corrected to retained-artifact
+citations; see the review artifacts for the concern ledger.
+**Related:** LLP 0146 (D2 verify owner), LLP 0176 (messaging golden
+path), LLP 0179 (AppDescriptor and surfaces), LLP 0186 (W2/W5), LLP 0194
+(generated API reference), LLP 0195 (public examples projection), LLP
+0197 (benchmark publication), diaries 0068-0069, benchmarks/briefs/
+
+## Summary
+
+The measurement diaries repeatedly rank knowledge placement:
+**scaffold beats guide beats package source** (every lane's
+knowledge-source ladder ends in package source; the scaffold is
+unanimously the cheapest). Knowledge moved into template defaults
+(0.1.15's sessions mode, offline registration, upload wiring) produced
+the largest improvement of any release whose changes were
+knowledge-placement rather than defect fixes — bare lane 41m32s→29m35s
+(diaries 0068/0069 — a single N=1 step inside the series' demonstrated
+±30% variance, used here as plan motivation, not as a publishable
+claim; the larger 80m→41m step at 0.1.13 came from the seven-defect
+fix layer, a different mechanism). This Plan extends the portfolio
+along the measured demand: two new templates exercising the capability
+surfaces of the committed benchmark briefs, proof machinery registered by default, and the recipe
+list the diaries priced.
+
+## Program
+
+**T0 — complete the existing Expo chat starter.** Before adding
+portfolio breadth, absorb the common messaging work every measured lane
+still authors: memberships/DM-vs-group shape, reply pointers, reactions,
+and the labeled test persona switcher, with acceptance profiles covering
+each. This may be a small set of reusable feature modules rather than
+one monolithic template. It uses the existing LLP 0176/0179 primitives
+and owners; it does not infer new auth or surface semantics from the
+word `chat`.
+
+**T1 — CRUD-dashboard template** (`--template crud-dashboard`),
+exercising the same capability surface as `benchmarks/briefs/crud.md`
+(not authored against the brief document): tables/list/detail/edit shapes, relational
+query profile in the default path, sessions default, acceptance suite +
+**registered verify profile** included. Most agent tasks are CRUD-shaped;
+this becomes the default recommendation for generic briefs. LLP 0197's
+aid-disclosure and holdout rules prevent this brief pairing from
+standing alone as a public generalization claim.
+
+**T2 — media-feed template** (`--template media-feed`), exercising the
+same capability surface as `briefs/media.md`: typed upload intents with renditions in the main
+path, delivery-profile selection demonstrated (the strict-vs-public
+lesson), infinite-scroll list over retained queries.
+
+**T3 — proof-by-default across all templates:** every template ships a
+registered `snapback.verify.config.mjs` (run-5's skill lane registered
+profiles by hand; the done-oracle should be non-vacuous from scaffold),
+and the expo templates ship web platform + deps (the two-run web-deps
+papercut, ticketed 2026-08-08 — absorbed here). Every template also
+exposes one ordinary proof command (for example `bun run prove`) that
+delegates to LLP 0146 D2's `snapback verify`, retains its receipt
+identity and `next[]`, and adds no second verifier, receipt format, or
+product-completeness claim.
+
+**T4 — recipes and executable carrier kits.** Guide sections keep
+CI-verified explanation, but the headless-simulator path is executable:
+one bounded command/helper owns simulator boot/install/launch, scheme
+approval, Expo Go onboarding dismissal, deep-link drive, screenshots,
+backend-stop offline relaunch, cleanup, and artifact paths. Its evidence
+is registered under T3's verify profile rather than becoming a parallel
+proof system. The remaining recipe order is real-auth sign-in beyond
+test personas, the offline supervisor-origin lane (ticketed), and
+verify-config authoring (ticketed). Recipes graduate into template code
+whenever a template naturally exercises them — the ladder says code
+placement beats prose.
+
+**T5 — template freshness, two gates:** (a) pre-release and blocking:
+templates cold-install and pass their suites against the exact
+*candidate staged tarballs* during release qualification, so a release
+cannot ship with a template failing against its own closure; (b)
+post-release canary: the same suites re-run against the *published*
+registry closure, alerting (not blocking) on drift the staging
+environment cannot see, with the release owner holding
+rollback/fix-forward escalation. Neither alone suffices.
+
+## Sequencing
+
+T3 first (papercut absorption + verify-by-default — small), then T0 so
+the already-published starter stops making every messaging lane rebuild
+common breadth. T1 and T2 follow; T4 executable paths land alongside the
+first template that exercises them. T5 joins the release checklist when
+T1 lands.
+
+## Exit criteria
+
+- A cold agent given a CRUD or media brief scaffolds the matching
+  template and reaches all proofs with zero template-gap loops.
+- `snapback verify` is non-vacuous on every fresh scaffold, and the
+  template-level proof command produces the same LLP 0146 D2 receipt a
+  direct invocation would.
+- Cold template lanes perform zero package-source reads and zero
+  binary-string excavation.
+- W1 records semantic actions before and after T0/T3/T4; success means
+  fewer discovery and proof operations, not a shell-command bundling
+  trick.
+- The next benchmark run on the CRUD brief uses T1 with no template-gap
+  loops — measured and labeled as a **template-assisted scenario**.
+  Templates deliberately cover benchmark-brief capability surfaces, so
+  template-assisted results are never published as general
+  authoring-efficiency claims: portfolio-level claims require success
+  on a held-out brief variant not used to design any template, and
+  competitor lanes get a symmetric starter-availability policy
+  (LLP 0197 rules 4a/4b govern).
+
+## Open questions
+
+- OQ1: Template count discipline — the portfolio should stay small
+  (three app templates + recipes); additions require a measured brief.
+- OQ2: Whether `create-snapback-app` grows an interactive template
+  picker or stays flag-driven (agents prefer flags; humans may not).
+- OQ3: Holdout selection and aid eligibility for public comparisons.
+  LLP 0197 rule 10 owns the disclosure rule and the "substantially
+  implemented" test across ALL vendor-authored aids; this Plan must
+  supply at least one workload that passes that test.
+# LLP 0197: Competitive benchmark publication standard
+
+**Type:** RFC
+**Status:** Review
+**Systems:** Competitive evaluation, Publishing, Documentation
+**Author:** Charlie Cheever / Claude
+**Date:** 2026-08-08
+**Revised:** 2026-08-08 (r8, round-6 fixes: rule 5 gains an explicit public/private boundary — opaque evidence IDs, keyed integrity commitments over private originals, fail-closed publisher; rule 2 defines near-balance at odd N; rule 3 conditioned on 0195 D4 with an alternate-home fallback.) 2026-08-08 (r7, author-merge: Charlie's restructure after the
+first harness-native run — counterbalanced repetitions, mandatory machine
+records, action-economy evidence with semantic action classes,
+receipt-backed proof over LLP 0146 verify, the `snapback-defect`
+attribution class, recomputed publication via a checked publisher,
+implementation-first sequencing, Acceptance criteria, D4 and OQ3/OQ4 —
+merged onto the r6 review spine, which contributes the corrected series
+numbers and directional caveat, rule-1 preregistration items, the
+equal-proof-bar failure protocol and denominator-aware ratio floor, the
+publication-safe redaction/human-review requirements, and the
+no-cross-vendor-numbers history-narrative rule.) 2026-08-08 (r6/r5/r4/r2/r1
+— see llp/reviews/0193-*.run.md for the full round ledger.)
+**Related:** LLP 0186 (OQ5 — this RFC develops it), benchmarks/
+(harness, records), LLP 0146 (`snapback verify` receipt), LLP 0195
+(public surface), LLP 0196 (template portfolio), diaries
+0058 (`0058-relay-room-expo-backend-bakeoff`)/0065
+(`0065-rematch-published-closure-bakeoff`)/0066/0068/0069
+
+## Summary
+
+The measurement program can now produce candidate numbers worth
+calibrating — five runs, a committed harness, token metering, and a
+directional series (2.91x tokens for the first published-consumer lane
+on 0.1.13 to 2.24x for the skill lane on 0.1.15; bases differ across
+rows, the records themselves say the series is directional rather than
+a controlled sequence, and diary 0069 disclaims N=1 ratio movement as
+signal). The existing series motivates this standard; it is not itself
+a publishable controlled comparison. LLP 0186 OQ5 asked what disclosure
+makes a public comparison credible rather than vendor noise; this RFC
+proposes the standard. The governing principle is **publish the
+instrument, not just the number**: every claim must be inspectable from
+public artifacts and rerunnable wherever the pinned model and harness
+are available; "reproduced" is reserved for observed reruns.
+
+## The standard
+
+A published Snapback benchmark claim requires:
+
+1. **N≥3 runs per configuration, preregistered**, with all runs
+   reported (no best-of, no post-hoc configuration designation): the
+   run matrix — configurations, budgets, stopping and exclusion rules,
+   frozen harness/prompt commits, attempt IDs, and the rule-7
+   thresholds — is committed before results are observed. Charts show
+   median, range, every constituent value, and the exact aggregation
+   rule. The observed approximately ±30% per-lane spread (diary 0069)
+   makes a single run evidence of existence, not magnitude. N≥8 remains
+   the floor for a variance or regression-attribution claim under the
+   W1 protocol.
+2. **Counterbalanced repetitions.** Lanes remain serial and
+   same-machine within a comparison set, but their order rotates across
+   repetitions using a predeclared rotation schedule ("balanced" means
+   position counts differing by at most one at odd N; exact balance
+   requires repetition counts divisible by the lane count, e.g. N=4
+   for two lanes). The record pins
+   machine state and load, package-manager/cache posture, fresh versus
+   reused backend state, occupied ports, model, effort, harness, and
+   package versions. A favorable lane may not always receive the same
+   warm-cache or machine-load position.
+3. **The full harness public:** briefs verbatim, instantiated lane
+   prompts, fairness rules, ordering schedule, record schema, and run
+   records (the `benchmarks/` tree, published via LLP 0195 — this rule
+   is conditional on 0195 D4 admitting benchmark artifacts to the
+   public site; if D4 rules otherwise, an alternate public home is
+   named before any claim publishes), plus a
+   reproducibility manifest per record (harness commit, model
+   identity/build and settings as run, closure and competitor versions,
+   tool versions, environment and machine class, stopping rules, seeds
+   where available). Public artifacts identify every parameter needed
+   to rerun the measurement; unavailable proprietary model or harness
+   access is stated as a reproducibility limit rather than papered
+   over.
+4. **A schema-valid machine record for every lane run.** The current
+   optional JSON record becomes mandatory before publication. The
+   human-readable comparison record and diary are generated from or
+   linked to those records, not used as a substitute for them. Missing
+   metrics remain explicit nulls and cannot support a derived claim.
+5. **Action-economy evidence, not only aggregate tool counts.** Each
+   record retains raw tool invocations, input/output/cache token fields
+   exposed by the harness, phase times, and a sanitized action trace.
+   The trace classifies at least guide/reference lookups,
+   package-source reads, binary/string excavation, edits, process
+   launches, proof commands, and retries. Raw tool calls remain
+   visible, but semantic action classes are the cross-harness
+   diagnostic because tool APIs batch work differently. Redaction
+   passes through the publication-safe artifact schema — automated
+   secret/credential/PII and private-material scanning, path and
+   machine-identifier scrubbing with documented redactions and reason
+   codes, retained hashes of private originals, and a human with
+   repository-disclosure authority reviewing before anything ships —
+   and may not remove the action class, timestamp, result status, or a
+   stable evidence pointer. The public/private boundary is explicit:
+   the PUBLIC record carries normalized invocation metadata (action
+   class, tool name, timing, result status) and opaque evidence IDs;
+   raw tool arguments, transcripts, and sensitive originals stay in an
+   access-controlled private store keyed by those IDs, with keyed
+   integrity commitments rather than plain hashes of low-entropy
+   values (which permit confirmation attacks). The publisher fails
+   closed when safe redaction would destroy required auditability.
+6. **Fairness notes attached to every chart:** cold-context agents;
+   published surfaces only; same model, effort, and within-set machine;
+   counterbalanced serial discipline; competitor lanes free to use web
+   docs; model prior-familiarity asymmetry stated plainly where it can
+   be supported. Prior familiarity is a caveat, not a numeric causal
+   adjustment.
+7. **Proof-bar disclosure:** every chart states what each lane proved.
+   The headline chart should be the **equal-proof-bar variant**
+   (`briefs/messaging-equal-proof-bar.md`), with the bar stated as
+   vendor-neutral outcomes (e.g. "cold-start reads of prior history
+   with the backend unreachable"), not feature names. The unequal-bar
+   table may be published alongside with the asymmetry stated
+   (competitor lanes' own-words caveats quoted, not paraphrased).
+   7a. **Equal-proof-bar failure protocol (preregistered):** identical
+   budgets and stopping rules per lane; every failed attempt retained
+   and reported as a capability failure — never converted to a timeout
+   duration, silently excluded, or substituted with a weaker result.
+   7b. **Denominator-aware ratio floor:** attempt counts per lane are
+   equal and preregistered; a ratio requires the preregistered minimum
+   successful observations per lane (N≥3 successes — the same floor as
+   rule 1's run count, applied to successes) AND a preregistered
+   minimum success rate; when either lane misses either criterion, or
+   success rates differ beyond the preregistered threshold, the ratio
+   is omitted or subordinated and the capability-outcome comparison is
+   the headline, with per-lane success counts stated on the chart
+   itself.
+8. **Receipt-backed proof.** A lane's final report is evidence, not the
+   proof oracle. The harness independently executes the brief's
+   acceptance checks and retains their receipts and UI artifacts. A
+   Snapback lane reuses the canonical LLP 0146 `snapback verify`
+   profiles and receipt rather than inventing a second system verifier;
+   the neutral benchmark checker then grades the brief-level claims for
+   every lane. Any proof that still needs human judgment is identified
+   and its evidence retained.
+9. **Version pinning:** every run names the exact closure and
+   competitor versions; claims age out when either moves materially.
+10. **Aid and starter disclosure.** Every lane names any official
+    starter, template, recipe, published example app, skill content, or
+    generated scaffold it used — any vendor-authored
+    benchmark-targeted artifact (including examples LLP 0195 publishes)
+    — with its version and the policy that made it eligible.
+    Competitors receive the same right to their public official
+    accelerators under predeclared selection criteria. An aid-assisted
+    result is a valid measure of the recommended path but is labeled as
+    such; a broad claim about authoring-surface generality additionally
+    needs a predeclared holdout brief not substantially implemented by
+    any such aid. LLP 0196 owns the portfolio and holdout policy; where
+    no equivalent aid exists, aid-assisted and bare-start
+    configurations publish separately.
+11. **Attribution symmetry:** lane reports and correction-loop content
+    (both vendors') are part of the public record — including runs
+    unfavorable to Snapback; the credibility of the
+    five-measurement-run, four-published-consumer-audit honesty
+    discipline is the asset. The canonical class `snapback-defect`
+    means a defect in the platform under test for every lane and
+    includes platform-owned documentation, templates, CLI, SDK, and
+    runtime — not only the backend. Charts may add a component label
+    such as `docs` or `backend`, but may not turn "zero backend loops"
+    into "zero platform loops."
+12. **Recomputed publication.** Tables and charts are produced from the
+    committed machine records by a checked publisher that verifies
+    schema conformance, evidence pointers, record digests, aggregation,
+    and disclosure completeness. The headline ratio convention is
+    predeclared: ratio of lane medians for the primary chart, with the
+    median of paired repetition ratios and all raw values shown beside
+    it. Hand-transcribed arithmetic is not a publication source.
+
+## What publishing looks like
+
+A benchmarks page on the LLP 0195 site: a program-history narrative
+that contains NO cross-vendor numbers or ratios — the single-run era
+(including the losing origin run, diary
+`0058-relay-room-expo-backend-bakeoff`) is told as dated prose with
+links to the raw records, because a comparative chart communicates a
+comparison whatever its label; the current N≥3 medians as the only
+comparative presentation, with distribution and action-economy views;
+links to briefs/records/prompts/proof receipts; a "run it yourself"
+section stating expected run cost; and the reproducibility manifest per
+record. Aid-assisted and holdout results are visually distinct. No
+superlatives that a record and its scoped evidence cannot back.
+
+The first implementation step is therefore not a marketing page. It is
+to extend the machine-record schema and harness capture, counterbalance
+an N≥3 calibration set, and build the deterministic record-to-chart
+check. Existing historical records remain visible with their missing
+fields labeled; they are not silently upgraded from diary prose.
+
+## Acceptance criteria
+
+This RFC is implementable when:
+
+1. the protocol, schema, and lane runner encode the ordering, cache,
+   action-trace, proof-receipt, and aid fields above;
+2. an N≥3 calibration set validates every machine record and exposes
+   all constituent values without transcript reconstruction;
+3. the checked publisher reproduces every displayed aggregate from the
+   committed records and fails closed on missing claim evidence;
+4. at least one aid-assisted result and, before making a generality
+   claim, one eligible holdout result meet the same disclosure bar; and
+5. a person outside the benchmark run can follow the public rerun
+   instructions and obtain a valid record, even if their result differs
+   because agent execution is nondeterministic.
+
+## Author decisions required
+
+- D1: Whether to publish at all and when (proposal: after the N≥3
+  calibration set and the equal-proof-bar run, not before).
+- D2: Which competitors appear (Convex is measured; Supabase/
+  PocketBase/Postgres lanes are unbuilt — publishing claims about
+  unmeasured competitors is out under this standard).
+- D3: Whether competitor names appear in charts or as "backend A/B"
+  (proposal: names, with rule 3's reproducibility as the defense).
+- D4: Whether the first publication waits for a holdout brief
+  (proposal: required only for a generality claim; a clearly labeled
+  recommended-path/aid-assisted claim may publish earlier).
+
+## Open questions
+
+- OQ1: Token-count comparability across models if the harness ever runs
+  on non-Fable models (current standard: one model per published
+  series, stated).
+- OQ2: Whether an independent third party rerunning the harness is
+  worth soliciting before first publication (strongest possible
+  credibility; costs a relationship and time).
+- OQ3: Which trace representation preserves enough evidence to audit
+  semantic action classification without publishing prompts, secrets,
+  or proprietary harness internals.
+- OQ4: What cache posture best represents a real first use while still
+  being portable across npm, package managers, and competitor CLIs.
+
+codex
+Two r8 fixes appear only partially propagated: 0195’s causal-training limitation conflicts with an older sentence that still promises isolation, and 0196 still contains the obsolete `rules 4a/4b` normative pointer plus the narrower template-only holdout test. I’m checking whether these are isolated leftovers or create broader cross-document conflicts, and I’m doing the same for 0197’s privacy wording.
+exec
+/bin/zsh -lc 'rg -n -C 2 "isolate|training effect|4a/4b|held-out|holdout|substantially implemented|Raw tool calls|retained hashes|keyed integrity|private store|public artifacts|proof receipts|run records|candidate|published digest|OQ6|carrier" 0193-errors-as-docs-completeness.plan.md 0194-generated-api-reference.rfc.md 0195-public-documentation-and-training-surface.rfc.md 0196-template-and-recipe-portfolio.plan.md 0197-benchmark-publication-standard.rfc.md' in /private/tmp/claude-501/-Users-ccheever-projects-snapback/86767887-c355-4855-a690-050c07c87ff1/scratchpad/sr-capsule-r7
+ succeeded in 0ms:
+0196-template-and-recipe-portfolio.plan.md-6-**Author:** Charlie Cheever / Claude
+0196-template-and-recipe-portfolio.plan.md-7-**Date:** 2026-08-08
+0196-template-and-recipe-portfolio.plan.md:8:**Revised:** 2026-08-08 (r8, round-6 fixes: stale 0197 "rules 4a/4b" pointer corrected to rule 10; holdout adopts rule 10's full aid scope and "substantially implemented" test incl. OQ3.) 2026-08-08 (r7, author-merge: Charlie's action-economy
+0196-template-and-recipe-portfolio.plan.md-9-revision — T0 completes the existing chat starter before portfolio breadth;
+0196-template-and-recipe-portfolio.plan.md-10-every template exposes one proof command delegating to LLP 0146 D2's
+0196-template-and-recipe-portfolio.plan.md-11-`snapback verify`; the headless-simulator recipe becomes an executable
+0196-template-and-recipe-portfolio.plan.md:12:carrier kit registered under the verify profile; exit criteria add
+0196-template-and-recipe-portfolio.plan.md:13:zero-source-read and semantic-action measures; OQ3 holdout/starter
+0196-template-and-recipe-portfolio.plan.md-14-eligibility — merged onto the r6 review spine, keeping the two-gate T5
+0196-template-and-recipe-portfolio.plan.md:15:split, capability-surface wording, and template-assisted labeling.) 2026-08-08 (r5, this document: no body change this round.) 2026-08-08 (r4) — round-3 fixes: 0194 verify-config declaration path + scope ordering; 0197 aid symmetry beyond templates, no cross-vendor numbers in the history narrative, success counts on ratio charts, Related enumerated; slug-precision citations (0193); 0196 N=1 caveat. 2026-08-08 (r2) — r2 applies the full round-1 revision set that r1 header claimed but (reviser error, caught by the round-2 delta reviews) did not contain: capability-surface wording, T5 two-gate split, template-assisted labeling + held-out-brief rule. 2026-08-08 (r1) — super-refine round-1 revision against the
+0196-template-and-recipe-portfolio.plan.md-16-dual-family cluster reviews (llp/reviews/0193-*.{claude,gpt-5}.md):
+0196-template-and-recipe-portfolio.plan.md-17-unretained/incorrect quantitative claims corrected to retained-artifact
+--
+0196-template-and-recipe-portfolio.plan.md-56-**registered verify profile** included. Most agent tasks are CRUD-shaped;
+0196-template-and-recipe-portfolio.plan.md-57-this becomes the default recommendation for generic briefs. LLP 0197's
+0196-template-and-recipe-portfolio.plan.md:58:aid-disclosure and holdout rules prevent this brief pairing from
+0196-template-and-recipe-portfolio.plan.md-59-standing alone as a public generalization claim.
+0196-template-and-recipe-portfolio.plan.md-60-
+--
+0196-template-and-recipe-portfolio.plan.md-74-product-completeness claim.
+0196-template-and-recipe-portfolio.plan.md-75-
+0196-template-and-recipe-portfolio.plan.md:76:**T4 — recipes and executable carrier kits.** Guide sections keep
+0196-template-and-recipe-portfolio.plan.md-77-CI-verified explanation, but the headless-simulator path is executable:
+0196-template-and-recipe-portfolio.plan.md-78-one bounded command/helper owns simulator boot/install/launch, scheme
+--
+0196-template-and-recipe-portfolio.plan.md-88-**T5 — template freshness, two gates:** (a) pre-release and blocking:
+0196-template-and-recipe-portfolio.plan.md-89-templates cold-install and pass their suites against the exact
+0196-template-and-recipe-portfolio.plan.md:90:*candidate staged tarballs* during release qualification, so a release
+0196-template-and-recipe-portfolio.plan.md-91-cannot ship with a template failing against its own closure; (b)
+0196-template-and-recipe-portfolio.plan.md-92-post-release canary: the same suites re-run against the *published*
+--
+0196-template-and-recipe-portfolio.plan.md-120-  template-assisted results are never published as general
+0196-template-and-recipe-portfolio.plan.md-121-  authoring-efficiency claims: portfolio-level claims require success
+0196-template-and-recipe-portfolio.plan.md:122:  on a held-out brief variant not used to design any template, and
+0196-template-and-recipe-portfolio.plan.md-123-  competitor lanes get a symmetric starter-availability policy
+0196-template-and-recipe-portfolio.plan.md:124:  (LLP 0197 rules 4a/4b govern).
+0196-template-and-recipe-portfolio.plan.md-125-
+0196-template-and-recipe-portfolio.plan.md-126-## Open questions
+--
+0197-benchmark-publication-standard.rfc.md-6-**Author:** Charlie Cheever / Claude
+0197-benchmark-publication-standard.rfc.md-7-**Date:** 2026-08-08
+0197-benchmark-publication-standard.rfc.md:8:**Revised:** 2026-08-08 (r8, round-6 fixes: rule 5 gains an explicit public/private boundary — opaque evidence IDs, keyed integrity commitments over private originals, fail-closed publisher; rule 2 defines near-balance at odd N; rule 3 conditioned on 0195 D4 with an alternate-home fallback.) 2026-08-08 (r7, author-merge: Charlie's restructure after the
+0197-benchmark-publication-standard.rfc.md-9-first harness-native run — counterbalanced repetitions, mandatory machine
+0197-benchmark-publication-standard.rfc.md-10-records, action-economy evidence with semantic action classes,
+--
+0197-benchmark-publication-standard.rfc.md-26-## Summary
+0197-benchmark-publication-standard.rfc.md-27-
+0197-benchmark-publication-standard.rfc.md:28:The measurement program can now produce candidate numbers worth
+0197-benchmark-publication-standard.rfc.md-29-calibrating — five runs, a committed harness, token metering, and a
+0197-benchmark-publication-standard.rfc.md-30-directional series (2.91x tokens for the first published-consumer lane
+--
+0197-benchmark-publication-standard.rfc.md-37-proposes the standard. The governing principle is **publish the
+0197-benchmark-publication-standard.rfc.md-38-instrument, not just the number**: every claim must be inspectable from
+0197-benchmark-publication-standard.rfc.md:39:public artifacts and rerunnable wherever the pinned model and harness
+0197-benchmark-publication-standard.rfc.md-40-are available; "reproduced" is reserved for observed reruns.
+0197-benchmark-publication-standard.rfc.md-41-
+--
+0197-benchmark-publication-standard.rfc.md-87-   The trace classifies at least guide/reference lookups,
+0197-benchmark-publication-standard.rfc.md-88-   package-source reads, binary/string excavation, edits, process
+0197-benchmark-publication-standard.rfc.md:89:   launches, proof commands, and retries. Raw tool calls remain
+0197-benchmark-publication-standard.rfc.md-90-   visible, but semantic action classes are the cross-harness
+0197-benchmark-publication-standard.rfc.md-91-   diagnostic because tool APIs batch work differently. Redaction
+--
+0197-benchmark-publication-standard.rfc.md-93-   secret/credential/PII and private-material scanning, path and
+0197-benchmark-publication-standard.rfc.md-94-   machine-identifier scrubbing with documented redactions and reason
+0197-benchmark-publication-standard.rfc.md:95:   codes, retained hashes of private originals, and a human with
+0197-benchmark-publication-standard.rfc.md-96-   repository-disclosure authority reviewing before anything ships —
+0197-benchmark-publication-standard.rfc.md-97-   and may not remove the action class, timestamp, result status, or a
+--
+0197-benchmark-publication-standard.rfc.md-100-   class, tool name, timing, result status) and opaque evidence IDs;
+0197-benchmark-publication-standard.rfc.md-101-   raw tool arguments, transcripts, and sensitive originals stay in an
+0197-benchmark-publication-standard.rfc.md:102:   access-controlled private store keyed by those IDs, with keyed
+0197-benchmark-publication-standard.rfc.md-103-   integrity commitments rather than plain hashes of low-entropy
+0197-benchmark-publication-standard.rfc.md-104-   values (which permit confirmation attacks). The publisher fails
+--
+0197-benchmark-publication-standard.rfc.md-149-    result is a valid measure of the recommended path but is labeled as
+0197-benchmark-publication-standard.rfc.md-150-    such; a broad claim about authoring-surface generality additionally
+0197-benchmark-publication-standard.rfc.md:151:    needs a predeclared holdout brief not substantially implemented by
+0197-benchmark-publication-standard.rfc.md:152:    any such aid. LLP 0196 owns the portfolio and holdout policy; where
+0197-benchmark-publication-standard.rfc.md-153-    no equivalent aid exists, aid-assisted and bare-start
+0197-benchmark-publication-standard.rfc.md-154-    configurations publish separately.
+--
+0197-benchmark-publication-standard.rfc.md-180-comparison whatever its label; the current N≥3 medians as the only
+0197-benchmark-publication-standard.rfc.md-181-comparative presentation, with distribution and action-economy views;
+0197-benchmark-publication-standard.rfc.md:182:links to briefs/records/prompts/proof receipts; a "run it yourself"
+0197-benchmark-publication-standard.rfc.md-183-section stating expected run cost; and the reproducibility manifest per
+0197-benchmark-publication-standard.rfc.md:184:record. Aid-assisted and holdout results are visually distinct. No
+0197-benchmark-publication-standard.rfc.md-185-superlatives that a record and its scoped evidence cannot back.
+0197-benchmark-publication-standard.rfc.md-186-
+--
+0197-benchmark-publication-standard.rfc.md-202-   committed records and fails closed on missing claim evidence;
+0197-benchmark-publication-standard.rfc.md-203-4. at least one aid-assisted result and, before making a generality
+0197-benchmark-publication-standard.rfc.md:204:   claim, one eligible holdout result meet the same disclosure bar; and
+0197-benchmark-publication-standard.rfc.md-205-5. a person outside the benchmark run can follow the public rerun
+0197-benchmark-publication-standard.rfc.md-206-   instructions and obtain a valid record, even if their result differs
+--
+0197-benchmark-publication-standard.rfc.md-216-- D3: Whether competitor names appear in charts or as "backend A/B"
+0197-benchmark-publication-standard.rfc.md-217-  (proposal: names, with rule 3's reproducibility as the defense).
+0197-benchmark-publication-standard.rfc.md:218:- D4: Whether the first publication waits for a holdout brief
+0197-benchmark-publication-standard.rfc.md-219-  (proposal: required only for a generality claim; a clearly labeled
+0197-benchmark-publication-standard.rfc.md-220-  recommended-path/aid-assisted claim may publish earlier).
+--
+0195-public-documentation-and-training-surface.rfc.md-33-training is a plausible but **unverified hypothesis** — prior
+0195-public-documentation-and-training-surface.rfc.md-34-familiarity is measured, its provenance is not. The decision case rests
+0195-public-documentation-and-training-surface.rfc.md:35:on discoverability and retrieval; the training effect, if real, is
+0195-public-documentation-and-training-surface.rfc.md-36-upside this RFC proposes to instrument rather than assume (OQ4). It
+0195-public-documentation-and-training-surface.rfc.md-37-remains the largest unstarted item this program has identified. It is proposed here rather than executed because publishing
+--
+0195-public-documentation-and-training-surface.rfc.md-53-   `main` moves.
+0195-public-documentation-and-training-surface.rfc.md-54-2. **Public examples repository**, projecting the template outputs and
+0195-public-documentation-and-training-surface.rfc.md:55:   selected demo apps (the benchmark lanes' apps are strong candidates:
+0195-public-documentation-and-training-surface.rfc.md-56-   complete, proof-carrying, honestly scoped — LLP 0197 rule 10's aid
+0195-public-documentation-and-training-surface.rfc.md-57-   disclosure applies once published). Each example pinned to a closure
+--
+0195-public-documentation-and-training-surface.rfc.md-70-   but confounded — skills, templates, and error improvements also cut
+0195-public-documentation-and-training-surface.rfc.md-71-   orientation cost — so the posture claims no timeline; OQ4 sketches
+0195-public-documentation-and-training-surface.rfc.md:72:   the pinned-model knowledge evaluation that could isolate the
+0195-public-documentation-and-training-surface.rfc.md:73:   training effect if it becomes worth measuring.
+0195-public-documentation-and-training-surface.rfc.md-74-
+0195-public-documentation-and-training-surface.rfc.md-75-## Success measures: two clocks
+--
+0195-public-documentation-and-training-surface.rfc.md-119-  harness, questions, and aids held fixed within each separately
+0195-public-documentation-and-training-surface.rfc.md-120-  reported model epoch. It observes familiarity trends only; changing
+0195-public-documentation-and-training-surface.rfc.md:121:  epochs cannot establish corpus presence or isolate training-data
+0195-public-documentation-and-training-surface.rfc.md-122-  inclusion from other model changes, so attribution to training
+0195-public-documentation-and-training-surface.rfc.md-123-  requires corpus evidence or a controlled ablation. Only worth
+--
+0194-generated-api-reference.rfc.md-63-   indexed by `snapback guide <query>` and MCP, and listed in
+0194-generated-api-reference.rfc.md-64-   `/llms.txt`. The oversized flat projection remains an explicit
+0194-generated-api-reference.rfc.md:65:   fallback, not the primary reference carrier
+0194-generated-api-reference.rfc.md-66-   (`issues/20260806-guide-flat-projection-oversize.md`).
+0194-generated-api-reference.rfc.md-67-6. **Joins:** intent pages link into reference anchors ("full signature:
+--
+0193-errors-as-docs-completeness.plan.md-6-**Author:** Charlie Cheever / Claude
+0193-errors-as-docs-completeness.plan.md-7-**Date:** 2026-08-08
+0193-errors-as-docs-completeness.plan.md:8:**Revised:** 2026-08-08 (r8, round-6 fixes: ledger fields made orthogonal (representation / target kind / OQ6 mechanism); candidate-vs-published closure validation so unreleased diagnostics stay landable; exit criterion 5 requires downgrade+refix+retest for ineffective A-grades, bounded to the first post-ratchet run; carrier trigger = OQ6 carrier SHIPS; three-of-six residues enumerated.) 2026-08-08 (r7, author-merge: Charlie's reconciliation —
+0193-errors-as-docs-completeness.plan.md-9-the evidence claim narrowed to the refusal-reachable three-of-six subset
+0193-errors-as-docs-completeness.plan.md-10-with the rest routed to 0194/0196; the ledger grades resolution quality
+0193-errors-as-docs-completeness.plan.md:11:and closure binding (carrier/target/applicability/one-attempt witness
+0193-errors-as-docs-completeness.plan.md-12-fields); exit criterion 5 adds the one-attempt recovery test; OQ1 recast
+0193-errors-as-docs-completeness.plan.md-13-as migration cadence — merged onto the r6 review spine, keeping the
+0193-errors-as-docs-completeness.plan.md-14-retained-exemplar corrections, the ~2,700-symbol population note, the
+0193-errors-as-docs-completeness.plan.md:15:OQ6 carrier dependency, mechanical reclassification refusal, and
+0193-errors-as-docs-completeness.plan.md-16-post-run grading.) 2026-08-08 (r6, this document: sibling-ticket provenance corrected (excursion vs product-half fix), retrofit removed from the observed list, reclassification refusal made mechanical + exit-criterion negative test, post-run grading outside the metered window. UNREVIEWED — applied after the final authorized round; every change resolves an enumerated round-5 concern.) 2026-08-08 (r5, this document: exemplar reattributed (assets-put-user is the retrofit case, ticket-cited); reclassification gating in Phase 3; 0065 slug.) 2026-08-08 (r4) — round-3 fixes: 0194 verify-config declaration path + scope ordering; 0197 aid symmetry beyond templates, no cross-vendor numbers in the history narrative, success counts on ratio charts, Related enumerated; slug-precision citations; 0196 N=1 caveat. 2026-08-08 (r3) — pre-round-3 minors (citation precision, diary enumeration). 2026-08-08 (r1) — super-refine round-1 revision against the
+0193-errors-as-docs-completeness.plan.md-17-dual-family cluster reviews (llp/reviews/0193-*.{claude,gpt-5}.md):
+--
+0193-errors-as-docs-completeness.plan.md-69-- The infrastructure half-exists: stable code registry, the
+0193-errors-as-docs-completeness.plan.md-70-  production diagnostic-inventory drift gate, and 0146 D7 ratified as
+0193-errors-as-docs-completeness.plan.md:71:  the remediation carrier.
+0193-errors-as-docs-completeness.plan.md-72-
+0193-errors-as-docs-completeness.plan.md-73-## Program
+--
+0193-errors-as-docs-completeness.plan.md-82-three orthogonal remediation fields — emitted representation
+0193-errors-as-docs-completeness.plan.md-83-(`structured | message-text`), remediation target kind
+0193-errors-as-docs-completeness.plan.md:84:(`inline-fix | guide-anchor | reference-symbol`), and the OQ6-selected
+0193-errors-as-docs-completeness.plan.md-85-enforcement/storage mechanism once ruled — plus closure/version
+0193-errors-as-docs-completeness.plan.md-86-applicability, anchor/symbol resolution, and whether a cold one-attempt
+--
+0193-errors-as-docs-completeness.plan.md-94-house style; guide and LLP 0194 reference anchors must resolve against
+0193-errors-as-docs-completeness.plan.md-95-the closure the remediation names: unreleased diagnostics validate
+0193-errors-as-docs-completeness.plan.md:96:against the exact candidate/build closure digest and are revalidated
+0193-errors-as-docs-completeness.plan.md:97:against the qualified published digest at release (so the ratchet never
+0193-errors-as-docs-completeness.plan.md-98-makes an unreleased diagnostic unlandable), and the remediation and its
+0193-errors-as-docs-completeness.plan.md-99-anchor must name the same closure (check-guide and the reference checks
+--
+0193-errors-as-docs-completeness.plan.md-107-**Phase 3 — the ratchet.** Extend the diagnostic-inventory drift gate:
+0193-errors-as-docs-completeness.plan.md-108-a new agent-triggerable code cannot land without a remediation in the
+0193-errors-as-docs-completeness.plan.md:109:carrier LLP 0146 OQ6 selects, or a resolving guide anchor as the interim
+0193-errors-as-docs-completeness.plan.md-110-floor. The typed-remediation end state is 0146's ratified D7 and is not
+0193-errors-as-docs-completeness.plan.md:111:reopened here; the carrier choice is OQ6's open ruling
+0193-errors-as-docs-completeness.plan.md:112:(`issues/20260806-llp0146-oq6-remediation-carrier-decision.md`) and is a
+0193-errors-as-docs-completeness.plan.md-113-named dependency of this phase's structured half — until it rules, the
+0193-errors-as-docs-completeness.plan.md-114-gate enforces text+anchor as a bounded interim floor, upgraded
+0193-errors-as-docs-completeness.plan.md:115:code-by-code as the carrier lands (new codes use the structured carrier
+0193-errors-as-docs-completeness.plan.md-116-once it exists; audited legacy codes may hold the floor until touched).
+0193-errors-as-docs-completeness.plan.md-117-Anchor and generated-symbol resolution join CI. The graded ledger
+--
+0193-errors-as-docs-completeness.plan.md-151-
+0193-errors-as-docs-completeness.plan.md-152-- OQ1: Migration cadence — how quickly audited legacy codes graduate
+0193-errors-as-docs-completeness.plan.md:153:  from the text+anchor floor to D7's structured `remediations` carrier
+0193-errors-as-docs-completeness.plan.md:154:  once the 0146 OQ6-selected carrier ships. New codes use the structured
+0193-errors-as-docs-completeness.plan.md:155:  carrier from the moment it ships (the ruling alone does not end the
+0193-errors-as-docs-completeness.plan.md-156-  text+anchor floor); the open question is cadence, not the target
+0193-errors-as-docs-completeness.plan.md-157-  shape (settled by 0146's ratified D7). Proposal: structured on next
+0193-errors-as-docs-completeness.plan.md:158:  touch, dated full-migration milestone set when the carrier ships.
+0193-errors-as-docs-completeness.plan.md-159-- OQ2: Grading authority for "agent-triggerable" — proposal: reachable
+0193-errors-as-docs-completeness.plan.md-160-  from any published-surface operation, decided by the grading lane,
+
+codex
+1. [minor] [IN-DELTA] — 0193, Evidence: “0146 D7 ratified as the remediation carrier.” Elsewhere, the document correctly says D7 settles the typed-remediation shape while OQ6 still selects the enforcement/storage carrier. Reusing “carrier” for both weakens the new orthogonal distinction. Resolve by saying D7 ratified the typed-remediation requirement or shape; the concrete carrier remains an OQ6 dependency.
+
+2. [MATERIAL] [IN-DELTA] — 0195, Proposal 4: “OQ4 sketches the pinned-model knowledge evaluation that could isolate the training effect.” This contradicts the revised OQ4, which correctly states that epoch changes “cannot establish corpus presence or isolate training-data inclusion.” The operative proposal therefore still promises the invalid causal inference r8 was meant to remove. Replace it with familiarity surveillance only, explicitly reserving training attribution for corpus evidence or controlled ablation.
+
+3. [MATERIAL] [IN-DELTA] — 0196, Exit criteria: “portfolio-level claims require success on a held-out brief variant not used to design any template … (LLP 0197 rules 4a/4b govern).” The claimed r8 correction was not applied here: 0197 has no rules 4a/4b, and “not used to design any template” is materially narrower than rule 10’s requirement that the holdout not be substantially implemented by any vendor-authored aid. OQ3’s correct wording does not override this operative exit criterion. Rewrite the criterion using rule 10’s complete aid scope and “substantially implemented” test, point to rule 10, and leave first-publication timing to 0197 D4.
+
+4. [MATERIAL] [IN-DELTA] — 0197, Rule 5: “Raw tool calls remain visible” and “retained hashes of private originals” conflict with the later r8 boundary requiring raw arguments and transcripts to remain private and using “keyed integrity commitments rather than plain hashes.” This leaves a safety-critical publisher requirement internally contradictory. Rewrite the earlier language so only normalized invocation metadata and sanitized traces are public, while opaque evidence IDs reference private originals protected by keyed commitments.
+
+5. [MATERIAL] [IN-DELTA] — 0197, Rule 2: “‘balanced’ means position counts differing by at most one at odd N; exact balance requires repetition counts divisible by the lane count.” Oddness is relevant only for two lanes. With three lanes and N=4, for example, N is even but exact balance is impossible and the standard supplies no near-balance rule. Define near-balance whenever N is not divisible by the lane count: for every lane and position, counts differ by at most one; when divisible, require exactly N/lane-count appearances in each position.
+
+0193: READY — The substantive r8 fixes are coherent; only the non-blocking D7/OQ6 terminology residue remains.
+
+0194: READY — Runtime/type-space parity and the ctx bootstrap retirement and ownership rules are coherent.
+
+0195: NOT READY — Proposal 4 still makes the causal-isolation claim that revised OQ4 rejects.
+
+0196: NOT READY — The operative holdout criterion retains both the obsolete pointer and the narrower pre-r8 eligibility test.
+
+0197: NOT READY — Rule 5 remains internally contradictory on public evidence handling, and rule 2 does not define balance for all permitted lane-count/repetition combinations.
+
+SET: NOT READY
+tokens used
+45,655
+1. [minor] [IN-DELTA] — 0193, Evidence: “0146 D7 ratified as the remediation carrier.” Elsewhere, the document correctly says D7 settles the typed-remediation shape while OQ6 still selects the enforcement/storage carrier. Reusing “carrier” for both weakens the new orthogonal distinction. Resolve by saying D7 ratified the typed-remediation requirement or shape; the concrete carrier remains an OQ6 dependency.
+
+2. [MATERIAL] [IN-DELTA] — 0195, Proposal 4: “OQ4 sketches the pinned-model knowledge evaluation that could isolate the training effect.” This contradicts the revised OQ4, which correctly states that epoch changes “cannot establish corpus presence or isolate training-data inclusion.” The operative proposal therefore still promises the invalid causal inference r8 was meant to remove. Replace it with familiarity surveillance only, explicitly reserving training attribution for corpus evidence or controlled ablation.
+
+3. [MATERIAL] [IN-DELTA] — 0196, Exit criteria: “portfolio-level claims require success on a held-out brief variant not used to design any template … (LLP 0197 rules 4a/4b govern).” The claimed r8 correction was not applied here: 0197 has no rules 4a/4b, and “not used to design any template” is materially narrower than rule 10’s requirement that the holdout not be substantially implemented by any vendor-authored aid. OQ3’s correct wording does not override this operative exit criterion. Rewrite the criterion using rule 10’s complete aid scope and “substantially implemented” test, point to rule 10, and leave first-publication timing to 0197 D4.
+
+4. [MATERIAL] [IN-DELTA] — 0197, Rule 5: “Raw tool calls remain visible” and “retained hashes of private originals” conflict with the later r8 boundary requiring raw arguments and transcripts to remain private and using “keyed integrity commitments rather than plain hashes.” This leaves a safety-critical publisher requirement internally contradictory. Rewrite the earlier language so only normalized invocation metadata and sanitized traces are public, while opaque evidence IDs reference private originals protected by keyed commitments.
+
+5. [MATERIAL] [IN-DELTA] — 0197, Rule 2: “‘balanced’ means position counts differing by at most one at odd N; exact balance requires repetition counts divisible by the lane count.” Oddness is relevant only for two lanes. With three lanes and N=4, for example, N is even but exact balance is impossible and the standard supplies no near-balance rule. Define near-balance whenever N is not divisible by the lane count: for every lane and position, counts differ by at most one; when divisible, require exactly N/lane-count appearances in each position.
+
+0193: READY — The substantive r8 fixes are coherent; only the non-blocking D7/OQ6 terminology residue remains.
+
+0194: READY — Runtime/type-space parity and the ctx bootstrap retirement and ownership rules are coherent.
+
+0195: NOT READY — Proposal 4 still makes the causal-isolation claim that revised OQ4 rejects.
+
+0196: NOT READY — The operative holdout criterion retains both the obsolete pointer and the narrower pre-r8 eligibility test.
+
+0197: NOT READY — Rule 5 remains internally contradictory on public evidence handling, and rule 2 does not define balance for all permitted lane-count/repetition combinations.
+
+SET: NOT READY

@@ -5,7 +5,7 @@
 **Systems:** Templates, CLI, Guide, Testing, Agent experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (r8, round-6 fixes: stale 0197 "rules 4a/4b" pointer corrected to rule 10; holdout adopts rule 10's full aid scope and "substantially implemented" test incl. OQ3.) 2026-08-08 (r7, author-merge: Charlie's action-economy
+**Revised:** 2026-08-08 (r9, round-7 fix: the exit-criterion half of the rule-10 correction actually applied — the r8 header claimed it but the r8 edit silently missed this site (wrapping mismatch; caught by both round-7 reviewers); holdout now uses rule 10's full aid scope with 0197 D4 owning publication timing.) 2026-08-08 (r8, round-6 fixes: stale 0197 "rules 4a/4b" pointer corrected to rule 10; holdout adopts rule 10's full aid scope and "substantially implemented" test incl. OQ3.) 2026-08-08 (r7, author-merge: Charlie's action-economy
 revision — T0 completes the existing chat starter before portfolio breadth;
 every template exposes one proof command delegating to LLP 0146 D2's
 `snapback verify`; the headless-simulator recipe becomes an executable
@@ -117,11 +117,13 @@ T1 lands.
 - The next benchmark run on the CRUD brief uses T1 with no template-gap
   loops — measured and labeled as a **template-assisted scenario**.
   Templates deliberately cover benchmark-brief capability surfaces, so
-  template-assisted results are never published as general
+  aid-assisted results are never published as general
   authoring-efficiency claims: portfolio-level claims require success
-  on a held-out brief variant not used to design any template, and
-  competitor lanes get a symmetric starter-availability policy
-  (LLP 0197 rules 4a/4b govern).
+  on a predeclared holdout brief not substantially implemented by ANY
+  vendor-authored aid — template, T0 feature module, recipe, published
+  example, or skill content — and competitor lanes get the symmetric
+  accelerator policy (LLP 0197 rule 10 governs; 0197 D4 owns
+  publication timing).
 
 ## Open questions
 

@@ -243,3 +243,97 @@ framing of 0193/0194/0195 as set-wide (their per-document concerns are
 the ones enumerated above; no additional unlisted concern exists in
 either body).
 ref-check clean. r8 is the round-7 target.
+
+## Round 7 (delta round) — launched 2026-08-08, targets at revision 5aec0969e (r8)
+
+Capsule sha256:
+9db7255e601d5cb2677f35a3ae334969d280878cd0f01ea856fb97e9363cc620  sr-capsule-r7/0193-errors-as-docs-completeness.plan.md
+788c134e76904e76b778b88198f96f9bb173ecaf65fc277a54ec6d1940bc9edb  sr-capsule-r7/0194-generated-api-reference.rfc.md
+ee7e7e5523d4b798b6eb10c2ad12582c60385ac05d6f5734ec89238d6315c9da  sr-capsule-r7/0195-public-documentation-and-training-surface.rfc.md
+3ecce4cb05c9aebb1f048ef6d042160c6f8b9da221ad4b9e4b335a3c62e1afb8  sr-capsule-r7/0196-template-and-recipe-portfolio.plan.md
+fd1d694a2c65219440284e0e5e1107b18722c9d4c1d4e51fd3a5fbc2673d892d  sr-capsule-r7/0197-benchmark-publication-standard.rfc.md
+edaadaecd4152575d9e7231b8bf5084c1b5e3119ed6b7d80c3a594c6d6a808fe  sr-capsule-r7/CONTEXT.md
+Topology unchanged; fresh reviewers both families (claude cold
+subagent Fable 5; codex exec gpt-5.6-sol xhigh); r8 delta enumerated
+in the instructions (sha256 below); concerns classify IN-DELTA vs
+PRE-EXISTING. Round authorized by the author's standing instruction
+("one more round after that if you think it would meaningfully
+improve stuff" — nine round-6 MATERIALs met that bar).
+Instructions sha256:
+c9a89f1c827a07eb869fe638f4bc6de577ad9b07260855e5f9c1a51b2d5ad776  /tmp/sr-r7-instructions.txt
+
+Round 7 verdicts (both bind to capsule sr-capsule-r7, targets at
+5aec0969e / r8):
+- claude (repo-verifying): 0193 NOT READY (r8's 1/4/6 residue
+  enumeration is factually wrong against diary 0069 and contradicts
+  the Summary's own routing — run 5's refusal-reachable set is empty),
+  0194 READY, 0195 NOT READY (Proposal 4 residual isolation
+  overclaim), 0196 NOT READY (exit-criterion half of fix (j) never
+  applied; header claimed it), 0197 READY (two minors: rule-2
+  coverage gap, rule-5 hash residual). SET NOT READY.
+- gpt-5 (capsule-only): 0193 READY (one terminology minor: D7
+  "carrier" vs OQ6), 0194 READY, 0195 NOT READY (same Proposal 4
+  clause), 0196 NOT READY (same unapplied exit criterion), 0197 NOT
+  READY (rule 5 internally contradictory pre-boundary sentences;
+  rule 2 balance undefined off two lanes). SET NOT READY.
+All concerns in both reviews are IN-DELTA; no MATERIAL concern in
+pre-existing text in either family. 0194 is dual-READY at r8
+(5aec0969e). Cross-family agreement on 0195/0196; the 0193 and 0197
+divergences reflect access (repo-verifying vs capsule-only), not
+contradiction.
+
+Incident (recorded per honesty rules, second occurrence of the
+unverified-post-condition class): the r8 batch edit for 0196's exit
+criterion silently no-opped — the replace pattern's line wrapping did
+not match the file, the script printed success anyway, and the r8
+Revised header claimed the fix. Both round-7 reviewers caught it
+independently. Additionally, r8's 0193 residue enumeration (1/4/6)
+was asserted without reading diary 0069's residue list; the
+repo-verifying reviewer disproved it. Reviser error, orchestrating
+session, both. r9's edit script asserts a unique match per edit
+before writing.
+
+## Revision r9 — 2026-08-08 (round-7 fix set, reviser: orchestrator; UNREVIEWED)
+
+- 0193: residue routing re-derived from the record — residues 1/4 →
+  0196, 2/3/5 → 0194, residue 6 = guide-anchor gap with no refusal
+  incident; run 5's refusal-reachable set stated as EMPTY, observed
+  evidence rests on the earlier-run exemplar pair (claude #1); D7
+  wording narrowed to the typed-remediation requirement, carrier =
+  OQ6 (gpt minor #1).
+- 0195: Proposal 4 aligned with OQ4 — familiarity surveillance,
+  attribution needs corpus evidence or controlled ablation (claude
+  #3, gpt #2).
+- 0196: the exit criterion actually rewritten to rule 10's full aid
+  scope + "substantially implemented" test + 0197 D4 timing ownership
+  (claude #2, gpt #3).
+- 0197: rule 5 pre-boundary sentences reconciled — raw tool calls
+  private-only with public normalized metadata, keyed commitments
+  replace "retained hashes" (gpt #4, claude #5); rule 2 balance
+  defined for all lane-count/N combinations (gpt #5, claude #4).
+- 0194: no r9 change; dual-READY at r8.
+
+## Loop close-out — 2026-08-08
+
+Rounds run: 7 (1-5 pre-author-merge; 6 = author-merge review; 7 =
+r8-delta review). Author round authorization: 2 + up to 3 + author
+merge round + "one more round after that if you think it would
+meaningfully improve stuff" (round 7; nine round-6 MATERIALs met the
+bar). The budget is exhausted; no further rounds are authorized.
+
+Final verdict binding: 0194 dual-READY at r8 = 5aec0969e (its r9 file
+is byte-identical except no header change — 0194 received no r9
+edit). 0193/0195/0196/0197 final family verdicts bind to r8; the r9
+revision resolves every enumerated round-7 concern (ledger above) and
+is UNREVIEWED by any family. Every round-7 concern is dispositioned:
+none dropped, none altitude-dismissed. Convergence claim: delta-round
+convergence with an unreviewed one-commit tail on four documents —
+the same terminal shape as the round-5 close-out, now with the
+author-merge material reviewed twice (rounds 6 and 7).
+
+Proposed next step: all five remain Review; acceptance is the
+author's. 0194 is acceptable as-is on a dual-READY revision;
+0193/0195/0196/0197 are acceptable if the author accepts the r9 tail
+as applied-per-enumerated-resolving-changes, or an optional future
+delta round can clear the tail. This loop applies no further
+transitions.

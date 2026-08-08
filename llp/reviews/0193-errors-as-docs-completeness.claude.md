@@ -266,3 +266,46 @@ All documents and cited artifacts are read and verified. Producing the review.
 ## 3. Set verdict
 
 **SET: NOT READY** — one in-delta MATERIAL merge defect (0196's stale "rules 4a/4b" pointer into the renumbered 0197); once that one-line cross-reference is corrected, no material concern remains anywhere in the set, and the seven minors are wording/precision fixes that do not identify defective decisions.
+## Round 7 — 2026-08-08 (claude family, delta round)
+
+Provenance: fresh cold-context subagent, Fable 5, capsule sr-capsule-r7,
+targets at 5aec0969e (r8). One launch. Body verbatim:
+
+**Verification notes.** I read all five capsule documents and CONTEXT.md in full, then verified against the repository (read-only): all cited tickets exist (`issues/20260806-llp0146-oq6-remediation-carrier-decision.md`, `issues/20260806-guide-flat-projection-oversize.md`, the four `issues/closed/20260805-*` exemplar/bisection tickets); `packages/snapback-cli/verify.d.mts` exists; `benchmarks/briefs/{crud,media,messaging,messaging-equal-proof-bar}.md` exist; diaries 0048/0058/0065/0066/0068/0069 exist under the cited slugs; a raw `SNAPBACK_*` identifier sweep returns 2,688 unique symbols (the "~2,700" claim holds); diary 0048 contains `SNAPBACK_ASSET_IMAGE_DECODE_FAILED` and the closed expo-asset-upload ticket contains the `SNAPBACK_ASSET_OWNER_CUSTODY_UNSATISFIABLE` retrofit; diary 0058 and its ticket contain the "was not JSON" incident. I read diary 0069's residue list in full and the residue-1 and residue-6 tickets (`issues/20260808-expo-chat-template-web-deps.md`, `issues/20260808-offline-supervisor-origin-guide-anchor.md`). I confirmed each of the thirteen delta items (a)–(m) against the capsule text, checked the four mandated cross-document coherence pairs (0193(b) vs the candidate/published fence machinery in 0195 P1 and 0196 T5; 0193(a) vs 0146 D7/OQ6 as described; 0196(j) vs 0197 rule 10; 0197(k) vs rules 3 and 8), and confirmed 0197 has no rules "4a/4b" (only 7a/7b). I did not read `llp/reviews/` or the repo copies of 0193–0197.
+
+## Concerns
+
+**1. [MATERIAL][IN-DELTA] 0193 — the r8 residue enumeration misclassifies the residues and contradicts the document's own Summary and 0196's ownership.**
+Quote (Evidence): *"The refusal-reachable subset this Plan owns is graded in the Phase 1 ledger's first rows (residues 1, 4, and 6 of that diary's list); the signature-shaped remainder (residues 2, 3, 5) routes to LLP 0194 and the template gap to LLP 0196."*
+Defect: against diary 0069's actual list, residue 1 is the expo-chat web-platform/deps gap — an `expo start --web` dependency failure (ticket `20260808-expo-chat-template-web-deps.md`), not a `SNAPBACK_*` refusal, and it is exactly "the template gap" that 0196 T3 explicitly absorbs; residue 4 is the simulator-proof recipe gap (plutil dotted keys, Expo Go onboarding), owned by 0196 T4 and likewise not a `SNAPBACK_*` refusal; residue 6 (supervisor-origin env excavation) is recorded as a guide-anchor/recipe gap with no refusal incident in the diary or its ticket. Non-`SNAPBACK_*` failures cannot be "graded in the Phase 1 ledger's first rows" of a `SNAPBACK_*` diagnostic ledger. The sentence also contradicts 0193's own Summary, which says run 5 *"paid for a template defect, simulator-proof assembly, and signature discovery that no refusal could repair — those route to LLP 0196 and LLP 0194"* — i.e., residues 1 and 4 are routed away in one paragraph and claimed as refusal-reachable in the next; and since 1+4+6+2+3+5 exhausts all six, "the template gap → 0196" clause is left with no referent.
+Resolving change: re-derive the subset from the record — route residues 1 and 4 to LLP 0196 (matching the Summary), keep 2/3/5 → 0194, and claim for this Plan only residues with an actual `SNAPBACK_*` refusal in the incident record (residue 6 only if the offline cold-boot path demonstrably surfaces one; otherwise state that run 5's refusal-reachable set is empty and the Plan's observed evidence is the earlier-run exemplars already cited).
+
+**2. [MATERIAL][IN-DELTA] 0196 — fix (j) is only partially applied; the stale pointer the delta claims to have corrected is still in the body.**
+Quote (exit criteria): *"portfolio-level claims require success on a held-out brief variant not used to design any template, and competitor lanes get a symmetric starter-availability policy (LLP 0197 rules 4a/4b govern)."*
+Defect: 0197 has no rules 4a/4b (rule 4 has no subparts; only 7a/7b exist), so the pointer is dangling; the holdout scope here is still template-only ("not used to design any template") rather than rule 10's full aid scope and "substantially implemented" test; and the promised D4 publication-timing ownership appears nowhere in 0196. Only OQ3 received the fix. The r8 Revised header claims the correction, so the header asserts changes the body does not contain — the same header/body divergence failure mode this document's own r2 note records.
+Resolving change: apply the claimed edit — replace "(LLP 0197 rules 4a/4b govern)" with rule 10, widen the holdout wording to "not substantially implemented by any vendor-authored aid — template, T0 feature module, recipe, published example, or skill content," and name 0197 D4 as owning publication timing.
+
+**3. [MATERIAL][IN-DELTA] 0195 — a residual clause still asserts the isolation capability that the rewritten OQ4 disclaims.**
+Quote (Proposal 4): *"OQ4 sketches the pinned-model knowledge evaluation that could isolate the training effect if it becomes worth measuring"* vs OQ4: *"changing epochs cannot establish corpus presence or isolate training-data inclusion from other model changes."*
+Defect: a flat contradiction about the same instrument's capability, on precisely the point fix (h) existed to correct; a reader of the Proposal section alone inherits the overclaim, which is decision-relevant to whether OQ4 is worth building. Incomplete application of the fix.
+Resolving change: reword Proposal 4 to "OQ4 sketches the pinned-model familiarity surveillance; isolating the training effect would additionally require corpus evidence or a controlled ablation (OQ4)."
+
+**4. [minor][IN-DELTA] 0197 rule 2 — the "balanced" definition has a coverage gap.**
+Quote: *"'balanced' means position counts differing by at most one at odd N; exact balance requires repetition counts divisible by the lane count."*
+Defect: even N not divisible by the lane count (e.g., three lanes, N=4) is covered by neither clause. Resolving change: define near-balance as "position counts differ by at most one whenever N is not divisible by the lane count."
+
+**5. [minor][IN-DELTA] 0197 rule 5 — residual internal tension on hashes.**
+Quote: *"retained hashes of private originals"* (redaction-schema sentence) vs the new boundary text *"keyed integrity commitments rather than plain hashes of low-entropy values."*
+Defect: the earlier sentence still mandates plain retained hashes unqualifiedly; for low-entropy originals that is the confirmation-attack vector the new sentence bars. Resolving change: qualify the earlier phrase to reference the keyed commitments defined later in the rule.
+
+Delta items verified applied cleanly with no new defect found: 0193 (a), (b), (c), (d); 0194 (f), (g) — including coherence of the ctx text+anchor floor with 0193 Phase 3; 0195 (i); 0197 (k) — coherent with rules 3 and 8 (prompts public, transcripts private, publisher fail-closed matches rule 12/acceptance 3) — and (m), coherent with 0195 D4. All five r8 header entries are present (0196's overclaims, per concern 2).
+
+## Verdicts
+
+- **0193: NOT READY** — the r8 residue enumeration is factually wrong against diary 0069 and self-contradictory with the Summary's routing (concern 1).
+- **0194: READY** — fixes (f) and (g) applied cleanly; export-parity split and bootstrap retirement are coherent internally and with 0193's floor; no material concern found.
+- **0195: NOT READY** — one surviving clause reasserts the isolation overclaim OQ4's rewrite removed (concern 3); a one-phrase fix.
+- **0196: NOT READY** — the exit-criterion half of fix (j) was not applied; the stale 4a/4b pointer and template-only holdout scope remain while the header claims otherwise (concern 2).
+- **0197: READY** — rules 2, 3, and 5 fixes applied and coherent with rules 3/8 and 0195 D4; two minor definitional gaps only.
+
+SET: NOT READY

@@ -5,7 +5,7 @@
 **Systems:** Competitive evaluation, Publishing, Documentation
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (r8, round-6 fixes: rule 5 gains an explicit public/private boundary — opaque evidence IDs, keyed integrity commitments over private originals, fail-closed publisher; rule 2 defines near-balance at odd N; rule 3 conditioned on 0195 D4 with an alternate-home fallback.) 2026-08-08 (r7, author-merge: Charlie's restructure after the
+**Revised:** 2026-08-08 (r9, round-7 fixes: rule 5's earlier sentences reconciled with the r8 boundary (raw tool calls private-only, keyed commitments replace retained hashes); rule 2's balance defined for every lane-count/N combination.) 2026-08-08 (r8, round-6 fixes: rule 5 gains an explicit public/private boundary — opaque evidence IDs, keyed integrity commitments over private originals, fail-closed publisher; rule 2 defines near-balance at odd N; rule 3 conditioned on 0195 D4 with an alternate-home fallback.) 2026-08-08 (r7, author-merge: Charlie's restructure after the
 first harness-native run — counterbalanced repetitions, mandatory machine
 records, action-economy evidence with semantic action classes,
 receipt-backed proof over LLP 0146 verify, the `snapback-defect`
@@ -55,10 +55,10 @@ A published Snapback benchmark claim requires:
    W1 protocol.
 2. **Counterbalanced repetitions.** Lanes remain serial and
    same-machine within a comparison set, but their order rotates across
-   repetitions using a predeclared rotation schedule ("balanced" means
-   position counts differing by at most one at odd N; exact balance
-   requires repetition counts divisible by the lane count, e.g. N=4
-   for two lanes). The record pins
+   repetitions using a predeclared rotation schedule ("balanced" means:
+   when the repetition count is divisible by the lane count, every
+   lane appears exactly N/lanes times in each position; otherwise
+   every lane's per-position counts differ by at most one). The record pins
    machine state and load, package-manager/cache posture, fresh versus
    reused backend state, occupied ports, model, effort, harness, and
    package versions. A favorable lane may not always receive the same
@@ -86,13 +86,15 @@ A published Snapback benchmark claim requires:
    exposed by the harness, phase times, and a sanitized action trace.
    The trace classifies at least guide/reference lookups,
    package-source reads, binary/string excavation, edits, process
-   launches, proof commands, and retries. Raw tool calls remain
-   visible, but semantic action classes are the cross-harness
-   diagnostic because tool APIs batch work differently. Redaction
+   launches, proof commands, and retries. Raw tool calls remain visible only in the
+   private record — publicly, normalized invocation metadata stands in
+   for them (boundary below) — and semantic action classes are the
+   cross-harness diagnostic because tool APIs batch work differently. Redaction
    passes through the publication-safe artifact schema — automated
    secret/credential/PII and private-material scanning, path and
    machine-identifier scrubbing with documented redactions and reason
-   codes, retained hashes of private originals, and a human with
+   codes, keyed integrity commitments over private originals (as the
+   boundary below defines), and a human with
    repository-disclosure authority reviewing before anything ships —
    and may not remove the action class, timestamp, result status, or a
    stable evidence pointer. The public/private boundary is explicit:

@@ -5,7 +5,7 @@
 **Systems:** Diagnostics, Error handling, Guide, Agent experience, CI
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (r8, round-6 fixes: ledger fields made orthogonal (representation / target kind / OQ6 mechanism); candidate-vs-published closure validation so unreleased diagnostics stay landable; exit criterion 5 requires downgrade+refix+retest for ineffective A-grades, bounded to the first post-ratchet run; carrier trigger = OQ6 carrier SHIPS; three-of-six residues enumerated.) 2026-08-08 (r7, author-merge: Charlie's reconciliation —
+**Revised:** 2026-08-08 (r9, round-7 fixes: the residue routing re-derived from diary 0069's record — run 5's refusal-reachable set is EMPTY (1/4 → 0196, 2/3/5 → 0194, 6 = guide-anchor gap, no refusal incident), replacing r8's unverified 1/4/6 enumeration; D7 terminology narrowed to the typed-remediation requirement vs OQ6's carrier.) 2026-08-08 (r8, round-6 fixes: ledger fields made orthogonal (representation / target kind / OQ6 mechanism); candidate-vs-published closure validation so unreleased diagnostics stay landable; exit criterion 5 requires downgrade+refix+retest for ineffective A-grades, bounded to the first post-ratchet run; carrier trigger = OQ6 carrier SHIPS; three-of-six residues enumerated.) 2026-08-08 (r7, author-merge: Charlie's reconciliation —
 the evidence claim narrowed to the refusal-reachable three-of-six subset
 with the rest routed to 0194/0196; the ledger grades resolution quality
 and closure binding (carrier/target/applicability/one-attempt witness
@@ -51,12 +51,16 @@ bar structural, so it can never regress.
 
 ## Evidence
 
-- Diary 0069: six expensive moments were knowledge-shaped. The
-  refusal-reachable subset this Plan owns is graded in the Phase 1
-  ledger's first rows (residues 1, 4, and 6 of that diary's list); the
-  signature-shaped remainder (residues 2, 3, 5) routes to LLP 0194 and
-  the template gap to LLP 0196, keeping this Plan's causal claim
-  bounded.
+- Diary 0069: six expensive moments were knowledge-shaped, and the
+  retained record routes none of them to a mishandled `SNAPBACK_*`
+  refusal: residues 1 and 4 (template web deps, simulator-proof
+  recipe) route to LLP 0196, residues 2, 3, and 5 (signature
+  discovery) to LLP 0194, and residue 6 (supervisor-origin
+  discoverability) is a guide-anchor gap with no refusal incident in
+  the diary or its ticket. Run 5's refusal-reachable set is empty;
+  the observed evidence for this Plan's mechanism is the earlier-run
+  exemplar pair below, and run 5 bounds the causal claim rather than
+  extending it.
 - The retained record shows the mechanism in both directions: observed
   refusals that named remediations (diary 0048's decode diagnostic, the
   seed-recovery messages) cost near-zero (the `assets put --user`
@@ -67,8 +71,9 @@ bar structural, so it can never regress.
   SHA-256-hashed field path
   (`issues/closed/20260805-result-contract-violation-hashes-field-path.md`).
 - The infrastructure half-exists: stable code registry, the
-  production diagnostic-inventory drift gate, and 0146 D7 ratified as
-  the remediation carrier.
+  production diagnostic-inventory drift gate, and the typed-remediation
+  requirement D7 ratified (the enforcement/storage carrier itself
+  remains OQ6's selection).
 
 ## Program
 
