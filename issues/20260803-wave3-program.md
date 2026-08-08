@@ -1,6 +1,6 @@
 # Wave 3 program — local-sync flagship + agent-safe storage
 
-**Status:** Open (program of programs)
+**Status:** Closed 2026-08-08 (program of programs) — see the closing record at the end
 **Opened:** 2026-08-03, ratified by Charlie: two fronts confirmed; 0158
 F0a fleet-dogfood prioritized; Move 2 spec-first.
 **Related:** LLP 0155 (Move 2 charter), LLP 0157 (Accepted — Move 1),
@@ -178,3 +178,82 @@ specific claims the wave makes and (b) the most recent scheduled complete
 battery green on the claim-relevant gates, with unrelated red gates ticketed
 and named in the closing record rather than blocking it. No single exact
 `main` commit needs to be wholly green.
+
+## Closing record — 2026-08-08 (disposition sitting)
+
+Closed under the LLP 0189 D-6 form adopted 2026-08-07: green evidence for the
+claims this wave makes, plus the scheduled battery green on claim-relevant
+gates, with unrelated red gates ticketed and named here rather than blocking.
+No wholly-green `main` commit is required or claimed.
+
+### Track A — local-first flagship: COMPLETE
+
+Recorded at the 2026-08-04 milestone above and unchanged. Spec (LLP 0166) →
+store → loop-closure → write lane ran end to end and exited; Charlie accepted
+the Move-3 Phase-1 exit 2026-08-04 (dated ruling in LLP 0129). Phase 2 remains
+deliberately unscheduled on 0129's machinery.
+
+**Carried out of the wave, still author-gated:** capability publication for the
+0166 surface. It is not claimed here and is not a wave residual to be assumed
+done — it needs Charlie's disposition and continues as a Track-A follow-on.
+
+### Track B — agent-safe storage: RE-SCOPED to a continuing program
+
+The acceptance tail (`issues/20260803-agent-safe-storage-acceptance-tail.md`)
+continues as an independent program beyond this wave. Its LLP 0162 corpus rows
+remain Partial, Specs 0163/0164/0165 remain **Draft**, and the target
+capabilities remain **Missing**. Nothing about this wave's close advances
+those states, and no capability may move above Missing on the strength of this
+closure — per-component evidence including row 13 remains the only path.
+
+This is an honest re-scope, not a completion.
+
+### Track C — experience, cadence, release
+
+- **npm `latest` capstone: COMPLETE.** All ten packages are live on npm
+  `latest` at **0.1.11**, published from clean revision `281eb17c78` under the
+  LLP 0041 pre-consumer fast-path disposition, with a retained ledger and a
+  read-only registry re-download that byte-verified all ten tarballs against
+  its SHA-256 vector (`issues/closed/20260803-first-npm-latest-promotion.md`).
+  The LLP 0134 soak continues as its own 14-day program, decoupled from
+  promotion — the maturity machinery's first production use has **not**
+  happened and is not claimed by this closure.
+- **LLP 0160 migration experience: RE-SCOPED.** Tranche 1 landed; tranches 2–4
+  continue as an independent program
+  (`issues/20260803-0160-migration-experience-program.md`). G7/G7′ remains
+  blocked on the dated LLP 0081 §7 amendment; G9b and G4′b remain
+  author-routed.
+- **LLP 0136 live search: RE-SCOPED.** Carried out of the wave as its own lane
+  (`issues/20260802-wave1-0136-live-search.md`), with its recorded
+  auto-release condition intact. It collides with LLP 0155 Move 1 and the
+  register-cliff ticket on `src/live_matcher.rs`; sequencing stays with
+  whoever starts it.
+
+### Closing corpus audit (LLP 0016 cadence)
+
+- `./ref-check --verbose` — **green**: 193 LLP docs, 3611 refs across 8616
+  files, 0 errors, 0 unchecked.
+- Guide validation — **red**, ticketed and named below.
+
+### Named red gates at close (not claim-relevant, not blocking, per D-6)
+
+- `issues/20260808-main-drift-ci-workflow-fixtures.md`
+- `issues/20260808-main-drift-client-bundle-metrology.md`
+- `issues/20260808-main-drift-local-store-carrier-receipt.md`
+- `issues/20260808-guide-manifest-blocked-by-missing-todo-v2-snippets.md`
+
+The first three were filed automatically by the LLP 0175 drift backstop's
+scheduled runs — the mechanism is doing what it was built for, and these are
+fix-forward work rather than wave residue. The fourth was found by this
+sitting's audit.
+
+### What this closure does not claim
+
+Agent-safe storage acceptance, the extracted Specs' status, any capability
+above Missing, the LLP 0134 soak, LLP 0160 tranches 2–4, LLP 0136, and
+capability publication for the 0166 surface. Each has a named owner ticket
+above.
+
+**Status: Closed.** Wave 4 (identity, LLP 0151 Option D + LLP 0150) is
+unblocked; its two deferred author decisions and two commissioned Specs are
+the kickoff, recorded in the Deferred section above.
