@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "c352a5b3ef08c61d8dbb621109e46f32d7e04739"
+    "commit": "30ea435fee4a3f025177985b766b4801f8289ed5"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -3599,8 +3599,8 @@
         "demos/partiful-matrix"
       ],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "eac098a99fb89b07e67cb72430106117b7fee86b",
-      "sha256": "655d15d3f058c8feac675b631b47d6fbb8104283b5a91d01660e8a72db64c6c8",
+      "reviewedCommit": "30ea435fee4a3f025177985b766b4801f8289ed5",
+      "sha256": "71eedb2d1e49619966faba51ba026cb9317e9a764b6a1fd7314c9ceadf9e211d",
       "snippets": [
         {
           "lang": "ts",
@@ -3765,8 +3765,8 @@
         "tests/acceptance/contention-calendar-rung2-v1.mjs"
       ],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "d851167d7492a7303e2e84dc4317bdc32c4e5797",
-      "sha256": "240fb56e2cf6685e810610f43c9318323995df4497494fb5aaf94c6678acb8f8",
+      "reviewedCommit": "30ea435fee4a3f025177985b766b4801f8289ed5",
+      "sha256": "1ae1e11ecac5ca5f7402a8be7840ddb76d5874e80b639c8379116689e08e7314",
       "snippets": [
         {
           "lang": "js",
@@ -3894,8 +3894,8 @@
         "packages/snapback-cli/templates/media-feed"
       ],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "d851167d7492a7303e2e84dc4317bdc32c4e5797",
-      "sha256": "2c73213f88a961d6ed2d095f545a982cf71fa714e7d7d4c20e2074013e45af5d",
+      "reviewedCommit": "30ea435fee4a3f025177985b766b4801f8289ed5",
+      "sha256": "8cd511af0c6fc7739da725952969142483a9c75dbb362bdc8e81674922502e25",
       "snippets": [
         {
           "lang": "js",
@@ -8448,8 +8448,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "d851167d7492a7303e2e84dc4317bdc32c4e5797",
-      "sha256": "56d964b7c2c802be9f49f27d14bb5c248026f3c7c7b564aeb5d27c0dcc8c981e",
+      "reviewedCommit": "30ea435fee4a3f025177985b766b4801f8289ed5",
+      "sha256": "94ccca545496fcfb70ebabf4379bcf628e4526a5bcccd0b1b4ae29f95336271a",
       "snippets": []
     },
     "meta.surface-map": {
@@ -8888,5 +8888,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "ed91baa0a152526b35c5fa86e16841e14bd47c624f990617af88f59d3c5effae"
+  "contentHash": "930e23b0766ef28870a03592c426b0e7cfe8bac7d356f3c83e220bc5bf94f71a"
 }

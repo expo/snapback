@@ -932,7 +932,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: d851167d7492a7303e2e84dc4317bdc32c4e5797
+reviewed-commit: 30ea435fee4a3f025177985b766b4801f8289ed5
 ---
 
 # Retrieval eval protocol
@@ -17904,7 +17904,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: d851167d7492a7303e2e84dc4317bdc32c4e5797
+reviewed-commit: 30ea435fee4a3f025177985b766b4801f8289ed5
 ---
 
 # Recipe: paginated and load-more lists
@@ -18319,7 +18319,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: d851167d7492a7303e2e84dc4317bdc32c4e5797
+reviewed-commit: 30ea435fee4a3f025177985b766b4801f8289ed5
 ---
 
 # Recipe: optimistic create with a server-minted ID
@@ -18506,7 +18506,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-commit: 30ea435fee4a3f025177985b766b4801f8289ed5
 ---
 
 # Recipe: coming from Convex and Supabase
