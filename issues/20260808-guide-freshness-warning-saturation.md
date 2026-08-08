@@ -43,3 +43,18 @@ from the acknowledged backlog so a fresh regression remains visible.
 
 High on the saturated warning count and degraded signal. Medium on the right
 budget/threshold; the intended warning-only semantics should remain.
+
+## Disposition (2026-08-08 review-fixes sweep)
+
+Left open as a program (not a one-shot fix), consistent with the warning-only
+freshness policy. Two concrete follow-ups are the actionable core: (1) add a
+new-vs-baseline warning split and an oldest-warning-age readout to
+`check-guide.mjs`; (2) file/update one deduplicated backstop ticket when the
+warning count or oldest age crosses a threshold — the drift-backstop machinery
+Lane G extended (self-health ticketing in `drift-prone-gates.mjs`) is the natural
+home. The per-feature-area prose reconciliation stays an ongoing author-scheduled
+task. This sweep also confirmed the guide manifest is HEAD-commit-stamped, which
+is why client-package changes (Lanes D/F) could not cleanly regenerate-and-land
+it on a moving `main`; decoupling the manifest's reviewedCommit stamp from HEAD
+(bind to content, per LLP 0189) would remove that landing tax and is worth
+folding into this program.

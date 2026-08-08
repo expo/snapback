@@ -43,3 +43,13 @@ unit tests and no `tests/` presence; the query surface is user-facing.
 
 High — these are measured absences (grep-verified), not judgment calls. Severity
 is risk-weighted, not defect-driven.
+
+## Disposition (2026-08-08 review-fixes sweep)
+
+Actionable core is Part A — a JS replay harness for
+`schemas/live.wire-fixtures.v1.json` (test-only, high drift-protection value);
+recommend a small dedicated test lane. Parts B (fork_promotion black-box through
+the server/CLI surface) and C (push delivery state-machine integration) are
+larger test programs, appropriately tracked here as follow-ups rather than folded
+into the bug-fix sweep. No code landed for this ticket in the sweep; it stays
+open.

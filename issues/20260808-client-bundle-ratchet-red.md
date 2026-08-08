@@ -48,3 +48,15 @@ feature weight. Keep historical receipts immutable.
 
 High on the deterministic gate failure; medium on whether the 99-byte RQS
 growth should be trimmed or dispositioned as legitimate.
+
+## Disposition (2026-08-08 review-fixes sweep)
+
+Not fixed in the sweep (needs the pinned Node 24.18.0 / esbuild 0.28.1
+measurement authority + attribution judgment, not a mechanical edit). The deltas
+are small (+99 B minified on the registered-RQS closure; +1 B gzip react) and,
+per the ticket, plausibly legitimate route-retention feature weight. Recommended:
+attribute the deltas to exact modules and either trim accidental closure growth
+or write a governed rollover with module-own byte evidence — keeping historical
+receipts immutable. Note: Lane D/F landed React/client changes via bypass while
+client-bundle-metrology was already baseline-red, so this ratchet should be
+re-measured and re-baselined once the sweep's client changes have settled.
