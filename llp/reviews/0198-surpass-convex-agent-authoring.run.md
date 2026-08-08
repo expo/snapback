@@ -68,3 +68,18 @@ open MATERIAL concerns. ref-check clean.
   delta round or the final revision is labeled unreviewed.
 - Reviewers: fresh contexts, same families/models as round 1, mutually
   blind; round-1 reviews structurally excluded from the capsule.
+- Pre-launch hashes (appended before launch): capsule-r2 tar sha256-16 `2ebbcffa4b9760df`; instructions-r2 sha256-16 `1c24ec63046f17f1`; delta file `DELTA-a-to-b.diff` at capsule root (666 lines).
+
+## Revision (c) — 2026-08-08 (reviser: orchestrator)
+
+Round-2 receipts: Claude NOT READY (3 MATERIAL IN-DELTA, 0 PRE-EXISTING
+MATERIAL; 4+3 minors), runtime 8m59s; GPT NOT READY (10 MATERIAL
+IN-DELTA, 0 PRE-EXISTING MATERIAL; 2 minors), codex exit 0. Both sealed
+verbatim. Delta-convergence condition (no PRE-EXISTING MATERIAL in
+either family) held at round 2; remaining in-delta fixes applied as
+revision (c) — all 13 distinct in-delta MATERIALs plus all minors.
+Orchestrator re-verified 0194 r5 scope, 0197 4a aid wording, and the
+0115 record annotations in capsule-r2 before revising. Round 3 is the
+final budgeted round: a delta round on the (b)→(c) diff; per the
+addendum, in-delta residue after round 3 ships labeled unreviewed or
+escalates.

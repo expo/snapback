@@ -80,3 +80,47 @@ Body below is verbatim (complete stdout of the run).
 NOT READY
 
 The direction is strong, but the variance protocol, victory logic, cross-brief scoring, template contamination, model-family validity, and several ownership/fairness joins remain materially unresolved; reviewed revision 763b4080 / sha256 9351ad5c….
+
+---
+
+## Round 2 — 2026-08-08 — revision (b) 2f117950 / sha256 404b0b93… — DELTA ROUND — verdict: NOT READY (10 MATERIAL, all IN-DELTA; 1 IN-DELTA minor, 1 PRE-EXISTING minor)
+
+Provenance: codex exec, gpt-5.6-sol, reasoning xhigh, read-only sandbox
+on capsule-r2 (tar sha256-16 2ebbcffa4b9760df; round-1 artifacts and run
+journal structurally excluded; DELTA-a-to-b.diff at root); instructions
+sha256-16 1c24ec63046f17f1; runner-reported: tokens used 185,957 . Body verbatim
+(complete stdout).
+
+## Concerns
+
+1. **MATERIAL — IN-DELTA.** The ladder narrows LLP 0197 rule 4a from all vendor-authored benchmark-targeted aids to templates/starters, so skill-, recipe-, or example-assisted results could be mislabeled as general authoring evidence (`0198:335–350, 484–487`; `0197:66–77`).
+
+2. **MATERIAL — IN-DELTA.** The requalification tuple omits LLP 0189’s qualification commit and claim-scoped evidence surface, while its triggers do not age out a claim when the competitor moves materially unless performance breaches the old band (`0198:365–371`; `0189:98–136`; `0197:94–95`).
+
+3. **MATERIAL — IN-DELTA.** P0b’s `N≥1–3` is neither a preregistered sample count nor necessarily LLP 0197’s N≥3 minimum, yet P0b is allowed to lift every rung’s family scope and supply L5’s family panel (`0198:335–360, 407–417`; `0197:43–49`).
+
+4. **MATERIAL — IN-DELTA.** Mirroring the four wall-clock phases into `tokens.phases` cannot make I.5’s different four causal terms—orientation, knowledge residue, proof depth, and operations—record facts, especially when the protocol permits phase attribution to be unavailable (`0198:264–298, 390–398`; `protocol.md:39–68`).
+
+5. **MATERIAL — IN-DELTA.** L4 depends on “P0’s two-layer scoring,” but P0 defines no such scoring or aggregation rule and the current schema only supports the fixed eight-dimension rubric, leaving a required global-claim rung non-operational (`0198:349–353, 390–423, 538–542`; `run-record.schema.json:153–178`).
+
+6. **MATERIAL — IN-DELTA.** L5 cites a “P3 pick-and-build probe” that P3 never owns or schedules, while OQ4 leaves its mechanics unresolved and no preregistered N or decision rule defines “favors,” so the confirmation required for the unqualified claim cannot be executed (`0198:353–360, 457–493, 560–564`; `0197:43–49`).
+
+7. **MATERIAL — IN-DELTA.** P1 incorrectly says verify-config is excluded pending a declaration source, whereas LLP 0194 says published `verify.d.mts` already places it in initial scope and only `ctx` remains behind OQ2 (`0198:424–432`; `0194:46–60, 64–73, 87–94`).
+
+8. **MATERIAL — IN-DELTA.** P1 places the retry remedy under documentation/template owners even though LLP 0171 assigns retry policy to LLP 0070 and requires a finite cap, jitter/backoff, generation pin, and proved no-effect stage, not merely a generic “cannot replay external effects” condition (`0198:424–440`; `0171:116–143`).
+
+9. **MATERIAL — IN-DELTA.** The trust-boundary brief requires both transcripts to be published, directly contradicting LLP 0197’s publication-safe projection rule that raw transcripts never publish (`0198:465–477`; `0197:96–108`).
+
+10. **MATERIAL — IN-DELTA.** The trust-boundary and day-2 briefs leave the measured construct uncontrolled by excluding onboarding without fixing preprovisioned inputs or clock boundaries and by leaving starting artifacts plus same-agent-versus-cold-agent context unspecified (`0198:465–483`; `README.md:59–93`; `protocol.md:11–37`).
+
+11. **minor — IN-DELTA.** P3 says either equal-proof outcome is “L2 either way,” although L2 is defined only as a Snapback superiority result (`0198:345–348, 460–464`).
+
+12. **minor — PRE-EXISTING.** I.2 calls the trajectory the “skill lane” while including run 2, which I.1 correctly identifies as a bare run before the skill existed (`0198:67–78, 105–110`).
+
+## Generative input
+
+A single rung matrix covering required configurations, aid labels, preregistered N/success thresholds, family aggregation, snapshot scope, and invalidation events would eliminate several cross-section contradictions.
+
+## Verdict
+
+NOT READY — revision `2f117950` / sha256 `404b0b93…` has unresolved MATERIAL concerns in revision (b).

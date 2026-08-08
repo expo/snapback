@@ -6,6 +6,17 @@
 Templates, Error handling, Operations, Publishing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
+**Revised:** 2026-08-08 (c — round-2 delta revision; both families
+NOT READY on (b) with **zero PRE-EXISTING MATERIAL concerns** — every
+MATERIAL was in the (b) delta itself: run-5 loop accounting restated to
+the 0115 record's annotations, 0194 ownership re-corrected to r5
+(verify-config initial-scope, `ctx` the sole exclusion), labeling
+widened template→aid-assisted per 0197 4a, pick-and-build probe given a
+P3 owner with preregistered N/decision rule, two-layer scoring defined
+at P0.0(e), requalification bound to a 0189 qualification digest with
+material-competitor-release aging and N≥3-confirmed band triggers,
+P0b preregistered at N≥3, retry ask routed to LLP 0070 per 0171
+Finding D, publication-safe projection replacing raw transcripts.)
 **Revised:** 2026-08-08 (b — round-1 super-refine revision, both
 families NOT READY on (a): P0 restaged against the N≥8 variance floor;
 victory conditions → claim ladder with 0197-4a labeling and
@@ -35,8 +46,9 @@ productization, and the discipline to claim a win only when the
 instrument supports it.** Run 5 (diary 0069, npm 0.1.15) recorded zero
 defect-shaped framework loops in any Snapback lane for the first time —
 the skill lane's entire backend passed codegen and typecheck first-try,
-and the bare lane's two remaining framework-attributed loops were
-knowledge-shaped (the template web-deps gap), not defects. Yet Convex
+and the framework-attributed loops that remained in the web lanes were
+knowledge-shaped (the template web-deps gap hit both), not defects. Yet
+Convex
 still finishes the same brief in roughly half the wall-clock and 45% of
 the tokens, almost entirely because the model already knows Convex and
 must still read to learn Snapback.
@@ -96,21 +108,26 @@ Reading rules established by the series itself:
   both directions; single-run claims are worthless.
 
 Secondary lanes (run 5): bare-web 29m35s / 212k (2.87x / 2.36x) —
-the 0.1.15 template defaults produced the largest single-release
-improvement of the program by deleting whole classes of work (sessions
-custody, offline registration, upload plumbing no longer hand-built);
+the 0.1.15 template defaults produced the program's largest
+knowledge-placement single-release improvement (LLP 0196's qualifier:
+the 0.1.13 defect-fix layer produced larger raw steps) by deleting
+whole classes of work (sessions custody, offline registration, upload
+plumbing no longer hand-built);
 native-simulator 25m14s / 250k (2.45x / 2.78x) with all proofs on the
 simulator and zero failed `snapback` invocations.
 
 ### I.2 The defect trajectory: walls → papercuts → zero defects
 
-Framework-attributed correction loops in the skill lane: run 2 **4**
+Framework-attributed correction loops in the primary tracked lane (bare
+in run 2 — no skill existed yet; skill-equipped thereafter): run 2 **4**
 (each a diagnosis-plus-workaround cycle — the CORS relay and offline
 fallback were real engineering), run 3 **8** (the web-carrier wall),
-run 4 **3** (all papercuts), run 5 **0**. Precisely stated per the 0115
-record: **zero defect-shaped framework loops in any run-5 Snapback
-lane**; the bare lane retained ~2 framework-attributed loops that were
-knowledge-shaped (the expo-chat template's missing web deps). Convex's
+run 4 **3** (all papercuts), run 5 **zero defect-shaped**. Precisely,
+per the 0115 record's annotations (skill "7 (0 backend)", native
+"8 (0 framework)", bare "6 (~2)"): **no defect-shaped framework loop in
+any run-5 Snapback lane**, with knowledge-shaped framework-attributed
+residue in *both* web lanes — the expo-chat web-deps gap was both web
+lanes' longest single loop (diary 0069, residue 1). Convex's
 framework-attributed figures were 2, 3, 1, 0 (runs 2–5), resolved "from
 its own error messages in minutes" (diary 0065) — that loop-quality
 asymmetry, not the count, was the felt experience gap, and run 5
@@ -196,7 +213,11 @@ of the record format so the record can say so.**
 
 ### I.4 Qualitative synthesis: what agents say
 
-Eight diaries (0057–0060, 0065–0069) agree on a single shape: **writing
+The bakeoff-corpus diaries (0057, both 0058 files —
+`0058-relay-room-expo-backend-bakeoff` is the scored run cited as
+"run 1" throughout; `0058-messaging-snapback` is its Snapback-arm
+sibling — 0059, 0060, 0065-rematch, 0066, 0068, 0069) agree on a
+single shape: **writing
 the app on Snapback is cheap; everything around it was where the time
 went — and "everything around it" has been shrinking release over
 release.** Diary 0057's decomposition of a ~25-minute build: 5 minutes
@@ -225,7 +246,8 @@ with more evidence now):**
 - **Enforced determinism, transactional jobs, the guide's architecture**
   ("genuinely agent-first... I found what I needed by navigating, not
   grepping"), and the verify/done-oracle machinery ("the headless
-  acceptance harness caught every real bug before the UI ever ran").
+  acceptance harness caught every real bug before the UI ever ran" —
+  the 0058-messaging diary).
 
 **The friction ledger** (nearly all closed; see I.2): docs-vs-package
 drift (0057's top finding — three of its four biggest time sinks from
@@ -282,8 +304,9 @@ With defect-shaped loops at zero, the run-5 skill-lane delta (19m00s /
    presence as upside, never a scheduled lever).
 2. **Knowledge residue.** The specific run-5 excursions of I.2 — each
    maps onto 0193/0194/0196 work items, with the ownership caveat P1
-   records (0194 currently *excludes* the `ctx` and verify-config
-   surfaces until declaration files land).
+   records (0194 still *excludes* the `ctx` surface until its
+   declaration file lands; verify-config joined 0194's initial scope
+   at r5).
 3. **Deeper proof surface (not a cost to remove — a cost to price).**
    Snapback lanes register real verify profiles and prove platform
    retention with honest facts; Convex lanes pass a shallower bar with
@@ -307,7 +330,7 @@ With defect-shaped loops at zero, the run-5 skill-lane delta (19m00s /
 - One brief family (messaging) has ever been run; it favors
   realtime-native platforms (0186 OQ4). CRUD and media briefs are
   authored but unrun — and because LLP 0196 T1/T2 build templates
-  against those same brief shapes, runs of them are *template-assisted*
+  against those same brief shapes, runs of them are *aid-assisted*
   scenarios under LLP 0197 rule 4a, never general-claim evidence.
 - **The auth-seam caveat, which cuts against Snapback:** every messaging
   arm on both sides used a client-supplied test-persona seam, not real
@@ -336,23 +359,26 @@ Each rung is a claim under LLP 0189 — snapshot-bound, requalified after
 drift — publishable only per LLP 0197 (all runs reported, instrument
 published, rule-4a scenario labeling). Every rung is scoped to the
 **pinned model family** until P0b answers family stability, and labeled
-**template-assisted** wherever a first-party template materially built
-the lane's start, with symmetric competitor starter selection.
+**aid-assisted** wherever any vendor-authored aid — template, example,
+recipe, or skill content — materially built the lane's start (0197
+rule 4a's full scope, not templates alone), with symmetric predeclared
+competitor aid selection.
 
-- **L1 — Template-assisted efficiency parity.** Skill-web ≤1.2x Convex
+- **L1 — Aid-assisted efficiency parity.** Skill-web ≤1.2x Convex
   wall **and** ≤1.2x within-family tokens (both required — parity
   bought by doubling inference spend is not parity), messaging brief,
   N≥3 medians, all runs reported.
 - **L2 — Equal-proof-bar superiority.** On the equal-proof-bar brief,
-  Snapback wins wall or tokens outright, N≥3. This rung prices the moat
-  honestly; a loss here is publishable instrument-honesty evidence.
+  Snapback wins wall or tokens outright with the other metric inside
+  the L1 bound, N≥3. This rung prices the moat honestly; a loss here
+  publishes as instrument-honesty evidence, not as L2.
 - **L3 — General authoring efficiency.** L1's bounds on a held-out
-  brief variant no template was designed against (0197 rule 4a).
-- **L4 — Scored superiority.** Rubric wins under P0's two-layer scoring
-  (frozen 0058 rubric for messaging; preregistered per-brief outcome
-  rubrics elsewhere), N≥3, published surfaces, fairness notes.
-- **L5 — Revealed preference.** The P3 pick-and-build probe (choice
-  under commitment, post-build preference recorded) favors Snapback on
+  brief variant no vendor-authored aid was designed against (0197
+  rule 4a).
+- **L4 — Scored superiority.** Rubric wins under the two-layer scoring
+  defined in P0.0(e), N≥3, published surfaces, fairness notes.
+- **L5 — Revealed preference.** The pick-and-build probe P3 owns
+  (preregistered N and decision rule stated there) favors Snapback on
   offline/realtime/media/trust briefs and is at worst neutral on plain
   CRUD, across the P0b family panel.
 
@@ -360,16 +386,25 @@ the lane's start, with symmetric competitor starter selection.
 L3 + L4, with L5 across ≥2 model families as confirmation.** Lower rungs
 publish individually under their own labels; no rung is ever stated as a
 higher rung's phrase. (Replaces revision (a)'s "V1 or V2" trigger, which
-let one narrow win imply the global claim.)
+let one narrow win imply the global claim.) The ladder's operative
+content is maintained as one **rung matrix** committed under
+`benchmarks/` — configuration, aid label, preregistered N and
+threshold, aggregation rule, snapshot tuple, invalidation events — and
+P5 publishes only from the matrix.
 
 **Requalification:** every published rung names its snapshot tuple
 {closure version, competitor version, model build, harness commit,
-brief hash}. A standing **control-lane cadence** — one Convex re-run
-per epoch (monthly or on a competitor minor release) — detects control
-drift; drift beyond the P0 band, a Snapback promotion, or a model-epoch
-change triggers requalification on the next cycle, the claim meanwhile
-reading as historical ("held at snapshot X"). "Convex keeps improving"
-becomes a mechanism, not a risk note.
+brief hash} and binds to a claim-scoped qualification digest per LLP
+0189 (the run records and verify receipts the claim reads from, at
+their qualification commit). A standing **control-lane cadence** — one
+Convex re-run per epoch (monthly or on a competitor minor release) —
+watches control drift. Triggers: a material competitor release in the
+measured area ages the claim to historical on its own, band breach or
+not; a control-lane band exceedance triggers an N≥3 confirmatory series
+first (single runs never fire requalification, per `protocol.md`); a
+Snapback promotion or model-epoch change requalifies on the next cycle.
+A lapsed claim reads "held at snapshot X," never current. "Convex keeps
+improving" becomes a mechanism, not a risk note.
 
 ### II.2 Strategy in one paragraph
 
@@ -388,14 +423,26 @@ nothing before the instrument supports it (P0 first, publication last).
 out of execution:
 
 - *P0.0 — schema/protocol amendments landed before the repeats*:
-  (a) `tokens.phases` mirroring `wallClock.phases` — I.5's four-term
-  decomposition becomes a record fact, resolving OQ5; (b) a
+  (a) `tokens.phases` mirroring `wallClock.phases` — this makes the
+  **orientation and verification token shares** record facts (I.5
+  terms 1 and 3; term 2 is proxied by (c), term 4 is P4's leg — the
+  full four-term decomposition is not claimed as a schema fact), and
+  phase attribution is *required* on P0 runs even where the protocol
+  otherwise permits "unavailable"; resolves OQ5; (b) a
   first-green-proof timestamp per lane (II.4's "first fifteen minutes"
-  gets a number); (c) sub-attribution on snapback-attributed loops —
-  `defect` vs `knowledge-gap` — so P1's exit reads from records, not
-  diary prose; (d) rubric scoring required by the record format
-  (`records/schema.md` + README procedure — the JSON schema alone is
-  optional today).
+  gets a number); (c) sub-attribution on `snapback-defect`-attributed
+  loops — `defect` vs `knowledge-gap` — as a sub-field of the existing
+  enum value, preserving series continuity and the protocol's
+  discoverability tie-break, so P1's exit reads from records; (d)
+  rubric scoring required by the record format (`records/schema.md` +
+  README procedure — the JSON schema alone is optional today); (e) the
+  **two-layer scoring definition L4 reads from**: the frozen 0058
+  rubric continues for messaging (longitudinal integrity); every other
+  brief family gets a preregistered outcome rubric frozen with the
+  brief, plus the invariant platform dimensions (DX, diagnostics,
+  operations); cross-brief aggregation by noninferiority/dominance
+  counts, never by averaging unexercised dimensions; schema extended
+  accordingly.
 - *P0.1 — N≥3 confirmatory series* on the run-5 configuration:
   ratchet-eligible medians + ranges per 0197 rule 1 and
   `benchmarks/protocol.md`. **No variance band is claimed at N≥3** —
@@ -407,8 +454,11 @@ out of execution:
 - *P0b — cross-family replication leg* (promoted from revision (a)'s
   OQ3: the dominant term — prior familiarity — is a property of the
   model family, so every rung is exposed to being a one-family
-  artifact): re-run the primary pair under a GPT-family harness, N≥1–3,
-  in two conditions: **native ecosystem discovery** (skill found via
+  artifact): re-run the primary pair under a GPT-family harness at a
+  **preregistered N≥3 per condition** — a single-run pilot may precede
+  it, but no rung's family scope is lifted, and L5's family panel is
+  not satisfied, below the preregistered N≥3 (0197 rule 1). Two
+  conditions: **native ecosystem discovery** (skill found via
   `AGENTS.md`/`.agents/skills` conventions, not prompt-pasted —
   distribution quality, not payload quality) and pinned-payload for
   comparability. Token accounting is **never pooled across families**
@@ -424,20 +474,22 @@ rubric scores; a directional answer to "is the ranking family-stable?"
 **P1 — Knowledge-residue closure (days–weeks; owners: LLP 0193, 0194,
 0196 as drafted; the run-5 round-3 tickets).** The errors-as-docs audit;
 the generated API reference — **plus a declaration-source work item this
-Plan adds**: 0194 names the `ctx` handler surface and the verify-config
-contract as exclusions until declaration files exist, and those are two
-of run 5's package-source excursions, so "0194 covers it" is false until
-the declarations land (acceptance: 0194 OQ2's `ctx` declaration file, a
-verify-config contract source, retrieval probes for every diary-0069
-excursion); the template portfolio (T1/T2; web deps into expo-chat —
-two runs running). Sharp defaults, scoped to their governing rulings:
-the auth-omission diagnostic (0186 W3, already sequenced); for jobs
-retry, **not** a default flip — LLP 0171 Finding D keeps
-`maxAttempts: 1` and idempotency as the constraint — but the effect-safe
-remedy for first-attempt platform contention (observability + a retry
-path that cannot replay external effects). Exit, read from records via
-P0.0(c): a run with zero `knowledge-gap`-attributed Snapback loops and
-no package-source consultation.
+Plan adds**: 0194 (r5) carries verify-config in its *initial scope* (its
+`verify.d.mts` declaration source is already published), so the
+remaining named exclusion is the `ctx` handler surface; the work item is
+0194 OQ2's `ctx` declaration file plus retrieval probes for every
+diary-0069 package-source excursion (verify-config's residue is
+discoverability, which the initial scope covers); the template
+portfolio (T1/T2; web deps into expo-chat — two runs running). Sharp
+defaults, scoped to their governing rulings: the auth-omission
+diagnostic (0186 W3, already sequenced); for jobs retry, **not** a
+default flip — LLP 0171 Finding D keeps `maxAttempts: 1` and assigns
+retry policy to LLP 0070's owner with the effect-safe shape it
+specifies (finite cap, jitter/backoff, generation pin, a proved
+no-effect stage); this Plan sequences that ask to 0070 and re-owns
+nothing. Exit, read from records via P0.0(c): a run with zero
+`knowledge-gap`-attributed Snapback loops and no package-source
+consultation.
 
 **P2 — Orientation (author-gated; owner: LLP 0195).** The public
 surface is the largest unstarted item and the primary lever on the
@@ -461,7 +513,8 @@ this Plan; instrument changes land under `benchmarks/` conventions).**
   Prediction on record: the Convex lane must build a real outbox (run-1
   diary priced that as "a significant feature, not a fair incidental
   shim") and the efficiency ratio inverts. Either outcome is
-  publication-grade signal (L2 either way).
+  publication-grade signal — a win claims L2; a loss publishes as
+  instrument-honesty evidence.
 - **Author and run a trust-boundary brief** (replacing revision (a)'s
   "real-auth brief," whose "idiomatic production auth" framing would
   have mixed trust-boundary quality with identity-provider choice and
@@ -473,18 +526,32 @@ this Plan; instrument changes land under `benchmarks/` conventions).**
   only real-auth precedent); (c) unauthenticated requests to protected
   operations are refused; (d) revocation takes effect on the live
   connection. Each lane meets the outcomes via its platform's
-  recommended path; both transcripts published. Identity-provider
-  *onboarding* ceremony is OQ2's residual.
-- **Author and run a day-2 evolution brief**: the messaging app as
-  built, plus three scripted change requests — add a field and migrate
-  live data; add a feature touching schema + client; a pure refactor.
-  Prices I.6's greenfield caveat (the artifact-identity tax, deployment
-  pinning vs the edit loop) — Snapback's hidden weakness, symmetric to
-  the auth seam hiding its hidden strength.
-- Run the CRUD and media briefs — labeled template-assisted where T1/T2
-  apply, held-out variants frozen before measurement for any general
-  claim, symmetric predeclared competitor starter selection (0197 rule
-  4a). **Preregister the plain-CRUD control as expected to favor
+  recommended path; principals and credentials are preprovisioned and
+  the measured window is clock-bounded per `protocol.md`, so provider
+  ceremony stays outside the construct; both lanes publish per 0197's
+  publication-safe projection (raw transcripts never publish).
+  Identity-provider *onboarding* ceremony is OQ2's residual.
+- **Author and run a day-2 evolution brief**: starting from a frozen
+  post-messaging-run artifact with a cold-context agent, three scripted
+  change requests — add a field and migrate live data; add a feature
+  touching schema + client; a pure refactor. Prices I.6's greenfield
+  caveat (the artifact-identity tax, deployment pinning vs the edit
+  loop) — Snapback's hidden weakness, symmetric to the auth seam hiding
+  its hidden strength.
+- **Run the pick-and-build preference probe** (L5's instrument, owned
+  here): the agent picks a backend from redacted surface artifacts,
+  then must build the brief with its pick; the record captures the
+  pick, post-build preference (regret or switch), and whether the
+  justification cites properties the measured record supports.
+  Preregistered: N≥5 fresh contexts per brief family, across the P0b
+  family panel; "favors Snapback" = strict majority of picks with no
+  majority post-build regret; the publication label carries the
+  redaction condition (OQ4's residual).
+- Run the CRUD and media briefs — labeled aid-assisted where T1/T2 or
+  any vendor-authored aid applies, held-out variants frozen before
+  measurement for any general claim, symmetric predeclared competitor
+  aid selection (0197 rule 4a). **Preregister the plain-CRUD control as
+  expected to favor
   Convex, and publish it either way** — a credible loss is stronger
   instrument evidence than another fairness disclaimer.
 

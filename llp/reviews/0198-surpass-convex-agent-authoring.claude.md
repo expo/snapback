@@ -276,3 +276,164 @@ MATERIAL defects (the N≥3-variance/protocol contradiction, the stale 0195
 quote, the V1/V4 vs 0197-4a collision, the run-5 zero-framework
 overstatement, and the unmeasurable P1 exit) need one revision pass.
 Reviewed revision: 763b4080 / sha256 9351ad5c….
+
+---
+
+## Round 2 — 2026-08-08 — revision (b) 2f117950 / sha256 404b0b93… — DELTA ROUND — verdict: NOT READY (3 MATERIAL, all IN-DELTA; 0 PRE-EXISTING MATERIAL)
+
+Provenance: fresh Claude-family subagent (claude-fable-5), mutually
+blind, capsule-r2 tar sha256-16 2ebbcffa4b9760df (round-1 artifacts and
+run journal structurally excluded; DELTA-a-to-b.diff at root);
+instructions sha256-16 1c24ec63046f17f1; runtime 8m59s. Body verbatim.
+
+# Review — LLP 0198 (revision b), super-refine round 2 (delta round), Claude-family reviewer
+
+**Target:** `llp/0198-surpass-convex-agent-authoring.plan.md`, revision b,
+commit 2f11795033ae122d210321d62c862a9df66002c6, file sha256
+404b0b93353eaffa6e91fee5ff70d7f3b0ca216224561a8cd6061d8709955abc.
+Reviewed against the capsule's primary sources only: diaries 0057–0060 and
+0065–0069, `benchmarks/` (README, protocol.md, records incl.
+`2026-08-08-messaging-0115.md`, `schema/run-record.schema.json`,
+`records/schema.md`, briefs, lanes), LLPs 0186, 0189, 0171 (Finding D),
+0193–0197, and the capsule-root `DELTA-a-to-b.diff`. No review artifacts
+consulted.
+
+What was verified and found sound before the concerns: the full I.1 run
+table (all five runs' walls/tokens/ratios match diaries 0058-relay-room,
+0065-rematch, 0066, 0068, 0069 and records 0113/0115); both scored-rubric
+columns and the mature-hypothetical flip (diaries 0058/0065, exact values);
+the Convex loop series 2/3/1/0; all I.4 verbatim quotes located in their
+diaries; P0.0(d)'s "the JSON schema alone is optional today" (correct —
+`run-record.schema.json` requires `rubric` but `records/schema.md` makes the
+JSON record itself optional, so (b)'s fix of (a)'s wrong "the schema requires
+it" claim landed properly); P0.1/P0.2's staging against `protocol.md`'s
+explicit N≥3 ratchet floor and N≥8 variance floor; P0b's no-cross-family
+token pooling (consistent with protocol OPEN/0186 OQ1 and 0197 OQ1); the
+requalification tuple and "held at snapshot X" semantics against LLP 0189
+D-3/D-5/D-6; P4(b)'s preregistered-new-scorecard guard against 0197 rule 1's
+preregistration and the frozen-rubric provenance; the equal-proof-bar brief's
+existence and never-run status; and the greenfield-caveat quote in diary 0057.
+
+## Concerns
+
+1. **MATERIAL — IN-DELTA.** The run-5 loop accounting still misstates the
+   record it cites: I.2's series claims "run 5 **0**" framework-attributed
+   loops in the skill lane and (with the Summary) confines the surviving
+   knowledge-shaped framework loops to the bare lane, but the 0115 record
+   annotates the skill lane "7 (0 **backend**)" — not 0 framework — and diary
+   0069 residue 1 says the expo-chat web-deps gap was "**both web lanes'**
+   longest single loop," so the skill lane had at least one
+   framework-attributed knowledge-shaped loop. Evidence:
+   `benchmarks/records/2026-08-08-messaging-0115.md` (lane table + notes);
+   `diaries/0069-run5-measurement-0115.diary.md` (table row "7 (0 backend)"
+   vs native "8 (0 framework)"; residue 1). The "zero defect-shaped loops in
+   any lane" sentence is supported; the series figure and the bare-lane
+   exclusivity are not — and this was exactly the claim the (b) revision set
+   out to make precise, and it feeds I.5's knowledge-residue decomposition
+   and P1's exit accounting.
+
+2. **MATERIAL — IN-DELTA.** P1 and I.5(2) misstate LLP 0194's exclusion set:
+   the Plan asserts "0194 names the `ctx` handler surface **and the
+   verify-config contract** as exclusions until declaration files exist" and
+   makes "a verify-config contract source" a P1 acceptance item — but 0194
+   (r5, in this capsule) moved verify-config into the INITIAL scope because
+   its declaration source already exists and is published
+   (`@expo/snapback-cli/verify` → `verify.d.mts`, landed 2026-08-04), and its
+   OQ2 explicitly says "Verify-config needs no OQ." Only `ctx` remains a
+   named exclusion. Evidence: `llp/0194-generated-api-reference.rfc.md`
+   Design 5, "What this kills," OQ2. The Plan's ownership-correction — its
+   own headline round-1 fix — is therefore half wrong: "0194 covers it is
+   false until the declarations land" holds for `ctx` only; for verify-config
+   the residue is discoverability, which 0194 already claims.
+
+3. **MATERIAL — IN-DELTA.** L5 rests on "the **P3 pick-and-build probe**,"
+   but P3 contains no such work item: its four bullets are equal-proof-bar,
+   trust-boundary, day-2, and CRUD/media briefs. Revision (a)'s V3 defined
+   the choose-your-backend probe; the (b) rewrite kept the rung (and OQ4's
+   mechanics question) but dropped the probe from every phase, so the
+   confirmation leg of the unqualified "surpasses Convex" phrase has no
+   owner, no design beyond L5's parenthetical, and no exit criterion
+   anywhere in II.3. Evidence: II.1 L5 vs II.3 P3 (diff hunk replacing the
+   P3 section); OQ4.
+
+4. **minor — IN-DELTA.** L2's win condition ("Snapback wins wall **or**
+   tokens outright") permits exactly what L1's own rationale forbids —
+   "parity bought by doubling inference spend is not parity" — since a wall
+   win at any token cost satisfies the rung; the disjunction/conjunction
+   asymmetry between adjacent rungs is unexplained.
+
+5. **minor — IN-DELTA.** L4 invokes "P0's two-layer scoring," but P0 defines
+   no such mechanism — P0.0(d) only makes rubric scoring required by the
+   record format; the two-layer design (frozen 0058 rubric for messaging,
+   preregistered per-brief outcome rubrics, unexercised dimensions kept out
+   of cross-brief aggregation) exists only inline in L4 and II.5. Dangling
+   internal attribution; the mechanism should live in P0.0 or be cited to
+   where it is defined.
+
+6. **minor — IN-DELTA.** II.1's labeling trigger ("labeled
+   **template-assisted** wherever a first-party template materially built the
+   lane's start") is narrower than the 0197 rule 4a it claims to apply: 4a
+   labels **aid-assisted** scenarios covering *every* vendor-authored aid —
+   templates, example apps, recipes, and **skill content**. A skill-equipped,
+   template-free lane escapes the Plan's label while 4a requires it; L3's
+   paraphrase "no template was designed against" similarly narrows 4a's "no
+   vendor-authored aid." Evidence: `llp/0197-…rfc.md` rule 4a;
+   `llp/0196-…plan.md` exit criteria (which adopt the aid wording).
+
+7. **minor — IN-DELTA.** The control-lane cadence treats a single per-epoch
+   Convex re-run "beyond the P0 band" as a requalification trigger, while
+   `protocol.md` forbids treating a delta as real below N≥8 and the observed
+   spread is ±30% — a lone-run band exceedance will fire spuriously and
+   thrash claims into "historical." The direction is conservative (lapse,
+   not overclaim), but an intermediate confirmatory step (N≥3 on exceedance
+   before requalification) is missing from an otherwise
+   staged-by-cost design.
+
+8. **minor — PRE-EXISTING.** I.1's secondary-lane note calls the 0.1.15
+   template defaults "the largest single-release improvement of the program,"
+   dropping LLP 0196's qualifier ("of any release whose changes were
+   knowledge-placement rather than defect fixes"); the 0.1.13 seven-fix layer
+   produced larger single-release steps (bare 80m33s→41m32s, skill
+   64m→26m22s). Evidence: `llp/0196-…plan.md` Summary; diaries 0066/0068.
+
+9. **minor — PRE-EXISTING.** I.2 opens "Framework-attributed correction
+   loops **in the skill lane**: run 2 **4** …," but run 2 had no skill lane
+   (I.1's own basis note says runs 1–2 predate the skill); the unchanged
+   sentence still misnames the lane the run-2 figure belongs to
+   (0065-rematch's bare published lane).
+
+10. **minor — PRE-EXISTING.** Citation imprecision under a known filename
+    collision: the Plan cites "diary 0058" for run 1 and the rubric
+    (`0058-relay-room-expo-backend-bakeoff`) while also quoting "the headless
+    acceptance harness caught every real bug before the UI ever ran," which
+    lives in the *other* 0058 (`0058-messaging-snapback.diary.md`); LLP 0197
+    itself pins 0058 by slug because of this collision. Relatedly, "Eight
+    diaries (0057–0060, 0065–0069)" spans nine numbers (0067, a
+    Snapback-only witness, is presumably not in the corpus) and more files
+    than eight.
+
+## Generative input
+
+Brief, and only where omission is a near-defect: (a) give the pick-and-build
+probe a P3 bullet with the commitment mechanic and its publication label —
+it is the only L-rung instrument the phases don't produce (concern 3 covers
+the defect; this is the one-line fix). (b) When P0.0(c) lands the
+`defect`/`knowledge-gap` sub-attribution, keep it as a sub-field of the
+protocol's existing `snapback-defect` enum value rather than a new top-level
+attribution, so the loop-series continuity (runs 2–5) and the protocol's
+tie-break ("discoverability is part of the product under test") survive the
+schema change intact.
+
+## Verdict
+
+NOT READY — the delta text contains three unresolved MATERIAL defects: the
+run-5 skill-lane loop series contradicts the 0115 record and diary 0069, the
+P1/I.5 ownership correction misstates LLP 0194's current exclusion set
+(verify-config is initial-scope, not excluded), and L5's pick-and-build probe
+is owned by no phase. Reviewed revision: 2f11795033ae122d210321d62c862a9df66002c6
+/ sha256 404b0b93353eaffa6e91fee5ff70d7f3b0ca216224561a8cd6061d8709955abc.
+
+---
+
+**Counts:** MATERIAL — 3 IN-DELTA, 0 PRE-EXISTING. minor — 4 IN-DELTA,
+3 PRE-EXISTING.
