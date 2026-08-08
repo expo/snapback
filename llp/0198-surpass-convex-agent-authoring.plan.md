@@ -1,11 +1,14 @@
 # LLP 0198: Surpassing Convex on agent authoring — state of the world and the closing plan
 
 **Type:** Plan
-**Status:** Draft
+**Status:** Review
 **Systems:** Competitive evaluation, Developer experience, Documentation,
 Templates, Error handling, Operations, Publishing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
+**Revised:** 2026-08-08 (a — Draft → Review at llp-super-refine loop
+start, the one authorized transition; design-partner mode requested by
+the author, GPT-family reviewer weighted toward generative input)
 **Related:** LLP 0186 (the efficiency program this synthesizes and
 extends), LLP 0187 (discoverability), LLP 0189 (verification cadence and
 claim gating — governs every claim below), LLP 0193 (errors-as-docs),
