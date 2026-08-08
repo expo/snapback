@@ -135,3 +135,51 @@ refuses, and pre-C platform or bounds locators refuse. Both live publication
 records remain `withheld`; this closure neither selects the next C nor supplies
 the still-required real platform runs, review heads, or named-author
 acceptance.
+
+## Acceptance packet — round-3 qualification complete (2026-08-08 UTC)
+
+Everything below is landed and verifiable; the sole remaining exit step is
+the named author's fresh dated acceptance and the atomic publication rebuild.
+
+- **Qualification C:** `03f9d147cbf6798de2f74467cf5a2a3d8d3d756a`
+- **v3 scoped implementation digest:**
+  `sha256:582ed92c5aa69e1aac52a009e95680131de6f743b713035e29d2eec90602bed5`
+- **Scope classification (the author accepts this as part of the record):**
+  roots `src/`; files `.gitmodules`, `Cargo.lock`, `Cargo.toml`, `build.rs`,
+  `scripts/check-agent-safe-publication.mjs`,
+  `scripts/generated-artifact-policy.mjs`,
+  `scripts/local-proof-selection-policy.v1.json`, `vendor/ibex` (gitlink).
+  Residual v2→v3 departing classes beyond the nine ledgered paths
+  (`packages/snapback-codegen/`, `packages/snapback-contract/`, `tests/`)
+  are classified in the v3 acceptance contract.
+- **Review chain (all landed under `llp/reviews/`):** round 1 blind
+  (codex NOT READY ×3 blockers / fable READY-conditional); round 2 delta
+  (all round-1 blockers verified closed; codex NOT READY on acceptance
+  provenance); round 3 delta (**dual READY**, both families, digest
+  recomputed independently by each).
+- **Platform evidence at exactly C (dated receipts in
+  `tests/acceptance/`):**
+  - macOS aarch64: `instance_fork::` 52/52, `fork_promotion::` 37/37,
+    vm-egress 1/1, disk-pressure 1/1, live cli suite 5×15/15, row-13 bench
+    pass with all ratified bounds
+    (`instance-fork-lifecycle-bench.2026-08-08.macos-aarch64.v1.json`,
+    sha256 `bbd8e488a9a3…0664d`).
+  - Linux x86_64: 52/52, 37/37, vm-egress 1/1, live cli suite 3×15/15,
+    row-13 bench pass
+    (`instance-fork-lifecycle-bench.2026-08-08.linux-x86_64.v1.json`,
+    sha256 `a2abe878b51f…2bed`).
+  - Both platforms: a same-day bench rerun refused via exclusive-create —
+    live proof of the append-only receipt contract.
+- **Disclosures:** round-1 verdict split (codex blocking vs fable advisory
+  on the same two custody findings) resolved by fixing to the stricter bar;
+  three Low findings earmarked for the next legitimate checker rotation
+  (R3-1 `%cs`-vs-UTC seam, false-refuse only; R3-2 historical evidence
+  bytes are P-window-mutable, guarded by review discipline; R3-3 no upper
+  bound on locator dates).
+
+**Exit steps remaining:** named-author fresh dated v3 acceptance
+(`author-acceptance.<date>.v3.json`, line "Charlie Cheever — accepted
+<date>"), then the atomic receipt/carrier/anchor rebuild and the
+capability-index flip to `local`, gated on
+`node scripts/check-agent-safe-publication.mjs` reporting `published` on a
+clean tree.
