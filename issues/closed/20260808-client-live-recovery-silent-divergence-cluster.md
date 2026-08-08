@@ -53,3 +53,6 @@ into the existing inline-args resubscribe ticket
 (`20260806-usesnapbackquery-inline-args-resubscribe.md`), which names
 `useSnapbackQuery`/`useSnapbackPresence` but not `useSnapbackQueries`
 (index.mjs:2670).
+
+## Resolution (2026-08-08)
+Fixed on main (Lane D). Verified: snapback-react / snapback-client / snapback-expo test suites + TS fixtures pass; ref-check clean. Regressions added for StrictMode owned-provider/boot/asset-upload lifecycle and all three live-recovery paths.

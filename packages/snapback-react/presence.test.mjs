@@ -62,8 +62,13 @@ const capabilityManifest = Object.freeze({
   supportedCapabilities: ['live_subscriptions'],
 });
 
-function fakeClient(profile = 'local-dev-sqlite-ibex', deployment = { schema, functions }) {
+function fakeClient(
+  profile = 'local-dev-sqlite-ibex',
+  deployment = { schema, functions },
+  { failNextPublish = false } = {},
+) {
   let starts = 0;
+  let publishAttempts = 0;
   let publishes = 0;
   let deletes = 0;
   let handles = 0;
@@ -131,6 +136,11 @@ function fakeClient(profile = 'local-dev-sqlite-ibex', deployment = { schema, fu
         get grantedConnectionId() { return current.selfKey; },
         started: () => started,
         async publish(value, { ttlMs }) {
+          publishAttempts += 1;
+          if (failNextPublish) {
+            failNextPublish = false;
+            throw new Error('simulated connectivity loss');
+          }
           publishes += 1;
           current = Object.freeze({
             ...current,
@@ -165,7 +175,7 @@ function fakeClient(profile = 'local-dev-sqlite-ibex', deployment = { schema, fu
       });
     },
     inspection() {
-      return { starts, publishes, deletes, handles, barriers };
+      return { starts, publishAttempts, publishes, deletes, handles, barriers };
     },
   };
 }
@@ -270,6 +280,35 @@ assert.deepEqual(
     barriers: 0,
   },
 );
+
+const recoveringClient = fakeClient(
+  'local-dev-sqlite-ibex',
+  { schema, functions },
+  { failNextPublish: true },
+);
+const recoveringBinding = await prepareReactBindingForClient(recoveringClient, {
+  generatedManifest: { functions, schema, capabilityManifest },
+});
+const recoveringProvider = createSnapbackReactProvider(recoveringBinding);
+const recoveringObserver = observeSnapbackPresence(
+  recoveringProvider,
+  recoveringBinding.ephemeral.presence,
+  { scope: { roomId: 'recovering' }, value: skip },
+  () => {},
+);
+await flush();
+await recoveringObserver.publish({ name: 'Ada' }, { ttlMs: 1_000 });
+assert.equal(recoveringObserver.snapshot().publisher.status, 'publish-error');
+await recoveringProvider.pause();
+await recoveringProvider.resume();
+await flush();
+await flush();
+assert.equal(recoveringObserver.snapshot().publisher.status, 'published');
+assert.equal(recoveringClient.inspection().starts, 2);
+assert.equal(recoveringClient.inspection().publishAttempts, 2);
+assert.equal(recoveringClient.inspection().publishes, 1);
+await recoveringObserver.dispose();
+await recoveringProvider.dispose();
 
 const hosted = fakeClient('hosted-postgres');
 const hostedBinding = await prepareReactBindingForClient(hosted, {

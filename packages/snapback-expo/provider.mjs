@@ -302,6 +302,7 @@ export function createSnapbackExpoBoot({
         assets: createAssetClient(adopted.client, { fetch: expoAssetFetch }),
         assetSourceAdapter: adaptExpoAssetSource,
       });
+      reactProvider.start?.();
       const appState = await appStateFor(environment);
       if (disposed) return state;
       lifecycle = bindLifecycle(appState, reactProvider, {
@@ -419,17 +420,47 @@ export function SnapbackExpoProvider({
   fallback = null,
   children = null,
 }) {
-  const boot = useMemo(
-    () => createSnapbackExpoBoot({ app, binding, environment }),
-    [app, binding, environment],
-  );
-  const state = useSyncExternalStore(boot.subscribe, boot.getSnapshot, boot.getSnapshot);
+  const store = useMemo(() => {
+    const listeners = new Set();
+    let current = Object.freeze({
+      state: Object.freeze({ status: 'starting', stage: 'binding' }),
+      reactProvider: null,
+    });
+    return Object.freeze({
+      getSnapshot: () => current,
+      subscribe(listener) {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+      publish(next) {
+        current = next;
+        for (const listener of [...listeners]) listener();
+      },
+    });
+  }, [app, binding, environment]);
+  const active = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
   useEffect(() => {
+    const boot = createSnapbackExpoBoot({ app, binding, environment });
+    let current = true;
+    const sync = () => {
+      if (!current) return;
+      store.publish(Object.freeze({
+        state: boot.getSnapshot(),
+        reactProvider: boot.reactProvider(),
+      }));
+    };
+    const unsubscribe = boot.subscribe(sync);
+    sync();
     void boot.start();
-    return () => { void boot.dispose(); };
-  }, [boot]);
+    return () => {
+      current = false;
+      unsubscribe();
+      void boot.dispose();
+    };
+  }, [app, binding, environment, store]);
+  const state = active.state;
   const content = state.status === 'ready'
-    ? React.createElement(SnapbackProvider, { provider: boot.reactProvider() }, children)
+    ? React.createElement(SnapbackProvider, { provider: active.reactProvider }, children)
     : (typeof fallback === 'function' ? fallback(state) : fallback);
   return React.createElement(bootContext.Provider, { value: state }, content);
 }

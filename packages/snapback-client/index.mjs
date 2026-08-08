@@ -12358,6 +12358,8 @@ class LiveStreamManager {
           // drop: close as 1009 (message too big) so the ordinary loss and
           // reconnect policy owns recovery with bounded memory.
           try { ws.close(1009, 'ingress_limit'); } catch { /* loss path owns state */ }
+        } else {
+          this.#loseSocket(ws, error);
         }
         return;
       }

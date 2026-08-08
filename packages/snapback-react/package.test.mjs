@@ -355,6 +355,18 @@ assert.equal(binding.appId, 'react-fixture');
 assert.equal(binding.authMode, 'dev');
 assert.match(binding.functionCatalogDigest, /^sha256:[0-9a-f]{64}$/);
 assert.match(binding.capabilityDigest, /^sha256:[0-9a-f]{64}$/);
+
+const inertFake = createFakeClient();
+const inertBinding = await prepareReactBindingForClient(inertFake, { generatedManifest });
+const inertProvider = createSnapbackReactProvider(inertBinding);
+assert.equal(inertFake.inspection().barriers.length, 0);
+assert.equal(inertFake.inspection().durableConsumers, 0);
+inertProvider.start();
+assert.equal(inertFake.inspection().barriers.length, 1);
+assert.equal(inertFake.inspection().durableConsumers, 1);
+await inertProvider.dispose();
+assert.equal(inertFake.inspection().barrierUnregistered, 1);
+assert.equal(inertFake.inspection().durableConsumers, 0);
 await assert.rejects(
   prepareReactBindingForClient(createFakeClient(), {
     generatedManifest: { ...generatedManifest, bundleHash: 'sha256:wrong' },
@@ -458,11 +470,13 @@ function Probe({ id }) {
   });
 }
 
-function Group({ id, skipDetails = false }) {
+function Group({ id, skipDetails = false, includeDetails = true }) {
   const entries = useMemo(() => ({
     feed: { ref: feed, args: { id } },
-    details: { ref: details, args: skipDetails ? skip : { id } },
-  }), [id, skipDetails]);
+    ...(includeDetails
+      ? { details: { ref: details, args: skipDetails ? skip : { id } } }
+      : {}),
+  }), [id, includeDetails, skipDetails]);
   latestGroup = useSnapbackQueries(entries);
   latestConnection = useSnapbackConnection();
   mutate = useSnapbackMutation(publish);
@@ -474,12 +488,12 @@ function Group({ id, skipDetails = false }) {
   });
 }
 
-function App({ id = 'a', skipDetails = false }) {
+function App({ id = 'a', skipDetails = false, includeDetails = true }) {
   return React.createElement(
     SnapbackProvider,
     { provider },
     React.createElement(Probe, { id }),
-    React.createElement(Group, { id, skipDetails }),
+    React.createElement(Group, { id, skipDetails, includeDetails }),
   );
 }
 
@@ -518,6 +532,17 @@ assert.equal(provider.inspection().consumers, 2);
 assert.equal(provider.inspection().serverSubscriptions, 1);
 
 await act(async () => {
+  renderer.update(React.createElement(StrictMode, null, React.createElement(App, {
+    id: 'b',
+    includeDetails: false,
+  })));
+  await flush();
+});
+assert.deepEqual(Object.keys(latestGroup.queries), ['feed']);
+assert.equal(provider.inspection().consumers, 2);
+assert.equal(provider.inspection().serverSubscriptions, 1);
+
+await act(async () => {
   await fake.inspection().barriers[0].quiesce({});
   fake.inspection().barriers[0].blank({});
   await flush();
@@ -551,6 +576,46 @@ assert.equal(fake.inspection().barrierUnregistered, 1);
 assert.equal(fake.inspection().disconnects, 0, 'provider disposal never uses admin disconnect');
 assert.equal(fake.inspection().releases, 1, 'final ordinary provider releases its idle grant');
 await siblingProvider.dispose();
+
+const ownedFake = createFakeClient();
+const ownedBinding = await prepareReactBindingForClient(ownedFake, { generatedManifest });
+let ownedSnapshot = null;
+function OwnedProbe() {
+  ownedSnapshot = useSnapbackQuery(feed, { id: 'owned' });
+  return null;
+}
+let ownedRenderer;
+await act(async () => {
+  ownedRenderer = TestRenderer.create(React.createElement(
+    StrictMode,
+    null,
+    React.createElement(
+      SnapbackProvider,
+      { binding: ownedBinding },
+      React.createElement(OwnedProbe),
+    ),
+  ));
+  await flush();
+});
+assert.equal(ownedSnapshot.status, 'ready');
+assert.equal(ownedFake.inspection().handles, 1);
+assert.equal(
+  ownedFake.inspection().barriers.length - ownedFake.inspection().barrierUnregistered,
+  1,
+  'StrictMode leaves exactly one active owned-provider barrier',
+);
+assert.equal(ownedFake.inspection().durableConsumers, 1);
+await act(async () => {
+  ownedRenderer.unmount();
+  await flush();
+});
+await flush();
+assert.equal(ownedFake.inspection().handles, 0);
+assert.equal(
+  ownedFake.inspection().barriers.length - ownedFake.inspection().barrierUnregistered,
+  0,
+);
+assert.equal(ownedFake.inspection().durableConsumers, 0);
 
 const primedFake = createFakeClient();
 const routes = Object.freeze({
@@ -820,10 +885,13 @@ assert.equal(
   undefined,
   'the transferred preparation owner is not reachable through public provider properties',
 );
+const duplicatePrimedProvider = createSnapbackReactProvider(primedBinding, {
+  preparedGroup: primedGroup,
+});
 assert.throws(
-  () => createSnapbackReactProvider(primedBinding, { preparedGroup: primedGroup }),
+  () => duplicatePrimedProvider.start(),
   (error) => error?.code === 'SNAPBACK_REACT_GROUP_ALREADY_CONSUMED',
-  'a prepared bundle capability transfers to exactly one provider',
+  'a prepared bundle capability transfers when the provider starts, exactly once',
 );
 let primedSnapshot = null;
 const primedObserver = observeSnapbackQueries(
@@ -872,6 +940,7 @@ const unadoptedGroup = await unadoptedBinding.prepareQueryGroup(
 const unadoptedProvider = createSnapbackReactProvider(unadoptedBinding, {
   preparedGroup: unadoptedGroup,
 });
+unadoptedProvider.start();
 await unadoptedProvider.dispose();
 assert.equal(unadoptedFake.inspection().releases, 1);
 assert.equal(unadoptedFake.inspection().disconnects, 0);
@@ -887,6 +956,7 @@ const lazyRaceGroup = await lazyRaceBinding.prepareQueryGroup(
 const lazyRaceProvider = createSnapbackReactProvider(lazyRaceBinding, {
   preparedGroup: lazyRaceGroup,
 });
+lazyRaceProvider.start();
 lazyRaceFake.emitDurable({
   subscription_id: 'registered-details',
   update: { kind: 'Replace', rows: [{ id: 'details:newer', revision: 42 }] },
@@ -975,6 +1045,7 @@ const authorityRaceGroup = await authorityRaceBinding.prepareQueryGroup(
 const authorityRaceProvider = createSnapbackReactProvider(authorityRaceBinding, {
   preparedGroup: authorityRaceGroup,
 });
+authorityRaceProvider.start();
 await authorityRaceFake.inspection().barriers[0].quiesce({});
 authorityRaceFake.inspection().barriers[0].blank({});
 authorityRaceFake.inspection().barriers[0].clearMemory({});
@@ -1187,6 +1258,7 @@ const sharedExpiredSiblingObserver = observeSnapbackQueries(sharedExpiredSibling
 const sharedExpiredProvider = createSnapbackReactProvider(sharedExpiredBinding, {
   preparedGroup: sharedExpiredGroup,
 });
+sharedExpiredProvider.start();
 await new Promise((resolve) => setTimeout(resolve, 1_100));
 const sharedExpiredObserver = observeSnapbackQueries(
   sharedExpiredProvider,
@@ -1336,6 +1408,7 @@ await consumerProvider.dispose();
 const storeProvider = createSnapbackReactProvider(binding, {
   connectionId: 'react-package-store-cap-test',
 });
+storeProvider.start();
 await fake.inspection().barriers.at(-1).quiesce({});
 const storeLeases = Array.from({ length: 256 }, (_, index) => {
   const descriptor = storeProvider.registry.descriptor(capacityFeeds[0], { index });

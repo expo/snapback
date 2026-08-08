@@ -64,6 +64,62 @@ assert.equal(
   0,
   'ephemeral teardown after disconnect must not manufacture a manager',
 );
+
+const savedDecodeWebSocket = globalThis.WebSocket;
+const decodeSockets = [];
+class DecodeFailureWebSocket {
+  constructor(url) {
+    this.url = url;
+    this.listeners = new Map();
+    this.closed = false;
+    decodeSockets.push(this);
+    queueMicrotask(() => this.emit('open', {}));
+  }
+
+  addEventListener(type, listener, options = {}) {
+    if (!this.listeners.has(type)) this.listeners.set(type, new Set());
+    this.listeners.get(type).add({ listener, once: options.once === true });
+  }
+
+  emit(type, event) {
+    for (const entry of [...(this.listeners.get(type) ?? [])]) {
+      if (entry.once) this.listeners.get(type).delete(entry);
+      entry.listener(event);
+    }
+  }
+
+  send() {}
+
+  close(code = 1000, reason = '') {
+    if (this.closed) return;
+    this.closed = true;
+    queueMicrotask(() => this.emit('close', { code, reason }));
+  }
+}
+globalThis.WebSocket = DecodeFailureWebSocket;
+try {
+  const decodeClient = new SnapbackClient('http://snapback.test');
+  decodeClient.authSession = async () => null;
+  decodeClient.connectionGrant = async () => ({ id: 'decode', token: 'decode' });
+  decodeClient.liveStreamProtocolsFor = async () => [];
+  const decodeManager = decodeClient.liveStreamManager('decode-failure', {
+    reconnectBaseDelayMs: 60_000,
+    reconnectMaxDelayMs: 60_000,
+  });
+  const decodeStates = [];
+  decodeManager.onState((state) => decodeStates.push(state));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(decodeManager.inspection().open, true);
+  decodeSockets[0].emit('message', { data: '{"kind":' });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(decodeManager.inspection().open, false);
+  assert.equal(decodeManager.inspection().reconnectTimer, 1);
+  assert.ok(decodeStates.includes('lost'));
+  decodeManager.close();
+} finally {
+  globalThis.WebSocket = savedDecodeWebSocket;
+}
+
 assert.equal(client.baseUrl, 'http://127.0.0.1:9');
 assert.throws(
   () => new SnapbackClient('http://127.0.0.1:9', {

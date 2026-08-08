@@ -197,7 +197,7 @@ async function harness({ activeMode = 'dev' } = {}) {
   return { provider, assets, barriers };
 }
 
-function renderHook(provider, hook) {
+function renderHook(provider, hook, { strict = false } = {}) {
   const output = { current: null };
   function Probe() {
     output.current = hook();
@@ -205,12 +205,15 @@ function renderHook(provider, hook) {
   }
   let renderer;
   act(() => {
-    renderer = TestRenderer.create(
+    const tree = (
       React.createElement(
         SnapbackProvider,
         { provider },
         React.createElement(Probe),
-      ),
+      )
+    );
+    renderer = TestRenderer.create(
+      strict ? React.createElement(React.StrictMode, null, tree) : tree,
     );
   });
   return { output, renderer };
@@ -224,6 +227,7 @@ function renderHook(provider, hook) {
   const { output, renderer } = renderHook(
     provider,
     () => useSnapbackAssetUpload({ upload }),
+    { strict: true },
   );
   assert.equal(output.current.state.status, 'idle');
 
@@ -261,6 +265,7 @@ function renderHook(provider, hook) {
   const { output, renderer } = renderHook(
     provider,
     () => useSnapbackAssetUpload({ upload }),
+    { strict: true },
   );
   let task;
   act(() => { task = output.current.start(file); });

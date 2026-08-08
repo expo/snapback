@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import React, { StrictMode } from 'react';
+import TestRenderer, { act } from 'react-test-renderer';
 
 import { SnapbackClient } from '@expo/snapback-client';
 import { SnapbackAssetClient } from '@expo/snapback-client/assets';
 
 import {
+  SnapbackExpoProvider,
   createSnapbackExpoBoot,
   defaultSnapbackExpoEnvironment,
 } from './provider.mjs';
@@ -192,6 +195,78 @@ unsubscribe();
 await boot.dispose();
 assert.equal(appState.count(), 0);
 assert.equal(providerDisposed, 1);
+
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+const strictBinding = Object.freeze({
+  ...binding,
+  provenance: Object.freeze({
+    ...binding.provenance,
+    issuedAt: new Date(Date.now() - 60_000).toISOString(),
+    expiresAt: new Date(Date.now() + 60_000).toISOString(),
+  }),
+});
+descriptorClient.releaseConnection = async () => ({ released: true });
+const strictClient = {
+  async prepareReactBinding() { return descriptorPrepared; },
+};
+const strictEnvironment = Object.freeze({
+  format: 'snapback.expo-environment.v1',
+  appState: appStateHarness(),
+  async resolveBinding() {
+    return {
+      binding: strictBinding,
+      admission: {
+        productionCondition: false,
+        delivery: { channel: 'local-supervised-ipc' },
+      },
+    };
+  },
+  async adoptAuthority() {
+    return {
+      status: 'ready',
+      client: strictClient,
+      publicFacts: {
+        kind: 'session',
+        authMode: 'sessions',
+        sessionId: 'strict-session',
+        userId: 'strict-user',
+      },
+    };
+  },
+});
+let strictBootState = null;
+let strictRenderer;
+await act(async () => {
+  strictRenderer = TestRenderer.create(React.createElement(
+    StrictMode,
+    null,
+    React.createElement(
+      SnapbackExpoProvider,
+      {
+        app,
+        environment: strictEnvironment,
+        fallback(state) {
+          strictBootState = state;
+          return React.createElement('fallback');
+        },
+      },
+      React.createElement('ready'),
+    ),
+  ));
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+});
+assert.equal(strictBootState?.status === 'error', false);
+assert.equal(
+  strictRenderer.root.findAllByType('ready').length,
+  1,
+  JSON.stringify({ strictBootState, tree: strictRenderer.toJSON() }),
+);
+await act(async () => {
+  strictRenderer.unmount();
+  await new Promise((resolve) => setImmediate(resolve));
+});
 
 // Node selects the default #app-state arm. An otherwise-working environment
 // without either injection reaches the provider's coded unsupported state

@@ -48,3 +48,6 @@ side-effect-free until an explicit `start()`.
 
 High on mechanics; no comment claims StrictMode support either way, so untested
 rather than deliberate.
+
+## Resolution (2026-08-08)
+Fixed on main (Lane D). Verified: snapback-react / snapback-client / snapback-expo test suites + TS fixtures pass; ref-check clean. Regressions added for StrictMode owned-provider/boot/asset-upload lifecycle and all three live-recovery paths.

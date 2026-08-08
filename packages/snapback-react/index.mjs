@@ -1719,6 +1719,9 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       if (room.raw.reason) room.resyncReasons.push(room.raw.reason);
       if (room.resyncReasons.length > 32) room.resyncReasons.shift();
       if (room.raw.status !== 'ready') clearRoomHeartbeat(room);
+      if (room.raw.status === 'ready' && previous.status !== 'ready') {
+        room.suspended = false;
+      }
       notifyRoom(room);
       if (
         room.raw.status === 'ready'
@@ -2451,37 +2454,48 @@ function createRegistry(binding, providerInstanceId, options = {}) {
 export function createSnapbackReactProvider(binding, options = {}) {
   const prepared = assertPreparedReactBinding(binding);
   const providerInstanceId = `provider-${++providerSequence}-${localUniqueLabel()}`;
-  const preparedGroup = options.preparedGroup == null
-    ? null
-    : consumePreparedReactQueryGroup(prepared, options.preparedGroup);
-  let registry;
-  try {
-    registry = createRegistry(prepared, providerInstanceId, {
-      ...options,
-      ...(preparedGroup === null ? {} : { preparedGroup }),
-    });
-  } catch (error) {
-    if (preparedGroup !== null) void abandonConsumedReactQueryGroup(preparedGroup);
-    throw error;
-  }
+  let registry = null;
   let disposePromise = null;
+  const start = () => {
+    if (registry !== null) return provider;
+    const preparedGroup = options.preparedGroup == null
+      ? null
+      : consumePreparedReactQueryGroup(prepared, options.preparedGroup);
+    try {
+      registry = createRegistry(prepared, providerInstanceId, {
+        ...options,
+        ...(preparedGroup === null ? {} : { preparedGroup }),
+      });
+    } catch (error) {
+      if (preparedGroup !== null) void abandonConsumedReactQueryGroup(preparedGroup);
+      throw error;
+    }
+    return provider;
+  };
+  const activeRegistry = () => {
+    start();
+    return registry;
+  };
   const provider = {
     kind: 'snapback.react-provider.v1',
     providerInstanceId,
     binding: prepared,
-    registry,
+    get registry() { return activeRegistry(); },
     assets: options.assets ?? null,
     assetSourceAdapter: options.assetSourceAdapter ?? null,
+    start,
     registerEphemeralRepublisher(reference, callback) {
+      start();
       return preparedReactBindingClient(prepared).registerEphemeralRepublisher(reference, callback);
     },
-    pause: () => registry.pause(),
-    resume: () => registry.resume(),
+    pause: () => activeRegistry().pause(),
+    resume: () => activeRegistry().resume(),
     inspection: () => Object.freeze({
-      ...registry.inspection(),
+      ...activeRegistry().inspection(),
       commandTasks: commandClientInspectionFor(provider),
     }),
     dispose() {
+      if (registry === null) return Promise.resolve();
       disposePromise ??= (async () => {
         await disposeCommandClientFor(provider);
         await registry.dispose();
@@ -2496,15 +2510,44 @@ export function createSnapbackReactProvider(binding, options = {}) {
 }
 
 export function SnapbackProvider({ binding = null, provider = null, children = null }) {
-  const owned = useMemo(
-    () => (provider ? null : createSnapbackReactProvider(assertPreparedReactBinding(binding))),
-    [binding, provider],
+  const supplied = provider === null ? null : assertProvider(provider);
+  const prepared = supplied === null ? assertPreparedReactBinding(binding) : null;
+  const lifecycle = useMemo(() => {
+    const listeners = new Set();
+    let current = null;
+    return Object.freeze({
+      getSnapshot: () => current,
+      subscribe(listener) {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+      publish(next) {
+        current = next;
+        for (const listener of [...listeners]) listener();
+      },
+    });
+  }, [prepared, supplied]);
+  const current = useSyncExternalStore(
+    lifecycle.subscribe,
+    lifecycle.getSnapshot,
+    lifecycle.getSnapshot,
   );
-  const current = assertProvider(provider ?? owned);
-  useEffect(() => () => {
-    if (owned) void owned.dispose();
-  }, [owned]);
-  return React.createElement(providerContext.Provider, { value: current }, children);
+  useEffect(() => {
+    if (supplied !== null) {
+      supplied.start();
+      return undefined;
+    }
+    const next = createSnapbackReactProvider(prepared);
+    next.start();
+    lifecycle.publish(next);
+    return () => {
+      lifecycle.publish(null);
+      void next.dispose();
+    };
+  }, [lifecycle, prepared, supplied]);
+  const active = supplied ?? current;
+  if (active === null) return null;
+  return React.createElement(providerContext.Provider, { value: active }, children);
 }
 
 function useProvider() {
@@ -2689,6 +2732,8 @@ export function useSnapbackQueries(entries) {
       && previous.status === next.status
       && previous.connection === next.connection
       && previous.error === next.error
+      && previous.boot === next.boot
+      && Object.keys(previous.queries).length === descriptors.length
       && descriptors.every(({ name }) => previous.queries[name] === next.queries[name])
     ) return previous;
     lastSnapshot.current = next;
@@ -3608,7 +3653,6 @@ function createAssetUploadStore(registry, upload) {
       listeners.clear();
     },
   };
-  registry.stores.add(store);
   return store;
 }
 
@@ -3618,12 +3662,14 @@ export function useSnapbackAssetUpload(options) {
     throw new TypeError('useSnapbackAssetUpload requires a generated upload reference');
   }
   const registry = assetRegistryFor(provider);
-  const storeRef = useRef(null);
-  if (storeRef.current === null) {
-    storeRef.current = createAssetUploadStore(registry, options.upload);
-  }
-  const store = storeRef.current;
-  useEffect(() => () => store.release(), [store]);
+  const store = useMemo(
+    () => createAssetUploadStore(registry, options.upload),
+    [registry, options.upload],
+  );
+  useEffect(() => {
+    registry.stores.add(store);
+    return () => store.release();
+  }, [registry, store]);
   const state = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
   return useMemo(() => Object.freeze({
     state,

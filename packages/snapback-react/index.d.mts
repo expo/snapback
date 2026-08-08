@@ -109,6 +109,8 @@ export interface SnapbackReactProvider {
   readonly binding: PreparedReactBinding;
   readonly assets: unknown | null;
   readonly assetSourceAdapter: import('@expo/snapback-client').CommandAssetSourceAdapter | null;
+  /** Activate provider-owned registrations. Idempotent for an active provider. */
+  start(): SnapbackReactProvider;
   surface<Surface extends SnapbackSurfaceDescriptor>(
     descriptor: Surface,
     params: SurfaceParams<Surface>,
