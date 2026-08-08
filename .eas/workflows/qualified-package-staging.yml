@@ -283,9 +283,7 @@ jobs:
           name: snapback-qualified-tarballs
 
       - run: |
-          export SNAPBACK_EAS_WORKFLOW_FILENAME="$EAS_WORKFLOW_FILENAME"
-          export SNAPBACK_EAS_WORKFLOW_RUN_ID="$EAS_WORKFLOW_RUN_ID"
-          export EAS_BUILD_GIT_COMMIT_HASH="$(git rev-parse HEAD)"
+          . scripts/qualified-staging-provenance-env
           qualified_root="$HOME/snapback-qualified"
           receipt=".eas-artifacts/snapback-darwin-arm64-staged-receipt.json"
           mkdir -p .eas-artifacts "$qualified_root"
@@ -323,9 +321,7 @@ jobs:
       - run: npx --yes playwright@1.62.0 install-deps chromium
 
       - run: |
-          export SNAPBACK_EAS_WORKFLOW_FILENAME="$EAS_WORKFLOW_FILENAME"
-          export SNAPBACK_EAS_WORKFLOW_RUN_ID="$EAS_WORKFLOW_RUN_ID"
-          export EAS_BUILD_GIT_COMMIT_HASH="$(git rev-parse HEAD)"
+          . scripts/qualified-staging-provenance-env
           qualified_root="$HOME/snapback-qualified"
           receipt=".eas-artifacts/snapback-linux-x64-staged-receipt.json"
           mkdir -p .eas-artifacts "$qualified_root"
