@@ -845,7 +845,13 @@ async function buildObserverSources(
   const expected = (
     ((overlay.payload as AnyRecord).actorBindings as AnyRecord)['crew-admin']
   ) as AnyRecord;
-  const email = 'zerobugs-diag-hot-stream-same-crew-admin@acceptance.invalid';
+  // Reuse the canonical crew-admin mint email: dev-session principals are
+  // deterministic per email, and the crew-admin source user is already bound
+  // to that principal in the baseline — six sessions under one principal IS
+  // the same-authority-partition axis. A fresh email would mint a fresh
+  // principal and acceptanceBindActor refuses a second binding for the same
+  // source user.
+  const email = 'zerobugs-diag-hot-stream-crew-admin@acceptance.invalid';
   try {
     for (let index = 0; index < options.observerCount; index += 1) {
       const label = `same-crew-admin-${index + 1}`;
