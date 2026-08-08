@@ -219,22 +219,8 @@ jobs:
             --version "$RELEASE_VERSION" \
             --tag "$candidate_tag" \
             --out "$SNAPBACK_PACKAGE_OUT"
-          SOURCE_REVISION="$source_revision" CANDIDATE_TAG="$candidate_tag" node --input-type=module -e '
-            import fs from "node:fs";
-            import { PACKAGE_INVENTORY } from "./scripts/snapback-publish-core.mjs";
-            const ledger = JSON.parse(fs.readFileSync(
-              process.env.SNAPBACK_PACKAGE_OUT + "/publish-ledger.json",
-              "utf8",
-            ));
-            if (ledger.schemaVersion !== "snapback.package-qualified-staging-ledger.v1"
-                || ledger.mode !== "dry-run"
-                || ledger.sourceDirty !== false
-                || ledger.revision !== process.env.SOURCE_REVISION
-                || ledger.tag !== process.env.CANDIDATE_TAG
-                || ledger.packages.length !== PACKAGE_INVENTORY.length) {
-              throw new Error("qualified staging ledger did not close");
-            }
-          '
+          SOURCE_REVISION="$source_revision" CANDIDATE_TAG="$candidate_tag" \
+            node scripts/qualified-staging-ledger-check.mjs
           test -z "$(git status --porcelain --untracked-files=all)"
           tar -czf .eas-artifacts/snapback-qualified-tarballs.tar.gz \
             -C "$SNAPBACK_PACKAGE_OUT" .
