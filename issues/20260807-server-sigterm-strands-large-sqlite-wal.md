@@ -57,3 +57,5 @@ Found by LLP 0183 Stage 0.5 Lane 8 (zb5-hot). The control's fold-and-
 disclose workaround is in
 `demos/zerobugs/control/tests/acceptance/gates/zb5-scale-support.mjs`
 (`foldStrandedWal`).
+
+- **Claimed 2026-08-08:** session dc26442d (13-ticket sweep orchestrator) is executing this ticket now; sibling sessions should not duplicate.

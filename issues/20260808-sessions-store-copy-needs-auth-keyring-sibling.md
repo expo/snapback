@@ -27,3 +27,5 @@ this: a post-SIGTERM copy at scale can also miss WAL content.
    with a supported `snapback` copy/export verb that captures it atomically.
 2. Make the boot diagnostic name the missing sibling path explicitly.
 3. Guide page for backup/copy semantics (guide-gap).
+
+- **Claimed 2026-08-08:** session dc26442d (13-ticket sweep orchestrator) is executing this ticket now; sibling sessions should not duplicate.

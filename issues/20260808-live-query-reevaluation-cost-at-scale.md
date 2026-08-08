@@ -28,3 +28,5 @@ scheduling with per-subscription staleness contracts (D4), with the hot
 gate as the acceptance instrument. The zb5-hot machinery reruns this
 measurement in ~80 min; `demos/zerobugs/control/scripts/diag-hot-stream.mts`
 iterates in minutes against a persistent baseline.
+
+- **Claimed 2026-08-08:** session dc26442d (13-ticket sweep orchestrator) is executing this ticket now; sibling sessions should not duplicate.

@@ -12,3 +12,5 @@ schema-level closure so query auth can never treat an unknown role as crew.
 
 Ask: admit closed literal-union validators on stored fields (or a dedicated
 enum declaration) with generated-contract support. Removes W-ENUM.
+
+- **Claimed 2026-08-08:** session dc26442d (13-ticket sweep orchestrator) is executing this ticket now; sibling sessions should not duplicate.

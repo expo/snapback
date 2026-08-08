@@ -15,3 +15,5 @@ Ask: a portable server-owned numeric identity/default column declaration
 Related: `W-ENUM` (stored literal-union domains) is the same class of
 "portable relational schema surface" gap — tracked in
 issues/20260808-stored-literal-union-enums.md.
+
+- **Claimed 2026-08-08:** session dc26442d (13-ticket sweep orchestrator) is executing this ticket now; sibling sessions should not duplicate.

@@ -19,3 +19,5 @@ plus consideration of exposing verified identity claims to handlers.
 Owner seam: the LLP 0183 review round flagged identity as a cross-cutting
 contract needed by D2 authorization, D3 partitions, and D5 guards — not a
 D7 afterthought.
+
+- **Claimed 2026-08-08:** session dc26442d (13-ticket sweep orchestrator) is executing this ticket now; sibling sessions should not duplicate.

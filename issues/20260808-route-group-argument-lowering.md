@@ -14,3 +14,5 @@ Ask: extend route-group argument lowering to structured contexts (nested
 route params, null/union literals) so multi-child generated groups can
 carry real query contexts. Owner seam: D2 (the LLP 0183 review round asks
 D2 to own the graph/argument surface explicitly).
+
+- **Claimed 2026-08-08:** session dc26442d (13-ticket sweep orchestrator) is executing this ticket now; sibling sessions should not duplicate.

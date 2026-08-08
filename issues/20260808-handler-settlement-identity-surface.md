@@ -17,3 +17,5 @@ context so downstream effect workers can correlate client settlement and
 provider idempotency without app-owned identity plumbing. Owner seam:
 D5 mutation semantics / D7 effect idempotency (the LLP 0183 review round
 flagged this exact split as an unowned cross-cutting contract).
+
+- **Claimed 2026-08-08:** session dc26442d (13-ticket sweep orchestrator) is executing this ticket now; sibling sessions should not duplicate.

@@ -11,3 +11,5 @@ signature validation → separately named opaque native intent → typed
 `C-ASSET` in the control PLAN, live-verified in the Lane 5 receipts). The
 guide should either teach this adapter as the recipe or name SVG an
 explicit GAP so the next app doesn't rediscover it.
+
+- **Claimed 2026-08-08:** session dc26442d (13-ticket sweep orchestrator) is executing this ticket now; sibling sessions should not duplicate.

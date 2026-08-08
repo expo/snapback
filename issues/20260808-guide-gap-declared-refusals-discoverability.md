@@ -17,3 +17,5 @@ passing; (2) consider a codegen advisory when a handler body throws
 bare Errors on guard-shaped paths while declaring no refusals; (3) the
 `SNAPBACK_HANDLER_FAILED` client message could hint "if this is an
 application refusal, declare it" in dev mode.
+
+- **Claimed 2026-08-08:** session dc26442d (13-ticket sweep orchestrator) is executing this ticket now; sibling sessions should not duplicate.

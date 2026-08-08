@@ -47,3 +47,5 @@ for whole-value size violations, where it degenerates to `"$"`.
   naming the violated constraint.
 - Found by LLP 0183 Stage 0.5 Lane 8 (zb5-large v2 FAIL receipt,
   `demos/zerobugs/evidence/snapback-control-large.zb5.v2.json`).
+
+- **Claimed 2026-08-08:** session dc26442d (13-ticket sweep orchestrator) is executing this ticket now; sibling sessions should not duplicate.
