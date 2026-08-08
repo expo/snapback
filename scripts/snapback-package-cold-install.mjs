@@ -2896,6 +2896,34 @@ await build({
     fail('React starter did not preserve the one-command versioned relative Vite seam');
   }
 
+  // LLP 0196 T1: the portfolio CRUD scaffold must survive the same packed,
+  // out-of-repository install boundary as the foundational React starter.
+  const crudScaffoldRoot = join(appRoot, 'crud-dashboard');
+  run(
+    developerCli,
+    ['new', crudScaffoldRoot, '--template', 'crud-dashboard', '--json'],
+    { cwd: appRoot },
+  );
+  await installPackedFixture(crudScaffoldRoot);
+  run(
+    join(crudScaffoldRoot, 'node_modules', '.bin', 'snapback'),
+    ['generate', 'snapback', '--json'],
+    { cwd: crudScaffoldRoot, env: { ...process.env, npm_config_offline: 'true' } },
+  );
+  run('npm', ['run', 'typecheck'], { cwd: crudScaffoldRoot });
+  run('npm', ['run', 'test:static'], { cwd: crudScaffoldRoot });
+  run('npm', ['run', 'build'], { cwd: crudScaffoldRoot });
+  const crudGenerated = readFileSync(
+    join(crudScaffoldRoot, 'snapback', 'generated', 'functions.manifest.json'),
+    'utf8',
+  );
+  if (
+    !crudGenerated.includes('RelationalQuery')
+    || !readFileSync(join(crudScaffoldRoot, 'src', 'App.tsx'), 'utf8').includes('optimistic:')
+  ) {
+    fail('packed CRUD dashboard omitted its relational query or optimistic edit path');
+  }
+
   const expoFixtureRoot = join(appRoot, 'react-expo');
   cpSync(
     join(sourceRoot, 'packages', 'snapback-react', 'fixtures', 'packed-expo'),
@@ -2910,6 +2938,39 @@ await build({
   );
   run('npm', ['run', 'typecheck'], { cwd: expoFixtureRoot });
   run('npm', ['run', 'export:ios'], { cwd: expoFixtureRoot, timeout: 240_000 });
+
+  // LLP 0196 T2: install, generate, typecheck, statically accept, and export
+  // the media portfolio scaffold from materialized package tarballs.
+  const mediaScaffoldRoot = join(appRoot, 'media-feed');
+  run(
+    developerCli,
+    ['new', mediaScaffoldRoot, '--template', 'media-feed', '--json'],
+    { cwd: appRoot },
+  );
+  await installPackedFixture(mediaScaffoldRoot, { timeout: 600_000 });
+  run(
+    join(mediaScaffoldRoot, 'node_modules', '.bin', 'snapback'),
+    ['generate', 'snapback', '--json'],
+    { cwd: mediaScaffoldRoot, env: { ...process.env, npm_config_offline: 'true' } },
+  );
+  run('npm', ['run', 'typecheck'], { cwd: mediaScaffoldRoot });
+  run('npm', ['run', 'test:static'], { cwd: mediaScaffoldRoot });
+  run(
+    join(mediaScaffoldRoot, 'node_modules', '.bin', 'expo'),
+    ['export', '--platform', 'web', '--output-dir', join(mediaScaffoldRoot, 'dist'), '--clear'],
+    { cwd: mediaScaffoldRoot, timeout: 300_000, env: { ...process.env, CI: '1', EXPO_NO_TELEMETRY: '1' } },
+  );
+  const mediaGenerated = readFileSync(
+    join(mediaScaffoldRoot, 'snapback', 'generated', 'api.mjs'),
+    'utf8',
+  );
+  if (
+    !mediaGenerated.includes('feedPhotoUpload')
+    || !mediaGenerated.includes('publishEntry')
+    || !existsSync(join(mediaScaffoldRoot, 'dist', 'index.html'))
+  ) {
+    fail('packed media feed omitted its generated upload command or web export');
+  }
 
   // @ref LLP 0186#w2--context-injection-surface-owned-here — exercise the
   // golden-path scaffold through packed artifacts, including its generated

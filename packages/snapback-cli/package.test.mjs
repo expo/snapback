@@ -263,6 +263,49 @@ console.log(JSON.stringify({
   assert.match(reactAcceptanceSource, /observeSnapbackQueries/u);
   assert.match(reactAcceptanceSource, /invokeSnapbackMutation/u);
 
+  const crudProject = join(root, 'crud-dashboard');
+  const crudScaffold = scaffoldApp(crudProject, { template: 'crud-dashboard' });
+  assert.equal(crudScaffold.ok, true);
+  assertScaffoldedAuthoringSkill(crudProject, crudScaffold);
+  const crudManifest = JSON.parse(readFileSync(join(crudProject, 'package.json'), 'utf8'));
+  assert.match(crudManifest.dependencies['@expo/snapback-react'], /^\^\d+\.\d+\.\d+/);
+  assert.match(crudManifest.scripts.prove, /^snapback verify snapback /u);
+  assert.equal(existsSync(join(crudProject, 'snapback.verify.config.mjs')), true);
+  const generatedCrud = await generateApp(join(crudProject, 'snapback'));
+  assert.equal(generatedCrud.ok, true, JSON.stringify(generatedCrud.diagnostics));
+  assert.equal(generatedCrud.summary.counts.degradedResults, 0);
+  const crudFunctions = JSON.parse(readFileSync(join(crudProject, 'snapback', 'generated', 'functions.manifest.json'), 'utf8'));
+  assert.ok(
+    crudFunctions.functions.find(({ name }) => name === 'projectDirectory')?.runtime?.HostPlan?.RelationalQuery,
+    'the CRUD template generates its project directory as a relational query',
+  );
+  assert.match(readFileSync(join(crudProject, 'src', 'App.tsx'), 'utf8'), /optimistic:\s*\{/u);
+  const crudStatic = spawnSync(process.execPath, ['acceptance.static.mjs'], { cwd: crudProject, encoding: 'utf8' });
+  assert.equal(crudStatic.status, 0, crudStatic.stderr);
+  assert.match(readFileSync(join(crudProject, 'acceptance.mjs'), 'utf8'), /client\.liveQuery\(api\.projectDetail/u);
+
+  const mediaProject = join(root, 'media-feed');
+  const mediaScaffold = scaffoldApp(mediaProject, { template: 'media-feed' });
+  assert.equal(mediaScaffold.ok, true);
+  assertScaffoldedAuthoringSkill(mediaProject, mediaScaffold);
+  const mediaManifest = JSON.parse(readFileSync(join(mediaProject, 'package.json'), 'utf8'));
+  assert.match(mediaManifest.dependencies['@expo/snapback-expo'], /^\^\d+\.\d+\.\d+/);
+  assert.equal(mediaManifest.dependencies['expo-image-picker'], '~57.0.7');
+  assert.equal(mediaManifest.scripts.web, 'expo start --web');
+  assert.match(mediaManifest.scripts.prove, /^snapback verify snapback /u);
+  assert.equal(existsSync(join(mediaProject, 'snapback.verify.config.mjs')), true);
+  const generatedMedia = await generateApp(join(mediaProject, 'snapback'));
+  assert.equal(generatedMedia.ok, true, JSON.stringify(generatedMedia.diagnostics));
+  assert.equal(generatedMedia.summary.counts.degradedResults, 0);
+  const mediaFunctions = JSON.parse(readFileSync(join(mediaProject, 'snapback', 'generated', 'functions.manifest.json'), 'utf8'));
+  assert.deepEqual(mediaFunctions.assetUploadIntents.map(({ exportedName }) => exportedName).sort(), ['feedPhotoUpload', 'privatePhotoUpload']);
+  const mediaDescriptor = await import(join(mediaProject, 'snapback', 'generated', 'api.mjs'));
+  assert.ok(mediaDescriptor.app.commands?.publishEntry, 'the media template generates its upload-and-attach command');
+  assert.match(readFileSync(join(mediaProject, 'App.tsx'), 'utf8'), /onEndReached=\{loadOlder\}/u);
+  const mediaStatic = spawnSync(process.execPath, ['acceptance.static.mjs'], { cwd: mediaProject, encoding: 'utf8' });
+  assert.equal(mediaStatic.status, 0, mediaStatic.stderr);
+  assert.match(readFileSync(join(mediaProject, 'acceptance.mjs'), 'utf8'), /createAssetClient\(client\)/u);
+
   // @ref LLP 0186#w2--context-injection-surface-owned-here — the golden-path scaffold
   // carries the LLP 0176 conversation surface (messages + image upload intent
   // + live queries + command + typing presence) as runnable template code.

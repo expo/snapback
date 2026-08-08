@@ -89,7 +89,13 @@ try {
 
   // --help lists every template from the CLI's registry, not a hardcoded copy.
   const templates = listTemplates();
-  assert.ok(templates.includes('expo-chat') && templates.includes('todo-contract') && templates.includes('react'));
+  assert.ok(
+    templates.includes('expo-chat')
+      && templates.includes('todo-contract')
+      && templates.includes('react')
+      && templates.includes('crud-dashboard')
+      && templates.includes('media-feed'),
+  );
   const help = run(createBin, ['--help'], { cwd: root });
   assert.equal(help.status, 0, help.stderr);
   for (const template of templates) {

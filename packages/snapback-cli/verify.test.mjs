@@ -204,6 +204,8 @@ for (const [template, pathCount] of [
   ['todo-contract', 2],
   ['react', 2],
   ['expo-chat', 6],
+  ['crud-dashboard', 4],
+  ['media-feed', 4],
 ]) {
   const scratch = mkdtempSync(join(tmpdir(), `snapback-${template}-verify-config-`));
   const scaffold = join(scratch, template);

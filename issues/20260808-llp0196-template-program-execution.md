@@ -98,3 +98,111 @@ gates) follow in later lanes under this same program ticket.
   D2 with explicitly `unsupported` D1 provenance. Confirm that partial
   conformance is the intended first-rung posture, or schedule a later retrofit
   that makes those existing acceptances emit authoritative D1 reports.
+
+## Execution log — 2026-08-08, lane-0196b T1/T2
+
+This lane is implementation-complete in the working tree. It deliberately did
+not create a commit because the execution sandbox cannot write Git metadata.
+
+### T1 — CRUD dashboard template
+
+- Added `packages/snapback-cli/templates/crud-dashboard/` as a zero-edit React
+  web scaffold. Its neutral project-portfolio domain is independent of the
+  held-out CRUD brief. Two related tables (`projects` and `teams`) feed a
+  generated relational live query with explicit public source/output
+  visibility and a uniquely indexed join key.
+- Added list, independent live detail, create, edit, and delete UI. The edit
+  mutation installs a replayable optimistic projection over the exact
+  relational directory query; generated argument/result types flow through the
+  hooks without result casts.
+- Selected Sessions as the schema default. The small authored sample dataset
+  and its mutations remain public so an untouched browser scaffold can perform
+  CRUD without adding app-specific sign-in UI; `AGENTS.md` calls that starter
+  tradeoff out explicitly.
+- Added authored seed data, build/typecheck scripts, Guide-first `AGENTS.md`, a
+  no-server static acceptance, a managed live acceptance covering relational
+  read plus create/update/delete/live observation, and the ordinary `prove`
+  command/config delegating to the landed T3 starter verify profile.
+- **Acceptance status:** generation, static acceptance, strict TypeScript, CLI
+  scaffold propagation, and verify-config admission pass. The registered live
+  acceptance and `prove` were not run because this lane forbids servers.
+
+### T2 — media feed template
+
+- Added `packages/snapback-cli/templates/media-feed/` as a universal Expo
+  scaffold using a neutral shared field-journal domain, independent of the
+  held-out media brief. It runs on iOS, Android, and web.
+- The main `feedPhotoUpload` intent is authenticated, strips location metadata,
+  materializes required `thumb` and `display` renditions, chooses
+  `public-immutable` delivery, and attaches only through a compatible typed
+  `assetRef`. A separate, deliberately unwired `privatePhotoUpload` intent
+  demonstrates the `private-strict` alternative without pretending delivery
+  can change after upload.
+- Added one observable generated publish command for upload → finalize → typed
+  attach, live image rendering through the asset-delivery hook, and a bounded
+  infinite-scroll feed over public authority-independent first/older live
+  pages. The native root registers the Expo file RQS store so eligible page
+  snapshots can render retained while reconnecting.
+- Added Sessions custody, authored seed history, Guide-first `AGENTS.md`, a
+  no-server static acceptance, a managed live acceptance that mints an ordinary
+  session and proves real PNG upload/attach plus both public renditions, and the
+  ordinary `prove` command/config delegating to the landed T3 profile.
+- **Acceptance status:** generation, static acceptance, strict TypeScript, CLI
+  scaffold propagation, and verify-config admission pass. The registered live
+  upload acceptance and `prove` were not run because this lane forbids servers.
+
+### Registration and packed-install coverage
+
+- Registered both templates in `snapback new` help/usage and in the CLI,
+  `create-snapback-app`, verify-config, and scaffold package tests. The
+  filesystem-backed template registry discovers both automatically.
+- Extended the packed cold-install qualification with T1 install → generate →
+  typecheck → static acceptance → Vite build and T2 install → generate →
+  typecheck → static acceptance → Expo web export legs. The monolithic packed
+  qualification itself was not run under this lane's no-server constraint;
+  its edited script and both live acceptance files pass `node --check`.
+
+### Checks
+
+- PASS — fresh generation for both authored backends with Node 24: zero
+  diagnostics, zero warnings, and zero degraded results.
+- PASS — `volta run --node 24.18.0 node packages/snapback-cli/package.test.mjs`.
+- PASS — both `acceptance.static.mjs` files.
+- PASS — strict TypeScript for both templates against the frozen SDK-57
+  dependency harness. The temporary dependency tree and module-resolution
+  symlinks were removed after the checks.
+- PASS — `volta run --node 24.18.0 node packages/snapback-cli/verify.test.mjs`
+  (25 D2 cases, including both new configs).
+- PASS — `CI=1 volta run --node 24.18.0 node
+  packages/create-snapback-app/package.test.mjs` with a temporary worktree-local
+  `@expo/snapback-cli` resolution. The first invocation resolved that package
+  from the moving parent checkout instead of this worktree and failed its
+  expected parity comparison; the local-resolution rerun passed and the
+  temporary symlink was removed.
+- PASS — `volta run --node 24.18.0 node
+  packages/snapback-cli/cli-help.test.mjs`.
+- PASS — `./ref-check --verbose` (199 LLP documents, 3,680 references, no
+  errors or unchecked references).
+- BLOCKED BY PRE-EXISTING GENERATED/GUIDE DRIFT — `volta run --node 24.18.0
+  node scripts/check-inventories.mjs` reached `guide-manifest` and failed on
+  missing ignored generated sources for competitive-checkpoint and todo-v2,
+  plus stale generated symbol-reference projections. This lane did not touch
+  Guide pages or those demo outputs, so it did not regenerate or commit them.
+- NOT RUN by constraint — either live starter acceptance, either `bun run
+  prove`, the full packed cold-install qualification, Expo/Vite servers, Cargo,
+  simulators, or `node scripts/check-guide.mjs` (no Guide page changed).
+
+### Remaining program work and ratification
+
+- T4 remains: publish the web/native/headless carrier recipes, including the
+  simulator-proof material already assigned there.
+- T5 remains: run the fresh-agent adoption loops and add the resulting
+  freshness/drift gates for the now-complete template portfolio.
+- Ratification requested: confirm the T1 starter default of Sessions schema
+  plus intentionally public sample CRUD, rather than adding product-specific
+  sign-in UI to the generic dashboard.
+- Ratification requested: confirm the T2 public-feed default
+  (`public-immutable` + public-read references) with `private-strict` shown as a
+  separate intent, rather than making private delivery the main starter path.
+- The earlier T3 request remains: confirm explicitly partial D1 provenance for
+  starter receipts now, or schedule an authoritative D1 retrofit later.

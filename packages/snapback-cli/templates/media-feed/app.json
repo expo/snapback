@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "Snapback Media Feed",
+    "slug": "snapback-media-feed",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "platforms": ["ios", "android", "web"],
+    "web": { "bundler": "metro" },
+    "plugins": [
+      ["expo-image-picker", { "photosPermission": "Choose a photo for your journal." }]
+    ]
+  }
+}

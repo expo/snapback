@@ -1,0 +1,19 @@
+{
+  "seedVersion": "media-feed.v1",
+  "tables": {
+  "entries": [
+    { "_id": "entry_12", "ownerId": "seed_public", "authorName": "Mira", "caption": "Notes from the paper model.", "createdAt": 1760000012000 },
+    { "_id": "entry_11", "ownerId": "seed_public", "authorName": "Sol", "caption": "Late light across the workshop.", "createdAt": 1760000011000 },
+    { "_id": "entry_10", "ownerId": "seed_public", "authorName": "Inez", "caption": "A useful corner of the archive.", "createdAt": 1760000010000 },
+    { "_id": "entry_09", "ownerId": "seed_public", "authorName": "Mira", "caption": "Color study, version three.", "createdAt": 1760000009000 },
+    { "_id": "entry_08", "ownerId": "seed_public", "authorName": "Sol", "caption": "The prototype survived the train ride.", "createdAt": 1760000008000 },
+    { "_id": "entry_07", "ownerId": "seed_public", "authorName": "Inez", "caption": "Morning inventory.", "createdAt": 1760000007000 },
+    { "_id": "entry_06", "ownerId": "seed_public", "authorName": "Mira", "caption": "Two materials that belong together.", "createdAt": 1760000006000 },
+    { "_id": "entry_05", "ownerId": "seed_public", "authorName": "Sol", "caption": "A quiet test of scale.", "createdAt": 1760000005000 },
+    { "_id": "entry_04", "ownerId": "seed_public", "authorName": "Inez", "caption": "Pinned references for next week.", "createdAt": 1760000004000 },
+    { "_id": "entry_03", "ownerId": "seed_public", "authorName": "Mira", "caption": "The first clean assembly.", "createdAt": 1760000003000 },
+    { "_id": "entry_02", "ownerId": "seed_public", "authorName": "Sol", "caption": "A small change in texture.", "createdAt": 1760000002000 },
+    { "_id": "entry_01", "ownerId": "seed_public", "authorName": "Inez", "caption": "Where the journal began.", "createdAt": 1760000001000 }
+  ]
+  }
+}

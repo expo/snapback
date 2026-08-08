@@ -2953,7 +2953,7 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
     recovery: 'Use the emitted next command for truncated slices, or regenerate the Guide when registry identity mismatches.',
   },
   {
-    name: 'new', usage: 'snapback new <name> [--template todo-contract|react|expo-chat] [--json]',
+    name: 'new', usage: 'snapback new <name> [--template todo-contract|react|expo-chat|crud-dashboard|media-feed] [--json]',
     description: 'Scaffold a Snapback application from a packaged template.', lifecycle: 'one-shot',
     output: 'snapback.new.v1 JSON with --json; concise success text otherwise', exits: '0 success; 1 structured CLI/scaffold refusal',
     recovery: 'Fix the named argument/path diagnostic and rerun; existing files are not silently replaced.',
@@ -3596,7 +3596,7 @@ export async function runCli(argv, options = {}) {
   }
   if (command === 'new') {
     const target = args.shift();
-    if (!target) throw diagnosticError('SNAPBACK_NEW_NAME_REQUIRED', 'usage: snapback new <name> [--template todo-contract|react|expo-chat]');
+    if (!target) throw diagnosticError('SNAPBACK_NEW_NAME_REQUIRED', 'usage: snapback new <name> [--template todo-contract|react|expo-chat|crud-dashboard|media-feed]');
     const template = takeFlag(args, '--template', 'todo-contract');
     const result = scaffoldApp(target, { template });
     printResult(result, json);

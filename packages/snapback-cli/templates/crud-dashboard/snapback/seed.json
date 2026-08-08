@@ -1,0 +1,14 @@
+{
+  "seedVersion": "crud-dashboard.v1",
+  "tables": {
+  "teams": [
+    { "_id": "team_studio", "slug": "studio", "name": "Studio", "color": "#7654D6" },
+    { "_id": "team_platform", "slug": "platform", "name": "Platform", "color": "#087E8B" }
+  ],
+  "projects": [
+    { "_id": "project_atlas", "projectKey": "atlas", "teamSlug": "platform", "title": "Atlas refresh", "summary": "Unify the navigation model.", "status": "active", "budget": 48000, "updatedAt": 1760000000000 },
+    { "_id": "project_lantern", "projectKey": "lantern", "teamSlug": "studio", "title": "Lantern identity", "summary": "A calmer visual language.", "status": "planned", "budget": 32000, "updatedAt": 1760000001000 },
+    { "_id": "project_orbit", "projectKey": "orbit", "teamSlug": "platform", "title": "Orbit metrics", "summary": "Make health signals easier to scan.", "status": "paused", "budget": 26000, "updatedAt": 1760000002000 }
+  ]
+  }
+}
