@@ -379,10 +379,8 @@ jobs:
           test -f "$release_root/publish-ledger.json"
           test -f "$release_root/receipts/snapback-darwin-arm64-staged-receipt.json"
           test -f "$release_root/receipts/snapback-linux-x64-staged-receipt.json"
-          expected_package_count=$(node --input-type=module -e '
-            import { PACKAGE_INVENTORY } from "./scripts/snapback-publish-core.mjs";
-            process.stdout.write(String(PACKAGE_INVENTORY.length));
-          ')
+          expected_package_count=$(L="$release_root/publish-ledger.json" \
+            node -p 'JSON.parse(require("fs").readFileSync(process.env.L,"utf8")).packages.length')
           test "$(find "$release_root" -maxdepth 1 -name '*.tgz' | wc -l | tr -d ' ')" = "$expected_package_count"
           mkdir -p .eas-artifacts
           tar -czf .eas-artifacts/snapback-qualified-release.tar.gz \
