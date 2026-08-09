@@ -217,8 +217,10 @@ called without that optional reference.
 > command guarantees the asset's presence, so the pairing is
 > semantically satisfiable, and if it stays refused the diagnostic must
 > say why (contract-strictness: an optional argument admits a
-> text-only branch the required child forbids). Resolution rides the
-> G11 ticket; the descriptor shape is unchanged.
+> text-only branch the required child forbids). The normative
+> resolution is [LLP 0210](./0210-asset-upload-dx-closure.rfc.md) D4
+> (the super-refine vehicle); implementation rides the G11 ticket; the
+> descriptor shape is unchanged.
 
 ## Input and platform adapters
 

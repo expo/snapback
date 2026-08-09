@@ -1710,7 +1710,10 @@ converts that record (LLP 0208 G11 and the G4 asset slice;
 `issues/20260809-asset-upload-dx-papercuts-g11.md`,
 `issues/20260809-asset-recipient-grant-authority-g4.md`) into design.
 Items 1–3 are gap-closures inside the accepted design; item 4 is an open
-authority ruling.
+authority ruling. The normative elaboration lives in
+[LLP 0210](./0210-asset-upload-dx-closure.rfc.md) (the super-refine
+vehicle — this document is Accepted and not re-entered); on 0210's
+acceptance this addition gains a dated outcome note.
 
 **1. Client-arm signed issuance is owed, not new.** §Delivery profiles
 (`private-signed`) already states "the generated client refreshes it
