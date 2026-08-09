@@ -1549,6 +1549,30 @@ impl<'a> AssetAttemptsKernel<'a> {
             .attempt_finalize_generation_revoked(intent_id, policy_generation)
     }
 
+    #[cfg(test)]
+    pub fn test_revoke_intent_generation(
+        &mut self,
+        intent_id: &str,
+        policy_generation: u64,
+    ) -> SnapbackResult<()> {
+        self.db.asset_attempts_transaction(|tx| {
+            let changed = tx.execute(
+                "UPDATE _snapback_asset_intent_generations_v1
+                 SET revoked = 1
+                 WHERE intent_id = ?1 AND generation = ?2",
+                rusqlite::params![intent_id, policy_generation],
+            )?;
+            if changed != 1 {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_RECORD_INVALID",
+                    "assets",
+                    "the test generation to revoke does not exist",
+                ));
+            }
+            Ok(())
+        })
+    }
+
     pub fn attempt_finalize_commit_plan(
         &mut self,
         app_id: &str,
