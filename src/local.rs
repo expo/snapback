@@ -6903,6 +6903,10 @@ impl LocalSnapback {
         capability_manifest
     }
 
+    pub(crate) fn current_capability_manifest(&self) -> CapabilityManifest {
+        self.served_capability_manifest(self.capability_gaps())
+    }
+
     fn project_agent_safe_app_effective(&self, manifest: &mut CapabilityManifest) {
         use crate::manifest::{AgentSafeCapabilityFactsV1, TargetCapabilityId};
 

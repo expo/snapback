@@ -9084,6 +9084,13 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             app_function_route("POST", "/api/v1/action/{name}"),
             post(invoke_action),
         ),
+        // @ref LLP 0204#d6--code-mode-unified — the wire submission surface
+        // is real while execution remains separately gated on an evidenced
+        // untrusted-code target profile.
+        RegisteredRoute::new(
+            app_function_route("POST", "/api/v1/run"),
+            post(invoke_run).layer(DefaultBodyLimit::max(POLICY_BODY_PEEK_LIMIT)),
+        ),
         // @ref LLP 0204#d91--streaming-conversations — private
         // transcript reads and cancellation are app-data routes. Chunks stay
         // on the live socket; neither operation is an MCP transport.
@@ -10465,6 +10472,7 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
             Some(InvocationSource::HttpMutation)
         }
         "/action/{name}" | "/api/v1/action/{name}" => Some(InvocationSource::HttpAction),
+        "/api/v1/run" => Some(InvocationSource::HttpRun),
         "/streams/{attempt_token}" => Some(InvocationSource::HttpQuery),
         "/streams/{attempt_token}/cancel" => Some(InvocationSource::HttpAction),
         "/client-mutations/acknowledge" | "/client-mutations/identity-range" => {
@@ -12582,6 +12590,34 @@ async fn enforce_registered_route_policy_inner(
             None,
         );
     }
+    // The external surface enablement check precedes the handler's closed
+    // run-request decode. LLP 0058's forbidden body-authority check above is
+    // transport security, not run-request shape, and keeps its global
+    // precedence over every sessions-mode application refusal.
+    if spec.path == "/api/v1/run" {
+        let api_enabled = with_snapback(&runtime.snapback, |snapback| {
+            snapback.external_api_enabled()
+        })
+        .await;
+        if !api_enabled {
+            if let Some(context) = client_id_context.as_ref()
+                && context.declared.is_some()
+            {
+                context.set_status("ignored-api-disabled");
+            }
+            return finish_registered_response(
+                effective,
+                ApiError::from(SnapbackError::error(
+                    "SNAPBACK_API_NOT_ENABLED",
+                    "api",
+                    "the application has not enabled its external API surface",
+                ))
+                .into_response(),
+                route_admission.as_ref(),
+                None,
+            );
+        }
+    }
     // @ref LLP 0077#http-binding — sender admission gates body access first;
     // then forbidden wire authority wins before ordinary SessionAuth
     // projection. Retain that exact projection through final publication.
@@ -13235,6 +13271,7 @@ async fn enforce_registered_route_policy_inner(
                 InvocationSource::HttpQuery
                     | InvocationSource::HttpMutation
                     | InvocationSource::HttpAction
+                    | InvocationSource::HttpRun
                     | InvocationSource::HttpMcp
             )
         )
@@ -16274,6 +16311,7 @@ fn network_profile_refusal_lane(
         "/action/{name}" | "/api/v1/action/{name}" => {
             Some(crate::network_profile::NetworkEgressLane::QueryResponse)
         }
+        "/api/v1/run" => Some(crate::network_profile::NetworkEgressLane::QueryResponse),
         _ => None,
     }
 }
@@ -21292,8 +21330,111 @@ fn external_api_route(spec: RouteSpec) -> bool {
         "/api/v1/query/{name}"
             | "/api/v1/mutation/{name}"
             | "/api/v1/action/{name}"
+            | "/api/v1/run"
             | "/mcp"
     )
+}
+
+const RUN_PROGRAM_MAX_BYTES: usize = 1024 * 1024;
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ExternalRunRequest {
+    program: String,
+    envelope_digest: String,
+    #[serde(default)]
+    args: serde_json::Map<String, Value>,
+}
+
+async fn current_target_capability_manifest(
+    runtime: &AppState,
+) -> crate::manifest::CapabilityManifest {
+    with_snapback(&runtime.snapback, |snapback| {
+        snapback.current_capability_manifest()
+    })
+    .await
+}
+
+/// The single executor-promotion seam. A target that fails the evidence gate
+/// returns that gate's typed refusal. Even a future target whose manifest
+/// passes remains refused here until an author-gated landing replaces this
+/// match arm with the complete checker/executor; there is no partial executor
+/// behind today's unevidenced profiles.
+fn run_code_capability_refusal(
+    manifest: &crate::manifest::CapabilityManifest,
+) -> SnapbackError {
+    match crate::manifest::untrusted_code_profile_evidenced(manifest) {
+        Err(error) => error,
+        Ok(()) => SnapbackError::error(
+            "SNAPBACK_API_RUN_UNTRUSTED_CODE_UNSUPPORTED",
+            "api",
+            "this target's untrusted-code executor has not been author-promoted",
+        )
+        .with_details(json!({
+            "targetProfileId": manifest.target_profile_id,
+            "capabilityGap": "hosted_untrusted_code",
+            "gapDeclared": false,
+            "unevidencedLimits": [],
+            "executorPromoted": false,
+        })),
+    }
+}
+
+/// `POST /api/v1/run` validates the real wire contract, then stops at the
+/// target evidence gate. The caller authority is intentionally extracted even
+/// though no executor ships: the future injected client must remain bound to
+/// this prepared grant and route every nested call through ordinary admission.
+///
+/// @ref LLP 0204#d6--code-mode-unified — submissions are bounded and digest
+///   bound; programs have no ambient authority.
+/// @ref LLP 0047#capability-manifest — execution is refused unless every
+///   required target limit is evidenced as enforced.
+async fn invoke_run(
+    State(runtime): State<AppState>,
+    Extension(_authority): Extension<PreparedAuthority>,
+    input: Result<Json<ExternalRunRequest>, JsonRejection>,
+) -> Response {
+    let Json(request) = match input.map_err(ApiError::from_json_rejection) {
+        Ok(request) => request,
+        Err(error) => return error.into_response(),
+    };
+    let ExternalRunRequest {
+        program,
+        envelope_digest,
+        args: _args,
+    } = request;
+    let program_bytes = program.len();
+    if program_bytes > RUN_PROGRAM_MAX_BYTES {
+        return ApiError::from(
+            SnapbackError::error(
+                "SNAPBACK_API_RUN_PROGRAM_TOO_LARGE",
+                "api",
+                "the submitted code-mode program exceeds the 1 MiB limit",
+            )
+            .with_details(json!({
+                "maximumBytes": RUN_PROGRAM_MAX_BYTES,
+                "actualBytes": program_bytes,
+            })),
+        )
+        .into_response();
+    }
+    let (current_digest, _) = match current_app_api_envelope(&runtime).await {
+        Ok(envelope) => envelope,
+        Err(error) => return error.into_response(),
+    };
+    if envelope_digest != current_digest {
+        return ApiError::from(
+            SnapbackError::error(
+                "SNAPBACK_API_RUN_ENVELOPE_STALE",
+                "api",
+                "the submitted code-mode program targets a stale API envelope",
+            )
+            .with_details(json!({ "currentEnvelopeDigest": current_digest })),
+        )
+        .into_response();
+    }
+    let manifest = current_target_capability_manifest(&runtime).await;
+    ApiError::from(run_code_capability_refusal(&manifest)).into_response()
 }
 
 fn external_api_escalation(lane: &str) -> Value {

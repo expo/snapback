@@ -761,6 +761,15 @@
     },
     {
       "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/api/v1/run",
+      "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
       "credential_resolution": "None",
       "inputSchema": null,
       "method": "GET",

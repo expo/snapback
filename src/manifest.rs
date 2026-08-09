@@ -10193,7 +10193,7 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:360cd983f0c594569bac9e404340480722909c7dbfa05a04cc384c56a1c5fa82";
+    "sha256:ca7c13052a557a0eadb8747eef1e6105a76b2efe597e9a68ed6196e4f69dda17";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
@@ -10599,7 +10599,7 @@ fn local_relation_activity_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:d8176a10f966afbcf5063fd29b1c3ce27efcd0248610e87e0784635f5901a031"
+                    "sha256:02d4ca6f1c3744acb4bf497028e3ecb744ccc0311ae85aa39a2e4122470a425d"
                         .to_owned(),
                 ),
                 (
@@ -11096,7 +11096,7 @@ fn local_persistent_store_contributor_chain_verified(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:d8176a10f966afbcf5063fd29b1c3ce27efcd0248610e87e0784635f5901a031"
+                    "sha256:02d4ca6f1c3744acb4bf497028e3ecb744ccc0311ae85aa39a2e4122470a425d"
                         .to_owned(),
                 ),
                 (
@@ -12738,6 +12738,107 @@ pub enum ResourceLimitStatus {
     Enforced,
     Advisory,
     Missing,
+}
+
+const UNTRUSTED_CODE_REQUIRED_LIMITS: [&str; 8] = [
+    "wall_clock_timeout",
+    "action_wall_clock_timeout",
+    "cpu_budget",
+    "maximum_result_size",
+    "maximum_rows_read",
+    "maximum_rows_written",
+    "maximum_host_call_count",
+    "maximum_heap_size",
+];
+
+/// Decide only whether a target manifest carries the evidence profile required
+/// to admit adversary-authored code. This is not an executor-availability
+/// check: removing the composite gap and enforcing every LLP 0047 row are both
+/// necessary, and owner-code runtime qualification supplies neither fact.
+///
+/// @ref LLP 0204#d6--code-mode-unified — untrusted code is a separate,
+///   per-target evidenced capability; owner-code qualification never counts.
+/// @ref LLP 0047#limits — every untrusted-execution resource limit must be
+///   enforced, never advisory or missing.
+pub(crate) fn untrusted_code_profile_evidenced(
+    manifest: &CapabilityManifest,
+) -> SnapbackResult<()> {
+    let gap_declared = manifest
+        .capability_gaps
+        .iter()
+        .any(|gap| gap == "hosted_untrusted_code");
+    let unevidenced_limits = UNTRUSTED_CODE_REQUIRED_LIMITS
+        .into_iter()
+        .filter(|required| {
+            let mut rows = manifest
+                .resource_limits
+                .iter()
+                .filter(|limit| limit.name == *required);
+            !matches!(
+                (rows.next(), rows.next()),
+                (Some(ResourceLimit { status: ResourceLimitStatus::Enforced, .. }), None)
+            )
+        })
+        .collect::<Vec<_>>();
+    if !gap_declared && unevidenced_limits.is_empty() {
+        return Ok(());
+    }
+    Err(SnapbackError::error(
+        "SNAPBACK_API_RUN_UNTRUSTED_CODE_UNSUPPORTED",
+        "api",
+        "this target does not carry the evidenced untrusted-code execution profile",
+    )
+    .with_details(serde_json::json!({
+        "targetProfileId": manifest.target_profile_id,
+        "capabilityGap": "hosted_untrusted_code",
+        "gapDeclared": gap_declared,
+        "unevidencedLimits": unevidenced_limits,
+    })))
+}
+
+#[cfg(test)]
+mod untrusted_code_profile_tests {
+    use super::*;
+
+    #[test]
+    fn local_manifest_refuses_untrusted_code_profile() {
+        let error = untrusted_code_profile_evidenced(&CapabilityManifest::local_v0_declared())
+            .expect_err("the local owner-code runtime is not an untrusted-code profile");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_API_RUN_UNTRUSTED_CODE_UNSUPPORTED"
+        );
+        assert_eq!(error.diagnostic.details["gapDeclared"], true);
+        assert!(error.diagnostic.details["unevidencedLimits"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|limit| limit == "cpu_budget"));
+    }
+
+    #[test]
+    fn synthetic_manifest_passes_only_with_gap_absent_and_every_limit_enforced() {
+        let mut manifest = CapabilityManifest::local_v0_declared();
+        manifest
+            .capability_gaps
+            .retain(|gap| gap != "hosted_untrusted_code");
+        for required in UNTRUSTED_CODE_REQUIRED_LIMITS {
+            if let Some(limit) = manifest
+                .resource_limits
+                .iter_mut()
+                .find(|limit| limit.name == required)
+            {
+                limit.status = ResourceLimitStatus::Enforced;
+            } else {
+                manifest.resource_limits.push(ResourceLimit {
+                    name: required.to_owned(),
+                    status: ResourceLimitStatus::Enforced,
+                });
+            }
+        }
+        untrusted_code_profile_evidenced(&manifest)
+            .expect("the synthetic complete profile is accepted only as a gate fixture");
+    }
 }
 
 /// The declared (instance-independent) capability gaps of the local v0

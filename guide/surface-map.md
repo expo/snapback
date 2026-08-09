@@ -104,6 +104,7 @@ here (or listed here but gone from the code).
 | /api/v1/action/{name} | backend.actions |
 | /api/v1/mutation/{name} | backend.functions |
 | /api/v1/query/{name} | backend.functions |
+| /api/v1/run | api.external-exposure |
 | /.well-known/oauth-authorization-server | api.external-exposure |
 | /.well-known/oauth-protected-resource | api.external-exposure |
 | /app-api/agent-skill | api.external-exposure |

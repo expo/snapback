@@ -1241,6 +1241,9 @@ fn route_schema_refs(method: &str, path: &str) -> (Option<&'static str>, Option<
         // LLP 0204 D3: MCP is a JSON-RPC protocol projection generated from
         // the current envelope, not a Rust-owned route DTO. Null is honest.
         ("POST" | "GET" | "DELETE", "/mcp") => (None, None),
+        // LLP 0204 D6: the registered submission DTO has no committed shared
+        // artifact schema until a target earns and ships the executor.
+        ("POST", "/api/v1/run") => (None, None),
         ("GET", "/auth/session") => (None, Some("auth.session.output.schema.json")),
         ("POST", "/auth/request-code") => (
             Some("auth.request-code.input.schema.json"),

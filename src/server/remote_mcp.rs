@@ -150,7 +150,7 @@ async fn dispatch(
                 "resources": { "subscribe": false, "listChanged": false }
             },
             "serverInfo": { "name": "snapback-app", "version": env!("CARGO_PKG_VERSION") },
-            "instructions": "Tools are generated from the current exposed Snapback API envelope. run_code and ask are not available in this S2 server; they are deferred to S4."
+            "instructions": "Tools are generated from the current exposed Snapback API envelope. run_code is registered but executes only on targets carrying the evidenced untrusted-code profile; current targets return a typed capability refusal. ask is deferred to LLP 0204 S4-C."
         })),
         "ping" => Ok(json!({})),
         "tools/list" => Ok(tool_list(catalog, authority)),
@@ -296,11 +296,27 @@ fn function_tool_name(function_id: &str, taken: &mut BTreeSet<String>) -> String
 }
 
 fn tool_list(catalog: &Catalog, _authority: &PreparedAuthority) -> Value {
-    let mut tools = vec![json!({
-        "name": "describe_api",
-        "description": "Describe the current generated Snapback external API and discovery pointers.",
-        "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
-    })];
+    let mut tools = vec![
+        json!({
+            "name": "describe_api",
+            "description": "Describe the current generated Snapback external API and discovery pointers.",
+            "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
+        }),
+        json!({
+            "name": "run_code",
+            "description": "Submit a bounded TypeScript code-mode program against an exact envelope digest. Execution is per-target conditional on the evidenced untrusted-code profile; targets without it return SNAPBACK_API_RUN_UNTRUSTED_CODE_UNSUPPORTED.",
+            "inputSchema": {
+                "type": "object",
+                "required": ["program", "envelopeDigest"],
+                "properties": {
+                    "program": { "type": "string" },
+                    "envelopeDigest": { "type": "string" },
+                    "args": { "type": "object" }
+                },
+                "additionalProperties": false
+            }
+        }),
+    ];
     tools.extend(
         function_tools(catalog)
             .into_iter()
@@ -331,8 +347,7 @@ fn tool_list(catalog: &Catalog, _authority: &PreparedAuthority) -> Value {
         "_meta": {
             "snapback/envelopeDigest": catalog.digest,
             "snapback/deferredTools": {
-                "run_code": "deferred to LLP 0204 S4",
-                "ask": "deferred to LLP 0204 S4"
+                "ask": "deferred to LLP 0204 S4-C"
             }
         }
     })
@@ -361,11 +376,17 @@ async fn call_tool(
         }
         return Ok(successful_tool_result(describe_api(catalog)));
     }
-    if matches!(name, "run_code" | "ask") {
+    if name == "run_code" {
+        let manifest = super::current_target_capability_manifest(runtime).await;
+        let response = ApiError::from(super::run_code_capability_refusal(&manifest))
+            .into_response();
+        return response_to_tool_result(response).await;
+    }
+    if name == "ask" {
         return Err(RpcFailure {
             code: -32602,
-            message: format!("{name} is deferred to LLP 0204 S4 and is not available"),
-            data: Some(json!({ "deferredTo": "S4", "describeTool": "describe_api" })),
+            message: "ask is deferred to LLP 0204 S4-C and is not available".to_owned(),
+            data: Some(json!({ "deferredTo": "S4-C", "describeTool": "describe_api" })),
         });
     }
     let tools = function_tools(catalog);
@@ -506,13 +527,18 @@ fn describe_api(catalog: &Catalog) -> Value {
         "mcp": "/mcp",
         "authorizationServer": "/.well-known/oauth-authorization-server",
         "protectedResource": "/.well-known/oauth-protected-resource",
+        "runCode": {
+            "path": "/api/v1/run",
+            "conditionalOn": "evidenced untrusted-code target profile",
+            "unsupportedCode": "SNAPBACK_API_RUN_UNTRUSTED_CODE_UNSUPPORTED"
+        },
         "transport": {
             "kind": "streamable-http",
             "stateless": true,
             "serverInitiatedStreams": false,
             "sessionId": null
         },
-        "deferredTools": { "run_code": "LLP 0204 S4", "ask": "LLP 0204 S4" }
+        "deferredTools": { "ask": "LLP 0204 S4-C" }
     })
 }
 

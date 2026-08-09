@@ -199,6 +199,9 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_API_DECLARED_CLIENTS_UNAVAILABLE" => {
             StatusCode::FORBIDDEN
         }
+        "SNAPBACK_API_RUN_ENVELOPE_STALE" => StatusCode::CONFLICT,
+        "SNAPBACK_API_RUN_PROGRAM_TOO_LARGE" => StatusCode::PAYLOAD_TOO_LARGE,
+        "SNAPBACK_API_RUN_UNTRUSTED_CODE_UNSUPPORTED" => StatusCode::NOT_IMPLEMENTED,
         "SNAPBACK_AUTH_AGENT_INVITATION_CAP" => StatusCode::TOO_MANY_REQUESTS,
         "SNAPBACK_AUTH_INTEGRATION_UNKNOWN" | "SNAPBACK_API_DECLARED_CLIENT_UNKNOWN" => {
             StatusCode::NOT_FOUND

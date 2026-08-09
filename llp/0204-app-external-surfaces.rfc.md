@@ -6,9 +6,12 @@
 Hosted platform, Developer experience, Docs
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-08
-**Revised:** 2026-08-09 (S4 Landing A implements the bounded private
-streaming-action primitive described in D9.1; `ask`, wire `run_code`, SSE,
-shared viewing, history queries, and token accounting remain deferred).
+**Revised:** 2026-08-09 (S4 Landing B registers `/api/v1/run` and MCP
+`run_code` with bounded/digest validation and the shared per-target typed
+untrusted-code refusal; no target is promoted and no checker/executor ships.
+Earlier S4 Landing A implements the bounded private streaming-action primitive
+described in D9.1; `ask`, SSE, shared viewing, history queries, and token
+accounting remain deferred).
 2026-08-08 (v0.7 — **Accepted** by author direction after
 the OQ8 refinement: the declared-tier contact requirement is satisfied
 by an e-mail address embedded in the client-id string itself, no
@@ -514,6 +517,14 @@ shared by all surfaces:
 Code mode is explicitly **not** durable app code: no schema access beyond
 the client, no registration, no persistence between runs. It is a query
 plan, not a deployment.
+
+**Implementation note (S4 Landing B, 2026-08-09):** `/api/v1/run` is a
+registered, bounded, envelope-digest-bound surface and MCP `run_code` is a real
+tool, but every current target returns the same typed untrusted-code capability
+refusal. The evidence gate reads the `hosted_untrusted_code` gap plus LLP
+0047's enforced resource-limit rows. No server-side checker or executor exists
+behind the unevidenced profile; author-gated target promotion remains the next
+step.
 
 ## D7 — Integration records, admission, and metering
 

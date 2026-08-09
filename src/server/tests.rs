@@ -3355,7 +3355,11 @@ async fn remote_mcp_stateless_protocol_lists_and_calls_the_anonymous_external_se
     assert!(initialized["result"]["instructions"]
         .as_str()
         .unwrap()
-        .contains("deferred to S4"));
+        .contains("evidenced untrusted-code profile"));
+    assert!(initialized["result"]["instructions"]
+        .as_str()
+        .unwrap()
+        .contains("S4-C"));
 
     let mut rebound = mcp_protocol_request(
         "POST",
@@ -3398,6 +3402,15 @@ async fn remote_mcp_stateless_protocol_lists_and_calls_the_anonymous_external_se
         .unwrap();
     assert_eq!(listed.status(), StatusCode::OK);
     let listed = response_json(listed).await;
+    assert!(listed["result"]["tools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|tool| tool["name"] == "run_code")
+        .unwrap()["description"]
+        .as_str()
+        .unwrap()
+        .contains("per-target conditional"));
     let tools = listed["result"]["tools"]
         .as_array()
         .unwrap()
@@ -3408,13 +3421,68 @@ async fn remote_mcp_stateless_protocol_lists_and_calls_the_anonymous_external_se
         tools,
         BTreeSet::from([
             "describe_api",
+            "run_code",
             "snapback_fn_fn_listitems",
             "snapback_fn_fn_liveitems",
         ])
     );
+    assert!(listed["result"]["_meta"]["snapback/deferredTools"]["run_code"].is_null());
     assert_eq!(
-        listed["result"]["_meta"]["snapback/deferredTools"]["run_code"],
-        "deferred to LLP 0204 S4"
+        listed["result"]["_meta"]["snapback/deferredTools"]["ask"],
+        "deferred to LLP 0204 S4-C"
+    );
+
+    let described = router
+        .clone()
+        .oneshot(mcp_protocol_request(
+            "POST",
+            json!({
+                "jsonrpc": "2.0",
+                "id": 8,
+                "method": "tools/call",
+                "params": { "name": "describe_api", "arguments": {} }
+            }),
+            None,
+            None,
+            None,
+        ))
+        .await
+        .unwrap();
+    let described = response_json(described).await;
+    assert_eq!(
+        described["result"]["structuredContent"]["runCode"]["path"],
+        "/api/v1/run"
+    );
+    assert!(described["result"]["structuredContent"]["deferredTools"]["run_code"].is_null());
+
+    let run_code = router
+        .clone()
+        .oneshot(mcp_protocol_request(
+            "POST",
+            json!({
+                "jsonrpc": "2.0",
+                "id": 9,
+                "method": "tools/call",
+                "params": {
+                    "name": "run_code",
+                    "arguments": {
+                        "program": "return null",
+                        "envelopeDigest": listed["result"]["_meta"]["snapback/envelopeDigest"],
+                        "args": {}
+                    }
+                }
+            }),
+            None,
+            None,
+            None,
+        ))
+        .await
+        .unwrap();
+    let run_code = response_json(run_code).await;
+    assert_eq!(run_code["result"]["isError"], true);
+    assert_eq!(
+        run_code["result"]["structuredContent"]["error"]["diagnostic"]["code"],
+        "SNAPBACK_API_RUN_UNTRUSTED_CODE_UNSUPPORTED"
     );
 
     let resources = router
@@ -3938,6 +4006,7 @@ async fn oauth_metadata_and_full_authorization_code_journey_are_enabled_only_and
         mcp_tool_names,
         BTreeSet::from([
             "describe_api",
+            "run_code",
             "snapback_fn_fn_authenticateditems",
             "snapback_fn_fn_listitems",
             "snapback_fn_fn_queuedwrite",
@@ -4759,6 +4828,124 @@ async fn external_api_v1_refuses_when_the_app_did_not_enable_it() {
         response_json(response).await["diagnostic"]["code"],
         "SNAPBACK_API_NOT_ENABLED"
     );
+}
+
+#[tokio::test]
+async fn external_run_refusal_order_is_surface_shape_digest_then_capability() {
+    let request = |body: Vec<u8>| {
+        Request::builder()
+            .method("POST")
+            .uri("/api/v1/run")
+            .header(header::CONTENT_TYPE, "application/json")
+            .header("x-snapback-auth-client-protocol", "1")
+            .body(Body::from(body))
+            .unwrap()
+    };
+
+    let disabled = app(sessions_activation_server_fixture_async().await)
+        .oneshot(request(br#"{"#.to_vec()))
+        .await
+        .unwrap();
+    assert_eq!(disabled.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        response_json(disabled).await["diagnostic"]["code"],
+        "SNAPBACK_API_NOT_ENABLED"
+    );
+
+    let state = sessions_activation_server_fixture_with_integrations_async().await;
+    let current_digest = with_snapback(&state.snapback, |snapback| {
+        snapback.current_app_api_envelope()
+    })
+    .await
+    .unwrap()
+    .0;
+    let router = app(state);
+
+    let malformed = router
+        .clone()
+        .oneshot(request(serde_json::to_vec(&json!({})).unwrap()))
+        .await
+        .unwrap();
+    assert_eq!(malformed.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        response_json(malformed).await["diagnostic"]["code"],
+        "SNAPBACK_REQUEST_JSON_INVALID"
+    );
+
+    let oversized = router
+        .clone()
+        .oneshot(request(
+            serde_json::to_vec(&json!({
+                "program": "x".repeat(super::RUN_PROGRAM_MAX_BYTES + 1),
+                "envelopeDigest": "stale-on-purpose",
+                "args": {}
+            }))
+            .unwrap(),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(oversized.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    assert_eq!(
+        response_json(oversized).await["diagnostic"]["code"],
+        "SNAPBACK_API_RUN_PROGRAM_TOO_LARGE"
+    );
+
+    let stale = router
+        .clone()
+        .oneshot(request(
+            serde_json::to_vec(&json!({
+                "program": "return null",
+                "envelopeDigest": "stale-on-purpose",
+                "args": {}
+            }))
+            .unwrap(),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(stale.status(), StatusCode::CONFLICT);
+    let stale = response_json(stale).await;
+    assert_eq!(
+        stale["diagnostic"]["code"],
+        "SNAPBACK_API_RUN_ENVELOPE_STALE"
+    );
+    assert_eq!(
+        stale["diagnostic"]["details"]["currentEnvelopeDigest"],
+        current_digest
+    );
+
+    let unsupported = router
+        .oneshot(request(
+            serde_json::to_vec(&json!({
+                "program": "return null",
+                "envelopeDigest": current_digest,
+                "args": { "question": "kept opaque until execution exists" }
+            }))
+            .unwrap(),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(unsupported.status(), StatusCode::NOT_IMPLEMENTED);
+    let unsupported = response_json(unsupported).await;
+    assert_eq!(
+        unsupported["diagnostic"]["code"],
+        "SNAPBACK_API_RUN_UNTRUSTED_CODE_UNSUPPORTED"
+    );
+    assert_eq!(unsupported["diagnostic"]["details"]["gapDeclared"], true);
+}
+
+#[test]
+fn external_run_schema_join_is_intentionally_null_until_executor_promotion() {
+    let artifact = crate::schema_export::http_routes_artifact();
+    let rows = artifact["routes"]
+        .as_array()
+        .expect("HTTP route/schema join rows");
+    let matching = rows
+        .iter()
+        .filter(|row| row["method"] == "POST" && row["path"] == "/api/v1/run")
+        .collect::<Vec<_>>();
+    assert_eq!(matching.len(), 1, "registered run route has one schema row");
+    assert_eq!(matching[0]["inputSchema"], Value::Null);
+    assert_eq!(matching[0]["outputSchema"], Value::Null);
 }
 
 fn finite_authority_matrix_functions() -> FunctionManifest {
@@ -18229,6 +18416,7 @@ const CONFLICT_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_STREAM_CANCELLED",
     "SNAPBACK_STREAM_RUNNER_FENCED",
     "SNAPBACK_STREAM_TERMINAL",
+    "SNAPBACK_API_RUN_ENVELOPE_STALE",
     "SNAPBACK_AUTH_INTEGRATION_CATALOG_CORRUPT",
     "SNAPBACK_AUTH_INTEGRATION_CLASS_INVALID",
     "SNAPBACK_API_DECLARED_CLIENT_CATALOG_CORRUPT",
@@ -18390,6 +18578,7 @@ const PAYLOAD_TOO_LARGE_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_STREAM_CHUNK_TOO_LARGE",
     "SNAPBACK_STREAM_ATTEMPT_LIMIT_EXCEEDED",
     "SNAPBACK_STREAM_FINAL_TOO_LARGE",
+    "SNAPBACK_API_RUN_PROGRAM_TOO_LARGE",
     // Bounded branch/checkpoint/proof byte work is request-size-shaped.
     "SNAPBACK_BRANCH_BYTE_LIMIT_EXCEEDED",
     "SNAPBACK_BRANCH_DIGEST_WORK_LIMIT_EXCEEDED",
@@ -18492,7 +18681,10 @@ const BAD_GATEWAY_DIAGNOSTICS: &[&str] = &[
 ];
 
 const MISDIRECTED_REQUEST_DIAGNOSTICS: &[&str] = &["SNAPBACK_ADMIN_RELAY_HOST_REFUSED"];
-const NOT_IMPLEMENTED_DIAGNOSTICS: &[&str] = &["SNAPBACK_ADMIN_RELAY_WEBSOCKET_UNAVAILABLE"];
+const NOT_IMPLEMENTED_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_ADMIN_RELAY_WEBSOCKET_UNAVAILABLE",
+    "SNAPBACK_API_RUN_UNTRUSTED_CODE_UNSUPPORTED",
+];
 
 const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_AUTH_OAUTH_UNAVAILABLE",

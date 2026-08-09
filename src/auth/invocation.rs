@@ -762,6 +762,10 @@ pub enum InvocationSource {
     HttpQuery,
     HttpMutation,
     HttpAction,
+    /// The outer authority for one bounded `/api/v1/run` program. The
+    /// program is not an app function; any injected-client calls prepare
+    /// their own ordinary finite invocation sources.
+    HttpRun,
     /// Streamable-HTTP MCP multiplexes every finite function kind behind one
     /// registered route; the tool dispatcher still enters the same per-kind
     /// finite invocation handlers as `/api/v1/*`.
@@ -831,7 +835,7 @@ pub enum FunctionKindConstraint {
 }
 
 impl InvocationSource {
-    pub const ALL: [Self; 37] = [
+    pub const ALL: [Self; 38] = [
         Self::BootstrapHandshake,
         Self::AuthRefresh,
         Self::AuthLogout,
@@ -840,6 +844,7 @@ impl InvocationSource {
         Self::HttpQuery,
         Self::HttpMutation,
         Self::HttpAction,
+        Self::HttpRun,
         Self::HttpMcp,
         Self::LocalQuery,
         Self::LocalMutation,
@@ -895,6 +900,7 @@ impl InvocationSource {
             | Self::AuthLogout
             | Self::PushTokenRegistry
             | Self::AgentGrantManagement
+            | Self::HttpRun
             | Self::ProtectedRecordErasure
             | Self::OperationCoverageActivation
             | Self::MutationSettlementAcknowledgement
@@ -1899,6 +1905,7 @@ fn source_allows_authority(
         InvocationSource::HttpQuery
         | InvocationSource::HttpMutation
         | InvocationSource::HttpAction
+        | InvocationSource::HttpRun
         | InvocationSource::HttpMcp => {
             ordinary
                 || (mode == AuthMode::Sessions
@@ -2787,6 +2794,7 @@ mod tests {
                 InvocationSource::HttpQuery
                 | InvocationSource::HttpMutation
                 | InvocationSource::HttpAction
+                | InvocationSource::HttpRun
                 | InvocationSource::HttpMcp => {
                     ordinary || matches!((mode, kind), (AuthMode::Sessions, Kind::Service))
                 }

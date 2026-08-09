@@ -250,6 +250,7 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/api/v1/mutation/{name}"),
         ("POST", "/action/{name}"),
         ("POST", "/api/v1/action/{name}"),
+        ("POST", "/api/v1/run"),
         ("GET", "/streams/{attempt_token}"),
         ("POST", "/streams/{attempt_token}/cancel"),
         ("POST", "/app/bundle"),
@@ -478,6 +479,29 @@ fn remote_mcp_rows_pin_the_app_data_policy_tuple() {
         assert_eq!(sessions.invocation_authority, InvocationAuthority::ResolvedCaller);
         assert_eq!(sessions.legacy_body_policy, LegacyBodyPolicy::Rejected);
     }
+}
+
+#[test]
+fn external_run_row_pins_the_app_data_policy_tuple() {
+    let route = route_registry()
+        .into_iter()
+        .find(|route| route.method == "POST" && route.path == "/api/v1/run")
+        .expect("the run surface is registered");
+    assert_eq!(route.class, RouteClass::AppData);
+    assert_eq!(route.path_policy, RoutePolicy::AppAuth);
+    assert_eq!(route.credential_resolution, CredentialResolution::LegacyBodyAuth);
+    assert_eq!(route.invocation_authority, InvocationAuthority::ClientAsserted);
+    assert_eq!(route.legacy_body_policy, LegacyBodyPolicy::Allowed);
+    assert_eq!(route.response_sensitivity, ResponseSensitivity::ApplicationData);
+
+    let sessions = route.effective_for(PolicyAuthMode::Sessions);
+    assert_eq!(sessions.path_policy, RoutePolicy::Public);
+    assert_eq!(
+        sessions.credential_resolution,
+        CredentialResolution::OptionalSessionOrScopedToken
+    );
+    assert_eq!(sessions.invocation_authority, InvocationAuthority::ResolvedCaller);
+    assert_eq!(sessions.legacy_body_policy, LegacyBodyPolicy::Rejected);
 }
 
 #[test]
@@ -1084,6 +1108,7 @@ fn session_overlay_closes_every_client_asserted_http_route() {
                     | "/api/v1/mutation/{name}"
                     | "/action/{name}"
                     | "/api/v1/action/{name}"
+                    | "/api/v1/run"
                     | "/mcp"
                     | "/app/bundle" => {
                         CredentialResolution::OptionalSessionOrScopedToken
@@ -2218,6 +2243,18 @@ fn session_http_body_probes() -> BTreeMap<(&'static str, &'static str), SessionB
             SessionBodyProbe {
                 uri: "/api/v1/action/missing_function",
                 base: json!({ "args": {} }),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("POST", "/api/v1/run"),
+            SessionBodyProbe {
+                uri: "/api/v1/run",
+                base: json!({
+                    "program": "return null",
+                    "envelopeDigest": "policy_probe",
+                    "args": {}
+                }),
                 forbidden_fields: handler_fields(),
             },
         ),

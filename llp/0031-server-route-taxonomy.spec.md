@@ -5,8 +5,9 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-08-09 (LLP 0204 S4 Landing A private stream transcript and
-cancel routes; earlier S2 Landing E remote MCP server and Landing C local OAuth facade;
+**Revised:** 2026-08-09 (LLP 0204 S4 Landing B registers `/api/v1/run` with
+bounded/digest validation and the evidenced untrusted-code refusal; earlier S4 Landing A private
+stream transcript and cancel routes, S2 Landing E remote MCP server, and Landing C local OAuth facade;
 earlier Landing B declared-client operator routes, Landing A integration lifecycle, and S1 `/api/v1` plus
 `api.origins` bearer-token CORS — see dated amendments).
 2026-08-08 (hosted app-data SPA-fallback refusal: reserved
@@ -1624,8 +1625,10 @@ oracle.
 `resources/read` are implemented. The three read-only resources are generated
 from the same current envelope: the canonical envelope, OpenAPI projection,
 and agent skill. `describe_api` generates their HTTP discovery pointers and
-the OAuth metadata pointers. `run_code` and `ask` are deliberately absent and
-advertised as deferred to LLP 0204 S4; this landing does not implement either.
+the OAuth metadata pointers. At S2 Landing E, `run_code` and `ask` were
+deliberately absent and advertised as deferred to LLP 0204 S4. S4 Landing B
+now registers `run_code` with the same per-target typed capability refusal as
+`/api/v1/run`; `ask` remains deferred to S4-C.
 
 Bearer facade tokens, anonymous external admission, exposure and exact grant
 scope, suspension, network/declared/integration budgets, and caller
@@ -1636,10 +1639,13 @@ The JSON-RPC route has honest-null schema references because its method and
 tool schemas are generated from the current envelope rather than committed as
 standalone Rust DTO schema artifacts.
 
-## Dated amendment: LLP 0204 S4 private stream routes (2026-08-09)
+## Dated amendment: LLP 0204 S4 external execution surfaces (2026-08-09)
 
-**Commissioned by:** [LLP 0204](./0204-app-external-surfaces.rfc.md) D9.1;
-**implemented** by `S4 Landing A`.
+**Commissioned by:** [LLP 0204](./0204-app-external-surfaces.rfc.md) D6 and D9.1;
+**implemented** by `S4 Landing A` (private streams) and `S4 Landing B`
+(`/api/v1/run` registered refusal surface).
+
+### Private stream routes
 
 The first streaming-conversation landing adds two exact root AppData route
 rows. Neither is a chunk transport: live chunks use the already-classified
@@ -1668,6 +1674,34 @@ Route registry parity, invocation-source mapping (`HttpQuery` for transcript
 read, `HttpAction` for cancel), sessions carrier coverage, empty-body probes,
 error status mapping, and the guide surface map cover both exact rows. The
 remote `/mcp` contract remains stateless and does not gain GET streaming.
+
+### Registered code-mode submission
+
+`POST /api/v1/run` is a fourth exact `/api/v1` AppData row with the finite
+family's dev tuple and sessions overlay: `AppAuth` / `LegacyBodyAuth` /
+`ClientAsserted` becomes `Public` / `OptionalSessionOrScopedToken` /
+`ResolvedCaller`, legacy body authority is rejected, and the response class is
+`ApplicationData`. Its `InvocationSource::HttpRun` is authority-only: a code
+program is not an app function, and any eventual injected-client calls must
+prepare the ordinary per-kind finite sources independently.
+
+The handler validates the real submission contract in this order after the
+registered transport/authority gates: `api.enabled`; a closed JSON object with
+`program` (at most 1 MiB), `envelopeDigest`, and optional object `args`; exact
+match with the current envelope digest; then the D6 capability gate. A stale
+digest is `SNAPBACK_API_RUN_ENVELOPE_STALE` (409) and carries the current
+digest. Every current target reaches
+`SNAPBACK_API_RUN_UNTRUSTED_CODE_UNSUPPORTED` (501): the gate requires the
+`hosted_untrusted_code` gap to be absent and every LLP 0047 resource-limit row
+to be uniquely `Enforced`. Owner-code `runtime-qualify` evidence is never
+consulted.
+
+No checker or executor ships behind that refusal. A manifest that eventually
+passes the evidence gate reaches one explicit author-promotion match arm which
+still returns the same typed refusal today. The route's schema-export row is
+honestly null until that promotion lands. MCP `run_code` is a real advertised
+tool with the same target conditionality and refusal; `describe_api` no longer
+lists it as deferred. `ask` remains deferred to S4-C.
 
 ## Status
 
