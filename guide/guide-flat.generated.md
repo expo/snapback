@@ -72,7 +72,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | sync.local-persistent-store | LLP 0166 store + hydration bridge: one v3 store domain per clientStoreId, registration-led establishment from the generated trusted activation only, completeness-proof plus applicable lease validation before page commit, public programmatic and manifest-derived preload registrations, and proof-revalidated relaunch answers. Writer maintenance derives custody from registrations: active demand is restart-volatile, durable programmatic demand survives, `none` release compacts immediately, and every retained address exposes one StorePolicyInspectionV1 reason. The D7 result-transform gate is fired on durable IndexedDB and Node/file; memory and Expo report volatile and refuse durable fragments with a structured GAP. Authority-independent `single_table_v1@1` needs no lease but keeps every proof/fence check. The contributor-source local manifest publishes the experimental class from a retained 2026-08-06 carrier exit at 17 PASS / 0 GAP / 0 skipped plus Triage and Fleet at 8/8 each; remote-service and Cloudflare manifests remain nonclaims | retained render, materialization, completeness proof, qmk1, hydration bridge, programmatic registration, preload, maintenance, custody inspection, relaunch, result transform, answer class, carrier honesty | local | partial | src/local-persistent-store-publication.v1.json + tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json + tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json + tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json + tests/conformance/result-transform-ship-gate-v1.receipt.json (56/56 Rust/JavaScript, two claiming + two refusing carriers) | llp/0166, llp/0157, llp/0135, llp/0110, llp/0094 | sync/offline-and-retention.md |
 | sync.offline-js-arm-protected | Lease-bounded protected retention (LLP 0043 M1 custody) on the JS/React arm — the Contract arm ships it; this arm does not yet | offline auth browser, lease js | none | design-only | llp/0129-local-first-program.plan.md (Phase 0 status note; no shipped witness) | llp/0043, llp/0053, llp/0129 | GAP (owner: Charlie, review: 2026-08-26; issue: issues/20260731-js-arm-lease-custody-and-sessions-outbox.md) |
 | sync.settlement-bounded-skew | `settlement.bounded_skew`: a mutation-declared, structurally direct `runtimeNow()` field may accept a lane-L captured time only within its declared bound; mixed sinks stay server-derived and lane Q remains unbounded replay-accept. The server path and receipt fact ship, while local capture/execution remains outside this slice. | bounded skew, local settlement, runtimeNow, claim ledger | local | partial | src/local.rs | llp/0133 | GAP (local capture/executor; owner: LLP 0155 Stage 2, review: 2026-08-28; issue: issues/20260802-0133-receipt-wire-coordination.md) |
-| api.external-exposure | Opt-in per-function exposure (`api` block), unpinned /api/v1 finite family, invocation-gate enforcement, exposed-only /inspect+envelope disclosure, api.origins bearer CORS; projections unbuilt | external api, expose, api.enabled, /api/v1, disclosure, api.origins | local | partial | route /api/v1/query/{name} | llp/0204, llp/0031 | GAP (owner: LLP 0204 S1 L2-L3, review: 2026-08-23; issue: issues/20260809-0204-s1-projections-and-guide.md); auth/agent-principals.md |
+| api.external-exposure | Opt-in per-function exposure (`api` block), unpinned /api/v1 finite family, invocation-gate enforcement, exposed-only /inspect+envelope disclosure, api.origins bearer CORS, OpenAPI + agent-skill projections; integration records/facade land with S2 | external api, expose, api.enabled, /api/v1, disclosure, api.origins, openapi, agent skill | local | partial | route /api/v1/query/{name} | llp/0204, llp/0031 | backend/external-api.md |
 | auth.sessions | Server-minted sessions; email-code login; server-derived principals | login, signin, identity, session, principal binding, app user table, identityBinding | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
 | auth.external-identity-broker | Local bridges: adopted bearer for headless/native, or trusted-server one-use exchange into browser coordinator custody; mint/capture remain dev/test/demo only | native login, external identity, broker, adopted bearer, browser external sign-in, signed assertion, issuer subject | local | partial | `createExternalSessionClient` in packages/snapback-client/index.mjs + demos/browser-auth/tests/acceptance/browser-auth.mjs | llp/0024, llp/0057, llp/0096, llp/0151 | recipes/browser-auth.md |
 | auth.browser-session-custody | Bearer-v1 custody through AuthCoordinator + IndexedDB/Web Locks, with reload restoration and logout replacement; XSS-readable and not sender-constrained | durable browser auth, browser auth reload, IndexedDB auth custody, createIndexedDbAuthCustodyStorage, reload session, persistent login | local | shipped | `createIndexedDbAuthCustodyStorage` in packages/snapback-contract/auth-custody-indexeddb.mjs + demos/browser-auth/tests/acceptance/browser-auth.mjs | llp/0059, llp/0060 | recipes/browser-auth.md |
@@ -325,6 +325,9 @@ you never build around a feature because you didn't know it existed.
   response streaming, the attempt control plane, and durable progress.
 - [Scheduled execution](./backend/cron.md) — action-backed jobs,
   demand activation, deterministic ticks, and the run ledger.
+- [External API exposure](./backend/external-api.md) — the opt-in `api`
+  block, the unpinned `/api/v1` family, exposed-only disclosure, and the
+  OpenAPI/agent-skill projections.
 - [One-off durable jobs](./backend/jobs.md) — transactional
   `ctx.jobs.enqueue`, the declared job-status live query, the
   injected-clock drain, and secret-read-leased admin inspection
@@ -6291,6 +6294,126 @@ TTL, and count ceilings a suite can read before sending a byte. Ready
 records expose the canonical `digest`, `digestAlgorithm`, and
 `integrityGrade` as ordinary queryable facts on the record view and
 `snapback assets inspect`.
+
+---
+
+<!-- snapback-guide-source: guide/backend/external-api.md -->
+---
+title: External API exposure
+id: backend.external-api
+order: 19
+audience: agent-first
+capabilities: [api.external-exposure]
+authorities: [llp/0204-app-external-surfaces.rfc.md, llp/0031-server-route-taxonomy.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, src/manifest.rs, src/api_envelope.rs, src/server.rs, src/auth/invocation.rs]
+examples: [packages/snapback-codegen/auth-artifacts.test.mjs]
+status: current
+targets: [local]
+maturity: partial
+reviewed: 2026-08-09
+reviewed-commit: c85902cd15e1a0c25a63cfba69558db2e34fca42
+---
+
+# External API exposure
+
+> **Local target only**, and deliberately partial: the exposure core,
+> `/api/v1` family, and generated projections are shipped; integration
+> records, the OAuth facade, and per-integration budgets land with LLP 0204
+> S2. Hosted targets refuse granted external lanes until the LLP 0039
+> deployment-security contract lands.
+
+Every function is private to the app's own clients until the schema declares
+otherwise. The `api` block makes external exposure a per-function, opt-in
+fact that governs callability with an integration credential, disclosure,
+and documentation as one thing.
+
+## Declare exposure
+
+The block rides `defineSchema` options beside `auth`. It is meaningful only
+under `auth.mode: 'sessions'`, and `enabled: true` additionally requires an
+explicit `auth.agents.mode` declaration (`'disabled'` is a valid choice —
+it means no new credentialed onboarding):
+
+```js source=packages/snapback-codegen/auth-artifacts.test.mjs
+  api: {
+    enabled: true,
+    functions: { listTodos: { expose: true, since: 'v1' } },
+    origins: ['https://example.com:8443'],
+  },
+```
+
+- `expose` defaults to **false**; a fresh app exposes nothing. Unknown
+  function names in `api.functions` are authoring and activation errors.
+- `since` is an optional additive-only stamp (no deprecation machinery
+  exists yet; that waits for the first real deprecation).
+- `budgets` is refused until LLP 0204 S2 lands (the diagnostic says so).
+- The exposure fact compiles onto each function
+  (`functions.manifest.json#apiExposure`) and rides the api envelope, so
+  every projection derives the same set.
+
+## What exposure gates
+
+A service principal (agent/integration credential) invoking an unexposed
+function is refused with `SNAPBACK_API_EXPOSURE_DENIED` at the
+authorization gate — on the bare finite routes, live subscriptions and
+reruns, and nested code-mode calls alike. Grant scopes still apply;
+exposure never widens LLP 0058/0172 authorization.
+
+**The honest limit:** an anonymous caller on the bare routes is
+indistinguishable from a first-party anonymous caller, so `expose: false`
+removes advertisement, projections, and credentialed callability — it
+cannot remove bare-route anonymous reachability while the function's own
+auth admits anonymous callers.
+
+## The `/api/v1` family
+
+External callers use `POST /api/v1/query/{name}`,
+`/api/v1/mutation/{name}`, `/api/v1/action/{name}` — the same handlers as
+the bare finite routes with external-lane semantics:
+
+- Requests must **omit** `expectedGeneration`
+  (`SNAPBACK_API_GENERATION_PIN_UNSUPPORTED`); the server serves the
+  current generation and the envelope digest carries change detection.
+- The family refuses every invocation unless the app enabled its API
+  (`SNAPBACK_API_NOT_ENABLED`) and the function is exposed — for all
+  authority classes, anonymous included.
+- There is no `/api/v1` authorized-lease mint; live data for third parties
+  is documented re-polling in v1.
+
+```sh
+curl -X POST "$APP_BASE_URL/api/v1/query/listTodos" \
+  -H 'content-type: application/json' \
+  -H "authorization: Bearer $APP_API_TOKEN" \
+  --data '{"args":{}}'
+```
+
+## Disclosure
+
+With `api.enabled`, `disclosure` defaults to `'exposed-only'`: `GET
+/inspect` and the served api envelope both filter their function inventory
+to the exposed set (redacting one but not the other would protect
+nothing). `disclosure: 'full'` is the explicit opt-in that keeps today's
+full-inventory posture; disclosure never changes callability.
+
+## Browser callers
+
+`api.origins` grants exact-origin (scheme+host+port, no wildcards) CORS on
+the `/api/v1` family only, for bearer transport. No declaration means no
+CORS beyond loopback dev behavior.
+
+## Generated projections
+
+Served alongside the envelope, all derived from the same exposed set:
+
+- `GET /app-api/openapi.json` — OpenAPI 3.1, one operation per exposed
+  function, request schemas from the envelope.
+- `GET /app-api/agent-skill` — a digest-pinned, pointer-heavy skill
+  document teaching discovery, authority acquisition, and invocation.
+- `scripts/generate-app-api-md.mjs` — the `API.md` reference projection;
+  exposure-aware envelopes render `/api/v1` paths.
+
+Exposed queries whose result contract declares a large row bound
+(`maxItems > 100`) without a cursor argument get the
+`SNAPBACK_API_PAGINATION_RECOMMENDED` lint at generation time.
 
 ---
 
@@ -19741,7 +19864,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-diagnostics-registry.mjs. Never hand-edit. -->
@@ -19927,14 +20050,14 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-api-envelope-too-large"></a>`SNAPBACK_API_ENVELOPE_TOO_LARGE` | server | — | — | `src/api_envelope.rs:194` | 1 |
 | <a id="diagnostic-snapback-api-envelope-version-unsupported"></a>`SNAPBACK_API_ENVELOPE_VERSION_UNSUPPORTED` | server | — | — | `src/api_envelope.rs:234` | 2 |
 | <a id="diagnostic-snapback-api-exposure-compilation-invalid"></a>`SNAPBACK_API_EXPOSURE_COMPILATION_INVALID` | server | 400 | — | `src/manifest.rs:570` | 3 |
-| <a id="diagnostic-snapback-api-exposure-denied"></a>`SNAPBACK_API_EXPOSURE_DENIED` | server | 403 | — | `src/auth/invocation.rs:1714` | 6 |
+| <a id="diagnostic-snapback-api-exposure-denied"></a>`SNAPBACK_API_EXPOSURE_DENIED` | server | 403 | [guide](../backend/external-api.md#what-exposure-gates) | `src/auth/invocation.rs:1714` | 6 |
 | <a id="diagnostic-snapback-api-function-exposure-invalid"></a>`SNAPBACK_API_FUNCTION_EXPOSURE_INVALID` | codegen | 400 | — | `packages/snapback-codegen/index.mjs:1272` | 2 |
 | <a id="diagnostic-snapback-api-function-unknown"></a>`SNAPBACK_API_FUNCTION_UNKNOWN` | codegen | 400 | — | `packages/snapback-codegen/index.mjs:1299` | 3 |
-| <a id="diagnostic-snapback-api-generation-pin-unsupported"></a>`SNAPBACK_API_GENERATION_PIN_UNSUPPORTED` | server | 400 | — | `src/server.rs:19705` | 2 |
+| <a id="diagnostic-snapback-api-generation-pin-unsupported"></a>`SNAPBACK_API_GENERATION_PIN_UNSUPPORTED` | server | 400 | [guide](../backend/external-api.md#the-apiv1-family) | `src/server.rs:19705` | 2 |
 | <a id="diagnostic-snapback-api-manifest-invalid"></a>`SNAPBACK_API_MANIFEST_INVALID` | codegen | 400 | — | `packages/snapback-codegen/index.mjs:1242` | 3 |
-| <a id="diagnostic-snapback-api-not-enabled"></a>`SNAPBACK_API_NOT_ENABLED` | server | 403 | — | `src/local.rs:6578` | 2 |
+| <a id="diagnostic-snapback-api-not-enabled"></a>`SNAPBACK_API_NOT_ENABLED` | server | 403 | [guide](../backend/external-api.md#the-apiv1-family) | `src/local.rs:6578` | 2 |
 | <a id="diagnostic-snapback-api-origin-invalid"></a>`SNAPBACK_API_ORIGIN_INVALID` | codegen | 400 | — | `packages/snapback-codegen/index.mjs:1277` | 5 |
-| <a id="diagnostic-snapback-api-pagination-recommended"></a>`SNAPBACK_API_PAGINATION_RECOMMENDED` | codegen | 400 | — | `packages/snapback-codegen/index.mjs:1319` | 4 |
+| <a id="diagnostic-snapback-api-pagination-recommended"></a>`SNAPBACK_API_PAGINATION_RECOMMENDED` | codegen | 400 | [guide](../backend/external-api.md#generated-projections) | `packages/snapback-codegen/index.mjs:1319` | 4 |
 | <a id="diagnostic-snapback-api-registration-posture-required"></a>`SNAPBACK_API_REGISTRATION_POSTURE_REQUIRED` | codegen | 400 | — | `packages/snapback-codegen/index.mjs:1259` | 3 |
 | <a id="diagnostic-snapback-app-agent-profile"></a>`SNAPBACK_APP_AGENT_PROFILE` | application | — | — | `packages/snapback-app-cli/auth.mjs:44` | 2 |
 | <a id="diagnostic-snapback-app-api-composition-failed"></a>`SNAPBACK_APP_API_COMPOSITION_FAILED` | application | — | — | `src/local.rs:5324` | 1 |
@@ -22489,7 +22612,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -22497,7 +22620,7 @@ reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
 # Generated API reference
 
 One build-bound projection of 894 public symbols (372 runtime values and 522 explicit type-only symbols).
-Registry identity: `sha256:3f96f539328e749046734db471b642843b28d7f617465d64a75370986b424802`; source commit: `afaaa07be39c9dfcbf89f08a69bd679f5d174eb7`.
+Registry identity: `sha256:3f96f539328e749046734db471b642843b28d7f617465d64a75370986b424802`; source commit: `c85902cd17ecb7fc2ea820320d2adc96c93a8baa`.
 
 Use `snapback guide <ExactSymbolName>` for a budgeted exact lookup. Add `--slice N` when a result names a next slice. The JSON registry is available at [registry.json](./registry.json). Stable `SNAPBACK_*` failures have their own [diagnostic code registry](./diagnostics.md).
 
@@ -22564,7 +22687,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -31051,7 +31174,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -31576,7 +31699,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -31810,7 +31933,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -32250,7 +32373,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -32357,7 +32480,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -32812,7 +32935,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -32951,7 +33074,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -33313,7 +33436,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -33404,7 +33527,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -33773,7 +33896,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -33923,7 +34046,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -34426,7 +34549,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -34927,7 +35050,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35161,7 +35284,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35524,7 +35647,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35638,7 +35761,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36236,7 +36359,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36541,7 +36664,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36988,7 +37111,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37114,7 +37237,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37286,7 +37409,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37691,7 +37814,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38158,7 +38281,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38415,7 +38538,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38805,7 +38928,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39425,7 +39548,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39573,7 +39696,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39781,7 +39904,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39974,7 +40097,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40227,7 +40350,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40812,7 +40935,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -42577,7 +42700,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -42690,7 +42813,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -45240,7 +45363,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -45522,7 +45645,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -45646,7 +45769,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -45801,7 +45924,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -45925,7 +46048,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -46095,7 +46218,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -46471,7 +46594,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: afaaa07be39c9dfcbf89f08a69bd679f5d174eb7
+reviewed-commit: c85902cd17ecb7fc2ea820320d2adc96c93a8baa
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->

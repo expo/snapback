@@ -2,8 +2,8 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "commit": "afaaa07be39c9dfcbf89f08a69bd679f5d174eb7",
-    "sourceDigest": "sha256:ecb2d448c08b892f0b1e0db8eb5875c04c0ab6cb0d09fe96ea1ea8a639f78170"
+    "commit": "c85902cd17ecb7fc2ea820320d2adc96c93a8baa",
+    "sourceDigest": "sha256:5cdb72620886393e13141006c2482be47ce16d3e2a7cf37130c205abf3b70fd1"
   },
   "limits": {
     "lookupBytes": 16384
@@ -13,7 +13,7 @@
     "sourceFiles": 369,
     "emittingSites": 9077,
     "httpClassified": 781,
-    "guideAnchored": 311
+    "guideAnchored": 315
   },
   "diagnostics": {
     "SNAPBACK_ACTION_CAPACITY_EXCEEDED": {
@@ -4892,8 +4892,10 @@
       ],
       "httpStatus": 403,
       "httpStatusClass": "4xx",
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/backend/external-api.md#what-exposure-gates",
+      "guideAnchors": [
+        "/_snapback/guide/backend/external-api.md#what-exposure-gates"
+      ]
     },
     "SNAPBACK_API_FUNCTION_EXPOSURE_INVALID": {
       "code": "SNAPBACK_API_FUNCTION_EXPOSURE_INVALID",
@@ -4957,8 +4959,10 @@
       ],
       "httpStatus": 400,
       "httpStatusClass": "4xx",
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/backend/external-api.md#the-apiv1-family",
+      "guideAnchors": [
+        "/_snapback/guide/backend/external-api.md#the-apiv1-family"
+      ]
     },
     "SNAPBACK_API_MANIFEST_INVALID": {
       "code": "SNAPBACK_API_MANIFEST_INVALID",
@@ -5002,8 +5006,10 @@
       ],
       "httpStatus": 403,
       "httpStatusClass": "4xx",
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/backend/external-api.md#the-apiv1-family",
+      "guideAnchors": [
+        "/_snapback/guide/backend/external-api.md#the-apiv1-family"
+      ]
     },
     "SNAPBACK_API_ORIGIN_INVALID": {
       "code": "SNAPBACK_API_ORIGIN_INVALID",
@@ -5067,8 +5073,10 @@
       ],
       "httpStatus": 400,
       "httpStatusClass": "4xx",
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/backend/external-api.md#generated-projections",
+      "guideAnchors": [
+        "/_snapback/guide/backend/external-api.md#generated-projections"
+      ]
     },
     "SNAPBACK_API_REGISTRATION_POSTURE_REQUIRED": {
       "code": "SNAPBACK_API_REGISTRATION_POSTURE_REQUIRED",

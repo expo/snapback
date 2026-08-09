@@ -30,3 +30,12 @@ Remaining S1 deliverables (this ticket tracks them until landed):
 
 The LLP 0031 dated amendment registering the /api/v1 family and the
 api.origins bearer-CORS statement lands with this ticket's creation.
+
+## Resolution (2026-08-09)
+
+All four items delivered same-day:
+1–3 landed with S1 Landing 2 (c85902cd1): GET /app-api/openapi.json,
+GET /app-api/agent-skill, exposure-aware generate-app-api-md.mjs.
+4 lands with this closure: guide/backend/external-api.md (verified snippet
+from packages/snapback-codegen/auth-artifacts.test.mjs), index entry, and
+the api.external-exposure capability row GAP flipped to the page.

@@ -187,6 +187,9 @@ you never build around a feature because you didn't know it existed.
   response streaming, the attempt control plane, and durable progress.
 - [Scheduled execution](./backend/cron.md) — action-backed jobs,
   demand activation, deterministic ticks, and the run ledger.
+- [External API exposure](./backend/external-api.md) — the opt-in `api`
+  block, the unpinned `/api/v1` family, exposed-only disclosure, and the
+  OpenAPI/agent-skill projections.
 - [One-off durable jobs](./backend/jobs.md) — transactional
   `ctx.jobs.enqueue`, the declared job-status live query, the
   injected-clock drain, and secret-read-leased admin inspection
