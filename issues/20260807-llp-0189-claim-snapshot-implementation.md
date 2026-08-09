@@ -159,3 +159,20 @@ the live policy deliberately disagree with C, prove the claim still stands on
 the C-bound transfer result, and refuse receipt/C or acceptance/receipt digest
 mismatches. Both live anchors remain `withheld`, and no historical publication,
 review, receipt, carrier, or acceptance artifact is changed.
+
+## 2026-08-09 D-3 author clarification — evolution is due, inconsistency refuses
+
+Charlie Cheever ruled in session that an already published derived-fork record
+must not be refused merely because its claim-scoped source evolved after
+qualification C. The oracle now keeps that record published and returns
+`requalificationDue: { scopedChanges, since: C }`; its CLI emits a conspicuous
+`PUBLISHED_REQUALIFICATION_DUE` warning and exits successfully so backstop
+automation can ticket the next natural requalification cycle.
+
+This supersedes the earlier piece-2 fixture expectation that one changed
+`src/` byte immediately makes the published record invalid. The replacement
+fixture proves that one-byte evolution stands with typed requalification due,
+and a companion fixture proves that publication-chain tampering still refuses
+while that state is pending. Qualification-C digest and scope mismatches,
+acceptance/receipt/evidence binding failures, artifact or historical-byte
+tampering, and C-not-ancestor remain fatal. Withheld records are unchanged.

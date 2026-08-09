@@ -670,12 +670,14 @@ export function qualifiedImplementationChangesBetween(root, from, to, scope = un
     .filter(({ path }) => !PUBLICATION_CYCLE_ALLOWLIST.has(path));
 }
 
-// @ref LLP 0189#decision — D-3 snapshot evaluation keeps
-// unrelated post-C landings visible without letting them withdraw a claim.
+// @ref LLP 0189#decision — D-3 snapshot evaluation keeps unrelated post-C
+// landings visible and lets an authorized published claim stand with typed
+// requalification due instead of racing normal fleet evolution.
 export function evaluateClaimSnapshot(root, {
   qualificationCommit,
   publicationCommit,
   scope = undefined,
+  allowRequalificationDue = false,
 }) {
   const raw = execFileSync('git', [
     'diff', '--name-status', '--no-renames', '-z',
@@ -687,10 +689,14 @@ export function evaluateClaimSnapshot(root, {
   const outOfScopeChanges = changes.filter(
     ({ path }) => !implementationScopeCoversPath(scope, path),
   );
+  const requalificationDue = allowRequalificationDue && scopedChanges.length > 0
+    ? { scopedChanges, since: qualificationCommit }
+    : undefined;
   return {
-    state: scopedChanges.length === 0 ? 'stands' : 'invalid',
+    state: scopedChanges.length === 0 || requalificationDue !== undefined ? 'stands' : 'invalid',
     scopedChanges,
     outOfScopeChanges,
+    ...(requalificationDue === undefined ? {} : { requalificationDue }),
   };
 }
 
@@ -1079,6 +1085,7 @@ export function assertQualifiedImplementationDigestAtPublication(root, {
   expectedDigest,
   expectedDigestVersion,
   implementationScope = undefined,
+  allowRequalificationDue = false,
 }) {
   assertImplementationDigestVersion(expectedDigestVersion, capabilityId, implementationScope);
   const qualificationDigest = implementationDigestAt(
@@ -1091,8 +1098,12 @@ export function assertQualifiedImplementationDigestAtPublication(root, {
     qualificationCommit,
     publicationCommit,
     scope: implementationScope,
+    allowRequalificationDue,
   });
-  if (qualificationDigest !== expectedDigest || publicationDigest !== expectedDigest) {
+  const publicationEvolutionIsDue = publicationDigest !== expectedDigest
+    && snapshot.requalificationDue !== undefined;
+  if (qualificationDigest !== expectedDigest
+      || (publicationDigest !== expectedDigest && !publicationEvolutionIsDue)) {
     const changedPaths = snapshot.scopedChanges.length > 0
       ? snapshot.scopedChanges.map(({ status, path }) => `${status}:${path}`).join(',')
       : 'none detected between C and P (receipt or digest scope is inconsistent)';
@@ -2333,11 +2344,13 @@ export function validatePublicationRecord(root, record) {
     expectedDigest: receipt.implementationTreeSha256,
     expectedDigestVersion: receipt.implementationDigestVersion,
     implementationScope,
+    allowRequalificationDue: record.id === 'agent_safe_derived_deployment_fork_v1',
   });
   const snapshot = evaluateClaimSnapshot(root, {
     qualificationCommit: carrier.qualifiedSourceCommit,
     publicationCommit: publication,
     scope: implementationScope,
+    allowRequalificationDue: record.id === 'agent_safe_derived_deployment_fork_v1',
   });
   validatePublishedEvidenceSemantics(root, record, carrier.qualifiedSourceCommit, receipt);
   return {
@@ -2348,6 +2361,9 @@ export function validatePublicationRecord(root, record) {
     implementationDigestVersion: receipt.implementationDigestVersion,
     implementationScope,
     snapshot,
+    ...(snapshot.requalificationDue === undefined
+      ? {}
+      : { requalificationDue: snapshot.requalificationDue }),
   };
 }
 
@@ -2471,6 +2487,15 @@ if (invoked) {
   } else {
     const results = runChecker(root);
     process.stdout.write(`${results.map(({ id, state }) => `${id}:${state}`).join('\n')}\n`);
+    for (const result of results.filter(({ requalificationDue }) => (
+      requalificationDue !== undefined
+    ))) {
+      const paths = result.requalificationDue.scopedChanges
+        .map(({ status, path }) => `${status}:${path}`)
+        .join(',');
+      process.stderr.write(`WARNING ${result.id}:PUBLISHED_REQUALIFICATION_DUE; `
+        + `since=${result.requalificationDue.since}; scopedChanges=${paths}\n`);
+    }
     for (const result of results.filter(({ snapshot }) => (
       snapshot?.outOfScopeChanges.length > 0
     ))) {
