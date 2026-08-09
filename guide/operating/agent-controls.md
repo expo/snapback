@@ -86,7 +86,7 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **133 operations** at digest `sha256:bd90c1ca415499f9bb6c92692be400db62113538624bb24a2016f20a465b6701`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **133 operations** at digest `sha256:d1b47fa8301e0d50dc5b9d69d061f74412313c3ef8d9051b86b29b932f04c7be`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
