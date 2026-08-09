@@ -5253,6 +5253,54 @@ impl LocalSnapback {
         self.db.load_api_envelope_bytes(digest)
     }
 
+    /// Resolve and verify the current envelope under one local-state cut so
+    /// generated external catalogs cannot join two active generations.
+    pub(crate) fn current_app_api_envelope(&self) -> SnapbackResult<(String, String)> {
+        let Some(discovery) = self.app_api_discovery()? else {
+            return Err(crate::diagnostic::SnapbackError::error(
+                "SNAPBACK_APP_API_UNAVAILABLE",
+                "app-api",
+                "app-api discovery is served by sessions targets only; dev targets use /inspect and local artifacts",
+            ));
+        };
+        let crate::api_envelope::AppApiDiscoveryEnvelopeV1::Current { sha256 } =
+            discovery.envelope
+        else {
+            return Err(crate::diagnostic::SnapbackError::error(
+                "SNAPBACK_APP_API_UNAVAILABLE",
+                "app-api",
+                "the active generation has no API envelope; refetch /app-api/current after provisioning one",
+            ));
+        };
+        let Some(canonical) = self.app_api_envelope_bytes(&sha256)? else {
+            return Err(crate::diagnostic::SnapbackError::error(
+                "SNAPBACK_APP_API_STATE_PARSE_FAILED",
+                "app-api",
+                "the current discovery digest has no retained envelope bytes",
+            ));
+        };
+        let (_, actual_digest) = crate::api_envelope::parse_and_validate(canonical.as_bytes())
+            .map_err(|refusal| {
+                crate::diagnostic::SnapbackError::error(
+                    "SNAPBACK_APP_API_STATE_PARSE_FAILED",
+                    "app-api",
+                    "the current persisted envelope no longer passes admission",
+                )
+                .with_details(serde_json::json!({
+                    "envelopeCode": refusal.code,
+                    "error": refusal.message,
+                }))
+            })?;
+        if actual_digest != sha256 {
+            return Err(crate::diagnostic::SnapbackError::error(
+                "SNAPBACK_APP_API_STATE_PARSE_FAILED",
+                "app-api",
+                "the current discovery digest does not identify its persisted envelope bytes",
+            ));
+        }
+        Ok((sha256, canonical))
+    }
+
     pub(crate) fn prepare_auth_provision_with_routes(
         &mut self,
         requested_mode: EnsureAppMode,
@@ -6677,6 +6725,12 @@ impl LocalSnapback {
             .api
             .as_ref()
             .and_then(|api| api.origins.clone())
+    }
+
+    pub(crate) fn api_oauth_manifest(
+        &self,
+    ) -> Option<crate::contract_types::ApiOAuthManifest> {
+        self.db.schema().oauth_manifest().cloned()
     }
 
     pub(crate) fn served_function_manifest(&self) -> &FunctionManifest {

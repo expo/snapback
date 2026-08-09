@@ -120,6 +120,7 @@ mod api_error;
 mod asset_routes;
 mod instance_home;
 mod oauth;
+mod remote_mcp;
 mod response_types;
 
 pub use api_error::*;
@@ -8278,6 +8279,21 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             public_route("GET", "/inspect", ResponseSensitivity::PublicProjection),
             get(inspect),
         ),
+        // @ref LLP 0204#d3--surface-2-the-mcp-server — stateless
+        // Streamable HTTP uses POST for JSON-RPC and registers the GET/DELETE
+        // affordances explicitly; v1 creates no resumable server session.
+        RegisteredRoute::new(
+            app_function_route("POST", "/mcp"),
+            post(remote_mcp::post).layer(DefaultBodyLimit::max(1024 * 1024)),
+        ),
+        RegisteredRoute::new(
+            app_function_route("GET", "/mcp"),
+            get(remote_mcp::stateless_method).layer(DefaultBodyLimit::max(1024 * 1024)),
+        ),
+        RegisteredRoute::new(
+            app_function_route("DELETE", "/mcp"),
+            delete(remote_mcp::stateless_method).layer(DefaultBodyLimit::max(1024 * 1024)),
+        ),
         // @ref LLP 0062#5-distribution-the-server-advertises-the-server-is-the-version-authority — the app-data-plane envelope routes: a
         // never-cached discovery document and the immutable content-addressed
         // envelope. Credential-free by construction (Public/None/None).
@@ -9946,6 +9962,10 @@ fn session_online_protocol_refusal(
     if spec.class != RouteClass::AppData
         || auth_diagnostic_app_route(spec.path)
         || spec.path == "/app/ensure"
+        // MCP versions its own carrier and every finite invocation beneath
+        // this route is still prepared by the registered authority gate.
+        // @ref LLP 0204#d3--surface-2-the-mcp-server
+        || spec.path == "/mcp"
         || pasteable_delivery_route(spec)
         || bare_public_artifact_route(spec)
         || runtime.auth_mode_state().active != crate::manifest::AuthMode::Sessions
@@ -10097,6 +10117,7 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         | "/auth/grants/by-actor/{actor_id}"
         | "/auth/grants/{id}" => Some(InvocationSource::AgentGrantManagement),
         "/query/{name}" | "/api/v1/query/{name}" => Some(InvocationSource::HttpQuery),
+        "/mcp" => Some(InvocationSource::HttpMcp),
         // Attempt creation runs the generated upload-intent authorizer — a
         // Query-kind admission (LLP 0044 §Upload sessions).
         // Create and finalize both run the generated authorizer (finalize
@@ -11787,6 +11808,16 @@ async fn enforce_registered_route_policy_inner(
     {
         return apply_registered_response_controls(effective, hosted_operator_surface_disabled_response());
     }
+    // Streamable HTTP MCP requires Origin validation before credentials,
+    // admission, or request-body processing so a DNS-rebinding attempt cannot
+    // use any of those layers as an oracle.
+    // @ref LLP 0204#d3--surface-2-the-mcp-server — `/mcp` is stateless but
+    // remains bound to the declared external API origin set.
+    if spec.path == "/mcp"
+        && let Err(error) = remote_mcp::require_mcp_origin(&runtime, request.headers()).await
+    {
+        return apply_registered_response_controls(effective, error.into_response());
+    }
     if let Some(error) = auth_app_data_refusal(spec, &runtime) {
         return apply_registered_response_controls(
             effective,
@@ -12788,9 +12819,15 @@ async fn enforce_registered_route_policy_inner(
         {
             Ok(attribution) => attribution,
             Err(error) => {
+                let response = error.into_response();
+                let response = if spec.path == "/mcp" {
+                    remote_mcp::pre_dispatch_tool_refusal(policy_body.as_ref(), response).await
+                } else {
+                    response
+                };
                 return finish_registered_response(
                     response_policy,
-                    error.into_response(),
+                    response,
                     route_admission.as_ref(),
                     Some(authority),
                 );
@@ -12862,6 +12899,7 @@ async fn enforce_registered_route_policy_inner(
                 InvocationSource::HttpQuery
                     | InvocationSource::HttpMutation
                     | InvocationSource::HttpAction
+                    | InvocationSource::HttpMcp
             )
         )
         && let Some(authority) = prepared_authority.as_ref()
@@ -17926,7 +17964,9 @@ async fn local_dev_cors(
     // @ref LLP 0025#demo-shape — web-only demos may be served by an ordinary
     // static/Vite origin while talking to the local Snapback server.
     let origin = request.headers().get(header::ORIGIN);
-    let declared_api_origin = if request.uri().path().starts_with("/api/v1/") {
+    let declared_api_origin = if request.uri().path().starts_with("/api/v1/")
+        || request.uri().path() == "/mcp"
+    {
         let candidate = origin.and_then(|value| value.to_str().ok()).map(str::to_owned);
         let origins = with_snapback(&runtime.snapback, |snapback| {
             Ok::<_, SnapbackError>(snapback.api_origins())
@@ -18134,51 +18174,7 @@ async fn app_api_current(State(runtime): State<AppState>) -> Result<Response, Ap
 async fn current_app_api_envelope(
     runtime: &AppState,
 ) -> Result<(String, String), ApiError> {
-    with_snapback(&runtime.snapback, |snapback| -> SnapbackResult<(String, String)> {
-        let Some(discovery) = snapback.app_api_discovery()? else {
-            return Err(SnapbackError::error(
-                "SNAPBACK_APP_API_UNAVAILABLE",
-                "app-api",
-                "app-api discovery is served by sessions targets only; dev targets use /inspect and local artifacts",
-            ));
-        };
-        let crate::api_envelope::AppApiDiscoveryEnvelopeV1::Current { sha256 } =
-            discovery.envelope
-        else {
-            return Err(SnapbackError::error(
-                "SNAPBACK_APP_API_UNAVAILABLE",
-                "app-api",
-                "the active generation has no API envelope; refetch /app-api/current after provisioning one",
-            ));
-        };
-        let Some(canonical) = snapback.app_api_envelope_bytes(&sha256)? else {
-            return Err(SnapbackError::error(
-                "SNAPBACK_APP_API_STATE_PARSE_FAILED",
-                "app-api",
-                "the current discovery digest has no retained envelope bytes",
-            ));
-        };
-        let (_, actual_digest) = crate::api_envelope::parse_and_validate(canonical.as_bytes())
-            .map_err(|refusal| {
-                SnapbackError::error(
-                    "SNAPBACK_APP_API_STATE_PARSE_FAILED",
-                    "app-api",
-                    "the current persisted envelope no longer passes admission",
-                )
-                .with_details(json!({
-                    "envelopeCode": refusal.code,
-                    "error": refusal.message,
-                }))
-            })?;
-        if actual_digest != sha256 {
-            return Err(SnapbackError::error(
-                "SNAPBACK_APP_API_STATE_PARSE_FAILED",
-                "app-api",
-                "the current discovery digest does not identify its persisted envelope bytes",
-            ));
-        }
-        Ok((sha256, canonical))
-    })
+    with_snapback(&runtime.snapback, |snapback| snapback.current_app_api_envelope())
     .await
     .map_err(ApiError::from)
 }
@@ -20958,6 +20954,7 @@ fn external_api_route(spec: RouteSpec) -> bool {
         "/api/v1/query/{name}"
             | "/api/v1/mutation/{name}"
             | "/api/v1/action/{name}"
+            | "/mcp"
     )
 }
 

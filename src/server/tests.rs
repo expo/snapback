@@ -2889,6 +2889,57 @@ fn sessions_activation_server_fixture_with_api(
         .as_ref()
         .map_or_else(super::now_millis, |clock| clock.epoch_ms());
     let mut snapback = LocalSnapback::memory().expect("memory activation server fixture");
+    let envelope_functions = predecessor_functions
+        .functions
+        .iter()
+        .filter(|function| {
+            api.as_ref().is_some_and(|api| {
+                api.enabled
+                    && (api.disclosure != ApiDisclosure::ExposedOnly
+                        || function
+                            .api_exposure
+                            .as_ref()
+                            .is_some_and(|exposure| exposure.expose))
+            })
+        })
+        .collect::<Vec<_>>();
+    let api_envelope = api.as_ref().filter(|api| api.enabled).map(|_| {
+        let args_schema = json!({ "type": "object", "additionalProperties": true });
+        let operations = envelope_functions
+            .iter()
+            .map(|function| {
+                (
+                    function.id.clone(),
+                    crate::api_envelope::ApiEnvelopeOperationV1 {
+                        name: function.name.clone(),
+                        args_schema: args_schema.clone(),
+                    },
+                )
+            })
+            .collect::<BTreeMap<_, _>>();
+        let app_bindings = "export {};".to_owned();
+        let mut member_digests = operations
+            .iter()
+            .map(|(id, operation)| {
+                (
+                    crate::api_envelope::operation_member_key(id),
+                    crate::api_envelope::member_digest(
+                        &crate::api_envelope::canonicalize(&operation.args_schema)
+                            .expect("fixture args schema canonicalizes"),
+                    ),
+                )
+            })
+            .collect::<BTreeMap<_, _>>();
+        member_digests.insert(
+            crate::api_envelope::DECLARATION_MEMBER_KEY.to_owned(),
+            crate::api_envelope::member_digest(&app_bindings),
+        );
+        crate::api_envelope::ApiEnvelopeMembersV1 {
+            operations,
+            declarations: crate::api_envelope::ApiEnvelopeDeclarationsV1 { app_bindings },
+            member_digests,
+        }
+    });
     let schema = SchemaManifest {
         schema_version: SNAPBACK_SESSIONS_SCHEMA_VERSION.to_owned(),
         app_id: "auth-activation-fixture".to_owned(),
@@ -2921,7 +2972,7 @@ fn sessions_activation_server_fixture_with_api(
         ..SchemaManifest::default()
     };
     let prepared = snapback
-        .prepare_auth_provision(
+        .prepare_auth_provision_with_routes(
             EnsureAppMode::Sessions,
             Some(schema),
             Some(predecessor_functions.clone()),
@@ -2934,6 +2985,8 @@ fn sessions_activation_server_fixture_with_api(
                     )])],
                 )]),
             }),
+            None,
+            api_envelope,
         )
         .expect("preflight complete initial sessions pair");
     let (_, pending) = snapback
@@ -3118,6 +3171,17 @@ async fn sessions_activation_server_fixture_with_oauth_policy_async(
                 expose: true,
                 since: None,
             });
+        let mut authenticated_items = functions
+            .functions
+            .iter()
+            .find(|function| function.name == "listItems")
+            .unwrap()
+            .clone();
+        authenticated_items.id = "fn:authenticatedItems".to_owned();
+        authenticated_items.name = "authenticatedItems".to_owned();
+        authenticated_items.exported_name = Some("authenticatedItems".to_owned());
+        authenticated_items.auth_requirement = Some(AuthRequirement::Authenticated);
+        functions.functions.push(authenticated_items);
         let queued_write = functions
             .functions
             .iter_mut()
@@ -3149,6 +3213,13 @@ async fn sessions_activation_server_fixture_with_oauth_policy_async(
                             since: None,
                         },
                     ),
+                    (
+                        "authenticatedItems".to_owned(),
+                        ApiFunctionExposure {
+                            expose: true,
+                            since: None,
+                        },
+                    ),
                 ]),
                 oauth: Some(ApiOAuthManifest {
                     enabled: true,
@@ -3157,7 +3228,10 @@ async fn sessions_activation_server_fixture_with_oauth_policy_async(
                         (
                             "items.read".to_owned(),
                             ApiOAuthBundle {
-                                functions: vec!["listItems".to_owned()],
+                                functions: vec![
+                                    "listItems".to_owned(),
+                                    "authenticatedItems".to_owned(),
+                                ],
                             },
                         ),
                         (
@@ -3175,14 +3249,8 @@ async fn sessions_activation_server_fixture_with_oauth_policy_async(
     .await
     .expect("construct OAuth facade fixture off the async workers");
     with_snapback(&state.snapback, |snapback| {
+        let scope_functions = snapback.served_function_manifest().clone();
         let database = snapback.auth_database_mut();
-        let mut scope_functions = activation_functions('2', false);
-        scope_functions
-            .functions
-            .iter_mut()
-            .find(|function| function.name == "queuedWrite")
-            .unwrap()
-            .authority_creating = true;
         database.reconcile_auth_scope_bases(&scope_functions)?;
         assert_eq!(
             database.current_auth_scope_basis("fn:listItems", &FunctionKind::Query, false)?,
@@ -3190,6 +3258,14 @@ async fn sessions_activation_server_fixture_with_oauth_policy_async(
         );
         assert_eq!(
             database.current_auth_scope_basis("fn:queuedWrite", &FunctionKind::Mutation, true)?,
+            Some(0),
+        );
+        assert_eq!(
+            database.current_auth_scope_basis(
+                "fn:authenticatedItems",
+                &FunctionKind::Query,
+                false,
+            )?,
             Some(0),
         );
         Ok::<_, SnapbackError>(())
@@ -3217,6 +3293,261 @@ fn oauth_protocol_request(
         builder = builder.header(header::AUTHORIZATION, format!("Bearer {bearer}"));
     }
     builder.body(body.into()).unwrap()
+}
+
+fn mcp_protocol_request(
+    method: &str,
+    body: Value,
+    bearer: Option<&str>,
+    declared_client_id: Option<&str>,
+    accept: Option<&str>,
+) -> Request<Body> {
+    let mut builder = Request::builder()
+        .method(method)
+        .uri("/mcp")
+        .header(header::CONTENT_TYPE, "application/json");
+    if let Some(bearer) = bearer {
+        builder = builder.header(header::AUTHORIZATION, format!("Bearer {bearer}"));
+    }
+    if let Some(declared_client_id) = declared_client_id {
+        builder = builder.header(super::SNAPBACK_CLIENT_ID_HEADER, declared_client_id);
+    }
+    if let Some(accept) = accept {
+        builder = builder.header(header::ACCEPT, accept);
+    }
+    builder
+        .body(Body::from(serde_json::to_vec(&body).unwrap()))
+        .unwrap()
+}
+
+#[tokio::test]
+async fn remote_mcp_stateless_protocol_lists_and_calls_the_anonymous_external_set() {
+    let state = sessions_activation_server_fixture_with_integrations_async().await;
+    let runtime = state.clone();
+    let router = app(state);
+
+    let initialized = router
+        .clone()
+        .oneshot(mcp_protocol_request(
+            "POST",
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-06-18",
+                    "capabilities": {},
+                    "clientInfo": { "name": "acceptance", "version": "1" }
+                }
+            }),
+            None,
+            None,
+            Some("application/json, text/event-stream"),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(initialized.status(), StatusCode::OK);
+    assert!(initialized.headers().get("mcp-session-id").is_none());
+    let initialized = response_json(initialized).await;
+    assert_eq!(initialized["result"]["protocolVersion"], "2025-06-18");
+    assert_eq!(initialized["result"]["capabilities"]["tools"]["listChanged"], false);
+    assert_eq!(initialized["result"]["capabilities"]["resources"]["subscribe"], false);
+    assert!(initialized["result"]["instructions"]
+        .as_str()
+        .unwrap()
+        .contains("deferred to S4"));
+
+    let mut rebound = mcp_protocol_request(
+        "POST",
+        json!({ "jsonrpc": "2.0", "id": 7, "method": "tools/list" }),
+        None,
+        None,
+        None,
+    );
+    rebound.headers_mut().insert(
+        header::ORIGIN,
+        HeaderValue::from_static("https://dns-rebinding.invalid"),
+    );
+    let rebound = router.clone().oneshot(rebound).await.unwrap();
+    assert_eq!(rebound.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        response_json(rebound).await["diagnostic"]["code"],
+        "SNAPBACK_API_EXPOSURE_DENIED"
+    );
+
+    for method in ["GET", "DELETE"] {
+        let response = router
+            .clone()
+            .oneshot(mcp_protocol_request(method, json!({}), None, None, None))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED, "{method}");
+        assert_eq!(response.headers()[header::ALLOW], "POST");
+    }
+
+    let listed = router
+        .clone()
+        .oneshot(mcp_protocol_request(
+            "POST",
+            json!({ "jsonrpc": "2.0", "id": 2, "method": "tools/list" }),
+            None,
+            None,
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(listed.status(), StatusCode::OK);
+    let listed = response_json(listed).await;
+    let tools = listed["result"]["tools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|tool| tool["name"].as_str().unwrap())
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        tools,
+        BTreeSet::from([
+            "describe_api",
+            "snapback_fn_fn_listitems",
+            "snapback_fn_fn_liveitems",
+        ])
+    );
+    assert_eq!(
+        listed["result"]["_meta"]["snapback/deferredTools"]["run_code"],
+        "deferred to LLP 0204 S4"
+    );
+
+    let resources = router
+        .clone()
+        .oneshot(mcp_protocol_request(
+            "POST",
+            json!({ "jsonrpc": "2.0", "id": 3, "method": "resources/list" }),
+            None,
+            None,
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response_json(resources).await["result"]["resources"].as_array().unwrap().len(), 3);
+
+    let declared_id = "mcp-client/ops@example.test";
+    let called = router
+        .clone()
+        .oneshot(mcp_protocol_request(
+            "POST",
+            json!({
+                "jsonrpc": "2.0",
+                "id": 4,
+                "method": "tools/call",
+                "params": {
+                    "name": "snapback_fn_fn_listitems",
+                    "arguments": { "args": {} }
+                }
+            }),
+            None,
+            Some(declared_id),
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(called.status(), StatusCode::OK);
+    assert_eq!(called.headers()[super::SNAPBACK_CLIENT_ID_STATUS_HEADER], "accepted");
+    let called = response_json(called).await;
+    assert_eq!(called["result"]["isError"], false);
+    assert_eq!(
+        called["result"]["structuredContent"]["rows"][0]["value"],
+        "predecessor-visible"
+    );
+
+    let hidden = router
+        .clone()
+        .oneshot(mcp_protocol_request(
+            "POST",
+            json!({
+                "jsonrpc": "2.0",
+                "id": 5,
+                "method": "tools/call",
+                "params": {
+                    "name": "snapback_fn_fn_queuedwrite",
+                    "arguments": { "args": { "value": "must-not-write" } }
+                }
+            }),
+            None,
+            None,
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(hidden.status(), StatusCode::OK);
+    let hidden = response_json(hidden).await;
+    assert_eq!(hidden["result"]["isError"], true);
+    assert_eq!(
+        hidden["result"]["structuredContent"]["error"]["diagnostic"]["code"],
+        "SNAPBACK_API_EXPOSURE_DENIED"
+    );
+
+    let sse = router
+        .clone()
+        .oneshot(mcp_protocol_request(
+            "POST",
+            json!({ "jsonrpc": "2.0", "id": 6, "method": "ping" }),
+            None,
+            None,
+            Some("text/event-stream"),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(sse.status(), StatusCode::OK);
+    assert!(sse.headers()[header::CONTENT_TYPE]
+        .to_str()
+        .unwrap()
+        .starts_with("text/event-stream"));
+    let sse = String::from_utf8(to_bytes(sse.into_body(), 4096).await.unwrap().to_vec()).unwrap();
+    assert!(sse.starts_with("event: message\ndata: {"));
+
+    let declared_id = declared_id.to_owned();
+    let row = with_snapback(&runtime.snapback, move |snapback| {
+        snapback
+            .auth_database_mut()
+            .declared_client_for_admission(&declared_id, super::now_millis())
+    })
+    .await
+    .unwrap()
+    .expect("MCP declared caller creates the shared ledger row");
+    let caller_key = super::declared_client_caller_key(&row.normalized_id);
+    let stats = runtime
+        .telemetry
+        .query_stats(&crate::telemetry_query::TelemetryStatsRequestV1 {
+            filter: crate::telemetry_query::TelemetryStatsFilterV1 {
+                kind: Some("function_run".to_owned()),
+                name: Some("listItems".to_owned()),
+                ..Default::default()
+            },
+            group_by_caller: true,
+        })
+        .unwrap();
+    assert!(stats.caller_counts.iter().any(|row| {
+        row.lane == "declared" && row.caller_key == caller_key && row.count >= 1
+    }));
+}
+
+#[tokio::test]
+async fn remote_mcp_refuses_when_the_external_api_is_not_enabled() {
+    let refused = app(sessions_activation_server_fixture_async().await)
+        .oneshot(mcp_protocol_request(
+            "POST",
+            json!({ "jsonrpc": "2.0", "id": 1, "method": "initialize" }),
+            None,
+            None,
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(refused.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        response_json(refused).await["diagnostic"]["code"],
+        "SNAPBACK_API_NOT_ENABLED"
+    );
 }
 
 #[tokio::test]
@@ -3583,6 +3914,142 @@ async fn oauth_metadata_and_full_authorization_code_journey_are_enabled_only_and
         .await
         .unwrap();
     assert_eq!(invocation.status(), StatusCode::OK);
+
+    let mcp_tools = router
+        .clone()
+        .oneshot(mcp_protocol_request(
+            "POST",
+            json!({ "jsonrpc": "2.0", "id": 20, "method": "tools/list" }),
+            Some(&access_token),
+            None,
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(mcp_tools.status(), StatusCode::OK);
+    let mcp_tools = response_json(mcp_tools).await;
+    let mcp_tool_names = mcp_tools["result"]["tools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|tool| tool["name"].as_str().unwrap())
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        mcp_tool_names,
+        BTreeSet::from([
+            "describe_api",
+            "snapback_fn_fn_authenticateditems",
+            "snapback_fn_fn_listitems",
+            "snapback_fn_fn_queuedwrite",
+        ])
+    );
+
+    let authenticated_call = router
+        .clone()
+        .oneshot(mcp_protocol_request(
+            "POST",
+            json!({
+                "jsonrpc": "2.0",
+                "id": 21,
+                "method": "tools/call",
+                "params": {
+                    "name": "snapback_fn_fn_authenticateditems",
+                    "arguments": { "args": {} }
+                }
+            }),
+            Some(&access_token),
+            None,
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(authenticated_call.status(), StatusCode::OK);
+    assert_eq!(response_json(authenticated_call).await["result"]["isError"], false);
+
+    let hidden_credentialed = router
+        .clone()
+        .oneshot(mcp_protocol_request(
+            "POST",
+            json!({
+                "jsonrpc": "2.0",
+                "id": 22,
+                "method": "tools/call",
+                "params": {
+                    "name": "snapback_fn_fn_liveitems",
+                    "arguments": { "args": {} }
+                }
+            }),
+            Some(&access_token),
+            None,
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(hidden_credentialed.status(), StatusCode::OK);
+    let hidden_credentialed = response_json(hidden_credentialed).await;
+    assert_eq!(hidden_credentialed["result"]["isError"], true);
+    assert_eq!(
+        hidden_credentialed["result"]["structuredContent"]["error"]["diagnostic"]["code"],
+        "SNAPBACK_API_EXPOSURE_DENIED"
+    );
+
+    let lookup_client_id = client_id.clone();
+    let integration_principal = with_snapback(&state.snapback, move |snapback| {
+        let (principal, _, _) = snapback
+            .auth_database_mut()
+            .oauth_registration_facts_for_test(&lookup_client_id)?;
+        Ok::<_, SnapbackError>(principal)
+    })
+    .await
+    .unwrap();
+    let suspended_principal = integration_principal.clone();
+    let suspension_at = state.auth_provider.as_ref().unwrap().now_ms();
+    with_snapback(&state.snapback, move |snapback| {
+        snapback.auth_database_mut().set_integration_suspended(
+            &suspended_principal,
+            true,
+            suspension_at,
+        )
+    })
+    .await
+    .unwrap();
+    let suspended_call = router
+        .clone()
+        .oneshot(mcp_protocol_request(
+            "POST",
+            json!({
+                "jsonrpc": "2.0",
+                "id": 23,
+                "method": "tools/call",
+                "params": {
+                    "name": "snapback_fn_fn_listitems",
+                    "arguments": { "args": {} }
+                }
+            }),
+            Some(&access_token),
+            None,
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(suspended_call.status(), StatusCode::OK);
+    let suspended_call = response_json(suspended_call).await;
+    assert_eq!(suspended_call["result"]["isError"], true);
+    assert_eq!(
+        suspended_call["result"]["structuredContent"]["error"]["diagnostic"]["code"],
+        "SNAPBACK_API_INTEGRATION_SUSPENDED"
+    );
+    let resumed_principal = integration_principal;
+    let resumed_at = state.auth_provider.as_ref().unwrap().now_ms();
+    with_snapback(&state.snapback, move |snapback| {
+        snapback.auth_database_mut().set_integration_suspended(
+            &resumed_principal,
+            false,
+            resumed_at,
+        )
+    })
+    .await
+    .unwrap();
 
     let revoked = router
         .clone()

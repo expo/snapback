@@ -762,6 +762,10 @@ pub enum InvocationSource {
     HttpQuery,
     HttpMutation,
     HttpAction,
+    /// Streamable-HTTP MCP multiplexes every finite function kind behind one
+    /// registered route; the tool dispatcher still enters the same per-kind
+    /// finite invocation handlers as `/api/v1/*`.
+    HttpMcp,
     LocalQuery,
     LocalMutation,
     LocalAction,
@@ -827,7 +831,7 @@ pub enum FunctionKindConstraint {
 }
 
 impl InvocationSource {
-    pub const ALL: [Self; 36] = [
+    pub const ALL: [Self; 37] = [
         Self::BootstrapHandshake,
         Self::AuthRefresh,
         Self::AuthLogout,
@@ -836,6 +840,7 @@ impl InvocationSource {
         Self::HttpQuery,
         Self::HttpMutation,
         Self::HttpAction,
+        Self::HttpMcp,
         Self::LocalQuery,
         Self::LocalMutation,
         Self::LocalAction,
@@ -879,7 +884,10 @@ impl InvocationSource {
             Self::HttpAction | Self::LocalAction | Self::Cron => {
                 InvocationTarget::Function(FunctionKindConstraint::Action)
             }
-            Self::DirectAdminRunner | Self::HostOperationFunctionRun | Self::BranchOperation => {
+            Self::HttpMcp
+            | Self::DirectAdminRunner
+            | Self::HostOperationFunctionRun
+            | Self::BranchOperation => {
                 InvocationTarget::Function(FunctionKindConstraint::Any)
             }
             Self::BootstrapHandshake
@@ -1890,7 +1898,8 @@ fn source_allows_authority(
         }
         InvocationSource::HttpQuery
         | InvocationSource::HttpMutation
-        | InvocationSource::HttpAction => {
+        | InvocationSource::HttpAction
+        | InvocationSource::HttpMcp => {
             ordinary
                 || (mode == AuthMode::Sessions
                     && matches!(resolved, ResolvedAppAuthority::ServicePrincipal { .. }))
@@ -2777,7 +2786,8 @@ mod tests {
                 }
                 InvocationSource::HttpQuery
                 | InvocationSource::HttpMutation
-                | InvocationSource::HttpAction => {
+                | InvocationSource::HttpAction
+                | InvocationSource::HttpMcp => {
                     ordinary || matches!((mode, kind), (AuthMode::Sessions, Kind::Service))
                 }
                 InvocationSource::ConnectionOpen => {

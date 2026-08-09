@@ -164,6 +164,7 @@ here (or listed here but gone from the code).
 | /live/{name}/subscribe | realtime.live-queries |
 | /live/{name}/unsubscribe | realtime.live-queries |
 | /mutation/{name} | backend.functions |
+| /mcp | api.external-exposure |
 | /operations/explain | notAuthorFacing (unpublished LLP 0163 acceptance substrate) |
 | /outbox/{connection_id} | sync.offline |
 | /query/{name} | backend.functions |

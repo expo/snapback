@@ -187,6 +187,9 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("GET", "/"),
         ("GET", "/health"),
         ("GET", "/inspect"),
+        ("POST", "/mcp"),
+        ("GET", "/mcp"),
+        ("DELETE", "/mcp"),
         // LLP 0062 §5: the app-data-plane envelope surface.
         ("GET", "/app-api/current"),
         ("GET", "/app-api/openapi.json"),
@@ -442,6 +445,36 @@ fn app_api_current_projections_are_bare_public_no_store_routes() {
     }
     let envelope = routes["/app-api/envelope/{sha256}"];
     assert_eq!(envelope.response_sensitivity, ResponseSensitivity::PublicProjection);
+}
+
+#[test]
+fn remote_mcp_rows_pin_the_app_data_policy_tuple() {
+    let rows = route_registry()
+        .into_iter()
+        .filter(|route| route.path == "/mcp")
+        .collect::<Vec<_>>();
+    assert_eq!(rows.len(), 3);
+    assert_eq!(
+        rows.iter().map(|route| route.method).collect::<BTreeSet<_>>(),
+        BTreeSet::from(["DELETE", "GET", "POST"])
+    );
+    for route in rows {
+        assert_eq!(route.class, RouteClass::AppData);
+        assert_eq!(route.path_policy, RoutePolicy::AppAuth);
+        assert_eq!(route.credential_resolution, CredentialResolution::LegacyBodyAuth);
+        assert_eq!(route.invocation_authority, InvocationAuthority::ClientAsserted);
+        assert_eq!(route.legacy_body_policy, LegacyBodyPolicy::Allowed);
+        assert_eq!(route.response_sensitivity, ResponseSensitivity::ApplicationData);
+
+        let sessions = route.effective_for(PolicyAuthMode::Sessions);
+        assert_eq!(sessions.path_policy, RoutePolicy::Public);
+        assert_eq!(
+            sessions.credential_resolution,
+            CredentialResolution::OptionalSessionOrScopedToken
+        );
+        assert_eq!(sessions.invocation_authority, InvocationAuthority::ResolvedCaller);
+        assert_eq!(sessions.legacy_body_policy, LegacyBodyPolicy::Rejected);
+    }
 }
 
 #[test]
@@ -1034,6 +1067,7 @@ fn session_overlay_closes_every_client_asserted_http_route() {
                     | "/api/v1/mutation/{name}"
                     | "/action/{name}"
                     | "/api/v1/action/{name}"
+                    | "/mcp"
                     | "/app/bundle" => {
                         CredentialResolution::OptionalSessionOrScopedToken
                     }
@@ -1930,6 +1964,30 @@ fn session_http_body_probes() -> BTreeMap<(&'static str, &'static str), SessionB
             SessionBodyProbe {
                 uri: "/api/v1/query/missing_function",
                 base: json!({ "args": {} }),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("POST", "/mcp"),
+            SessionBodyProbe {
+                uri: "/mcp",
+                base: json!({ "jsonrpc": "2.0", "id": 1, "method": "ping" }),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("GET", "/mcp"),
+            SessionBodyProbe {
+                uri: "/mcp",
+                base: json!({ "jsonrpc": "2.0", "id": 1, "method": "ping" }),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("DELETE", "/mcp"),
+            SessionBodyProbe {
+                uri: "/mcp",
+                base: json!({ "jsonrpc": "2.0", "id": 1, "method": "ping" }),
                 forbidden_fields: handler_fields(),
             },
         ),

@@ -5,7 +5,7 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-08-09 (LLP 0204 S2 Landing C local OAuth facade;
+**Revised:** 2026-08-09 (LLP 0204 S2 Landing E remote MCP server and Landing C local OAuth facade;
 earlier Landing B declared-client operator routes, Landing A integration lifecycle, and S1 `/api/v1` plus
 `api.origins` bearer-token CORS — see dated amendments).
 2026-08-08 (hosted app-data SPA-fallback refusal: reserved
@@ -1509,7 +1509,7 @@ handler runs:
 ### `api.origins` bearer-token CORS statement
 
 The manifest's `api.origins` list grants cross-origin browser access to the
-`/api/v1/*` family only. Because [LLP 0039's deferred origin-allowlisting
+`/api/v1/*` family and `/mcp`. Because [LLP 0039's deferred origin-allowlisting
 contract](./0039-auth-vertical-slice.rfc.md) is scoped to cookie transport,
 this amendment carries its own statement for bearer transport:
 
@@ -1577,12 +1577,63 @@ segment.
 | `POST /_snapback/api/auth/declared-clients/resume` | same tuple as bless | closed `{clientId}` body; active-status projection |
 | `POST /_snapback/api/auth/declared-clients/delete` | same tuple as bless | closed `{clientId}` body; `204` |
 
-`Snapback-Client-Id` is admitted only on the registered `/api/v1/*` family;
+`Snapback-Client-Id` is admitted only on the registered `/api/v1/*` family and
+`/mcp`;
 the bare first-party routes ignore it. Browser callers may present that header
 through the external family CORS lane, and may read the
 `Snapback-Client-Id-Status` response header. Parsing, bounded-ledger,
 network-floor composition, suspension, and fresh-identity upgrade rules remain
 normatively owned by LLP 0071 and LLP 0204 D7.
+
+## Dated amendment: LLP 0204 S2 remote MCP route (2026-08-09)
+
+**Commissioned by:** [LLP 0204](./0204-app-external-surfaces.rfc.md) D3;
+**implemented** by `S2 Landing E`.
+
+The app's standards-facing MCP server is one registered AppData path with
+three method rows:
+
+| Route | Policy tuple | Transport behavior |
+| --- | --- | --- |
+| `POST /mcp` | identical finite-function tuple to `/api/v1/*`: dev `AppAuth`/`LegacyBodyAuth`/`ClientAsserted`; sessions overlay → `Public`/`OptionalSessionOrScopedToken`/`ResolvedCaller`, legacy body authority rejected; `ApplicationData` | one JSON-RPC request per POST; JSON response or one-event SSE response |
+| `GET /mcp` | same tuple | `405 Method Not Allowed`; v1 has no server-initiated stream |
+| `DELETE /mcp` | same tuple | `405 Method Not Allowed`; v1 issues no `Mcp-Session-Id`, so there is no session to terminate |
+
+This is the stateless subset of Streamable HTTP: POST is the only message
+carrier, a response may use `application/json` or `text/event-stream`, and the
+server neither creates transport sessions nor initiates streams. GET and
+DELETE are registered so their absence is explicit and policy-covered rather
+than an accidental router gap. The route uses MCP protocol version
+`2025-06-18` and re-reads the current envelope for every request.
+
+The catalog contains `describe_api` plus one deterministic tool for every
+currently exposed function. Tool names are `snapback_fn_` followed by the
+lowercase function id with non-ASCII-alphanumeric/non-underscore characters
+replaced by `_`; a sanitized-name collision gains the first eight hexadecimal
+SHA-256 characters of the original stable id. Each tool carries its original
+function id in `_meta["snapback/functionId"]`, making the mapping reversible.
+Listing is the public exposed envelope projection for every authority class;
+authentication and exact facade/scoped-token grants constrain calls rather
+than turning discovery into an authority oracle. Calling a known but hidden tool still enters the shared
+finite path and returns an MCP tool error containing the canonical
+`SNAPBACK_API_EXPOSURE_DENIED` diagnostic rather than becoming an unknown-tool
+oracle.
+
+`initialize`, `ping`, `tools/list`, `tools/call`, `resources/list`, and
+`resources/read` are implemented. The three read-only resources are generated
+from the same current envelope: the canonical envelope, OpenAPI projection,
+and agent skill. `describe_api` generates their HTTP discovery pointers and
+the OAuth metadata pointers. `run_code` and `ask` are deliberately absent and
+advertised as deferred to LLP 0204 S4; this landing does not implement either.
+
+Bearer facade tokens, anonymous external admission, exposure and exact grant
+scope, suspension, network/declared/integration budgets, and caller
+attribution all flow through the same registered middleware and per-kind
+finite handlers as `/api/v1`. `Snapback-Client-Id` therefore has the same
+declared-tier semantics on `/mcp`; the bare first-party routes still ignore it.
+The JSON-RPC route has honest-null schema references because its method and
+tool schemas are generated from the current envelope rather than committed as
+standalone Rust DTO schema artifacts.
 
 ## Status
 

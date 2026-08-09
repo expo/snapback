@@ -1238,6 +1238,9 @@ fn route_schema_refs(method: &str, path: &str) -> (Option<&'static str>, Option<
         // LLP 0204 D2/D9.2: these are envelope-derived presentation
         // projections, not committed Rust-owned wire DTOs. Null is honest.
         ("GET", "/app-api/openapi.json" | "/app-api/agent-skill") => (None, None),
+        // LLP 0204 D3: MCP is a JSON-RPC protocol projection generated from
+        // the current envelope, not a Rust-owned route DTO. Null is honest.
+        ("POST" | "GET" | "DELETE", "/mcp") => (None, None),
         ("GET", "/auth/session") => (None, Some("auth.session.output.schema.json")),
         ("POST", "/auth/request-code") => (
             Some("auth.request-code.input.schema.json"),

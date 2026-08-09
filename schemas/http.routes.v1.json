@@ -1386,6 +1386,33 @@
     {
       "class": "AppData",
       "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": null,
+      "method": "DELETE",
+      "outputSchema": null,
+      "path": "/mcp",
+      "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/mcp",
+      "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/mcp",
+      "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
       "inputSchema": {
         "$ref": "mutation.input.schema.json"
       },

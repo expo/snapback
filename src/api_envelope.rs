@@ -400,12 +400,12 @@ pub fn verify_correspondence(
 }
 
 #[derive(Clone, Debug, PartialEq)]
-struct AppApiOperationProjection {
-    stable_id: String,
-    name: String,
-    route_kind: &'static str,
-    auth_requirement: String,
-    args_schema: Value,
+pub(crate) struct AppApiOperationProjection {
+    pub(crate) stable_id: String,
+    pub(crate) name: String,
+    pub(crate) route_kind: &'static str,
+    pub(crate) auth_requirement: String,
+    pub(crate) args_schema: Value,
 }
 
 impl AppApiOperationProjection {
@@ -422,7 +422,7 @@ impl AppApiOperationProjection {
     }
 }
 
-fn projection_operations(
+pub(crate) fn projection_operations(
     envelope: &ApiEnvelopeV1,
 ) -> Result<Vec<AppApiOperationProjection>, EnvelopeRefusal> {
     let definitions = envelope
