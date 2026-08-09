@@ -43,3 +43,17 @@ regenerated `generated/` tree. Consider also whether the activation format
 should bind a toolchain-stable identity instead of the raw `inputsHash`, so
 routine codegen changes stop invalidating signed ceremonies (that design
 question belongs to LLP 0087's owner).
+
+## Dated note — 2026-08-09, unique-where-present landing (Lane B)
+
+The LLP 0007 unique-where-present landing rotates the manifest schema
+again (`whereApplicable` on `IndexManifest`), which joins this ticket's
+blocked class: the `local-store-publication` carrier refresh
+(`scripts/finalize-local-persistent-store-publication`) transitively
+requires re-minting the triage-graph/fleet-observatory receipts, whose
+demos cannot regenerate until their signed activations are re-minted
+under this ticket's ceremony. Per the S0 precedent recorded above, the
+landing uses the documented loud bypass; the carrier refresh and receipt
+re-mint fold into this ticket's resolution ceremony (which should run
+once, after the structured-stored-values landing that rotates the schema
+a third time today).

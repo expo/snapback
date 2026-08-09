@@ -1,6 +1,6 @@
 # Unique-where-present index semantics for optional fields (Clique G8, second half)
 
-**Status:** Open
+**Status:** Closed
 **Severity:** P2 (schema expressiveness; forced meaningless generated defaults in the pilot)
 **Systems:** Schema, Storage, Migrations
 **Date:** 2026-08-09
@@ -40,3 +40,14 @@ not be smuggled into CV-4b — file, design in LLP 0007, land on its own.
 An optional field carries a declared unique-where-present index with
 pinned portable semantics and acceptance coverage on the local target;
 LLP 0208 G8's second half is annotated closed.
+
+## Resolution
+
+Resolved 2026-08-09. LLP 0007 now defines the automatic
+unique-where-present profile for optional unique keys, including the
+all-present compound participation rule and pinned SQLite/Postgres partial-index
+mapping. Codegen carries the explicit `whereApplicable` fact; SQLite validates
+it, creates the partial unique index, and preserves the existing portable
+uniqueness refusal for activation and writes. Storage acceptance coverage
+proves absent-row multiplicity, present-row conflicts, compound participation,
+brownfield activation refusal, and migration over absent values.

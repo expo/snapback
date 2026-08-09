@@ -1073,6 +1073,7 @@ mod tests {
                     name: "explicit".to_owned(),
                     fields: vec!["id".to_owned()],
                     unique: false,
+                    where_applicable: false,
                 }],
                 syncable: false,
                 permission_backing: false,

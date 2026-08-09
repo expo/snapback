@@ -519,14 +519,20 @@ export default defineSchema({ rsvps: defineTable({ eventId: v.string(), userId: 
 }
 
 {
-  const diagnostics = await invalidCase({
+  const result = await validCase({
     schema: `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({ rsvps: defineTable({ eventId: v.string(), userId: v.optional(v.principal()) }).index('by_event_user', ['eventId', 'userId'], { unique: true }) });
 `,
     functions: 'export const nothing = 0;\n',
   });
-  assert(diagnostics.some((d) => d.code === 'SCHEMA_UNIQUE_INDEX_OPTIONAL_FIELD' && d.field === 'userId'));
+  const manifest = JSON.parse(readFileSync(join(result.outDir, 'schema.manifest.json'), 'utf8'));
+  assert.deepEqual(manifest.tables[0].indexes, [{
+    name: 'by_event_user',
+    fields: ['eventId', 'userId'],
+    unique: true,
+    whereApplicable: true,
+  }]);
 }
 
 {

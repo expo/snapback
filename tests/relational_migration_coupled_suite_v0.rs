@@ -63,6 +63,7 @@ fn schema() -> SchemaManifest {
                     name: "items_by_group".to_owned(),
                     fields: vec!["groupKey".to_owned()],
                     unique: false,
+                    where_applicable: false,
                 }],
             ),
             table(
@@ -76,6 +77,7 @@ fn schema() -> SchemaManifest {
                     name: "groups_by_slug".to_owned(),
                     fields: vec!["slug".to_owned()],
                     unique: true,
+                    where_applicable: false,
                 }],
             ),
             table(

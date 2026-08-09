@@ -3789,6 +3789,7 @@ mod tests {
                             name: "_auth_lookup".to_owned(),
                             fields: vec!["value".to_owned()],
                             unique: false,
+                            where_applicable: false,
                         }],
                         syncable: false,
                         permission_backing: false,

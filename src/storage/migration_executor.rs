@@ -2105,7 +2105,14 @@ impl LocalDatabase {
             for table in &successor_schema.tables {
                 create_or_update_table(&tx, table)?;
                 for index in &table.indexes {
-                    create_index(&tx, table, &index.name, &index.fields, index.unique)?;
+                    create_index(
+                        &tx,
+                        table,
+                        &index.name,
+                        &index.fields,
+                        index.unique,
+                        index.where_applicable,
+                    )?;
                 }
             }
             // Both manifest slots move together (pre-sessions keeps a
@@ -2838,6 +2845,7 @@ impl LocalDatabase {
                         &declared.name,
                         &declared.fields,
                         declared.unique,
+                        declared.where_applicable,
                     )?;
                 }
                 journal_step(&tx, 0, None, None, Some(&json!({ "structural": true })))?;
@@ -3009,11 +3017,24 @@ impl LocalDatabase {
                 let field = fields.first().cloned().ok_or_else(|| {
                     step_failed(step_id, "ValidateUnique requires at least one field")
                 })?;
+                let where_applicable = successor_schema
+                    .table(table)
+                    .and_then(|table| {
+                        table
+                            .indexes
+                            .iter()
+                            .find(|index| index.fields == *fields && index.unique)
+                    })
+                    .is_some_and(|index| index.where_applicable);
                 self.run_validation_scan_indexed(
                     successor_schema,
                     table,
                     Some(index),
-                    vec![MigrationScanValidatorV1::Unique { field }],
+                    vec![MigrationScanValidatorV1::Unique {
+                        field,
+                        additional_fields: fields.iter().skip(1).cloned().collect(),
+                        where_applicable,
+                    }],
                     step_id,
                     &journal_step_wrapper(
                         &operation_id,

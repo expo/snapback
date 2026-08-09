@@ -1745,11 +1745,18 @@ export async function generateInProcess(backendDir, options = {}) {
       for (const f of index.fields) {
         if (!seenFields.has(f)) {
           err('SCHEMA_UNKNOWN_FIELD', 'schema', `index ${name}.${index.name} references unknown field ${f}`, { table: name, index: index.name, field: f });
-        } else if (index.unique && table.fields[f].optional) {
-          err('SCHEMA_UNIQUE_INDEX_OPTIONAL_FIELD', 'schema', `unique index ${name}.${index.name} field ${f} must be required so uniqueness is total`, { table: name, index: index.name, field: f });
         }
       }
-      indexes.push({ name: index.name, fields: index.fields, ...(index.unique ? { unique: true } : {}) });
+      // @ref LLP 0007#index-contract — optional unique keys automatically use
+      //   the manifest-explicit, all-components-present partial-index profile.
+      const whereApplicable = index.unique
+        && index.fields.some((field) => table.fields[field]?.optional === true);
+      indexes.push({
+        name: index.name,
+        fields: index.fields,
+        ...(index.unique ? { unique: true } : {}),
+        ...(whereApplicable ? { whereApplicable: true } : {}),
+      });
     }
 
     const searchIndexes = [];

@@ -5,7 +5,12 @@
 **Systems:** Storage, API, Runtime, Sync, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-08 (closed string domains join the portable field
+**Revised:** 2026-08-09 (unique indexes whose declared key includes optional
+fields now use the portable unique-where-present profile: the manifest carries
+`whereApplicable`, compound keys participate only when every component is
+present, SQLite uses an all-components-non-null partial unique index, and
+activation/write conflicts retain the existing portable uniqueness diagnostic).
+2026-08-08 (closed string domains join the portable field
 vocabulary as a `TEXT` column plus a manifest-owned domain check — explicitly
 not a native Postgres enum type — and the conservative applier gains one
 narrowing rule on the optional-to-required precedent; the same amendment
@@ -546,13 +551,32 @@ The shipped v1 spelling is
 `.index('by_event_user', ['eventId', 'userId'], { unique: true })`. It creates a
 true database unique index inside schema activation; inserts and patches race
 at the serialized commit, so exactly one duplicate key wins and every loser is
-`SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION`. Every v1 unique-key field must be
-required/non-null. This makes the invariant total on both SQLite and Postgres,
-whose ordinary unique indexes otherwise admit multiple NULL-bearing rows;
-optional keys fail schema validation with
-`SNAPBACK_SCHEMA_UNIQUE_INDEX_OPTIONAL_FIELD`. Adding uniqueness to brownfield
-data is an unsafe migration unless existing rows already satisfy it; activation
-uses the same stable unique-conflict diagnostic rather than leaking raw SQLite.
+`SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION`.
+
+**Dated amendment — unique where present (2026-08-09).** When every declared
+key field is required, uniqueness remains total. When one or more declared key
+fields use `v.optional(...)`, the same authoring spelling automatically selects
+**unique where present**; there is no second authoring syntax. The generated
+index manifest carries `whereApplicable: true`, so adapters consume an explicit
+portable fact rather than re-inferring semantics from field optionality.
+
+A row participates in a compound unique-where-present index only when **every**
+declared key component is present. Any absent component exempts the row. The
+alternative any-present rule is rejected: partial presence would make identity
+depend on which subset happened to be present, leaving no decidable compound
+identity to compare.
+
+SQLite implements the profile as a partial unique index whose predicate is
+`WHERE col1 IS NOT NULL` for a single field and `WHERE col1 IS NOT NULL AND
+col2 IS NOT NULL ...` for a compound key. Postgres has the identical partial-
+unique-index mapping; that semantic pin applies when its adapter is implemented,
+but this amendment does not claim a Postgres adapter today. Adding uniqueness
+to brownfield data remains unsafe unless the rows that participate already
+satisfy it. The pre-publication activation scan and partial-index construction
+consider participating rows only; a duplicate refuses activation with
+`SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION`, leaving the predecessor active. Runtime
+insert and patch conflicts use that same portable diagnostic as required-key
+unique indexes—there is no new diagnostic class.
 
 An `upsert` helper is explicitly out of scope for this slice. A unique index is
 the invariant; insert-vs-update selection, returned-row semantics, authorization

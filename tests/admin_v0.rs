@@ -2943,6 +2943,7 @@ fn todo_schema() -> SchemaManifest {
                 name: "by_user".to_owned(),
                 fields: vec!["userId".to_owned()],
                 unique: false,
+                where_applicable: false,
             }],
             syncable: true,
             permission_backing: false,

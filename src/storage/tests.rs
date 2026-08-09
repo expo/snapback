@@ -681,11 +681,20 @@ mod guarded_commit_tests {
                         optional: true,
                     },
                 ],
-                indexes: vec![IndexManifest {
-                    name: "by_k".to_owned(),
-                    fields: vec!["k".to_owned()],
-                    unique: false,
-                }],
+                indexes: vec![
+                    IndexManifest {
+                        name: "by_k".to_owned(),
+                        fields: vec!["k".to_owned()],
+                        unique: false,
+                        where_applicable: false,
+                    },
+                    IndexManifest {
+                        name: "by_k_v".to_owned(),
+                        fields: vec!["k".to_owned(), "v".to_owned()],
+                        unique: false,
+                        where_applicable: false,
+                    },
+                ],
                 syncable: true,
                 permission_backing: false,
                 permission_fields: None,
@@ -736,6 +745,8 @@ mod guarded_commit_tests {
                 },
                 MigrationScanValidatorV1::Unique {
                     field: "k".to_owned(),
+                    additional_fields: Vec::new(),
+                    where_applicable: false,
                 },
             ],
             digest: Some(crate::rqs::ContentDigestHeaderV1 {
@@ -923,6 +934,61 @@ mod guarded_commit_tests {
         }
     }
 
+    // @ref LLP 0007#index-contract — the pre-publication uniqueness proof
+    //   uses the same all-present compound participation rule as target DDL.
+    #[test]
+    fn migration_unique_scan_uses_compound_all_present_participation() {
+        let mut db = migration_scan_database();
+        let row = |id: &str, k: &str, v: Option<&str>| {
+            let mut values = Map::from_iter([("k".to_owned(), json!(k))]);
+            if let Some(v) = v {
+                values.insert("v".to_owned(), json!(v));
+            }
+            BufferedWrite::Insert {
+                table: "scanned".to_owned(),
+                id: id.to_owned(),
+                values,
+            }
+        };
+        db.commit_buffered_writes(
+            &HandlerInput::default(),
+            vec![row("r8", "alpha", Some("1")), row("r9", "beta", None)],
+            Vec::new(),
+            Value::Null,
+        )
+        .expect("compound uniqueness scan fixtures");
+
+        let request = MigrationKeysetScanRequestV1 {
+            table: "scanned".to_owned(),
+            index: Some("by_k_v".to_owned()),
+            validators: vec![MigrationScanValidatorV1::Unique {
+                field: "k".to_owned(),
+                additional_fields: vec!["v".to_owned()],
+                where_applicable: true,
+            }],
+            digest: None,
+            ceilings: MigrationScanCeilingsV1 {
+                max_batch_rows: 1,
+                max_batch_bytes: 1024 * 1024,
+                max_batch_millis: 10_000,
+            },
+        };
+        let outcome = run_scan_to_completion(&db, &request);
+        let duplicates = outcome
+            .checkpoint
+            .validators
+            .iter()
+            .find_map(|state| match state {
+                MigrationScanValidatorStateV1::Unique { duplicates, .. } => Some(*duplicates),
+                _ => None,
+            })
+            .expect("unique facts");
+        assert_eq!(
+            duplicates, 1,
+            "only the duplicate (alpha, 1) participates; both (beta, absent) rows are exempt"
+        );
+    }
+
     // @ref LLP 0081#3-typed-migration-steps — ValidateRequired must count its
     //   exact target NULLs as closed facts while unrelated required-field
     //   corruption still fails through the ordinary strict decoder.
@@ -1013,6 +1079,8 @@ mod guarded_commit_tests {
         let mut misordered = migration_scan_request(4);
         misordered.validators = vec![MigrationScanValidatorV1::Unique {
             field: "v".to_owned(),
+            additional_fields: Vec::new(),
+            where_applicable: false,
         }];
         let error = db
             .migration_keyset_scan_batch(&misordered, None)
@@ -1673,6 +1741,7 @@ mod guarded_commit_tests {
                             "position".to_owned(),
                         ],
                         unique: false,
+                        where_applicable: false,
                     }],
                     syncable: true,
                     permission_backing: false,
@@ -4156,6 +4225,7 @@ mod guarded_commit_tests {
             name: "by_title".to_owned(),
             fields: vec!["title".to_owned()],
             unique: true,
+            where_applicable: false,
         }];
         let mut db = LocalDatabase::memory().expect("memory database");
         db.schema_seed().apply_schema(unique_schema).expect("apply unique index");
@@ -4188,21 +4258,208 @@ mod guarded_commit_tests {
     }
 
     #[test]
-    fn ordinary_unique_index_rejects_optional_key_fields() {
+    fn optional_unique_index_requires_the_manifest_where_applicable_flag() {
         let mut unsafe_schema = schema();
         unsafe_schema.tables[0].indexes = vec![crate::manifest::IndexManifest {
             name: "by_rank".to_owned(),
             fields: vec!["rank".to_owned()],
             unique: true,
+            where_applicable: false,
         }];
         let mut db = LocalDatabase::memory().expect("memory database");
         let error = db
             .schema_seed().apply_schema(unsafe_schema)
-            .expect_err("nullable unique key would not be total");
+            .expect_err("optional unique key needs an explicit carrier fact");
         assert_eq!(
             error.diagnostic.code,
-            "SNAPBACK_SCHEMA_UNIQUE_INDEX_OPTIONAL_FIELD"
+            "SNAPBACK_SCHEMA_INDEX_WHERE_APPLICABLE_MISMATCH"
         );
+    }
+
+    #[test]
+    fn unique_where_present_allows_absent_rows_and_refuses_present_duplicates() {
+        let mut where_present_schema = schema();
+        where_present_schema.tables[0].indexes = vec![crate::manifest::IndexManifest {
+            name: "by_rank".to_owned(),
+            fields: vec!["rank".to_owned()],
+            unique: true,
+            where_applicable: true,
+        }];
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.schema_seed().apply_schema(where_present_schema)
+            .expect("optional unique key activates");
+
+        let insert = |id: &str, title: &str, rank: Option<i64>| {
+            let mut values = Map::from_iter([("title".to_owned(), json!(title))]);
+            if let Some(rank) = rank {
+                values.insert("rank".to_owned(), json!(rank));
+            }
+            BufferedWrite::Insert {
+                table: "items".to_owned(),
+                id: id.to_owned(),
+                values,
+            }
+        };
+        for write in [
+            insert("absent-1", "first absent", None),
+            insert("absent-2", "second absent", None),
+            insert("present-1", "first present", Some(7)),
+        ] {
+            db.commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![write],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("participating and exempt rows insert");
+        }
+        let error = db
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![insert("present-2", "duplicate present", Some(7))],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect_err("a duplicate present key must refuse");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION"
+        );
+        assert_eq!(db.scan_table("items", 10, 0).unwrap().total, 3);
+    }
+
+    #[test]
+    fn compound_unique_where_present_uses_the_all_present_rule() {
+        let mut where_present_schema = schema();
+        where_present_schema.tables[0].indexes = vec![crate::manifest::IndexManifest {
+            name: "by_title_rank".to_owned(),
+            fields: vec!["title".to_owned(), "rank".to_owned()],
+            unique: true,
+            where_applicable: true,
+        }];
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.schema_seed().apply_schema(where_present_schema)
+            .expect("compound where-present index activates");
+
+        let index_sql: String = db
+            .conn
+            .query_row(
+                "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = 'items_by_title_rank'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("partial index SQL");
+        assert!(index_sql.contains("WHERE \"title\" IS NOT NULL AND \"rank\" IS NOT NULL"));
+
+        let insert = |id: &str, rank: Option<i64>| {
+            let mut values = Map::from_iter([("title".to_owned(), json!("same"))]);
+            if let Some(rank) = rank {
+                values.insert("rank".to_owned(), json!(rank));
+            }
+            BufferedWrite::Insert {
+                table: "items".to_owned(),
+                id: id.to_owned(),
+                values,
+            }
+        };
+        for write in [
+            insert("exempt-1", None),
+            insert("exempt-2", None),
+            insert("participating-1", Some(9)),
+        ] {
+            db.commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![write],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("all-present participation is enforced");
+        }
+        let error = db
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![insert("participating-2", Some(9))],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect_err("both-present duplicate must refuse");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION"
+        );
+    }
+
+    #[test]
+    fn unique_where_present_activation_refuses_participating_brownfield_duplicates() {
+        let mut db = database();
+        let insert = |id: &str, title: &str| BufferedWrite::Insert {
+            table: "items".to_owned(),
+            id: id.to_owned(),
+            values: Map::from_iter([
+                ("title".to_owned(), json!(title)),
+                ("rank".to_owned(), json!(4)),
+            ]),
+        };
+        db.commit_buffered_writes(
+            &HandlerInput::default(),
+            vec![insert("first", "first"), insert("second", "second")],
+            Vec::new(),
+            Value::Null,
+        )
+        .expect("brownfield duplicate fixture");
+
+        let mut successor = schema();
+        successor.tables[0].indexes = vec![crate::manifest::IndexManifest {
+            name: "by_rank".to_owned(),
+            fields: vec!["rank".to_owned()],
+            unique: true,
+            where_applicable: true,
+        }];
+        let error = db
+            .schema_seed().apply_schema(successor)
+            .expect_err("participating duplicates refuse activation");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION"
+        );
+        assert!(
+            db.schema.tables[0].indexes.is_empty(),
+            "predecessor stays active"
+        );
+    }
+
+    #[test]
+    fn adding_unique_where_present_over_absent_brownfield_rows_succeeds() {
+        let mut db = database();
+        db.commit_buffered_writes(
+            &HandlerInput::default(),
+            vec![
+                BufferedWrite::Insert {
+                    table: "items".to_owned(),
+                    id: "absent-1".to_owned(),
+                    values: Map::from_iter([("title".to_owned(), json!("first"))]),
+                },
+                BufferedWrite::Insert {
+                    table: "items".to_owned(),
+                    id: "absent-2".to_owned(),
+                    values: Map::from_iter([("title".to_owned(), json!("second"))]),
+                },
+            ],
+            Vec::new(),
+            Value::Null,
+        )
+        .expect("absent brownfield fixture");
+
+        let mut successor = schema();
+        successor.tables[0].indexes = vec![crate::manifest::IndexManifest {
+            name: "by_rank".to_owned(),
+            fields: vec!["rank".to_owned()],
+            unique: true,
+            where_applicable: true,
+        }];
+        db.schema_seed().apply_schema(successor)
+            .expect("absent rows are exempt during activation");
+        assert!(db.schema.tables[0].indexes[0].where_applicable);
     }
 
     fn relational_schema() -> SchemaManifest {
@@ -4224,6 +4481,7 @@ mod guarded_commit_tests {
                         name: "by_owner_title".to_owned(),
                         fields: vec!["ownerId".to_owned(), "title".to_owned()],
                         unique: false,
+                        where_applicable: false,
                     }],
                     syncable: true,
                     permission_backing: false,
@@ -4249,6 +4507,7 @@ mod guarded_commit_tests {
                         // below-constraint corruption case is seedable; the
                         // executor must refuse, never pick a first row.
                         unique: false,
+                        where_applicable: false,
                     }],
                     syncable: true,
                     permission_backing: false,
@@ -4963,11 +5222,13 @@ mod guarded_commit_tests {
                 name: "by_rank".to_owned(),
                 fields: vec!["rank".to_owned()],
                 unique: false,
+                where_applicable: false,
             },
             crate::manifest::IndexManifest {
                 name: "by_title".to_owned(),
                 fields: vec!["title".to_owned()],
                 unique: true,
+                where_applicable: false,
             },
         ];
         let mut db = LocalDatabase::memory().expect("memory database");
@@ -11675,6 +11936,7 @@ mod membership_write_tests {
                         name: case.value.clone(),
                         fields: vec!["userId".to_owned()],
                         unique: false,
+                        where_applicable: false,
                     });
                 }
                 "roleCallerTargetsSelf" | "selfCallerTargetsOther" | "patchAxis" => {

@@ -368,16 +368,26 @@ pub enum FieldType {
 pub struct IndexManifest {
     pub name: String,
     pub fields: Vec<String>,
-    /// A **true, total** unique index: SQLite/Postgres reject a second row
-    /// whose declared columns duplicate an existing one. Load-bearing for
-    /// LLP 0056 memberships, whose `(principal, resource)` uniqueness invariant
-    /// the whole primitive rests on. Non-null key axes are what keep it total —
-    /// a NULL-bearing column would admit multiple duplicate-looking rows.
+    /// A true unique index. It is total when all key fields are required and
+    /// unique-where-present when `where_applicable` is set.
     ///
     /// @ref LLP 0056#declaring-a-membership-table — the generated membership
     ///   index is true-unique; today's `IndexManifest` had no uniqueness flag.
     #[serde(default, skip_serializing_if = "is_false")]
     pub unique: bool,
+    /// The portable unique-where-present profile. Every key component must be
+    /// non-null for a row to participate; the carrier states this explicitly
+    /// instead of asking adapters to infer it from field declarations.
+    ///
+    /// @ref LLP 0007#index-contract — optional unique keys use the all-present
+    ///   compound rule and target partial unique indexes.
+    #[serde(
+        default,
+        rename = "whereApplicable",
+        alias = "where_applicable",
+        skip_serializing_if = "is_false"
+    )]
+    pub where_applicable: bool,
 }
 
 /// The schema-expanded value grammar used to validate handler results at the

@@ -1883,7 +1883,14 @@ fn apply_schema_tables(tx: &Transaction<'_>, manifest: &SchemaManifest) -> Snapb
 fn apply_schema_indexes(tx: &Transaction<'_>, manifest: &SchemaManifest) -> SnapbackResult<()> {
     for table in &manifest.tables {
         for index in &table.indexes {
-            create_index(tx, table, index.name.as_str(), &index.fields, index.unique)?;
+            create_index(
+                tx,
+                table,
+                index.name.as_str(),
+                &index.fields,
+                index.unique,
+                index.where_applicable,
+            )?;
         }
         // The generated true-unique membership index. Host-derived from the
         // declaration rather than hand-declared, so seed/import/admin writers
@@ -1891,10 +1898,10 @@ fn apply_schema_indexes(tx: &Transaction<'_>, manifest: &SchemaManifest) -> Snap
         // guarantee without the app author spelling an index.
         // @ref LLP 0056#declaring-a-membership-table — the generated index.
         if let Some((name, fields)) = super::membership_unique_index(table) {
-            create_index(tx, table, &name, &fields, true)?;
+            create_index(tx, table, &name, &fields, true, false)?;
         }
         if let Some((name, fields)) = super::membership_reverse_index(table) {
-            create_index(tx, table, &name, &fields, false)?;
+            create_index(tx, table, &name, &fields, false, false)?;
         }
     }
     Ok(())

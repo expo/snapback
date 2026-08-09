@@ -22,6 +22,10 @@ fn migration_precondition_failed(detail: String) -> SnapbackError {
     )
 }
 
+fn is_migration_scan_false(value: &bool) -> bool {
+    !*value
+}
+
 /// The closed per-batch ceilings a target enforces on the privileged scan
 /// (LLP 0081 §3). These are the scan's OWN bounds — the scan is not the
 /// application query surface and neither relaxes nor consumes LLP 0007's
@@ -46,10 +50,25 @@ pub const MIGRATION_SCAN_MAX_BATCH_MILLIS: u64 = 60_000;
 pub enum MigrationScanValidatorV1 {
     /// Count rows whose field is null or absent (`ValidateRequired`).
     NonNull { field: String },
-    /// Count adjacent duplicate non-null values (`ValidateUnique`). Sound
-    /// only in that field's own order, so the scan requires the field to
-    /// lead the scan index.
-    Unique { field: String },
+    /// Count adjacent duplicate all-present keys (`ValidateUnique`). Sound
+    /// only in the compound key's own order, so the scan requires these
+    /// fields to lead the scan index in the same order. `field` remains the
+    /// leading component for checkpoint compatibility.
+    ///
+    /// @ref LLP 0007#index-contract — optional unique keys participate only
+    ///   when every component is present.
+    Unique {
+        field: String,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        additional_fields: Vec<String>,
+        #[serde(
+            default,
+            rename = "whereApplicable",
+            alias = "where_applicable",
+            skip_serializing_if = "is_migration_scan_false"
+        )]
+        where_applicable: bool,
+    },
 }
 
 /// Resumable per-validator state, persisted with the batch checkpoint.
@@ -64,10 +83,20 @@ pub enum MigrationScanValidatorStateV1 {
     },
     Unique {
         field: String,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        additional_fields: Vec<String>,
+        #[serde(
+            default,
+            rename = "whereApplicable",
+            alias = "where_applicable",
+            skip_serializing_if = "is_migration_scan_false"
+        )]
+        where_applicable: bool,
         duplicates: u64,
         samples: Vec<String>,
-        /// The previous non-null value at the batch boundary — adjacency
-        /// carries across batches through this.
+        /// The previous participating key at the batch boundary — adjacency
+        /// carries across batches through this. A compound key is represented
+        /// as a JSON array; the single-field legacy shape remains scalar.
         last: Option<Value>,
     },
 }
@@ -188,14 +217,18 @@ fn migration_scan_initial_state(
                         samples: Vec::new(),
                     }
                 }
-                MigrationScanValidatorV1::Unique { field } => {
-                    MigrationScanValidatorStateV1::Unique {
-                        field: field.clone(),
-                        duplicates: 0,
-                        samples: Vec::new(),
-                        last: None,
-                    }
-                }
+                MigrationScanValidatorV1::Unique {
+                    field,
+                    additional_fields,
+                    where_applicable,
+                } => MigrationScanValidatorStateV1::Unique {
+                    field: field.clone(),
+                    additional_fields: additional_fields.clone(),
+                    where_applicable: *where_applicable,
+                    duplicates: 0,
+                    samples: Vec::new(),
+                    last: None,
+                },
             })
             .collect(),
         logical_digest: header.map(|header| {
@@ -235,14 +268,27 @@ fn validate_migration_scan_request(
             MigrationScanValidatorV1::NonNull { field } => {
                 ensure_field_or_system(table, field)?;
             }
-            MigrationScanValidatorV1::Unique { field } => {
-                ensure_field_or_system(table, field)?;
-                let leads = order.first().is_some_and(|first| &first.field == field);
+            MigrationScanValidatorV1::Unique {
+                field,
+                additional_fields,
+                ..
+            } => {
+                let fields = std::iter::once(field)
+                    .chain(additional_fields)
+                    .collect::<Vec<_>>();
+                for field in &fields {
+                    ensure_field_or_system(table, field)?;
+                }
+                let leads = order
+                    .iter()
+                    .map(|expr| &expr.field)
+                    .take(fields.len())
+                    .eq(fields.iter().copied());
                 if !leads {
                     return Err(migration_plan_invalid(format!(
-                        "uniqueness over {field:?} requires scanning an index that \
-                         leads with that field; adjacency is only sound in the \
-                         field's own order"
+                        "uniqueness over {fields:?} requires scanning an index that \
+                         leads with those fields in the same order; adjacency is only \
+                         sound in the compound key's own order"
                     )));
                 }
             }
@@ -386,12 +432,29 @@ pub(crate) fn migration_keyset_scan_batch_on(
                 }
                 MigrationScanValidatorStateV1::Unique {
                     field,
+                    additional_fields,
+                    where_applicable: _,
                     duplicates,
                     samples,
                     last,
                 } => {
-                    let value = document.get(field.as_str()).filter(|v| !v.is_null());
-                    match (last.as_ref(), value) {
+                    let values = std::iter::once(field.as_str())
+                        .chain(additional_fields.iter().map(String::as_str))
+                        .map(|field| {
+                            document
+                                .get(field)
+                                .filter(|value| !value.is_null())
+                                .cloned()
+                        })
+                        .collect::<Option<Vec<_>>>();
+                    let value = values.map(|mut values| {
+                        if values.len() == 1 {
+                            values.pop().expect("one participating unique component")
+                        } else {
+                            Value::Array(values)
+                        }
+                    });
+                    match (last.as_ref(), value.as_ref()) {
                         (Some(previous), Some(current)) if previous == current => {
                             *duplicates += 1;
                             if samples.len() < MIGRATION_SCAN_SAMPLE_CAP {
@@ -400,7 +463,7 @@ pub(crate) fn migration_keyset_scan_batch_on(
                         }
                         _ => {}
                     }
-                    *last = value.cloned();
+                    *last = value;
                 }
             }
         }

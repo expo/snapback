@@ -8657,21 +8657,26 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
                     format!("index {}.{} has no fields", table.name, index.name),
                 ));
             }
-            for field in &index.fields {
-                let field_manifest = ensure_field(table, field)?;
-                if index.unique && field_manifest.optional {
-                    return Err(SnapbackError::error(
-                        "SNAPBACK_SCHEMA_UNIQUE_INDEX_OPTIONAL_FIELD",
-                        "schema",
-                        format!(
-                            "unique index {}.{} field {} must be required so uniqueness is total",
-                            table.name, index.name, field
-                        ),
-                    )
-                    .with_detail("table", table.name.clone())
-                    .with_detail("index", index.name.clone())
-                    .with_detail("field", field.clone()));
-                }
+            let index_fields = index
+                .fields
+                .iter()
+                .map(|field| ensure_field(table, field))
+                .collect::<SnapbackResult<Vec<_>>>()?;
+            let has_optional_field = index_fields.iter().any(|field| field.optional);
+            let expected_where_applicable = index.unique && has_optional_field;
+            if index.where_applicable != expected_where_applicable {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_SCHEMA_INDEX_WHERE_APPLICABLE_MISMATCH",
+                    "schema",
+                    format!(
+                        "index {}.{} whereApplicable must be {} for its unique and optional-field declarations",
+                        table.name, index.name, expected_where_applicable
+                    ),
+                )
+                .with_detail("table", table.name.clone())
+                .with_detail("index", index.name.clone())
+                .with_detail("expectedWhereApplicable", expected_where_applicable)
+                .with_detail("actualWhereApplicable", index.where_applicable));
             }
         }
 
@@ -9682,6 +9687,7 @@ fn create_index(
     name: &str,
     fields: &[String],
     unique: bool,
+    where_applicable: bool,
 ) -> SnapbackResult<()> {
     let mut columns = fields
         .iter()
@@ -9698,9 +9704,8 @@ fn create_index(
     // carries a framework-generated implicit trailing ascending `_id`
     // component that is scan-order only — the uniqueness constraint, the
     // complete-ordered-key semantics, and relational output keys stay over
-    // the declared fields alone. The declared columns must be non-null for
-    // the constraint to be total — enforced by schema validation for both
-    // ordinary and membership indexes.
+    // the declared fields alone. Optional unique keys use the manifest-pinned
+    // all-present predicate below; membership keys remain required and total.
     // @ref LLP 0007#index-contract — implicit trailing `_id` is scan-order
     //   only; unique constraints stay declared-fields-only.
     // @ref LLP 0080#1-closed-relational-plan — the suffix makes the `_id`
@@ -9711,6 +9716,17 @@ fn create_index(
         columns.push(quote_ident("_id")?);
     }
 
+    let where_predicate = if where_applicable {
+        Some(
+            fields
+                .iter()
+                .map(|field| Ok(format!("{} IS NOT NULL", quote_ident(field)?)))
+                .collect::<SnapbackResult<Vec<_>>>()?
+                .join(" AND "),
+        )
+    } else {
+        None
+    };
     let physical_name = format!("{}_{}", table.name, name);
     if let Some(existing) = physical_index(tx, &physical_name)? {
         let desired: Vec<String> = if unique {
@@ -9718,7 +9734,10 @@ fn create_index(
         } else {
             fields.iter().cloned().chain(["_id".to_owned()]).collect()
         };
-        if existing.table == table.name && existing.columns == desired && existing.unique == unique
+        if existing.table == table.name
+            && existing.columns == desired
+            && existing.unique == unique
+            && existing.where_predicate == where_predicate
         {
             return Ok(());
         }
@@ -9726,14 +9745,19 @@ fn create_index(
     }
     tx.execute(
         &format!(
-            "CREATE {}INDEX {} ON {} ({})",
+            "CREATE {}INDEX {} ON {} ({}){}",
             if unique { "UNIQUE " } else { "" },
             quote_ident(&physical_name)?,
             quote_ident(&table.name)?,
-            columns.join(", ")
+            columns.join(", "),
+            where_predicate
+                .as_ref()
+                .map(|predicate| format!(" WHERE {predicate}"))
+                .unwrap_or_default()
         ),
         [],
-    )?;
+    )
+    .map_err(map_unique_constraint_error)?;
     Ok(())
 }
 
@@ -9744,6 +9768,7 @@ struct PhysicalIndex {
     table: String,
     columns: Vec<String>,
     unique: bool,
+    where_predicate: Option<String>,
 }
 
 fn physical_index(tx: &Transaction<'_>, name: &str) -> SnapbackResult<Option<PhysicalIndex>> {
@@ -9764,6 +9789,12 @@ fn physical_index(tx: &Transaction<'_>, name: &str) -> SnapbackResult<Option<Phy
     let unique = sql
         .as_deref()
         .is_some_and(|sql| sql.to_ascii_uppercase().contains("CREATE UNIQUE INDEX"));
+    let where_predicate = sql.as_deref().and_then(|sql| {
+        let upper = sql.to_ascii_uppercase();
+        upper
+            .find(" WHERE ")
+            .map(|offset| sql[offset + " WHERE ".len()..].trim().to_owned())
+    });
     let mut statement = tx.prepare(&format!("PRAGMA index_info({})", quote_ident(name)?))?;
     let mut rows = statement.query([])?;
     let mut columns = Vec::new();
@@ -9777,6 +9808,7 @@ fn physical_index(tx: &Transaction<'_>, name: &str) -> SnapbackResult<Option<Phy
         table,
         columns,
         unique,
+        where_predicate,
     }))
 }
 

@@ -44,6 +44,7 @@ fn wall_schema() -> SchemaManifest {
                 name: "by_board".to_owned(),
                 fields: vec!["boardId".to_owned()],
                 unique: false,
+                where_applicable: false,
             }],
             syncable: true,
             permission_backing: false,

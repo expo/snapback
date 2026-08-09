@@ -364,6 +364,12 @@
           "properties": {
             "unique": {
               "properties": {
+                "additional_fields": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
                 "duplicates": {
                   "format": "uint64",
                   "minimum": 0,
@@ -373,13 +379,16 @@
                   "type": "string"
                 },
                 "last": {
-                  "description": "The previous non-null value at the batch boundary — adjacency\ncarries across batches through this."
+                  "description": "The previous participating key at the batch boundary — adjacency\ncarries across batches through this. A compound key is represented\nas a JSON array; the single-field legacy shape remains scalar."
                 },
                 "samples": {
                   "items": {
                     "type": "string"
                   },
                   "type": "array"
+                },
+                "whereApplicable": {
+                  "type": "boolean"
                 }
               },
               "required": [

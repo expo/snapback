@@ -2613,7 +2613,11 @@
           "type": "string"
         },
         "unique": {
-          "description": "A **true, total** unique index: SQLite/Postgres reject a second row\nwhose declared columns duplicate an existing one. Load-bearing for\nLLP 0056 memberships, whose `(principal, resource)` uniqueness invariant\nthe whole primitive rests on. Non-null key axes are what keep it total —\na NULL-bearing column would admit multiple duplicate-looking rows.\n\n@ref LLP 0056#declaring-a-membership-table — the generated membership\n  index is true-unique; today's `IndexManifest` had no uniqueness flag.",
+          "description": "A true unique index. It is total when all key fields are required and\nunique-where-present when `where_applicable` is set.\n\n@ref LLP 0056#declaring-a-membership-table — the generated membership\n  index is true-unique; today's `IndexManifest` had no uniqueness flag.",
+          "type": "boolean"
+        },
+        "whereApplicable": {
+          "description": "The portable unique-where-present profile. Every key component must be\nnon-null for a row to participate; the carrier states this explicitly\ninstead of asking adapters to infer it from field declarations.\n\n@ref LLP 0007#index-contract — optional unique keys use the all-present\n  compound rule and target partial unique indexes.",
           "type": "boolean"
         }
       },
