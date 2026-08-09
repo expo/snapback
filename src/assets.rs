@@ -118,9 +118,9 @@ pub const ASSET_PUBLICATION_RETENTION_MS: u64 = 7 * 24 * 60 * 60 * 1000;
 // and required-variant renders. It deliberately has no database handle: a
 // caller may run it outside the global Local/SQLite writer and later carry the
 // immutable result through the write-ahead publication commits in `local.rs`.
-// The local transport still holds that outer guard today; the call-site OQ
-// note records the remaining choreography rather than pretending the lock move
-// has landed.
+// The local transport runs this half between finalize preflight and commit,
+// while the retained in-process finalize path may deliberately run it beneath
+// an outer Local guard for callers that cannot release that guard.
 //
 // @ref LLP 0199#target-ownership-map — background services prepare CPU/network
 //   work outside the global writer and enter the kernel through narrow commits.
@@ -139,6 +139,7 @@ pub(crate) struct AssetFinalizePrepareInput<'a> {
     pub video_location: Option<crate::manifest::AssetLocationPolicy>,
     pub image_finalization_enabled: bool,
     pub video_finalization_enabled: bool,
+    pub declared_variants: &'a [crate::manifest::AssetImageVariant],
 }
 
 pub(crate) struct AssetFinalizePrepareFailure {
@@ -194,6 +195,7 @@ pub(crate) struct AssetFinalizePreparation {
     pub detected_content_type: &'static str,
     pub canonical: AssetPreparedCanonical,
     pub media_facts: serde_json::Map<String, serde_json::Value>,
+    pub required_variants: Vec<AssetVariantPreparation>,
 }
 
 fn asset_finalize_refusal(
@@ -289,10 +291,10 @@ pub(crate) fn prepare_asset_variant(
     })
 }
 
-/// Repeatable variant-render half of the prepare/commit seam. The caller
-/// invokes this only after the primary publication reaches `staged`, keeping
-/// the LLP 0044 crash-cut ordering identical; the returned bytes have no
-/// durable meaning until `local.rs` stages and transactionally commits them.
+/// Repeatable variant-render half of the prepare/commit seam. The returned
+/// bytes have no durable meaning until `local.rs` records their publication
+/// plans after the primary publication reaches `staged`, then transactionally
+/// commits them with asset readiness.
 pub(crate) fn prepare_required_asset_variants(
     store: &dyn crate::assets_store::AssetStore,
     canonical: crate::assets_store::AssetObjectRef<'_>,
@@ -549,12 +551,103 @@ pub(crate) fn prepare_asset_finalize(
         ));
     }
 
+    let required_variants = if input.image_finalization_enabled
+        && !input.declared_variants.is_empty()
+        && matches!(detected, "image/jpeg" | "image/png")
+    {
+        prepare_required_asset_variants(
+            store,
+            canonical.object.as_ref(),
+            detected,
+            input.declared_variants,
+        )?
+    } else {
+        Vec::new()
+    };
+
     Ok(AssetFinalizePreparation {
         staged_digest: staged.digest,
         detected_content_type: detected,
         canonical,
         media_facts,
+        required_variants,
     })
+}
+
+/// Lock-held finalize preflight either proves the attempt already completed or
+/// freezes every fact the repeatable, database-free prepare and later commit
+/// need to carry across the unlocked window.
+pub(crate) enum FinalizePreflightV1 {
+    AlreadyComplete(AssetFinalizeResponseV1),
+    Proceed(FinalizePrepareTicketV1),
+}
+
+/// Immutable continuity ticket between asset-finalize preflight and commit.
+/// The byte-store handle is config-derived while Local is available, then
+/// clone-shareable without retaining any LocalSnapback or database borrow.
+pub(crate) struct FinalizePrepareTicketV1 {
+    pub(crate) attempt: AssetAttemptRecordV1,
+    pub(crate) request: AssetFinalizeRequestV1,
+    pub(crate) frozen_intent: crate::manifest::AssetUploadIntentDefinition,
+    pub(crate) on_ready: Option<String>,
+    pub(crate) store: std::sync::Arc<dyn crate::assets_store::AssetStore>,
+    pub(crate) image_finalization_enabled: bool,
+    pub(crate) video_finalization_enabled: bool,
+    pub(crate) app_id: String,
+    pub(crate) app_quota: u64,
+    pub(crate) schema: crate::manifest::SchemaManifest,
+}
+
+/// A deterministic byte/policy refusal still returns through the lock-held
+/// commit half so the attempt failure and receipts are recorded exactly once.
+/// Transient store errors remain ordinary `SnapbackResult` errors and leave the
+/// attempt current and retryable.
+pub(crate) enum FinalizePreparationV1 {
+    Prepared(AssetFinalizePreparation),
+    Refused(AssetFinalizePrepareFailure),
+}
+
+impl FinalizePrepareTicketV1 {
+    pub(crate) fn prepare(&self) -> SnapbackResult<FinalizePreparationV1> {
+        let image_location = self
+            .frozen_intent
+            .image
+            .as_ref()
+            .map(|image| image.location);
+        let video_location = self
+            .frozen_intent
+            .video
+            .as_ref()
+            .map(|video| video.location);
+        let declared_variants = self
+            .frozen_intent
+            .image
+            .as_ref()
+            .map(|image| image.variants.as_slice())
+            .unwrap_or_default();
+        match prepare_asset_finalize(
+            self.store.as_ref(),
+            AssetFinalizePrepareInput {
+                staging_key: &self.attempt.staging_key,
+                declared_length: self.attempt.declared_length,
+                declared_digest: self.request.declared_digest.as_deref(),
+                declared_content_type: self.attempt.declared_content_type.as_deref(),
+                accepted_media_types: &self.frozen_intent.accept.media_types,
+                max_canonical_bytes: self.frozen_intent.accept.max_bytes,
+                image_location,
+                video_location,
+                image_finalization_enabled: self.image_finalization_enabled,
+                video_finalization_enabled: self.video_finalization_enabled,
+                declared_variants,
+            },
+        ) {
+            Ok(prepared) => Ok(FinalizePreparationV1::Prepared(prepared)),
+            Err(AssetFinalizePrepareError::Transient(error)) => Err(error),
+            Err(AssetFinalizePrepareError::Refusal(failure)) => {
+                Ok(FinalizePreparationV1::Refused(failure))
+            }
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

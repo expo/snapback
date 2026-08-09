@@ -2256,6 +2256,10 @@ pub struct LocalSnapback {
     auth_invalidation: Option<LocalInvalidationState>,
 }
 
+pub(crate) use crate::assets::{
+    FinalizePreflightV1, FinalizePreparationV1, FinalizePrepareTicketV1,
+};
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum DiagnosticBoundary {
     Attached,
@@ -8225,6 +8229,169 @@ impl LocalSnapback {
         Ok(response)
     }
 
+    /// Lock-held half before repeatable byte preparation. This preserves the
+    /// former finalize preamble exactly, then freezes all prepare/commit facts
+    /// in a continuity ticket whose store handle owns no LocalSnapback borrow.
+    pub(crate) fn asset_attempt_finalize_preflight(
+        &mut self,
+        authority: &PreparedAuthority,
+        request: crate::assets::AssetFinalizeRequestV1,
+    ) -> SnapbackResult<FinalizePreflightV1> {
+        use crate::assets;
+
+        let attempt = self.asset_attempt_for_caller(authority, &request.attempt_id)?;
+        if attempt.lifecycle_generation != request.lifecycle_generation {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_GENERATION_STALE",
+                "assets",
+                "the request carries a stale lifecycle generation",
+            ));
+        }
+        if attempt.state == assets::AssetAttemptState::Complete {
+            let asset = self
+                .db
+                .asset_attempts()
+                .attempt_finalize_load_asset(&attempt.asset_id)?;
+            return Ok(FinalizePreflightV1::AlreadyComplete(
+                crate::assets::AssetFinalizeResponseV1 {
+                    task: asset_task_state(&attempt, asset.as_ref()),
+                },
+            ));
+        }
+        self.db
+            .asset_attempts()
+            .attempt_require_current(&attempt)?;
+        if attempt.acknowledged_offset != attempt.declared_length {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_TRANSFER_INCOMPLETE",
+                "assets",
+                format!(
+                    "finalize requires a complete transfer ({} of {} bytes acknowledged)",
+                    attempt.acknowledged_offset, attempt.declared_length
+                ),
+            ));
+        }
+
+        // Intent removal is a revocation trigger: nothing further finalizes.
+        let intent = self
+            .asset_intent(&attempt.intent_id)
+            .map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_INTENT_REVOKED",
+                    "assets",
+                    "this attempt's intent was removed from the deployed artifact",
+                )
+            })?
+            .clone();
+        // @ref LLP 0044#asset-intent-implementation-identity-the-helper-closure-joins-the-carrier-dated-decision-2026-08-03 —
+        //   current code is eligible only when BOTH carrier hashes match the
+        //   admission. Otherwise finalization selects and validates the
+        //   generation-retained artifact. A policy-only legacy admission has
+        //   no executable identity to freeze, so the upgrade refuses it
+        //   rather than silently adopting current code.
+        let admitted_implementation_hash = attempt
+            .admission
+            .implementation_hash
+            .as_deref()
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_ADMISSION_STALE",
+                    "assets",
+                    "this attempt predates the implementationHash carrier; retry to re-admit it under the current generation",
+                )
+                .with_details(serde_json::json!({
+                    "legacyPolicyOnlyAdmission": true,
+                    "policyGeneration": attempt.admission.policy_generation,
+                }))
+            })?;
+        let current_implementation_hash = intent
+            .implementation_hash
+            .as_deref()
+            .filter(|hash| !hash.is_empty())
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_INTENT_IDENTITY_INVALID",
+                    "assets",
+                    "the deployed upload intent is missing implementationHash",
+                )
+            })?;
+        let current_matches_admission = intent.intent_policy_hash
+            == attempt.admission.intent_policy_hash
+            && current_implementation_hash == admitted_implementation_hash;
+        let frozen_intent: crate::manifest::AssetUploadIntentDefinition =
+            if current_matches_admission {
+                intent
+            } else {
+                self.db
+                    .asset_attempts()
+                    .attempt_finalize_load_intent_artifact(
+                        &attempt.intent_id,
+                        attempt.admission.policy_generation,
+                    )?
+                    .and_then(|json| serde_json::from_str(&json).ok())
+                    .filter(|retained: &crate::manifest::AssetUploadIntentDefinition| {
+                        retained.intent_policy_hash == attempt.admission.intent_policy_hash
+                            && retained.implementation_hash.as_deref()
+                                == Some(admitted_implementation_hash)
+                    })
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_ASSET_ADMISSION_STALE",
+                            "assets",
+                            "the frozen intent generation's retained artifact is missing or does not match the admitted implementation; retry to re-admit this asset under the current generation",
+                        )
+                        .with_details(serde_json::json!({
+                            "missingRetainedArtifact": true,
+                            "policyGeneration": attempt.admission.policy_generation,
+                            "implementationHash": admitted_implementation_hash,
+                        }))
+                    })?
+            };
+
+        let revoked = self.db.asset_attempts().attempt_finalize_generation_revoked(
+            &attempt.intent_id,
+            attempt.admission.policy_generation,
+        )?;
+        if revoked {
+            return Err(asset_intent_generation_revoked_error());
+        }
+
+        let on_ready = frozen_intent
+            .on
+            .as_ref()
+            .and_then(|on| on.ready.clone());
+        Ok(FinalizePreflightV1::Proceed(FinalizePrepareTicketV1 {
+            attempt,
+            request,
+            frozen_intent,
+            on_ready,
+            store: self.asset_store_obj()?,
+            image_finalization_enabled: self.asset_image_finalization_enabled(),
+            video_finalization_enabled: self.asset_video_finalization_enabled(),
+            app_id: self.functions.app_id.clone(),
+            app_quota: self.asset_app_quota(),
+            schema: self.db.schema().clone(),
+        }))
+    }
+
+    /// Lock-held commit half. Revocation is rechecked before any Phase A
+    /// durable state so a generation revoked while prepare ran fails closed.
+    pub(crate) fn asset_attempt_finalize_commit(
+        &mut self,
+        authority: &PreparedAuthority,
+        ticket: FinalizePrepareTicketV1,
+        preparation: FinalizePreparationV1,
+    ) -> SnapbackResult<crate::assets::AssetFinalizeResponseV1> {
+        let response = self.asset_attempt_finalize_commit_inner(
+            authority,
+            ticket,
+            preparation,
+            None,
+        )?;
+        self.notify_asset_record_change(std::slice::from_ref(&response.task.asset_id));
+        Ok(response)
+    }
+
     /// Render one declared variant off the canonical bytes and stage it
     /// through the write-ahead publication protocol: plan (attempt-less
     /// record) → idempotent object put → verify → staged. The commit half
@@ -8295,10 +8462,54 @@ impl LocalSnapback {
         request: crate::assets::AssetFinalizeRequestV1,
         crash_after: Option<AssetFinalizeCrashPoint>,
     ) -> SnapbackResult<crate::assets::AssetFinalizeResponseV1> {
+        let ticket = match self.asset_attempt_finalize_preflight(authority, request)? {
+            FinalizePreflightV1::AlreadyComplete(response) => return Ok(response),
+            FinalizePreflightV1::Proceed(ticket) => ticket,
+        };
+        // PREPARE half (LLP 0199 owner #4): byte-store reads, whole-object
+        // hashing/buffering, trusted detection, canonicalization, image/video
+        // decode/inspection, ThumbHash, derived facts, and required-variant
+        // renders. This helper owns no database handle and is deliberately
+        // repeatable from restricted staging.
+        //
+        // @ref LLP 0044#local-finalize-lock-choreography-implemented-2026-08-09 —
+        //   the route releases Local across this repeatable prepare while
+        //   in-process callers may retain an outer guard.
+        // OQ #4 follow-up implemented: the HTTP route now runs this prepare
+        // between two `with_snapback` calls, so no LocalSnapback guard spans
+        // staging hash/read, canonical rewrite, media CPU, ThumbHash, or
+        // variant renders. This inline path deliberately remains available
+        // for seed-fixture and other callers already inside an outer guard.
+        let preparation = ticket.prepare()?;
+        self.asset_attempt_finalize_commit_inner(authority, ticket, preparation, crash_after)
+    }
+
+    fn asset_attempt_finalize_commit_inner(
+        &mut self,
+        authority: &PreparedAuthority,
+        ticket: FinalizePrepareTicketV1,
+        preparation: FinalizePreparationV1,
+        crash_after: Option<AssetFinalizeCrashPoint>,
+    ) -> SnapbackResult<crate::assets::AssetFinalizeResponseV1> {
         use crate::assets;
 
-        let attempt = self.asset_attempt_for_caller(authority, &request.attempt_id)?;
-        if attempt.lifecycle_generation != request.lifecycle_generation {
+        // The old single-lock choreography made this check immovable between
+        // preflight and Phase A. The split admits revocation in that window,
+        // so the commit half must repeat it before creating durable state.
+        let revoked = self.db.asset_attempts().attempt_finalize_generation_revoked(
+            &ticket.attempt.intent_id,
+            ticket.attempt.admission.policy_generation,
+        )?;
+        if revoked {
+            return Err(asset_intent_generation_revoked_error());
+        }
+
+        // A competing finalize/cancel may have committed while prepare ran.
+        // Reload through the same caller/lifecycle gates as today's retry
+        // path: complete is idempotent; every other terminal state keeps its
+        // existing structured refusal from the closed transition table.
+        let attempt = self.asset_attempt_for_caller(authority, &ticket.attempt.attempt_id)?;
+        if attempt.lifecycle_generation != ticket.request.lifecycle_generation {
             return Err(SnapbackError::error(
                 "SNAPBACK_ASSET_GENERATION_STALE",
                 "assets",
@@ -8317,151 +8528,10 @@ impl LocalSnapback {
         self.db
             .asset_attempts()
             .attempt_require_current(&attempt)?;
-        if attempt.acknowledged_offset != attempt.declared_length {
-            return Err(SnapbackError::error(
-                "SNAPBACK_ASSET_TRANSFER_INCOMPLETE",
-                "assets",
-                format!(
-                    "finalize requires a complete transfer ({} of {} bytes acknowledged)",
-                    attempt.acknowledged_offset, attempt.declared_length
-                ),
-            ));
-        }
 
-        // Intent removal is a revocation trigger: nothing further finalizes.
-        let intent = self
-            .asset_intent(&attempt.intent_id)
-            .map_err(|_| {
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_INTENT_REVOKED",
-                    "assets",
-                    "this attempt's intent was removed from the deployed artifact",
-                )
-            })?
-            .clone();
-        // @ref LLP 0044#asset-intent-implementation-identity-the-helper-closure-joins-the-carrier-dated-decision-2026-08-03 —
-        //   current code is eligible only when BOTH carrier hashes match the
-        //   admission. Otherwise finalization selects and validates the
-        //   generation-retained artifact. A policy-only legacy admission has
-        //   no executable identity to freeze, so the upgrade refuses it
-        //   rather than silently adopting current code.
-        let admitted_implementation_hash = attempt
-            .admission
-            .implementation_hash
-            .as_deref()
-            .ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_ADMISSION_STALE",
-                    "assets",
-                    "this attempt predates the implementationHash carrier; retry to re-admit it under the current generation",
-                )
-                .with_details(serde_json::json!({
-                    "legacyPolicyOnlyAdmission": true,
-                    "policyGeneration": attempt.admission.policy_generation,
-                }))
-            })?;
-        let current_implementation_hash = intent
-            .implementation_hash
-            .as_deref()
-            .filter(|hash| !hash.is_empty())
-            .ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_INTENT_IDENTITY_INVALID",
-                    "assets",
-                    "the deployed upload intent is missing implementationHash",
-                )
-            })?;
-        let current_matches_admission = intent.intent_policy_hash
-            == attempt.admission.intent_policy_hash
-            && current_implementation_hash == admitted_implementation_hash;
-        let frozen_intent: crate::manifest::AssetUploadIntentDefinition =
-            if current_matches_admission {
-                intent.clone()
-            } else {
-                self.db
-                    .asset_attempts()
-                    .attempt_finalize_load_intent_artifact(
-                        &attempt.intent_id,
-                        attempt.admission.policy_generation,
-                    )?
-                    .and_then(|json| serde_json::from_str(&json).ok())
-                    .filter(|retained: &crate::manifest::AssetUploadIntentDefinition| {
-                        retained.intent_policy_hash == attempt.admission.intent_policy_hash
-                            && retained.implementation_hash.as_deref()
-                                == Some(admitted_implementation_hash)
-                    })
-                    .ok_or_else(|| {
-                        SnapbackError::error(
-                            "SNAPBACK_ASSET_ADMISSION_STALE",
-                            "assets",
-                            "the frozen intent generation's retained artifact is missing or does not match the admitted implementation; retry to re-admit this asset under the current generation",
-                        )
-                        .with_details(serde_json::json!({
-                            "missingRetainedArtifact": true,
-                            "policyGeneration": attempt.admission.policy_generation,
-                            "implementationHash": admitted_implementation_hash,
-                        }))
-                    })?
-            };
-
-        // Callbacks are declared intent policy: the ready callback runs
-        // under the frozen admitted policy exactly like every other policy
-        // fact the attempt finalizes under.
-        let on_ready: Option<String> = frozen_intent.on.as_ref().and_then(|on| on.ready.clone());
-
-        let revoked = self.db.asset_attempts().attempt_finalize_generation_revoked(
-            &attempt.intent_id,
-            attempt.admission.policy_generation,
-        )?;
-        if revoked {
-            return Err(SnapbackError::error(
-                "SNAPBACK_ASSET_INTENT_REVOKED",
-                "assets",
-                "this intent's policy generation is revoked; nothing further finalizes under it",
-            ));
-        }
-
-        // @ref LLP 0044#video-location-policy-the-video--location--sibling-block-dated-decision-2026-08-03 —
-        //   trusted detection selects the matching image/video sibling; the
-        //   two declarations never alias at finalization.
-        let image_location = frozen_intent.image.as_ref().map(|image| image.location);
-        let video_location = frozen_intent.video.as_ref().map(|video| video.location);
-        // The capability defense for strip-declared media is keyed by the
-        // *detected* type below — image bytes need the image-finalization
-        // fact, video bytes the video one — so it runs after detection.
-
-        // PREPARE half (LLP 0199 owner #4): byte-store reads, whole-object
-        // hashing/buffering, trusted detection, canonicalization, media
-        // decode/inspection, and derived facts. This helper owns no database
-        // handle and is deliberately repeatable from restricted staging.
-        //
-        // OQ #4 follow-up: `asset_attempt_finalize_route` currently enters
-        // this method through `with_snapback`, so the outer LocalSnapback
-        // guard still spans this otherwise lock-free preparation. Move this
-        // call between a generation-fenced preflight and the narrow Phase
-        // A/C/D commit operations, releasing Local for staging hash/read,
-        // canonical rewrite, image/video CPU, ThumbHash, and variant renders.
-        // Preserve LLP 0044's planned-before-put and staged-before-publish
-        // crash cuts when the transport/kernel choreography is opened.
-        let store = self.asset_store_obj()?;
-        let prepared = match assets::prepare_asset_finalize(
-            store.as_ref(),
-            assets::AssetFinalizePrepareInput {
-                staging_key: &attempt.staging_key,
-                declared_length: attempt.declared_length,
-                declared_digest: request.declared_digest.as_deref(),
-                declared_content_type: attempt.declared_content_type.as_deref(),
-                accepted_media_types: &frozen_intent.accept.media_types,
-                max_canonical_bytes: frozen_intent.accept.max_bytes,
-                image_location,
-                video_location,
-                image_finalization_enabled: self.asset_image_finalization_enabled(),
-                video_finalization_enabled: self.asset_video_finalization_enabled(),
-            },
-        ) {
-            Ok(prepared) => prepared,
-            Err(assets::AssetFinalizePrepareError::Transient(error)) => return Err(error),
-            Err(assets::AssetFinalizePrepareError::Refusal(failure)) => {
+        let prepared = match preparation {
+            FinalizePreparationV1::Prepared(prepared) => prepared,
+            FinalizePreparationV1::Refused(failure) => {
                 return self.asset_fail_attempt(
                     &attempt,
                     failure.asset_outcome,
@@ -8469,10 +8539,22 @@ impl LocalSnapback {
                 );
             }
         };
+        let FinalizePrepareTicketV1 {
+            request,
+            frozen_intent,
+            on_ready,
+            store,
+            image_finalization_enabled,
+            app_id,
+            app_quota,
+            schema,
+            ..
+        } = ticket;
         let staged_digest = prepared.staged_digest;
         let detected = prepared.detected_content_type;
         let canonical = prepared.canonical;
         let image_media_facts = prepared.media_facts;
+        let rendered_required = prepared.required_variants;
 
         // The integrity grade is honest: end-to-end verified only when every
         // chunk carried a checksum or an authenticated whole-upload digest
@@ -8489,7 +8571,6 @@ impl LocalSnapback {
         // record (or the attempt's re-drivable record from a prior crash)
         // commits before any canonical object write.
         let now = now_millis();
-        let app_id = self.functions.app_id.clone();
         let attempt_id = attempt.attempt_id.clone();
         let digest = canonical.digest.clone();
         let mut publication = self.db.asset_attempts().attempt_finalize_commit_plan(
@@ -8532,45 +8613,29 @@ impl LocalSnapback {
             return Err(asset_test_crash());
         }
 
-        // Declared variants (LLP 0044 §step 8/9): required ones render and
-        // stage now so the publishing transaction can commit them with the
-        // primary and switch `ready` atomically with the last required
-        // publication; optional ones enqueue ledger work inside that same
-        // transaction and never gate the asset.
+        // Declared variants (LLP 0044 §step 8/9): required ones were rendered
+        // by the unlocked, repeatable prepare. Their publication plans and
+        // object puts remain here, after the primary reached `staged`, so the
+        // publishing transaction can commit them with the primary and switch
+        // `ready` atomically with the last required publication. Optional
+        // ones enqueue ledger work inside that same transaction and never
+        // gate the asset.
         let declared_variants: Vec<crate::manifest::AssetImageVariant> = frozen_intent
             .image
             .as_ref()
             .map(|image| image.variants.clone())
             .unwrap_or_default();
-        let variants_enabled = self.asset_image_finalization_enabled()
+        let variants_enabled = image_finalization_enabled
             && !declared_variants.is_empty()
             && matches!(detected, "image/jpeg" | "image/png");
-        let app_quota = self.asset_app_quota();
         let mut prepared_required: Vec<AssetPreparedVariant> = Vec::new();
         if variants_enabled {
-            let rendered_required = match assets::prepare_required_asset_variants(
-                store.as_ref(),
-                canonical.object.as_ref(),
-                detected,
-                &declared_variants,
-            ) {
-                Ok(prepared) => prepared,
-                Err(assets::AssetFinalizePrepareError::Transient(error)) => return Err(error),
-                Err(assets::AssetFinalizePrepareError::Refusal(failure)) => {
-                    return self.asset_fail_attempt(
-                        &attempt,
-                        failure.asset_outcome,
-                        failure.refusal,
-                    );
-                }
-            };
             for rendered in &rendered_required {
                 match self.asset_stage_prepared_variant(store.as_ref(), &app_id, rendered) {
                     Ok(prepared) => prepared_required.push(prepared),
-                    // Ceiling/decode refusals over trusted canonical bytes
-                    // are deterministic: the required variant can never
-                    // materialize, so the asset rejects rather than staying
-                    // retry-eligible; store errors stay transient.
+                    // Preserve the prior classification for commit-side
+                    // publication failures: store errors stay retryable;
+                    // deterministic non-store refusals reject.
                     Err(error) => {
                         let availability =
                             if error.diagnostic.code == "SNAPBACK_ASSET_STORE_UNAVAILABLE" {
@@ -8597,7 +8662,6 @@ impl LocalSnapback {
         // uniqueness, rendition + availability, quota settlement, receipts —
         // one commit. Witness movement re-runs the authorizer and retries
         // once with the fresh witness validated inside the retry transaction.
-        let schema = self.db.schema().clone();
         let mut witness: Vec<crate::storage::CapturedReadDependency> =
             serde_json::from_value(attempt.admission.witness.clone()).unwrap_or_default();
         let witness_input = HandlerInput {
@@ -27606,6 +27670,14 @@ pub(crate) enum AssetFinalizeCrashPoint {
     AfterPlanned,
     AfterObjectPut,
     AfterStaged,
+}
+
+fn asset_intent_generation_revoked_error() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_ASSET_INTENT_REVOKED",
+        "assets",
+        "this intent's policy generation is revoked; nothing further finalizes under it",
+    )
 }
 
 fn asset_test_crash() -> SnapbackError {

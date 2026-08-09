@@ -5,8 +5,9 @@
         BEFORE_QUERY_RESULT_HANDOFF_HOOK, DetachedIbexMutation, DetachedMutationRead,
         DiagnosticBoundary, EnsureAppMode, FAIL_NEXT_ADDITIONAL_JOB_ADMISSION,
         FAIL_NEXT_LIVE_SCOPE_REGISTRATION, FAIL_NEXT_SCOPE_RETIREMENT_AUTH,
-        INJECT_NEXT_PUBLICATION_WARNING, LiveInvalidationAdmission, LiveResumeInput,
-        LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, MAX_LIVE_SUBSCRIPTIONS,
+        FinalizePreflightV1, INJECT_NEXT_PUBLICATION_WARNING, LiveInvalidationAdmission,
+        LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback,
+        MAX_LIVE_SUBSCRIPTIONS,
         MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION, MY_MEMBERSHIPS_LIVE_FUNCTION, MaintenanceOperation,
         PublicInspect, RetryEpisodeKey, RetryReservationKind, SnapbackError, SnapbackResult,
         StagedMutationExecution, StagedNestedMutation, StagedRecordedMutation,
@@ -5026,6 +5027,101 @@ globalThis.__snapbackHandlers = {
         assert_eq!(
             again.task.availability,
             crate::assets::AssetAvailability::Ready
+        );
+    }
+
+    #[test]
+    fn asset_finalize_revocation_between_preflight_and_commit_refuses_before_phase_a() {
+        let mut snapback = asset_test_snapback();
+        let created = asset_upload(&mut snapback, "user_a", b"revocation-window", true);
+        let authority = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+        let request = crate::assets::AssetFinalizeRequestV1 {
+            attempt_id: created.task.attempt_id.clone(),
+            lifecycle_generation: 1,
+            declared_digest: None,
+        };
+        let ticket = match snapback
+            .asset_attempt_finalize_preflight(&authority, request)
+            .expect("preflight proceeds")
+        {
+            FinalizePreflightV1::Proceed(ticket) => ticket,
+            FinalizePreflightV1::AlreadyComplete(_) => panic!("attempt is not complete yet"),
+        };
+        let generation = ticket.attempt.admission.policy_generation;
+        let preparation = ticket.prepare().expect("repeatable prepare succeeds");
+
+        snapback
+            .db
+            .asset_attempts()
+            .test_revoke_intent_generation("app:avatarUpload", generation)
+            .expect("revoke the admitted generation in the unlocked window");
+
+        let error = snapback
+            .asset_attempt_finalize_commit(&authority, ticket, preparation)
+            .expect_err("commit must fail closed after mid-flight revocation");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_INTENT_REVOKED");
+        let attempt = snapback
+            .db
+            .asset_reads()
+            .load_attempt(&created.task.attempt_id)
+            .expect("attempt remains retry evidence");
+        assert_eq!(
+            attempt.state,
+            crate::assets::AssetAttemptState::Transferring,
+            "the commit refused before Phase A moved the attempt to finalizing",
+        );
+        let events = asset_receipt_events(&mut snapback, &created.task.asset_id);
+        assert!(
+            !events.iter().any(|event| event == "bytes-verified"),
+            "no publication receipt may exist before Phase A: {events:?}",
+        );
+    }
+
+    #[test]
+    fn asset_finalize_double_preflight_commits_one_winner_and_one_idempotent_retry() {
+        let mut snapback = asset_test_snapback();
+        let created = asset_upload(&mut snapback, "user_a", b"double-preflight", true);
+        let authority = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+        let request = crate::assets::AssetFinalizeRequestV1 {
+            attempt_id: created.task.attempt_id.clone(),
+            lifecycle_generation: 1,
+            declared_digest: None,
+        };
+        let first_ticket = match snapback
+            .asset_attempt_finalize_preflight(&authority, request.clone())
+            .expect("first preflight proceeds")
+        {
+            FinalizePreflightV1::Proceed(ticket) => ticket,
+            FinalizePreflightV1::AlreadyComplete(_) => panic!("attempt is not complete yet"),
+        };
+        let second_ticket = match snapback
+            .asset_attempt_finalize_preflight(&authority, request)
+            .expect("second preflight also proceeds before either commit")
+        {
+            FinalizePreflightV1::Proceed(ticket) => ticket,
+            FinalizePreflightV1::AlreadyComplete(_) => panic!("attempt is not complete yet"),
+        };
+        let first_preparation = first_ticket.prepare().expect("first prepare succeeds");
+        let second_preparation = second_ticket.prepare().expect("second prepare succeeds");
+
+        let winner = snapback
+            .asset_attempt_finalize_commit(&authority, first_ticket, first_preparation)
+            .expect("first serialized commit wins");
+        let retry = snapback
+            .asset_attempt_finalize_commit(&authority, second_ticket, second_preparation)
+            .expect("loser receives the existing idempotent completion outcome");
+
+        assert_eq!(winner.task.attempt_state, crate::assets::AssetAttemptState::Complete);
+        assert_eq!(retry.task.attempt_state, crate::assets::AssetAttemptState::Complete);
+        assert_eq!(winner.task.primary_rendition_id, retry.task.primary_rendition_id);
+        let events = asset_receipt_events(&mut snapback, &created.task.asset_id);
+        assert_eq!(
+            events
+                .iter()
+                .filter(|event| event.as_str() == "attempt-completed")
+                .count(),
+            1,
+            "the idempotent loser cannot publish a second completion: {events:?}",
         );
     }
 

@@ -153,8 +153,26 @@ pub(super) async fn asset_attempt_finalize_route(
             "the finalize body names a different attempt than the route",
         )));
     }
+    let preflight_authority = authority.clone();
+    let preflight = with_snapback(&state, move |snapback| {
+        snapback.asset_attempt_finalize_preflight(&preflight_authority, request)
+    })
+    .await?;
+    let ticket = match preflight {
+        crate::assets::FinalizePreflightV1::AlreadyComplete(response) => {
+            return Ok(Json(response));
+        }
+        crate::assets::FinalizePreflightV1::Proceed(ticket) => ticket,
+    };
+    let (ticket, preparation) = tokio::task::spawn_blocking(move || {
+        let preparation = ticket.prepare();
+        (ticket, preparation)
+    })
+    .await
+    .expect("asset finalization preparation task panicked");
+    let preparation = preparation?;
     let response = with_snapback(&state, move |snapback| {
-        snapback.asset_attempt_finalize(&authority, request)
+        snapback.asset_attempt_finalize_commit(&authority, ticket, preparation)
     })
     .await?;
     Ok(Json(response))

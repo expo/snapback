@@ -5,7 +5,7 @@
 **Systems:** Assets, Storage, API, Security, Auth, Runtime, Deployment, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-04 (the ruled asset-intent implementation carrier is implemented end to end, with legacy policy-only generations bumped and legacy in-flight attempts refused stale); 2026-08-04 (sessions lifecycle callbacks implemented under the ruled per-app `asset-callbacks` service principal). 2026-08-03 (two author decisions from decision sitting #2,
+**Revised:** 2026-08-09 (local HTTP asset finalization now splits lock-held preflight and commit around repeatable lock-free byte/media preparation; commit rechecks generation revocation before Phase A and fails closed on a mid-window revocation). Prior: 2026-08-04 (the ruled asset-intent implementation carrier is implemented end to end, with legacy policy-only generations bumped and legacy in-flight attempts refused stale); 2026-08-04 (sessions lifecycle callbacks implemented under the ruled per-app `asset-callbacks` service principal). 2026-08-03 (two author decisions from decision sitting #2,
 `issues/20260803-author-decision-sitting-2.md` — §Video location policy
 and §Asset-intent implementation identity: a `video: { location }`
 sibling block is admitted with `image:` untouched and its frozen
@@ -704,6 +704,52 @@ No target may advertise `asset-lifecycle-v1` if it can mark an asset `ready`
 without an integrity mechanism sufficient for that target's claim. A target
 may use native checksums, bounded server read-back, or a trusted streaming
 finalizer, but “verify where available” is not a correctness contract.
+
+#### Local finalize lock choreography (implemented 2026-08-09)
+
+The local HTTP finalize route is a three-part choreography over the same
+lifecycle and publication kernels. A first `with_snapback` call performs the
+existing idempotency/current-attempt checks, loads the frozen intent artifact,
+checks generation revocation, and returns either the already-complete response
+or an immutable prepare ticket. The ticket carries the attempt and lifecycle
+generation fence, frozen intent and callback policy, schema/quota/capability
+facts, and a config-derived clone-shared byte-store handle; it carries no
+`LocalSnapback` or database borrow.
+
+The route then releases the global Local writer and runs the repeatable prepare
+on the blocking pool. Staging hash/read, trusted detection, canonical rewrite,
+image/video inspection and CPU, ThumbHash/fact derivation, and required-variant
+renders occur in this interval. Prepare creates no durable database state: its
+only write is the repeatable canonical rewrite under restricted staging
+custody, and required-variant outputs remain uncommitted bytes in the
+preparation result.
+
+A second `with_snapback` call commits. Before Phase A it rechecks the admitted
+intent generation's revocation bit and reloads the attempt through the same
+authority/lifecycle/current-state gates. A revocation that lands while prepare
+runs therefore refuses fail-closed with `SNAPBACK_ASSET_INTENT_REVOKED`, before
+any publication record is planned; this is the deliberate behavioral delta
+from the former single-lock hold, which made that interleaving impossible. Two
+finalizers may both preflight and prepare, but their commits serialize: the
+first publishes and the second observes the existing complete attempt and
+returns the ordinary idempotent completion outcome without another completion
+receipt.
+
+Crash cuts remain unchanged. Phase A still commits `planned` before Phase B's
+object put; Phase C still commits `staged` before Phase D publishes the blob,
+renditions, and asset readiness. Phase B deliberately remains under the global
+writer in this slice. The retained in-process `asset_attempt_finalize` runs
+preflight → prepare → commit inline for callers already inside an outer Local
+guard, including seed-fixture ingestion.
+
+Deterministic prepare refusals (byte/policy refusals and required-variant
+render refusals over trusted canonical bytes) do not error out of the route:
+they return through the lock-held commit half so the attempt failure and its
+receipts are recorded exactly once. Because required variants now render
+during prepare, such a refusal surfaces before any publication record is
+planned — under the former choreography the primary publication reached
+`staged` first and the failure trail included those records. Transient store
+errors remain ordinary errors that leave the attempt current and retryable.
 
 Transport integrity and canonical content identity are separate facts. A
 multipart composite checksum may prove parts arrived correctly without being a
