@@ -172,3 +172,25 @@ v0.2's ~31% growth exceeds the ~20% advisory, but I do not judge any of it bloat
 Every enumerated delta item checks out against the capsule authorities, several with exact-text verification (0011's amendment, 0055's plane boundary, 0057's five tables and profile refusal, 0151's cleanup-policy and dated rulings). The revision introduced seven DETAIL-grade rough edges — one genuinely broken cross-reference (D0), one inconsistent illustration (D1), two unplaced ideas (D2), and four precision gaps the commissioned Specs will have to close anyway — but no unresolved MATERIAL concern anywhere in the document, in-delta or pre-existing.
 
 VERDICT: READY
+
+## Round 3 — 2026-08-09 (delta round, final in budget)
+
+**Round record (persisted before launch):**
+
+- Round: 3 (delta round verifying the v0.3 in-delta closures)
+- Target revision under review: v0.3,
+  `a434929e2a205d26e71ee445356762e15691a7d546cb7dcfd672f8b704b02a29`
+- Topology: single target, independent dual-family round, mutually blind
+- Capsule: `capsule-0212-r3`, aggregate hash
+  `0072195a8bc5f331a8529289b4e5f402e715b10c8885e3a0b2909ca4b81ed887`
+- Instructions hash:
+  `6aacfcb957c391ed42863856119da2d741aeb571a276f588774c210476409d52`
+- Growth disclosure: v0.3 ~45% net over the entering revision (advisory
+  ~20% exceeded; round-2 reviewers judged prior growth load-bearing;
+  disclosed again as a finding surface)
+- Blindness: instruction-based, self-attested, as in prior rounds
+- Reviewer: fresh Claude (Fable 5) session via general-purpose subagent
+
+**Review body (verbatim):**
+
+_pending — appended on receipt_

@@ -293,3 +293,25 @@ I found no PRE-EXISTING concern that independently rises to MATERIAL based on th
 The approximately 31% growth is justified by load-bearing contract text. I do not find a separate bloat concern; the problem is incomplete closure of several new guarantees, not unnecessary addition.
 
 VERDICT: NOT READY
+
+## Round 3 — 2026-08-09 (delta round, final in budget)
+
+**Round record (persisted before launch):**
+
+- Round: 3 (delta round verifying the v0.3 in-delta closures)
+- Target revision under review: v0.3,
+  `a434929e2a205d26e71ee445356762e15691a7d546cb7dcfd672f8b704b02a29`
+- Topology: single target, independent dual-family round, mutually blind
+- Capsule: `capsule-0212-r3`, aggregate hash
+  `0072195a8bc5f331a8529289b4e5f402e715b10c8885e3a0b2909ca4b81ed887`
+- Instructions hash:
+  `6aacfcb957c391ed42863856119da2d741aeb571a276f588774c210476409d52`
+- Growth disclosure: v0.3 ~45% net over the entering revision (advisory
+  ~20% exceeded; round-2 reviewers judged prior growth load-bearing;
+  disclosed again as a finding surface)
+- Blindness: instruction-based, self-attested, as in prior rounds
+- Reviewer: Codex `gpt-5.6-sol`, effort xhigh, `codex exec`, read-only sandbox, cwd = capsule
+
+**Review body (verbatim):**
+
+_pending — appended on receipt_
