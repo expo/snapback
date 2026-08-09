@@ -286,12 +286,13 @@ impl LiveFanoutCoalescer {
 pub struct LiveCoalesceStats {
     /// Commit frames whose data fan-out was deferred into the pending frame.
     pub deferred_commits: u64,
-    /// Flushes that delivered a pending (coalesced) frame, by any path.
+    /// Scheduler turns that delivered pending data merged from more than one
+    /// commit, by either the serving task or the synchronous embedder drain.
     pub coalesced_flushes: u64,
-    /// Coalesced flushes performed by the backstop task specifically.
+    /// Pending subscription turns performed by the serving backstop task.
+    /// Single-commit turns count here but not as coalesced flushes.
     pub backstop_flushes: u64,
-    /// Number of deferred commit frames merged into the most recent
-    /// coalesced flush (including the flushing commit's own frame when the
-    /// flush rode a commit).
+    /// Number of accepted pending commit frames represented by the most
+    /// recent scheduler turn. A bound-triggered refresh collapse is one unit.
     pub last_flush_merged_frames: u64,
 }

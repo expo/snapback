@@ -1,6 +1,7 @@
     use super::{
         ASSET_RECORD_LIVE_FUNCTION, AssetFinalizeCrashPoint, AuthorizationBlastRadiusStats,
-        AuthorizationInvalidationAckInput, BEFORE_ACTION_RESULT_HANDOFF_HOOK,
+        AuthorizationInvalidationAckInput, AuthorizationInvalidationManualRetryInput,
+        BEFORE_ACTION_RESULT_HANDOFF_HOOK,
         BEFORE_CONFIG_VERIFY_PUBLICATION_HOOK, BEFORE_MUTATION_POSTCOMMIT_HOOK,
         BEFORE_QUERY_RESULT_HANDOFF_HOOK, DetachedIbexMutation, DetachedMutationRead,
         DiagnosticBoundary, EnsureAppMode, FAIL_NEXT_ADDITIONAL_JOB_ADMISSION,
@@ -21548,6 +21549,227 @@ globalThis.__snapbackHandlers = {
                 .expect("post-ack frames")
                 .is_empty(),
             "the exact ACK discharges the obligation"
+        );
+    }
+
+    // @ref LLP 0200#26-quarantine-recovery-lifecycle — RESUBSCRIBE triggers a fresh
+    // authority resolution but does not reopen ordinary data delivery while
+    // its quarantine obligation remains unresolved.
+    #[test]
+    fn quarantined_resubscribe_stays_fail_closed_until_accepted_authority_proof() {
+        let mut snapback = live_limit_snapback();
+        let schema = snapback.db.schema().clone();
+        let function = snapback
+            .functions
+            .functions
+            .iter_mut()
+            .find(|function| function.name == "listItemsByValue")
+            .expect("value-filtered live fixture");
+        install_schema_documents_contract(function, &schema, "items");
+        snapback
+            .invoke_mutation(
+                "insertItem",
+                HandlerInput {
+                    args: json!({ "value": "retained" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("seed retained row");
+
+        let connection = install_test_invalidation(&mut snapback);
+        let admission = managed_session_admission();
+        let subscribed = snapback
+            .subscribe_live_with_invalidation(
+                "listItemsByValue",
+                LiveSubscribeInput {
+                    connection_id: "quarantine-resubscribe".to_owned(),
+                    input: HandlerInput {
+                        args: json!({ "value": "retained" }),
+                        ..HandlerInput::default()
+                    },
+                    authorization_namespace: Some(test_authorization_namespace(201)),
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+                LiveInvalidationAdmission {
+                    session_mode: true,
+                    connection: Some(connection.clone()),
+                    effect_fence: None,
+                },
+            )
+            .expect("auth-scoped value subscription");
+        let scope = subscribed
+            .authorization_scope
+            .clone()
+            .expect("subscription scope");
+        assert!(
+            drain_live_stream_through_test_sink(&mut snapback, "quarantine-resubscribe")
+                .is_empty()
+        );
+
+        // Force the RESUBSCRIBE-triggered re-resolution to fail and exhaust
+        // its durable automatic retry episode.
+        snapback
+            .subscriptions
+            .get_mut(&subscribed.subscription_id)
+            .expect("retained subscription")
+            .input
+            .args = json!({});
+        let error = snapback
+            .resume_live_prepared_with_invalidation(
+                "listItemsByValue",
+                LiveResumeInput {
+                    subscription_id: subscribed.subscription_id.clone(),
+                    connection_id: "quarantine-resubscribe".to_owned(),
+                    auth: AuthInput::default(),
+                    recorded_permission_epochs: subscribed.permission_epochs.clone(),
+                },
+                test_session_authority(InvocationSource::LiveResume),
+                LiveInvalidationAdmission {
+                    session_mode: true,
+                    connection: Some(connection.clone()),
+                    effect_fence: None,
+                },
+            )
+            .expect_err("invalid retained args fail re-resolution");
+        assert!(matches!(
+            error.diagnostic.code.as_str(),
+            "SNAPBACK_ARG_MISSING" | "SNAPBACK_AUTH_RETRY_EXHAUSTED"
+        ));
+        assert!(
+            snapback
+                .auth_invalidation
+                .as_ref()
+                .expect("invalidation state")
+                .obligations
+                .pending(&scope)
+                .is_some_and(|obligation| {
+                    obligation.max_disposition >= InvalidationDisposition::Quarantine
+                })
+        );
+        assert_eq!(snapback.live_authority_stats.quarantine_entries, 1);
+        assert_eq!(snapback.live_authority_stats.quarantine_exits, 0);
+        let failure_hints = drain_live_stream_through_test_sink(
+            &mut snapback,
+            "quarantine-resubscribe",
+        );
+        assert!(failure_hints.iter().all(|frame| {
+            serde_json::from_str::<Value>(frame).is_ok_and(|frame| {
+                frame["kind"] == "authorization_invalidation"
+            })
+        }));
+
+        // Repair the retained input, then cause a positive delta. The
+        // pre-transition authority still cannot publish ordinary data while
+        // the quarantine obligation is pending.
+        snapback
+            .subscriptions
+            .get_mut(&subscribed.subscription_id)
+            .expect("retained subscription")
+            .input
+            .args = json!({ "value": "retained" });
+        invoke_test_session_mutation(
+            &mut snapback,
+            "insertItem",
+            HandlerInput {
+                args: json!({ "value": "retained" }),
+                ..HandlerInput::default()
+            },
+        )
+            .expect("matching insert while quarantined");
+        let blocked = drain_live_stream_through_test_sink(
+            &mut snapback,
+            "quarantine-resubscribe",
+        )
+        .into_iter()
+        .filter_map(|frame| serde_json::from_str::<Value>(&frame).ok())
+        .collect::<Vec<_>>();
+        assert!(blocked.iter().all(|frame| {
+            !matches!(
+                frame["kind"].as_str(),
+                Some("live_delta" | "live_replace" | "current_as_of")
+            )
+        }));
+        assert!(
+            snapback
+                .auth_invalidation
+                .as_ref()
+                .expect("invalidation state")
+                .obligations
+                .pending(&scope)
+                .is_some()
+        );
+        assert_eq!(snapback.live_authority_stats.quarantine_entries, 1);
+        assert_eq!(snapback.live_authority_stats.quarantine_exits, 0);
+
+        // @ref LLP 0053#invalidation-is-an-obligation-not-a-message — an
+        // exhausted retry episode reopens only through an explicit,
+        // authority-checked manual retry.
+        let retry = snapback
+            .manual_retry_authorization_invalidation(
+                AuthorizationInvalidationManualRetryInput {
+                    connection_id: "quarantine-resubscribe".to_owned(),
+                    subscription_id: subscribed.subscription_id.clone(),
+                    manual_retry_id: "quarantine-resubscribe-retry-1".to_owned(),
+                },
+                connection.clone(),
+                test_session_authority(InvocationSource::InvalidationAcknowledgement),
+            )
+            .expect("manual retry resolves repaired input");
+        assert_eq!(retry.outcome, "resolved");
+        let resolution = drain_live_stream_through_test_sink(
+            &mut snapback,
+            "quarantine-resubscribe",
+        )
+        .into_iter()
+        .filter_map(|frame| serde_json::from_str::<Value>(&frame).ok())
+        .find(|frame| {
+            frame["kind"] == "authorization_invalidation"
+                && frame.get("snapshot").is_some()
+        })
+        .expect("accepted resolution snapshot");
+        assert_eq!(resolution["snapshot"]["rows"].as_array().unwrap().len(), 2);
+        let ack_token = resolution["resolution"]["ackToken"]
+            .as_str()
+            .expect("resolution ack token")
+            .to_owned();
+        assert_eq!(snapback.live_authority_stats.quarantine_exits, 0);
+
+        let ack = snapback
+            .acknowledge_authorization_invalidation(
+                AuthorizationInvalidationAckInput {
+                    connection_id: "quarantine-resubscribe".to_owned(),
+                    ack_token,
+                },
+                connection,
+                &admission,
+            )
+            .expect("exact accepted-resolution ACK");
+        assert_eq!(ack.outcome, "discharged");
+        assert_eq!(snapback.live_authority_stats.quarantine_entries, 1);
+        assert_eq!(snapback.live_authority_stats.quarantine_exits, 1);
+
+        invoke_test_session_mutation(
+            &mut snapback,
+            "insertItem",
+            HandlerInput {
+                args: json!({ "value": "retained" }),
+                ..HandlerInput::default()
+            },
+        )
+            .expect("matching insert after accepted authority proof");
+        let recovered = drain_live_stream_through_test_sink(
+            &mut snapback,
+            "quarantine-resubscribe",
+        )
+        .into_iter()
+        .filter_map(|frame| serde_json::from_str::<Value>(&frame).ok())
+        .collect::<Vec<_>>();
+        assert!(
+            recovered
+                .iter()
+                .any(|frame| frame["kind"] == "live_delta"),
+            "ordinary data delivery resumes only after exact accepted-proof ACK: {recovered:?}"
         );
     }
 

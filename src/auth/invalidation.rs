@@ -1272,6 +1272,38 @@ impl ObligationRegistry {
         Ok(obligation)
     }
 
+    /// Raise an obligation and report whether this call moved one retained
+    /// subscription scope from no quarantine-or-worse obligation to an active
+    /// one. Revisions that merge into an already-quarantined scope are not a
+    /// second entry; delivery/re-fire remains level-triggered independently.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn raise_with_quarantine_lifecycle(
+        &mut self,
+        scope_id: ScopeId,
+        cause_sequence: u64,
+        cause_id: impl Into<String>,
+        max_disposition: InvalidationDisposition,
+        witness: CompositeWitness,
+        retry_episode_id: Option<String>,
+    ) -> SnapbackResult<(ResyncObligation, bool)> {
+        let was_quarantined = matches!(&scope_id, ScopeId::Subscription { .. })
+            && self.obligations.get(&scope_id).is_some_and(|entry| {
+                entry.obligation.max_disposition >= InvalidationDisposition::Quarantine
+            });
+        let obligation = self.raise(
+            scope_id,
+            cause_sequence,
+            cause_id,
+            max_disposition,
+            witness,
+            retry_episode_id,
+        )?;
+        let entered = matches!(&obligation.scope_id, ScopeId::Subscription { .. })
+            && !was_quarantined
+            && obligation.max_disposition >= InvalidationDisposition::Quarantine;
+        Ok((obligation, entered))
+    }
+
     pub fn pending(&self, scope_id: &ScopeId) -> Option<&ResyncObligation> {
         self.obligations
             .get(scope_id)
@@ -1359,6 +1391,22 @@ impl ObligationRegistry {
             root.obligation.retry_episode_id,
         )?;
         Ok(Some(child))
+    }
+
+    pub(crate) fn register_connection_child_with_quarantine_lifecycle(
+        &mut self,
+        connection_scope: &ScopeId,
+        subscription_scope: ScopeId,
+    ) -> SnapbackResult<(Option<ResyncObligation>, bool)> {
+        let was_quarantined = self.pending(&subscription_scope).is_some_and(|obligation| {
+            obligation.max_disposition >= InvalidationDisposition::Quarantine
+        });
+        let child = self.register_connection_child(connection_scope, subscription_scope)?;
+        let entered = !was_quarantined
+            && child.as_ref().is_some_and(|obligation| {
+                obligation.max_disposition >= InvalidationDisposition::Quarantine
+            });
+        Ok((child, entered))
     }
 
     pub fn issue_resolution(
@@ -1532,6 +1580,13 @@ impl ObligationRegistry {
             return Ok(AcknowledgeOutcome::Stale);
         }
         self.acknowledge(ack_token, true)
+    }
+
+    pub(crate) fn resolution_for_ack_token(&self, ack_token: &str) -> Option<&ResolutionTicket> {
+        self.resolution_by_scope
+            .values()
+            .find(|issued| issued.ticket.ack_token == ack_token)
+            .map(|issued| &issued.ticket)
     }
 
     pub fn retire_scope(&mut self, scope_id: &ScopeId) -> Option<ScopeRetirementCandidate> {

@@ -4620,6 +4620,18 @@
           "format": "double",
           "type": "number"
         },
+        "quarantineEntries": {
+          "description": "Live subscription scopes whose first active quarantine-or-worse\nobligation was raised. Re-fire and revision merge do not re-enter.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "quarantineExits": {
+          "description": "Quarantine-or-worse subscription obligations discharged by the exact\nrevision-bound acknowledgement of an accepted resolution.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
         "restorationsCompleted": {
           "format": "uint64",
           "minimum": 0,
@@ -4635,6 +4647,8 @@
         "fencesApplied",
         "lastFenceMarkingLatencyMs",
         "maxFenceMarkingLatencyMs",
+        "quarantineEntries",
+        "quarantineExits",
         "restorationsCompleted",
         "staleAuthorityFramesDiscarded"
       ],
@@ -4644,13 +4658,13 @@
       "description": "Cumulative coalescing counters reported on the serialized inspect surface.",
       "properties": {
         "backstopFlushes": {
-          "description": "Coalesced flushes performed by the backstop task specifically.",
+          "description": "Pending subscription turns performed by the serving backstop task.\nSingle-commit turns count here but not as coalesced flushes.",
           "format": "uint64",
           "minimum": 0,
           "type": "integer"
         },
         "coalescedFlushes": {
-          "description": "Flushes that delivered a pending (coalesced) frame, by any path.",
+          "description": "Scheduler turns that delivered pending data merged from more than one\ncommit, by either the serving task or the synchronous embedder drain.",
           "format": "uint64",
           "minimum": 0,
           "type": "integer"
@@ -4662,7 +4676,7 @@
           "type": "integer"
         },
         "lastFlushMergedFrames": {
-          "description": "Number of deferred commit frames merged into the most recent\ncoalesced flush (including the flushing commit's own frame when the\nflush rode a commit).",
+          "description": "Number of accepted pending commit frames represented by the most\nrecent scheduler turn. A bound-triggered refresh collapse is one unit.",
           "format": "uint64",
           "minimum": 0,
           "type": "integer"

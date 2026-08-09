@@ -67,7 +67,7 @@ fn backlogged_burst_coalesces_to_one_frame_and_converges() {
     );
     assert_eq!(snapback.live_coalesce_stats().deferred_commits, 11);
 
-    // The backstop's flush delivers the whole burst as ONE frame.
+    // The synchronous scheduler drain delivers the whole burst as ONE frame.
     assert!(
         snapback.flush_pending_live_fanout(),
         "pending frame flushed"
@@ -88,7 +88,7 @@ fn backlogged_burst_coalesces_to_one_frame_and_converges() {
 
     let stats = snapback.live_coalesce_stats();
     assert_eq!(stats.coalesced_flushes, 1);
-    assert_eq!(stats.backstop_flushes, 1);
+    assert_eq!(stats.backstop_flushes, 0);
     assert_eq!(stats.last_flush_merged_frames, 11);
     assert!(
         !snapback.flush_pending_live_fanout(),
@@ -347,8 +347,10 @@ fn pending_bound_degrades_to_scheduler_refresh() {
     // collapsed to a refresh obligation, so it creates no additional queued
     // work and is intentionally absent from the accepted-work diagnostic.
     assert_eq!(stats.deferred_commits, 4);
-    assert_eq!(stats.coalesced_flushes, 2);
-    assert_eq!(stats.backstop_flushes, 2);
+    // Neither direct turn represented >1 accepted frame: the prime was one
+    // frame, and the bound-triggered refresh collapse is deliberately one.
+    assert_eq!(stats.coalesced_flushes, 0);
+    assert_eq!(stats.backstop_flushes, 0);
     assert_eq!(stats.last_flush_merged_frames, 1);
 
     let fresh = snapback
@@ -496,6 +498,7 @@ async fn backstop_task_flushes_deferred_frames() {
     );
     apply_deltas(&mut client, delivered);
     let guard = state.lock().await;
+    assert!(guard.live_coalesce_stats().coalesced_flushes >= 1);
     assert!(guard.live_coalesce_stats().backstop_flushes >= 1);
     let fresh = guard
         .invoke_query("listMine", input(json!({ "userId": "ada" }), "ada"))

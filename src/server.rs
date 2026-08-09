@@ -17853,8 +17853,10 @@ pub fn spawn_live_fanout_backstop(
                     with_locked_snapback_then(
                         guard,
                         move |snapback| {
-                            snapback
-                                .run_pending_live_subscription(&turn_subscription_id, turn_control)
+                            snapback.run_pending_live_subscription_from_backstop(
+                                &turn_subscription_id,
+                                turn_control,
+                            )
                         },
                         |output| output,
                     )

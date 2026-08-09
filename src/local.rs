@@ -7,8 +7,9 @@ use crate::auth::descriptor::{descriptor_for_authority, require_current_descript
 use crate::auth::invalidation::{
     AuthorizationInvalidationConnection, AuthorizationInvalidationProjection, CompositeWitness,
     DataWitness, InvalidationDisposition, LiveInvalidationIssuer, ObligationExpectation,
-    ObligationRegistry, QueryNamespace, ResolutionKind, RetryEpisode, RetryEpisodeKey,
-    RetryReservation, RetryReservationKind, ScopeId, ScopeRetirement, ScopeRetirementCandidate,
+    ObligationRegistry, QueryNamespace, ResolutionKind, ResolutionTicket, ResyncObligation,
+    RetryEpisode, RetryEpisodeKey, RetryReservation, RetryReservationKind, ScopeId,
+    ScopeRetirement, ScopeRetirementCandidate,
 };
 use crate::auth::invocation::{
     FunctionAttribution, InvocationGate, InvocationSource, PreparedAuthority, PreparedInvocation,
@@ -939,6 +940,12 @@ pub struct LiveAuthorityLaneStats {
     pub fences_applied: u64,
     pub last_fence_marking_latency_ms: f64,
     pub max_fence_marking_latency_ms: f64,
+    /// Live subscription scopes whose first active quarantine-or-worse
+    /// obligation was raised. Re-fire and revision merge do not re-enter.
+    pub quarantine_entries: u64,
+    /// Quarantine-or-worse subscription obligations discharged by the exact
+    /// revision-bound acknowledgement of an accepted resolution.
+    pub quarantine_exits: u64,
     pub restorations_completed: u64,
     pub stale_authority_frames_discarded: u64,
 }
@@ -14388,6 +14395,7 @@ impl LocalSnapback {
         let mut authorization_invalidation = None;
         let mut scope_retirements = Vec::new();
         let mut registered_scope_cleanup = None;
+        let mut subscription_quarantine_entry = None;
         let subscription_authorization =
             if let Some((connection, namespace)) = authorization_admission {
                 let state = self
@@ -14411,10 +14419,15 @@ impl LocalSnapback {
                     state
                         .obligations
                         .register_live_scope(scope_id.clone(), owner_continuity_id.clone())?;
-                    let inherited = state
+                    let (inherited, entered) = state
                         .obligations
-                        .register_connection_child(&connection_scope, scope_id.clone())?
-                        .is_some();
+                        .register_connection_child_with_quarantine_lifecycle(
+                            &connection_scope,
+                            scope_id.clone(),
+                        )?;
+                    if entered {
+                        subscription_quarantine_entry = inherited.clone();
+                    }
                     #[cfg(test)]
                     if FAIL_NEXT_LIVE_SCOPE_REGISTRATION.with(|fail| fail.replace(false)) {
                         return Err(SnapbackError::error(
@@ -14423,7 +14436,7 @@ impl LocalSnapback {
                             "injected failure after live scope child registration",
                         ));
                     }
-                    if inherited {
+                    if inherited.is_some() {
                         let witness = CompositeWitness {
                             authorization: state.obligations.expectation().authorization.clone(),
                             data: Some(DataWitness {
@@ -14556,6 +14569,9 @@ impl LocalSnapback {
                 rqs: rqs_state,
             },
         );
+        if let Some(obligation) = subscription_quarantine_entry.as_ref() {
+            self.record_quarantine_entry(obligation, true);
+        }
         self.refresh_auth_scoped_live_connections();
         // A new subscription can arm a demand-gated cron job (L5).
         self.refresh_cron_active();
@@ -14971,11 +14987,20 @@ impl LocalSnapback {
                  its authorization-invalidation expectation is no longer current",
             ));
         }
+        let accepted_resolution = state
+            .obligations
+            .resolution_for_ack_token(&input.ack_token)
+            .cloned();
         let outcome = state.obligations.acknowledge_subscription(
             &connection.issuer_id,
             connection.connection_generation,
             &input.ack_token,
         )?;
+        if outcome == crate::auth::invalidation::AcknowledgeOutcome::Discharged
+            && let Some(resolution) = accepted_resolution.as_ref()
+        {
+            self.record_quarantine_exit(resolution);
+        }
         Ok(AuthorizationInvalidationAckOutput {
             outcome: match outcome {
                 crate::auth::invalidation::AcknowledgeOutcome::Discharged => "discharged",
@@ -15405,24 +15430,36 @@ impl LocalSnapback {
                     None
                 };
                 let fresh_cause = state.reserve_cause_sequence()?;
+                let mut quarantine_entry = None;
                 let staged = (|| {
                     state
                         .obligations
                         .register_live_scope(replacement.clone(), owner_continuity_id.clone())?;
-                    state
+                    let (inherited, entered) = state
                         .obligations
-                        .register_connection_child(&connection_scope, replacement.clone())?;
-                    if let (Some(previous), Some(cause)) = (previous, transfer_cause) {
-                        state.obligations.raise(
+                        .register_connection_child_with_quarantine_lifecycle(
+                            &connection_scope,
                             replacement.clone(),
-                            cause,
-                            format!("resume:transfer:{cause}"),
-                            previous.max_disposition,
-                            previous.witness,
-                            previous.retry_episode_id,
                         )?;
+                    if entered {
+                        quarantine_entry = inherited;
                     }
-                    state.obligations.raise(
+                    if let (Some(previous), Some(cause)) = (previous, transfer_cause) {
+                        let (obligation, entered) = state
+                            .obligations
+                            .raise_with_quarantine_lifecycle(
+                                replacement.clone(),
+                                cause,
+                                format!("resume:transfer:{cause}"),
+                                previous.max_disposition,
+                                previous.witness,
+                                previous.retry_episode_id,
+                            )?;
+                        if entered {
+                            quarantine_entry = Some(obligation);
+                        }
+                    }
+                    let (obligation, entered) = state.obligations.raise_with_quarantine_lifecycle(
                         replacement.clone(),
                         fresh_cause,
                         format!("resume:fresh:{fresh_cause}"),
@@ -15430,6 +15467,9 @@ impl LocalSnapback {
                         retry_floor.clone(),
                         None,
                     )?;
+                    if entered {
+                        quarantine_entry = Some(obligation);
+                    }
                     Ok::<(), SnapbackError>(())
                 })();
                 if let Err(error) = staged {
@@ -15440,21 +15480,24 @@ impl LocalSnapback {
                 }
                 authorization.owner_continuity_id = owner_continuity_id;
                 authorization.scope_id = replacement.clone();
-                Some((replacement, connection_scope))
+                Some((replacement, connection_scope, quarantine_entry))
             } else {
-                let state = self
-                    .auth_invalidation
-                    .as_mut()
-                    .expect("resume checked installed invalidation state");
-                let cause = state.reserve_cause_sequence()?;
-                state.obligations.raise(
-                    authorization.scope_id.clone(),
-                    cause,
-                    format!("resume:fresh:{cause}"),
-                    InvalidationDisposition::Quarantine,
-                    retry_floor.clone(),
-                    None,
-                )?;
+                let (obligation, entered) = {
+                    let state = self
+                        .auth_invalidation
+                        .as_mut()
+                        .expect("resume checked installed invalidation state");
+                    let cause = state.reserve_cause_sequence()?;
+                    state.obligations.raise_with_quarantine_lifecycle(
+                        authorization.scope_id.clone(),
+                        cause,
+                        format!("resume:fresh:{cause}"),
+                        InvalidationDisposition::Quarantine,
+                        retry_floor.clone(),
+                        None,
+                    )?
+                };
+                self.record_quarantine_entry(&obligation, entered);
                 None
             };
 
@@ -15467,7 +15510,7 @@ impl LocalSnapback {
                 Ok(query) => query,
                 Err(failure) => {
                     let error = failure.error.clone();
-                    if let Some((replacement, connection_scope)) = replacement_stage.as_ref() {
+                    if let Some((replacement, connection_scope, _)) = replacement_stage.as_ref() {
                         self.auth_invalidation
                             .as_mut()
                             .expect("state remains installed")
@@ -15493,7 +15536,7 @@ impl LocalSnapback {
             {
                 Ok(publication) => publication,
                 Err(error) => {
-                    if let Some((replacement, connection_scope)) = replacement_stage.as_ref() {
+                    if let Some((replacement, connection_scope, _)) = replacement_stage.as_ref() {
                         self.auth_invalidation
                             .as_mut()
                             .expect("state remains installed")
@@ -15522,7 +15565,7 @@ impl LocalSnapback {
                 )
             };
             if let Err(error) = resolution {
-                if let Some((replacement, connection_scope)) = replacement_stage.as_ref() {
+                if let Some((replacement, connection_scope, _)) = replacement_stage.as_ref() {
                     self.auth_invalidation
                         .as_mut()
                         .expect("state remains installed")
@@ -15551,7 +15594,9 @@ impl LocalSnapback {
                 match retirement {
                     Ok(retirement) => (candidate, retirement),
                     Err(error) => {
-                        if let Some((replacement, connection_scope)) = replacement_stage.as_ref() {
+                        if let Some((replacement, connection_scope, _)) =
+                            replacement_stage.as_ref()
+                        {
                             self.auth_invalidation
                                 .as_mut()
                                 .expect("state remains installed")
@@ -15582,7 +15627,9 @@ impl LocalSnapback {
                 )) {
                     Ok(payload) => payload,
                     Err(error) => {
-                        if let Some((replacement, connection_scope)) = replacement_stage.as_ref() {
+                        if let Some((replacement, connection_scope, _)) =
+                            replacement_stage.as_ref()
+                        {
                             self.auth_invalidation
                                 .as_mut()
                                 .expect("state remains installed")
@@ -15623,7 +15670,7 @@ impl LocalSnapback {
                 Ok(())
             };
             if let Err(error) = precommit {
-                if let Some((replacement, connection_scope)) = replacement_stage.as_ref() {
+                if let Some((replacement, connection_scope, _)) = replacement_stage.as_ref() {
                     self.auth_invalidation
                         .as_mut()
                         .expect("state remains installed")
@@ -15637,7 +15684,7 @@ impl LocalSnapback {
                 &resolution_witness,
                 &_publication,
             ) {
-                if let Some((replacement, connection_scope)) = replacement_stage.as_ref() {
+                if let Some((replacement, connection_scope, _)) = replacement_stage.as_ref() {
                     self.auth_invalidation
                         .as_mut()
                         .expect("state remains installed")
@@ -15676,6 +15723,9 @@ impl LocalSnapback {
             self.renew_live_subscription_observation(&subscription.id, name, &input.connection_id);
             self.refresh_auth_scoped_live_connections();
             self.enqueue_subscription_durable(&subscription, invalidation_payload);
+            if let Some((_, _, Some(obligation))) = replacement_stage.as_ref() {
+                self.record_quarantine_entry(obligation, true);
+            }
             return Ok(LiveResumeOutput {
                 subscription_id: subscription.id,
                 mode: "resnapshot".to_owned(),
@@ -19549,7 +19599,7 @@ impl LocalSnapback {
         for subscription in subscriptions {
             let payload = if let Some(authorization) = subscription.authorization.as_ref() {
                 let scope = authorization.scope_id.clone();
-                let (projection, prepared_retirement) = {
+                let (witness, quarantine_entry) = {
                     let state = self.auth_invalidation.as_mut().ok_or_else(|| {
                         SnapbackError::error(
                             "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
@@ -19560,7 +19610,7 @@ impl LocalSnapback {
                     })?;
                     let cause = state.reserve_cause_sequence()?;
                     let witness = state.witness(publication_version);
-                    state.obligations.raise(
+                    let quarantine_entry = state.obligations.raise_with_quarantine_lifecycle(
                         scope.clone(),
                         cause,
                         format!("schema_publication:{cause}"),
@@ -19568,6 +19618,18 @@ impl LocalSnapback {
                         witness.clone(),
                         None,
                     )?;
+                    (witness, quarantine_entry)
+                };
+                self.record_quarantine_entry(&quarantine_entry.0, quarantine_entry.1);
+                let (projection, prepared_retirement) = {
+                    let state = self.auth_invalidation.as_mut().ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                            "auth",
+                            "publication cannot dispose an auth-scoped subscription without \
+                             invalidation state",
+                        )
+                    })?;
                     state.obligations.issue_resolution(
                         &scope,
                         ResolutionKind::TerminalDelete,
@@ -20180,6 +20242,73 @@ impl LocalSnapback {
         &self.live_coalesce_stats
     }
 
+    fn record_quarantine_entry(&mut self, obligation: &ResyncObligation, entered: bool) {
+        if !entered {
+            return;
+        }
+        let ScopeId::Subscription {
+            subscription_id, ..
+        } = &obligation.scope_id
+        else {
+            return;
+        };
+        self.live_authority_stats.quarantine_entries = self
+            .live_authority_stats
+            .quarantine_entries
+            .saturating_add(1);
+        crate::spike_trace::fence(
+            subscription_id,
+            "quarantine_entry",
+            &obligation.witness.authorization,
+            None,
+        );
+    }
+
+    fn record_quarantine_exit(&mut self, resolution: &ResolutionTicket) {
+        if resolution.max_disposition < InvalidationDisposition::Quarantine {
+            return;
+        }
+        let ScopeId::Subscription {
+            subscription_id, ..
+        } = &resolution.scope_id
+        else {
+            return;
+        };
+        self.live_authority_stats.quarantine_exits = self
+            .live_authority_stats
+            .quarantine_exits
+            .saturating_add(1);
+        crate::spike_trace::fence(
+            subscription_id,
+            "quarantine_exit",
+            &resolution.witness.authorization,
+            None,
+        );
+    }
+
+    /// True only for UNRESOLVED quarantine-class pending obligations: an
+    /// obligation whose issued resolution already covers its current revision
+    /// is proof-in-flight (ordinary ACK lag), not authority uncertainty, and
+    /// must not starve ordinary data or convergence watermarks (§2.4's
+    /// data-driven classification; the client fence still gates locally until
+    /// it applies the proof).
+    fn subscription_has_pending_quarantine(&self, subscription: &LiveSubscription) -> bool {
+        subscription.authorization.as_ref().is_some_and(|authorization| {
+            self.auth_invalidation.as_ref().is_some_and(|state| {
+                state
+                    .obligations
+                    .projection(&authorization.scope_id)
+                    .is_some_and(|projection| {
+                        projection.obligation.max_disposition
+                            >= InvalidationDisposition::Quarantine
+                            && !projection.resolution.as_ref().is_some_and(|resolution| {
+                                resolution.revision >= projection.obligation.revision
+                            })
+                    })
+            })
+        })
+    }
+
     fn enqueue_live_data_fanout(
         &mut self,
         changes: &[ChangedRow],
@@ -20554,6 +20683,23 @@ impl LocalSnapback {
         subscription_id: &str,
         control: Arc<crate::live_coalesce::LiveEvaluationControl>,
     ) -> bool {
+        self.run_pending_live_subscription_with_path(subscription_id, control, false)
+    }
+
+    pub(crate) fn run_pending_live_subscription_from_backstop(
+        &mut self,
+        subscription_id: &str,
+        control: Arc<crate::live_coalesce::LiveEvaluationControl>,
+    ) -> bool {
+        self.run_pending_live_subscription_with_path(subscription_id, control, true)
+    }
+
+    fn run_pending_live_subscription_with_path(
+        &mut self,
+        subscription_id: &str,
+        control: Arc<crate::live_coalesce::LiveEvaluationControl>,
+        backstop_task: bool,
+    ) -> bool {
         // Selection and removal are one priority-preserving Local-locked cut.
         // The serving loop may have observed this id before a commit inserted
         // authority work; in that race it yields and reselects instead of
@@ -20677,17 +20823,21 @@ impl LocalSnapback {
         if let Err(error) = result {
             self.record_attached_diagnostics(vec![error.diagnostic]);
         }
-        self.live_coalesce_stats.coalesced_flushes =
-            self.live_coalesce_stats.coalesced_flushes.saturating_add(1);
-        self.live_coalesce_stats.backstop_flushes =
-            self.live_coalesce_stats.backstop_flushes.saturating_add(1);
+        if pending.frames > 1 {
+            self.live_coalesce_stats.coalesced_flushes =
+                self.live_coalesce_stats.coalesced_flushes.saturating_add(1);
+        }
+        if backstop_task {
+            self.live_coalesce_stats.backstop_flushes =
+                self.live_coalesce_stats.backstop_flushes.saturating_add(1);
+        }
         self.live_coalesce_stats.last_flush_merged_frames = pending.frames;
         crate::spike_trace::coalesce(
             "flush",
             &pending.trace_commit_versions,
             pending.frames,
             pending.changes.len(),
-            Some("backstop"),
+            Some(if backstop_task { "backstop" } else { "direct" }),
             &self.live_coalesce_stats,
         );
         true
@@ -21243,6 +21393,31 @@ impl LocalSnapback {
         if !self.authorize_live_delivery(subscription, &proof.authorization) {
             return Ok(false);
         }
+        let quarantine_entry = if raise_cause {
+            let state = self.auth_invalidation.as_mut().ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                    "auth",
+                    "authorization invalidation is not installed",
+                )
+            })?;
+            let cause = state.reserve_cause_sequence()?;
+            Some(
+                state.obligations.raise_with_quarantine_lifecycle(
+                    authorization.scope_id.clone(),
+                    cause,
+                    format!("{cause_label}:{cause}"),
+                    InvalidationDisposition::Quarantine,
+                    proof.clone(),
+                    None,
+                )?,
+            )
+        } else {
+            None
+        };
+        if let Some((obligation, entered)) = quarantine_entry.as_ref() {
+            self.record_quarantine_entry(obligation, *entered);
+        }
         let (projection, proof) = {
             let state = self.auth_invalidation.as_mut().ok_or_else(|| {
                 SnapbackError::error(
@@ -21251,17 +21426,6 @@ impl LocalSnapback {
                     "authorization invalidation is not installed",
                 )
             })?;
-            if raise_cause {
-                let cause = state.reserve_cause_sequence()?;
-                state.obligations.raise(
-                    authorization.scope_id.clone(),
-                    cause,
-                    format!("{cause_label}:{cause}"),
-                    InvalidationDisposition::Quarantine,
-                    proof.clone(),
-                    None,
-                )?;
-            }
             state.obligations.issue_resolution(
                 &authorization.scope_id,
                 ResolutionKind::Snapshot,
@@ -21347,33 +21511,54 @@ impl LocalSnapback {
             },
         );
         let mut projections = Vec::new();
-        let state = self.auth_invalidation.as_mut().ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
-                "auth",
-                "authorization invalidation is not installed",
-            )
-        })?;
         for ((issuer_id, connection_generation), children) in groups {
             let root = ScopeId::Connection {
                 issuer_id,
                 connection_generation,
             };
-            let cause = state.reserve_cause_sequence()?;
-            let witness = state.witness(min_commit_version);
-            state.obligations.raise(
-                root.clone(),
-                cause,
-                format!("overflow:{cause}"),
-                InvalidationDisposition::Quarantine,
-                witness,
-                None,
-            )?;
+            {
+                let state = self.auth_invalidation.as_mut().ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                        "auth",
+                        "authorization invalidation is not installed",
+                    )
+                })?;
+                let cause = state.reserve_cause_sequence()?;
+                let witness = state.witness(min_commit_version);
+                state.obligations.raise(
+                    root.clone(),
+                    cause,
+                    format!("overflow:{cause}"),
+                    InvalidationDisposition::Quarantine,
+                    witness,
+                    None,
+                )?;
+            }
             for child in children {
-                state
-                    .obligations
-                    .register_connection_child(&root, child.clone())?;
-                if let Some(projection) = state.obligations.projection(&child) {
+                let (inherited, entered, projection) = {
+                    let state = self.auth_invalidation.as_mut().ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                            "auth",
+                            "authorization invalidation is not installed",
+                        )
+                    })?;
+                    let (inherited, entered) = state
+                        .obligations
+                        .register_connection_child_with_quarantine_lifecycle(
+                            &root,
+                            child.clone(),
+                        )?;
+                    let projection = state.obligations.projection(&child);
+                    (inherited, entered, projection)
+                };
+                if entered
+                    && let Some(obligation) = inherited.as_ref()
+                {
+                    self.record_quarantine_entry(obligation, true);
+                }
+                if let Some(projection) = projection {
                     let subscription = subscriptions
                         .iter()
                         .find(|subscription| {
@@ -21798,7 +21983,7 @@ impl LocalSnapback {
 
         let mut preprojected = Vec::with_capacity(subscriptions.len());
         for subscription in &subscriptions {
-            let projected = (|| -> SnapbackResult<AuthorizationInvalidationProjection> {
+            let projected = (|| -> SnapbackResult<_> {
                 let state = self.auth_invalidation.as_mut().ok_or_else(|| {
                     SnapbackError::error(
                         "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
@@ -21813,7 +21998,7 @@ impl LocalSnapback {
                     .scope_id;
                 let cause = state.reserve_cause_sequence()?;
                 let witness = state.witness(min_commit_version);
-                state.obligations.raise(
+                let (obligation, entered) = state.obligations.raise_with_quarantine_lifecycle(
                     scope.clone(),
                     cause,
                     format!("authorization:{cause}"),
@@ -21821,13 +22006,20 @@ impl LocalSnapback {
                     witness,
                     None,
                 )?;
-                Ok(state
-                    .obligations
-                    .projection(scope)
-                    .expect("a just-raised obligation has a projection"))
+                Ok((
+                    state
+                        .obligations
+                        .projection(scope)
+                        .expect("a just-raised obligation has a projection"),
+                    obligation,
+                    entered,
+                ))
             })();
             match projected {
-                Ok(projection) => preprojected.push((subscription.clone(), projection)),
+                Ok((projection, obligation, entered)) => {
+                    self.record_quarantine_entry(&obligation, entered);
+                    preprojected.push((subscription.clone(), projection));
+                }
                 Err(error) if fail_closed_on_preprojection_error => return Err(error),
                 Err(error) => self.record_attached_diagnostics(vec![error.diagnostic]),
             }
@@ -22623,6 +22815,12 @@ impl LocalSnapback {
         turn_control: &crate::live_coalesce::LiveEvaluationControl,
     ) -> SnapbackResult<bool> {
         debug_assert!(self.live_coalescer.is_some());
+        // @ref LLP 0200#26-quarantine-recovery-lifecycle — a fresh resubscribe may
+        // trigger re-resolution, but ordinary data/convergence remains
+        // fail-closed until the accepted authority proof is acknowledged.
+        if self.subscription_has_pending_quarantine(subscription) {
+            return Ok(false);
+        }
         if !turn_control.begin_publication() {
             return Ok(false);
         }
@@ -22773,6 +22971,12 @@ impl LocalSnapback {
             #[cfg(debug_assertions)]
             self.debug_assert_delta_membership_converges(subscription, query_dep_index, admission);
             return Ok(Some(DeltaFanout::NoChange));
+        }
+        // @ref LLP 0200#26-quarantine-recovery-lifecycle — a same-authority
+        // resubscribe does not by itself discharge the obligation. Suppress
+        // old-authority ordinary data until an accepted resolution closes it.
+        if self.subscription_has_pending_quarantine(subscription) {
+            return Ok(Some(DeltaFanout::Discarded));
         }
         // @ref LLP 0053#negative-deltas-are-obligations-positive-deltas-are-best-effort — a removal on an auth-scoped result takes the full obligation-backed snapshot path.
         if subscription.authorization.is_some()
@@ -23030,12 +23234,12 @@ impl LocalSnapback {
             };
             let _publication = admission.effect_guard("live failure/resync publication")?;
             if let Some(authorization) = subscription.authorization.as_ref() {
-                let projected = self.auth_invalidation.as_mut().and_then(|state| {
+                let raised = self.auth_invalidation.as_mut().and_then(|state| {
                     let cause = state.reserve_cause_sequence().ok()?;
                     let witness = state.witness(min_commit_version);
-                    state
+                    let (obligation, entered) = state
                         .obligations
-                        .raise(
+                        .raise_with_quarantine_lifecycle(
                             authorization.scope_id.clone(),
                             cause,
                             format!("error:{cause}"),
@@ -23048,23 +23252,27 @@ impl LocalSnapback {
                             retry_episode_id,
                         )
                         .ok()?;
-                    if terminal_denial {
-                        state
-                            .obligations
-                            .issue_resolution(
-                                &authorization.scope_id,
-                                ResolutionKind::TerminalDelete,
-                                witness.clone(),
-                                b"null",
-                            )
-                            .ok()?;
-                    }
-                    Some((
-                        state.obligations.projection(&authorization.scope_id)?,
-                        witness,
-                    ))
+                    Some((witness, obligation, entered))
                 });
-                if let Some((projection, witness)) = projected {
+                if let Some((witness, obligation, entered)) = raised {
+                    self.record_quarantine_entry(&obligation, entered);
+                    let projected = self.auth_invalidation.as_mut().and_then(|state| {
+                        if terminal_denial {
+                            state
+                                .obligations
+                                .issue_resolution(
+                                    &authorization.scope_id,
+                                    ResolutionKind::TerminalDelete,
+                                    witness.clone(),
+                                    b"null",
+                                )
+                                .ok()?;
+                        }
+                        state.obligations.projection(&authorization.scope_id)
+                    });
+                    let Some(projection) = projected else {
+                        return Ok(());
+                    };
                     // A terminal denial closes the durable retry episode only
                     // after the delete proof has transferred to an exact-ACK
                     // ticket. Sending remains level-triggered and best effort.

@@ -5,16 +5,19 @@
 **Systems:** Live queries, Performance, Auth, Storage, Client SDK
 **Author:** Claude Fable 5 (commissioned by the LLP 0191 author rulings, Charlie Cheever, 2026-08-08)
 **Date:** 2026-08-08
-**Revised:** 2026-08-09 (§6c dated note: Phase 2 landed — B-4 root
-cause corrected via same-envelope atomic resolution application, the
-scheduler-era revocation-obligation-delivery main red fixed forward,
-authority transitions made measurable on the A/B inventory, fence p95
-and restoration measured, the §2.4 restoration target set, and the
-split H-3 verdict recorded; same day, §6b recorded Phase 3 — write
-priority, cancellation/age inheritance, bounds + overload degrade —
-and §6a closed the zero-observer commit-turn remainder; v0.4
-post-round-3 repairs remain **unreviewed**; final review verdicts bind
-to v0.3; see Revision history)
+**Revised:** 2026-08-09 (§6d dated note: Phase 4 landed and the §5
+four-phase program is COMPLETE — quarantine entry/exit observable on
+the inspect surface, the §2.6 recovery rule test-pinned with
+unresolved-quarantine data/watermark suppression, coalesce counters
+truthful under the turn scheduler; open remainders listed in §6d.
+Earlier same day: §6c recorded Phase 2 — B-4 root cause corrected via
+same-envelope atomic resolution application, the scheduler-era
+revocation-obligation-delivery main red fixed forward, authority
+transitions made measurable, fence p95 and restoration measured, the
+§2.4 restoration target set, split H-3 verdict; §6b recorded Phase 3;
+§6a closed the zero-observer commit-turn remainder; v0.4 post-round-3
+repairs remain **unreviewed**; final review verdicts bind to v0.3; see
+Revision history)
 **Related:** LLP 0191 (evidence and ladder), LLP 0008 (live protocol; dated
 coalescing decision and authorization-invalidation amendment this Spec
 binds to), LLP 0183 (D4 charter this Spec extends), LLP 0012/0043
@@ -652,6 +655,51 @@ evaluation-cost × wave-depth bound; the remainder is raw evaluation
 cost at 5.5M rows (the D2 sharing/widening ladder), the same structural
 residue H-1's settle clause carries. Formal N≥3 requalification per
 LLP 0189 remains gated on the H-1 remainder ticket.
+
+## 6d. Phase-4 implementation record and program closure (dated note, 2026-08-09)
+
+Phase 4 (§2.6 lifecycle closure + the §3/§5 deferred remainder) landed:
+
+- **Quarantine entry/exit are observable events on the inspect surface.**
+  `LiveAuthorityLaneStats` gains `quarantineEntries` (first transition of
+  a live subscription scope into an active quarantine-or-worse
+  obligation; revision merges into an already-quarantined scope do not
+  double-count) and `quarantineExits` (exact revision-bound ACK
+  discharging an accepted resolution); the spike trace emits matching
+  `quarantine_entry`/`quarantine_exit` fence events; the serialized
+  inspect schemas rotated once more (§3's accepted cost).
+- **The §2.6 recovery rule is test-pinned**
+  (`quarantined_resubscribe_stays_fail_closed_until_accepted_authority_proof`):
+  resubscribe triggers re-resolution but the stream stays quarantined —
+  ordinary data deltas and standalone convergence watermarks are
+  suppressed server-side while a quarantine-class obligation is
+  UNRESOLVED (no issued resolution covering its current revision);
+  recovery only via the accepted proof's delivery and exact ACK.
+  Proof-in-flight windows (an issued resolution riding to the client —
+  ordinary ACK lag on data-driven refreshes) deliberately do NOT
+  suppress: that is §2.4's data-driven classification, not authority
+  uncertainty.
+- **The Phase-1 stage-3 coalesce-counter residue is fixed:**
+  `coalescedFlushes` counts scheduler turns that merged more than one
+  commit, `backstopFlushes` only turns the serving backstop task
+  executed (a distinct entry point), and `lastFlushMergedFrames` is the
+  latest turn's accepted frame count — the counters are truthful under
+  the turn scheduler.
+
+**The four-phase program of §5 is complete.** All phases landed
+default-on, A/B'd, fix-forward per LLP 0189. Open remainders, by owner:
+
+- H-1 numeric remainder + N≥3 requalification of H-1/H-2/H-3/H-4
+  (`issues/20260808-p1-write-priority-scheduling.md`): the
+  unpreemptible in-flight turn and raw evaluation cost are D2-ladder
+  scope; the stage-turn bisect is
+  `issues/20260809-mutate-stage-turn-cost-bisect.md`.
+- H-3 convergence clause (evaluation-cost bound; D2 sharing/widening).
+- Sustained-load hint-frame quarantines
+  (`issues/20260809-sustained-reprojection-hints-still-quarantine.md`).
+- OQ-1 (hosted DO profile mapping), OQ-3 (watermark wire economics at
+  high commit rates), and the OQ-4 owner-document review remain open
+  spec questions; v0.4's post-round-3 repairs remain unreviewed.
 
 ## 7. Non-goals
 
