@@ -2,16 +2,16 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "commit": "f639d0c396e49d8927783dcff7ae84de2ef7bbf6",
-    "sourceDigest": "sha256:fc1cd51e42bd434049d32a9ce8b4c954196785abe4e9214b03d00658b7ceab73"
+    "commit": "5ac35e1752fbe802cef70f9373d3137b352142ba",
+    "sourceDigest": "sha256:08c064384ac798f8f1053c5b47e46aad94c2b3b067a5b86e346b1e1bad7a943e"
   },
   "limits": {
     "lookupBytes": 16384
   },
   "counts": {
     "codes": 2757,
-    "sourceFiles": 375,
-    "emittingSites": 9202,
+    "sourceFiles": 376,
+    "emittingSites": 9234,
     "httpClassified": 812,
     "guideAnchored": 320
   },
@@ -5464,7 +5464,7 @@
         },
         {
           "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 291,
+          "line": 312,
           "column": 55
         }
       ],
@@ -6067,12 +6067,12 @@
       "sites": [
         {
           "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 159,
+          "line": 178,
           "column": 103
         },
         {
           "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 167,
+          "line": 186,
           "column": 16
         },
         {
@@ -6102,7 +6102,7 @@
         },
         {
           "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 462,
+          "line": 514,
           "column": 112
         },
         {
@@ -6158,6 +6158,51 @@
           "column": 31
         },
         {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 204,
+          "column": 4
+        },
+        {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 213,
+          "column": 33
+        },
+        {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 309,
+          "column": 26
+        },
+        {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 320,
+          "column": 26
+        },
+        {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 382,
+          "column": 17
+        },
+        {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 393,
+          "column": 19
+        },
+        {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 398,
+          "column": 19
+        },
+        {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 502,
+          "column": 19
+        },
+        {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 507,
+          "column": 19
+        },
+        {
           "file": "packages/snapback-app-cli/result-core.mjs",
           "line": 37,
           "column": 5
@@ -6189,7 +6234,7 @@
       "sites": [
         {
           "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 549,
+          "line": 601,
           "column": 77
         },
         {
@@ -6310,6 +6355,51 @@
         {
           "file": "packages/snapback-app-cli/auth.mjs",
           "line": 613,
+          "column": 17
+        },
+        {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 59,
+          "column": 17
+        },
+        {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 66,
+          "column": 8
+        },
+        {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 83,
+          "column": 8
+        },
+        {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 97,
+          "column": 17
+        },
+        {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 107,
+          "column": 10
+        },
+        {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 113,
+          "column": 19
+        },
+        {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 276,
+          "column": 17
+        },
+        {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 280,
+          "column": 17
+        },
+        {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 364,
           "column": 17
         },
         {
@@ -6704,7 +6794,7 @@
       "sites": [
         {
           "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 552,
+          "line": 604,
           "column": 65
         }
       ],
@@ -6789,7 +6879,7 @@
       "sites": [
         {
           "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 194,
+          "line": 213,
           "column": 83
         },
         {
@@ -6855,6 +6945,11 @@
         {
           "file": "packages/snapback-app-cli/auth.mjs",
           "line": 100,
+          "column": 8
+        },
+        {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 50,
           "column": 8
         },
         {
@@ -6959,7 +7054,7 @@
       "sites": [
         {
           "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 504,
+          "line": 556,
           "column": 26
         }
       ],
@@ -7079,7 +7174,7 @@
       "sites": [
         {
           "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 112,
+          "line": 122,
           "column": 19
         },
         {
@@ -7179,7 +7274,7 @@
       "sites": [
         {
           "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 408,
+          "line": 460,
           "column": 16
         },
         {
@@ -7224,7 +7319,7 @@
         },
         {
           "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 231,
+          "line": 250,
           "column": 10
         },
         {
@@ -7273,6 +7368,11 @@
           "column": 22
         },
         {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 412,
+          "column": 45
+        },
+        {
           "file": "packages/snapback-app-cli/result-core.mjs",
           "line": 77,
           "column": 5
@@ -7301,6 +7401,41 @@
           "file": "packages/snapback-app-cli/auth.mjs",
           "line": 349,
           "column": 24
+        },
+        {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 150,
+          "column": 17
+        },
+        {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 153,
+          "column": 17
+        },
+        {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 161,
+          "column": 17
+        },
+        {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 165,
+          "column": 17
+        },
+        {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 191,
+          "column": 21
+        },
+        {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 197,
+          "column": 17
+        },
+        {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 227,
+          "column": 17
         },
         {
           "file": "packages/snapback-app-cli/result-core.mjs",
@@ -7364,92 +7499,102 @@
         },
         {
           "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 67,
+          "line": 70,
           "column": 99
         },
         {
           "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 68,
-          "column": 98
-        },
-        {
-          "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 72,
+          "line": 71,
           "column": 98
         },
         {
           "file": "packages/snapback-app-cli/cli.mjs",
           "line": 75,
+          "column": 98
+        },
+        {
+          "file": "packages/snapback-app-cli/cli.mjs",
+          "line": 78,
           "column": 72
         },
         {
           "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 94,
+          "line": 104,
           "column": 75
         },
         {
           "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 136,
+          "line": 155,
           "column": 86
         },
         {
           "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 192,
+          "line": 211,
           "column": 110
         },
         {
           "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 301,
+          "line": 320,
+          "column": 107
+        },
+        {
+          "file": "packages/snapback-app-cli/cli.mjs",
+          "line": 325,
           "column": 16
         },
         {
           "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 330,
+          "line": 363,
+          "column": 107
+        },
+        {
+          "file": "packages/snapback-app-cli/cli.mjs",
+          "line": 382,
           "column": 92
         },
         {
           "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 332,
+          "line": 384,
           "column": 101
         },
         {
           "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 381,
+          "line": 433,
           "column": 97
         },
         {
           "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 383,
+          "line": 435,
           "column": 100
         },
         {
           "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 386,
+          "line": 438,
           "column": 106
         },
         {
           "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 390,
+          "line": 442,
           "column": 97
         },
         {
           "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 472,
+          "line": 524,
           "column": 91
         },
         {
           "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 474,
+          "line": 526,
           "column": 97
         },
         {
           "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 514,
+          "line": 566,
           "column": 92
         },
         {
           "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 522,
+          "line": 574,
           "column": 127
         },
         {
@@ -7536,6 +7681,21 @@
           "file": "packages/snapback-app-cli/envelope.mjs",
           "line": 622,
           "column": 8
+        },
+        {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 263,
+          "column": 17
+        },
+        {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 267,
+          "column": 17
+        },
+        {
+          "file": "packages/snapback-app-cli/oauth.mjs",
+          "line": 389,
+          "column": 39
         },
         {
           "file": "packages/snapback-app-cli/result-core.mjs",
@@ -8056,7 +8216,7 @@
         },
         {
           "file": "packages/snapback-app-cli/cli.mjs",
-          "line": 290,
+          "line": 311,
           "column": 60
         }
       ],

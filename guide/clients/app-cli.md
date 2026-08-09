@@ -4,7 +4,7 @@ id: clients.app-cli
 order: 2
 audience: agent-first
 capabilities: [clients.app-cli]
-authorities: [llp/0062-generated-app-cli-and-code-mode.rfc.md, llp/0146-agentic-authoring-affordances.rfc.md, packages/snapback-app-cli/index.mjs, packages/snapback-app-cli/cli.mjs, packages/snapback-app-cli/digest.mjs, packages/snapback-app-cli/agent-digest.schema.json, packages/snapback-app-cli/auth.mjs, packages/snapback-app-cli/code-mode.mjs, packages/snapback-app-cli/code-mode-ibex.mjs, packages/snapback-app-cli/schema-interpreter.mjs, packages/snapback-app-cli/ibex-bundle.mjs, packages/snapback-app-cli/result-core.mjs, packages/snapback-client/app-data.mjs, scripts/build-app-bound-executable]
+authorities: [llp/0062-generated-app-cli-and-code-mode.rfc.md, llp/0146-agentic-authoring-affordances.rfc.md, llp/0150-agent-token-acquisition.rfc.md, llp/0204-app-external-surfaces.rfc.md, packages/snapback-app-cli/index.mjs, packages/snapback-app-cli/cli.mjs, packages/snapback-app-cli/oauth.mjs, packages/snapback-app-cli/digest.mjs, packages/snapback-app-cli/agent-digest.schema.json, packages/snapback-app-cli/auth.mjs, packages/snapback-app-cli/code-mode.mjs, packages/snapback-app-cli/code-mode-ibex.mjs, packages/snapback-app-cli/schema-interpreter.mjs, packages/snapback-app-cli/ibex-bundle.mjs, packages/snapback-app-cli/result-core.mjs, packages/snapback-client/app-data.mjs, scripts/build-app-bound-executable]
 examples: [packages/snapback-app-cli/package.test.mjs, packages/snapback-app-cli/auth.test.mjs, packages/snapback-app-cli/code-mode.test.mjs, packages/snapback-app-cli/code-mode-ibex.test.mjs, packages/snapback-app-cli/schema-interpreter.test.mjs, packages/snapback-app-cli/ibex-bundle.test.mjs, packages/snapback-app-cli/cli.test.mjs, packages/snapback-app-cli/digest.test.mjs, demos/todo/snapback/generated]
 status: current
 targets: [local]
@@ -119,6 +119,59 @@ Credentialed commands require POSIX ownership/mode semantics.
 The only client-side authorization predictions are target capability and
 anonymous-to-`authenticated`. Every role, grant scope, optional-user rule, and
 application refusal remains server-authoritative.
+
+<!-- since: 0.1.16 unreleased -->
+
+> **Unreleased.** CLI URL discovery and OAuth login are newer than the newest
+> published closure, 0.1.15. Use a contributor-source build until a later
+> package closure publishes them.
+
+## Log in through the external OAuth facade
+
+For first contact, pass only the app URL. With no verb, the CLI fetches the
+served envelope and prints the app id, envelope digest, exposed function count,
+available verbs, and the login command:
+
+```sh
+snapback-app https://example.snapback.app
+```
+
+`login` discovers the app's authorization server, dynamically registers one
+public client, and runs authorization code with PKCE S256. It always prints the
+authorize URL; open that URL in a browser where the app user is already signed
+in. The consent page is the approval surface.
+
+```sh
+snapback-app --server http://127.0.0.1:3000 login
+```
+
+The first login selects an ephemeral `127.0.0.1` callback port and caches that
+exact redirect with the DCR `client_id`. Later logins reuse the registration and
+try to bind the same port. `--no-browser`, or a port that cannot be rebound,
+uses the same printed authorize URL and asks you to paste the returned callback
+URL or short-lived code:
+
+```sh
+snapback-app --server http://127.0.0.1:3000 login --no-browser
+```
+
+The scope default is deterministic. The CLI chooses the first advertised
+bundle named `read` or ending in a read segment (for example `items.read`),
+then the first bundle whose declared functions are all queries/live queries,
+then the first advertised bundle. Override it with comma-separated bundle
+names:
+
+```sh
+snapback-app --server http://127.0.0.1:3000 login --scopes items.read,calendar.read
+```
+
+The target-keyed directory under `~/.snapback/app-cli/oauth/` is mode 0700.
+`oauth-public-client.json` caches the non-secret public registration and
+`oauth-bearer-token.json` honestly stores the bearer; both are mode 0600. The
+CLI prints the bearer file path and absolute expiry, never the token. Facade
+tokens expire after 15 minutes and have no refresh token, so repeat `login`
+after expiry. If discovery is absent, enable `api.oauth.enabled` with the
+explicit `api.oauth.bearer: true` weakening, or use the native `pair` path.
 
 ## Pair and invoke an agent safely
 

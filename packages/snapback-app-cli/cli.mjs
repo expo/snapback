@@ -2,6 +2,7 @@
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { createInterface } from 'node:readline/promises';
 
 import { SnapbackAppDataClient } from '@expo/snapback-client/app-data';
 
@@ -37,6 +38,7 @@ import {
   wrapCallResult,
 } from './result-core.mjs';
 import { runIbexCodeMode } from './code-mode-ibex.mjs';
+import { loginWithOAuth } from './oauth.mjs';
 
 const PACKAGE_VERSION = JSON.parse(await readFile(new URL('./package.json', import.meta.url), 'utf8')).version;
 const ENGINE = Object.freeze({ name: '@expo/snapback-app-cli', version: PACKAGE_VERSION });
@@ -49,8 +51,9 @@ const VALUE_FLAGS = new Set([
   '--out', '--timeout', '--timeout-ms', '--call-timeout-ms', '--max-calls',
   '--max-subscriptions', '--max-output-bytes', '--max-stderr-bytes', '--heap-mb', '--grace-ms',
   '--changed-since', '--budget-bytes', '--budget-items',
+  '--scopes', '--profile-dir',
 ]);
-const BOOLEAN_FLAGS = new Set(['--json', '--offline', '--watch', '--first-change', '--help', '--version', '-V']);
+const BOOLEAN_FLAGS = new Set(['--json', '--offline', '--watch', '--first-change', '--no-browser', '--help', '--version', '-V']);
 
 const parsed = (() => {
   const flags = new Map();
@@ -82,10 +85,17 @@ const parsed = (() => {
 
 const value = (flag) => parsed.flags.get(flag) ?? null;
 const has = (flag) => parsed.flags.has(flag);
-const command = parsed.positionals[0] ?? 'help';
 const appBoundBridge = globalThis.__ibexAppBoundWorkerV1 ?? null;
 const appBoundContract = appBoundBridge === null ? null : JSON.parse(appBoundBridge.contract);
-const server = appBoundContract?.origin ?? value('--server');
+const positionalTarget = /^https?:\/\//iu.test(parsed.positionals[0] ?? '')
+  ? parsed.positionals[0]
+  : null;
+const commandPositionals = positionalTarget === null
+  ? parsed.positionals
+  : parsed.positionals.slice(1);
+const server = appBoundContract?.origin ?? value('--server') ?? positionalTarget;
+const command = commandPositionals[0]
+  ?? (appBoundContract === null && server !== null ? 'surface' : 'help');
 const numberValue = (flag) => {
   const selected = value(flag);
   if (selected === null) return undefined;
@@ -127,6 +137,15 @@ const stdinScript = async () => {
     throw error;
   }
   return script;
+};
+
+const pastedAuthorizationCode = async () => {
+  const input = createInterface({ input: process.stdin, output: process.stderr });
+  try {
+    return await input.question('Paste the authorization code or callback URL: ');
+  } finally {
+    input.close();
+  }
 };
 
 const jsonInput = async (flag, fallback) => {
@@ -262,6 +281,7 @@ const openLive = async (principal, surface, fn, args) => {
 const APP_CLI_COMMANDS = Object.freeze([
   Object.freeze({ name: 'introspect', usage: 'snapback-app [target/principal flags] introspect [--changed-since <digestCursor|envelopeHash>] [--budget-bytes <n>] [--budget-items <n>] [--json]', description: 'Return the budgeted agent digest for the admitted app surface.' }),
   Object.freeze({ name: 'whoami', usage: 'snapback-app [target/principal flags] whoami [--json]', description: 'Report the selected principal class and custody source.' }),
+  Object.freeze({ name: 'login', usage: 'snapback-app --server <url> login [--scopes <bundle[,bundle...]>] [--no-browser] [--profile-dir <directory>] [--json]', description: 'Authorize through the app OAuth facade and store its short-lived bearer in an owner-only profile.', details: Object.freeze(['--scopes overrides the default read-bundle heuristic.', '--no-browser uses out-of-band callback/code paste instead of a loopback listener.', '--profile-dir overrides the target-keyed ~/.snapback/app-cli/oauth profile directory.']) }),
   Object.freeze({ name: 'call', usage: 'snapback-app --server <url> [target/principal flags] call <function> [--args-json <object|->] [--timeout-ms <ms>] [--json]', description: 'Invoke one query, mutation, action, or one-shot live query by stable id/name.' }),
   Object.freeze({ name: 'subscribe', usage: 'snapback-app --server <url> [target/principal flags] subscribe <live-query> [--args-json <object|->] [--watch|--first-change] [--timeout-ms <ms>] [--json]', description: 'Print the initial live snapshot, then the first changed snapshot or every changed snapshot.', details: Object.freeze(['--args-json supplies the live-query argument object.', '--watch streams every changed snapshot until signal or timeout.', '--first-change exits after the first snapshot that differs from the initial snapshot.', '--timeout-ms bounds the complete subscription observation.']) }),
   Object.freeze({ name: 'types', usage: 'snapback-app [target flags] types [--out <directory|->]', description: 'Render admitted API and code-mode TypeScript declarations.' }),
@@ -282,6 +302,7 @@ const help = (selected = null) => {
     return;
   }
   process.stdout.write([
+    'Usage: snapback-app <app-url>',
     'Usage: snapback-app --server <url> [--artifacts <generated-dir>] [--principal anonymous|dev|session|agent|auto] <command>',
     '',
     'Commands:',
@@ -295,7 +316,10 @@ const help = (selected = null) => {
 };
 
 try {
-  if (appBoundContract !== null && (has('--server') || has('--app') || has('--artifacts'))) {
+  if (positionalTarget !== null && value('--server') !== null) {
+    throw Object.assign(new Error('supply the app URL positionally or with --server, not both'), { code: 'SNAPBACK_APP_CLI_USAGE' });
+  }
+  if (appBoundContract !== null && (has('--server') || has('--app') || has('--artifacts') || positionalTarget !== null)) {
     throw Object.assign(
       new Error('the app-bound executable fixes --server, --app, and its artifact source at build time'),
       { code: 'SNAPBACK_APP_CLI_USAGE' },
@@ -304,7 +328,20 @@ try {
   if (has('--version') || has('-V')) {
     process.stdout.write(`snapback-app ${PACKAGE_VERSION}\n`);
   } else if (command === 'help' || has('--help')) {
-    help(command === 'help' ? parsed.positionals[1] ?? null : command);
+    help(command === 'help' ? commandPositionals[1] ?? null : command);
+  } else if (command === 'surface') {
+    assertSupportedHost();
+    const surface = await loadSurface();
+    print({
+      artifactKind: 'appCliSurface',
+      formatVersion: 'snapback.app-cli-surface.v1',
+      appId: surface.appId,
+      envelopeDigest: surface.envelopeSha256 ?? null,
+      functionCount: surface.functions.length,
+      source: surface.source,
+      availableVerbs: APP_CLI_COMMANDS.map(({ name }) => name),
+      login: `snapback-app --server ${server} login`,
+    });
   } else if (command === 'introspect') {
     assertSupportedHost();
     const surface = await loadSurface({ includeInspection: true });
@@ -321,6 +358,21 @@ try {
       budgetBytes,
       budgetItems,
     }));
+  } else if (command === 'login') {
+    assertSupportedHost();
+    if (server === null) throw Object.assign(new Error('login requires --server or an app URL'), { code: 'SNAPBACK_APP_CLI_USAGE' });
+    const receipt = await loginWithOAuth({
+      origin: server,
+      profileDirectory: value('--profile-dir'),
+      requestedScopes: value('--scopes'),
+      noBrowser: has('--no-browser'),
+      loadInspection: () => publicInspection(server),
+      readPastedCode: pastedAuthorizationCode,
+      onAuthorizeUrl: (url, { mode }) => {
+        process.stdout.write(`Authorize (${mode}): ${url}\n`);
+      },
+    });
+    print(receipt);
   } else if (command === 'whoami') {
     assertSupportedHost();
     const selected = await selection();
@@ -328,7 +380,7 @@ try {
   } else if (command === 'call') {
     assertSupportedHost();
     if (server === null) throw Object.assign(new Error('call requires --server'), { code: 'SNAPBACK_APP_CLI_USAGE' });
-    const functionName = parsed.positionals[1];
+    const functionName = commandPositionals[1];
     if (!functionName) throw Object.assign(new Error('call requires a function selector'), { code: 'SNAPBACK_APP_CLI_USAGE' });
     const surface = await loadSurface();
     const selected = await selection();
@@ -382,7 +434,7 @@ try {
     if (has('--watch') && has('--first-change')) {
       throw Object.assign(new Error('--watch and --first-change are mutually exclusive'), { code: 'SNAPBACK_APP_CLI_USAGE' });
     }
-    const functionName = parsed.positionals[1];
+    const functionName = commandPositionals[1];
     if (!functionName) throw Object.assign(new Error('subscribe requires a function selector'), { code: 'SNAPBACK_APP_CLI_USAGE' });
     const surface = await loadSurface();
     const fn = resolveFunction(surface, functionName);
@@ -470,7 +522,7 @@ try {
   } else if (command === 'run') {
     assertSupportedHost();
     if (server === null) throw Object.assign(new Error('run requires --server'), { code: 'SNAPBACK_APP_CLI_USAGE' });
-    const scriptPath = parsed.positionals[1];
+    const scriptPath = commandPositionals[1];
     if (!scriptPath) throw Object.assign(new Error('run requires a script path or -'), { code: 'SNAPBACK_APP_CLI_USAGE' });
     // @ref LLP 0062#3-code-mode — stdin is a script-source contract, so EOF
     // without source is absence, not a successfully executed empty program.

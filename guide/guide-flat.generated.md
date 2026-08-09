@@ -6645,6 +6645,19 @@ registers at `POST /auth/oauth/register`, then uses authorization code with
 required PKCE S256 through `GET|POST /auth/oauth/authorize` and
 `POST /auth/oauth/token`.
 
+<!-- since: 0.1.16 unreleased -->
+
+> **Unreleased.** The app-CLI login client is newer than the newest published
+> closure, 0.1.15. Use a contributor-source build until a later package
+> closure publishes it.
+
+The paved terminal client is
+`snapback-app --server <app-url> login`. It performs discovery, DCR, loopback
+or paste completion, PKCE exchange, and owner-only short-lived bearer custody;
+see [Log in through the external OAuth facade](../clients/app-cli.md#log-in-through-the-external-oauth-facade)
+for its scope-default heuristic and no-browser path. The native proof-of-
+possession alternative remains `snapback-app pair`.
+
 Dynamic registration creates the same delegation-only integration principal
 and record as the native registration path, under the active
 `auth.agents.mode`. It returns no client secret and creates neither an
@@ -9979,7 +9992,7 @@ id: clients.app-cli
 order: 2
 audience: agent-first
 capabilities: [clients.app-cli]
-authorities: [llp/0062-generated-app-cli-and-code-mode.rfc.md, llp/0146-agentic-authoring-affordances.rfc.md, packages/snapback-app-cli/index.mjs, packages/snapback-app-cli/cli.mjs, packages/snapback-app-cli/digest.mjs, packages/snapback-app-cli/agent-digest.schema.json, packages/snapback-app-cli/auth.mjs, packages/snapback-app-cli/code-mode.mjs, packages/snapback-app-cli/code-mode-ibex.mjs, packages/snapback-app-cli/schema-interpreter.mjs, packages/snapback-app-cli/ibex-bundle.mjs, packages/snapback-app-cli/result-core.mjs, packages/snapback-client/app-data.mjs, scripts/build-app-bound-executable]
+authorities: [llp/0062-generated-app-cli-and-code-mode.rfc.md, llp/0146-agentic-authoring-affordances.rfc.md, llp/0150-agent-token-acquisition.rfc.md, llp/0204-app-external-surfaces.rfc.md, packages/snapback-app-cli/index.mjs, packages/snapback-app-cli/cli.mjs, packages/snapback-app-cli/oauth.mjs, packages/snapback-app-cli/digest.mjs, packages/snapback-app-cli/agent-digest.schema.json, packages/snapback-app-cli/auth.mjs, packages/snapback-app-cli/code-mode.mjs, packages/snapback-app-cli/code-mode-ibex.mjs, packages/snapback-app-cli/schema-interpreter.mjs, packages/snapback-app-cli/ibex-bundle.mjs, packages/snapback-app-cli/result-core.mjs, packages/snapback-client/app-data.mjs, scripts/build-app-bound-executable]
 examples: [packages/snapback-app-cli/package.test.mjs, packages/snapback-app-cli/auth.test.mjs, packages/snapback-app-cli/code-mode.test.mjs, packages/snapback-app-cli/code-mode-ibex.test.mjs, packages/snapback-app-cli/schema-interpreter.test.mjs, packages/snapback-app-cli/ibex-bundle.test.mjs, packages/snapback-app-cli/cli.test.mjs, packages/snapback-app-cli/digest.test.mjs, demos/todo/snapback/generated]
 status: current
 targets: [local]
@@ -10094,6 +10107,59 @@ Credentialed commands require POSIX ownership/mode semantics.
 The only client-side authorization predictions are target capability and
 anonymous-to-`authenticated`. Every role, grant scope, optional-user rule, and
 application refusal remains server-authoritative.
+
+<!-- since: 0.1.16 unreleased -->
+
+> **Unreleased.** CLI URL discovery and OAuth login are newer than the newest
+> published closure, 0.1.15. Use a contributor-source build until a later
+> package closure publishes them.
+
+## Log in through the external OAuth facade
+
+For first contact, pass only the app URL. With no verb, the CLI fetches the
+served envelope and prints the app id, envelope digest, exposed function count,
+available verbs, and the login command:
+
+```sh
+snapback-app https://example.snapback.app
+```
+
+`login` discovers the app's authorization server, dynamically registers one
+public client, and runs authorization code with PKCE S256. It always prints the
+authorize URL; open that URL in a browser where the app user is already signed
+in. The consent page is the approval surface.
+
+```sh
+snapback-app --server http://127.0.0.1:3000 login
+```
+
+The first login selects an ephemeral `127.0.0.1` callback port and caches that
+exact redirect with the DCR `client_id`. Later logins reuse the registration and
+try to bind the same port. `--no-browser`, or a port that cannot be rebound,
+uses the same printed authorize URL and asks you to paste the returned callback
+URL or short-lived code:
+
+```sh
+snapback-app --server http://127.0.0.1:3000 login --no-browser
+```
+
+The scope default is deterministic. The CLI chooses the first advertised
+bundle named `read` or ending in a read segment (for example `items.read`),
+then the first bundle whose declared functions are all queries/live queries,
+then the first advertised bundle. Override it with comma-separated bundle
+names:
+
+```sh
+snapback-app --server http://127.0.0.1:3000 login --scopes items.read,calendar.read
+```
+
+The target-keyed directory under `~/.snapback/app-cli/oauth/` is mode 0700.
+`oauth-public-client.json` caches the non-secret public registration and
+`oauth-bearer-token.json` honestly stores the bearer; both are mode 0600. The
+CLI prints the bearer file path and absolute expiry, never the token. Facade
+tokens expire after 15 minutes and have no refresh token, so repeat `login`
+after expiry. If discovery is absent, enable `api.oauth.enabled` with the
+explicit `api.oauth.bearer: true` weakening, or use the native `pair` path.
 
 ## Pair and invoke an agent safely
 
@@ -20167,7 +20233,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-diagnostics-registry.mjs. Never hand-edit. -->
@@ -20176,7 +20242,7 @@ reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
 
 This build-bound registry is generated from production Rust, JavaScript, and Swift sources. Use `snapback guide SNAPBACK_*` for an exact, bounded lookup before searching prose.
 
-**2,757 stable codes** from 375 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site.
+**2,757 stable codes** from 376 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site.
 
 | Code | Subsystem | HTTP | Guide | First emitting site | Sites |
 | --- | --- | ---: | --- | --- | ---: |
@@ -20399,13 +20465,13 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-app-cli-aborted"></a>`SNAPBACK_APP_CLI_ABORTED` | application | — | — | `packages/snapback-app-cli/code-mode-ibex.mjs:311` | 2 |
 | <a id="diagnostic-snapback-app-cli-agent-admission-timeout"></a>`SNAPBACK_APP_CLI_AGENT_ADMISSION_TIMEOUT` | application | — | — | `packages/snapback-app-cli/auth.mjs:454` | 2 |
 | <a id="diagnostic-snapback-app-cli-agent-origin-unsafe"></a>`SNAPBACK_APP_CLI_AGENT_ORIGIN_UNSAFE` | application | — | — | `packages/snapback-app-cli/auth.mjs:307` | 5 |
-| <a id="diagnostic-snapback-app-cli-artifacts-required"></a>`SNAPBACK_APP_CLI_ARTIFACTS_REQUIRED` | application | — | — | `packages/snapback-app-cli/cli.mjs:159` | 4 |
+| <a id="diagnostic-snapback-app-cli-artifacts-required"></a>`SNAPBACK_APP_CLI_ARTIFACTS_REQUIRED` | application | — | — | `packages/snapback-app-cli/cli.mjs:178` | 4 |
 | <a id="diagnostic-snapback-app-cli-artifact-identity-mismatch"></a>`SNAPBACK_APP_CLI_ARTIFACT_IDENTITY_MISMATCH` | application | — | [guide](../clients/app-cli.md#discover-the-app-surface) | `packages/snapback-app-cli/arguments.mjs:37` | 5 |
 | <a id="diagnostic-snapback-app-cli-artifact-index-invalid"></a>`SNAPBACK_APP_CLI_ARTIFACT_INDEX_INVALID` | application | — | — | `packages/snapback-app-cli/index.mjs:59` | 2 |
-| <a id="diagnostic-snapback-app-cli-auth-refused"></a>`SNAPBACK_APP_CLI_AUTH_REFUSED` | application | — | — | `packages/snapback-app-cli/auth.mjs:356` | 2 |
+| <a id="diagnostic-snapback-app-cli-auth-refused"></a>`SNAPBACK_APP_CLI_AUTH_REFUSED` | application | — | — | `packages/snapback-app-cli/auth.mjs:356` | 11 |
 | <a id="diagnostic-snapback-app-cli-call-requires-ordinary-function"></a>`SNAPBACK_APP_CLI_CALL_REQUIRES_ORDINARY_FUNCTION` | application | — | — | `packages/snapback-app-cli/index.mjs:202` | 1 |
-| <a id="diagnostic-snapback-app-cli-command-unknown"></a>`SNAPBACK_APP_CLI_COMMAND_UNKNOWN` | application | — | — | `packages/snapback-app-cli/cli.mjs:549` | 2 |
-| <a id="diagnostic-snapback-app-cli-credential-source-invalid"></a>`SNAPBACK_APP_CLI_CREDENTIAL_SOURCE_INVALID` | application | — | — | `packages/snapback-app-cli/auth.mjs:70` | 22 |
+| <a id="diagnostic-snapback-app-cli-command-unknown"></a>`SNAPBACK_APP_CLI_COMMAND_UNKNOWN` | application | — | — | `packages/snapback-app-cli/cli.mjs:601` | 2 |
+| <a id="diagnostic-snapback-app-cli-credential-source-invalid"></a>`SNAPBACK_APP_CLI_CREDENTIAL_SOURCE_INVALID` | application | — | — | `packages/snapback-app-cli/auth.mjs:70` | 31 |
 | <a id="diagnostic-snapback-app-cli-digest-invalid"></a>`SNAPBACK_APP_CLI_DIGEST_INVALID` | application | — | — | `packages/snapback-app-cli/digest.mjs:32` | 2 |
 | <a id="diagnostic-snapback-app-cli-discovery-invalid"></a>`SNAPBACK_APP_CLI_DISCOVERY_INVALID` | application | — | — | `packages/snapback-app-cli/envelope.mjs:314` | 3 |
 | <a id="diagnostic-snapback-app-cli-engine-internal"></a>`SNAPBACK_APP_CLI_ENGINE_INTERNAL` | application | — | — | `packages/snapback-app-cli/code-mode-ibex.mjs:195` | 10 |
@@ -20416,25 +20482,25 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-app-cli-envelope-member-digest-mismatch"></a>`SNAPBACK_APP_CLI_ENVELOPE_MEMBER_DIGEST_MISMATCH` | application | — | — | `packages/snapback-app-cli/envelope.mjs:204` | 4 |
 | <a id="diagnostic-snapback-app-cli-envelope-noncanonical"></a>`SNAPBACK_APP_CLI_ENVELOPE_NONCANONICAL` | application | — | — | `packages/snapback-app-cli/envelope.mjs:55` | 4 |
 | <a id="diagnostic-snapback-app-cli-envelope-version-unsupported"></a>`SNAPBACK_APP_CLI_ENVELOPE_VERSION_UNSUPPORTED` | application | — | — | `packages/snapback-app-cli/envelope.mjs:153` | 2 |
-| <a id="diagnostic-snapback-app-cli-failed"></a>`SNAPBACK_APP_CLI_FAILED` | application | — | — | `packages/snapback-app-cli/cli.mjs:552` | 1 |
+| <a id="diagnostic-snapback-app-cli-failed"></a>`SNAPBACK_APP_CLI_FAILED` | application | — | — | `packages/snapback-app-cli/cli.mjs:604` | 1 |
 | <a id="diagnostic-snapback-app-cli-function-error"></a>`SNAPBACK_APP_CLI_FUNCTION_ERROR` | application | — | — | `packages/snapback-app-cli/code-mode-ibex.mjs:28` | 3 |
 | <a id="diagnostic-snapback-app-cli-function-manifest-invalid"></a>`SNAPBACK_APP_CLI_FUNCTION_MANIFEST_INVALID` | application | — | — | `packages/snapback-app-cli/index.mjs:60` | 7 |
-| <a id="diagnostic-snapback-app-cli-function-not-found"></a>`SNAPBACK_APP_CLI_FUNCTION_NOT_FOUND` | application | — | — | `packages/snapback-app-cli/cli.mjs:194` | 7 |
+| <a id="diagnostic-snapback-app-cli-function-not-found"></a>`SNAPBACK_APP_CLI_FUNCTION_NOT_FOUND` | application | — | — | `packages/snapback-app-cli/cli.mjs:213` | 7 |
 | <a id="diagnostic-snapback-app-cli-function-unknown"></a>`SNAPBACK_APP_CLI_FUNCTION_UNKNOWN` | application | — | — | `packages/snapback-app-cli/index.mjs:170` | 2 |
-| <a id="diagnostic-snapback-app-cli-host-unsupported"></a>`SNAPBACK_APP_CLI_HOST_UNSUPPORTED` | application | — | — | `packages/snapback-app-cli/auth.mjs:100` | 2 |
+| <a id="diagnostic-snapback-app-cli-host-unsupported"></a>`SNAPBACK_APP_CLI_HOST_UNSUPPORTED` | application | — | — | `packages/snapback-app-cli/auth.mjs:100` | 3 |
 | <a id="diagnostic-snapback-app-cli-http-failed"></a>`SNAPBACK_APP_CLI_HTTP_FAILED` | application | — | — | `packages/snapback-app-cli/envelope.mjs:275` | 2 |
 | <a id="diagnostic-snapback-app-cli-late-frame-dropped"></a>`SNAPBACK_APP_CLI_LATE_FRAME_DROPPED` | application | — | — | `packages/snapback-app-cli/code-mode-ibex.mjs:329` | 2 |
 | <a id="diagnostic-snapback-app-cli-offline-cached-surface"></a>`SNAPBACK_APP_CLI_OFFLINE_CACHED_SURFACE` | application | — | — | `packages/snapback-app-cli/index.mjs:191` | 2 |
 | <a id="diagnostic-snapback-app-cli-principal-unsupported"></a>`SNAPBACK_APP_CLI_PRINCIPAL_UNSUPPORTED` | application | — | — | `packages/snapback-app-cli/auth.mjs:403` | 3 |
-| <a id="diagnostic-snapback-app-cli-qualification-require-live-stream"></a>`SNAPBACK_APP_CLI_QUALIFICATION_REQUIRE_LIVE_STREAM` | application | — | — | `packages/snapback-app-cli/cli.mjs:504` | 1 |
+| <a id="diagnostic-snapback-app-cli-qualification-require-live-stream"></a>`SNAPBACK_APP_CLI_QUALIFICATION_REQUIRE_LIVE_STREAM` | application | — | — | `packages/snapback-app-cli/cli.mjs:556` | 1 |
 | <a id="diagnostic-snapback-app-cli-resource-exceeded"></a>`SNAPBACK_APP_CLI_RESOURCE_EXCEEDED` | application | — | — | `packages/snapback-app-cli/code-mode-ibex.mjs:66` | 19 |
-| <a id="diagnostic-snapback-app-cli-script-empty"></a>`SNAPBACK_APP_CLI_SCRIPT_EMPTY` | application | — | — | `packages/snapback-app-cli/cli.mjs:112` | 2 |
+| <a id="diagnostic-snapback-app-cli-script-empty"></a>`SNAPBACK_APP_CLI_SCRIPT_EMPTY` | application | — | — | `packages/snapback-app-cli/cli.mjs:122` | 2 |
 | <a id="diagnostic-snapback-app-cli-script-error"></a>`SNAPBACK_APP_CLI_SCRIPT_ERROR` | application | — | — | `packages/snapback-app-cli/code-mode-child.mjs:70` | 14 |
-| <a id="diagnostic-snapback-app-cli-signal"></a>`SNAPBACK_APP_CLI_SIGNAL` | application | — | — | `packages/snapback-app-cli/cli.mjs:408` | 2 |
+| <a id="diagnostic-snapback-app-cli-signal"></a>`SNAPBACK_APP_CLI_SIGNAL` | application | — | — | `packages/snapback-app-cli/cli.mjs:460` | 2 |
 | <a id="diagnostic-snapback-app-cli-subscribe-requires-live-query"></a>`SNAPBACK_APP_CLI_SUBSCRIBE_REQUIRES_LIVE_QUERY` | application | — | — | `packages/snapback-app-cli/index.mjs:215` | 2 |
-| <a id="diagnostic-snapback-app-cli-timeout"></a>`SNAPBACK_APP_CLI_TIMEOUT` | application | — | — | `packages/snapback-app-cli/auth.mjs:323` | 12 |
-| <a id="diagnostic-snapback-app-cli-transport-failed"></a>`SNAPBACK_APP_CLI_TRANSPORT_FAILED` | application | — | — | `packages/snapback-app-cli/auth.mjs:334` | 4 |
-| <a id="diagnostic-snapback-app-cli-usage"></a>`SNAPBACK_APP_CLI_USAGE` | application | — | — | `packages/snapback-app-cli/arguments.mjs:46` | 45 |
+| <a id="diagnostic-snapback-app-cli-timeout"></a>`SNAPBACK_APP_CLI_TIMEOUT` | application | — | — | `packages/snapback-app-cli/auth.mjs:323` | 13 |
+| <a id="diagnostic-snapback-app-cli-transport-failed"></a>`SNAPBACK_APP_CLI_TRANSPORT_FAILED` | application | — | — | `packages/snapback-app-cli/auth.mjs:334` | 11 |
+| <a id="diagnostic-snapback-app-cli-usage"></a>`SNAPBACK_APP_CLI_USAGE` | application | — | — | `packages/snapback-app-cli/arguments.mjs:46` | 50 |
 | <a id="diagnostic-snapback-app-cli-version-mismatch"></a>`SNAPBACK_APP_CLI_VERSION_MISMATCH` | application | — | — | `packages/snapback-app-cli/code-mode-ibex.mjs:95` | 4 |
 | <a id="diagnostic-snapback-app-descriptor-budget-exceeded"></a>`SNAPBACK_APP_DESCRIPTOR_BUDGET_EXCEEDED` | application | — | — | `packages/snapback-codegen/app-descriptor.mjs:204` | 6 |
 | <a id="diagnostic-snapback-app-descriptor-capabilities-invalid"></a>`SNAPBACK_APP_DESCRIPTOR_CAPABILITIES_INVALID` | application | — | — | `packages/snapback-codegen/app-descriptor.mjs:588` | 1 |
@@ -22953,7 +23019,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -22961,7 +23027,7 @@ reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
 # Generated API reference
 
 One build-bound projection of 913 public symbols (374 runtime values and 539 explicit type-only symbols).
-Registry identity: `sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`; source commit: `f639d0c396e49d8927783dcff7ae84de2ef7bbf6`.
+Registry identity: `sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`; source commit: `5ac35e1752fbe802cef70f9373d3137b352142ba`.
 
 Use `snapback guide <ExactSymbolName>` for a budgeted exact lookup. Add `--slice N` when a result names a next slice. The JSON registry is available at [registry.json](./registry.json). Stable `SNAPBACK_*` failures have their own [diagnostic code registry](./diagnostics.md).
 
@@ -23028,7 +23094,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -31553,7 +31619,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -32078,7 +32144,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -32312,7 +32378,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -32955,7 +33021,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -33062,7 +33128,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -33517,7 +33583,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -33656,7 +33722,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -34018,7 +34084,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -34109,7 +34175,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -34478,7 +34544,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -34628,7 +34694,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35131,7 +35197,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35632,7 +35698,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35866,7 +35932,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36229,7 +36295,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36343,7 +36409,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36941,7 +37007,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37246,7 +37312,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37693,7 +37759,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37819,7 +37885,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37991,7 +38057,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38396,7 +38462,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38863,7 +38929,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39120,7 +39186,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39510,7 +39576,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40130,7 +40196,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40278,7 +40344,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40486,7 +40552,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40679,7 +40745,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40932,7 +40998,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -41517,7 +41583,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -43389,7 +43455,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -43502,7 +43568,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -46159,7 +46225,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -46441,7 +46507,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -46565,7 +46631,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -46720,7 +46786,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -46844,7 +46910,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -47014,7 +47080,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -47390,7 +47456,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f639d0c396e49d8927783dcff7ae84de2ef7bbf6
+reviewed-commit: 5ac35e1752fbe802cef70f9373d3137b352142ba
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->

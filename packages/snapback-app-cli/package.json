@@ -19,6 +19,7 @@
     "arguments.mjs",
     "agent-digest.schema.json",
     "auth.mjs",
+    "oauth.mjs",
     "code-mode-child.mjs",
     "code-mode-ibex.mjs",
     "code-mode.mjs",

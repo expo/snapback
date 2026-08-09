@@ -130,6 +130,19 @@ registers at `POST /auth/oauth/register`, then uses authorization code with
 required PKCE S256 through `GET|POST /auth/oauth/authorize` and
 `POST /auth/oauth/token`.
 
+<!-- since: 0.1.16 unreleased -->
+
+> **Unreleased.** The app-CLI login client is newer than the newest published
+> closure, 0.1.15. Use a contributor-source build until a later package
+> closure publishes it.
+
+The paved terminal client is
+`snapback-app --server <app-url> login`. It performs discovery, DCR, loopback
+or paste completion, PKCE exchange, and owner-only short-lived bearer custody;
+see [Log in through the external OAuth facade](../clients/app-cli.md#log-in-through-the-external-oauth-facade)
+for its scope-default heuristic and no-browser path. The native proof-of-
+possession alternative remains `snapback-app pair`.
+
 Dynamic registration creates the same delegation-only integration principal
 and record as the native registration path, under the active
 `auth.agents.mode`. It returns no client secret and creates neither an

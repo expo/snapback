@@ -404,6 +404,15 @@ distribution and authority:
   surface). Same engine,
   same knob, two projections — P1 again.
 
+**Implementation note (S3 Landing D, 2026-08-09):** the generic Node CLI now
+accepts an app URL as its useful default surface and ships `login` through the
+local OAuth facade: authorization-server discovery, one cached public DCR
+registration, PKCE S256, loopback-or-paste completion, named-bundle defaults,
+and an honestly named mode-0600 bearer record with its 15-minute expiry and no
+refresh claim. Served mode consumes the already exposure-filtered envelope;
+explicit trusted-local artifacts retain the full function manifest. A per-app
+branded binary remains out of scope.
+
 ## D5 — Surface 4: the near-data AI interface
 
 The novel surface: `POST /api/v1/ask` (and the `ask` MCP tool). The caller
