@@ -419,6 +419,7 @@ where
 {
     with_snapback_staged_authorization_write(
         state,
+        None,
         move |snapback| preflight(snapback).map(|preflight| (preflight, ())),
         move |snapback, ()| work(snapback),
     )
@@ -495,6 +496,7 @@ impl Drop for CancelAuthorizationReservationOnDrop {
 /// whose buffered effects may already have been computed.
 pub(crate) async fn with_snapback_staged_authorization_write<S, T, P, F>(
     state: &SharedSnapback,
+    writer_gate: Option<Arc<crate::live_coalesce::LiveFanoutCoalescer>>,
     stage: P,
     work: F,
 ) -> SnapbackResult<T>
@@ -507,11 +509,14 @@ where
     S: Send + 'static,
     T: Send + 'static,
 {
+    let writer_turn_guard = writer_gate.map(|coalescer| Arc::new(coalescer.writer_turn_guard()));
     let mut guard = lock_managed_snapback(state).await;
     let cancellation = Arc::new(crate::storage::AuthorizationReservationCancellation::default());
     let mut cancel_on_drop = CancelAuthorizationReservationOnDrop::new(cancellation.clone());
+    let stage_writer_turn_guard = writer_turn_guard.clone();
     let staged_result: SnapbackResult<StagedAuthorizationWrite<S, T, F>> =
         tokio::task::spawn_blocking(move || {
+            let _writer_turn_guard = stage_writer_turn_guard;
             let _sanction = crate::exec_guard::BlockingSanction::acquire();
             let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
             let mut result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -607,7 +612,9 @@ where
     };
 
     let mut guard = lock_managed_snapback(state).await;
+    let commit_writer_turn_guard = writer_turn_guard.clone();
     let attempted = tokio::task::spawn_blocking(move || {
+        let _writer_turn_guard = commit_writer_turn_guard;
         let _sanction = crate::exec_guard::BlockingSanction::acquire();
         let current_snapshot = match guard.authorization_reservation_snapshot() {
             Ok(snapshot) => snapshot,
@@ -3064,6 +3071,7 @@ async fn run_managed_host_plan_action(
                 let stage_bindings = bindings.clone();
                 let committed = with_snapback_staged_authorization_write(
                     &state,
+                    None,
                     move |snapback| {
                         snapback.stage_managed_host_plan_action_step(
                             &stage_action,
@@ -9692,6 +9700,22 @@ fn selected_invocation_source(
     })
 }
 
+/// Mutation-class authority preparation is part of the writer's route to its
+/// commit turn. Making that Local acquisition visible to the scheduler keeps a
+/// queued evaluation from winning between credential preparation and staging.
+///
+/// @ref LLP 0200#25-cancellation-fairness-and-bounded-staleness — evaluation
+/// turns yield at their boundary while mutation-class writer work is pending.
+fn mutation_writer_invocation_source(source: InvocationSource) -> bool {
+    matches!(
+        source,
+        InvocationSource::HttpMutation
+            | InvocationSource::LocalMutation
+            | InvocationSource::AssetCallback
+            | InvocationSource::NestedMutation
+    )
+}
+
 fn invocation_authority_value(source: InvocationSource, body: Option<&Value>) -> Option<&Value> {
     // `MutationRequest` flattens `HandlerInput`; query/action inputs and all
     // authority-only DTOs are rooted at the request object. Durable live
@@ -9910,6 +9934,11 @@ async fn prepare_registered_route_authority(
                             .await;
                             let service_fences = runtime.service_authority_fences.clone();
                             let service_clock = provider.clone();
+                            let _writer_turn_guard = runtime
+                                .live_fanout_coalescer
+                                .as_ref()
+                                .filter(|_| mutation_writer_invocation_source(source))
+                                .map(|coalescer| coalescer.writer_turn_guard());
                             let (resolved, service_publication) =
                                 with_snapback(&runtime.snapback, move |snapback| {
                                     let resolved = snapback
@@ -16663,6 +16692,19 @@ pub fn live_max_eval_turn(value: Option<&str>) -> Duration {
         .unwrap_or(Duration::from_secs(30))
 }
 
+async fn defer_live_evaluation_for_writers(coalescer: &crate::live_coalesce::LiveFanoutCoalescer) {
+    // @ref LLP 0200#25-cancellation-fairness-and-bounded-staleness — a queued
+    // evaluation yields this turn boundary to visible commit writers, but only
+    // for a bounded share of max_hold so the pending-frame service bound still
+    // has room for an in-flight turn. A later stage can tighten this with the
+    // selected frame's inherited age.
+    if coalescer.writers_waiting() == 0 {
+        return;
+    }
+    let deferral_cap = coalescer.tunables().max_hold / 4;
+    let _ = tokio::time::timeout(deferral_cap, coalescer.writers_drained()).await;
+}
+
 /// Install the evaluation scheduler (which subsumes the old backstop). Each
 /// loop iteration acquires Local for exactly one subscription, then releases
 /// it so queued commits can settle before the next subscription turn.
@@ -16681,6 +16723,7 @@ pub fn spawn_live_fanout_backstop(
         loop {
             coalescer.flush_requested().await;
             loop {
+                defer_live_evaluation_for_writers(&coalescer).await;
                 // Lock queueing is not evaluation time. Acquire first, then
                 // select and run the turn under this exact guard so the
                 // max_eval_turn clock covers only the lock-held evaluator.
@@ -18527,6 +18570,7 @@ async fn host_ops_handler_inner(
             let stage_authority = authority.clone();
             let outcome = match with_snapback_staged_authorization_write(
                 &state,
+                runtime.live_fanout_coalescer.clone(),
                 move |snapback| {
                     snapback.stage_recorded_authorization_mutation(
                         &stage_function,
@@ -20663,51 +20707,67 @@ async fn invoke_mutation(
         let stage_operation_issuance = request.operation_issuance.clone();
         let stage_settlement = request.settlement.clone();
         let stage_authority = authority.clone();
-        let (result, receipt, response_authority_descriptor, committed_network_basis, commit_ack) =
-            with_snapback_staged_authorization_write(
-                &state,
-                move |snapback| {
-                    let response_authority_descriptor =
-                        snapback.descriptor_for_prepared_authority(&stage_authority)?;
-                    let (preflight, staged) = snapback
-                        .stage_recorded_authorization_mutation_with_generation_and_settlement(
-                            &stage_name,
-                            stage_input.clone(),
-                            stage_client_mutation_id.clone(),
-                            stage_authority_descriptor.clone(),
-                            &stage_acknowledgements,
-                            "http",
-                            stage_authority.clone(),
-                            stage_expected_generation.as_ref(),
-                            stage_operation_issuance.clone(),
-                            stage_settlement.clone(),
-                        )?;
-                    Ok((preflight, (response_authority_descriptor, staged)))
-                },
-                move |snapback, (response_authority_descriptor, staged)| {
-                    snapback
-                        .commit_staged_recorded_authorization_mutation_with_network_egress(staged)
-                        .map(|(result, receipt, network_basis)| {
-                            // Taken inside the same Local turn that stamped
-                            // it, so a concurrent mutation cannot mispair.
-                            let commit_ack = snapback
-                                .take_last_commit_ack_at()
-                                .map(|at| (at, snapback.live_settlement_stats_cell()));
-                            (
-                                result,
-                                receipt,
-                                response_authority_descriptor,
-                                network_basis,
-                                commit_ack,
-                            )
-                        })
-                },
-            )
-            .await
-            .map_err(ApiError::from)
-            .map_err(|error| error.with_attribution(attribution.clone()))?
-            .map_err(ApiError::from)
-            .map_err(|error| error.with_attribution(attribution.clone()))?;
+        let facts_mode = authority.active_mode();
+        let facts_authority = authority.clone();
+        let (
+            result,
+            receipt,
+            response_authority_descriptor,
+            committed_network_basis,
+            facts,
+            commit_ack,
+        ) = with_snapback_staged_authorization_write(
+            &state,
+            runtime.live_fanout_coalescer.clone(),
+            move |snapback| {
+                let response_authority_descriptor =
+                    snapback.descriptor_for_prepared_authority(&stage_authority)?;
+                let (preflight, staged) = snapback
+                    .stage_recorded_authorization_mutation_with_generation_and_settlement(
+                        &stage_name,
+                        stage_input.clone(),
+                        stage_client_mutation_id.clone(),
+                        stage_authority_descriptor.clone(),
+                        &stage_acknowledgements,
+                        "http",
+                        stage_authority.clone(),
+                        stage_expected_generation.as_ref(),
+                        stage_operation_issuance.clone(),
+                        stage_settlement.clone(),
+                    )?;
+                Ok((preflight, (response_authority_descriptor, staged)))
+            },
+            move |snapback, (response_authority_descriptor, staged)| {
+                snapback
+                    .commit_staged_recorded_authorization_mutation_with_network_egress(staged)
+                    .and_then(|(result, receipt, network_basis)| {
+                        let facts = if result.is_ok() {
+                            facts_authority.validate_admission("mutation generation facts")?;
+                            snapback.function_invocation_facts(facts_mode)?
+                        } else {
+                            None
+                        };
+                        // Taken inside the same Local turn that stamped
+                        // it, so a concurrent mutation cannot mispair.
+                        let commit_ack = snapback
+                            .take_last_commit_ack_at()
+                            .map(|at| (at, snapback.live_settlement_stats_cell()));
+                        Ok((
+                            result,
+                            receipt,
+                            response_authority_descriptor,
+                            network_basis,
+                            facts,
+                            commit_ack,
+                        ))
+                    })
+            },
+        )
+        .await
+        .map_err(ApiError::from)
+        .map_err(|error| error.with_attribution(attribution.clone()))?
+        .map_err(ApiError::from)
+        .map_err(|error| error.with_attribution(attribution.clone()))?;
         network_basis = committed_network_basis;
         settlement_observation = commit_ack;
         crate::spike_trace::mutate_settle(
@@ -20722,22 +20782,13 @@ async fn invoke_mutation(
             // (never through the FunctionResponse flatten) so the served bytes
             // stay inside the closed generated mutation.output schema.
             // @ref LLP 0094#0c6-response-shape-divergences-audited-at-137dee8c-defects-not-contract — item 4.
-            Ok(output) => {
-                let facts_mode = authority.active_mode();
-                let facts_authority = authority.clone();
-                let facts = with_snapback(&state, move |snapback| {
-                    facts_authority.validate_admission("mutation generation facts")?;
-                    snapback.function_invocation_facts(facts_mode)
-                })
-                .await?;
-                Ok(Json(MutationResponse::from_output(
-                    output,
-                    receipt,
-                    attribution,
-                    response_authority_descriptor,
-                    facts,
-                )))
-            }
+            Ok(output) => Ok(Json(MutationResponse::from_output(
+                output,
+                receipt,
+                attribution,
+                response_authority_descriptor,
+                facts,
+            ))),
             Err(error) => Err(ApiError::with_receipt(error, receipt).with_attribution(attribution)),
         }
     }

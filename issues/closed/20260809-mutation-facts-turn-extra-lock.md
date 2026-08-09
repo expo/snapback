@@ -17,3 +17,13 @@ the staged write's `work` closure, where the lock is already held), or
 serve it from state that does not need the global writer lock. Response
 shape and facts semantics must be byte-identical; the win is one fewer
 lock round-trip per applied mutation under burst.
+
+## Resolution — 2026-08-09
+
+Resolved by Lane B stage 1b. `invoke_mutation` now validates the prepared
+authority and reads `function_invocation_facts` inside the successful applied
+mutation's commit turn, immediately after the staged commit returns. The facts
+travel out in the commit result tuple and the separate post-commit
+`with_snapback` acquisition is gone. Mutation-error outcomes still skip the
+facts read, while the successful response retains the same typed `facts`
+member and observes the exact committed manifest state.

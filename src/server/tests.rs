@@ -1765,6 +1765,183 @@ globalThis.__snapbackHandlers = {
     (state, directory)
 }
 
+#[tokio::test]
+async fn live_scheduler_defers_turn_until_visible_writer_releases() {
+    let coalescer = Arc::new(crate::live_coalesce::LiveFanoutCoalescer::with_tunables(
+        crate::live_coalesce::LiveCoalesceTunables {
+            max_hold: Duration::from_secs(4),
+            ..crate::live_coalesce::LiveCoalesceTunables::default()
+        },
+    ));
+    let writer = coalescer.writer_turn_guard();
+    let deferred = tokio::spawn({
+        let coalescer = coalescer.clone();
+        async move { super::defer_live_evaluation_for_writers(&coalescer).await }
+    });
+
+    tokio::time::sleep(Duration::from_millis(20)).await;
+    assert!(
+        !deferred.is_finished(),
+        "the scheduler must not enter its lock turn while a writer is visible"
+    );
+    drop(writer);
+    tokio::time::timeout(Duration::from_millis(200), deferred)
+        .await
+        .expect("writer release wakes the deferred scheduler")
+        .expect("scheduler deferral task joins");
+    assert_eq!(coalescer.writers_waiting(), 0);
+}
+
+#[tokio::test]
+async fn live_scheduler_writer_deferral_is_capped_at_max_hold_quarter() {
+    let coalescer = Arc::new(crate::live_coalesce::LiveFanoutCoalescer::with_tunables(
+        crate::live_coalesce::LiveCoalesceTunables {
+            max_hold: Duration::from_millis(80),
+            ..crate::live_coalesce::LiveCoalesceTunables::default()
+        },
+    ));
+    let writer = coalescer.writer_turn_guard();
+    tokio::time::timeout(
+        Duration::from_secs(1),
+        super::defer_live_evaluation_for_writers(&coalescer),
+    )
+    .await
+    .expect("the max_hold / 4 cap releases the scheduler turn");
+    assert_eq!(
+        coalescer.writers_waiting(),
+        1,
+        "cap expiry, not writer release, ended the deferral"
+    );
+    drop(writer);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn staged_authorization_writer_gate_drains_after_completion_refusal_and_panic() {
+    let state = Arc::new(Mutex::new(
+        LocalSnapback::memory().expect("writer-gate fixture"),
+    ));
+    let coalescer = Arc::new(crate::live_coalesce::LiveFanoutCoalescer::new());
+
+    let fast_stage_gate = coalescer.clone();
+    let fast_commit_gate = coalescer.clone();
+    let completed = with_snapback_staged_authorization_write(
+        &state,
+        Some(coalescer.clone()),
+        move |_| {
+            assert_eq!(fast_stage_gate.writers_waiting(), 1);
+            Ok((
+                crate::storage::AuthorizationCommitPreflight::NoAuthorizationEvent,
+                (),
+            ))
+        },
+        move |_, ()| {
+            assert_eq!(fast_commit_gate.writers_waiting(), 1);
+            3_u8
+        },
+    )
+    .await
+    .expect("single-turn staged write completes");
+    assert_eq!(completed, 3);
+    assert_eq!(coalescer.writers_waiting(), 0);
+
+    let stage_gate = coalescer.clone();
+    let commit_gate = coalescer.clone();
+    let completed = with_snapback_staged_authorization_write(
+        &state,
+        Some(coalescer.clone()),
+        move |_| {
+            assert_eq!(stage_gate.writers_waiting(), 1);
+            Ok((
+                crate::storage::AuthorizationCommitPreflight::AllProtectedRooms,
+                (),
+            ))
+        },
+        move |_, ()| {
+            assert_eq!(
+                commit_gate.writers_waiting(),
+                1,
+                "the split path retains writer visibility through its second lock turn"
+            );
+            7_u8
+        },
+    )
+    .await
+    .expect("split staged write completes");
+    assert_eq!(completed, 7);
+    assert_eq!(coalescer.writers_waiting(), 0);
+
+    let refusal_gate = coalescer.clone();
+    let refused = with_snapback_staged_authorization_write(
+        &state,
+        Some(coalescer.clone()),
+        move |_| -> crate::diagnostic::SnapbackResult<(
+            crate::storage::AuthorizationCommitPreflight,
+            (),
+        )> {
+            assert_eq!(refusal_gate.writers_waiting(), 1);
+            Err(SnapbackError::error(
+                "SNAPBACK_AUTH_RESERVATION_STALE",
+                "auth",
+                "writer-gate refusal",
+            ))
+        },
+        |_, ()| (),
+    )
+    .await
+    .expect_err("staging refusal propagates");
+    assert_eq!(refused.diagnostic.code, "SNAPBACK_AUTH_RESERVATION_STALE");
+    assert_eq!(coalescer.writers_waiting(), 0);
+
+    let panic_state = state.clone();
+    let panic_coalescer = coalescer.clone();
+    let panic_gate = coalescer.clone();
+    let panicked = tokio::spawn(async move {
+        with_snapback_staged_authorization_write::<(), (), _, _>(
+            &panic_state,
+            Some(panic_coalescer),
+            move |_| -> crate::diagnostic::SnapbackResult<(
+                crate::storage::AuthorizationCommitPreflight,
+                (),
+            )> {
+                assert_eq!(panic_gate.writers_waiting(), 1);
+                panic!("writer-gate unwind proof");
+            },
+            |_, ()| (),
+        )
+        .await
+    })
+    .await
+    .expect_err("the staged panic reaches the caller task");
+    assert!(panicked.is_panic());
+    assert_eq!(coalescer.writers_waiting(), 0);
+}
+
+#[test]
+fn authority_preparation_writer_priority_is_limited_to_mutation_writers() {
+    let mutation_sources = InvocationSource::ALL
+        .into_iter()
+        .filter(|source| super::mutation_writer_invocation_source(*source))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        mutation_sources,
+        vec![
+            InvocationSource::HttpMutation,
+            InvocationSource::LocalMutation,
+            InvocationSource::AssetCallback,
+            InvocationSource::NestedMutation,
+        ]
+    );
+    assert!(!super::mutation_writer_invocation_source(
+        InvocationSource::HttpQuery
+    ));
+    assert!(!super::mutation_writer_invocation_source(
+        InvocationSource::LiveInitialQuery
+    ));
+    assert!(!super::mutation_writer_invocation_source(
+        InvocationSource::HostOperationMutationDryRun
+    ));
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn authorization_neutral_staged_write_commits_before_its_shared_batch_flushes() {
     let state = tokio::task::spawn_blocking(|| {
@@ -1791,6 +1968,7 @@ async fn authorization_neutral_staged_write_commits_before_its_shared_batch_flus
 
     let committed = with_snapback_staged_authorization_write(
         &state.snapback,
+        None,
         move |snapback| {
             let preflight = snapback.authorization_commit_preflight_for_seed(&seed)?;
             assert!(matches!(
@@ -1864,6 +2042,7 @@ async fn authorization_neutral_stage_mispreview_still_fails_closed() {
 
     let error = with_snapback_staged_authorization_write(
         &state.snapback,
+        None,
         move |_| {
             Ok((
                 crate::storage::AuthorizationCommitPreflight::NoAuthorizationEvent,
@@ -1940,6 +2119,7 @@ async fn protected_room_server_fast_paths_progress_during_affected_commit() {
     };
     with_snapback_staged_authorization_write(
         &state.snapback,
+        None,
         move |snapback| {
             Ok((
                 snapback.authorization_commit_preflight_for_seed(&seed)?,
@@ -2286,6 +2466,7 @@ async fn detached_action_nested_mutations_reserve_rooms_off_local() {
     };
     with_snapback_staged_authorization_write(
         &state.snapback,
+        None,
         move |snapback| {
             Ok((
                 snapback.authorization_commit_preflight_for_seed(&seed)?,
@@ -2382,6 +2563,7 @@ async fn detached_action_watchdog_cancels_held_room_reservation_without_publicat
     };
     with_snapback_staged_authorization_write(
         &state.snapback,
+        None,
         move |snapback| {
             Ok((
                 snapback.authorization_commit_preflight_for_seed(&seed)?,
@@ -9615,6 +9797,19 @@ async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scop
     assert_eq!(queued["receipt"]["mutation"], "queuedWrite");
     assert_eq!(queued["receipt"]["outcome"], "confirmed");
     assert_eq!(queued["receipt"]["transport"], "http");
+    assert_eq!(
+        queued["facts"],
+        json!({
+            "activeGeneration": {
+                "schemaVersion": "snapback.v1",
+                "appId": "auth-activation-fixture",
+                "schemaHash": format!("{SCHEMA_V1_PREFIX}{}", "1".repeat(64)),
+                "bundleHash": format!("{FUNCTION_V1_PREFIX}{}", "2".repeat(64)),
+                "inputsHash": format!("{INPUTS_V1_PREFIX}{}", "3".repeat(64)),
+            }
+        }),
+        "an applied mutation carries the exact active generation facts"
+    );
     assert_eq!(
         queued["authorityDescriptor"], authority_descriptor,
         "the settlement response must echo the exact descriptor that owns its ACK cohort"

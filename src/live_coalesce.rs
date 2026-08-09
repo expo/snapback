@@ -16,8 +16,8 @@
 
 use crate::storage::AuthorizationVersion;
 use std::collections::BTreeMap;
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use tokio::sync::Notify;
@@ -118,7 +118,31 @@ struct AuthorityFence {
 pub struct LiveFanoutCoalescer {
     tunables: LiveCoalesceTunables,
     flush_requested: Notify,
+    writers_waiting: AtomicUsize,
+    writers_drained: Notify,
     authority_fences: Mutex<BTreeMap<String, AuthorityFence>>,
+}
+
+/// RAII visibility for a mutation waiting for, or executing, its commit turn.
+/// Cloned scheduler state owns the counter; dropping on every exit (including
+/// unwind) makes writer priority fail open only when no writer remains.
+///
+/// @ref LLP 0200#25-cancellation-fairness-and-bounded-staleness — queued
+/// evaluations yield at turn boundaries while a commit writer is pending.
+#[derive(Debug)]
+pub struct WriterTurnGuard {
+    coalescer: Arc<LiveFanoutCoalescer>,
+}
+
+impl Drop for WriterTurnGuard {
+    fn drop(&mut self) {
+        let previous = self
+            .coalescer
+            .writers_waiting
+            .fetch_sub(1, Ordering::AcqRel);
+        debug_assert!(previous > 0, "writer-turn guard count underflow");
+        self.coalescer.writers_drained.notify_waiters();
+    }
 }
 
 impl LiveFanoutCoalescer {
@@ -130,6 +154,8 @@ impl LiveFanoutCoalescer {
         Self {
             tunables,
             flush_requested: Notify::new(),
+            writers_waiting: AtomicUsize::new(0),
+            writers_drained: Notify::new(),
             authority_fences: Mutex::new(BTreeMap::new()),
         }
     }
@@ -147,6 +173,36 @@ impl LiveFanoutCoalescer {
     /// Await the next scheduler request.
     pub async fn flush_requested(&self) {
         self.flush_requested.notified().await;
+    }
+
+    pub fn writer_turn_guard(self: &Arc<Self>) -> WriterTurnGuard {
+        self.writers_waiting
+            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |current| {
+                current.checked_add(1)
+            })
+            .expect("writer-turn guard count overflow");
+        WriterTurnGuard {
+            coalescer: self.clone(),
+        }
+    }
+
+    pub fn writers_waiting(&self) -> usize {
+        self.writers_waiting.load(Ordering::Acquire)
+    }
+
+    /// Wait until every writer visible at the current turn boundary drains.
+    /// Registering before the count check closes the final-drop notification
+    /// race without polling.
+    pub async fn writers_drained(&self) {
+        loop {
+            let notified = self.writers_drained.notified();
+            tokio::pin!(notified);
+            notified.as_mut().enable();
+            if self.writers_waiting() == 0 {
+                return;
+            }
+            notified.await;
+        }
     }
 
     /// Apply the server-side fail-closed fence without entering evaluation or

@@ -481,7 +481,7 @@ satisfiable; formal N≥3 requalification rides the Phase-3 exit
 measurement. Split-out remainders:
 `issues/20260809-mutate-stage-turn-cost-bisect.md` (unconditional
 per-turn drift-window slowdown),
-`issues/20260809-mutation-facts-turn-extra-lock.md` (post-commit facts
+`issues/closed/20260809-mutation-facts-turn-extra-lock.md` (post-commit facts
 re-lock).
 
 ## 7. Non-goals

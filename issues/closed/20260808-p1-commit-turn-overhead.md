@@ -56,5 +56,5 @@ Remainders split out: the unconditional ~1.5–2x per-stage-turn slowdown
 from the de96ced6e→af0fbd5bf drift window
 (`issues/20260809-mutate-stage-turn-cost-bisect.md`) and the per-mutation
 `function_invocation_facts` re-lock
-(`issues/20260809-mutation-facts-turn-extra-lock.md`). H-1
+(`issues/closed/20260809-mutation-facts-turn-extra-lock.md`). H-1
 requalification at N≥3 rides the LLP 0200 Phase-3 exit measurement.

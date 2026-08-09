@@ -6728,6 +6728,37 @@ async fn run_composed(
         Some(registry) => app_state.with_impersonation_capabilities(registry),
         None => app_state,
     };
+    // The serving AppState and evaluation task share this exact coalescer. A
+    // kill-switched server, detached router, or embedder carries no writer gate
+    // and preserves the legacy mutex behavior.
+    let live_scheduler_enabled = (auth_mode_state.app_data_availability
+        == crate::auth::mode::AppDataAvailability::Available)
+        && !server::live_coalesce_disabled(
+            std::env::var("SNAPBACK_LIVE_COALESCE_DISABLED")
+                .ok()
+                .as_deref(),
+        )
+        && !server::live_scheduler_disabled(
+            std::env::var("SNAPBACK_LIVE_SCHEDULER_DISABLED")
+                .ok()
+                .as_deref(),
+        );
+    let live_fanout_coalescer = live_scheduler_enabled.then(|| {
+        let tunables = crate::live_coalesce::LiveCoalesceTunables {
+            max_eval_turn: server::live_max_eval_turn(
+                std::env::var("SNAPBACK_LIVE_MAX_EVAL_TURN_MS")
+                    .ok()
+                    .as_deref(),
+            ),
+            ..crate::live_coalesce::LiveCoalesceTunables::default()
+        };
+        std::sync::Arc::new(crate::live_coalesce::LiveFanoutCoalescer::with_tunables(
+            tunables,
+        ))
+    });
+    if let Some(coalescer) = &live_fanout_coalescer {
+        app_state = app_state.with_live_fanout_coalescer(coalescer.clone());
+    }
     // Consume the connection-binding construction receipt before acquiring a
     // socket. `SnapbackApp::bind` later installs listener-owned transport
     // posture into this already-complete application.
@@ -6946,30 +6977,7 @@ async fn run_composed(
     // The evaluation scheduler subsumes the old coalescing backstop. Either
     // compatibility switch leaves the scheduler absent, which is the exact
     // legacy-inline boundary used by direct callers and A/B runs.
-    let live_scheduler_enabled = (auth_mode_state.app_data_availability
-        == crate::auth::mode::AppDataAvailability::Available)
-        && !server::live_coalesce_disabled(
-            std::env::var("SNAPBACK_LIVE_COALESCE_DISABLED")
-                .ok()
-                .as_deref(),
-        )
-        && !server::live_scheduler_disabled(
-            std::env::var("SNAPBACK_LIVE_SCHEDULER_DISABLED")
-                .ok()
-                .as_deref(),
-        );
-    let live_fanout_backstop = if live_scheduler_enabled {
-        let tunables = crate::live_coalesce::LiveCoalesceTunables {
-            max_eval_turn: server::live_max_eval_turn(
-                std::env::var("SNAPBACK_LIVE_MAX_EVAL_TURN_MS")
-                    .ok()
-                    .as_deref(),
-            ),
-            ..crate::live_coalesce::LiveCoalesceTunables::default()
-        };
-        let coalescer = std::sync::Arc::new(
-            crate::live_coalesce::LiveFanoutCoalescer::with_tunables(tunables),
-        );
+    let live_fanout_backstop = if let Some(coalescer) = live_fanout_coalescer {
         let installed = coalescer.clone();
         server::with_snapback(&state, move |snapback| {
             snapback.install_live_fanout_coalescer(installed);

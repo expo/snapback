@@ -2405,6 +2405,11 @@ pub struct AppState {
     /// Process-local network condition selection shared by HTTP egress and
     /// Local's post-commit live preparation.
     pub(crate) network_profiles: crate::network_profile::NetworkProfileState,
+    /// Present only when the serving process installed the off-turn live
+    /// scheduler. Request mutation paths clone this gate before entering the
+    /// staged write wrapper; detached and embedded callers keep legacy mutex
+    /// behavior by leaving it absent.
+    pub(crate) live_fanout_coalescer: Option<Arc<crate::live_coalesce::LiveFanoutCoalescer>>,
     /// Per-connection capability grants (ENG-23442): connection-scoped routes
     /// demand the token minted by `POST /connection/open`.
     pub connections: ConnectionRegistry,
@@ -2586,6 +2591,7 @@ impl AppState {
                 server: Arc::new(server),
                 console_reachability: ConsoleReachabilityRegistry::default(),
                 network_profiles,
+                live_fanout_coalescer: None,
                 connections,
                 bundle_pending: crate::bundle::PendingBundleRegistry::default(),
                 auth_terminal_lifecycle,
@@ -2744,6 +2750,14 @@ impl AppState {
             ttl_ms,
             crate::data_patch::DATA_PATCH_TOKEN_CAPACITY,
         );
+        self
+    }
+
+    pub(crate) fn with_live_fanout_coalescer(
+        mut self,
+        coalescer: Arc<crate::live_coalesce::LiveFanoutCoalescer>,
+    ) -> Self {
+        self.live_fanout_coalescer = Some(coalescer);
         self
     }
 
