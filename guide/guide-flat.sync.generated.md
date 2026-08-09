@@ -100,6 +100,30 @@ fallback elsewhere, reporting the resolved implementation and durability on
 `client.rqsStoreInfo` (pass `rqsStore: null` or set
 `SNAPBACK_CLIENT_RQS_STORE=off` to opt out).
 
+Two mechanics make an offline **proof** trial-and-error if you do not know
+them, so know them before you kill a client or export a bundle:
+
+- **Retained rows persist on a debounce, not on the write.** The client
+  schedules a trailing 1 s persist after a change, capped at 10 s of
+  continuous change (`RQS_PERSIST_DEBOUNCE_MS` / `RQS_PERSIST_MAX_DELAY_MS` in
+  [the client](repo:packages/snapback-client/index.mjs)). A client killed
+  inside that window loses the rows, and the relaunch honestly renders
+  nothing — which reads like a retention bug and is not one. There is no
+  public flush-now call; the only forced flush is on hide, where the client
+  persists immediately on `pagehide` and on `visibilitychange` to `hidden`. In
+  a browser proof, dispatch one of those before the kill; on Node, wait out
+  the window.
+- **A production export removes the supervised binding lane.** The supervised
+  Expo carrier's endpoint vocabulary is gated behind
+  `process.env.NODE_ENV !== 'production'` so Metro's production transform
+  prunes it (the release-export repair described on
+  [the React Expo page](../clients/react-expo.md)). An
+  `EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN` baked into a production
+  `expo export` therefore silently disappears and `resolveBinding` fails with
+  `SNAPBACK_APP_BINDING_UNAVAILABLE`. Prove offline behavior from a
+  development-condition build, or bind explicitly, rather than from a release
+  export that has had the lane pruned out from under it.
+
 The implementation surface includes all three carriers. LLP 0155 Stage 0 now
 has a standards-real **store-substrate** harness at
 `demos/zero-bakeoff/stage0/browser/run.mjs`: it drives the shipped IndexedDB
@@ -208,10 +232,7 @@ proof of the same contracts. The headless witness proves:
 
 ### Keep a queued React mutation pending
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** This source checkout distinguishes a durably queued React
-> mutation from failure; the newest published package is `0.1.15`.
+<!-- since: 0.1.16 -->
 
 The headless client resolves a durably enqueued dispatch with
 `{ queued: true, clientMutationId, sequence }`. `useSnapbackMutation` keeps its

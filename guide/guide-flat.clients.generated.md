@@ -1136,11 +1136,7 @@ The only client-side authorization predictions are target capability and
 anonymous-to-`authenticated`. Every role, grant scope, optional-user rule, and
 application refusal remains server-authoritative.
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** CLI URL discovery and OAuth login are newer than the newest
-> published closure, 0.1.15. Use a contributor-source build until a later
-> package closure publishes them.
+<!-- since: 0.1.16 -->
 
 ## Log in through the external OAuth facade
 
@@ -1646,10 +1642,7 @@ over the same provider-owned command client. The hooks for asset-bearing
 commands (`useSnapbackCommand`) and whole-screen compositions (`useSurface`)
 live on [application surfaces](./surfaces.md).
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** This source checkout distinguishes a durably queued React
-> mutation from failure; the newest published package is `0.1.15`.
+<!-- since: 0.1.16 -->
 
 The resolved value remains exclusively the generated mutation result. When a
 connectivity refusal has instead crossed the durable enqueue cut, the
@@ -1888,11 +1881,7 @@ entries are blanked. Presence is never persisted, hydrated, or counted as a
 durable mutation. This first-class surface is deliberately local-target only;
 a hosted binding returns `unsupported` without starting a room or socket.
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** This source checkout keys query arguments and presence
-> scope/value by canonical content. The newest published closure, 0.1.15,
-> still memoizes those hook inputs by object identity.
+<!-- since: 0.1.16 -->
 
 ## Use inline hook inputs without subscription churn
 
@@ -2093,11 +2082,7 @@ The composed mutation is still the sole application-row and asset-attachment
 commit. The command adds no server endpoint or transaction, and it does not
 change the upload intent's policy or ownership rules.
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** The command-mapping rules below are newer than the newest
-> published closure, 0.1.15. Use a source checkout until a later closure
-> publishes them.
+<!-- since: 0.1.16 -->
 
 ### Map required and optional assets safely
 
@@ -2949,17 +2934,19 @@ The working fixture's plugin entry is:
     "plugins": ["@expo/snapback-expo"],
 ```
 
-For EAS CLI against exactly 0.1.11, use the already-exported config-plugin
-subpath instead:
+On 0.1.12 and newer that same root spelling is also what EAS CLI wants: the
+package root publishes a CommonJS conditional export resolving to the config
+plugin, so `eas init` and EAS project linking accept `"@expo/snapback-expo"`
+with no workaround. Only on 0.1.11 exactly does EAS's resolver find no root
+target — `expo config` still accepts it there — and only there do you need the
+always-exported subpath instead:
 
-```json fragment reason="0.1.11 EAS compatibility spelling proved by the G4 receipt"
+```json fragment reason="0.1.11-only EAS compatibility spelling proved by the G4 receipt"
     "plugins": ["@expo/snapback-expo/app.plugin"]
 ```
 
-At 0.1.11 the package root exposes no CommonJS entry for EAS's resolver
-(`expo config` still accepts it). Closures 0.1.12 and newer publish the
-conditional root export and retain the subpath, so either spelling works
-there.
+The subpath is retained on every newer closure, so it stays valid; it is no
+longer required.
 
 Its application root mounts the provider with the generated descriptor and an
 optional boot-state fallback, still with no URL or binding prop:

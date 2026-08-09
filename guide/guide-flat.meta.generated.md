@@ -676,6 +676,8 @@ here (or listed here but gone from the code).
 | /query/{name}/authorized-lease | auth.authorized-leases |
 | /push/tokens/register | backend.expo-push-seam |
 | /push/tokens/unregister | backend.expo-push-seam |
+| /streams/{attempt_token} | realtime.ephemeral |
+| /streams/{attempt_token}/cancel | realtime.ephemeral |
 
 ## Host operations (LLP 0024 operation registry)
 

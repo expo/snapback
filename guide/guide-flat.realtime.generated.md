@@ -677,11 +677,7 @@ This example works on contributor-source builds and, since
 `@expo/snapback-*@0.1.11`, on published packages carrying the packaged-store
 qualification receipt — see [offline retention](../sync/offline-and-retention.md).
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** Structured route-group arguments are newer than the newest
-> published closure, 0.1.15; until the next closure publishes, use them only
-> from contributor-source builds.
+<!-- since: 0.1.16 -->
 
 ## Bind route parameters inside structured query arguments
 

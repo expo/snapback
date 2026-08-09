@@ -143,11 +143,7 @@ details name the `minItems`/`maxItems` constraint — the same closed
 constraint vocabulary [mutations](./mutations.md#consume-the-structured-result)
 documents.
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** Stored enum fields are newer than the newest published
-> closure, 0.1.15; until the next closure publishes, they are available on
-> contributor-source builds of the local target only.
+<!-- since: 0.1.16 -->
 
 A field declared as a **closed string domain (stored enum)** —
 `v.union([v.literal('crew'), v.literal('user')])` on a stored field — stays
@@ -437,11 +433,7 @@ the reason — retry with a different value, be shown copy — declare the code
 instead; see
 [refuse with a declared code](#refuse-with-a-declared-code-not-a-bare-throw).
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** Stored enum fields are newer than the newest published
-> closure, 0.1.15; until the next closure publishes, they are available on
-> contributor-source builds of the local target only.
+<!-- since: 0.1.16 -->
 
 The hand-rolled severity domain guard above predates **stored enums**: a
 field whose values come from a fixed set now declares that set on the schema
@@ -2677,11 +2669,7 @@ the reviewed status posture in [LLP 0012](repo:llp/0012-headless-integration-con
 and the per-profile offer contract in
 [LLP 0096](repo:llp/0096-auth-profiles-for-protocol-clients.spec.md).
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** The signed-delivery client, one-call upload helper, and
-> settlement contract below are newer than the newest published closure,
-> 0.1.15. Use a source checkout until a later closure publishes them.
+<!-- since: 0.1.16 -->
 
 ### Issue and refresh a private signed URL
 
@@ -3377,11 +3365,7 @@ registers at `POST /auth/oauth/register`, then uses authorization code with
 required PKCE S256 through `GET|POST /auth/oauth/authorize` and
 `POST /auth/oauth/token`.
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** The app-CLI login client is newer than the newest published
-> closure, 0.1.15. Use a contributor-source build until a later package
-> closure publishes it.
+<!-- since: 0.1.16 -->
 
 The paved terminal client is
 `snapback-app --server <app-url> login`. It performs discovery, DCR, loopback
