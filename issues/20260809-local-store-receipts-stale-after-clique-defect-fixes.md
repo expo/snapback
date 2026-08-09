@@ -1,0 +1,56 @@
+# Local-store retained receipts pin pre-fix client/react sources; remint blocked on the S0 activation ceremony
+
+- **Date:** 2026-08-09
+- **Source:** clique-defects landing (llp-ship run `clique-defects-20260809`)
+- **Systems:** drift gates, local persistent store, acceptance receipts
+- **Related:** `issues/20260809-signed-composition-activations-need-remint-after-s0-toolchain-rotation.md`
+  (the blocking precondition), LLP 0166 (carrier evidence), LLP 0200 landing
+  record (the same cascade walked on 2026-08-09)
+
+## What happened
+
+The clique-defects landing changes `packages/snapback-client/index.mjs` (typed
+search witness) and `packages/snapback-react/index.mjs` (content-keyed hooks,
+queued-settlement rejection class). The retained local-persistent-store
+receipts pin those sources by sha256, so the `local-store-carrier-receipt`
+pre-push gate correctly reports them stale:
+
+- `tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json`
+- `tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json`
+- transitively, the retained triage-graph and fleet-observatory Move-1
+  receipts, whose `source.files` also pin `packages/snapback-client/index.mjs`
+
+## Why the remint is blocked
+
+The documented remedy (re-mint triage → fleet → carrier-exit, then
+`scripts/finalize-local-persistent-store-publication`) requires regenerating
+`demos/triage-graph/snapback` and `demos/fleet-observatory-move1/snapback`
+codegen, which fails with `TRUSTED_COMPOSITION_ACTIVATION_INVALID`: their
+signed activations still bind the pre-S0 generation. Re-minting those
+activations is a signed ceremony owned by the demo owners (see the related
+ticket) — not something this landing should fake.
+
+## What this landing did
+
+Followed the S0 precedent: pushed with the documented loud bypass
+(`SNAPBACK_DRIFT_GATES_BYPASS=1`), with this ticket as the record. The
+`client-bundle-metrology` gate was NOT bypassed-in-spirit — its declared
+rollover (`queued-settlement-truthfulness.2026-08-09.v1`) was properly minted
+and committed in this landing. The `com.snapback.drift-backstop` schedule will
+keep reporting the receipt staleness and dedupes against this open ticket.
+
+## What to do (after the activation ceremonies re-mint)
+
+In a checkout at or after this landing, with the ibex runtime bootstrapped and
+`bun install --frozen-lockfile` run:
+
+1. `node packages/snapback-codegen/index.mjs demos/triage-graph/snapback`
+   (and fleet-observatory-move1) — requires the re-minted activations.
+2. `node tests/acceptance/triage-graph-move1-v1.mjs`, then
+   `node tests/acceptance/fleet-observatory-move1-v1.mjs`, then
+   `node tests/acceptance/local-store-carrier-exit-v1.mjs` (full runs; volta
+   node 24.18.0; `DYLD_FRAMEWORK_PATH=vendor/ibex/ios/Frameworks`;
+   `cargo build --bin snapback` first so the binary identity stamps the tree).
+3. `scripts/finalize-local-persistent-store-publication`, then verify
+   `node --test tests/agent_safe_publication_checker_v1.mjs`.
+4. Commit all re-minted records together and close this ticket.
