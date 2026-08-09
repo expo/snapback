@@ -14,7 +14,7 @@ Two directories form one instrument:
 ## A — Scoring manifests and record schema (`benchmarks/schema/social-messenger/`)
 
 - `assertions.json` — the assertion-ID manifest: all 43 numbered
-  checklist items of M1–M7 split into 98 atomic assertions with stable
+  checklist items of M1–M7 split into 101 atomic assertions with stable
   IDs (`m1-a01` …), each with exactly one executor class
   (`suite-required` / `choreo` / `grader`) per the brief's Executors
   paragraph, and run-scope conditionality where the brief marks it.

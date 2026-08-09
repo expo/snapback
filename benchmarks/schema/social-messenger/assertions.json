@@ -1,5 +1,5 @@
 {
-  "manifestVersion": "0.1.0-p1",
+  "manifestVersion": "0.1.1-p1",
   "title": "social-messenger assertion-ID manifest",
   "provenance": {
     "brief": "benchmarks/briefs/social-messenger.md (Milestones section, acceptance checklists; Executors and Statuses paragraphs)",
@@ -321,6 +321,30 @@
           "id": "m2-a24",
           "checklistItem": 8,
           "text": "Feed pagination produces no duplicates and no gaps across pages in either tab.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m2-a25",
+          "checklistItem": 2,
+          "text": "With no explicit self-follow edge, Bob's own original posts remain in his Following feed, including when he follows no other accounts.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m2-a26",
+          "checklistItem": 2,
+          "text": "With no explicit self-follow edge, Bob's own reposts remain in his Following feed.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m2-a27",
+          "checklistItem": 2,
+          "text": "Implicit self-follow feed membership does not change Bob's follower or following counts.",
           "executor": "suite-required",
           "runScope": "all",
           "tags": []

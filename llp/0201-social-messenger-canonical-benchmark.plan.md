@@ -5,7 +5,10 @@
 **Systems:** Competitive evaluation, Benchmarks, Publishing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (i — Review → Accepted, applied on the
+**Revised:** 2026-08-09 (j — author clarification for future benchmark
+runs: the Following feed always includes the viewer's own posts and reposts
+without a persisted self-follow edge; the completed P2 pilot is not
+retroactively changed); 2026-08-08 (i — Review → Accepted, applied on the
 author's in-session ruling. Final review verdicts bind revision
 (g) — round 6 dual NOT READY with all MATERIAL concerns convergent
 and fixed in revision (h), which is **unreviewed**; its spot-review
@@ -73,7 +76,10 @@ Milestones (reduced run = M1–M3; full run = M1–M7):
 - **M2 — Posts and the follow graph.** Text/image/video posts, likes,
   reposts (no quote posts), flat reply threads, follow/unfollow with
   live counts, and two reverse-chronological feeds — Following
-  (default) and Global. The Following feed is a genuine
+  (default, always including the viewer's own posts and reposts as an
+  implicit self-follow) and Global. The implicit self-follow is feed
+  membership only, not a stored edge or a contribution to follow counts.
+  The Following feed is a genuine
   fan-out/read-model decision (fan-out-on-write vs read-time
   filtering) that the brief pins only by observable behavior, leaving
   the architecture backend-shaped. Identity is entirely in-system —
@@ -592,6 +598,13 @@ phone-number identity); voice notes stay out of scope (the media
 pipeline is already priced by photo/video; recording measures the
 client); M7's day-2 task is group polls.
 
+Resolved after the P2 pilot (2026-08-09, author clarification): the
+Following feed always includes the viewer's own original posts and reposts,
+without a persisted self-follow edge or any change to follower/following
+counts. This changes the freeze-candidate brief and acceptance manifest for
+future benchmark runs; it does not require a retrofit or rerun of the
+completed P2 Clique pilot.
+
 Resolved by the round-1 review revision (2026-08-08, revision b — see
 the Revised header and `llp/reviews/0201-*`): reduced runs publish
 per-dimension scores only (no overall total, no L4 evidence); O5 is a
@@ -611,6 +624,12 @@ probes are non-scored continuity diagnostics, with the holdout claim
 scoped to the wave's secret rotated probes.
 
 ## Revision history
+
+**Revised:** 2026-08-09 (j — author clarification after the P2 pilot:
+Following includes the viewer's own posts and reposts as feed-only implicit
+self-follow semantics; the authoritative brief and assertion manifest carry
+the executable contract for future runs, while the completed pilot remains
+unchanged historical calibration evidence.)
 
 **Revised:** 2026-08-08 (h — post-loop closure revision;
 **UNREVIEWED** — final verdicts bind revision (g): dual NOT READY,

@@ -4,10 +4,10 @@
 `benchmarks/tools/social-messenger/CONTRACT.md`; authority:
 `benchmarks/briefs/social-messenger.md` and
 `llp/0201-social-messenger-canonical-benchmark.plan.md`. **Version:**
-`VERSION` (`0.1.0-p1` — DRAFT until the P3 freeze).
+`VERSION` (`0.1.1-p1` — DRAFT until the P3 freeze).
 
 - `assertions.json` — assertion-ID manifest: 43 checklist items
-  (M1:7 M2:8 M3:7 M4:5 M5:5 M6:6 M7:5) split into 98 atomic
+  (M1:7 M2:8 M3:7 M4:5 M5:5 M6:6 M7:5) split into 101 atomic
   assertions with stable IDs and one executor class each.
 - `applicability.json` — the 16 rubric dimensions (45/55 weight
   split), observing milestones, applicability predicates,
