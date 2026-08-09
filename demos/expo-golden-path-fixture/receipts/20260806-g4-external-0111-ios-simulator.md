@@ -52,7 +52,7 @@ otherwise excluded `.snapback/` directory. The retained structured failure is
 The lock and partial target state were preserved while diagnosing, then the
 external app added the two portable ignore rules and repeated without any
 package change. This guide/stage gap is tracked in
-[`../../../issues/20260806-guide-gap-external-residue-portability.md`](../../../issues/20260806-guide-gap-external-residue-portability.md).
+[`../../../issues/closed/20260806-guide-gap-external-residue-portability.md`](../../../issues/closed/20260806-guide-gap-external-residue-portability.md).
 
 ## Live query, picker, command, and delivery
 

@@ -51,7 +51,7 @@ receipt is
 (SHA-256
 `ecd0a39e78a49f95e638d77e33e3c72d01d6f4b32149cffcf1fbebd97e8ec0d9`).
 The defect and source-only fix are tracked in
-[`../../../issues/20260806-expo-adb-reverse-transport-label.md`](../../../issues/20260806-expo-adb-reverse-transport-label.md).
+[`../../../issues/closed/20260806-expo-adb-reverse-transport-label.md`](../../../issues/closed/20260806-expo-adb-reverse-transport-label.md).
 
 ## Conditional app-level completion
 

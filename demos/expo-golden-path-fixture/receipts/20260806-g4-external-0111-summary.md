@@ -156,9 +156,9 @@ and were not run on physical devices.
 | 0.1.10 missing Expo picker adapter/type | Fixed and published in 0.1.11. |
 | Exact binding-diagnostic guide search | Fixed and published in the 0.1.11 embedded guide. |
 | No complete registry/scaffold/typecheck path | Source guide fixed here; awaiting landing/public guide. |
-| Host-pinned restore lock crosses transfer/stage | Source guide + staging helper/tests fixed here; [`issue`](../../../issues/20260806-guide-gap-external-residue-portability.md), awaiting landing/public guide. |
-| Current adb reports `host-16` | CLI parser/test fixed here; [`issue`](../../../issues/20260806-expo-adb-reverse-transport-label.md), awaiting release. |
-| EAS cannot resolve 0.1.11 package-root plugin | Root conditional export/test fixed here; [`issue`](../../../issues/20260806-expo-config-plugin-eas-root-export.md), awaiting release. |
+| Host-pinned restore lock crosses transfer/stage | Source guide + staging helper/tests fixed here; [`issue`](../../../issues/closed/20260806-guide-gap-external-residue-portability.md), awaiting landing/public guide. |
+| Current adb reports `host-16` | CLI parser/test fixed here; [`issue`](../../../issues/closed/20260806-expo-adb-reverse-transport-label.md), awaiting release. |
+| EAS cannot resolve 0.1.11 package-root plugin | Root conditional export/test fixed here; [`issue`](../../../issues/closed/20260806-expo-config-plugin-eas-root-export.md), awaiting release. |
 | Retained marker could fire after current | External fixture fixed; real cold-process witness remains open. |
 | Supervisor bootstrap/origin symbols in release HBC | Still present; existing umbrella ticket stays open; fix not in scope tonight. |
 

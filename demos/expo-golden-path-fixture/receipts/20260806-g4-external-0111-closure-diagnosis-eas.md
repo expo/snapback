@@ -116,7 +116,7 @@ simulator-only. Neither artifact was run on a physical device, and neither is
 a production/store release artifact or an LLP 0064 receipt.
 
 The EAS root-export defect and source-only repair are tracked in
-[`../../../issues/20260806-expo-config-plugin-eas-root-export.md`](../../../issues/20260806-expo-config-plugin-eas-root-export.md).
+[`../../../issues/closed/20260806-expo-config-plugin-eas-root-export.md`](../../../issues/closed/20260806-expo-config-plugin-eas-root-export.md).
 
 ## Deliberate diagnosis-time probe — PASS
 

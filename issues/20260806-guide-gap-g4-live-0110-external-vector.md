@@ -1,7 +1,8 @@
 # guide-gap: live 0.1.10 external Expo vector cannot run its generated app
 
-**Status:** Open — 0.1.11 closes the initial vector; successor fixes and the
-release-leak repair remain unpublished
+**Status:** Open — every named repair is now published (0.1.12 through 0.1.15;
+`latest` = 0.1.15), and the successor G4 rerun that this ticket closes with is
+claimed by [`20260809-g4-rerun-lane-plan.md`](./20260809-g4-rerun-lane-plan.md)
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 3
@@ -74,12 +75,12 @@ The registry path therefore remains a G4 FAIL, not a conditional pass.
 The rerun found three additional distribution defects, each split into a
 focused ticket:
 
-- [`20260806-guide-gap-external-residue-portability.md`](./20260806-guide-gap-external-residue-portability.md)
+- [`closed/20260806-guide-gap-external-residue-portability.md`](./closed/20260806-guide-gap-external-residue-portability.md)
   — an undocumented host-pinned sibling restore lock crossed hosts and also
   entered the first EAS stage.
-- [`20260806-expo-adb-reverse-transport-label.md`](./20260806-expo-adb-reverse-transport-label.md)
+- [`closed/20260806-expo-adb-reverse-transport-label.md`](./closed/20260806-expo-adb-reverse-transport-label.md)
   — `adb -s ... reverse --list` reports `host-16`, not the selected serial.
-- [`20260806-expo-config-plugin-eas-root-export.md`](./20260806-expo-config-plugin-eas-root-export.md)
+- [`closed/20260806-expo-config-plugin-eas-root-export.md`](./closed/20260806-expo-config-plugin-eas-root-export.md)
   — EAS CLI cannot resolve the documented 0.1.11 package-root plugin entry;
   the public `./app.plugin` subpath works.
 
@@ -169,6 +170,42 @@ Verification (all executed 2026-08-07):
   confirmation on real `expo export` HBC output — the receipts' original
   strings-scan measurement — remains for the successor-release G4 rerun,
   which this arm's acceptance already awaits.
+
+## Publication state — 2026-08-09 (still open; the rerun is what closes it)
+
+Four successor closures now exist and every repair this ticket was waiting on
+is in published registry bytes. The ticket stays open because its remaining
+acceptance is a live external measurement, not a byte fact.
+
+| Repair | Commit | First published | Verified in 0.1.15 |
+| --- | --- | --- | --- |
+| adb transport-label-tolerant reverse verify | `a951074e4` | 0.1.12 | `@expo/snapback-cli@0.1.15` `expo-dev.mjs` reads the row's first column as a transport label and verifies the device/host port pairs |
+| CommonJS config-plugin package root | `a951074e4` | 0.1.12 | `@expo/snapback-expo@0.1.15` exports `"." → { "require": "./app.plugin.js", "import": "./index.mjs" }` |
+| Portable-residue guide rule and stage exclusions | `a951074e4` | 0.1.12 | the 0.1.12 closure corpus (`fad3d53922`) carries the `.snapback/` + `*.snapback.restore.lock` rules |
+| Release-export supervised-vocabulary prune | `c5a18506d` | 0.1.13 | `@expo/snapback-expo@0.1.15` gates five sites in `supervised-environment.mjs` and two in `app-binding.mjs` behind `process.env.NODE_ENV` |
+
+The three split tickets are therefore closed
+([residue](./closed/20260806-guide-gap-external-residue-portability.md),
+[adb label](./closed/20260806-expo-adb-reverse-transport-label.md),
+[EAS root export](./closed/20260806-expo-config-plugin-eas-root-export.md)),
+each with its resolving commit and first-published version. Their live-rerun
+halves were not carried over into those closes; they are the acceptance bullets
+below.
+
+What is still unproved, and only a rerun can prove:
+
+- the raw published Android supervisor reaching readiness on the mini with no
+  adb wrapper;
+- noninteractive EAS project linking against the bare package-root spelling;
+- a byte-level strings scan of real `expo export` HBC output showing the four
+  supervised-vocabulary symbols absent — the prune repair's own verification
+  note deferred exactly this measurement to the successor release;
+- cold retained relaunch with the backend paused; and
+- the remeasured frozen OQ5 ceremony vector.
+
+The rerun and the 0.1.16 cut it consumes are claimed in
+[`20260809-g4-rerun-lane-plan.md`](./20260809-g4-rerun-lane-plan.md). Do not
+start either lane without editing that ticket first.
 
 ## Acceptance
 
