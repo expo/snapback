@@ -2,8 +2,8 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "commit": "bc53f8bd9c14588c936cb99f742327727b8cebd8",
-    "sourceDigest": "sha256:119a676e9ce82e019f05f5cf1bd1b82528f72d0b84b9cd5d8a194f82af266b80"
+    "commit": "344199a8b8926ac384659adf5511e163fb60ae5f",
+    "sourceDigest": "sha256:3671fc8e8944a312931ffbd24a447a590f12acd47666f696de0a8a22b319ba4f"
   },
   "limits": {
     "lookupBytes": 16384
@@ -4230,22 +4230,22 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 7092,
+          "line": 7089,
           "column": 62
         },
         {
           "file": "src/cli.rs",
-          "line": 7098,
+          "line": 7095,
           "column": 71
         },
         {
           "file": "src/cli.rs",
-          "line": 7106,
+          "line": 7103,
           "column": 41
         },
         {
           "file": "src/cli.rs",
-          "line": 7464,
+          "line": 7461,
           "column": 49
         },
         {
@@ -9679,7 +9679,7 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 7159,
+          "line": 7156,
           "column": 40
         },
         {
@@ -12557,7 +12557,7 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 8820,
+          "line": 8817,
           "column": 14
         },
         {
@@ -17334,7 +17334,7 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 7198,
+          "line": 7195,
           "column": 22
         },
         {
@@ -19630,7 +19630,7 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 7343,
+          "line": 7340,
           "column": 10
         },
         {
@@ -30151,12 +30151,12 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 7131,
+          "line": 7128,
           "column": 58
         },
         {
           "file": "src/cli.rs",
-          "line": 7136,
+          "line": 7133,
           "column": 52
         },
         {
@@ -44370,12 +44370,12 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 7144,
+          "line": 7141,
           "column": 9
         },
         {
           "file": "src/cli.rs",
-          "line": 7148,
+          "line": 7145,
           "column": 58
         },
         {
@@ -44920,7 +44920,7 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 6894,
+          "line": 6897,
           "column": 28
         },
         {
@@ -45100,7 +45100,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 6906,
+          "line": 6909,
           "column": 32
         }
       ],
@@ -45260,7 +45260,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 6899,
+          "line": 6902,
           "column": 28
         },
         {
@@ -60487,7 +60487,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 7688,
+          "line": 7685,
           "column": 22
         }
       ],
@@ -64689,12 +64689,12 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 7026,
+          "line": 7023,
           "column": 29
         },
         {
           "file": "src/cli.rs",
-          "line": 7391,
+          "line": 7388,
           "column": 29
         },
         {
@@ -66905,12 +66905,12 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 7231,
+          "line": 7228,
           "column": 22
         },
         {
           "file": "src/cli.rs",
-          "line": 7233,
+          "line": 7230,
           "column": 43
         },
         {
@@ -66930,12 +66930,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 7246,
+          "line": 7243,
           "column": 22
         },
         {
           "file": "src/cli.rs",
-          "line": 7252,
+          "line": 7249,
           "column": 14
         },
         {
