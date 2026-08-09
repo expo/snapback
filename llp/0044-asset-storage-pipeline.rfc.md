@@ -1712,8 +1712,28 @@ converts that record (LLP 0208 G11 and the G4 asset slice;
 Items 1–3 are gap-closures inside the accepted design; item 4 is an open
 authority ruling. The normative elaboration lives in
 [LLP 0210](./0210-asset-upload-dx-closure.rfc.md) (the super-refine
-vehicle — this document is Accepted and not re-entered); on 0210's
-acceptance this addition gains a dated outcome note.
+vehicle — this document is Accepted and not re-entered).
+
+**Outcome (dated note, 2026-08-09 — LLP 0210 Accepted by the author).**
+Items 1–3 landed on main (client `402dfacd2`, server `e8e67c0e9`, React
+projection `9b30655cf` with the LLP 0114 ledger entry, guide
+`f08283eb8`). The item-4 ladder is ruled: **(a)** the grant-rows +
+transfer-at-open recipe is landed in the guide as the supported path;
+**(b)** first-class grant edges are adopted per LLP 0210 §D5(b) —
+`grantId`-identified system records with a `pending | active`
+lifecycle, closed authorization (owner mints; the principal
+self-activates a pending edge; owner or principal revokes by
+`grantId`; revoke removes the edge), commit-atomic transitions
+revalidated under the final write lock, and admission-frozen
+`grants: true` intent opt-in. Implementation carries four obligations
+this pipeline must honor: the LLP 0053 invalidation projection for
+grant edges (revoke blanks live asset metadata); storage locus (system
+records, exported/imported with the asset component of a consistent
+cut); reference-GC interaction (an `active` edge protects the asset
+like a typed reverse reference; `pending` edges do not); and per-app
+grant-count ceilings charged to the minting owner under §Deduplication,
+keys, and quotas. **(c)** app-bound `assetSharing` stays deferred to
+the LLP 0208 G4 membership program.
 
 **1. Client-arm signed issuance is owed, not new.** §Delivery profiles
 (`private-signed`) already states "the generated client refreshes it

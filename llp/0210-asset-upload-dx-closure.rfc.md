@@ -1,12 +1,17 @@
 # LLP 0210: Asset upload and delivery DX closure
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Assets, Client integration, React/Expo, Server, Diagnostics,
 Code generation, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-09
-**Revised:** 2026-08-09, fourth same-day entry (post-budget fix
+**Revised:** 2026-08-09, fifth same-day entry (**Accepted by the author**
+— Charlie Cheever, in-session, after D1–D4 and the D5(a) recipe landed
+on main; the acceptance covers the r4 revision with its unreviewed
+delta disclosed, and green-lights D5(b) grant-ops implementation under
+`issues/20260809-asset-recipient-grant-authority-g4.md`). Prior, same
+day: (post-budget fix
 revision, r4 — **UNREVIEWED delta**: applied codex round-3's 2 IN-DELTA
 MATERIALs (authority-handoff disposal defined outside the state union +
 full denied-exit/eviction fixture coverage; quota semantics with a

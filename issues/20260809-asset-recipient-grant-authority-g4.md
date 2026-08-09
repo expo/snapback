@@ -65,6 +65,14 @@ quota ceilings) and, if ever wanted, the operator-shaped migration op
 for pre-opt-in assets. Implementation is author-gated on LLP 0210's
 acceptance.
 
+**2026-08-09, later: LLP 0210 ACCEPTED by the author — implementation
+unblocked.** Rung (a) is landed (guide recipe, `f08283eb8`); this
+ticket now carries the D5(b) grant-ops implementation per LLP 0210
+§D5(b) verbatim (grant machine, authorization rules, atomicity, frozen
+opt-in, quotas) plus the guide follow-up: on landing, the view-once
+recipe page makes the grant-ops spelling primary with the row
+composition kept as the portable fallback.
+
 ## Done when
 
 - The LLP 0044 owner records a dated ruling choosing a rung (or an ordered

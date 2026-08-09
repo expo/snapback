@@ -237,3 +237,12 @@ specification; journal stands as the growth record).
   implementation per the G11/G4 tickets (D5(b) grant ops explicitly
   author-gated on acceptance; D1–D4 + D5(a) recipe proceed as
   fix-forward ticket work).
+
+## Acceptance (author, 2026-08-09)
+
+The author (Charlie Cheever) accepted LLP 0210 in-session on
+2026-08-09, after D1–D4 and the D5(a) recipe had landed on main
+(G11 ticket closed at `f148d437c`), with the r4 unreviewed delta
+disclosed. The dated outcome amendments landed in LLP 0044 and LLP
+0180 with the acceptance commit; D5(b) grant-ops implementation is
+green-lit under `issues/20260809-asset-recipient-grant-authority-g4.md`.

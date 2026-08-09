@@ -219,8 +219,14 @@ called without that optional reference.
 > say why (contract-strictness: an optional argument admits a
 > text-only branch the required child forbids). The normative
 > resolution is [LLP 0210](./0210-asset-upload-dx-closure.rfc.md) D4
-> (the super-refine vehicle); implementation rides the G11 ticket; the
-> descriptor shape is unchanged.
+> (the super-refine vehicle); the descriptor shape is unchanged.
+> **Resolved (2026-08-09, LLP 0210 Accepted):** the required-child →
+> optional-argument mapping is **admitted** — the command derives a
+> required input and always populates the optional argument, narrowing
+> its mutation without touching the mutation's own contract — and the
+> unsafe inverse (optional child over a required argument) keeps
+> refusing with both fixes named in the diagnostic. Landed `802d08cb2`
+> with codegen fixtures pinning both directions.
 
 ## Input and platform adapters
 
