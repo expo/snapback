@@ -84,7 +84,9 @@ import {
   runComparatorAcceptance,
 } from './comparator-profile.mjs';
 import {
+  VERIFY_RECEIPT_SCHEMA_VERSION,
   defaultVerifyConfig,
+  discoverVerifyConfig,
   loadVerifyConfig,
   runVerify,
   writeVerifyReceipt,
@@ -183,6 +185,12 @@ const RUNTIME_PACKAGES = new Map([
 ]);
 
 export function diagnosticError(code, message, details = undefined) {
+  const inferredCommand = code === 'SNAPBACK_CLI_ARGUMENT_INVALID'
+    ? message.match(/(?:usage:\s*)?snapback\s+([a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*)?)/u)?.[1] ?? ''
+    : null;
+  const selectedDetails = inferredCommand === null
+    ? details
+    : { command: ['snapback', inferredCommand].filter(Boolean).join(' '), ...(details ?? {}) };
   const error = new Error(message);
   error.code = code;
   error.diagnostic = {
@@ -190,7 +198,7 @@ export function diagnosticError(code, message, details = undefined) {
     severity: 'error',
     subsystem: 'cli',
     message,
-    ...(details === undefined ? {} : { details }),
+    ...(selectedDetails === undefined ? {} : { details: selectedDetails }),
   };
   return error;
 }
@@ -2936,7 +2944,7 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
   {
     name: 'guide', usage: 'snapback guide <ExactSymbolName|module> [--slice <n>] [--json]',
     description: 'Return a build-bound exact API symbol or bounded module slice; fuzzy queries delegate to the native Guide search.', lifecycle: 'one-shot/read-only',
-    output: 'snapback.guide-symbol-lookup.v1 for exact registry hits; native Guide output otherwise', exits: '0 matched; native Guide status for fuzzy fallback; 1 invalid slice or identity mismatch',
+    output: 'snapback.guide-search.v1 in JSON mode on channels, exact, fuzzy, and zero-match branches', exits: '0 completed lookup (including zero matches); 1 invalid slice or identity mismatch',
     recovery: 'Use the emitted next command for truncated slices, or regenerate the Guide when registry identity mismatches.',
   },
   {
@@ -2971,15 +2979,19 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
     output: 'snapback.doctor.v1', exits: '0 healthy; 1 one or more checks failed', recovery: 'Follow the diagnostic recovery record; runtime failures normally name bootstrap or receipt repair.',
   },
   {
-    name: 'verify', usage: 'snapback verify [<backend-dir>] [--config <file>] [--receipt <file>] [--runtime-binary <path>] [--runtime-receipt <path>] [--json]',
+    name: 'verify', usage: 'snapback verify [<backend-dir>] [--config <file>] [--receipt <file>] [--runtime-binary <path>] [--runtime-receipt <path>] [--timeout-ms <ms>] [--json]',
     description: 'Run the identity-bound partial done-oracle for a declared app.', lifecycle: 'one-shot',
-    output: 'snapback.verify.v1 receipt', exits: '0 all required stages pass; 1 failed/refused stage', recovery: 'Use the failed stage diagnostics and rerun against the same declared app identity.',
+    output: `${VERIFY_RECEIPT_SCHEMA_VERSION} receipt`, exits: '0 all required stages pass (including machine-distinct passed-without-acceptance); 1 failed/refused stage', recovery: 'Use the failed stage diagnostics and rerun against the same declared app identity.',
   },
   {
     name: 'dev', usage: 'snapback dev [<backend-dir>] [--attach] [--no-watch] [--ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] [--expo] [--expo-dir <dir>] [--expo-platform ios|android] [--email <address>] [--expo-command <cmd>] [--android-serial <serial>] [--ios-udid <udid>] [--json]',
     description: 'Generate, start or attach, load, watch, and optionally supervise a web or Expo client surface.', lifecycle: 'long-running unless --no-watch (Expo supervision is always long-running)',
     output: 'snapback.dev.v1 JSON-line events; snapback.dev-command.v1 JSON lines are accepted on non-TTY stdin while it remains open', exits: '0 requested signal/TTY quit or successful --no-watch; 1 startup/watch/server failure',
     recovery: 'Act on the event diagnostic. Non-TTY stdin EOF only closes the optional control channel; use SIGINT/SIGTERM to stop the dev loop.',
+    details: Object.freeze([
+      'Bare snapback is discovery-only root help; use snapback dev for the managed authoring loop.',
+      'Use native snapback start only when a lower-level harness owns loading and lifecycle.',
+    ]),
   },
   {
     name: 'accept', usage: 'snapback accept comparator <--config <file>|--verify-receipt <file>> [--receipt <file>] [--timeout-ms <ms>] [--max-age-ms <ms>] [--json]',
@@ -3071,7 +3083,7 @@ export const PACKAGED_CLI_SUBCOMMANDS = Object.freeze([
   nestedCliHelp(
     ['agent', 'setup'],
     'snapback agent setup <--print <client>|--install <client>|--uninstall <client>> [--server mcp|mcp-control] [--receipt <file>] [--json]',
-    'Configure project-scoped MCP for Codex, Claude, Cursor, or a generic client.',
+    'Configure project-scoped MCP for Codex, Claude, Cursor, VS Code, or a generic client.',
     [
       '--print defaults to both servers; --install and --uninstall require an explicit --server.',
       'generic emits adaptable JSON with --print and has no install target.',
@@ -3147,6 +3159,27 @@ function nativeHelp(options, command = null) {
   }
 }
 
+// @ref LLP 0024#dated-amendment-native-machine-mode-2026-08-08 — composed
+// root JSON projects the native Clap tree structurally, not as opaque prose.
+function nativeCommandInventory(options) {
+  try {
+    const runtime = resolveRuntimeBinary(options);
+    const result = spawnSync(runtime.binary, ['command-inventory'], {
+      encoding: 'utf8',
+      env: runtimeSpawnEnvironment(runtime.binary, options.env),
+    });
+    if (result.error) throw result.error;
+    if (result.status !== 0) throw new Error(result.stderr || `native inventory exited ${result.status}`);
+    const inventory = JSON.parse(result.stdout);
+    if (inventory?.schemaVersion !== 'snapback.native-command-inventory.v1' || inventory?.ok !== true || !Array.isArray(inventory?.root?.subcommands)) {
+      throw new Error('native command inventory has an unsupported shape');
+    }
+    return { ok: true, inventory };
+  } catch (error) {
+    return { ok: false, error: error.message, inventory: null };
+  }
+}
+
 function printCliHelp(command, { json, options }) {
   if (command !== null && PACKAGED_CLI_HELP_BY_NAME.has(command)) {
     const entry = PACKAGED_CLI_HELP_BY_NAME.get(command);
@@ -3177,11 +3210,18 @@ function printCliHelp(command, { json, options }) {
 
   const native = nativeHelp(options);
   if (json) {
+    const structuredNative = nativeCommandInventory(options);
     console.log(JSON.stringify({
       schemaVersion: 'snapback.cli-help.v1',
       ok: true,
       scope: 'root',
       packagedCommands: PACKAGED_CLI_COMMANDS,
+      nativeCommands: structuredNative.inventory?.root?.subcommands ?? [],
+      nativeInventory: {
+        available: structuredNative.ok,
+        schemaVersion: structuredNative.inventory?.schemaVersion ?? null,
+        ...(structuredNative.ok ? {} : { error: structuredNative.error }),
+      },
       nativeHelp: { available: native.ok, text: native.text },
     }, null, 2));
   } else {
@@ -3205,6 +3245,11 @@ function printCliHelp(command, { json, options }) {
 export async function runCli(argv, options = {}) {
   const args = [...argv];
   const command = args.shift();
+  if (command === undefined) return printCliHelp(null, { json: false, options });
+  if (command === '--version' || command === '-V') {
+    console.log(`snapback ${packageVersion()}`);
+    return 0;
+  }
   const helpIndex = args.findIndex((argument) => argument === '--help' || argument === '-h');
   if (command === '--help' || command === '-h' || command === 'help' || helpIndex !== -1) {
     const target = command === '--help' || command === '-h'
@@ -3225,7 +3270,16 @@ export async function runCli(argv, options = {}) {
   if (command === 'guide') {
     const lookup = lookupGuideReference(args, options);
     if (lookup !== null) {
-      console.log(json ? JSON.stringify(lookup, null, 2) : formatGuideReferenceLookup(lookup));
+      console.log(json ? JSON.stringify({
+        schemaVersion: 'snapback.guide-search.v1',
+        ok: true,
+        query: lookup.query,
+        slice: Number(takeFlag([...args], '--slice') ?? 1),
+        mode: 'exact-symbol',
+        count: 1,
+        matches: [{ kind: lookup.match, query: lookup.query }],
+        result: lookup,
+      }, null, 2) : formatGuideReferenceLookup(lookup));
       return 0;
     }
   }
@@ -3543,18 +3597,31 @@ export async function runCli(argv, options = {}) {
     const receiptPath = takeFlag(args, '--receipt');
     const runtimeReceiptPath = takeFlag(args, '--runtime-receipt');
     const runtimeBinary = takeFlag(args, '--runtime-binary');
+    const timeoutRaw = takeFlag(args, '--timeout-ms')
+      ?? (options.env ?? process.env).SNAPBACK_VERIFY_PROFILE_TIMEOUT
+      ?? null;
     const backendDirectory = args.shift() ?? null;
     if (args.length > 0) {
       throw diagnosticError(
         'SNAPBACK_CLI_ARGUMENT_INVALID',
-        'usage: snapback verify [<backend-dir>] [--config <verify.config.mjs>] [--receipt <receipt.json>] [--runtime-binary <path>] [--runtime-receipt <path>] [--json]',
+        'usage: snapback verify [<backend-dir>] [--config <verify.config.mjs>] [--receipt <receipt.json>] [--runtime-binary <path>] [--runtime-receipt <path>] [--timeout-ms <ms>] [--json]',
       );
     }
-    const config = configPath === null
-      ? defaultVerifyConfig({ backendDirectory: backendDirectory ?? 'snapback' })
-      : await loadVerifyConfig(configPath, { backendDirectory });
+    const profileTimeoutMs = timeoutRaw === null ? null : Number(timeoutRaw);
+    if (profileTimeoutMs !== null && (!Number.isSafeInteger(profileTimeoutMs) || profileTimeoutMs < 1)) {
+      throw diagnosticError(
+        'SNAPBACK_CLI_ARGUMENT_INVALID',
+        'usage: snapback verify [<backend-dir>] [--timeout-ms <positive-ms>]',
+        { environment: 'SNAPBACK_VERIFY_PROFILE_TIMEOUT' },
+      );
+    }
+    const conventionalConfig = configPath === null ? discoverVerifyConfig() : null;
+    const config = configPath !== null || conventionalConfig !== null
+      ? await loadVerifyConfig(configPath ?? conventionalConfig, { backendDirectory })
+      : defaultVerifyConfig({ backendDirectory: backendDirectory ?? 'snapback' });
     const result = await runVerify(config, {
       ...options.verifyOptions,
+      ...(profileTimeoutMs === null ? {} : { profileTimeoutMs }),
       runtimeProbe() {
         const verdict = packagedRuntimeReadiness({
           ...options,

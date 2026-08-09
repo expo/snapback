@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 88a35fb65fa736c8078642622bd4ec96a4014373
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 # Retrieval eval protocol
@@ -352,6 +352,83 @@ and LLP 0196 T4.
     `auth/app-identity-binding.md`.
     Route terms: "browser auth reload", "IndexedDB auth custody",
     "createIndexedDbAuthCustodyStorage", "issuer subject".
+
+Cases 32–39 absorb the diary-friction routing misses re-verified by LLP 0202:
+job contention and retry observability, Expo filesystem setup, system-field
+indexes, the Vite virtual module, headless transport defaults, dev-auth persona
+composition, packaged codegen, and existing-app composition.
+
+32. **Retryable durable job and DLQ inspection:** "Enqueue a notification job
+    that can race foreground writes, then tell whether it succeeded only after
+    a retry or exhausted into the DLQ." The run fails if it accepts the
+    one-attempt default for routine contention, promises a separate dead-letter
+    queue, or infers first-try success from `lastErrorCode: null`.
+    Expected pages: `backend/jobs.md`.
+    Route terms: "retryable by design", "SNAPBACK_AUTH_RESERVATION_STALE",
+    "dead-letter", "DLQ", "succeeded after retry".
+
+33. **Expo durable-store registration:** "Register Expo file persistence in a
+    universal iOS/Android/web app without white-screening web." The run fails
+    if it calls `registerExpoFileSystemRqsFiles` on web or hand-writes an
+    `expo-file-system` version instead of using Expo's installer.
+    Expected pages: `clients/react-expo.md`.
+    Route terms: "registerExpoFileSystemRqsFiles", "Platform.OS",
+    "white-screening", "npx expo install", "expo-file-system".
+
+34. **System-field index boundary:** "Page a player's rows by `_version` and
+    decide whether `.index('by_player_version', ['playerId', '_version'])` is
+    legal." The run fails if it declares a system-field index or fails to name
+    the authored-partition-index plus system-field range/order path.
+    Expected pages: `getting-started/your-first-backend.md` or
+    `backend/queries.md`.
+    Route terms: "system fields", "SCHEMA_UNKNOWN_FIELD", "_version",
+    "composite system-field index".
+
+35. **Vite development virtual module:** "A hand-built Vite app cannot type
+    the `virtual:snapback/dev` import used by the Snapback templates." The run
+    fails if it invents a physical module or omits the ambient declaration.
+    Expected pages: `getting-started/the-authoring-loop.md`.
+    Route terms: "virtual:snapback/dev", "snapback-dev.d.ts",
+    "snapbackBasePath", "ambient declaration".
+
+36. **Headless live transport default:** "Subscribe with headless `liveQuery`
+    and receive updates without manually polling." The run fails if it omits
+    `transport: 'stream'` while claiming push updates.
+    Expected pages: `clients/headless.md`.
+    Route terms: "manual polling", "transport default", "transport: 'stream'",
+    "poll()".
+
+37. **Expo multi-persona auth:** "Switch between two acting users in an Expo
+    demo using the packaged provider." The run fails if it passes `userId` per
+    hook call or claims dev auth composes with the provider's single custody
+    identity.
+    Expected pages: `clients/react-expo.md`.
+    Route terms: "dev-auth, multi-persona", "SnapbackExpoProvider",
+    "per-call userId", "one custody identity".
+
+38. **Packaged codegen command:** "Generate a newly scaffolded backend from an
+    installed Snapback CLI rather than a Snapback source checkout." The run
+    fails if it invokes `node packages/snapback-codegen/index.mjs`.
+    Expected pages: `getting-started/your-first-backend.md`.
+    Route terms: "snapback generate", "Generate and load", "packaged".
+
+39. **Compose into an existing app:** "Add a Snapback backend to an existing
+    `create-expo-app` project." The run fails if it invents `snapback init` or
+    hides the current sibling-scaffold/copy workaround and capability GAP.
+    Expected pages: `clients/react-expo.md`.
+    Route terms: "existing standalone Expo", "backend-only initializer",
+    "sibling directory", "compose into existing app".
+
+Case 40 absorbs the control-MCP cold-discovery miss recorded in
+`issues/closed/20260808-mcp-control-funnel-invisible.md` and LLP 0202 theme 3.
+
+40. **Agent control MCP setup:** "Give my coding agent access to Snapback's
+    local control tools over MCP, and preview the project configuration before
+    installing it." The run fails if it discovers only the resource-only
+    Guide server, omits the control server's local-admin authority, or edits a
+    harness configuration without first using the setup preview.
+    Expected pages: `operating/agent-controls.md`.
+    Route terms: "mcp-control", "control mcp", "agent setup", "control tools".
 
 ## Static routing check
 

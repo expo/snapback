@@ -4,13 +4,13 @@ id: testing.acceptance
 order: 1
 audience: agent-first
 capabilities: [testing.acceptance, operating.server-lifecycle]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, llp/0031-server-route-taxonomy.spec.md, demos/_kit/harness.mjs, demos/_kit/server-process.mjs, packages/snapback-cli/comparator-profile.mjs, packages/snapback-cli/comparator-receipt.schema.json, schemas/host-ready.schema.json]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, llp/0031-server-route-taxonomy.spec.md, src/cli.rs, demos/_kit/harness.mjs, demos/_kit/server-process.mjs, packages/snapback-cli/comparator-profile.mjs, packages/snapback-cli/comparator-receipt.schema.json, schemas/host-ready.schema.json]
 examples: [demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs, demos/all-aboard/tests/acceptance/headless.mjs, packages/snapback-cli/fixtures/comparator/green.config.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-05
-reviewed-commit: 6f7cfdfa1c1ab675b5a3fe8d193328e8a4d7e870
+reviewed: 2026-08-08
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 # Acceptance testing
@@ -279,7 +279,7 @@ once the listener binds, Snapback writes a JSON readiness descriptor there
 `adminTokenFile`:
 
 ```sh
-snapback --memory --ready-file /tmp/sb-ready.json &
+snapback start --memory --ready-file /tmp/sb-ready.json &
 # ...wait for the file, then:
 BASE_URL=$(jq -r .serverUrl /tmp/sb-ready.json)
 ```

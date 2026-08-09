@@ -4,6 +4,8 @@ import {
   createRqsRegisteredRegistry,
   type ActiveSeedIdentityV1,
   type SnapbackEphemeralReference,
+  type SnapbackAppRefusalError,
+  type SnapbackDiagnosticCode,
   type SnapbackFunctionReference,
   type SearchPageV1,
   type SearchRequestV1,
@@ -13,6 +15,14 @@ import {
   type SeedMatchedObservationV1,
   type SeedPreviewResultV1,
 } from './index.mjs';
+
+const registeredDiagnosticCode: SnapbackDiagnosticCode = 'SNAPBACK_APP_REFUSAL';
+registeredDiagnosticCode.toLowerCase();
+// @ts-expect-error diagnostic codes are generated from the production registry.
+const inventedDiagnosticCode: SnapbackDiagnosticCode = 'SNAPBACK_NOT_A_REGISTERED_CODE';
+void inventedDiagnosticCode;
+declare const refusalError: SnapbackAppRefusalError;
+refusalError.diagnostic.details.appCode.toUpperCase();
 
 declare const listTodos: SnapbackFunctionReference<
   'listTodos',

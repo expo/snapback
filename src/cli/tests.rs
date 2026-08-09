@@ -1,13 +1,14 @@
     use super::{
-        AdminArgs, AdminCommand, Args, AssetsCommand, AuthCommand, AuthConstructionFailure,
-        AuthCoordinatorReadinessReceipt, AuthProgramConstructionReceipts,
-        BEFORE_STARTUP_TARGET_RESERVATION, Cli, ConfigCommand, ConnectionsCommand, ControlsCommand,
-        CronCommand, DataCommand, DataPatchArgs, DebugCommand, EphemeralCommand, ErrorsCommand,
-        ForkCommand, HostCommand, JobsCommand, ManagedPath, NetworkProfileCommand, ReadyFileTarget,
+        AdminArgs, AdminCommand, AdminLinkReadyFile, Args, AssetsCommand, AuthCommand,
+        AuthConstructionFailure, AuthCoordinatorReadinessReceipt, AuthProgramConstructionReceipts,
+        BEFORE_STARTUP_TARGET_RESERVATION, Cli, ConfigCommand, ConnectionsCommand,
+        ConsoleClaimMintCliResponse, ControlsCommand, CronCommand, DataCommand, DataPatchArgs,
+        DebugCommand, EphemeralCommand, ErrorsCommand, ForkCommand, GUIDE_SEARCH_SCHEMA_VERSION,
+        HostCommand, JobsCommand, ManagedPath, NetworkProfileCommand, ReadyFileTarget,
         ResolvedHttpTarget, SessionCommand, StoreCommand, TargetArgs, TelemetryCommand,
         automatic_reap_before_create, bind_first_available, bind_listener,
-        console_claim_fragment_url, console_fragment_url, fork_secret_disposition,
-        managed_startup_paths, mint_secret_read_via_http, parse_fork_ttl,
+        console_claim_fragment_url, console_fragment_url, controls_list_text,
+        fork_secret_disposition, managed_startup_paths, mint_secret_read_via_http, parse_fork_ttl,
         parse_network_profile_selection, parse_run_args, path_segment_escape,
         prepare_database_path, prepare_database_path_for_startup, quiet_stop_fork,
         reject_misdirected_serve_flags, render_guide_command, resolve_http_target,
@@ -20,7 +21,7 @@
     use crate::instance_lock::TargetInstanceReservation;
     use crate::store_state::path_with_filename_suffix;
     use clap::{CommandFactory, Parser};
-    use serde_json::json;
+    use serde_json::{Value, json};
     use std::io::{Read as _, Write as _};
     use std::path::{Path, PathBuf};
     use std::time::Duration;
@@ -57,6 +58,7 @@
         );
     }
 
+
     #[test]
     fn guide_cli_parses_multiword_queries_and_root_help_names_both_channels() {
         let cli = Cli::parse_from(["snapback", "guide", "live", "query", "--slice", "2"]);
@@ -72,6 +74,50 @@
         let help = Cli::command().render_long_help().to_string();
         assert!(help.contains("snapback guide [QUERY]"), "{help}");
         assert!(help.contains("snapback mcp"), "{help}");
+        assert_eq!(
+            Cli::command().get_version(),
+            Some(env!("CARGO_PKG_VERSION"))
+        );
+        assert!(help.contains("SNAPBACK_NETWORK_PROFILE"), "{help}");
+        assert!(
+            help.contains("SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS"),
+            "{help}"
+        );
+        assert!(help.contains("snapback mcp-control"), "{help}");
+        assert!(
+            help.contains("snapback agent setup --print <client> --server mcp-control"),
+            "{help}"
+        );
+    }
+
+    #[test]
+    fn native_inventory_and_exit_taxonomy_are_machine_stable() {
+        let command = Cli::command();
+        let inventory = super::native_command_inventory_entry(&command, &[]);
+        assert_eq!(inventory["name"], "snapback");
+        let subcommands = inventory["subcommands"].as_array().unwrap();
+        assert!(subcommands.iter().any(|entry| entry["name"] == "admin"));
+        assert!(
+            !subcommands
+                .iter()
+                .any(|entry| entry["name"] == "command-inventory")
+        );
+        assert_eq!(
+            [
+                super::EXIT_OK,
+                super::EXIT_USAGE,
+                super::EXIT_AUTH_REFUSED,
+                super::EXIT_FUNCTION_NOT_FOUND,
+                super::EXIT_FUNCTION_ERROR,
+                super::EXIT_TRANSPORT_FAILED,
+                super::EXIT_ARTIFACT_IDENTITY_MISMATCH,
+                super::EXIT_VERSION_MISMATCH,
+                super::EXIT_TIMEOUT,
+                super::EXIT_SCRIPT_ERROR,
+                super::EXIT_RESOURCE_EXCEEDED,
+            ],
+            [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+        );
     }
 
     #[test]
@@ -108,6 +154,22 @@
     }
 
     #[test]
+    fn guide_section_search_json_exposes_the_control_tool_shape() {
+        let output =
+            render_guide_command(&["network condition profiles".to_owned()], 1, true).unwrap();
+        let result: serde_json::Value = serde_json::from_str(&output).unwrap();
+        assert_eq!(result["schemaVersion"], "snapback.guide-search.v1");
+        assert_eq!(result["mode"], "section-search");
+        assert!(result["count"].as_u64().unwrap() > 0);
+        assert!(
+            result["matches"][0]["url"]
+                .as_str()
+                .unwrap()
+                .starts_with(super::DEFAULT_SERVED_GUIDE_URL)
+        );
+    }
+
+    #[test]
     fn guide_channel_output_starts_with_capabilities_and_names_flat_and_mcp() {
         let output = render_guide_command(&[], 1, false).unwrap();
         let capability = output.find("/capabilities.md").unwrap();
@@ -122,7 +184,16 @@
             output.contains("/_snapback/guide/reference/registry.json"),
             "{output}"
         );
+        assert!(
+            output.contains("/_snapback/guide/reference/diagnostics.md"),
+            "{output}"
+        );
         assert!(output.contains("snapback mcp"), "{output}");
+        assert!(output.contains("snapback mcp-control"), "{output}");
+        assert!(
+            output.contains("snapback agent setup --print <client> --server mcp-control"),
+            "{output}"
+        );
     }
 
     #[test]
@@ -145,15 +216,57 @@
     }
 
     #[test]
+    fn guide_exact_diagnostic_lookup_precedes_markdown_search() {
+        let output =
+            render_guide_command(&["SNAPBACK_AUTH_SESSION_EXPIRED".to_owned()], 1, false).unwrap();
+        assert!(
+            output.starts_with("SNAPBACK_AUTH_SESSION_EXPIRED — diagnostic\n"),
+            "{output}"
+        );
+        assert!(output.contains("auth · HTTP 401"), "{output}");
+        assert!(output.contains("Emitting sites:"), "{output}");
+        assert!(
+            !output.contains("Embedded Guide sections matching"),
+            "{output}"
+        );
+    }
+
+    #[test]
     fn guide_exact_lookup_json_exposes_the_shared_schema() {
         let output = render_guide_command(&["SnapbackClient.query".to_owned()], 1, true).unwrap();
         let result: serde_json::Value = serde_json::from_str(&output).unwrap();
+        assert_eq!(result["schemaVersion"], GUIDE_SEARCH_SCHEMA_VERSION);
+        assert_eq!(result["mode"], "exact-symbol");
+        assert_eq!(result["query"], "SnapbackClient.query");
         assert_eq!(
-            result["schemaVersion"],
+            result["result"]["schemaVersion"],
             crate::guide_reference::LOOKUP_SCHEMA_VERSION
         );
-        assert_eq!(result["match"], "member");
-        assert_eq!(result["query"], "SnapbackClient.query");
+        assert_eq!(result["result"]["match"], "member");
+    }
+
+    #[test]
+    fn guide_json_is_total_for_channels_fuzzy_and_zero_match() {
+        let channels: Value =
+            serde_json::from_str(&render_guide_command(&[], 1, true).unwrap()).unwrap();
+        assert_eq!(channels["schemaVersion"], GUIDE_SEARCH_SCHEMA_VERSION);
+        assert_eq!(channels["mode"], "channels");
+        assert_eq!(channels["count"], 0);
+
+        let fuzzy: Value = serde_json::from_str(
+            &render_guide_command(&["live query".to_owned()], 1, true).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(fuzzy["mode"], "section-search");
+        assert!(fuzzy["count"].as_u64().unwrap() > 0);
+
+        let zero: Value = serde_json::from_str(
+            &render_guide_command(&["no-such-guide-needle-6f8614".to_owned()], 1, true).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(zero["mode"], "section-search");
+        assert_eq!(zero["count"], 0);
+        assert_eq!(zero["result"]["matched"], false);
     }
 
     #[test]
@@ -203,6 +316,16 @@
                 command: ControlsCommand::Describe { operation, json: true }
             }) if operation == "debug.networkProfileSet"
         ));
+    }
+
+    #[test]
+    fn controls_list_text_includes_discovery_title_and_cli_projection() {
+        let output = controls_list_text(crate::control_catalog::build_catalog());
+        assert!(output.starts_with("OPERATION\tTITLE\tSURFACE\tOPERABILITY\tSTATUS\tCLI\n"));
+        assert!(output.lines().any(|line| {
+            line.starts_with("host.restart\tRestart the local Snapback server\t")
+                && line.ends_with("\tsnapback restart --ready-file <path>")
+        }));
     }
 
     #[test]
@@ -512,10 +635,12 @@
         match launch.command {
             Some(HostCommand::Admin(AdminArgs {
                 no_open,
+                json,
                 target,
                 command: None,
             })) => {
                 assert!(no_open);
+                assert!(!json);
                 assert_eq!(target.ready_file, Some(PathBuf::from("ready.json")));
             }
             other => panic!("expected admin launch command, got {other:?}"),
@@ -562,6 +687,7 @@
                         qr: false,
                         tailscale: false,
                         lan: None,
+                        link_ready_file: None,
                     }),
                 ..
             })) => {
@@ -592,6 +718,28 @@
                 }),
                 ..
             })) if selector.is_empty()
+        ));
+
+        let observed_link = Cli::parse_from([
+            "snapback",
+            "admin",
+            "link",
+            "--json",
+            "--link-ready-file",
+            "link.ready.json",
+            "--ready-file",
+            "server.ready.json",
+        ]);
+        assert!(matches!(
+            observed_link.command,
+            Some(HostCommand::Admin(AdminArgs {
+                json: true,
+                command: Some(AdminCommand::Link {
+                    link_ready_file: Some(path),
+                    ..
+                }),
+                ..
+            })) if path == PathBuf::from("link.ready.json")
         ));
 
         let status = Cli::parse_from([
@@ -644,6 +792,29 @@
             "https://console.example/_snapback/admin/#claim=sbcl_0123456789abcdef0123456789abcdef"
         );
         assert!(!claim_url.contains('?'));
+    }
+
+    #[test]
+    fn admin_link_ready_file_is_owner_lifecycle_bound() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("link.ready.json");
+        let claim = ConsoleClaimMintCliResponse {
+            claim_code: "sbcl_0123456789abcdef0123456789abcdef".to_owned(),
+            expires_at_ms: 1234,
+            expires_in: 30,
+        };
+        let guard = AdminLinkReadyFile::publish(
+            &path,
+            "https://console.example/_snapback/admin/#claim=sbcl_0123456789abcdef0123456789abcdef",
+            &claim,
+            "https://console.example",
+        )
+        .unwrap();
+        let value: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!(value["schemaVersion"], "snapback.admin-link-ready.v1");
+        assert_eq!(value["ready"], true);
+        drop(guard);
+        assert!(!path.exists());
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -848,13 +1019,16 @@
     }
 
     #[test]
-    fn no_argument_defaults_start_local_dev_server() {
+    fn serve_argument_defaults_remain_available_to_explicit_start() {
         let args = Args::parse_from(["snapback"]);
         assert_eq!(args.host, "127.0.0.1");
         assert_eq!(args.port, None);
         assert_eq!(args.db, PathBuf::from(".snapback/dev.sqlite3"));
         assert!(!args.memory);
         assert!(!args.cron_disabled);
+        let cli = Cli::parse_from(["snapback"]);
+        assert!(cli.command.is_none(), "bare invocation selects root help");
+        assert_eq!(cli.serve, Args::default());
     }
 
     #[test]
@@ -960,7 +1134,9 @@
 
         let error = reject_misdirected_serve_flags(&cli).unwrap_err();
         assert!(
-            error.to_string().contains("pass them after `start`"),
+            error
+                .to_string()
+                .contains("require the explicit `start` command"),
             "{error}"
         );
     }

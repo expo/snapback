@@ -1393,7 +1393,7 @@ impl PreparedInvocation {
             ResolvedAppAuthority::ServicePrincipal { .. }
         ) && retained.matched_grant_scope.is_none()
         {
-            return Err(missing_grant_scope());
+            return Err(missing_grant_scope(&self.function_id, &self.function_kind));
         }
         Ok(retained)
     }
@@ -1700,7 +1700,7 @@ fn evaluate_function_policy(
         let scope = scopes
             .iter()
             .find(|scope| scope.function_id == function.id && scope.kind == function.kind)
-            .ok_or_else(missing_grant_scope)?;
+            .ok_or_else(|| missing_grant_scope(&function.id, &function.kind))?;
         authority_creating_consent = scope.authority_creating;
         matched_grant_scope = Some(scope.clone());
         if function.authority_creating && !authority_creating_consent {
@@ -1738,13 +1738,21 @@ fn evaluate_function_policy(
     Ok((requirement, authority_creating_consent, matched_grant_scope))
 }
 
-fn missing_grant_scope() -> SnapbackError {
+fn missing_grant_scope(function_id: &str, function_kind: &FunctionKind) -> SnapbackError {
+    let kind = crate::storage::auth_scope_bases::function_kind_name(function_kind);
     SnapbackError::error(
         "SNAPBACK_AUTH_GRANT_SCOPE_DENIED",
         "auth",
         "the scoped grant does not authorize this function",
     )
-    .with_details(serde_json::json!({ "reason": "missing_scope" }))
+    .with_details(serde_json::json!({
+        "reason": "missing_scope",
+        "functionId": function_id,
+        "missingScope": {
+            "functionId": function_id,
+            "kind": kind,
+        },
+    }))
 }
 
 fn source_allows_authority(
@@ -2371,6 +2379,12 @@ mod tests {
             InvocationGate::prepare_function(prepare(service(Vec::new())), &function).unwrap_err();
         assert_eq!(denied.diagnostic.code, "SNAPBACK_AUTH_GRANT_SCOPE_DENIED");
         assert_eq!(denied.diagnostic.details["reason"], "missing_scope");
+        assert_eq!(denied.diagnostic.details["functionId"], function.id);
+        assert_eq!(
+            denied.diagnostic.details["missingScope"]["functionId"],
+            function.id
+        );
+        assert_eq!(denied.diagnostic.details["missingScope"]["kind"], "query");
 
         let mut marked = function.clone();
         marked.authority_creating = true;

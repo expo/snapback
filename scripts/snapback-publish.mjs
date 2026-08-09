@@ -69,9 +69,20 @@ assembly supplies explicit runtime artifact paths to each platform package's
 prepare script. A real publication consumes, without restaging, one
 self-digested qualified ledger and clean staged receipts from both platforms.`;
 
-function fail(message, code = 1) {
-  console.error(`snapback-publish: ${message}`);
-  process.exit(code);
+function fail(message, exitCode = 1) {
+  const code = exitCode === 2
+    ? 'SNAPBACK_PUBLISH_ARGUMENT_INVALID'
+    : 'SNAPBACK_PUBLISH_REFUSED';
+  console.error(JSON.stringify({
+    ok: false,
+    diagnostics: [{
+      code,
+      severity: 'error',
+      subsystem: 'publish',
+      message,
+    }],
+  }));
+  process.exit(exitCode);
 }
 
 function redactAuthenticationUrls(text) {

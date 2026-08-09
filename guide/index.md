@@ -4,13 +4,13 @@ id: meta.index
 order: 1
 audience: agent-first
 capabilities: [operating.served-guide, operating.guide-mcp]
-authorities: [llp/0061-agent-first-snapback-guide.rfc.md, llp/0000-snapback.explainer.md, llp/0042-agent-mcp-surface.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, src/cli.rs, src/guide_mcp.rs, packages/snapback-cli/index.mjs, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/mcp-control.mjs]
+authorities: [llp/0060-hosted-auth-security.rfc.md, llp/0061-agent-first-snapback-guide.rfc.md, llp/0000-snapback.explainer.md, llp/0042-agent-mcp-surface.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, src/server.rs, src/schema_export.rs, schemas/http.routes.v1.json, src/cli.rs, src/guide_mcp.rs, packages/snapback-cli/index.mjs, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/mcp-control.mjs, llp/0193-errors-as-docs-completeness.plan.md, scripts/generate-diagnostics-registry.mjs]
 examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/partiful-matrix, demos/expo-golden-path-fixture]
 status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 2c6b3d38cbf2ba197cfb0390aaddba1ce107e4e0
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -25,6 +25,9 @@ intent-first, with code that ran in CI.
 Need an exact exported signature? Start with the build-bound
 [generated API reference](./reference/index.md), or run
 `snapback guide <ExactSymbolName>` for a budgeted symbol lookup.
+For a stable `SNAPBACK_*` failure, use the generated
+[diagnostic code registry](./reference/diagnostics.md), or pass the code to
+the same command for exact lookup before prose search.
 
 **Audience:** agents (primarily) and humans (secondarily) building on
 Snapback. In a checkout, read this corpus directly. Outside a checkout, a
@@ -37,9 +40,23 @@ guide bytes with a different server build. `GET /llms.txt` at the served root
 provides a convention-standard index, leading with the capability index
 (within its enforced budget) and listing the flat projection last as an
 explicit large-file fallback while it remains oversized
-(`issues/20260806-guide-flat-projection-oversize.md`). Building Snapback
+(`issues/20260806-guide-flat-projection-oversize.md`). The same local server
+serves `GET /_snapback/guide/http.routes.v1.json`, a generated build-bound
+join from the installed route registry to committed input/output schema
+references; a `null` schema reference means no route-specific schema is
+committed, not an unconstrained body. Building Snapback
 itself is a
 different job — that's `AGENTS.md` and the LLP corpus, not this guide.
+
+That served-discovery promise is for local/embedded server profiles. The
+derived hosted posture deliberately disables `operatorSurface`; on that
+profile `/llms.txt`, `/_snapback/guide*`,
+`/_snapback/api/control-catalog`, and host-operation discovery are not
+claimed. Depending on the target, those URLs may return a fixed empty 404, an
+asset fallback, or a target-specific refusal; none is evidence of a hosted
+discovery surface. Use the guide from the pinned checkout or published package
+when working against that profile; do not infer local discovery routes from a
+hosted app's root URL.
 
 ## Choose the MCP authority
 
@@ -279,11 +296,16 @@ you never build around a feature because you didn't know it existed.
   release-aware issue state from the console, CLI, or MCP.
 
 ### Deploying
+- [Deployment posture](./deploying/index.md) — the aggregate truth: where
+  local, Fly, Cloudflare, and hosted lifecycle paths stop today, with their
+  tracking tickets.
 - [Immutable releases and deploy plans](./deploying/releases.md) — build the
   target-neutral release, register an exact VM/container target, inspect its
   provider identity, and retain a GAP-fenced content-addressed plan.
 - [Cloudflare proof](./deploying/cloudflare.md) — deploy and verify All
   Aboard on the honest partial hosted profile; explicit supported subset and gaps.
+- [Hosted control](./deploying/hosted-control.md) — the package-owned read
+  surface, all 17 closed lifecycle verbs, and the carrier/custody refusal.
 
 ### Recipes
 - [Browser sign-in and reload custody](./recipes/browser-auth.md) — verified

@@ -7781,6 +7781,8 @@ const fn served_guide_route(path: &'static str) -> RouteSpec {
 
 pub const GUIDE_CONTENT_HASH_HEADER: &str = "x-snapback-guide-content-sha256";
 pub const GUIDE_BUILD_COMMIT_HEADER: &str = "x-snapback-server-build-commit";
+pub const HTTP_ROUTES_PATH: &str = "/_snapback/guide/http.routes.v1.json";
+const HTTP_ROUTES_V1: &[u8] = include_bytes!("../schemas/http.routes.v1.json");
 
 // @ref LLP 0186#w2--context-injection-surface-owned-here — the convention
 // endpoint gives agent probes a short index into the build-bound guide.
@@ -7791,7 +7793,9 @@ pub const GUIDE_BUILD_COMMIT_HEADER: &str = "x-snapback-server-build-commit";
 // a large, explicit fallback rather than the first-offered link.
 // @ref LLP 0194#design — exact API discovery names both the compact human
 // index and canonical machine registry instead of hiding them in the flat file.
-const LLMS_TXT: &str = "# Snapback\n\n> Snapback is a local-first app backend. This server embeds its own authoring guide.\n\n## Docs\n\n- [Capability index](/_snapback/guide/capabilities.md) \u{2014} start here: the compact, capability-complete map.\n- [Guide index](/_snapback/guide)\n- [API reference index](/_snapback/guide/reference/index.md) \u{2014} compact package and module map.\n- [API symbol registry](/_snapback/guide/reference/registry.json) \u{2014} build-bound exact signatures and stable identities.\n- [Complete guide, single file](/_snapback/guide/flat.md) \u{2014} everything in one request; large and growing, prefer the capability index or a specific page first.\n";
+// @ref LLP 0184#4-agent-discovery-and-setup — every cold-agent funnel names
+// both authority postures and the explicit control-server setup preview.
+const LLMS_TXT: &str = "# Snapback\n\n> Snapback is a local-first app backend. This server embeds its own authoring guide.\n\n## Docs\n\n- [Capability index](/_snapback/guide/capabilities.md) \u{2014} start here: the compact, capability-complete map.\n- [Guide index](/_snapback/guide)\n- [HTTP route/schema catalog](/_snapback/guide/http.routes.v1.json) \u{2014} build-bound route policies joined to committed request and response schemas.\n- [API reference index](/_snapback/guide/reference/index.md) \u{2014} compact package and module map.\n- [API symbol registry](/_snapback/guide/reference/registry.json) \u{2014} build-bound exact signatures and stable identities.\n- [Diagnostic code registry](/_snapback/guide/reference/diagnostics.md) \u{2014} every production SNAPBACK_* code with source and HTTP routing.\n- [Diagnostic registry JSON](/_snapback/guide/reference/diagnostics-registry.json) \u{2014} exact build-bound diagnostic lookup data.\n- [Complete guide, single file](/_snapback/guide/flat.md) \u{2014} everything in one request; large and growing, prefer the capability index or a specific page first.\n\n## Operate it\n\n`snapback mcp` serves read-only Guide resources; `snapback mcp-control` adds typed control tools with local admin authority.\nPreview control setup with `snapback agent setup --print <client> --server mcp-control`.\n";
 
 fn guide_bound_response(body: &'static [u8], content_type: &'static str) -> Response {
     let mut response = Response::new(Body::from(body));
@@ -7836,6 +7840,19 @@ async fn served_guide_page(Path(path): Path<String>) -> Response {
 
 async fn served_llms_txt() -> Response {
     guide_bound_response(LLMS_TXT.as_bytes(), "text/markdown; charset=utf-8")
+}
+
+async fn served_http_routes() -> Response {
+    let mut response = Response::new(Body::from(HTTP_ROUTES_V1));
+    response.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/json; charset=utf-8"),
+    );
+    response.headers_mut().insert(
+        HeaderName::from_static(GUIDE_BUILD_COMMIT_HEADER),
+        HeaderValue::from_static(option_env!("SNAPBACK_BUILD_GIT_COMMIT").unwrap_or("unknown")),
+    );
+    response
 }
 
 /// The app-data route registrations. Each handler literal appears only here;
@@ -8476,6 +8493,10 @@ fn system_route_registrations() -> Vec<RegisteredRoute> {
         RegisteredRoute::new(
             served_guide_route("/_snapback/guide/flat.md"),
             get(served_guide_flat),
+        ),
+        RegisteredRoute::new(
+            served_guide_route(HTTP_ROUTES_PATH),
+            get(served_http_routes),
         ),
         RegisteredRoute::new(
             served_guide_route("/_snapback/guide/{*path}"),
@@ -9194,8 +9215,12 @@ fn auth_app_data_refusal(spec: RouteSpec, runtime: &AppState) -> Option<Snapback
                 return Some(SnapbackError::error(
                     "SNAPBACK_AUTH_TRANSPORT_INSECURE",
                     "auth",
-                    "desired or active sessions require listener-owned loopback transport evidence",
-                ));
+                    "desired or active sessions require listener-owned loopback or TLS transport evidence; select the intended environment with SNAPBACK_PROFILE",
+                )
+                .with_details(json!({
+                    "profileEnvVar": "SNAPBACK_PROFILE",
+                    "requiredTransport": "loopback or TLS",
+                })));
             }
             None => runtime.server.loopback,
         };
@@ -11716,12 +11741,18 @@ async fn enforce_registered_route_policy(
         selected_policy
     };
     let authorization = if selected_policy.effect_policy == EffectPolicy::Unavailable {
-        Err(SnapbackError::error(
-            "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
-            "auth",
-            "this operation is unavailable under the active auth policy",
-        )
-        .into())
+        let error = if selected_operation
+            .is_some_and(|(operation, _)| operation.operation == "host_ops.auth.mintSession")
+        {
+            auth_mint_session_mode_unavailable(&runtime)
+        } else {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "this operation is unavailable under the active auth policy",
+            )
+        };
+        Err(error.into())
     } else if operation_deferred {
         operation_authorization
     } else {
@@ -14423,8 +14454,37 @@ async fn telemetry_not_found(State(runtime): State<AppState>, request: Request<B
         None,
         Some(serde_json::json!({ "method": method, "rawPath": raw_path })),
     );
-    let response = StatusCode::NOT_FOUND.into_response();
-    span.finish(Some(i64::from(response.status().as_u16())), None, None);
+    // @ref LLP 0060#c2-defenses-that-do-not-change-the-boundary — an
+    // unregistered operator path must be indistinguishable from a registered
+    // one when hosted admission disables the entire operator surface. The
+    // authoring diagnostic below is intentionally a local-server affordance.
+    if runtime.hosted_serving.is_some()
+        && (raw_path == "/_snapback" || raw_path.starts_with("/_snapback/"))
+    {
+        let response = hosted_operator_surface_disabled_response();
+        span.finish(Some(i64::from(response.status().as_u16())), None, None);
+        return response;
+    }
+    let paths = route_registry()
+        .into_iter()
+        .map(|route| route.path)
+        .collect::<Vec<_>>();
+    let response = ApiError::from(
+        SnapbackError::error(
+            "SNAPBACK_ROUTE_UNKNOWN",
+            "server",
+            "the requested HTTP route is not registered",
+        )
+        .with_details(crate::authoring_suggestion::unknown_path_details(
+            &raw_path, &paths,
+        )),
+    )
+    .into_response();
+    span.finish(
+        Some(i64::from(response.status().as_u16())),
+        Some("SNAPBACK_ROUTE_UNKNOWN"),
+        None,
+    );
     response
 }
 
@@ -17037,6 +17097,26 @@ async fn auth_host_result(
     .await
 }
 
+fn auth_mint_session_mode_unavailable(runtime: &AppState) -> SnapbackError {
+    // @ref LLP 0184#dated-amendment-discovery-completeness-and-projection-repair-2026-08-08 —
+    //   policy middleware and the handler backstop expose the same actionable
+    //   observed-mode refusal instead of losing it at the earlier gate.
+    let mode = runtime.auth_mode_state();
+    SnapbackError::error(
+        "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+        "auth",
+        "auth.mintSession requires settled and available sessions mode; call ensureApp({requestedMode:'sessions'}), then restart when the transition reports pendingRestart",
+    )
+    .with_details(json!({
+        "observed": {
+            "active": mode.active,
+            "desired": mode.desired,
+            "modeState": mode.mode_state,
+            "appDataAvailability": mode.app_data_availability,
+        },
+    }))
+}
+
 /// Auth host operations acquire provider coordination before the outer
 /// app-instance lock. The handler repeats the selected-operation gate as a
 /// backstop so a direct invocation cannot substitute an admin, console,
@@ -17074,12 +17154,7 @@ async fn execute_auth_host_operation(
             || mode.mode_state != crate::auth::mode::AuthModeStatus::Settled
             || mode.app_data_availability != crate::auth::mode::AppDataAvailability::Available
         {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
-                "auth",
-                "auth.mintSession requires settled and available sessions mode",
-            )
-            .into());
+            return Err(auth_mint_session_mode_unavailable(runtime).into());
         }
         if !runtime.auth_catalog_ready
             || runtime

@@ -3,6 +3,17 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Snapback codegen: executes source-authored schema/function definitions and emits the generated manifests, typed API, and Contract binding modules.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/expo/snapback.git",
+    "directory": "packages/snapback-codegen"
+  },
+  "homepage": "https://github.com/expo/snapback#readme",
+  "bugs": {
+    "url": "https://github.com/expo/snapback/issues"
+  },
+  "keywords": ["snapback", "backend", "codegen", "typescript"],
   "files": [
     "app-inspection.d.mts",
     "app-inspection.mjs",

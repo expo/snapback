@@ -3,7 +3,19 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Prebuilt Snapback server and Hermes runtime for Apple-silicon macOS.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/expo/snapback.git",
+    "directory": "packages/snapback-runtime-darwin-arm64"
+  },
+  "homepage": "https://github.com/expo/snapback#readme",
+  "bugs": {
+    "url": "https://github.com/expo/snapback/issues"
+  },
+  "keywords": ["snapback", "backend", "runtime", "darwin", "arm64"],
   "files": [
+    "README.md",
     "bin",
     "Frameworks",
     "include",

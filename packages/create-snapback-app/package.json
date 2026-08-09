@@ -3,6 +3,17 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Ecosystem-standard scaffold entry point for Snapback applications: `npm create snapback-app` delegating to the @expo/snapback-cli template mechanism.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/expo/snapback.git",
+    "directory": "packages/create-snapback-app"
+  },
+  "homepage": "https://github.com/expo/snapback#readme",
+  "bugs": {
+    "url": "https://github.com/expo/snapback/issues"
+  },
+  "keywords": ["snapback", "backend", "scaffold", "create-app"],
   "files": [
     "cli.mjs"
   ],

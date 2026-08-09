@@ -2,6 +2,33 @@
 
 set -euo pipefail
 
+usage() {
+    cat <<'EOF'
+Usage: scripts/bootstrap-ibex-runtime [--help]
+
+Prepare the vendored Ibex/Hermes runtime, build and launch Snapback, and issue
+a digest-bound runtime-readiness receipt.
+
+Environment:
+  SNAPBACK_IBEX_CHECKOUT  Reuse a compatible prepared Ibex checkout.
+  SNAPBACK_BOOTSTRAP_CHECK=0  Skip the final link/launch qualification check.
+EOF
+}
+
+case "${1:-}" in
+    --help|-h)
+        [ "$#" -eq 1 ] || { usage >&2; exit 2; }
+        usage
+        exit 0
+        ;;
+    '') ;;
+    *)
+        printf '[snapback-bootstrap] error: unknown argument: %s\n' "$1" >&2
+        usage >&2
+        exit 2
+        ;;
+esac
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENDOR_IBEX="$ROOT/vendor/ibex"
 DEFAULT_PEER_IBEX="$(cd "$ROOT/.." && pwd)/ibex"

@@ -4,13 +4,13 @@ id: clients.react
 order: 2
 audience: agent-first
 capabilities: [clients.react]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0157-composition-algebra-and-completeness.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts]
 examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk/src/backends/snapback.ts, demos/signal-desk/tests/react.mjs, demos/signal-desk/acceptance/results/react-presence.v1.json, demos/messaging-snapback/src/lib/useTyping.ts, packages/snapback-react/binding-development-sync.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-react/exact-result-types.fixture.ts]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 2c6b3d38cbf2ba197cfb0390aaddba1ce107e4e0
+reviewed-commit: 772c006495
 ---
 
 # The React client
@@ -424,10 +424,12 @@ only that layer — is removed and every newer layer recomputes over the
 authoritative base:
 
 ```ts fragment reason="refusal codes and copy come from the application's declared refusals"
+import type { SnapbackAppRefusalError } from '@expo/snapback-client';
+
 try {
   await reserveSlot({ slotKey, resourceId });
 } catch (error) {
-  const diagnostic = (error as { diagnostic?: { code?: string; details?: { appCode?: string } } }).diagnostic;
+  const diagnostic = (error as SnapbackAppRefusalError).diagnostic;
   if (diagnostic?.code === 'SNAPBACK_APP_REFUSAL' && diagnostic.details?.appCode === 'SLOT_TAKEN') {
     showSlotTakenBanner(slotKey); // stable declared code, not message text
   } else {

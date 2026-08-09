@@ -15,7 +15,7 @@
 // (LLP 0049 Phase 0 deploy-time app selector — the 'snapback-app' alias).
 import { Coordinator } from './coordinator.js';
 import { classifyPlatformError, platformFailureResponse } from './platform-errors.js';
-import { wireDiagnostic } from './wire-diagnostic.js';
+import { wireDiagnostic, wireErrorResponse } from './wire-diagnostic.js';
 import { appMeta, capabilityManifest, functions, routesManifest } from 'snapback-app';
 // Channel A on the Cloudflare arm (LLP 0090 rollout step 4 / LLP 0092 §0E):
 // the gateway owns the HTML response, so it owns the serving seam. The route
@@ -41,6 +41,28 @@ const APP_OBJECT_NAME = appMeta.objectName;
 // (/_snapback/test/*, LLP 0094 §0A.3); the corrupt-meta seam is enumerated
 // here because it must stay reachable during a startup refusal.
 const FORWARDED_JSON_PATHS = new Set(['/query', '/mutation', '/_snapback/test/corrupt-meta', '/connection/open', '/app/ensure', '/app/bundle']);
+
+// Root app-data namespaces reserved by the local route registry. If an
+// unimplemented path in one of these namespaces reaches Workers Assets and
+// the assets binding answers with its SPA HTML fallback, refuse it as an
+// unsupported target route instead of laundering HTML into an HTTP 200 API
+// response. Segment-boundary matching keeps ordinary web paths such as
+// `/querying` outside the reservation.
+// @ref LLP 0031#hosted-app-data-spa-fallback-refusal-2026-08-08
+const APP_DATA_PREFIXES = [
+  '/auth',
+  '/assets',
+  '/ephemeral',
+  '/push',
+  '/app-api',
+  '/client-mutations',
+  '/live',
+  '/outbox',
+  '/query',
+  '/mutation',
+  '/action',
+  '/connection',
+];
 
 // §0E.5 pinned Channel A budgets (seam policy knobs). The anonymous
 // per-client-address rate window is in-memory per gateway isolate — a
@@ -156,13 +178,13 @@ async function gatewayFetch(request, env) {
     if (FORWARDED_JSON_PATHS.has(path) || path.startsWith('/_snapback/test/')) {
       if (request.method !== 'POST') {
         // @ref LLP 0094#0c6-response-shape-divergences-audited-at-137dee8c-defects-not-contract — item 8: gateway refusals carry the full
-        //   committed Diagnostic (closed ErrorResponse envelope).
-        return json(405, {
-          diagnostic: wireDiagnostic('SNAPBACK_METHOD_NOT_ALLOWED', `${path} requires POST`, {
+        //   committed Diagnostic (versioned ErrorResponse envelope).
+        return json(405, wireErrorResponse(
+          wireDiagnostic('SNAPBACK_METHOD_NOT_ALLOWED', `${path} requires POST`, {
             path,
             expectedMethod: 'POST',
           }),
-        });
+        ));
       }
       return forward(stub, `http://coordinator${path}`, request);
     }
@@ -176,19 +198,19 @@ async function gatewayFetch(request, env) {
     // 404: /_snapback/* never falls through to the SPA asset lane, so a
     // proxy's "forward the root, refuse /_snapback/*" rule stays exhaustive.
     if (path === '/_snapback' || path.startsWith('/_snapback/')) {
-      return json(404, {
-        diagnostic: wireDiagnostic('SNAPBACK_ROUTE_UNKNOWN', 'not found', { path }),
-      });
+      return json(404, wireErrorResponse(
+        wireDiagnostic('SNAPBACK_ROUTE_UNKNOWN', 'not found', { path }),
+      ));
     }
     if (KIT_ROUTE.test(path)) {
       const expectedMethod = path.startsWith('/outbox/') ? 'GET' : 'POST';
       if (request.method !== expectedMethod) {
-        return json(405, {
-          diagnostic: wireDiagnostic('SNAPBACK_METHOD_NOT_ALLOWED', `${path} requires ${expectedMethod}`, {
+        return json(405, wireErrorResponse(
+          wireDiagnostic('SNAPBACK_METHOD_NOT_ALLOWED', `${path} requires ${expectedMethod}`, {
             path,
             expectedMethod,
           }),
-        });
+        ));
       }
       // Kit routes carry auth headers (x-snapback-connection-token), so the
       // full header set forwards; the coordinator enforces the token gate.
@@ -202,9 +224,9 @@ async function gatewayFetch(request, env) {
       if (request.headers.get('upgrade') !== 'websocket') {
         // Same code the coordinator's acceptKitSocket mints for its own
         // pre-upgrade refusal, so the two lanes are indistinguishable.
-        return json(426, {
-          diagnostic: wireDiagnostic('SNAPBACK_UPGRADE_REQUIRED', 'expected websocket upgrade', { path }),
-        });
+        return json(426, wireErrorResponse(
+          wireDiagnostic('SNAPBACK_UPGRADE_REQUIRED', 'expected websocket upgrade', { path }),
+        ));
       }
       return stub.fetch(`http://coordinator${path}${url.search}`, request);
     }
@@ -239,6 +261,19 @@ async function gatewayFetch(request, env) {
         }
         return json(404, { error: 'not found', path });
       }
+      if (APP_DATA_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))) {
+        const asset = await env.ASSETS.fetch(request);
+        const contentType = asset.headers.get('content-type') || '';
+        const isSpaFallback = asset.status === 200 && contentType.includes('text/html');
+        if (!isSpaFallback) return asset;
+        return json(501, wireErrorResponse(
+          wireDiagnostic(
+            'SNAPBACK_ROUTE_UNSUPPORTED_ON_TARGET',
+            'the requested app-data route is not implemented on this deployment target',
+            { path, target: 'cloudflare' },
+          ),
+        ));
+      }
       // Channel A (LLP 0090 D2 / LLP 0092 §0E): when the pageload's route is
       // manifested and every named query carries the compiled publicInline
       // fact, compose the static shell with ONE coordinator bundle
@@ -257,9 +292,9 @@ async function gatewayFetch(request, env) {
       }
       return env.ASSETS.fetch(request);
     }
-    return json(404, {
-      diagnostic: wireDiagnostic('SNAPBACK_ROUTE_UNKNOWN', 'not found', { path }),
-    });
+    return json(404, wireErrorResponse(
+      wireDiagnostic('SNAPBACK_ROUTE_UNKNOWN', 'not found', { path }),
+    ));
 }
 
 // Assemble the transformed Channel A document, or null to degrade to the

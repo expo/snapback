@@ -53,6 +53,52 @@ pub fn operation(operation: &str) -> Option<&'static Value> {
         .find(|entry| entry.get("operation").and_then(Value::as_str) == Some(operation))
 }
 
+pub fn cli_projection(operation: &str) -> Option<&'static str> {
+    self::operation(operation)?
+        .pointer("/projections/cli")?
+        .as_str()
+}
+
+pub fn guide_anchor(operation: &str) -> Option<&'static str> {
+    self::operation(operation)?.get("guide")?.as_str()
+}
+
+/// Build the refusal acquisition path from the same embedded row used by
+/// every control projection. This is presentation only: the owning gate still
+/// decides whether a retried operation is admitted.
+///
+/// @ref LLP 0184#3-completeness-and-parity-rules — rule 4 discovery metadata
+///   and the CLI projection remain one catalog-owned fact in refusals too.
+pub fn refusal_next(operation: &str) -> Vec<Value> {
+    let operation = if self::operation(operation).is_some() {
+        operation.to_owned()
+    } else {
+        format!("cli.{operation}")
+    };
+    let mut next = Vec::new();
+    if let Some(guide) = guide_anchor(&operation) {
+        next.push(json!({
+            "guide": guide,
+            "reason": "read the operation's build-bound Guide acquisition path",
+        }));
+    }
+    if let Some(command) = cli_projection(&operation) {
+        next.push(json!({
+            "command": command,
+            "reason": "retry through the operation's shipped CLI projection",
+        }));
+    }
+    next
+}
+
+pub fn result_next(ok: bool, operation: &str) -> Vec<Value> {
+    if ok {
+        Vec::new()
+    } else {
+        refusal_next(operation)
+    }
+}
+
 /// Return the build catalog with only entries matching every query token.
 /// The digest continues to identify the complete embedded catalog; filtering
 /// is a presentation projection, never a new catalog identity.
@@ -176,6 +222,26 @@ mod tests {
                 .iter()
                 .any(|entry| entry["operation"] == "debug.networkProfileSet")
         );
+    }
+
+    #[test]
+    fn search_resolves_the_rule_four_agent_task_examples() {
+        for (intent, operation) in [
+            ("slow network", "debug.networkProfileSet"),
+            ("upload", "asset.put"),
+            ("reset the database", "app.reset"),
+            ("mint session", "auth.mintSession"),
+        ] {
+            let matches = search(Some(intent));
+            assert!(
+                matches["entries"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|entry| entry["operation"] == operation),
+                "{intent:?} must discover {operation}",
+            );
+        }
     }
 
     #[test]

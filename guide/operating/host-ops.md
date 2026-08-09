@@ -57,43 +57,43 @@ The endpoint serves **40 request spellings**. This count and table are generated
 | --- | --- |
 | `app.inspect` | Inspect the running app |
 | `app.reset` | Reset local app state |
-| `app.seed.clear.v1` | app.seed.clear.v1 |
-| `app.seed.ensure.v1` | app.seed.ensure.v1 |
-| `app.seed.preview.v1` | app.seed.preview.v1 |
-| `app.seed.reset-install.v1` | app.seed.reset-install.v1 |
+| `app.seed.clear.v1` | Clear the versioned seed installation |
+| `app.seed.ensure.v1` | Ensure the versioned seed installation |
+| `app.seed.preview.v1` | Preview a versioned seed installation |
+| `app.seed.reset-install.v1` | Reset and install the versioned seed |
 | `asset.delete` | Delete one asset |
-| `asset.ensureSeedFixture` | asset.ensureSeedFixture |
+| `asset.ensureSeedFixture` | Ensure the asset seed fixture |
 | `asset.exportCut` | Export a consistent asset cut |
-| `asset.gcSweep` | Run asset reclamation and publication maintenance |
-| `asset.importCut` | Validate or apply an exported asset cut |
+| `asset.gcSweep` | Sweep reclaimable asset storage |
+| `asset.importCut` | Import a consistent asset cut |
 | `asset.inspect` | Inspect one asset |
-| `asset.list` | List assets by availability state |
-| `asset.put` | asset.put |
-| `asset.retry` | Re-drive pending asset work |
+| `asset.list` | List assets by availability |
+| `asset.put` | Upload one asset |
+| `asset.retry` | Retry pending asset work |
 | `asset.rotateSigningKey` | Rotate the asset delivery signing key |
-| `auth.mintSession` | auth.mintSession |
-| `auth.rescueCollidingTable` | auth.rescueCollidingTable |
-| `branch.create.v1` | branch.create.v1 |
-| `branch.drop.v1` | branch.drop.v1 |
-| `branch.execute.v1` | branch.execute.v1 |
-| `branch.inspect.v1` | branch.inspect.v1 |
-| `branch.list.v1` | branch.list.v1 |
-| `branch.reap.v1` | branch.reap.v1 |
+| `auth.mintSession` | Mint a local test session |
+| `auth.rescueCollidingTable` | Rescue a table colliding with sessions mode |
+| `branch.create.v1` | Create a backend branch |
+| `branch.drop.v1` | Drop a backend branch |
+| `branch.execute.v1` | Execute against a backend branch |
+| `branch.inspect.v1` | Inspect a backend branch |
+| `branch.list.v1` | List backend branches |
+| `branch.reap.v1` | Reap expired backend branches |
 | `cron.list` | List cron jobs |
-| `data.patch.apply` | Apply one previewed bounded direct row patch |
-| `data.patch.preview` | Preview one bounded direct row patch |
-| `debug.live.forceResync` | Force one live subscription to resync (debug perturbation) |
-| `debug.networkProfileGet` | Read the active network condition profile |
-| `debug.networkProfileSet` | Set the active network condition profile |
+| `data.patch.apply` | Apply a bounded row patch |
+| `data.patch.preview` | Preview a bounded row patch |
+| `debug.live.forceResync` | Force a live subscription resync |
+| `debug.networkProfileGet` | Read the active network profile |
+| `debug.networkProfileSet` | Set a simulated network profile |
 | `errors.issue` | Inspect one error issue |
 | `errors.issues` | List error issues |
-| `errors.transition` | Transition error issue state |
-| `function.explain` | function.explain |
+| `errors.transition` | Transition an error issue |
+| `function.explain` | Explain a generated function |
 | `function.run` | Run one generated function |
 | `functions.load` | Load the generated function manifest |
 | `schema.load` | Load the generated schema manifest |
 | `telemetry.events` | Read a bounded telemetry event page |
-| `telemetry.export` | Export one bounded telemetry page |
+| `telemetry.export` | Export bounded telemetry |
 | `telemetry.stats` | Read aggregate telemetry health |
 <!-- END GENERATED CONTROL CATALOG: HOST OPS SERVED -->
 

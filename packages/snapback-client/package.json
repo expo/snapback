@@ -3,6 +3,17 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Versioned framework-neutral Snapback app-data client and scoped agent authority fence.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/expo/snapback.git",
+    "directory": "packages/snapback-client"
+  },
+  "homepage": "https://github.com/expo/snapback#readme",
+  "bugs": {
+    "url": "https://github.com/expo/snapback/issues"
+  },
+  "keywords": ["snapback", "backend", "client", "local-first"],
   "files": [
     "README.md",
     "agent-authority-brand.mjs",
@@ -19,6 +30,7 @@
     "commands.d.mts",
     "commands.mjs",
     "demand-broker.mjs",
+    "diagnostic-codes.d.mts",
     "evaluation-floor.d.mts",
     "evaluation-floor.mjs",
     "external-store.d.mts",

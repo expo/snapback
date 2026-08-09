@@ -4,13 +4,13 @@ id: getting-started.the-authoring-loop
 order: 2
 audience: agent-first
 capabilities: [backend.codegen, operating.packaged-dev-loop, testing.acceptance, operating.inspect]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0041-packaged-dev-loop.rfc.md, packages/create-snapback-app/cli.mjs, packages/snapback-cli/index.mjs, packages/snapback-codegen/index.mjs, scripts/snapback-package-cold-install.mjs, scripts/verify-local-proof]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0041-packaged-dev-loop.rfc.md, src/cli.rs, packages/create-snapback-app/cli.mjs, packages/snapback-cli/index.mjs, packages/snapback-cli/templates, packages/snapback-codegen/index.mjs, scripts/snapback-package-cold-install.mjs, scripts/verify-local-proof]
 examples: [packages/snapback-cli/templates/todo-contract, packages/snapback-cli/templates/react, packages/snapback-cli/templates/expo-chat, packages/snapback-cli/sessions-dev-loop.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/todo/surfaces/headless/run.mjs]
 status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 # The authoring loop
@@ -44,9 +44,19 @@ bun run dev
 
 <!-- since: 0.1.12 -->
 
-Three templates ship in the packaged CLI: `todo-contract` (headless
-backend + generated client references), `react` (the React/Vite web
-starter above), and `expo-chat` — the golden-path Expo starter carrying
+Five templates ship in the packaged CLI:
+
+- `todo-contract` — the smallest backend-first scaffold, with generated
+  headless client references and acceptance but no Contract UI.
+- `react` — a minimal React/Vite web app with a live todo query, mutation,
+  and connection state.
+- `crud-dashboard` — a React/Vite project dashboard with relational directory
+  reads, independent live detail, and optimistic CRUD.
+- `media-feed` — an Expo iOS/Android/web feed with image upload, a composed
+  publish command, and collision-safe load-more pagination.
+- `expo-chat` — the golden-path Expo conversation starter described below.
+
+The `expo-chat` template carries
 the LLP 0176 conversation surface as runnable code: a `messages` table
 with an image `assetRef` field, the `messageImageUpload` intent, live
 queries, the generated `conversation` surface (reads, a bound `sendText`
@@ -90,6 +100,28 @@ Vite and watches both sides. Browser code uses only Vite's relative
 runtime path, or repository path. The template uses generated query/mutation
 references and the first-party React provider/hooks; it does not add
 application-owned subscription cleanup.
+
+The React/Vite templates import the relative relay base from the generated
+development virtual module:
+
+```ts source=packages/snapback-cli/templates/react/src/snapback-dev.d.ts
+declare module 'virtual:snapback/dev' {
+  export const snapbackBasePath: string;
+  export const snapbackDevState: Readonly<{
+    mode: 'off' | 'external' | 'attach' | 'managed' | 'auto';
+    shape: string | null;
+    ready: boolean;
+    basePath: string;
+  }>;
+}
+```
+
+`@expo/snapback-vite` supplies `virtual:snapback/dev`; there is no file to
+install or generate at that specifier. A hand-built TypeScript/Vite app must
+add the ambient declaration above (conventionally
+`src/snapback-dev.d.ts`) so the compiler knows `snapbackBasePath` and
+`snapbackDevState`. Import `snapbackBasePath` in the client entry and pass it
+to the Snapback provider/client instead of baking in a loopback server URL.
 
 The package `@expo/snapback-cli` supplies the `snapback` command — the
 terminal npm identity (LLP 0115 decision 9): the workspace name and the
@@ -199,6 +231,10 @@ than only the top-level backup summary. Package help also declares whether the
 selected command is one-shot or long-running, its machine output, exit
 taxonomy, and recovery channel. `snapback hosted lifecycle --help` lists its
 closed verbs, transport flags, and current availability gate.
+
+Bare `snapback` is also discovery-only and prints root help. Start the normal
+authoring loop explicitly with `snapback dev`; use native `snapback start` only
+when a lower-level harness deliberately owns server loading and lifecycle.
 
 When `snapback dev` runs without a TTY, stdin accepts optional
 `snapback.dev-command.v1` JSON lines while it remains open. EOF only closes

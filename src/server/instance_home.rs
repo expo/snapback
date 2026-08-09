@@ -189,6 +189,9 @@ struct LinksStatus {
     admin_console: String,
     guide: String,
     flat_guide: String,
+    llms_txt: String,
+    app_api_current: String,
+    control_catalog: String,
     health_json: String,
     inspect_json: String,
 }
@@ -275,6 +278,9 @@ fn instance_status(inspect: &InspectState, ctx: &ServerContext) -> InstanceStatu
             admin_console: "/_snapback/admin".to_owned(),
             guide: "/_snapback/guide".to_owned(),
             flat_guide: "/_snapback/guide/flat.md".to_owned(),
+            llms_txt: "/llms.txt".to_owned(),
+            app_api_current: "/app-api/current".to_owned(),
+            control_catalog: "/_snapback/api/control-catalog".to_owned(),
             health_json: "/_snapback/api/health".to_owned(),
             inspect_json: "/_snapback/api/inspect".to_owned(),
         },
@@ -385,6 +391,18 @@ fn instance_home_yaml(status: &InstanceStatus) -> String {
         yaml_string(&status.links.flat_guide)
     ));
     out.push_str(&format!(
+        "  llmsTxt: {}\n",
+        yaml_string(&status.links.llms_txt)
+    ));
+    out.push_str(&format!(
+        "  appApiCurrent: {}\n",
+        yaml_string(&status.links.app_api_current)
+    ));
+    out.push_str(&format!(
+        "  controlCatalog: {}\n",
+        yaml_string(&status.links.control_catalog)
+    ));
+    out.push_str(&format!(
         "  healthJson: {}\n",
         yaml_string(&status.links.health_json)
     ));
@@ -485,6 +503,18 @@ fn instance_home_markdown(status: &InstanceStatus) -> String {
     out.push_str(&format!(
         "- [Flat Snapback Guide]({}) — the complete guide in one request for agent clients\n",
         status.links.flat_guide
+    ));
+    out.push_str(&format!(
+        "- [Agent discovery index]({})\n",
+        status.links.llms_txt
+    ));
+    out.push_str(&format!(
+        "- [Current app API envelope]({})\n",
+        status.links.app_api_current
+    ));
+    out.push_str(&format!(
+        "- [Control catalog]({})\n",
+        status.links.control_catalog
     ));
     out.push_str(&format!("- [Health JSON]({})\n", status.links.health_json));
     out.push_str(&format!(

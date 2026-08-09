@@ -4,13 +4,13 @@ id: deploying.cloudflare
 order: 2
 audience: agent-first
 capabilities: [deploy.cloudflare]
-authorities: [llp/0014-cloudflare-strategy.rfc.md, llp/0040-cloudflare-narrow-proof.rfc.md, llp/0049-all-aboard-cloudflare-live.plan.md, llp/0094-wire-envelope-contract.spec.md, schemas/live.kit-socket-request.schema.json, schemas/live.kit-socket-reply.schema.json, cloudflare/README.md, cloudflare/deploy.sh, cloudflare/src/coordinator.js, cloudflare/test/local-suite-manifest.mjs]
+authorities: [llp/0014-cloudflare-strategy.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0040-cloudflare-narrow-proof.rfc.md, llp/0049-all-aboard-cloudflare-live.plan.md, llp/0060-hosted-auth-security.rfc.md, llp/0094-wire-envelope-contract.spec.md, schemas/cloudflare.deploy-receipt-v1.schema.json, schemas/live.kit-socket-request.schema.json, schemas/live.kit-socket-reply.schema.json, cloudflare/README.md, cloudflare/deploy.sh, cloudflare/src/gateway.js, cloudflare/src/coordinator.js, src/server.rs, cloudflare/test/local-suite-manifest.mjs]
 examples: [demos/all-aboard, cloudflare/app/all-aboard.app.js]
 status: current
 targets: [cloudflare]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 # Deploying the Cloudflare proof
@@ -82,6 +82,13 @@ repo-local Wrangler and locks, deploys handler dependencies before the gateway,
 attests the exact active Worker version, and performs the final gateway deploy
 after secret changes. On a partial failure it attempts to restore previously
 active Worker versions; ambiguous account/API state fails closed.
+
+On success, the script emits exactly one JSON line with
+`schemaVersion: snapback.cloudflare-deploy-receipt.v1`. The receipt names each
+Worker and its exact activated version, the probe URL, final health code, and
+the actions this run took. Validate or retain it using
+`schemas/cloudflare.deploy-receipt-v1.schema.json`; ordinary progress lines are
+not deployment evidence.
 
 An absent local `SNAPBACK_ADMIN_TOKEN` is not evidence that the remote secret
 is absent. Deployment reports absent, present-and-preserved, or unknown; only
@@ -190,7 +197,18 @@ It explicitly does **not** claim:
 - calendar/Cron Trigger schedules;
 - R2 asset upload, notifications, Postgres, code hot-load, untrusted hosted
   tenant code, multiple apps per deployment, or a hosted marketplace;
+- the local served-discovery surface: `/llms.txt`, `/_snapback/guide*`,
+  `/_snapback/api/control-catalog`, and host-operation discovery are not
+  hosted claims when `operatorSurface` is disabled; use the pinned checkout
+  or published guide instead;
 - local pages whose `targets:` omit `cloudflare`.
+
+An unimplemented path inside a reserved app-data namespace must not be
+mistaken for a web page. When Workers Assets answers such a miss with its SPA
+`200 text/html` fallback, the gateway converts it to HTTP 501 with the
+versioned `SNAPBACK_ROUTE_UNSUPPORTED_ON_TARGET` JSON diagnostic. This is an
+honest target refusal, not evidence that the route is available under another
+hosted path.
 
 See [auth target honesty](../auth/targets.md) before exposing this deployment
 to users. The local bearer/dev identity posture is not production hosted auth.

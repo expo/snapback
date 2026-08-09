@@ -14,13 +14,16 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import Ajv2020 from 'ajv/dist/2020.js';
 import { generate } from '@expo/snapback-codegen';
 
 import {
+  VERIFY_CONFIG_CONVENTION,
   VERIFY_RECEIPT_SCHEMA_VERSION,
   aggregateConformance,
   defaultVerifyConfig,
   defineStarterVerifyProfile,
+  discoverVerifyConfig,
   loadVerifyConfig,
   probeAdmission,
   probeArtifactFreshness,
@@ -29,6 +32,8 @@ import {
 } from './verify.mjs';
 
 const thisFile = fileURLToPath(import.meta.url);
+const receiptSchema = JSON.parse(readFileSync(new URL('./verify-receipt.schema.json', import.meta.url), 'utf8'));
+const validateReceiptSchema = new Ajv2020({ allErrors: true, strict: false }).compile(receiptSchema);
 const emptyReport = (overrides = {}) => ({
   missingReads: [],
   missingWrites: [],
@@ -125,6 +130,7 @@ let cases = 0;
   );
   assert.equal(receipt.stages[2].evidence.conformance.status, 'partial');
   assert.equal(receipt.stages[2].evidence.conformance.pathEvidence[0].status, 'unsupported');
+  assert.equal(validateReceiptSchema(receipt), true, JSON.stringify(validateReceiptSchema.errors));
   cases += 1;
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-starter-verify-profile-'));
   const acceptanceFile = join(scratch, 'acceptance.mjs');
@@ -253,7 +259,41 @@ for (const [template, pathCount] of [
   assert.equal(receipt.profileSet.testBytes.files[0].bytes, readFileSync(thisFile).byteLength);
   assert.equal(receipt.recommendedNext, undefined);
   validateVerifyReceipt(receipt);
+  assert.equal(validateReceiptSchema(receipt), true, JSON.stringify(validateReceiptSchema.errors));
   cases += 1;
+}
+
+{
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-verify-convention-'));
+  const conventional = join(scratch, VERIFY_CONFIG_CONVENTION);
+  writeFileSync(conventional, `export default { schemaVersion: 'snapback.verify-config.v1', profiles: [] };\n`);
+  try {
+    assert.equal(discoverVerifyConfig(scratch), conventional);
+    assert.equal(discoverVerifyConfig(join(scratch, 'missing')), null);
+    cases += 1;
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+{
+  const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'snapback-verify-backend-resolution-')));
+  const configDirectory = join(scratch, 'config');
+  mkdirSync(configDirectory, { recursive: true });
+  const configPath = join(configDirectory, 'verify.mjs');
+  writeFileSync(configPath, `export default { schemaVersion: 'snapback.verify-config.v1', backendDirectory: 'authored-backend', profiles: [] };\n`);
+  const previousCwd = process.cwd();
+  try {
+    process.chdir(scratch);
+    const authored = await loadVerifyConfig(configPath);
+    assert.equal(authored.backendDirectory, join(configDirectory, 'authored-backend'));
+    const positional = await loadVerifyConfig(configPath, { backendDirectory: 'positional-backend' });
+    assert.equal(positional.backendDirectory, join(scratch, 'positional-backend'));
+    cases += 1;
+  } finally {
+    process.chdir(previousCwd);
+    rmSync(scratch, { recursive: true, force: true });
+  }
 }
 
 {
@@ -312,6 +352,53 @@ for (const [stageId, overrides, nextCode] of failureMatrix) {
   assert.equal(receipt.stages.find(({ id }) => id === stageId).status, 'failed', stageId);
   assert.equal(receipt.next.length, 1, stageId);
   assert.equal(receipt.recommendedNext.code, nextCode, stageId);
+  assert.equal(Object.hasOwn(receipt.recommendedNext, 'instruction'), true, stageId);
+  if (['admission-and-conformance', 'capability-resolution', 'acceptance-profiles'].includes(stageId)) {
+    assert.equal(receipt.recommendedNext.command, null, stageId);
+  } else {
+    assert.match(receipt.recommendedNext.command, /^snapback /u, stageId);
+  }
+  cases += 1;
+}
+
+{
+  const receipt = await runVerify(config(), passOptions({
+    artifactProbe: async () => { throw Object.assign(new Error('missing artifact'), { code: 'ENOENT' }); },
+  }));
+  assert.equal(receipt.stages[0].diagnostics[0].code, 'SNAPBACK_VERIFY_PROBE_FAILED');
+  assert.equal(receipt.stages[0].diagnostics[0].details.causeCode, 'ENOENT');
+  cases += 1;
+}
+
+{
+  const receipt = await runVerify(config([profile(() => new Promise(() => {}))]), passOptions({
+    profileTimeoutMs: 5,
+  }));
+  assert.equal(receipt.acceptanceProfiles[0].diagnostics[0].code, 'SNAPBACK_VERIFY_PROFILE_TIMEOUT');
+  assert.equal(receipt.stages[4].status, 'failed');
+  cases += 1;
+}
+
+{
+  let localRuntimeProbeCalls = 0;
+  const remoteArtifact = artifact({
+    manifests: {
+      ...artifact().manifests,
+      capability: {
+        ...artifact().manifests.capability,
+        targetProfileId: 'cloudflare-do-sqlite-v8',
+      },
+    },
+  });
+  const receipt = await runVerify(config([]), passOptions({
+    artifactProbe: async () => remoteArtifact,
+    runtimeProbe: async () => { localRuntimeProbeCalls += 1; return { ok: false, diagnostics: [] }; },
+  }));
+  assert.equal(localRuntimeProbeCalls, 0);
+  assert.equal(receipt.status, 'passed-without-acceptance');
+  assert.equal(receipt.stages[1].evidence.disposition, 'not-applicable-non-local-target');
+  assert.equal(receipt.stages[1].evidence.claim, false);
+  assert.ok(receipt.nonclaims.some((entry) => entry.includes('non-local target runtime')));
   cases += 1;
 }
 
@@ -421,8 +508,10 @@ for (const [stageId, overrides, nextCode] of failureMatrix) {
 {
   const receipt = await runVerify(config([]), passOptions());
   assert.equal(receipt.ok, true);
+  assert.equal(receipt.status, 'passed-without-acceptance');
   assert.equal(receipt.stages[2].evidence.conformance.status, 'not-claimed');
   assert.equal(receipt.stages[2].evidence.conformance.complete, false);
+  assert.equal(validateReceiptSchema(receipt), true, JSON.stringify(validateReceiptSchema.errors));
   cases += 1;
 }
 

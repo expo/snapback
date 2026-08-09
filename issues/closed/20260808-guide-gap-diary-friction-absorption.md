@@ -1,6 +1,6 @@
 # guide-gap: eleven diary friction points verified unabsorbed (batch)
 
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-08-08 · **Severity:** P1 batch · **Area:** guide pages / jobs / react-expo / headless client
 
 From the 2026-08-08 agentic surface audit (LLP 0202 theme 10). Each item was
@@ -65,3 +65,35 @@ Also re-verify (closed but flagged as a repeat finding across two runs,
 diary 0069 residues 5–6): the verify-config authoring contract's guide
 anchor (`issues/closed/20260808-verify-config-authoring-guide-anchor.md`)
 and the `EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN` guide anchor.
+
+## Resolution (2026-08-08)
+
+All eleven findings are now absorbed into the intent-indexed guide:
+
+- `guide/backend/jobs.md` gives the bounded retry recipe for expected
+  reservation contention, names `SNAPBACK_AUTH_RESERVATION_STALE`, defines
+  Snapback's dead-letter/DLQ vocabulary, and distinguishes product status from
+  operator-visible succeeded-after-retry receipts.
+- `guide/clients/react-expo.md` uses the shipped template's
+  `Platform.OS !== 'web'` filesystem-registration guard, explains the web
+  module-scope failure, requires `npx expo install` for Expo-compatible module
+  versions, states the packaged provider's dev-auth multi-persona boundary,
+  and documents the current install/copy/generate workaround for composing
+  into an existing Expo app.
+- `guide/getting-started/your-first-backend.md` and
+  `guide/backend/queries.md` explain that authored indexes cannot contain
+  system fields and give the partition-index plus system-field range/order
+  path. The first-backend page now invokes packaged `snapback generate`.
+- `guide/getting-started/the-authoring-loop.md` documents
+  `virtual:snapback/dev` and the ambient declaration required by hand-built
+  Vite apps. `guide/clients/headless.md` calls out manual polling at
+  `liveQuery`'s point of use.
+- `guide/capabilities.md` now carries an owned compose-existing-app GAP and
+  routes it to `issues/20260808-guide-gap-compose-snapback-into-existing-app.md`.
+  Retrieval-eval cases 32–39 preserve all of these queries.
+
+The two reflagged closed items were re-verified rather than reopened:
+`guide/testing/verify.md` still carries the packaged `defineVerifyConfig`
+contract and retrieval case 24, while `guide/clients/react-expo.md` still
+carries the `EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN` recipe and retrieval case
+25.

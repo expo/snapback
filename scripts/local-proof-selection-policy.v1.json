@@ -198,18 +198,30 @@
     "guide": {
       "records": [
         "guide/guide-manifest.generated.json",
-        "guide/guide-flat.generated.md"
+        "guide/guide-flat.generated.md",
+        "guide/reference/diagnostics-registry.json",
+        "guide/reference/diagnostics.md",
+        "packages/snapback-client/diagnostic-codes.d.mts"
       ],
       "recordPaths": [
         "guide/guide-manifest.generated.json",
-        "guide/guide-flat.generated.md"
+        "guide/guide-flat.generated.md",
+        "guide/reference/diagnostics-registry.json",
+        "guide/reference/diagnostics.md",
+        "packages/snapback-client/diagnostic-codes.d.mts"
       ],
       "triggerRules": {
+        "files": [
+          "scripts/generate-diagnostics-registry.mjs"
+        ],
         "prefixes": [
+          "clients/swift/",
           "guide/",
+          "packages/",
           "scripts/check-guide",
           "scripts/generate-guide",
-          "scripts/guide-"
+          "scripts/guide-",
+          "src/"
         ]
       },
       "regenerateCommand": "node scripts/generate-guide-manifest.mjs",

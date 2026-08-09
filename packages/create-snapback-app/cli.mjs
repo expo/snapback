@@ -5,10 +5,12 @@
 // @expo/snapback-cli so there is exactly one scaffolder.
 
 import { basename, relative, resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
 
 import { listTemplates, scaffoldApp } from '@expo/snapback-cli';
 
 const DEFAULT_TEMPLATE = 'expo-chat';
+const PACKAGE_VERSION = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version;
 
 function usage() {
   const templates = listTemplates();
@@ -33,9 +35,11 @@ export function parseArguments(argv) {
   let template = DEFAULT_TEMPLATE;
   let json = false;
   let help = false;
+  let version = false;
   while (args.length > 0) {
     const arg = args.shift();
     if (arg === '--help' || arg === '-h') help = true;
+    else if (arg === '--version' || arg === '-V') version = true;
     else if (arg === '--json') json = true;
     else if (arg === '--template') {
       template = args.shift();
@@ -50,7 +54,7 @@ export function parseArguments(argv) {
       throw Object.assign(new Error(`unexpected argument ${arg}\n${usage()}`), { code: 'SNAPBACK_NEW_USAGE' });
     }
   }
-  return { target, template, json, help };
+  return { target, template, json, help, version };
 }
 
 function nextSteps(result) {
@@ -69,7 +73,11 @@ function nextSteps(result) {
 }
 
 export function runCreateSnapbackApp(argv) {
-  const { target, template, json, help } = parseArguments(argv);
+  const { target, template, json, help, version } = parseArguments(argv);
+  if (version) {
+    console.log(`create-snapback-app ${PACKAGE_VERSION}`);
+    return 0;
+  }
   if (help) {
     console.log(usage());
     return 0;

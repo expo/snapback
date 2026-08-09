@@ -213,6 +213,7 @@ async fn env_profile_is_announced_refused_over_ceiling_and_restored_after_restar
     let ceiling_ready = temp.path().join("ceiling-ready.json");
     let output = Command::new(env!("CARGO_BIN_EXE_snapback"))
         .args([
+            "start",
             "--port",
             "0",
             "--db",
@@ -575,6 +576,7 @@ fn profile_marker(response: &axum::response::Response) -> Option<&str> {
 async fn spawn_server(database: &Path, ready_file: &Path, profile: &str) -> Child {
     Command::new(env!("CARGO_BIN_EXE_snapback"))
         .args([
+            "start",
             "--port",
             "0",
             "--db",

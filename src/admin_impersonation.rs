@@ -234,16 +234,24 @@ pub(crate) fn impersonation_required() -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_AUTH_IMPERSONATION_REQUIRED",
         "auth-impersonation",
-        "a valid independent impersonation capability is required",
+        "a valid independent impersonation capability is required in x-snapback-impersonation-capability; CLI callers acquire it from the owner-only <ready-file>.impersonation sidecar",
     )
+    .with_details(serde_json::json!({
+        "header": "x-snapback-impersonation-capability",
+        "capabilityFile": "<ready-file>.impersonation",
+    }))
 }
 
 fn impersonation_file_invalid() -> SnapbackError {
     SnapbackError::error(
-        "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
+        "SNAPBACK_AUTH_IMPERSONATION_FILE_INVALID",
         "auth-impersonation",
-        "the owner-only impersonation capability file is invalid",
+        "the owner-only <ready-file>.impersonation capability file is invalid; restart the server to mint a fresh process-bound sidecar",
     )
+    .with_details(serde_json::json!({
+        "header": "x-snapback-impersonation-capability",
+        "capabilityFile": "<ready-file>.impersonation",
+    }))
 }
 
 #[cfg(test)]
@@ -301,6 +309,14 @@ mod tests {
             assert_eq!(
                 error.diagnostic.code,
                 "SNAPBACK_AUTH_IMPERSONATION_REQUIRED"
+            );
+            assert_eq!(
+                error.diagnostic.details["header"],
+                "x-snapback-impersonation-capability"
+            );
+            assert_eq!(
+                error.diagnostic.details["capabilityFile"],
+                "<ready-file>.impersonation"
             );
         }
         assert_eq!(format!("{operator:?}"), "ImpersonationOperator([REDACTED])");
@@ -382,14 +398,20 @@ mod tests {
 
         let mut newline = live_text.as_bytes().to_vec();
         newline.push(b'\n');
-        assert!(parse_impersonation_capability_file(Zeroizing::new(newline)).is_err());
-        assert!(
-            parse_impersonation_capability_file(Zeroizing::new(vec![
-                b'x';
-                MAX_IMPERSONATION_CAPABILITY_FILE_BYTES
-                    + 1
-            ]))
-            .is_err()
+        let invalid = parse_impersonation_capability_file(Zeroizing::new(newline)).unwrap_err();
+        assert_eq!(
+            invalid.diagnostic.code,
+            "SNAPBACK_AUTH_IMPERSONATION_FILE_INVALID"
+        );
+        let oversized = parse_impersonation_capability_file(Zeroizing::new(vec![
+            b'x';
+            MAX_IMPERSONATION_CAPABILITY_FILE_BYTES
+                + 1
+        ]))
+        .unwrap_err();
+        assert_eq!(
+            oversized.diagnostic.code,
+            "SNAPBACK_AUTH_IMPERSONATION_FILE_INVALID"
         );
     }
 

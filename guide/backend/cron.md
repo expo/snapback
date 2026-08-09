@@ -4,13 +4,13 @@ id: backend.cron
 order: 4
 audience: agent-first
 capabilities: [backend.cron]
-authorities: [llp/0028-cron-scheduled-execution.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/tests/acceptance/cron.mjs, demos/_kit/server-process.mjs]
+authorities: [llp/0028-cron-scheduled-execution.rfc.md, src/cli.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/tests/acceptance/cron.mjs, demos/_kit/server-process.mjs]
 examples: [demos/all-aboard]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-08
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 # Scheduled execution with cron
@@ -123,7 +123,7 @@ To keep autonomous cron runs out of a test or dev session entirely, start
 the server with the scheduler disabled:
 
 ```sh
-SNAPBACK_CRON_DISABLED=1 snapback   # or: snapback --cron-disabled
+SNAPBACK_CRON_DISABLED=1 snapback start   # or: snapback start --cron-disabled
 ```
 
 The switch accepts `1` or `true`; any other value leaves the scheduler on,

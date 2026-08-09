@@ -50,6 +50,11 @@ feature. The canonical edit → regenerate → acceptance → inspect loop is
 Building Snapback itself is a different job: see
 [`AGENTS.md`](./AGENTS.md) and "Current code" below.
 
+## Operate it
+
+`snapback mcp` serves read-only Guide resources; `snapback mcp-control` adds typed control tools with local admin authority.
+Preview control setup with `snapback agent setup --print <client> --server mcp-control`.
+
 ## What it is
 
 Snapback aims to be everything you need behind an app, under one roof, with the
@@ -165,7 +170,7 @@ by building, launching, and handler-VM-qualifying the binary:
 ```sh
 scripts/bootstrap-ibex-runtime
 cargo test
-cargo run
+cargo run -- start
 ```
 
 By default the server tries `127.0.0.1:4287` and, if that port is busy, scans
@@ -180,9 +185,9 @@ different port. Use the already-running server, stop it, pass `--memory`, or
 choose a different `--db`.
 
 ```sh
-cargo run -- --port 9000 --db .snapback/other.sqlite3
+cargo run -- start --port 9000 --db .snapback/other.sqlite3
 cargo build
-./target/debug/snapback
+./target/debug/snapback start
 ```
 
 `snapback-local` remains available as an alias for the same local server.

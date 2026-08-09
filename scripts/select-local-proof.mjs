@@ -304,6 +304,14 @@ export function completeSelection(context = loadSelectionContext()) {
   };
 }
 
+export function selectGate(gateId, context = loadSelectionContext()) {
+  assert(/^[a-z0-9-]+$/u.test(gateId), `invalid gate id ${JSON.stringify(gateId)}`);
+  assert(context.inventory.canonicalGates.includes(gateId), `unknown gate ${gateId}`);
+  const selected = new Set([gateId]);
+  closePrerequisites(selected, context.calls, context.policy.dependencyOverrides ?? {});
+  return context.inventory.canonicalGates.filter((gate) => selected.has(gate));
+}
+
 export function planSelection({ cadence, base = null, head = 'HEAD' }) {
   const context = loadSelectionContext();
   const headRevision = resolveCommit(head);
@@ -373,6 +381,10 @@ function main() {
     const path = onlyPathArg(args);
     const receipt = validateSelectionReceipt(readJson(path));
     process.stdout.write(`${receipt.selectedGates.join('\n')}\n`);
+  } else if (command === 'gate') {
+    validateOptionArgs(args, ['--id']);
+    const gates = selectGate(requiredArg(args, '--id'));
+    process.stdout.write(`${gates.join('\n')}\n`);
   } else {
     usage();
   }
@@ -535,6 +547,6 @@ function fail(label) {
 
 function usage() {
   throw new Error(
-    'usage: select-local-proof.mjs plan --cadence complete|affected [--base REV] [--head REV] --output FILE [--github-output FILE] | validate RECEIPT | gates RECEIPT',
+    'usage: select-local-proof.mjs plan --cadence complete|affected [--base REV] [--head REV] --output FILE [--github-output FILE] | validate RECEIPT | gates RECEIPT | gate --id ID',
   );
 }

@@ -25,9 +25,32 @@ pub struct DiagnosticsResponse {
     pub diagnostics: Vec<Diagnostic>,
 }
 
+pub const ERROR_RESPONSE_FORMAT_VERSION: &str = "snapback.error-response.v1";
+
+/// Must-understand version of the error-response envelope. Version 1 is
+/// forward-additive: receivers accept and ignore unknown top-level members,
+/// while rejecting an unknown `formatVersion`. This compatibility rule does
+/// not define a remediation carrier; LLP 0146 OQ6 remains open.
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum ErrorResponseFormatVersion {
+    #[serde(rename = "snapback.error-response.v1")]
+    V1,
+}
+
+impl Default for ErrorResponseFormatVersion {
+    fn default() -> Self {
+        Self::V1
+    }
+}
+
+/// Versioned non-2xx HTTP error envelope. For the recognized v1 format,
+/// receivers MUST ignore unknown top-level members so additive metadata can
+/// cross mixed-version deployments. `formatVersion` itself is must-understand.
+/// No remediation member is defined here; LLP 0146 OQ6 remains unresolved.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(deny_unknown_fields)]
 pub struct ErrorResponse {
+    #[serde(rename = "formatVersion")]
+    pub format_version: ErrorResponseFormatVersion,
     pub diagnostic: Diagnostic,
     /// Present only when a mutation reached the provider receipt boundary.
     #[serde(default, skip_serializing_if = "Option::is_none")]

@@ -46,3 +46,19 @@ read-only `snapback mcp` guide server" — still true at every entry point:
    second.
 4. Add a `vscode` target to `agent setup` (same JSON writer, different
    path/key).
+
+## Resolution (2026-08-08)
+
+The control server is now named beside the read-only Guide server in the root
+`README.md`, both package READMEs, served `/llms.txt`, native root help,
+`snapback guide`, and all five scaffold `AGENTS.md` templates. Every funnel
+also gives the explicit
+`snapback agent setup --print <client> --server mcp-control` preview command.
+
+`operating.agent-controls` now carries the requested control-MCP aliases and
+has a retrieval-eval seed covering all four search phrases; its generated
+Guide manifest/flat projections are refreshed. Guide MCP
+initialization routes agents to `snapback-guide://page/meta.capabilities`
+before the manifest identity handshake. `snapback agent setup` now supports
+VS Code at `.vscode/mcp.json` using the `servers` key, with print,
+install, and uninstall acceptance coverage.

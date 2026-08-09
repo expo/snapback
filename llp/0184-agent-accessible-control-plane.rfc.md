@@ -6,7 +6,15 @@
 Host operations, HTTP API, Guide, Auth, Security, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (program completion — see "Delivery record
+**Revised:** 2026-08-08 (bounded gateway source parity: the compiler now
+extracts the named forwarded-path Set, kit regex constants, app-data fallback
+prefix list, and exact `path ===` literals from `gateway.js`; unlisted changes
+fail CI. Rule 11's catalog join remains system/control-scoped while the fixture
+now also covers the app-data plane). 2026-08-08 (post-program catalog hardening: the catalog records
+the shipped `snapback restart --ready-file <path>` and `snapback session mint
+--email <address>` projections; Rule 4 discovery metadata is compiler-enforced;
+all packaged root CLI verbs are inventoried; catalog-derived Guide/CLI recovery
+steps populate failed host-operation `next[]`). 2026-08-06 (program completion — see "Delivery record
 (2026-08-06)" at the end of this document: Phases 0–5 landed on main by two
 coordinated orchestrator sessions; both cold-agent evaluation legs passed
 against a packaged npm-installed build; acceptance criteria audited with
@@ -740,26 +748,18 @@ row cannot carry both; a `(method, path, operation)`-keyed one can, and the
 network-profile case is exactly the worked example the manifest's schema
 must accommodate from the start rather than as a special case.
 
-**This manifest is hand-maintained-plus-audit, the same v1 posture as rule
-2's `main.ts`/`setup.html` secondary manifest, not a mechanically enforced
-one.** Round 4 claimed the mechanical version — "the same shape as rule 2's
-`app.contract` action-enumeration check" — and that claim did not survive
-review: `app.contract` is a declarative artifact a compiler can enumerate;
-`cloudflare/src/gateway.js` is hand-written imperative code (exact-path
-checks, a `Set`, a `path.startsWith(...)` prefix wildcard, regex routes, a
-catch-all) with no routing-table data structure to walk without parsing
-source text, which OQ1's own deciding criterion already rules out. The
-honest posture is the one rule 2 already uses for exactly this shape of
-problem: the manifest is checked against its own known cases at generation
-time (a negative fixture proves that), drift on a *new* hand-routed case is
-caught by the existing LLP 0016 reconcile audit cadence rather than CI, and
-LLP 0031 already designates the Cloudflare acceptance suites as this arm's
-practical enforcement seam. Making `gateway.js` itself dispatch from a
-declared route table — which would upgrade this to a real mechanical check,
-the same way `app.contract`'s declarative shape is what makes rule 2's
-primary path mechanical — is a genuine option or a follow-on ticket, not
-something this cross-surface RFC can assert into existence by describing the
-manifest as if the table already existed.
+**The manifest remains hand-authored, with bounded mechanical source parity.**
+The compiler does not claim to parse arbitrary imperative JavaScript. It
+extracts the gateway's deliberately named registration seams —
+`FORWARDED_JSON_PATHS`, `KIT_ROUTE`, `KIT_STREAM_ROUTE`,
+`APP_DATA_PREFIXES`, and exact `path ===` string literals — and fails when
+the checked fixture does not list the extracted values. An unparsable rewrite
+of one of those declarations also fails closed. The fixture now records both
+the system/control domain joined into `ControlCatalog` and the app-data plane
+needed to keep the hosted availability audit complete. General
+`path.startsWith(...)` behavior and final catch-all semantics remain
+hand-audited and acceptance-tested; this is intentionally a bounded extractor,
+not a JavaScript AST or a declarative gateway router.
 
 A hosted-arm row's `availability.targets` records which targets it actually
 reaches — many local/derived operations are **target-refused** on the
@@ -782,17 +782,14 @@ host-ops counts.
 CI enforces, for this leg specifically:
 
 11. Every `(method, path, operation)` entry in the hosted-adapter manifest
-    matches a case in the Phase 0 audited inventory of `gateway.js`'s actual
-    hand-routed paths (checked against that checked-in inventory fixture,
-    not derived from parsing the dispatcher itself — the honest boundary
-    stated above), and every manifest entry has a catalog row. What this
-    rule actually guarantees is "the manifest matches the last audited
-    inventory," not "the manifest matches `gateway.js`'s current cases" — a
-    manifest entry that drifts from the *audited* fixture is caught at
-    generation time; a new hand-routed `gateway.js` case that never made it
-    into either the manifest or the audited inventory is caught only by the
-    next LLP 0016 audit, and that limitation is recorded here rather than
-    left implicit.
+    matches the fixture's system/control inventory and has a catalog row.
+    Independently, the fixture must equal the bounded values extracted from
+    `FORWARDED_JSON_PATHS`, `KIT_ROUTE`, `KIT_STREAM_ROUTE`,
+    `APP_DATA_PREFIXES`, and exact `path ===` literals in current
+    `gateway.js`; negative fixtures prove unlisted Set, regex, and exact-path
+    changes fail. This guarantee does not cover arbitrary new imperative
+    prefix/catch-all forms outside those seams; the LLP 0016 audit and
+    Cloudflare acceptance suite remain the backstop for that residual.
 
 ### 4. Agent discovery and setup
 
@@ -1163,12 +1160,12 @@ This phase is useful independently and should land first.
 2. Export/join route, host-operation, CLI, MCP, AdminClient, console, and Guide
    declarations without duplicating their semantic authorities.
 3. Author the Cloudflare gateway's hosted-adapter manifest (hand-maintained,
-   per §Design/3a — not derived from `gateway.js`'s dispatcher, which has no
-   declarative structure to parse), generate catalog rows from it, and
+   per §Design/3a), generate catalog rows from it, and
    enforce manifest-entry ↔ catalog-row completeness at generation time with
    a negative fixture (rule 11) — the fifth domain leg, alongside the
-   Rust/JS join. Record `gateway.js` drift (a new hand-routed case with no
-   manifest entry) as an LLP 0016 audit obligation, not a CI check.
+   Rust/JS join. The 2026-08-08 correction adds CI extraction for the bounded
+   named declarations and exact-path literals; other imperative routing forms
+   remain an LLP 0016 audit obligation.
 4. Serve the build catalog and instance availability projection with identity;
    add CLI and MCP search/describe resources.
 5. Generate the mechanical Guide tables and fail CI on every incomplete join.
@@ -1223,10 +1220,9 @@ The RFC is implemented only when all of the following hold:
   row lacks a coherent catalog join or an explicit `uiLocal`/`internal`
   marker with a reason — and fails when an out-of-domain (`SystemStatic` or
   ordinary `AppData`) route is cataloged at all. The hosted-adapter manifest
-  is checked against its own known `gateway.js` cases (rule 11); it does not
-  claim to catch a `gateway.js` case added with no manifest entry at all,
-  which is an audited, not CI-enforced, gap and is stated as such rather
-  than silently assumed away.
+  is checked against the current bounded `gateway.js` source literals (rule
+  11). Arbitrary new imperative prefix/catch-all forms outside the extracted
+  seams remain an audited rather than CI-enforced gap.
 - All catalog entries have exactly one `surfaceAccess` value, exactly one
   `operability` value, and a governing authority. `internal`/`unavailable`
   entries have reasons; `native` entries have every required projection and
@@ -1472,3 +1468,35 @@ codes) was classified at `ec5859b7b`.
 and data-only draft kind registry landed; this catalog's `remediation` field
 remains `null`/absent until the LLP 0094/0095-owned carrier and registry
 question is ruled.
+
+## Dated amendment: discovery completeness and projection repair (2026-08-08)
+
+The Rule 3–5 completeness bar now applies to the catalog compiler itself, not
+only to review prose. Every invocable row must carry a non-operation title,
+non-empty agent-task intents, and a Guide path or heading that exists in the
+checked `guide/` tree. An `apiOnly` row must additionally name a complete Guide
+recipe heading or an explicit authored CLI deferral. The worked-example task
+phrases “slow network,” “upload,” “reset the database,” and “mint session” are
+all retrieval fixtures in the authored discovery backfill.
+
+The packaged wrapper's `PACKAGED_CLI_COMMANDS` registry is a Rule 3 owner too.
+Every packaged root verb must have a `cli-only-operations.json` row or an
+explicit authored deferral, and the generator rejects either an uncovered verb
+or a declaration for a verb the package no longer ships. `acceptance.run`
+remains an honestly unbuilt host-op pin; its discovery metadata points to the
+actually shipped `snapback verify` done oracle rather than presenting the pin
+as an executable command.
+
+Two stale CLI facts are repaired. `host.restart` projects `snapback restart
+--ready-file <path>`, and HTTP refusal prose derives that spelling from the
+embedded catalog instead of maintaining a second copy. `auth.mintSession`
+projects `snapback session mint --email <address>` as `cliOnly`: the session
+credential may reach the operator's terminal, while the ordinary MCP result
+channel remains explicitly deferred as a secret carrier. Both rows carry
+agent-task intents and the host-operations Guide acquisition path.
+
+Failed `hostOpsResult` envelopes now populate the existing `next[]` carrier
+mechanically from the same row's Guide anchor and non-null CLI projection. This
+is an acquisition-path projection only; it creates no authority and does not
+rule LLP 0146 OQ6's separate question about contextual, machine-applicable
+remediation objects.

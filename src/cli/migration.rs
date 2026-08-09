@@ -26,7 +26,7 @@ fn migrate_envelope(
         artifacts: HostOpsArtifacts::default(),
         data,
         diagnostics,
-        next: Vec::new(),
+        next: crate::control_catalog::result_next(ok, operation),
         secret_read_tables: Vec::new(),
         secret_read_rows: 0,
         secret_read_query: false,
@@ -85,7 +85,13 @@ fn migrate_emit(
     if envelope.ok {
         Ok(())
     } else {
-        std::process::exit(1);
+        let exit_code = envelope
+            .diagnostics
+            .first()
+            .map_or(EXIT_FUNCTION_ERROR, |diagnostic| {
+                classify_native_exit(&diagnostic.code)
+            });
+        std::process::exit(exit_code);
     }
 }
 

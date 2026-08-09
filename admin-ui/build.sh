@@ -9,7 +9,7 @@
 #
 # Output: admin-ui/dist/ — index.html + assets/* (web) and __exact/* (native
 # platform manifest + envelope + startup). Serve with:
-#   SNAPBACK_ADMIN_DIST=$(pwd)/admin-ui/dist cargo run -- --memory
+#   SNAPBACK_ADMIN_DIST=$(pwd)/admin-ui/dist cargo run -- start --memory
 # then open the printed admin console URL
 set -euo pipefail
 

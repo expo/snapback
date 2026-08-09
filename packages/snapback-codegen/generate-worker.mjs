@@ -15,10 +15,13 @@ try {
   const result = await generateInProcess(backendDir, options);
   process.send?.(result);
 } catch (error) {
+  const diagnostic = error?.diagnostic && typeof error.diagnostic === 'object'
+    ? error.diagnostic
+    : null;
   process.send?.({
     ok: false,
-    diagnostics: [{
-      code: 'CODEGEN_MODULE_EVALUATION_FAILED',
+    diagnostics: [diagnostic ?? {
+      code: error?.code ?? 'CODEGEN_MODULE_EVALUATION_FAILED',
       severity: 'error',
       subsystem: 'codegen',
       message: error instanceof Error ? error.message : String(error),

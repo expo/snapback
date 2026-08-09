@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 # Swift client
@@ -20,9 +20,23 @@ reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 > [auth/targets](../auth/targets.md).
 
 `clients/swift/SnapbackClient` is the first non-JavaScript proving client. It
-ships as a SwiftPM library for macOS 13+ and iOS 16+ and claims `poll/local`
-and `live/local`. It does not yet claim `live/hosted`, offline `Parity`, or
-sender-constrained native custody.
+is structured as a SwiftPM library for macOS 13+ and iOS 16+ and claims
+`poll/local` and `live/local` when built and tested inside this repository. It
+does not yet claim external dependency consumption, `live/hosted`, offline
+`Parity`, or sender-constrained native custody.
+
+## Dependency declaration — not supported
+
+There is no supported SwiftPM dependency declaration for this client. The
+repository root has no `Package.swift`, no consumable tagged package release,
+and the conformance tests intentionally read the repository-owned fixture
+corpus through `SNAPBACK_REPO_ROOT`. Do not add
+`.package(url: "https://github.com/expo/snapback", ...)` to an application:
+SwiftPM cannot resolve the nested proving package from that repository URL.
+
+Use this client only from the in-repository package path. Publishing a tagged
+mirror or moving a manifest to a consumable package root would be a separate
+distribution change with its own fixture-resource and release evidence.
 
 ## Construct a client
 
@@ -74,18 +88,25 @@ reconnect logic in individual views.
 
 ## Verify changes
 
-From `clients/swift/SnapbackClient`, run `swift test`. The suite replays the
-committed conformance corpus and adds client-specific coverage for invalidation
-apply-before-ack (including equal data versions), terminal deletion, exact
-duplicate redelivery, foreground grant-loss recovery, body-auth omission, and
-reservation retry exhaustion/eventual success.
+From the repository root, run:
+
+```sh
+SNAPBACK_REPO_ROOT="$PWD" swift test --package-path clients/swift/SnapbackClient
+```
+
+The suite replays the committed conformance corpus and adds client-specific
+coverage for invalidation apply-before-ack (including equal data versions),
+terminal deletion, exact duplicate redelivery, foreground grant-loss recovery,
+body-auth omission, and reservation retry exhaustion/eventual success. This is
+an in-repository proof command, not a consumed-package test claim.
 
 ## Support status
 
-Swift is the maintained proving client in this repository. Kotlin and Dart
-implementations produced during the Partitime clean-room run are reference
-evidence, not committed or published first-party artifacts. Do not tell users
-to depend on them until their packaging, ownership, and CI gates land; the
+Swift is the maintained proving client in this repository, not a published or
+URL-consumable dependency. Kotlin and Dart implementations produced during the
+Partitime clean-room run are reference evidence, not committed or published
+first-party artifacts. Do not tell users to depend on any of these clients
+until their packaging, ownership, and CI gates land; the
 [capability index](../capabilities.md) keeps that gap explicit.
 
 ## Anti-patterns

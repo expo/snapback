@@ -35,7 +35,7 @@ try {
   writeFileSync(join(root, 'snapback-native'), '#!/bin/sh\nexit 0\n');
   chmodSync(join(root, 'snapback-native'), 0o755);
 
-  for (const client of ['codex', 'claude', 'cursor', 'generic']) {
+  for (const client of ['codex', 'claude', 'cursor', 'vscode', 'generic']) {
     const printed = run(['--print', client]);
     assert.equal(printed.status, 0, `${client}: ${printed.stderr}`);
     assert.match(printed.stdout, /snapback-guide/, `${client} print omitted the read-only server`);
@@ -47,7 +47,8 @@ try {
       assert.match(printed.stdout, /^\[mcp_servers\.snapback-control\]$/m);
     } else {
       const config = JSON.parse(printed.stdout);
-      assert.deepEqual(Object.keys(config.mcpServers), ['snapback-guide', 'snapback-control']);
+      const key = client === 'vscode' ? 'servers' : 'mcpServers';
+      assert.deepEqual(Object.keys(config[key]), ['snapback-guide', 'snapback-control']);
     }
   }
 
@@ -149,6 +150,21 @@ try {
     mcpServers: { unrelated: { command: 'keep-me' } },
   });
 
+  const vscodeRoot = join(root, 'vscode-project');
+  mkdirSync(vscodeRoot);
+  const vscodeConfig = join(vscodeRoot, '.vscode', 'mcp.json');
+  const installedVscode = run(['--install', 'vscode', '--server', 'mcp-control'], vscodeRoot);
+  assert.equal(installedVscode.status, 0, installedVscode.stderr);
+  assert.equal(parseTextReceipt(installedVscode.stdout).targetFile, vscodeConfig);
+  assert.deepEqual(JSON.parse(readFileSync(vscodeConfig, 'utf8')), {
+    servers: {
+      'snapback-control': { command: cli, args: ['mcp-control'] },
+    },
+  });
+  const uninstalledVscode = run(['--uninstall', 'vscode', '--server', 'mcp-control'], vscodeRoot);
+  assert.equal(uninstalledVscode.status, 0, uninstalledVscode.stderr);
+  assert.deepEqual(JSON.parse(readFileSync(vscodeConfig, 'utf8')), { servers: {} });
+
   const codexRoot = join(root, 'codex-project');
   mkdirSync(join(codexRoot, '.codex'), { recursive: true });
   const codexConfig = join(codexRoot, '.codex', 'config.toml');
@@ -212,7 +228,7 @@ try {
     mcpServers: { 'snapback-control': preexistingControl },
   }, 'receipt-backed uninstall must retain an entry that install did not add');
 
-  console.log('agent-setup.test.mjs: four-client print, authority preview, bounded install, receipts, and exact uninstall pass');
+  console.log('agent-setup.test.mjs: five-client print, authority preview, bounded install, receipts, and exact uninstall pass');
 } finally {
   rmSync(root, { recursive: true, force: true });
 }

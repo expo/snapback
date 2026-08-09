@@ -4,13 +4,13 @@ id: clients.react-expo
 order: 3
 audience: agent-first
 capabilities: [clients.react-expo]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0181-zero-configuration-expo.rfc.md, packages/snapback-cli/expo-dev.mjs, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-expo/app-binding.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-expo/config-plugin.cjs, packages/snapback-expo/index.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo/supervised-binding-cache.mjs, packages/snapback-expo/supervised-environment.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/_kit/eas-stage-build.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0181-zero-configuration-expo.rfc.md, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/templates/expo-chat/App.tsx, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-expo/app-binding.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-expo/config-plugin.cjs, packages/snapback-expo/index.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo/supervised-binding-cache.mjs, packages/snapback-expo/supervised-environment.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/_kit/eas-stage-build.mjs]
 examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md, demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md, demos/expo-golden-path-fixture/receipts/20260806-g4-external-summary.md, demos/expo-golden-path-fixture/receipts/physical-device-online-checklist.md, demos/partiful-matrix/native/react-expo, packages/snapback-cli/expo-device-forwarding.test.mjs, packages/snapback-cli/expo-bootstrap-exchange.test.mjs, packages/snapback-expo/asset-source.test.mjs, packages/snapback-expo/supervised-offline-fallback.test.mjs, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-expo/provider.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, scripts/local-source-package-closure.test.mjs, demos/rn-durable-store-witness/probe-App.tsx, demos/tandem-expo-bakeoff/scripts/build-ios-dev-client, demos/_kit/tests/repo-layout-unit.mjs, benchmarks/lanes/native-simulator.md]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 # React Expo Online clients
@@ -61,6 +61,14 @@ npx expo install \
   @expo/snapback-react@latest \
   expo-file-system expo-crypto expo-image-picker
 ```
+
+Use `npx expo install` for the Expo modules; never hand-write or copy an
+`expo-file-system` constraint. Expo module versions follow the app's SDK, and
+a plausible mismatched version can resolve cleanly while exposing a different
+file API. In plain JavaScript that mismatch may appear only when the durable
+store tries to publish a rename, leaving the app apparently healthy but on no
+working file-backed persistence path. The Expo installer selects the
+SDK-compatible versions.
 
 Do not add `@expo/snapback-contract` directly; the client/codegen packages
 own their exact Contract edge. Keep one coherent version vector in the lock,
@@ -232,6 +240,15 @@ export default function App() {
 }
 ```
 
+The packaged provider owns one custody identity and intentionally exposes no
+per-call `userId`. That means a **dev-auth, multi-persona switcher does not
+compose with `SnapbackExpoProvider`**: dev auth is client-asserted, but the
+provider has nowhere safe to put a different acting user for each call. Use
+sessions mode and adopt a separate ordinary session for each test persona when
+the app needs product-shaped multi-persona behavior. The checkpoint-era
+`useSnapbackQuery({ provider, query, userId })` bridge in an older demo is a
+test-era workaround, not the packaged path.
+
 From an Expo app whose backend is the conventional `snapback/` child, start
 the iOS default or select Android explicitly:
 
@@ -366,7 +383,9 @@ custody boundary:
 
 On web the client store resolves the browser IndexedDB arm (see
 [the React client page](./react.md)); `registerExpoFileSystemRqsFiles` is a
-native-only registration and is unnecessary there. These paves are proven at
+native-only registration. Calling it at module scope on web throws before
+React mounts and leaves a white screen, so the platform guard below is
+required. These paves are proven at
 package level (CORS, resolution, and adapter tests named above), and the
 diary 0068 web lanes collected the end-to-end Expo-web supervised receipt
 from the published packages
@@ -495,12 +514,13 @@ resolves every literal specifier reachable from the root, so a platform
 import would break non-Expo consumers). Instead the app hands the module in
 **once, at the root, before constructing any client**:
 
-```ts fragment reason="app-root composition; the registration + ladder behavior is CI-proven in packages/snapback-client/rqs-store-expo.test.mjs and the on-device witness in demos/rn-durable-store-witness/"
-import * as FileSystem from 'expo-file-system';
-import * as Crypto from 'expo-crypto';
-import { registerExpoFileSystemRqsFiles } from '@expo/snapback-client';
+Import `Platform` from `react-native`, then use the same guarded registration
+the shipped `expo-chat` template carries:
 
-registerExpoFileSystemRqsFiles(FileSystem, { crypto: Crypto });
+```tsx source=packages/snapback-cli/templates/expo-chat/App.tsx
+if (Platform.OS !== 'web') {
+  registerExpoFileSystemRqsFiles(FileSystem, { crypto: Crypto });
+}
 ```
 
 The `expo-chat` scaffold (`snapback new --template expo-chat`) ships this root
@@ -875,6 +895,9 @@ the EAS build itself is an external paid service and is not CI-verified.
   form.** The checkpoint-era `useSnapbackQuery({ provider, query, userId })`
   bridge teaches dev-mode client-asserted identity; the packaged surface is
   the generated-reference hook under a provider whose client owns custody.
+- **Do not build a dev-auth multi-persona app on the packaged provider.** Use
+  sessions and one adopted session per persona; the legacy per-call-user bridge
+  is not the supported composition.
 - **Do not polyfill RNG with `Math.random`.** When
   `SNAPBACK_CLIENT_WEBCRYPTO_RNG_MISSING` names a missing primitive, install
   a real RNG polyfill (`expo-crypto`).

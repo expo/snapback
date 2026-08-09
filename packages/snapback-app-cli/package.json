@@ -3,6 +3,17 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Artifact-driven local Snapback application CLI for agent journeys.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/expo/snapback.git",
+    "directory": "packages/snapback-app-cli"
+  },
+  "homepage": "https://github.com/expo/snapback#readme",
+  "bugs": {
+    "url": "https://github.com/expo/snapback/issues"
+  },
+  "keywords": ["snapback", "backend", "cli", "app-data"],
   "files": [
     "cli.mjs",
     "arguments.mjs",

@@ -9,7 +9,7 @@ use crate::local::{DiagnosticBoundary, LocalSnapback};
 use crate::manifest::SNAPBACK_SCHEMA_VERSION;
 use crate::server;
 use anyhow::Context;
-use clap::Parser;
+use clap::{CommandFactory, Parser};
 use rusqlite::OptionalExtension as _;
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -724,14 +724,17 @@ impl Default for Args {
     }
 }
 
-/// The `snapback` CLI (LLP 0024 first slice, built by LLP 0032 P6): with no
-/// subcommand it starts the local dev server (compatibility with the original
-/// single-purpose binary); the subcommands project the host operations.
+/// The `snapback` CLI (LLP 0024 first slice, built by LLP 0032 P6). Bare
+/// invocation is discovery-safe and prints this root help; `snapback start`
+/// explicitly owns foreground serving.
+// @ref LLP 0184#4-agent-discovery-and-setup — native help names both MCP
+// authority postures and the explicit control registration preview.
 #[derive(Debug, Parser)]
 #[command(
     name = "snapback",
     about = "Snapback local server, host operations, and embedded Guide",
-    after_help = "Documentation:\n  snapback guide [QUERY]  Browse or search the build-bound Snapback Guide\n  snapback mcp            Serve the same Guide as read-only MCP resources"
+    version = env!("CARGO_PKG_VERSION"),
+    after_help = "Documentation:\n  snapback guide [QUERY]  Browse or search the build-bound Snapback Guide\n  snapback mcp            Serve the same Guide as read-only MCP resources\n\nOperate it:\n  snapback mcp serves read-only Guide resources; snapback mcp-control adds typed control tools with local admin authority.\n  Preview with: snapback agent setup --print <client> --server mcp-control\n\nServer environment:\n  SNAPBACK_NETWORK_PROFILE=<profile>\n  SNAPBACK_CRON_DISABLED=1\n  SNAPBACK_JOBS_DISABLED=1\n  SNAPBACK_ASSET_RUNNER_DISABLED=1\n  SNAPBACK_LIVE_COALESCE_DISABLED=1\n  SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS=<ms>"
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -927,10 +930,14 @@ pub enum HostCommand {
         /// One-based bounded slice for a large exact symbol or module result.
         #[arg(long, default_value_t = 1, value_parser = parse_guide_slice)]
         slice: usize,
-        /// Emit the exact symbol/module result as snapback.guide-symbol-lookup.v1 JSON.
+        /// Emit snapback.guide-search.v1 JSON on every result branch.
         #[arg(long)]
         json: bool,
     },
+    /// Emit the complete structured native command inventory. Hidden from
+    /// human help because the packaged CLI consumes it to compose root JSON.
+    #[command(name = "command-inventory", hide = true)]
+    CommandInventory,
     /// Serve the build-bound Snapback Guide as read-only MCP resources over
     /// stdio. This is the resource-first Phase 2b slice; it exposes no tools.
     Mcp,
@@ -996,6 +1003,9 @@ pub struct AdminArgs {
     /// Print the fragment-bearing console URL instead of opening a browser.
     #[arg(long)]
     no_open: bool,
+    /// Emit versioned JSON records. The fragment-bearing URL is retained.
+    #[arg(long, global = true)]
+    json: bool,
     #[command(flatten)]
     target: TargetArgs,
     #[command(subcommand)]
@@ -1041,6 +1051,10 @@ pub enum AdminCommand {
         /// Revoke the credential bound to a redeemed claim.
         #[arg(long, value_name = "CLAIM", conflicts_with = "status")]
         revoke: Option<String>,
+        /// Write an owner-only readiness record after the claim URL and any
+        /// relay lease are ready for observation.
+        #[arg(long, value_name = "PATH")]
+        link_ready_file: Option<PathBuf>,
     },
 }
 
@@ -1999,8 +2013,203 @@ mod guide_command;
 pub(crate) use guide_command::{guide_command, parse_guide_slice};
 #[cfg(test)]
 pub(crate) use guide_command::{
-    GuideSectionMatch, render_guide_command, search_guide_sections_in,
+    DEFAULT_SERVED_GUIDE_URL, GUIDE_SEARCH_SCHEMA_VERSION, GuideSectionMatch,
+    render_guide_command, search_guide_sections_in,
 };
+
+// @ref LLP 0024#dated-amendment-native-machine-mode-2026-08-08 — the packaged
+// root help consumes a structured projection of Clap's authoritative tree.
+fn native_command_inventory_entry(command: &clap::Command, parent: &[String]) -> Value {
+    let mut path = parent.to_vec();
+    path.push(command.get_name().to_owned());
+    let arguments = command
+        .get_arguments()
+        .map(|argument| {
+            json!({
+                "id": argument.get_id().as_str(),
+                "long": argument.get_long(),
+                "short": argument.get_short().map(|value| value.to_string()),
+                "required": argument.is_required_set(),
+                "help": argument.get_help().map(ToString::to_string),
+            })
+        })
+        .collect::<Vec<_>>();
+    let subcommands = command
+        .get_subcommands()
+        .filter(|subcommand| subcommand.get_name() != "command-inventory")
+        .map(|subcommand| native_command_inventory_entry(subcommand, &path))
+        .collect::<Vec<_>>();
+    json!({
+        "name": command.get_name(),
+        "path": path,
+        "about": command.get_about().map(ToString::to_string),
+        "arguments": arguments,
+        "subcommands": subcommands,
+    })
+}
+
+fn native_command_inventory() -> anyhow::Result<()> {
+    let command = Cli::command();
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&json!({
+            "schemaVersion": "snapback.native-command-inventory.v1",
+            "ok": true,
+            "root": native_command_inventory_entry(&command, &[]),
+        }))?
+    );
+    Ok(())
+}
+
+// LLP 0024's native projection adopts the already-frozen app-data CLI exit
+// taxonomy. Additions may classify new diagnostics, but these numeric
+// meanings must never move.
+// @ref LLP 0024#dated-amendment-native-machine-mode-2026-08-08 — one exit grammar spans
+// native and app-data command projections.
+pub const EXIT_OK: i32 = 0;
+pub const EXIT_USAGE: i32 = 2;
+pub const EXIT_AUTH_REFUSED: i32 = 3;
+pub const EXIT_FUNCTION_NOT_FOUND: i32 = 4;
+pub const EXIT_FUNCTION_ERROR: i32 = 5;
+pub const EXIT_TRANSPORT_FAILED: i32 = 6;
+pub const EXIT_ARTIFACT_IDENTITY_MISMATCH: i32 = 7;
+pub const EXIT_VERSION_MISMATCH: i32 = 8;
+pub const EXIT_TIMEOUT: i32 = 9;
+pub const EXIT_SCRIPT_ERROR: i32 = 10;
+pub const EXIT_RESOURCE_EXCEEDED: i32 = 11;
+
+#[derive(Debug)]
+struct NativeCliFailure {
+    diagnostic: crate::diagnostic::Diagnostic,
+    exit_code: i32,
+}
+
+impl std::fmt::Display for NativeCliFailure {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            formatter,
+            "{}: {}",
+            self.diagnostic.code, self.diagnostic.message
+        )
+    }
+}
+
+impl std::error::Error for NativeCliFailure {}
+
+fn invocation_command() -> String {
+    let mut args = std::env::args().skip(1);
+    match args.find(|argument| !argument.starts_with('-')) {
+        Some(command) => format!("snapback {command}"),
+        None => "snapback".to_owned(),
+    }
+}
+
+fn native_cli_failure(code: &str, message: impl Into<String>, exit_code: i32) -> anyhow::Error {
+    let command = invocation_command();
+    anyhow::Error::new(NativeCliFailure {
+        diagnostic: crate::diagnostic::Diagnostic::error(code, "cli", message)
+            .with_details(json!({ "command": command })),
+        exit_code,
+    })
+}
+
+fn diagnostic_code_from_message(message: &str) -> Option<&str> {
+    let code = message.split(':').next()?;
+    (code.starts_with("SNAPBACK_")
+        && code
+            .bytes()
+            .all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit() || byte == b'_'))
+    .then_some(code)
+}
+
+fn classify_native_exit(code: &str) -> i32 {
+    if code == "SNAPBACK_CLI_ARGUMENT_INVALID" || code.ends_with("_USAGE") {
+        EXIT_USAGE
+    } else if code.contains("AUTH_REFUSED") || code.starts_with("SNAPBACK_AUTH_") {
+        EXIT_AUTH_REFUSED
+    } else if code.contains("FUNCTION_NOT_FOUND") || code.contains("FUNCTION_UNKNOWN") {
+        EXIT_FUNCTION_NOT_FOUND
+    } else if code.contains("TRANSPORT")
+        || code.contains("UNREACHABLE")
+        || code.contains("HTTP_FAILED")
+    {
+        EXIT_TRANSPORT_FAILED
+    } else if code.contains("ARTIFACT_IDENTITY") || code.contains("IDENTITY_MISMATCH") {
+        EXIT_ARTIFACT_IDENTITY_MISMATCH
+    } else if code.contains("VERSION_MISMATCH") || code.contains("VERSION_UNSUPPORTED") {
+        EXIT_VERSION_MISMATCH
+    } else if code.contains("TIMEOUT") {
+        EXIT_TIMEOUT
+    } else if code.contains("SCRIPT") {
+        EXIT_SCRIPT_ERROR
+    } else if code.contains("RESOURCE_EXCEEDED") || code.contains("OUTPUT_LIMIT") {
+        EXIT_RESOURCE_EXCEEDED
+    } else {
+        EXIT_FUNCTION_ERROR
+    }
+}
+
+fn envelope_exit_code(envelope: &Value) -> i32 {
+    envelope
+        .pointer("/diagnostics/0/code")
+        .and_then(Value::as_str)
+        .map_or(EXIT_FUNCTION_ERROR, classify_native_exit)
+}
+
+pub fn json_mode_requested() -> bool {
+    let args = std::env::args().skip(1).collect::<Vec<_>>();
+    args.iter().enumerate().any(|(index, argument)| {
+        argument == "--json"
+            || argument == "--format=json"
+            || (argument == "--format" && args.get(index + 1).is_some_and(|value| value == "json"))
+    })
+}
+
+// @ref LLP 0024#dated-amendment-native-machine-mode-2026-08-08 — requested
+// machine mode has one failure envelope and the frozen exit projection.
+pub fn project_cli_failure(error: &anyhow::Error) -> (i32, Value) {
+    let (exit_code, diagnostic) = if let Some(failure) = error.downcast_ref::<NativeCliFailure>() {
+        (failure.exit_code, failure.diagnostic.clone())
+    } else if let Some(failure) = error.downcast_ref::<crate::diagnostic::SnapbackError>() {
+        (
+            classify_native_exit(&failure.diagnostic.code),
+            failure.diagnostic.clone(),
+        )
+    } else {
+        let message = format!("{error:#}");
+        let code = diagnostic_code_from_message(&message)
+            .unwrap_or("SNAPBACK_CLI_FAILED")
+            .to_owned();
+        let command = invocation_command();
+        (
+            classify_native_exit(&code),
+            crate::diagnostic::Diagnostic::error(code, "cli", message)
+                .with_details(json!({ "command": command })),
+        )
+    };
+    let operation = invocation_command()
+        .trim_start_matches("snapback ")
+        .to_owned();
+    let envelope = json!({
+        "schemaVersion": SNAPBACK_SCHEMA_VERSION,
+        "resultKind": HOST_OPS_RESULT_KIND,
+        "requestId": crate::ids::mint_time_ordered(crate::ids::Kind::HostOperation),
+        "operation": operation,
+        "ok": false,
+        "target": {
+            "appId": "unknown",
+            "appRoot": Value::Null,
+            "targetProfile": "local-dev-sqlite-ibex",
+            "serverUrl": Value::Null,
+        },
+        "authority": Value::Null,
+        "artifacts": HostOpsArtifacts::default(),
+        "data": {},
+        "diagnostics": [diagnostic],
+        "next": [],
+    });
+    (exit_code, envelope)
+}
 
 pub async fn run_from_env() -> anyhow::Result<()> {
     let cli = match Cli::try_parse() {
@@ -2016,15 +2225,36 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             // can still make a spelling mistake that causes clap to quote an
             // unexpected token. Collapse every config-set parse refusal to a
             // stable, value-free diagnostic instead of rendering argv.
-            anyhow::bail!(
-                "SNAPBACK_CONFIG_SET_USAGE_INVALID: invalid config set arguments; run `snapback config set --help` for the value-free usage"
-            )
+            return Err(native_cli_failure(
+                "SNAPBACK_CONFIG_SET_USAGE_INVALID",
+                "invalid config set arguments; run `snapback config set --help` for the value-free usage",
+                EXIT_USAGE,
+            ));
         }
-        Err(error) => error.exit(),
+        Err(error)
+            if matches!(
+                error.kind(),
+                clap::error::ErrorKind::DisplayHelp | clap::error::ErrorKind::DisplayVersion
+            ) =>
+        {
+            error.print()?;
+            return Ok(());
+        }
+        Err(error) => {
+            return Err(native_cli_failure(
+                "SNAPBACK_CLI_ARGUMENT_INVALID",
+                error.to_string(),
+                EXIT_USAGE,
+            ));
+        }
     };
     reject_misdirected_serve_flags(&cli)?;
     match cli.command {
-        None => run(cli.serve).await,
+        None => {
+            Cli::command().print_long_help()?;
+            println!();
+            Ok(())
+        }
         Some(HostCommand::Start(args)) => run(args).await,
         Some(HostCommand::Stop { ready_file }) => host_stop(&ready_file),
         Some(HostCommand::Restart { ready_file, reason }) => {
@@ -2065,7 +2295,7 @@ pub async fn run_from_env() -> anyhow::Result<()> {
                 )?);
             }
             if failed {
-                std::process::exit(1);
+                std::process::exit(EXIT_FUNCTION_ERROR);
             }
             Ok(())
         }
@@ -2333,6 +2563,7 @@ pub async fn run_from_env() -> anyhow::Result<()> {
         Some(HostCommand::Fork { command }) => fork_command(command).await,
         Some(HostCommand::Controls { command }) => controls_command(command),
         Some(HostCommand::Guide { query, slice, json }) => guide_command(&query, slice, json),
+        Some(HostCommand::CommandInventory) => native_command_inventory(),
         Some(HostCommand::Mcp) => crate::guide_mcp::run_stdio(),
         Some(HostCommand::BuildIdentity) => {
             println!(
@@ -2376,7 +2607,7 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             };
             println!("{}", serde_json::to_string(&report)?);
             if result.is_err() {
-                std::process::exit(1);
+                std::process::exit(EXIT_FUNCTION_ERROR);
             }
             Ok(())
         }
@@ -2498,6 +2729,7 @@ async fn auth_backup(database_path: &Path, output_directory: &Path) -> anyhow::R
             println!(
                 "{}",
                 serde_json::to_string_pretty(&json!({
+                    "schemaVersion": "snapback.auth-backup-result.v1",
                     "ok": true,
                     "operation": "auth.backup",
                     "output": output_directory,
@@ -2526,6 +2758,7 @@ async fn auth_backup(database_path: &Path, output_directory: &Path) -> anyhow::R
             println!(
                 "{}",
                 serde_json::to_string_pretty(&json!({
+                    "schemaVersion": "snapback.auth-backup-result.v1",
                     "ok": false,
                     "operation": "auth.backup",
                     "output": output_directory,
@@ -2601,6 +2834,7 @@ fn store_describe(database_path: &Path) -> anyhow::Result<()> {
     println!(
         "{}",
         serde_json::to_string_pretty(&json!({
+            "schemaVersion": "snapback.store-describe-result.v1",
             "ok": true,
             "operation": "store.describe",
             "database": database_path,
@@ -2619,6 +2853,7 @@ async fn store_export(database_path: &Path, output_directory: &Path) -> anyhow::
             println!(
                 "{}",
                 serde_json::to_string_pretty(&json!({
+                    "schemaVersion": "snapback.store-export-result.v1",
                     "ok": true,
                     "operation": "store.export",
                     "output": output_directory,
@@ -2648,6 +2883,7 @@ async fn store_export(database_path: &Path, output_directory: &Path) -> anyhow::
             println!(
                 "{}",
                 serde_json::to_string_pretty(&json!({
+                    "schemaVersion": "snapback.store-export-result.v1",
                     "ok": false,
                     "operation": "store.export",
                     "output": output_directory,
@@ -2725,6 +2961,7 @@ fn auth_restore(backup_directory: &Path, target_database: &Path) -> anyhow::Resu
     println!(
         "{}",
         serde_json::to_string_pretty(&json!({
+            "schemaVersion": "snapback.auth-restore-result.v1",
             "ok": true,
             "operation": "auth.restore",
             "database": target_database,
@@ -2749,9 +2986,9 @@ use fork::now_ms;
 pub(crate) use fork::configure_detached_child;
 
 fn reject_misdirected_serve_flags(cli: &Cli) -> anyhow::Result<()> {
-    if cli.command.is_some() && cli.serve != Args::default() {
+    if cli.serve != Args::default() {
         anyhow::bail!(
-            "serve flags before a subcommand are ignored; pass them after `start` (for example: `snapback start --memory`)"
+            "SNAPBACK_CLI_ARGUMENT_INVALID: server flags require the explicit `start` command (for example: `snapback start --memory`)"
         );
     }
     Ok(())
@@ -3275,7 +3512,7 @@ fn mint_session_request(email: String) -> Value {
 fn host_op_via_http(target: &TargetArgs, request: Value) -> anyhow::Result<()> {
     let envelope = post_host_op(target, request)?;
     if !print_envelope(&envelope) {
-        std::process::exit(1);
+        std::process::exit(envelope_exit_code(&envelope));
     }
     Ok(())
 }
@@ -3838,21 +4075,14 @@ fn controls_command(command: ControlsCommand) -> anyhow::Result<()> {
             }
             let digest = crate::control_catalog::catalog_digest(&catalog).unwrap_or("unknown");
             println!("Build control catalog {digest}");
-            println!("OPERATION\tSURFACE\tOPERABILITY\tSTATUS");
-            for entry in catalog["entries"].as_array().into_iter().flatten() {
-                println!(
-                    "{}\t{}\t{}\t{}",
-                    entry["operation"].as_str().unwrap_or(""),
-                    entry["surfaceAccess"].as_str().unwrap_or(""),
-                    entry["operability"].as_str().unwrap_or(""),
-                    entry["status"].as_str().unwrap_or(""),
-                );
-            }
+            print!("{}", controls_list_text(&catalog));
             Ok(())
         }
         ControlsCommand::Describe { operation, json } => {
             let Some(entry) = crate::control_catalog::operation(&operation) else {
-                anyhow::bail!("control catalog contains no operation {operation:?}");
+                anyhow::bail!(
+                    "SNAPBACK_CONTROL_OPERATION_UNKNOWN: control catalog contains no operation {operation:?}; discover candidates with `snapback controls list --intent <words>`"
+                );
             };
             let output = serde_json::json!({
                 "schemaVersion": crate::control_catalog::CATALOG_SCHEMA_VERSION,
@@ -3872,6 +4102,25 @@ fn controls_command(command: ControlsCommand) -> anyhow::Result<()> {
             Ok(())
         }
     }
+}
+
+fn controls_list_text(catalog: &Value) -> String {
+    let mut output = String::from("OPERATION\tTITLE\tSURFACE\tOPERABILITY\tSTATUS\tCLI\n");
+    for entry in catalog["entries"].as_array().into_iter().flatten() {
+        output.push_str(&format!(
+            "{}\t{}\t{}\t{}\t{}\t{}\n",
+            entry["operation"].as_str().unwrap_or(""),
+            entry["title"].as_str().unwrap_or(""),
+            entry["surfaceAccess"].as_str().unwrap_or(""),
+            entry["operability"].as_str().unwrap_or(""),
+            entry["status"].as_str().unwrap_or(""),
+            entry
+                .pointer("/projections/cli")
+                .and_then(Value::as_str)
+                .unwrap_or("—"),
+        ));
+    }
+    output
 }
 
 mod config_command;
@@ -4096,7 +4345,9 @@ struct ConsoleReachabilityDropCliResponse {
 
 async fn admin_command(args: AdminArgs) -> anyhow::Result<()> {
     match args.command {
-        Some(AdminCommand::Approve { code, target }) => approve_console_code(&target, &code),
+        Some(AdminCommand::Approve { code, target }) => {
+            approve_console_code(&target, &code, args.json)
+        }
         Some(AdminCommand::Link {
             target,
             no_wait,
@@ -4106,6 +4357,7 @@ async fn admin_command(args: AdminArgs) -> anyhow::Result<()> {
             lan,
             status,
             revoke,
+            link_ready_file,
         }) => {
             admin_claim_link(AdminClaimLinkRequest {
                 target,
@@ -4116,10 +4368,16 @@ async fn admin_command(args: AdminArgs) -> anyhow::Result<()> {
                 lan,
                 status,
                 revoke,
+                json: args.json,
+                link_ready_file,
             })
             .await
         }
-        None => launch_admin_console(&args.target, args.no_open),
+        None => launch_admin_console(
+            &args.target,
+            args.no_open || !controlling_terminal_available(),
+            args.json,
+        ),
     }
 }
 
@@ -4132,6 +4390,8 @@ struct AdminClaimLinkRequest {
     lan: Option<String>,
     status: Option<String>,
     revoke: Option<String>,
+    json: bool,
+    link_ready_file: Option<PathBuf>,
 }
 
 async fn admin_claim_link(request: AdminClaimLinkRequest) -> anyhow::Result<()> {
@@ -4144,6 +4404,8 @@ async fn admin_claim_link(request: AdminClaimLinkRequest) -> anyhow::Result<()> 
         lan,
         status,
         revoke,
+        json,
+        link_ready_file,
     } = request;
     let url_base = url_base.as_deref();
     let lan = lan.as_deref();
@@ -4159,8 +4421,17 @@ async fn admin_claim_link(request: AdminClaimLinkRequest) -> anyhow::Result<()> 
     );
     anyhow::ensure!(
         !((status.is_some() || revoke.is_some())
-            && (url_base.is_some() || qr || tailscale || lan.is_some() || no_wait)),
+            && (url_base.is_some()
+                || qr
+                || tailscale
+                || lan.is_some()
+                || no_wait
+                || link_ready_file.is_some())),
         "SNAPBACK_ADMIN_LINK_CONTROL_CONFLICT: --status/--revoke cannot create or present a new reachability link"
+    );
+    anyhow::ensure!(
+        !(no_wait && link_ready_file.is_some()),
+        "SNAPBACK_ADMIN_LINK_READY_FILE_INVALID: --link-ready-file requires the attached observation lifecycle"
     );
     let resolved = resolve_admin_console_target(&target)?;
     if let Some(claim_code) = status {
@@ -4170,7 +4441,7 @@ async fn admin_claim_link(request: AdminClaimLinkRequest) -> anyhow::Result<()> 
             &claim_code,
             "claim status",
         )?;
-        print_console_claim_status(&status);
+        print_console_claim_status(&status, json);
         return Ok(());
     }
     if let Some(claim_code) = revoke {
@@ -4180,7 +4451,7 @@ async fn admin_claim_link(request: AdminClaimLinkRequest) -> anyhow::Result<()> 
             &claim_code,
             "claim revocation",
         )?;
-        print_console_claim_status(&status);
+        print_console_claim_status(&status, json);
         return Ok(());
     }
 
@@ -4257,9 +4528,28 @@ async fn admin_claim_link(request: AdminClaimLinkRequest) -> anyhow::Result<()> 
     // URL and server logs never receive it, and the link is inert after the
     // attached observer reports redemption or expiry.
     let link = console_claim_fragment_url(&printed_origin, &claim.claim_code);
-    println!("{link}");
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string(&json!({
+                "schemaVersion": "snapback.admin-link.v1",
+                "event": "ready",
+                "ok": true,
+                "url": link,
+                "claimExpiresAtMs": claim.expires_at_ms,
+                "observing": !no_wait,
+                "readyFile": link_ready_file,
+            }))?
+        );
+    } else {
+        println!("{link}");
+    }
     if qr {
-        println!("{}", crate::admin_link::render_terminal_qr(&link)?);
+        if json {
+            eprintln!("{}", crate::admin_link::render_terminal_qr(&link)?);
+        } else {
+            println!("{}", crate::admin_link::render_terminal_qr(&link)?);
+        }
         if origin_is_loopback(&printed_origin) {
             eprintln!(
                 "SNAPBACK_ADMIN_QR_LOOPBACK_ONLY: this QR is reachable only from the Snapback server machine; use --lan or --tailscale for another device"
@@ -4271,6 +4561,10 @@ async fn admin_claim_link(request: AdminClaimLinkRequest) -> anyhow::Result<()> 
     if no_wait {
         return Ok(());
     }
+    let _ready_file = link_ready_file
+        .as_deref()
+        .map(|path| AdminLinkReadyFile::publish(path, &link, &claim, &printed_origin))
+        .transpose()?;
     let shutdown = admin_link_termination_signal();
     tokio::pin!(shutdown);
     let mut redemption_reported = false;
@@ -4288,7 +4582,15 @@ async fn admin_claim_link(request: AdminClaimLinkRequest) -> anyhow::Result<()> 
                     cleanup?;
                     anyhow::bail!("SNAPBACK_ADMIN_LAN_RELAY_FAILED: the relay listener stopped before its lease ended");
                 };
-                println!("relay-observed peer {}", observation.peer);
+                if json {
+                    println!("{}", serde_json::to_string(&json!({
+                        "schemaVersion": "snapback.admin-link.v1",
+                        "event": "relay-observed",
+                        "peer": observation.peer,
+                    }))?);
+                } else {
+                    println!("relay-observed peer {}", observation.peer);
+                }
             }
             _ = tokio::time::sleep(std::time::Duration::from_millis(500)) => {
                 let status = if let Some(managed) = managed.as_ref() {
@@ -4322,12 +4624,12 @@ async fn admin_claim_link(request: AdminClaimLinkRequest) -> anyhow::Result<()> 
                     "pending" => continue,
                     "redeemed" if managed.is_some() => {
                         if !redemption_reported {
-                            print_console_claim_status(&status);
+                            print_console_claim_status(&status, json);
                             redemption_reported = true;
                         }
                     }
                     "redeemed" | "claim_expired" | "credential_expired" | "revoked" => {
-                        print_console_claim_status(&status);
+                        print_console_claim_status(&status, json);
                         if let Some(managed) = managed.take() {
                             managed.finish(false).await?;
                         }
@@ -4344,6 +4646,53 @@ async fn admin_claim_link(request: AdminClaimLinkRequest) -> anyhow::Result<()> 
                 }
             }
         }
+    }
+}
+
+// @ref LLP 0024#dated-amendment-native-machine-mode-2026-08-08 — readiness is
+// owned by the attached observer and disappears with that lifecycle.
+struct AdminLinkReadyFile {
+    path: PathBuf,
+}
+
+impl AdminLinkReadyFile {
+    fn publish(
+        path: &Path,
+        link: &str,
+        claim: &ConsoleClaimMintCliResponse,
+        origin: &str,
+    ) -> anyhow::Result<Self> {
+        if let Some(parent) = path
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+        {
+            std::fs::create_dir_all(parent).with_context(|| {
+                format!(
+                    "failed to create admin-link ready directory {}",
+                    parent.display()
+                )
+            })?;
+        }
+        let bytes = serde_json::to_vec_pretty(&json!({
+            "schemaVersion": "snapback.admin-link-ready.v1",
+            "ready": true,
+            "pid": std::process::id(),
+            "origin": origin,
+            "url": link,
+            "claimExpiresAtMs": claim.expires_at_ms,
+        }))?;
+        crate::secure_file::write_owner_only(path, &bytes).with_context(|| {
+            format!("failed to publish admin-link ready file {}", path.display())
+        })?;
+        Ok(Self {
+            path: path.to_owned(),
+        })
+    }
+}
+
+impl Drop for AdminLinkReadyFile {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.path);
     }
 }
 
@@ -4612,7 +4961,27 @@ fn console_claim_control_request(
     })
 }
 
-fn print_console_claim_status(status: &ConsoleClaimStatusCliResponse) {
+fn print_console_claim_status(status: &ConsoleClaimStatusCliResponse, json_output: bool) {
+    if json_output {
+        println!(
+            "{}",
+            serde_json::to_string(&json!({
+                "schemaVersion": "snapback.admin-link.v1",
+                "event": "claim-status",
+                "status": status.status,
+                "claimExpiresAtMs": status.claim_expires_at_ms,
+                "redeemedAtMs": status.redeemed_at_ms,
+                "transportPeer": status.transport_peer,
+                "transportPeerSource": status.transport_peer_source,
+                "credentialDigestSha256": status.credential_digest_sha256,
+                "credentialExpiresAtMs": status.credential_expires_at_ms,
+                "credentialMaxExpiresAtMs": status.credential_max_expires_at_ms,
+                "revokedAtMs": status.revoked_at_ms,
+            }))
+            .expect("serialize admin claim status")
+        );
+        return;
+    }
     match status.status.as_str() {
         "pending" => println!(
             "claim pending until {}",
@@ -4690,7 +5059,11 @@ fn console_claim_fragment_url(origin: &str, claim_code: &str) -> String {
     )
 }
 
-fn launch_admin_console(target: &TargetArgs, no_open: bool) -> anyhow::Result<()> {
+fn launch_admin_console(
+    target: &TargetArgs,
+    no_open: bool,
+    json_output: bool,
+) -> anyhow::Result<()> {
     let resolved = resolve_admin_console_target(target)?;
     let mut request = ureq::post(&format!(
         "{}/_snapback/api/console/credential",
@@ -4726,16 +5099,28 @@ fn launch_admin_console(target: &TargetArgs, no_open: bool) -> anyhow::Result<()
         &credential.credential,
         credential.expires_at_ms,
     );
-    if no_open {
+    if json_output {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "schemaVersion": "snapback.admin-console.v1",
+                "ok": true,
+                "url": url,
+                "openRequested": !no_open,
+                "expiresAtMs": credential.expires_at_ms,
+            }))?
+        );
+    } else {
         println!("{url}");
+    }
+    if no_open {
         return Ok(());
     }
     open_admin_browser(&url)?;
-    println!("admin console opened");
     Ok(())
 }
 
-fn approve_console_code(target: &TargetArgs, code: &str) -> anyhow::Result<()> {
+fn approve_console_code(target: &TargetArgs, code: &str, json_output: bool) -> anyhow::Result<()> {
     let resolved = resolve_admin_console_target(target)?;
     let mut request = ureq::post(&format!(
         "{}/_snapback/api/console/approval/approve",
@@ -4762,7 +5147,18 @@ fn approve_console_code(target: &TargetArgs, code: &str) -> anyhow::Result<()> {
         approved.approved,
         "SNAPBACK_ADMIN_APPROVAL_RESPONSE_INVALID: console approval was not confirmed"
     );
-    println!("admin console code approved");
+    if json_output {
+        println!(
+            "{}",
+            serde_json::to_string(&json!({
+                "schemaVersion": "snapback.admin-approval.v1",
+                "ok": true,
+                "approved": true,
+            }))?
+        );
+    } else {
+        println!("admin console code approved");
+    }
     Ok(())
 }
 
@@ -5097,9 +5493,10 @@ fn print_envelope(envelope: &Value) -> bool {
 fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
     let request_id = crate::ids::mint_time_ordered(crate::ids::Kind::HostOperation);
     let envelope = host_stop_result(ready_file, &request_id)?;
-    let ok = print_envelope(&serde_json::to_value(&envelope)?);
+    let value = serde_json::to_value(&envelope)?;
+    let ok = print_envelope(&value);
     if !ok {
-        std::process::exit(1);
+        std::process::exit(envelope_exit_code(&value));
     }
     Ok(())
 }
@@ -5130,7 +5527,7 @@ fn host_stop_result(ready_file: &Path, request_id: &str) -> anyhow::Result<HostO
             artifacts: HostOpsArtifacts::default(),
             data,
             diagnostics,
-            next: Vec::new(),
+            next: crate::control_catalog::result_next(ok, "host.stop"),
             secret_read_tables: Vec::new(),
             secret_read_rows: 0,
             secret_read_query: false,
@@ -5176,9 +5573,10 @@ fn host_stop_result(ready_file: &Path, request_id: &str) -> anyhow::Result<HostO
 async fn host_restart(ready_file: &Path, reason: &str) -> anyhow::Result<()> {
     let request_id = crate::ids::mint_time_ordered(crate::ids::Kind::HostOperation);
     let envelope = host_restart_result(ready_file, reason, &request_id).await?;
-    let ok = print_envelope(&serde_json::to_value(&envelope)?);
+    let value = serde_json::to_value(&envelope)?;
+    let ok = print_envelope(&value);
     if !ok {
-        std::process::exit(1);
+        std::process::exit(envelope_exit_code(&value));
     }
     Ok(())
 }
@@ -5353,7 +5751,7 @@ fn lifecycle_result(
         artifacts: HostOpsArtifacts::default(),
         data,
         diagnostics,
-        next: Vec::new(),
+        next: crate::control_catalog::result_next(ok, operation),
         secret_read_tables: Vec::new(),
         secret_read_rows: 0,
         secret_read_query: false,
@@ -5369,12 +5767,13 @@ fn compose_restart_result(
 ) -> HostOpsResult {
     let mut diagnostics = previous.diagnostics.clone();
     diagnostics.extend(current.diagnostics.clone());
+    let ok = previous.ok && current.ok;
     HostOpsResult {
         schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
         result_kind: HOST_OPS_RESULT_KIND.to_owned(),
         request_id: request_id.to_owned(),
         operation: "host.restart".to_owned(),
-        ok: previous.ok && current.ok,
+        ok,
         target: current.target.clone(),
         authority: None,
         artifacts: current.artifacts.clone(),
@@ -5384,7 +5783,7 @@ fn compose_restart_result(
             "current": current.data,
         }),
         diagnostics,
-        next: Vec::new(),
+        next: crate::control_catalog::result_next(ok, "host.restart"),
         secret_read_tables: Vec::new(),
         secret_read_rows: 0,
         secret_read_query: false,
@@ -5561,7 +5960,7 @@ async fn restart_start_result(
             "runtimeState": inspect.pointer("/data/runtimeState").cloned().unwrap_or(Value::Null),
         }),
         diagnostics,
-        next: Vec::new(),
+        next: crate::control_catalog::result_next(ok, "host.start"),
         secret_read_tables: Vec::new(),
         secret_read_rows: 0,
         secret_read_query: false,

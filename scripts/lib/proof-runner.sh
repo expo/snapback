@@ -5,7 +5,7 @@
 # feedback while replacing failed-producer timeout cascades with BLOCKED.
 #
 # The caller remains responsible for `set -e` and calls:
-#   proof_runner_init <proof-id> <jsonl-output> <keep-going:0|1>
+#   proof_runner_init <proof-id> <jsonl-output> <keep-going:0|1> <selected-count>
 #   proof_gate <gate-id> [--requires <comma-separated-gate-ids>] -- <command...>
 #   proof_not_selected <gate-id> <reason>
 #   proof_runner_finish
@@ -29,13 +29,15 @@ proof_now_ms() {
 }
 
 proof_runner_init() {
-    if [ "$#" -ne 3 ]; then
-        printf '[snapback-proof] proof_runner_init expects proof id, result path, and keep-going flag\n' >&2
+    if [ "$#" -ne 4 ]; then
+        printf '[snapback-proof] proof_runner_init expects proof id, result path, keep-going flag, and selected count\n' >&2
         return 2
     fi
     PROOF_ID="$1"
     PROOF_RESULTS_PATH="$2"
     PROOF_KEEP_GOING="$3"
+    PROOF_SELECTED_COUNT="$4"
+    PROOF_SELECTED_INDEX=0
     case "$PROOF_KEEP_GOING" in
         0|1) ;;
         *)
@@ -43,9 +45,15 @@ proof_runner_init() {
             return 2
             ;;
     esac
+    case "$PROOF_SELECTED_COUNT" in
+        ''|*[!0-9]*)
+            printf '[snapback-proof] selected count must be a non-negative integer, got %s\n' "$PROOF_SELECTED_COUNT" >&2
+            return 2
+            ;;
+    esac
     mkdir -p "$(dirname "$PROOF_RESULTS_PATH")"
     : > "$PROOF_RESULTS_PATH"
-    export PROOF_ID PROOF_RESULTS_PATH PROOF_KEEP_GOING
+    export PROOF_ID PROOF_RESULTS_PATH PROOF_KEEP_GOING PROOF_SELECTED_COUNT PROOF_SELECTED_INDEX
     printf '[snapback-proof] structured gate results: %s\n' "$PROOF_RESULTS_PATH"
 }
 
@@ -149,6 +157,12 @@ proof_gate() {
         return 2
     fi
     proof_validate_gate_id "$gate_id" || return $?
+    PROOF_SELECTED_INDEX=$((PROOF_SELECTED_INDEX + 1))
+    if [ "$PROOF_SELECTED_INDEX" -gt "$PROOF_SELECTED_COUNT" ]; then
+        printf '[snapback-proof] selected gate count exceeded: saw %d, expected %d\n' \
+            "$PROOF_SELECTED_INDEX" "$PROOF_SELECTED_COUNT" >&2
+        return 2
+    fi
     command="$(proof_command_string "$@")"
 
     local old_ifs="$IFS"
@@ -175,7 +189,8 @@ proof_gate() {
     started="$(proof_now_ms)"
     if [ -n "$blocked_by" ]; then
         ended="$(proof_now_ms)"
-        printf '\n[snapback-verify] BLOCKED %s (prerequisite: %s)\n' "$gate_id" "$blocked_by"
+        printf '\n[snapback-verify] BLOCKED %d/%d %s (prerequisite: %s)\n' \
+            "$PROOF_SELECTED_INDEX" "$PROOF_SELECTED_COUNT" "$gate_id" "$blocked_by"
         proof_record "$gate_id" BLOCKED "$started" "$ended" "" \
             "$prerequisites" "$blocked_by" "$command"
         if [ "$PROOF_KEEP_GOING" = "1" ]; then
@@ -184,7 +199,8 @@ proof_gate() {
         return 1
     fi
 
-    printf '\n[snapback-verify] GATE %s\n[snapback-verify] $' "$gate_id"
+    printf '\n[snapback-verify] GATE %d/%d %s\n[snapback-verify] $' \
+        "$PROOF_SELECTED_INDEX" "$PROOF_SELECTED_COUNT" "$gate_id"
     printf ' %q' "$@"
     printf '\n'
     if "$@"; then

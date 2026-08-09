@@ -5,6 +5,23 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERIFY_EXACT="${SNAPBACK_VERIFY_EXACT:-auto}"
 
+usage() {
+    cat <<'EOF'
+Usage: scripts/verify-local-proof [OPTIONS]
+
+Options:
+  --complete                 Run the complete canonical gate inventory (default).
+  --affected REV             Run gates selected by changes since Git revision REV.
+  --gate ID                  Re-run one gate and its prerequisite closure.
+  --selection-receipt FILE   Reopen an exact selector receipt for the current HEAD.
+  --keep-going               Continue independent gates after a root failure.
+  --help, -h                 Show this help without running proof selection.
+
+SNAPBACK_PROOF_KEEP_GOING=1 is the environment equivalent of --keep-going.
+SNAPBACK_PROOF_RESULTS sets the gate-result JSONL output path.
+EOF
+}
+
 # Default is fail-fast (a normal local run stops at the first broken gate).
 # --keep-going / SNAPBACK_PROOF_KEEP_GOING=1 continues independent gates while
 # transitive dependents become BLOCKED, so one failed producer cannot turn into
@@ -13,6 +30,8 @@ KEEP_GOING=0
 PROOF_CADENCE="complete"
 PROOF_BASE_REVISION=""
 PROOF_SELECTION_RECEIPT=""
+PROOF_GATE_ID=""
+PROOF_COMPLETE_EXPLICIT=0
 case "${SNAPBACK_PROOF_KEEP_GOING:-}" in
     1|true|TRUE|yes|on) KEEP_GOING=1 ;;
 esac
@@ -24,6 +43,7 @@ while [ "$#" -gt 0 ]; do
             ;;
         --complete)
             PROOF_CADENCE="complete"
+            PROOF_COMPLETE_EXPLICIT=1
             shift
             ;;
         --affected)
@@ -43,8 +63,22 @@ while [ "$#" -gt 0 ]; do
             PROOF_SELECTION_RECEIPT="$2"
             shift 2
             ;;
+        --gate)
+            [ "$#" -ge 2 ] || {
+                printf '[snapback-verify] --gate requires a gate id\n' >&2
+                usage >&2
+                exit 2
+            }
+            PROOF_GATE_ID="$2"
+            shift 2
+            ;;
+        --help|-h)
+            usage
+            exit 0
+            ;;
         *)
             printf '[snapback-verify] unknown argument: %s\n' "$1" >&2
+            usage >&2
             exit 2
             ;;
     esac
@@ -54,12 +88,23 @@ if [ -n "$PROOF_SELECTION_RECEIPT" ] && [ -n "$PROOF_BASE_REVISION" ]; then
     printf '[snapback-verify] --selection-receipt and --affected are mutually exclusive\n' >&2
     exit 2
 fi
+if [ -n "$PROOF_GATE_ID" ] && {
+    [ -n "$PROOF_SELECTION_RECEIPT" ] || [ -n "$PROOF_BASE_REVISION" ] ||
+        [ "$PROOF_COMPLETE_EXPLICIT" -eq 1 ];
+}; then
+    printf '[snapback-verify] --gate is mutually exclusive with --complete, --affected, and --selection-receipt\n' >&2
+    exit 2
+fi
 
 PROOF_SELECTION_RESULTS="${SNAPBACK_PROOF_SELECTION_RESULTS:-$ROOT/target/proof/local-proof-selection.json}"
 PROOF_SELECTED_GATES="${SNAPBACK_PROOF_SELECTED_GATES:-$ROOT/target/proof/local-proof-selected-gates.$$.txt}"
 mkdir -p "$ROOT/target/proof"
 mkdir -p "$(dirname "$PROOF_SELECTED_GATES")"
-if [ -n "$PROOF_SELECTION_RECEIPT" ]; then
+if [ -n "$PROOF_GATE_ID" ]; then
+    PROOF_CADENCE="gate $PROOF_GATE_ID"
+    node "$ROOT/scripts/select-local-proof.mjs" gate --id "$PROOF_GATE_ID" \
+        > "$PROOF_SELECTED_GATES"
+elif [ -n "$PROOF_SELECTION_RECEIPT" ]; then
     node "$ROOT/scripts/select-local-proof.mjs" validate "$PROOF_SELECTION_RECEIPT"
     PROOF_CADENCE="$(node -e \
         'process.stdout.write(JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).cadence)' \
@@ -77,15 +122,18 @@ else
     node "$ROOT/scripts/select-local-proof.mjs" "${selection_args[@]}"
     PROOF_SELECTION_RECEIPT="$PROOF_SELECTION_RESULTS"
 fi
-node "$ROOT/scripts/select-local-proof.mjs" gates "$PROOF_SELECTION_RECEIPT" \
-    > "$PROOF_SELECTED_GATES"
+if [ -z "$PROOF_GATE_ID" ]; then
+    node "$ROOT/scripts/select-local-proof.mjs" gates "$PROOF_SELECTION_RECEIPT" \
+        > "$PROOF_SELECTED_GATES"
+fi
 
 # @ref LLP 0175#d1--make-keep-going-dependency-aware — named gates retain
 # structured timings and distinguish root FAIL from transitive BLOCKED.
 # shellcheck source=scripts/lib/proof-runner.sh
 source "$ROOT/scripts/lib/proof-runner.sh"
 PROOF_RESULTS="${SNAPBACK_PROOF_RESULTS:-$ROOT/target/proof/local-proof-results.jsonl}"
-proof_runner_init local-proof "$PROOF_RESULTS" "$KEEP_GOING"
+PROOF_SELECTED_COUNT="$(awk 'NF { count += 1 } END { print count + 0 }' "$PROOF_SELECTED_GATES")"
+proof_runner_init local-proof "$PROOF_RESULTS" "$KEEP_GOING" "$PROOF_SELECTED_COUNT"
 
 run() {
     local gate_id="$1" selection_status=0

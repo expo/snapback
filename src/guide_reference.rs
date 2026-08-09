@@ -10,15 +10,18 @@ use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 
 pub const REGISTRY_PATH: &str = "reference/registry.json";
+pub const DIAGNOSTICS_REGISTRY_PATH: &str = "reference/diagnostics-registry.json";
 pub const LOOKUP_SCHEMA_VERSION: &str = "snapback.guide-symbol-lookup.v1";
 pub const MAX_LOOKUP_BYTES: usize = 16_384;
 const MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 const SYMBOL_PAGE_SIZE: usize = 8;
 const MODULE_PAGE_SIZE: usize = 12;
+const DIAGNOSTIC_PAGE_SIZE: usize = 24;
 
 #[derive(Debug)]
 struct ReferenceArtifacts {
     registry: Value,
+    diagnostics: Value,
     identity: Value,
     budget: usize,
 }
@@ -32,6 +35,8 @@ fn load_reference_artifacts() -> anyhow::Result<ReferenceArtifacts> {
         .context("embedded Snapback Guide manifest is invalid")?;
     let registry_file = crate::guide::file(REGISTRY_PATH)
         .context("embedded Snapback Guide symbol registry is missing")?;
+    let diagnostics_file = crate::guide::file(DIAGNOSTICS_REGISTRY_PATH)
+        .context("embedded Snapback Guide diagnostics registry is missing")?;
     let resource = manifest
         .pointer("/resources/reference.symbol-registry")
         .context("embedded Guide manifest does not declare the symbol registry")?;
@@ -39,6 +44,15 @@ fn load_reference_artifacts() -> anyhow::Result<ReferenceArtifacts> {
     anyhow::ensure!(
         resource.get("sha256").and_then(Value::as_str) == Some(actual_sha256.as_str()),
         "SNAPBACK_GUIDE_REGISTRY_IDENTITY_MISMATCH: Guide manifest does not bind the embedded registry bytes"
+    );
+    let diagnostics_resource = manifest
+        .pointer("/resources/reference.diagnostics-registry")
+        .context("embedded Guide manifest does not declare the diagnostics registry")?;
+    let diagnostics_sha256 = format!("{:x}", Sha256::digest(diagnostics_file.bytes));
+    anyhow::ensure!(
+        diagnostics_resource.get("sha256").and_then(Value::as_str)
+            == Some(diagnostics_sha256.as_str()),
+        "SNAPBACK_GUIDE_REGISTRY_IDENTITY_MISMATCH: Guide manifest does not bind the embedded diagnostics registry bytes"
     );
 
     let registry: Value = serde_json::from_slice(registry_file.bytes)
@@ -51,6 +65,18 @@ fn load_reference_artifacts() -> anyhow::Result<ReferenceArtifacts> {
     anyhow::ensure!(
         resource.get("sourceDigest") == registry.pointer("/buildIdentity/sourceDigest"),
         "SNAPBACK_GUIDE_REGISTRY_IDENTITY_MISMATCH: Guide and registry source identities differ"
+    );
+    let diagnostics: Value = serde_json::from_slice(diagnostics_file.bytes)
+        .context("embedded Snapback Guide diagnostics registry is invalid")?;
+    anyhow::ensure!(
+        diagnostics.get("schemaVersion").and_then(Value::as_str)
+            == Some("snapback-diagnostics-registry.v1"),
+        "embedded Snapback Guide diagnostics registry schema is unsupported"
+    );
+    anyhow::ensure!(
+        diagnostics_resource.get("sourceDigest")
+            == diagnostics.pointer("/buildIdentity/sourceDigest"),
+        "SNAPBACK_GUIDE_REGISTRY_IDENTITY_MISMATCH: Guide and diagnostics source identities differ"
     );
 
     let guide_content_hash = manifest
@@ -84,9 +110,70 @@ fn load_reference_artifacts() -> anyhow::Result<ReferenceArtifacts> {
             "guideBuildCommit": guide_build_commit,
             "registrySourceDigest": registry_source_digest,
             "registrySourceCommit": registry_source_commit,
+            "diagnosticsSourceDigest": diagnostics.pointer("/buildIdentity/sourceDigest"),
+            "diagnosticsSourceCommit": diagnostics.pointer("/buildIdentity/commit"),
         }),
+        diagnostics,
         budget: declared_budget.min(MAX_LOOKUP_BYTES),
     })
+}
+
+fn budgeted_diagnostic(
+    query: &str,
+    diagnostic: &Value,
+    identity: &Value,
+    slice: usize,
+    budget: usize,
+) -> anyhow::Result<Value> {
+    let complete = json!({
+        "schemaVersion": LOOKUP_SCHEMA_VERSION,
+        "ok": true,
+        "query": query,
+        "match": "diagnostic",
+        "identity": identity,
+        "diagnostic": diagnostic,
+        "truncation": Value::Null,
+    });
+    if encoded_len(&complete)? <= budget {
+        return Ok(complete);
+    }
+    let sites = diagnostic
+        .get("sites")
+        .and_then(Value::as_array)
+        .context("diagnostic registry sites is not an array")?;
+    let start = (slice - 1)
+        .checked_mul(DIAGNOSTIC_PAGE_SIZE)
+        .context("SNAPBACK_CLI_ARGUMENT_INVALID: --slice is too large")?;
+    let visible = sites
+        .iter()
+        .skip(start)
+        .take(DIAGNOSTIC_PAGE_SIZE)
+        .cloned()
+        .collect::<Vec<_>>();
+    let has_more = start.saturating_add(DIAGNOSTIC_PAGE_SIZE) < sites.len();
+    let next_slice = has_more.then_some(slice + 1);
+    let mut summary = diagnostic.as_object().cloned().unwrap_or_default();
+    summary.insert("sites".to_owned(), Value::Array(visible));
+    let result = json!({
+        "schemaVersion": LOOKUP_SCHEMA_VERSION,
+        "ok": true,
+        "query": query,
+        "match": "diagnostic-slice",
+        "identity": identity,
+        "diagnostic": summary,
+        "truncation": {
+            "truncated": true,
+            "slice": slice,
+            "elided": [format!("emitting sites outside {}-{} of {}", start + 1, (start + DIAGNOSTIC_PAGE_SIZE).min(sites.len()), sites.len())],
+            "nextSlice": next_slice,
+            "nextCommand": next_slice.map(|next| format!("snapback guide {query} --slice {next}")),
+        },
+    });
+    anyhow::ensure!(
+        encoded_len(&result)? <= budget,
+        "SNAPBACK_GUIDE_LOOKUP_BUDGET_EXCEEDED: diagnostic slice {query} exceeds {budget} bytes"
+    );
+    Ok(result)
 }
 
 fn reference_artifacts() -> anyhow::Result<&'static ReferenceArtifacts> {
@@ -352,6 +439,23 @@ pub fn lookup(query: &str, slice: usize) -> anyhow::Result<Option<Value>> {
         "SNAPBACK_CLI_ARGUMENT_INVALID: --slice must be a positive integer"
     );
     let artifacts = reference_artifacts()?;
+    // @ref LLP 0193#program — a stable diagnostic code is an exact navigation
+    // key and therefore wins before API-symbol lookup or Markdown search.
+    if let Some(diagnostic) = artifacts
+        .diagnostics
+        .get("diagnostics")
+        .and_then(Value::as_object)
+        .and_then(|diagnostics| diagnostics.get(query))
+    {
+        return budgeted_diagnostic(
+            query,
+            diagnostic,
+            &artifacts.identity,
+            slice,
+            artifacts.budget,
+        )
+        .map(Some);
+    }
     let symbols = artifacts
         .registry
         .get("symbols")
@@ -442,7 +546,35 @@ pub fn format_lookup(result: &Value) -> anyhow::Result<String> {
                 .context("lookup result has no registry identity")?,
         ),
     ];
-    if let Some(member) = result.get("member") {
+    if let Some(diagnostic) = result.get("diagnostic") {
+        lines.push(format!(
+            "{}{}",
+            diagnostic
+                .get("subsystem")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown subsystem"),
+            diagnostic
+                .get("httpStatus")
+                .and_then(Value::as_u64)
+                .map(|status| format!(" · HTTP {status}"))
+                .unwrap_or_default(),
+        ));
+        if let Some(anchor) = diagnostic.get("guideAnchor").and_then(Value::as_str) {
+            lines.push(format!("Guide: {anchor}"));
+        }
+        if let Some(sites) = diagnostic.get("sites").and_then(Value::as_array) {
+            lines.push(String::new());
+            lines.push("Emitting sites:".to_owned());
+            lines.extend(sites.iter().filter_map(|site| {
+                Some(format!(
+                    "- {}:{}:{}",
+                    site.get("file")?.as_str()?,
+                    site.get("line")?.as_u64()?,
+                    site.get("column")?.as_u64()?,
+                ))
+            }));
+        }
+    } else if let Some(member) = result.get("member") {
         lines.push(format!(
             "{} · {}",
             result
@@ -580,5 +712,22 @@ mod tests {
             }
             assert!(serde_json::to_vec(&result).unwrap().len() <= MAX_LOOKUP_BYTES);
         }
+    }
+
+    #[test]
+    fn exact_diagnostic_lookup_is_identity_bound_and_http_classified() {
+        let result = lookup("SNAPBACK_AUTH_SESSION_EXPIRED", 1)
+            .unwrap()
+            .expect("registered diagnostic");
+        assert_eq!(result["match"], "diagnostic");
+        assert_eq!(result["diagnostic"]["subsystem"], "auth");
+        assert_eq!(result["diagnostic"]["httpStatus"], 401);
+        assert!(
+            result
+                .pointer("/identity/diagnosticsSourceDigest")
+                .and_then(Value::as_str)
+                .is_some_and(|digest| digest.starts_with("sha256:"))
+        );
+        assert!(serde_json::to_vec(&result).unwrap().len() <= MAX_LOOKUP_BYTES);
     }
 }

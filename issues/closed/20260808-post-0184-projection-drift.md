@@ -47,3 +47,11 @@ class its rules were written against.
   `projections.cli`, and that every shipped CLI verb reachable from a host
   operation has a matching non-null catalog projection.
 - Record as a dated amendment to LLP 0184 / LLP 0024 when landing.
+
+## Resolution (2026-08-08)
+
+Resolved by binding CLI-only host-operation refusals to the embedded control
+catalog, adding the exact `host.restart` and `auth.mintSession` CLI
+projections, and adding class-preventing coverage in `src/host_ops.rs` and
+`tests/host_ops_v0.rs`. Dated amendments in LLP 0184 and LLP 0024 record both
+projection repairs.

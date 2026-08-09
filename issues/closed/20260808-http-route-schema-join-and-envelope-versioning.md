@@ -37,3 +37,19 @@ From the 2026-08-08 agentic surface audit (LLP 0202 theme 8).
    (`LinksStatus`, `:16339-16345`) omit `/llms.txt`, `/app-api/current`
    (the credential-free machine-readable API envelope), and
    `/_snapback/api/control-catalog`. Fix: add three link fields.
+
+## Resolution (2026-08-08)
+
+All four fixes landed in the working tree. `src/schema_export.rs` now derives
+the committed `schemas/http.routes.v1.json` route/schema join from
+`route_registry()`, drift-checks every row and referenced schema, and
+`src/server.rs` serves it at `/_snapback/guide/http.routes.v1.json` beside the
+embedded guide. The Rust and Cloudflare error emitters now produce required
+`formatVersion: "snapback.error-response.v1"`; the generated schema, Rust
+decoder, and Swift consumer enforce the must-understand version while allowing
+unknown top-level v1 members. LLP 0094 documents that forward-skew rule and
+explicitly leaves LLP 0146 OQ6's remediation carrier undecided.
+`src/app_data_result.rs` now describes client-side normalization without
+claiming byte-identical HTTP transport. The root `LinksStatus` and its
+JSON/YAML/Markdown projections now include `/llms.txt`, `/app-api/current`,
+and `/_snapback/api/control-catalog`.

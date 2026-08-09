@@ -15,7 +15,7 @@
 //!   of truth; JSON Schemas are generated from them and drift-gated.
 //! @ref LLP 0032#decision-docket — DK-7 / P3(c): schemars-derived, committed, drift-gated.
 
-use serde_json::Value;
+use serde_json::{Value, json};
 
 use crate::admin::AdminInspect;
 use crate::auth::deployment::{
@@ -125,7 +125,11 @@ pub struct SchemaArtifact {
 /// @ref LLP 0146#d7-implementation-record--2026-08-06-oq6-independent-substrate
 ///   — the remediation registry schema is an intentionally data-only draft,
 ///   not a Rust-owned wire artifact.
+/// @ref LLP 0049#deployment-identity-freshness-gate-2026-07-25 — the
+///   Cloudflare deploy workflow owns its version-attested success receipt;
+///   it is not a Rust server artifact.
 pub const EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS: &[&str] = &[
+    "cloudflare.deploy-receipt-v1.schema.json",
     "control-catalog-instance.v1.schema.json",
     "control-catalog.v1.schema.json",
     "remediation-kinds.v0.schema.json",
@@ -1075,6 +1079,17 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
 /// non-Rust consumer.
 pub fn artifact_instances() -> Vec<SchemaArtifact> {
     let mut artifacts = vec![
+        // The registry-to-wire-schema join is a generated instance, not a
+        // second route registry. Every row starts at route_registry(); this
+        // projection only attaches committed schema references where a
+        // route-specific request or success envelope exists.
+        // @ref LLP 0031#enforcement — installed route metadata is the path authority.
+        // @ref LLP 0037#decision-ratified-2026-07-02 — referenced wire schemas
+        //   are generated Rust-owned artifacts in this same directory.
+        SchemaArtifact {
+            file: "http.routes.v1.json",
+            schema: sorted_keys(http_routes_artifact()),
+        },
         // The LLP 0148 id-prefix registry. Codegen reads this to refuse an app
         // table whose derived prefix would shadow a system one, and the client
         // packages read it to mint client-side ids with the same spellings the
@@ -1179,6 +1194,129 @@ pub fn artifact_instances() -> Vec<SchemaArtifact> {
         },
     ));
     artifacts
+}
+
+/// Build the versioned route/schema join served to agents beside the Guide.
+/// A JSON null is an honest declaration that no route-specific input/success
+/// schema is committed; it must not be interpreted as an unconstrained body.
+pub fn http_routes_artifact() -> Value {
+    let mut routes = crate::server::route_registry();
+    routes.sort_by(|left, right| {
+        left.path
+            .cmp(right.path)
+            .then_with(|| left.method.cmp(right.method))
+    });
+    let routes = routes
+        .into_iter()
+        .map(|route| {
+            let (input, output) = route_schema_refs(route.method, route.path);
+            json!({
+                "method": route.method,
+                "path": route.path,
+                "class": format!("{:?}", route.class),
+                "path_policy": format!("{:?}", route.path_policy),
+                "credential_resolution": format!("{:?}", route.credential_resolution),
+                "inputSchema": input.map(schema_ref),
+                "outputSchema": output.map(schema_ref),
+            })
+        })
+        .collect::<Vec<_>>();
+    json!({
+        "formatVersion": "snapback.http-routes.v1",
+        "routes": routes,
+    })
+}
+
+fn schema_ref(file: &str) -> Value {
+    json!({ "$ref": file })
+}
+
+fn route_schema_refs(method: &str, path: &str) -> (Option<&'static str>, Option<&'static str>) {
+    match (method, path) {
+        ("GET", "/inspect") => (None, Some("inspect.public.schema.json")),
+        ("GET", "/app-api/current") => (None, Some("app-api.discovery.schema.json")),
+        ("GET", "/auth/session") => (None, Some("auth.session.output.schema.json")),
+        ("POST", "/auth/request-code") => (
+            Some("auth.request-code.input.schema.json"),
+            Some("auth.request-code.output.schema.json"),
+        ),
+        ("POST", "/auth/exchange") => (
+            Some("auth.exchange.input.schema.json"),
+            Some("auth.credential.output.schema.json"),
+        ),
+        ("POST", "/query/{name}") => (
+            Some("query.input.schema.json"),
+            Some("query.output.schema.json"),
+        ),
+        ("POST", "/query/{name}/authorized-lease") => (
+            Some("authorized-lease.query.input.schema.json"),
+            Some("authorized-lease.query.output.schema.json"),
+        ),
+        ("POST", "/mutation/{name}") => (
+            Some("mutation.input.schema.json"),
+            Some("mutation.output.schema.json"),
+        ),
+        ("POST", "/action/{name}") => (
+            Some("action.input.schema.json"),
+            Some("action.output.schema.json"),
+        ),
+        ("POST", "/client-mutations/acknowledge") => (
+            Some("client-mutation.ack.input.schema.json"),
+            Some("client-mutation.ack.output.schema.json"),
+        ),
+        ("POST", "/client-mutations/identity-range") => (
+            Some("operation.identity-range-request-v1.schema.json"),
+            Some("operation.identity-range-response-v1.schema.json"),
+        ),
+        ("POST", "/app/bundle") => (
+            Some("app.bundle.input.schema.json"),
+            Some("app.bundle.output.schema.json"),
+        ),
+        ("POST", "/app/ensure") => (
+            Some("app.ensure.input.schema.json"),
+            Some("app.ensure.output.schema.json"),
+        ),
+        ("POST", "/connection/open") => (
+            Some("connection.open.input.schema.json"),
+            Some("connection.grant.schema.json"),
+        ),
+        ("POST", "/live/{name}/subscribe") => (
+            Some("live.subscribe.input.schema.json"),
+            Some("live.subscribe.output.schema.json"),
+        ),
+        ("POST", "/live/{name}/unsubscribe") => (
+            Some("live.unsubscribe.input.schema.json"),
+            Some("live.unsubscribe.output.schema.json"),
+        ),
+        ("POST", "/live/{name}/resume") => (
+            Some("live.resume.input.schema.json"),
+            Some("live.resume.output.schema.json"),
+        ),
+        ("GET", "/outbox/{connection_id}") => (None, Some("live.outbox-drain.output.schema.json")),
+        ("POST", "/live/authorization-invalidation/acknowledge") => (
+            Some("authorization-invalidation.ack.input.schema.json"),
+            Some("authorization-invalidation.ack.output.schema.json"),
+        ),
+        ("POST", "/live/authorization-invalidation/manual-retry") => (
+            Some("authorization-invalidation.manual-retry.input.schema.json"),
+            Some("authorization-invalidation.manual-retry.output.schema.json"),
+        ),
+        ("POST", "/ephemeral/publish") => (
+            Some("ephemeral.publish.input.schema.json"),
+            Some("ephemeral.publish.output.schema.json"),
+        ),
+        ("POST", "/ephemeral/subscribe") => (
+            Some("ephemeral.subscribe.input.schema.json"),
+            Some("ephemeral.subscribe.output.schema.json"),
+        ),
+        ("POST", "/ephemeral/delete") => (
+            Some("ephemeral.delete.input.schema.json"),
+            Some("ephemeral.delete.output.schema.json"),
+        ),
+        ("GET", "/_snapback/api/inspect") => (None, Some("inspect.admin.schema.json")),
+        ("GET", "/_snapback/api/control-catalog") => (None, Some("control-catalog.v1.schema.json")),
+        _ => (None, None),
+    }
 }
 
 /// Convert a derived schema to a stable committed value: serialize it, stamp the

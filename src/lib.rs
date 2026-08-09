@@ -31,8 +31,6 @@ pub mod admin_link;
 #[doc(hidden)]
 pub mod admin_secret_read;
 pub(crate) mod agent_safe_publication;
-// @ref LLP 0199#target-ownership-map — owner 1: crate-private generation
-// activation coordinator.
 #[doc(hidden)]
 pub mod api_envelope;
 #[doc(hidden)]
@@ -71,6 +69,8 @@ pub mod completeness;
 pub mod config;
 pub mod conformance;
 pub(crate) mod contract_exact;
+// @ref LLP 0199#target-ownership-map — owner 1: crate-private generation
+// activation coordinator.
 pub(crate) mod generation_activation;
 // @ref LLP 0199#target-ownership-map — dependency-free shared contract/types
 // leaf consumed downward by Rust owners and generated-artifact producers.
@@ -161,7 +161,6 @@ pub mod service_profile;
 pub(crate) mod snapshot_batch_cursor;
 #[doc(hidden)]
 pub mod snapshot_batch_cursor_v2;
-pub(crate) mod spike_trace;
 #[doc(hidden)]
 pub mod storage;
 #[doc(hidden)]

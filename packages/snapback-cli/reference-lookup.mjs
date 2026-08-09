@@ -32,28 +32,39 @@ function candidateGuideRoots(options) {
 
 function loadArtifacts(options = {}) {
   const explicitRegistry = options.symbolRegistryPath && resolve(options.symbolRegistryPath);
+  const explicitDiagnostics = options.diagnosticsRegistryPath && resolve(options.diagnosticsRegistryPath);
   const explicitManifest = options.guideManifestPath && resolve(options.guideManifestPath);
   const candidates = explicitRegistry
-    ? [{ registryPath: explicitRegistry, manifestPath: explicitManifest }]
+    ? [{ registryPath: explicitRegistry, diagnosticsPath: explicitDiagnostics, manifestPath: explicitManifest }]
     : candidateGuideRoots(options).map((guideRoot) => ({
         registryPath: join(guideRoot, 'reference', 'registry.json'),
+        diagnosticsPath: join(guideRoot, 'reference', 'diagnostics-registry.json'),
         manifestPath: join(guideRoot, 'guide-manifest.generated.json'),
       }));
-  const candidate = candidates.find(({ registryPath, manifestPath }) => (
-    existsSync(registryPath) && manifestPath && existsSync(manifestPath)
+  const candidate = candidates.find(({ registryPath, diagnosticsPath, manifestPath }) => (
+    existsSync(registryPath) && diagnosticsPath && existsSync(diagnosticsPath) && manifestPath && existsSync(manifestPath)
   ));
   if (!candidate) return null;
   const registryBytes = readFileSync(candidate.registryPath);
+  const diagnosticsBytes = readFileSync(candidate.diagnosticsPath);
   const manifest = JSON.parse(readFileSync(candidate.manifestPath, 'utf8'));
   const resource = manifest.resources?.['reference.symbol-registry'];
   if (!resource || resource.sha256 !== sha256(registryBytes)) {
     throw new Error('SNAPBACK_GUIDE_REGISTRY_IDENTITY_MISMATCH: Guide manifest does not bind the selected registry bytes');
   }
+  const diagnosticsResource = manifest.resources?.['reference.diagnostics-registry'];
+  if (!diagnosticsResource || diagnosticsResource.sha256 !== sha256(diagnosticsBytes)) {
+    throw new Error('SNAPBACK_GUIDE_REGISTRY_IDENTITY_MISMATCH: Guide manifest does not bind the selected diagnostics registry bytes');
+  }
   const registry = JSON.parse(registryBytes);
+  const diagnostics = JSON.parse(diagnosticsBytes);
   if (resource.sourceDigest !== registry.buildIdentity?.sourceDigest) {
     throw new Error('SNAPBACK_GUIDE_REGISTRY_IDENTITY_MISMATCH: Guide and registry source identities differ');
   }
-  return { registry, manifest };
+  if (diagnosticsResource.sourceDigest !== diagnostics.buildIdentity?.sourceDigest) {
+    throw new Error('SNAPBACK_GUIDE_REGISTRY_IDENTITY_MISMATCH: Guide and diagnostics source identities differ');
+  }
+  return { registry, diagnostics, manifest };
 }
 
 function parseSlice(argv) {
@@ -66,13 +77,48 @@ function parseSlice(argv) {
   return value;
 }
 
-function resultIdentity(registry, manifest) {
+function resultIdentity(registry, diagnostics, manifest) {
   return {
     guideContentHash: manifest.contentHash,
     guideBuildCommit: manifest.buildIdentity?.commit ?? 'unknown',
     registrySourceDigest: registry.buildIdentity.sourceDigest,
     registrySourceCommit: registry.buildIdentity.commit,
+    diagnosticsSourceDigest: diagnostics.buildIdentity.sourceDigest,
+    diagnosticsSourceCommit: diagnostics.buildIdentity.commit,
   };
+}
+
+function budgetedDiagnostic(query, diagnostic, identity, slice, budget) {
+  const complete = {
+    schemaVersion: 'snapback.guide-symbol-lookup.v1',
+    ok: true,
+    query,
+    match: 'diagnostic',
+    identity,
+    diagnostic,
+    truncation: null,
+  };
+  if (Buffer.byteLength(JSON.stringify(complete)) <= budget) return complete;
+  const pageSize = 24;
+  const start = (slice - 1) * pageSize;
+  const visible = diagnostic.sites.slice(start, start + pageSize);
+  const hasMore = start + pageSize < diagnostic.sites.length;
+  const result = {
+    ...complete,
+    match: 'diagnostic-slice',
+    diagnostic: { ...diagnostic, sites: visible },
+    truncation: {
+      truncated: true,
+      slice,
+      elided: [`emitting sites outside ${start + 1}-${Math.min(start + pageSize, diagnostic.sites.length)} of ${diagnostic.sites.length}`],
+      nextSlice: hasMore ? slice + 1 : null,
+      nextCommand: hasMore ? `snapback guide ${query} --slice ${slice + 1}` : null,
+    },
+  };
+  if (Buffer.byteLength(JSON.stringify(result)) > budget) {
+    throw new Error(`SNAPBACK_GUIDE_LOOKUP_BUDGET_EXCEEDED: diagnostic slice ${query} exceeds ${budget} bytes`);
+  }
+  return result;
 }
 
 function memberMatch(symbol, query) {
@@ -206,10 +252,15 @@ export function lookupGuideReference(argv, options = {}) {
   if (!query) return null;
   const artifacts = loadArtifacts(options);
   if (!artifacts) return null;
-  const { registry, manifest } = artifacts;
+  const { registry, diagnostics, manifest } = artifacts;
   const budget = Math.min(options.lookupBudgetBytes ?? registry.limits.lookupBytes ?? defaultBudget, defaultBudget);
   const slice = parseSlice(argv);
-  const identity = resultIdentity(registry, manifest);
+  const identity = resultIdentity(registry, diagnostics, manifest);
+  // @ref LLP 0193#program — stable diagnostic codes route exactly before API
+  // symbols and the native command's Markdown fallback.
+  if (diagnostics.diagnostics?.[query]) {
+    return budgetedDiagnostic(query, diagnostics.diagnostics[query], identity, slice, budget);
+  }
   const byIdentity = new Map(registry.symbols.map((symbol) => [symbol.identity, symbol]));
   const matchedIds = registry.lookup.exact[query] ?? [];
   const matched = matchedIds.map((id) => byIdentity.get(id)).filter(Boolean);
@@ -232,7 +283,14 @@ export function formatGuideReferenceLookup(result) {
     `${result.query} — ${result.match}`,
     `guide ${result.identity.guideContentHash} · registry ${result.identity.registrySourceDigest}`,
   ];
-  if (result.member) {
+  if (result.diagnostic) {
+    const status = result.diagnostic.httpStatus ? ` · HTTP ${result.diagnostic.httpStatus}` : '';
+    lines.push(`${result.diagnostic.subsystem}${status}`);
+    if (result.diagnostic.guideAnchor) lines.push(`Guide: ${result.diagnostic.guideAnchor}`);
+    if (result.diagnostic.sites?.length) {
+      lines.push('', 'Emitting sites:', ...result.diagnostic.sites.map((site) => `- ${site.file}:${site.line}:${site.column}`));
+    }
+  } else if (result.member) {
     lines.push(`${result.symbol.module} · ${result.symbol.kind}`, '', result.member.signature);
   } else if (result.symbol) {
     lines.push(`${result.symbol.module} · ${result.symbol.kind}`);

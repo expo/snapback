@@ -1,0 +1,1236 @@
+{
+  "formatVersion": "snapback.http-routes.v1",
+  "routes": [
+    {
+      "class": "AppData",
+      "credential_resolution": "None",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/",
+      "path_policy": "Public"
+    },
+    {
+      "class": "SystemStatic",
+      "credential_resolution": "None",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/admin",
+      "path_policy": "Public"
+    },
+    {
+      "class": "SystemStatic",
+      "credential_resolution": "None",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/admin/",
+      "path_policy": "Public"
+    },
+    {
+      "class": "SystemStatic",
+      "credential_resolution": "None",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/admin/reachability/identity",
+      "path_policy": "Public"
+    },
+    {
+      "class": "SystemStatic",
+      "credential_resolution": "None",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/admin/setup",
+      "path_policy": "Public"
+    },
+    {
+      "class": "SystemStatic",
+      "credential_resolution": "None",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/admin/{*path}",
+      "path_policy": "Public"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/admin-secret-read/mint",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/app/reset",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/app/seed/clear-v1",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/app/seed/ensure-v1",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/app/seed/preview-v1",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/app/seed/reset-install-v1",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/api/auth/mailbox",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/client-mutations/purge",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/api/config/plan",
+      "path_policy": "AdminRead"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/config/set",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/api/config/status",
+      "path_policy": "AdminRead"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/config/unset",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/config/verify",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/connections/{connection_id}/disconnect",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/console/approval/approve",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/console/approval/poll",
+      "path_policy": "AdminRead"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/console/approval/request",
+      "path_policy": "AdminRead"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/console/claim",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/console/claim/exchange",
+      "path_policy": "AdminRead"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/console/claim/revoke",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/console/claim/status",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/console/credential",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/console/reachability/bind",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/console/reachability/drop",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/console/reachability/register",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/console/reachability/renew",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": {
+        "$ref": "control-catalog.v1.schema.json"
+      },
+      "path": "/_snapback/api/control-catalog",
+      "path_policy": "AdminRead"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/api/control-catalog/instance",
+      "path_policy": "AdminRead"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/api/control-catalog/operations/{operation}",
+      "path_policy": "AdminRead"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/api/cron",
+      "path_policy": "AdminRead"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/cron/tick",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/cron/{name}/run",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/api/data/{table}",
+      "path_policy": "AdminRead"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/api/debug/network-profile",
+      "path_policy": "AdminRead"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "PUT",
+      "outputSchema": null,
+      "path": "/_snapback/api/debug/network-profile",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/ephemeral/cleanup",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/ephemeral/operator/delete",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminSecretReadLease",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/api/errors/issue",
+      "path_policy": "AdminSecretRead"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/api/errors/issues",
+      "path_policy": "AdminRead"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/errors/transition",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/functions/load",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/functions/{name}/run",
+      "path_policy": "AdminRead"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/api/health",
+      "path_policy": "AdminRead"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/host-ops",
+      "path_policy": "AdminRead"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": {
+        "$ref": "inspect.admin.schema.json"
+      },
+      "path": "/_snapback/api/inspect",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/api/jobs",
+      "path_policy": "AdminRead"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/jobs/drain",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/api/jobs/{id}",
+      "path_policy": "AdminRead"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/operations/explain",
+      "path_policy": "AdminRead"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/push/maintenance",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/api/receipts",
+      "path_policy": "AdminRead"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/schema/load",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/storage/operation-coverage/activate",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/storage/protected-erasure",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminSecretReadLease",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/api/telemetry/events",
+      "path_policy": "AdminSecretRead"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminSecretReadLease",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/api/telemetry/export",
+      "path_policy": "AdminSecretRead"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/api/telemetry/stats",
+      "path_policy": "AdminRead"
+    },
+    {
+      "class": "SystemStatic",
+      "credential_resolution": "None",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/guide",
+      "path_policy": "Public"
+    },
+    {
+      "class": "SystemStatic",
+      "credential_resolution": "None",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/guide/flat.md",
+      "path_policy": "Public"
+    },
+    {
+      "class": "SystemStatic",
+      "credential_resolution": "None",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/guide/http.routes.v1.json",
+      "path_policy": "Public"
+    },
+    {
+      "class": "SystemStatic",
+      "credential_resolution": "None",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/guide/{*path}",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": {
+        "$ref": "action.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "action.output.schema.json"
+      },
+      "path": "/action/{name}",
+      "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "None",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": {
+        "$ref": "app-api.discovery.schema.json"
+      },
+      "path": "/app-api/current",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "None",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/app-api/envelope/{sha256}",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": {
+        "$ref": "app.bundle.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "app.bundle.output.schema.json"
+      },
+      "path": "/app/bundle",
+      "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "OperationSpecific",
+      "inputSchema": {
+        "$ref": "app.ensure.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "app.ensure.output.schema.json"
+      },
+      "path": "/app/ensure",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/assets/attempts",
+      "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/assets/attempts/{id}",
+      "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/assets/attempts/{id}/cancel",
+      "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/assets/attempts/{id}/finalize",
+      "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "None",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/assets/public/{id}/{variant}",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": null,
+      "method": "DELETE",
+      "outputSchema": null,
+      "path": "/assets/records/{id}",
+      "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/assets/records/{id}",
+      "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/assets/records/{id}/bytes/{variant}",
+      "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/assets/records/{id}/signed-url",
+      "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "SignedUrlToken",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/assets/signed/{id}/{variant}",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": null,
+      "method": "DELETE",
+      "outputSchema": null,
+      "path": "/assets/tus/{id}",
+      "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": null,
+      "method": "HEAD",
+      "outputSchema": null,
+      "path": "/assets/tus/{id}",
+      "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": null,
+      "method": "PATCH",
+      "outputSchema": null,
+      "path": "/assets/tus/{id}",
+      "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "AgentCredentialBody",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/auth/agents/pair",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "AgentFamilySecretBody",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/auth/agents/revoke-self",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "AgentCredentialBody",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/auth/agents/rotate",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "AgentCredentialBody",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/auth/agents/token",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "ScopedTokenReleaseBody",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/auth/agents/token/release",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "ChallengeProof",
+      "inputSchema": {
+        "$ref": "auth.exchange.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "auth.credential.output.schema.json"
+      },
+      "path": "/auth/exchange",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "FamilyAlarmBearer",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/auth/family-alarm",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "RequiredSessionBearer",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/auth/grant-requests",
+      "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "RequiredSessionBearer",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/auth/grant-requests/{id}/approve",
+      "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "RequiredSessionBearer",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/auth/grant-requests/{id}/deny",
+      "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "RequiredSessionBearer",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/auth/grants",
+      "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "RequiredSessionBearer",
+      "inputSchema": null,
+      "method": "DELETE",
+      "outputSchema": null,
+      "path": "/auth/grants/by-actor/{actor_id}",
+      "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "RequiredSessionBearer",
+      "inputSchema": null,
+      "method": "DELETE",
+      "outputSchema": null,
+      "path": "/auth/grants/{id}",
+      "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "RequiredSessionBearer",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/auth/logout",
+      "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "RequiredSessionBearer",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/auth/pairing-codes",
+      "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "RequiredSessionBearer",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/auth/refresh",
+      "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "None",
+      "inputSchema": {
+        "$ref": "auth.request-code.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "auth.request-code.output.schema.json"
+      },
+      "path": "/auth/request-code",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "None",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": {
+        "$ref": "auth.session.output.schema.json"
+      },
+      "path": "/auth/session",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "RequiredSessionBearer",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/auth/step-up/request",
+      "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": {
+        "$ref": "client-mutation.ack.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "client-mutation.ack.output.schema.json"
+      },
+      "path": "/client-mutations/acknowledge",
+      "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": {
+        "$ref": "operation.identity-range-request-v1.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "operation.identity-range-response-v1.schema.json"
+      },
+      "path": "/client-mutations/identity-range",
+      "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "None",
+      "inputSchema": {
+        "$ref": "connection.open.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "connection.grant.schema.json"
+      },
+      "path": "/connection/open",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "None",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/ephemeral/collections/ensure",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "ConnectionGrantHeader",
+      "inputSchema": {
+        "$ref": "ephemeral.delete.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "ephemeral.delete.output.schema.json"
+      },
+      "path": "/ephemeral/delete",
+      "path_policy": "ConnectionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "ConnectionGrantHeader",
+      "inputSchema": {
+        "$ref": "ephemeral.publish.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "ephemeral.publish.output.schema.json"
+      },
+      "path": "/ephemeral/publish",
+      "path_policy": "ConnectionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "ConnectionGrantHeader",
+      "inputSchema": {
+        "$ref": "ephemeral.subscribe.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "ephemeral.subscribe.output.schema.json"
+      },
+      "path": "/ephemeral/subscribe",
+      "path_policy": "ConnectionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "None",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/health",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "None",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": {
+        "$ref": "inspect.public.schema.json"
+      },
+      "path": "/inspect",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "ConnectionGrantHeader",
+      "inputSchema": {
+        "$ref": "authorization-invalidation.ack.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "authorization-invalidation.ack.output.schema.json"
+      },
+      "path": "/live/authorization-invalidation/acknowledge",
+      "path_policy": "ConnectionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "ConnectionGrantHeader",
+      "inputSchema": {
+        "$ref": "authorization-invalidation.manual-retry.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "authorization-invalidation.manual-retry.output.schema.json"
+      },
+      "path": "/live/authorization-invalidation/manual-retry",
+      "path_policy": "ConnectionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "ConnectionGrantHeaderOrWebSocketSubprotocol",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/live/{connection_id}/stream",
+      "path_policy": "ConnectionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "ConnectionGrantHeader",
+      "inputSchema": {
+        "$ref": "live.resume.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "live.resume.output.schema.json"
+      },
+      "path": "/live/{name}/resume",
+      "path_policy": "ConnectionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "ConnectionGrantHeader",
+      "inputSchema": {
+        "$ref": "live.subscribe.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "live.subscribe.output.schema.json"
+      },
+      "path": "/live/{name}/subscribe",
+      "path_policy": "ConnectionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "ConnectionGrantHeader",
+      "inputSchema": {
+        "$ref": "live.unsubscribe.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "live.unsubscribe.output.schema.json"
+      },
+      "path": "/live/{name}/unsubscribe",
+      "path_policy": "ConnectionAuth"
+    },
+    {
+      "class": "SystemStatic",
+      "credential_resolution": "None",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/llms.txt",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": {
+        "$ref": "mutation.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "mutation.output.schema.json"
+      },
+      "path": "/mutation/{name}",
+      "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/operations/explain",
+      "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "ConnectionGrantHeaderOrDevQuery",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": {
+        "$ref": "live.outbox-drain.output.schema.json"
+      },
+      "path": "/outbox/{connection_id}",
+      "path_policy": "ConnectionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "RequiredSessionBearer",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/push/tokens/register",
+      "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "RequiredSessionBearer",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/push/tokens/unregister",
+      "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": {
+        "$ref": "query.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "query.output.schema.json"
+      },
+      "path": "/query/{name}",
+      "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": {
+        "$ref": "authorized-lease.query.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "authorized-lease.query.output.schema.json"
+      },
+      "path": "/query/{name}/authorized-lease",
+      "path_policy": "AppAuth"
+    }
+  ]
+}

@@ -9,15 +9,16 @@ examples: [packages/snapback-cli/verify.test.mjs, packages/snapback-cli/fixtures
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-04
-reviewed-commit: dab2410b6793ffa5685069a0a4054f0e2b21608a
+reviewed: 2026-08-08
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 # Verify the declared app contract
 
 > **Local target, partial surface.** This page describes generated-artifact
 > admission and explicitly registered acceptance paths. Live-target admission
-> and automatic discovery of every repository acceptance suite remain GAPs.
+> and automatic discovery of acceptance suites beyond the conventional config
+> file remain GAPs.
 
 `snapback verify --json` is the CLI-owned readiness composition from LLP 0146
 D2. It is not the unbuilt `acceptance.run` host operation. In fixed receipt
@@ -30,12 +31,18 @@ snapback runtime-qualify --persist
 snapback verify ./snapback --config ./snapback.verify.config.mjs --receipt ./.snapback/verify-receipt.json --json
 ```
 
+When the current directory contains `snapback.verify.config.mjs`, omit
+`--config`: `snapback verify --json` discovers that conventional filename.
+An explicit positional `<backend-dir>` is resolved from the shell's current
+directory. A `backendDirectory` authored inside the config remains relative to
+the config file, as do `testFiles`.
+
 ## Author `snapback.verify.config.mjs`
 
 Prefer the dedicated `@expo/snapback-cli/verify` subpath. The package root
 currently re-exports the same helpers for compatibility, but the subpath keeps
 verifier-only imports explicit and matches the package's dedicated export.
-Default-export one `defineVerifyConfig(...)` value. Paths in
+Default-export one `defineVerifyConfig(...)` value. Config-authored paths in
 `backendDirectory` and `testFiles` are relative to the config file:
 
 ```js source=packages/snapback-cli/fixtures/verify/snapback.verify.config.mjs
@@ -67,6 +74,11 @@ capability it needs, and every expected path. Path `kind` is one of `success`,
 `failure`, `action`, `relational`, `search`, or `snapshot-bundle`;
 `targetProfileId` names the target actually exercised; `functionId` binds D1
 read/write evidence to a declared function when the path has one.
+
+Profiles have a five-minute timeout by default. Set a positive integer
+`timeoutMs` on one profile, override all profiles for one invocation with
+`--timeout-ms`, or set `SNAPBACK_VERIFY_PROFILE_TIMEOUT`. A timeout fails the
+profile with `SNAPBACK_VERIFY_PROFILE_TIMEOUT`.
 
 The runner receives `{ artifact, backendDirectory, generatedDirectory,
 profileId }`. It returns boolean `ok`, the exact target/data/authority/seed
@@ -134,7 +146,17 @@ identity, digest of the config and actual test bytes, artifact target, data,
 authority, seed, all five stage verdicts, and ordered `next[]` actions.
 `recommendedNext` appears only when exactly one stage failed. With no
 registered profiles, a fresh app can pass the platform checks, but the receipt
-says `no-registered-acceptance-paths` and does not claim D1 aggregate coverage.
+says `status: "passed-without-acceptance"` and does not claim D1 aggregate
+coverage. This status is successful for process automation but machine-distinct
+from a receipt whose registered acceptance profiles passed. Each next action
+separates a nullable runnable `command` from its prose `instruction`.
+
+Stage 2 probes the digest-bound local packaged runtime only for local target
+profiles. For a non-local generated target it records an explicit
+`not-applicable-non-local-target` result with `claim: false`; it does not imply
+that target's runtime is ready. A Cloudflare acceptance adapter and live-target
+admission remain GAPs, so a non-local receipt cannot close those claims merely
+by skipping the local probe.
 
 The current admission authority is the locally regenerated generated-artifact
 set. It does not claim that a live target admitted those bytes, does not

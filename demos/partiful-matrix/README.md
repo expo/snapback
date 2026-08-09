@@ -60,7 +60,7 @@ Credentials are loaded from the ignored root `.agent-local-secrets.md`; values a
 cd demos/partiful-matrix/backends/gateway && bun run dev
 
 # terminal 2 — Snapback, for the Snapback column
-target/debug/snapback --port 4433 --memory
+target/debug/snapback start --port 4433 --memory
 
 # terminal 3 — choose an arm and backend mode
 cd demos/partiful-matrix/surfaces/react && bun run dev -- --mode supabase

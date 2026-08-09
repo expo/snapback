@@ -1780,7 +1780,16 @@ export function bindSnapbackAppLifecycle(appState, handle, {
 
 const clientCodedError = (error, code) => {
   error.code = code;
-  error.diagnostic = { code, message: error.message.slice(code.length + 2) };
+  const message = error.message.startsWith(`${code}: `)
+    ? error.message.slice(code.length + 2)
+    : error.message;
+  error.diagnostic = Object.freeze({
+    schemaVersion: 'snapback.client-diagnostic.v1',
+    code,
+    severity: 'error',
+    message,
+    details: Object.freeze({}),
+  });
   return error;
 };
 
@@ -8933,7 +8942,12 @@ export class SnapbackClient {
         return wsPromise.then((ws) => ws.close(), () => {});
       },
       sendJson: (message) => {
-        if (!wsRef) throw new Error('Snapback live stream is not open yet (await ready first)');
+        if (!wsRef) {
+          throw clientCodedError(
+            new Error('Snapback live stream is not open yet (await ready first)'),
+            'SNAPBACK_LIVE_STREAM_NOT_READY',
+          );
+        }
         wsRef.send(JSON.stringify(message));
       },
       nextUpdate: (timeoutMs = 2_000) => {

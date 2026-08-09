@@ -38,7 +38,8 @@ import {
 } from './result-core.mjs';
 import { runIbexCodeMode } from './code-mode-ibex.mjs';
 
-const ENGINE = Object.freeze({ name: '@expo/snapback-app-cli', version: '0.1.0' });
+const PACKAGE_VERSION = JSON.parse(await readFile(new URL('./package.json', import.meta.url), 'utf8')).version;
+const ENGINE = Object.freeze({ name: '@expo/snapback-app-cli', version: PACKAGE_VERSION });
 const argv = process.argv.slice(2);
 const VALUE_FLAGS = new Set([
   '--artifacts', '--server', '--app', '--principal', '--dev-user',
@@ -49,7 +50,7 @@ const VALUE_FLAGS = new Set([
   '--max-subscriptions', '--max-output-bytes', '--max-stderr-bytes', '--heap-mb', '--grace-ms',
   '--changed-since', '--budget-bytes', '--budget-items',
 ]);
-const BOOLEAN_FLAGS = new Set(['--json', '--offline', '--watch', '--first-change', '--help']);
+const BOOLEAN_FLAGS = new Set(['--json', '--offline', '--watch', '--first-change', '--help', '--version', '-V']);
 
 const parsed = (() => {
   const flags = new Map();
@@ -256,14 +257,41 @@ const openLive = async (principal, surface, fn, args) => {
   return Object.freeze({ started, snapshots });
 };
 
-const help = () => {
-  process.stdout.write(
-    'snapback-app --server <url> [--artifacts <generated-dir>] [--principal anonymous|dev|session|agent|auto] <command>\n'
-    + 'commands: introspect, whoami, call <function>, subscribe <live-query>, types, run <script.ts|->, pair\n'
-    + 'digest: introspect [--changed-since <digestCursor|envelopeHash>] [--budget-bytes 32768] [--budget-items 256]\n'
-    + 'session custody: --session-bearer-file <0600-file> or SNAPBACK_APP_SESSION_BEARER\n'
-    + 'agent custody: --agent-profile <0600-profile> or SNAPBACK_APP_AGENT_PROFILE\n',
-  );
+// @ref LLP 0062#2-subcommand-surface — the per-app CLI's command grammar is
+// discoverable from the same registry that renders exact per-command help.
+const APP_CLI_COMMANDS = Object.freeze([
+  Object.freeze({ name: 'introspect', usage: 'snapback-app [target/principal flags] introspect [--changed-since <digestCursor|envelopeHash>] [--budget-bytes <n>] [--budget-items <n>] [--json]', description: 'Return the budgeted agent digest for the admitted app surface.' }),
+  Object.freeze({ name: 'whoami', usage: 'snapback-app [target/principal flags] whoami [--json]', description: 'Report the selected principal class and custody source.' }),
+  Object.freeze({ name: 'call', usage: 'snapback-app --server <url> [target/principal flags] call <function> [--args-json <object|->] [--timeout-ms <ms>] [--json]', description: 'Invoke one query, mutation, action, or one-shot live query by stable id/name.' }),
+  Object.freeze({ name: 'subscribe', usage: 'snapback-app --server <url> [target/principal flags] subscribe <live-query> [--args-json <object|->] [--watch|--first-change] [--timeout-ms <ms>] [--json]', description: 'Print the initial live snapshot, then the first changed snapshot or every changed snapshot.', details: Object.freeze(['--args-json supplies the live-query argument object.', '--watch streams every changed snapshot until signal or timeout.', '--first-change exits after the first snapshot that differs from the initial snapshot.', '--timeout-ms bounds the complete subscription observation.']) }),
+  Object.freeze({ name: 'types', usage: 'snapback-app [target flags] types [--out <directory|->]', description: 'Render admitted API and code-mode TypeScript declarations.' }),
+  Object.freeze({ name: 'run', usage: 'snapback-app --server <url> [target/principal flags] run <script.ts|-> [resource flags] [-- <args...>]', description: 'Execute a bounded TypeScript code-mode program; - reads the script from stdin.' }),
+  Object.freeze({ name: 'pair', usage: 'snapback-app --server <url> pair --request <id> [--pairing-code-file <0600-file>] --profile-out <0600-profile> <--credential-file <0600-file>|--credential-env <name>> [--scopes-json <array|->] [--json]', description: 'Redeem an agent pairing request and persist the resulting owner-only profile.', details: Object.freeze(['--server selects the admitted origin.', '--request names the browser-created pairing request.', '--pairing-code-file carries the secret code; omit it to read stdin.', '--profile-out is the owner-only agent profile destination.', '--credential-file or --credential-env selects exactly one credential custody source.', '--scopes-json requests the bounded grant scopes.']) }),
+]);
+
+const help = (selected = null) => {
+  const entry = APP_CLI_COMMANDS.find(({ name }) => name === selected) ?? null;
+  if (entry !== null) {
+    process.stdout.write([
+      `Usage: ${entry.usage}`,
+      '',
+      entry.description,
+      ...(entry.details ?? []),
+      '',
+    ].join('\n'));
+    return;
+  }
+  process.stdout.write([
+    'Usage: snapback-app --server <url> [--artifacts <generated-dir>] [--principal anonymous|dev|session|agent|auto] <command>',
+    '',
+    'Commands:',
+    ...APP_CLI_COMMANDS.map(({ name, description }) => `  ${name.padEnd(10)} ${description}`),
+    '',
+    'Session custody: --session-bearer-file <0600-file> or SNAPBACK_APP_SESSION_BEARER',
+    'Agent custody: --agent-profile <0600-profile> or SNAPBACK_APP_AGENT_PROFILE',
+    'Run `snapback-app <command> --help` for exact command flags.',
+    '',
+  ].join('\n'));
 };
 
 try {
@@ -273,8 +301,10 @@ try {
       { code: 'SNAPBACK_APP_CLI_USAGE' },
     );
   }
-  if (command === 'help' || has('--help')) {
-    help();
+  if (has('--version') || has('-V')) {
+    process.stdout.write(`snapback-app ${PACKAGE_VERSION}\n`);
+  } else if (command === 'help' || has('--help')) {
+    help(command === 'help' ? parsed.positionals[1] ?? null : command);
   } else if (command === 'introspect') {
     assertSupportedHost();
     const surface = await loadSurface({ includeInspection: true });

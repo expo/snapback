@@ -50,3 +50,23 @@ From the 2026-08-08 agentic surface audit (LLP 0202 theme 9).
 Adjacent, already tracked in `issues/20260808-tooling-robustness-papercuts.md`:
 the `snapback_run_function` missing-catalog authority-gate default and the
 unguarded `functions.manifest.json` parse.
+
+## Resolution (2026-08-08)
+
+The MCP control surface now marks asset export as host-filesystem-mutating
+(`readOnlyHint: false`, still non-destructive), and the generated control
+catalog agrees. All pinned and generated tools declare one shared
+`hostOpsResult` output schema. Every call is validated against its published
+input schema before dispatch, invalid calls return
+`SNAPBACK_MCP_ARGUMENT_INVALID`, and all dynamic path segments pass through
+the typed encoder.
+
+Guide resource descriptions now derive from manifest status, maturity, and
+capabilities. App-data tool metadata is reduced to function identity,
+capability gaps, and syncability. The control server adds
+`snapback_guide_search` over the native exact-symbol/section-search path while
+the Guide MCP remains resource-only. Native Guide/catalog projections and
+searches are memoized by build catalog digest for the server process lifetime.
+The MCP acceptance covers safety annotations, schema declarations and
+validation, both Guide search modes, lean metadata, encoded-path refusals, and
+digest-keyed memoization.

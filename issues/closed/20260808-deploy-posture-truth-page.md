@@ -51,3 +51,32 @@ Companions in the same lane:
    `fail()` prints prose with no code (`:71-74`) despite the
    `/^SNAPBACK_[A-Z0-9_]+$/` convention enforced in the same subsystem
    (`snapback-publish-core.mjs:1504`). Route through a coded envelope.
+
+## Resolution (2026-08-08)
+
+Resolved the posture statement and all five companions:
+
+- `guide/deploying/index.md` now states the exact local, Fly, Cloudflare, and
+  hosted-lifecycle stopping points with their open tracking tickets, and the
+  Deploying section of `guide/index.md` routes agents to it.
+- `guide/deploying/hosted-control.md` documents the three closed read commands,
+  the separate operator transport, all 17 lifecycle verbs, the disabled
+  availability contract, `SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE`, and
+  the carrier/custody ticket.
+- `packages/snapback-cli/hosted-control.mjs` now includes a catalog-shaped
+  `recommendedNext` (`owner`, `ticketOrDesignPointer`, `note`) on the lifecycle
+  refusal, with package-level coverage.
+- `cloudflare/deploy.sh` now gives all eleven explicit refusal sites stable
+  `SNAPBACK_CF_DEPLOY_*` codes, attests final active Worker versions, and emits
+  one `snapback.cloudflare-deploy-receipt.v1` JSON line containing Worker
+  names/versions, probe URL, health code, and actions taken. The closed schema
+  is `schemas/cloudflare.deploy-receipt-v1.schema.json`, the deploy harness
+  covers both proof profiles and the receipt, and final instructions use the
+  resolved probe URL.
+- `scripts/snapback-publish.mjs` now emits the standard `{ok:false,
+  diagnostics:[...]}` JSON envelope with `SNAPBACK_PUBLISH_ARGUMENT_INVALID`
+  or `SNAPBACK_PUBLISH_REFUSED` while preserving its exit-status distinction.
+
+The Guide manifest and flat projection were regenerated, and the affected
+Guide, inventory, deployment, hosted-control, publication, schema, shell,
+JavaScript, and LLP-reference checks pass.

@@ -9,8 +9,8 @@ use snapback::admin::AppState;
 use snapback::guide::{FLAT_PATH, GUIDE_CONTENT_SHA256, INDEX_PATH};
 use snapback::local::LocalSnapback;
 use snapback::server::{
-    GUIDE_BUILD_COMMIT_HEADER, GUIDE_CONTENT_HASH_HEADER, ResponseSensitivity, RouteClass,
-    RoutePolicy, app, route_registry,
+    GUIDE_BUILD_COMMIT_HEADER, GUIDE_CONTENT_HASH_HEADER, HTTP_ROUTES_PATH, ResponseSensitivity,
+    RouteClass, RoutePolicy, app, route_registry,
 };
 use std::collections::BTreeSet;
 use std::io::Read;
@@ -53,6 +53,7 @@ async fn cli_memory_server_serves_the_build_bound_flat_guide() {
     let ready_file = temp.path().join("ready.json");
     let mut child = tokio::process::Command::new(env!("CARGO_BIN_EXE_snapback"))
         .args([
+            "start",
             "--port",
             "0",
             "--memory",
@@ -64,7 +65,7 @@ async fn cli_memory_server_serves_the_build_bound_flat_guide() {
         .stderr(Stdio::null())
         .kill_on_drop(true)
         .spawn()
-        .expect("spawn snapback --memory");
+        .expect("spawn snapback start --memory");
 
     let deadline = Instant::now() + Duration::from_secs(15);
     let server_url = loop {
@@ -77,12 +78,12 @@ async fn cli_memory_server_serves_the_build_bound_flat_guide() {
                 .expect("ready descriptor serverUrl")
                 .to_owned();
         }
-        if let Some(status) = child.try_wait().expect("poll snapback --memory") {
-            panic!("snapback --memory exited before readiness: {status}");
+        if let Some(status) = child.try_wait().expect("poll snapback start --memory") {
+            panic!("snapback start --memory exited before readiness: {status}");
         }
         assert!(
             Instant::now() < deadline,
-            "snapback --memory readiness timeout"
+            "snapback start --memory readiness timeout"
         );
         tokio::time::sleep(Duration::from_millis(25)).await;
     };
@@ -91,7 +92,7 @@ async fn cli_memory_server_serves_the_build_bound_flat_guide() {
     let served = tokio::task::spawn_blocking(move || {
         let response = ureq::get(&request_url)
             .call()
-            .expect("GET served guide from snapback --memory");
+            .expect("GET served guide from snapback start --memory");
         let status = response.status();
         let content_hash = response
             .header(GUIDE_CONTENT_HASH_HEADER)
@@ -111,7 +112,7 @@ async fn cli_memory_server_serves_the_build_bound_flat_guide() {
     .await
     .expect("join served-guide HTTP request");
 
-    child.start_kill().expect("stop snapback --memory");
+    child.start_kill().expect("stop snapback start --memory");
     let _ = child.wait().await;
 
     assert_eq!(served.0, 200);
@@ -182,6 +183,46 @@ async fn memory_server_serves_root_llms_txt_with_guide_identity() {
     assert!(body.contains("/_snapback/guide/capabilities.md"));
     assert!(body.contains("/_snapback/guide/reference/index.md"));
     assert!(body.contains("/_snapback/guide/reference/registry.json"));
+    assert!(body.contains(HTTP_ROUTES_PATH));
+    assert!(body.contains("/_snapback/guide/reference/diagnostics.md"));
+    assert!(body.contains("/_snapback/guide/reference/diagnostics-registry.json"));
+    assert!(body.contains("`snapback mcp`"));
+    assert!(body.contains("`snapback mcp-control`"));
+    assert!(body.contains("snapback agent setup --print <client> --server mcp-control"));
+}
+
+#[tokio::test]
+async fn memory_server_serves_build_bound_http_route_schema_join() {
+    let response = get(HTTP_ROUTES_PATH).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response.headers()[header::CONTENT_TYPE],
+        "application/json; charset=utf-8"
+    );
+    assert_eq!(
+        header(&response, GUIDE_BUILD_COMMIT_HEADER),
+        option_env!("SNAPBACK_BUILD_GIT_COMMIT").unwrap_or("unknown")
+    );
+    let bytes = to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("read HTTP route catalog");
+    assert_eq!(
+        bytes.as_ref(),
+        include_bytes!("../schemas/http.routes.v1.json")
+    );
+    let value: Value = serde_json::from_slice(&bytes).expect("route catalog JSON");
+    assert_eq!(value["formatVersion"], "snapback.http-routes.v1");
+    let query = value["routes"]
+        .as_array()
+        .expect("route rows")
+        .iter()
+        .find(|route| route["method"] == "POST" && route["path"] == "/query/{name}")
+        .expect("query route row");
+    assert_eq!(query["class"], "AppData");
+    assert_eq!(query["path_policy"], "AppAuth");
+    assert_eq!(query["credential_resolution"], "LegacyBodyAuth");
+    assert_eq!(query["inputSchema"]["$ref"], "query.input.schema.json");
+    assert_eq!(query["outputSchema"]["$ref"], "query.output.schema.json");
 }
 
 #[tokio::test]
@@ -250,6 +291,28 @@ async fn index_and_individual_build_embedded_files_are_public_read_only() {
             .as_ref(),
         include_bytes!("../guide/reference/registry.json")
     );
+    let diagnostics = get("/_snapback/guide/reference/diagnostics.md").await;
+    assert_eq!(diagnostics.status(), StatusCode::OK);
+    assert_eq!(
+        to_bytes(diagnostics.into_body(), usize::MAX)
+            .await
+            .unwrap()
+            .as_ref(),
+        include_bytes!("../guide/reference/diagnostics.md")
+    );
+    let diagnostics_registry = get("/_snapback/guide/reference/diagnostics-registry.json").await;
+    assert_eq!(diagnostics_registry.status(), StatusCode::OK);
+    assert_eq!(
+        diagnostics_registry.headers()[header::CONTENT_TYPE],
+        "application/json; charset=utf-8"
+    );
+    assert_eq!(
+        to_bytes(diagnostics_registry.into_body(), usize::MAX)
+            .await
+            .unwrap()
+            .as_ref(),
+        include_bytes!("../guide/reference/diagnostics-registry.json")
+    );
 
     assert_eq!(
         get("/_snapback/guide/eval-runs/2026-07-15/realtime.md")
@@ -277,6 +340,7 @@ fn served_guide_routes_are_registered_system_static_public_projections() {
         BTreeSet::from([
             "/_snapback/guide",
             "/_snapback/guide/flat.md",
+            "/_snapback/guide/http.routes.v1.json",
             "/_snapback/guide/{*path}",
             "/llms.txt",
         ])
@@ -302,4 +366,6 @@ fn served_guide_routes_are_registered_system_static_public_projections() {
     assert!(snapback::guide::file("capabilities.md").is_some());
     assert!(snapback::guide::file("reference/index.md").is_some());
     assert!(snapback::guide::file("reference/registry.json").is_some());
+    assert!(snapback::guide::file("reference/diagnostics.md").is_some());
+    assert!(snapback::guide::file("reference/diagnostics-registry.json").is_some());
 }

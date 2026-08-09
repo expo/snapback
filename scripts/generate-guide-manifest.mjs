@@ -20,6 +20,12 @@ import {
 } from './guide-lib.mjs';
 
 const root = repoRoot();
+// @ref LLP 0193#program — diagnostics and their typed code vocabulary are one
+// generated Guide resource, checked before the manifest binds their bytes.
+execFileSync(process.execPath, [join(root, 'scripts/generate-diagnostics-registry.mjs')], {
+  cwd: root,
+  stdio: 'inherit',
+});
 // @ref LLP 0194#design — registry and Markdown projection regenerate as one Guide pipeline.
 execFileSync(process.execPath, [join(root, 'scripts/generate-symbol-registry.mjs')], {
   cwd: root,

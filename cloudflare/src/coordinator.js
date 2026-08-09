@@ -37,7 +37,7 @@ import { HostContext, physicalIndexName, physicalTableName, validateWriteValues 
 import { nextNominalAfter } from './cron-utils.js';
 import { SUBSCRIPTION_LIMITS, SUBSCRIPTION_TEST_CEILINGS } from './limits.js';
 import { compileSubscriptionSelections, SUBSCRIPTION_FUNCTION_INDEX } from './subscription-selection.js';
-import { wireDiagnostic } from './wire-diagnostic.js';
+import { wireDiagnostic, wireErrorResponse } from './wire-diagnostic.js';
 import {
   NetworkProfileState,
   markProfiledResponse,
@@ -140,7 +140,7 @@ const MAX_ROW_BYTES = Number(capabilityManifest.runtimeFacts.maxRowBytes);
 const MAX_REQUEST_BYTES = Math.max(4_000_000, MAX_ROW_BYTES * 2);
 
 // The LLP 0094 §0A.1 kit app-data routes as served by this coordinator.
-// Every non-2xx JSON failure on these paths rides the closed ErrorResponse
+// Every non-2xx JSON failure on these paths rides the versioned ErrorResponse
 // (error.response.schema.json) — the §0C.6 governance decision; the LLP 0040
 // proof routes (/query, /mutation, /live/stream) and the /_snapback/* system
 // and testing lanes are outside that rule and keep their pinned shapes.
@@ -491,13 +491,13 @@ export class Coordinator {
   }
 
   networkProfileErrorResponse(error) {
-    return json(networkProfileStatus(error), {
-      diagnostic: wireDiagnostic(
+    return json(networkProfileStatus(error), wireErrorResponse(
+      wireDiagnostic(
         error.snapbackCode || 'SNAPBACK_NETWORK_PROFILE_INVALID',
         String(error.message || error),
         error.snapbackDetails ?? null,
       ),
-    });
+    ));
   }
 
   // Startup is intentionally two-phase. The metadata table is the only DDL
@@ -1568,7 +1568,7 @@ export class Coordinator {
     } catch (error) {
       // A thrown coded refusal (e.g. capability admission at function
       // resolution) surfaces as a typed diagnostic, never a bare 500. Kit
-      // routes emit the closed ErrorResponse (LLP 0094 §0C.6 governance);
+      // routes emit the versioned ErrorResponse (LLP 0094 §0C.7 governance);
       // proof/system lanes keep the top-level ok marker.
       if (error && typeof error.snapbackCode === 'string') {
         const status = error.snapbackCode === 'SNAPBACK_CAPABILITY_UNSUPPORTED' ? 503 : 400;
@@ -1608,7 +1608,7 @@ export class Coordinator {
       path !== '/_snapback/api/config/status' &&
       path !== '/_snapback/api/debug/network-profile'
     ) {
-      // Kit routes carry the closed ErrorResponse; the proof/system lanes
+      // Kit routes carry the versioned ErrorResponse; the proof/system lanes
       // keep the pinned {ok:false, code, message, details} refusal shape.
       if (KIT_ENVELOPE_ROUTE.test(path)) {
         return kitError(409, startupRefusal.code, startupRefusal.message, startupRefusal.details ?? null);
@@ -2053,7 +2053,7 @@ export class Coordinator {
         return this.withProfiledJsonObject(request, 'queryResponse', async (payload) => {
           const outcome = await this.executeAction(kitAction[1], (payload && payload.args) || {}, 'manual');
           // The kind-mismatch refusal is a non-2xx kit-route failure and rides
-          // the closed ErrorResponse; ordinary action outcomes (including
+          // the versioned ErrorResponse; ordinary action outcomes (including
           // failed ones) keep their 200 outcome envelope.
           let response;
           if (outcome.diagnostic?.code === 'SNAPBACK_FUNCTION_KIND_MISMATCH') {
@@ -6203,16 +6203,17 @@ function failure(result) {
 // status with a structured `diagnostic` — which demos/_kit/client.mjs turns
 // into its coded Error (and keys grant refresh on).
 // @ref LLP 0094#0c6-response-shape-divergences-audited-at-137dee8c-defects-not-contract — item 3: the inner Diagnostic is fully filled
-//   (code/severity/subsystem/message/details), matching the closed
-//   error.response.schema.json.
+//   (code/severity/subsystem/message/details), matching the versioned
+//   error.response.schema.json envelope.
 function kitError(status, code, message, details = null) {
-  return json(status, { diagnostic: wireDiagnostic(code, message, details) });
+  return json(status, wireErrorResponse(wireDiagnostic(code, message, details)));
 }
 
 function kitFailure(result) {
-  return json(clientFailureCode(result.code) ? 400 : 500, {
-    diagnostic: wireDiagnostic(result.code, result.message, result.details ?? null),
-  });
+  return json(
+    clientFailureCode(result.code) ? 400 : 500,
+    wireErrorResponse(wireDiagnostic(result.code, result.message, result.details ?? null)),
+  );
 }
 
 function clientFailureCode(code) {
@@ -6236,13 +6237,13 @@ function requestDiagnostic(status, code, message, details = null) {
   const diagnostic = { code, message, ...(details ? { details } : {}) };
   // Keep both the proof protocol's top-level code and the pinned diagnostic
   // member so every proof/system JSON endpoint keeps one stable 4xx shape.
-  // Kit routes never take this branch: their parse refusals ride the closed
-  // ErrorResponse via kitError (LLP 0094 §0C.6 item 7).
+  // Kit routes never take this branch: their parse refusals ride the
+  // versioned ErrorResponse via kitError (LLP 0094 §0C.7).
   return json(status, { ok: false, code, message, diagnostic });
 }
 
 async function parseJsonObjectRequest(request, { allowEmpty = false, allowAny = false, errorDialect = 'proof' } = {}) {
-  // @ref LLP 0094#0c6-response-shape-divergences-audited-at-137dee8c-defects-not-contract — item 7: kit-route parse refusals emit the closed
+  // @ref LLP 0094#0c7-errorresponse-format-version-and-forward-skew-2026-08-08 — kit-route parse refusals emit the versioned
   //   ErrorResponse; the LLP 0040 proof/system lanes keep their pinned
   //   {ok, code, message, diagnostic} shape.
   const refuse = errorDialect === 'kit' ? kitError : requestDiagnostic;

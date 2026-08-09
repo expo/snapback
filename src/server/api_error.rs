@@ -98,7 +98,7 @@ pub(super) fn status_for_diagnostic_code(code: &str) -> StatusCode {
         crate::network_profile::NETWORK_PROFILE_FORBIDDEN_CODE => StatusCode::FORBIDDEN,
         crate::network_profile::NETWORK_PROFILE_DELAY_CEILING_CODE
         | crate::network_profile::NETWORK_PROFILE_INVALID_CODE => StatusCode::BAD_REQUEST,
-        "SNAPBACK_BUNDLE_ROUTE_UNKNOWN" => StatusCode::NOT_FOUND,
+        "SNAPBACK_BUNDLE_ROUTE_UNKNOWN" | "SNAPBACK_ROUTE_UNKNOWN" => StatusCode::NOT_FOUND,
         "SNAPBACK_BUNDLE_NOT_PUBLIC"
         | "SNAPBACK_BUNDLE_REGISTER_REQUIRES_CREDENTIAL"
         | "SNAPBACK_BUNDLE_IDEMPOTENCY_SENDER_MISMATCH" => StatusCode::FORBIDDEN,
@@ -457,6 +457,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_ERROR_ISSUE_ID_INVALID"
         | "SNAPBACK_ERROR_RELEASE_UNKNOWN_OR_PRUNED"
         | "SNAPBACK_ERROR_TRANSITION_INVALID"
+        | "SNAPBACK_AUTH_IMPERSONATION_FILE_INVALID"
         | "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED"
         | "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED"
         | "SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED"
@@ -1342,6 +1343,7 @@ impl IntoResponse for ApiError {
         let mut response = (
             status,
             Json(ErrorResponse {
+                format_version: ErrorResponseFormatVersion::V1,
                 diagnostic: self.0.diagnostic,
                 receipt: self.1,
                 attribution: self.3,

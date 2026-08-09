@@ -7,7 +7,9 @@ Client integration, Auth, Deployment, Acceptance and verification, Guide,
 Diagnostics, Packaging, Tooling, Governance
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-08
-**Revised:** —
+**Revised:** 2026-08-08 (the repo-tooling lane removed the unreferenced
+`scripts/vector-search-reference.mjs`; the remaining consolidation list is
+unchanged)
 **Related:** LLP 0010, LLP 0019, LLP 0024, LLP 0033, LLP 0042, LLP 0055,
 LLP 0061, LLP 0146, LLP 0150, LLP 0184, LLP 0186, LLP 0187, LLP 0189,
 LLP 0193, LLP 0194, LLP 0195, LLP 0196, LLP 0198, LLP 0202
@@ -266,9 +268,10 @@ trains wrong behavior:
 4. **Placeholder catalog metadata.** `title === operation`, `intents: []`,
    and unexplained `guide: null` become build failures rather than
    permanent residents (P1).
-5. **Dead and orphaned artifacts.** `scripts/vector-search-reference.mjs`
-   (referenced nowhere), the unrouted `docs/` strays (move under `llp/` or
-   tombstone), duplicate `_meta` catalog payloads in MCP `tools/list`.
+5. **Dead and orphaned artifacts.** The unreferenced
+   `scripts/vector-search-reference.mjs` was removed on 2026-08-08; remaining:
+   the unrouted `docs/` strays (move under `llp/` or tombstone), and duplicate
+   `_meta` catalog payloads in MCP `tools/list`.
 6. **The publishable-but-uninventoried package state.**
    `@expo/snapback-sidecar` and `snapback-harness` either become real
    (inventory row, README, capability row) or `private: true`. A manifest

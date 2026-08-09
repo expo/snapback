@@ -24,6 +24,7 @@ use std::sync::{Mutex, OnceLock};
 pub const LOCAL_MISS_CAPACITY: usize = 128;
 const LOCAL_MISS_COUNT_MAX: u64 = 255;
 const FUNCTION_CANDIDATE_LIMIT: usize = 8;
+const PATH_CANDIDATE_LIMIT: usize = 8;
 const FIELD_CANDIDATE_LIMIT: usize = 16;
 const IDENTIFIER_DISTANCE_BYTES: usize = 128;
 
@@ -220,6 +221,36 @@ pub(crate) fn unknown_operation_details(
             artifact_hash,
             guessed,
         ),
+    })
+}
+
+/// Existing-details content for an unmatched HTTP path. Candidates come only
+/// from the registry that installed the router, never from a copied path list.
+/// The attacker-controlled spelling is used for ranking and the bounded local
+/// miss counter, but is not reflected in the public diagnostic details.
+///
+/// @ref LLP 0031#enforcement — route_registry() is the path authority; an
+///   unmatched route may suggest only entries from that exact registry.
+pub(crate) fn unknown_path_details(guessed: &str, paths: &[&str]) -> Value {
+    let mut candidates = paths.to_vec();
+    candidates.sort_unstable();
+    candidates.dedup();
+    candidates.sort_by(|left, right| {
+        edit_distance(guessed, left)
+            .cmp(&edit_distance(guessed, right))
+            .then_with(|| left.cmp(right))
+    });
+    let candidate_count = candidates.len();
+    let candidates = candidates
+        .into_iter()
+        .take(PATH_CANDIDATE_LIMIT)
+        .collect::<Vec<_>>();
+    json!({
+        "path": "unrecognized",
+        "candidatePaths": candidates,
+        "candidatePathCount": candidate_count,
+        "candidatesTruncated": candidate_count > PATH_CANDIDATE_LIMIT,
+        "localMissSummary": miss_tracker().record("unknown-route", None, guessed),
     })
 }
 

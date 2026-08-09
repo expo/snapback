@@ -89,7 +89,7 @@ bun demos/todo-v2/tests/acceptance/provider-conformance.mjs
 
 # 8. Browser-hosted Contract surface (starts Vite; needs a running Snapback API).
 bun install --cwd demos/todo-v2/surfaces/contract   # once; registry packages
-cargo run -- --port 4421 --memory
+cargo run -- start --port 4421 --memory
 SNAPBACK_TODO_V2_API=http://127.0.0.1:4421 \
   bun run --cwd demos/todo-v2/surfaces/contract dev
 

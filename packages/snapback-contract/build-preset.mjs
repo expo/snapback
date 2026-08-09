@@ -341,7 +341,7 @@ export function createSnapbackAdminDevApiUnreachableDiagnostic({
       request_path: requestPath,
       cause,
       next_checks: [
-        'start Snapback in another terminal, for example: snapback --memory --port 4287',
+        'start Snapback in another terminal, for example: snapback start --memory --port 4287',
         'set SNAPBACK_ADMIN_DEV_API to the actual printed Snapback server URL if it auto-scanned to another port',
       ],
     },

@@ -8,6 +8,11 @@ server running, open
 the startup output selected another port), run `snapback guide <query>`, or
 connect the read-only Guide with `snapback mcp`.
 
+## Operate it
+
+`snapback mcp` serves read-only Guide resources; `snapback mcp-control` adds typed control tools with local admin authority.
+Preview control setup with `snapback agent setup --print <client> --server mcp-control`.
+
 The golden path is: edit `snapback/schema.mjs` and
 `snapback/functions.mjs` → `bun run generate` → `bun run dev` → exercise the
 generated client or `snapback run` → `bun run prove`.

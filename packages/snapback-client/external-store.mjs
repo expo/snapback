@@ -11,6 +11,22 @@ export const SNAPBACK_EXTERNAL_STORE_PROTOCOL = 'snapback.external-store.v1';
 
 let mutationSequence = 0;
 
+// @ref LLP 0193#program — lifecycle refusals use one stable external-store
+// family and the same client diagnostic carrier exposed by the root types.
+function externalStoreError(code, message, details = {}) {
+  const diagnostic = Object.freeze({
+    schemaVersion: 'snapback.client-diagnostic.v1',
+    code,
+    severity: 'error',
+    message,
+    details: Object.freeze(details),
+  });
+  const error = new Error(`${code}: ${message}`);
+  error.code = code;
+  error.diagnostic = diagnostic;
+  return error;
+}
+
 function freezeSnapshot(snapshot) {
   return Object.freeze({
     protocol: SNAPBACK_EXTERNAL_STORE_PROTOCOL,
@@ -349,9 +365,13 @@ export function createExternalQueryStore({
       isAuthoritative = null,
       id = `mutation-${++mutationSequence}`,
     } = {}) {
-      if (closed) throw new Error('external query store is closed');
+      if (closed) throw externalStoreError('SNAPBACK_EXTERNAL_STORE_CLOSED', 'external query store is closed');
       if (activeMutations.has(id)) {
-        throw new Error(`external query store already has active mutation ${id}`);
+        throw externalStoreError(
+          'SNAPBACK_EXTERNAL_STORE_MUTATION_ACTIVE',
+          `external query store already has active mutation ${id}`,
+          { mutationId: id },
+        );
       }
       const layer = optimisticRows === null ? null : {
         id,
@@ -473,7 +493,7 @@ export function createExternalQueryStoreRegistry() {
 
   const registry = {
     get(options = {}) {
-      if (closed) throw new Error('external query store registry is closed');
+      if (closed) throw externalStoreError('SNAPBACK_EXTERNAL_STORE_REGISTRY_CLOSED', 'external query store registry is closed');
       if (typeof options.identity !== 'string' || options.identity.length === 0) {
         throw new TypeError('external query store registry requires a non-empty identity');
       }
@@ -526,7 +546,7 @@ export class ExternalQueryScope {
   }
 
   renew() {
-    if (this.closed) throw new Error('external query scope is closed');
+    if (this.closed) throw externalStoreError('SNAPBACK_EXTERNAL_STORE_SCOPE_CLOSED', 'external query scope is closed');
     this.generation += 1;
     for (const binding of [...this.bindings]) this.disposeBinding(binding);
     this.bindings.clear();

@@ -60,6 +60,9 @@ async fn root_path_serves_yaml_instance_status() {
     assert!(body.contains("  adminConsole: \"/_snapback/admin\""));
     assert!(body.contains("  guide: \"/_snapback/guide\""));
     assert!(body.contains("  flatGuide: \"/_snapback/guide/flat.md\""));
+    assert!(body.contains("  llmsTxt: \"/llms.txt\""));
+    assert!(body.contains("  appApiCurrent: \"/app-api/current\""));
+    assert!(body.contains("  controlCatalog: \"/_snapback/api/control-catalog\""));
     assert!(body.contains("  healthJson: \"/_snapback/api/health\""));
     assert!(body.contains("  inspectJson: \"/_snapback/api/inspect\""));
     assert!(body.contains("Open on loopback"));
@@ -159,6 +162,12 @@ async fn root_negotiates_json_and_markdown() {
     assert_eq!(body["links"]["adminConsole"], "/_snapback/admin");
     assert_eq!(body["links"]["guide"], "/_snapback/guide");
     assert_eq!(body["links"]["flatGuide"], "/_snapback/guide/flat.md");
+    assert_eq!(body["links"]["llmsTxt"], "/llms.txt");
+    assert_eq!(body["links"]["appApiCurrent"], "/app-api/current");
+    assert_eq!(
+        body["links"]["controlCatalog"],
+        "/_snapback/api/control-catalog"
+    );
     assert_eq!(body["app"]["id"], "local-app");
     assert!(
         body["app"].get("name").is_none(),
@@ -651,6 +660,40 @@ async fn non_loopback_with_token_allows_admin_reads() {
     assert_eq!(denied.status(), StatusCode::UNAUTHORIZED);
     let body = json(denied).await;
     assert_eq!(body["diagnostic"]["code"], "SNAPBACK_ADMIN_TOKEN_REQUIRED");
+    assert_eq!(body["diagnostic"]["details"]["presented"], false);
+    assert_eq!(
+        body["diagnostic"]["details"]["header"],
+        "x-snapback-admin-token"
+    );
+    assert_eq!(
+        body["diagnostic"]["details"]["envVar"],
+        "SNAPBACK_ADMIN_TOKEN"
+    );
+    assert_eq!(
+        body["diagnostic"]["details"]["tokenFileConvention"],
+        "<ready-file>.admin-token"
+    );
+
+    let wrong = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/_snapback/api/inspect")
+                .header("x-snapback-admin-token", "wrong")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(wrong.status(), StatusCode::UNAUTHORIZED);
+    let wrong = json(wrong).await;
+    assert_eq!(wrong["diagnostic"]["details"]["presented"], true);
+    assert!(
+        wrong["diagnostic"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("did not match")
+    );
 
     let allowed = app
         .oneshot(

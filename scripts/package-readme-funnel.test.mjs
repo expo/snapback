@@ -1,24 +1,47 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { PACKAGE_INVENTORY } from './snapback-publish-core.mjs';
 
 // @ref LLP 0187#t4--build-the-out-of-repo-funnel-before-it-is-tested-for-real —
 // every remaining published package carries the same checkout-independent
 // documentation funnel in its actual npm tarball.
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const packageNames = [
-  'create-snapback-app',
-  'snapback-codegen',
-  'snapback-contract',
-  'snapback-app-cli',
-  'snapback-vite',
-  'snapback-expo',
-  'snapback-hosted-supervisor',
-];
+const packagesDirectory = join(root, 'packages');
+const packageRecords = readdirSync(packagesDirectory, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => {
+    const manifestPath = join(packagesDirectory, entry.name, 'package.json');
+    try {
+      return {
+        directory: entry.name,
+        manifest: JSON.parse(readFileSync(manifestPath, 'utf8')),
+      };
+    } catch (error) {
+      if (error.code === 'ENOENT') return null;
+      throw error;
+    }
+  })
+  .filter((record) => record !== null);
+const packageNames = packageRecords
+  .filter(({ manifest }) => manifest.private !== true)
+  .map(({ directory }) => directory)
+  .sort();
+const publicManifestNames = new Set(packageRecords
+  .filter(({ manifest }) => manifest.private !== true)
+  .map(({ manifest }) => manifest.name));
+
+for (const [sourceName] of PACKAGE_INVENTORY) {
+  assert(
+    publicManifestNames.has(sourceName),
+    `${sourceName} is in PACKAGE_INVENTORY but does not have a non-private manifest`,
+  );
+}
 const scratch = mkdtempSync(join(tmpdir(), 'snapback-package-readmes-'));
 
 try {
@@ -27,10 +50,17 @@ try {
     const manifest = JSON.parse(readFileSync(join(packageDir, 'package.json'), 'utf8'));
     const readme = readFileSync(join(packageDir, 'README.md'), 'utf8');
 
+    assert.equal(manifest.license, 'MIT', `${manifest.name} must declare the ratified MIT license`);
     assert.match(readme, new RegExp(`^# \`${manifest.name.replace('/', '\\/')}\`$`, 'm'));
+    assert.match(readme, /^## Documentation outside a checkout$/mu);
     assert.match(readme, /http:\/\/127\.0\.0\.1:4287\/_snapback\/guide/u);
     assert.match(readme, /`snapback guide(?: <query>)?`/u);
     assert.match(readme, /`snapback mcp`/u);
+    assert.match(
+      readme,
+      /use the origin printed by\s+`snapback dev` or `snapback start` if yours differs\./u,
+      `${manifest.name} must explain that the served Guide port can differ`,
+    );
     assert.doesNotMatch(
       readme,
       /\]\((?:\.\.\/|\.\/)?guide\//u,

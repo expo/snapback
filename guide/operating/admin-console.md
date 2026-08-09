@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 # Admin console
@@ -37,11 +37,17 @@ snapback admin --ready-file .snapback/dev.ready.json
 ```
 
 This is the exact command the Expo supervisor prints as its
-`adminConsoleCommand`. For a headless machine, print the URL instead:
+`adminConsoleCommand`. The command always prints the complete fragment-bearing
+URL, even when it successfully opens the browser. On a machine without a
+controlling `/dev/tty`, it automatically behaves as `--no-open`. You can force
+that behavior explicitly:
 
 ```sh
 snapback admin --ready-file .snapback/dev.ready.json --no-open
 ```
+
+For automation, add `--json`; the `snapback.admin-console.v1` result retains
+the URL, expiry, and whether a browser open was requested.
 
 The URL carries only a derived `sbcc_` credential and its expiry in the
 fragment. It never carries the `sbat_` master token in either the query or the
@@ -62,7 +68,7 @@ native Exact artifacts, then run the same commands through cargo:
 cd admin-ui
 ./build.sh
 cd ..
-cargo run -- --memory --ready-file .snapback/dev.ready.json
+cargo run -- start --memory --ready-file .snapback/dev.ready.json
 # in another terminal: discover the token, mint a browser credential, and open
 cargo run -- admin --ready-file .snapback/dev.ready.json
 ```
@@ -80,7 +86,7 @@ native-artifact capability diagnostic.
 Run Snapback at a known port, then start the Exact/Contract Vite app:
 
 ```sh
-cargo run -- --memory --port 4287
+cargo run -- start --memory --port 4287
 SNAPBACK_ADMIN_DEV_API=http://127.0.0.1:4287 bun run --cwd admin-ui dev
 ```
 
@@ -170,6 +176,19 @@ snapback admin link --no-wait --ready-file .snapback/dev.ready.json
 snapback admin link --status sbcl_… --ready-file .snapback/dev.ready.json
 snapback admin link --revoke sbcl_… --ready-file .snapback/dev.ready.json
 ```
+
+Attached automation can request JSON-line lifecycle records and an owner-only
+readiness handoff. The readiness file exists only while the observer owns the
+link and includes the exact fragment URL:
+
+```sh
+snapback admin link --json \
+  --link-ready-file .snapback/admin-link.ready.json \
+  --ready-file .snapback/dev.ready.json
+```
+
+`--link-ready-file` deliberately conflicts with `--no-wait`: an exited process
+cannot truthfully own attached-observer readiness.
 
 Claim-derived credentials have distinct provenance. Active use renews their
 ten-minute sliding expiry, but the server fixes their absolute deadline at

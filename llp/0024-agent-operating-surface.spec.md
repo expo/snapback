@@ -5,7 +5,13 @@
 **Systems:** Developer experience, Runtime, API, Tooling, Testing, Auth, Security, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-08-06 (LLP 0184 Phase 2 residue: `host.restart` is built as
+**Revised:** 2026-08-08 (native machine-mode amendment: the native CLI adopts
+the frozen app-data exit taxonomy, makes requested JSON failure-safe through
+`hostOpsResult`, makes bare invocation discovery-only, and exports versioned
+Guide search and command-inventory projections); 2026-08-08 (catalog projection repair: `host.restart` names the
+ready-file-bearing CLI spelling, `auth.mintSession` records its shipped
+session-mint CLI projection, and failed host-operation envelopes acquire
+catalog-derived Guide/CLI `next[]` entries); 2026-08-06 (LLP 0184 Phase 2 residue: `host.restart` is built as
 the native `snapback restart` CLI plus the existing `snapback_restart` MCP
 composition; both prove a concrete admin credential through the live
 AdminRead host-ops route before the nonce-verified stop and return one request
@@ -718,6 +724,54 @@ same loaded-manifest and in-memory scheduler inspection facts; none infers
 inspection by calling `cron.tick` or `cron.runOne`, and none creates a new
 ledger or persistence rule. The host-operation result carries the narrow LLP
 0028 DTO under `data.cron`; the direct GET returns that DTO itself.
+
+## Dated amendment: native machine mode (2026-08-08)
+
+The native `snapback` projection adopts LLP 0062's already-frozen exit
+taxonomy unchanged: success 0; usage 2; auth refusal 3; function not found 4;
+function/operation failure 5; transport failure 6; artifact identity mismatch
+7; version mismatch 8; timeout 9; script error 10; resource exceeded 11. Exit 1
+remains reserved for an engine-internal failure and gains no public semantic
+class. New diagnostics may join a class, but no class may be renumbered.
+
+When a caller requests a JSON mode (`--json` or the native `--format json`
+spelling), every pre-operation or projection failure returns one
+`hostOpsResult` failure envelope with the stable diagnostic under
+`diagnostics[]`; prose is not a second machine-mode failure grammar. Native
+operation envelopes map their first diagnostic through the same table instead
+of collapsing `ok: false` to exit 1. CLI argument diagnostics carry
+`details.command` so an agent can select the precise help surface.
+
+Bare `snapback` is discovery-only root help. Foreground native serving is
+explicitly `snapback start`; the managed authoring loop remains `snapback dev`.
+The binary's `--version` is the crate version carried by `BinaryIdentity`, and
+the hidden `command-inventory` projection exposes the Clap-owned tree as
+`snapback.native-command-inventory.v1` for composed package help. Guide JSON is
+total as `snapback.guide-search.v1`: channels, exact-symbol, fuzzy section, and
+zero-match outcomes share one envelope, with the existing exact lookup nested
+as its result rather than leaked as an alternate top-level grammar.
+
+CLI-only offline/store/auth and build/runtime probes either use
+`hostOpsResult` where that is their natural operation result or carry an
+explicit family `schemaVersion`. Admin console/link JSON likewise preserves
+the fragment-bearing URL; attached links may publish an owner-only readiness
+record that is removed when their observation lifecycle ends.
+
+## Dated amendment: catalog-bound CLI and refusal acquisition paths (2026-08-08)
+
+The built lifecycle and auth projections are recorded exactly as
+`snapback restart --ready-file <path>` and `snapback session mint --email
+<address>`. The latter remains CLI-only because its successful result is a
+session credential; no ordinary MCP result projection is implied. A
+`SNAPBACK_HOST_OP_CLI_ONLY` diagnostic obtains its command from the embedded
+ControlCatalog row (with the ready-file spelling as the restart fallback), so
+refusal prose cannot drift from the command the build advertises.
+
+For any `ok: false` `hostOpsResult`, `next[]` contains the operation's
+catalog-owned Guide acquisition path and, when non-null, its exact CLI
+projection. This is the existing LLP 0024 result carrier used for contextual
+next actions, not a new diagnostic `details.remediations` shape; the broader
+LLP 0146 OQ6 ruling remains open.
 
 ## Status
 

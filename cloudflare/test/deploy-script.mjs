@@ -13,6 +13,22 @@ const sourceCloudflareRoot = path.resolve(path.dirname(fileURLToPath(import.meta
 const sourceRepoRoot = path.resolve(sourceCloudflareRoot, '..');
 const contractSurfaceRoot = path.join(sourceRepoRoot, 'demos/all-aboard/surfaces/contract');
 const deploySource = fs.readFileSync(path.join(sourceCloudflareRoot, 'deploy.sh'), 'utf8');
+for (const code of [
+  'SNAPBACK_CF_DEPLOY_APP_UNKNOWN',
+  'SNAPBACK_CF_DEPLOY_SOURCE_OVERRIDE_REFUSED',
+  'SNAPBACK_CF_DEPLOY_CREDENTIAL_MISSING',
+  'SNAPBACK_CF_DEPLOY_PROBE_URL_UNAVAILABLE',
+  'SNAPBACK_CF_DEPLOY_BINDING_VERIFICATION_FAILED',
+  'SNAPBACK_CF_DEPLOY_HEALTH_REFUSED',
+  'SNAPBACK_CF_DEPLOY_ADMIN_SECRET_CONFLICT',
+  'SNAPBACK_CF_DEPLOY_ADMIN_SECRET_SET_UNVERIFIED',
+  'SNAPBACK_CF_DEPLOY_ADMIN_SECRET_REMOVE_UNVERIFIED',
+  'SNAPBACK_CF_DEPLOY_FINAL_BINDING_VERIFICATION_FAILED',
+  'SNAPBACK_CF_DEPLOY_FINAL_HEALTH_VERIFICATION_FAILED',
+  'SNAPBACK_CF_DEPLOY_VERSION_ATTESTATION_FAILED',
+]) {
+  assert.match(deploySource, new RegExp(`\\b${code}\\b`), `${code} must remain stable`);
+}
 assert.doesNotMatch(
   fs.readFileSync(path.join(sourceCloudflareRoot, 'wrangler.jsonc'), 'utf8'),
   /\bnpx\s+wrangler\b/,
@@ -275,6 +291,22 @@ function run(name, extra = {}) {
   return { ...result, output: `${result.stdout}${result.stderr}`, calls, compatChecked: fs.existsSync(marker) };
 }
 
+function deployReceipt(result) {
+  const receipts = result.output
+    .split('\n')
+    .filter((line) => line.startsWith('{'))
+    .map((line) => JSON.parse(line))
+    .filter(({ schemaVersion }) => schemaVersion === 'snapback.cloudflare-deploy-receipt.v1');
+  assert.equal(receipts.length, 1, `successful deployment must emit one receipt:\n${result.output}`);
+  const [receipt] = receipts;
+  assert.equal(receipt.probeUrl, 'https://proof.invalid');
+  assert.equal(receipt.healthCode, 'SNAPBACK_CF_DEPLOY_HEALTHY');
+  assert.match(receipt.workers.gateway.activatedVersion, /^new-/);
+  assert.match(receipt.workers.handler.activatedVersion, /^new-/);
+  assert(Array.isArray(receipt.actionsTaken));
+  return receipt;
+}
+
 function deployConfigs(result, bootstrap) {
   return result.calls
     .filter((args) => args[0] === 'deploy')
@@ -460,6 +492,7 @@ try {
     EXACT_ALL_ABOARD_SOURCE_ROOT: '/tmp/acceptance-only-exact-checkout',
   });
   assert.notEqual(sourceOverride.status, 0);
+  assert.match(sourceOverride.output, /SNAPBACK_CF_DEPLOY_SOURCE_OVERRIDE_REFUSED/);
   assert.match(sourceOverride.output, /acceptance-only and must be unset/);
   assert.deepEqual(sourceOverride.calls, []);
   assert.equal(sourceOverride.compatChecked, false);
@@ -493,6 +526,12 @@ try {
 
   const existing = run('all-existing');
   assert.equal(existing.status, 0, existing.output);
+  const existingReceipt = deployReceipt(existing);
+  assert.equal(existingReceipt.app, 'notes');
+  assert.equal(existingReceipt.workers.gateway.name, 'snapback-notes-proof');
+  assert.equal(existingReceipt.workers.handler.name, 'snapback-notes-handler');
+  assert.equal(existingReceipt.workers.actionHandler, null);
+  assert(existingReceipt.actionsTaken.includes('admin-secret:preserve'));
   assert.deepEqual(deployConfigs(existing, true), []);
   assert.match(existing.output, /remote state: verified ABSENT/);
   assert.equal(existing.compatChecked, true, 'deploy must always run the compat preflight');
@@ -543,6 +582,13 @@ try {
       MOCK_EXISTING: present.join(','),
     });
     assert.equal(permutation.status, 0, permutation.output);
+    const permutationReceipt = deployReceipt(permutation);
+    assert.equal(permutationReceipt.app, 'all-aboard');
+    assert.equal(
+      permutationReceipt.workers.actionHandler.name,
+      'snapback-all-aboard-action-handler',
+    );
+    assert.match(permutationReceipt.workers.actionHandler.activatedVersion, /^new-/);
     assert.deepEqual(
       deployConfigs(permutation, true).map((config) => config.replace(/^\.bootstrap\.\d+\./, '')),
       missing,
@@ -613,6 +659,7 @@ try {
 
   const staleHealth = run('stale-health', { MOCK_EXISTING: '', MOCK_HEALTH_STALE: '1' });
   assert.notEqual(staleHealth.status, 0);
+  assert.match(staleHealth.output, /SNAPBACK_CF_DEPLOY_HEALTH_REFUSED/);
   assert.match(staleHealth.output, /DEPLOYED BINDINGS VERIFIED, BUT HEALTH REFUSED/);
   assert.match(staleHealth.output, /SNAPBACK_DEPLOY_RESET_ON_STALE=1/, 'the refusal must teach the operator the sanctioned escape hatch');
   assert.ok(!staleHealth.output.includes('/_snapback/api/app/reset on the new version'), 'without the knob no reset may be attempted');
@@ -629,6 +676,7 @@ try {
     SNAPBACK_DEPLOY_RESET_DELAY_SECONDS: '0',
   });
   assert.equal(staleResetKnob.status, 0, staleResetKnob.output);
+  assert(deployReceipt(staleResetKnob).actionsTaken.includes('reset:stale-persistent-state'));
   assert.match(staleResetKnob.output, /invoking authenticated \/_snapback\/api\/app\/reset on the new version/);
   assert.match(staleResetKnob.output, /health passes after reset/);
   assert.deepEqual(deletedConfigs(staleResetKnob), []);
@@ -750,6 +798,7 @@ try {
 
   const removed = run('token-removed', { MOCK_SECRET_STATE: 'present', SNAPBACK_ADMIN_TOKEN_REMOVE: '1' });
   assert.equal(removed.status, 0, removed.output);
+  assert(deployReceipt(removed).actionsTaken.includes('admin-secret:remove'));
   assert.match(removed.output, /verified SNAPBACK_ADMIN_TOKEN absent/);
   assert.ok(removed.calls.some((args) => args[0] === 'secret' && args[1] === 'delete'));
   assert.equal(deployConfigs(removed, false).filter((config) => config === 'wrangler.jsonc').length, 2);
@@ -761,6 +810,7 @@ try {
 
   const rotated = run('token-rotated', { SNAPBACK_ADMIN_TOKEN: 'never-log-this-secret' });
   assert.equal(rotated.status, 0, rotated.output);
+  assert(deployReceipt(rotated).actionsTaken.includes('admin-secret:set'));
   assert.ok(rotated.calls.some((args) => args[0] === 'secret' && args[1] === 'put'));
   assert.equal(deployConfigs(rotated, false).filter((config) => config === 'wrangler.jsonc').length, 2);
   assert.doesNotMatch(JSON.stringify(rotated.calls) + rotated.output, /never-log-this-secret/);
@@ -777,7 +827,7 @@ try {
     MOCK_HEALTH_FAIL_AFTER_CALL: '2',
   });
   assert.notEqual(finalHealthFailure.status, 0);
-  assert.match(finalHealthFailure.output, /DEPLOY FAILED FINAL VERIFICATION/);
+  assert.match(finalHealthFailure.output, /SNAPBACK_CF_DEPLOY_FINAL_BINDING_VERIFICATION_FAILED/);
   assert.deepEqual(rollbackConfigs(finalHealthFailure), ['wrangler.handler.jsonc', 'wrangler.jsonc']);
 
   const finalOldHealthy = run('final-old-healthy-after-secret', {
@@ -786,7 +836,7 @@ try {
     MOCK_HEALTH_WRONG_VERSION_AFTER_CALL: '2',
   });
   assert.notEqual(finalOldHealthy.status, 0);
-  assert.match(finalOldHealthy.output, /DEPLOY FAILED FINAL VERIFICATION/);
+  assert.match(finalOldHealthy.output, /SNAPBACK_CF_DEPLOY_FINAL_BINDING_VERIFICATION_FAILED/);
   assert.deepEqual(rollbackConfigs(finalOldHealthy), ['wrangler.handler.jsonc', 'wrangler.jsonc']);
 
   console.log('cloudflare deploy-script acceptance: mixed bootstrap, rollback, and admin-secret states passed');

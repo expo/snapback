@@ -444,7 +444,9 @@ assert.notEqual(
   assert.equal(store.getSnapshot().mutation.pendingCount, 2);
   await assert.rejects(
     store.runMutation(async () => { duplicateDispatched = true; }, { id: 'newer' }),
-    /already has active mutation newer/,
+    (error) => error.code === 'SNAPBACK_EXTERNAL_STORE_MUTATION_ACTIVE'
+      && error.diagnostic.code === error.code
+      && /already has active mutation newer/u.test(error.message),
   );
   assert.equal(duplicateDispatched, false, 'a duplicate non-optimistic mutation id never dispatches');
 
@@ -547,6 +549,30 @@ assert.notEqual(
   );
   assert.equal(failedScope.snapshot().activeSubscriptions, 0, 'startup failure disposes and removes its binding');
   failedScope.close();
+}
+
+{
+  const store = createExternalQueryStore({ start: async () => ({ dispose() {} }) });
+  store.close();
+  await assert.rejects(
+    store.runMutation(async () => {}),
+    (error) => error.code === 'SNAPBACK_EXTERNAL_STORE_CLOSED'
+      && error.diagnostic.schemaVersion === 'snapback.client-diagnostic.v1',
+  );
+
+  const registry = createExternalQueryStoreRegistry();
+  registry.close();
+  assert.throws(
+    () => registry.get({ identity: 'closed' }),
+    (error) => error.code === 'SNAPBACK_EXTERNAL_STORE_REGISTRY_CLOSED',
+  );
+
+  const scope = new ExternalQueryScope();
+  scope.close();
+  assert.throws(
+    () => scope.renew(),
+    (error) => error.code === 'SNAPBACK_EXTERNAL_STORE_SCOPE_CLOSED',
+  );
 }
 
 console.log('external-store.test.mjs: lifecycle, identity, StrictMode, settlement, and handshake checks passed');

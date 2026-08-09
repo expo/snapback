@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 2c6b3d38cbf2ba197cfb0390aaddba1ce107e4e0
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 # The headless client
@@ -122,6 +122,13 @@ actor/credential-generation/grant axis while invalidating the old token
 carrier; a changed tuple deletes predecessor state before publishing the
 validated successor. In either case, no successor result can publish until an
 exact final custody comparison succeeds.
+
+This fork only **adopts an already-issued agent credential**. No
+user-reachable client or server route registers an agent principal or issues
+the initial `sbac_` credential today; those credentials come from
+harness/test-lane provisioning. Treat
+[`auth.agent-registration`](../capabilities.md) as a capability GAP, not as a
+missing method to keep searching for.
 
 Long-running Node CLI and daemon processes should import
 `createFilesystemAgentAuthorityCustodyStorage` directly from
@@ -333,7 +340,10 @@ snapshot-with-subscribe operation and returns a handle with `rows`,
     assertEqual(handle.rows.length, 3, 'snapshot rows');
 ```
 
-Use `transport: 'stream'` for managed WebSocket push; the manager multiplexes
+**Transport default:** omitting `transport` selects manual polling. The handle
+updates only when the caller invokes `poll()`; it does not become push-driven
+because an `onUpdate` callback is present. Use `transport: 'stream'` for managed
+WebSocket push; the manager multiplexes
 all durable and ephemeral consumers sharing a `connectionId`. Consume
 `onUpdate`, `onConnectionChange`, subscription events, and authorization
 callbacks instead of reading socket internals. Always dispose the handle.

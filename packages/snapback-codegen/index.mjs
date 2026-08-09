@@ -151,6 +151,31 @@ function exactKeys(value, expected) {
     && canonicalResultJson(Object.keys(value).sort()) === canonicalResultJson([...expected].sort());
 }
 
+// @ref LLP 0178#2-diagnostic-shape — internal generation failures remain
+// thrown errors, but carry the same stable structured diagnostic returned by
+// the worker and include authored file/span evidence whenever it is known.
+function codegenError(code, message, {
+  cause = undefined,
+  path = undefined,
+  line = undefined,
+  column = undefined,
+  details = {},
+} = {}) {
+  const error = new Error(`${code}: ${message}`, cause === undefined ? undefined : { cause });
+  error.code = code;
+  error.diagnostic = Object.freeze({
+    code,
+    severity: 'error',
+    subsystem: 'codegen',
+    message,
+    ...(path === undefined ? {} : { path }),
+    ...(line === undefined ? {} : { line }),
+    ...(column === undefined ? {} : { column }),
+    details: Object.freeze(details),
+  });
+  return error;
+}
+
 // Activation preparation is two-phase by construction: the server-owned
 // keyring mints/selects the public manifest and prepares this source artifact;
 // codegen then validates it against the generation it just derived and emits
@@ -3651,7 +3676,11 @@ export async function generateInProcess(backendDir, options = {}) {
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
-  const decoratedFunctionDefinitions = decorateFunctions(appId, functions);
+  const decoratedFunctionDefinitions = decorateFunctions(
+    appId,
+    functions,
+    functionDefinitionSourceSpans,
+  );
   for (const fn of decoratedFunctionDefinitions) {
     const binding = contractQueries[fn.name]
       ?? contractMutations[fn.name]
@@ -5124,7 +5153,10 @@ export function serializeExpr(expr) {
     for (const [key, fieldExpr] of Object.entries(expr.Record.fields)) fields[key] = serializeExpr(fieldExpr);
     return { Record: { fields } };
   }
-  throw new Error(`unserializable expr ${JSON.stringify(expr)}`);
+  throw codegenError(
+    'SNAPBACK_CODEGEN_EXPRESSION_UNSERIALIZABLE',
+    `unserializable expr ${JSON.stringify(expr)}`,
+  );
 }
 
 function serializeQueryPlan(plan, membershipDeclarations) {
@@ -7035,12 +7067,16 @@ function functionId(appId, name) {
   if (typeof appId !== 'string' || appId === '' || typeof name !== 'string' || name === '') {
     // Fail closed: emitting a function without a stable id would produce a
     // manifest the server refuses to load (LLP 0012 requires the id).
-    throw new Error(`codegen internal error: cannot derive a stable function id from appId=${JSON.stringify(appId)} name=${JSON.stringify(name)}`);
+    throw codegenError(
+      'SNAPBACK_CODEGEN_FUNCTION_ID_INVALID',
+      `codegen internal error: cannot derive a stable function id from appId=${JSON.stringify(appId)} name=${JSON.stringify(name)}`,
+      { details: { appId, name } },
+    );
   }
   return `${appId}:${name}`;
 }
 
-function decorateFunctions(appId, functions) {
+function decorateFunctions(appId, functions, sourceSpans = {}) {
   return functions.map((fn) => {
     const reads = readSummary(fn);
     const writes = writeSummary(fn);
@@ -7051,7 +7087,12 @@ function decorateFunctions(appId, functions) {
     try {
       effectCeiling = computeEffectCeiling(fn);
     } catch (error) {
-      throw new Error(`${fn.name}: ${error.message}`, { cause: error });
+      const span = sourceSpans[fn.name] ?? {};
+      throw codegenError(
+        'SNAPBACK_CODEGEN_EFFECT_CEILING_FAILED',
+        `${fn.name}: ${error.message}`,
+        { cause: error, ...span, details: { function: fn.name } },
+      );
     }
     // @ref LLP 0118#findings — finding 4: the v1 hash carries no dependency
     // field by design, so helper-using operations move to the v2 format whose
@@ -8884,7 +8925,11 @@ function renderQueryGroupReferences(appId, functions, routesManifest, expectedGe
     const queries = routeEntry.queries.map((query, position) => {
       const fn = byName.get(query.function);
       if (!fn) {
-        throw new Error(`codegen internal error: query group references unknown function ${query.function}`);
+        throw codegenError(
+          'SNAPBACK_CODEGEN_QUERY_GROUP_FUNCTION_UNKNOWN',
+          `codegen internal error: query group references unknown function ${query.function}`,
+          { details: { function: query.function, route: routeEntry.route } },
+        );
       }
       return {
         name: queryGroupEntryName(query.function, occurrences, usedNames),
@@ -11538,7 +11583,11 @@ export function computeArtifactIdentityStrings({
     };
   }
   if (artifactVersion !== SESSIONS_SCHEMA_VERSION || authMode !== 'sessions') {
-    throw new Error(`unsupported artifact/auth identity tuple ${artifactVersion} + ${authMode}`);
+    throw codegenError(
+      'SNAPBACK_CODEGEN_ARTIFACT_AUTH_TUPLE_UNSUPPORTED',
+      `unsupported artifact/auth identity tuple ${artifactVersion} + ${authMode}`,
+      { details: { artifactVersion, authMode } },
+    );
   }
   const inputsDigest = sha256Framed(
     'snapback-codegen/inputs-hash/snapback.v1/sessions',
@@ -11613,10 +11662,12 @@ for (const capability of ['fs.read', 'fs.write', 'child', 'worker', 'addons', 'i
   if (process.permission.has(capability)) fail('isolated evaluator unexpectedly has ' + capability);
 }
 
+let activeItem = null;
 try {
   const request = JSON.parse(Buffer.concat(chunks).toString('utf8'));
   const values = Object.create(null);
   for (const item of request.items) {
+    activeItem = item;
     const sandbox = Object.create(null);
     const context = vm.createContext(sandbox, {
       name: 'snapback-codegen-' + item.label,
@@ -11624,7 +11675,7 @@ try {
     });
     vm.runInContext(
       "(() => {\n" +
-        "const denied = (name) => () => { throw new Error('[snapback-codegen] ambient ' + name + ' is unavailable'); };\n" +
+        "const denied = (name) => () => { const error = new Error('[snapback-codegen] ambient ' + name + ' is unavailable'); error.code = 'SNAPBACK_CODEGEN_DEFINITION_AMBIENT_UNAVAILABLE'; throw error; };\n" +
         "const denyMethod = (prototype, name) => Object.defineProperty(prototype, name, { value: denied(name), writable: false, configurable: false });\n" +
         "for (const [prototype, names] of [\n" +
           "[String.prototype, ['localeCompare', 'toLocaleLowerCase', 'toLocaleUpperCase']],\n" +
@@ -11648,7 +11699,11 @@ try {
       filename: 'snapback-codegen-' + item.label + '.bundle.js',
     });
     const serialized = sandbox[item.resultKey];
-    if (typeof serialized !== 'string') throw new Error(item.label + ' did not publish a serialized definition');
+    if (typeof serialized !== 'string') {
+      const error = new Error(item.label + ' did not publish a serialized definition');
+      error.code = 'SNAPBACK_CODEGEN_DEFINITION_RESULT_MISSING';
+      throw error;
+    }
     values[item.label] = JSON.parse(serialized);
   }
   process.stdout.write(JSON.stringify({ ok: true, values }));
@@ -11660,6 +11715,8 @@ try {
       name: errorObject && typeof error.name === 'string' ? error.name : null,
       code: errorObject && typeof error.code === 'string' ? error.code : null,
       message: errorObject && typeof error.message === 'string' ? error.message : String(error),
+      label: activeItem && typeof activeItem.label === 'string' ? activeItem.label : null,
+      path: activeItem && typeof activeItem.sourcePath === 'string' ? activeItem.sourcePath : null,
     },
   }));
 }
@@ -11831,13 +11888,19 @@ async function buildDefinitionBundle(
       }],
     });
     const output = result.outputFiles?.[0]?.text;
-    if (typeof output !== 'string') throw new Error('esbuild did not return the in-memory definition bundle');
-    return { graph, bundle: output, resultKey };
+    if (typeof output !== 'string') {
+      throw codegenError(
+        'SNAPBACK_CODEGEN_BUNDLE_OUTPUT_MISSING',
+        'esbuild did not return the in-memory definition bundle',
+        { path: entryPath },
+      );
+    }
+    return { graph, bundle: output, resultKey, sourcePath: entryPath };
   } catch (error) {
     const failures = Array.isArray(error?.errors) && error.errors.length > 0 ? error.errors : [error];
     for (const failure of failures) {
       const detail = failure?.detail && typeof failure.detail === 'object' ? failure.detail : {};
-      const code = detail.snapbackCode
+      const code = detail.snapbackCode ?? failure?.code
         ?? (failure?.text?.includes('Top-level await') && failure?.location?.lineText?.includes('import(')
           ? 'CODEGEN_DYNAMIC_IMPORT_UNHASHABLE'
           : 'CODEGEN_MODULE_PARSE_FAILED');
@@ -11864,7 +11927,12 @@ function definitionFacadeSource(entryPath, definePath, resultKey, kind) {
   const entry = JSON.stringify(entryPath);
   const define = JSON.stringify(definePath);
   const imports = `import { isAssetUploadDef, isCommandDef, isConfigDef, isCronDef, isEphemeralCollectionDef, isEphemeralDef, isFunctionDef, isMaintainedProjectionDef, isRoutesDef, isSurfaceBinding, isSurfaceDef, isTableDef } from ${define};`;
-  const normalization = String.raw`
+const normalization = String.raw`
+function __snapbackFail(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  throw error;
+}
 function __snapbackDefinitionKind(value) {
   if (isFunctionDef(value)) return 'function';
   if (isAssetUploadDef(value)) return 'asset-upload';
@@ -11896,29 +11964,29 @@ function __snapbackNormalize(value, stack = new __snapbackSet()) {
   if (value === null || valueType === 'string' || valueType === 'boolean') return value;
   if (valueType === 'number') {
     if (!__snapbackNumberIsFinite(value) || __snapbackObjectIs(value, -0)) {
-      throw new Error('definition numbers must be finite canonical JSON numbers (negative zero is unavailable)');
+      __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_NUMBER_INVALID', 'definition numbers must be finite canonical JSON numbers (negative zero is unavailable)');
     }
     return value;
   }
-  if (valueType !== 'object') throw new Error('definition values must be strict JSON data; undefined, functions, symbols, and bigint are unavailable');
-  if (__snapbackApply(__snapbackSetHas, stack, [value])) throw new Error('definition values must not contain cycles');
+  if (valueType !== 'object') __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE', 'definition values must be strict JSON data; undefined, functions, symbols, and bigint are unavailable');
+  if (__snapbackApply(__snapbackSetHas, stack, [value])) __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_CYCLE', 'definition values must not contain cycles');
   __snapbackApply(__snapbackSetAdd, stack, [value]);
   let output;
   if (__snapbackArrayIsArray(value)) {
     if (__snapbackApply(__snapbackObjectGetPrototypeOf, null, [value]) !== __snapbackArrayPrototype) {
-      throw new Error('definition arrays must use the intrinsic Array prototype');
+      __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_ARRAY_PROTOTYPE_INVALID', 'definition arrays must use the intrinsic Array prototype');
     }
     const ownKeys = __snapbackApply(__snapbackReflectOwnKeys, null, [value]);
     if (ownKeys.length !== value.length + 1) {
-      throw new Error('definition arrays must be dense and must not carry extra or symbol properties');
+      __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_ARRAY_SHAPE_INVALID', 'definition arrays must be dense and must not carry extra or symbol properties');
     }
     output = [];
     __snapbackApply(__snapbackObjectSetPrototypeOf, null, [output, null]);
     for (let index = 0; index < value.length; index += 1) {
       const descriptor = __snapbackOwnDescriptor(value, __snapbackString(index));
-      if (!descriptor) throw new Error('definition arrays must not contain holes');
+      if (!descriptor) __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_ARRAY_HOLE', 'definition arrays must not contain holes');
       if (!descriptor.enumerable || !__snapbackIsDataDescriptor(descriptor)) {
-        throw new Error('definition arrays must contain enumerable data elements, not accessors');
+        __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_ARRAY_ACCESSOR', 'definition arrays must contain enumerable data elements, not accessors');
       }
       output[index] = __snapbackNormalize(descriptor.value, stack);
     }
@@ -11926,7 +11994,7 @@ function __snapbackNormalize(value, stack = new __snapbackSet()) {
     const markerKind = __snapbackKnownMarkerKind(value);
     const prototype = __snapbackApply(__snapbackObjectGetPrototypeOf, null, [value]);
     if (prototype !== null && prototype !== __snapbackObjectPrototype && markerKind !== 'table') {
-      throw new Error('definition objects must be plain JSON objects');
+      __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_OBJECT_PROTOTYPE_INVALID', 'definition objects must be plain JSON objects');
     }
     output = __snapbackObjectCreate(null);
     let markerSeen = false;
@@ -11935,21 +12003,21 @@ function __snapbackNormalize(value, stack = new __snapbackSet()) {
       const key = ownKeys[keyIndex];
       const descriptor = __snapbackOwnDescriptor(value, key);
       if (!descriptor || !descriptor.enumerable || !__snapbackIsDataDescriptor(descriptor)) {
-        throw new Error('definition objects must contain enumerable data properties, not accessors or hidden state');
+        __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_OBJECT_DESCRIPTOR_INVALID', 'definition objects must contain enumerable data properties, not accessors or hidden state');
       }
       if (typeof key === 'symbol') {
         if (markerKind === null || markerSeen || descriptor.value !== true) {
-          throw new Error('definition objects must not contain symbol-keyed data');
+          __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_OBJECT_SYMBOL_KEY_INVALID', 'definition objects must not contain symbol-keyed data');
         }
         markerSeen = true;
         continue;
       }
       if (markerKind !== null && key === '__snapbackDefinitionKind') {
-        throw new Error('definition objects must not define the reserved __snapbackDefinitionKind field');
+        __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_RESERVED_FIELD', 'definition objects must not define the reserved __snapbackDefinitionKind field');
       }
       output[key] = __snapbackNormalize(descriptor.value, stack);
     }
-    if (markerKind !== null && !markerSeen) throw new Error('definition builder marker must be an own data property');
+    if (markerKind !== null && !markerSeen) __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_MARKER_INVALID', 'definition builder marker must be an own data property');
     const definitionKind = __snapbackDefinitionKind(value);
     if (definitionKind !== null) output.__snapbackDefinitionKind = definitionKind;
   }
@@ -12049,12 +12117,14 @@ function evaluateDefinitionBundles(schemaBuild, functionsBuild, diagnostics, rou
         const evaluationCode = response?.error?.code;
         diagnostics.push({
           code: DEFINITION_EVALUATION_DIAGNOSTIC_CODES.has(evaluationCode)
+              || /^SNAPBACK_CODEGEN_[A-Z0-9_]+$/u.test(evaluationCode ?? '')
             ? evaluationCode
             : 'CODEGEN_MODULE_EVALUATION_FAILED',
           severity: 'error',
           subsystem: 'codegen',
           message: response?.error?.message ?? 'isolated definition evaluation failed',
           ...(response?.error?.name ? { errorName: response.error.name } : {}),
+          ...(response?.error?.path ? { path: response.error.path } : {}),
         });
         finish(null);
         return;
@@ -12082,10 +12152,10 @@ function evaluateDefinitionBundles(schemaBuild, functionsBuild, diagnostics, rou
     child.stdin.on('error', (error) => fail(`could not send definition bundles to the isolated evaluator: ${error.message}`));
     child.stdin.end(JSON.stringify({
       items: [
-        { label: 'schema', bundle: schemaBuild.bundle, resultKey: schemaBuild.resultKey },
-        { label: 'functions', bundle: functionsBuild.bundle, resultKey: functionsBuild.resultKey },
+        { label: 'schema', bundle: schemaBuild.bundle, resultKey: schemaBuild.resultKey, sourcePath: schemaBuild.sourcePath },
+        { label: 'functions', bundle: functionsBuild.bundle, resultKey: functionsBuild.resultKey, sourcePath: functionsBuild.sourcePath },
         ...(routesBuild
-          ? [{ label: 'routes', bundle: routesBuild.bundle, resultKey: routesBuild.resultKey }]
+          ? [{ label: 'routes', bundle: routesBuild.bundle, resultKey: routesBuild.resultKey, sourcePath: routesBuild.sourcePath }]
           : []),
       ],
     }));

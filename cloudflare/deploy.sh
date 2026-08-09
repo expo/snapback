@@ -16,6 +16,14 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+deploy_fail() {
+  local code="$1" status="$2"
+  shift 2
+  echo "$code: $*" >&2
+  exit "$status"
+}
+
+actions_taken=()
 app="${SNAPBACK_CF_APP:-notes}"
 case "$app" in
   notes)
@@ -23,22 +31,24 @@ case "$app" in
     handler_config="wrangler.handler.jsonc"
     gateway_worker="snapback-notes-proof"
     handler_worker="snapback-notes-handler"
+    action_handler_worker=""
     ;;
   all-aboard)
     gateway_config="wrangler.all-aboard.jsonc"
     handler_config="wrangler.all-aboard.handler.jsonc"
     gateway_worker="snapback-all-aboard-proof"
     handler_worker="snapback-all-aboard-handler"
+    action_handler_worker="snapback-all-aboard-action-handler"
     ;;
   *)
-    echo "unknown SNAPBACK_CF_APP '$app' (expected notes | all-aboard)" >&2
-    exit 2
+    deploy_fail SNAPBACK_CF_DEPLOY_APP_UNKNOWN 2 \
+      "unknown SNAPBACK_CF_APP '$app' (expected notes | all-aboard)"
     ;;
 esac
 
 if [[ "$app" == "all-aboard" && -n "${EXACT_ALL_ABOARD_SOURCE_ROOT:-}" ]]; then
-  echo "EXACT_ALL_ABOARD_SOURCE_ROOT is acceptance-only and must be unset for Cloudflare deploys." >&2
-  exit 2
+  deploy_fail SNAPBACK_CF_DEPLOY_SOURCE_OVERRIDE_REFUSED 2 \
+    "EXACT_ALL_ABOARD_SOURCE_ROOT is acceptance-only and must be unset for Cloudflare deploys."
 fi
 
 # @ref LLP 0049#config-and-secrets — production mutations must be performed by the exact Wrangler resolved by
@@ -51,13 +61,14 @@ wrangler() {
 echo "==> verified repo-local locked Wrangler ($(node locked-wrangler.mjs --verify))"
 
 if [[ -z "${CLOUDFLARE_API_TOKEN:-}" ]]; then
-  echo "CLOUDFLARE_API_TOKEN is not set. Export a Workers+DO-scoped token first." >&2
-  exit 2
+  deploy_fail SNAPBACK_CF_DEPLOY_CREDENTIAL_MISSING 2 \
+    "CLOUDFLARE_API_TOKEN is not set. Export a Workers+DO-scoped token first."
 fi
 
 scripts_dir="$(cd .. && pwd)/scripts"
 if [[ -x "$scripts_dir/cf-check-compat" ]]; then
   "$scripts_dir/cf-check-compat"
+  actions_taken+=("compatibility-check")
 fi
 
 if [[ "$app" == "all-aboard" ]]; then
@@ -66,6 +77,7 @@ if [[ "$app" == "all-aboard" ]]; then
   # origin — never a hand-written data path.
   echo "==> building the All Aboard Contract web bundle (same-origin bindings)"
   (cd ../demos/all-aboard/surfaces/contract && bun install --frozen-lockfile >/dev/null && SNAPBACK_ALL_ABOARD_API=same-origin SNAPBACK_ALL_ABOARD_TARGET_PROFILE=cloudflare-do-sqlite-v8 bun run build)
+  actions_taken+=("build:all-aboard-web")
 fi
 
 # Service bindings are circular (gateway <-> handler), so a FIRST deploy to a
@@ -138,6 +150,19 @@ active_single_version_id_from_json() {
     if (Math.abs(Number(active.percentage) - 100) > 0.0001) process.exit(2);
     process.stdout.write(active.version_id);
   " "$1"
+}
+
+final_active_version() {
+  local config="$1" deployments version_id
+  if ! deployments="$(wrangler deployments list --config "$config" --json 2>/dev/null)"; then
+    deploy_fail SNAPBACK_CF_DEPLOY_VERSION_ATTESTATION_FAILED 1 \
+      "could not read the final active version for $config"
+  fi
+  if ! version_id="$(active_single_version_id_from_json "$deployments" 2>/dev/null)"; then
+    deploy_fail SNAPBACK_CF_DEPLOY_VERSION_ATTESTATION_FAILED 1 \
+      "final deployment for $config is not exactly one active version at 100%"
+  fi
+  printf '%s' "$version_id"
 }
 
 deployed_version_id_from_log() {
@@ -333,6 +358,7 @@ if [[ "${#bootstrap_missing[@]}" -gt 0 ]]; then
     "
     bootstrap_attempted+=("$config")
     wrangler deploy --config "$stripped"
+    actions_taken+=("bootstrap:$config")
     rm -f "$stripped"
   done
 else
@@ -342,6 +368,7 @@ fi
 echo "==> deploying handler isolate ($handler_worker)"
 mark_existing_attempted "$handler_config"
 wrangler deploy --config "$handler_config"
+actions_taken+=("deploy:$handler_worker")
 
 if [[ "$app" == "all-aboard" ]]; then
   # The separate action-handler isolate (LLP 0049 Phase 2): slow action
@@ -349,11 +376,13 @@ if [[ "$app" == "all-aboard" ]]; then
   echo "==> deploying action handler isolate (snapback-all-aboard-action-handler)"
   mark_existing_attempted "wrangler.all-aboard.action-handler.jsonc"
   wrangler deploy --config wrangler.all-aboard.action-handler.jsonc
+  actions_taken+=("deploy:$action_handler_worker")
 fi
 
 echo "==> deploying gateway + coordinator ($gateway_worker)"
 mark_existing_attempted "$gateway_config"
 deploy_gateway_version "gateway deploy"
+actions_taken+=("deploy:$gateway_worker")
 gateway_deploy_log="$LAST_GATEWAY_DEPLOY_LOG"
 
 # Post-deploy probe (ENG-23732): assert the LIVE gateway version carries the
@@ -390,10 +419,8 @@ probe_gateway_bindings() {
 }
 
 if [[ -z "$probe_url" ]]; then
-  echo "!!> DEPLOY FAILED VERIFICATION: could not determine the gateway URL (no workers.dev" >&2
-  echo "    route in deploy output and SNAPBACK_DEPLOY_PROBE_URL unset). A final live" >&2
-  echo "    binding proof is required; set SNAPBACK_DEPLOY_PROBE_URL and retry." >&2
-  exit 1
+  deploy_fail SNAPBACK_CF_DEPLOY_PROBE_URL_UNAVAILABLE 1 \
+    "could not determine the gateway URL (no workers.dev route in deploy output and SNAPBACK_DEPLOY_PROBE_URL unset); set SNAPBACK_DEPLOY_PROBE_URL and retry"
 else
   echo "==> probing $probe_url/health for the HANDLER binding"
   probe_attempts="${SNAPBACK_DEPLOY_PROBE_ATTEMPTS:-8}"
@@ -404,14 +431,12 @@ else
     echo "!!> live gateway is NOT serving the HANDLER binding (bootstrap/stale version"
     echo "    active) — running one corrective gateway redeploy"
     deploy_gateway_version "corrective gateway deploy"
+    actions_taken+=("corrective-redeploy:$gateway_worker")
     if probe_gateway_bindings "$probe_url" "$probe_attempts" "$probe_delay"; then
       echo "==> corrective redeploy fixed it: gateway now serves the full-bindings version"
     else
-      echo "!!> DEPLOY FAILED VERIFICATION: $probe_url/health still reports the HANDLER"
-      echo "    binding missing. Every query against this deployment will answer"
-      echo "    SNAPBACK_HANDLER_FAILED. Manual remedy:"
-      echo "    node $locked_wrangler_bin deploy --config $gateway_config"
-      exit 1
+      deploy_fail SNAPBACK_CF_DEPLOY_BINDING_VERIFICATION_FAILED 1 \
+        "$probe_url/health still reports a required binding missing; queries will answer SNAPBACK_HANDLER_FAILED; manual remedy: node $locked_wrangler_bin deploy --config $gateway_config"
     fi
   fi
 fi
@@ -456,6 +481,7 @@ if ! node -e "
             process.exit(body && body.ok === true ? 0 : 1);
           " "${PROBED_HEALTH_BODY:-}"; then
             stale_reset_recovered=1
+            actions_taken+=("reset:stale-persistent-state")
             echo "==> health passes after reset; continuing the normal deploy path"
           else
             echo "!!> reset landed but health still refuses; falling through to failure/rollback" >&2
@@ -468,13 +494,13 @@ if ! node -e "
     fi
   fi
   if [[ "$stale_reset_recovered" -ne 1 ]]; then
-    echo "!!> DEPLOYED BINDINGS VERIFIED, BUT HEALTH REFUSED: $health_code" >&2
     echo "    The new Worker version is live, but persistent state needs the documented" >&2
     echo "    migration/reset path before this deploy can be declared healthy." >&2
     echo "    For proof/demo targets whose persisted state is disposable, rerun with" >&2
     echo "    SNAPBACK_DEPLOY_RESET_ON_STALE=1 (and SNAPBACK_ADMIN_TOKEN exported) to reset" >&2
     echo "    and restamp on the new version instead of rolling back." >&2
-    exit 1
+    deploy_fail SNAPBACK_CF_DEPLOY_HEALTH_REFUSED 1 \
+      "DEPLOYED BINDINGS VERIFIED, BUT HEALTH REFUSED: $health_code"
   fi
 fi
 
@@ -483,8 +509,8 @@ fi
 # environment so the acceptance/measurement suites can drive them.
 gateway_secret_mutated=0
 if [[ -n "${SNAPBACK_ADMIN_TOKEN:-}" && "${SNAPBACK_ADMIN_TOKEN_REMOVE:-0}" == "1" ]]; then
-  echo "SNAPBACK_ADMIN_TOKEN and SNAPBACK_ADMIN_TOKEN_REMOVE=1 are mutually exclusive" >&2
-  exit 2
+  deploy_fail SNAPBACK_CF_DEPLOY_ADMIN_SECRET_CONFLICT 2 \
+    "SNAPBACK_ADMIN_TOKEN and SNAPBACK_ADMIN_TOKEN_REMOVE=1 are mutually exclusive"
 elif [[ -n "${SNAPBACK_ADMIN_TOKEN:-}" ]]; then
   echo "==> setting SNAPBACK_ADMIN_TOKEN secret on $gateway_worker"
   printf '%s' "$SNAPBACK_ADMIN_TOKEN" | wrangler secret put SNAPBACK_ADMIN_TOKEN --config "$gateway_config"
@@ -494,10 +520,11 @@ elif [[ -n "${SNAPBACK_ADMIN_TOKEN:-}" ]]; then
     const rows = JSON.parse(process.argv[1]);
     process.exit(rows.some((row) => row && row.name === 'SNAPBACK_ADMIN_TOKEN') ? 0 : 1);
   " "$current_secrets"; then
+    actions_taken+=("admin-secret:set")
     echo "==> verified SNAPBACK_ADMIN_TOKEN present; admin endpoints are enabled"
   else
-    echo "!!> SNAPBACK_ADMIN_TOKEN write did not attest present" >&2
-    exit 1
+    deploy_fail SNAPBACK_CF_DEPLOY_ADMIN_SECRET_SET_UNVERIFIED 1 \
+      "SNAPBACK_ADMIN_TOKEN write did not attest present"
   fi
 elif [[ "${SNAPBACK_ADMIN_TOKEN_REMOVE:-0}" == "1" ]]; then
   echo "==> explicitly removing SNAPBACK_ADMIN_TOKEN from $gateway_worker"
@@ -514,12 +541,14 @@ elif [[ "${SNAPBACK_ADMIN_TOKEN_REMOVE:-0}" == "1" ]]; then
     const rows = JSON.parse(process.argv[1]);
     process.exit(rows.some((row) => row && row.name === 'SNAPBACK_ADMIN_TOKEN') ? 1 : 0);
   " "$remaining_secrets"; then
+    actions_taken+=("admin-secret:remove")
     echo "==> verified SNAPBACK_ADMIN_TOKEN absent; /_snapback/api/app/reset, /_snapback/api/object/evict, and /_snapback/api/config/status are disabled"
   else
-    echo "!!> SNAPBACK_ADMIN_TOKEN removal did not attest absent" >&2
-    exit 1
+    deploy_fail SNAPBACK_CF_DEPLOY_ADMIN_SECRET_REMOVE_UNVERIFIED 1 \
+      "SNAPBACK_ADMIN_TOKEN removal did not attest absent"
   fi
 else
+  actions_taken+=("admin-secret:preserve")
   echo "==> this run did not set, rotate, or remove SNAPBACK_ADMIN_TOKEN"
   secret_list_log="$(mktemp)"
   bootstrap_temp_files+=("$secret_list_log")
@@ -547,14 +576,15 @@ fi
 if [[ "$gateway_secret_mutated" -eq 1 ]]; then
   echo "==> deploying an exactly identifiable final gateway version after admin-secret mutation"
   deploy_gateway_version "post-secret gateway deploy"
+  actions_taken+=("post-secret-redeploy:$gateway_worker")
 fi
 
 # Repeat both the binding and full health proof after the last possible
 # activation; only this point disarms rollback/cleanup.
 echo "==> re-probing final gateway version after admin-secret state settled"
 if ! probe_gateway_bindings "$probe_url" "$probe_attempts" "$probe_delay"; then
-  echo "!!> DEPLOY FAILED FINAL VERIFICATION: final gateway version is missing required service bindings" >&2
-  exit 1
+  deploy_fail SNAPBACK_CF_DEPLOY_FINAL_BINDING_VERIFICATION_FAILED 1 \
+    "final gateway version is missing required service bindings"
 fi
 if ! node -e "
   const body = JSON.parse(process.argv[1] || 'null');
@@ -564,20 +594,55 @@ if ! node -e "
     try { console.log(JSON.parse(process.argv[1]).code || 'unknown'); }
     catch (_) { console.log('invalid-health-response'); }
   " "${PROBED_HEALTH_BODY:-}")"
-  echo "!!> DEPLOY FAILED FINAL HEALTH VERIFICATION: $health_code" >&2
-  exit 1
+  deploy_fail SNAPBACK_CF_DEPLOY_FINAL_HEALTH_VERIFICATION_FAILED 1 \
+    "final gateway health refused with $health_code"
 fi
+
+# @ref LLP 0049#deployment-identity-freshness-gate-2026-07-25 — the receipt
+# binds the script's success claim to the exact final Worker activations and
+# live gateway observation, rather than to Wrangler process exit alone.
+handler_version="$(final_active_version "$handler_config")"
+gateway_version="$(final_active_version "$gateway_config")"
+action_handler_version=""
+if [[ -n "$action_handler_worker" ]]; then
+  action_handler_version="$(final_active_version "wrangler.all-aboard.action-handler.jsonc")"
+fi
+health_code="$(node -e "
+  const body = JSON.parse(process.argv[1]);
+  process.stdout.write(body.code || 'SNAPBACK_CF_DEPLOY_HEALTHY');
+" "${PROBED_HEALTH_BODY:-}")"
+
 deploy_verified=1
 echo "==> final gateway activation is bound and healthy"
+
+node -e "
+  const [app, gatewayName, gatewayVersion, handlerName, handlerVersion,
+    actionName, actionVersion, probeUrl, healthCode, ...actionsTaken] = process.argv.slice(1);
+  const worker = (name, activatedVersion) => ({ name, activatedVersion });
+  console.log(JSON.stringify({
+    schemaVersion: 'snapback.cloudflare-deploy-receipt.v1',
+    app,
+    workers: {
+      gateway: worker(gatewayName, gatewayVersion),
+      handler: worker(handlerName, handlerVersion),
+      actionHandler: actionName ? worker(actionName, actionVersion) : null,
+    },
+    probeUrl,
+    healthCode,
+    actionsTaken,
+  }));
+" "$app" "$gateway_worker" "$gateway_version" "$handler_worker" "$handler_version" \
+  "$action_handler_worker" "$action_handler_version" "$probe_url" "$health_code" \
+  "${actions_taken[@]}"
 
 if [[ "$app" == "all-aboard" ]]; then
   echo "==> configure app secrets (LLP 0049 Phase 1 guided config.set — one bulk"
   echo "    activation carrying entries + the SNAPBACK_CONFIG_GENERATION stamp):"
   echo "    printf '%s' '{\"caltrainFeed\":[\"<511-key>\"],\"directions\":[\"<ors-key>\"]}' | \\"
   echo "      SNAPBACK_ADMIN_TOKEN=... node config-set.mjs \\"
-  echo "        --url https://$gateway_worker.<subdomain>.workers.dev --entries-stdin"
+  echo "        --url $probe_url --entries-stdin"
 fi
 
 echo "==> deployed. Run the real-Cloudflare acceptance + measurement suite with:"
-echo "    SNAPBACK_PROOF_URL=https://$gateway_worker.<subdomain>.workers.dev \\"
+echo "    SNAPBACK_PROOF_URL=$probe_url \\"
 echo "      node test/acceptance.remote.mjs"

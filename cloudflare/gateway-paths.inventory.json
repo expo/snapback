@@ -1,9 +1,22 @@
 {
-  "$schemaNote": "First-pass audited inventory of cloudflare/src/gateway.js's hand-routed system/control paths (LLP 0184 Phase 0 item 5, RFC section 3a). This is a checked-in fixture, not a mechanically derived artifact: gateway.js is hand-written imperative routing (exact-path checks, a Set, path.startsWith(...) prefix wildcards, regex routes, a catch-all) with no declarative route table to parse. Phase 1's hosted-adapter manifest (RFC rule 11) is checked against this fixture at generation time; drift introduced by a NEW hand-routed gateway.js case that never makes it into this file is caught only by the next LLP 0016 reconcile audit, not by CI. Entries are keyed by (method, path, operation) per the RFC's rule — a path-only key breaks on cases like network-profile's GET/write split, where one path dispatches to two distinct downstream gates.",
+  "$schemaNote": "Audited gateway inventory with a bounded source-parity gate. The compiler parses FORWARDED_JSON_PATHS, APP_DATA_PREFIXES, KIT_ROUTE, KIT_STREAM_ROUTE, and exact path === literals from cloudflare/src/gateway.js and fails when this fixture does not list them. Imperative prefix/catch-all semantics beyond those declared seams remain hand-audited. Hosted-adapter Rule 11 continues to join the system/control entries by (method, path, operation), while appDataPlane covers the app-data dispatch and unsupported-target fallback namespaces.",
   "generatedFrom": "cloudflare/src/gateway.js",
   "auditedAtCommit": "736e4913d27a57cc857c3017758fbea51f2cce5b",
   "auditedDate": "2026-08-05",
-  "scope": "Hand-routed system/control paths only (the reserved /_snapback/* namespace plus the pre-namespace /inspect, /capability, /health system reads that gateway.js checks before the namespace dispatch). Excludes the app-data plane (/query, /mutation, /connection/open, /app/ensure, /app/bundle, the KIT_ROUTE/KIT_STREAM_ROUTE regex families, /live/stream) and static-asset serving (env.ASSETS fallback, /__exact/* passthrough, Channel A inlining) — those are enumerated in the 'excludedNonSystemPaths' section below for audit completeness, not because they are out of scope for a future full route inventory, but because RFC 0184 §3a scopes this Phase 0 item to system/control paths specifically.",
+  "scope": "Source-parity covers exact path literals, forwarded JSON paths, kit regex families, and the app-data prefixes protected from SPA fallback. Rule 11's hosted-adapter catalog join remains scoped to system/control entries; static-asset and general SPA behavior remain outside that catalog domain.",
+  "sourceLiterals": {
+    "FORWARDED_JSON_PATHS": ["/query", "/mutation", "/_snapback/test/corrupt-meta", "/connection/open", "/app/ensure", "/app/bundle"],
+    "APP_DATA_PREFIXES": ["/auth", "/assets", "/ephemeral", "/push", "/app-api", "/client-mutations", "/live", "/outbox", "/query", "/mutation", "/action", "/connection"],
+    "KIT_ROUTE": "/^\\/(?:query|mutation|action)\\/[A-Za-z0-9_-]+$|^\\/live\\/[A-Za-z0-9_.-]+\\/(?:subscribe|unsubscribe)$|^\\/outbox\\/[A-Za-z0-9_.-]+$/",
+    "KIT_STREAM_ROUTE": "/^\\/live\\/[A-Za-z0-9_.-]+\\/stream$/",
+    "exactPaths": ["/_snapback", "/_snapback/api/app/reset", "/_snapback/api/config/status", "/_snapback/api/cron/run", "/_snapback/api/cron/status", "/_snapback/api/debug/network-profile", "/_snapback/api/object/evict", "/_snapback/host-call", "/capability", "/health", "/inspect", "/live/stream"]
+  },
+  "appDataPlane": {
+    "forwardedExactPaths": ["/query", "/mutation", "/connection/open", "/app/ensure", "/app/bundle"],
+    "kitRoute": "/^\\/(?:query|mutation|action)\\/[A-Za-z0-9_-]+$|^\\/live\\/[A-Za-z0-9_.-]+\\/(?:subscribe|unsubscribe)$|^\\/outbox\\/[A-Za-z0-9_.-]+$/",
+    "kitStreamRoute": "/^\\/live\\/[A-Za-z0-9_.-]+\\/stream$/",
+    "unsupportedSpaFallbackPrefixes": ["/auth", "/assets", "/ephemeral", "/push", "/app-api", "/client-mutations", "/live", "/outbox", "/query", "/mutation", "/action", "/connection"]
+  },
   "entries": [
     {
       "methods": ["ANY"],

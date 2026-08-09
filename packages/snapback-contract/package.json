@@ -3,6 +3,17 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Provider/runtime boundary for Contract applications backed by Snapback.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/expo/snapback.git",
+    "directory": "packages/snapback-contract"
+  },
+  "homepage": "https://github.com/expo/snapback#readme",
+  "bugs": {
+    "url": "https://github.com/expo/snapback/issues"
+  },
+  "keywords": ["snapback", "backend", "contract", "provider"],
   "files": [
     "artifact-validation.d.mts",
     "artifact-validation.mjs",

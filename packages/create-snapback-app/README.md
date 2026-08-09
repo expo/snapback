@@ -33,6 +33,8 @@ bun run dev
 ## Documentation outside a checkout
 
 A running Snapback server serves the Guide compiled into that exact build.
+These links use the first default development port; use the origin printed by
+`snapback dev` or `snapback start` if yours differs.
 
 - Read [the authoring loop](http://127.0.0.1:4287/_snapback/guide/getting-started/the-authoring-loop.md).
 - Check the [capability index](http://127.0.0.1:4287/_snapback/guide/capabilities.md).

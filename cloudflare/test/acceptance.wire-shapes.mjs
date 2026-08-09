@@ -10,9 +10,9 @@
 //      and every error-emitter lane (gateway, parse, connection-token,
 //      handler, platform, stale-deployment, coded-refusal) — and validate the
 //      served bytes against the committed schemas with a real JSON Schema
-//      validator. The closed ErrorResponse (additionalProperties: false)
-//      makes any extra top-level member a failure, so an emitter that drifts
-//      back to {ok, code, ...} or {error: ...} fails here.
+//      validator. The versioned ErrorResponse requires its must-understand
+//      formatVersion while admitting additive unknown top-level members, so
+//      an emitter that drifts back to {ok, code, ...} or {error: ...} fails.
 //
 //   2. Static: scan the served sources (coordinator.js, gateway.js,
 //      platform-errors.js) for literal-status 4xx/5xx `json(...)` emitters
@@ -67,12 +67,15 @@ function checkSchema(name, kind, value, extraCondition = true, extraDetail = und
 }
 
 // A conformant kit-route failure: HTTP status matches, the body is the
-// closed ErrorResponse, and the inner Diagnostic carries the expected code.
+// versioned ErrorResponse, and the inner Diagnostic carries the expected code.
 function checkErrorLane(name, response, status, code) {
   const verdict = valid('error', response.body);
   check(
     name,
-    response.status === status && verdict.ok && response.body.diagnostic?.code === code,
+    response.status === status
+      && verdict.ok
+      && response.body.formatVersion === 'snapback.error-response.v1'
+      && response.body.diagnostic?.code === code,
     JSON.stringify({ status: response.status, body: response.body, errors: verdict.ok ? undefined : verdict.detail }).slice(0, 600),
   );
 }
@@ -136,7 +139,7 @@ async function main() {
       { connection_id: connectionId, input: { args: { boardId: 'wire' } } },
       tokenHeader,
     );
-    checkErrorLane('socketless kit subscribe is a closed 409 ErrorResponse', socketless, 409, 'SNAPBACK_CONNECTION_SOCKET_REQUIRED');
+    checkErrorLane('socketless kit subscribe is a versioned 409 ErrorResponse', socketless, 409, 'SNAPBACK_CONNECTION_SOCKET_REQUIRED');
 
     const upgrade = await proof.raw(`/live/${connectionId}/stream`, {
       // LLP 0094 §0B.4/B3: kit stream upgrades must offer a known
@@ -263,19 +266,19 @@ async function main() {
       headers: { 'content-type': 'text/plain' },
       body: '{}',
     });
-    checkErrorLane('a kit-route content-type refusal is a closed 415 ErrorResponse', wrongType, 415, 'SNAPBACK_CONTENT_TYPE_UNSUPPORTED');
+    checkErrorLane('a kit-route content-type refusal is a versioned 415 ErrorResponse', wrongType, 415, 'SNAPBACK_CONTENT_TYPE_UNSUPPORTED');
     const badJson = await raw('/mutation/addNote', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: '{nope',
     });
-    checkErrorLane('a kit-route JSON-parse refusal is a closed 400 ErrorResponse', badJson, 400, 'SNAPBACK_JSON_INVALID');
+    checkErrorLane('a kit-route JSON-parse refusal is a versioned 400 ErrorResponse', badJson, 400, 'SNAPBACK_JSON_INVALID');
     const arrayBody = await raw('/mutation/addNote', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: '[]',
     });
-    checkErrorLane('a kit-route non-object body refusal is closed', arrayBody, 400, 'SNAPBACK_JSON_OBJECT_REQUIRED');
+    checkErrorLane('a kit-route non-object body refusal is versioned', arrayBody, 400, 'SNAPBACK_JSON_OBJECT_REQUIRED');
     check(
       'the proof parse lane keeps its pinned top-level ok/code shape',
       await raw('/query', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '[]' })
@@ -285,27 +288,27 @@ async function main() {
 
     // Connection-token lanes (verifyConnection).
     const noConnection = await post('/live/listNotes/unsubscribe', { subscription_id: 'sub_x' });
-    checkErrorLane('a missing connection id refusal is closed', noConnection, 400, 'SNAPBACK_CONNECTION_ID_REQUIRED');
+    checkErrorLane('a missing connection id refusal is versioned', noConnection, 400, 'SNAPBACK_CONNECTION_ID_REQUIRED');
     const badToken = await post(
       '/live/listNotes/unsubscribe',
       { connection_id: connectionId, subscription_id: 'sub_x' },
       { 'x-snapback-connection-token': 'wrong' },
     );
-    checkErrorLane('an invalid connection token refusal is closed', badToken, 401, 'SNAPBACK_CONNECTION_TOKEN_INVALID');
+    checkErrorLane('an invalid connection token refusal is versioned', badToken, 401, 'SNAPBACK_CONNECTION_TOKEN_INVALID');
 
     // Handler lane (kitFailure): kind mismatch and unknown function.
     const kindMismatch = await post('/query/addNote', { args: {} });
-    checkErrorLane('a kit query kind mismatch is a closed 400 ErrorResponse', kindMismatch, 400, 'SNAPBACK_FUNCTION_KIND_MISMATCH');
+    checkErrorLane('a kit query kind mismatch is a versioned 400 ErrorResponse', kindMismatch, 400, 'SNAPBACK_FUNCTION_KIND_MISMATCH');
     const unknownFunction = await post('/mutation/definitelyMissing', { args: {} });
-    checkErrorLane('an unknown kit function failure is a closed ErrorResponse', unknownFunction, 500, 'SNAPBACK_HANDLER_EXPORT_MISSING');
+    checkErrorLane('an unknown kit function failure is a versioned ErrorResponse', unknownFunction, 500, 'SNAPBACK_HANDLER_EXPORT_MISSING');
     const actionMismatch = await post('/action/listNotes', { args: {} });
-    checkErrorLane('a kit action kind mismatch is a closed 400 ErrorResponse', actionMismatch, 400, 'SNAPBACK_FUNCTION_KIND_MISMATCH');
+    checkErrorLane('a kit action kind mismatch is a versioned 400 ErrorResponse', actionMismatch, 400, 'SNAPBACK_FUNCTION_KIND_MISMATCH');
 
     // --- ledger item 8: gateway lanes --------------------------------------
     const methodRefusal = await raw('/mutation/addNote');
-    checkErrorLane('a gateway kit-route method refusal is a closed 405 ErrorResponse', methodRefusal, 405, 'SNAPBACK_METHOD_NOT_ALLOWED');
+    checkErrorLane('a gateway kit-route method refusal is a versioned 405 ErrorResponse', methodRefusal, 405, 'SNAPBACK_METHOD_NOT_ALLOWED');
     const forwardedMethodRefusal = await raw('/connection/open');
-    checkErrorLane('a gateway forwarded-route method refusal is closed', forwardedMethodRefusal, 405, 'SNAPBACK_METHOD_NOT_ALLOWED');
+    checkErrorLane('a gateway forwarded-route method refusal is versioned', forwardedMethodRefusal, 405, 'SNAPBACK_METHOD_NOT_ALLOWED');
     const nonUpgrade = await raw(`/live/${connectionId}/stream`);
     checkErrorLane('the gateway non-upgrade refusal is a coded 426 diagnostic', nonUpgrade, 426, 'SNAPBACK_UPGRADE_REQUIRED');
     const systemMiss = await raw('/_snapback/definitely-not-a-route');
@@ -317,7 +320,7 @@ async function main() {
     const oversized = await post('/mutation/addNote', {
       args: { boardId: 'wire', text: 'too large', authorId: 'x'.repeat(2_500_000) },
     });
-    checkErrorLane('the platform value-limit failure is a closed 413 ErrorResponse', oversized, 413, 'SNAPBACK_VALUE_TOO_LARGE');
+    checkErrorLane('the platform value-limit failure is a versioned 413 ErrorResponse', oversized, 413, 'SNAPBACK_VALUE_TOO_LARGE');
     check(
       'the platform diagnostic keeps its structured details',
       oversized.body.diagnostic?.details?.limitBytes > 0 && oversized.body.diagnostic?.details?.retryable === false,
@@ -327,7 +330,7 @@ async function main() {
     // --- stale-deployment refusal on a kit route (governance rule) ---------
     await proof.corruptMeta({});
     const staleKit = await post('/query/listNotes', { args: { boardId: 'wire' } });
-    checkErrorLane('the stale-deployment refusal on a kit route is a closed 409 ErrorResponse', staleKit, 409, 'SNAPBACK_STALE_CLOUDFLARE_SCHEMA_HASH');
+    checkErrorLane('the stale-deployment refusal on a kit route is a versioned 409 ErrorResponse', staleKit, 409, 'SNAPBACK_STALE_CLOUDFLARE_SCHEMA_HASH');
     const staleProof = await post('/query', { name: 'listNotes', args: { boardId: 'wire' } });
     check(
       'the stale-deployment refusal on the proof route keeps its pinned shape',

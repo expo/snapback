@@ -11,7 +11,7 @@ import {
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
-const CLIENTS = Object.freeze(['codex', 'claude', 'cursor', 'generic']);
+const CLIENTS = Object.freeze(['codex', 'claude', 'cursor', 'vscode', 'generic']);
 const SERVERS = Object.freeze(['mcp', 'mcp-control']);
 
 const SERVER_DETAILS = Object.freeze({
@@ -73,11 +73,13 @@ function targetForClient(client, projectRoot, diagnosticError) {
     case 'codex':
       return { format: 'toml', targetFile: join(projectRoot, '.codex', 'config.toml') };
     case 'claude':
-      return { format: 'json', targetFile: join(projectRoot, '.mcp.json') };
+      return { format: 'json', targetFile: join(projectRoot, '.mcp.json'), serverKey: 'mcpServers' };
     case 'cursor':
-      return { format: 'json', targetFile: join(projectRoot, '.cursor', 'mcp.json') };
+      return { format: 'json', targetFile: join(projectRoot, '.cursor', 'mcp.json'), serverKey: 'mcpServers' };
+    case 'vscode':
+      return { format: 'json', targetFile: join(projectRoot, '.vscode', 'mcp.json'), serverKey: 'servers' };
     case 'generic':
-      return { format: 'json', targetFile: null };
+      return { format: 'json', targetFile: null, serverKey: 'mcpServers' };
     default:
       throw new Error(`unreachable agent client ${client}`);
   }
@@ -123,16 +125,16 @@ function tomlEntry(configName, entry) {
   ].join('\n');
 }
 
-function renderSnippet(client, entries) {
+function renderSnippet(client, entries, serverKey = 'mcpServers') {
   if (client === 'codex') {
     return Object.entries(entries)
       .map(([configName, entry]) => tomlEntry(configName, entry))
       .join('\n\n') + '\n';
   }
-  return `${JSON.stringify({ mcpServers: entries }, null, 2)}\n`;
+  return `${JSON.stringify({ [serverKey]: entries }, null, 2)}\n`;
 }
 
-function readJsonConfig(targetFile, diagnosticError) {
+function readJsonConfig(targetFile, serverKey, diagnosticError) {
   if (!existsSync(targetFile)) return { existed: false, config: {} };
   let config;
   try {
@@ -153,10 +155,10 @@ function readJsonConfig(targetFile, diagnosticError) {
       { targetFile },
     );
   }
-  if (config.mcpServers !== undefined && !isPlainObject(config.mcpServers)) {
+  if (config[serverKey] !== undefined && !isPlainObject(config[serverKey])) {
     throw diagnosticError(
       'SNAPBACK_AGENT_SETUP_CONFIG_INVALID',
-      `cannot merge MCP configuration because mcpServers in ${targetFile} is not an object`,
+      `cannot merge MCP configuration because ${serverKey} in ${targetFile} is not an object`,
       { targetFile },
     );
   }
@@ -310,7 +312,7 @@ export function printAgentSetup({ client, server = null, projectRoot, launchers,
     client,
     targetFile: target.targetFile,
     servers: server === null ? [...SERVERS] : [server],
-    snippet: renderSnippet(client, entries),
+    snippet: renderSnippet(client, entries, target.serverKey),
   };
 }
 
@@ -347,22 +349,23 @@ export function installAgentSetup({
   let changed;
   let representation;
   if (target.format === 'json') {
-    const current = readJsonConfig(targetFile, diagnosticError);
-    const mcpServers = { ...(current.config.mcpServers ?? {}) };
-    if (Object.hasOwn(mcpServers, configName)) {
-      if (!sameJson(mcpServers[configName], entry)) {
+    const serverKey = target.serverKey;
+    const current = readJsonConfig(targetFile, serverKey, diagnosticError);
+    const servers = { ...(current.config[serverKey] ?? {}) };
+    if (Object.hasOwn(servers, configName)) {
+      if (!sameJson(servers[configName], entry)) {
         throw diagnosticError(
           'SNAPBACK_AGENT_SETUP_SERVER_CONFLICT',
-          `${targetFile} already defines mcpServers.${configName}; refusing to replace it`,
+          `${targetFile} already defines ${serverKey}.${configName}; refusing to replace it`,
           { targetFile, configName },
         );
       }
       changed = false;
     } else {
-      mcpServers[configName] = entry;
+      servers[configName] = entry;
       changed = true;
       mkdirSync(dirname(targetFile), { recursive: true });
-      writeConfigAtomic(targetFile, `${JSON.stringify({ ...current.config, mcpServers }, null, 2)}\n`);
+      writeConfigAtomic(targetFile, `${JSON.stringify({ ...current.config, [serverKey]: servers }, null, 2)}\n`);
     }
     representation = JSON.stringify(entry);
   } else {
@@ -435,25 +438,26 @@ export function uninstallAgentSetup({
   let removeFile = false;
   let entry = retainedReceipt?.entry ?? null;
   if (target.format === 'json') {
-    const current = readJsonConfig(targetFile, diagnosticError);
-    const mcpServers = { ...(current.config.mcpServers ?? {}) };
-    if (Object.hasOwn(mcpServers, configName)) {
-      entry = mcpServers[configName];
+    const serverKey = target.serverKey;
+    const current = readJsonConfig(targetFile, serverKey, diagnosticError);
+    const servers = { ...(current.config[serverKey] ?? {}) };
+    if (Object.hasOwn(servers, configName)) {
+      entry = servers[configName];
       representation = JSON.stringify(entry);
       if (retainedReceipt !== null
         && sha256(representation) !== retainedReceipt.configurationEntrySha256) {
         throw diagnosticError(
           'SNAPBACK_AGENT_SETUP_RECEIPT_MISMATCH',
-          `mcpServers.${configName} has changed since the supplied receipt was issued`,
+          `${serverKey}.${configName} has changed since the supplied receipt was issued`,
           { targetFile, configName },
         );
       }
-      delete mcpServers[configName];
-      const next = { ...current.config, mcpServers };
+      delete servers[configName];
+      const next = { ...current.config, [serverKey]: servers };
       changed = true;
       removeFile = retainedReceipt?.configFileCreated === true
         && Object.keys(next).length === 1
-        && Object.keys(mcpServers).length === 0;
+        && Object.keys(servers).length === 0;
       if (removeFile) rmSync(targetFile);
       else writeConfigAtomic(targetFile, `${JSON.stringify(next, null, 2)}\n`);
     }

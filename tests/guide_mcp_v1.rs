@@ -110,6 +110,10 @@ fn cli_mcp_serves_manifest_derived_read_only_resources_with_one_identity() {
         actual_uris.contains(&"snapback-guide://reference/registry".to_owned()),
         "registry resource projection"
     );
+    assert!(
+        actual_uris.contains(&"snapback-guide://reference/diagnostics".to_owned()),
+        "diagnostics registry resource projection"
+    );
     assert_eq!(
         responses[2]["result"]["resourceTemplates"][0]["uriTemplate"],
         "snapback-guide://symbol/{name}{?slice}"

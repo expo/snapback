@@ -50,3 +50,24 @@ capability-maturity range narrowing — not repeated here).
    `launchctl: command not found` on Linux) and no `--status`/`--uninstall`;
    `scripts/vector-search-reference.mjs` is referenced nowhere in the repo
    (delete or name its consumer).
+
+## Resolution (2026-08-08)
+
+All six items landed in the repo-tooling lane. `scripts/sync-agent-skills` now
+counts refused links, reports `PARTIAL`, and exits non-zero; it also warns when
+`core.hooksPath` is not the worktree-safe `.githooks` value. The checkout and
+merge hooks loudly refuse a missing or non-executable sync entry point.
+
+The six proof/bootstrap/generated/demo/cold-clone shell entry points now expose
+help and reject unknown arguments before work begins. `scripts/README.md`
+indexes agent entry points and gate internals and documents proof flags, JSONL,
+and environment controls. The proof runner receives the selected gate count,
+prints `i/N`, and `scripts/verify-local-proof --gate ID` re-runs a gate with its
+declared prerequisite closure.
+
+`scripts/install-drift-backstop-schedule` now refuses non-macOS hosts cleanly
+and supports read-only `--status` plus `--uninstall`. A whole-repository search
+found no consumer of `scripts/vector-search-reference.mjs` beyond the audit,
+this ticket, and LLP 0203's orphan ledger, so the script was deleted and LLP
+0203 was updated to record that removal. Gate predicates and pre-push tier,
+baseline, and bypass semantics were not changed.

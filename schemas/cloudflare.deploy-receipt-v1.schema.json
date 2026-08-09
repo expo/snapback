@@ -1,0 +1,92 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/cloudflare.deploy-receipt-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One successful cloudflare/deploy.sh run, bound to exact active Worker versions and the final live health probe.",
+  "properties": {
+    "actionsTaken": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "app": {
+      "enum": [
+        "notes",
+        "all-aboard"
+      ],
+      "type": "string"
+    },
+    "healthCode": {
+      "pattern": "^SNAPBACK_[A-Z0-9_]+$",
+      "type": "string"
+    },
+    "probeUrl": {
+      "format": "uri",
+      "pattern": "^https://",
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": "snapback.cloudflare-deploy-receipt.v1",
+      "type": "string"
+    },
+    "workers": {
+      "additionalProperties": false,
+      "properties": {
+        "actionHandler": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/workerActivation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gateway": {
+          "$ref": "#/$defs/workerActivation"
+        },
+        "handler": {
+          "$ref": "#/$defs/workerActivation"
+        }
+      },
+      "required": [
+        "gateway",
+        "handler",
+        "actionHandler"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "app",
+    "workers",
+    "probeUrl",
+    "healthCode",
+    "actionsTaken"
+  ],
+  "title": "CloudflareDeployReceiptV1",
+  "type": "object",
+  "$defs": {
+    "workerActivation": {
+      "additionalProperties": false,
+      "properties": {
+        "activatedVersion": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "activatedVersion"
+      ],
+      "type": "object"
+    }
+  }
+}

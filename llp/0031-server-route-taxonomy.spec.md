@@ -5,10 +5,10 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-08-08 (LLP 0204 commissioned the OAuth-facade,
-capability-link, and external-anonymous route/response classes; design only,
-outside this Active spec's implemented-route claim — see the dated amendment).
-2026-08-07 (LLP 0189 alignment sweep: verification-cadence/claim-gating clauses re-scoped or annotated to the LLP 0189 D-3/D-6 defaults). 2026-08-05 (§Server-binary identity: the build-identity dirty
+**Revised:** 2026-08-08 (hosted app-data SPA-fallback refusal: reserved
+app-data prefixes whose unimplemented route is answered by Workers Assets as
+200 HTML now return the structured
+`SNAPBACK_ROUTE_UNSUPPORTED_ON_TARGET` ErrorResponse). 2026-08-08 (LLP 0204 commissioned the OAuth-facade, capability-link, and external-anonymous route/response classes; design only, outside this Active spec's implemented-route claim — see the dated amendment). 2026-08-07 (LLP 0189 alignment sweep: verification-cadence/claim-gating clauses re-scoped or annotated to the LLP 0189 D-3/D-6 defaults). 2026-08-05 (§Server-binary identity: the build-identity dirty
 probe is scoped to the runtime binary's input set — shared pathspec definition
 in `scripts/runtime-build-inputs.txt` — instead of the whole tree, and all
 expected-identity consumers read the same definition; demo/LLP/issue edits no
@@ -1194,6 +1194,26 @@ hand-routed system/control paths — including this correction — is checked
 in at
 [`cloudflare/gateway-paths.inventory.json`](../cloudflare/gateway-paths.inventory.json);
 Phase 1's hosted-adapter manifest is generated against that fixture.
+
+### Hosted app-data SPA-fallback refusal (2026-08-08)
+
+The static-assets binding may implement a single-page-app fallback by
+returning `200 text/html` for an unknown URL. That behavior is valid for web
+navigation but invalid for reserved app-data namespaces: it turns a missing
+backend route into a false-success HTML response. After all implemented exact
+and regex routes have taken precedence, the hosted gateway probes the asset
+response for paths under `/auth`, `/assets`, `/ephemeral`, `/push`,
+`/app-api`, `/client-mutations`, `/live`, `/outbox`, `/query`, `/mutation`,
+`/action`, and `/connection`. A `200` HTML fallback becomes HTTP 501 with a
+versioned `ErrorResponse` whose diagnostic code is
+`SNAPBACK_ROUTE_UNSUPPORTED_ON_TARGET`; its details name the path and
+`target: "cloudflare"`. Real non-HTML assets and non-200 asset responses pass
+through unchanged. Prefix comparison is segment-boundary-aware, so a web path
+such as `/querying` is not captured.
+
+This refusal states target availability only. It neither claims the missing
+local route exists on Cloudflare nor reclassifies an app-data namespace as a
+system/control surface.
 
 ## Dated amendment: asset upload-session route family (2026-07-31)
 

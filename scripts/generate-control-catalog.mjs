@@ -61,6 +61,32 @@ const cliOnlyManifest = readJson(join(ROOT, 'control-catalog/cli-only-operations
 const overridesManifest = readJson(join(ROOT, 'control-catalog/operability-overrides.json'));
 const hostedManifest = readJson(join(ROOT, 'cloudflare/hosted-adapter-manifest.json'));
 const gatewayInventory = readJson(join(ROOT, 'cloudflare/gateway-paths.inventory.json'));
+const gatewaySource = readFileSync(join(ROOT, 'cloudflare/src/gateway.js'), 'utf8');
+
+// The package wrapper has its own declarative command owner. Read only the
+// data-only top-level registry block so catalog generation does not import the
+// package runtime (which would load codegen/client dependencies and turn this
+// cheap compiler into an execution path).
+//
+// @ref LLP 0184#3-completeness-and-parity-rules — rule 3 covers the packaged
+//   CLI as well as the native clap tree; every packaged root verb needs a
+//   catalog declaration or an explicit authored deferral.
+function packagedCliCommandNames() {
+  const source = readFileSync(join(ROOT, 'packages/snapback-cli/index.mjs'), 'utf8');
+  const blockStart = source.indexOf('export const PACKAGED_CLI_COMMANDS');
+  const blockEnd = source.indexOf(']);', blockStart);
+  if (blockStart === -1 || blockEnd === -1) {
+    fail('packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS registry could not be located');
+  }
+  const names = [...source.slice(blockStart, blockEnd).matchAll(/name: '([a-z][a-z0-9-]*)'/g)]
+    .map((match) => match[1]);
+  if (names.length === 0 || new Set(names).size !== names.length) {
+    fail('packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS registry is empty or duplicated');
+  }
+  return names;
+}
+
+const packagedCliCommands = packagedCliCommandNames();
 
 // mcp-control.mjs exports CONTROL_TOOLS directly (LLP 0042's control-plane
 // tool declarations). Importing the real module — rather than parsing its
@@ -97,12 +123,13 @@ const controlResourcesByOperation = new Map(
 const CLI_PROJECTIONS = {
   'host.start': 'snapback start',
   'host.stop': 'snapback stop',
-  'host.restart': 'snapback restart',
+  'host.restart': 'snapback restart --ready-file <path>',
   'app.inspect': 'snapback inspect',
   'app.reset': 'snapback reset',
   'schema.load': 'snapback load --schema <path>',
   'functions.load': 'snapback load --functions <path>',
   'function.run': 'snapback run',
+  'auth.mintSession': 'snapback session mint --email <address>',
   'debug.networkProfileGet': 'snapback network-profile get',
   'debug.networkProfileSet': 'snapback network-profile set',
   'debug.live.forceResync': 'snapback debug force-resync',
@@ -194,6 +221,7 @@ const hostOpsIdentities = new Set([
 ]);
 
 const overrides = overridesManifest.overrides ?? {};
+const discoveryOverrides = overridesManifest.discovery ?? {};
 const DEFAULT_UNCLASSIFIED_REASON = {
   owner: 'llp/0184-agent-accessible-control-plane',
   ticketOrDesignPointer: null,
@@ -226,6 +254,7 @@ function policyFromOperation(op) {
 
 function applyOverride(entry, override) {
   if (!override) return entry;
+  if (override.title) entry.title = override.title;
   if (override.operability) entry.operability = override.operability;
   if (override.mediatedHandoff) entry.mediatedHandoff = override.mediatedHandoff;
   if (override.intents) entry.intents = override.intents;
@@ -234,8 +263,6 @@ function applyOverride(entry, override) {
   if (override.mcpDeferralReason) entry.mcpDeferralReason = override.mcpDeferralReason;
   if (override.cliDeferralReason) entry.cliDeferralReason = override.cliDeferralReason;
   if (override.composedFrom) entry.composedFrom = override.composedFrom;
-  if (override.availability) entry.availability = override.availability;
-  if (override.behavior) entry.behavior = { ...entry.behavior, ...override.behavior };
   if (override.authorities) entry.authorities = override.authorities;
   if (override.sources) entry.sources = override.sources;
   if (override.guide) entry.guide = override.guide;
@@ -257,6 +284,12 @@ function applyOverride(entry, override) {
   if (override.behavior) {
     entry.behavior = { ...entry.behavior, ...override.behavior };
   }
+  return entry;
+}
+
+function applyAuthoredOverrides(entry) {
+  applyOverride(entry, discoveryOverrides[entry.operation]);
+  applyOverride(entry, overrides[entry.operation]);
   return entry;
 }
 
@@ -325,7 +358,7 @@ for (const name of hostOpsIdentities) {
   if (surfaceAccess === 'cliOnly') entry.mcpDeferralReason = 'Not yet classified.';
   if (surfaceAccess === 'mcpOnly') entry.cliDeferralReason = 'Not yet classified.';
 
-  applyOverride(entry, overrides[name]);
+  applyAuthoredOverrides(entry);
   if (entry.surfaceAccess === 'cliOnly' && !entry.mcpDeferralReason) {
     entry.mcpDeferralReason = 'Not yet classified.';
   }
@@ -375,7 +408,7 @@ for (const [name, op] of operationsByName) {
     authorities: ['llp/0031-server-route-taxonomy'],
     sources: ['src/server.rs operation_registry()'],
   };
-  applyOverride(entry, overrides[name]);
+  applyAuthoredOverrides(entry);
   if (entry.surfaceAccess === 'cliOnly' && !entry.mcpDeferralReason) entry.mcpDeferralReason = 'Not yet classified.';
   if (entry.surfaceAccess === 'mcpOnly' && !entry.cliDeferralReason) entry.cliDeferralReason = 'Not yet classified.';
   if (entry.operability !== 'unavailable') delete entry.unavailableReason;
@@ -385,6 +418,8 @@ for (const [name, op] of operationsByName) {
 // --- Compile CLI-only-declared family --------------------------------------
 
 for (const item of cliOnlyManifest.entries) {
+  const packagedCommand = item.packagedCommand ?? null;
+  const cli = packagedCommand ? `snapback ${packagedCommand}` : item.cli;
   const entry = {
     operation: item.operation,
     title: item.title,
@@ -404,13 +439,49 @@ for (const item of cliOnlyManifest.entries) {
       openWorld: item.behavior.openWorld ?? false,
       persistsAcrossRestart: item.behavior.persistsAcrossRestart ?? false,
     },
-    projections: { cli: item.cli, mcp: null, hostOps: null, http: null, adminClient: null, console: null },
+    projections: { cli, mcp: null, hostOps: null, http: null, adminClient: null, console: null },
     guide: item.guide,
     authorities: ['llp/0184-agent-accessible-control-plane'],
     sources: item.sources,
   };
   if (item.unavailableReason) entry.unavailableReason = item.unavailableReason;
+  if (packagedCommand) entry.sources = Array.from(new Set([
+    ...entry.sources,
+    `packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.${packagedCommand}`,
+  ]));
+  applyAuthoredOverrides(entry);
   entries.push(entry);
+}
+
+const packagedDeferrals = new Map(
+  (cliOnlyManifest.packagedCommandDeferrals ?? []).map((item) => [item.name, item.reason]),
+);
+const packagedRows = new Map(
+  cliOnlyManifest.entries
+    .filter((item) => item.packagedCommand)
+    .map((item) => [item.packagedCommand, item.operation]),
+);
+for (const name of packagedCliCommands) {
+  if (!packagedRows.has(name) && !packagedDeferrals.has(name)) {
+    completenessErrors.push(
+      `packaged CLI command 'snapback ${name}' has no cli-only-operations.json row or declared deferral (rule 3).`,
+    );
+  }
+}
+for (const [name, operation] of packagedRows) {
+  if (!packagedCliCommands.includes(name)) {
+    completenessErrors.push(
+      `${operation}: packagedCommand '${name}' is not present in PACKAGED_CLI_COMMANDS (rule 3).`,
+    );
+  }
+}
+for (const [name, reason] of packagedDeferrals) {
+  if (!packagedCliCommands.includes(name)) {
+    completenessErrors.push(`packaged CLI deferral '${name}' names no PACKAGED_CLI_COMMANDS verb.`);
+  }
+  if (typeof reason !== 'string' || reason.trim() === '') {
+    completenessErrors.push(`packaged CLI deferral '${name}' requires a non-empty reason.`);
+  }
 }
 
 // --- Compile the dev-mailbox pin (from live registry export) ---------------
@@ -419,7 +490,7 @@ const mailboxRoute = registryExport.routes.find(
   (route) => route.path === '/_snapback/api/auth/mailbox' && route.method === 'GET',
 );
 if (mailboxRoute) {
-  entries.push({
+  const entry = {
     operation: 'auth.mailbox.read',
     title: 'Read the dev-mailbox capture (operator only)',
     intents: [],
@@ -449,7 +520,9 @@ if (mailboxRoute) {
     pinned: true,
     pinReason:
       "responseSensitivity CredentialSecret: usage-evidence promotion to native/cliOnly/mcpOnly is refused outright regardless of call volume (§Product contract's promotion-refusal rule). This row stays apiOnly until an authored override passes the same secret-carrier review config.set requires.",
-  });
+  };
+  applyAuthoredOverrides(entry);
+  entries.push(entry);
 } else {
   domainErrors.push(
     'GET /_snapback/api/auth/mailbox not found in the live registry export; the pinned-secret ' +
@@ -600,7 +673,7 @@ for (const route of registryExport.routes) {
   };
   if (entry.surfaceAccess === 'cliOnly') entry.mcpDeferralReason = 'Not yet classified.';
   if (entry.surfaceAccess === 'mcpOnly') entry.cliDeferralReason = 'Not yet classified.';
-  applyOverride(entry, overrides[operationName]);
+  applyAuthoredOverrides(entry);
   if (entry.surfaceAccess === 'cliOnly' && !entry.mcpDeferralReason) entry.mcpDeferralReason = 'Not yet classified.';
   if (entry.surfaceAccess === 'mcpOnly' && !entry.cliDeferralReason) entry.cliDeferralReason = 'Not yet classified.';
   if (entry.operability !== 'unavailable') delete entry.unavailableReason;
@@ -704,6 +777,7 @@ for (const resource of controlResources) {
 // --- Rule 11: hosted-adapter manifest vs audited fixture -------------------
 
 function checkHostedAdapter() {
+  checkGatewaySourceParity();
   const fixtureKeys = new Set(
     gatewayInventory.entries.map((e) => `${e.methods.join(',')}|${e.path}|${e.operation}`),
   );
@@ -798,10 +872,152 @@ function checkHostedAdapter() {
       sources: item.sources,
     };
     if (item.internalReason) entry.internalReason = item.internalReason;
+    applyAuthoredOverrides(entry);
     entries.push(entry);
   }
 }
+
+function quotedStrings(source) {
+  return Array.from(source.matchAll(/(['"])(\/[^'"\\]*)\1/g), (match) => match[2]);
+}
+
+function arrayConstant(name, { set = false } = {}) {
+  const wrapperStart = set ? String.raw`new\s+Set\s*\(\s*\[` : String.raw`\[`;
+  const wrapperEnd = set ? String.raw`\]\s*\)` : String.raw`\]`;
+  const pattern = new RegExp(
+    String.raw`const\s+${name}\s*=\s*${wrapperStart}([\s\S]*?)${wrapperEnd}\s*;`,
+  );
+  const match = gatewaySource.match(pattern);
+  if (!match) {
+    completenessErrors.push(`gateway.js ${name} declaration could not be parsed by the parity gate.`);
+    return [];
+  }
+  return quotedStrings(match[1]);
+}
+
+function regexConstant(name) {
+  const match = gatewaySource.match(new RegExp(String.raw`const\s+${name}\s*=\s*(\/[^\n]+\/[a-z]*)\s*;`));
+  if (!match) {
+    completenessErrors.push(`gateway.js ${name} declaration could not be parsed by the parity gate.`);
+    return null;
+  }
+  return match[1];
+}
+
+function exactPathLiterals() {
+  return Array.from(
+    gatewaySource.matchAll(/\bpath\s*===\s*(['"])(\/[^'"]*)\1/g),
+    (match) => match[2],
+  ).sort();
+}
+
+function sameStringList(label, actual, expected) {
+  const actualSorted = [...new Set(actual)].sort();
+  const expectedSorted = [...new Set(expected ?? [])].sort();
+  if (JSON.stringify(actualSorted) !== JSON.stringify(expectedSorted)) {
+    completenessErrors.push(
+      `gateway.js ${label} literals are unlisted or stale in gateway-paths.inventory.json: ` +
+        `source=${JSON.stringify(actualSorted)} fixture=${JSON.stringify(expectedSorted)}.`,
+    );
+  }
+}
+
+// Bounded source extraction is deliberate: these four declarations and exact
+// `path ===` comparisons are the gateway's audited registration vocabulary.
+// An unparsable rewrite fails closed and requires the fixture/gate to evolve
+// in the same change; this is not a claim to parse arbitrary JavaScript.
+// @ref LLP 0184#3a-the-hosted-cloudflare-leg--a-fifth-domain-not-an-omission
+function checkGatewaySourceParity() {
+  const forwarded = arrayConstant('FORWARDED_JSON_PATHS', { set: true });
+  const appPrefixes = arrayConstant('APP_DATA_PREFIXES');
+  const kitRoute = regexConstant('KIT_ROUTE');
+  const kitStreamRoute = regexConstant('KIT_STREAM_ROUTE');
+  const literals = gatewayInventory.sourceLiterals ?? {};
+  sameStringList('FORWARDED_JSON_PATHS', forwarded, literals.FORWARDED_JSON_PATHS);
+  sameStringList('APP_DATA_PREFIXES', appPrefixes, literals.APP_DATA_PREFIXES);
+  sameStringList('exact path', exactPathLiterals(), literals.exactPaths);
+  if (kitRoute !== literals.KIT_ROUTE) {
+    completenessErrors.push(
+      `gateway.js KIT_ROUTE literal is unlisted or stale in gateway-paths.inventory.json: source=${kitRoute} fixture=${literals.KIT_ROUTE}.`,
+    );
+  }
+  if (kitStreamRoute !== literals.KIT_STREAM_ROUTE) {
+    completenessErrors.push(
+      `gateway.js KIT_STREAM_ROUTE literal is unlisted or stale in gateway-paths.inventory.json: source=${kitStreamRoute} fixture=${literals.KIT_STREAM_ROUTE}.`,
+    );
+  }
+  const appData = gatewayInventory.appDataPlane ?? {};
+  sameStringList(
+    'app-data exact-path inventory',
+    forwarded.filter((path) => !path.startsWith('/_snapback/')),
+    appData.forwardedExactPaths,
+  );
+  sameStringList(
+    'app-data SPA-fallback prefix inventory',
+    appPrefixes,
+    appData.unsupportedSpaFallbackPrefixes,
+  );
+  if (appData.kitRoute !== kitRoute || appData.kitStreamRoute !== kitStreamRoute) {
+    completenessErrors.push(
+      'gateway-paths.inventory.json appDataPlane regex literals do not match parsed KIT_ROUTE/KIT_STREAM_ROUTE.',
+    );
+  }
+}
 checkHostedAdapter();
+
+// --- Rule 4: task-language discovery metadata and real Guide anchors -------
+
+function githubHeadingSlug(heading) {
+  return heading
+    .trim()
+    .toLowerCase()
+    .replace(/<[^>]*>/g, '')
+    .replace(/[`*_~]/g, '')
+    .replace(/[^\p{L}\p{N}\s-]/gu, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+}
+
+function guideAnchorExists(anchor) {
+  if (typeof anchor !== 'string' || anchor.trim() === '') return false;
+  const [relativePath, fragment] = anchor.split('#', 2);
+  if (!relativePath || relativePath.startsWith('/') || relativePath.includes('..')) return false;
+  const path = join(ROOT, 'guide', relativePath);
+  if (!existsSync(path)) return false;
+  if (!fragment) return true;
+  const headings = readFileSync(path, 'utf8')
+    .split('\n')
+    .filter((line) => /^#{1,6}\s+/.test(line))
+    .map((line) => githubHeadingSlug(line.replace(/^#{1,6}\s+/, '')));
+  return headings.includes(fragment);
+}
+
+for (const entry of entries) {
+  if (entry.title === entry.operation) {
+    completenessErrors.push(`${entry.operation}: title must differ from operation (rule 4).`);
+  }
+  if (!Array.isArray(entry.intents) || entry.intents.length === 0 ||
+      entry.intents.some((intent) => typeof intent !== 'string' || intent.trim() === '')) {
+    completenessErrors.push(`${entry.operation}: non-empty authored intents are required (rule 4).`);
+  }
+  if (['native', 'cliOnly', 'mcpOnly', 'apiOnly'].includes(entry.surfaceAccess)) {
+    if (!guideAnchorExists(entry.guide)) {
+      completenessErrors.push(
+        `${entry.operation}: ${entry.surfaceAccess} requires a Guide path/anchor that exists under guide/ (rule 4).`,
+      );
+    }
+  }
+  if (entry.surfaceAccess === 'apiOnly') {
+    const hasRecipeAnchor = typeof entry.guide === 'string' && entry.guide.includes('#');
+    const hasCliDeferral = typeof entry.cliDeferralReason === 'string' &&
+      entry.cliDeferralReason.trim() !== '';
+    if (!hasRecipeAnchor && !hasCliDeferral) {
+      completenessErrors.push(
+        `${entry.operation}: apiOnly requires an authored Guide recipe anchor or cliDeferralReason (rule 5).`,
+      );
+    }
+  }
+}
 
 // --- Assemble and validate --------------------------------------------------
 

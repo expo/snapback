@@ -3,6 +3,17 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Installable Snapback developer loop and native server launcher.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/expo/snapback.git",
+    "directory": "packages/snapback-cli"
+  },
+  "homepage": "https://github.com/expo/snapback#readme",
+  "bugs": {
+    "url": "https://github.com/expo/snapback/issues"
+  },
+  "keywords": ["snapback", "backend", "cli", "local-first"],
   "files": [
     "adapters/fly-machines-vm-driver.mjs",
     "agent-setup.mjs",
@@ -99,7 +110,8 @@
     "@expo/snapback-client": "workspace:*",
     "@expo/snapback-codegen": "workspace:*",
     "@expo/snapback-contract": "workspace:*",
-    "@expo/snapback-react": "workspace:*"
+    "@expo/snapback-react": "workspace:*",
+    "ajv": "^8.20.0"
   },
   "optionalDependencies": {
     "@expo/snapback-runtime-darwin-arm64": "workspace:*",

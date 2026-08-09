@@ -50,6 +50,8 @@ the `AppBinding` nor the integration receipt carries session authority.
 ## Documentation outside a checkout
 
 A running Snapback server serves the Guide compiled into that exact build.
+These links use the first default development port; use the origin printed by
+`snapback dev` or `snapback start` if yours differs.
 
 - Read [the React and Expo client guide](http://127.0.0.1:4287/_snapback/guide/clients/react-expo.md).
 - Check the [capability index](http://127.0.0.1:4287/_snapback/guide/capabilities.md).

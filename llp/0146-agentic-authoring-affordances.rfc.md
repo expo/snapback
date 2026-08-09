@@ -7,7 +7,14 @@ verification, Diagnostics, Schema and storage, Live queries, Developer
 experience
 **Author:** Charlie Cheever / Claude (Opus 5)
 **Date:** 2026-08-01
-**Revised:** 2026-08-04 (author decision sitting #3
+**Revised:** 2026-08-08 (D2 trust-seam amendment: the conventional
+`snapback.verify.config.mjs` is auto-discovered from the invoking cwd; a
+zero-profile success is machine-distinct as `passed-without-acceptance`;
+profile execution has bounded CLI/env/profile timeout policy; non-local
+targets record an explicit non-claim instead of running the local packaged
+runtime probe; and recommended actions separate runnable commands from prose
+instructions. The target-specific Cloudflare acceptance adapter remains
+unbuilt.) 2026-08-04 (author decision sitting #3
 (`issues/closed/20260804-author-decision-sitting-3.md`), two rulings on
 the D1 tranche's accumulated author questions: (1) **no escape hatch in
 v1** — the boolean `strictDeclarations` opt-in ships as-is, and the
@@ -553,6 +560,21 @@ evidence. A `recommendedNext`
 scalar is emitted **only** when precedence makes the choice mechanically
 unique; a capability gap, stale codegen, and a failed acceptance profile are
 independent conditions and collapsing them into one "next step" would lie.
+Its `command` is runnable or null; prose belongs in a separate `instruction`
+field. The CLI auto-discovers `snapback.verify.config.mjs` in the invoking cwd.
+A run that truly registers no profiles may pass platform stages, but its
+receipt status is `passed-without-acceptance`, never the ordinary `passed`, and
+it retains the no-coverage non-claim.
+
+Runtime-readiness stage 2 is target-aware. It applies the digest-bound local
+packaged-runtime probe only to local target profiles; a non-local profile gets
+an explicit `not-applicable-non-local-target` result with `claim: false`.
+That skip does not establish readiness for the remote runtime, and no hosted
+capability claim may treat it as doing so. Registered profiles have a bounded
+five-minute default, overridable per profile, by CLI, or by the documented
+environment setting; expiration fails with
+`SNAPBACK_VERIFY_PROFILE_TIMEOUT`. A target-specific Cloudflare acceptance
+adapter remains a separate unbuilt requirement.
 
 Two boundaries. Application test execution stays in the CLI orchestrator,
 not inside the server, in v0. And `verify` proves "platform-ready under the

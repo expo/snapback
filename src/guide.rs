@@ -39,6 +39,8 @@ mod tests {
             FLAT_PATH,
             "reference/index.md",
             crate::guide_reference::REGISTRY_PATH,
+            crate::guide_reference::DIAGNOSTICS_REGISTRY_PATH,
+            "reference/diagnostics.md",
         ] {
             assert!(file(path).is_some(), "missing embedded guide file {path}");
         }

@@ -9,8 +9,8 @@ examples: [packages/snapback-codegen/jobs-authoring.test.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-08
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 # One-off durable jobs
@@ -78,6 +78,30 @@ The complete options vocabulary:
 The return value is `{ jobId, availableAtMs, deduplicated }`. Job ids ride
 the ctx-answer ledger, so tests can assert on them across replay.
 
+### Budget retries for expected contention
+
+`maxAttempts: 1` is a bounded-work default, not a recommendation that every
+job is safe to try once. If an action calls a mutation that can contend with
+foreground writes or authorization reservations, enqueue it as
+**retryable by design** with a stable idempotency key and a small explicit
+budget:
+
+```js fragment reason="application-specific action, arguments, and idempotency identity"
+await ctx.jobs.enqueue('notify', args, {
+  maxAttempts: 3,
+  idempotencyKey: `notify:${args.eventId}`,
+});
+```
+
+The local sessions target may return the retryable
+`SNAPBACK_AUTH_RESERVATION_STALE` refusal when a deferred mutation races a
+concurrent foreground move. An attempt consumes one slot even though no
+application effect committed; the queue applies its bounded jittered backoff
+before the next attempt. With the default budget, that same routine contention
+would make the job terminal `dead`. Keep the action idempotent because delivery
+is still at-least-once, and choose the smallest budget that covers the
+contention your acceptance test actually witnesses.
+
 Who may enqueue, and what may run:
 
 - **Only mutations enqueue.** Queries and actions get
@@ -134,6 +158,22 @@ The served row is lifecycle facts only — never argument values or results:
 `terminalAtMs`, `lastErrorCode`, and the producer association
 (`producerMutationId`, `producerSnapshotVersion`, `producerFunction`).
 States: `pending`, `claimed`, `succeeded`, `dead`, `cancelled`.
+
+The terminal `dead` state is Snapback's **dead-letter / DLQ equivalent** in v1:
+there is no separate dead-letter queue. Exhausted jobs remain on the same
+durable queue with `lastErrorCode` and append-only attempt receipts, where the
+operator lane below can inspect them. There is no replay/redrive operation in
+this slice.
+
+Retry history and current status are deliberately different surfaces. A job
+that succeeds after one or more retries has `state: "succeeded"` and
+`lastErrorCode: null`; the privacy-bounded product status row therefore does
+**not** reveal that it retried. The operator detail route
+`GET /_snapback/api/jobs/{id}` retains the attempt sequence (for example,
+`retryable` with `SNAPBACK_AUTH_RESERVATION_STALE`, then `succeeded`). Use that
+route with the required secret-read lease when succeeded-after-retry visibility
+matters operationally; do not infer first-try success from a null terminal
+error.
 
 Receipts carry the other half of the association: a **confirmed** mutation
 receipt that enqueued jobs gains a bounded `enqueues` array

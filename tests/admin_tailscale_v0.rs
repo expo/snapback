@@ -34,6 +34,7 @@ fn start_server(directory: &std::path::Path) -> Server {
     let ready_file = directory.join("ready.json");
     let mut child = snapback()
         .args([
+            "start",
             "--port",
             "0",
             "--memory",

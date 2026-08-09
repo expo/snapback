@@ -19,6 +19,7 @@ import {
 import { dirname, extname, join, normalize, relative, resolve, sep } from 'node:path';
 import {
   FLAT_PATH,
+  DIAGNOSTICS_REGISTRY_PATH,
   MANIFEST_PATH,
   PUBLISHED_CLOSURE_PATH,
   SYMBOL_REGISTRY_PATH,
@@ -39,6 +40,7 @@ const INTERNAL_STATIC_TARGETS = new Map([
   ['guide/frontmatter.schema.json', '/frontmatter.schema.json'],
   [PUBLISHED_CLOSURE_PATH, '/published-closure.json'],
   [SYMBOL_REGISTRY_PATH, '/reference/registry.json'],
+  [DIAGNOSTICS_REGISTRY_PATH, '/reference/diagnostics-registry.json'],
   ['brand/snapback-mark.svg', '/assets/snapback-mark.svg'],
 ]);
 
@@ -708,6 +710,7 @@ function buildLlmsTxt({ pages, binding }) {
     '- [Site manifest](/site-manifest.json)',
     '- [Published closure record](/published-closure.json)',
     '- [Generated API symbol registry](/reference/registry.json)',
+    '- [Diagnostic code registry](/reference/diagnostics-registry.json)',
     '',
   );
   return lines.join('\n');
@@ -752,12 +755,15 @@ function loadInputs(root) {
   const closurePath = join(root, PUBLISHED_CLOSURE_PATH);
   const guideManifestPath = join(root, MANIFEST_PATH);
   const registryPath = join(root, SYMBOL_REGISTRY_PATH);
+  const diagnosticsPath = join(root, DIAGNOSTICS_REGISTRY_PATH);
   const flatPath = join(root, FLAT_PATH);
   const closure = loadJson(closurePath, PUBLISHED_CLOSURE_PATH);
   const manifest = loadJson(guideManifestPath, MANIFEST_PATH);
   const registry = loadJson(registryPath, SYMBOL_REGISTRY_PATH);
+  const diagnostics = loadJson(diagnosticsPath, DIAGNOSTICS_REGISTRY_PATH);
   const closureBytes = readFileSync(closurePath);
   const registryBytes = readFileSync(registryPath);
+  const diagnosticsBytes = readFileSync(diagnosticsPath);
   const flatBytes = readFileSync(flatPath);
 
   if (closure.schemaVersion !== 'snapback-published-closure.v1') {
@@ -775,6 +781,9 @@ function loadInputs(root) {
   }
   if (registry.schemaVersion !== 'snapback-symbol-registry.v1') {
     fail(`${SYMBOL_REGISTRY_PATH}: unsupported schemaVersion`);
+  }
+  if (diagnostics.schemaVersion !== 'snapback-diagnostics-registry.v1') {
+    fail(`${DIAGNOSTICS_REGISTRY_PATH}: unsupported schemaVersion`);
   }
 
   const corpus = loadProjectionCorpus(root);
@@ -806,12 +815,23 @@ function loadInputs(root) {
     fail(`${MANIFEST_PATH}: reference.symbol-registry resource is missing or points elsewhere`);
   }
   if (resource.sha256 !== sha256(registryBytes)) fail(`${MANIFEST_PATH}: symbol registry sha256 is stale`);
+  const diagnosticsResource = manifest.resources?.['reference.diagnostics-registry'];
+  if (!diagnosticsResource || diagnosticsResource.path !== DIAGNOSTICS_REGISTRY_PATH) {
+    fail(`${MANIFEST_PATH}: reference.diagnostics-registry resource is missing or points elsewhere`);
+  }
+  if (diagnosticsResource.sha256 !== sha256(diagnosticsBytes)) {
+    fail(`${MANIFEST_PATH}: diagnostics registry sha256 is stale`);
+  }
   const expectedGuideDigest = createHash('sha256')
     .update(flatBytes)
     .update('\0guide-resource\0')
     .update(SYMBOL_REGISTRY_PATH)
     .update('\0')
     .update(registryBytes)
+    .update('\0guide-resource\0')
+    .update(DIAGNOSTICS_REGISTRY_PATH)
+    .update('\0')
+    .update(diagnosticsBytes)
     .digest('hex');
   if (manifest.contentHash !== expectedGuideDigest) {
     fail(`${MANIFEST_PATH}: contentHash does not bind the current flat Guide + symbol registry`);
@@ -843,14 +863,17 @@ function loadInputs(root) {
       modules: registry.modules?.length ?? 0,
       symbols: registry.symbols?.length ?? 0,
       presenceIsPublicationClaim: false,
+      diagnosticsRegistryPath: DIAGNOSTICS_REGISTRY_PATH,
+      diagnosticsSha256: sha256(diagnosticsBytes),
+      diagnosticCodes: diagnostics.counts?.codes ?? 0,
     },
   };
-  return { closure, closureBytes, corpus, manifest, registry, registryBytes, binding };
+  return { closure, closureBytes, corpus, manifest, registry, registryBytes, diagnosticsBytes, binding };
 }
 
 function buildSite(root) {
   const inputs = loadInputs(root);
-  const { closure, closureBytes, corpus, manifest, registry, registryBytes, binding } = inputs;
+  const { closure, closureBytes, corpus, manifest, registry, registryBytes, diagnosticsBytes, binding } = inputs;
   const files = new Map();
   const routesBySource = new Map();
   const routesById = new Map();
@@ -888,6 +911,7 @@ function buildSite(root) {
   files.set('frontmatter.schema.json', readFileSync(join(root, 'guide/frontmatter.schema.json')));
   files.set('published-closure.json', closureBytes);
   files.set('reference/registry.json', registryBytes);
+  files.set('reference/diagnostics-registry.json', diagnosticsBytes);
   files.set('llms.txt', buildLlmsTxt({ pages, binding }));
 
   const expectedFenceLabels = [];

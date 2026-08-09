@@ -27,6 +27,24 @@
 
 set -euo pipefail
 
+usage() {
+    cat <<'EOF'
+Usage: scripts/cold-clone-check.sh [--help]
+
+Build and verify the All Aboard Contract surface from clean registry installs.
+
+Environment:
+  ALL_ABOARD_VITE_PORT  Vite port for acceptance (default: 5271).
+  CHROME_BIN            Chrome/Chromium binary (default: auto-detected).
+EOF
+}
+
+case "${1:-}" in
+    --help|-h) [ "$#" -eq 1 ] || { usage >&2; exit 2; }; usage; exit 0 ;;
+    '') ;;
+    *) printf '[cold-clone] error: unknown argument: %s\n' "$1" >&2; usage >&2; exit 2 ;;
+esac
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SURFACE_DIR="$ROOT/demos/all-aboard/surfaces/contract"
 ACCEPTANCE="$ROOT/demos/all-aboard/tests/acceptance/browser.mjs"

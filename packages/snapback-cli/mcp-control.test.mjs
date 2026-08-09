@@ -67,6 +67,36 @@ assert.ok(
     unavailable.result._meta['snapback/resourceDiagnostics'][0].message,
     /no compatible co-installed native Snapback binary/,
   );
+
+  let catalogDigest = `sha256:${'a'.repeat(64)}`;
+  let nativeGuideSpawns = 0;
+  const memoizedNative = new McpControlServer({
+    backendDirectory: join(tmpdir(), 'snapback-mcp-memoized-backend'),
+    projectRoot: tmpdir(),
+    runtimeBinary,
+    spawnSync: () => {
+      nativeGuideSpawns += 1;
+      return {
+        status: 0,
+        signal: null,
+        stdout: `${JSON.stringify({ jsonrpc: '2.0', id: 1, result: { resources: [] } })}\n`,
+        stderr: '',
+      };
+    },
+  });
+  memoizedNative.nativeControlCatalog = () => ({ value: { catalogDigest } });
+  for (const tool of memoizedNative.listTools().tools) {
+    assert.doesNotThrow(
+      () => memoizedNative.validateToolArguments(memoizedNative.toolDefinition(tool.name), {}),
+      `${tool.name} declared an inputSchema that cannot be compiled`,
+    );
+  }
+  assert.deepEqual(memoizedNative.nativeGuideRequest('resources/list'), { resources: [] });
+  assert.deepEqual(memoizedNative.nativeGuideRequest('resources/list'), { resources: [] });
+  assert.equal(nativeGuideSpawns, 1, 'same-digest Guide request must reuse the process-lifetime memo');
+  catalogDigest = `sha256:${'b'.repeat(64)}`;
+  assert.deepEqual(memoizedNative.nativeGuideRequest('resources/list'), { resources: [] });
+  assert.equal(nativeGuideSpawns, 2, 'a different catalog digest must not reuse cached Guide bytes');
 }
 
 class McpClient {
@@ -193,6 +223,22 @@ try {
   assert.match(guideManifest.contentHash, /^[0-9a-f]{64}$/);
   assert.equal(typeof guideManifest.buildIdentity.commit, 'string');
 
+  const guideSearch = await client.call('snapback_guide_search', {
+    query: 'SnapbackClient.query',
+  });
+  assert.equal(guideSearch.structuredContent.operation, 'guide.search');
+  assert.equal(guideSearch.structuredContent.ok, true, JSON.stringify(guideSearch));
+  assert.equal(guideSearch.structuredContent.data.guideSearch.schemaVersion, 'snapback.guide-search.v1');
+  assert.equal(guideSearch.structuredContent.data.guideSearch.mode, 'exact-symbol');
+  assert.equal(guideSearch.structuredContent.data.guideSearch.result.match, 'member');
+  const guideSectionSearch = await client.call('snapback_guide_search', {
+    query: 'network condition profiles',
+  });
+  assert.equal(guideSectionSearch.structuredContent.ok, true, JSON.stringify(guideSectionSearch));
+  assert.equal(guideSectionSearch.structuredContent.data.guideSearch.mode, 'section-search');
+  assert.equal(guideSectionSearch.structuredContent.data.guideSearch.result.matched, true);
+  assert.ok(guideSectionSearch.structuredContent.data.guideSearch.matches.length > 0);
+
   const listed = await client.request('tools/list');
   const tools = listed.result.tools;
   const names = tools.map((tool) => tool.name);
@@ -218,6 +264,8 @@ try {
   ]) {
     assert.ok(names.includes(pinned), `missing pinned control tool ${pinned}`);
   }
+  assert.ok(names.includes('snapback_guide_search'), 'missing control-side Guide search tool');
+  assert.ok(tools.every((tool) => tool.outputSchema?.properties?.resultKind?.const === 'hostOpsResult'));
   assert.equal(tools.find((tool) => tool.name === 'snapback_inspect').annotations.readOnlyHint, true);
   assert.equal(tools.find((tool) => tool.name === 'snapback_network_profile_get').annotations.readOnlyHint, true);
   assert.equal(tools.find((tool) => tool.name === 'snapback_network_profile_set').annotations.readOnlyHint, false);
@@ -242,24 +290,48 @@ try {
     undefined,
   );
   assert.equal(tools.find((tool) => tool.name === 'snapback_ephemeral_operator_delete').annotations.destructiveHint, true);
+  const assetExportCut = tools.find((tool) => tool.name === 'snapback_asset_export_cut');
+  assert.equal(assetExportCut.annotations.readOnlyHint, false);
+  assert.equal(assetExportCut.annotations.destructiveHint, false);
 
   const catalog = listed.result._meta['snapback/appDataCatalog'];
   assert.equal(catalog.catalogKind, 'appDataMcpCatalog');
   assert.equal(catalog.schemaVersion, 'snapback.v0');
   assert.match(catalog.functionManifestHash, /^sha256:[0-9a-f]{64}$/);
   const catalogTools = tools.filter((tool) => tool.name.startsWith('snapback_fn_'));
-  const queryTool = catalogTools.find((tool) => tool._meta['snapback/catalogEntry'].kind === 'query');
-  const mutationTool = catalogTools.find((tool) => tool._meta['snapback/catalogEntry'].kind === 'mutation');
+  const catalogEntries = new Map(catalog.entries.map((entry) => [entry.toolName, entry]));
+  const queryTool = catalogTools.find((tool) => catalogEntries.get(tool.name).kind === 'query');
+  const mutationTool = catalogTools.find((tool) => catalogEntries.get(tool.name).kind === 'mutation');
   assert.ok(queryTool, 'catalog must expose at least one query tool');
   assert.ok(mutationTool, 'catalog must expose at least one mutation tool');
   assert.equal(queryTool.annotations.readOnlyHint, true);
   // Input schemas derive from the generated args validators, not guesses.
-  assert.deepEqual(mutationTool.inputSchema.required, ['title']);
-  assert.equal(mutationTool.inputSchema.properties.title.type, 'string');
-  const mutationEntry = mutationTool._meta['snapback/catalogEntry'];
+  assert.deepEqual(mutationTool.inputSchema.required, ['args']);
+  assert.deepEqual(mutationTool.inputSchema.properties.args.required, ['title']);
+  assert.equal(mutationTool.inputSchema.properties.args.properties.title.type, 'string');
+  const mutationEntry = catalogEntries.get(mutationTool.name);
+  assert.deepEqual(mutationTool._meta, {
+    functionId: mutationEntry.functionId,
+    capabilityGaps: mutationEntry.capabilityGaps,
+    syncabilityClass: mutationEntry.syncabilityClass,
+  });
+  assert.equal(mutationEntry.outputSchema.properties.resultKind.const, 'hostOpsResult');
   assert.equal(mutationEntry.authorityRequired.explicitTuple, true);
   assert.equal(mutationEntry.dryRunSupported, false);
   assert.match(mutationEntry.functionId, /:createTodo$/);
+
+  for (const [tool, missing] of [
+    ['snapback_cron_run', 'name'],
+    ['snapback_connection_disconnect', 'connectionId'],
+  ]) {
+    const invalid = await client.call(tool, {});
+    assert.equal(invalid.structuredContent.resultKind, 'hostOpsResult');
+    assert.equal(invalid.structuredContent.diagnostics[0].code, 'SNAPBACK_MCP_ARGUMENT_INVALID');
+    assert.ok(invalid.structuredContent.next[0].required.includes(missing));
+  }
+  const invalidCronPath = await client.call('snapback_cron_run', { name: 'nightly/run' });
+  assert.equal(invalidCronPath.isError, true);
+  assert.equal(invalidCronPath.structuredContent.diagnostics[0].code, 'SNAPBACK_MCP_ARGUMENT_INVALID');
 
   const started = await client.call('snapback_start');
   assert.notEqual(started.isError, true, JSON.stringify(started));
@@ -584,12 +656,11 @@ try {
   assert.equal(unknownArgumentField.structuredContent.ok, false);
   assert.equal(
     unknownArgumentField.structuredContent.diagnostics[0].code,
-    'SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION',
+    'SNAPBACK_MCP_ARGUMENT_INVALID',
   );
   const unknownArgumentDetails = unknownArgumentField.structuredContent.diagnostics[0].details;
-  assert.equal(unknownArgumentDetails.candidateFields[0].name, 'title');
-  assert.equal(unknownArgumentDetails.candidateFields[0].expected, 'string');
-  assert.equal(typeof unknownArgumentDetails.expectedArgumentContract, 'object');
+  assert.ok(unknownArgumentDetails.errors.some((error) => error.keyword === 'required'));
+  assert.ok(unknownArgumentDetails.errors.some((error) => error.keyword === 'additionalProperties'));
   assert.doesNotMatch(JSON.stringify(unknownArgumentField.structuredContent), /titel/);
 
   const wrongArgumentShape = await client.call(mutationTool.name, {
@@ -599,19 +670,18 @@ try {
   assert.equal(wrongArgumentShape.structuredContent.ok, false);
   assert.equal(
     wrongArgumentShape.structuredContent.diagnostics[0].code,
-    'SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION',
+    'SNAPBACK_MCP_ARGUMENT_INVALID',
   );
   const wrongArgumentDetails = wrongArgumentShape.structuredContent.diagnostics[0].details;
-  assert.equal(wrongArgumentDetails.expected, 'string');
-  assert.equal(wrongArgumentDetails.actual, 'number');
-  assert.equal(wrongArgumentDetails.candidateFields[0].name, 'title');
-  assert.equal(wrongArgumentDetails.candidateFields[0].expected, 'string');
+  assert.ok(wrongArgumentDetails.errors.some(
+    (error) => error.instancePath === '/args/title' && error.keyword === 'type',
+  ));
 
   // Reset is destructive: refused without an explicit tuple, and the served
   // envelope records the authority when it runs.
   const resetUnauthorized = await client.call('snapback_reset', {});
   assert.equal(resetUnauthorized.structuredContent.ok, false);
-  assert.equal(resetUnauthorized.structuredContent.diagnostics[0].code, 'SNAPBACK_MCP_AUTHORITY_REQUIRED');
+  assert.equal(resetUnauthorized.structuredContent.diagnostics[0].code, 'SNAPBACK_MCP_ARGUMENT_INVALID');
   const reset = await client.call('snapback_reset', {
     authority: { mode: 'devAdminBypass', reason: 'acceptance cleanup' },
   });

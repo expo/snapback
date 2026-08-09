@@ -46,3 +46,18 @@ From the 2026-08-08 agentic surface audit (LLP 0202 P0 #1 and theme 8).
    `gateway.js` in the generator (all top-level constants) and fail on any
    gateway literal absent from the fixture; extend scope to the app-data
    plane.
+
+## Resolution (2026-08-08)
+
+All four fixes landed in the working tree. `cloudflare/src/gateway.js` now
+recognizes SPA HTML fallbacks under every audited app-data prefix and returns
+a versioned HTTP 501 `SNAPBACK_ROUTE_UNSUPPORTED_ON_TARGET` envelope while
+preserving real asset responses. `src/server.rs` now answers local unknown
+routes with `SNAPBACK_ROUTE_UNKNOWN` and bounded nearest-path candidates from
+`route_registry()`; the hosted disabled-operator surface still returns its
+indistinguishable empty 404 for registered and unregistered `/_snapback/*`
+paths. `guide/index.md` and `guide/deploying/cloudflare.md` record the hosted
+discovery non-claim. Finally, the control-catalog generator now parses the
+forwarded-path Set, kit regexes, app-data prefixes, and exact-path comparisons
+from the gateway source, checks the expanded app-data inventory, and carries
+negative drift tests for each source-literal family.

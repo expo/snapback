@@ -1,6 +1,10 @@
 # `@expo/snapback-client`
 
-Framework-neutral Snapback app-data client.
+Framework-neutral Snapback app-data client. Install this package when a
+JavaScript application needs the headless query, mutation, live-data, auth,
+or local-retention surface; use `@expo/snapback-react` for React bindings.
+The full build-matched documentation becomes available after the Snapback
+development server is installed and running.
 
 Exports:
 
@@ -91,6 +95,10 @@ served [native app authentication](http://127.0.0.1:4287/_snapback/guide/auth/na
 Guide page for the complete session flow; it is also available through
 `snapback mcp`.
 
+The `agent-authority` credential mode only adopts an already-issued token;
+there is no user-reachable agent-registration or initial `sbac_` issuance route
+today, and those credentials currently come from harness/test-lane provisioning.
+
 For mobile hosts, bind the platform lifecycle to a live-query handle:
 
 ```js
@@ -134,3 +142,20 @@ The entrypoint's existence is not a hosted capability claim. No current
 Snapback target has passed the complete production adapter drill, so ordinary
 applications must not substitute the generic `SnapbackClient` direct-bearer
 seam and call the result hosted auth.
+
+## Documentation outside a checkout
+
+A running Snapback server serves the Guide compiled into that exact build.
+These links use the first default development port; use the origin printed by
+`snapback dev` or `snapback start` if yours differs.
+
+- Read the [headless client guide](http://127.0.0.1:4287/_snapback/guide/clients/headless.md)
+  for client construction, auth, live data, and retention boundaries.
+- Read the [React client guide](http://127.0.0.1:4287/_snapback/guide/clients/react.md)
+  before layering framework bindings over this package.
+- Check the [capability index](http://127.0.0.1:4287/_snapback/guide/capabilities.md)
+  before assuming a target or custody mode is supported.
+- Run `snapback guide` or `snapback guide <query>` to browse or search the
+  embedded Guide.
+- Run `snapback mcp` for the same build-bound corpus as read-only MCP
+  resources, starting at `snapback-guide://manifest`.

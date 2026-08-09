@@ -2,6 +2,17 @@
   "name": "@expo/snapback-expo",
   "version": "0.1.0",
   "description": "Zero-configuration Expo binding, provider, lifecycle, and config plugin for Snapback applications.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/expo/snapback.git",
+    "directory": "packages/snapback-expo"
+  },
+  "homepage": "https://github.com/expo/snapback#readme",
+  "bugs": {
+    "url": "https://github.com/expo/snapback/issues"
+  },
+  "keywords": ["snapback", "backend", "expo", "react-native"],
   "files": [
     "README.md",
     "app-binding.d.mts",
