@@ -19,15 +19,61 @@
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex as StdMutex, OnceLock};
 use uuid::Uuid;
 
+pub const STREAM_CHUNK_MAX_BYTES: usize = 16 * 1024;
+pub const STREAM_ATTEMPT_MAX_BYTES: usize = 2 * 1024 * 1024;
+pub const STREAM_CHUNKS_PER_SECOND: usize = 20;
+const STREAM_LIVE_AUTH_RETENTION: std::time::Duration = std::time::Duration::from_secs(30);
+
+/// Stable privacy identity for a streaming action. Session reconnects compare
+/// the user id, service reconnects the credential id, while anonymous access
+/// remains connection-bound.
+///
+/// @ref LLP 0204#d91--streaming-conversations — possession of a
+/// room key is never stream read authority.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(tag = "kind", content = "key", rename_all = "snake_case")]
+pub enum StreamInitiator {
+    SessionUser(String),
+    ServiceCredential(String),
+    AnonymousConnection(String),
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct StreamAttemptMetadata {
+    pub function_id: Option<String>,
+    pub initiator: Option<StreamInitiator>,
+    pub started_at_ms: u64,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct StreamChunkEmission {
+    pub attempt_token: String,
+    pub chunk_index: u64,
+    pub chunk_count: u64,
+    pub total_bytes: u64,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StreamOutputSnapshot {
+    pub attempt_token: String,
+    pub function_id: String,
+    pub initiator: StreamInitiator,
+    pub started_at_ms: u64,
+    pub settled_at_ms: Option<u64>,
+    pub terminal: Option<StreamAttemptTerminal>,
+    pub chunk_count: u64,
+}
+
 /// The five frozen terminal settlement kinds (LLP 0075
 /// `requiredSettlementKinds`); the certainty axis is orthogonal, never a
 /// sixth kind.
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum StreamAttemptCause {
     Complete,
@@ -46,6 +92,16 @@ impl StreamAttemptCause {
             "timed_out" => Some(Self::TimedOut),
             "ambiguous" => Some(Self::Ambiguous),
             _ => None,
+        }
+    }
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Complete => "complete",
+            Self::Failed => "failed",
+            Self::Cancelled => "cancelled",
+            Self::TimedOut => "timed_out",
+            Self::Ambiguous => "ambiguous",
         }
     }
 }
@@ -122,6 +178,17 @@ struct AttemptRecord {
     cursors_opened: u64,
     cursors: BTreeMap<String, CursorRecord>,
     terminal: Option<StreamAttemptTerminal>,
+    function_id: Option<String>,
+    initiator: Option<StreamInitiator>,
+    started_at_ms: u64,
+    settled_at_ms: Option<u64>,
+    emitted_bytes: u64,
+    chunk_count: u64,
+    recent_emits: VecDeque<std::time::Instant>,
+    /// Keep the initiator fact as long as the reserved live room can retain
+    /// chunks after terminal settlement. This is process-only subscription
+    /// authority, not a durable resume cursor.
+    live_auth_retain_until: Option<std::time::Instant>,
 }
 
 /// The durable shape of one attempt row (`_snapback_stream_attempts.record_json`).
@@ -144,6 +211,18 @@ pub struct PersistedStreamAttempt {
     pub cursors: BTreeMap<String, PersistedStreamCursor>,
     #[serde(default)]
     pub terminal: Option<StreamAttemptTerminal>,
+    #[serde(default)]
+    pub function_id: Option<String>,
+    #[serde(default)]
+    pub initiator: Option<StreamInitiator>,
+    #[serde(default)]
+    pub started_at_ms: u64,
+    #[serde(default)]
+    pub settled_at_ms: Option<u64>,
+    #[serde(default)]
+    pub emitted_bytes: u64,
+    #[serde(default)]
+    pub chunk_count: u64,
 }
 
 impl PersistedStreamAttempt {
@@ -183,6 +262,7 @@ pub fn reconcile_orphaned_record(record_json: &str) -> Option<String> {
         effect_may_have_executed: effect,
         settled_by: StreamAttemptSettledBy::Terminalizer,
     });
+    persisted.settled_at_ms = Some(unix_time_millis());
     for cursor in persisted.cursors.values_mut() {
         cursor.open = false;
     }
@@ -204,6 +284,18 @@ impl AttemptRecord {
 
     fn open_cursor_count(&self) -> usize {
         self.cursors.values().filter(|cursor| cursor.open).count()
+    }
+
+    fn retain_live_auth_after_settlement(&mut self) {
+        if self.initiator.is_some() {
+            self.live_auth_retain_until = std::time::Instant::now()
+                .checked_add(STREAM_LIVE_AUTH_RETENTION);
+        }
+    }
+
+    fn live_auth_is_retained(&self, now: std::time::Instant) -> bool {
+        self.live_auth_retain_until
+            .is_some_and(|deadline| now < deadline)
     }
 }
 
@@ -243,6 +335,12 @@ impl RegistryInner {
                 })
                 .collect(),
             terminal: record.terminal.clone(),
+            function_id: record.function_id.clone(),
+            initiator: record.initiator.clone(),
+            started_at_ms: record.started_at_ms,
+            settled_at_ms: record.settled_at_ms,
+            emitted_bytes: record.emitted_bytes,
+            chunk_count: record.chunk_count,
         })
     }
 
@@ -276,6 +374,23 @@ impl RegistryInner {
         self.by_invocation
             .values()
             .any(|tokens| tokens.contains(token))
+    }
+
+    fn reap_expired_live_auth(&mut self, now: std::time::Instant) {
+        let expired = self
+            .by_token
+            .iter()
+            .filter_map(|(token, record)| {
+                (record.terminal.is_some()
+                    && !record.live_auth_is_retained(now)
+                    && !self.dirty.contains(token)
+                    && !self.referenced_by_any_invocation(token))
+                .then(|| token.clone())
+            })
+            .collect::<Vec<_>>();
+        for token in expired {
+            self.reap_terminal(&token);
+        }
     }
 }
 
@@ -314,6 +429,20 @@ fn attempt_error(operation: &'static str, message: &'static str, details: Value)
         .with_details(Value::Object(details))
 }
 
+fn stream_error(code: &'static str, operation: &'static str, message: &'static str) -> SnapbackError {
+    SnapbackError::error(code, "runtime", message)
+        .with_details(json!({ "operation": operation }))
+}
+
+fn unix_time_millis() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
+        .try_into()
+        .unwrap_or(u64::MAX)
+}
+
 impl StreamAttemptRegistry {
     fn lock(&self) -> std::sync::MutexGuard<'_, RegistryInner> {
         self.inner
@@ -333,6 +462,26 @@ impl StreamAttemptRegistry {
         runner: &StreamRunnerIdentity,
         persisted: Option<&PersistedStreamAttempt>,
     ) -> SnapbackResult<StreamAttemptStart> {
+        self.start_with_metadata(
+            namespace,
+            client_key,
+            runner,
+            persisted,
+            StreamAttemptMetadata::default(),
+        )
+    }
+
+    /// Start the same LLP 0076 attempt with the output-stream privacy and
+    /// transcript facts attached at creation. Existing fetch-stream callers
+    /// continue through [`Self::start`] and therefore do not gain this surface.
+    pub fn start_with_metadata(
+        &self,
+        namespace: usize,
+        client_key: &str,
+        runner: &StreamRunnerIdentity,
+        persisted: Option<&PersistedStreamAttempt>,
+        metadata: StreamAttemptMetadata,
+    ) -> SnapbackResult<StreamAttemptStart> {
         if client_key.is_empty() || client_key.len() > 512 || client_key.contains(['\r', '\n']) {
             return Err(attempt_error(
                 "attemptStart",
@@ -341,6 +490,7 @@ impl StreamAttemptRegistry {
             ));
         }
         let mut inner = self.lock();
+        inner.reap_expired_live_auth(std::time::Instant::now());
         let key = (namespace, client_key.to_owned());
         if let Some(token) = inner.by_client_key.get(&key).cloned() {
             let record = inner
@@ -389,7 +539,20 @@ impl StreamAttemptRegistry {
         // but adopt defensively either way): the durable identity survives,
         // the runner generation advances, and this runner takes the lease
         // only when no durable winner exists.
-        let (token, runner_generation, progress_commits, cursors_opened, cursors, terminal) =
+        let (
+            token,
+            runner_generation,
+            progress_commits,
+            cursors_opened,
+            cursors,
+            terminal,
+            function_id,
+            initiator,
+            started_at_ms,
+            settled_at_ms,
+            emitted_bytes,
+            chunk_count,
+        ) =
             match persisted {
                 Some(row) => (
                     row.token.clone(),
@@ -409,10 +572,31 @@ impl StreamAttemptRegistry {
                         })
                         .collect(),
                     row.terminal.clone(),
+                    row.function_id.clone(),
+                    row.initiator.clone(),
+                    row.started_at_ms,
+                    row.settled_at_ms,
+                    row.emitted_bytes,
+                    row.chunk_count,
                 ),
-                None => (Uuid::new_v4().to_string(), 1, 0, 0, BTreeMap::new(), None),
+                None => (
+                    Uuid::new_v4().to_string(),
+                    1,
+                    0,
+                    0,
+                    BTreeMap::new(),
+                    None,
+                    metadata.function_id,
+                    metadata.initiator,
+                    metadata.started_at_ms,
+                    None,
+                    0,
+                    0,
+                ),
             };
         let lease_held = terminal.is_none();
+        let live_auth_retain_until = (terminal.is_some() && initiator.is_some())
+            .then(|| std::time::Instant::now() + STREAM_LIVE_AUTH_RETENTION);
         let record = AttemptRecord {
             token: token.clone(),
             namespace,
@@ -427,6 +611,14 @@ impl StreamAttemptRegistry {
             cursors_opened,
             cursors,
             terminal: terminal.clone(),
+            function_id,
+            initiator,
+            started_at_ms,
+            settled_at_ms,
+            emitted_bytes,
+            chunk_count,
+            recent_emits: VecDeque::new(),
+            live_auth_retain_until,
         };
         inner.by_client_key.insert(key, token.clone());
         inner.by_token.insert(token.clone(), record);
@@ -476,15 +668,23 @@ impl StreamAttemptRegistry {
     //   first durable flush.
     pub fn clear_flushed(&self, snapshots: &[PersistedStreamAttempt]) {
         let mut inner = self.lock();
+        let now = std::time::Instant::now();
         for snapshot in snapshots {
             if inner.snapshot(&snapshot.token).as_ref() != Some(snapshot) {
                 continue;
             }
             inner.dirty.remove(&snapshot.token);
-            if snapshot.terminal.is_some() && !inner.referenced_by_any_invocation(&snapshot.token) {
+            if snapshot.terminal.is_some()
+                && !inner.referenced_by_any_invocation(&snapshot.token)
+                && !inner
+                    .by_token
+                    .get(&snapshot.token)
+                    .is_some_and(|record| record.live_auth_is_retained(now))
+            {
                 inner.reap_terminal(&snapshot.token);
             }
         }
+        inner.reap_expired_live_auth(now);
     }
 
     /// Release one invocation's interest in its attempts once that invocation
@@ -496,6 +696,7 @@ impl StreamAttemptRegistry {
     /// that keeps the registry bounded on streaming-action workloads.
     pub fn release_invocation(&self, runner: &StreamRunnerIdentity) {
         let mut inner = self.lock();
+        let now = std::time::Instant::now();
         let Some(tokens) = inner.by_invocation.remove(&runner.invocation_id) else {
             return;
         };
@@ -506,10 +707,15 @@ impl StreamAttemptRegistry {
                 .is_some_and(|record| record.terminal.is_some())
                 && !inner.dirty.contains(&token)
                 && !inner.referenced_by_any_invocation(&token)
+                && !inner
+                    .by_token
+                    .get(&token)
+                    .is_some_and(|record| record.live_auth_is_retained(now))
             {
                 inner.reap_terminal(&token);
             }
         }
+        inner.reap_expired_live_auth(now);
     }
 
     /// Bind an upstream cursor (child record, decision 3) to an attempt
@@ -675,6 +881,172 @@ impl StreamAttemptRegistry {
         }
     }
 
+    pub fn stream_output(&self, attempt_token: &str) -> Option<StreamOutputSnapshot> {
+        let inner = self.lock();
+        let record = inner.by_token.get(attempt_token)?;
+        Some(StreamOutputSnapshot {
+            attempt_token: record.token.clone(),
+            function_id: record.function_id.clone()?,
+            initiator: record.initiator.clone()?,
+            started_at_ms: record.started_at_ms,
+            settled_at_ms: record.settled_at_ms,
+            terminal: record.terminal.clone(),
+            chunk_count: record.chunk_count,
+        })
+    }
+
+    pub fn stream_initiator(&self, attempt_token: &str) -> Option<StreamInitiator> {
+        let mut inner = self.lock();
+        inner.reap_expired_live_auth(std::time::Instant::now());
+        inner
+            .by_token
+            .get(attempt_token)
+            .and_then(|record| record.initiator.clone())
+    }
+
+    pub fn authorize_stream_initiator(
+        &self,
+        attempt_token: &str,
+        candidate: &StreamInitiator,
+    ) -> SnapbackResult<()> {
+        let mut inner = self.lock();
+        inner.reap_expired_live_auth(std::time::Instant::now());
+        let Some(record) = inner.by_token.get(attempt_token) else {
+            return Err(stream_error(
+                "SNAPBACK_STREAM_ATTEMPT_NOT_FOUND",
+                "authorize",
+                "the stream attempt does not exist in this process",
+            ));
+        };
+        if record.initiator.as_ref() != Some(candidate) {
+            return Err(stream_error(
+                "SNAPBACK_STREAM_FORBIDDEN",
+                "authorize",
+                "the resolved authority did not initiate this stream",
+            ));
+        }
+        Ok(())
+    }
+
+    /// Reserve one monotonic output index under the same runner lease as the
+    /// attempt. The transport publishes only after this guard succeeds.
+    pub fn emit_chunk(
+        &self,
+        attempt_token: &str,
+        byte_len: usize,
+        runner: &StreamRunnerIdentity,
+    ) -> SnapbackResult<StreamChunkEmission> {
+        if byte_len > STREAM_CHUNK_MAX_BYTES {
+            return Err(stream_error(
+                "SNAPBACK_STREAM_CHUNK_TOO_LARGE",
+                "emit",
+                "a stream chunk exceeds the 16 KiB encoded limit",
+            ));
+        }
+        let mut inner = self.lock();
+        let Some(record) = inner.by_token.get_mut(attempt_token) else {
+            return Err(stream_error(
+                "SNAPBACK_STREAM_ATTEMPT_NOT_FOUND",
+                "emit",
+                "the stream attempt token is unknown",
+            ));
+        };
+        if record.function_id.is_none() || record.initiator.is_none() {
+            return Err(stream_error(
+                "SNAPBACK_STREAM_NOT_DECLARED",
+                "emit",
+                "this attempt is not a declared output stream",
+            ));
+        }
+        if let Some(terminal) = &record.terminal {
+            let code = if terminal.cause == StreamAttemptCause::Cancelled {
+                "SNAPBACK_STREAM_CANCELLED"
+            } else {
+                "SNAPBACK_STREAM_TERMINAL"
+            };
+            return Err(stream_error(
+                code,
+                "emit",
+                "the stream attempt is already terminal",
+            ));
+        }
+        if !record.lease_held_by(&runner.invocation_id) {
+            return Err(stream_error(
+                "SNAPBACK_STREAM_RUNNER_FENCED",
+                "emit",
+                "this action no longer owns the stream attempt lease",
+            ));
+        }
+        let next_total = record
+            .emitted_bytes
+            .checked_add(byte_len as u64)
+            .unwrap_or(u64::MAX);
+        if next_total > STREAM_ATTEMPT_MAX_BYTES as u64 {
+            return Err(stream_error(
+                "SNAPBACK_STREAM_ATTEMPT_LIMIT_EXCEEDED",
+                "emit",
+                "the stream attempt exceeds the 2 MiB output limit",
+            ));
+        }
+        let now = std::time::Instant::now();
+        while record
+            .recent_emits
+            .front()
+            .is_some_and(|instant| now.duration_since(*instant) >= std::time::Duration::from_secs(1))
+        {
+            record.recent_emits.pop_front();
+        }
+        if record.recent_emits.len() >= STREAM_CHUNKS_PER_SECOND {
+            return Err(stream_error(
+                "SNAPBACK_STREAM_RATE_LIMITED",
+                "emit",
+                "the stream attempt exceeds 20 emitted chunks per second",
+            ));
+        }
+        let chunk_index = record.chunk_count;
+        record.chunk_count += 1;
+        record.emitted_bytes = next_total;
+        record.recent_emits.push_back(now);
+        let emission = StreamChunkEmission {
+            attempt_token: record.token.clone(),
+            chunk_index,
+            chunk_count: record.chunk_count,
+            total_bytes: record.emitted_bytes,
+        };
+        inner.dirty.insert(attempt_token.to_owned());
+        Ok(emission)
+    }
+
+    /// Initiator cancellation joins the existing terminal compare-and-set.
+    pub fn cancel_by_initiator(
+        &self,
+        attempt_token: &str,
+        initiator: &StreamInitiator,
+    ) -> SnapbackResult<StreamAttemptTerminal> {
+        self.authorize_stream_initiator(attempt_token, initiator)?;
+        let mut inner = self.lock();
+        let record = inner
+            .by_token
+            .get_mut(attempt_token)
+            .expect("authorization observed the attempt under the same registry");
+        if let Some(terminal) = &record.terminal {
+            return Ok(terminal.clone());
+        }
+        let terminal = StreamAttemptTerminal {
+            cause: StreamAttemptCause::Cancelled,
+            effect_may_have_executed: record.effect_fold(),
+            settled_by: StreamAttemptSettledBy::Authored,
+        };
+        record.terminal = Some(terminal.clone());
+        record.settled_at_ms = Some(unix_time_millis());
+        record.retain_live_auth_after_settlement();
+        for cursor in record.cursors.values_mut() {
+            cursor.open = false;
+        }
+        inner.dirty.insert(attempt_token.to_owned());
+        Ok(terminal)
+    }
+
     /// Authored terminal settlement under the lease. Compare-and-set: the
     /// first terminal write wins and every later call receives the committed
     /// winner verbatim.
@@ -708,6 +1080,8 @@ impl StreamAttemptRegistry {
             settled_by: StreamAttemptSettledBy::Authored,
         };
         record.terminal = Some(terminal.clone());
+        record.settled_at_ms = Some(unix_time_millis());
+        record.retain_live_auth_after_settlement();
         for cursor in record.cursors.values_mut() {
             cursor.open = false;
         }
@@ -743,6 +1117,8 @@ impl StreamAttemptRegistry {
                     settled_by: StreamAttemptSettledBy::Terminalizer,
                 };
                 record.terminal = Some(terminal.clone());
+                record.settled_at_ms = Some(unix_time_millis());
+                record.retain_live_auth_after_settlement();
                 for cursor in record.cursors.values_mut() {
                     cursor.open = false;
                 }
@@ -1066,5 +1442,120 @@ mod tests {
         let settled = registry.terminalize_invocation(&holder, StreamAttemptCause::Cancelled);
         assert_eq!(settled.len(), 1);
         assert!(settled[0].effect_may_have_executed);
+    }
+
+    #[test]
+    fn output_stream_privacy_indexes_bounds_and_cancel_share_the_attempt_lease() {
+        let registry = registry();
+        let holder = runner();
+        let initiator = StreamInitiator::SessionUser("user-a".to_owned());
+        let started = registry
+            .start_with_metadata(
+                9,
+                "output-stream",
+                &holder,
+                None,
+                StreamAttemptMetadata {
+                    function_id: Some("app:conversation".to_owned()),
+                    initiator: Some(initiator.clone()),
+                    started_at_ms: 100,
+                },
+            )
+            .expect("start output stream");
+
+        registry
+            .authorize_stream_initiator(&started.attempt_token, &initiator)
+            .expect("the initiating user reconnects on any connection");
+        for outsider in [
+            StreamInitiator::SessionUser("user-b".to_owned()),
+            StreamInitiator::ServiceCredential("credential-b".to_owned()),
+            StreamInitiator::AnonymousConnection("connection-b".to_owned()),
+        ] {
+            assert_eq!(
+                registry
+                    .authorize_stream_initiator(&started.attempt_token, &outsider)
+                    .expect_err("room possession is not stream authority")
+                    .diagnostic
+                    .code,
+                "SNAPBACK_STREAM_FORBIDDEN"
+            );
+        }
+
+        let first = registry
+            .emit_chunk(&started.attempt_token, 5, &holder)
+            .expect("first emit");
+        let second = registry
+            .emit_chunk(&started.attempt_token, 7, &holder)
+            .expect("second emit");
+        assert_eq!((first.chunk_index, second.chunk_index), (0, 1));
+        assert_eq!(second.total_bytes, 12);
+        assert_eq!(
+            registry
+                .emit_chunk(&started.attempt_token, STREAM_CHUNK_MAX_BYTES + 1, &holder)
+                .expect_err("chunk ceiling")
+                .diagnostic
+                .code,
+            "SNAPBACK_STREAM_CHUNK_TOO_LARGE"
+        );
+
+        {
+            let mut inner = registry.lock();
+            let record = inner.by_token.get_mut(&started.attempt_token).unwrap();
+            record.emitted_bytes = STREAM_ATTEMPT_MAX_BYTES as u64;
+            record.recent_emits.clear();
+        }
+        assert_eq!(
+            registry
+                .emit_chunk(&started.attempt_token, 1, &holder)
+                .expect_err("attempt ceiling")
+                .diagnostic
+                .code,
+            "SNAPBACK_STREAM_ATTEMPT_LIMIT_EXCEEDED"
+        );
+
+        let terminal = registry
+            .cancel_by_initiator(&started.attempt_token, &initiator)
+            .expect("initiator cancel");
+        assert_eq!(terminal.cause, StreamAttemptCause::Cancelled);
+        assert_eq!(
+            registry
+                .emit_chunk(&started.attempt_token, 1, &holder)
+                .expect_err("next emit observes cancellation")
+                .diagnostic
+                .code,
+            "SNAPBACK_STREAM_CANCELLED"
+        );
+    }
+
+    #[test]
+    fn output_stream_rate_limit_is_typed() {
+        let registry = registry();
+        let holder = runner();
+        let started = registry
+            .start_with_metadata(
+                10,
+                "rate-stream",
+                &holder,
+                None,
+                StreamAttemptMetadata {
+                    function_id: Some("app:rate".to_owned()),
+                    initiator: Some(StreamInitiator::ServiceCredential("credential-a".to_owned())),
+                    started_at_ms: 100,
+                },
+            )
+            .expect("start rate stream");
+        for _ in 0..STREAM_CHUNKS_PER_SECOND {
+            registry
+                .emit_chunk(&started.attempt_token, 1, &holder)
+                .expect("burst allowance");
+        }
+        assert_eq!(
+            registry
+                .emit_chunk(&started.attempt_token, 1, &holder)
+                .expect_err("rate ceiling")
+                .diagnostic
+                .code,
+            "SNAPBACK_STREAM_RATE_LIMITED"
+        );
     }
 }

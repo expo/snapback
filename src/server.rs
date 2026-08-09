@@ -1108,6 +1108,10 @@ struct DetachedActionHost {
     /// Control-plane identity of this exact invocation for the
     /// `StreamAttemptV1` lease and trusted terminalizer (LLP 0076).
     stream_runner: crate::stream_attempt::StreamRunnerIdentity,
+    output_stream_attempt: Option<String>,
+    output_stream_function_id: Option<String>,
+    output_stream_initiator: Option<crate::stream_attempt::StreamInitiator>,
+    ephemeral: EphemeralApi,
     /// Per-invocation application-visible buffered-byte accounting: bytes the
     /// host has materialized (queued chunk + handoff copy) and the invocation
     /// has not yet consumed, summed across all cursors, plus its high-water
@@ -1170,6 +1174,116 @@ impl Drop for ScopedLocalSnapbackGuard {
 }
 
 impl DetachedActionHost {
+    fn initialize_output_stream(&mut self) -> SnapbackResult<()> {
+        let Some(function_id) = self.output_stream_function_id.clone() else {
+            return Ok(());
+        };
+        let initiator = self.output_stream_initiator.clone().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_STREAM_INITIATOR_REQUIRED",
+                "auth",
+                "a streaming action requires session, scoped-token, or connection-bound authority",
+            )
+        })?;
+        let namespace = self.lock_live("stream.initialize")?.stream_attempt_namespace();
+        let client_key = format!(
+            "stream-output:{function_id}:{}",
+            self.stream_runner.invocation_id
+        );
+        let started = crate::stream_attempt::global_stream_attempt_registry().start_with_metadata(
+            namespace,
+            &client_key,
+            &self.stream_runner,
+            None,
+            crate::stream_attempt::StreamAttemptMetadata {
+                function_id: Some(function_id),
+                initiator: Some(initiator),
+                started_at_ms: now_millis(),
+            },
+        )?;
+        if !started.lease_held {
+            return Err(SnapbackError::error(
+                "SNAPBACK_STREAM_RUNNER_FENCED",
+                "runtime",
+                "the streaming action did not acquire its attempt lease",
+            ));
+        }
+        self.output_stream_attempt = Some(started.attempt_token);
+        self.flush_stream_attempts_required("stream.initialize")
+    }
+
+    fn ephemeral_error(error: crate::ephemeral::EphemeralError) -> SnapbackError {
+        SnapbackError::error(error.code.diagnostic_code(), "ephemeral", error.message)
+    }
+
+    fn persist_output_transcript_trusted(
+        &self,
+        result: &SnapbackResult<Value>,
+    ) -> SnapbackResult<()> {
+        let Some(attempt_token) = self.output_stream_attempt.as_deref() else {
+            return Ok(());
+        };
+        let snapshot = crate::stream_attempt::global_stream_attempt_registry()
+            .stream_output(attempt_token)
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_STREAM_ATTEMPT_NOT_FOUND",
+                    "runtime",
+                    "the output stream attempt disappeared before transcript settlement",
+                )
+            })?;
+        let terminal = snapshot.terminal.ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_STREAM_TERMINAL",
+                "runtime",
+                "the output stream transcript cannot settle before its attempt",
+            )
+        })?;
+        let final_text = (terminal.cause == crate::stream_attempt::StreamAttemptCause::Complete)
+            .then(|| {
+                result.as_ref().ok().map(|value| match value {
+                    Value::String(text) => text.clone(),
+                    value => serde_json::to_string(value).unwrap_or_else(|_| "null".to_owned()),
+                })
+            })
+            .flatten();
+        let record = crate::storage::stream_transcripts::StreamTranscriptRecord {
+            attempt_token: snapshot.attempt_token,
+            function_id: snapshot.function_id,
+            initiator: snapshot.initiator,
+            started_at_ms: snapshot.started_at_ms,
+            settled_at_ms: snapshot.settled_at_ms.unwrap_or_else(now_millis),
+            terminal_cause: terminal.cause,
+            final_text,
+            chunk_count: snapshot.chunk_count,
+            prompt_tokens: None,
+            completion_tokens: None,
+        };
+        let deadline = Instant::now() + Duration::from_millis(250);
+        loop {
+            if let Ok(guard) = self.state.clone().try_lock_owned() {
+                if guard.managed_local_handoff().is_closed() {
+                    drop(guard);
+                } else {
+                    let scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+                    let mut guard = ScopedLocalSnapbackGuard {
+                        guard: Some(guard),
+                        scope: Some(scope),
+                    };
+                    return guard.settle_stream_transcript(&record);
+                }
+            }
+            if Instant::now() >= deadline {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_STREAM_TRANSCRIPT_SETTLE_TIMEOUT",
+                    "storage",
+                    "the stream transcript could not acquire its bounded settlement lane",
+                ));
+            }
+            std::thread::park_timeout(Duration::from_millis(ACTION_LOCK_POLL_MS));
+        }
+    }
+
     fn push_access_token(
         &self,
         declaration: &crate::push::PushSeamDeclarationV1,
@@ -2572,6 +2686,75 @@ impl IbexActionHost for DetachedActionHost {
         self.flush_stream_attempts_required("streamAttempt.settle")?;
         Ok(terminal)
     }
+
+    fn emit_stream_chunk(
+        &mut self,
+        chunk: Value,
+    ) -> SnapbackResult<crate::stream_attempt::StreamChunkEmission> {
+        self.validate_stream_authority("stream.emit")?;
+        let attempt_token = self.output_stream_attempt.clone().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_STREAM_NOT_DECLARED",
+                "runtime",
+                "ctx.stream.emit is available only to an action declared with stream: true",
+            )
+        })?;
+        let chunk_bytes = serde_json::to_vec(&chunk).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_STREAM_CHUNK_INVALID",
+                "runtime",
+                "the stream chunk is not bounded JSON",
+            )
+        })?;
+        let emission = crate::stream_attempt::global_stream_attempt_registry().emit_chunk(
+            &attempt_token,
+            chunk_bytes.len(),
+            &self.stream_runner,
+        )?;
+        let scope = Scope::from_pairs([("attemptToken", attempt_token.clone())]);
+        let value = serde_json::to_vec(&json!({
+            "attemptToken": attempt_token,
+            "chunkIndex": emission.chunk_index,
+            "chunk": chunk,
+        }))
+        .map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_STREAM_CHUNK_INVALID",
+                "runtime",
+                "the stream chunk envelope could not be serialized",
+            )
+        })?;
+        let permit = self
+            .ephemeral
+            .begin_server_authorized_room_act(
+                crate::ephemeral::STREAM_COLLECTION_NAME,
+                &scope,
+            )
+            .map_err(Self::ephemeral_error)?;
+        let auth = AuthContext::default().with_room_permission(
+            "_snapback_stream_server",
+            &scope,
+        );
+        self.ephemeral
+            .publish_with_room_authority(
+                crate::ephemeral::PublishRequest {
+                    collection: crate::ephemeral::STREAM_COLLECTION_NAME.to_owned(),
+                    scope,
+                    connection_id: format!("stream:{attempt_token}"),
+                    session_id: None,
+                    user_id: None,
+                    custom_key: Some(format!("{:020}", emission.chunk_index)),
+                    value,
+                    ttl_ms: Some(30_000),
+                    auth,
+                },
+                now_millis(),
+                permit.as_ref(),
+            )
+            .map_err(Self::ephemeral_error)?;
+        self.flush_stream_attempts_required("stream.emit")?;
+        Ok(emission)
+    }
 }
 
 // @ref LLP 0012#diagnostic-schema — stream refusals carry operation, expected
@@ -2799,6 +2982,11 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
             move || {
                 let crate::local::DetachedIbexAction {
                     function_name,
+                    function_id,
+                    stream,
+                    stream_initiator,
+                    stream_started,
+                    ephemeral,
                     telemetry,
                     module,
                     grants,
@@ -2838,16 +3026,28 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     closed_response_streams: BTreeSet::new(),
                     last_stream_progress_commit: None,
                     stream_runner: stream_runner.clone(),
+                    output_stream_attempt: None,
+                    output_stream_function_id: stream.then_some(function_id),
+                    output_stream_initiator: stream_initiator,
+                    ephemeral,
                     stream_buffered_bytes: Arc::new(AtomicU64::new(0)),
                     stream_buffered_peak: Arc::new(AtomicU64::new(0)),
                     automatic_retry_invocation,
                     host_operation,
                 };
                 let input = invocation.canonicalize_input(input);
-                let result = crate::runtime::with_runtime_log_telemetry(
-                    telemetry.clone(),
-                    correlation,
-                    || {
+                let initialized = host.initialize_output_stream();
+                if initialized.is_ok()
+                    && let Some(stream_started) = stream_started
+                    && let Some(attempt_token) = host.output_stream_attempt.clone()
+                {
+                    let _ = stream_started.send(attempt_token);
+                }
+                let result = initialized.and_then(|()| {
+                    crate::runtime::with_runtime_log_telemetry(
+                        telemetry.clone(),
+                        correlation,
+                        || {
                         runtime.invoke_ibex_action_prepared(
                             &module,
                             input,
@@ -2857,8 +3057,9 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                             grants,
                             Some(execution_deadline),
                         )
-                    },
-                );
+                        },
+                    )
+                });
                 let result = match result {
                     Err(_error) if Instant::now() >= execution_deadline => {
                         Err(action_deadline_elapsed("action.execute"))
@@ -2881,7 +3082,7 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                 // generation fence, so a genuinely stuck native op keeps timing
                 // out and a truly unsettled handler with no generation drift
                 // keeps its SNAPBACK_HANDLER_DID_NOT_SETTLE.
-                let fenced = match result {
+                let mut fenced = match result {
                     Ok(value) => host.validate_live("action.complete").map(|()| value),
                     Err(error) if error.diagnostic.code == "SNAPBACK_HANDLER_DID_NOT_SETTLE" => {
                         match host.validate_live("action.complete") {
@@ -2891,6 +3092,23 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     }
                     Err(error) => Err(error),
                 };
+                if host.output_stream_attempt.is_some()
+                    && let Ok(value) = &fenced
+                {
+                    let final_len = match value {
+                        Value::String(text) => text.len(),
+                        value => serde_json::to_vec(value).map_or(usize::MAX, |bytes| bytes.len()),
+                    };
+                    if final_len
+                        > crate::storage::stream_transcripts::STREAM_TRANSCRIPT_FINAL_MAX_BYTES
+                    {
+                        fenced = Err(SnapbackError::error(
+                            "SNAPBACK_STREAM_FINAL_TOO_LARGE",
+                            "runtime",
+                            "the streaming action final value exceeds 256 KiB",
+                        ));
+                    }
+                }
                 // @ref LLP 0076#settlement-and-retry — the trusted
                 // terminalizer's completion leg: whatever the authored path
                 // did, every attempt this invocation still holds open gets a
@@ -2913,9 +3131,24 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     {
                         crate::stream_attempt::StreamAttemptCause::Cancelled
                     }
+                    Ok(_) if host.output_stream_attempt.is_some() => {
+                        crate::stream_attempt::StreamAttemptCause::Complete
+                    }
                     _ => crate::stream_attempt::StreamAttemptCause::Failed,
                 };
                 let attempt_registry = crate::stream_attempt::global_stream_attempt_registry();
+                if let Some(attempt_token) = host.output_stream_attempt.clone()
+                    && let Err(error) = host.settle_stream_attempt(&attempt_token, terminal_cause)
+                    && fenced.is_ok()
+                {
+                    fenced = Err(error);
+                }
+                if host.output_stream_attempt.is_some()
+                    && let Err(error) = host.persist_output_transcript_trusted(&fenced)
+                    && fenced.is_ok()
+                {
+                    fenced = Err(error);
+                }
                 attempt_registry.terminalize_invocation(&stream_runner, terminal_cause);
                 // The worker itself is done: release its attempt references
                 // so durably flushed terminals can be reaped (registry
@@ -7399,6 +7632,7 @@ pub enum CredentialResolution {
     OptionalSessionBearer,
     OptionalSessionOrScopedToken,
     RequiredSessionBearer,
+    RequiredSessionOrScopedToken,
     AdminSecretReadLease,
     OperationSpecific,
 }
@@ -7556,6 +7790,17 @@ impl SessionModeOverlay {
         Self {
             path_policy: Some(RoutePolicy::Public),
             credential_resolution: Some(CredentialResolution::OptionalSessionOrScopedToken),
+            invocation_authority: Some(InvocationAuthority::ResolvedCaller),
+            legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
+            effect_policy: None,
+            response_sensitivity: None,
+        }
+    }
+
+    pub const fn stream_initiator_session() -> Self {
+        Self {
+            path_policy: Some(RoutePolicy::SessionAuth),
+            credential_resolution: Some(CredentialResolution::RequiredSessionOrScopedToken),
             invocation_authority: Some(InvocationAuthority::ResolvedCaller),
             legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
             effect_policy: None,
@@ -7781,9 +8026,11 @@ impl RouteSpec {
                     | CredentialResolution::ConnectionGrantHeaderOrDevQuery
                     | CredentialResolution::BoundConnectionGrant
             ),
-            RoutePolicy::SessionAuth => {
-                self.credential_resolution == CredentialResolution::RequiredSessionBearer
-            }
+            RoutePolicy::SessionAuth => matches!(
+                self.credential_resolution,
+                CredentialResolution::RequiredSessionBearer
+                    | CredentialResolution::RequiredSessionOrScopedToken
+            ),
             RoutePolicy::AdminRead | RoutePolicy::AdminWrite => {
                 self.credential_resolution == CredentialResolution::AdminCredential
             }
@@ -7913,12 +8160,17 @@ impl RouteSpec {
 
         let sessions = self.effective_for(PolicyAuthMode::Sessions);
         if self.path_policy == RoutePolicy::AppAuth
-            && (sessions.path_policy != RoutePolicy::Public
-                || !matches!(
-                    sessions.credential_resolution,
+            && ((!matches!(
+                (sessions.path_policy, sessions.credential_resolution),
+                (
+                    RoutePolicy::Public,
                     CredentialResolution::OptionalSessionBearer
                         | CredentialResolution::OptionalSessionOrScopedToken
+                ) | (
+                    RoutePolicy::SessionAuth,
+                    CredentialResolution::RequiredSessionOrScopedToken
                 )
+            ))
                 || sessions.invocation_authority != InvocationAuthority::ResolvedCaller
                 || sessions.legacy_body_policy != LegacyBodyPolicy::Rejected)
         {
@@ -7986,9 +8238,11 @@ impl RouteSpec {
                     | CredentialResolution::ConnectionGrantHeaderOrWebSocketSubprotocol
                     | CredentialResolution::BoundConnectionGrant
             ),
-            RoutePolicy::SessionAuth => {
-                sessions.credential_resolution == CredentialResolution::RequiredSessionBearer
-            }
+            RoutePolicy::SessionAuth => matches!(
+                sessions.credential_resolution,
+                CredentialResolution::RequiredSessionBearer
+                    | CredentialResolution::RequiredSessionOrScopedToken
+            ),
             RoutePolicy::AdminRead | RoutePolicy::AdminWrite => {
                 sessions.credential_resolution == CredentialResolution::AdminCredential
             }
@@ -8790,6 +9044,37 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
         RegisteredRoute::new(
             app_function_route("POST", "/api/v1/action/{name}"),
             post(invoke_action),
+        ),
+        // @ref LLP 0204#d91--streaming-conversations — private
+        // transcript reads and cancellation are app-data routes. Chunks stay
+        // on the live socket; neither operation is an MCP transport.
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "GET",
+                "/streams/{attempt_token}",
+                RouteClass::AppData,
+                RoutePolicy::AppAuth,
+                CredentialResolution::LegacyBodyAuth,
+                InvocationAuthority::ClientAsserted,
+                LegacyBodyPolicy::Allowed,
+                ResponseSensitivity::SensitiveApplicationData,
+            )
+            .with_session_overlay(SessionModeOverlay::stream_initiator_session()),
+            get(read_stream_transcript).layer(DefaultBodyLimit::max(0)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/streams/{attempt_token}/cancel",
+                RouteClass::AppData,
+                RoutePolicy::AppAuth,
+                CredentialResolution::LegacyBodyAuth,
+                InvocationAuthority::ClientAsserted,
+                LegacyBodyPolicy::Allowed,
+                ResponseSensitivity::SensitiveApplicationData,
+            )
+            .with_session_overlay(SessionModeOverlay::stream_initiator_session()),
+            post(cancel_stream_attempt).layer(DefaultBodyLimit::max(0)),
         ),
         // Asset upload sessions (LLP 0044; LLP 0031 dated amendment
         // 2026-07-31). Root-level AppData family beside the function routes:
@@ -10141,6 +10426,8 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
             Some(InvocationSource::HttpMutation)
         }
         "/action/{name}" | "/api/v1/action/{name}" => Some(InvocationSource::HttpAction),
+        "/streams/{attempt_token}" => Some(InvocationSource::HttpQuery),
+        "/streams/{attempt_token}/cancel" => Some(InvocationSource::HttpAction),
         "/client-mutations/acknowledge" | "/client-mutations/identity-range" => {
             Some(InvocationSource::MutationSettlementAcknowledgement)
         }
@@ -10377,8 +10664,11 @@ async fn prepare_registered_route_authority(
                         CredentialResolution::OptionalSessionBearer
                             | CredentialResolution::OptionalSessionOrScopedToken
                             | CredentialResolution::RequiredSessionBearer
+                            | CredentialResolution::RequiredSessionOrScopedToken
                     ) && (effective.credential_resolution
                         == CredentialResolution::RequiredSessionBearer
+                        || effective.credential_resolution
+                            == CredentialResolution::RequiredSessionOrScopedToken
                         || headers.contains_key(header::AUTHORIZATION))
                     {
                         // Invalid and duplicate Authorization values remain
@@ -10389,8 +10679,11 @@ async fn prepare_registered_route_authority(
                         let provider = installed_auth_provider(runtime)?;
                         let now_ms = provider.now_ms();
                         let service_monotonic_now = provider.monotonic_now();
-                        if effective.credential_resolution
-                            == CredentialResolution::OptionalSessionOrScopedToken
+                        if matches!(
+                            effective.credential_resolution,
+                            CredentialResolution::OptionalSessionOrScopedToken
+                                | CredentialResolution::RequiredSessionOrScopedToken
+                        )
                             && classify_credential(&bearer) == Some(CredentialClass::ScopedToken)
                         {
                             dispatch_credential_class(&bearer, CredentialClass::ScopedToken)
@@ -11303,6 +11596,7 @@ fn hosted_route_may_present_session(spec: RouteSpec, effective: EffectiveRoutePo
             CredentialResolution::OptionalSessionBearer
                 | CredentialResolution::OptionalSessionOrScopedToken
                 | CredentialResolution::RequiredSessionBearer
+                | CredentialResolution::RequiredSessionOrScopedToken
         ) || spec.path == "/connection/open")
 }
 
@@ -11607,8 +11901,11 @@ async fn admit_hosted_sender_request(
     // absent carrier on a route that can never legitimately serve an
     // anonymous caller refuses before any body poll instead of deferring to
     // the post-parse function-authority gate.
-    let requires_session_carrier = effective.credential_resolution
-        == CredentialResolution::RequiredSessionBearer
+    let requires_session_carrier = matches!(
+        effective.credential_resolution,
+        CredentialResolution::RequiredSessionBearer
+            | CredentialResolution::RequiredSessionOrScopedToken
+    )
         || hosted_function_route_requires_session_carrier(spec, request_uri.path(), runtime);
     let bearer = match presented {
         PresentedSessionBearer::Absent if !requires_session_carrier => {
@@ -22334,7 +22631,9 @@ fn observe_mutation_settlement(
 /// include the All Aboard walk/bike routing call, not just cron jobs.
 /// @ref LLP 0028#execution-the-action-class — ENG-23324 detached execution.
 async fn invoke_action(
+    State(runtime): State<AppState>,
     State(state): State<SharedSnapback>,
+    headers: HeaderMap,
     Extension(authority): Extension<PreparedAuthority>,
     Extension(route): Extension<RouteSpec>,
     Path(name): Path<String>,
@@ -22353,10 +22652,11 @@ async fn invoke_action(
     .await
     .map_err(|error| error.with_attribution(attribution.clone()))?;
     let input = request.input;
+    let stream_connection_id = request.stream_connection_id;
     let expected_generation = request.expected_generation;
     let facts_mode = authority.active_mode();
     let facts_authority = authority.clone();
-    let staged = {
+    let mut staged = {
         let name = name.clone();
         with_snapback(&state, move |snapback| {
             snapback.stage_app_action_with_authority_generation(
@@ -22367,9 +22667,89 @@ async fn invoke_action(
         })
         .await
     };
-    let result = match staged {
-        StagedAppAction::Done(result) => *result,
-        StagedAppAction::Ready(stage) => {
+    if let StagedAppAction::Ready(stage) = &mut staged
+        && let StagedAction::Detached(action) = &mut stage.mode
+        && action.stream
+        && action.stream_initiator.is_none()
+    {
+        let connection_id = stream_connection_id.ok_or_else(|| {
+            ApiError::from(SnapbackError::error(
+                "SNAPBACK_STREAM_INITIATOR_REQUIRED",
+                "auth",
+                "an anonymous streaming action requires streamConnectionId and its connection token",
+            ))
+        })?;
+        let presented = header_connection_token(&headers);
+        let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+        let prepared = runtime.connections.prepare_act(
+            &connection_id,
+            presented.as_deref(),
+            runtime.auth_coordinator.as_deref(),
+            facts_mode == AuthMode::Dev,
+            epoch_now_ms,
+            monotonic_now,
+        )?;
+        if !matches!(prepared.resolved, ResolvedAppAuthority::Anonymous) {
+            return Err(ApiError::from(SnapbackError::error(
+                "SNAPBACK_STREAM_FORBIDDEN",
+                "auth",
+                "streamConnectionId may bind only anonymous stream authority",
+            )));
+        }
+        action.stream_initiator = Some(
+            crate::stream_attempt::StreamInitiator::AnonymousConnection(connection_id),
+        );
+    }
+    let stream_start = match &mut staged {
+        StagedAppAction::Ready(stage) => match &mut stage.mode {
+            StagedAction::Detached(action) if action.stream => {
+                let (started, receiver) = tokio::sync::oneshot::channel();
+                action.stream_started = Some(started);
+                Some((receiver, stage.reads.clone(), stage.writes.clone()))
+            }
+            _ => None,
+        },
+        StagedAppAction::Done(_) => None,
+    };
+    let result = match (staged, stream_start) {
+        (StagedAppAction::Done(result), _) => *result,
+        (StagedAppAction::Ready(stage), Some((receiver, reads, writes))) => {
+            let background_state = state.clone();
+            let background_name = name.clone();
+            let task = tokio::spawn(async move {
+                run_staged_app_action(
+                    &background_state,
+                    &background_name,
+                    input,
+                    stage,
+                    "action",
+                )
+                .await
+            });
+            match receiver.await {
+                Ok(attempt_token) => crate::local::action_run_result(
+                    &name,
+                    reads,
+                    writes,
+                    0,
+                    Ok(json!({ "attemptToken": attempt_token })),
+                ),
+                Err(_) => task.await.unwrap_or_else(|error| {
+                    crate::local::action_run_result(
+                        &name,
+                        reads,
+                        writes,
+                        0,
+                        Err(SnapbackError::error(
+                            "SNAPBACK_ACTION_THREAD_FAILED",
+                            "runtime",
+                            format!("streaming action task terminated before initialization: {error}"),
+                        )),
+                    )
+                }),
+            }
+        }
+        (StagedAppAction::Ready(stage), None) => {
             run_staged_app_action(&state, &name, input, stage, "action").await
         }
     };
@@ -22396,6 +22776,94 @@ async fn invoke_action(
         attribution,
         facts,
     )))
+}
+
+fn stream_initiator_from_authority(
+    authority: &ResolvedAppAuthority,
+) -> Option<crate::stream_attempt::StreamInitiator> {
+    match authority {
+        ResolvedAppAuthority::Session { user_id, .. }
+        | ResolvedAppAuthority::DevImpersonation { user_id, .. } => Some(
+            crate::stream_attempt::StreamInitiator::SessionUser(user_id.clone()),
+        ),
+        ResolvedAppAuthority::ServicePrincipal { credential_id, .. } => Some(
+            crate::stream_attempt::StreamInitiator::ServiceCredential(credential_id.clone()),
+        ),
+        _ => None,
+    }
+}
+
+async fn read_stream_transcript(
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Path(attempt_token): Path<String>,
+) -> Result<Json<crate::storage::stream_transcripts::StreamTranscriptRecord>, ApiError> {
+    let transcript = with_snapback(&state, {
+        let attempt_token = attempt_token.clone();
+        move |snapback| snapback.stream_transcript(&attempt_token)
+    })
+    .await?
+    .ok_or_else(|| {
+        ApiError::from(SnapbackError::error(
+            "SNAPBACK_STREAM_TRANSCRIPT_NOT_FOUND",
+            "storage",
+            "the stream transcript does not exist",
+        ))
+    })?;
+    let candidate = stream_initiator_from_authority(authority.resolved());
+    if candidate.as_ref() != Some(&transcript.initiator) {
+        return Err(ApiError::from(SnapbackError::error(
+            "SNAPBACK_STREAM_TRANSCRIPT_FORBIDDEN",
+            "auth",
+            "only the stream initiator may read its transcript",
+        )));
+    }
+    Ok(Json(transcript))
+}
+
+async fn cancel_stream_attempt(
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Path(attempt_token): Path<String>,
+) -> Result<Json<crate::stream_attempt::StreamAttemptTerminal>, ApiError> {
+    let initiator = stream_initiator_from_authority(authority.resolved()).ok_or_else(|| {
+        ApiError::from(SnapbackError::error(
+            "SNAPBACK_STREAM_FORBIDDEN",
+            "auth",
+            "stream cancellation requires the initiating authority",
+        ))
+    })?;
+    let output = with_snapback(&state, move |snapback| {
+        let registry = crate::stream_attempt::global_stream_attempt_registry();
+        let terminal = registry.cancel_by_initiator(&attempt_token, &initiator)?;
+        let namespace = snapback.stream_attempt_namespace();
+        let snapshots = registry.dirty_snapshots(namespace);
+        let rows = snapshots
+            .iter()
+            .map(crate::stream_attempt::PersistedStreamAttempt::to_row)
+            .collect::<SnapbackResult<Vec<_>>>()?;
+        snapback.persist_stream_attempts(&rows)?;
+        if let Some(snapshot) = registry.stream_output(&attempt_token) {
+            snapback.settle_stream_transcript(
+                &crate::storage::stream_transcripts::StreamTranscriptRecord {
+                    attempt_token: snapshot.attempt_token,
+                    function_id: snapshot.function_id,
+                    initiator: snapshot.initiator,
+                    started_at_ms: snapshot.started_at_ms,
+                    settled_at_ms: snapshot.settled_at_ms.unwrap_or_else(now_millis),
+                    terminal_cause: terminal.cause,
+                    final_text: None,
+                    chunk_count: snapshot.chunk_count,
+                    prompt_tokens: None,
+                    completion_tokens: None,
+                },
+            )?;
+        }
+        registry.clear_flushed(&snapshots);
+        Ok::<_, SnapbackError>(terminal)
+    })
+    .await?;
+    Ok(Json(output))
 }
 
 /// Commit one already-preflighted provisioning pair. Cross-mode changes and
@@ -24554,6 +25022,8 @@ pub struct SessionSubscribeRequest {
     collection: String,
     scope: Scope,
     connection_id: String,
+    #[serde(default, rename = "sinceChunk", alias = "since_chunk")]
+    since_chunk: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, schemars::JsonSchema)]
@@ -24576,11 +25046,13 @@ pub struct SessionDeleteRequest {
 
 impl SessionSubscribeRequest {
     fn resolve(self, authority: &ResolvedAppAuthority) -> SubscribeRequest {
+        let auth = ephemeral_auth_from_authority_for_connection(authority, &self.connection_id);
         SubscribeRequest {
             collection: self.collection,
             scope: self.scope,
             connection_id: self.connection_id,
-            auth: ephemeral_auth_from_authority(authority),
+            auth,
+            since_chunk: self.since_chunk,
         }
     }
 }
@@ -24628,21 +25100,47 @@ fn ephemeral_auth_from_authority(authority: &ResolvedAppAuthority) -> AuthContex
             session_id: Some(session_id.clone()),
             user_id: Some(user_id.clone()),
             permissions: Default::default(),
+            stream_initiator: Some(crate::stream_attempt::StreamInitiator::SessionUser(
+                user_id.clone(),
+            )),
         },
         ResolvedAppAuthority::DevImpersonation { user_id, .. } => AuthContext {
             principal: None,
             session_id: None,
             user_id: Some(user_id.clone()),
             permissions: Default::default(),
+            stream_initiator: Some(crate::stream_attempt::StreamInitiator::SessionUser(
+                user_id.clone(),
+            )),
         },
         // The invocation gate refuses service-principal authority for every
         // ephemeral source in v1. Keep the projection userless as a second
         // fail-closed wall if a caller reaches this conversion unexpectedly.
-        ResolvedAppAuthority::ServicePrincipal { .. } => AuthContext::default(),
+        ResolvedAppAuthority::ServicePrincipal { credential_id, .. } => AuthContext {
+            stream_initiator: Some(
+                crate::stream_attempt::StreamInitiator::ServiceCredential(credential_id.clone()),
+            ),
+            ..AuthContext::default()
+        },
         ResolvedAppAuthority::Anonymous
         | ResolvedAppAuthority::AdminBypass { .. }
         | ResolvedAppAuthority::System => AuthContext::default(),
     }
+}
+
+fn ephemeral_auth_from_authority_for_connection(
+    authority: &ResolvedAppAuthority,
+    connection_id: &str,
+) -> AuthContext {
+    let mut auth = ephemeral_auth_from_authority(authority);
+    if matches!(authority, ResolvedAppAuthority::Anonymous) {
+        auth.stream_initiator = Some(
+            crate::stream_attempt::StreamInitiator::AnonymousConnection(
+                connection_id.to_owned(),
+            ),
+        );
+    }
+    auth
 }
 
 struct BoundRoomAuthorization {
@@ -24667,7 +25165,7 @@ async fn authorize_bound_ephemeral_room(
 ) -> Result<BoundRoomAuthorization, ApiError> {
     if !runtime
         .ephemeral
-        .collection_requires_room_permission(collection)
+        .subscription_requires_room_permission(collection)
     {
         return Ok(BoundRoomAuthorization {
             auth: base_auth,
@@ -24869,7 +25367,7 @@ async fn authorize_live_socket_room(
     if frame_connection != connection_id
         || !runtime
             .ephemeral
-            .collection_requires_room_permission(collection)
+            .subscription_requires_room_permission(collection)
     {
         return Ok(None);
     }
@@ -25597,6 +26095,8 @@ struct WireSubscribeRequest {
     scope: Scope,
     connection_id: String,
     auth: Option<AuthContext>,
+    #[serde(default, rename = "sinceChunk", alias = "since_chunk")]
+    since_chunk: Option<u64>,
 }
 
 fn resolved_wire_ephemeral_auth(
@@ -25680,8 +26180,19 @@ impl WireSubscribeRequest {
         Ok(SubscribeRequest {
             collection: self.collection,
             scope: self.scope,
-            connection_id: self.connection_id,
-            auth: resolved_wire_ephemeral_auth(self.auth, policy_mode, authority)?,
+            connection_id: self.connection_id.clone(),
+            auth: match policy_mode {
+                PolicyAuthMode::Sessions => ephemeral_auth_from_authority_for_connection(
+                    authority,
+                    &self.connection_id,
+                ),
+                PolicyAuthMode::Dev => resolved_wire_ephemeral_auth(
+                    self.auth,
+                    policy_mode,
+                    authority,
+                )?,
+            },
+            since_chunk: self.since_chunk,
         })
     }
 }

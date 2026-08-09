@@ -110,8 +110,23 @@ impl<'a> GenerationActivation<'a> {
         self.snapback
             .generation_database_mut()
             .install_committed_sequence_declarations(sequence_declarations);
+        // @ref LLP 0204#d91--streaming-conversations — the
+        // protected transcript table exists iff this exact generation carries
+        // at least one streaming action.
+        if let Err(error) = self
+            .snapback
+            .generation_database_mut()
+            .activate_stream_transcript_manifest(&manifest)
+        {
+            diagnostics.push(error.diagnostic);
+            self.snapback
+                .record_generation_activation_diagnostics(diagnostics.clone(), diagnostic_boundary);
+            return diagnostics;
+        }
+
         self.snapback
             .compose_function_generation_successor(manifest, order_field_bounds);
+        self.snapback.publish_generation_ephemeral_collections();
         Self::install_process_generation(self.snapback, generation);
         self.snapback.post_install_function_generation(
             &mut diagnostics,

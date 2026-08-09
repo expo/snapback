@@ -30,6 +30,7 @@ use tower::ServiceExt;
 
 fn materialize_path(path: &str) -> String {
     path.replace("{connection_id}", "policy_probe")
+        .replace("{attempt_token}", "policy_probe")
         .replace("{table}", "missing_table")
         .replace("{name}", "missing_function")
         .replace("{*path}", "assets/policy-probe.js")
@@ -249,6 +250,8 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/api/v1/mutation/{name}"),
         ("POST", "/action/{name}"),
         ("POST", "/api/v1/action/{name}"),
+        ("GET", "/streams/{attempt_token}"),
+        ("POST", "/streams/{attempt_token}/cancel"),
         ("POST", "/app/bundle"),
         ("POST", "/app/ensure"),
         ("POST", "/connection/open"),
@@ -1056,8 +1059,22 @@ fn session_overlay_closes_every_client_asserted_http_route() {
                     dev.invocation_authority,
                     InvocationAuthority::ClientAsserted
                 );
-                assert_eq!(sessions.path_policy, RoutePolicy::Public);
+                let stream_route = matches!(
+                    route.path,
+                    "/streams/{attempt_token}" | "/streams/{attempt_token}/cancel"
+                );
+                assert_eq!(
+                    sessions.path_policy,
+                    if stream_route {
+                        RoutePolicy::SessionAuth
+                    } else {
+                        RoutePolicy::Public
+                    }
+                );
                 let expected_resolution = match route.path {
+                    "/streams/{attempt_token}" | "/streams/{attempt_token}/cancel" => {
+                        CredentialResolution::RequiredSessionOrScopedToken
+                    }
                     // Bundle entries are evaluated exactly like /query
                     // invocations, so the generated app-data route class's
                     // scoped tokens stay legal (LLP 0092 §0D.7).
@@ -2201,6 +2218,22 @@ fn session_http_body_probes() -> BTreeMap<(&'static str, &'static str), SessionB
             SessionBodyProbe {
                 uri: "/api/v1/action/missing_function",
                 base: json!({ "args": {} }),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("GET", "/streams/{attempt_token}"),
+            SessionBodyProbe {
+                uri: "/streams/policy_probe",
+                base: json!({}),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("POST", "/streams/{attempt_token}/cancel"),
+            SessionBodyProbe {
+                uri: "/streams/policy_probe/cancel",
+                base: json!({}),
                 forbidden_fields: handler_fields(),
             },
         ),

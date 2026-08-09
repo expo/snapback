@@ -1228,6 +1228,10 @@
           "default": null,
           "description": "Stable versioned standard-pattern identity — which generated helper\nand visibility profile produced this function (e.g. `owned-crud.v1`,\n`owner.v1`). Absent on free-form definitions.\n@ref LLP 0065#3-common-pattern-contracts — versioned identifiers."
         },
+        "stream": {
+          "description": "A server-side streaming action emits bounded private chunks before its\nordinary return value settles the durable transcript.\n\n@ref LLP 0204#d91--streaming-conversations — stream is a\ncompiled action fact, never an invocation-time option.",
+          "type": "boolean"
+        },
         "syncabilityClass": {
           "default": null,
           "type": [

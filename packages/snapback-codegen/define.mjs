@@ -3584,6 +3584,7 @@ function normalizeBoundedSkew(declaration, steps) {
 }
 
 export function defineMutation(spec) {
+  assert(spec.stream !== true, 'stream: true is available only on defineAction');
   const steps = Array.isArray(spec.plan) ? spec.plan : [spec.plan];
   assert(steps.length > 0, 'defineMutation requires at least one plan step');
   if (spec.result !== undefined) {
@@ -3657,6 +3658,7 @@ function normalizeSequences(sequences) {
 }
 
 export function defineJsMutation(spec) {
+  assert(spec.stream !== true, 'stream: true is available only on defineAction');
   const inline = spec.handler !== undefined;
   const legacy = spec.source !== undefined || spec.exportName !== undefined;
   assert(inline !== legacy, 'defineJsMutation requires exactly one handler form: handler or source + exportName');
@@ -3718,6 +3720,8 @@ export const runMutation = (name, args = {}, opts = {}) => ({
 });
 
 export function defineAction(spec) {
+  assert(spec.stream === undefined || typeof spec.stream === 'boolean', 'defineAction stream must be a boolean');
+  const stream = spec.stream === true;
   if (spec.result !== undefined) {
     assert(
       spec.result?.__resultContract === true
@@ -3733,6 +3737,7 @@ export function defineAction(spec) {
       ...authoredFunctionAuth(spec, 'Action'),
       args: spec.args ?? {},
       ...(spec.result !== undefined ? { resultContract: spec.result } : {}),
+      ...(stream ? { stream: true } : {}),
       uses: spec.uses ?? [],
       js: {
         inlineHandler: spec.handler,
@@ -3751,6 +3756,7 @@ export function defineAction(spec) {
       ...authoredFunctionAuth(spec, 'Action'),
       args: spec.args ?? {},
       ...(spec.result !== undefined ? { resultContract: spec.result } : {}),
+      ...(stream ? { stream: true } : {}),
       // @ref LLP 0036#declared-configuration-in-the-manifest — D8: the config
       // entries this action may receive via ctx.secrets.
       uses: spec.uses ?? [],
@@ -3764,6 +3770,7 @@ export function defineAction(spec) {
     };
   }
   const steps = Array.isArray(spec.plan) ? spec.plan : [spec.plan];
+  assert(!stream, 'stream: true requires a JavaScript action handler');
   assert(steps.length > 0, 'defineAction requires a plan or js handler');
   return {
     [FN]: true,

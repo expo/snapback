@@ -780,6 +780,7 @@ fn l9_hot_room_publish_does_not_stall_unrelated_rooms_or_durable_drain() {
                 scope: Scope::from_pairs([("roomId", "cold")]),
                 connection_id: "cold-observer".to_owned(),
                 auth: AuthContext::default(),
+                since_chunk: None,
             },
             1_000,
         )

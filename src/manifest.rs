@@ -1625,6 +1625,16 @@ impl FunctionManifest {
         let mut identities = BTreeMap::<String, (usize, String)>::new();
         let mut sequence_declarations = BTreeMap::<String, SequenceDeclaration>::new();
         for (function_index, function) in self.functions.iter().enumerate() {
+            if function.stream && function.kind != FunctionKind::Action {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_FUNCTION_STREAM_KIND_INVALID",
+                    "runtime",
+                    format!(
+                        "function {} declares stream but is not an action",
+                        function.name
+                    ),
+                ));
+            }
             if function.name.trim().is_empty() {
                 return Err(SnapbackError::error(
                     "SNAPBACK_FUNCTION_IDENTITY_INVALID",
@@ -6712,6 +6722,13 @@ pub struct FunctionDefinition {
     #[serde(default, rename = "exportedName", alias = "exported_name")]
     pub exported_name: Option<String>,
     pub kind: FunctionKind,
+    /// A server-side streaming action emits bounded private chunks before its
+    /// ordinary return value settles the durable transcript.
+    ///
+    /// @ref LLP 0204#d91--streaming-conversations — stream is a
+    /// compiled action fact, never an invocation-time option.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub stream: bool,
     #[serde(default, rename = "sourceSpan", alias = "source_span")]
     pub source_span: Option<SourceSpan>,
     #[serde(default, rename = "handlerForm", alias = "handler_form")]
@@ -6914,6 +6931,7 @@ impl FunctionDefinition {
             name: name.clone(),
             exported_name: Some(name.clone()),
             kind,
+            stream: false,
             source_span: None,
             handler_form: None,
             implementation_hash: None,
@@ -7400,6 +7418,8 @@ pub struct PublicFunctionDefinition {
     #[serde(rename = "exportedName")]
     pub exported_name: Option<String>,
     pub kind: FunctionKind,
+    #[serde(skip_serializing_if = "is_false")]
+    pub stream: bool,
     #[serde(rename = "handlerForm", skip_serializing_if = "Option::is_none")]
     pub handler_form: Option<String>,
     #[serde(rename = "implementationHash", skip_serializing_if = "Option::is_none")]
@@ -7644,6 +7664,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             name,
             exported_name,
             kind,
+            stream,
             source_span: _,
             handler_form,
             implementation_hash,
@@ -7682,6 +7703,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             name,
             exported_name,
             kind,
+            stream,
             handler_form,
             implementation_hash,
             args_contract_hash,
@@ -8853,6 +8875,19 @@ impl<T> FunctionResponse<T> {
 pub struct FunctionCallRequest {
     #[serde(flatten)]
     pub input: HandlerInput,
+    /// Anonymous streaming actions bind their private room to an already-open
+    /// connection grant. Authenticated callers omit this: their resolved user
+    /// or service credential is the reconnect-stable initiator identity.
+    ///
+    /// @ref LLP 0204#d91--streaming-conversations — anonymous
+    /// streams are connection-private rather than bearer-by-room-name.
+    #[serde(
+        default,
+        rename = "streamConnectionId",
+        alias = "stream_connection_id",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub stream_connection_id: Option<String>,
     /// Optional caller assertion checked only by sessions targets. Absence is
     /// the backwards-compatible unchecked path.
     ///
@@ -10158,13 +10193,13 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:0b1910e9f2253e0dd7a403b0f275daf18a0b44e5e6af5d9c7c876f921e5cf2fc";
+    "sha256:9304182ca20fddb1f087b5180637bd1b5daa4dab16dfededb0229716c45de463";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:eea408017b4c1e8fb3727ded4bc6a719e75747cf2e1194ee8033903f9da1f170";
+    "sha256:349e9e91db327f6ada7ef9ed79538a60896b4d397e3d512aaf955fcc42df1edb";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
@@ -10564,12 +10599,12 @@ fn local_relation_activity_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:3d037e3c8cffa30c64e039028adda9f91d6166a87e9ee96df7e4490421310559"
+                    "sha256:3e3a304ec4f9dc4cb7a2c45a9ccea5b2a01e074153285fd09daeb02d22a7e82c"
                         .to_owned(),
                 ),
                 (
                     "src/local/auth_room_kick_acceptance.rs".to_owned(),
-                    "sha256:1a8600f9e74c64744c8c0f403e701568b8de2fca9ea46769e7636f567349f289"
+                    "sha256:a11c4bb39304509d0e9e918b8b35d9005b3c75744ddbcaf6134871804450b19d"
                         .to_owned(),
                 ),
                 (
@@ -10604,12 +10639,12 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:6811d5740f3ce2a00bb6ac056a45f8ee3d959e963d8219d544f68af51e7a3209"
+                    "sha256:5d58768910d95122513c9e1b7e06202068db2b6d8fa4b86eadcf1ba2c6393b76"
                         .to_owned(),
                 ),
                 (
                     "src/storage/auth.rs".to_owned(),
-                    "sha256:221151f9d3f708714736ba77e4528ec03e51c79a192885ce559b6ff5e5938332"
+                    "sha256:4e5448bab9db83eedde7764de17b6ecd34a36c19ea2a28c52c632fdcfdc5b635"
                         .to_owned(),
                 ),
                 (
@@ -10639,7 +10674,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_mode.rs".to_owned(),
-                    "sha256:9d304781f46c5c1b5669c778d984a8a596a218f4ea02cdf8d669b0eafdcfffbc"
+                    "sha256:0adc9d4c16e21f7e409a1f85d2f9fb474896d78f7d8eeed69d474b781fb5900a"
                         .to_owned(),
                 ),
                 (
@@ -10721,7 +10756,7 @@ fn local_relation_activity_publication_verified_for(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:fc671c978384f3bfc3f7ab1320922c372573c5d5da49ac019ea642e7405672ca"
+                "sha256:f3dd60e051a7d2a7931dc4b60af3a59c3ebed138273230f67ae8709b706df339"
                     .to_owned(),
             )])
         && carrier.package_closure_sha256.is_none()
@@ -10772,7 +10807,7 @@ fn local_sequence_allocation_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local/auth_room_kick_acceptance.rs".to_owned(),
-                    "sha256:1a8600f9e74c64744c8c0f403e701568b8de2fca9ea46769e7636f567349f289"
+                    "sha256:a11c4bb39304509d0e9e918b8b35d9005b3c75744ddbcaf6134871804450b19d"
                         .to_owned(),
                 ),
                 (
@@ -10807,17 +10842,17 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/runtime.rs".to_owned(),
-                    "sha256:cc63b643d68eb484a602553769c817ccea71a8060b8b6ebee3a8857f2947c593"
+                    "sha256:c667b13573228dbd6487ddc8dd367d4c8baf1428b12e88233d87b9ac45e7e491"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:6811d5740f3ce2a00bb6ac056a45f8ee3d959e963d8219d544f68af51e7a3209"
+                    "sha256:5d58768910d95122513c9e1b7e06202068db2b6d8fa4b86eadcf1ba2c6393b76"
                         .to_owned(),
                 ),
                 (
                     "src/storage/auth.rs".to_owned(),
-                    "sha256:221151f9d3f708714736ba77e4528ec03e51c79a192885ce559b6ff5e5938332"
+                    "sha256:4e5448bab9db83eedde7764de17b6ecd34a36c19ea2a28c52c632fdcfdc5b635"
                         .to_owned(),
                 ),
                 (
@@ -10847,7 +10882,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_mode.rs".to_owned(),
-                    "sha256:9d304781f46c5c1b5669c778d984a8a596a218f4ea02cdf8d669b0eafdcfffbc"
+                    "sha256:0adc9d4c16e21f7e409a1f85d2f9fb474896d78f7d8eeed69d474b781fb5900a"
                         .to_owned(),
                 ),
                 (
@@ -10929,7 +10964,7 @@ fn local_sequence_allocation_publication_verified_for(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:fc671c978384f3bfc3f7ab1320922c372573c5d5da49ac019ea642e7405672ca"
+                "sha256:f3dd60e051a7d2a7931dc4b60af3a59c3ebed138273230f67ae8709b706df339"
                     .to_owned(),
             )])
         && carrier.client_source_sha256
@@ -11061,12 +11096,12 @@ fn local_persistent_store_contributor_chain_verified(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:3d037e3c8cffa30c64e039028adda9f91d6166a87e9ee96df7e4490421310559"
+                    "sha256:3e3a304ec4f9dc4cb7a2c45a9ccea5b2a01e074153285fd09daeb02d22a7e82c"
                         .to_owned(),
                 ),
                 (
                     "src/local/auth_room_kick_acceptance.rs".to_owned(),
-                    "sha256:1a8600f9e74c64744c8c0f403e701568b8de2fca9ea46769e7636f567349f289"
+                    "sha256:a11c4bb39304509d0e9e918b8b35d9005b3c75744ddbcaf6134871804450b19d"
                         .to_owned(),
                 ),
                 (
@@ -11101,12 +11136,12 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:6811d5740f3ce2a00bb6ac056a45f8ee3d959e963d8219d544f68af51e7a3209"
+                    "sha256:5d58768910d95122513c9e1b7e06202068db2b6d8fa4b86eadcf1ba2c6393b76"
                         .to_owned(),
                 ),
                 (
                     "src/storage/auth.rs".to_owned(),
-                    "sha256:221151f9d3f708714736ba77e4528ec03e51c79a192885ce559b6ff5e5938332"
+                    "sha256:4e5448bab9db83eedde7764de17b6ecd34a36c19ea2a28c52c632fdcfdc5b635"
                         .to_owned(),
                 ),
                 (
@@ -11136,7 +11171,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/auth_mode.rs".to_owned(),
-                    "sha256:9d304781f46c5c1b5669c778d984a8a596a218f4ea02cdf8d669b0eafdcfffbc"
+                    "sha256:0adc9d4c16e21f7e409a1f85d2f9fb474896d78f7d8eeed69d474b781fb5900a"
                         .to_owned(),
                 ),
                 (
@@ -11218,7 +11253,7 @@ fn local_persistent_store_contributor_chain_verified(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/index.mjs".to_owned(),
-                "sha256:19477ecbc076f770ec03d32ba27dd672a9660c64820978791e20fb6a4173a923"
+                "sha256:4ac97cf0c1915162d725e52d80fa4d9133129ca5abf02ea9a6b864885cff27e0"
                     .to_owned(),
             )])
         && carrier.client_source_sha256
@@ -14955,6 +14990,36 @@ mod membership_manifest_grammar_tests {
                 .supported_capabilities
                 .contains(&TargetCapabilityId::BoundedResponseStreamV1)
         );
+    }
+
+    #[test]
+    fn stream_fact_is_action_only_and_survives_public_projection() {
+        let runtime = FunctionRuntime::IbexModule(IbexModule {
+            source: "globalThis.__snapbackHandlers = { probe() { return null; } };".to_owned(),
+            export: "probe".to_owned(),
+        });
+        let mut query = FunctionDefinition::new("probe", FunctionKind::Query, runtime.clone());
+        query.stream = true;
+        let error = FunctionManifest {
+            functions: vec![query],
+            ..FunctionManifest::default()
+        }
+        .validate_semantics()
+        .expect_err("query stream fact must refuse");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_FUNCTION_STREAM_KIND_INVALID"
+        );
+
+        let mut action = FunctionDefinition::new("probe", FunctionKind::Action, runtime);
+        action.stream = true;
+        FunctionManifest {
+            functions: vec![action.clone()],
+            ..FunctionManifest::default()
+        }
+        .validate_semantics()
+        .expect("streaming action admits");
+        assert!(PublicFunctionDefinition::from(action).stream);
     }
 
     // @ref LLP 0080#7-generated-authoring-surface — a maintained projection

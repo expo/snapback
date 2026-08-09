@@ -125,6 +125,25 @@ pub(super) fn status_for_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_BUNDLE_PARAMS_INVALID"
         | "SNAPBACK_BUNDLE_MODE_INVALID"
         | "SNAPBACK_BUNDLE_ENTRY_INVALID" => StatusCode::BAD_REQUEST,
+        // @ref LLP 0204#d91--streaming-conversations — output
+        // stream caller faults stay 4xx; unclassified settlement/storage
+        // faults continue to fail closed as 500.
+        "SNAPBACK_STREAM_ATTEMPT_NOT_FOUND" | "SNAPBACK_STREAM_TRANSCRIPT_NOT_FOUND" => {
+            StatusCode::NOT_FOUND
+        }
+        "SNAPBACK_STREAM_FORBIDDEN"
+        | "SNAPBACK_STREAM_INITIATOR_REQUIRED"
+        | "SNAPBACK_STREAM_TRANSCRIPT_FORBIDDEN" => StatusCode::FORBIDDEN,
+        "SNAPBACK_STREAM_CHUNK_INVALID"
+        | "SNAPBACK_STREAM_NOT_DECLARED"
+        | "SNAPBACK_FUNCTION_STREAM_KIND_INVALID" => StatusCode::BAD_REQUEST,
+        "SNAPBACK_STREAM_CHUNK_TOO_LARGE"
+        | "SNAPBACK_STREAM_ATTEMPT_LIMIT_EXCEEDED"
+        | "SNAPBACK_STREAM_FINAL_TOO_LARGE" => StatusCode::PAYLOAD_TOO_LARGE,
+        "SNAPBACK_STREAM_RATE_LIMITED" => StatusCode::TOO_MANY_REQUESTS,
+        "SNAPBACK_STREAM_CANCELLED"
+        | "SNAPBACK_STREAM_RUNNER_FENCED"
+        | "SNAPBACK_STREAM_TERMINAL" => StatusCode::CONFLICT,
         "SNAPBACK_BUNDLE_QUERY_FAILED" => StatusCode::INTERNAL_SERVER_ERROR,
         _ => status_for_established_diagnostic_code(code),
     }

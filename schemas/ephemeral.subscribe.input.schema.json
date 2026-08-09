@@ -21,6 +21,16 @@
             "null"
           ]
         },
+        "stream_initiator": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StreamInitiator"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "user_id": {
           "type": [
             "string",
@@ -32,6 +42,59 @@
         "permissions"
       ],
       "type": "object"
+    },
+    "StreamInitiator": {
+      "description": "Stable privacy identity for a streaming action. Session reconnects compare\nthe user id, service reconnects the credential id, while anonymous access\nremains connection-bound.\n\n@ref LLP 0204#d91--streaming-conversations — possession of a\nroom key is never stream read authority.",
+      "oneOf": [
+        {
+          "properties": {
+            "key": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "session_user",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "key"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "key": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "service_credential",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "key"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "key": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "anonymous_connection",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "key"
+          ],
+          "type": "object"
+        }
+      ]
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/ephemeral.subscribe.input.schema.json",
@@ -51,6 +114,15 @@
         "type": "string"
       },
       "type": "object"
+    },
+    "sinceChunk": {
+      "default": null,
+      "format": "uint64",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
     }
   },
   "required": [

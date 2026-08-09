@@ -639,6 +639,9 @@ impl LocalDatabase {
                 // must precede raw SQLite constraint failures.
                 // @ref LLP 0056#declaring-a-membership-table
                 apply_schema_tables(tx, &schema_manifest)?;
+                if let Some(functions) = trusted_predecessor_functions.as_ref() {
+                    crate::storage::stream_transcripts::activate_manifest_in(tx, functions)?;
+                }
                 super::preflight_sequence_enrollments(
                     tx,
                     &schema_manifest,
@@ -871,6 +874,9 @@ impl LocalDatabase {
             &staged.schema_manifest,
         )?;
         crate::storage::declared_clients::activate_manifest_in(&tx, &staged.schema_manifest)?;
+        if let Some(functions) = functions {
+            crate::storage::stream_transcripts::activate_manifest_in(&tx, functions)?;
+        }
         // @ref LLP 0055#grants — initial sessions activation seeds the durable
         //   exact-function basis rows in the same cut as the existing LLP 0053
         //   activation event. No grant can observe an empty/intermediate set.
@@ -1343,6 +1349,7 @@ impl LocalDatabase {
                 let predecessor_head = current_version_on(tx)?;
                 super::preflight_membership_activation_sources(tx, &manifest, predecessor_head)?;
                 apply_schema_tables(tx, &manifest)?;
+                crate::storage::stream_transcripts::activate_manifest_in(tx, &functions)?;
                 super::preflight_sequence_enrollments(
                     tx,
                     &manifest,

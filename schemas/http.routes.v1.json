@@ -1486,6 +1486,24 @@
       },
       "path": "/query/{name}/authorized-lease",
       "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/streams/{attempt_token}",
+      "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/streams/{attempt_token}/cancel",
+      "path_policy": "AppAuth"
     }
   ]
 }

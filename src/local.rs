@@ -1347,6 +1347,14 @@ impl Deref for AdmittedJobClaim {
 
 pub(crate) struct DetachedIbexAction {
     pub function_name: String,
+    pub function_id: String,
+    pub stream: bool,
+    pub stream_initiator: Option<crate::stream_attempt::StreamInitiator>,
+    /// Installed only by the app-data action route. It publishes the durable
+    /// attempt identity after initialization and before authored handler code,
+    /// allowing the HTTP request to return while execution continues.
+    pub stream_started: Option<tokio::sync::oneshot::Sender<String>>,
+    pub ephemeral: EphemeralApi,
     pub telemetry: crate::telemetry::Telemetry,
     pub module: crate::manifest::IbexModule,
     pub grants: Value,
@@ -1835,6 +1843,10 @@ impl EphemeralApi {
 
     pub fn collection_requires_room_permission(&self, name: &str) -> bool {
         self.store.collection_requires_room_permission(name)
+    }
+
+    pub fn subscription_requires_room_permission(&self, name: &str) -> bool {
+        self.store.subscription_requires_room_permission(name)
     }
 
     pub(crate) fn collection_definition(&self, name: &str) -> Option<EphemeralCollection> {
@@ -3814,6 +3826,20 @@ impl LocalSnapback {
         self.db.upsert_stream_attempts(rows, now_millis())
     }
 
+    pub(crate) fn settle_stream_transcript(
+        &mut self,
+        record: &crate::storage::stream_transcripts::StreamTranscriptRecord,
+    ) -> SnapbackResult<()> {
+        self.db.settle_stream_transcript(record)
+    }
+
+    pub(crate) fn stream_transcript(
+        &self,
+        attempt_token: &str,
+    ) -> SnapbackResult<Option<crate::storage::stream_transcripts::StreamTranscriptRecord>> {
+        self.db.stream_transcript(attempt_token)
+    }
+
     /// Revalidate the durable and carrier axes before every retained live
     /// computation. Session authority is fenced by the projection; service
     /// authority is checked directly against the protected catalog without
@@ -4202,7 +4228,10 @@ impl LocalSnapback {
         self.try_with_direct_authorization_write(
             crate::storage::AuthorizationCommitPreflight::AllProtectedRooms,
             move |snapback| {
-                let ephemeral_collections = manifest.ephemeral_collections.clone();
+                let ephemeral_collections = served_ephemeral_collections(
+                    &manifest.ephemeral_collections,
+                    &snapback.functions,
+                );
                 let generation = next_app_generation()?;
                 let successor_telemetry_identity = snapback
                     .telemetry_store_identity
@@ -5003,7 +5032,10 @@ impl LocalSnapback {
 
     pub(crate) fn publish_generation_ephemeral_collections(&mut self) {
         let ephemeral = self.ephemeral.clone();
-        let ephemeral_collections = self.db.schema().ephemeral_collections.clone();
+        let ephemeral_collections = served_ephemeral_collections(
+            &self.db.schema().ephemeral_collections,
+            &self.functions,
+        );
         crate::exec_guard::run_or_defer_after_local(move || {
             ephemeral
                 .replace_collections(ephemeral_collections)
@@ -16469,6 +16501,22 @@ impl LocalSnapback {
             FunctionRuntime::IbexModule(module) => {
                 StagedAction::Detached(Box::new(DetachedIbexAction {
                     function_name: definition.name.clone(),
+                    function_id: definition.id.clone(),
+                    stream: definition.stream,
+                    stream_initiator: match invocation.authority().resolved() {
+                        ResolvedAppAuthority::Session { user_id, .. }
+                        | ResolvedAppAuthority::DevImpersonation { user_id, .. } => Some(
+                            crate::stream_attempt::StreamInitiator::SessionUser(user_id.clone()),
+                        ),
+                        ResolvedAppAuthority::ServicePrincipal { credential_id, .. } => Some(
+                            crate::stream_attempt::StreamInitiator::ServiceCredential(
+                                credential_id.clone(),
+                            ),
+                        ),
+                        _ => None,
+                    },
+                    stream_started: None,
+                    ephemeral: self.ephemeral_api(),
                     telemetry: self.telemetry.clone(),
                     module: module.clone(),
                     // @ref LLP 0036#runtime-exposure-d5-d8 — grants are
@@ -18527,15 +18575,30 @@ impl LocalSnapback {
         {
             let rows = db.load_stream_attempts()?;
             let mut reconciled = Vec::new();
+            let mut reconciled_transcripts = Vec::new();
             for (token, client_key, record_json) in rows {
-                if let Some(updated) =
-                    crate::stream_attempt::reconcile_orphaned_record(&record_json)
+                let updated = crate::stream_attempt::reconcile_orphaned_record(&record_json);
+                let effective_record = updated.as_deref().unwrap_or(&record_json);
+                if let Ok(attempt) = serde_json::from_str::<
+                    crate::stream_attempt::PersistedStreamAttempt,
+                >(effective_record)
+                    && attempt.terminal.is_some()
                 {
+                    // A crash may land after the attempt terminal commits but
+                    // before its transcript insert. Reconcile both newly
+                    // terminalized orphans and already-terminal rows; the
+                    // transcript insert is immutable/idempotent.
+                    reconciled_transcripts.push(attempt);
+                }
+                if let Some(updated) = updated {
                     reconciled.push((token, client_key, updated));
                 }
             }
             if !reconciled.is_empty() {
                 db.upsert_stream_attempts(&reconciled, now_millis())?;
+            }
+            for attempt in &reconciled_transcripts {
+                db.reconcile_stream_transcript_from_attempt(attempt)?;
             }
         }
         let runtime = RuntimeManager::detect();
@@ -24153,6 +24216,21 @@ impl ReadLane {
 
 fn ephemeral_manifest_error(error: crate::ephemeral::EphemeralError) -> SnapbackError {
     SnapbackError::error(error.code.diagnostic_code(), "ephemeral", error.message)
+}
+
+fn served_ephemeral_collections(
+    authored: &[EphemeralCollection],
+    functions: &FunctionManifest,
+) -> Vec<EphemeralCollection> {
+    let mut collections = authored.to_vec();
+    if functions
+        .functions
+        .iter()
+        .any(|function| function.stream && function.kind == FunctionKind::Action)
+    {
+        collections.push(crate::ephemeral::stream_collection_definition());
+    }
+    collections
 }
 
 fn validate_membership_keyset_pattern(

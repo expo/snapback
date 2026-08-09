@@ -4,7 +4,8 @@
       "oneOf": [
         {
           "enum": [
-            "AllowAll"
+            "AllowAll",
+            "RequireStreamInitiator"
           ],
           "type": "string"
         },
@@ -3752,6 +3753,9 @@
           },
           "type": "array"
         },
+        "stream": {
+          "type": "boolean"
+        },
         "syncabilityClass": {
           "type": [
             "string",
@@ -3772,6 +3776,7 @@
         "id",
         "name",
         "kind",
+        "stream",
         "sequences",
         "resultContract",
         "requiredCapabilities",

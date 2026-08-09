@@ -305,6 +305,19 @@ pub trait IbexActionHost {
             "this invocation target does not implement stream attempt settlement",
         ))
     }
+    /// Emit one bounded server-output chunk for a `stream: true` action.
+    /// @ref LLP 0204#d91--streaming-conversations — the action
+    /// host publishes through the existing ephemeral room machinery.
+    fn emit_stream_chunk(
+        &mut self,
+        _chunk: Value,
+    ) -> SnapbackResult<crate::stream_attempt::StreamChunkEmission> {
+        Err(SnapbackError::error(
+            "SNAPBACK_STREAM_NOT_DECLARED",
+            "runtime",
+            "this invocation is not a declared streaming action",
+        ))
+    }
     /// Buffered host-mediated fetch (`ctx.fetch`), the streamed profile's
     /// plain sibling (0137 a4-f1 / a5-f1). A target that does not implement
     /// it refuses with the stable code, exactly like the streamed default —
@@ -2376,6 +2389,35 @@ impl<'a> IbexHostContext<'a> {
                         .with_details(json!({ "operation": "settle" }))
                     },
                 )
+            }
+            "action.streamEmit" => {
+                self.ensure_action("stream.emit")?;
+                let chunk = args.get("chunk").cloned().ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_STREAM_CHUNK_INVALID",
+                        "runtime",
+                        "ctx.stream.emit requires a string or JSON chunk",
+                    )
+                })?;
+                if !(chunk.is_string() || chunk.is_object() || chunk.is_array() || chunk.is_number() || chunk.is_boolean() || chunk.is_null()) {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_STREAM_CHUNK_INVALID",
+                        "runtime",
+                        "ctx.stream.emit requires a string or JSON chunk",
+                    ));
+                }
+                let host = self
+                    .action_host
+                    .as_deref_mut()
+                    .ok_or_else(action_host_missing)?;
+                serde_json::to_value(host.emit_stream_chunk(chunk)?).map_err(|error| {
+                    SnapbackError::error(
+                        "SNAPBACK_STREAM_CHUNK_INVALID",
+                        "runtime",
+                        "the stream emission receipt could not be serialized",
+                    )
+                    .with_details(json!({ "error": error.to_string() }))
+                })
             }
             // LLP 0056 M3 — `ctx.permissions.<decl>.requireRole(resource, ...)`.
             // The imperative twin, decomposed so LLP 0053's one-class-per-op
@@ -4552,6 +4594,20 @@ fn handler_envelope_code(code: &str) -> &str {
         | "SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS"
         | "SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED"
         | "SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED"
+        // @ref LLP 0204#d91--streaming-conversations — output
+        // stream host refusals are platform-authored and remain observable by
+        // the running action, including cancellation on its next emit.
+        | "SNAPBACK_STREAM_ATTEMPT_LIMIT_EXCEEDED"
+        | "SNAPBACK_STREAM_ATTEMPT_NOT_FOUND"
+        | "SNAPBACK_STREAM_CANCELLED"
+        | "SNAPBACK_STREAM_CHUNK_INVALID"
+        | "SNAPBACK_STREAM_CHUNK_TOO_LARGE"
+        | "SNAPBACK_STREAM_FORBIDDEN"
+        | "SNAPBACK_STREAM_INITIATOR_REQUIRED"
+        | "SNAPBACK_STREAM_NOT_DECLARED"
+        | "SNAPBACK_STREAM_RATE_LIMITED"
+        | "SNAPBACK_STREAM_RUNNER_FENCED"
+        | "SNAPBACK_STREAM_TERMINAL"
         // Parity with envelope.mjs's PASSTHROUGH_CODES: the bounded host
         // fetch response refusals survive with their exact code on both
         // decoders (0137 a4-f1/a5-f1 — ctx.fetch is now target-portable).

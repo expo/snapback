@@ -1418,6 +1418,7 @@ fn measure_ephemeral(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<
                     scope: scope.clone(),
                     connection_id: format!("watcher-{i}"),
                     auth: AuthContext::default(),
+                    since_chunk: None,
                 },
                 1_000,
             )

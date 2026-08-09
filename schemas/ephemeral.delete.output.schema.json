@@ -145,6 +145,16 @@
                   "maximum": 9007199254740991,
                   "minimum": 0,
                   "type": "integer"
+                },
+                "stream_resume": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/StreamResumeInfo"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 }
               },
               "required": [
@@ -385,6 +395,27 @@
         "collection",
         "scope",
         "routing_key"
+      ],
+      "type": "object"
+    },
+    "StreamResumeInfo": {
+      "properties": {
+        "nextChunk": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "transcriptPath": {
+          "type": "string"
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "truncated",
+        "nextChunk",
+        "transcriptPath"
       ],
       "type": "object"
     }

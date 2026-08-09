@@ -9486,8 +9486,8 @@ async fn served_http_refusals_project_typed_candidates_and_argument_contracts() 
     assert_eq!(details["candidateFunctions"][0]["name"], "listTodos");
     assert_eq!(details["candidateFunctions"][0]["kind"], "LiveQuery");
     // Rotates with the embedded todo demo's generated artifacts; the
-    // LLP 0204 S1 api-exposure codegen change is the 2026-08-09 rotation.
-    assert_eq!(details["artifactHash"], "sha256:4c9e1792ef45dcbb");
+    // LLP 0204 S4 stream-fact codegen change is the latest rotation.
+    assert_eq!(details["artifactHash"], "sha256:7521dae65c2efb19");
     assert!(
         details["localMissSummary"]["sameMissCount"]
             .as_u64()
@@ -17612,6 +17612,9 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
 ];
 
 const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_STREAM_CHUNK_INVALID",
+    "SNAPBACK_STREAM_NOT_DECLARED",
+    "SNAPBACK_FUNCTION_STREAM_KIND_INVALID",
     // LLP 0204 S0 agent registration/invitation — malformed or ill-formed
     // request inputs (bad/expired invitation, wrong mode, invalid manifest).
     "SNAPBACK_AUTH_AGENT_INVITATION_INVALID",
@@ -18092,6 +18095,9 @@ const UNAUTHORIZED_DIAGNOSTICS: &[&str] = &[
 ];
 
 const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_STREAM_FORBIDDEN",
+    "SNAPBACK_STREAM_INITIATOR_REQUIRED",
+    "SNAPBACK_STREAM_TRANSCRIPT_FORBIDDEN",
     "SNAPBACK_AUTH_OAUTH_ACCESS_DENIED",
     // LLP 0204 S0 agent registration/invitation — policy refusals: the
     // surface is off, the caller may not mint, or the invitation is fenced.
@@ -18179,6 +18185,8 @@ const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
 ];
 
 const NOT_FOUND_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_STREAM_ATTEMPT_NOT_FOUND",
+    "SNAPBACK_STREAM_TRANSCRIPT_NOT_FOUND",
     "SNAPBACK_BRANCH_NOT_FOUND",
     "SNAPBACK_CHECKPOINT_NOT_FOUND",
     "SNAPBACK_FORK_NOT_FOUND",
@@ -18218,6 +18226,9 @@ const NOT_FOUND_DIAGNOSTICS: &[&str] = &[
 ];
 
 const CONFLICT_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_STREAM_CANCELLED",
+    "SNAPBACK_STREAM_RUNNER_FENCED",
+    "SNAPBACK_STREAM_TERMINAL",
     "SNAPBACK_AUTH_INTEGRATION_CATALOG_CORRUPT",
     "SNAPBACK_AUTH_INTEGRATION_CLASS_INVALID",
     "SNAPBACK_API_DECLARED_CLIENT_CATALOG_CORRUPT",
@@ -18376,6 +18387,9 @@ const CONFLICT_DIAGNOSTICS: &[&str] = &[
 ];
 
 const PAYLOAD_TOO_LARGE_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_STREAM_CHUNK_TOO_LARGE",
+    "SNAPBACK_STREAM_ATTEMPT_LIMIT_EXCEEDED",
+    "SNAPBACK_STREAM_FINAL_TOO_LARGE",
     // Bounded branch/checkpoint/proof byte work is request-size-shaped.
     "SNAPBACK_BRANCH_BYTE_LIMIT_EXCEEDED",
     "SNAPBACK_BRANCH_DIGEST_WORK_LIMIT_EXCEEDED",
@@ -18401,6 +18415,7 @@ const PAYLOAD_TOO_LARGE_DIAGNOSTICS: &[&str] = &[
 ];
 
 const TOO_MANY_REQUESTS_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_STREAM_RATE_LIMITED",
     // LLP 0204 S0 — per-user live-invitation cap (a quota, not a fault).
     "SNAPBACK_AUTH_AGENT_INVITATION_CAP",
     // LLP 0204 S2-B — the composed external anonymous/declared/integration
@@ -18578,6 +18593,12 @@ const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
 // diagnostics that never normally become an `ApiError`. If one does reach
 // that boundary, the fail-safe class is still 500 rather than a false 4xx.
 const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_FUNCTION_GENERATION_EXHAUSTED",
+    "SNAPBACK_FUNCTION_GENERATION_INVALID",
+    "SNAPBACK_FUNCTION_GENERATION_STATE_CORRUPT",
+    "SNAPBACK_STREAM_TRANSCRIPTS_UNAVAILABLE",
+    "SNAPBACK_STREAM_TRANSCRIPT_CATALOG_CORRUPT",
+    "SNAPBACK_STREAM_TRANSCRIPT_SETTLE_TIMEOUT",
     "SNAPBACK_AUTH_OAUTH_SERVER_ERROR",
     "SNAPBACK_AUTH_OAUTH_STATE_CORRUPT",
     // Local CLI, embedded-runtime, Guide-integrity, and migration-recovery
@@ -20447,6 +20468,10 @@ fn held_action_host(
         stream_runner: crate::stream_attempt::StreamRunnerIdentity::new(Arc::new(AtomicBool::new(
             false,
         ))),
+        output_stream_attempt: None,
+        output_stream_function_id: None,
+        output_stream_initiator: None,
+        ephemeral: action.ephemeral.clone(),
         stream_buffered_bytes: Arc::new(AtomicU64::new(0)),
         stream_buffered_peak: Arc::new(AtomicU64::new(0)),
         automatic_retry_invocation: false,
@@ -21745,6 +21770,110 @@ fn stream_attempt_rows_survive_process_death_and_reconcile_conservatively() {
 }
 
 #[test]
+fn output_stream_transcripts_survive_process_death_and_cover_terminal_insert_gaps() {
+    let dir = tempfile::tempdir().expect("output stream transcript tempdir");
+    let path = dir.path().join("output-streams.sqlite");
+    let stream_manifest = || {
+        let mut conversation = FunctionDefinition::new(
+            "conversation",
+            FunctionKind::Action,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: "globalThis.__snapbackHandlers = { async conversation() { return null; } };"
+                    .to_owned(),
+                export: "conversation".to_owned(),
+            }),
+        );
+        conversation.stream = true;
+        FunctionManifest {
+            functions: vec![conversation],
+            ..FunctionManifest::default()
+        }
+    };
+
+    // First process life: activate the manifest-gated table and persist one
+    // live output attempt plus one terminal whose transcript insert did not
+    // happen before process death.
+    {
+        let mut snapback = LocalSnapback::open(&path).expect("open output stream db");
+        snapback.load_functions(stream_manifest());
+        let orphan = crate::stream_attempt::PersistedStreamAttempt {
+            token: "output-orphan".to_owned(),
+            client_key: "output:orphan".to_owned(),
+            runner_generation: 1,
+            progress_commits: 0,
+            cursors_opened: 0,
+            cursors: BTreeMap::new(),
+            terminal: None,
+            function_id: Some("conversation".to_owned()),
+            initiator: Some(crate::stream_attempt::StreamInitiator::SessionUser(
+                "user-a".to_owned(),
+            )),
+            started_at_ms: 100,
+            settled_at_ms: None,
+            emitted_bytes: 12,
+            chunk_count: 2,
+        };
+        let terminal_gap = crate::stream_attempt::PersistedStreamAttempt {
+            token: "output-terminal-gap".to_owned(),
+            client_key: "output:terminal-gap".to_owned(),
+            runner_generation: 1,
+            progress_commits: 0,
+            cursors_opened: 0,
+            cursors: BTreeMap::new(),
+            terminal: Some(crate::stream_attempt::StreamAttemptTerminal {
+                cause: crate::stream_attempt::StreamAttemptCause::Cancelled,
+                effect_may_have_executed: false,
+                settled_by: crate::stream_attempt::StreamAttemptSettledBy::Authored,
+            }),
+            function_id: Some("conversation".to_owned()),
+            initiator: Some(
+                crate::stream_attempt::StreamInitiator::ServiceCredential(
+                    "credential-a".to_owned(),
+                ),
+            ),
+            started_at_ms: 200,
+            settled_at_ms: Some(300),
+            emitted_bytes: 7,
+            chunk_count: 1,
+        };
+        snapback
+            .persist_stream_attempts(&[
+                orphan.to_row().expect("serialize orphan"),
+                terminal_gap.to_row().expect("serialize terminal gap"),
+            ])
+            .expect("persist output attempts before process death");
+    }
+
+    // Second process life: startup settles the orphan conservatively and
+    // repairs both missing transcript inserts without inventing final values
+    // or token accounting.
+    let snapback = LocalSnapback::open(&path).expect("reopen output stream db");
+    let orphan = snapback
+        .stream_transcript("output-orphan")
+        .expect("read orphan transcript")
+        .expect("orphan transcript was reconciled");
+    assert_eq!(
+        orphan.terminal_cause,
+        crate::stream_attempt::StreamAttemptCause::Failed
+    );
+    assert_eq!(orphan.chunk_count, 2);
+    assert_eq!(orphan.final_text, None);
+    assert_eq!(orphan.prompt_tokens, None);
+    assert_eq!(orphan.completion_tokens, None);
+
+    let terminal_gap = snapback
+        .stream_transcript("output-terminal-gap")
+        .expect("read terminal-gap transcript")
+        .expect("terminal-gap transcript was reconciled");
+    assert_eq!(
+        terminal_gap.terminal_cause,
+        crate::stream_attempt::StreamAttemptCause::Cancelled
+    );
+    assert_eq!(terminal_gap.chunk_count, 1);
+    assert_eq!(terminal_gap.final_text, None);
+}
+
+#[test]
 fn keyed_non_get_transport_loss_settles_ambiguous_and_pre_send_failures_stay_failed() {
     // @ref LLP 0076#author-decisions--2026-07-23 — decision 5: a bare
     // idempotency key no longer downgrades ambiguity; only a safe method
@@ -22214,9 +22343,223 @@ use super::{
     live_socket_operations, route_registry,
 };
 use crate::ephemeral::{
-    DeleteRequest, EphemeralCollection, EphemeralErrorCode, PublishRequest,
+    DeleteRequest, EphemeralCollection, EphemeralErrorCode, EphemeralMessage, PublishRequest,
     RoomPermissionProjection, Scope, SubscribeRequest,
 };
+
+#[tokio::test]
+async fn streaming_action_emits_through_runtime_and_reserved_live_room() {
+    let mut function = FunctionDefinition::new(
+        "outputStream",
+        FunctionKind::Action,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: r#"globalThis.__snapbackHandlers = {
+  async outputStream(ctx) {
+    await ctx.stream.emit("first");
+    await ctx.stream.emit({ kind: "second" });
+    return "done";
+  }
+};"#
+                .to_owned(),
+            export: "outputStream".to_owned(),
+        }),
+    );
+    function.stream = true;
+    let mut snapback = LocalSnapback::memory().expect("stream output state");
+    let diagnostics = snapback.load_functions(FunctionManifest {
+        functions: vec![function],
+        ..FunctionManifest::default()
+    });
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code != "SNAPBACK_FUNCTION_STREAM_KIND_INVALID"),
+        "streaming action manifest should activate: {diagnostics:?}"
+    );
+    let state = Arc::new(Mutex::new(snapback));
+    let staged = state
+        .try_lock()
+        .expect("stage stream output")
+        .stage_action_invocation("outputStream")
+        .expect("stream output action");
+    let StagedAction::Detached(mut action) = staged else {
+        panic!("Ibex streaming action must detach")
+    };
+    let initiator = crate::stream_attempt::StreamInitiator::SessionUser("user-a".to_owned());
+    action.stream_initiator = Some(initiator.clone());
+    let (started, attempt_token) = tokio::sync::oneshot::channel();
+    action.stream_started = Some(started);
+
+    let result = super::run_detached_ibex_action(
+        &state,
+        action,
+        HandlerInput::default(),
+        crate::local::manual_action_metadata("test", "outputStream"),
+    )
+    .await
+    .expect("streaming action completes");
+    assert_eq!(result, json!("done"));
+    let attempt_token = attempt_token.await.expect("attempt token published at start");
+
+    let scope = Scope::from_pairs([("attemptToken", attempt_token.as_str())]);
+    let message = state
+        .try_lock()
+        .expect("subscribe to retained output")
+        .subscribe_ephemeral(
+            SubscribeRequest {
+                collection: crate::ephemeral::STREAM_COLLECTION_NAME.to_owned(),
+                scope,
+                connection_id: "same-user-second-connection".to_owned(),
+                auth: crate::ephemeral::AuthContext {
+                    stream_initiator: Some(initiator),
+                    ..Default::default()
+                },
+                since_chunk: None,
+            },
+            super::now_millis(),
+        )
+        .expect("initiator subscribes through the reserved room");
+    let EphemeralMessage::Snapshot {
+        entries,
+        stream_resume: Some(resume),
+        ..
+    } = message
+    else {
+        panic!("stream subscription returns its retained snapshot")
+    };
+    assert_eq!(entries.len(), 2);
+    let chunks = entries
+        .iter()
+        .map(|entry| serde_json::from_slice::<Value>(&entry.value).expect("chunk envelope"))
+        .collect::<Vec<_>>();
+    assert_eq!(chunks[0]["chunkIndex"], json!(0));
+    assert_eq!(chunks[0]["chunk"], json!("first"));
+    assert_eq!(chunks[1]["chunkIndex"], json!(1));
+    assert_eq!(chunks[1]["chunk"], json!({ "kind": "second" }));
+    assert_eq!(resume.next_chunk, 2);
+    assert!(!resume.truncated);
+
+    let transcript = state
+        .try_lock()
+        .expect("read settled transcript")
+        .stream_transcript(&attempt_token)
+        .expect("transcript read")
+        .expect("completed transcript");
+    assert_eq!(transcript.final_text.as_deref(), Some("done"));
+    assert_eq!(transcript.chunk_count, 2);
+    assert_eq!(transcript.prompt_tokens, None);
+    assert_eq!(transcript.completion_tokens, None);
+}
+
+#[tokio::test]
+async fn stream_transcript_route_is_initiator_private_with_exact_403_and_404() {
+    let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+    let state = state
+        .with_auth_runtime_facts(
+            settled_sessions_state(),
+            AuthProgramReadiness::new(true, true, true, true, false, false, false),
+        )
+        .expect("install transcript-route sessions fixture");
+    let initiator_credential = mint_test_credential(&state, "stream-owner@example.com").await;
+    let outsider_credential = mint_test_credential(&state, "stream-outsider@example.com").await;
+    let initiator_user = initiator_credential["session"]["userId"]
+        .as_str()
+        .expect("initiator user id")
+        .to_owned();
+
+    let mut function = FunctionDefinition::new(
+        "transcriptSource",
+        FunctionKind::Action,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: "globalThis.__snapbackHandlers = { async transcriptSource() { return 'done'; } };"
+                .to_owned(),
+            export: "transcriptSource".to_owned(),
+        }),
+    );
+    function.stream = true;
+    state
+        .snapback
+        .try_lock()
+        .expect("activate transcript fixture")
+        .load_functions(FunctionManifest {
+            functions: vec![function],
+            ..FunctionManifest::default()
+        });
+    state
+        .snapback
+        .try_lock()
+        .expect("settle transcript fixture")
+        .settle_stream_transcript(
+            &crate::storage::stream_transcripts::StreamTranscriptRecord {
+                attempt_token: "private-transcript".to_owned(),
+                function_id: "transcriptSource".to_owned(),
+                initiator: crate::stream_attempt::StreamInitiator::SessionUser(initiator_user),
+                started_at_ms: 100,
+                settled_at_ms: 200,
+                terminal_cause: crate::stream_attempt::StreamAttemptCause::Complete,
+                final_text: Some("done".to_owned()),
+                chunk_count: 2,
+                prompt_tokens: None,
+                completion_tokens: None,
+            },
+        )
+        .expect("settle route transcript");
+
+    let router = super::app(state);
+    let request = |token: &str, bearer: &str| {
+        Request::builder()
+            .method("GET")
+            .uri(format!("/streams/{token}"))
+            .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
+            .header("x-snapback-auth-client-protocol", "1")
+            .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+            .body(Body::empty())
+            .expect("transcript request")
+    };
+    let initiator = router
+        .clone()
+        .oneshot(request(
+            "private-transcript",
+            initiator_credential["token"].as_str().expect("owner token"),
+        ))
+        .await
+        .expect("initiator transcript response");
+    assert_eq!(initiator.status(), StatusCode::OK);
+    assert_eq!(
+        initiator.headers()[header::CACHE_CONTROL],
+        HeaderValue::from_static("no-store, private")
+    );
+    assert_eq!(response_json(initiator).await["finalText"], json!("done"));
+
+    let outsider = router
+        .clone()
+        .oneshot(request(
+            "private-transcript",
+            outsider_credential["token"]
+                .as_str()
+                .expect("outsider token"),
+        ))
+        .await
+        .expect("outsider transcript response");
+    assert_eq!(outsider.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        response_json(outsider).await["diagnostic"]["code"],
+        json!("SNAPBACK_STREAM_TRANSCRIPT_FORBIDDEN")
+    );
+
+    let unknown = router
+        .oneshot(request(
+            "unknown-transcript",
+            initiator_credential["token"].as_str().expect("owner token"),
+        ))
+        .await
+        .expect("unknown transcript response");
+    assert_eq!(unknown.status(), StatusCode::NOT_FOUND);
+    assert_eq!(
+        response_json(unknown).await["diagnostic"]["code"],
+        json!("SNAPBACK_STREAM_TRANSCRIPT_NOT_FOUND")
+    );
+}
 
 fn synthetic_connection_authority(bound: BoundGrantAuthority) -> PreparedConnectionOpenAuthority {
     let resolved = match &bound {
@@ -27325,6 +27668,7 @@ fn s1_live_socket_operations_are_all_app_data() {
                 scope: scope.clone(),
                 connection_id: "conn".to_owned(),
                 auth: Default::default(),
+                since_chunk: None,
             },
         },
         LiveSocketClientMessage::EphemeralPublish {
@@ -27360,6 +27704,7 @@ fn s1_live_socket_operations_are_all_app_data() {
                 scope,
                 connection_id: "conn".to_owned(),
                 auth: Default::default(),
+                since_chunk: None,
             },
         },
         LiveSocketClientMessage::Ping { request_id: None },
