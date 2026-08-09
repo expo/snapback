@@ -2,8 +2,8 @@
   "schemaVersion": "snapback-symbol-registry.v1",
   "generatedBy": "scripts/generate-symbol-registry.mjs",
   "buildIdentity": {
-    "commit": "cce8567305444813e3965ff19aa818263d85e275",
-    "sourceDigest": "sha256:3f96f539328e749046734db471b642843b28d7f617465d64a75370986b424802",
+    "commit": "bedaeae4ac9813ec6c1d708250e2d9a78f09e2a8",
+    "sourceDigest": "sha256:36f5d51fd6421f46184db07769cfa3a517e032dca39cd668f994112f3166de61",
     "publishedClosureVersion": "0.1.15",
     "packageVersions": {
       "@expo/snapback-cli": "0.1.15",
@@ -375,15 +375,24 @@
       "symbolIds": [
         "npm:@expo/snapback-client/assets#__testIncrementalSha256",
         "npm:@expo/snapback-client/assets#ASSET_RECORD_LIVE_FUNCTION",
+        "npm:@expo/snapback-client/assets#AssetDiagnostic",
         "npm:@expo/snapback-client/assets#AssetFetch",
         "npm:@expo/snapback-client/assets#AssetFileLike",
+        "npm:@expo/snapback-client/assets#AssetIssuedUrlSnapshot",
+        "npm:@expo/snapback-client/assets#AssetIssuedUrlStatus",
+        "npm:@expo/snapback-client/assets#AssetIssuedUrlStore",
+        "npm:@expo/snapback-client/assets#AssetPickerSource",
         "npm:@expo/snapback-client/assets#AssetRecordWatchSnapshot",
         "npm:@expo/snapback-client/assets#AssetRecordWatchStore",
+        "npm:@expo/snapback-client/assets#AssetSignedUrlOptions",
+        "npm:@expo/snapback-client/assets#AssetSignedUrlResult",
         "npm:@expo/snapback-client/assets#AssetTaskSnapshot",
         "npm:@expo/snapback-client/assets#AssetTaskStatus",
         "npm:@expo/snapback-client/assets#AssetTaskStore",
         "npm:@expo/snapback-client/assets#AssetUploadReferenceLike",
+        "npm:@expo/snapback-client/assets#AssetUploadSource",
         "npm:@expo/snapback-client/assets#AssetUploadTask",
+        "npm:@expo/snapback-client/assets#AssetUploadTerminalError",
         "npm:@expo/snapback-client/assets#createAssetClient",
         "npm:@expo/snapback-client/assets#createMemoryAssetTaskStore",
         "npm:@expo/snapback-client/assets#MY_MEMBERSHIPS_LIVE_FUNCTION",
@@ -6209,16 +6218,16 @@
       },
       "source": {
         "file": "packages/snapback-client/assets.d.mts",
-        "line": 141,
+        "line": 204,
         "column": 1,
-        "endLine": 144
+        "endLine": 207
       },
       "sources": [
         {
           "file": "packages/snapback-client/assets.d.mts",
-          "line": 141,
+          "line": 204,
           "column": 1,
-          "endLine": 144
+          "endLine": 207
         }
       ],
       "publicDeclaration": {
@@ -28257,9 +28266,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 149,
+              "line": 212,
               "column": 3,
-              "endLine": 149
+              "endLine": 212
             }
           ]
         },
@@ -28276,9 +28285,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 150,
+              "line": 213,
               "column": 3,
-              "endLine": 150
+              "endLine": 213
             }
           ]
         },
@@ -28295,9 +28304,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 151,
+              "line": 214,
               "column": 3,
-              "endLine": 151
+              "endLine": 214
             }
           ]
         }
@@ -28308,16 +28317,16 @@
       },
       "source": {
         "file": "packages/snapback-client/assets.d.mts",
-        "line": 148,
+        "line": 211,
         "column": 1,
-        "endLine": 152
+        "endLine": 215
       },
       "sources": [
         {
           "file": "packages/snapback-client/assets.d.mts",
-          "line": 148,
+          "line": 211,
           "column": 1,
-          "endLine": 152
+          "endLine": 215
         }
       ],
       "publicDeclaration": {
@@ -28378,6 +28387,165 @@
       }
     },
     {
+      "identity": "npm:@expo/snapback-client/assets#AssetDiagnostic",
+      "originIdentity": "packages/snapback-client/assets.d.mts#AssetDiagnostic",
+      "anchor": "symbol-assetdiagnostic-6e14d82992",
+      "name": "AssetDiagnostic",
+      "package": "@expo/snapback-client",
+      "module": "@expo/snapback-client/assets",
+      "moduleSubpath": "./assets",
+      "kind": "type-interface",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export interface AssetDiagnostic {\n  readonly schemaVersion?: string;\n  readonly code?: string;\n  readonly severity?: string;\n  readonly message?: string;\n  readonly details?: Readonly<Record<string, unknown>>;\n  readonly [member: string]: unknown;\n}",
+      "overloads": [],
+      "members": [
+        {
+          "identity": "npm:@expo/snapback-client/assets#AssetDiagnostic.schemaVersion",
+          "name": "schemaVersion",
+          "kind": "property",
+          "signature": "readonly schemaVersion?: string;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 31,
+              "column": 3,
+              "endLine": 31
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-client/assets#AssetDiagnostic.code",
+          "name": "code",
+          "kind": "property",
+          "signature": "readonly code?: string;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 32,
+              "column": 3,
+              "endLine": 32
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-client/assets#AssetDiagnostic.severity",
+          "name": "severity",
+          "kind": "property",
+          "signature": "readonly severity?: string;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 33,
+              "column": 3,
+              "endLine": 33
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-client/assets#AssetDiagnostic.message",
+          "name": "message",
+          "kind": "property",
+          "signature": "readonly message?: string;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 34,
+              "column": 3,
+              "endLine": 34
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-client/assets#AssetDiagnostic.details",
+          "name": "details",
+          "kind": "property",
+          "signature": "readonly details?: Readonly<Record<string, unknown>>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 35,
+              "column": 3,
+              "endLine": 35
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-client/assets#AssetDiagnostic.index",
+          "name": "index",
+          "kind": "index-signature",
+          "signature": "readonly [member: string]: unknown;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 36,
+              "column": 3,
+              "endLine": 36
+            }
+          ]
+        }
+      ],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-client/assets.d.mts",
+        "line": 30,
+        "column": 1,
+        "endLine": 37
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-client/assets.d.mts",
+          "line": 30,
+          "column": 1,
+          "endLine": 37
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-client/assets.d.mts",
+        "exportName": "AssetDiagnostic"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public declaration and applicable runtime export target."
+      }
+    },
+    {
       "identity": "npm:@expo/snapback-client/assets#AssetFetch",
       "originIdentity": "packages/snapback-client/assets.d.mts#AssetFetch",
       "anchor": "symbol-assetfetch-cab7ab7642",
@@ -28400,16 +28568,16 @@
       },
       "source": {
         "file": "packages/snapback-client/assets.d.mts",
-        "line": 67,
+        "line": 123,
         "column": 1,
-        "endLine": 70
+        "endLine": 126
       },
       "sources": [
         {
           "file": "packages/snapback-client/assets.d.mts",
-          "line": 67,
+          "line": 123,
           "column": 1,
-          "endLine": 70
+          "endLine": 126
         }
       ],
       "publicDeclaration": {
@@ -28451,9 +28619,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 44,
+              "line": 53,
               "column": 3,
-              "endLine": 44
+              "endLine": 53
             }
           ]
         },
@@ -28470,9 +28638,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 45,
+              "line": 54,
               "column": 3,
-              "endLine": 45
+              "endLine": 54
             }
           ]
         },
@@ -28489,9 +28657,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 46,
+              "line": 55,
               "column": 3,
-              "endLine": 46
+              "endLine": 55
             }
           ]
         },
@@ -28508,9 +28676,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 47,
+              "line": 56,
               "column": 3,
-              "endLine": 47
+              "endLine": 56
             }
           ]
         }
@@ -28521,21 +28689,390 @@
       },
       "source": {
         "file": "packages/snapback-client/assets.d.mts",
-        "line": 43,
+        "line": 52,
         "column": 1,
-        "endLine": 48
+        "endLine": 57
       },
       "sources": [
         {
           "file": "packages/snapback-client/assets.d.mts",
-          "line": 43,
+          "line": 52,
           "column": 1,
-          "endLine": 48
+          "endLine": 57
         }
       ],
       "publicDeclaration": {
         "file": "packages/snapback-client/assets.d.mts",
         "exportName": "AssetFileLike"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public declaration and applicable runtime export target."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-client/assets#AssetIssuedUrlSnapshot",
+      "originIdentity": "packages/snapback-client/assets.d.mts#AssetIssuedUrlSnapshot",
+      "anchor": "symbol-assetissuedurlsnapshot-9d61a926e4",
+      "name": "AssetIssuedUrlSnapshot",
+      "package": "@expo/snapback-client",
+      "module": "@expo/snapback-client/assets",
+      "moduleSubpath": "./assets",
+      "kind": "type-interface",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export interface AssetIssuedUrlSnapshot {\n  readonly url: string | null;\n  readonly status: AssetIssuedUrlStatus;\n  readonly diagnostic: AssetDiagnostic | null;\n}",
+      "overloads": [],
+      "members": [
+        {
+          "identity": "npm:@expo/snapback-client/assets#AssetIssuedUrlSnapshot.url",
+          "name": "url",
+          "kind": "property",
+          "signature": "readonly url: string | null;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 87,
+              "column": 3,
+              "endLine": 87
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-client/assets#AssetIssuedUrlSnapshot.status",
+          "name": "status",
+          "kind": "property",
+          "signature": "readonly status: AssetIssuedUrlStatus;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 88,
+              "column": 3,
+              "endLine": 88
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-client/assets#AssetIssuedUrlSnapshot.diagnostic",
+          "name": "diagnostic",
+          "kind": "property",
+          "signature": "readonly diagnostic: AssetDiagnostic | null;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 89,
+              "column": 3,
+              "endLine": 89
+            }
+          ]
+        }
+      ],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-client/assets.d.mts",
+        "line": 86,
+        "column": 1,
+        "endLine": 90
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-client/assets.d.mts",
+          "line": 86,
+          "column": 1,
+          "endLine": 90
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-client/assets.d.mts",
+        "exportName": "AssetIssuedUrlSnapshot"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public declaration and applicable runtime export target."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-client/assets#AssetIssuedUrlStatus",
+      "originIdentity": "packages/snapback-client/assets.d.mts#AssetIssuedUrlStatus",
+      "anchor": "symbol-assetissuedurlstatus-977bf712eb",
+      "name": "AssetIssuedUrlStatus",
+      "package": "@expo/snapback-client",
+      "module": "@expo/snapback-client/assets",
+      "moduleSubpath": "./assets",
+      "kind": "type-type-alias",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export type AssetIssuedUrlStatus =\n  | 'issuing'\n  | 'ready'\n  | 'refreshing'\n  | 'unavailable'\n  | 'denied';",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-client/assets.d.mts",
+        "line": 79,
+        "column": 1,
+        "endLine": 84
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-client/assets.d.mts",
+          "line": 79,
+          "column": 1,
+          "endLine": 84
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-client/assets.d.mts",
+        "exportName": "AssetIssuedUrlStatus"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public declaration and applicable runtime export target."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-client/assets#AssetIssuedUrlStore",
+      "originIdentity": "packages/snapback-client/assets.d.mts#AssetIssuedUrlStore",
+      "anchor": "symbol-assetissuedurlstore-fc1de2d803",
+      "name": "AssetIssuedUrlStore",
+      "package": "@expo/snapback-client",
+      "module": "@expo/snapback-client/assets",
+      "moduleSubpath": "./assets",
+      "kind": "type-interface",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export interface AssetIssuedUrlStore {\n  getSnapshot(): AssetIssuedUrlSnapshot;\n  getServerSnapshot(): AssetIssuedUrlSnapshot;\n  subscribe(listener: (snapshot: AssetIssuedUrlSnapshot) => void): () => void;\n  refresh(): Promise<void>;\n}",
+      "overloads": [],
+      "members": [
+        {
+          "identity": "npm:@expo/snapback-client/assets#AssetIssuedUrlStore.getSnapshot",
+          "name": "getSnapshot",
+          "kind": "method",
+          "signature": "getSnapshot(): AssetIssuedUrlSnapshot;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 93,
+              "column": 3,
+              "endLine": 93
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-client/assets#AssetIssuedUrlStore.getServerSnapshot",
+          "name": "getServerSnapshot",
+          "kind": "method",
+          "signature": "getServerSnapshot(): AssetIssuedUrlSnapshot;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 94,
+              "column": 3,
+              "endLine": 94
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-client/assets#AssetIssuedUrlStore.subscribe",
+          "name": "subscribe",
+          "kind": "method",
+          "signature": "subscribe(listener: (snapshot: AssetIssuedUrlSnapshot) => void): () => void;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 95,
+              "column": 3,
+              "endLine": 95
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-client/assets#AssetIssuedUrlStore.refresh",
+          "name": "refresh",
+          "kind": "method",
+          "signature": "refresh(): Promise<void>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 96,
+              "column": 3,
+              "endLine": 96
+            }
+          ]
+        }
+      ],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-client/assets.d.mts",
+        "line": 92,
+        "column": 1,
+        "endLine": 97
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-client/assets.d.mts",
+          "line": 92,
+          "column": 1,
+          "endLine": 97
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-client/assets.d.mts",
+        "exportName": "AssetIssuedUrlStore"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public declaration and applicable runtime export target."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-client/assets#AssetPickerSource",
+      "originIdentity": "packages/snapback-client/assets.d.mts#AssetPickerSource",
+      "anchor": "symbol-assetpickersource-a5d8a249ec",
+      "name": "AssetPickerSource",
+      "package": "@expo/snapback-client",
+      "module": "@expo/snapback-client/assets",
+      "moduleSubpath": "./assets",
+      "kind": "type-interface",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export interface AssetPickerSource {\n  readonly uri: string;\n  readonly mimeType?: string;\n  readonly fileName?: string;\n}",
+      "overloads": [],
+      "members": [
+        {
+          "identity": "npm:@expo/snapback-client/assets#AssetPickerSource.uri",
+          "name": "uri",
+          "kind": "property",
+          "signature": "readonly uri: string;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 60,
+              "column": 3,
+              "endLine": 60
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-client/assets#AssetPickerSource.mimeType",
+          "name": "mimeType",
+          "kind": "property",
+          "signature": "readonly mimeType?: string;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 61,
+              "column": 3,
+              "endLine": 61
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-client/assets#AssetPickerSource.fileName",
+          "name": "fileName",
+          "kind": "property",
+          "signature": "readonly fileName?: string;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 62,
+              "column": 3,
+              "endLine": 62
+            }
+          ]
+        }
+      ],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-client/assets.d.mts",
+        "line": 59,
+        "column": 1,
+        "endLine": 63
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-client/assets.d.mts",
+          "line": 59,
+          "column": 1,
+          "endLine": 63
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-client/assets.d.mts",
+        "exportName": "AssetPickerSource"
       },
       "closure": {
         "status": "build-bound",
@@ -28556,7 +29093,7 @@
         "exportNames": [],
         "conditions": []
       },
-      "signature": "export interface AssetRecordWatchSnapshot {\n  readonly status: 'connecting' | 'ready' | 'blank' | 'error';\n  readonly record: Record<string, unknown> | null;\n  readonly mode: 'live' | 'static';\n  readonly diagnostic?: { code?: string; message?: string };\n}",
+      "signature": "export interface AssetRecordWatchSnapshot {\n  readonly status: 'connecting' | 'ready' | 'blank' | 'error';\n  readonly record: Record<string, unknown> | null;\n  readonly mode: 'live' | 'static';\n  readonly diagnostic?: AssetDiagnostic;\n}",
       "overloads": [],
       "members": [
         {
@@ -28572,9 +29109,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 129,
+              "line": 192,
               "column": 3,
-              "endLine": 129
+              "endLine": 192
             }
           ]
         },
@@ -28591,9 +29128,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 130,
+              "line": 193,
               "column": 3,
-              "endLine": 130
+              "endLine": 193
             }
           ]
         },
@@ -28610,9 +29147,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 131,
+              "line": 194,
               "column": 3,
-              "endLine": 131
+              "endLine": 194
             }
           ]
         },
@@ -28620,7 +29157,7 @@
           "identity": "npm:@expo/snapback-client/assets#AssetRecordWatchSnapshot.diagnostic",
           "name": "diagnostic",
           "kind": "property",
-          "signature": "readonly diagnostic?: { code?: string; message?: string };",
+          "signature": "readonly diagnostic?: AssetDiagnostic;",
           "overloads": [],
           "documentation": {
             "text": "",
@@ -28629,9 +29166,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 132,
+              "line": 195,
               "column": 3,
-              "endLine": 132
+              "endLine": 195
             }
           ]
         }
@@ -28642,16 +29179,16 @@
       },
       "source": {
         "file": "packages/snapback-client/assets.d.mts",
-        "line": 128,
+        "line": 191,
         "column": 1,
-        "endLine": 133
+        "endLine": 196
       },
       "sources": [
         {
           "file": "packages/snapback-client/assets.d.mts",
-          "line": 128,
+          "line": 191,
           "column": 1,
-          "endLine": 133
+          "endLine": 196
         }
       ],
       "publicDeclaration": {
@@ -28693,9 +29230,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 136,
+              "line": 199,
               "column": 3,
-              "endLine": 136
+              "endLine": 199
             }
           ]
         },
@@ -28712,9 +29249,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 137,
+              "line": 200,
               "column": 3,
-              "endLine": 137
+              "endLine": 200
             }
           ]
         },
@@ -28731,9 +29268,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 138,
+              "line": 201,
               "column": 3,
-              "endLine": 138
+              "endLine": 201
             }
           ]
         }
@@ -28744,21 +29281,225 @@
       },
       "source": {
         "file": "packages/snapback-client/assets.d.mts",
-        "line": 135,
+        "line": 198,
         "column": 1,
-        "endLine": 139
+        "endLine": 202
       },
       "sources": [
         {
           "file": "packages/snapback-client/assets.d.mts",
-          "line": 135,
+          "line": 198,
           "column": 1,
-          "endLine": 139
+          "endLine": 202
         }
       ],
       "publicDeclaration": {
         "file": "packages/snapback-client/assets.d.mts",
         "exportName": "AssetRecordWatchStore"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public declaration and applicable runtime export target."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-client/assets#AssetSignedUrlOptions",
+      "originIdentity": "packages/snapback-client/assets.d.mts#AssetSignedUrlOptions",
+      "anchor": "symbol-assetsignedurloptions-5fce4e36fc",
+      "name": "AssetSignedUrlOptions",
+      "package": "@expo/snapback-client",
+      "module": "@expo/snapback-client/assets",
+      "moduleSubpath": "./assets",
+      "kind": "type-interface",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export interface AssetSignedUrlOptions {\n  readonly variant?: string;\n  readonly widthPx?: number;\n  readonly ttlMs?: number;\n}",
+      "overloads": [],
+      "members": [
+        {
+          "identity": "npm:@expo/snapback-client/assets#AssetSignedUrlOptions.variant",
+          "name": "variant",
+          "kind": "property",
+          "signature": "readonly variant?: string;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 68,
+              "column": 3,
+              "endLine": 68
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-client/assets#AssetSignedUrlOptions.widthPx",
+          "name": "widthPx",
+          "kind": "property",
+          "signature": "readonly widthPx?: number;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 69,
+              "column": 3,
+              "endLine": 69
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-client/assets#AssetSignedUrlOptions.ttlMs",
+          "name": "ttlMs",
+          "kind": "property",
+          "signature": "readonly ttlMs?: number;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 70,
+              "column": 3,
+              "endLine": 70
+            }
+          ]
+        }
+      ],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-client/assets.d.mts",
+        "line": 67,
+        "column": 1,
+        "endLine": 71
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-client/assets.d.mts",
+          "line": 67,
+          "column": 1,
+          "endLine": 71
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-client/assets.d.mts",
+        "exportName": "AssetSignedUrlOptions"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public declaration and applicable runtime export target."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-client/assets#AssetSignedUrlResult",
+      "originIdentity": "packages/snapback-client/assets.d.mts#AssetSignedUrlResult",
+      "anchor": "symbol-assetsignedurlresult-d09479b585",
+      "name": "AssetSignedUrlResult",
+      "package": "@expo/snapback-client",
+      "module": "@expo/snapback-client/assets",
+      "moduleSubpath": "./assets",
+      "kind": "type-interface",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export interface AssetSignedUrlResult {\n  readonly url: string;\n  readonly expiresAt: number;\n  readonly variant: string;\n}",
+      "overloads": [],
+      "members": [
+        {
+          "identity": "npm:@expo/snapback-client/assets#AssetSignedUrlResult.url",
+          "name": "url",
+          "kind": "property",
+          "signature": "readonly url: string;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 74,
+              "column": 3,
+              "endLine": 74
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-client/assets#AssetSignedUrlResult.expiresAt",
+          "name": "expiresAt",
+          "kind": "property",
+          "signature": "readonly expiresAt: number;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 75,
+              "column": 3,
+              "endLine": 75
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-client/assets#AssetSignedUrlResult.variant",
+          "name": "variant",
+          "kind": "property",
+          "signature": "readonly variant: string;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 76,
+              "column": 3,
+              "endLine": 76
+            }
+          ]
+        }
+      ],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-client/assets.d.mts",
+        "line": 73,
+        "column": 1,
+        "endLine": 77
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-client/assets.d.mts",
+          "line": 73,
+          "column": 1,
+          "endLine": 77
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-client/assets.d.mts",
+        "exportName": "AssetSignedUrlResult"
       },
       "closure": {
         "status": "build-bound",
@@ -28779,7 +29520,7 @@
         "exportNames": [],
         "conditions": []
       },
-      "signature": "export interface AssetTaskSnapshot {\n  readonly assetId: string | null;\n  readonly assetRef: string | null;\n  readonly attemptId: string | null;\n  readonly attemptExpiresAtMs: number | null;\n  readonly status: AssetTaskStatus;\n  readonly diagnostic: { code?: string; message?: string } | null;\n  readonly bytesTransferred: number;\n  readonly totalBytes: number;\n  readonly previewUrl: string | null;\n  readonly integrityBasis: string;\n}",
+      "signature": "export interface AssetTaskSnapshot {\n  readonly assetId: string | null;\n  readonly assetRef: string | null;\n  readonly attemptId: string | null;\n  readonly attemptExpiresAtMs: number | null;\n  readonly status: AssetTaskStatus;\n  readonly diagnostic: AssetDiagnostic | null;\n  readonly bytesTransferred: number;\n  readonly totalBytes: number;\n  readonly previewUrl: string | null;\n  readonly integrityBasis: string;\n}",
       "overloads": [],
       "members": [
         {
@@ -28795,9 +29536,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 31,
+              "line": 40,
               "column": 3,
-              "endLine": 31
+              "endLine": 40
             }
           ]
         },
@@ -28814,9 +29555,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 32,
+              "line": 41,
               "column": 3,
-              "endLine": 32
+              "endLine": 41
             }
           ]
         },
@@ -28833,9 +29574,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 33,
+              "line": 42,
               "column": 3,
-              "endLine": 33
+              "endLine": 42
             }
           ]
         },
@@ -28852,9 +29593,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 34,
+              "line": 43,
               "column": 3,
-              "endLine": 34
+              "endLine": 43
             }
           ]
         },
@@ -28871,9 +29612,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 35,
+              "line": 44,
               "column": 3,
-              "endLine": 35
+              "endLine": 44
             }
           ]
         },
@@ -28881,7 +29622,7 @@
           "identity": "npm:@expo/snapback-client/assets#AssetTaskSnapshot.diagnostic",
           "name": "diagnostic",
           "kind": "property",
-          "signature": "readonly diagnostic: { code?: string; message?: string } | null;",
+          "signature": "readonly diagnostic: AssetDiagnostic | null;",
           "overloads": [],
           "documentation": {
             "text": "",
@@ -28890,9 +29631,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 36,
+              "line": 45,
               "column": 3,
-              "endLine": 36
+              "endLine": 45
             }
           ]
         },
@@ -28909,9 +29650,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 37,
+              "line": 46,
               "column": 3,
-              "endLine": 37
+              "endLine": 46
             }
           ]
         },
@@ -28928,9 +29669,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 38,
+              "line": 47,
               "column": 3,
-              "endLine": 38
+              "endLine": 47
             }
           ]
         },
@@ -28947,9 +29688,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 39,
+              "line": 48,
               "column": 3,
-              "endLine": 39
+              "endLine": 48
             }
           ]
         },
@@ -28966,9 +29707,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 40,
+              "line": 49,
               "column": 3,
-              "endLine": 40
+              "endLine": 49
             }
           ]
         }
@@ -28979,16 +29720,16 @@
       },
       "source": {
         "file": "packages/snapback-client/assets.d.mts",
-        "line": 30,
+        "line": 39,
         "column": 1,
-        "endLine": 41
+        "endLine": 50
       },
       "sources": [
         {
           "file": "packages/snapback-client/assets.d.mts",
-          "line": 30,
+          "line": 39,
           "column": 1,
-          "endLine": 41
+          "endLine": 50
         }
       ],
       "publicDeclaration": {
@@ -29074,9 +29815,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 61,
+              "line": 117,
               "column": 3,
-              "endLine": 61
+              "endLine": 117
             }
           ]
         },
@@ -29093,9 +29834,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 62,
+              "line": 118,
               "column": 3,
-              "endLine": 62
+              "endLine": 118
             }
           ]
         },
@@ -29112,9 +29853,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 63,
+              "line": 119,
               "column": 3,
-              "endLine": 63
+              "endLine": 119
             }
           ]
         },
@@ -29131,9 +29872,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 64,
+              "line": 120,
               "column": 3,
-              "endLine": 64
+              "endLine": 120
             }
           ]
         }
@@ -29144,16 +29885,16 @@
       },
       "source": {
         "file": "packages/snapback-client/assets.d.mts",
-        "line": 60,
+        "line": 116,
         "column": 1,
-        "endLine": 65
+        "endLine": 121
       },
       "sources": [
         {
           "file": "packages/snapback-client/assets.d.mts",
-          "line": 60,
+          "line": 116,
           "column": 1,
-          "endLine": 65
+          "endLine": 121
         }
       ],
       "publicDeclaration": {
@@ -29195,9 +29936,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 75,
+              "line": 131,
               "column": 3,
-              "endLine": 75
+              "endLine": 131
             }
           ]
         },
@@ -29214,9 +29955,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 76,
+              "line": 132,
               "column": 3,
-              "endLine": 76
+              "endLine": 132
             }
           ]
         },
@@ -29233,9 +29974,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 77,
+              "line": 133,
               "column": 3,
-              "endLine": 77
+              "endLine": 133
             }
           ]
         },
@@ -29252,9 +29993,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 78,
+              "line": 134,
               "column": 3,
-              "endLine": 78
+              "endLine": 134
             }
           ]
         }
@@ -29265,21 +30006,65 @@
       },
       "source": {
         "file": "packages/snapback-client/assets.d.mts",
-        "line": 74,
+        "line": 130,
         "column": 1,
-        "endLine": 79
+        "endLine": 135
       },
       "sources": [
         {
           "file": "packages/snapback-client/assets.d.mts",
-          "line": 74,
+          "line": 130,
           "column": 1,
-          "endLine": 79
+          "endLine": 135
         }
       ],
       "publicDeclaration": {
         "file": "packages/snapback-client/assets.d.mts",
         "exportName": "AssetUploadReferenceLike"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public declaration and applicable runtime export target."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-client/assets#AssetUploadSource",
+      "originIdentity": "packages/snapback-client/assets.d.mts#AssetUploadSource",
+      "anchor": "symbol-assetuploadsource-cea81b3cec",
+      "name": "AssetUploadSource",
+      "package": "@expo/snapback-client",
+      "module": "@expo/snapback-client/assets",
+      "moduleSubpath": "./assets",
+      "kind": "type-type-alias",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export type AssetUploadSource = AssetFileLike | Blob | File | AssetPickerSource;",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-client/assets.d.mts",
+        "line": 65,
+        "column": 1,
+        "endLine": 65
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-client/assets.d.mts",
+          "line": 65,
+          "column": 1,
+          "endLine": 65
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-client/assets.d.mts",
+        "exportName": "AssetUploadSource"
       },
       "closure": {
         "status": "build-bound",
@@ -29316,9 +30101,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 51,
+              "line": 107,
               "column": 3,
-              "endLine": 51
+              "endLine": 107
             }
           ]
         },
@@ -29335,9 +30120,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 52,
+              "line": 108,
               "column": 3,
-              "endLine": 52
+              "endLine": 108
             }
           ]
         },
@@ -29354,9 +30139,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 53,
+              "line": 109,
               "column": 3,
-              "endLine": 53
+              "endLine": 109
             }
           ]
         },
@@ -29373,9 +30158,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 54,
+              "line": 110,
               "column": 3,
-              "endLine": 54
+              "endLine": 110
             }
           ]
         },
@@ -29392,9 +30177,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 55,
+              "line": 111,
               "column": 3,
-              "endLine": 55
+              "endLine": 111
             }
           ]
         },
@@ -29411,9 +30196,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 56,
+              "line": 112,
               "column": 3,
-              "endLine": 56
+              "endLine": 112
             }
           ]
         },
@@ -29430,9 +30215,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 57,
+              "line": 113,
               "column": 3,
-              "endLine": 57
+              "endLine": 113
             }
           ]
         }
@@ -29443,21 +30228,142 @@
       },
       "source": {
         "file": "packages/snapback-client/assets.d.mts",
-        "line": 50,
+        "line": 106,
         "column": 1,
-        "endLine": 58
+        "endLine": 114
       },
       "sources": [
         {
           "file": "packages/snapback-client/assets.d.mts",
-          "line": 50,
+          "line": 106,
           "column": 1,
-          "endLine": 58
+          "endLine": 114
         }
       ],
       "publicDeclaration": {
         "file": "packages/snapback-client/assets.d.mts",
         "exportName": "AssetUploadTask"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public declaration and applicable runtime export target."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-client/assets#AssetUploadTerminalError",
+      "originIdentity": "packages/snapback-client/assets.d.mts#AssetUploadTerminalError",
+      "anchor": "symbol-assetuploadterminalerror-055d5773c1",
+      "name": "AssetUploadTerminalError",
+      "package": "@expo/snapback-client",
+      "module": "@expo/snapback-client/assets",
+      "moduleSubpath": "./assets",
+      "kind": "type-interface",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export interface AssetUploadTerminalError extends Error {\n  readonly code: string;\n  readonly status: Exclude<AssetTaskStatus, 'creating' | 'uploading' | 'paused' | 'finalizing' | 'ready'>;\n  readonly terminalStatus: this['status'];\n  readonly diagnostic: AssetDiagnostic;\n}",
+      "overloads": [],
+      "members": [
+        {
+          "identity": "npm:@expo/snapback-client/assets#AssetUploadTerminalError.code",
+          "name": "code",
+          "kind": "property",
+          "signature": "readonly code: string;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 100,
+              "column": 3,
+              "endLine": 100
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-client/assets#AssetUploadTerminalError.status",
+          "name": "status",
+          "kind": "property",
+          "signature": "readonly status: Exclude<AssetTaskStatus, 'creating' | 'uploading' | 'paused' | 'finalizing' | 'ready'>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 101,
+              "column": 3,
+              "endLine": 101
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-client/assets#AssetUploadTerminalError.terminalStatus",
+          "name": "terminalStatus",
+          "kind": "property",
+          "signature": "readonly terminalStatus: this['status'];",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 102,
+              "column": 3,
+              "endLine": 102
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-client/assets#AssetUploadTerminalError.diagnostic",
+          "name": "diagnostic",
+          "kind": "property",
+          "signature": "readonly diagnostic: AssetDiagnostic;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 103,
+              "column": 3,
+              "endLine": 103
+            }
+          ]
+        }
+      ],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-client/assets.d.mts",
+        "line": 99,
+        "column": 1,
+        "endLine": 104
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-client/assets.d.mts",
+          "line": 99,
+          "column": 1,
+          "endLine": 104
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-client/assets.d.mts",
+        "exportName": "AssetUploadTerminalError"
       },
       "closure": {
         "status": "build-bound",
@@ -29491,16 +30397,16 @@
       },
       "source": {
         "file": "packages/snapback-client/assets.d.mts",
-        "line": 141,
+        "line": 204,
         "column": 1,
-        "endLine": 144
+        "endLine": 207
       },
       "sources": [
         {
           "file": "packages/snapback-client/assets.d.mts",
-          "line": 141,
+          "line": 204,
           "column": 1,
-          "endLine": 144
+          "endLine": 207
         }
       ],
       "publicDeclaration": {
@@ -29539,16 +30445,16 @@
       },
       "source": {
         "file": "packages/snapback-client/assets.d.mts",
-        "line": 72,
+        "line": 128,
         "column": 1,
-        "endLine": 72
+        "endLine": 128
       },
       "sources": [
         {
           "file": "packages/snapback-client/assets.d.mts",
-          "line": 72,
+          "line": 128,
           "column": 1,
-          "endLine": 72
+          "endLine": 128
         }
       ],
       "publicDeclaration": {
@@ -29795,7 +30701,7 @@
           "import"
         ]
       },
-      "signature": "export declare class SnapbackAssetClient {\n  constructor(\n    client: { baseUrl: string; subscribeLive: (ref: unknown, options?: unknown) => unknown },\n    options?: {\n      taskStore?: AssetTaskStore | null;\n      chunkBytes?: number;\n      /** Host transport adapter; Expo registers expo/fetch for binary TUS bodies. */\n      fetch?: AssetFetch | null;\n    },\n  );\n  taskStoreKey(options: { userId?: string | null; assetId: string }): string;\n  start(options: {\n    upload: AssetUploadReferenceLike;\n    args?: Record<string, unknown>;\n    file: AssetFileLike;\n    userId?: string | null;\n    declaredFilename?: string | null;\n    declaredContentType?: string | null;\n    previewUrl?: string | null;\n    /** Exact authority cohort captured by a composing command. Direct asset\n     * callers normally omit this and retain the existing per-request capture. */\n    authorityCapture?: unknown;\n    /** Internal external-bearer generation fence used by a composing command.\n     * Direct callers normally omit this. */\n    externalTransportGeneration?: number;\n  }): AssetUploadTask;\n  resumePersisted(options: {\n    assetId: string;\n    file: AssetFileLike;\n    userId?: string | null;\n  }): AssetUploadTask | null;\n  record(assetId: string, options?: { userId?: string | null }): Promise<unknown>;\n  watch(assetId: string, options?: { userId?: string | null; connectionId?: string }): unknown;\n  deliveryUrl(\n    assetId: string,\n    options?: { variant?: string; maxWidth?: number | null; width?: number | null },\n  ): string;\n  publicDeliveryUrl(\n    assetId: string,\n    options?: { variant?: string; width?: number | null },\n  ): string;\n  watchStore(\n    assetId: string,\n    options?: { userId?: string | null; connectionId?: string | null },\n  ): AssetRecordWatchStore;\n}",
+      "signature": "export declare class SnapbackAssetClient {\n  constructor(\n    client: { baseUrl: string; subscribeLive: (ref: unknown, options?: unknown) => unknown },\n    options?: {\n      taskStore?: AssetTaskStore | null;\n      chunkBytes?: number;\n      /** Host transport adapter; Expo registers expo/fetch for binary TUS bodies. */\n      fetch?: AssetFetch | null;\n    },\n  );\n  taskStoreKey(options: { userId?: string | null; assetId: string }): string;\n  start(options: {\n    upload: AssetUploadReferenceLike;\n    args?: Record<string, unknown>;\n    file: AssetFileLike;\n    userId?: string | null;\n    declaredFilename?: string | null;\n    declaredContentType?: string | null;\n    previewUrl?: string | null;\n    /** Exact authority cohort captured by a composing command. Direct asset\n     * callers normally omit this and retain the existing per-request capture. */\n    authorityCapture?: unknown;\n    /** Internal external-bearer generation fence used by a composing command.\n     * Direct callers normally omit this. */\n    externalTransportGeneration?: number;\n  }): AssetUploadTask;\n  resumePersisted(options: {\n    assetId: string;\n    file: AssetFileLike;\n    userId?: string | null;\n  }): AssetUploadTask | null;\n  upload(\n    upload: AssetUploadReferenceLike,\n    source: AssetUploadSource,\n    options?: { args?: Record<string, unknown> },\n  ): Promise<string>;\n  record(assetId: string, options?: { userId?: string | null }): Promise<unknown>;\n  watch(assetId: string, options?: { userId?: string | null; connectionId?: string }): unknown;\n  deliveryUrl(\n    assetId: string,\n    options?: { variant?: string; maxWidth?: number | null; width?: number | null },\n  ): string;\n  publicDeliveryUrl(\n    assetId: string,\n    options?: { variant?: string; width?: number | null },\n  ): string;\n  signedUrl(assetId: string, options?: AssetSignedUrlOptions): Promise<AssetSignedUrlResult>;\n  issuedUrlStore(assetId: string, options?: AssetSignedUrlOptions): AssetIssuedUrlStore;\n  watchStore(\n    assetId: string,\n    options?: { userId?: string | null; connectionId?: string | null },\n  ): AssetRecordWatchStore;\n}",
       "overloads": [],
       "members": [
         {
@@ -29811,9 +30717,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 82,
+              "line": 138,
               "column": 3,
-              "endLine": 90
+              "endLine": 146
             }
           ]
         },
@@ -29830,9 +30736,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 91,
+              "line": 147,
               "column": 3,
-              "endLine": 91
+              "endLine": 147
             }
           ]
         },
@@ -29849,9 +30755,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 92,
+              "line": 148,
               "column": 3,
-              "endLine": 106
+              "endLine": 162
             }
           ]
         },
@@ -29868,9 +30774,28 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 107,
+              "line": 163,
               "column": 3,
-              "endLine": 111
+              "endLine": 167
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-client/assets#SnapbackAssetClient.upload",
+          "name": "upload",
+          "kind": "method",
+          "signature": "upload(\n    upload: AssetUploadReferenceLike,\n    source: AssetUploadSource,\n    options?: { args?: Record<string, unknown> },\n  ): Promise<string>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 168,
+              "column": 3,
+              "endLine": 172
             }
           ]
         },
@@ -29887,9 +30812,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 112,
+              "line": 173,
               "column": 3,
-              "endLine": 112
+              "endLine": 173
             }
           ]
         },
@@ -29906,9 +30831,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 113,
+              "line": 174,
               "column": 3,
-              "endLine": 113
+              "endLine": 174
             }
           ]
         },
@@ -29925,9 +30850,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 114,
+              "line": 175,
               "column": 3,
-              "endLine": 117
+              "endLine": 178
             }
           ]
         },
@@ -29944,9 +30869,47 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 118,
+              "line": 179,
               "column": 3,
-              "endLine": 121
+              "endLine": 182
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-client/assets#SnapbackAssetClient.signedUrl",
+          "name": "signedUrl",
+          "kind": "method",
+          "signature": "signedUrl(assetId: string, options?: AssetSignedUrlOptions): Promise<AssetSignedUrlResult>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 183,
+              "column": 3,
+              "endLine": 183
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-client/assets#SnapbackAssetClient.issuedUrlStore",
+          "name": "issuedUrlStore",
+          "kind": "method",
+          "signature": "issuedUrlStore(assetId: string, options?: AssetSignedUrlOptions): AssetIssuedUrlStore;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/assets.d.mts",
+              "line": 184,
+              "column": 3,
+              "endLine": 184
             }
           ]
         },
@@ -29963,9 +30926,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 122,
+              "line": 185,
               "column": 3,
-              "endLine": 125
+              "endLine": 188
             }
           ]
         }
@@ -29976,16 +30939,16 @@
       },
       "source": {
         "file": "packages/snapback-client/assets.d.mts",
-        "line": 81,
+        "line": 137,
         "column": 1,
-        "endLine": 126
+        "endLine": 189
       },
       "sources": [
         {
           "file": "packages/snapback-client/assets.d.mts",
-          "line": 81,
+          "line": 137,
           "column": 1,
-          "endLine": 126
+          "endLine": 189
         }
       ],
       "publicDeclaration": {
@@ -30561,7 +31524,7 @@
         "exportNames": [],
         "conditions": []
       },
-      "signature": "export interface AssetTaskSnapshot {\n  readonly assetId: string | null;\n  readonly assetRef: string | null;\n  readonly attemptId: string | null;\n  readonly attemptExpiresAtMs: number | null;\n  readonly status: AssetTaskStatus;\n  readonly diagnostic: { code?: string; message?: string } | null;\n  readonly bytesTransferred: number;\n  readonly totalBytes: number;\n  readonly previewUrl: string | null;\n  readonly integrityBasis: string;\n}",
+      "signature": "export interface AssetTaskSnapshot {\n  readonly assetId: string | null;\n  readonly assetRef: string | null;\n  readonly attemptId: string | null;\n  readonly attemptExpiresAtMs: number | null;\n  readonly status: AssetTaskStatus;\n  readonly diagnostic: AssetDiagnostic | null;\n  readonly bytesTransferred: number;\n  readonly totalBytes: number;\n  readonly previewUrl: string | null;\n  readonly integrityBasis: string;\n}",
       "overloads": [],
       "members": [
         {
@@ -30577,9 +31540,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 31,
+              "line": 40,
               "column": 3,
-              "endLine": 31
+              "endLine": 40
             }
           ]
         },
@@ -30596,9 +31559,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 32,
+              "line": 41,
               "column": 3,
-              "endLine": 32
+              "endLine": 41
             }
           ]
         },
@@ -30615,9 +31578,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 33,
+              "line": 42,
               "column": 3,
-              "endLine": 33
+              "endLine": 42
             }
           ]
         },
@@ -30634,9 +31597,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 34,
+              "line": 43,
               "column": 3,
-              "endLine": 34
+              "endLine": 43
             }
           ]
         },
@@ -30653,9 +31616,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 35,
+              "line": 44,
               "column": 3,
-              "endLine": 35
+              "endLine": 44
             }
           ]
         },
@@ -30663,7 +31626,7 @@
           "identity": "npm:@expo/snapback-client/commands#AssetTaskSnapshot.diagnostic",
           "name": "diagnostic",
           "kind": "property",
-          "signature": "readonly diagnostic: { code?: string; message?: string } | null;",
+          "signature": "readonly diagnostic: AssetDiagnostic | null;",
           "overloads": [],
           "documentation": {
             "text": "",
@@ -30672,9 +31635,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 36,
+              "line": 45,
               "column": 3,
-              "endLine": 36
+              "endLine": 45
             }
           ]
         },
@@ -30691,9 +31654,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 37,
+              "line": 46,
               "column": 3,
-              "endLine": 37
+              "endLine": 46
             }
           ]
         },
@@ -30710,9 +31673,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 38,
+              "line": 47,
               "column": 3,
-              "endLine": 38
+              "endLine": 47
             }
           ]
         },
@@ -30729,9 +31692,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 39,
+              "line": 48,
               "column": 3,
-              "endLine": 39
+              "endLine": 48
             }
           ]
         },
@@ -30748,9 +31711,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 40,
+              "line": 49,
               "column": 3,
-              "endLine": 40
+              "endLine": 49
             }
           ]
         }
@@ -30761,16 +31724,16 @@
       },
       "source": {
         "file": "packages/snapback-client/assets.d.mts",
-        "line": 30,
+        "line": 39,
         "column": 1,
-        "endLine": 41
+        "endLine": 50
       },
       "sources": [
         {
           "file": "packages/snapback-client/assets.d.mts",
-          "line": 30,
+          "line": 39,
           "column": 1,
-          "endLine": 41
+          "endLine": 50
         }
       ],
       "publicDeclaration": {
@@ -30812,9 +31775,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 51,
+              "line": 107,
               "column": 3,
-              "endLine": 51
+              "endLine": 107
             }
           ]
         },
@@ -30831,9 +31794,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 52,
+              "line": 108,
               "column": 3,
-              "endLine": 52
+              "endLine": 108
             }
           ]
         },
@@ -30850,9 +31813,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 53,
+              "line": 109,
               "column": 3,
-              "endLine": 53
+              "endLine": 109
             }
           ]
         },
@@ -30869,9 +31832,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 54,
+              "line": 110,
               "column": 3,
-              "endLine": 54
+              "endLine": 110
             }
           ]
         },
@@ -30888,9 +31851,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 55,
+              "line": 111,
               "column": 3,
-              "endLine": 55
+              "endLine": 111
             }
           ]
         },
@@ -30907,9 +31870,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 56,
+              "line": 112,
               "column": 3,
-              "endLine": 56
+              "endLine": 112
             }
           ]
         },
@@ -30926,9 +31889,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 57,
+              "line": 113,
               "column": 3,
-              "endLine": 57
+              "endLine": 113
             }
           ]
         }
@@ -30939,16 +31902,16 @@
       },
       "source": {
         "file": "packages/snapback-client/assets.d.mts",
-        "line": 50,
+        "line": 106,
         "column": 1,
-        "endLine": 58
+        "endLine": 114
       },
       "sources": [
         {
           "file": "packages/snapback-client/assets.d.mts",
-          "line": 50,
+          "line": 106,
           "column": 1,
-          "endLine": 58
+          "endLine": 114
         }
       ],
       "publicDeclaration": {
@@ -61130,9 +62093,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 44,
+              "line": 53,
               "column": 3,
-              "endLine": 44
+              "endLine": 53
             }
           ]
         },
@@ -61149,9 +62112,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 45,
+              "line": 54,
               "column": 3,
-              "endLine": 45
+              "endLine": 54
             }
           ]
         },
@@ -61168,9 +62131,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 46,
+              "line": 55,
               "column": 3,
-              "endLine": 46
+              "endLine": 55
             }
           ]
         },
@@ -61187,9 +62150,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 47,
+              "line": 56,
               "column": 3,
-              "endLine": 47
+              "endLine": 56
             }
           ]
         }
@@ -61200,16 +62163,16 @@
       },
       "source": {
         "file": "packages/snapback-client/assets.d.mts",
-        "line": 43,
+        "line": 52,
         "column": 1,
-        "endLine": 48
+        "endLine": 57
       },
       "sources": [
         {
           "file": "packages/snapback-client/assets.d.mts",
-          "line": 43,
+          "line": 52,
           "column": 1,
-          "endLine": 48
+          "endLine": 57
         }
       ],
       "publicDeclaration": {
@@ -61501,7 +62464,7 @@
         "exportNames": [],
         "conditions": []
       },
-      "signature": "export interface AssetTaskSnapshot {\n  readonly assetId: string | null;\n  readonly assetRef: string | null;\n  readonly attemptId: string | null;\n  readonly attemptExpiresAtMs: number | null;\n  readonly status: AssetTaskStatus;\n  readonly diagnostic: { code?: string; message?: string } | null;\n  readonly bytesTransferred: number;\n  readonly totalBytes: number;\n  readonly previewUrl: string | null;\n  readonly integrityBasis: string;\n}",
+      "signature": "export interface AssetTaskSnapshot {\n  readonly assetId: string | null;\n  readonly assetRef: string | null;\n  readonly attemptId: string | null;\n  readonly attemptExpiresAtMs: number | null;\n  readonly status: AssetTaskStatus;\n  readonly diagnostic: AssetDiagnostic | null;\n  readonly bytesTransferred: number;\n  readonly totalBytes: number;\n  readonly previewUrl: string | null;\n  readonly integrityBasis: string;\n}",
       "overloads": [],
       "members": [
         {
@@ -61517,9 +62480,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 31,
+              "line": 40,
               "column": 3,
-              "endLine": 31
+              "endLine": 40
             }
           ]
         },
@@ -61536,9 +62499,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 32,
+              "line": 41,
               "column": 3,
-              "endLine": 32
+              "endLine": 41
             }
           ]
         },
@@ -61555,9 +62518,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 33,
+              "line": 42,
               "column": 3,
-              "endLine": 33
+              "endLine": 42
             }
           ]
         },
@@ -61574,9 +62537,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 34,
+              "line": 43,
               "column": 3,
-              "endLine": 34
+              "endLine": 43
             }
           ]
         },
@@ -61593,9 +62556,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 35,
+              "line": 44,
               "column": 3,
-              "endLine": 35
+              "endLine": 44
             }
           ]
         },
@@ -61603,7 +62566,7 @@
           "identity": "npm:@expo/snapback-react#AssetTaskSnapshot.diagnostic",
           "name": "diagnostic",
           "kind": "property",
-          "signature": "readonly diagnostic: { code?: string; message?: string } | null;",
+          "signature": "readonly diagnostic: AssetDiagnostic | null;",
           "overloads": [],
           "documentation": {
             "text": "",
@@ -61612,9 +62575,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 36,
+              "line": 45,
               "column": 3,
-              "endLine": 36
+              "endLine": 45
             }
           ]
         },
@@ -61631,9 +62594,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 37,
+              "line": 46,
               "column": 3,
-              "endLine": 37
+              "endLine": 46
             }
           ]
         },
@@ -61650,9 +62613,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 38,
+              "line": 47,
               "column": 3,
-              "endLine": 38
+              "endLine": 47
             }
           ]
         },
@@ -61669,9 +62632,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 39,
+              "line": 48,
               "column": 3,
-              "endLine": 39
+              "endLine": 48
             }
           ]
         },
@@ -61688,9 +62651,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 40,
+              "line": 49,
               "column": 3,
-              "endLine": 40
+              "endLine": 49
             }
           ]
         }
@@ -61701,16 +62664,16 @@
       },
       "source": {
         "file": "packages/snapback-client/assets.d.mts",
-        "line": 30,
+        "line": 39,
         "column": 1,
-        "endLine": 41
+        "endLine": 50
       },
       "sources": [
         {
           "file": "packages/snapback-client/assets.d.mts",
-          "line": 30,
+          "line": 39,
           "column": 1,
-          "endLine": 41
+          "endLine": 50
         }
       ],
       "publicDeclaration": {
@@ -62018,9 +62981,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 51,
+              "line": 107,
               "column": 3,
-              "endLine": 51
+              "endLine": 107
             }
           ]
         },
@@ -62037,9 +63000,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 52,
+              "line": 108,
               "column": 3,
-              "endLine": 52
+              "endLine": 108
             }
           ]
         },
@@ -62056,9 +63019,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 53,
+              "line": 109,
               "column": 3,
-              "endLine": 53
+              "endLine": 109
             }
           ]
         },
@@ -62075,9 +63038,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 54,
+              "line": 110,
               "column": 3,
-              "endLine": 54
+              "endLine": 110
             }
           ]
         },
@@ -62094,9 +63057,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 55,
+              "line": 111,
               "column": 3,
-              "endLine": 55
+              "endLine": 111
             }
           ]
         },
@@ -62113,9 +63076,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 56,
+              "line": 112,
               "column": 3,
-              "endLine": 56
+              "endLine": 112
             }
           ]
         },
@@ -62132,9 +63095,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 57,
+              "line": 113,
               "column": 3,
-              "endLine": 57
+              "endLine": 113
             }
           ]
         }
@@ -62145,16 +63108,16 @@
       },
       "source": {
         "file": "packages/snapback-client/assets.d.mts",
-        "line": 50,
+        "line": 106,
         "column": 1,
-        "endLine": 58
+        "endLine": 114
       },
       "sources": [
         {
           "file": "packages/snapback-client/assets.d.mts",
-          "line": 50,
+          "line": 106,
           "column": 1,
-          "endLine": 58
+          "endLine": 114
         }
       ],
       "publicDeclaration": {
@@ -67848,9 +68811,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 44,
+              "line": 53,
               "column": 3,
-              "endLine": 44
+              "endLine": 53
             }
           ]
         },
@@ -67867,9 +68830,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 45,
+              "line": 54,
               "column": 3,
-              "endLine": 45
+              "endLine": 54
             }
           ]
         },
@@ -67886,9 +68849,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 46,
+              "line": 55,
               "column": 3,
-              "endLine": 46
+              "endLine": 55
             }
           ]
         },
@@ -67905,9 +68868,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 47,
+              "line": 56,
               "column": 3,
-              "endLine": 47
+              "endLine": 56
             }
           ]
         }
@@ -67918,16 +68881,16 @@
       },
       "source": {
         "file": "packages/snapback-client/assets.d.mts",
-        "line": 43,
+        "line": 52,
         "column": 1,
-        "endLine": 48
+        "endLine": 57
       },
       "sources": [
         {
           "file": "packages/snapback-client/assets.d.mts",
-          "line": 43,
+          "line": 52,
           "column": 1,
-          "endLine": 48
+          "endLine": 57
         }
       ],
       "publicDeclaration": {
@@ -68219,7 +69182,7 @@
         "exportNames": [],
         "conditions": []
       },
-      "signature": "export interface AssetTaskSnapshot {\n  readonly assetId: string | null;\n  readonly assetRef: string | null;\n  readonly attemptId: string | null;\n  readonly attemptExpiresAtMs: number | null;\n  readonly status: AssetTaskStatus;\n  readonly diagnostic: { code?: string; message?: string } | null;\n  readonly bytesTransferred: number;\n  readonly totalBytes: number;\n  readonly previewUrl: string | null;\n  readonly integrityBasis: string;\n}",
+      "signature": "export interface AssetTaskSnapshot {\n  readonly assetId: string | null;\n  readonly assetRef: string | null;\n  readonly attemptId: string | null;\n  readonly attemptExpiresAtMs: number | null;\n  readonly status: AssetTaskStatus;\n  readonly diagnostic: AssetDiagnostic | null;\n  readonly bytesTransferred: number;\n  readonly totalBytes: number;\n  readonly previewUrl: string | null;\n  readonly integrityBasis: string;\n}",
       "overloads": [],
       "members": [
         {
@@ -68235,9 +69198,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 31,
+              "line": 40,
               "column": 3,
-              "endLine": 31
+              "endLine": 40
             }
           ]
         },
@@ -68254,9 +69217,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 32,
+              "line": 41,
               "column": 3,
-              "endLine": 32
+              "endLine": 41
             }
           ]
         },
@@ -68273,9 +69236,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 33,
+              "line": 42,
               "column": 3,
-              "endLine": 33
+              "endLine": 42
             }
           ]
         },
@@ -68292,9 +69255,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 34,
+              "line": 43,
               "column": 3,
-              "endLine": 34
+              "endLine": 43
             }
           ]
         },
@@ -68311,9 +69274,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 35,
+              "line": 44,
               "column": 3,
-              "endLine": 35
+              "endLine": 44
             }
           ]
         },
@@ -68321,7 +69284,7 @@
           "identity": "npm:@expo/snapback-expo#AssetTaskSnapshot.diagnostic",
           "name": "diagnostic",
           "kind": "property",
-          "signature": "readonly diagnostic: { code?: string; message?: string } | null;",
+          "signature": "readonly diagnostic: AssetDiagnostic | null;",
           "overloads": [],
           "documentation": {
             "text": "",
@@ -68330,9 +69293,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 36,
+              "line": 45,
               "column": 3,
-              "endLine": 36
+              "endLine": 45
             }
           ]
         },
@@ -68349,9 +69312,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 37,
+              "line": 46,
               "column": 3,
-              "endLine": 37
+              "endLine": 46
             }
           ]
         },
@@ -68368,9 +69331,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 38,
+              "line": 47,
               "column": 3,
-              "endLine": 38
+              "endLine": 47
             }
           ]
         },
@@ -68387,9 +69350,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 39,
+              "line": 48,
               "column": 3,
-              "endLine": 39
+              "endLine": 48
             }
           ]
         },
@@ -68406,9 +69369,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 40,
+              "line": 49,
               "column": 3,
-              "endLine": 40
+              "endLine": 49
             }
           ]
         }
@@ -68419,16 +69382,16 @@
       },
       "source": {
         "file": "packages/snapback-client/assets.d.mts",
-        "line": 30,
+        "line": 39,
         "column": 1,
-        "endLine": 41
+        "endLine": 50
       },
       "sources": [
         {
           "file": "packages/snapback-client/assets.d.mts",
-          "line": 30,
+          "line": 39,
           "column": 1,
-          "endLine": 41
+          "endLine": 50
         }
       ],
       "publicDeclaration": {
@@ -68736,9 +69699,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 51,
+              "line": 107,
               "column": 3,
-              "endLine": 51
+              "endLine": 107
             }
           ]
         },
@@ -68755,9 +69718,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 52,
+              "line": 108,
               "column": 3,
-              "endLine": 52
+              "endLine": 108
             }
           ]
         },
@@ -68774,9 +69737,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 53,
+              "line": 109,
               "column": 3,
-              "endLine": 53
+              "endLine": 109
             }
           ]
         },
@@ -68793,9 +69756,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 54,
+              "line": 110,
               "column": 3,
-              "endLine": 54
+              "endLine": 110
             }
           ]
         },
@@ -68812,9 +69775,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 55,
+              "line": 111,
               "column": 3,
-              "endLine": 55
+              "endLine": 111
             }
           ]
         },
@@ -68831,9 +69794,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 56,
+              "line": 112,
               "column": 3,
-              "endLine": 56
+              "endLine": 112
             }
           ]
         },
@@ -68850,9 +69813,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/assets.d.mts",
-              "line": 57,
+              "line": 113,
               "column": 3,
-              "endLine": 57
+              "endLine": 113
             }
           ]
         }
@@ -68863,16 +69826,16 @@
       },
       "source": {
         "file": "packages/snapback-client/assets.d.mts",
-        "line": 50,
+        "line": 106,
         "column": 1,
-        "endLine": 58
+        "endLine": 114
       },
       "sources": [
         {
           "file": "packages/snapback-client/assets.d.mts",
-          "line": 50,
+          "line": 106,
           "column": 1,
-          "endLine": 58
+          "endLine": 114
         }
       ],
       "publicDeclaration": {
@@ -85652,6 +86615,27 @@
       "ASSET_RECORD_LIVE_FUNCTION": [
         "npm:@expo/snapback-client/assets#ASSET_RECORD_LIVE_FUNCTION"
       ],
+      "AssetDiagnostic": [
+        "npm:@expo/snapback-client/assets#AssetDiagnostic"
+      ],
+      "AssetDiagnostic.schemaVersion": [
+        "npm:@expo/snapback-client/assets#AssetDiagnostic"
+      ],
+      "AssetDiagnostic.code": [
+        "npm:@expo/snapback-client/assets#AssetDiagnostic"
+      ],
+      "AssetDiagnostic.severity": [
+        "npm:@expo/snapback-client/assets#AssetDiagnostic"
+      ],
+      "AssetDiagnostic.message": [
+        "npm:@expo/snapback-client/assets#AssetDiagnostic"
+      ],
+      "AssetDiagnostic.details": [
+        "npm:@expo/snapback-client/assets#AssetDiagnostic"
+      ],
+      "AssetDiagnostic.index": [
+        "npm:@expo/snapback-client/assets#AssetDiagnostic"
+      ],
       "AssetFetch": [
         "npm:@expo/snapback-client/assets#AssetFetch"
       ],
@@ -85680,6 +86664,48 @@
         "npm:@expo/snapback-react#AssetFileLike",
         "npm:@expo/snapback-expo#AssetFileLike"
       ],
+      "AssetIssuedUrlSnapshot": [
+        "npm:@expo/snapback-client/assets#AssetIssuedUrlSnapshot"
+      ],
+      "AssetIssuedUrlSnapshot.url": [
+        "npm:@expo/snapback-client/assets#AssetIssuedUrlSnapshot"
+      ],
+      "AssetIssuedUrlSnapshot.status": [
+        "npm:@expo/snapback-client/assets#AssetIssuedUrlSnapshot"
+      ],
+      "AssetIssuedUrlSnapshot.diagnostic": [
+        "npm:@expo/snapback-client/assets#AssetIssuedUrlSnapshot"
+      ],
+      "AssetIssuedUrlStatus": [
+        "npm:@expo/snapback-client/assets#AssetIssuedUrlStatus"
+      ],
+      "AssetIssuedUrlStore": [
+        "npm:@expo/snapback-client/assets#AssetIssuedUrlStore"
+      ],
+      "AssetIssuedUrlStore.getSnapshot": [
+        "npm:@expo/snapback-client/assets#AssetIssuedUrlStore"
+      ],
+      "AssetIssuedUrlStore.getServerSnapshot": [
+        "npm:@expo/snapback-client/assets#AssetIssuedUrlStore"
+      ],
+      "AssetIssuedUrlStore.subscribe": [
+        "npm:@expo/snapback-client/assets#AssetIssuedUrlStore"
+      ],
+      "AssetIssuedUrlStore.refresh": [
+        "npm:@expo/snapback-client/assets#AssetIssuedUrlStore"
+      ],
+      "AssetPickerSource": [
+        "npm:@expo/snapback-client/assets#AssetPickerSource"
+      ],
+      "AssetPickerSource.uri": [
+        "npm:@expo/snapback-client/assets#AssetPickerSource"
+      ],
+      "AssetPickerSource.mimeType": [
+        "npm:@expo/snapback-client/assets#AssetPickerSource"
+      ],
+      "AssetPickerSource.fileName": [
+        "npm:@expo/snapback-client/assets#AssetPickerSource"
+      ],
       "AssetRecordWatchSnapshot": [
         "npm:@expo/snapback-client/assets#AssetRecordWatchSnapshot"
       ],
@@ -85706,6 +86732,30 @@
       ],
       "AssetRecordWatchStore.dispose": [
         "npm:@expo/snapback-client/assets#AssetRecordWatchStore"
+      ],
+      "AssetSignedUrlOptions": [
+        "npm:@expo/snapback-client/assets#AssetSignedUrlOptions"
+      ],
+      "AssetSignedUrlOptions.variant": [
+        "npm:@expo/snapback-client/assets#AssetSignedUrlOptions"
+      ],
+      "AssetSignedUrlOptions.widthPx": [
+        "npm:@expo/snapback-client/assets#AssetSignedUrlOptions"
+      ],
+      "AssetSignedUrlOptions.ttlMs": [
+        "npm:@expo/snapback-client/assets#AssetSignedUrlOptions"
+      ],
+      "AssetSignedUrlResult": [
+        "npm:@expo/snapback-client/assets#AssetSignedUrlResult"
+      ],
+      "AssetSignedUrlResult.url": [
+        "npm:@expo/snapback-client/assets#AssetSignedUrlResult"
+      ],
+      "AssetSignedUrlResult.expiresAt": [
+        "npm:@expo/snapback-client/assets#AssetSignedUrlResult"
+      ],
+      "AssetSignedUrlResult.variant": [
+        "npm:@expo/snapback-client/assets#AssetSignedUrlResult"
       ],
       "AssetTaskSnapshot": [
         "npm:@expo/snapback-client/assets#AssetTaskSnapshot",
@@ -85806,6 +86856,9 @@
       "AssetUploadReferenceLike.implementationHash": [
         "npm:@expo/snapback-client/assets#AssetUploadReferenceLike"
       ],
+      "AssetUploadSource": [
+        "npm:@expo/snapback-client/assets#AssetUploadSource"
+      ],
       "AssetUploadTask": [
         "npm:@expo/snapback-client/assets#AssetUploadTask",
         "npm:@expo/snapback-client/commands#AssetUploadTask",
@@ -85854,6 +86907,21 @@
         "npm:@expo/snapback-react#AssetUploadTask",
         "npm:@expo/snapback-expo#AssetUploadTask"
       ],
+      "AssetUploadTerminalError": [
+        "npm:@expo/snapback-client/assets#AssetUploadTerminalError"
+      ],
+      "AssetUploadTerminalError.code": [
+        "npm:@expo/snapback-client/assets#AssetUploadTerminalError"
+      ],
+      "AssetUploadTerminalError.status": [
+        "npm:@expo/snapback-client/assets#AssetUploadTerminalError"
+      ],
+      "AssetUploadTerminalError.terminalStatus": [
+        "npm:@expo/snapback-client/assets#AssetUploadTerminalError"
+      ],
+      "AssetUploadTerminalError.diagnostic": [
+        "npm:@expo/snapback-client/assets#AssetUploadTerminalError"
+      ],
       "createMemoryAssetTaskStore": [
         "npm:@expo/snapback-client/assets#createMemoryAssetTaskStore"
       ],
@@ -85893,6 +86961,9 @@
       "SnapbackAssetClient.resumePersisted": [
         "npm:@expo/snapback-client/assets#SnapbackAssetClient"
       ],
+      "SnapbackAssetClient.upload": [
+        "npm:@expo/snapback-client/assets#SnapbackAssetClient"
+      ],
       "SnapbackAssetClient.record": [
         "npm:@expo/snapback-client/assets#SnapbackAssetClient"
       ],
@@ -85903,6 +86974,12 @@
         "npm:@expo/snapback-client/assets#SnapbackAssetClient"
       ],
       "SnapbackAssetClient.publicDeliveryUrl": [
+        "npm:@expo/snapback-client/assets#SnapbackAssetClient"
+      ],
+      "SnapbackAssetClient.signedUrl": [
+        "npm:@expo/snapback-client/assets#SnapbackAssetClient"
+      ],
+      "SnapbackAssetClient.issuedUrlStore": [
         "npm:@expo/snapback-client/assets#SnapbackAssetClient"
       ],
       "SnapbackAssetClient.watchStore": [

@@ -2,8 +2,8 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "commit": "cce8567305444813e3965ff19aa818263d85e275",
-    "sourceDigest": "sha256:f7be33c75bbfb2de3390b586b6a8dea9163316597814d456bfac794d9d5af05b"
+    "commit": "bedaeae4ac9813ec6c1d708250e2d9a78f09e2a8",
+    "sourceDigest": "sha256:c4b3a54d813114df747d137af8d152e4496c63cf2c19e9a7c89ffc650655cf4a"
   },
   "limits": {
     "lookupBytes": 16384
@@ -11,7 +11,7 @@
   "counts": {
     "codes": 2719,
     "sourceFiles": 370,
-    "emittingSites": 9078,
+    "emittingSites": 9083,
     "httpClassified": 781,
     "guideAnchored": 315
   },
@@ -8559,7 +8559,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/assets.mjs",
-          "line": 464,
+          "line": 475,
+          "column": 20
+        },
+        {
+          "file": "packages/snapback-client/assets.mjs",
+          "line": 798,
           "column": 16
         }
       ],
@@ -9616,6 +9621,11 @@
       "subsystem": "assets",
       "sites": [
         {
+          "file": "packages/snapback-client/assets.mjs",
+          "line": 262,
+          "column": 12
+        },
+        {
           "file": "src/local.rs",
           "line": 8330,
           "column": 18
@@ -10191,8 +10201,13 @@
       "sites": [
         {
           "file": "packages/snapback-client/assets.mjs",
-          "line": 226,
+          "line": 235,
           "column": 31
+        },
+        {
+          "file": "packages/snapback-client/assets.mjs",
+          "line": 254,
+          "column": 54
         }
       ],
       "httpStatus": null,
@@ -24112,12 +24127,22 @@
         },
         {
           "file": "packages/snapback-client/assets.mjs",
-          "line": 396,
+          "line": 730,
           "column": 25
         },
         {
           "file": "packages/snapback-client/assets.mjs",
-          "line": 420,
+          "line": 754,
+          "column": 21
+        },
+        {
+          "file": "packages/snapback-client/assets.mjs",
+          "line": 816,
+          "column": 23
+        },
+        {
+          "file": "packages/snapback-client/assets.mjs",
+          "line": 831,
           "column": 21
         },
         {
