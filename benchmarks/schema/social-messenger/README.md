@@ -1,0 +1,48 @@
+# social-messenger scoring manifests and record schema
+
+**Provenance:** LLP 0201 P1 (D2/D3/D4), per
+`benchmarks/tools/social-messenger/CONTRACT.md`; authority:
+`benchmarks/briefs/social-messenger.md` and
+`llp/0201-social-messenger-canonical-benchmark.plan.md`. **Version:**
+`VERSION` (`0.1.0-p1` — DRAFT until the P3 freeze).
+
+- `assertions.json` — assertion-ID manifest: 43 checklist items
+  (M1:7 M2:8 M3:7 M4:5 M5:5 M6:6 M7:5) split into 98 atomic
+  assertions with stable IDs and one executor class each.
+- `applicability.json` — the 16 rubric dimensions (45/55 weight
+  split), observing milestones, applicability predicates,
+  complete-lane enumeration, usable-grading-record gate.
+- `run-record-extension.schema.json` — the social-messenger extension
+  over `benchmarks/schema/run-record.schema.json` (per-milestone
+  phases/statuses/charging, separate clocks, compaction, replay and
+  probe results with O5 band inputs, grading pointers).
+
+The grader-side half of the instrument (frozen prompt, report schema,
+calibration plan, probe machinery) lives in
+`benchmarks/tools/social-messenger/grader/` — its README ties the two
+directories together.
+
+## Ambiguity log (P1 authoring decisions to confirm at P3)
+
+Places where the brief under-determines a classification; each was
+resolved explicitly here rather than silently:
+
+1. **App-restart assertions (m1-a05, m1-a06):** the brief defines
+   `[choreo]` as "two-client and simulator behavior"; kill/relaunch is
+   single-client lifecycle behavior. Classified `choreo` (the harness
+   choreography drives client lifecycle), not suite.
+2. **M5 item 1's client-purge clauses (m5-a02, m5-a03):** the item is
+   tagged `[grader]`, but purge-on-reconnect is client behavior; kept
+   `grader` per the tag, verified by the grader via web automation.
+3. **M6 item 6 (m6-a13):** "harness-validated" conformance check yet
+   "inside M6's coverage manifest"; classified `suite-required` with a
+   harness-validated receipt noted.
+4. **m3-a11 (tap quoted excerpt jumps):** single-client UI
+   interaction; classified `suite-required`, not choreo.
+5. **m3-a13 (removed member keeps local history):** client-local
+   observation on the removed member's client; classified `choreo`.
+6. **Status naming:** the brief's `blocked-by-M{n}` is rendered as
+   status `blocked` plus a `blockedBy` set in the record schema (the
+   lowest member is the headline `n`), per the extension's task shape.
+7. **Termination reason:** the brief pins the field but not a value
+   enumeration; the schema takes a free string with suggested values.

@@ -1,0 +1,256 @@
+{
+  "format": "social-messenger-action-schema",
+  "title": "Social-messenger action-log grammar",
+  "schemaVersion": "0.1.0-p1",
+  "lineSyntax": "<ISO8601> <actor> <verb> <args...>",
+  "timestampSemantics": "Documentary only. Replay order and server arrival time are authoritative.",
+  "settleSemantics": "The adapter MUST await an authoritative receipt for one action before proceeding. Only an authoritative success permits the next action; a terminal failure ends replay and is reported.",
+  "lexicalGrammar": {
+    "separator": "one or more ASCII spaces or tabs",
+    "quotedString": "JSON string literal, including JSON backslash escapes; all free text arguments MUST be quoted",
+    "bareToken": "a non-empty sequence containing no ASCII whitespace or double quote",
+    "blankLines": "forbidden",
+    "checkpointMarkers": [
+      "# checkpoint 10%",
+      "# checkpoint 50%"
+    ],
+    "checkpointSemantics": "A marker is not an action. Settle all preceding actions, pause replay, verify its checkpoint manifest and run probes, then resume with the following action."
+  },
+  "types": {
+    "actorId": {
+      "pattern": "^[a-z][a-z0-9-]{0,95}$"
+    },
+    "entityId": {
+      "pattern": "^[a-z][a-z0-9-]{0,95}$"
+    },
+    "email": {
+      "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+    },
+    "handle": {
+      "pattern": "^[a-z0-9_]{3,20}$"
+    },
+    "url": {
+      "pattern": "^https?://[^\\s]+$"
+    },
+    "password": {
+      "minLength": 8
+    },
+    "mutationId": {
+      "pattern": "^[a-z][a-z0-9-]{0,95}$"
+    },
+    "mediaPath": {
+      "pattern": "^media/(?:img-0[1-6]|avatar-alice|avatar-bob)\\.png$|^media/vid-01\\.mp4$"
+    },
+    "imageList": {
+      "separator": ",",
+      "minItems": 1,
+      "maxItems": 4,
+      "itemPattern": "^media/(?:img-0[1-6]|avatar-alice|avatar-bob)\\.png$"
+    }
+  },
+  "verbs": [
+    {
+      "name": "register",
+      "variants": [
+        {
+          "arguments": [
+            { "name": "email", "type": "email" },
+            { "name": "password", "type": "password", "quoted": true }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "profile-set",
+      "variants": [
+        {
+          "arguments": [
+            { "name": "displayName", "type": "string", "quoted": true, "minLength": 1, "maxLength": 50 },
+            { "name": "handle", "type": "handle" },
+            { "name": "bio", "type": "string", "quoted": true, "maxLength": 200 },
+            { "name": "location", "type": "string", "quoted": true, "maxLength": 50 },
+            { "name": "link", "type": "url" },
+            { "name": "avatar", "type": "mediaPath", "extensions": [".png"] }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "follow",
+      "setState": true,
+      "variants": [
+        {
+          "arguments": [
+            { "name": "targetUserId", "type": "entityId" },
+            { "name": "state", "type": "enum", "values": ["set", "clear"] },
+            { "name": "mutationId", "type": "mutationId" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "post",
+      "variants": [
+        {
+          "name": "text",
+          "arguments": [
+            { "name": "postId", "type": "entityId" },
+            { "name": "postType", "type": "enum", "values": ["text"] },
+            { "name": "text", "type": "string", "quoted": true, "maxLength": 500 }
+          ]
+        },
+        {
+          "name": "images",
+          "arguments": [
+            { "name": "postId", "type": "entityId" },
+            { "name": "postType", "type": "enum", "values": ["images"] },
+            { "name": "text", "type": "string", "quoted": true, "maxLength": 500 },
+            { "name": "images", "type": "imageList" }
+          ]
+        },
+        {
+          "name": "video",
+          "arguments": [
+            { "name": "postId", "type": "entityId" },
+            { "name": "postType", "type": "enum", "values": ["video"] },
+            { "name": "text", "type": "string", "quoted": true, "maxLength": 500 },
+            { "name": "video", "type": "mediaPath", "extensions": [".mp4"] }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "like",
+      "setState": true,
+      "variants": [
+        {
+          "arguments": [
+            { "name": "postId", "type": "entityId" },
+            { "name": "state", "type": "enum", "values": ["set", "clear"] },
+            { "name": "mutationId", "type": "mutationId" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "repost",
+      "setState": true,
+      "variants": [
+        {
+          "arguments": [
+            { "name": "postId", "type": "entityId" },
+            { "name": "state", "type": "enum", "values": ["set", "clear"] },
+            { "name": "mutationId", "type": "mutationId" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "reply",
+      "variants": [
+        {
+          "arguments": [
+            { "name": "replyId", "type": "entityId" },
+            { "name": "parentPostId", "type": "entityId" },
+            { "name": "text", "type": "string", "quoted": true, "maxLength": 500 }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "dm-create",
+      "variants": [
+        {
+          "arguments": [
+            { "name": "conversationId", "type": "entityId" },
+            { "name": "otherUserId", "type": "entityId" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "group-create",
+      "variants": [
+        {
+          "arguments": [
+            { "name": "conversationId", "type": "entityId" },
+            { "name": "secondMemberUserId", "type": "entityId" },
+            { "name": "name", "type": "string", "quoted": true, "minLength": 1, "maxLength": 50 },
+            { "name": "description", "type": "string", "quoted": true, "maxLength": 200 }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "member-add",
+      "variants": [
+        {
+          "arguments": [
+            { "name": "conversationId", "type": "entityId" },
+            { "name": "memberUserId", "type": "entityId" },
+            { "name": "mutationId", "type": "mutationId" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "send",
+      "variants": [
+        {
+          "arguments": [
+            { "name": "messageId", "type": "entityId" },
+            { "name": "conversationId", "type": "entityId" },
+            { "name": "text", "type": "string", "quoted": true, "maxLength": 2000 },
+            { "name": "quote", "type": "option", "prefix": "quote=", "valueType": "entityId", "optional": true }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "send-media",
+      "variants": [
+        {
+          "arguments": [
+            { "name": "messageId", "type": "entityId" },
+            { "name": "conversationId", "type": "entityId" },
+            { "name": "mediaType", "type": "enum", "values": ["image", "video"] },
+            { "name": "media", "type": "mediaPath" },
+            { "name": "caption", "type": "string", "quoted": true, "maxLength": 500 },
+            { "name": "mode", "type": "enum", "values": ["normal", "view-once"] }
+          ],
+          "constraints": [
+            {
+              "kind": "extensionByEnum",
+              "enumArgument": "mediaType",
+              "pathArgument": "media",
+              "extensions": {
+                "image": [".png"],
+                "video": [".mp4"]
+              }
+            },
+            {
+              "kind": "forbidPair",
+              "firstArgument": "mediaType",
+              "firstValue": "video",
+              "secondArgument": "mode",
+              "secondValue": "view-once"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "react",
+      "setState": true,
+      "variants": [
+        {
+          "arguments": [
+            { "name": "messageId", "type": "entityId" },
+            { "name": "emojiOrNone", "type": "string", "quoted": true, "semantics": "Use the exact string none to clear; any other single emoji sets/replaces the actor's reaction." },
+            { "name": "mutationId", "type": "mutationId" }
+          ]
+        }
+      ]
+    }
+  ]
+}

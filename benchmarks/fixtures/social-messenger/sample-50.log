@@ -1,0 +1,50 @@
+2026-01-01T00:00:00Z sample-a register sample-a@example.com "Sample!Clique2026"
+2026-01-01T00:00:01Z sample-a profile-set "Sample Ada" sama "Conformance profile sample-a." "Fixture City" https://example.com/sample-a media/avatar-alice.png
+2026-01-01T00:00:02Z sample-b register sample-b@example.com "Sample!Clique2026"
+2026-01-01T00:00:03Z sample-b profile-set "Sample Ben" samb "Conformance profile sample-b." "Fixture City" https://example.com/sample-b media/avatar-bob.png
+2026-01-01T00:00:04Z sample-c register sample-c@example.com "Sample!Clique2026"
+2026-01-01T00:00:05Z sample-c profile-set "Sample Cora" samc "Conformance profile sample-c." "Fixture City" https://example.com/sample-c media/avatar-alice.png
+2026-01-01T00:00:06Z sample-d register sample-d@example.com "Sample!Clique2026"
+2026-01-01T00:00:07Z sample-d profile-set "Sample Dev" samd "Conformance profile sample-d." "Fixture City" https://example.com/sample-d media/avatar-bob.png
+2026-01-01T00:00:08Z sample-a follow sample-b set sample-mut-follow-01
+2026-01-01T00:00:09Z sample-a follow sample-c set sample-mut-follow-02
+2026-01-01T00:00:10Z sample-a follow sample-c clear sample-mut-follow-03
+2026-01-01T00:00:11Z sample-d follow sample-a set sample-mut-follow-04
+2026-01-01T00:00:12Z sample-a post sample-post-01 text "Coffee conformance text."
+2026-01-01T00:00:13Z sample-b post sample-post-02 images "One image." media/img-01.png
+2026-01-01T00:00:14Z sample-c post sample-post-03 images "Four images." media/img-02.png,media/img-03.png,media/img-04.png,media/img-05.png
+2026-01-01T00:00:15Z sample-d post sample-post-04 video "Video conformance." media/vid-01.mp4
+2026-01-01T00:00:16Z sample-a post sample-post-05 text "Second text post."
+2026-01-01T00:00:17Z sample-b post sample-post-06 text "Third text post."
+2026-01-01T00:00:18Z sample-c post sample-post-07 images "Two images." media/img-05.png,media/img-06.png
+2026-01-01T00:00:19Z sample-d post sample-post-08 video "Second video." media/vid-01.mp4
+2026-01-01T00:00:20Z sample-b like sample-post-01 set sample-mut-like-01
+2026-01-01T00:00:21Z sample-c like sample-post-01 set sample-mut-like-02
+2026-01-01T00:00:22Z sample-b like sample-post-01 clear sample-mut-like-03
+2026-01-01T00:00:23Z sample-d like sample-post-04 set sample-mut-like-04
+2026-01-01T00:00:24Z sample-b repost sample-post-01 set sample-mut-repost-01
+2026-01-01T00:00:25Z sample-b repost sample-post-01 clear sample-mut-repost-02
+2026-01-01T00:00:26Z sample-c repost sample-post-04 set sample-mut-repost-03
+2026-01-01T00:00:27Z sample-b reply sample-reply-01 sample-post-01 "First reply."
+2026-01-01T00:00:28Z sample-c reply sample-reply-02 sample-post-01 "Second reply."
+2026-01-01T00:00:29Z sample-d reply sample-reply-03 sample-post-04 "Video reply."
+2026-01-01T00:00:30Z sample-a reply sample-reply-04 sample-post-06 "Final reply."
+2026-01-01T00:00:31Z sample-a dm-create sample-dm-01 sample-b
+2026-01-01T00:00:32Z sample-a group-create sample-group-01 sample-b "Conformance Group" "Every messaging verb."
+2026-01-01T00:00:33Z sample-a member-add sample-group-01 sample-c sample-mut-member-01
+2026-01-01T00:00:34Z sample-a member-add sample-group-01 sample-d sample-mut-member-02
+2026-01-01T00:00:35Z sample-a send sample-msg-01 sample-dm-01 "DM one."
+2026-01-01T00:00:36Z sample-b send sample-msg-02 sample-dm-01 "DM quoted." quote=sample-msg-01
+2026-01-01T00:00:37Z sample-a send sample-msg-03 sample-group-01 "Group one."
+2026-01-01T00:00:38Z sample-c send sample-msg-04 sample-group-01 "Group quoted." quote=sample-msg-03
+2026-01-01T00:00:39Z sample-d send sample-msg-05 sample-group-01 "Group plain."
+2026-01-01T00:00:40Z sample-b send sample-msg-06 sample-group-01 "Another plain message."
+2026-01-01T00:00:41Z sample-a send sample-msg-07 sample-group-01 "Final quoted message." quote=sample-msg-06
+2026-01-01T00:00:42Z sample-a send-media sample-msg-08 sample-dm-01 image media/img-03.png "Normal photo." normal
+2026-01-01T00:00:43Z sample-b send-media sample-msg-09 sample-dm-01 image media/img-04.png "View once." view-once
+2026-01-01T00:00:44Z sample-c send-media sample-msg-10 sample-group-01 video media/vid-01.mp4 "Normal video." normal
+2026-01-01T00:00:45Z sample-b react sample-msg-01 "👍" sample-mut-react-01
+2026-01-01T00:00:46Z sample-b react sample-msg-01 "❤️" sample-mut-react-02
+2026-01-01T00:00:47Z sample-b react sample-msg-01 "none" sample-mut-react-03
+2026-01-01T00:00:48Z sample-c react sample-msg-03 "🎉" sample-mut-react-04
+2026-01-01T00:00:49Z sample-d react sample-msg-03 "🎉" sample-mut-react-05

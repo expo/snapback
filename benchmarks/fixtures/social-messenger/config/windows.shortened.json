@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "profile": "shortened-grading",
+  "editWindowSeconds": 60,
+  "deleteForEveryoneWindowSeconds": 120,
+  "disappearingOptions": [
+    {
+      "value": "off",
+      "label": "Off",
+      "ttlSeconds": null
+    },
+    {
+      "value": "24h",
+      "label": "24 hours (3 minutes in grading)",
+      "ttlSeconds": 180
+    },
+    {
+      "value": "7d",
+      "label": "7 days (5 minutes in grading)",
+      "ttlSeconds": 300
+    }
+  ],
+  "serverTimeAuthoritative": true
+}

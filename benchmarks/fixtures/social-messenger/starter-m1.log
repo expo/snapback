@@ -1,0 +1,16 @@
+2026-01-01T00:00:00Z alice register alice@example.com "Alice!Clique2026"
+2026-01-01T00:00:01Z alice profile-set "Alice Alvarez" alice "Coffee, cameras, and neighborhood walks." "Oakland, CA" https://example.com/alice media/avatar-alice.png
+2026-01-01T00:00:02Z bob register bob@example.com "Bob!Clique2026"
+2026-01-01T00:00:03Z bob profile-set "Bob Bennett" bob "Bikes, bread, and tiny software tools." "Berkeley, CA" https://example.com/bob media/avatar-bob.png
+2026-01-01T00:00:04Z carol register carol@example.com "Carol!Clique2026"
+2026-01-01T00:00:05Z carol profile-set "Carol Chen" carol "Ceramics student and relentless list maker." "San Francisco, CA" https://example.com/carol media/avatar-alice.png
+2026-01-01T00:00:06Z dave register dave@example.com "Dave!Clique2026"
+2026-01-01T00:00:07Z dave profile-set "Dave Diaz" dave "Live music, trail maps, and spicy noodles." "Portland, OR" https://example.com/dave media/avatar-bob.png
+2026-01-01T00:00:08Z erin register erin@example.com "Erin!Clique2026"
+2026-01-01T00:00:09Z erin profile-set "Erin Evans" erin "Designing kinder interfaces and growing herbs." "Seattle, WA" https://example.com/erin media/avatar-alice.png
+2026-01-01T00:00:10Z frank register frank@example.com "Frank!Clique2026"
+2026-01-01T00:00:11Z frank profile-set "Frank Flores" frank "Weekend cook and weekday data wrangler." "Austin, TX" https://example.com/frank media/avatar-bob.png
+2026-01-01T00:00:12Z grace register grace@example.com "Grace!Clique2026"
+2026-01-01T00:00:13Z grace profile-set "Grace Green" grace "Gardens, graphic novels, and good questions." "Chicago, IL" https://example.com/grace media/avatar-alice.png
+2026-01-01T00:00:14Z henry register henry@example.com "Henry!Clique2026"
+2026-01-01T00:00:15Z henry profile-set "Henry Hall" henry "History podcasts and pickup basketball." "Brooklyn, NY" https://example.com/henry media/avatar-bob.png

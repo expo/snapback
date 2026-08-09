@@ -1,0 +1,245 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://snapback.dev/benchmarks/social-messenger/grader-report.schema.json",
+  "title": "social-messenger grader report",
+  "description": "One grading session's machine record (LLP 0201 D3; LLP 0197 rules 4 and 12: severity-bucketed defect list, probe results, and O-dimension scores as schema-valid machine records). Produced by the frozen grader prompt (grader-prompt.md); referenced from the lane run record's grading.graderReportPath. The published companion artifact is the sanitized evidence/action trace; raw grader transcripts are never published.",
+  "type": "object",
+  "required": [
+    "reportVersion",
+    "lane",
+    "wave",
+    "grader",
+    "assertionResults",
+    "coverageSpotVerification",
+    "defects",
+    "probeResults",
+    "oDimensionScores"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "reportVersion": {
+      "const": 1,
+      "description": "Version of this report schema."
+    },
+    "lane": {
+      "type": "object",
+      "description": "Which lane run this report grades.",
+      "required": ["backend", "runRecordPath", "runScope"],
+      "additionalProperties": false,
+      "properties": {
+        "backend": { "type": "string" },
+        "runRecordPath": { "type": "string" },
+        "runScope": { "enum": ["reduced", "full"] }
+      }
+    },
+    "wave": {
+      "type": "object",
+      "description": "Wave identity and probe-set custody pins.",
+      "required": ["id", "probeSetSha256"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "probeSetSha256": {
+          "type": "string",
+          "description": "The sha256 committed before the wave's first lane started (probes/rotation-log.md is the custody log)."
+        }
+      }
+    },
+    "grader": {
+      "type": "object",
+      "description": "Grader identity and abort accounting per D3.4.",
+      "required": ["family", "model", "sameFamilyGraded", "calibrationPassed", "sessionOutcome"],
+      "additionalProperties": false,
+      "properties": {
+        "family": { "type": "string", "description": "Grading model family; normally the other scored family than the builder's." },
+        "model": { "type": "string", "description": "Exact pinned model identifier." },
+        "sameFamilyGraded": {
+          "type": "boolean",
+          "description": "True when this is the abort-fallback regrade by the builder's own family; carried into the record and any publication."
+        },
+        "calibrationPassed": {
+          "type": "boolean",
+          "description": "This family passed the calibration gate (calibration.md) before this wave; an ineligible family's grade is not usable."
+        },
+        "sessionOutcome": {
+          "enum": ["completed", "grader-abort"],
+          "description": "grader-abort = the grader's own environment/tooling failed twice (one re-run allowed); not a lane defect."
+        },
+        "rerunsUsed": { "type": ["integer", "null"], "minimum": 0, "maximum": 1 },
+        "contaminated": {
+          "type": ["boolean", "null"],
+          "description": "True if excluded builder context (diary, self-scores, transcript) reached the grader; the wave orchestrator reassigns the grade."
+        }
+      }
+    },
+    "assertionManifest": {
+      "type": "object",
+      "description": "Pin of the assertions.json version the results key against.",
+      "additionalProperties": false,
+      "properties": {
+        "path": { "type": "string" },
+        "version": { "type": ["string", "null"] },
+        "sha256": { "type": ["string", "null"] }
+      }
+    },
+    "assertionResults": {
+      "type": "object",
+      "description": "Per-assertion results keyed by stable assertion ID from benchmarks/schema/social-messenger/assertions.json (e.g. 'm1-a01'). Every assertion in the run's scope must appear; assertions of never-attempted milestones record not-run (they still score not-passed in O1's denominator).",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^m[1-7]-a[0-9]{2}$": {
+          "type": "object",
+          "required": ["result", "method"],
+          "additionalProperties": false,
+          "properties": {
+            "result": {
+              "enum": ["pass", "fail", "not-run", "not-applicable"],
+              "description": "pass/fail from independent execution; not-run when the milestone was never attempted or the assertion's precondition never existed; not-applicable for run-scope exclusions (e.g. a full-only assertion on a reduced run) and M7's conditional regression assertion where no milestone was previously green."
+            },
+            "method": {
+              "enum": ["builder-suite", "api", "web-automation", "source-inspection", "choreography-artifacts", "snapshot-comparison"],
+              "description": "How the grader verified it. [choreo] assertions are scored from harness recordings/receipts (choreography-artifacts), never re-driven by the grader."
+            },
+            "suiteResult": {
+              "type": ["string", "null"],
+              "enum": ["pass", "fail", "not-covered", null],
+              "description": "What the builder's suite reported for this assertion, when suite-required; divergence between suiteResult and result is evidence for the spot-verification verdict."
+            },
+            "evidence": { "type": "string", "description": "Pointer into the sanitized evidence/action trace." },
+            "bestOf3Ms": {
+              "type": ["array", "null"],
+              "items": { "type": "number", "minimum": 0 },
+              "minItems": 3,
+              "maxItems": 3,
+              "description": "For timing-sensitive assertions: the three measurements (ms); the best is judged against the bound."
+            },
+            "note": { "type": "string" }
+          }
+        }
+      }
+    },
+    "coverageSpotVerification": {
+      "type": "object",
+      "description": "Spot-verification of the lane's coverage manifest (suite-required assertion -> test mapping). A dishonest mapping adjudicates the milestone to capability-failure - scoring-only, non-retroactive; the harness applies the recharge.",
+      "required": ["verdict", "sampledAssertionIds"],
+      "additionalProperties": false,
+      "properties": {
+        "verdict": {
+          "enum": ["honest", "dishonest", "not-checked"],
+          "description": "not-checked is legal only when no milestone produced a suite pass to verify."
+        },
+        "sampledAssertionIds": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "The suite-required assertion IDs whose mappings were sampled."
+        },
+        "dishonestMilestones": {
+          "type": "array",
+          "items": { "enum": ["M1", "M2", "M3", "M4", "M5", "M6", "M7"] },
+          "description": "Milestones whose mapping was found dishonest (each adjudicates to capability-failure)."
+        },
+        "detail": { "type": "string" }
+      }
+    },
+    "defects": {
+      "type": "array",
+      "description": "Severity-bucketed defects found beyond the checklist (O2's input). MATERIAL, for calibration and the grader-noise trigger, means blocker or major.",
+      "items": {
+        "type": "object",
+        "required": ["id", "severity", "summary", "evidence"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "description": "Report-local defect id, e.g. 'd-01'." },
+          "severity": { "enum": ["blocker", "major", "minor", "cosmetic"] },
+          "summary": { "type": "string" },
+          "milestone": { "type": ["string", "null"], "enum": ["M1", "M2", "M3", "M4", "M5", "M6", "M7", null] },
+          "evidence": { "type": "string", "description": "Evidence pointer: API transcript span, screenshot, receipt, or source location in the sanitized trace." },
+          "relatedAssertionIds": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "probeResults": {
+      "type": "array",
+      "description": "Holdout-probe results by category (D3.5). Anchor probes appear with anchor=true and never bear on O3/O5 - they are published continuity diagnostics.",
+      "items": {
+        "type": "object",
+        "required": ["probeId", "category", "kind", "outcome", "anchor", "evidence"],
+        "additionalProperties": false,
+        "properties": {
+          "probeId": { "type": "string" },
+          "category": { "type": "string", "description": "A published category from probes/categories.md." },
+          "kind": { "enum": ["trust-boundary", "performance"] },
+          "outcome": {
+            "enum": ["pass", "fail", "not-passed-never-built", "excluded-with-note"],
+            "description": "The preregistered never-built rule's outcome values, frozen with the probe set: a probe whose target behavior a failed milestone never built scores not-passed-never-built or excluded-with-note per that rule."
+          },
+          "anchor": { "type": "boolean", "description": "True for the category's unchanged cross-wave anchor (non-scored)." },
+          "checkpoint": { "type": ["string", "null"], "enum": ["10%", "50%", "100%", null], "description": "Performance probes: which checkpoint size." },
+          "p95Ms": { "type": ["number", "null"], "minimum": 0 },
+          "ceilingUtilization": { "type": ["number", "null"], "minimum": 0 },
+          "evidence": { "type": "string" },
+          "note": { "type": "string", "description": "Required in substance when outcome is excluded-with-note." }
+        }
+      }
+    },
+    "oDimensionScores": {
+      "type": "object",
+      "description": "Grader-scored outcome dimensions per applicability.json (weights O1:13 O2:7 O3:8 O4:9 O5:8). Non-applicable dimensions record null; the dual grader-abort outcome nulls all five regardless of applicability.",
+      "required": ["O1", "O2", "O3", "O4", "O5"],
+      "additionalProperties": false,
+      "properties": {
+        "O1": { "$ref": "#/$defs/anchoredScore" },
+        "O2": { "$ref": "#/$defs/anchoredScore" },
+        "O3": { "$ref": "#/$defs/anchoredScore" },
+        "O4": { "$ref": "#/$defs/anchoredScore" },
+        "O5": {
+          "type": ["object", "null"],
+          "description": "O5 is band-mapped from the exact function's inputs (run record performanceProbes.o5Inputs), never interpolated.",
+          "required": ["band", "bandRationale"],
+          "additionalProperties": false,
+          "properties": {
+            "band": { "enum": [0, 30, 60, 75, 90] },
+            "bandRationale": { "type": "string", "description": "Which first-match branch (order 0, 30, 60, 90, 75) fired and on which inputs." }
+          }
+        }
+      }
+    },
+    "timingRecords": {
+      "type": "array",
+      "description": "Best-of-3 records for every timing-sensitive check judged under grader execution (duplicates the per-assertion bestOf3Ms where an assertion exists; standalone entries cover timing checks made during probing).",
+      "items": {
+        "type": "object",
+        "required": ["subject", "measurementsMs", "bestMs", "boundMs", "passed"],
+        "additionalProperties": false,
+        "properties": {
+          "subject": { "type": "string", "description": "Assertion ID or probe ID." },
+          "measurementsMs": { "type": "array", "items": { "type": "number", "minimum": 0 }, "minItems": 3, "maxItems": 3 },
+          "bestMs": { "type": "number", "minimum": 0 },
+          "boundMs": { "type": ["number", "null"], "minimum": 0 },
+          "passed": { "type": "boolean" }
+        }
+      }
+    },
+    "evidenceTracePath": {
+      "type": ["string", "null"],
+      "description": "Path to the sanitized evidence/action trace - the published artifact. Raw transcripts are never published (LLP 0197 redaction posture, LLP 0198 rule)."
+    },
+    "notes": { "type": "string" }
+  },
+  "$defs": {
+    "anchoredScore": {
+      "type": ["object", "null"],
+      "description": "A 0-100 dimension score with the rubric anchors cited (~30/~60/~90 interpolation). Null when the dimension is not applicable for this run.",
+      "required": ["score", "anchorsCited", "justification"],
+      "additionalProperties": false,
+      "properties": {
+        "score": { "type": "number", "minimum": 0, "maximum": 100 },
+        "anchorsCited": {
+          "type": "string",
+          "description": "The anchor text interpolated against, quoted or referenced (e.g. 'between 60 and 90: M1-M4 solid, M5 patchy')."
+        },
+        "justification": { "type": "string", "description": "Concrete evidence pointers supporting the placement." }
+      }
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "templateVersion": "0.1.0-p1",
+  "description": "Planted-defect manifest template for one grader-calibration artifact (see calibration.md). Instantiated at P2 from the pilot artifact; withheld from the grader during calibration; published with the calibration records. The known-good artifact's manifest has an empty plantedDefects array.",
+  "artifact": {
+    "kind": "known-good | known-bad | authorization-broken",
+    "baseArtifact": "pointer to the P2 pilot artifact commit/build this was derived from",
+    "derivationNotes": "minimal, manifest-recorded edits applied to the base"
+  },
+  "plantedDefects": [
+    {
+      "id": "pd-01",
+      "category": "functional | data | authorization | performance",
+      "milestone": "M1..M7",
+      "violatesAssertionIds": ["m3-a08"],
+      "plantedEdit": "file/behavior description of the edit that introduced the defect",
+      "expectedMinimumSeverity": "blocker | major | minor | cosmetic",
+      "material": true,
+      "detectionThreshold": "what a grader report must contain for this to count as detected: a failing result on a listed assertion ID, a failing probe in a named category, or a defect entry whose summary identifies this behavior",
+      "notes": "optional"
+    }
+  ],
+  "adjudications": [
+    {
+      "findingRef": "grader-report defect id",
+      "family": "which grader family filed it",
+      "ruling": "planting-error | upheld",
+      "adjudicator": "author",
+      "date": "YYYY-MM-DD",
+      "notes": "a planting-error ruling amends the artifact and this manifest"
+    }
+  ]
+}
