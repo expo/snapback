@@ -5,8 +5,9 @@
         BEFORE_QUERY_RESULT_HANDOFF_HOOK, DetachedIbexMutation, DetachedMutationRead,
         DiagnosticBoundary, EnsureAppMode, FAIL_NEXT_ADDITIONAL_JOB_ADMISSION,
         FAIL_NEXT_LIVE_SCOPE_REGISTRATION, FAIL_NEXT_SCOPE_RETIREMENT_AUTH,
-        INJECT_NEXT_PUBLICATION_WARNING, LiveInvalidationAdmission, LiveResumeInput,
-        LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, MAX_LIVE_SUBSCRIPTIONS,
+        FinalizePreflightV1, INJECT_NEXT_PUBLICATION_WARNING, LiveInvalidationAdmission,
+        LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback,
+        MAX_LIVE_SUBSCRIPTIONS,
         MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION, MY_MEMBERSHIPS_LIVE_FUNCTION, MaintenanceOperation,
         PublicInspect, RetryEpisodeKey, RetryReservationKind, SnapbackError, SnapbackResult,
         StagedMutationExecution, StagedNestedMutation, StagedRecordedMutation,
@@ -1552,7 +1553,8 @@ globalThis.__snapbackHandlers = {
             .expect("delete tombstones");
         let source_generation = source
             .db
-            .asset_transaction(|tx| crate::assets::load_asset(tx, &kept))
+            .asset_reads()
+            .load_asset(&kept)
             .expect("load")
             .expect("kept exists")
             .lifecycle_generation;
@@ -1572,18 +1574,8 @@ globalThis.__snapbackHandlers = {
         // Export receipts: the instance-scoped CutExported event landed.
         let receipt_events: Vec<String> = source
             .db
-            .asset_transaction(|tx| {
-                let mut statement = tx
-                    .prepare("SELECT record_json FROM _snapback_asset_receipts_v1")
-                    .expect("prepare");
-                let rows = statement
-                    .query_map([], |row| row.get::<_, String>(0))
-                    .expect("query");
-                Ok(rows
-                    .filter_map(|row| row.ok())
-                    .filter(|json| json.contains("cut-exported"))
-                    .collect())
-            })
+            .asset_reads()
+            .receipt_jsons_containing("cut-exported")
             .expect("receipts");
         assert!(!receipt_events.is_empty(), "CutExported receipt written");
 
@@ -1626,12 +1618,8 @@ globalThis.__snapbackHandlers = {
         // plus one, and the tombstone stayed dead.
         let (restored_record, tombstone) = restored
             .db
-            .asset_transaction(|tx| {
-                Ok((
-                    crate::assets::load_asset(tx, &kept)?.expect("kept restored"),
-                    crate::assets::load_asset(tx, &doomed)?.expect("tombstone restored"),
-                ))
-            })
+            .asset_reads()
+            .load_pair(&kept, &doomed)
             .expect("load restored");
         assert_eq!(
             restored_record.lifecycle_generation,
@@ -1726,14 +1714,8 @@ globalThis.__snapbackHandlers = {
         // Nothing landed on the refused instance.
         let empty = restored
             .db
-            .asset_transaction(|tx| {
-                tx.query_row(
-                    "SELECT COUNT(*) FROM _snapback_asset_records_v1",
-                    [],
-                    |row| row.get::<_, u64>(0),
-                )
-                .map_err(crate::diagnostic::SnapbackError::from)
-            })
+            .asset_reads()
+            .record_count()
             .expect("count");
         assert_eq!(empty, 0, "refuse-partial lands no rows");
     }
@@ -1968,19 +1950,8 @@ globalThis.__snapbackHandlers = {
 
         let (asset_count, attempt_count) = snapback
             .db
-            .asset_transaction(|tx| {
-                let asset_count: u64 = tx.query_row(
-                    "SELECT COUNT(*) FROM _snapback_asset_records_v1",
-                    [],
-                    |row| row.get(0),
-                )?;
-                let attempt_count: u64 = tx.query_row(
-                    "SELECT COUNT(*) FROM _snapback_asset_attempts_v1",
-                    [],
-                    |row| row.get(0),
-                )?;
-                Ok((asset_count, attempt_count))
-            })
+            .asset_reads()
+            .asset_and_attempt_counts()
             .expect("asset state counts");
         assert_eq!((asset_count, attempt_count), (0, 0));
 
@@ -2096,13 +2067,8 @@ globalThis.__snapbackHandlers = {
         // Force the TTL into the past; the next touch lazily expires it.
         snapback
             .db
-            .asset_transaction(|tx| {
-                let mut attempt =
-                    crate::assets::load_attempt(tx, &attempt_id)?.expect("attempt exists");
-                attempt.expires_at_ms = 1;
-                crate::assets::store_attempt(tx, &attempt)?;
-                Ok(())
-            })
+            .asset_reads()
+            .set_attempt_expiry(&attempt_id, 1)
             .expect("ttl rewind");
         let error = snapback
             .asset_tus_head(&transfer, &attempt_id)
@@ -2110,14 +2076,8 @@ globalThis.__snapbackHandlers = {
         assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_ATTEMPT_EXPIRED");
         let receipts: u64 = snapback
             .db
-            .asset_transaction(|tx| {
-                Ok(tx.query_row(
-                    "SELECT COUNT(*) FROM _snapback_asset_receipts_v1
-                     WHERE attempt_id = ?1 AND event = 'attempt-expired'",
-                    [&attempt_id],
-                    |row| row.get(0),
-                )?)
-            })
+            .asset_reads()
+            .expired_receipt_count(&attempt_id)
             .expect("receipt count");
         assert_eq!(receipts, 1);
     }
@@ -2410,7 +2370,8 @@ globalThis.__snapbackHandlers = {
     ) -> Vec<crate::assets::AssetReferenceEdgeV1> {
         snapback
             .db
-            .asset_transaction(|tx| crate::assets::load_edges_for_row(tx, table, row_id))
+            .asset_reads()
+            .edges_for_row(table, row_id)
             .expect("edges")
     }
 
@@ -2433,7 +2394,8 @@ globalThis.__snapbackHandlers = {
     ) -> Vec<serde_json::Value> {
         snapback
             .db
-            .asset_transaction(|tx| crate::assets::receipts_for_asset(tx, asset_id, 200))
+            .asset_reads()
+            .receipts_for_asset(asset_id, 200)
             .expect("receipts")
             .into_iter()
             .filter(|receipt| {
@@ -2486,7 +2448,8 @@ globalThis.__snapbackHandlers = {
         assert_eq!(details[0]["graceMs"], json!(GRACE_MS));
         let survivor = snapback
             .db
-            .asset_transaction(|tx| crate::assets::load_asset(tx, &attached))
+            .asset_reads()
+            .load_asset(&attached)
             .expect("load")
             .expect("attached asset survives");
         assert_eq!(
@@ -2548,7 +2511,8 @@ globalThis.__snapbackHandlers = {
         assert_eq!(report.reference_reclaimed, 1);
         let reclaimed = snapback
             .db
-            .asset_transaction(|tx| crate::assets::load_asset(tx, &attached))
+            .asset_reads()
+            .load_asset(&attached)
             .expect("load");
         assert!(
             reclaimed.is_none()
@@ -2702,7 +2666,8 @@ globalThis.__snapbackHandlers = {
         assert_eq!(edges[0].asset_id, asset_id);
         let committed = snapback
             .db
-            .asset_transaction(|tx| crate::assets::receipts_for_asset(tx, &asset_id, 200))
+            .asset_reads()
+            .receipts_for_asset(&asset_id, 200)
             .expect("receipts")
             .into_iter()
             .any(|receipt| {
@@ -2940,13 +2905,8 @@ globalThis.__snapbackHandlers = {
     fn asset_callback_log_count(snapback: &mut LocalSnapback) -> u64 {
         snapback
             .db
-            .asset_transaction(|tx| {
-                Ok(
-                    tx.query_row("SELECT COUNT(*) FROM callback_log", [], |row| {
-                        row.get::<_, u64>(0)
-                    })?,
-                )
-            })
+            .asset_reads()
+            .callback_log_count()
             .expect("count")
     }
 
@@ -2959,7 +2919,8 @@ globalThis.__snapbackHandlers = {
         let asset_id = asset_ready(&mut snapback, "user_a", b"callback-bytes");
         let rows = snapback
             .db
-            .asset_transaction(|tx| crate::assets::work_rows_for_asset(tx, &asset_id))
+            .asset_reads()
+            .work_rows(&asset_id)
             .expect("rows");
         let callback_rows: Vec<_> = rows
             .iter()
@@ -2980,21 +2941,18 @@ globalThis.__snapbackHandlers = {
         // stable idempotency key rides the client-mutation ledger.
         snapback
             .db
-            .asset_transaction(|tx| {
-                crate::assets::enqueue_work_with_params(
-                    tx,
-                    crate::assets::ASSET_WORK_KIND_LIFECYCLE_CALLBACK,
-                    &asset_id,
-                    None,
-                    generation,
-                    now + 2,
-                    Some(serde_json::json!({
-                        "event": "ready",
-                        "handler": "onAssetReady",
-                    })),
-                )
-                .map(|_| ())
-            })
+            .asset_reads()
+            .enqueue_work_with_params(
+                crate::assets::ASSET_WORK_KIND_LIFECYCLE_CALLBACK,
+                &asset_id,
+                None,
+                generation,
+                now + 2,
+                Some(serde_json::json!({
+                    "event": "ready",
+                    "handler": "onAssetReady",
+                })),
+            )
             .expect("duplicate enqueues");
         snapback.asset_runner_tick(now_millis() + 1).expect("tick");
         assert_eq!(
@@ -3010,7 +2968,8 @@ globalThis.__snapbackHandlers = {
         snapback.asset_runner_tick(now_millis() + 1).expect("tick");
         let boom_rows = snapback
             .db
-            .asset_transaction(|tx| crate::assets::work_rows_for_asset(tx, &boom_asset))
+            .asset_reads()
+            .work_rows(&boom_asset)
             .expect("rows");
         let boom_row = boom_rows
             .iter()
@@ -3025,7 +2984,8 @@ globalThis.__snapbackHandlers = {
         ));
         let boom = snapback
             .db
-            .asset_transaction(|tx| crate::assets::load_asset(tx, &boom_asset))
+            .asset_reads()
+            .load_asset(&boom_asset)
             .expect("load")
             .expect("asset");
         assert_eq!(
@@ -3055,7 +3015,8 @@ globalThis.__snapbackHandlers = {
         snapback.asset_runner_tick(now_millis() + 1).expect("tick");
         let rows = snapback
             .db
-            .asset_transaction(|tx| crate::assets::work_rows_for_asset(tx, &asset_id))
+            .asset_reads()
+            .work_rows(&asset_id)
             .expect("rows");
         let callback = rows
             .iter()
@@ -3070,7 +3031,8 @@ globalThis.__snapbackHandlers = {
         assert_eq!(asset_callback_log_count(&mut snapback), 1);
         let receipts = snapback
             .db
-            .asset_transaction(|tx| crate::assets::receipts_for_asset(tx, &asset_id, 200))
+            .asset_reads()
+            .receipts_for_asset(&asset_id, 200)
             .expect("callback receipts");
         let completed = receipts
             .iter()
@@ -3106,7 +3068,8 @@ globalThis.__snapbackHandlers = {
         assert_eq!(report.reference_reclaimed, 0, "opt-in means opt-in");
         let asset = snapback
             .db
-            .asset_transaction(|tx| crate::assets::load_asset(tx, &unattached))
+            .asset_reads()
+            .load_asset(&unattached)
             .expect("load")
             .expect("asset survives");
         assert_eq!(asset.availability, crate::assets::AssetAvailability::Ready);
@@ -3196,15 +3159,8 @@ globalThis.__snapbackHandlers = {
         // refuses instead of committing a stale admission.
         snapback
             .db
-            .asset_transaction(|tx| {
-                let mut asset = crate::assets::load_asset(tx, &asset_id)?.unwrap();
-                crate::assets::transition_asset(
-                    tx,
-                    &mut asset,
-                    crate::assets::AssetAvailability::Deleted,
-                    now_millis(),
-                )
-            })
+            .asset_reads()
+            .transition_deleted(&asset_id, now_millis())
             .expect("asset deleted");
         let error = asset_handler_commit(
             &mut snapback,
@@ -3251,9 +3207,8 @@ globalThis.__snapbackHandlers = {
         );
         let row_count = snapback
             .db
-            .asset_transaction(|tx| {
-                Ok(tx.query_row("SELECT COUNT(*) FROM posts", [], |row| row.get::<_, u64>(0))?)
-            })
+            .asset_reads()
+            .posts_count()
             .expect("count posts after refusal");
         assert_eq!(row_count, 0, "the refused changeset must roll back the row");
     }
@@ -3281,9 +3236,8 @@ globalThis.__snapbackHandlers = {
         );
         let row_count = snapback
             .db
-            .asset_transaction(|tx| {
-                Ok(tx.query_row("SELECT COUNT(*) FROM posts", [], |row| row.get::<_, u64>(0))?)
-            })
+            .asset_reads()
+            .posts_count()
             .expect("count posts after refusal");
         assert_eq!(row_count, 0, "the refused changeset must roll back the row");
     }
@@ -3561,13 +3515,8 @@ globalThis.__snapbackHandlers = {
         let schema = snapback.db.schema().clone();
         let captured = snapback
             .db
-            .asset_transaction(|tx| {
-                let asset = crate::assets::load_asset(tx, &asset_id)?.unwrap();
-                let decision =
-                    crate::storage::asset_read_authorized(&schema, tx, Some("user_b"), &asset)?;
-                assert!(!decision.authorized);
-                Ok(decision.dependencies)
-            })
+            .asset_reads()
+            .read_decision_dependencies(&schema, Some("user_b"), &asset_id)
             .expect("decision");
         // The empty reverse-edge range is a first-class captured dependency.
         assert!(captured.iter().any(|dependency| {
@@ -3591,16 +3540,8 @@ globalThis.__snapbackHandlers = {
         let schema = snapback.db.schema().clone();
         let moved = snapback
             .db
-            .asset_transaction(|tx| {
-                let asset = crate::assets::load_asset(tx, &asset_id)?.unwrap();
-                crate::storage::asset_read_dependencies_moved(
-                    &schema,
-                    tx,
-                    Some("user_b"),
-                    &asset,
-                    &captured,
-                )
-            })
+            .asset_reads()
+            .read_dependencies_moved(&schema, Some("user_b"), &asset_id, &captured)
             .expect("re-evaluation");
         assert!(
             moved,
@@ -3965,20 +3906,10 @@ globalThis.__snapbackHandlers = {
         user: &str,
         role: &str,
     ) {
-        let id = id.to_owned();
-        let channel = channel.to_owned();
-        let user = user.to_owned();
-        let role = role.to_owned();
         snapback
             .db
-            .asset_transaction(move |tx| {
-                tx.execute(
-                    "INSERT INTO channel_members (_id, _version, _createdAt, _updatedAt, channelId, userId, role) \
-                     VALUES (?1, 1, 1000, 1000, ?2, ?3, ?4)",
-                    rusqlite::params![id, channel, user, role],
-                )?;
-                Ok(())
-            })
+            .membership_reads()
+            .insert_channel_member(id, channel, user, role)
             .expect("seed membership row");
     }
 
@@ -4063,10 +3994,8 @@ globalThis.__snapbackHandlers = {
         // Revocation blanks: remove a seat, next frame re-delivers without it.
         snapback
             .db
-            .asset_transaction(|tx| {
-                tx.execute("DELETE FROM channel_members WHERE _id = 'seat_a2'", [])?;
-                Ok(())
-            })
+            .membership_reads()
+            .delete_channel_member_seat_a2()
             .expect("revoke seat");
         asset_handler_commit(
             &mut snapback,
@@ -4341,13 +4270,14 @@ globalThis.__snapbackHandlers = {
         asset_finalize(snapback, "user_a", &attempt_id, None).expect("publishes");
         let generation = snapback
             .db
-            .asset_transaction(|tx| {
-                Ok(crate::assets::load_asset(tx, &asset_id)?
-                    .expect("fixture asset exists")
-                    .lifecycle_generation)
-            })
+            .asset_reads()
+            .load_asset(&asset_id)
             .expect("load generation");
-        (asset_id, Some(attempt_id), generation)
+        (
+            asset_id,
+            Some(attempt_id),
+            generation.expect("fixture asset exists").lifecycle_generation,
+        )
     }
 
     fn asset_enqueue(
@@ -4360,9 +4290,8 @@ globalThis.__snapbackHandlers = {
     ) -> String {
         snapback
             .db
-            .asset_transaction(|tx| {
-                crate::assets::enqueue_work(tx, kind, asset_id, attempt_id, generation, now)
-            })
+            .asset_reads()
+            .enqueue_work(kind, asset_id, attempt_id, generation, now)
             .expect("enqueue work")
     }
 
@@ -4372,9 +4301,8 @@ globalThis.__snapbackHandlers = {
     ) -> crate::assets::AssetWorkRowV1 {
         snapback
             .db
-            .asset_transaction(|tx| {
-                Ok(crate::assets::load_work_row(tx, work_id)?.expect("work row exists"))
-            })
+            .asset_reads()
+            .load_work_row(work_id)
             .expect("load work row")
     }
 
@@ -4421,18 +4349,8 @@ globalThis.__snapbackHandlers = {
         // settled.
         snapback
             .db
-            .asset_transaction(|tx| {
-                let mut row = crate::assets::load_work_row(tx, &work_id)?.expect("row exists");
-                row.lease_owner = Some("crashed-runner".to_owned());
-                row.lease_expires_at_ms = Some(now.saturating_sub(1));
-                row.next_eligible_at_ms = now.saturating_sub(1);
-                crate::assets::transition_work(
-                    tx,
-                    &mut row,
-                    crate::assets::AssetWorkState::Claimed,
-                    now,
-                )
-            })
+            .asset_reads()
+            .mark_work_claimed(&work_id, now)
             .expect("hand-claim");
 
         let report = snapback.asset_runner_tick(now).expect("tick");
@@ -4534,11 +4452,8 @@ globalThis.__snapbackHandlers = {
         );
         snapback
             .db
-            .asset_transaction(|tx| {
-                let mut row = crate::assets::load_work_row(tx, &deadline_row)?.expect("row exists");
-                row.deadline_at_ms = now.saturating_sub(1);
-                crate::assets::update_work_row(tx, &row)
-            })
+            .asset_reads()
+            .age_work_deadline(&deadline_row, now.saturating_sub(1))
             .expect("age the deadline");
 
         // Unknown-kind row: a programmer error exhausts on first observation
@@ -4989,7 +4904,8 @@ globalThis.__snapbackHandlers = {
         assert_eq!(scan.rows[0]["photo"], serde_json::json!(asset_id));
         let edges = snapback
             .db
-            .asset_transaction(|tx| crate::assets::load_edges_for_asset(tx, &asset_id))
+            .asset_reads()
+            .edges_for_asset(&asset_id)
             .expect("edges");
         assert_eq!(edges.len(), 1, "seed admission committed the reverse edge");
         assert_eq!(edges[0].table_name, "posts");
@@ -5010,10 +4926,12 @@ globalThis.__snapbackHandlers = {
         assert!(blob_files() > 0, "published blob exists on disk");
         snapback.db.reset_and_seed(None).expect("reset");
         // Table clearing rides the reset transaction itself.
-        let remaining: u64 = snapback
+        let remaining = snapback
             .db
-            .asset_transaction(|tx| Ok(crate::assets::load_asset(tx, &asset_id)?.is_some() as u64))
-            .expect("post-reset lookup");
+            .asset_reads()
+            .load_asset(&asset_id)
+            .expect("post-reset lookup")
+            .is_some() as u64;
         assert_eq!(remaining, 0, "asset records cleared by reset");
         // File wipe is the publish finisher's job; prove the store call.
         store.wipe_all().expect("wipe");
@@ -5023,16 +4941,8 @@ globalThis.__snapbackHandlers = {
     fn asset_receipt_events(snapback: &mut LocalSnapback, asset_id: &str) -> Vec<String> {
         snapback
             .db
-            .asset_transaction(|tx| {
-                let mut statement = tx.prepare(
-                    "SELECT event FROM _snapback_asset_receipts_v1
-                     WHERE asset_id = ?1 ORDER BY at_ms, receipt_id",
-                )?;
-                let rows = statement
-                    .query_map([asset_id], |row| row.get::<_, String>(0))?
-                    .collect::<Result<Vec<_>, _>>()?;
-                Ok(rows)
-            })
+            .asset_reads()
+            .receipt_events(asset_id)
             .expect("receipts")
     }
 
@@ -5071,19 +4981,8 @@ globalThis.__snapbackHandlers = {
         let store = snapback.asset_store().expect("store");
         let (rendition, blob, publication_states, accounting) = snapback
             .db
-            .asset_transaction(|tx| {
-                let rendition =
-                    crate::assets::load_rendition(tx, &rendition_id)?.expect("rendition row");
-                let blob =
-                    crate::assets::load_blob_live(tx, &rendition.blob_id)?.expect("blob row");
-                let mut statement =
-                    tx.prepare("SELECT state FROM _snapback_asset_publications_v1")?;
-                let states = statement
-                    .query_map([], |row| row.get::<_, String>(0))?
-                    .collect::<Result<Vec<_>, _>>()?;
-                let accounting = crate::assets::asset_accounting(tx, &app_id)?;
-                Ok((rendition, blob, states, accounting))
-            })
+            .asset_reads()
+            .published_records(&rendition_id, &app_id)
             .expect("published records");
         assert_eq!(rendition.variant_key, "primary");
         assert_eq!(blob.record.byte_length, 10);
@@ -5128,6 +5027,101 @@ globalThis.__snapbackHandlers = {
         assert_eq!(
             again.task.availability,
             crate::assets::AssetAvailability::Ready
+        );
+    }
+
+    #[test]
+    fn asset_finalize_revocation_between_preflight_and_commit_refuses_before_phase_a() {
+        let mut snapback = asset_test_snapback();
+        let created = asset_upload(&mut snapback, "user_a", b"revocation-window", true);
+        let authority = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+        let request = crate::assets::AssetFinalizeRequestV1 {
+            attempt_id: created.task.attempt_id.clone(),
+            lifecycle_generation: 1,
+            declared_digest: None,
+        };
+        let ticket = match snapback
+            .asset_attempt_finalize_preflight(&authority, request)
+            .expect("preflight proceeds")
+        {
+            FinalizePreflightV1::Proceed(ticket) => ticket,
+            FinalizePreflightV1::AlreadyComplete(_) => panic!("attempt is not complete yet"),
+        };
+        let generation = ticket.attempt.admission.policy_generation;
+        let preparation = ticket.prepare().expect("repeatable prepare succeeds");
+
+        snapback
+            .db
+            .asset_attempts()
+            .test_revoke_intent_generation("app:avatarUpload", generation)
+            .expect("revoke the admitted generation in the unlocked window");
+
+        let error = snapback
+            .asset_attempt_finalize_commit(&authority, ticket, preparation)
+            .expect_err("commit must fail closed after mid-flight revocation");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_INTENT_REVOKED");
+        let attempt = snapback
+            .db
+            .asset_reads()
+            .load_attempt(&created.task.attempt_id)
+            .expect("attempt remains retry evidence");
+        assert_eq!(
+            attempt.state,
+            crate::assets::AssetAttemptState::Transferring,
+            "the commit refused before Phase A moved the attempt to finalizing",
+        );
+        let events = asset_receipt_events(&mut snapback, &created.task.asset_id);
+        assert!(
+            !events.iter().any(|event| event == "bytes-verified"),
+            "no publication receipt may exist before Phase A: {events:?}",
+        );
+    }
+
+    #[test]
+    fn asset_finalize_double_preflight_commits_one_winner_and_one_idempotent_retry() {
+        let mut snapback = asset_test_snapback();
+        let created = asset_upload(&mut snapback, "user_a", b"double-preflight", true);
+        let authority = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+        let request = crate::assets::AssetFinalizeRequestV1 {
+            attempt_id: created.task.attempt_id.clone(),
+            lifecycle_generation: 1,
+            declared_digest: None,
+        };
+        let first_ticket = match snapback
+            .asset_attempt_finalize_preflight(&authority, request.clone())
+            .expect("first preflight proceeds")
+        {
+            FinalizePreflightV1::Proceed(ticket) => ticket,
+            FinalizePreflightV1::AlreadyComplete(_) => panic!("attempt is not complete yet"),
+        };
+        let second_ticket = match snapback
+            .asset_attempt_finalize_preflight(&authority, request)
+            .expect("second preflight also proceeds before either commit")
+        {
+            FinalizePreflightV1::Proceed(ticket) => ticket,
+            FinalizePreflightV1::AlreadyComplete(_) => panic!("attempt is not complete yet"),
+        };
+        let first_preparation = first_ticket.prepare().expect("first prepare succeeds");
+        let second_preparation = second_ticket.prepare().expect("second prepare succeeds");
+
+        let winner = snapback
+            .asset_attempt_finalize_commit(&authority, first_ticket, first_preparation)
+            .expect("first serialized commit wins");
+        let retry = snapback
+            .asset_attempt_finalize_commit(&authority, second_ticket, second_preparation)
+            .expect("loser receives the existing idempotent completion outcome");
+
+        assert_eq!(winner.task.attempt_state, crate::assets::AssetAttemptState::Complete);
+        assert_eq!(retry.task.attempt_state, crate::assets::AssetAttemptState::Complete);
+        assert_eq!(winner.task.primary_rendition_id, retry.task.primary_rendition_id);
+        let events = asset_receipt_events(&mut snapback, &created.task.asset_id);
+        assert_eq!(
+            events
+                .iter()
+                .filter(|event| event.as_str() == "attempt-completed")
+                .count(),
+            1,
+            "the idempotent loser cannot publish a second completion: {events:?}",
         );
     }
 
@@ -5177,12 +5171,8 @@ globalThis.__snapbackHandlers = {
         assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_DIGEST_MISMATCH");
         let (attempt, asset) = snapback
             .db
-            .asset_transaction(|tx| {
-                Ok((
-                    crate::assets::load_attempt(tx, &created.task.attempt_id)?.unwrap(),
-                    crate::assets::load_asset(tx, &created.task.asset_id)?.unwrap(),
-                ))
-            })
+            .asset_reads()
+            .attempt_and_record(&created.task.attempt_id, &created.task.asset_id)
             .expect("records");
         assert_eq!(attempt.state, crate::assets::AssetAttemptState::Failed);
         assert_eq!(
@@ -5276,25 +5266,8 @@ globalThis.__snapbackHandlers = {
 
         let (blob_rows, refcount, accounting, cleanup_work) = snapback
             .db
-            .asset_transaction(|tx| {
-                let rows: u64 =
-                    tx.query_row("SELECT COUNT(*) FROM _snapback_asset_blobs_v1", [], |row| {
-                        row.get(0)
-                    })?;
-                let refcount: u64 = tx.query_row(
-                    "SELECT reference_count FROM _snapback_asset_blobs_v1",
-                    [],
-                    |row| row.get(0),
-                )?;
-                let accounting = crate::assets::asset_accounting(tx, &app_id)?;
-                let cleanup: u64 = tx.query_row(
-                    "SELECT COUNT(*) FROM _snapback_asset_work_ledger_v1
-                     WHERE kind = 'condemned-object-cleanup'",
-                    [],
-                    |row| row.get(0),
-                )?;
-                Ok((rows, refcount, accounting, cleanup))
-            })
+            .asset_reads()
+            .dedup_facts(&app_id)
             .expect("dedup facts");
         assert_eq!(blob_rows, 1, "identical canonical bytes share one blob");
         assert_eq!(refcount, 2, "each primary rendition holds one reference");
@@ -5325,30 +5298,22 @@ globalThis.__snapbackHandlers = {
             .collect::<String>();
         // A condemned blob row occupies the identity slot (GC raced this
         // finalize between digesting and publication).
+        let record = crate::assets::AssetBlobRecordV1 {
+            blob_id: "blob_condemned".to_owned(),
+            app_id: app_id.clone(),
+            store: crate::assets::ASSET_STORE_LOCAL_FS.to_owned(),
+            physical_key: "0189000000000000000000000000race".to_owned(),
+            byte_length: bytes.len() as u64,
+            detected_content_type: "application/octet-stream".to_owned(),
+            digest_algorithm: "sha256".to_owned(),
+            digest: digest.clone(),
+            canonicalization_policy: "none".to_owned(),
+            created_at_ms: 1,
+        };
         snapback
             .db
-            .asset_transaction(|tx| {
-                let record = crate::assets::AssetBlobRecordV1 {
-                    blob_id: "blob_condemned".to_owned(),
-                    app_id: app_id.clone(),
-                    store: crate::assets::ASSET_STORE_LOCAL_FS.to_owned(),
-                    physical_key: "0189000000000000000000000000race".to_owned(),
-                    byte_length: bytes.len() as u64,
-                    detected_content_type: "application/octet-stream".to_owned(),
-                    digest_algorithm: "sha256".to_owned(),
-                    digest: digest.clone(),
-                    canonicalization_policy: "none".to_owned(),
-                    created_at_ms: 1,
-                };
-                crate::assets::insert_blob(tx, &record, 1)?;
-                crate::assets::release_blob_reference(tx, "blob_condemned", 2)?;
-                assert!(crate::assets::condemn_blob_if_unreferenced(
-                    tx,
-                    "blob_condemned",
-                    3
-                )?);
-                Ok(())
-            })
+            .asset_reads()
+            .seed_condemned_identity(&record)
             .expect("condemned identity");
 
         let created = asset_upload(&mut snapback, "user_a", bytes, true);
@@ -5361,25 +5326,8 @@ globalThis.__snapbackHandlers = {
 
         let (live_blobs, condemned_rows, orphan_publications) = snapback
             .db
-            .asset_transaction(|tx| {
-                let live: u64 = tx.query_row(
-                    "SELECT COUNT(*) FROM _snapback_asset_blobs_v1 WHERE condemned = 0",
-                    [],
-                    |row| row.get(0),
-                )?;
-                let condemned: u64 = tx.query_row(
-                    "SELECT COUNT(*) FROM _snapback_asset_blobs_v1 WHERE condemned = 1",
-                    [],
-                    |row| row.get(0),
-                )?;
-                let orphans: u64 = tx.query_row(
-                    "SELECT COUNT(*) FROM _snapback_asset_publications_v1
-                     WHERE state = 'condemned'",
-                    [],
-                    |row| row.get(0),
-                )?;
-                Ok((live, condemned, orphans))
-            })
+            .asset_reads()
+            .condemned_race_facts()
             .expect("race facts");
         assert_eq!(live_blobs, 1, "the fresh blob is live");
         assert_eq!(condemned_rows, 0, "the condemned identity row was resolved");
@@ -5423,11 +5371,8 @@ globalThis.__snapbackHandlers = {
         }]);
         snapback
             .db
-            .asset_transaction(|tx| {
-                let mut attempt = crate::assets::load_attempt(tx, attempt_id)?.expect("attempt");
-                attempt.admission.witness = witness.clone();
-                crate::assets::store_attempt(tx, &attempt)
-            })
+            .asset_reads()
+            .plant_missing_row_witness(attempt_id, &witness)
             .expect("witness planted");
     }
 
@@ -5438,18 +5383,8 @@ globalThis.__snapbackHandlers = {
         let version = snapback.db.current_version().expect("head").max(1);
         snapback
             .db
-            .asset_transaction(|tx| {
-                tx.execute(
-                    "UPDATE _snapback_version SET version = MAX(version, ?1) WHERE id = 1",
-                    [version],
-                )?;
-                tx.execute(
-                    "INSERT INTO profiles (_id, _version, _createdAt, _updatedAt, name)
-                     VALUES ('phantom_1', ?1, 1, 1, 'ghost')",
-                    [version],
-                )?;
-                Ok(())
-            })
+            .asset_reads()
+            .insert_phantom(version)
             .expect("phantom row");
     }
 
@@ -5503,9 +5438,8 @@ globalThis.__snapbackHandlers = {
         assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_ADMISSION_REVOKED");
         let attempt = snapback
             .db
-            .asset_transaction(|tx| {
-                Ok(crate::assets::load_attempt(tx, &created.task.attempt_id)?.unwrap())
-            })
+            .asset_reads()
+            .load_attempt(&created.task.attempt_id)
             .expect("attempt");
         assert_eq!(attempt.state, crate::assets::AssetAttemptState::Failed);
 
@@ -5545,17 +5479,15 @@ globalThis.__snapbackHandlers = {
         let created = asset_upload(&mut snapback, "user_a", b"missing-artifact", true);
         asset_plant_missing_row_witness(&mut snapback, &created.task.attempt_id);
         asset_insert_phantom(&mut snapback);
-        snapback
+        let deleted_artifacts = snapback
             .db
-            .asset_transaction(|tx| {
-                assert_eq!(
-                    tx.execute("DELETE FROM _snapback_asset_intent_artifacts_v1", [])?,
-                    1,
-                    "the admission retained exactly one artifact"
-                );
-                Ok(())
-            })
+            .asset_reads()
+            .delete_intent_artifacts()
             .expect("drop retained artifact");
+        assert_eq!(
+            deleted_artifacts, 1,
+            "the admission retained exactly one artifact"
+        );
         let mut changed = asset_test_intent();
         changed.intent_policy_hash = "sha256:new-policy-2".to_owned();
         snapback.load_functions(FunctionManifest {
@@ -5704,15 +5636,8 @@ globalThis.__snapbackHandlers = {
         fn generation(snapback: &mut LocalSnapback, intent_id: &str) -> (Option<String>, u64) {
             snapback
                 .db
-                .asset_transaction(|tx| {
-                    Ok(tx.query_row(
-                        "SELECT implementation_hash, generation
-                         FROM _snapback_asset_intent_generations_v1
-                         WHERE intent_id = ?1",
-                        [intent_id],
-                        |row| Ok((row.get(0)?, row.get(1)?)),
-                    )?)
-                })
+                .asset_reads()
+                .generation(intent_id)
                 .expect("intent generation")
         }
 
@@ -5762,7 +5687,8 @@ globalThis.__snapbackHandlers = {
             );
             let retained: crate::manifest::AssetUploadIntentDefinition = snapback
                 .db
-                .asset_transaction(|tx| crate::assets::load_intent_artifact(tx, &base.id, 1))
+                .asset_attempts()
+                .attempt_finalize_load_intent_artifact(&base.id, 1)
                 .expect("retained artifact query")
                 .and_then(|json| serde_json::from_str(&json).ok())
                 .expect("generation one artifact retained");
@@ -5806,18 +5732,8 @@ globalThis.__snapbackHandlers = {
         let created = asset_upload(&mut snapback, "user_a", b"legacy-attempt", true);
         snapback
             .db
-            .asset_transaction(|tx| {
-                let mut attempt =
-                    crate::assets::load_attempt(tx, &created.task.attempt_id)?.expect("attempt");
-                attempt.admission.implementation_hash = None;
-                crate::assets::store_attempt(tx, &attempt)?;
-                tx.execute(
-                    "UPDATE _snapback_asset_intent_generations_v1
-                     SET implementation_hash = NULL WHERE intent_id = ?1",
-                    [&attempt.intent_id],
-                )?;
-                Ok(())
-            })
+            .asset_reads()
+            .simulate_legacy_carrier(&created.task.attempt_id)
             .expect("simulate pre-carrier storage");
 
         let current = asset_test_intent();
@@ -5831,14 +5747,8 @@ globalThis.__snapbackHandlers = {
             .expect("the first carrier-aware admission activates a new generation");
         let generation: u64 = snapback
             .db
-            .asset_transaction(|tx| {
-                Ok(tx.query_row(
-                    "SELECT generation FROM _snapback_asset_intent_generations_v1
-                     WHERE intent_id = ?1",
-                    [&current.id],
-                    |row| row.get(0),
-                )?)
-            })
+            .asset_reads()
+            .generation_number(&current.id)
             .expect("generation");
         assert_eq!(
             generation, 2,
@@ -5906,13 +5816,8 @@ globalThis.__snapbackHandlers = {
         let count_artifacts = |snapback: &mut LocalSnapback| -> u64 {
             snapback
                 .db
-                .asset_transaction(|tx| {
-                    Ok(tx.query_row(
-                        "SELECT COUNT(*) FROM _snapback_asset_intent_artifacts_v1",
-                        [],
-                        |row| row.get(0),
-                    )?)
-                })
+                .asset_reads()
+                .intent_artifact_count()
                 .expect("count")
         };
         assert_eq!(
@@ -5955,14 +5860,8 @@ globalThis.__snapbackHandlers = {
         );
         let receipted: u64 = snapback
             .db
-            .asset_transaction(|tx| {
-                Ok(tx.query_row(
-                    "SELECT COUNT(*) FROM _snapback_asset_receipts_v1
-                     WHERE event = 'intent-artifact-reclaimed' AND asset_id = ''",
-                    [],
-                    |row| row.get(0),
-                )?)
-            })
+            .asset_reads()
+            .intent_reclaimed_receipt_count()
             .expect("receipts");
         assert_eq!(receipted, 2, "each reclamation is receipted, intent-scoped");
     }
@@ -5996,9 +5895,8 @@ globalThis.__snapbackHandlers = {
         );
         let asset = snapback
             .db
-            .asset_transaction(|tx| {
-                Ok(crate::assets::load_asset(tx, &created.task.asset_id)?.unwrap())
-            })
+            .asset_reads()
+            .require_asset(&created.task.asset_id)
             .expect("asset");
         assert_eq!(
             asset.availability,
@@ -6108,15 +6006,10 @@ globalThis.__snapbackHandlers = {
     ) -> crate::assets::AssetRenditionRecordV1 {
         snapback
             .db
-            .asset_transaction(|tx| {
-                Ok(crate::assets::load_rendition_by_variant(
-                    tx,
-                    asset_id,
-                    crate::assets::ASSET_RENDITION_PRIMARY,
-                )?
-                .expect("primary rendition"))
-            })
+            .asset_reads()
+            .load_rendition_by_variant(asset_id, crate::assets::ASSET_RENDITION_PRIMARY)
             .expect("rendition")
+            .expect("primary rendition")
     }
 
     /// The client record view (inspect + live projection) exposes rendition
@@ -6239,10 +6132,10 @@ globalThis.__snapbackHandlers = {
 
         let blob = snapback
             .db
-            .asset_transaction(|tx| {
-                Ok(crate::assets::load_blob(tx, &rendition.blob_id)?.expect("blob"))
-            })
+            .asset_reads()
+            .load_blob(&rendition.blob_id)
             .expect("blob");
+        let blob = blob.expect("blob");
         let store = snapback.asset_store().expect("store");
         let canonical_bytes =
             std::fs::read(store.blob_path(&blob.physical_key).expect("blob path"))
@@ -6291,15 +6184,15 @@ globalThis.__snapbackHandlers = {
         let kept_rendition = asset_primary_rendition(&mut retain, &kept.task.asset_id);
         let kept_blob = retain
             .db
-            .asset_transaction(|tx| {
-                Ok(crate::assets::load_blob(tx, &kept_rendition.blob_id)?.expect("blob"))
-            })
+            .asset_reads()
+            .load_blob(&kept_rendition.blob_id)
+            .expect("blob")
             .expect("blob");
         let strip_blob = strip
             .db
-            .asset_transaction(|tx| {
-                Ok(crate::assets::load_blob(tx, &first_rendition.blob_id)?.expect("blob"))
-            })
+            .asset_reads()
+            .load_blob(&first_rendition.blob_id)
+            .expect("blob")
             .expect("blob");
         assert_eq!(
             kept_blob.canonicalization_policy,
@@ -6323,7 +6216,8 @@ globalThis.__snapbackHandlers = {
         // Retain evidence reaches the receipts too.
         let receipts = retain
             .db
-            .asset_transaction(|tx| crate::assets::receipts_for_asset(tx, &kept.task.asset_id, 64))
+            .asset_reads()
+            .receipts_for_asset(&kept.task.asset_id, 64)
             .expect("receipts");
         assert!(receipts.iter().any(|receipt| {
             receipt.event == crate::assets::AssetReceiptEventV1::AssetReady
@@ -6386,9 +6280,9 @@ globalThis.__snapbackHandlers = {
 
         let blob = snapback
             .db
-            .asset_transaction(|tx| {
-                Ok(crate::assets::load_blob(tx, &rendition.blob_id)?.expect("blob"))
-            })
+            .asset_reads()
+            .load_blob(&rendition.blob_id)
+            .expect("blob")
             .expect("blob");
         assert_eq!(
             blob.canonicalization_policy,
@@ -6427,9 +6321,9 @@ globalThis.__snapbackHandlers = {
         assert_eq!(facts["durationMs"], 2000);
         let blob = snapback
             .db
-            .asset_transaction(|tx| {
-                Ok(crate::assets::load_blob(tx, &rendition.blob_id)?.expect("blob"))
-            })
+            .asset_reads()
+            .load_blob(&rendition.blob_id)
+            .expect("blob")
             .expect("blob");
         assert_eq!(
             blob.canonicalization_policy,
@@ -6507,9 +6401,8 @@ globalThis.__snapbackHandlers = {
         );
         let asset = snapback
             .db
-            .asset_transaction(|tx| {
-                Ok(crate::assets::load_asset(tx, &created.task.asset_id)?.unwrap())
-            })
+            .asset_reads()
+            .require_asset(&created.task.asset_id)
             .expect("asset");
         assert_eq!(
             asset.availability,
@@ -6559,9 +6452,8 @@ globalThis.__snapbackHandlers = {
         assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_IMAGE_DECODE_FAILED");
         let asset = snapback
             .db
-            .asset_transaction(|tx| {
-                Ok(crate::assets::load_asset(tx, &created.task.asset_id)?.unwrap())
-            })
+            .asset_reads()
+            .require_asset(&created.task.asset_id)
             .expect("asset");
         assert_eq!(
             asset.availability,
@@ -6704,13 +6596,8 @@ globalThis.__snapbackHandlers = {
         );
         let blob_count: u64 = snapback
             .db
-            .asset_transaction(|tx| {
-                Ok(tx.query_row(
-                    "SELECT COUNT(*) FROM _snapback_asset_blobs_v1 WHERE condemned = 0",
-                    [],
-                    |row| row.get(0),
-                )?)
-            })
+            .asset_reads()
+            .live_blob_count()
             .expect("blobs");
         assert_eq!(blob_count, 1, "retirement never touches the blob");
     }
@@ -6735,7 +6622,7 @@ globalThis.__snapbackHandlers = {
         let outcome = snapback
             .asset_deliver(&authority, &asset_id, "primary", None, None, Some(100))
             .expect("width delivers");
-        let crate::local::AssetDeliveryOutcome::Content(first) = outcome else {
+        let crate::storage::AssetDeliveryOutcome::Content(first) = outcome else {
             panic!("expected content");
         };
         assert!(first.total_length > 0);
@@ -6748,7 +6635,7 @@ globalThis.__snapbackHandlers = {
         let again = snapback
             .asset_deliver(&authority, &asset_id, "primary", None, None, Some(100))
             .expect("width serves again");
-        let crate::local::AssetDeliveryOutcome::Content(second) = again else {
+        let crate::storage::AssetDeliveryOutcome::Content(second) = again else {
             panic!("expected content");
         };
         assert_eq!(second.total_length, first.total_length);
@@ -6804,7 +6691,8 @@ globalThis.__snapbackHandlers = {
     ) -> Option<crate::assets::AssetRenditionRecordV1> {
         snapback
             .db
-            .asset_transaction(|tx| crate::assets::load_rendition_by_variant(tx, asset_id, key))
+            .asset_reads()
+            .load_rendition_by_variant(asset_id, key)
             .expect("rendition lookup")
     }
 
@@ -6833,7 +6721,8 @@ globalThis.__snapbackHandlers = {
         assert!(asset_rendition_for(&mut snapback, &asset_id, "display").is_none());
         let work = snapback
             .db
-            .asset_transaction(|tx| crate::assets::work_rows_for_asset(tx, &asset_id))
+            .asset_reads()
+            .work_rows(&asset_id)
             .expect("work rows");
         assert!(work.iter().any(|row| {
             row.kind == crate::assets::ASSET_WORK_KIND_IMAGE_VARIANT
@@ -6861,7 +6750,7 @@ globalThis.__snapbackHandlers = {
             .asset_deliver(&authority, &asset_id, "best", None, Some(bound), None)
             .expect("best delivers")
         {
-            crate::local::AssetDeliveryOutcome::Content(delivery) => delivery.content_type,
+            crate::storage::AssetDeliveryOutcome::Content(delivery) => delivery.content_type,
             other => panic!("unexpected outcome: {other:?}"),
         };
         // 48 admits the display; 20 admits only the thumb; 8 falls back to
@@ -6876,8 +6765,8 @@ globalThis.__snapbackHandlers = {
         let best_8 = snapback
             .asset_deliver(&authority, &asset_id, "best", None, Some(8), None)
             .expect("best 8");
-        let width_of = |outcome: &crate::local::AssetDeliveryOutcome| match outcome {
-            crate::local::AssetDeliveryOutcome::Content(delivery) => delivery.total_length,
+        let width_of = |outcome: &crate::storage::AssetDeliveryOutcome| match outcome {
+            crate::storage::AssetDeliveryOutcome::Content(delivery) => delivery.total_length,
             other => panic!("unexpected outcome: {other:?}"),
         };
         assert!(
@@ -6893,7 +6782,8 @@ globalThis.__snapbackHandlers = {
         // Required-variant receipt with lineage.
         let receipts = snapback
             .db
-            .asset_transaction(|tx| crate::assets::receipts_for_asset(tx, &asset_id, 64))
+            .asset_reads()
+            .receipts_for_asset(&asset_id, 64)
             .expect("receipts");
         assert!(receipts.iter().any(|receipt| {
             receipt.event == crate::assets::AssetReceiptEventV1::RenditionProduced
@@ -6930,7 +6820,8 @@ globalThis.__snapbackHandlers = {
         };
         snapback
             .db
-            .asset_transaction(|tx| crate::assets::insert_rendition(tx, &newer))
+            .asset_reads()
+            .insert_rendition(&newer)
             .expect("newer rendition installs");
 
         let report = snapback
@@ -6965,9 +6856,8 @@ globalThis.__snapbackHandlers = {
         };
         let outcome = snapback
             .db
-            .asset_transaction(|tx| {
-                crate::assets::switch_variant_pointer(tx, &stale_candidate, now_millis())
-            })
+            .asset_reads()
+            .switch_variant_pointer_now(&stale_candidate)
             .expect("switch runs");
         assert_eq!(
             outcome,
@@ -7002,7 +6892,8 @@ globalThis.__snapbackHandlers = {
         assert!(asset_rendition_for(&mut snapback, &asset_id, "display").is_none());
         let receipts = snapback
             .db
-            .asset_transaction(|tx| crate::assets::receipts_for_asset(tx, &asset_id, 64))
+            .asset_reads()
+            .receipts_for_asset(&asset_id, 64)
             .expect("receipts");
         assert!(receipts.iter().any(|receipt| {
             receipt.event == crate::assets::AssetReceiptEventV1::RenditionFailed
@@ -7010,7 +6901,8 @@ globalThis.__snapbackHandlers = {
         }));
         let asset = snapback
             .db
-            .asset_transaction(|tx| Ok(crate::assets::load_asset(tx, &asset_id)?.expect("asset")))
+            .asset_reads()
+            .require_asset(&asset_id)
             .expect("asset");
         assert_eq!(asset.availability, crate::assets::AssetAvailability::Ready);
 
@@ -7027,9 +6919,8 @@ globalThis.__snapbackHandlers = {
         assert_eq!(refused.diagnostic.details["variantKey"], "thumb");
         let held_asset = strict
             .db
-            .asset_transaction(|tx| {
-                Ok(crate::assets::load_asset(tx, &held.task.asset_id)?.expect("asset"))
-            })
+            .asset_reads()
+            .require_asset(&held.task.asset_id)
             .expect("asset");
         assert_eq!(
             held_asset.availability,
@@ -7061,19 +6952,8 @@ globalThis.__snapbackHandlers = {
 
         let (thumb_after, live_refcount) = snapback
             .db
-            .asset_transaction(|tx| {
-                let rendition = crate::assets::load_rendition(tx, &thumb.rendition_id)?
-                    .expect("rendition row survives as retired");
-                // The reference_count column is the refcounting authority
-                // (release/acquire mutate it in place); the record_json copy
-                // is the insert-time snapshot.
-                let count: u64 = tx.query_row(
-                    "SELECT reference_count FROM _snapback_asset_blobs_v1 WHERE blob_id = ?1",
-                    [&thumb.blob_id],
-                    |row| row.get(0),
-                )?;
-                Ok((rendition, count))
-            })
+            .asset_reads()
+            .rendition_and_refcount(&thumb.rendition_id, &thumb.blob_id)
             .expect("post-delete rows");
         assert_eq!(
             thumb_after.state,
@@ -7175,7 +7055,7 @@ globalThis.__snapbackHandlers = {
             .asset_deliver_signed(&asset_id, "primary", &token, None)
             .expect("bearer serves")
         {
-            crate::local::AssetDeliveryOutcome::Content(delivery) => *delivery,
+            crate::storage::AssetDeliveryOutcome::Content(delivery) => *delivery,
             other => panic!("expected content, got {other:?}"),
         };
         assert_eq!(asset_window_bytes(&served), bytes);
@@ -7187,7 +7067,7 @@ globalThis.__snapbackHandlers = {
             .asset_deliver_signed(&asset_id, "primary", &token, Some("bytes=0-4"))
             .expect("ranged bearer serves");
         match ranged {
-            crate::local::AssetDeliveryOutcome::Content(delivery) => {
+            crate::storage::AssetDeliveryOutcome::Content(delivery) => {
                 assert!(delivery.partial);
                 assert_eq!(delivery.window_length, 5);
             }
@@ -7207,18 +7087,8 @@ globalThis.__snapbackHandlers = {
         assert_eq!(invalid.diagnostic.code, "SNAPBACK_ASSET_SIGNATURE_INVALID");
         let expired_token = snapback
             .db
-            .asset_transaction(|tx| {
-                let asset = crate::assets::load_asset(tx, &asset_id)?.expect("asset exists");
-                let key = crate::assets::active_signing_key(tx, now_millis())?;
-                Ok(crate::assets::mint_signed_url_token(
-                    &key,
-                    &asset_id,
-                    "primary",
-                    "user_a",
-                    asset.lifecycle_generation,
-                    now_millis().saturating_sub(1_000),
-                ))
-            })
+            .asset_reads()
+            .mint_expired_signed_url_token(&asset_id)
             .expect("expired token minted");
         let expired = snapback
             .asset_deliver_signed(&asset_id, "primary", &expired_token, None)
@@ -7265,7 +7135,7 @@ globalThis.__snapbackHandlers = {
             snapback
                 .asset_deliver_signed(&asset_id, "primary", &fresh, None)
                 .expect("fresh issuance serves"),
-            crate::local::AssetDeliveryOutcome::Content(_)
+            crate::storage::AssetDeliveryOutcome::Content(_)
         ));
 
         // A lifecycle-generation move since issuance invalidates: the
@@ -7273,18 +7143,8 @@ globalThis.__snapbackHandlers = {
         // the current one.
         let stale_generation_token = snapback
             .db
-            .asset_transaction(|tx| {
-                let asset = crate::assets::load_asset(tx, &asset_id)?.expect("asset exists");
-                let key = crate::assets::active_signing_key(tx, now_millis())?;
-                Ok(crate::assets::mint_signed_url_token(
-                    &key,
-                    &asset_id,
-                    "primary",
-                    "user_a",
-                    asset.lifecycle_generation + 1,
-                    now_millis() + 60_000,
-                ))
-            })
+            .asset_reads()
+            .mint_stale_generation_signed_url_token(&asset_id)
             .expect("stale-generation token minted");
         let stale = snapback
             .asset_deliver_signed(&asset_id, "primary", &stale_generation_token, None)
@@ -7310,7 +7170,7 @@ globalThis.__snapbackHandlers = {
             .asset_deliver_public(&asset_id, "primary", None, None)
             .expect("public serves with no credential")
         {
-            crate::local::AssetDeliveryOutcome::Content(delivery) => *delivery,
+            crate::storage::AssetDeliveryOutcome::Content(delivery) => *delivery,
             other => panic!("expected content, got {other:?}"),
         };
         assert_eq!(asset_window_bytes(&served), bytes);
@@ -7321,7 +7181,7 @@ globalThis.__snapbackHandlers = {
             .expect("public suffix range serves");
         assert!(matches!(
             ranged,
-            crate::local::AssetDeliveryOutcome::Content(ref delivery) if delivery.partial
+            crate::storage::AssetDeliveryOutcome::Content(ref delivery) if delivery.partial
         ));
 
         // Everything non-servable is indistinguishable from unknown: a
@@ -7366,11 +7226,11 @@ globalThis.__snapbackHandlers = {
         asset_id: &str,
         variant: &str,
         range: Option<&str>,
-    ) -> SnapbackResult<crate::local::AssetDelivery> {
+    ) -> SnapbackResult<crate::storage::AssetDelivery> {
         let authority = asset_dev_authority(snapback, user, InvocationSource::HttpQuery);
         match snapback.asset_deliver(&authority, asset_id, variant, range, None, None)? {
-            crate::local::AssetDeliveryOutcome::Content(delivery) => Ok(*delivery),
-            crate::local::AssetDeliveryOutcome::Unsatisfiable { total_length } => {
+            crate::storage::AssetDeliveryOutcome::Content(delivery) => Ok(*delivery),
+            crate::storage::AssetDeliveryOutcome::Unsatisfiable { total_length } => {
                 Err(SnapbackError::error(
                     "TEST_UNSATISFIABLE",
                     "assets",
@@ -7380,7 +7240,7 @@ globalThis.__snapbackHandlers = {
         }
     }
 
-    fn asset_window_bytes(delivery: &crate::local::AssetDelivery) -> Vec<u8> {
+    fn asset_window_bytes(delivery: &crate::storage::AssetDelivery) -> Vec<u8> {
         delivery
             .store
             .read_chunk(
@@ -7449,10 +7309,10 @@ globalThis.__snapbackHandlers = {
             )
             .expect("outcome resolves")
         {
-            crate::local::AssetDeliveryOutcome::Unsatisfiable { total_length } => {
+            crate::storage::AssetDeliveryOutcome::Unsatisfiable { total_length } => {
                 assert_eq!(total_length, bytes.len() as u64);
             }
-            crate::local::AssetDeliveryOutcome::Content(_) => {
+            crate::storage::AssetDeliveryOutcome::Content(_) => {
                 panic!("range past end must be unsatisfiable")
             }
         }
@@ -7491,14 +7351,8 @@ globalThis.__snapbackHandlers = {
         let count_event = |snapback: &mut LocalSnapback, event: &str| {
             snapback
                 .db
-                .asset_transaction(|tx| {
-                    Ok(tx.query_row(
-                        "SELECT COUNT(*) FROM _snapback_asset_receipts_v1
-                         WHERE asset_id = ?1 AND event = ?2",
-                        rusqlite::params![asset_id, event],
-                        |row| row.get::<_, u64>(0),
-                    )?)
-                })
+                .asset_reads()
+                .receipt_count_for_asset_event(&asset_id, event)
                 .expect("receipt count")
         };
         assert_eq!(count_event(&mut snapback, "delivery-admitted"), 2);
@@ -7554,7 +7408,8 @@ globalThis.__snapbackHandlers = {
 
         let settled_before = snapback
             .db
-            .asset_transaction(|tx| crate::assets::asset_accounting(tx, "local-app"))
+            .asset_reads()
+            .accounting("local-app")
             .expect("accounting")
             .settled_bytes;
 
@@ -7564,24 +7419,8 @@ globalThis.__snapbackHandlers = {
         snapback.asset_delete(&owner, &asset_a).expect("delete a");
         let (availability, blob_refs): (String, u64) = snapback
             .db
-            .asset_transaction(|tx| {
-                let asset = crate::assets::load_asset(tx, &asset_a)?.expect("asset row");
-                let refs: u64 = tx.query_row(
-                    "SELECT reference_count FROM _snapback_asset_blobs_v1
-                     WHERE condemned = 0",
-                    [],
-                    |row| row.get(0),
-                )?;
-                Ok((
-                    serde_json::to_value(asset.availability)
-                        .unwrap()
-                        .as_str()
-                        .unwrap()
-                        .to_owned(),
-                    refs,
-                ))
-            })
-            .map(|(a, r): (String, u64)| (a, r))
+            .asset_reads()
+            .post_delete_facts(&asset_a)
             .expect("post-delete facts");
         assert_eq!(availability, "deleted");
         // Two blobs remain (shared + unshared); assert the shared one
@@ -7589,14 +7428,8 @@ globalThis.__snapbackHandlers = {
         let _ = blob_refs;
         let shared_refs: u64 = snapback
             .db
-            .asset_transaction(|tx| {
-                Ok(tx.query_row(
-                    "SELECT reference_count FROM _snapback_asset_blobs_v1
-                     WHERE reference_count > 0 ORDER BY reference_count DESC LIMIT 1",
-                    [],
-                    |row| row.get(0),
-                )?)
-            })
+            .asset_reads()
+            .highest_live_refcount()
             .expect("shared refcount");
         assert_eq!(shared_refs, 1, "shared blob keeps exactly B's reference");
         asset_deliver_content(&mut snapback, "user_a", &asset_b, "primary", None)
@@ -7606,7 +7439,8 @@ globalThis.__snapbackHandlers = {
         // exactly A's charge (the minimum accounting unit here).
         let settled_after = snapback
             .db
-            .asset_transaction(|tx| crate::assets::asset_accounting(tx, "local-app"))
+            .asset_reads()
+            .accounting("local-app")
             .expect("accounting")
             .settled_bytes;
         assert_eq!(
@@ -7686,14 +7520,8 @@ globalThis.__snapbackHandlers = {
         assert_eq!(crashed.diagnostic.code, "SNAPBACK_ASSET_TEST_CRASH");
         let (availability, rendition_state) = snapback
             .db
-            .asset_transaction(|tx| {
-                let asset = crate::assets::load_asset(tx, &asset_id)?.expect("asset");
-                let renditions = crate::assets::renditions_for_asset(tx, &asset_id)?;
-                Ok((
-                    serde_json::to_value(asset.availability).unwrap(),
-                    serde_json::to_value(renditions[0].state).unwrap(),
-                ))
-            })
+            .asset_reads()
+            .availability_and_rendition_state(&asset_id)
             .expect("facts");
         assert_eq!(
             availability,
@@ -7741,13 +7569,8 @@ globalThis.__snapbackHandlers = {
         assert_eq!(report.tombstones_purged, 1);
         let row_count: u64 = snapback
             .db
-            .asset_transaction(|tx| {
-                Ok(tx.query_row(
-                    "SELECT COUNT(*) FROM _snapback_asset_records_v1 WHERE asset_id = ?1",
-                    [&created.task.asset_id],
-                    |row| row.get(0),
-                )?)
-            })
+            .asset_reads()
+            .record_count_by_id(&created.task.asset_id)
             .expect("count");
         assert_eq!(row_count, 0, "tombstone purged");
         assert!(

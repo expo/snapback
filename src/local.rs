@@ -64,10 +64,10 @@ use crate::runtime::{
 use crate::realtime::PendingLiveFanout;
 use crate::storage::auth_mode::{DurableModeCommit, NetworkDeploymentCommit, NetworkSeedOutcome};
 use crate::storage::{
-    AssetPreparedVariant, AssetPublishOutcome, BufferedCommitPayload, CapturedReadDependency,
-    CapturedReadKind, CapturedWriteDependency, ChangedRow, ClientMutationIdentity, DbRead,
-    LocalDatabase, MutationCommit, ReaderPool, SettlementTimePolicy, ShutdownCheckpointReport,
-    StorageInfo, TableScan,
+    AssetDeliveryOutcome, AssetPreparedVariant, AssetPublishOutcome,
+    BufferedCommitPayload, CapturedReadDependency, CapturedReadKind, CapturedWriteDependency,
+    ChangedRow, ClientMutationIdentity, DbRead, LocalDatabase, MutationCommit, ReaderPool,
+    SettlementTimePolicy, ShutdownCheckpointReport, StorageInfo, TableScan,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
@@ -2255,6 +2255,10 @@ pub struct LocalSnapback {
     /// unavailable while this is absent.
     auth_invalidation: Option<LocalInvalidationState>,
 }
+
+pub(crate) use crate::assets::{
+    FinalizePreflightV1, FinalizePreparationV1, FinalizePrepareTicketV1,
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum DiagnosticBoundary {
@@ -7149,52 +7153,12 @@ impl LocalSnapback {
         authority: &PreparedAuthority,
         attempt_id: &str,
     ) -> SnapbackResult<crate::assets::AssetAttemptRecordV1> {
-        use crate::assets;
         let caller = Self::asset_caller_principal(authority);
         let now = now_millis();
-        let (attempt, expired_staging) = self.db.asset_transaction(|tx| {
-            let mut attempt = assets::load_attempt(tx, attempt_id)?.ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_ATTEMPT_UNKNOWN",
-                    "assets",
-                    format!("unknown attempt {attempt_id}"),
-                )
-            })?;
-            // Possession of an attempt URL is not authority: the resolved
-            // caller must match the admission (LLP 0044 §Authorization).
-            // Resume binds this authority lineage, never a transport
-            // connection — a refresh or restart under the same principal
-            // resumes.
-            if caller.as_deref() != Some(attempt.admission.owner_principal.as_str()) {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_ASSET_FORBIDDEN",
-                    "assets",
-                    "this attempt belongs to a different authority",
-                ));
-            }
-            let mut expired_staging = None;
-            if attempt.state.is_current() && now >= attempt.expires_at_ms {
-                assets::transition_attempt(
-                    tx,
-                    &mut attempt,
-                    assets::AssetAttemptState::Expired,
-                    now,
-                )?;
-                assets::write_receipt(
-                    tx,
-                    &asset_receipt(
-                        &attempt.attempt_id.clone(),
-                        assets::AssetReceiptEventV1::AttemptExpired,
-                        &attempt.asset_id,
-                        Some(&attempt.attempt_id),
-                        now,
-                        serde_json::json!({ "expiresAtMs": attempt.expires_at_ms }),
-                    ),
-                )?;
-                expired_staging = Some(attempt.staging_key.clone());
-            }
-            Ok((attempt, expired_staging))
-        })?;
+        let (attempt, expired_staging) =
+            self.db
+                .asset_reads()
+                .attempt_for_caller(caller.as_deref(), attempt_id, now)?;
         if let Some(staging_key) = expired_staging {
             self.asset_store_obj()?.delete_staging_pair(&staging_key)?;
         }
@@ -7207,9 +7171,7 @@ impl LocalSnapback {
         attempt_id: &str,
     ) -> SnapbackResult<crate::assets::AssetTaskStateV1> {
         let attempt = self.asset_attempt_for_caller(authority, attempt_id)?;
-        let asset = self
-            .db
-            .asset_transaction(|tx| crate::assets::load_asset(tx, &attempt.asset_id))?;
+        let asset = self.db.asset_reads().load_asset(&attempt.asset_id)?;
         Ok(asset_task_state(&attempt, asset.as_ref()))
     }
 
@@ -7225,26 +7187,9 @@ impl LocalSnapback {
     ) -> SnapbackResult<Value> {
         let caller = Self::asset_caller_principal(authority);
         let schema = self.db.schema().clone();
-        self.db.asset_transaction(|tx| {
-            let asset = crate::assets::load_asset(tx, asset_id)?.ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_UNKNOWN",
-                    "assets",
-                    format!("unknown asset {asset_id}"),
-                )
-            })?;
-            let decision =
-                crate::storage::asset_read_authorized(&schema, tx, caller.as_deref(), &asset)?;
-            if !decision.authorized {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_ASSET_FORBIDDEN",
-                    "assets",
-                    "this asset is not readable by the caller",
-                ));
-            }
-            let view = crate::assets::asset_record_client_view(tx, &asset)?;
-            Ok(serde_json::to_value(view).expect("client view serializes"))
-        })
+        self.db
+            .asset_reads()
+            .record_inspect(&schema, caller.as_deref(), asset_id)
     }
 
     /// One live projection run: the caller's authorized view of one asset
@@ -7261,66 +7206,9 @@ impl LocalSnapback {
         asset_id: &str,
     ) -> SnapbackResult<(Vec<Value>, Vec<CapturedReadDependency>)> {
         let schema = self.db.schema().clone();
-        let caller = caller.map(str::to_owned);
-        let asset_id = asset_id.to_owned();
-        self.db.asset_transaction(move |tx| {
-            let mut dependencies = Vec::new();
-            let Some(asset) = crate::assets::load_asset(tx, &asset_id)? else {
-                dependencies.push(CapturedReadDependency {
-                    kind: CapturedReadKind::MissingRow,
-                    table: Some(ASSET_RECORDS_LIVE_TABLE.to_owned()),
-                    id: Some(asset_id.clone()),
-                    version: None,
-                    predicate: None,
-                    rows: Vec::new(),
-                    field: None,
-                    value: None,
-                    order: None,
-                    limit: None,
-                    result_count: None,
-                    boundary: None,
-                });
-                return Ok((Vec::new(), dependencies));
-            };
-            let view = crate::assets::asset_record_client_view(tx, &asset)?;
-            dependencies.push(CapturedReadDependency {
-                kind: CapturedReadKind::Row,
-                table: Some(ASSET_RECORDS_LIVE_TABLE.to_owned()),
-                id: Some(asset_id.clone()),
-                version: Some(asset.lifecycle_generation),
-                predicate: None,
-                rows: Vec::new(),
-                field: None,
-                // The dependency value is the delivery fingerprint: rendition
-                // summaries and primary media facts ride it so a rendition
-                // arrival (a ThumbHash landing, a variant turning ready)
-                // moves the vector and re-publishes even though the asset
-                // row itself did not change.
-                value: Some(serde_json::json!({
-                    "availability": view.availability,
-                    "updatedAtMs": view.updated_at_ms,
-                    "primaryRenditionId": view.primary_rendition_id,
-                    "renditions": view.renditions,
-                    "media": view.media,
-                })),
-                order: None,
-                limit: None,
-                result_count: None,
-                boundary: None,
-            });
-            let decision =
-                crate::storage::asset_read_authorized(&schema, tx, caller.as_deref(), &asset)?;
-            dependencies.extend(decision.dependencies);
-            // A tombstone is not deliverable metadata: deletion blanks the
-            // live view (LLP 0044 §Deletion), exactly like a denial.
-            let deleted = asset.availability == crate::assets::AssetAvailability::Deleted;
-            let rows = if decision.authorized && !deleted {
-                vec![serde_json::to_value(view).expect("client view serializes")]
-            } else {
-                Vec::new()
-            };
-            Ok((rows, dependencies))
-        })
+        self.db
+            .asset_reads()
+            .record_projection(&schema, caller, asset_id)
     }
 
     /// Route one reserved native live query to its invocation. Every seam
@@ -7407,81 +7295,9 @@ impl LocalSnapback {
         table_name: &str,
         membership: &crate::manifest::MembershipManifest,
     ) -> SnapbackResult<(Vec<Value>, Vec<CapturedReadDependency>)> {
-        // An anonymous caller holds no seats and captures no dependencies:
-        // signing in is a fenced authority transition that re-establishes
-        // the subscription rather than mutating this one.
-        let Some(caller) = caller else {
-            return Ok((Vec::new(), Vec::new()));
-        };
-        let caller = caller.to_owned();
-        let table_name = table_name.to_owned();
-        let principal_field = membership.principal.clone();
-        let resource_field = membership.resource.clone();
-        let role_field = membership.role.clone();
-        self.db.asset_transaction(move |tx| {
-            let table_ident = crate::storage::quote_ident(&table_name)?;
-            let principal_ident = crate::storage::quote_ident(&principal_field)?;
-            let role_ident = crate::storage::quote_ident(&role_field)?;
-            let resource_select = match &resource_field {
-                Some(field) => crate::storage::quote_ident(field)?,
-                None => "NULL".to_owned(),
-            };
-            let sql = format!(
-                "SELECT _id, _version, _createdAt, {resource_select}, {role_ident} \
-                 FROM {table_ident} WHERE {principal_ident} = ?1 \
-                 ORDER BY _createdAt, _id"
-            );
-            let mut statement = tx.prepare(&sql)?;
-            let mut rows = Vec::new();
-            let mut dependencies = Vec::new();
-            let mut result = statement.query(rusqlite::params![caller])?;
-            while let Some(row) = result.next()? {
-                let id: String = row.get(0)?;
-                let row_version: u64 = row.get::<_, i64>(1)?.try_into().unwrap_or_default();
-                let since: i64 = row.get(2)?;
-                let resource: Option<String> = row.get(3)?;
-                let role: String = row.get(4)?;
-                dependencies.push(CapturedReadDependency {
-                    kind: CapturedReadKind::Row,
-                    table: Some(table_name.clone()),
-                    id: Some(id.clone()),
-                    version: Some(row_version),
-                    predicate: None,
-                    rows: Vec::new(),
-                    field: None,
-                    value: None,
-                    order: None,
-                    limit: None,
-                    result_count: None,
-                    boundary: None,
-                });
-                rows.push(serde_json::json!({
-                    "id": id,
-                    "resource": resource,
-                    "role": role,
-                    "sinceMs": since,
-                }));
-            }
-            // The principal-slice range capture: result_count participates in
-            // the fingerprint, so the empty slice is a first-class captured
-            // fact (the LLP 0056 pinned-empty-capture idiom) and a grant or
-            // removal moves the vector even before its row dependency exists.
-            dependencies.push(CapturedReadDependency {
-                kind: CapturedReadKind::Query,
-                table: Some(table_name.clone()),
-                id: None,
-                version: None,
-                predicate: None,
-                rows: Vec::new(),
-                field: Some(principal_field.clone()),
-                value: Some(Value::String(caller.clone())),
-                order: None,
-                limit: None,
-                result_count: Some(rows.len()),
-                boundary: None,
-            });
-            Ok((rows, dependencies))
-        })
+        self.db
+            .membership_reads()
+            .read_my_memberships_projection(caller, table_name, membership)
     }
 
     /// The reserved system live query's initial snapshot (LLP 0044 §Live
@@ -7718,8 +7534,8 @@ impl LocalSnapback {
         }
     }
 
-    /// Asset system-table writes commit through `asset_transaction`, outside
-    /// the app changeset that ordinarily feeds live fan-out. Every asset
+    /// Asset system-table writes commit through typed storage-kernel operations,
+    /// outside the app changeset that ordinarily feeds live fan-out. Every asset
     /// state transition an observer may care about funnels through here with
     /// the touched asset ids, synthesizing the change frame the ordinary
     /// notify path expects.
@@ -7841,10 +7657,10 @@ impl LocalSnapback {
         let now = now_millis();
         // One read transaction: the rows, the referenced blob set, and the
         // head commit version are one consistent picture (the cut witness).
-        let capture = self.db.asset_transaction(|tx| {
-            let version = crate::storage::current_version_on(tx)?;
-            cut::capture_cut(tx, &app_id, version, now)
-        })?;
+        let capture = self
+            .db
+            .asset_reads()
+            .capture_export_cut(&app_id, now)?;
         // Blob objects copy after the row capture closes: blobs are
         // immutable, so a captured object can only disappear via GC — which
         // fails the export whole rather than shipping a partial component.
@@ -7900,20 +7716,9 @@ impl LocalSnapback {
             )
         })?;
         let summary = cut::validation_summary(&capture.manifest);
-        self.db.asset_transaction(|tx| {
-            crate::assets::write_receipt(
-                tx,
-                &crate::assets::AssetReceiptV1 {
-                    receipt_id: crate::ids::mint_time_ordered(crate::ids::Kind::Receipt),
-                    operation_lineage: "asset-cut-export".to_owned(),
-                    event: crate::assets::AssetReceiptEventV1::CutExported,
-                    asset_id: None,
-                    attempt_id: None,
-                    at_ms: now,
-                    details: summary.clone(),
-                },
-            )
-        })?;
+        self.db
+            .asset_reads()
+            .record_cut_exported(now, &summary)?;
         Ok(serde_json::json!({ "dir": parsed.dir, "cut": summary }))
     }
 
@@ -7944,20 +7749,9 @@ impl LocalSnapback {
         let now = now_millis();
         let summary = cut::validation_summary(&manifest);
         if !parsed.apply {
-            self.db.asset_transaction(|tx| {
-                crate::assets::write_receipt(
-                    tx,
-                    &crate::assets::AssetReceiptV1 {
-                        receipt_id: crate::ids::mint_time_ordered(crate::ids::Kind::Receipt),
-                        operation_lineage: "asset-cut-import".to_owned(),
-                        event: crate::assets::AssetReceiptEventV1::CutImportValidated,
-                        asset_id: None,
-                        attempt_id: None,
-                        at_ms: now,
-                        details: summary.clone(),
-                    },
-                )
-            })?;
+            self.db
+                .asset_reads()
+                .record_cut_import_validated(now, &summary)?;
             return Ok(serde_json::json!({ "applied": false, "cut": summary }));
         }
         // Application is the experimental half: empty-target restore only,
@@ -7991,21 +7785,13 @@ impl LocalSnapback {
             fresh_keys.push(key);
         }
         let store_kind = store.kind().to_owned();
-        self.db.asset_transaction(|tx| {
-            cut::apply_cut(tx, &manifest, &fresh_keys, &store_kind, now)?;
-            crate::assets::write_receipt(
-                tx,
-                &crate::assets::AssetReceiptV1 {
-                    receipt_id: crate::ids::mint_time_ordered(crate::ids::Kind::Receipt),
-                    operation_lineage: "asset-cut-import".to_owned(),
-                    event: crate::assets::AssetReceiptEventV1::CutImported,
-                    asset_id: None,
-                    attempt_id: None,
-                    at_ms: now,
-                    details: summary.clone(),
-                },
-            )
-        })?;
+        self.db.asset_reads().apply_import_cut(
+            &manifest,
+            &fresh_keys,
+            &store_kind,
+            now,
+            &summary,
+        )?;
         Ok(serde_json::json!({ "applied": true, "cut": summary }))
     }
 
@@ -8186,18 +7972,10 @@ impl LocalSnapback {
                 "fixture bytes do not match the declared sourceDigest",
             ));
         }
-        let existing = self.db.asset_transaction(|tx| {
-            let Some(mapping) = crate::assets::lookup_seed_fixture(tx, &parsed.fixture_id)? else {
-                return Ok(None);
-            };
-            if mapping.source_digest != parsed.source_digest {
-                return Ok(None);
-            }
-            let live = crate::assets::load_asset(tx, &mapping.asset_id)?.is_some_and(|asset| {
-                asset.availability != crate::assets::AssetAvailability::Deleted
-            });
-            Ok(live.then_some(mapping.asset_id))
-        })?;
+        let existing = self
+            .db
+            .asset_reads()
+            .seed_fixture_existing(&parsed.fixture_id, &parsed.source_digest)?;
         if let Some(asset_id) = existing {
             return Ok(serde_json::json!({ "assetId": asset_id, "reused": true }));
         }
@@ -8225,18 +8003,15 @@ impl LocalSnapback {
         let intent_id = self.asset_intent(&parsed.upload)?.id.clone();
         let asset_id = task.asset_id.clone();
         let now_ms = now_millis();
-        self.db.asset_transaction(|tx| {
-            crate::assets::upsert_seed_fixture(
-                tx,
-                &crate::assets::SeedFixtureMappingV1 {
-                    fixture_id: parsed.fixture_id.clone(),
-                    source_digest: parsed.source_digest.clone(),
-                    asset_id: asset_id.clone(),
-                    intent_id: intent_id.clone(),
-                    updated_at_ms: now_ms,
-                },
-            )
-        })?;
+        self.db.asset_reads().seed_fixture_upsert(
+            &crate::assets::SeedFixtureMappingV1 {
+                fixture_id: parsed.fixture_id.clone(),
+                source_digest: parsed.source_digest.clone(),
+                asset_id: asset_id.clone(),
+                intent_id: intent_id.clone(),
+                updated_at_ms: now_ms,
+            },
+        )?;
         Ok(serde_json::json!({ "assetId": asset_id, "reused": false }))
     }
 
@@ -8245,103 +8020,15 @@ impl LocalSnapback {
         input: Option<&Value>,
         user_id: Option<&str>,
     ) -> SnapbackResult<Value> {
-        use crate::assets;
-
         let parsed: AssetHostIdInput = asset_host_input(input, "asset.inspect")?;
         let caller = user_id.map(str::to_owned);
         let schema = self.db.schema().clone();
-        self.db.asset_transaction(|tx| {
-            let asset = assets::load_asset(tx, &parsed.asset_id)?
-                .ok_or_else(asset_unknown(&parsed.asset_id))?;
-            // An impersonated caller sees only what the read-access policy
-            // admits; a pure-admin call (no userId) is the operator posture
-            // behind the admin-write gate.
-            if let Some(user) = caller.as_deref() {
-                let decision =
-                    crate::storage::asset_read_authorized(&schema, tx, Some(user), &asset)?;
-                if !decision.authorized {
-                    return Err(SnapbackError::error(
-                        "SNAPBACK_ASSET_FORBIDDEN",
-                        "assets",
-                        "this asset is not readable by the caller",
-                    ));
-                }
-            }
-            let current = assets::current_attempt(tx, &asset.asset_id)?;
-            let view = assets::asset_record_client_view(tx, &asset)?;
-            let renditions = assets::renditions_for_asset(tx, &asset.asset_id)?;
-            let edges = assets::load_edges_for_asset(tx, &asset.asset_id)?;
-            let accounting = assets::asset_accounting(tx, &asset.app_id)?;
-            let work = assets::work_rows_for_asset(tx, &asset.asset_id)?;
-            let receipts = assets::receipts_for_asset(tx, &asset.asset_id, 200)?;
-            // Attempt and work projections are built field-by-field: staging
-            // keys, admissions/witnesses, and anything bearer-shaped never
-            // leave the record layer (LLP 0044 §Receipts/inspection).
-            let attempt = current.map(|attempt| {
-                serde_json::json!({
-                    "attemptId": attempt.attempt_id,
-                    "state": attempt.state,
-                    "acknowledgedOffset": attempt.acknowledged_offset,
-                    "declaredLength": attempt.declared_length,
-                    "integrityGrade": attempt.integrity_grade,
-                    "expiresAtMs": attempt.expires_at_ms,
-                })
-            });
-            Ok(serde_json::json!({
-                "asset": {
-                    "assetId": asset.asset_id,
-                    "intentId": asset.intent_id,
-                    "intentName": asset.intent_name,
-                    "ownerPrincipal": asset.owner_principal,
-                    "availability": asset.availability,
-                    "deliveryProfile": asset.delivery_profile,
-                    "readAccess": asset.read_access,
-                    "primaryRenditionId": asset.primary_rendition_id,
-                    "lifecycleGeneration": asset.lifecycle_generation,
-                    "policyGeneration": asset.policy_generation,
-                    "createdAtMs": asset.created_at_ms,
-                    "updatedAtMs": asset.updated_at_ms,
-                    // App-queryable integrity facts (LLP 0139 steal): the
-                    // canonical digest is blob metadata, never the physical
-                    // key.
-                    "digest": view.digest,
-                    "digestAlgorithm": view.digest_algorithm,
-                    "integrityGrade": view.integrity_grade,
-                },
-                "currentAttempt": attempt,
-                "renditions": renditions.iter().map(|rendition| serde_json::json!({
-                    "renditionId": rendition.rendition_id,
-                    "variantKey": rendition.variant_key,
-                    "state": rendition.state,
-                    "blobId": rendition.blob_id,
-                })).collect::<Vec<_>>(),
-                "referenceEdges": edges.iter().map(|edge| serde_json::json!({
-                    "table": edge.table_name,
-                    "rowId": edge.row_id,
-                    "fieldPath": edge.field_path,
-                })).collect::<Vec<_>>(),
-                "accounting": {
-                    "reservedBytes": accounting.reserved_bytes,
-                    "settledBytes": accounting.settled_bytes,
-                    "openAttempts": accounting.open_attempts_app,
-                },
-                "workRows": work.iter().map(|row| serde_json::json!({
-                    "workId": row.work_id,
-                    "kind": row.kind,
-                    "state": row.state,
-                    "attemptCount": row.attempt_count,
-                    "retryCeiling": row.retry_ceiling,
-                    "nextEligibleAtMs": row.next_eligible_at_ms,
-                    "deadlineAtMs": row.deadline_at_ms,
-                })).collect::<Vec<_>>(),
-                "receipts": receipts,
-            }))
-        })
+        self.db
+            .asset_reads()
+            .host_inspect(&schema, caller.as_deref(), &parsed.asset_id)
     }
 
     fn asset_host_list(&mut self, input: Option<&Value>) -> SnapbackResult<Value> {
-        use crate::assets;
-
         let parsed: AssetHostListInput = match input {
             None => AssetHostListInput::default(),
             Some(_) => asset_host_input(input, "asset.list")?,
@@ -8361,31 +8048,18 @@ impl LocalSnapback {
                 })
             })
             .transpose()?;
-        self.db.asset_transaction(|tx| {
-            let records = assets::assets_in_state(tx, state, 200)?;
-            Ok(serde_json::json!({
-                "assets": records.iter().map(|asset| serde_json::json!({
-                    "assetId": asset.asset_id,
-                    "intentName": asset.intent_name,
-                    "ownerPrincipal": asset.owner_principal,
-                    "availability": asset.availability,
-                    "updatedAtMs": asset.updated_at_ms,
-                })).collect::<Vec<_>>(),
-            }))
-        })
+        self.db.asset_reads().host_list(state)
     }
 
     /// Operator retry: a generation-fenced re-drive of pending publication
     /// and ledger work. It never reopens a terminal attempt or edits a
     /// receipt — it runs the same maintenance the runner runs, now.
     fn asset_host_retry(&mut self, input: Option<&Value>) -> SnapbackResult<Value> {
-        use crate::assets;
-
         let parsed: AssetHostIdInput = asset_host_input(input, "asset.retry")?;
         let asset = self
             .db
-            .asset_transaction(|tx| assets::load_asset(tx, &parsed.asset_id))?
-            .ok_or_else(asset_unknown(&parsed.asset_id))?;
+            .asset_reads()
+            .require_asset(&parsed.asset_id)?;
         if asset.availability == crate::assets::AssetAvailability::Deleted {
             return Err(SnapbackError::error(
                 "SNAPBACK_ASSET_RETRY_INELIGIBLE",
@@ -8398,7 +8072,8 @@ impl LocalSnapback {
         let runner = self.asset_runner_tick(now)?;
         let availability = self
             .db
-            .asset_transaction(|tx| assets::load_asset(tx, &parsed.asset_id))?
+            .asset_reads()
+            .load_asset(&parsed.asset_id)?
             .map(|asset| asset.availability);
         Ok(serde_json::json!({
             "publication": {
@@ -8439,9 +8114,9 @@ impl LocalSnapback {
         attempt_id: &str,
     ) -> SnapbackResult<crate::assets::AssetAttemptRecordV1> {
         let attempt = self.asset_attempt_for_caller(authority, attempt_id)?;
-        if !attempt.state.is_current() {
-            return Err(asset_terminal_error(&attempt));
-        }
+        self.db
+            .asset_attempts()
+            .attempt_require_current(&attempt)?;
         Ok(attempt)
     }
 
@@ -8457,9 +8132,9 @@ impl LocalSnapback {
         use sha2::Digest as _;
 
         let attempt = self.asset_attempt_for_caller(authority, attempt_id)?;
-        if !attempt.state.is_current() {
-            return Err(asset_terminal_error(&attempt));
-        }
+        self.db
+            .asset_attempts()
+            .attempt_require_current(&attempt)?;
         if offset != attempt.acknowledged_offset {
             return Err(SnapbackError::error(
                 "SNAPBACK_ASSET_OFFSET_CONFLICT",
@@ -8554,6 +8229,169 @@ impl LocalSnapback {
         Ok(response)
     }
 
+    /// Lock-held half before repeatable byte preparation. This preserves the
+    /// former finalize preamble exactly, then freezes all prepare/commit facts
+    /// in a continuity ticket whose store handle owns no LocalSnapback borrow.
+    pub(crate) fn asset_attempt_finalize_preflight(
+        &mut self,
+        authority: &PreparedAuthority,
+        request: crate::assets::AssetFinalizeRequestV1,
+    ) -> SnapbackResult<FinalizePreflightV1> {
+        use crate::assets;
+
+        let attempt = self.asset_attempt_for_caller(authority, &request.attempt_id)?;
+        if attempt.lifecycle_generation != request.lifecycle_generation {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_GENERATION_STALE",
+                "assets",
+                "the request carries a stale lifecycle generation",
+            ));
+        }
+        if attempt.state == assets::AssetAttemptState::Complete {
+            let asset = self
+                .db
+                .asset_attempts()
+                .attempt_finalize_load_asset(&attempt.asset_id)?;
+            return Ok(FinalizePreflightV1::AlreadyComplete(
+                crate::assets::AssetFinalizeResponseV1 {
+                    task: asset_task_state(&attempt, asset.as_ref()),
+                },
+            ));
+        }
+        self.db
+            .asset_attempts()
+            .attempt_require_current(&attempt)?;
+        if attempt.acknowledged_offset != attempt.declared_length {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_TRANSFER_INCOMPLETE",
+                "assets",
+                format!(
+                    "finalize requires a complete transfer ({} of {} bytes acknowledged)",
+                    attempt.acknowledged_offset, attempt.declared_length
+                ),
+            ));
+        }
+
+        // Intent removal is a revocation trigger: nothing further finalizes.
+        let intent = self
+            .asset_intent(&attempt.intent_id)
+            .map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_INTENT_REVOKED",
+                    "assets",
+                    "this attempt's intent was removed from the deployed artifact",
+                )
+            })?
+            .clone();
+        // @ref LLP 0044#asset-intent-implementation-identity-the-helper-closure-joins-the-carrier-dated-decision-2026-08-03 —
+        //   current code is eligible only when BOTH carrier hashes match the
+        //   admission. Otherwise finalization selects and validates the
+        //   generation-retained artifact. A policy-only legacy admission has
+        //   no executable identity to freeze, so the upgrade refuses it
+        //   rather than silently adopting current code.
+        let admitted_implementation_hash = attempt
+            .admission
+            .implementation_hash
+            .as_deref()
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_ADMISSION_STALE",
+                    "assets",
+                    "this attempt predates the implementationHash carrier; retry to re-admit it under the current generation",
+                )
+                .with_details(serde_json::json!({
+                    "legacyPolicyOnlyAdmission": true,
+                    "policyGeneration": attempt.admission.policy_generation,
+                }))
+            })?;
+        let current_implementation_hash = intent
+            .implementation_hash
+            .as_deref()
+            .filter(|hash| !hash.is_empty())
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_INTENT_IDENTITY_INVALID",
+                    "assets",
+                    "the deployed upload intent is missing implementationHash",
+                )
+            })?;
+        let current_matches_admission = intent.intent_policy_hash
+            == attempt.admission.intent_policy_hash
+            && current_implementation_hash == admitted_implementation_hash;
+        let frozen_intent: crate::manifest::AssetUploadIntentDefinition =
+            if current_matches_admission {
+                intent
+            } else {
+                self.db
+                    .asset_attempts()
+                    .attempt_finalize_load_intent_artifact(
+                        &attempt.intent_id,
+                        attempt.admission.policy_generation,
+                    )?
+                    .and_then(|json| serde_json::from_str(&json).ok())
+                    .filter(|retained: &crate::manifest::AssetUploadIntentDefinition| {
+                        retained.intent_policy_hash == attempt.admission.intent_policy_hash
+                            && retained.implementation_hash.as_deref()
+                                == Some(admitted_implementation_hash)
+                    })
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_ASSET_ADMISSION_STALE",
+                            "assets",
+                            "the frozen intent generation's retained artifact is missing or does not match the admitted implementation; retry to re-admit this asset under the current generation",
+                        )
+                        .with_details(serde_json::json!({
+                            "missingRetainedArtifact": true,
+                            "policyGeneration": attempt.admission.policy_generation,
+                            "implementationHash": admitted_implementation_hash,
+                        }))
+                    })?
+            };
+
+        let revoked = self.db.asset_attempts().attempt_finalize_generation_revoked(
+            &attempt.intent_id,
+            attempt.admission.policy_generation,
+        )?;
+        if revoked {
+            return Err(asset_intent_generation_revoked_error());
+        }
+
+        let on_ready = frozen_intent
+            .on
+            .as_ref()
+            .and_then(|on| on.ready.clone());
+        Ok(FinalizePreflightV1::Proceed(FinalizePrepareTicketV1 {
+            attempt,
+            request,
+            frozen_intent,
+            on_ready,
+            store: self.asset_store_obj()?,
+            image_finalization_enabled: self.asset_image_finalization_enabled(),
+            video_finalization_enabled: self.asset_video_finalization_enabled(),
+            app_id: self.functions.app_id.clone(),
+            app_quota: self.asset_app_quota(),
+            schema: self.db.schema().clone(),
+        }))
+    }
+
+    /// Lock-held commit half. Revocation is rechecked before any Phase A
+    /// durable state so a generation revoked while prepare ran fails closed.
+    pub(crate) fn asset_attempt_finalize_commit(
+        &mut self,
+        authority: &PreparedAuthority,
+        ticket: FinalizePrepareTicketV1,
+        preparation: FinalizePreparationV1,
+    ) -> SnapbackResult<crate::assets::AssetFinalizeResponseV1> {
+        let response = self.asset_attempt_finalize_commit_inner(
+            authority,
+            ticket,
+            preparation,
+            None,
+        )?;
+        self.notify_asset_record_change(std::slice::from_ref(&response.task.asset_id));
+        Ok(response)
+    }
+
     /// Render one declared variant off the canonical bytes and stage it
     /// through the write-ahead publication protocol: plan (attempt-less
     /// record) → idempotent object put → verify → staged. The commit half
@@ -8624,10 +8462,54 @@ impl LocalSnapback {
         request: crate::assets::AssetFinalizeRequestV1,
         crash_after: Option<AssetFinalizeCrashPoint>,
     ) -> SnapbackResult<crate::assets::AssetFinalizeResponseV1> {
+        let ticket = match self.asset_attempt_finalize_preflight(authority, request)? {
+            FinalizePreflightV1::AlreadyComplete(response) => return Ok(response),
+            FinalizePreflightV1::Proceed(ticket) => ticket,
+        };
+        // PREPARE half (LLP 0199 owner #4): byte-store reads, whole-object
+        // hashing/buffering, trusted detection, canonicalization, image/video
+        // decode/inspection, ThumbHash, derived facts, and required-variant
+        // renders. This helper owns no database handle and is deliberately
+        // repeatable from restricted staging.
+        //
+        // @ref LLP 0044#local-finalize-lock-choreography-implemented-2026-08-09 —
+        //   the route releases Local across this repeatable prepare while
+        //   in-process callers may retain an outer guard.
+        // OQ #4 follow-up implemented: the HTTP route now runs this prepare
+        // between two `with_snapback` calls, so no LocalSnapback guard spans
+        // staging hash/read, canonical rewrite, media CPU, ThumbHash, or
+        // variant renders. This inline path deliberately remains available
+        // for seed-fixture and other callers already inside an outer guard.
+        let preparation = ticket.prepare()?;
+        self.asset_attempt_finalize_commit_inner(authority, ticket, preparation, crash_after)
+    }
+
+    fn asset_attempt_finalize_commit_inner(
+        &mut self,
+        authority: &PreparedAuthority,
+        ticket: FinalizePrepareTicketV1,
+        preparation: FinalizePreparationV1,
+        crash_after: Option<AssetFinalizeCrashPoint>,
+    ) -> SnapbackResult<crate::assets::AssetFinalizeResponseV1> {
         use crate::assets;
 
-        let attempt = self.asset_attempt_for_caller(authority, &request.attempt_id)?;
-        if attempt.lifecycle_generation != request.lifecycle_generation {
+        // The old single-lock choreography made this check immovable between
+        // preflight and Phase A. The split admits revocation in that window,
+        // so the commit half must repeat it before creating durable state.
+        let revoked = self.db.asset_attempts().attempt_finalize_generation_revoked(
+            &ticket.attempt.intent_id,
+            ticket.attempt.admission.policy_generation,
+        )?;
+        if revoked {
+            return Err(asset_intent_generation_revoked_error());
+        }
+
+        // A competing finalize/cancel may have committed while prepare ran.
+        // Reload through the same caller/lifecycle gates as today's retry
+        // path: complete is idempotent; every other terminal state keeps its
+        // existing structured refusal from the closed transition table.
+        let attempt = self.asset_attempt_for_caller(authority, &ticket.attempt.attempt_id)?;
+        if attempt.lifecycle_generation != ticket.request.lifecycle_generation {
             return Err(SnapbackError::error(
                 "SNAPBACK_ASSET_GENERATION_STALE",
                 "assets",
@@ -8643,154 +8525,13 @@ impl LocalSnapback {
                 task: asset_task_state(&attempt, asset.as_ref()),
             });
         }
-        if !attempt.state.is_current() {
-            return Err(asset_terminal_error(&attempt));
-        }
-        if attempt.acknowledged_offset != attempt.declared_length {
-            return Err(SnapbackError::error(
-                "SNAPBACK_ASSET_TRANSFER_INCOMPLETE",
-                "assets",
-                format!(
-                    "finalize requires a complete transfer ({} of {} bytes acknowledged)",
-                    attempt.acknowledged_offset, attempt.declared_length
-                ),
-            ));
-        }
+        self.db
+            .asset_attempts()
+            .attempt_require_current(&attempt)?;
 
-        // Intent removal is a revocation trigger: nothing further finalizes.
-        let intent = self
-            .asset_intent(&attempt.intent_id)
-            .map_err(|_| {
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_INTENT_REVOKED",
-                    "assets",
-                    "this attempt's intent was removed from the deployed artifact",
-                )
-            })?
-            .clone();
-        // @ref LLP 0044#asset-intent-implementation-identity-the-helper-closure-joins-the-carrier-dated-decision-2026-08-03 —
-        //   current code is eligible only when BOTH carrier hashes match the
-        //   admission. Otherwise finalization selects and validates the
-        //   generation-retained artifact. A policy-only legacy admission has
-        //   no executable identity to freeze, so the upgrade refuses it
-        //   rather than silently adopting current code.
-        let admitted_implementation_hash = attempt
-            .admission
-            .implementation_hash
-            .as_deref()
-            .ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_ADMISSION_STALE",
-                    "assets",
-                    "this attempt predates the implementationHash carrier; retry to re-admit it under the current generation",
-                )
-                .with_details(serde_json::json!({
-                    "legacyPolicyOnlyAdmission": true,
-                    "policyGeneration": attempt.admission.policy_generation,
-                }))
-            })?;
-        let current_implementation_hash = intent
-            .implementation_hash
-            .as_deref()
-            .filter(|hash| !hash.is_empty())
-            .ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_INTENT_IDENTITY_INVALID",
-                    "assets",
-                    "the deployed upload intent is missing implementationHash",
-                )
-            })?;
-        let current_matches_admission = intent.intent_policy_hash
-            == attempt.admission.intent_policy_hash
-            && current_implementation_hash == admitted_implementation_hash;
-        let frozen_intent: crate::manifest::AssetUploadIntentDefinition =
-            if current_matches_admission {
-                intent.clone()
-            } else {
-                self.db
-                    .asset_attempts()
-                    .attempt_finalize_load_intent_artifact(
-                        &attempt.intent_id,
-                        attempt.admission.policy_generation,
-                    )?
-                    .and_then(|json| serde_json::from_str(&json).ok())
-                    .filter(|retained: &crate::manifest::AssetUploadIntentDefinition| {
-                        retained.intent_policy_hash == attempt.admission.intent_policy_hash
-                            && retained.implementation_hash.as_deref()
-                                == Some(admitted_implementation_hash)
-                    })
-                    .ok_or_else(|| {
-                        SnapbackError::error(
-                            "SNAPBACK_ASSET_ADMISSION_STALE",
-                            "assets",
-                            "the frozen intent generation's retained artifact is missing or does not match the admitted implementation; retry to re-admit this asset under the current generation",
-                        )
-                        .with_details(serde_json::json!({
-                            "missingRetainedArtifact": true,
-                            "policyGeneration": attempt.admission.policy_generation,
-                            "implementationHash": admitted_implementation_hash,
-                        }))
-                    })?
-            };
-
-        // Callbacks are declared intent policy: the ready callback runs
-        // under the frozen admitted policy exactly like every other policy
-        // fact the attempt finalizes under.
-        let on_ready: Option<String> = frozen_intent.on.as_ref().and_then(|on| on.ready.clone());
-
-        let revoked = self.db.asset_attempts().attempt_finalize_generation_revoked(
-            &attempt.intent_id,
-            attempt.admission.policy_generation,
-        )?;
-        if revoked {
-            return Err(SnapbackError::error(
-                "SNAPBACK_ASSET_INTENT_REVOKED",
-                "assets",
-                "this intent's policy generation is revoked; nothing further finalizes under it",
-            ));
-        }
-
-        // @ref LLP 0044#video-location-policy-the-video--location--sibling-block-dated-decision-2026-08-03 —
-        //   trusted detection selects the matching image/video sibling; the
-        //   two declarations never alias at finalization.
-        let image_location = frozen_intent.image.as_ref().map(|image| image.location);
-        let video_location = frozen_intent.video.as_ref().map(|video| video.location);
-        // The capability defense for strip-declared media is keyed by the
-        // *detected* type below — image bytes need the image-finalization
-        // fact, video bytes the video one — so it runs after detection.
-
-        // PREPARE half (LLP 0199 owner #4): byte-store reads, whole-object
-        // hashing/buffering, trusted detection, canonicalization, media
-        // decode/inspection, and derived facts. This helper owns no database
-        // handle and is deliberately repeatable from restricted staging.
-        //
-        // OQ #4 follow-up: `asset_attempt_finalize_route` currently enters
-        // this method through `with_snapback`, so the outer LocalSnapback
-        // guard still spans this otherwise lock-free preparation. Move this
-        // call between a generation-fenced preflight and the narrow Phase
-        // A/C/D commit operations, releasing Local for staging hash/read,
-        // canonical rewrite, image/video CPU, ThumbHash, and variant renders.
-        // Preserve LLP 0044's planned-before-put and staged-before-publish
-        // crash cuts when the transport/kernel choreography is opened.
-        let store = self.asset_store_obj()?;
-        let prepared = match assets::prepare_asset_finalize(
-            store.as_ref(),
-            assets::AssetFinalizePrepareInput {
-                staging_key: &attempt.staging_key,
-                declared_length: attempt.declared_length,
-                declared_digest: request.declared_digest.as_deref(),
-                declared_content_type: attempt.declared_content_type.as_deref(),
-                accepted_media_types: &frozen_intent.accept.media_types,
-                max_canonical_bytes: frozen_intent.accept.max_bytes,
-                image_location,
-                video_location,
-                image_finalization_enabled: self.asset_image_finalization_enabled(),
-                video_finalization_enabled: self.asset_video_finalization_enabled(),
-            },
-        ) {
-            Ok(prepared) => prepared,
-            Err(assets::AssetFinalizePrepareError::Transient(error)) => return Err(error),
-            Err(assets::AssetFinalizePrepareError::Refusal(failure)) => {
+        let prepared = match preparation {
+            FinalizePreparationV1::Prepared(prepared) => prepared,
+            FinalizePreparationV1::Refused(failure) => {
                 return self.asset_fail_attempt(
                     &attempt,
                     failure.asset_outcome,
@@ -8798,10 +8539,22 @@ impl LocalSnapback {
                 );
             }
         };
+        let FinalizePrepareTicketV1 {
+            request,
+            frozen_intent,
+            on_ready,
+            store,
+            image_finalization_enabled,
+            app_id,
+            app_quota,
+            schema,
+            ..
+        } = ticket;
         let staged_digest = prepared.staged_digest;
         let detected = prepared.detected_content_type;
         let canonical = prepared.canonical;
         let image_media_facts = prepared.media_facts;
+        let rendered_required = prepared.required_variants;
 
         // The integrity grade is honest: end-to-end verified only when every
         // chunk carried a checksum or an authenticated whole-upload digest
@@ -8818,7 +8571,6 @@ impl LocalSnapback {
         // record (or the attempt's re-drivable record from a prior crash)
         // commits before any canonical object write.
         let now = now_millis();
-        let app_id = self.functions.app_id.clone();
         let attempt_id = attempt.attempt_id.clone();
         let digest = canonical.digest.clone();
         let mut publication = self.db.asset_attempts().attempt_finalize_commit_plan(
@@ -8861,45 +8613,29 @@ impl LocalSnapback {
             return Err(asset_test_crash());
         }
 
-        // Declared variants (LLP 0044 §step 8/9): required ones render and
-        // stage now so the publishing transaction can commit them with the
-        // primary and switch `ready` atomically with the last required
-        // publication; optional ones enqueue ledger work inside that same
-        // transaction and never gate the asset.
+        // Declared variants (LLP 0044 §step 8/9): required ones were rendered
+        // by the unlocked, repeatable prepare. Their publication plans and
+        // object puts remain here, after the primary reached `staged`, so the
+        // publishing transaction can commit them with the primary and switch
+        // `ready` atomically with the last required publication. Optional
+        // ones enqueue ledger work inside that same transaction and never
+        // gate the asset.
         let declared_variants: Vec<crate::manifest::AssetImageVariant> = frozen_intent
             .image
             .as_ref()
             .map(|image| image.variants.clone())
             .unwrap_or_default();
-        let variants_enabled = self.asset_image_finalization_enabled()
+        let variants_enabled = image_finalization_enabled
             && !declared_variants.is_empty()
             && matches!(detected, "image/jpeg" | "image/png");
-        let app_quota = self.asset_app_quota();
         let mut prepared_required: Vec<AssetPreparedVariant> = Vec::new();
         if variants_enabled {
-            let rendered_required = match assets::prepare_required_asset_variants(
-                store.as_ref(),
-                canonical.object.as_ref(),
-                detected,
-                &declared_variants,
-            ) {
-                Ok(prepared) => prepared,
-                Err(assets::AssetFinalizePrepareError::Transient(error)) => return Err(error),
-                Err(assets::AssetFinalizePrepareError::Refusal(failure)) => {
-                    return self.asset_fail_attempt(
-                        &attempt,
-                        failure.asset_outcome,
-                        failure.refusal,
-                    );
-                }
-            };
             for rendered in &rendered_required {
                 match self.asset_stage_prepared_variant(store.as_ref(), &app_id, rendered) {
                     Ok(prepared) => prepared_required.push(prepared),
-                    // Ceiling/decode refusals over trusted canonical bytes
-                    // are deterministic: the required variant can never
-                    // materialize, so the asset rejects rather than staying
-                    // retry-eligible; store errors stay transient.
+                    // Preserve the prior classification for commit-side
+                    // publication failures: store errors stay retryable;
+                    // deterministic non-store refusals reject.
                     Err(error) => {
                         let availability =
                             if error.diagnostic.code == "SNAPBACK_ASSET_STORE_UNAVAILABLE" {
@@ -8926,7 +8662,6 @@ impl LocalSnapback {
         // uniqueness, rendition + availability, quota settlement, receipts —
         // one commit. Witness movement re-runs the authorizer and retries
         // once with the fresh witness validated inside the retry transaction.
-        let schema = self.db.schema().clone();
         let mut witness: Vec<crate::storage::CapturedReadDependency> =
             serde_json::from_value(attempt.admission.witness.clone()).unwrap_or_default();
         let witness_input = HandlerInput {
@@ -9270,32 +9005,11 @@ impl LocalSnapback {
         authority: &PreparedAuthority,
         asset_id: &str,
     ) -> SnapbackResult<()> {
-        use crate::assets;
         let caller = Self::asset_caller_principal(authority);
         let schema = self.db.schema().clone();
-        self.db.asset_transaction(|tx| {
-            let asset = assets::load_asset(tx, asset_id)?.ok_or_else(asset_unknown(asset_id))?;
-            if asset.availability == assets::AssetAvailability::Deleted {
-                return Err(asset_unknown(asset_id)());
-            }
-            let decision =
-                crate::storage::asset_read_authorized(&schema, tx, caller.as_deref(), &asset)?;
-            if !decision.authorized {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_ASSET_FORBIDDEN",
-                    "assets",
-                    "this asset is not readable by the caller",
-                ));
-            }
-            if asset.availability != assets::AssetAvailability::Ready {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_ASSET_NOT_READY",
-                    "assets",
-                    "the asset has no deliverable bytes yet",
-                ));
-            }
-            Ok(())
-        })
+        self.db
+            .asset_reads()
+            .strict_read_probe(&schema, caller.as_deref(), asset_id)
     }
 
     // @ref LLP 0044#ceremony-floor-and-bounded-on-demand-widths-dated-amendment-2026-08-01 —
@@ -9375,7 +9089,6 @@ impl LocalSnapback {
         max_width: Option<u64>,
         width: Option<u64>,
     ) -> SnapbackResult<AssetDeliveryOutcome> {
-        use crate::assets;
         let variant = if let Some(requested) = width {
             self.asset_strict_read_probe(authority, asset_id)?;
             self.asset_resolve_width_variant(asset_id, requested)?
@@ -9387,169 +9100,16 @@ impl LocalSnapback {
         let store = self.asset_store_obj()?;
         let now = now_millis();
         let range_header = range_header.map(str::to_owned);
-        self.db.asset_transaction(|tx| {
-            let asset = assets::load_asset(tx, asset_id)?.ok_or_else(asset_unknown(asset_id))?;
-            if asset.availability == assets::AssetAvailability::Deleted {
-                // Deletion stops discovery and future canonical access on
-                // the next request; a tombstone serves nothing.
-                return Err(asset_unknown(asset_id)());
-            }
-            let decision =
-                crate::storage::asset_read_authorized(&schema, tx, caller.as_deref(), &asset)?;
-            if !decision.authorized {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_ASSET_FORBIDDEN",
-                    "assets",
-                    "this asset is not readable by the caller",
-                ));
-            }
-            if asset.availability != assets::AssetAvailability::Ready {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_ASSET_NOT_READY",
-                    "assets",
-                    "the asset has no deliverable bytes yet",
-                ));
-            }
-            Self::asset_deliver_from(
-                tx,
-                &store,
-                &asset,
-                &variant,
-                max_width,
-                range_header.as_deref(),
-                "private-strict",
-                "private, no-store".to_owned(),
-                now,
-            )
-        })
-    }
-
-    /// Shared alias→bytes resolution for every delivery profile: rendition
-    /// selection (including the `best` bound), live-blob load, range
-    /// grammar, the per-request receipt, and trusted headers. Callers own
-    /// the profile's authorization semantics; this owns everything after.
-    #[allow(clippy::too_many_arguments)]
-    fn asset_deliver_from(
-        tx: &rusqlite::Transaction<'_>,
-        store: &std::sync::Arc<dyn crate::assets_store::AssetStore>,
-        asset: &crate::assets::AssetRecordV1,
-        variant: &str,
-        max_width: Option<u64>,
-        range_header: Option<&str>,
-        profile_label: &str,
-        cache_control: String,
-        now: u64,
-    ) -> SnapbackResult<AssetDeliveryOutcome> {
-        use crate::assets;
-        let asset_id = asset.asset_id.as_str();
-        {
-            let rendition = if variant == "best" {
-                let bound = max_width.ok_or_else(|| {
-                    SnapbackError::error(
-                        "SNAPBACK_ASSET_VARIANT_UNKNOWN",
-                        "assets",
-                        "the best selector requires a maxWidth bound",
-                    )
-                })?;
-                let ready = assets::load_ready_renditions(tx, asset_id)?;
-                let width_of = |r: &assets::AssetRenditionRecordV1| {
-                    r.media_facts
-                        .as_ref()
-                        .and_then(|facts| facts.get("width"))
-                        .and_then(serde_json::Value::as_u64)
-                };
-                let mut sized: Vec<_> = ready
-                    .into_iter()
-                    .filter_map(|r| width_of(&r).map(|w| (w, r)))
-                    .collect();
-                sized.sort_by_key(|(w, _)| *w);
-                let within = sized.iter().rev().find(|(w, _)| *w <= bound).cloned();
-                within
-                    .or_else(|| sized.into_iter().next())
-                    .map(|(_, r)| r)
-                    .ok_or_else(|| {
-                        SnapbackError::error(
-                            "SNAPBACK_ASSET_VARIANT_UNKNOWN",
-                            "assets",
-                            "no ready rendition carries a width fact",
-                        )
-                    })?
-            } else {
-                assets::load_rendition_by_variant(tx, asset_id, variant)?
-                    .filter(|r| r.state == assets::AssetRenditionState::Ready)
-                    .ok_or_else(|| {
-                        SnapbackError::error(
-                            "SNAPBACK_ASSET_VARIANT_UNKNOWN",
-                            "assets",
-                            format!("no ready rendition for variant {variant}"),
-                        )
-                    })?
-            };
-            let blob = assets::load_blob_live(tx, &rendition.blob_id)?
-                .filter(|b| !b.condemned)
-                .map(|b| b.record)
-                .ok_or_else(|| {
-                    SnapbackError::error(
-                        "SNAPBACK_ASSET_STORE_UNAVAILABLE",
-                        "assets",
-                        "the rendition's blob is not available",
-                    )
-                })?;
-            let range = assets::parse_byte_range(range_header, blob.byte_length);
-            if range == assets::ByteRangeOutcome::Unsatisfiable {
-                return Ok(AssetDeliveryOutcome::Unsatisfiable {
-                    total_length: blob.byte_length,
-                });
-            }
-            let (window_start, window_length, partial) = match range {
-                assets::ByteRangeOutcome::Partial { start, end } => (start, end - start + 1, true),
-                _ => (0, blob.byte_length, false),
-            };
-            assets::write_receipt(
-                tx,
-                &asset_receipt(
-                    &asset.asset_id.clone(),
-                    assets::AssetReceiptEventV1::DeliveryAdmitted,
-                    &asset.asset_id,
-                    None,
-                    now,
-                    serde_json::json!({
-                        "profile": profile_label,
-                        "variant": rendition.variant_key,
-                        "partial": partial,
-                        "windowStart": window_start,
-                        "windowLength": window_length,
-                    }),
-                ),
-            )?;
-            let filename = rendition
-                .media_facts
-                .as_ref()
-                .and_then(|facts| facts.get("filename"))
-                .and_then(|value| value.as_str())
-                .map(str::to_owned)
-                .unwrap_or_else(|| assets::sanitize_filename(None));
-            let disposition = if assets::forces_attachment_disposition(&blob.detected_content_type)
-            {
-                format!("attachment; filename=\"{filename}\"")
-            } else {
-                format!("inline; filename=\"{filename}\"")
-            };
-            Ok(AssetDeliveryOutcome::Content(Box::new(AssetDelivery {
-                store: store.clone(),
-                blob_key: blob.physical_key.clone(),
-                window_start,
-                window_length,
-                total_length: blob.byte_length,
-                content_type: blob.detected_content_type.clone(),
-                // Rendition-scoped so two assets sharing one deduplicated
-                // blob never expose equal validators (alias identity).
-                etag: format!("\"r-{}\"", rendition.rendition_id),
-                disposition,
-                cache_control,
-                partial,
-            })))
-        }
+        self.db.asset_reads().deliver_strict(
+            &schema,
+            caller.as_deref(),
+            &store,
+            asset_id,
+            &variant,
+            max_width,
+            range_header.as_deref(),
+            now,
+        )
     }
 
     /// `private-signed` issuance: authorization happens here, per request;
@@ -9590,99 +9150,23 @@ impl LocalSnapback {
         // the probe transaction below, resolve/materialize the ladder
         // rendition, then sign that concrete variant.
         let issued_variant = if let Some(requested) = request.width_px {
-            let schema_probe = schema.clone();
-            let caller_probe = caller.clone();
-            self.db.asset_transaction(|tx| {
-                let asset =
-                    assets::load_asset(tx, asset_id)?.ok_or_else(asset_unknown(asset_id))?;
-                if asset.availability == assets::AssetAvailability::Deleted {
-                    return Err(asset_unknown(asset_id)());
-                }
-                if asset.delivery_profile != assets::AssetDeliveryProfile::PrivateSigned {
-                    return Err(SnapbackError::error(
-                        "SNAPBACK_ASSET_DELIVERY_PROFILE_UNSUPPORTED",
-                        "assets",
-                        "this asset's declared delivery profile does not issue signed URLs",
-                    ));
-                }
-                let decision = crate::storage::asset_read_authorized(
-                    &schema_probe,
-                    tx,
-                    caller_probe.as_deref(),
-                    &asset,
-                )?;
-                if !decision.authorized {
-                    return Err(SnapbackError::error(
-                        "SNAPBACK_ASSET_FORBIDDEN",
-                        "assets",
-                        "this asset is not readable by the caller",
-                    ));
-                }
-                Ok(())
-            })?;
+            self.db.asset_reads().signed_url_width_probe(
+                &schema,
+                caller.as_deref(),
+                asset_id,
+            )?;
             self.asset_resolve_width_variant(asset_id, requested)?
         } else {
             request.variant.clone()
         };
-        self.db.asset_transaction(|tx| {
-            let asset = assets::load_asset(tx, asset_id)?.ok_or_else(asset_unknown(asset_id))?;
-            if asset.availability == assets::AssetAvailability::Deleted {
-                return Err(asset_unknown(asset_id)());
-            }
-            if asset.delivery_profile != assets::AssetDeliveryProfile::PrivateSigned {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_ASSET_DELIVERY_PROFILE_UNSUPPORTED",
-                    "assets",
-                    "this asset's declared delivery profile does not issue signed URLs",
-                ));
-            }
-            let decision =
-                crate::storage::asset_read_authorized(&schema, tx, caller.as_deref(), &asset)?;
-            if !decision.authorized {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_ASSET_FORBIDDEN",
-                    "assets",
-                    "this asset is not readable by the caller",
-                ));
-            }
-            if asset.availability != assets::AssetAvailability::Ready {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_ASSET_NOT_READY",
-                    "assets",
-                    "the asset has no deliverable bytes yet",
-                ));
-            }
-            let grantee = caller.as_deref().unwrap_or("anonymous");
-            let expires_at_ms = now.saturating_add(ttl);
-            let key = assets::active_signing_key(tx, now)?;
-            let token = assets::mint_signed_url_token(
-                &key,
-                asset_id,
-                &issued_variant,
-                grantee,
-                asset.lifecycle_generation,
-                expires_at_ms,
-            );
-            assets::write_receipt(
-                tx,
-                &asset_receipt(
-                    &asset.asset_id.clone(),
-                    assets::AssetReceiptEventV1::SignedUrlIssued,
-                    &asset.asset_id,
-                    None,
-                    now,
-                    serde_json::json!({
-                        "variant": issued_variant,
-                        "expiresAtMs": expires_at_ms,
-                    }),
-                ),
-            )?;
-            Ok(assets::AssetSignedUrlIssueResponseV1 {
-                url: format!("/assets/signed/{asset_id}/{}?token={token}", issued_variant),
-                variant: issued_variant.clone(),
-                expires_at_ms,
-            })
-        })
+        self.db.asset_reads().signed_url_issue(
+            &schema,
+            caller.as_deref(),
+            asset_id,
+            &issued_variant,
+            ttl,
+            now,
+        )
     }
 
     /// Serve a signed bearer URL: signature, expiry, and current lifecycle
@@ -9695,72 +9179,16 @@ impl LocalSnapback {
         token: &str,
         range_header: Option<&str>,
     ) -> SnapbackResult<AssetDeliveryOutcome> {
-        use crate::assets;
         let store = self.asset_store_obj()?;
         let now = now_millis();
-        let variant = variant.to_owned();
-        let token = token.to_owned();
-        let range_header = range_header.map(str::to_owned);
-        self.db.asset_transaction(|tx| {
-            let asset = assets::load_asset(tx, asset_id)?.ok_or_else(asset_unknown(asset_id))?;
-            if asset.availability == assets::AssetAvailability::Deleted {
-                return Err(asset_unknown(asset_id)());
-            }
-            if asset.delivery_profile != assets::AssetDeliveryProfile::PrivateSigned {
-                return Err(asset_unknown(asset_id)());
-            }
-            match assets::validate_signed_url_token(
-                tx,
-                &token,
-                asset_id,
-                &variant,
-                asset.lifecycle_generation,
-                now,
-            )? {
-                assets::SignedTokenOutcome::Valid => {}
-                assets::SignedTokenOutcome::Expired => {
-                    return Err(SnapbackError::error(
-                        "SNAPBACK_ASSET_SIGNATURE_EXPIRED",
-                        "assets",
-                        "the signed URL's bearer window has passed; request a fresh issuance",
-                    ));
-                }
-                assets::SignedTokenOutcome::Invalid => {
-                    return Err(SnapbackError::error(
-                        "SNAPBACK_ASSET_SIGNATURE_INVALID",
-                        "assets",
-                        "the signed URL does not validate",
-                    ));
-                }
-            }
-            if asset.availability != assets::AssetAvailability::Ready {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_ASSET_NOT_READY",
-                    "assets",
-                    "the asset has no deliverable bytes yet",
-                ));
-            }
-            // A signed response may be privately cached for the remaining
-            // bearer window and no longer — the validated token's expiry is
-            // authoritative (token part 3; validation already proved it).
-            let remaining_s = token
-                .split('.')
-                .nth(2)
-                .and_then(|part| part.parse::<u64>().ok())
-                .map(|expires| expires.saturating_sub(now) / 1000)
-                .unwrap_or(0);
-            Self::asset_deliver_from(
-                tx,
-                &store,
-                &asset,
-                &variant,
-                None,
-                range_header.as_deref(),
-                "private-signed",
-                format!("private, max-age={remaining_s}"),
-                now,
-            )
-        })
+        self.db.asset_reads().deliver_signed(
+            &store,
+            asset_id,
+            variant,
+            token,
+            range_header,
+            now,
+        )
     }
 
     /// Serve a `public-immutable` alias: no authorization, immutable cache
@@ -9773,72 +9201,28 @@ impl LocalSnapback {
         range_header: Option<&str>,
         width: Option<u64>,
     ) -> SnapbackResult<AssetDeliveryOutcome> {
-        use crate::assets;
         let variant = if let Some(requested) = width {
             // Public-profile check first (masked), then resolve: anonymous
             // requests on non-public assets must never trigger
             // materialization or learn existence.
-            self.db.asset_transaction(|tx| {
-                let masked = asset_unknown(asset_id);
-                let asset = assets::load_asset(tx, asset_id)?.ok_or_else(&masked)?;
-                if asset.availability != assets::AssetAvailability::Ready
-                    || asset.delivery_profile != assets::AssetDeliveryProfile::PublicImmutable
-                {
-                    return Err(masked());
-                }
-                Ok(())
-            })?;
+            self.db.asset_reads().public_width_probe(asset_id)?;
             self.asset_resolve_width_variant(asset_id, requested)?
         } else {
             variant.to_owned()
         };
         let store = self.asset_store_obj()?;
         let now = now_millis();
-        let range_header = range_header.map(str::to_owned);
-        self.db.asset_transaction(|tx| {
-            let masked = asset_unknown(asset_id);
-            let asset = assets::load_asset(tx, asset_id)?.ok_or_else(&masked)?;
-            if asset.availability != assets::AssetAvailability::Ready
-                || asset.delivery_profile != assets::AssetDeliveryProfile::PublicImmutable
-            {
-                return Err(masked());
-            }
-            Self::asset_deliver_from(
-                tx,
-                &store,
-                &asset,
-                &variant,
-                None,
-                range_header.as_deref(),
-                "public-immutable",
-                "public, max-age=31536000, immutable".to_owned(),
-                now,
-            )
-        })
+        self.db
+            .asset_reads()
+            .deliver_public(&store, asset_id, &variant, range_header, now)
     }
 
     /// Operator signing-key rotation: retires every prior key, so every
     /// outstanding signed URL stops validating (LLP 0044: an operator
     /// action, not per-principal revocation). No key ids in the result.
     pub(crate) fn asset_rotate_signing_key(&mut self) -> SnapbackResult<Value> {
-        use crate::assets;
         let now = now_millis();
-        self.db.asset_transaction(|tx| {
-            assets::rotate_signing_key(tx, now)?;
-            assets::write_receipt(
-                tx,
-                &assets::AssetReceiptV1 {
-                    receipt_id: crate::ids::mint_time_ordered(crate::ids::Kind::Receipt),
-                    operation_lineage: "signing-key-rotation".to_owned(),
-                    event: assets::AssetReceiptEventV1::SigningKeyRotated,
-                    asset_id: None,
-                    attempt_id: None,
-                    at_ms: now,
-                    details: serde_json::json!({ "scope": "instance" }),
-                },
-            )?;
-            Ok(serde_json::json!({ "rotated": true }))
-        })
+        self.db.asset_reads().rotate_signing_key(now)
     }
 
     /// Explicit authorized delete: the one-transaction cascade of LLP 0044
@@ -9859,46 +9243,17 @@ impl LocalSnapback {
         asset_id: &str,
         crash_mid_cascade: bool,
     ) -> SnapbackResult<Value> {
-        use crate::assets;
         let caller = Self::asset_caller_principal(authority);
         let now = now_millis();
-        let fenced_staging = self.db.asset_transaction(|tx| {
-            let mut asset =
-                assets::load_asset(tx, asset_id)?.ok_or_else(asset_unknown(asset_id))?;
-            if asset.availability == assets::AssetAvailability::Deleted {
-                return Ok(None);
-            }
-            if caller.as_deref() != Some(asset.owner_principal.as_str()) {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_ASSET_FORBIDDEN",
-                    "assets",
-                    "only the owner may delete this asset",
-                ));
-            }
-            if !assets::load_edges_for_asset(tx, asset_id)?.is_empty() {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_ASSET_REFERENCED",
-                    "assets",
-                    "typed references to this asset remain; clear them first",
-                ));
-            }
-            let staging = asset_delete_cascade(tx, &mut asset, "explicit-delete", now)?;
-            if crash_mid_cascade {
-                return Err(asset_test_crash());
-            }
-            Ok(staging)
-        })?;
+        let crash = crash_mid_cascade.then_some(asset_test_crash as fn() -> SnapbackError);
+        let fenced_staging = self
+            .db
+            .asset_reads()
+            .delete(caller.as_deref(), asset_id, now, crash)?;
         if let Some(staging_key) = fenced_staging {
             self.asset_store_obj()?.delete_staging_pair(&staging_key)?;
         }
-        self.db.asset_transaction(|tx| {
-            let asset = assets::load_asset(tx, asset_id)?.ok_or_else(asset_unknown(asset_id))?;
-            Ok(serde_json::json!({
-                "assetId": asset.asset_id,
-                "availability": asset.availability,
-                "lifecycleGeneration": asset.lifecycle_generation,
-            }))
-        })
+        self.db.asset_reads().delete_result(asset_id)
     }
 
     /// The mandatory GC sweep — one callable entry point for the L1-11
@@ -28317,6 +27672,14 @@ pub(crate) enum AssetFinalizeCrashPoint {
     AfterStaged,
 }
 
+fn asset_intent_generation_revoked_error() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_ASSET_INTENT_REVOKED",
+        "assets",
+        "this intent's policy generation is revoked; nothing further finalizes under it",
+    )
+}
+
 fn asset_test_crash() -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_ASSET_TEST_CRASH",
@@ -28333,49 +27696,6 @@ pub(crate) struct AssetPublicationMaintenanceReport {
     pub condemned: u64,
     pub retired: u64,
     pub objects_deleted: u64,
-}
-
-/// One resolved delivery window over an `(asset, rendition)` alias. The
-/// cache posture is the profile's: strict is `private, no-store`, signed is
-/// `private` bounded by the remaining bearer window, public-immutable is the
-/// immutable year (LLP 0044 §Delivery profiles).
-pub(crate) struct AssetDelivery {
-    pub store: std::sync::Arc<dyn crate::assets_store::AssetStore>,
-    pub blob_key: String,
-    pub window_start: u64,
-    pub window_length: u64,
-    pub total_length: u64,
-    pub content_type: String,
-    pub etag: String,
-    pub disposition: String,
-    pub cache_control: String,
-    pub partial: bool,
-}
-
-impl std::fmt::Debug for AssetDelivery {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AssetDelivery")
-            .field("store", &self.store.kind())
-            .field("blob_key", &self.blob_key)
-            .field("window_start", &self.window_start)
-            .field("window_length", &self.window_length)
-            .field("total_length", &self.total_length)
-            .field("content_type", &self.content_type)
-            .field("etag", &self.etag)
-            .field("disposition", &self.disposition)
-            .field("cache_control", &self.cache_control)
-            .field("partial", &self.partial)
-            .finish()
-    }
-}
-
-#[derive(Debug)]
-pub(crate) enum AssetDeliveryOutcome {
-    Content(Box<AssetDelivery>),
-    /// Syntactically valid but unsatisfiable range: 416 with the total.
-    Unsatisfiable {
-        total_length: u64,
-    },
 }
 
 #[derive(Debug, Default)]
@@ -28482,110 +27802,6 @@ fn asset_host_input<T: for<'de> serde::Deserialize<'de>>(
     })
 }
 
-fn asset_unknown(asset_id: &str) -> impl Fn() -> SnapbackError + '_ {
-    move || {
-        SnapbackError::error(
-            "SNAPBACK_ASSET_UNKNOWN",
-            "assets",
-            format!("unknown asset {asset_id}"),
-        )
-    }
-}
-
-/// The one-transaction deletion cascade (LLP 0044 §Lifecycle transitions):
-/// fence the current attempt, retire every rendition row, decrement each
-/// rendition's blob reference — the primary exactly once, because primary
-/// bytes are only the `primary` rendition record — and transit the asset,
-/// whose generation bump fences in-flight work at its next generation
-/// check. Logical quota releases at this commit because settled usage
-/// counts only live renditions. Returns the fenced staging key; the caller
-/// removes the file after commit (orphans belong to the sweep).
-fn asset_delete_cascade(
-    tx: &rusqlite::Transaction<'_>,
-    asset: &mut crate::assets::AssetRecordV1,
-    cause: &str,
-    now_ms: u64,
-) -> SnapbackResult<Option<String>> {
-    use crate::assets;
-    let mut fenced_staging = None;
-    if let Some(mut attempt) = assets::current_attempt(tx, &asset.asset_id)? {
-        assets::transition_attempt(
-            tx,
-            &mut attempt,
-            assets::AssetAttemptState::Cancelled,
-            now_ms,
-        )?;
-        assets::write_receipt(
-            tx,
-            &asset_receipt(
-                &attempt.attempt_id.clone(),
-                assets::AssetReceiptEventV1::AttemptCancelled,
-                &asset.asset_id,
-                Some(&attempt.attempt_id),
-                now_ms,
-                serde_json::json!({ "cause": cause }),
-            ),
-        )?;
-        fenced_staging = Some(attempt.staging_key);
-    }
-    let mut renditions_retired = 0u64;
-    let mut blobs_released = Vec::new();
-    for mut rendition in assets::renditions_for_asset(tx, &asset.asset_id)? {
-        use crate::assets::AssetRenditionState as R;
-        if rendition.state == R::Retired {
-            continue;
-        }
-        // Failed renditions hold no committed blob reference (their
-        // publication was condemned); every other live state does.
-        let holds_reference = matches!(rendition.state, R::Pending | R::Ready | R::Superseded);
-        assets::transition_rendition(tx, &mut rendition, R::Retired, now_ms)?;
-        if holds_reference {
-            let remaining = assets::release_blob_reference(tx, &rendition.blob_id, now_ms)?;
-            blobs_released.push(serde_json::json!({
-                "blobId": rendition.blob_id,
-                "remainingReferences": remaining,
-            }));
-        }
-        renditions_retired += 1;
-    }
-    assets::transition_asset(tx, asset, assets::AssetAvailability::Deleted, now_ms)?;
-    assets::write_receipt(
-        tx,
-        &asset_receipt(
-            &asset.asset_id.clone(),
-            assets::AssetReceiptEventV1::AssetDeleted,
-            &asset.asset_id,
-            None,
-            now_ms,
-            serde_json::json!({
-                "cause": cause,
-                "renditionsRetired": renditions_retired,
-                "blobsReleased": blobs_released,
-            }),
-        ),
-    )?;
-    Ok(fenced_staging)
-}
-
-fn asset_receipt(
-    lineage: &str,
-    event: crate::assets::AssetReceiptEventV1,
-    asset_id: &str,
-    attempt_id: Option<&str>,
-    at_ms: u64,
-    details: serde_json::Value,
-) -> crate::assets::AssetReceiptV1 {
-    crate::assets::AssetReceiptV1 {
-        receipt_id: crate::assets::AssetFsStore::new_opaque_key(),
-        operation_lineage: lineage.to_owned(),
-        event,
-        asset_id: Some(asset_id.to_owned()),
-        attempt_id: attempt_id.map(str::to_owned),
-        at_ms,
-        details,
-    }
-}
-
 fn asset_task_state(
     attempt: &crate::assets::AssetAttemptRecordV1,
     asset: Option<&crate::assets::AssetRecordV1>,
@@ -28603,22 +27819,6 @@ fn asset_task_state(
         integrity_grade: attempt.integrity_grade,
         primary_rendition_id: asset.and_then(|asset| asset.primary_rendition_id.clone()),
         diagnostic: attempt.failure.clone(),
-    }
-}
-
-fn asset_terminal_error(attempt: &crate::assets::AssetAttemptRecordV1) -> SnapbackError {
-    if attempt.state == crate::assets::AssetAttemptState::Expired {
-        SnapbackError::error(
-            "SNAPBACK_ASSET_ATTEMPT_EXPIRED",
-            "assets",
-            "this attempt expired; request a fresh one (retry preserves the asset id)",
-        )
-    } else {
-        SnapbackError::error(
-            "SNAPBACK_ASSET_ATTEMPT_TERMINAL",
-            "assets",
-            format!("attempt is terminal ({})", attempt.state.as_str()),
-        )
     }
 }
 

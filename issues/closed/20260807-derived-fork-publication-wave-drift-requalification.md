@@ -1,7 +1,8 @@
 # Requalify derived-fork publication after wave drift
 
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-08-07
+**Resolved:** 2026-08-09
 **Owner:** Charlie Cheever
 **Systems:** Instance forks, capability publication, LLP governance
 **Related:** LLP 0158, LLP 0162, LLP 0185,
@@ -183,3 +184,137 @@ the named author's fresh dated acceptance and the atomic publication rebuild.
 capability-index flip to `local`, gated on
 `node scripts/check-agent-safe-publication.mjs` reporting `published` on a
 clean tree.
+
+## Resolution — five-round requalification and publication (2026-08-09)
+
+Charlie Cheever accepted the final supervised packet with exact line
+`Charlie Cheever — accepted 2026-08-09`. The publication binds qualification
+C `7b590a169b75839847c4755bbf0d4e7ae053cadd`, scoped digest version
+`snapback:agent-safe-implementation-tree:v3`, implementation digest
+`sha256:15db39c790471a1f0d6afcb447dd008662a0232cff3b1042e254fa798df75128`,
+and the C-time selection-policy digest
+`sha256:e17665f97846a0bf04b625be45c303fb5e3eb2c47ebd2fe0b537014bae27303a`.
+
+The complete requalification chain is retained and appended as five
+frozen-per-round entries in each Codex/Fable Spec and implementation verdict
+history:
+
+1. round 1 at `336a605bc808a340c71407c148af450789f420ad`
+   (Codex `NOT_READY`, Fable `READY`);
+2. round 2 at `622d61b9f29c18bdab3e4f0b23fa9de085eb3161`
+   (Codex `NOT_READY`, Fable `READY`);
+3. round 3 at `03f9d147cbf6798de2f74467cf5a2a3d8d3d756a`
+   (dual `READY`);
+4. final round at `772c00649534d68b2ba63b98699e8ce2b2019057`
+   (dual `READY`); and
+5. closing round at exact C
+   `7b590a169b75839847c4755bbf0d4e7ae053cadd` (dual `READY` at the accepted
+   digest).
+
+Both required release-platform receipts bind exact C: macOS/aarch64 is
+`sha256:311bdd18a063d98f203c2b425b3656fa31537eb7a3384a0acc76dc923cd837f2`
+and Linux/x86_64 is
+`sha256:7770fc5c9f1d2ce508ed0afa0225e81cf05244f98ab0244839739b155d66b775`.
+The dated bounds-ratification locator carries the exact macOS receipt bytes.
+The v3 acceptance binds all twelve non-self evidence digests and the four
+17-round review-history heads; its artifact digest is
+`sha256:e7e1e3443b7def4d3efe5e8c360bed1f9b2e3771741240971b4338df3584ba29`.
+
+The rebuilt receipt, carrier, and source anchor publish the narrow
+contributor-source local guide claim. The separate storage publication stays
+`withheld`, and `agent_safe_derived_deployment_fork_v1` remains wholly
+`Missing` in every target manifest. Released-binary/npm parity,
+normal-installation, public-package, hosted/Cloudflare/remote, merge-back, and
+process-containment claims remain open or explicitly absent.
+
+Normal fleet landings after C changed scoped source, so the successful oracle
+also reports `PUBLISHED_REQUALIFICATION_DUE` with `since` equal to C and the
+exact changed paths. This is the honest standing state authorized by LLP 0189's
+2026-08-09 D-3 clarification; no frozen-chain integrity failure is present.
+
+R3-1 (`%cs`/UTC seam), R3-2 (historical-evidence P-window mutability), R3-3
+(no locator future-date ceiling), N-1 (unrelated in-scope sibling carrier
+churn), and N-2 (due-warning ticket/escalation automation) remain non-blocking
+findings for the next legitimate checker rotation. They are not closed by this
+publication.
+
+## Final publication record — seven-round chain (2026-08-09)
+
+The two earlier local P attempts recorded in `../publication-REPORT.md` and
+`../publication-final-REPORT.md` did not land on `origin/main`. This dated
+record supersedes their qualification, digest, receipt, and review-head values
+without rewriting the preserved attempt record above.
+
+Charlie Cheever accepted the final packet in a supervised session with exact
+line `Charlie Cheever — accepted 2026-08-09`. Publication P binds qualification
+C `04332ab8b73799bd3279b3150dbd8598df275530`, scoped digest version
+`snapback:agent-safe-implementation-tree:v3`, implementation digest
+`sha256:42d8fdccbe42ed3699da014f1c3ec68aa8fd05ca99de423310b6a6885190708f`,
+and qualification-C selection-policy digest
+`sha256:9221291f95c690d455be3240b342010216b7e1b470cf21aba53104408a3f9075`.
+
+The complete retained requalification sequence is appended frozen-per-round
+to each Codex/Fable Spec and implementation history:
+
+1. round 1 at `336a605bc808a340c71407c148af450789f420ad`
+   (Codex `NOT_READY`, Fable `READY`);
+2. round 2 at `622d61b9f29c18bdab3e4f0b23fa9de085eb3161`
+   (Codex `NOT_READY`, Fable `READY`);
+3. round 3 at `03f9d147cbf6798de2f74467cf5a2a3d8d3d756a`
+   (dual `READY`);
+4. final round at `772c00649534d68b2ba63b98699e8ce2b2019057`
+   (dual `READY`);
+5. closing round at `7b590a169b75839847c4755bbf0d4e7ae053cadd`
+   (dual `READY`);
+6. publication-C round at `866f5d025645ce20a9149d8ea20032bd2f31c9b0`
+   (Codex `NOT_READY`, Fable `READY`); and
+7. publication-C2 round at exact C
+   `04332ab8b73799bd3279b3150dbd8598df275530` (dual `READY`).
+
+All four histories now contain 19 rounds. Their accepted pubC2 head entry
+digests are:
+
+- Spec Codex:
+  `sha256:5f09bd785c42be0b3615ed7c9257662c0f7dbe75fd305cb60b3dc0353be0fb9c`;
+- Spec Fable:
+  `sha256:00498fa5ed660d5c9fba91e0f7e0093560636429c364e5507282a5fdae0309ba`;
+- implementation Codex:
+  `sha256:dd0bc18349e0e997b784188a078fad6645b10b1fcbd1b04ce68268bb6130b00f`;
+  and
+- implementation Fable:
+  `sha256:636023a4220ec444dcf971d871d6bd72f5d09cf8da3c44d3aa70adec34a36e91`.
+
+Both canonical release-platform receipts bind exact C: macOS/aarch64 is
+`sha256:34dd3421ba779f6bc5064230903f5dd100ef4e160802ec01a2e7c7ff0b02fa74`
+and Linux/x86_64 is
+`sha256:f564f0bfc8fe6c5609a3cfec8a3dfb2127216b156c41df58e6c816b450e8dcd0`.
+The dated bounds locator carries the exact macOS bytes and the unchanged
+2026-08-06 ratified bounds. The v3 author-acceptance artifact digest is
+`sha256:e775e163d5ab385220187ae82cd72794c6de7a1cd81215dfca7b2e9394b168f0`;
+the publication receipt digest is
+`sha256:15438d4cb27d90226debc2c3ce6a0d776d35b846e2419405a046c9c876edd4ff`.
+
+The clean-tree oracle reports the derived-fork record `published` and the
+separate storage record `withheld`. It also honestly reports
+`PUBLISHED_REQUALIFICATION_DUE` since C for these post-C scoped changes:
+
+- `src/local-persistent-store-publication.anchor.v1.json`;
+- `src/local-persistent-store-publication.v1.json`;
+- `src/local-relation-activity-publication.v1.json`;
+- `src/local-sequence-allocation-publication.v1.json`;
+- `src/local.rs`;
+- `src/manifest.rs`;
+- `src/storage.rs`;
+- added `src/storage/asset_attempts.rs`; and
+- `src/storage/asset_maintenance.rs`.
+
+Publication P does not modify or restore any of the four sibling publication
+carriers; they remain byte-identical to `origin/main`, under their own frozen
+drift gates. No frozen fork-chain integrity failure is present. The narrow
+contributor-source local guide claim is published; the target-manifest tuple
+remains wholly `Missing`, and released-binary/npm parity,
+normal-installation, public-package, hosted/Cloudflare/remote, merge-back, and
+process containment remain nonclaims.
+
+R3-1, R3-2, R3-3, N-1, and N-2 remain open, non-blocking findings for the next
+legitimate checker rotation. This final publication does not close them.

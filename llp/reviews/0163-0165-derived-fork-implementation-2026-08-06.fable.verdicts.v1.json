@@ -3,7 +3,7 @@
   "verdicts": [
     {
       "reviewArtifact": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md",
-      "reviewArtifactSha256": "sha256:9320ca74f8d4ead2ce379d73e66ea02331942d272e2925515b77c6197fa9fb89",
+      "reviewArtifactSha256": "sha256:d7589d8ecedfa9428992ff0ef26e4025a9bb5b030447a55e77ac862721533d01",
       "family": "fable",
       "round": 1,
       "reviewedCommit": "7c2a27e0e90cf1d19b57825a187cb3be041ab92f",
@@ -17,11 +17,11 @@
     },
     {
       "reviewArtifact": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md",
-      "reviewArtifactSha256": "sha256:9320ca74f8d4ead2ce379d73e66ea02331942d272e2925515b77c6197fa9fb89",
+      "reviewArtifactSha256": "sha256:d7589d8ecedfa9428992ff0ef26e4025a9bb5b030447a55e77ac862721533d01",
       "family": "fable",
       "round": 2,
       "reviewedCommit": "96fd0ad1c38109aa524e4cbc39439c8982e18766",
-      "previousEntrySha256": "sha256:e530fdabaa35f796855fb5b00a192c8909f46ec596de9200d232a4f223d2fa99",
+      "previousEntrySha256": "sha256:94e129a72b81ed83a26d0cff6a619ec585722dd43e149f9c6cdb1bf27fac5847",
       "verdict": {
         "kind": "forkSpecConformance",
         "llp0163": "READY",
@@ -31,11 +31,11 @@
     },
     {
       "reviewArtifact": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md",
-      "reviewArtifactSha256": "sha256:9320ca74f8d4ead2ce379d73e66ea02331942d272e2925515b77c6197fa9fb89",
+      "reviewArtifactSha256": "sha256:d7589d8ecedfa9428992ff0ef26e4025a9bb5b030447a55e77ac862721533d01",
       "family": "fable",
       "round": 3,
       "reviewedCommit": "cdc0fe03e8d75c4a1d1d25f79fe820f20b772ef7",
-      "previousEntrySha256": "sha256:e921382a5727c8588e762409b8a10501a6a5aa0fb1971fea5ef5f07aedaf4d09",
+      "previousEntrySha256": "sha256:49a4b025f931593bc221808915fd7f00ee42ffa4b0ebe5f4ce07fc85d038e106",
       "verdict": {
         "kind": "forkSpecConformance",
         "llp0163": "READY",
@@ -45,11 +45,11 @@
     },
     {
       "reviewArtifact": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md",
-      "reviewArtifactSha256": "sha256:9320ca74f8d4ead2ce379d73e66ea02331942d272e2925515b77c6197fa9fb89",
+      "reviewArtifactSha256": "sha256:d7589d8ecedfa9428992ff0ef26e4025a9bb5b030447a55e77ac862721533d01",
       "family": "fable",
       "round": 4,
       "reviewedCommit": "0b8b0ff71bfc3eaa968b53a694a61f8a472ee295",
-      "previousEntrySha256": "sha256:ff7b23d9f5c263f7620e260189cda93b3b51029ba5fe8667117898259852883a",
+      "previousEntrySha256": "sha256:d55a77bbc780878d1cfb636e01fcf238ec4a178d91563a45ae60a5b095dddabb",
       "verdict": {
         "kind": "forkSpecConformance",
         "llp0163": "READY",
@@ -59,11 +59,11 @@
     },
     {
       "reviewArtifact": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md",
-      "reviewArtifactSha256": "sha256:9320ca74f8d4ead2ce379d73e66ea02331942d272e2925515b77c6197fa9fb89",
+      "reviewArtifactSha256": "sha256:d7589d8ecedfa9428992ff0ef26e4025a9bb5b030447a55e77ac862721533d01",
       "family": "fable",
       "round": 5,
       "reviewedCommit": "b08e835f112517cf1629a842f5bcae12841ddcf0",
-      "previousEntrySha256": "sha256:878c165af5663c5185e4662fb0db61f7cb02b2b468e64165caaf78661941681c",
+      "previousEntrySha256": "sha256:c2ecfeac0fb692b1b55458578b68138b6d712c80c12ffc1d69e50e7f96658dd8",
       "verdict": {
         "kind": "forkSpecConformance",
         "llp0163": "READY",
@@ -73,11 +73,11 @@
     },
     {
       "reviewArtifact": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md",
-      "reviewArtifactSha256": "sha256:9320ca74f8d4ead2ce379d73e66ea02331942d272e2925515b77c6197fa9fb89",
+      "reviewArtifactSha256": "sha256:d7589d8ecedfa9428992ff0ef26e4025a9bb5b030447a55e77ac862721533d01",
       "family": "fable",
       "round": 6,
       "reviewedCommit": "bdc68296499298f634d9aa461e90fb8d1a7d4ab0",
-      "previousEntrySha256": "sha256:d13d248f359aa11edddd632684c740e86eb8ebb8bb8cc082cae75863df406239",
+      "previousEntrySha256": "sha256:4e1247d9cade7807bfa4e695413fd56a4eb84951fd3239f9771195f598f96ade",
       "verdict": {
         "kind": "forkSpecConformance",
         "llp0163": "READY",
@@ -87,11 +87,11 @@
     },
     {
       "reviewArtifact": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md",
-      "reviewArtifactSha256": "sha256:9320ca74f8d4ead2ce379d73e66ea02331942d272e2925515b77c6197fa9fb89",
+      "reviewArtifactSha256": "sha256:d7589d8ecedfa9428992ff0ef26e4025a9bb5b030447a55e77ac862721533d01",
       "family": "fable",
       "round": 7,
       "reviewedCommit": "2a5a6291a137ca3df41cfc826017e4de324b65a5",
-      "previousEntrySha256": "sha256:f0d7b7b3d76ff134358bc722dda7d49cf7ae504124cdfd02d52264e673831f35",
+      "previousEntrySha256": "sha256:807d4a9c2e37c096a58d043c9c910a0979a5ee45a92adc724bd7692856751f78",
       "verdict": {
         "kind": "forkSpecConformance",
         "llp0163": "READY",
@@ -101,11 +101,11 @@
     },
     {
       "reviewArtifact": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md",
-      "reviewArtifactSha256": "sha256:9320ca74f8d4ead2ce379d73e66ea02331942d272e2925515b77c6197fa9fb89",
+      "reviewArtifactSha256": "sha256:d7589d8ecedfa9428992ff0ef26e4025a9bb5b030447a55e77ac862721533d01",
       "family": "fable",
       "round": 8,
       "reviewedCommit": "0e778b9a85f26c45df8af0068979e355893baaa3",
-      "previousEntrySha256": "sha256:2109be4902dab8d3c25cc1274275b94ff6f7cab34ccc72dfdbe23c8cc60703c9",
+      "previousEntrySha256": "sha256:86b4582416e25b26f21a4161a88d7097273ec509fc997ed2c2b1dce64b407e36",
       "verdict": {
         "kind": "forkSpecConformance",
         "llp0163": "READY",
@@ -115,11 +115,11 @@
     },
     {
       "reviewArtifact": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md",
-      "reviewArtifactSha256": "sha256:9320ca74f8d4ead2ce379d73e66ea02331942d272e2925515b77c6197fa9fb89",
+      "reviewArtifactSha256": "sha256:d7589d8ecedfa9428992ff0ef26e4025a9bb5b030447a55e77ac862721533d01",
       "family": "fable",
       "round": 9,
       "reviewedCommit": "42f699749699f416b0015781a6bb729414db4464",
-      "previousEntrySha256": "sha256:425444767a63b0d4ac16fd5615a824a247ef291867b9f13dde2e5d920cecabf5",
+      "previousEntrySha256": "sha256:9aaa636816125449590a843dc032c9db0a34f780da37621a6d6a2c249e05f799",
       "verdict": {
         "kind": "forkSpecConformance",
         "llp0163": "READY",
@@ -129,11 +129,11 @@
     },
     {
       "reviewArtifact": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md",
-      "reviewArtifactSha256": "sha256:9320ca74f8d4ead2ce379d73e66ea02331942d272e2925515b77c6197fa9fb89",
+      "reviewArtifactSha256": "sha256:d7589d8ecedfa9428992ff0ef26e4025a9bb5b030447a55e77ac862721533d01",
       "family": "fable",
       "round": 10,
       "reviewedCommit": "fac516e9aaa83fda398ca684285f45a57192e826",
-      "previousEntrySha256": "sha256:052d6e4e3b1fec016461a828e6cda867546938e7b8a4dd72de93523349914971",
+      "previousEntrySha256": "sha256:7d5eba5d2d48e4465ede8201eb5bb205972eea6ba5a574687037f90ae7ac3d52",
       "verdict": {
         "kind": "forkSpecConformance",
         "llp0163": "READY",
@@ -143,11 +143,11 @@
     },
     {
       "reviewArtifact": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md",
-      "reviewArtifactSha256": "sha256:9320ca74f8d4ead2ce379d73e66ea02331942d272e2925515b77c6197fa9fb89",
+      "reviewArtifactSha256": "sha256:d7589d8ecedfa9428992ff0ef26e4025a9bb5b030447a55e77ac862721533d01",
       "family": "fable",
       "round": 11,
       "reviewedCommit": "a127e9b474dd5bedb31c73afa57022f4d8b82aed",
-      "previousEntrySha256": "sha256:ba46e5c0718348b3a8bb91629041bc3075173f9ca791e3d8d5b4529957d9f46e",
+      "previousEntrySha256": "sha256:986aecac41d4a9d9c5b8308b71d50d7aebaf26c521cb8181a0eac449e1c9740f",
       "verdict": {
         "kind": "forkSpecConformance",
         "llp0163": "READY",
@@ -157,11 +157,130 @@
     },
     {
       "reviewArtifact": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md",
-      "reviewArtifactSha256": "sha256:9320ca74f8d4ead2ce379d73e66ea02331942d272e2925515b77c6197fa9fb89",
+      "reviewArtifactSha256": "sha256:d7589d8ecedfa9428992ff0ef26e4025a9bb5b030447a55e77ac862721533d01",
       "family": "fable",
       "round": 12,
       "reviewedCommit": "ad0ad58748981010204b61eb5002e35b887a5093",
-      "previousEntrySha256": "sha256:b3c1f9ef9133f74d74f3380d0e24dd9ae5996dbcb6301c7f2f980e14694c9062",
+      "previousEntrySha256": "sha256:0ac745cecddf73e4be9fd044fc27b4dc3cd2335b36ee16d323be7486c7c7cb94",
+      "verdict": {
+        "kind": "forkSpecConformance",
+        "llp0163": "READY",
+        "llp0164": "READY",
+        "llp0165": "READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md",
+      "reviewArtifactSha256": "sha256:d7589d8ecedfa9428992ff0ef26e4025a9bb5b030447a55e77ac862721533d01",
+      "proseHistoryBinding": "frozen-per-round",
+      "reviewArtifactByteLengthAtRound": 235565,
+      "reviewArtifactSha256AtRound": "sha256:3e802e8122fc4782e33e98ffbbc8b9f2c27018c364bdb599aea164ebef57bb20",
+      "family": "fable",
+      "round": 13,
+      "reviewedCommit": "336a605bc808a340c71407c148af450789f420ad",
+      "previousEntrySha256": "sha256:ce5fedb921512536a1becef650ad2a5f9de0ad13c48257435601c84d940e9616",
+      "verdict": {
+        "kind": "forkSpecConformance",
+        "llp0163": "READY",
+        "llp0164": "READY",
+        "llp0165": "READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md",
+      "reviewArtifactSha256": "sha256:d7589d8ecedfa9428992ff0ef26e4025a9bb5b030447a55e77ac862721533d01",
+      "proseHistoryBinding": "frozen-per-round",
+      "reviewArtifactByteLengthAtRound": 248806,
+      "reviewArtifactSha256AtRound": "sha256:bf1d005767aae1989346421605576cef8cb4094aedcf38b412af521774d05293",
+      "family": "fable",
+      "round": 14,
+      "reviewedCommit": "622d61b9f29c18bdab3e4f0b23fa9de085eb3161",
+      "previousEntrySha256": "sha256:9fb733207566cf42eef02af8e7c04425ebee264929016e922259b2b8a601eba1",
+      "verdict": {
+        "kind": "forkSpecConformance",
+        "llp0163": "READY",
+        "llp0164": "READY",
+        "llp0165": "READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md",
+      "reviewArtifactSha256": "sha256:d7589d8ecedfa9428992ff0ef26e4025a9bb5b030447a55e77ac862721533d01",
+      "proseHistoryBinding": "frozen-per-round",
+      "reviewArtifactByteLengthAtRound": 260890,
+      "reviewArtifactSha256AtRound": "sha256:020f7acb2eabef93c08914e22d04d3cebf86eaf8f1dd8a76fb52bab5c50ec644",
+      "family": "fable",
+      "round": 15,
+      "reviewedCommit": "03f9d147cbf6798de2f74467cf5a2a3d8d3d756a",
+      "previousEntrySha256": "sha256:0679522e8e8754771c749bbea8d1974dd25bf562d77af5119b2c1b5f868399e4",
+      "verdict": {
+        "kind": "forkSpecConformance",
+        "llp0163": "READY",
+        "llp0164": "READY",
+        "llp0165": "READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md",
+      "reviewArtifactSha256": "sha256:d7589d8ecedfa9428992ff0ef26e4025a9bb5b030447a55e77ac862721533d01",
+      "proseHistoryBinding": "frozen-per-round",
+      "reviewArtifactByteLengthAtRound": 273289,
+      "reviewArtifactSha256AtRound": "sha256:9bd8b3beb155fb4ff1bf6d21ca0358ef7b8eb3abaf703a2bb2941d43c5bc1618",
+      "family": "fable",
+      "round": 16,
+      "reviewedCommit": "772c00649534d68b2ba63b98699e8ce2b2019057",
+      "previousEntrySha256": "sha256:6a0021a56bb6e171f18b835989dfb12bb809bb1ad747063b924ec8a781317498",
+      "verdict": {
+        "kind": "forkSpecConformance",
+        "llp0163": "READY",
+        "llp0164": "READY",
+        "llp0165": "READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md",
+      "reviewArtifactSha256": "sha256:d7589d8ecedfa9428992ff0ef26e4025a9bb5b030447a55e77ac862721533d01",
+      "proseHistoryBinding": "frozen-per-round",
+      "reviewArtifactByteLengthAtRound": 283888,
+      "reviewArtifactSha256AtRound": "sha256:1b7577b96cdfe3a057462df134453bb3269a2c6b693a561b0f3cc7cccb6e6575",
+      "family": "fable",
+      "round": 17,
+      "reviewedCommit": "7b590a169b75839847c4755bbf0d4e7ae053cadd",
+      "previousEntrySha256": "sha256:94d30080349572bd5c9081ad3f3508e6629209e4157aeede9cdbc05b0c7f6c17",
+      "verdict": {
+        "kind": "forkSpecConformance",
+        "llp0163": "READY",
+        "llp0164": "READY",
+        "llp0165": "READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md",
+      "reviewArtifactSha256": "sha256:d7589d8ecedfa9428992ff0ef26e4025a9bb5b030447a55e77ac862721533d01",
+      "proseHistoryBinding": "frozen-per-round",
+      "reviewArtifactByteLengthAtRound": 293248,
+      "reviewArtifactSha256AtRound": "sha256:e37fa85eba754b45c46f8ce4974f967d1246de0b75507dc9f84c5b8598b11f8c",
+      "family": "fable",
+      "round": 18,
+      "reviewedCommit": "866f5d025645ce20a9149d8ea20032bd2f31c9b0",
+      "previousEntrySha256": "sha256:131821928b176d3ac0478690ab0babf8e0902d26ad0bfa81a5a7b651a868cb2a",
+      "verdict": {
+        "kind": "forkSpecConformance",
+        "llp0163": "READY",
+        "llp0164": "READY",
+        "llp0165": "READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md",
+      "reviewArtifactSha256": "sha256:d7589d8ecedfa9428992ff0ef26e4025a9bb5b030447a55e77ac862721533d01",
+      "proseHistoryBinding": "frozen-per-round",
+      "reviewArtifactByteLengthAtRound": 301347,
+      "reviewArtifactSha256AtRound": "sha256:d7589d8ecedfa9428992ff0ef26e4025a9bb5b030447a55e77ac862721533d01",
+      "family": "fable",
+      "round": 19,
+      "reviewedCommit": "04332ab8b73799bd3279b3150dbd8598df275530",
+      "previousEntrySha256": "sha256:c37072724a94695f4ad624c833c59cad405c680001e56befc0c949ea058b42da",
       "verdict": {
         "kind": "forkSpecConformance",
         "llp0163": "READY",

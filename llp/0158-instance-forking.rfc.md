@@ -6,7 +6,7 @@
 experience, Developer experience, CLI, Documentation, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-07 (LLP 0189 alignment sweep: verification-cadence/claim-gating clauses re-scoped or annotated to the LLP 0189 D-3/D-6 defaults). 2026-08-07 (v2 derived-fork publication at qualification C `ad0ad58748981010204b61eb5002e35b887a5093`: the recomputed v2 implementation digest, canonical dual-platform receipts, all four contiguous 12-round dual-family `READY` histories, their accepted heads, and Charlie's exact 2026-08-06 author line close the dated receipt/carrier/anchor chain. The guide row publishes only a partial contributor-source local claim for exactly `macos/aarch64` and `linux/x86_64`; the target-manifest tuple stays wholly `Missing`, and released-binary/npm parity, normal installation, public packages, hosted/Cloudflare/remote targets, promotion/merge-back, and process containment remain open or unclaimed); 2026-08-06 (author-directed narrow local publication: LLPs 0163–0165 accepted after three mutually blind dual-family `READY` rounds; Charlie's exact two-platform release set and authorized acceptance fixture close the nine-item witness; `operating.instance-forks` publishes at local/partial through the guide row for contributor source only. The target-manifest tuple, broader agent-safe-storage aggregate, released-binary/npm parity, normal-installation exit, hosted targets, promotion/merge-back, and process containment remain `Missing` or explicit nonclaims); 2026-08-06 (row-13 concurrent-create hang repair: root admission
+**Revised:** 2026-08-09 (final v3 derived-fork publication at qualification C `04332ab8b73799bd3279b3150dbd8598df275530`: the seven-round frozen requalification chain ends dual-`READY` at exact C, both canonical platform receipts and Charlie's dated author acceptance bind the scoped implementation digest, and the guide republishes only the narrow contributor-source local claim. LLP 0189 D-3 honestly reports later scoped evolution as `PUBLISHED_REQUALIFICATION_DUE`; D-4 leaves sibling publication carriers under their own custody. The target-manifest tuple and all released-package, normal-installation, hosted, promotion, and process-containment claims remain absent); 2026-08-07 (LLP 0189 alignment sweep: verification-cadence/claim-gating clauses re-scoped or annotated to the LLP 0189 D-3/D-6 defaults). 2026-08-07 (v2 derived-fork publication at qualification C `ad0ad58748981010204b61eb5002e35b887a5093`: the recomputed v2 implementation digest, canonical dual-platform receipts, all four contiguous 12-round dual-family `READY` histories, their accepted heads, and Charlie's exact 2026-08-06 author line close the dated receipt/carrier/anchor chain. The guide row publishes only a partial contributor-source local claim for exactly `macos/aarch64` and `linux/x86_64`; the target-manifest tuple stays wholly `Missing`, and released-binary/npm parity, normal installation, public packages, hosted/Cloudflare/remote targets, promotion/merge-back, and process containment remain open or unclaimed); 2026-08-06 (author-directed narrow local publication: LLPs 0163–0165 accepted after three mutually blind dual-family `READY` rounds; Charlie's exact two-platform release set and authorized acceptance fixture close the nine-item witness; `operating.instance-forks` publishes at local/partial through the guide row for contributor source only. The target-manifest tuple, broader agent-safe-storage aggregate, released-binary/npm parity, normal-installation exit, hosted targets, promotion/merge-back, and process containment remain `Missing` or explicit nonclaims); 2026-08-06 (row-13 concurrent-create hang repair: root admission
 now uses a 30-second monotonic nonblocking-acquisition deadline with stable
 `SNAPBACK_FORK_ADMISSION_TIMEOUT`, while detached server exec marks every
 non-stdio inherited descriptor close-on-exec. This closes the macOS concurrent
@@ -1887,7 +1887,33 @@ correctness code changed. Republishing follows the LLP 0189 §Consequences
 order — digest re-scope with drift gates for departing wave-shared files
 first, then one fresh C against the re-scoped digest — with both canonical
 platform receipts, fresh accepted review heads, and named-author acceptance;
-see `issues/20260807-derived-fork-publication-wave-drift-requalification.md`.
+see `issues/closed/20260807-derived-fork-publication-wave-drift-requalification.md`.
+
+**2026-08-09 — final v3 qualification publication.** Qualification commit
+`04332ab8b73799bd3279b3150dbd8598df275530` binds scoped implementation
+digest `sha256:42d8fdccbe42ed3699da014f1c3ec68aa8fd05ca99de423310b6a6885190708f`
+and the qualification-time selection-policy digest
+`sha256:9221291f95c690d455be3240b342010216b7e1b470cf21aba53104408a3f9075`.
+The complete seven-round requalification sequence is frozen into all four
+Codex/Fable Spec and implementation histories: requalification rounds 1–3,
+final, close, publication-C, and publication-C2. The publication-C round is
+split (`Codex NOT_READY`, `Fable READY`); publication-C2 converges dual
+`READY` at exact C. The dated macOS/aarch64 and Linux/x86_64 receipts bind C,
+the dated bounds locator retains the ratified 2026-08-06 values, and Charlie's
+exact `Charlie Cheever — accepted 2026-08-09` author line binds the complete
+v3 evidence and history-head set.
+
+The source anchor and LLP 0061 `operating.instance-forks` row therefore return
+to `published` and target `local`, respectively, for only the partial
+contributor-source claim on those two platforms. Fleet commits after C changed
+scoped source, so LLP 0189 D-3 custody honestly reports
+`PUBLISHED_REQUALIFICATION_DUE` while the claim stands. Per LLP 0189 D-4, the
+local persistent-store carrier/anchor and the relation/activity and
+sequence-allocation carriers are not rebound or restored by this publication;
+their separate frozen-record gates own their integrity. The target-manifest
+tuple remains wholly `Missing`, and released-binary/npm parity,
+normal-installation, public-package, hosted/Cloudflare/remote, merge-back, and
+process-containment support remain explicit nonclaims.
 
 ## Status
 
@@ -1901,9 +1927,11 @@ wide completeness, and F2 hosted work stay open under LLP 0185. The local
 app-row net diff's authorizer-backed completeness slice is recorded above.
 Acceptance records the approved design, the
 same-`appId` derived-deployment amendment, and the landed local substrate. The
-2026-08-07 publication was withdrawn after covered wave drift, so the current
-LLP 0061 `operating.instance-forks` row is target `none` pending fresh
-qualification and acceptance. The separately reserved
+2026-08-07 publication was withdrawn after covered wave drift. The final v3
+qualification and acceptance on 2026-08-09 now publish the LLP 0061
+`operating.instance-forks` row at target `local` for the narrow
+contributor-source claim, with post-C scoped evolution visibly marked
+`PUBLISHED_REQUALIFICATION_DUE`. The separately reserved
 `agent_safe_derived_deployment_fork_v1` target-manifest predicate remains
 wholly `Missing`; released-binary/npm, normal-installation, hosted,
 promotion/merge-back, process-containment, and broader storage claims remain

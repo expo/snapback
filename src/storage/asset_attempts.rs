@@ -189,7 +189,7 @@ fn asset_ceiling_error(what: &str, limit: u64, observed: u64) -> SnapbackError {
     .with_details(serde_json::json!({ "limit": limit, "observed": observed }))
 }
 
-fn asset_unknown(asset_id: &str) -> impl Fn() -> SnapbackError + '_ {
+pub(super) fn asset_unknown(asset_id: &str) -> impl Fn() -> SnapbackError + '_ {
     move || {
         SnapbackError::error(
             "SNAPBACK_ASSET_UNKNOWN",
@@ -233,6 +233,17 @@ impl LocalDatabase {
         let value = f(&tx)?;
         tx.commit()?;
         Ok(value)
+    }
+
+    pub(super) fn attempt_require_current(
+        &self,
+        attempt: &assets::AssetAttemptRecordV1,
+    ) -> SnapbackResult<()> {
+        if attempt.state.is_current() {
+            Ok(())
+        } else {
+            Err(asset_terminal_error(attempt))
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1429,6 +1440,13 @@ impl<'a> AssetAttemptsKernel<'a> {
         Self { db }
     }
 
+    pub fn attempt_require_current(
+        &self,
+        attempt: &assets::AssetAttemptRecordV1,
+    ) -> SnapbackResult<()> {
+        self.db.attempt_require_current(attempt)
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn attempt_create(
         &mut self,
@@ -1529,6 +1547,30 @@ impl<'a> AssetAttemptsKernel<'a> {
     ) -> SnapbackResult<bool> {
         self.db
             .attempt_finalize_generation_revoked(intent_id, policy_generation)
+    }
+
+    #[cfg(test)]
+    pub fn test_revoke_intent_generation(
+        &mut self,
+        intent_id: &str,
+        policy_generation: u64,
+    ) -> SnapbackResult<()> {
+        self.db.asset_attempts_transaction(|tx| {
+            let changed = tx.execute(
+                "UPDATE _snapback_asset_intent_generations_v1
+                 SET revoked = 1
+                 WHERE intent_id = ?1 AND generation = ?2",
+                rusqlite::params![intent_id, policy_generation],
+            )?;
+            if changed != 1 {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_RECORD_INVALID",
+                    "assets",
+                    "the test generation to revoke does not exist",
+                ));
+            }
+            Ok(())
+        })
     }
 
     pub fn attempt_finalize_commit_plan(

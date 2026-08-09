@@ -3,7 +3,7 @@
   "verdicts": [
     {
       "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
-      "reviewArtifactSha256": "sha256:4b016dff615b427c012b22c17f6ebdf5c753bf2c02aba9159182c40895941334",
+      "reviewArtifactSha256": "sha256:1970a41cb4c0a86f70c71e826a16938ff5d077961fd8230ef5701d2cffa9fafa",
       "family": "codex",
       "round": 1,
       "reviewedCommit": "7c2a27e0e90cf1d19b57825a187cb3be041ab92f",
@@ -15,11 +15,11 @@
     },
     {
       "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
-      "reviewArtifactSha256": "sha256:4b016dff615b427c012b22c17f6ebdf5c753bf2c02aba9159182c40895941334",
+      "reviewArtifactSha256": "sha256:1970a41cb4c0a86f70c71e826a16938ff5d077961fd8230ef5701d2cffa9fafa",
       "family": "codex",
       "round": 2,
       "reviewedCommit": "96fd0ad1c38109aa524e4cbc39439c8982e18766",
-      "previousEntrySha256": "sha256:08c87d4f713d5b8bb322631ac55d56256d520be1346a68c519febdafd49311cc",
+      "previousEntrySha256": "sha256:fdcbda07abc32e6edb17f5432de966ed571b2bacf5f929621e41ecce14021d12",
       "verdict": {
         "kind": "derivedForkPublication",
         "status": "NOT_READY"
@@ -27,11 +27,11 @@
     },
     {
       "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
-      "reviewArtifactSha256": "sha256:4b016dff615b427c012b22c17f6ebdf5c753bf2c02aba9159182c40895941334",
+      "reviewArtifactSha256": "sha256:1970a41cb4c0a86f70c71e826a16938ff5d077961fd8230ef5701d2cffa9fafa",
       "family": "codex",
       "round": 3,
       "reviewedCommit": "cdc0fe03e8d75c4a1d1d25f79fe820f20b772ef7",
-      "previousEntrySha256": "sha256:eadbda7de15d3cb1a85df118ed60856c59970de1999cb5242bb8aa7d84c30b19",
+      "previousEntrySha256": "sha256:e991721abf200450f2da1f8a06ab576437f6b226b85a8cae5d0e066f1443a4b2",
       "verdict": {
         "kind": "derivedForkPublication",
         "status": "READY"
@@ -39,11 +39,11 @@
     },
     {
       "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
-      "reviewArtifactSha256": "sha256:4b016dff615b427c012b22c17f6ebdf5c753bf2c02aba9159182c40895941334",
+      "reviewArtifactSha256": "sha256:1970a41cb4c0a86f70c71e826a16938ff5d077961fd8230ef5701d2cffa9fafa",
       "family": "codex",
       "round": 4,
       "reviewedCommit": "0b8b0ff71bfc3eaa968b53a694a61f8a472ee295",
-      "previousEntrySha256": "sha256:e3bc7a460ed3fe3f4c3103f3d3824abb298a741a4f7a06c212f59ab39fec88ee",
+      "previousEntrySha256": "sha256:f691d8528dd6e4f1b2f23e2944c32ba2d7244bd6e827532b4dffb5548400ec30",
       "verdict": {
         "kind": "derivedForkPublication",
         "status": "NOT_READY"
@@ -51,11 +51,11 @@
     },
     {
       "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
-      "reviewArtifactSha256": "sha256:4b016dff615b427c012b22c17f6ebdf5c753bf2c02aba9159182c40895941334",
+      "reviewArtifactSha256": "sha256:1970a41cb4c0a86f70c71e826a16938ff5d077961fd8230ef5701d2cffa9fafa",
       "family": "codex",
       "round": 5,
       "reviewedCommit": "b08e835f112517cf1629a842f5bcae12841ddcf0",
-      "previousEntrySha256": "sha256:e5ac00e7059f5e1c7c8bc80142bf28cd4448ee70d61c06306ce1726cc5706403",
+      "previousEntrySha256": "sha256:cf963139afae29bfb2f4da44ec5b73bd83b5d6d7f496f84378455d5dcd8ee714",
       "verdict": {
         "kind": "derivedForkPublication",
         "status": "NOT_READY"
@@ -63,11 +63,11 @@
     },
     {
       "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
-      "reviewArtifactSha256": "sha256:4b016dff615b427c012b22c17f6ebdf5c753bf2c02aba9159182c40895941334",
+      "reviewArtifactSha256": "sha256:1970a41cb4c0a86f70c71e826a16938ff5d077961fd8230ef5701d2cffa9fafa",
       "family": "codex",
       "round": 6,
       "reviewedCommit": "bdc68296499298f634d9aa461e90fb8d1a7d4ab0",
-      "previousEntrySha256": "sha256:fed9d28aac9707ced67f64bf5fa8e2587b84327dc3647b8b3c8d5f4f8c82b5de",
+      "previousEntrySha256": "sha256:69700a4f0f0ff8bc0e0f5ae11d397aeebcd2dd413061c88637a8f8fc23401075",
       "verdict": {
         "kind": "derivedForkPublication",
         "status": "NOT_READY"
@@ -75,11 +75,11 @@
     },
     {
       "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
-      "reviewArtifactSha256": "sha256:4b016dff615b427c012b22c17f6ebdf5c753bf2c02aba9159182c40895941334",
+      "reviewArtifactSha256": "sha256:1970a41cb4c0a86f70c71e826a16938ff5d077961fd8230ef5701d2cffa9fafa",
       "family": "codex",
       "round": 7,
       "reviewedCommit": "2a5a6291a137ca3df41cfc826017e4de324b65a5",
-      "previousEntrySha256": "sha256:68f73ff0a54326bfd89e7e5161b6e178106d4217736218090850fdd79b259af7",
+      "previousEntrySha256": "sha256:05a5b7527b9778289f8399fe647e7fa92b758e8bcda250284ab24ea60f0f76bc",
       "verdict": {
         "kind": "derivedForkPublication",
         "status": "NOT_READY"
@@ -87,11 +87,11 @@
     },
     {
       "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
-      "reviewArtifactSha256": "sha256:4b016dff615b427c012b22c17f6ebdf5c753bf2c02aba9159182c40895941334",
+      "reviewArtifactSha256": "sha256:1970a41cb4c0a86f70c71e826a16938ff5d077961fd8230ef5701d2cffa9fafa",
       "family": "codex",
       "round": 8,
       "reviewedCommit": "0e778b9a85f26c45df8af0068979e355893baaa3",
-      "previousEntrySha256": "sha256:0f61a41f6f517783178d129510b50dc95312135a7e17437da0b1c1d5c07391a0",
+      "previousEntrySha256": "sha256:caaa50c93cf0122cb15a36094f9e0e105abce51f0115c0e7c06474bcae466697",
       "verdict": {
         "kind": "derivedForkPublication",
         "status": "NOT_READY"
@@ -99,11 +99,11 @@
     },
     {
       "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
-      "reviewArtifactSha256": "sha256:4b016dff615b427c012b22c17f6ebdf5c753bf2c02aba9159182c40895941334",
+      "reviewArtifactSha256": "sha256:1970a41cb4c0a86f70c71e826a16938ff5d077961fd8230ef5701d2cffa9fafa",
       "family": "codex",
       "round": 9,
       "reviewedCommit": "42f699749699f416b0015781a6bb729414db4464",
-      "previousEntrySha256": "sha256:616558ab6375e6a46b627655b2025cd63e7ced0a5f6620c18ffc86c69d891612",
+      "previousEntrySha256": "sha256:3f1a8fb6a1d564061e6ec98483a3e75e6d0195e95b04b0e79f8c6d1ad0666bb2",
       "verdict": {
         "kind": "derivedForkPublication",
         "status": "READY"
@@ -111,11 +111,11 @@
     },
     {
       "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
-      "reviewArtifactSha256": "sha256:4b016dff615b427c012b22c17f6ebdf5c753bf2c02aba9159182c40895941334",
+      "reviewArtifactSha256": "sha256:1970a41cb4c0a86f70c71e826a16938ff5d077961fd8230ef5701d2cffa9fafa",
       "family": "codex",
       "round": 10,
       "reviewedCommit": "fac516e9aaa83fda398ca684285f45a57192e826",
-      "previousEntrySha256": "sha256:53b901fd2100283a1a46b188c7baa294fab1b22b10b523d303eaf9af48420026",
+      "previousEntrySha256": "sha256:fce4da104f05b198c3aae50210db0489c3aadb1b6fe16eacc323c03bcc9da615",
       "verdict": {
         "kind": "derivedForkPublication",
         "status": "READY"
@@ -123,11 +123,11 @@
     },
     {
       "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
-      "reviewArtifactSha256": "sha256:4b016dff615b427c012b22c17f6ebdf5c753bf2c02aba9159182c40895941334",
+      "reviewArtifactSha256": "sha256:1970a41cb4c0a86f70c71e826a16938ff5d077961fd8230ef5701d2cffa9fafa",
       "family": "codex",
       "round": 11,
       "reviewedCommit": "a127e9b474dd5bedb31c73afa57022f4d8b82aed",
-      "previousEntrySha256": "sha256:9ad9e4f39ea4e3c61783aaa9af6315ad902cef4bf60d268344a5a2c3b3f3b081",
+      "previousEntrySha256": "sha256:aa5ccd04510a24273624eda61b3d4bf78868a5548e05c8cc146cdc85994b9760",
       "verdict": {
         "kind": "derivedForkPublication",
         "status": "NOT_READY"
@@ -135,11 +135,116 @@
     },
     {
       "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
-      "reviewArtifactSha256": "sha256:4b016dff615b427c012b22c17f6ebdf5c753bf2c02aba9159182c40895941334",
+      "reviewArtifactSha256": "sha256:1970a41cb4c0a86f70c71e826a16938ff5d077961fd8230ef5701d2cffa9fafa",
       "family": "codex",
       "round": 12,
       "reviewedCommit": "ad0ad58748981010204b61eb5002e35b887a5093",
-      "previousEntrySha256": "sha256:cabe0a8152564e15506dc9d3142fb965c22c9e5ad55bbd61eaac1483bd3d9eec",
+      "previousEntrySha256": "sha256:0bd224a533f2ecc4afa44d33fe48712d2ed36acbd1fbaf977ecd9c2a3404db87",
+      "verdict": {
+        "kind": "derivedForkPublication",
+        "status": "READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
+      "reviewArtifactSha256": "sha256:1970a41cb4c0a86f70c71e826a16938ff5d077961fd8230ef5701d2cffa9fafa",
+      "proseHistoryBinding": "frozen-per-round",
+      "reviewArtifactByteLengthAtRound": 124304,
+      "reviewArtifactSha256AtRound": "sha256:41fa0cd4b70b40fbc1f82fc106bceba164b878ef8ece637e47318c7b03a60d53",
+      "family": "codex",
+      "round": 13,
+      "reviewedCommit": "336a605bc808a340c71407c148af450789f420ad",
+      "previousEntrySha256": "sha256:850638df493c739b31363eb5a364a489c5adfb8ddee8351360edcc1029fb4233",
+      "verdict": {
+        "kind": "derivedForkPublication",
+        "status": "NOT_READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
+      "reviewArtifactSha256": "sha256:1970a41cb4c0a86f70c71e826a16938ff5d077961fd8230ef5701d2cffa9fafa",
+      "proseHistoryBinding": "frozen-per-round",
+      "reviewArtifactByteLengthAtRound": 135470,
+      "reviewArtifactSha256AtRound": "sha256:d7e6835c16d894e7d36ea5a1812b356b3b77efe3d94dd564fd0655b946b8a604",
+      "family": "codex",
+      "round": 14,
+      "reviewedCommit": "622d61b9f29c18bdab3e4f0b23fa9de085eb3161",
+      "previousEntrySha256": "sha256:9ae8d6f159702bc3ec550acd5ac93ec1be803ea8db4663f304447f974fdb14b5",
+      "verdict": {
+        "kind": "derivedForkPublication",
+        "status": "NOT_READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
+      "reviewArtifactSha256": "sha256:1970a41cb4c0a86f70c71e826a16938ff5d077961fd8230ef5701d2cffa9fafa",
+      "proseHistoryBinding": "frozen-per-round",
+      "reviewArtifactByteLengthAtRound": 144774,
+      "reviewArtifactSha256AtRound": "sha256:a3e6f9a227cacf09a3b46e0fe443015040e82bb6683394607a7783a1c1e2065d",
+      "family": "codex",
+      "round": 15,
+      "reviewedCommit": "03f9d147cbf6798de2f74467cf5a2a3d8d3d756a",
+      "previousEntrySha256": "sha256:11b9e730c13e51a12ad45ad323147509cb6825c0e7f4599d19142d0431fd2886",
+      "verdict": {
+        "kind": "derivedForkPublication",
+        "status": "READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
+      "reviewArtifactSha256": "sha256:1970a41cb4c0a86f70c71e826a16938ff5d077961fd8230ef5701d2cffa9fafa",
+      "proseHistoryBinding": "frozen-per-round",
+      "reviewArtifactByteLengthAtRound": 157137,
+      "reviewArtifactSha256AtRound": "sha256:8af0080439073fc36df7099a363405025a0ff20584a031acaf01de4017d35924",
+      "family": "codex",
+      "round": 16,
+      "reviewedCommit": "772c00649534d68b2ba63b98699e8ce2b2019057",
+      "previousEntrySha256": "sha256:f9f276e8c12c515b9033e93dbb03ea1ace8d45ef0eb7335e1aa40b672b5276fa",
+      "verdict": {
+        "kind": "derivedForkPublication",
+        "status": "READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
+      "reviewArtifactSha256": "sha256:1970a41cb4c0a86f70c71e826a16938ff5d077961fd8230ef5701d2cffa9fafa",
+      "proseHistoryBinding": "frozen-per-round",
+      "reviewArtifactByteLengthAtRound": 165426,
+      "reviewArtifactSha256AtRound": "sha256:70e8006cd5a63f961c620b4cbd37cdc80f76d3798eb0c3b59dbecb44ccd7cb06",
+      "family": "codex",
+      "round": 17,
+      "reviewedCommit": "7b590a169b75839847c4755bbf0d4e7ae053cadd",
+      "previousEntrySha256": "sha256:bd4a0626743f80d4dea348e8d72534ac221b8806075d2c51ce4738ab91aa34df",
+      "verdict": {
+        "kind": "derivedForkPublication",
+        "status": "READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
+      "reviewArtifactSha256": "sha256:1970a41cb4c0a86f70c71e826a16938ff5d077961fd8230ef5701d2cffa9fafa",
+      "proseHistoryBinding": "frozen-per-round",
+      "reviewArtifactByteLengthAtRound": 179414,
+      "reviewArtifactSha256AtRound": "sha256:b59303a77e6504d37a79db233bda9fadf5aa6d63723e020ad97dad32543d64f3",
+      "family": "codex",
+      "round": 18,
+      "reviewedCommit": "866f5d025645ce20a9149d8ea20032bd2f31c9b0",
+      "previousEntrySha256": "sha256:94fd688e59941fce40922078ff2058bbcba5be25a0ac86016912d52a1cf4d359",
+      "verdict": {
+        "kind": "derivedForkPublication",
+        "status": "NOT_READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
+      "reviewArtifactSha256": "sha256:1970a41cb4c0a86f70c71e826a16938ff5d077961fd8230ef5701d2cffa9fafa",
+      "proseHistoryBinding": "frozen-per-round",
+      "reviewArtifactByteLengthAtRound": 190080,
+      "reviewArtifactSha256AtRound": "sha256:1970a41cb4c0a86f70c71e826a16938ff5d077961fd8230ef5701d2cffa9fafa",
+      "family": "codex",
+      "round": 19,
+      "reviewedCommit": "04332ab8b73799bd3279b3150dbd8598df275530",
+      "previousEntrySha256": "sha256:0769a5dbdce70b14fb8d99cec6df04f6f6a3ef3d02401dfe6c098733c38175af",
       "verdict": {
         "kind": "derivedForkPublication",
         "status": "READY"

@@ -35,6 +35,7 @@ pub(crate) const SEQUENCE_MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 
 mod asset_attempts;
 mod asset_maintenance;
+mod asset_reads;
 // The item-3 provider integration consumes these crate-private seams after this
 // catalog lane lands; keep the catalog module narrow without making unfinished
 // provider routes part of the public storage API in this commit.
@@ -45,11 +46,13 @@ mod connections;
 mod jobs;
 pub mod migration_executor;
 mod migration_scan;
+mod membership_reads;
 mod projection_rebuild;
 mod schema_transition;
 
 pub use asset_attempts::{AssetAttemptsKernel, AssetPreparedVariant, AssetPublishOutcome};
 pub use asset_maintenance::AssetMaintenanceKernel;
+pub use asset_reads::{AssetDelivery, AssetDeliveryOutcome, AssetReadsKernel};
 pub use connections::{PooledReader, ReaderPool};
 pub use jobs::{JobsKernel, JobsReadKernel};
 pub use migration_scan::{
@@ -58,6 +61,7 @@ pub use migration_scan::{
     MigrationKeysetScanCheckpointV1, MigrationKeysetScanRequestV1, MigrationScanCeilingsV1,
     MigrationScanValidatorStateV1, MigrationScanValidatorV1,
 };
+pub use membership_reads::MembershipReadsKernel;
 pub use projection_rebuild::ProjectionRebuildReceipt;
 pub use schema_transition::{
     SCHEMA_TRANSITION_JOURNAL_TABLE, SchemaTransitionEventBodyV1, SchemaTransitionEventV1,
@@ -1945,6 +1949,14 @@ impl LocalDatabase {
         AssetMaintenanceKernel::new(self)
     }
 
+    pub fn asset_reads(&mut self) -> AssetReadsKernel<'_> {
+        AssetReadsKernel::new(self)
+    }
+
+    pub fn membership_reads(&mut self) -> MembershipReadsKernel<'_> {
+        MembershipReadsKernel::new(self)
+    }
+
     pub fn jobs(&mut self) -> JobsKernel<'_> {
         JobsKernel::new(self)
     }
@@ -2457,22 +2469,6 @@ impl LocalDatabase {
             )
         })?;
         crate::fork_promotion::drop_managed_in_app_branch(&mut self.conn, &path, branch_id, now_ms)
-    }
-
-    /// One immediate write transaction over the asset system tables (LLP
-    /// 0044). The closure sees the raw transaction because every asset write
-    /// goes through `crate::assets` helpers, which enforce the closed
-    /// transition tables; app data is never touched on this path.
-    pub(crate) fn asset_transaction<T>(
-        &mut self,
-        f: impl FnOnce(&rusqlite::Transaction<'_>) -> SnapbackResult<T>,
-    ) -> SnapbackResult<T> {
-        let tx = self
-            .conn
-            .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let value = f(&tx)?;
-        tx.commit()?;
-        Ok(value)
     }
 
     /// Durably upsert host-owned `StreamAttemptV1` rows. The write-ahead
