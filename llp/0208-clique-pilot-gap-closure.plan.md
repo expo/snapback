@@ -6,6 +6,11 @@
 Schema, Memberships, Assets, Push, Relational queries, Operations, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-09
+**Revised:** 2026-08-09 (defect-grade findings — typed-search hash skew,
+queued-mutation settlement truthfulness, generic handler runtime
+errors, resubscribe-storm escalation — filed directly as `issues/`
+tickets at author direction and removed from the register; register
+renumbered G1–G15, outbox drain/observability retained as G1)
 **Related:** LLP 0201 (the benchmark this evidence comes from), LLP 0197
 (publication standard), LLP 0198 (surpass-Convex plan — this is direct
 evidence against its victory conditions), LLP 0193 (errors-as-docs
@@ -63,19 +68,19 @@ Scores for orientation (builder-scored, pilot, not claim-eligible):
 B1 72 · B2 48 · B3 78 · B4 55 · B5 62 · B6 55 · B7 58 · B8 90 · B9 68 ·
 B10 55 · B11 74 · holistic 72.
 
+The defect-grade findings are **not** in this Plan's register: they were
+filed directly as `issues/` tickets on 2026-08-09 (author direction) so
+that review and refinement of this document concentrates on the
+design-shaped work. The next section lists them for traceability.
+
 ## Method and priorities
 
 Gaps are tiered by (score leverage × fix cost), not by subsystem:
 
-- **Tier 1 — defects.** Wrong behavior in a published release. Fix
-  regardless of roadmap.
-- **Tier 2 — diagnostics dead zones.** The two failure modes that
-  produced hours-long bisection with zero platform signal. Highest
-  leverage per line of code.
-- **Tier 3 — missing capabilities.** Score ceilings for the social-app
+- **Tier 1 — missing capabilities.** Score ceilings for the social-app
   class. Larger lifts; several belong to already-commissioned programs
   and this Plan feeds them evidence rather than duplicating a lane.
-- **Tier 4 — papercuts and docs.** Cheap, mostly guide-shaped; several
+- **Tier 2 — papercuts and docs.** Cheap, mostly guide-shaped; several
   are one-line API affordances discovered by probing.
 
 Each gap names its evidence (score dimension + recorded moment), its
@@ -83,104 +88,57 @@ proposed closure, and its owner — the governing LLP or existing
 `issues/` ticket where one exists. Where an open ticket already covers a
 gap, this Plan escalates or annotates it instead of forking a duplicate.
 
-## Tier 1 — defects
+## Defects filed directly (out of the register)
 
-### G1. Typed `client.search()` refuses its own release's generated references
+Four defect-grade findings proceed as standalone tickets, fix-forward
+per LLP 0189, independent of this Plan's review state:
 
-- **Evidence:** B6; run-log M5 — `SNAPBACK_SEARCH_REFERENCE_INVALID`
-  contract-generation hash mismatch between the typed `client.search()`
-  wrapper and a generated resource-scoped search reference **within the
-  single 0.1.15 release**; plain `client.query()` executes the same
-  search. Version skew inside one published version.
-- **Closure:** fix the hash-binding skew; add a qualification gate that
-  exercises the typed search wrapper against freshly generated
-  references (this escaped because nothing in the publication path
-  composes the two).
-- **Owner:** LLP 0073 / LLP 0136 surface owners; qualification per
-  LLP 0189. New ticket.
+- `issues/20260809-typed-search-reference-hash-skew.md` — the typed
+  `client.search()` wrapper refuses same-release generated
+  resource-scoped references in 0.1.15 (`client.query()` executes the
+  identical search); includes the qualification-gate ask so the skew
+  class cannot re-escape.
+- `issues/20260809-queued-mutation-settlement-truthfulness.md` — the
+  outbox's untruthful call-site contract, both facets: a durably-queued
+  offline mutation's settlement *rejects*
+  (`SNAPBACK_REACT_OPTIMISTIC_INSTALL_FAILED`) though the intent
+  replays and settles, and a connectivity-queued dispatch *resolves*
+  `{queued:true}` indistinguishably from a commit, silently wedging
+  everything behind it. Independently hit by both mutually-blind pilot
+  sessions. G1 below carries the design remainder.
+- `issues/20260809-handler-runtime-errors-generic.md` — runtime handler
+  failures reduce to bare `SNAPBACK_HANDLER_FAILED` (e.g.
+  `ctx.runtime.newId()` typo), the one 30-grade class beside the
+  90-grade refusal surface; routed to LLP 0193's no-refusal failure
+  layer.
+- `issues/20260806-usesnapbackquery-inline-args-resubscribe.md` —
+  pre-existing ticket escalated P3→P2 with the pilot's evidence
+  (unmemoized hook args + per-render presence value saturated the main
+  thread until clicks stopped landing; ~50 min of bisection, zero
+  diagnostics); scope extended to `useSnapbackPresence` value churn.
 
-### G2. Durably-queued mutation settles by *rejecting* (`SNAPBACK_REACT_OPTIMISTIC_INSTALL_FAILED`)
+## Tier 1 — missing capabilities
 
-- **Evidence:** B8 (the one discount on a 90); m7-diary "queued-but-
-  rejected" — a `useSnapbackMutation` call made offline queues durably
-  and replays on reconnect, but its settlement promise rejects when the
-  mutation's result contract can't install locally. The M7 engineer's
-  rollback-on-error erased a pending marker for a vote that then settled
-  fine; the original builder had absorbed the same lesson implicitly
-  (fire-and-forget text sends). Two blind sessions, same bug shape.
-- **Closure:** a queued dispatch must not surface as an error. Resolve
-  `{queued: true}` (matching the imperative client's contract), or at
-  minimum reject with a distinct, documented diagnostic class that the
-  React arm's docs call out at the mutation hook.
-- **Owner:** LLP 0107 (optimistic lifecycle);
-  `issues/20260808-first-class-react-optimistic-create.md` is adjacent
-  (a provider-owned optimistic path would dissolve the hand-rolled
-  rollback pattern that made this bite). New ticket for the settlement
-  contract itself.
+### G1. The durable outbox needs platform-owned drain and observability
 
-### G3. Handler runtime errors are generic where generate-time refusals are exemplary
+- **Evidence:** B4; holistic-cited moment — after a silently-queued
+  settings write wedged every later mutation behind it (the settlement
+  contract itself is the ticketed defect above), the builder's fix was
+  a 30-line app-wide `OutboxFlusher` draining on live-connection
+  restore / online event / 5s poll, and the recorded lesson
+  generalized to "every screen needs outbox awareness" — a burden no
+  screen should carry.
+- **Closure:** the React arm owns an app-wide outbox drain (the
+  builder's `OutboxFlusher` is effectively the spec) and exposes queue
+  state — depth, oldest-pending — as a hook so UIs can render pending
+  affordances. The dev-mode queue warnings belong to the settlement
+  ticket; this gap is the supported machinery.
+- **Owner:** LLP 0043 / LLP 0107;
+  `issues/20260731-js-arm-lease-custody-and-sessions-outbox.md` covers
+  adjacent custody work. New ticket at commissioning, sequenced after
+  the settlement ticket's contract ruling.
 
-- **Evidence:** B10; run-log M2 — `ctx.runtime.newId()` (typo for
-  `id()`) produced only `SNAPBACK_HANDLER_FAILED` with no property name,
-  no line — "markedly worse than everything around it" (diary). The
-  generate-time analyzer meanwhile names file/line/column and the
-  violated profile, and fails closed with the old functions still
-  serving (praised in both sessions).
-- **Closure:** carry the underlying JS error detail (TypeError message,
-  property, position) through the handler-failure surface, at least in
-  dev. This is the concrete first case for the no-refusal failure layer
-  that LLP 0207's dissolution routed to LLP 0193 and the diagnostics
-  owners.
-- **Owner:** LLP 0193; LLP 0178 for the contrast standard. New ticket.
-
-## Tier 2 — diagnostics dead zones
-
-### G4. The durable outbox is silent: queued is indistinguishable from committed
-
-- **Evidence:** B4; holistic-cited moment — one transient
-  connectivity-classified refusal silently queued a settings write
-  (`{queued:true}` resolves like success), every later mutation queued
-  behind it, and the screen was "randomly broken under load" for ~2h of
-  suite flakes. The builder's fix — a 30-line app-wide `OutboxFlusher`
-  draining on live-connection/online/5s-poll — was required to make the
-  platform's own guarantee usable, and the lesson generalized to "every
-  screen needs outbox awareness."
-- **Closure, three parts:**
-  1. **Default drain.** The React arm owns an app-wide outbox drain
-     (live-connection restore, online event, poll) so no screen needs
-     bespoke awareness. The builder's `OutboxFlusher` is effectively the
-     spec.
-  2. **Observable queue state.** A hook exposing queue depth /
-     oldest-pending so UIs can render pending affordances.
-  3. **Dev-mode signal.** Console warning when a mutation queues, and
-     when the queue head has been wedged past a threshold.
-- **Owner:** LLP 0043; `issues/20260731-js-arm-lease-custody-and-
-  sessions-outbox.md` covers adjacent custody work. New ticket for the
-  React-arm drain + observability. G2 and G4 should land as one
-  coherent "outbox truthfulness" story.
-
-### G5. Resubscribe storms have zero diagnostics and can saturate the main thread
-
-- **Evidence:** B3; run-log M3 — inline args objects to
-  `useSnapbackQuery` plus a per-render `useSnapbackPresence` value
-  object saturated the browser main thread until Playwright clicks
-  stopped landing; ~50 minutes of bisection; no console warning
-  anywhere. The skill documents the trap as "wasteful" — the pilot shows
-  it is a hard render/resubscribe loop, dramatically understated.
-- **Closure:** prefer the structural fix — key the subscription on a
-  value-hash of args rather than object identity, deleting the foot-gun
-  class for queries and presence alike. If that carries unacceptable
-  cost, ship a dev-mode storm detector (N resubscribes of the same
-  reference within M ms → named warning). Update the skill/guide wording
-  either way.
-- **Owner:** escalate
-  `issues/20260806-usesnapbackquery-inline-args-resubscribe.md` from P3
-  with the pilot evidence (it currently reads "correct but wasteful");
-  extend its scope to `useSnapbackPresence` value/options churn.
-
-## Tier 3 — missing capabilities
-
-### G6. No password credentials, no production mail adapter (B2's floor)
+### G2. No password credentials, no production mail adapter (B2's floor)
 
 - **Evidence:** B2 = 48 — the pilot hand-rolled scrypt hashing in a
   trusted gateway minting sessions through the sanctioned broker seam.
@@ -198,7 +156,7 @@ gap, this Plan escalates or annotates it instead of forking a duplicate.
 - **Owner:** LLP 0151 / Wave 4. No new ticket; this section is the
   pointer.
 
-### G7. Broker-seam papercuts: undocumented mint HTTP shape; no external-bearer logout
+### G3. Broker-seam papercuts: undocumented mint HTTP shape; no external-bearer logout
 
 - **Evidence:** B2, B9; run-log M1 — `auth.mintSession` over HTTP
   refused every guessed body shape (`SNAPBACK_AUTH_REQUEST_INVALID`;
@@ -208,12 +166,12 @@ gap, this Plan escalates or annotates it instead of forking a duplicate.
   revoke only via raw `POST /auth/logout`, discovered by probing.
 - **Closure:** document the mint host-op's HTTP contract (or expose a
   supported non-CLI mint path for brokers); add a client-arm logout for
-  external-bearer custody. Both are small and independent of G6's
+  external-bearer custody. Both are small and independent of G2's
   program.
 - **Owner:** auth protocol owners (LLP 0057, LLP 0059); guide pages per
   LLP 0061. New ticket (one, both papercuts).
 
-### G8. Declared-membership integration tax: product apps run two rosters
+### G4. Declared-membership integration tax: product apps run two rosters
 
 - **Evidence:** B1, B5; essay "the declared-authority systems don't
   quite fit a messenger's product shape" — the membership declaration is
@@ -231,7 +189,7 @@ gap, this Plan escalates or annotates it instead of forking a duplicate.
 - **Owner:** LLP 0056 / LLP 0100. New ticket to commission the design
   choice.
 
-### G9. Relational v1 cannot express the follower join (the canonical social query)
+### G5. Relational v1 cannot express the follower join (the canonical social query)
 
 - **Evidence:** B1; diary M2 — the Following feed (follows ⋈ entries)
   fails relational v1's constraints (joined side must be unique, no
@@ -246,7 +204,7 @@ gap, this Plan escalates or annotates it instead of forking a duplicate.
 - **Owner:** LLP 0080 (+ LLP 0120 / LLP 0157 for the aggregation
   algebra). New ticket referencing both.
 
-### G10. No `count()` aggregate
+### G6. No `count()` aggregate
 
 - **Evidence:** B8; m7-diary — the message-count backfill paged and
   counted rows under the 1024-row query cap; "a real count aggregate
@@ -257,7 +215,7 @@ gap, this Plan escalates or annotates it instead of forking a duplicate.
   index range) usable from handlers.
 - **Owner:** LLP 0120 / LLP 0157. New ticket.
 
-### G11. JS-arm protected cold-offline reads are hand-rolled (named GAP, priced by the rubric)
+### G7. JS-arm protected cold-offline reads are hand-rolled (named GAP, priced by the rubric)
 
 - **Evidence:** B4 — writes are excellent (durable outbox, ordered
   exactly-once replay, persisted binding receipt), but protected-data
@@ -272,7 +230,7 @@ gap, this Plan escalates or annotates it instead of forking a duplicate.
   `issues/20260808-offline-image-bytes-not-retained.md` records the
   asset-bytes half from run 6. New ticket for the helper, linking both.
 
-### G12. Schema expressiveness: stored arrays and unique-on-optional
+### G8. Schema expressiveness: stored arrays and unique-on-optional
 
 - **Evidence:** B1 — no `v.array()` on stored fields forced an
   img1..img4 column splay (and `v.json()` for poll options in M7);
@@ -282,7 +240,7 @@ gap, this Plan escalates or annotates it instead of forking a duplicate.
   bounded-children philosophy) and unique-where-present index semantics.
 - **Owner:** LLP 0004 / LLP 0131 / LLP 0110. New ticket.
 
-### G13. No server-side connected-client predicate for push suppression
+### G9. No server-side connected-client predicate for push suppression
 
 - **Evidence:** B7 = 58, the 60 anchor verbatim ("connection tracking
   hand-built") — a presenceHeartbeats table written every 25s, with
@@ -293,7 +251,7 @@ gap, this Plan escalates or annotates it instead of forking a duplicate.
   mutations/actions.
 - **Owner:** LLP 0143 / LLP 0045. New ticket.
 
-### G14. No readable app-config store
+### G10. No readable app-config store
 
 - **Evidence:** B1; diary M4 — the secrets/config surface is write-only
   for actions, so runtime-tunable config (edit windows, disappearing
@@ -304,9 +262,9 @@ gap, this Plan escalates or annotates it instead of forking a duplicate.
   surface with readable non-secret config.
 - **Owner:** LLP 0036 + guide. New ticket (may resolve docs-only).
 
-## Tier 4 — papercuts and docs
+## Tier 2 — papercuts and docs
 
-### G15. Asset-surface papercuts
+### G11. Asset-surface papercuts
 
 - **Evidence:** B5; run-log M4/M5 — signed-URL issuance has no
   client-arm method (raw POST + protocol header, found by probing);
@@ -323,7 +281,7 @@ gap, this Plan escalates or annotates it instead of forking a duplicate.
   precisely because of the owner-only attach rule.
 - **Owner:** LLP 0044 / LLP 0180 + guide. New ticket.
 
-### G16. API consistency papercuts
+### G12. API consistency papercuts
 
 - **Evidence:** B3, B9 — `PresenceState`'s field is `entries` while the
   surface projection calls it `members` (silent empty list on misread);
@@ -335,7 +293,7 @@ gap, this Plan escalates or annotates it instead of forking a duplicate.
 - **Owner:** LLP 0013 / LLP 0107 (presence), LLP 0093 / LLP 0012
   (headless client). New ticket.
 
-### G17. Docs at the point of need (guide-gap batch)
+### G13. Docs at the point of need (guide-gap batch)
 
 - **Evidence:** B9 — three findable-when-needed failures: the inline
   handler dialect's restrictions are learned from refusals rather than
@@ -351,7 +309,7 @@ gap, this Plan escalates or annotates it instead of forking a duplicate.
   branch example on the offline page.
 - **Owner:** LLP 0061 pipeline. Three guide-gap tickets.
 
-### G18. Operations papercuts
+### G14. Operations papercuts
 
 - **Evidence:** B11 — standalone `snapback start` refused a capability
   the dev supervisor grants (forcing supervisor-managed instances for
@@ -362,7 +320,7 @@ gap, this Plan escalates or annotates it instead of forking a duplicate.
   distinct settled signal).
 - **Owner:** LLP 0041 / LLP 0123. New ticket.
 
-### G19. Membership-visible search is the one slow surface at scale
+### G15. Membership-visible search is the one slow surface at scale
 
 - **Evidence:** B11/scale probes — search.busyChat p50 582ms / p95
   806ms over the 10k-message chat, ~15–20× every other probe (paging
@@ -379,8 +337,9 @@ above are extensions of them rather than departures:
 1. **Refusals-as-docs.** Generate-time refusals with file/line/column
    and named profiles; fail-closed reload keeping the old functions
    serving; typed `refusals:[...]`/`ctx.refuse` crossing to clients as
-   stable appCodes. G3/G4 extend this culture to the runtime and client
-   layers; nothing may dilute it.
+   stable appCodes. The runtime-error and settlement-truthfulness
+   tickets extend this culture to the runtime and client layers, and
+   G1 extends it to queue state; nothing may dilute it.
 2. **Live watch-reload additive migration** (B8 = 90): schema edits
    against a running sessions-mode server, `generated-and-loaded` in
    ~1s, zero-diff data across a forced backfill. "Snapback's strongest
@@ -396,22 +355,25 @@ above are extensions of them rather than departures:
 
 ## Sequencing
 
-1. **Wave A (defects + dead zones): G1–G5.** Small, independent,
-   highest leverage; G2+G4 land together as the outbox-truthfulness
-   story. Target: next qualified publication after review.
-2. **Wave B (papercuts): G7, G14–G18.** Mostly docs and one-line
+1. **Defect tickets (filed 2026-08-09):** proceed fix-forward
+   immediately, independent of this Plan's review state; the typed-
+   search fix should land before the next qualified publication.
+2. **Wave A (outbox machinery): G1.** Commission with the LLP
+   0043/0107 owners once the settlement ticket's contract ruling
+   lands — the drain design depends on which settlement contract wins.
+3. **Wave B (papercuts): G3, G10–G14.** Mostly docs and one-line
    affordances; batchable across parallel lanes.
-3. **Wave C (capability commissions): G8–G13.** Each needs its owner
+4. **Wave C (capability commissions): G4–G9.** Each needs its owner
    LLP to rule on design before implementation; this Plan's job is to
    commission with evidence attached, not to design them here.
-4. **G6 flows to Wave 4 (identity)** and G19 to a measurement ticket;
+5. **G2 flows to Wave 4 (identity)** and G15 to a measurement ticket;
    neither is a lane of this Plan.
 
 Priorities should be **revisited when the Convex and Supabase lanes
 finish**: gaps where competitors also struggle matter less against
 LLP 0198's victory conditions than gaps where they glide (the essay
 names auth-in-a-box and effortless reactive joins as Convex's wins —
-G6 and G9 are therefore likely to survive reprioritization at the top).
+G2 and G5 are therefore likely to survive reprioritization at the top).
 
 Verification follows LLP 0189: each closure lands with its own scoped
 evidence; the benchmark rubric is re-scored only by future instrument
@@ -419,9 +381,9 @@ runs, not claimed from fixes.
 
 ## Non-goals
 
-- Redesigning the closed membership machine's security model (G8 asks
+- Redesigning the closed membership machine's security model (G4 asks
   for a bridge, not a weakening).
-- Porting the Contract arm's lease path to JS wholesale (G11 asks for a
+- Porting the Contract arm's lease path to JS wholesale (G7 asks for a
   bounded helper).
 - The P1 choreography-harness defect (segment-green structurally
   unreachable; iOS-simulator receipt requirement) — real, but it is
@@ -432,18 +394,17 @@ runs, not claimed from fixes.
 
 ## Open questions
 
-1. **G5 mechanism:** value-hash subscription keys vs. dev-mode storm
-   detector — does the structural fix carry acceptable hashing cost on
-   hot paths? (Owner: React arm.)
-2. **G2 contract:** resolve `{queued:true}` (breaking for callers that
-   await settlement semantics) vs. a distinct rejection class
-   (non-breaking, still error-shaped)? Interacts with the imperative
-   client's existing contract.
-3. **G8 depth:** which rung of the ascending-ambition ladder does the
+(The settlement-contract choice and the resubscribe-fix mechanism moved
+into their tickets with the 2026-08-09 revision.)
+
+1. **G1 default:** does the platform-owned outbox drain ship enabled by
+   default (a behavior change for existing apps that built their own)
+   or opt-in with a loud guide default?
+2. **G4 depth:** which rung of the ascending-ambition ladder does the
    membership owner pick? A readable roster projection alone may
    dissolve most of the dual-roster tax.
-4. **G14:** is config-as-data the blessed answer (docs-only closure) or
+3. **G10:** is config-as-data the blessed answer (docs-only closure) or
    does LLP 0036 grow a readable tier?
-5. **Reprioritization gate:** does Wave C wait for the Convex lane's
+4. **Reprioritization gate:** does Wave C wait for the Convex lane's
    scores, or start on the two gaps already known to be Convex wins
-   (G6 via Wave 4, G9)?
+   (G2 via Wave 4, G5)?
