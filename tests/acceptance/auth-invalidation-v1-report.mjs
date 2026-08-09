@@ -1560,7 +1560,7 @@ const main = async () => {
     'SNAPBACK_AUTH_ACCEPTANCE_OVERFLOW_RECEIPT',
   );
   const deploymentReceipt = runRustReceipt(
-    'storage::guarded_commit_tests::activation_and_ordinary_writes_preserve_the_closed_event_universe',
+    'storage::tests::guarded_commit_tests::activation_and_ordinary_writes_preserve_the_closed_event_universe',
     'SNAPBACK_AUTH_ACCEPTANCE_DEPLOYMENT_RECEIPT',
   );
   const roomFrameEnqueueReceipt = runRustReceipt(
