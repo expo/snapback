@@ -237,6 +237,167 @@ export default defineSchema({ ${tables} }, {
   assert.equal(existsSync(join(dir, 'generated')), false);
 }
 
+// @ref LLP 0204#d1--the-exposure-declaration-keystone — authoring validates
+// registration posture and compiles the default-closed fact onto every
+// function entry before either invocation or disclosure consumes it.
+{
+  const apiWithoutSessions = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ ${tables} }, { api: { enabled: false } });
+`;
+  const result = await generate(backend(apiWithoutSessions, ordinaryFunctions));
+  assert.equal(result.ok, false);
+  assert(result.diagnostics.some(({ code }) => code === 'SNAPBACK_API_AUTH_MODE_INVALID'));
+}
+
+{
+  const enabledWithoutRegistration = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ ${tables} }, {
+  auth: { mode: 'sessions' },
+  api: { enabled: true },
+});
+`;
+  const result = await generate(backend(enabledWithoutRegistration, ordinaryFunctions));
+  assert.equal(result.ok, false);
+  const diagnostic = result.diagnostics.find(
+    ({ code }) => code === 'SNAPBACK_API_REGISTRATION_POSTURE_REQUIRED',
+  );
+  assert(diagnostic);
+  assert.match(diagnostic.message, /auth\.mode sessions/u);
+  assert.match(diagnostic.message, /auth\.agents\.mode/u);
+}
+
+{
+  const exposedSchema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ ${tables} }, {
+  auth: { mode: 'sessions', agents: { mode: 'disabled' } },
+  api: {
+    enabled: true,
+    functions: { listTodos: { expose: true, since: 'v1' } },
+    origins: ['https://example.com:8443'],
+  },
+});
+`;
+  const dir = backend(exposedSchema, ordinaryFunctions);
+  const result = await generate(dir);
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  const schema = readJson(join(dir, 'generated', 'schema.manifest.json'));
+  const functions = readJson(join(dir, 'generated', 'functions.manifest.json')).functions;
+  assert.deepEqual(schema.api, {
+    enabled: true,
+    disclosure: 'exposed-only',
+    functions: { listTodos: { expose: true, since: 'v1' } },
+    origins: ['https://example.com:8443'],
+  });
+  assert.deepEqual(functions.find(({ name }) => name === 'listTodos').apiExposure, {
+    expose: true,
+    since: 'v1',
+  });
+  assert.deepEqual(functions.find(({ name }) => name === 'createTodo').apiExposure, {
+    expose: false,
+  });
+  assert.deepEqual(
+    Object.values(readJson(join(dir, 'generated', 'api-envelope.members.json')).operations)
+      .map(({ name }) => name),
+    ['listTodos'],
+  );
+}
+
+{
+  const unknownFunctionSchema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ ${tables} }, {
+  auth: { mode: 'sessions', agents: { mode: 'disabled' } },
+  api: { enabled: true, functions: { missing: { expose: true } } },
+});
+`;
+  const result = await generate(backend(unknownFunctionSchema, ordinaryFunctions));
+  assert.equal(result.ok, false);
+  assert(result.diagnostics.some(({ code }) => code === 'SNAPBACK_API_FUNCTION_UNKNOWN'));
+}
+
+{
+  const fullDisclosureSchema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ ${tables} }, {
+  auth: { mode: 'sessions', agents: { mode: 'disabled' } },
+  api: {
+    enabled: true,
+    disclosure: 'full',
+    functions: { listTodos: { expose: true } },
+  },
+});
+`;
+  const dir = backend(fullDisclosureSchema, ordinaryFunctions);
+  const result = await generate(dir);
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  assert.deepEqual(
+    Object.values(readJson(join(dir, 'generated', 'api-envelope.members.json')).operations)
+      .map(({ name }) => name)
+      .sort(),
+    ['createTodo', 'listTodos'],
+  );
+}
+
+{
+  const budgetsSchema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ ${tables} }, {
+  auth: { mode: 'sessions', agents: { mode: 'disabled' } },
+  api: { enabled: true, budgets: {} },
+});
+`;
+  const result = await generate(backend(budgetsSchema, ordinaryFunctions));
+  assert.equal(result.ok, false);
+  assert(result.diagnostics.some(
+    ({ code, message }) => code === 'SNAPBACK_API_BUDGETS_UNAVAILABLE'
+      && /api\.budgets lands with LLP 0204 S2/u.test(message),
+  ));
+}
+
+{
+  const wildcardOriginSchema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ ${tables} }, {
+  auth: { mode: 'sessions', agents: { mode: 'disabled' } },
+  api: { enabled: true, origins: ['*'] },
+});
+`;
+  const result = await generate(backend(wildcardOriginSchema, ordinaryFunctions));
+  assert.equal(result.ok, false);
+  assert(result.diagnostics.some(({ code }) => code === 'SNAPBACK_API_ORIGIN_INVALID'));
+}
+
+{
+  const paginatedSchema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ ${tables} }, {
+  auth: { mode: 'sessions', agents: { mode: 'disabled' } },
+  api: { enabled: true, functions: { largeList: { expose: true } } },
+});
+`;
+  const largeQuery = `
+import { defineJsQuery, results, v } from '${defineUrl}';
+export const largeList = defineJsQuery({
+  args: {},
+  reads: ['todos'],
+  auth: 'public',
+  result: results.records(v.object({ value: v.string() }), { minItems: 0, maxItems: 101 }),
+  handler: async () => [],
+});
+`;
+  const result = await generate(backend(paginatedSchema, largeQuery));
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  const warning = result.diagnostics.find(
+    ({ code }) => code === 'SNAPBACK_API_PAGINATION_RECOMMENDED',
+  );
+  assert(warning);
+  assert.match(warning.message, /largeList/u);
+  assert.match(warning.message, /101/u);
+}
+
 // @ref LLP 0172#3-compatibility-phases — Phase W preserves the legacy
 // optional-user result while making each sessions-mode omission visible.
 // JavaScript and TypeScript handler bodies share the same function-definition

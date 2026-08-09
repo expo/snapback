@@ -94,6 +94,22 @@
         }
       ]
     },
+    "ApiFunctionExposure": {
+      "additionalProperties": false,
+      "properties": {
+        "expose": {
+          "default": false,
+          "type": "boolean"
+        },
+        "since": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
     "AssetAcceptPolicy": {
       "additionalProperties": false,
       "properties": {
@@ -1005,6 +1021,17 @@
     "FunctionDefinition": {
       "additionalProperties": false,
       "properties": {
+        "apiExposure": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApiFunctionExposure"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Codegen-compiled external exposure. `None` means the app has no\nenabled external API and preserves the historical grant-only policy;\n`Some(default)` means the enabled surface explicitly keeps this\nfunction closed."
+        },
         "argsContract": {
           "anyOf": [
             {

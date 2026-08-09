@@ -887,6 +887,8 @@ const SESSIONS_SCHEMA_VERSION = 'snapback.v1';
 const AUTH_MODES = new Set(['dev', 'sessions']);
 const AGENT_REGISTRATION_MODES = new Set(['disabled', 'invited', 'open']);
 const AGENT_INVITERS = new Set(['operators', 'users']);
+const API_DISCLOSURES = new Set(['exposed-only', 'full']);
+const API_PAGINATION_LINT_THRESHOLD = 100;
 const AUTH_REQUIREMENTS = new Set(['public', 'optional-user', 'authenticated']);
 const TARGET_CAPABILITY_IDS = new Set([
   'agent_safe_derived_deployment_fork_v1',
@@ -1216,6 +1218,114 @@ function validateSchemaAuthDefinition(schemaDef, err) {
   return AUTH_MODES.has(auth.mode) ? auth.mode : 'dev';
 }
 
+function validApiOrigin(origin) {
+  if (typeof origin !== 'string' || origin.includes('*') || !/^https?:\/\/[^/?#]+$/u.test(origin)) {
+    return false;
+  }
+  try {
+    const parsed = new URL(origin);
+    return (parsed.protocol === 'http:' || parsed.protocol === 'https:')
+      && parsed.username === ''
+      && parsed.password === ''
+      && parsed.pathname === '/'
+      && parsed.search === ''
+      && parsed.hash === '';
+  } catch {
+    return false;
+  }
+}
+
+function validateSchemaApiDefinition(schemaDef, authMode, err) {
+  const api = schemaDef.api;
+  if (api === undefined) return null;
+  if (!api || typeof api !== 'object' || Array.isArray(api)) {
+    err('SNAPBACK_API_MANIFEST_INVALID', 'api', 'schema api must be an object', {});
+    return null;
+  }
+  if (Object.hasOwn(api, 'budgets')) {
+    err('SNAPBACK_API_BUDGETS_UNAVAILABLE', 'api', 'api.budgets lands with LLP 0204 S2', {});
+  }
+  const allowed = new Set(['enabled', 'disclosure', 'functions', 'origins', '__agentsModeExplicit']);
+  const shapeValid = !Object.keys(api).some((key) => !allowed.has(key))
+    && typeof api.enabled === 'boolean'
+    && API_DISCLOSURES.has(api.disclosure)
+    && api.functions && typeof api.functions === 'object' && !Array.isArray(api.functions);
+  if (!shapeValid) {
+    err('SNAPBACK_API_MANIFEST_INVALID', 'api', 'schema api accepts enabled, disclosure, functions, and origins', {});
+    return null;
+  }
+  if (api.enabled === true && api.__agentsModeExplicit !== true) {
+    err(
+      'SNAPBACK_API_REGISTRATION_POSTURE_REQUIRED',
+      'api',
+      'api.enabled requires both auth.mode sessions and an explicit auth.agents.mode declaration',
+      {},
+    );
+  } else if (authMode !== 'sessions') {
+    err('SNAPBACK_API_AUTH_MODE_INVALID', 'api', 'the api block requires auth.mode sessions', { authMode });
+  }
+  for (const [name, exposure] of Object.entries(api.functions ?? {})) {
+    if (!exposure || typeof exposure !== 'object' || Array.isArray(exposure)
+      || Object.keys(exposure).some((key) => !['expose', 'since'].includes(key))
+      || typeof exposure.expose !== 'boolean'
+      || (exposure.since !== undefined && typeof exposure.since !== 'string')) {
+      err('SNAPBACK_API_FUNCTION_EXPOSURE_INVALID', 'api', `api.functions.${name} must contain expose: boolean and optional since: string`, { function: name });
+    }
+  }
+  if (api.origins !== undefined) {
+    if (!Array.isArray(api.origins)) {
+      err('SNAPBACK_API_ORIGIN_INVALID', 'api', 'api.origins must be an array of exact http(s) origins', {});
+    } else {
+      for (const origin of api.origins) {
+        if (!validApiOrigin(origin)) {
+          err('SNAPBACK_API_ORIGIN_INVALID', 'api', `api origin ${JSON.stringify(origin)} must be an exact http(s) scheme+host+port origin without wildcards`, { origin });
+        }
+      }
+    }
+  }
+  return {
+    enabled: api.enabled,
+    disclosure: api.disclosure,
+    functions: api.functions,
+    ...(api.origins !== undefined ? { origins: [...api.origins] } : {}),
+  };
+}
+
+function compileApiExposure(api, functions, err, diagnostics) {
+  if (!api) return;
+  const functionsByName = new Map(functions.map((fn) => [fn.name, fn]));
+  for (const name of Object.keys(api.functions)) {
+    if (!functionsByName.has(name)) {
+      err('SNAPBACK_API_FUNCTION_UNKNOWN', 'api', `api.functions names unknown function ${name}`, { function: name });
+    }
+  }
+  if (!api.enabled) return;
+  for (const fn of functions) {
+    const exposure = api.functions[fn.name] ?? { expose: false };
+    fn.apiExposure = {
+      expose: exposure.expose,
+      ...(exposure.since !== undefined ? { since: exposure.since } : {}),
+    };
+    const rows = fn.resultContract?.kind === 'records' ? fn.resultContract.rows : null;
+    const hasContinuation = (fn.argsContract?.fields ?? []).some(
+      (field) => field.name === 'cursor' || field.name === 'continuation',
+    );
+    if (exposure.expose === true
+      && (fn.kind === 'Query' || fn.kind === 'LiveQuery')
+      && Number.isSafeInteger(rows?.maxItems)
+      && rows.maxItems > API_PAGINATION_LINT_THRESHOLD
+      && !hasContinuation) {
+      diagnostics.push({
+        code: 'SNAPBACK_API_PAGINATION_RECOMMENDED',
+        severity: 'warning',
+        subsystem: 'api',
+        message: `exposed query ${fn.name} declares rows.maxItems ${rows.maxItems} (> ${API_PAGINATION_LINT_THRESHOLD}) without a cursor or continuation argument`,
+        details: { function: fn.name, maxItems: rows.maxItems, threshold: API_PAGINATION_LINT_THRESHOLD },
+      });
+    }
+  }
+}
+
 function validateAuthoredRequiredCapabilities(required, err) {
   if (required === undefined) return;
   if (!Array.isArray(required)) {
@@ -1469,6 +1579,7 @@ export async function generateInProcess(backendDir, options = {}) {
     return { ok: false, diagnostics };
   }
   const authMode = validateSchemaAuthDefinition(schemaDef, err);
+  const apiManifest = validateSchemaApiDefinition(schemaDef, authMode, err);
   const agentRegistrationWarning = schemaDef.auth?.agents?.mode === 'invited'
     && schemaDef.auth.agents.invitedBy === 'operators'
     ? {
@@ -3560,6 +3671,7 @@ export async function generateInProcess(backendDir, options = {}) {
       );
     }
   }
+  compileApiExposure(apiManifest, functions, err, diagnostics);
 
   // Ephemeral collections project as Contract read descriptors (ENG-22479;
   // Exact LLP 0284 §2.5): they live in the manifest QUERIES map with
@@ -4297,6 +4409,7 @@ export async function generateInProcess(backendDir, options = {}) {
     appId,
     ...(appIdentity ? { app: appIdentity } : {}),
     ...(schemaDef.auth !== undefined ? { auth: schemaDef.auth } : {}),
+    ...(apiManifest ? { api: apiManifest } : {}),
     ...(schemaAssetsPolicy ? { assets: schemaAssetsPolicy } : {}),
     ...(schemaDef.pushSeam ? { pushSeam: schemaDef.pushSeam } : {}),
     // @ref LLP 0146#d1-declarationobservation-conformance — the per-app
@@ -4311,7 +4424,10 @@ export async function generateInProcess(backendDir, options = {}) {
     generatedAt,
     targetProfile,
     portabilityFlags: [],
-    artifactDiagnostics: agentRegistrationWarning ? [agentRegistrationWarning] : [],
+    artifactDiagnostics: [
+      ...(agentRegistrationWarning ? [agentRegistrationWarning] : []),
+      ...diagnostics.filter(({ code }) => code === 'SNAPBACK_API_PAGINATION_RECOMMENDED'),
+    ],
     ephemeralCollections,
     tables: Object.values(tables),
   };
@@ -4604,8 +4720,17 @@ export async function generateInProcess(backendDir, options = {}) {
   const providerBindingTypes = renderProviderBindingTypes(providerBindingMetadata);
   const contractModules = renderContractModules(contractManifest, functionManifest.functions, functionsModule, ephemeralCollections, schemaDef);
   const operationSchemas = renderOperationSchemas(appId, functionManifest.functions, functionsModule);
-  // @ref LLP 0062#5-distribution-the-server-advertises-the-server-is-the-version-authority — codegen supplies only the members it owns; the server composes the envelope.
-  const apiEnvelopeMembers = buildApiEnvelopeMembers(functionManifest, operationSchemas);
+  // @ref LLP 0204#d1--the-exposure-declaration-keystone — codegen filters
+  // both operation schemas and declaration bindings from the same compiled
+  // fact the server uses for its public function projection.
+  const envelopeFunctionManifest = apiManifest?.enabled === true
+    && apiManifest.disclosure === 'exposed-only'
+    ? {
+        ...functionManifest,
+        functions: functionManifest.functions.filter((fn) => fn.apiExposure?.expose === true),
+      }
+    : functionManifest;
+  const apiEnvelopeMembers = buildApiEnvelopeMembers(envelopeFunctionManifest, operationSchemas);
   validateContractModuleFilenames(contractModules, err);
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
@@ -7190,6 +7315,7 @@ function decorateFunctions(appId, functions, sourceSpans = {}) {
       resultContractHash: fn.resultContractHash,
       requiredCapabilities: requiredCapabilities(fn),
       authRequirement: fn.authRequirement ?? 'optional-user',
+      ...(fn.apiExposure !== undefined ? { apiExposure: { ...fn.apiExposure } } : {}),
       ...(fn.authorityIndependent === true ? { authorityIndependent: true } : {}),
       ...(fn.publicInline === true ? { publicInline: true } : {}),
       ...(fn.authorityCreating === true ? { authorityCreating: true } : {}),
@@ -11673,6 +11799,7 @@ const DEFINITION_EVALUATION_TIMEOUT_MS = 5_000;
 const DEFINITION_EVALUATOR_PROCESS_TIMEOUT_MS = 15_000;
 const DEFINITION_EVALUATOR_MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
 const DEFINITION_EVALUATION_DIAGNOSTIC_CODES = new Set([
+  'SNAPBACK_API_BUDGETS_UNAVAILABLE',
   'SNAPBACK_DELETE_WHERE_FILTER_INVALID',
   'SNAPBACK_DELETE_WHERE_FILTER_REQUIRED',
   'SNAPBACK_SEARCH_INDEX_VISIBILITY_REQUIRED',

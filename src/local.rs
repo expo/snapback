@@ -3916,6 +3916,9 @@ impl LocalSnapback {
     ) -> SnapbackResult<DeploymentIdentity> {
         artifacts.schema.validate_artifact()?;
         artifacts.functions.validate_artifact()?;
+        artifacts
+            .schema
+            .validate_api_against_functions(&artifacts.functions)?;
         if let Some(push_seam) = &artifacts.schema.push_seam {
             crate::push::validate_config_uses(push_seam, &artifacts.functions)?;
         }
@@ -4102,6 +4105,9 @@ impl LocalSnapback {
 
     pub fn apply_schema(&mut self, manifest: SchemaManifest) -> SnapbackResult<Vec<Diagnostic>> {
         manifest.validate_artifact()?;
+        if self.functions_loaded {
+            manifest.validate_api_against_functions(&self.functions)?;
+        }
         if self.functions_loaded
             && let Some(push_seam) = &manifest.push_seam
         {
@@ -4204,6 +4210,14 @@ impl LocalSnapback {
         let sequence_declarations = sequence_declarations_from_functions(&manifest);
 
         let mut preflight = Vec::new();
+        if let Err(error) = self
+            .db
+            .schema()
+            .validate_api_against_functions(&manifest)
+        {
+            preflight.push(error.diagnostic);
+        }
+        preflight.extend(self.db.schema().api_exposure_diagnostics(&manifest));
         if let Some(push_seam) = &self.db.schema().push_seam
             && let Err(error) = crate::push::validate_config_uses(push_seam, &manifest)
         {
@@ -5294,7 +5308,8 @@ impl LocalSnapback {
         let composed_envelope = match prepared.api_envelope.as_ref() {
             Some(members) => Some(
                 crate::api_envelope::compose_api_envelope(
-                    &crate::manifest::PublicFunctionManifest::from(
+                    &crate::manifest::public_function_manifest_for_schema(
+                        &prepared.artifacts.schema,
                         prepared.artifacts.functions.clone(),
                     ),
                     members,
@@ -6555,6 +6570,38 @@ impl LocalSnapback {
 
     pub fn function_definition(&self, name: &str) -> Option<&FunctionDefinition> {
         self.functions.function(name)
+    }
+
+    pub(crate) fn validate_external_api_function(&self, name: &str) -> SnapbackResult<()> {
+        if !self.db.schema().api.as_ref().is_some_and(|api| api.enabled) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_API_NOT_ENABLED",
+                "api",
+                "the application has not enabled its external API surface",
+            ));
+        }
+        let exposed = self
+            .functions
+            .function(name)
+            .and_then(|function| function.api_exposure.as_ref())
+            .is_some_and(|exposure| exposure.expose);
+        if !exposed {
+            return Err(SnapbackError::error(
+                "SNAPBACK_API_EXPOSURE_DENIED",
+                "api",
+                "the external API exposure policy does not authorize this function",
+            )
+            .with_details(serde_json::json!({ "function": name })));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn api_origins(&self) -> Option<Vec<String>> {
+        self.db
+            .schema()
+            .api
+            .as_ref()
+            .and_then(|api| api.origins.clone())
     }
 
     pub(crate) fn served_function_manifest(&self) -> &FunctionManifest {
