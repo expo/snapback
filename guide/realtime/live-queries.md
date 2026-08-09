@@ -84,9 +84,20 @@ subscription updates:
     const b = await db.liveQuery(api.listTodos, { connectionId: 'client_b', userId: ADA });
     assertEqual(b.rows.length, 3, 'b initial');
     await db.mutate(api.createTodo, { args: { title: 'Added by another client' }, userId: ADA });
-    const rows = await b.poll();
-    assertEqual(rows.length, 4, 'b did not receive realtime update');
+    // Phase 1 (LLP 0200): fan-out is scheduled off the commit turn, so poll
+    // until the frame lands instead of asserting one immediate drain.
+    const rows = await eventually(async () => {
+      const polled = await b.poll();
+      assertEqual(polled.length, 4, 'b did not receive realtime update');
+      return polled;
+    }, 'realtime update for client_b');
 ```
+
+Mutation settlement does not imply your subscription already delivered the
+matching frame (LLP 0200 §2.1): fan-out runs on the evaluation scheduler
+after the commit is durable, and skipped subscriptions converge via a
+rows-free `current_as_of` watermark. Wait on delivery (as above) rather
+than asserting immediately after `mutate` resolves.
 
 Key options: `transport: 'stream'` for durable WebSocket push (`'poll'` is
 the default, cadence `pollCadenceMs`, with `fallbackToPoll` when a stream
