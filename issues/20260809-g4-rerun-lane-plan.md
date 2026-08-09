@@ -41,8 +41,11 @@ This lane owns:
 
 ### 2. 0.1.16 qualified cut
 
-**Branch:** not started; the executing session must record its branch in this
-ticket before starting.
+**Branch:** `release/fastpath-0.1.16`, claimed 2026-08-09 by the release
+supervisor session. Worktree `~/projects/snapback-wt/g4-release`, candidate
+revision `fe3dae6b999d01c31117cc95145d190fa29dc497` (clean `origin/main` at
+claim time). Registry state observed at claim time: `latest` is `0.1.15` and
+no `0.1.16` exists on any name.
 
 Run the qualified fast-path publication using the 0.1.14-ceremony recipe and
 publish the closure as 0.1.16. In the same promotion lane:
