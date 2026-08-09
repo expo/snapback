@@ -1,12 +1,14 @@
 # LLP 0210: Asset upload and delivery DX closure
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Review
 **Systems:** Assets, Client integration, React/Expo, Server, Diagnostics,
 Code generation, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-09
-**Revised:** 2026-08-09 (initial draft)
+**Revised:** 2026-08-09 (Draft → Review at super-refine loop start — the
+loop's one authorized transition; author invoked /llp-super-refine this
+session)
 **Related:** LLP 0044 (asset pipeline — owns the pipeline; its 2026-08-09
 dated addition commissions this design), LLP 0180 (asset-bearing commands
 — its 2026-08-09 dated note commissions D4), LLP 0208 (Clique pilot gap
