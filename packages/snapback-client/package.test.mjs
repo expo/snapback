@@ -629,6 +629,8 @@ assert.equal(appStateListeners.size, 0);
     // test in @expo/snapback-codegen.
     argsContractHash: SEARCH_REQUEST_ARGS_CONTRACT_HASH,
     resultContractHash: `sha256:${'2'.repeat(64)}`,
+    searchRequestContractHash: SEARCH_REQUEST_ARGS_CONTRACT_HASH,
+    searchResourceArg: null,
   };
   const queryAst = { all: [{ Term: { value: 'cache' } }] };
   try {
@@ -637,7 +639,10 @@ assert.equal(appStateListeners.size, 0);
       (error) => error.code === 'SNAPBACK_SEARCH_REFERENCE_INVALID',
     );
     await assert.rejects(
-      searchClient.search({ ...searchRef, argsContractHash: `sha256:${'3'.repeat(64)}` }, {
+      searchClient.search({
+        ...searchRef,
+        searchRequestContractHash: `sha256:${'3'.repeat(64)}`,
+      }, {
         query: queryAst,
       }),
       (error) => error.code === 'SNAPBACK_SEARCH_REFERENCE_INVALID'

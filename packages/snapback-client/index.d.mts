@@ -121,6 +121,8 @@ export interface SnapbackFunctionReference<
   readonly implementationHash: string;
   readonly argsContractHash: string;
   readonly resultContractHash: string;
+  readonly searchRequestContractHash?: string;
+  readonly searchResourceArg?: string | null;
   readonly expectedGeneration?: ArtifactGeneration;
   readonly mutationIr?: GeneratedMutationIrV1;
   readonly __args?: Args;
@@ -1291,7 +1293,7 @@ export class SnapbackClient {
     SearchPageV1
   >>(
     ref: Ref,
-    options: {
+    options: Omit<FunctionArgs<Ref>, keyof SearchRequestV1> & {
       readonly query: SearchQueryAstV1;
       readonly limit?: number;
       readonly after?: string;

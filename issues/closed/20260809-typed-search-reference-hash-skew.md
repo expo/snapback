@@ -1,6 +1,6 @@
 # Typed `client.search()` refuses same-release generated resource-scoped search references (contract-hash skew in 0.1.15)
 
-**Status:** Open
+**Status:** Resolved
 **Severity:** P2 (published-release defect; workaround exists)
 **Systems:** Search, Headless client, Codegen, Qualification
 **Date:** 2026-08-09
@@ -43,3 +43,20 @@ typed search wrapper with freshly generated references.
 - The qualified publication path (LLP 0189 scope) gains a gate that
   exercises the typed search wrapper against generated references, so
   this cannot re-escape.
+
+## Resolution
+
+The wrapper compared every reference's complete `argsContractHash` with the
+plain `SearchRequestV1` pin. Codegen correctly includes a membership search's
+required `resourceArg` in that complete contract, so its hash necessarily
+differs even when codegen and client come from the same release.
+
+Generated search references now carry a dedicated
+`searchRequestContractHash` for the unchanged request-grammar portion plus the
+generated `searchResourceArg` name. The client exact-compares the dedicated
+witness, forwards the resource argument, and leaves full generated argument
+validation intact. A real-codegen regression composes plain and membership
+references through `client.search()`, including strict type checks and a
+pre-I/O skew refusal. The canonical proof runs the same composition as the
+`typed-search-wrapper-qualification` gate for client, codegen, packaging, and
+publication selections.

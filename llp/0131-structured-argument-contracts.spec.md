@@ -5,7 +5,11 @@
 **Systems:** Authoring, Code generation, Runtime, Application data API, Search, Client integration, Contract, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-08-02 (Option-E placement executed without reopening the
+**Revised:** 2026-08-09 (typed-search selector correction: generated search
+references now carry the unchanged SearchRequestV1 witness separately from
+the complete operation args witness, so membership `resourceArg` additions do
+not look like client/codegen generation skew; the qualified publication gate
+composes both variants through the shipped wrapper). 2026-08-02 (Option-E placement executed without reopening the
 argument grammar: the distinct app-authority `v.doc(table)` marker is admitted
 only in result contracts, expands before hashing to LLP 0108's existing
 structural document contract, and refuses at argument/stored-field positions).
@@ -1270,3 +1274,40 @@ landed CV-4a grammar nor claims CV-4b. Generated interior types consume the
 expanded result/schema artifacts under LLP 0108's dated clarification; they
 do not infer a contract from handler behavior. Implementation commit
 `d9ebc2b1` executes this placement without changing the argument grammar.
+
+## Amendment (2026-08-09): typed-search selector witness for resource-scoped references
+
+The §Identity and hashing cascade item 2 assumed that a search operation's
+complete `argsContractHash` was also the identity of the shared
+`SearchRequestV1` grammar. LLP 0073's later membership-visibility amendment
+correctly added one generated required `resourceArg` sibling beside
+`{query, limit?, after?}`. That changes the complete operation contract and
+therefore must change `argsContractHash`; comparing it with the plain request
+pin made same-generation resource-scoped references look stale.
+
+Generated non-live search references now carry two witnesses with distinct
+roles. `argsContractHash` remains the server-validated identity of the complete
+operation arguments, including `resourceArg`. `searchRequestContractHash` is
+derived by the same v2 descriptor/hash pipeline over the unchanged
+SearchRequestV1 fields after removing that generated sibling. Codegen also
+carries `searchResourceArg` (`null` for a plain search, its declared name for a
+resource-scoped search), so the flat typed wrapper forwards that required
+argument without guessing from the hash. An ordinary query reference carries
+neither search marker.
+
+`client.search()` still fails closed: it requires a generated Query reference,
+requires the dedicated search marker, and exact-compares that marker with its
+generated same-release pin before network I/O. It does not accept a mismatched
+marker and does not weaken complete-argument validation; the subsequent
+ordinary `query()` path validates the full generated `argumentSchema` and
+sends the full `argsContractHash`/generation as before. The lockstep-release
+rule from cascade item 2 remains unchanged.
+
+Acceptance is one real-codegen composition test that generates both a plain
+and membership `resourceArg` search reference, runs each through the shipped
+typed wrapper, checks the exact transmitted arguments and the skew refusal,
+and strict-typechecks required/forbidden resource options. The canonical
+local proof exposes that same test as the named
+`typed-search-wrapper-qualification` gate in the publication, packaging,
+client, and codegen selections, satisfying LLP 0189 D-2/D-4/D-6 without a
+complete-proof-at-HEAD precondition.

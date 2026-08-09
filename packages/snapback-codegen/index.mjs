@@ -10031,6 +10031,18 @@ function buildGeneratedReferences(
   for (const fn of functions) {
     const composition = functionCompositionIdentityV1(fn);
     const mutationIr = generatedMutationIrV1(fn, schemaManifest, expectedGeneration);
+    const searchPlan = fn.runtime?.HostPlan?.SearchQuery;
+    // @ref LLP 0131#amendment-2026-08-09-typed-search-selector-witness-for-resource-scoped-references
+    // — argsContractHash continues to identify the complete operation contract,
+    // while the typed-search discriminator identifies the unchanged
+    // SearchRequestV1 portion after removing its generated resource sibling.
+    const searchRequestContractHash = searchPlan && fn.kind === 'Query'
+      ? argsContractHash({
+          fields: fn.argsContract.fields.filter(
+            ({ name }) => name !== searchPlan.resourceArg,
+          ),
+        })
+      : null;
     const reference = {
       artifactKind: 'functionReference',
       schemaVersion: SCHEMA_VERSION,
@@ -10041,6 +10053,10 @@ function buildGeneratedReferences(
       implementationHash: fn.implementationHash,
       argsContractHash: fn.argsContractHash,
       resultContractHash: fn.resultContractHash,
+      ...(searchRequestContractHash === null ? {} : {
+        searchRequestContractHash,
+        searchResourceArg: searchPlan.resourceArg ?? null,
+      }),
       expectedGeneration,
       sourceSpan: generatedReferenceSourceSpan(functionSourceSpans, fn.name, 'functions.mjs'),
       resultContract: fn.resultContract,

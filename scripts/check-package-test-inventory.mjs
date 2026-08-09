@@ -300,6 +300,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'snapshot-batch-v2-authoring.test.mjs',
       'standard-patterns.test.mjs',
       'stored-enum-authoring.test.mjs',
+      'typed-search-wrapper.test.mjs',
       'vector-authoring.test.mjs',
       'vector-distance-profile.test.mjs',
     ],
@@ -449,7 +450,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 238,
+  expectedTotal = 239,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -742,6 +743,9 @@ export function checkPackageTestInventories(options = {}) {
 // @expo/snapback-codegen gains end-to-end stored enum authoring coverage.
 // 237 -> 238 (2026-08-08, LLP 0194): @expo/snapback-cli gains build-bound,
 // budgeted exact symbol and module-slice Guide lookup coverage.
+// 238 -> 239 (2026-08-09, typed search same-release qualification):
+// @expo/snapback-codegen gains the real-codegen-to-client wrapper composition
+// suite for plain and resource-scoped generated search references.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');
