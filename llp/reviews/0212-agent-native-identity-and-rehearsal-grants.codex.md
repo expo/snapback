@@ -435,4 +435,90 @@ VERDICT: NOT READY
 
 **Review body (verbatim):**
 
-_pending — appended on receipt_
+SELF-ATTESTATION: I reviewed only files inside this capsule, sought no prior reviews or orchestrator notes, and limited substantive review to the enumerated v0.4 delta and directly touched context.
+
+# Focused delta review — LLP 0212 v0.4
+
+## Findings
+
+### MATERIAL · IN-DELTA — The envelope cannot enforce permanent store taint against a valid pre-taint replay
+
+Prod-bleed rule 3 says a store becomes permanently ineligible after its first rehearsal effect. The v0.4 mechanism authenticates the export payload, store identity, and recorded marker state, while landing item 1 adds replay negatives.
+
+That does not reject this paved-path sequence:
+
+1. Export clean store `S`, producing valid envelope `E0` with `marker=clean`.
+2. Honor a rehearsal effect in `S`; the live store is now permanently tainted.
+3. Submit the unchanged `E0` through Snapback’s production import path.
+
+`E0` remains cryptographically valid: its payload, store identity, clean historical marker, and signature all match. Nothing was edited, spliced, or substituted. A host-held key authenticates a historical statement; it does not establish that the envelope contains the latest marker state. This is therefore a genuine replay, not the hand-copied-bytes exception, and it defeats both the permanent-ineligibility claim and the commissioned replay negative.
+
+Resolution requires one of two explicit decisions:
+
+- Weaken the policy and state that valid pre-taint snapshots remain promotable; or
+- Commission a monotonic lineage authority outside the portable/rollbackable store and envelope, including signer/verifier trust, retention, rotation, and crash ordering. Production import must consult that authority before accepting a store identity. The acceptance matrix should execute the exact clean-export → taint-original → first import of old export sequence. A simple artifact nonce or used-envelope ledger is insufficient when the old envelope’s first import happens after taint.
+
+### DETAIL · IN-DELTA — The public reachability fact needs a completeness gate
+
+The new unknown-proceeds rule is coherent because selector entropy is explicitly authoritative. However, the promised refusal for public target classes depends on those targets actually publishing the new fact. Landing item 1 commissions declared-public refusal but does not explicitly commission the fact’s closed schema or producer-parity gate.
+
+Add acceptance proving that every rehearsal-capable public target class must publish the fact, with the exact wave-1 local target as the deliberate absence exception. Otherwise an accidental omission silently selects the unknown/proceed branch. This is DETAIL because selector entropy still preserves the stated primary boundary.
+
+## Delta verification
+
+- Landing item 2 correctly single-sources wave 1c, assigns V6 readiness derivation/enforcement timing, and assigns non-rehearsal provenance admissibility.
+- `window.install` consistently uses a grant-mint-time namespace, consumed once by installation, with the requested collision/reuse/mutation/concurrency coverage.
+- R2 consistently makes entropy authoritative, rejects fail-closed-on-unknown with a stated rationale, and updates the reachability acceptance cases.
+- Landing item 1a covers effective-decision provenance, synchronous propagation, deferred-intent persistence, restart/retry paths, and the narrowed causality claim.
+- The export-envelope delta remains unresolved as described above.
+- The illustrative grant’s four effects, selectors, and counters are coherent.
+- The governing-authority wording is corrected.
+- The Related header and wave-2a V6 enforcement change are present.
+- The Revised line and v0.4 revision-history entry are present.
+
+No PRE-EXISTING concern was identified.
+
+VERDICT: NOT READY
+
+## Loop close-out — 2026-08-09
+
+**Final report (orchestrator; identical text in both family artifacts).**
+
+- Rounds run: 4 (1 full + 3 delta; round 4 was the single focused
+  verification round the delta-convergence rule authorizes). Launches
+  per family: Fable 4/4 clean; Codex 5 (1 environment-failure void in
+  round 1 — no review produced — + 4 clean). Caps respected.
+- Revisions: v0.1 (entering) → v0.2 → v0.3 → v0.4 → v0.5.
+- **Final loop verdicts bind to v0.4**
+  (`f3da1baed35afcf35c8b4e05fb5f39413286889c36e27c6b1f454889e67c7b33`):
+  Fable **READY** (3 DETAIL, all dispositioned into the Spec
+  commissions in v0.5); Codex **NOT READY** (1 MATERIAL — the
+  pre-taint envelope replay — + 1 DETAIL).
+- **Convergence claim, scoped honestly:** the loop converged under the
+  LLP 0010 delta rule — rounds 2, 3, and 4 each found **zero MATERIAL
+  concerns in pre-existing text across both families**; every MATERIAL
+  from round 2 onward was in-delta closure work on the loop's own
+  revisions. Dual-READY on a single revision was **not** achieved:
+  round-4 Fable READY and Codex NOT READY split on v0.4, and Codex's
+  final MATERIAL was repaired in **v0.5, which no family has
+  reviewed** (the v0.5 delta is labeled UNREVIEWED in the target's
+  §Revision history; it adopts the first of Codex's two offered
+  resolutions — pre-taint exports promotable by design with the
+  policy stated precisely — rather than new infrastructure).
+- Altitude-rule dispositions: all round-4 DETAILs (Fable D1–D3, Codex
+  D-reachability) identify no defective decision and are folded into
+  the v0.5 Spec-commission text; none blocks.
+- Growth: v0.5 is ~63% over the entering revision, far past the ~20%
+  advisory. Disclosed every round; both families judged the growth
+  load-bearing contract text in rounds 2–4 and the round-2/3 reviews
+  found no bloat beyond the illustration (which v0.4 shrank).
+- No author decision was overturned; Codex's round-2 M8 challenge to
+  OQ6's *recording* was absorbed by pinning the bridge contract, with
+  the ruling intact.
+- **Proposed next step:** stay `Review`. The author may accept on the
+  strength of the scoped convergence, or commission one more blind
+  delta round on the v0.5 delta (a fifth round exceeds the loop's
+  authorized budget and would be a fresh authorization). The three
+  commissioned Specs (rehearsal-grants, identity-core, effect-budgets)
+  are the implementation gate either way, and each carries the
+  round-4 DETAIL closures as commission requirements.
