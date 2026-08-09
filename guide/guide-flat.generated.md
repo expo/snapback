@@ -55,6 +55,8 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.sequences | Experimental incarnation-scoped dense `ctx.sequence.allocate` with replay/contention/exhaustion evidence; contributor-source local only | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | local | partial | src/local-sequence-allocation-publication.v1.json | llp/0135, llp/0128, llp/0113, llp/0157 | GAP (public/hosted qualification; owner: Charlie, review: 2026-09-30; issue: issues/20260808-main-drift-sequence-allocation-publication.md); backend/sequences.md |
 | backend.actions | Actions with gated outbound fetch: global `fetch` and target-portable host-mediated `ctx.fetch`, in closed-script module handlers or the inline form | action, fetch, ctx.fetch, side effects, notification, webhook | local | shipped | route /action/{name} | llp/0004, llp/0009, llp/0049 | backend/actions-and-fetch.md |
 | backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks (including sessions execution under the per-app `asset-callbacks` service principal), deletion/GC, receipts, logical consistent-cut export with refuse-partial validation, and instance-wide signing-key rotation (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); the paved browser path (stock `@expo/snapback-vite` relay over the `/assets/*` family, sessions custody, typed generated upload references) is CI-verified; byte-level backup, transcoding, and hosted targets remain nonclaims | files, images, video, object storage, media, browser upload, native upload, SVG, image/svg+xml, Expo ImagePicker, expo/fetch, useSnapbackAssetUpload, useSnapbackAssetImage, render image, strict delivery URL, empty image, session mint, vite relay, asset export, logical backup, signing key rotation, Supabase Storage, Convex generateUploadUrl | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids plus `assets.export.cutExport`/`importValidation`) + src/assets.rs + src/assets_cut.rs + src/assets_image.rs + src/assets_video.rs suites + tests/acceptance/asset-conformance-v1.mjs (native CLI export/refuse-partial/rotation; sessions callback authority) + demos/file-drop/tests/acceptance/browser-relay.mjs (browser relay path) | llp/0044 | backend/assets.md |
+| clients.asset-signed-delivery | Signed issuance, TTL-refresh store, React hook | signed URL, assets.signedUrl, issuedUrlStore, useSnapbackAssetUrl, expiresAt | local | shipped | packages/snapback-react/assets.test.mjs | llp/0210 | backend/assets.md |
+| clients.asset-upload | One-call File/Blob/picker upload; `task.done` settles on ready/rejected/cancelled/failed and only ready succeeds | assets.upload, task.done, upload terminal status, SNAPBACK_ASSET_RETRY_INELIGIBLE | local | shipped | packages/snapback-client/assets.test.mjs | llp/0210 | backend/assets.md |
 | backend.expo-push-seam | Shipped local Expo integration seam: session-bound token custody, atomic rotation and retirement, declaration-checked/host-authorized and paced `ctx.push.send`, crash-safe intent/batch/message ledger, safe pre-transmit recovery, bounded ticket/receipt maintenance, a privacy-bounded generated ledger query, explicit ambiguous redrive risk, structured `notifications.expoPushSeam` facts, and a retained physical-device `ok` receipt witness. The complete hosted conjunction remains a GAP; this is not first-class notification delivery. | device token, expo push token, installation, ctx.push.send, handoff receipt, DeviceNotRegistered | local | shipped | schemas/capability.manifest.local-dev-sqlite-ibex.outbound-actions.json (`expoPushSeam`) + packages/snapback-cli/fake-expo-push.test.mjs + `fake_expo_acceptance_covers_tickets_receipts_dedupe_ambiguity_and_authorization` in src/push.rs + LLP 0143 implementation record (2026-08-03 physical-device witness) | llp/0143, llp/0057, llp/0059, llp/0070 | backend/expo-push.md |
 | backend.notifications | First-class notification and effect delivery; application-authored table ledgers are not this product capability | notifications, push, email, delivery, effects | none | design-only | schemas/capability.manifest.local-dev-sqlite-ibex.json (`notifications: false`; explicit `notifications` gap) | llp/0045 | GAP (owner: Charlie, review: 2026-08-24; issue: issues/closed/20260728-guide-gap-assets-and-notifications-capability-rows.md) |
 | backend.observability-v1 | Shipped local Phase-1 backend telemetry with a generation-bound sibling store, operation-class spans, bounded retention and rollups, typed agent-facing queries, Health/Logs projections, and retained clean-release idle/benchmark evidence; hosted arms and declared product analytics remain later capabilities | telemetry, observability, health, logs, metrics, traces | local | shipped | tests/acceptance/telemetry-phase1-evidence.v1.json | llp/0154 | operating/observability.md |
@@ -308,9 +310,10 @@ you never build around a feature because you didn't know it existed.
 - [Reviewed migrations](./backend/migrations.md) — the `snapback migrate`
   preview → approve → rehearse → apply → verify loop for destructive schema
   changes, its intents, and its refusal codes.
-- [Assets](./backend/assets.md) — generated upload intents, an authenticated
-  Expo ImagePicker-to-Blob recipe, TUS resumable transfer, trusted SHA-256
-  finalization, typed `v.assetRef` attachment, private-strict delivery,
+- [Assets](./backend/assets.md) — generated upload intents, one-call
+  File/Blob/picker upload, signed-URL issuance with a shared TTL-refresh
+  controller and React hook, TUS resumable transfer, typed `v.assetRef`
+  attachment, private delivery, the view-once grant-row recipe,
   consistent-cut logical export, and signing-key rotation (local target;
   byte-level backup remains a nonclaim).
 - [Versioned seeds](./backend/versioned-seeds.md) — content-addressed fixture
@@ -5431,9 +5434,9 @@ title: Assets
 id: backend.assets
 order: 9
 audience: agent-first
-capabilities: [backend.assets]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0181-zero-configuration-expo.rfc.md, src/assets.rs, src/assets_cut.rs, src/cli.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-react/index.d.mts, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md, demos/zerobugs/control/snapback/functions.mjs, demos/zerobugs/control/composition/server.mts]
-examples: [demos/party-wall, demos/file-drop, demos/tandem-expo-bakeoff, demos/expo-golden-path-fixture, demos/zerobugs/control]
+capabilities: [backend.assets, clients.asset-signed-delivery, clients.asset-upload]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0210-asset-upload-dx-closure.rfc.md, src/assets.rs, src/assets_cut.rs, src/cli.rs, src/local.rs, src/server.rs, src/server/asset_routes.rs, packages/snapback-client/assets.mjs, packages/snapback-codegen/define.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md, demos/zerobugs/control/snapback/functions.mjs, demos/zerobugs/control/composition/server.mts]
+examples: [demos/party-wall, demos/file-drop, demos/tandem-expo-bakeoff, demos/expo-golden-path-fixture, demos/zerobugs/control, packages/snapback-client/assets.test.mjs, packages/snapback-react/assets.test.mjs]
 status: current
 targets: [local]
 maturity: partial
@@ -5929,6 +5932,182 @@ the reviewed status posture in [LLP 0012](repo:llp/0012-headless-integration-con
 and the per-profile offer contract in
 [LLP 0096](repo:llp/0096-auth-profiles-for-protocol-clients.spec.md).
 
+<!-- since: 0.1.16 unreleased -->
+
+> **Unreleased.** The signed-delivery client, one-call upload helper, and
+> settlement contract below are newer than the newest published closure,
+> 0.1.15. Use a source checkout until a later closure publishes them.
+
+### Issue and refresh a private signed URL
+
+The signed-URL request body is the closed object `{ variant?, widthPx?,
+ttlMs? }`. Omitting `variant` selects `primary`; an entirely absent or empty
+body and `{}` are valid default requests. `widthPx` selects a bounded ladder
+rendition and supersedes `variant`. `ttlMs` must be between 1 and the target's
+declared `assets.signedUrlMaxTtlMs` (86,400,000 ms on the local target); when
+omitted, the target's declared default applies (900,000 ms locally).
+
+Request parsing never escapes as a framework 422. Malformed JSON, unknown
+members, or a wrongly typed field refuse with
+`SNAPBACK_ASSET_REQUEST_INVALID`, whose details name the field. An authorized
+request for an undeclared variant refuses with
+`SNAPBACK_ASSET_VARIANT_UNKNOWN`; `details.variants` enumerates `primary` plus
+the intent's declared keys. Authorization runs before that enumeration. An
+unauthorized caller gets the same ordinary `SNAPBACK_ASSET_FORBIDDEN` denial
+for an existing or nonexistent asset, with no variant list or existence
+oracle.
+
+Use the framework-neutral asset client instead of posting to the route. Each
+`assets.signedUrl(assetId, options)` call performs one pure issuance, adds the
+current client-owned custody headers and auth-client protocol offer, resolves a relative
+server response against the client's base URL, and returns
+`{ url, expiresAt, variant }`. It deliberately does not cache.
+
+For a non-React renderer, call `assets.issuedUrlStore(assetId, options)` and
+subscribe to its external-store contract. Equal asset/option/authority keys
+share one issuance loop. Render its five states this way:
+
+| State | URL | Rendering meaning |
+| --- | --- | --- |
+| `issuing` | `null` | Initial or post-expiry issuance is in flight; render a loading placeholder. |
+| `ready` | valid | Render the URL. A transient refresh failure may leave this state and attach a diagnostic while the held URL is still valid. |
+| `refreshing` | valid | Keep rendering the held URL while replacement issuance is in flight. |
+| `unavailable` | `null` | No valid URL is held after a transport or server failure; render the offline/error fallback while bounded retry continues. |
+| `denied` | `null` | A structured authorization refusal blanked the URL and stopped timer retry; render the access-denied state. |
+
+`store.refresh()` is the explicit exit from `denied` after the application
+expects authority to have returned. Logout or authority replacement disposes
+the old entry synchronously, and a final unsubscribe fences in-flight work.
+
+React and Expo use `useSnapbackAssetUrl`, which projects that same controller;
+it does not add another cache or timer. The hook returns the five-state
+snapshot plus a stable `refresh()`:
+
+```ts source=packages/snapback-react/asset-upload-types.fixture.ts
+const issuedUrl: AssetUrlState = useSnapbackAssetUrl('asset-1', {
+  variant: 'chat',
+  widthPx: 640,
+  ttlMs: 30_000,
+});
+issuedUrl.url?.toUpperCase();
+const issuedDiagnostic: AssetDiagnostic | null = issuedUrl.diagnostic;
+const refreshed: Promise<void> = issuedUrl.refresh();
+void issuedDiagnostic;
+void refreshed;
+```
+
+TTL refresh is platform-owned. Applications should not hand-roll issuance
+fetches, custody headers, URL caches, expiry timers, or one cache per
+component; those were pilot workarounds and are now replaced by
+`signedUrl`, `issuedUrlStore`, and `useSnapbackAssetUrl`.
+
+### Upload when you only need the ready asset id
+
+Use `assets.upload(uploadRef, source, { args? })` when the caller needs only a
+ready asset id. It accepts the same normalized inputs as the platform
+adapters: `File`, `Blob`, or picker-shaped
+`{ uri, mimeType?, fileName? }`. It never retries and exposes no progress;
+use `assets.start()` when the UI needs pause, resume, cancel, retry, preview,
+or progress.
+
+The raw task contract is frozen: `task.done` resolves at the first terminal
+status — `ready | rejected | cancelled | failed`. `ready` is the only success.
+`assets.upload()` therefore resolves with `assetId` only for `ready` and
+rejects every other row with an error carrying `terminalStatus` and the
+structured `diagnostic`. The package fixture pins both branches:
+
+```js source=packages/snapback-client/assets.test.mjs
+    if (status === 'ready') {
+      assert.equal(
+        await assets.upload(AVATAR_UPLOAD_REF, new Blob(['x'])),
+        'asset_upload_helper',
+      );
+    } else {
+      await assert.rejects(
+        assets.upload(AVATAR_UPLOAD_REF, new Blob(['x'])),
+        (error) => error instanceof Error
+          && error.status === status
+          && error.terminalStatus === status
+          && error.diagnostic.code === 'SNAPBACK_ASSET_TEST_TRANSIENT'
+          && error.diagnostic.details.row === status,
+      );
+    }
+```
+
+The settled task snapshot and its `done` value never mutate. An eligible
+`retry()` returns a successor task for the same asset id with an independent
+generation; the predecessor stays frozen. `failed` and `cancelled` are
+eligible only while the underlying asset remains pending, while `ready` and
+`rejected` are never eligible. Any ineligible retry creates no successor and
+refuses with `SNAPBACK_ASSET_RETRY_INELIGIBLE`.
+
+### Compose view-once access with per-recipient grant rows
+
+Today's supported view-once recipe is the pilot-proven composition of ordinary
+app rows with `via-references` asset authorization. Give the media intent
+`access: { read: 'via-references' }` and a revocable delivery profile. Put its
+typed reference in a dedicated row whose owner-principal sharing field is the
+current viewer:
+
+```js fragment reason="pilot-proven row composition; no in-repo fixture contains the complete app-specific authorization checks"
+mediaGrants: defineTable({
+  messageId: v.id('messages'),
+  targetPrincipal: v.principal(),
+  viewerPrincipal: v.principal(),
+  asset: v.assetRef({ upload: 'messageImageUpload' }),
+  state: v.string(), // 'pending' | 'active'
+})
+  .index('by_message_target', ['messageId', 'targetPrincipal'], { unique: true })
+  .assetSharing({ kind: 'owner', field: 'viewerPrincipal' })
+  .sync(),
+```
+
+At send time, the sender calls `ctx.assets.attach` and inserts one grant row
+per recipient. Set `targetPrincipal` to the recipient, but set
+`viewerPrincipal` to the sender and `state` to `pending`; the sender must
+pre-mint because `ctx.assets.attach` admits the asset owner, not the future
+viewer. The row's typed `asset` field is also the reverse reference that keeps
+the asset protected through this pending window.
+
+In the recipient's authorized `open()` mutation, verify the message and
+recipient, reject an already-consumed view in an app-owned consumption row,
+then patch that recipient's grant row atomically:
+
+```js fragment reason="application-specific authorization and consumption checks surround this core transfer-at-open operation"
+await ctx.db.patch('mediaGrants', grant._id, {
+  viewerPrincipal: ctx.auth.userId,
+  state: 'active',
+});
+```
+
+The viewer can now issue or fetch under the intent's delivery profile. On
+`close()`, delete that recipient's grant row; delete-for-everyone deletes all
+rows for the message. Remove any remaining typed references before deleting
+the asset itself. Never recreate a consumed row: the separate consumption
+record is what makes a second `open()` refuse rather than minting authority
+again.
+
+Two constraints are load-bearing:
+
+- The grant row must be the recipient's **sole authority path**. A public
+  profile, another recipient-visible `assetSharing` table, or another
+  `via-references` edge would bypass the pending/close transition. A message
+  row may retain a typed asset reference for storage integrity, but that table
+  must not declare asset sharing that admits the recipient.
+- A typed reverse reference must remain alive for the entire pending window.
+  The pre-minted grant row supplies one above; do not replace it with a plain
+  asset-id string, or reference GC can reclaim the asset before `open()`.
+
+With `private-signed`, closing stops new issuance but an already-issued bearer
+URL remains usable until its TTL; with `private-strict`, revocation applies on
+the next governed request. Neither profile can retract bytes the viewer has
+already copied, so view-once media must not enter a durable application cache.
+
+First-class `ctx.assets.grant` / `activate` / `revoke` operations are designed
+in [LLP 0210 D5(b)](repo:llp/0210-asset-upload-dx-closure.rfc.md#d5--recipient-scoped-authority-recipe-now-grant-ops-as-the-paved-spelling),
+but they remain author-gated and unshipped. Do not call them. The grant-row
+recipe above is the supported path on today's primitives.
+
 ## Images
 
 Declare a location policy on every image intent — omission refuses at
@@ -6301,6 +6480,22 @@ TTL, and count ceilings a suite can read before sending a byte. Ready
 records expose the canonical `digest`, `digestAlgorithm`, and
 `integrityGrade` as ordinary queryable facts on the record view and
 `snapback assets inspect`.
+
+## Anti-patterns
+
+- **Do not post to `/signed-url` or cache bearer URLs by hand.** Use
+  [`assets.signedUrl`, `issuedUrlStore`, or `useSnapbackAssetUrl`](#issue-and-refresh-a-private-signed-url)
+  so custody, absolute URLs, authority blanking, and TTL refresh keep one
+  owner.
+- **Do not treat `task.done` resolution as upload success without checking its
+  terminal row.** Use [`assets.upload()`](#upload-when-you-only-need-the-ready-asset-id)
+  for settle-or-reject behavior, or branch on all four raw terminal statuses.
+- **Do not add a second recipient-readable reference to view-once media.** Keep
+  the [per-recipient grant row](#compose-view-once-access-with-per-recipient-grant-rows)
+  as the sole authority edge and retain a typed reverse reference until open
+  or cancellation.
+- **Do not call the designed grant operations yet.** LLP 0210 D5(b) is a
+  design reference, not a shipped API; use the row composition above.
 
 ---
 
@@ -10687,8 +10882,8 @@ id: clients.surfaces
 order: 2
 audience: agent-first
 capabilities: [clients.surfaces]
-authorities: [llp/0179-generated-app-descriptor-and-surfaces.rfc.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/commands.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
-examples: [packages/snapback-react/surface.test.mjs, packages/snapback-react/commands.test.mjs, packages/snapback-client/commands.test.mjs, packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.json, packages/snapback-react/fixtures/conversation/app/snapback/generated/app.d.ts, demos/expo-golden-path-fixture/snapback/functions.mjs, demos/expo-golden-path-fixture/snapback/surface-model.mjs, demos/expo-golden-path-fixture/src/screens/chat-screen.tsx, demos/expo-golden-path-fixture/tests/g2-falsification.mjs, demos/expo-golden-path-fixture/tests/g3-command.mjs]
+authorities: [llp/0179-generated-app-descriptor-and-surfaces.rfc.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0210-asset-upload-dx-closure.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/commands.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
+examples: [packages/snapback-codegen/app-descriptor.test.mjs, packages/snapback-react/surface.test.mjs, packages/snapback-react/commands.test.mjs, packages/snapback-client/commands.test.mjs, packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.json, packages/snapback-react/fixtures/conversation/app/snapback/generated/app.d.ts, demos/expo-golden-path-fixture/snapback/functions.mjs, demos/expo-golden-path-fixture/snapback/surface-model.mjs, demos/expo-golden-path-fixture/src/screens/chat-screen.tsx, demos/expo-golden-path-fixture/tests/g2-falsification.mjs, demos/expo-golden-path-fixture/tests/g3-command.mjs]
 status: current
 targets: [local]
 maturity: partial
@@ -10741,6 +10936,35 @@ export const send = defineCommand({
 The composed mutation is still the sole application-row and asset-attachment
 commit. The command adds no server endpoint or transaction, and it does not
 change the upload intent's policy or ownership rules.
+
+<!-- since: 0.1.16 unreleased -->
+
+> **Unreleased.** The command-mapping rules below are newer than the newest
+> published closure, 0.1.15. Use a source checkout until a later closure
+> publishes them.
+
+### Map required and optional assets safely
+
+Command asset requiredness may narrow the ordinary mutation without changing
+the mutation's own callable contract:
+
+| Command child | Mutation argument | Result |
+| --- | --- | --- |
+| Required (`optional: false`) | Optional `v.assetRef` for the same upload intent | Admitted. The generated command requires the asset and always supplies it; direct mutation callers may still omit the argument. |
+| Optional (`optional: true`) | Required `v.assetRef` | Refused. A text-only command branch would invoke the mutation without a required argument. |
+
+The admitted direction is useful for a dedicated `sendPhoto` command over a
+shared mutation that also supports a direct text-only call. The generated
+command input is required, but the mutation handler must still treat the
+argument as optional because other callers retain the wider mutation
+contract.
+
+The unsafe inverse refuses at generation with
+`SNAPBACK_COMMAND_ASSET_MAPPING_INCOMPATIBLE`. Its diagnostic names both
+repairs: **make the command child required**, or **make the mutation argument
+optional** with `v.optional(v.assetRef(...))`. Do not weaken a required command
+just to match an optional mutation argument; required-child → optional-argument
+is the admitted narrowing.
 
 ## Declare a surface for one screen
 
@@ -11115,7 +11339,7 @@ truncates or partially emits the descriptor:
 | `SNAPBACK_COMMAND_MULTI_ASSET_UNSUPPORTED` | More than one asset input — v1 admits at most one. |
 | `SNAPBACK_COMMAND_ASSET_INTENT_UNKNOWN` | `intent` resolves to no generated upload intent. |
 | `SNAPBACK_COMMAND_ASSET_INTENT_ARGS_UNSUPPORTED` | The upload intent declares its own argument map; v1 commands do not carry a second one. |
-| `SNAPBACK_COMMAND_ASSET_MAPPING_INCOMPATIBLE` | `mutationArg` does not name a `v.assetRef({ upload: <this intent> })` argument with matching optionality. |
+| `SNAPBACK_COMMAND_ASSET_MAPPING_INCOMPATIBLE` | `mutationArg` is not a `v.assetRef({ upload: <this intent> })`, or an optional child maps to a required argument. A required child over an optional argument is admitted. |
 | `SNAPBACK_COMMAND_INPUT_COLLISION` | The asset input name collides with a different ordinary mutation input. |
 | `SNAPBACK_COMMAND_AUTHORITY_INPUT_REFUSED` | An ordinary input would inject an authority `Principal`. |
 
@@ -11222,6 +11446,9 @@ made here.
   [command outcome and residue facts](#run-a-command-and-read-its-truthful-outcome),
   and keep the raw asset and ordinary mutation children visible when a commit
   fails or becomes ambiguous.
+- **Do not mirror mutation optionality mechanically onto a command child.** A
+  [required child may deliberately narrow an optional mutation argument](#map-required-and-optional-assets-safely);
+  only the unsafe optional-child → required-argument direction refuses.
 
 ---
 
@@ -19871,7 +20098,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-diagnostics-registry.mjs. Never hand-edit. -->
@@ -20164,7 +20391,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-asset-digest-mismatch"></a>`SNAPBACK_ASSET_DIGEST_MISMATCH` | assets | 400 | — | `src/assets.rs:348` | 2 |
 | <a id="diagnostic-snapback-asset-export-blob-missing"></a>`SNAPBACK_ASSET_EXPORT_BLOB_MISSING` | assets | — | — | `src/assets_cut.rs:174` | 3 |
 | <a id="diagnostic-snapback-asset-export-target-invalid"></a>`SNAPBACK_ASSET_EXPORT_TARGET_INVALID` | assets | — | — | `src/assets_cut.rs:118` | 9 |
-| <a id="diagnostic-snapback-asset-forbidden"></a>`SNAPBACK_ASSET_FORBIDDEN` | assets | 403 | — | `src/assets.rs:2242` | 10 |
+| <a id="diagnostic-snapback-asset-forbidden"></a>`SNAPBACK_ASSET_FORBIDDEN` | assets | 403 | [guide](../backend/assets.md#issue-and-refresh-a-private-signed-url) | `src/assets.rs:2242` | 10 |
 | <a id="diagnostic-snapback-asset-generation-stale"></a>`SNAPBACK_ASSET_GENERATION_STALE` | assets | 409 | — | `src/local.rs:8516` | 4 |
 | <a id="diagnostic-snapback-asset-host-op-input-invalid"></a>`SNAPBACK_ASSET_HOST_OP_INPUT_INVALID` | assets | — | — | `src/local.rs:8178` | 4 |
 | <a id="diagnostic-snapback-asset-host-op-unknown"></a>`SNAPBACK_ASSET_HOST_OP_UNKNOWN` | assets | — | — | `src/local.rs:7880` | 1 |
@@ -20208,8 +20435,8 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-asset-reference-gc-unprotected-fields"></a>`SNAPBACK_ASSET_REFERENCE_GC_UNPROTECTED_FIELDS` | assets | — | — | `packages/snapback-codegen/index.mjs:4250` | 1 |
 | <a id="diagnostic-snapback-asset-reference-gc-unsupported"></a>`SNAPBACK_ASSET_REFERENCE_GC_UNSUPPORTED` | assets | — | — | `packages/snapback-codegen/index.mjs:4213` | 1 |
 | <a id="diagnostic-snapback-asset-ref-unverified"></a>`SNAPBACK_ASSET_REF_UNVERIFIED` | assets | 400 | [guide](../backend/assets.md#upload-and-attach) | `src/server/api_error.rs:671` | 5 |
-| <a id="diagnostic-snapback-asset-request-invalid"></a>`SNAPBACK_ASSET_REQUEST_INVALID` | assets | 400 | — | `src/server/api_error.rs:682` | 2 |
-| <a id="diagnostic-snapback-asset-retry-ineligible"></a>`SNAPBACK_ASSET_RETRY_INELIGIBLE` | assets | — | — | `packages/snapback-client/assets.mjs:262` | 2 |
+| <a id="diagnostic-snapback-asset-request-invalid"></a>`SNAPBACK_ASSET_REQUEST_INVALID` | assets | 400 | [guide](../backend/assets.md#issue-and-refresh-a-private-signed-url) | `src/server/api_error.rs:682` | 2 |
+| <a id="diagnostic-snapback-asset-retry-ineligible"></a>`SNAPBACK_ASSET_RETRY_INELIGIBLE` | assets | — | [guide](../backend/assets.md#upload-when-you-only-need-the-ready-asset-id) | `packages/snapback-client/assets.mjs:262` | 2 |
 | <a id="diagnostic-snapback-asset-runner-disabled"></a>`SNAPBACK_ASSET_RUNNER_DISABLED` | assets | — | [guide](../backend/assets.md#operate) | `src/cli.rs:737` | 4 |
 | <a id="diagnostic-snapback-asset-s3-"></a>`SNAPBACK_ASSET_S3_` | assets | — | — | `src/assets_s3.rs:51` | 1 |
 | <a id="diagnostic-snapback-asset-s3-access-key-id"></a>`SNAPBACK_ASSET_S3_ACCESS_KEY_ID` | assets | — | — | `src/assets_s3.rs:71` | 1 |
@@ -20232,7 +20459,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-asset-store-unavailable"></a>`SNAPBACK_ASSET_STORE_UNAVAILABLE` | assets | — | — | `src/assets_s3.rs:145` | 27 |
 | <a id="diagnostic-snapback-asset-store-unqualified"></a>`SNAPBACK_ASSET_STORE_UNQUALIFIED` | assets | — | — | `src/local.rs:7105` | 1 |
 | <a id="diagnostic-snapback-asset-test-crash"></a>`SNAPBACK_ASSET_TEST_CRASH` | assets | — | — | `src/local.rs:28979` | 1 |
-| <a id="diagnostic-snapback-asset-test-transient"></a>`SNAPBACK_ASSET_TEST_TRANSIENT` | assets | — | — | `src/local.rs:9910` | 1 |
+| <a id="diagnostic-snapback-asset-test-transient"></a>`SNAPBACK_ASSET_TEST_TRANSIENT` | assets | — | [guide](../backend/assets.md#upload-when-you-only-need-the-ready-asset-id) | `src/local.rs:9910` | 1 |
 | <a id="diagnostic-snapback-asset-transfer-failed"></a>`SNAPBACK_ASSET_TRANSFER_FAILED` | assets | — | — | `packages/snapback-client/assets.mjs:235` | 2 |
 | <a id="diagnostic-snapback-asset-transfer-incomplete"></a>`SNAPBACK_ASSET_TRANSFER_INCOMPLETE` | assets | 409 | — | `src/local.rs:8537` | 2 |
 | <a id="diagnostic-snapback-asset-transition-invalid"></a>`SNAPBACK_ASSET_TRANSITION_INVALID` | assets | — | — | `src/assets.rs:2271` | 4 |
@@ -20240,7 +20467,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-asset-tus-content-type-unsupported"></a>`SNAPBACK_ASSET_TUS_CONTENT_TYPE_UNSUPPORTED` | assets | — | — | `src/server/api_error.rs:741` | 2 |
 | <a id="diagnostic-snapback-asset-tus-version-unsupported"></a>`SNAPBACK_ASSET_TUS_VERSION_UNSUPPORTED` | assets | — | — | `src/server/api_error.rs:740` | 2 |
 | <a id="diagnostic-snapback-asset-unknown"></a>`SNAPBACK_ASSET_UNKNOWN` | assets | 404 | — | `src/server/api_error.rs:668` | 8 |
-| <a id="diagnostic-snapback-asset-variant-unknown"></a>`SNAPBACK_ASSET_VARIANT_UNKNOWN` | assets | 404 | — | `src/server/api_error.rs:724` | 5 |
+| <a id="diagnostic-snapback-asset-variant-unknown"></a>`SNAPBACK_ASSET_VARIANT_UNKNOWN` | assets | 404 | [guide](../backend/assets.md#issue-and-refresh-a-private-signed-url) | `src/server/api_error.rs:724` | 5 |
 | <a id="diagnostic-snapback-asset-video-bounds-exceeded"></a>`SNAPBACK_ASSET_VIDEO_BOUNDS_EXCEEDED` | assets | — | — | `src/assets_video.rs:56` | 6 |
 | <a id="diagnostic-snapback-asset-video-parse-failed"></a>`SNAPBACK_ASSET_VIDEO_PARSE_FAILED` | assets | — | — | `src/assets_video.rs:60` | 5 |
 | <a id="diagnostic-snapback-asset-video-strip-unsupported"></a>`SNAPBACK_ASSET_VIDEO_STRIP_UNSUPPORTED` | assets | — | — | `src/assets_video.rs:64` | 4 |
@@ -22630,7 +22857,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -22638,7 +22865,7 @@ reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
 # Generated API reference
 
 One build-bound projection of 913 public symbols (374 runtime values and 539 explicit type-only symbols).
-Registry identity: `sha256:b0f1726a4510e9c6b957ffe613de50930053be328cb72177f8e0419e3492591b`; source commit: `02653816a35a9b3c841a9b3d5d8022086653a1af`.
+Registry identity: `sha256:b0f1726a4510e9c6b957ffe613de50930053be328cb72177f8e0419e3492591b`; source commit: `26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf`.
 
 Use `snapback guide <ExactSymbolName>` for a budgeted exact lookup. Add `--slice N` when a result names a next slice. The JSON registry is available at [registry.json](./registry.json). Stable `SNAPBACK_*` failures have their own [diagnostic code registry](./diagnostics.md).
 
@@ -22705,7 +22932,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -31203,7 +31430,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -31728,7 +31955,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -31962,7 +32189,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -32605,7 +32832,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -32712,7 +32939,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -33167,7 +33394,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -33306,7 +33533,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -33668,7 +33895,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -33759,7 +33986,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -34128,7 +34355,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -34278,7 +34505,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -34781,7 +35008,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35282,7 +35509,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35516,7 +35743,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35879,7 +36106,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35993,7 +36220,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36591,7 +36818,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36896,7 +37123,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37343,7 +37570,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37469,7 +37696,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37641,7 +37868,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38046,7 +38273,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38513,7 +38740,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38770,7 +38997,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39160,7 +39387,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39780,7 +40007,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39928,7 +40155,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40136,7 +40363,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40329,7 +40556,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40582,7 +40809,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -41167,7 +41394,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -43039,7 +43266,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -43152,7 +43379,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -45809,7 +46036,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -46091,7 +46318,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -46215,7 +46442,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -46370,7 +46597,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -46494,7 +46721,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -46664,7 +46891,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -47040,7 +47267,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 02653816a35a9b3c841a9b3d5d8022086653a1af
+reviewed-commit: 26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->

@@ -2,8 +2,8 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "commit": "02653816a35a9b3c841a9b3d5d8022086653a1af",
-    "sourceDigest": "sha256:6900b8707d3d1b55b807605ca258c6875e5049fc0ea5c4e1d01a53117e0fb9fb"
+    "commit": "26b7bbea2aa73f5ec1ab412e6a5a0c612aba5adf",
+    "sourceDigest": "sha256:83e1efc4a58044191b7b40e39ec8c50846703c7d33fdf2f925ff11b803c06421"
   },
   "limits": {
     "lookupBytes": 16384
@@ -13,7 +13,7 @@
     "sourceFiles": 372,
     "emittingSites": 9116,
     "httpClassified": 792,
-    "guideAnchored": 315
+    "guideAnchored": 320
   },
   "diagnostics": {
     "SNAPBACK_ACTION_CAPACITY_EXCEEDED": {
@@ -8470,8 +8470,10 @@
       ],
       "httpStatus": 403,
       "httpStatusClass": "4xx",
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/backend/assets.md#issue-and-refresh-a-private-signed-url",
+      "guideAnchors": [
+        "/_snapback/guide/backend/assets.md#issue-and-refresh-a-private-signed-url"
+      ]
     },
     "SNAPBACK_ASSET_GENERATION_STALE": {
       "code": "SNAPBACK_ASSET_GENERATION_STALE",
@@ -9638,8 +9640,10 @@
       ],
       "httpStatus": 400,
       "httpStatusClass": "4xx",
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/backend/assets.md#issue-and-refresh-a-private-signed-url",
+      "guideAnchors": [
+        "/_snapback/guide/backend/assets.md#issue-and-refresh-a-private-signed-url"
+      ]
     },
     "SNAPBACK_ASSET_RETRY_INELIGIBLE": {
       "code": "SNAPBACK_ASSET_RETRY_INELIGIBLE",
@@ -9658,8 +9662,11 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/backend/assets.md#upload-when-you-only-need-the-ready-asset-id",
+      "guideAnchors": [
+        "/_snapback/guide/backend/assets.md#upload-when-you-only-need-the-ready-asset-id",
+        "/_snapback/guide/capabilities.md#capabilities"
+      ]
     },
     "SNAPBACK_ASSET_RUNNER_DISABLED": {
       "code": "SNAPBACK_ASSET_RUNNER_DISABLED",
@@ -10217,8 +10224,10 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/backend/assets.md#upload-when-you-only-need-the-ready-asset-id",
+      "guideAnchors": [
+        "/_snapback/guide/backend/assets.md#upload-when-you-only-need-the-ready-asset-id"
+      ]
     },
     "SNAPBACK_ASSET_TRANSFER_FAILED": {
       "code": "SNAPBACK_ASSET_TRANSFER_FAILED",
@@ -10432,8 +10441,10 @@
       ],
       "httpStatus": 404,
       "httpStatusClass": "4xx",
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/backend/assets.md#issue-and-refresh-a-private-signed-url",
+      "guideAnchors": [
+        "/_snapback/guide/backend/assets.md#issue-and-refresh-a-private-signed-url"
+      ]
     },
     "SNAPBACK_ASSET_VIDEO_BOUNDS_EXCEEDED": {
       "code": "SNAPBACK_ASSET_VIDEO_BOUNDS_EXCEEDED",
@@ -26838,7 +26849,8 @@
       "httpStatusClass": null,
       "guideAnchor": "/_snapback/guide/clients/surfaces.md#act-on-every-surface-refusal",
       "guideAnchors": [
-        "/_snapback/guide/clients/surfaces.md#act-on-every-surface-refusal"
+        "/_snapback/guide/clients/surfaces.md#act-on-every-surface-refusal",
+        "/_snapback/guide/clients/surfaces.md#map-required-and-optional-assets-safely"
       ]
     },
     "SNAPBACK_COMMAND_AUTHORITY_INPUT_REFUSED": {
