@@ -32,6 +32,7 @@ impl LocalDatabase {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn push_register(
         &mut self,
         declaration: &crate::push::PushSeamDeclarationV1,

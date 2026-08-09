@@ -68,3 +68,21 @@ for `cargo build --bin snapback`.
 Fixed when `cargo test --no-run` and `cargo clippy --all-targets -- -D warnings`
 both succeed on `main`, and a `local-proof` run reports `rust-tests` and
 `cargo-clippy` as PASS rather than exit 101.
+
+## Resolution (2026-08-09, owning session)
+
+Fixed forward on the encapsulation-intent path (option 2): the 11 integration-
+test call sites (6× `current_version` in tests/structural_validation_v0.rs;
+`table_change_version` ×3, `prune_change_journal`, `journal_floor_version` in
+tests/local_v0.rs) now enter through the VersionsKernel/VersionsReadKernel
+facades instead of reaching the pub(super) methods. `cargo test --no-run`
+compiles zero errors across ALL targets. Root cause of the escape: slice
+verification used `cargo test --lib --no-run`, which never compiles the
+tests/ integration crates — the owning session's slice protocol now runs the
+full-target compile.
+
+The cargo-clippy leg is re-scoped to
+issues/20260809-clippy-all-targets-debt.md: 4 promoted lints in slice-created
+files are fixed in this change; the remaining ~124 (83 = AppState try_*
+deprecation debt from the deprecating session's landing, ~41 assorted) are
+pre-existing and enumerated there.

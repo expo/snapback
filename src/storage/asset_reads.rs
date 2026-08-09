@@ -1690,6 +1690,7 @@ impl<'a> AssetReadsKernel<'a> {
             .asset_signed_url_width_probe(schema, caller, asset_id)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn signed_url_issue(
         &mut self,
         schema: &SchemaManifest,
