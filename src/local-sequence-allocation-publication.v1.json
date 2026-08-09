@@ -6,7 +6,12 @@
   "qualificationReceiptSha256": "sha256:ecc5e14ddc282bbc1bdd6ddc5bb734a2b1f35f61047b9e7046d4f5852636cc3f",
   "executorSourceSha256": {
     "src/runtime.rs": "sha256:d0dd0dd25f60fa43f33cd672d04f0d5b88d9a8e9bb911ac48bd20b2f2fab273a",
-    "src/storage.rs": "sha256:15d4adf39c810d0a1a9a73702b535476d640c511fde404ebc23acf21a7ec0ef4"
+    "src/storage.rs": "sha256:f4d38e94394b5fe131409e17c0ed7de7ceff7d54a1dcadeb49d2a1316b9ac20d",
+    "src/storage/connections.rs": "sha256:4c0b511d40746ce0a6520697cead1e9b108c81e84a1260c919e3a765bb254b15",
+    "src/storage/migration_scan.rs": "sha256:42f0b15bca498d6781ea5c77e0e0b9eafc18fa490ca1e13339d89f76176f6d2e",
+    "src/storage/projection_rebuild.rs": "sha256:e4f7406a1921232507f02221da7d9f6fceb77910d4757b1abb4512124dd6e980",
+    "src/storage/schema_transition.rs": "sha256:9768b7aa06f3f76f8e2776b13c848da60324d1d60d463cb6f5df1ae152d12455",
+    "src/storage/tests.rs": "sha256:f1bbd934fca9cba0dfa211132dc2ae53d42127aab3a2f1b80ce645090c206f3a"
   },
   "schemaSourceSha256": {
     "packages/snapback-codegen/define.mjs": "sha256:e61a3d833cede49f77a6a7d89f578ea1c725e73d6b1ceb188572f4e1475727b6"

@@ -160,8 +160,13 @@
       "src/storage/auth_throttle.rs",
       "src/storage/authorization.rs",
       "src/storage/authorized_lease.rs",
+      "src/storage/connections.rs",
       "src/storage/hosted_admission.rs",
       "src/storage/migration_executor.rs",
+      "src/storage/migration_scan.rs",
+      "src/storage/projection_rebuild.rs",
+      "src/storage/schema_transition.rs",
+      "src/storage/tests.rs",
       "src/storage/write_authority.rs",
       "src/store_state.rs"
     ],

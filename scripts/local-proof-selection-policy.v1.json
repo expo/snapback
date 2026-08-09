@@ -259,7 +259,8 @@
           "tests/acceptance/auth-invalidation-v1-report.mjs"
         ],
         "prefixes": [
-          "src/auth/"
+          "src/auth/",
+          "src/storage/"
         ]
       },
     "prepareCommand": "scripts/bootstrap-ibex-runtime",
@@ -368,6 +369,9 @@
           "src/storage.rs",
           "tests/conformance/relation-activity-publication-v1.receipt.json",
           "tests/conformance/relation-activity-publication-v1.mjs"
+        ],
+        "prefixes": [
+          "src/storage/"
         ]
       },
       "regenerateCommand": "node scripts/refresh-publication-carrier.mjs"
@@ -394,6 +398,9 @@
           "src/storage.rs",
           "tests/conformance/sequence-allocation-publication-v1.mjs",
           "tests/conformance/sequence-allocation-publication-v1.receipt.json"
+        ],
+        "prefixes": [
+          "src/storage/"
         ]
       },
       "regenerateCommand": "node scripts/refresh-publication-carrier.mjs"
@@ -425,7 +432,8 @@
           "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json"
         ],
         "prefixes": [
-          "scripts/finalize-local-persistent-store-publication"
+          "scripts/finalize-local-persistent-store-publication",
+          "src/storage/"
         ]
       },
       "regenerateCommand": "scripts/finalize-local-persistent-store-publication"
