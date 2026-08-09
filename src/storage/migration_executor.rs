@@ -3034,15 +3034,23 @@ impl LocalDatabase {
                     .ok_or_else(|| {
                         step_failed(step_id, "the projection is not active on this instance")
                     })?;
-                let receipt = self.rebuild_projection_if_stale(&plan, "migration")?;
+                let publication = self.rebuild_projection_if_stale(&plan, "migration")?;
                 let verification = json!({
                     "projection": projection_id,
-                    "rebuilt": receipt.is_some(),
-                    "contentDigest": receipt.as_ref().map(|r| r.content_digest.clone()),
+                    "rebuilt": publication.is_some(),
+                    "contentDigest": publication
+                        .as_ref()
+                        .map(|publication| publication.receipt.content_digest.clone()),
                 });
                 let tx = self
                     .conn
                     .transaction_with_behavior(TransactionBehavior::Immediate)?;
+                if let Some(publication) = publication.as_ref() {
+                    super::projection_rebuild::apply_projection_publication_in(
+                        &tx,
+                        std::slice::from_ref(publication),
+                    )?;
+                }
                 journal_step(&tx, 0, None, None, Some(&verification))?;
                 tx.commit()?;
                 Ok(verification)

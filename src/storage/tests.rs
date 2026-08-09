@@ -2418,6 +2418,168 @@ mod guarded_commit_tests {
         )])
     }
 
+    fn raw_function_generation_manifest() -> crate::manifest::FunctionManifest {
+        let mut function = crate::manifest::FunctionDefinition::new(
+            "allocatePosition",
+            crate::manifest::FunctionKind::Mutation,
+            crate::manifest::FunctionRuntime::HostPlan(crate::manifest::HandlerPlan::Mutation(
+                crate::manifest::MutationPlan {
+                    steps: Vec::new(),
+                    return_value: None,
+                },
+            )),
+        );
+        function.sequences = item_sequence_declarations().into_values().collect();
+        crate::manifest::FunctionManifest {
+            functions: vec![function],
+            ..crate::manifest::FunctionManifest::default()
+        }
+    }
+
+    fn pending_projection_publication(plan_id: &str) -> PendingProjectionPublication {
+        let plan_digest = format!("sha256:{plan_id}");
+        PendingProjectionPublication {
+            plan_id: plan_id.to_owned(),
+            plan_digest: plan_digest.clone(),
+            receipt: ProjectionRebuildReceipt {
+                operation_id: format!("rebuild_{plan_id}"),
+                plan_digest,
+                content_digest: format!("seq1:{plan_id}"),
+                row_count: 0,
+                generation: 1,
+                published_version: 0,
+                cause: "activation".to_owned(),
+                at_ms: 1,
+            },
+        }
+    }
+
+    fn meta_value(db: &LocalDatabase, key: &str) -> Option<String> {
+        db.conn
+            .query_row(
+                "SELECT value FROM _snapback_meta WHERE key = ?1",
+                params![key],
+                |row| row.get(0),
+            )
+            .optional()
+            .expect("read metadata")
+    }
+
+    // @ref LLP 0199#target-ownership-map — the persisted raw-dev generation
+    //   record, not the process Arc/fence, proves which pins and sequence
+    //   enrollments survived every crash cut.
+    #[test]
+    fn oq3_raw_dev_crash_cuts_use_durable_function_generation_record() {
+        let (_before_dir, before_path, before) = file_database();
+        drop(before);
+        let before_reopen = LocalDatabase::open(&before_path).expect("reopen before composite");
+        assert!(before_reopen.function_generation_record().unwrap().is_none());
+        assert!(
+            meta_value(&before_reopen, "projection_plan_digest:raw-before").is_none()
+        );
+        assert_eq!(
+            before_reopen
+                .conn
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_sequence_scope_enrollments_v1",
+                    [],
+                    |row| row.get::<_, u64>(0),
+                )
+                .unwrap(),
+            0
+        );
+
+        let (_after_dir, after_path, mut after) = file_database();
+        let manifest = raw_function_generation_manifest();
+        let committed = after
+            .commit_function_generation(CommitFunctionGeneration {
+                manifest: manifest.clone(),
+                trusted_active_generation: false,
+                projection_publications: vec![pending_projection_publication("raw-after")],
+            })
+            .expect("commit raw-dev generation before simulated process crash");
+        assert_eq!(committed.generation_high_water, 1);
+        assert!(
+            after.sequence_declarations.is_empty(),
+            "the process Arc is not part of the kernel commit"
+        );
+        drop(after);
+
+        let mut after_reopen =
+            LocalDatabase::open(&after_path).expect("reopen after composite commit");
+        let reopened_record = after_reopen
+            .function_generation_record()
+            .expect("read durable generation")
+            .expect("generation committed before crash");
+        assert_eq!(reopened_record, committed);
+        assert_eq!(
+            meta_value(&after_reopen, "projection_plan_digest:raw-after").as_deref(),
+            Some("sha256:raw-after")
+        );
+        assert_eq!(
+            after_reopen
+                .conn
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_sequence_scope_enrollments_v1",
+                    [],
+                    |row| row.get::<_, u64>(0),
+                )
+                .unwrap(),
+            1
+        );
+
+        let successor = after_reopen
+            .commit_function_generation(CommitFunctionGeneration {
+                manifest,
+                trusted_active_generation: true,
+                projection_publications: Vec::new(),
+            })
+            .expect("post-reopen generation advances durable high-water");
+        assert_eq!(successor.generation_high_water, 2);
+        assert_eq!(
+            successor.function_manifest_digest,
+            reopened_record.function_manifest_digest
+        );
+    }
+
+    #[test]
+    fn oq3_failed_function_generation_composite_rolls_back_pins_enrollments_and_record() {
+        let mut db = database();
+        db.seed(SeedData {
+            tables: BTreeMap::from([(
+                "items".to_owned(),
+                vec![object(&[("_id", json!("bad/id")), ("title", json!("brownfield"))])],
+            )]),
+        })
+        .expect("seed non-replayable brownfield scope before enrollment");
+
+        let error = db
+            .commit_function_generation(CommitFunctionGeneration {
+                manifest: raw_function_generation_manifest(),
+                trusted_active_generation: true,
+                projection_publications: vec![pending_projection_publication("rolled-back")],
+            })
+            .expect_err("sequence validation failure rolls back the composite");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED"
+        );
+        assert!(db.function_generation_record().unwrap().is_none());
+        assert!(meta_value(&db, "projection_plan_digest:rolled-back").is_none());
+        assert!(meta_value(&db, "projection_rebuild_receipt:rolled-back").is_none());
+        assert_eq!(
+            db.conn
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_sequence_scope_enrollments_v1",
+                    [],
+                    |row| row.get::<_, u64>(0),
+                )
+                .unwrap(),
+            0,
+            "the enrollment written before validation rolled back"
+        );
+    }
+
     // Function/schema activation ordering is source-owned: an empty scope can
     // enroll before seed, predecessor relation authority can be reused, but a
     // new successor relation cannot silently bless brownfield sequence rows.

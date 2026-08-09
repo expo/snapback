@@ -5500,6 +5500,7 @@ impl LocalSnapback {
                 activation_changed,
                 state,
                 authorization,
+                projection_publications: _,
             } = committed;
             if let Some(routes) = routes.as_ref()
                 && !routes_matched
@@ -25042,7 +25043,7 @@ fn snapshot_batch_relational_result_contract(
 /// @ref LLP 0157#d8--coordinated-cursor-family-grammar-and-the-llp-0135-seam —
 ///   snapshot-batch string and application-id order values share one positive,
 ///   write-enforced, single-valued bound per table/field.
-fn order_field_bounds_from_functions(
+pub(crate) fn order_field_bounds_from_functions(
     manifest: &FunctionManifest,
     schema: &SchemaManifest,
 ) -> SnapbackResult<BTreeMap<(String, String), u64>> {

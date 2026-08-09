@@ -11,7 +11,8 @@ use crate::diagnostic::Diagnostic;
 use crate::local::{DiagnosticBoundary, LocalSnapback};
 use crate::manifest::{FunctionManifest, SchemaManifest, SeedData, SequenceDeclaration};
 use crate::storage::auth_mode::{DurableModeCommit, NetworkDeploymentCommit};
-use std::collections::BTreeMap;
+use crate::storage::{CommitFunctionGeneration, PendingProjectionPublication};
+use std::collections::{BTreeMap, BTreeSet};
 use std::time::Instant;
 
 /// Inputs already admitted by the caller's artifact/capability preflight.
@@ -69,64 +70,46 @@ impl<'a> GenerationActivation<'a> {
             mut diagnostics,
         } = activation;
 
-        if publish_ephemeral_collections {
-            self.snapback.publish_generation_ephemeral_collections();
-        }
-
         // @ref LLP 0080#5-transactionally-maintained-projections — activation
-        //   materializes every stale plan under the local barrier before the
-        //   function manifest becomes live.
-        let mut rebuilt_projection_ids = Vec::new();
-        for plan in &manifest.projections {
-            match self
-                .snapback
-                .generation_database_mut()
-                .rebuild_projection_if_stale(plan, "activation")
-            {
-                Ok(Some(receipt)) => {
-                    rebuilt_projection_ids.push(plan.id.clone());
-                    diagnostics.push(Diagnostic::info(
-                        "SNAPBACK_PROJECTION_REBUILT",
-                        "storage",
-                        format!(
-                            "projection {} rebuilt at activation: {} rows, generation {}, {}",
-                            plan.id, receipt.row_count, receipt.generation, receipt.content_digest
-                        ),
-                    ));
-                }
-                Ok(None) => {}
-                Err(error) => {
-                    diagnostics.push(error.diagnostic);
-                    Self::compensate_uninstalled_projection_digests(
-                        self.snapback,
-                        &rebuilt_projection_ids,
-                        &mut diagnostics,
-                    );
-                    self.snapback.record_generation_activation_diagnostics(
-                        diagnostics.clone(),
-                        diagnostic_boundary,
-                    );
-                    return diagnostics;
-                }
+        //   materializes every stale plan under the local barrier, then its
+        //   pins join the generation record in the composite kernel commit.
+        let projection_publications = match Self::materialize_projection_publications(
+            self.snapback,
+            &manifest,
+            &mut diagnostics,
+        ) {
+            Ok(publications) => publications,
+            Err(error) => {
+                diagnostics.push(error.diagnostic);
+                self.snapback.record_generation_activation_diagnostics(
+                    diagnostics.clone(),
+                    diagnostic_boundary,
+                );
+                return diagnostics;
             }
-        }
+        };
 
         if let Err(error) = self
             .snapback
             .generation_database_mut()
-            .install_sequence_declarations(sequence_declarations, trusted_active_generation)
+            .commit_function_generation(CommitFunctionGeneration {
+                manifest: manifest.clone(),
+                trusted_active_generation,
+                projection_publications,
+            })
         {
             diagnostics.push(error.diagnostic);
-            Self::compensate_uninstalled_projection_digests(
-                self.snapback,
-                &rebuilt_projection_ids,
-                &mut diagnostics,
-            );
             self.snapback
                 .record_generation_activation_diagnostics(diagnostics.clone(), diagnostic_boundary);
             return diagnostics;
         }
 
+        if publish_ephemeral_collections {
+            self.snapback.publish_generation_ephemeral_collections();
+        }
+        self.snapback
+            .generation_database_mut()
+            .install_committed_sequence_declarations(sequence_declarations);
         self.snapback
             .compose_function_generation_successor(manifest, order_field_bounds);
         Self::install_process_generation(self.snapback, generation);
@@ -153,6 +136,29 @@ impl<'a> GenerationActivation<'a> {
         publication_generation: u64,
         diagnostic_boundary: DiagnosticBoundary,
     ) -> Result<SameModeNetworkActivation, ModeCommitFailure> {
+        let mut diagnostics = Vec::new();
+        // An initial complete pair can create and seed a projection's source
+        // tables inside the mode transaction. Materialize early only when the
+        // current physical schema/data is already the successor input; the
+        // storage kernel materializes the remaining plans after DDL/seed in
+        // that same composite transaction.
+        let can_materialize_before_commit =
+            seed.is_none() && self.snapback.generation_database_mut().schema() == &schema;
+        let projection_publications = if can_materialize_before_commit {
+            Self::materialize_projection_publications(self.snapback, &functions, &mut diagnostics)
+                .map_err(ModeCommitFailure::RolledBack)?
+        } else {
+            Vec::new()
+        };
+        let materialized_before_commit = projection_publications
+            .iter()
+            .map(|publication| publication.plan_id.clone())
+            .collect::<BTreeSet<_>>();
+        let sequence_declarations =
+            crate::storage::sequence_declarations_from_function_manifest(&functions);
+        let order_field_bounds =
+            crate::local::order_field_bounds_from_functions(&functions, &schema)
+                .map_err(ModeCommitFailure::RolledBack)?;
         let committed = self
             .snapback
             .generation_database_mut()
@@ -161,6 +167,7 @@ impl<'a> GenerationActivation<'a> {
                 schema,
                 functions.clone(),
                 seed,
+                projection_publications,
             );
         let commit = match committed {
             DurableModeCommit::Committed(committed) => committed,
@@ -172,11 +179,22 @@ impl<'a> GenerationActivation<'a> {
             }
         };
         let committed_at = Instant::now();
-        let diagnostics = self.snapback.publish_preflighted_functions(
-            functions,
-            publication_generation,
-            diagnostic_boundary,
-        );
+        for publication in &commit.projection_publications {
+            if !materialized_before_commit.contains(&publication.plan_id) {
+                diagnostics.push(Self::projection_rebuilt_diagnostic(publication));
+            }
+        }
+        self.snapback.publish_generation_ephemeral_collections();
+        self.snapback
+            .generation_database_mut()
+            .install_committed_sequence_declarations(sequence_declarations);
+        self.snapback
+            .compose_function_generation_successor(functions, order_field_bounds);
+        Self::install_process_generation(self.snapback, publication_generation);
+        self.snapback
+            .post_install_function_generation(&mut diagnostics, false, true);
+        self.snapback
+            .record_generation_activation_diagnostics(diagnostics.clone(), diagnostic_boundary);
         Ok(SameModeNetworkActivation {
             commit,
             committed_at,
@@ -191,24 +209,40 @@ impl<'a> GenerationActivation<'a> {
         snapback.install_process_generation_marker(generation);
     }
 
-    fn compensate_uninstalled_projection_digests(
+    fn materialize_projection_publications(
         snapback: &mut LocalSnapback,
-        rebuilt_projection_ids: &[String],
+        manifest: &FunctionManifest,
         diagnostics: &mut Vec<Diagnostic>,
-    ) {
-        // OQ3 follow-up: complete-pair manifest/sequence/auth publication
-        // already shares a SQLite storage-kernel transaction, but projection
-        // rebuild publication still commits in an earlier transaction and the
-        // legacy raw-dev ingress has no complete-pair durable generation
-        // record. Until the kernel admits the rebuild into that composite cut,
-        // clearing these digest pins is the P1 compensating protocol: retry
-        // must rebuild from physical source state instead of trusting a digest
-        // whose owning process generation never installed.
-        if let Err(cleanup_error) = snapback
-            .generation_database_mut()
-            .clear_projection_plan_digests(rebuilt_projection_ids)
-        {
-            diagnostics.push(cleanup_error.diagnostic);
+    ) -> Result<Vec<PendingProjectionPublication>, crate::diagnostic::SnapbackError> {
+        let mut publications = Vec::new();
+        for plan in &manifest.projections {
+            if let Some(publication) = snapback
+                .generation_database_mut()
+                .rebuild_projection_if_stale(plan, "activation")?
+            {
+                diagnostics.push(Self::projection_rebuilt_diagnostic(&publication));
+                publications.push(publication);
+            }
         }
+        // The former `compensate_uninstalled_projection_digests` protocol has
+        // no activation callers after OQ3: raw-dev and complete-pair paths both
+        // pin only in their owning composite commit. `clear_projection_plan_digests`
+        // remains the recorded-per-slice escape hatch for a future path that
+        // proves it cannot share that transaction domain; none does today.
+        Ok(publications)
+    }
+
+    fn projection_rebuilt_diagnostic(publication: &PendingProjectionPublication) -> Diagnostic {
+        Diagnostic::info(
+            "SNAPBACK_PROJECTION_REBUILT",
+            "storage",
+            format!(
+                "projection {} rebuilt at activation: {} rows, generation {}, {}",
+                publication.plan_id,
+                publication.receipt.row_count,
+                publication.receipt.generation,
+                publication.receipt.content_digest
+            ),
+        )
     }
 }
