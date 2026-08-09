@@ -82,3 +82,57 @@ Blindness self-attestation: I did not read review artifacts, journals, or the ot
 NOT READY — binding to revision bf5cfa214 (sha256 cad95f0810919c00)
 
 The delta is high quality and I verified its load-bearing claims against code and the governing corpus: the closed dispatch matches the shipped stored-union gate (2–7 variants, 64-byte literals, out-of-bounds refusal, packages/snapback-codegen/index.mjs:6050–6091, 1691–1700); the `v.vector`-before-position-branching implementation note is accurate (index.mjs:6121–6137); index-on-`Json` is indeed silently accepted today (index.mjs:1729–1753 checks no field types) so the refusal is honestly disclosed as new machinery; the 0131 adoptions match that Spec's landed rulings (`allowExtra` must be `false` at every position; Ruling 2's omission-not-null projection); the 0081-only conversion route matches "V1 represents a rename or type change as add/copy/validate/publish/retire" and ContentDigestV1's logical-row hashing (llp/0081:391, 550–585); the LLP 0044 clarification landed exactly as described; and the 0134 publication contract is substantially conformant. The single unresolved MATERIAL concern (#1) is IN-DELTA — no MATERIAL concern is PRE-EXISTING: the new per-row aggregate bound is a sound mechanism, but the Spec records a false normative invariant ("guarantees every such envelope fits the live-frame profile") that the mechanism provably cannot deliver while other field families remain byte-unbounded, and a design row plus an acceptance/OQ3 fixture are pinned to it. The fix is a scoped restatement (bound the structured contribution; claim delivery-posture parity with today), after which I would expect this document to be READY; the remaining concerns are implementation-phase details identifying no defective decision.
+
+## Round 3 — 2026-08-09 (final in-budget delta round)
+
+**Provenance.** Reviewer: Claude (Fable 5), fresh agent session,
+structural blindness (path-scoped git invocations per hardened
+instructions). Reviser: orchestrator, did not review. Revision under
+review: `a8e1d75df` (file sha256 prefix `1c43c9121ff96fd4`). Delta round
+(round3-instructions.md). Runtime ~7.3 min, 46 tool uses. Verdict:
+**NOT READY — one MATERIAL, IN-DELTA (one-sentence disclosure fix);
+zero PRE-EXISTING MATERIAL; delta-convergence condition holds from this
+family.**
+
+**Verbatim review body follows.**
+
+---
+
+Blindness self-attestation: I did not read review artifacts, journals, or the other family's output. All `git show` invocations carried explicit `-- <path>` arguments scoped to the two LLP documents; I did not read anything under `llp/reviews/` or any scratchpad/journal file other than my own instructions file.
+
+## Concerns
+
+1. [MATERIAL][IN-DELTA] Search `storedFields` "no stored-field type restriction" claim is false at the Rust layer — the §Observation matrix's new disclosure sentence ("current code applies no stored-field type restriction (vector rejects only `Vector`)") is contradicted by `src/storage.rs:10562–10574`, where the Rust schema validator already refuses `FieldType::Json` in search `stored_fields` with `SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID` ("search stored field ... must be a bounded scalar display field"). The claim is accurate for the JS authoring gate (`packages/snapback-codegen/index.mjs` checks only classification and field existence for search storedFields) and accurate for vector on both layers (only `Vector` is rejected: `index.mjs:1900`, `src/manifest.rs:4433–4437`), but "current code" is unqualified, and the Spec demonstrably distinguishes layers when it means both (the index-declaration disclosure names "codegen and the Rust schema validator", which I verified is accurate: neither layer type-checks ordinary index fields — `index.mjs:1731–1752`, `storage.rs:10430–10480`). The paragraph's conclusion survives — excluding `Structured` is still a new refusal, since `FieldType::Structured` would not be matched by the existing `Json` check and the JS gate has no restriction at all — and the pre-existing Rust behavior actually strengthens the exclusion's consistency. But this sentence exists precisely to state the current observation surface honestly (the delta item was minted to correct a disclosure), and as written it asserts that a `v.json()` field can sit in search `storedFields` today, which is false on the Rust target. One-sentence fix: disclose the split (search already refuses `Json` at the Rust validator; the JS gate and the `Structured` case are the new enforcement).
+
+2. [DETAIL][IN-DELTA] "`FunctionArgsContractV1` root" names a record type, not a domain string — the carrier paragraph's parenthetical says the stored-contract hash preimage is "deliberately not LLP 0131's `FunctionArgsContractV1` root". LLP 0131's current hash-witness domain is the string `snapback:function-args:v2` (`packages/snapback-codegen/result-contracts.mjs:47`, which also records that the v1 domain was replaced); `FunctionArgsContractV1` is the record's type name. The domain-separation intent is unambiguous and correct, and `snapback:stored-structured-contract:v1` has no collision anywhere in `src/` or `packages/` (verified by grep). Precision fix at implementation time; no defective decision.
+
+3. [DETAIL][IN-DELTA] Teaching-hint coverage gap for literal-unions-with-null — the new nullable-scalar hint covers top-level `v.union([<scalar>, v.null()])`, but the sibling case `v.union([...string literals, v.null()])` also routes to `Structured` under the dispatch table (today it refuses: `validateStoredLiteralUnion` at `index.mjs:6050–6090` requires every variant be a string literal), silently stepping off the Enum path an author likely wanted via `v.optional(v.union(...literals))`. The dispatch is deterministic, installed apps are protected by the conservative applier's type-change refusal, and refusing pure >7-literal unions to preserve the Enum evolution bound is sound — so no defective decision; a second hint in the same diagnostic family is an implementation-phase addition.
+
+Verified clean (for the record): `v.number` is a real builder mapping to `Real` (`define.mjs:407–412`), so the admitted-list enumeration of four numeric spellings is correct; every "stays refused today" dispatch row checks out against the closed primitives map (`index.mjs:6172–6190`: bare `v.literal`/`v.null`/`v.tuple`/`v.array` all carry primitives outside the map, while `v.object` carries `fieldType: 'Json'`/primitive `'object'` and passes — confirming both the silent-degrade defect and migration case 4's premise); the vector-passes-before-position-branching implementation note is accurate (`index.mjs:6121–6136`); Enum bounds are 2–7 variants / 64-byte literals (`index.mjs:6066, 6089`); `v.string()`/`v.json()` byte bounds are optional (`define.mjs`), and the 64 KiB live-socket frame cap is real (LLP 0131 §Budget, `src/server.rs:6007`), so the restated bounded-structured-contribution/delivery-posture-parity claim is now honest; LLP 0134 §1 does name the plain-registered-boolean route for non-relation local capabilities and locates claim-family additions as dated LLP 0113 amendments; LLP 0113 §4's closed union (`relationActivity`/`hostedEphemeral`/`migration`) contains no stored-field kind; LLP 0131's explicit-null/omission and closed-map rulings exist as adopted; LLP 0007 carries the single-sourced-mapping rule, the conservative applier, and the `arrayContains` silent-scan cautionary case; the LLP 0044 enforcement-paragraph reconciliation (line 952) is consistent with its withdrawal-scope clarification header; all three referenced `issues/` tickets exist; `FieldType` (`src/contract_types.rs:298`) has no `Structured` variant yet.
+
+## Verdict
+
+NOT READY — binding to revision a8e1d75df (sha256 1c43c9121ff96fd4)
+One MATERIAL concern, and it is IN-DELTA, not PRE-EXISTING: the round-2 disclosure sentence for search/vector `storedFields` misstates the current refusal surface (the Rust validator already refuses `Json` in search stored fields at `src/storage.rs:10569`), which matters in a section whose normative stake is "anything unlisted is a defect" and in a delta minted specifically to make that disclosure honest; the fix is one sentence and touches no decision. No MATERIAL concern in PRE-EXISTING text: the pre-existing design — closed dispatch, opaque-interior refusal surface, RFC 8785 TEXT encoding with split logical/physical identity, 0081-only conversion routes, asset-ref exclusion under the preserved 2026-07-31 ruling, and the capability posture — verified sound against code and the cited LLPs, so the delta-convergence condition on pre-existing text holds from this family's side; the remaining two concerns are DETAILs identifying no defective decision and are implementation-phase material, non-blocking.
+
+## Loop close-out — 2026-08-09
+
+**Terminal: delta-convergence with an unreviewed tail (3-round budget
+exhausted).** Final verdicts bind to revision `a8e1d75df` (sha256
+`1c43c9121ff96fd4`): fable NOT READY (1 MATERIAL in-delta), codex NOT
+READY (1 MATERIAL in-delta). **Pre-existing text was MATERIAL-clean from
+both families in both delta rounds (2 and 3)** — the delta-convergence
+condition holds. The two round-3 in-delta MATERIALs (search-storedFields
+disclosure split; StoredStructuredContractV1 wire members + hash formula)
+plus round-3 DETAILs were fixed in the round-3 close-out revision, whose
+delta is **UNREVIEWED** — recorded in the document header. Disposition
+ledger: every round-1/2/3 concern from both families is dispositioned in
+the revisions its round produced (see the dated Revised entries); no
+concern was summarized away; one reviewer claim (codex r2: "v.number is
+not a builder") was refuted against code and not applied. Growth: 349 →
+~560 lines over the loop, beyond the ~20% guidance, MATERIAL-driven and
+disclosed each round. Recommendation to the author: the Spec is ready for
+acceptance consideration with the unreviewed-tail caveat; the
+implementation phase (authorized separately by the author) proceeds
+against the close-out revision and treats both families DETAIL ledgers as
+implementation checklist items.
