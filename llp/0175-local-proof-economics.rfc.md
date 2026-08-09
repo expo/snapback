@@ -338,8 +338,9 @@ guide inputs add generated-artifact and guide closure checks. The selector
 emits its exact chosen and `NOT_SELECTED` inventories even when no affected
 group is needed.
 
-The universal boundary is therefore seven gates, all runnable with the
-checked-out repository and the pinned Node runtime alone: `ref-check`,
+The universal boundary is therefore seven gates, all runnable from the
+checked-out repository with runner-provided Node and Python, without installing
+root JavaScript dependencies or Rust/native toolchains: `ref-check`,
 `ref-check-fixtures`, `ci-workflow-fixtures`, `proof-runner-fixtures`,
 `local-proof-inventory`, `affected-selector-fixtures`, and
 `package-test-inventory`.
