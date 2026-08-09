@@ -5,7 +5,16 @@
 **Systems:** Assets, Storage, API, Security, Auth, Runtime, Deployment, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-09 (local HTTP asset finalization now splits lock-held preflight and commit around repeatable lock-free byte/media preparation; commit rechecks generation revocation before Phase A and fails closed on a mid-window revocation). Prior: 2026-08-04 (the ruled asset-intent implementation carrier is implemented end to end, with legacy policy-only generations bumped and legacy in-flight attempts refused stale); 2026-08-04 (sessions lifecycle callbacks implemented under the ruled per-app `asset-callbacks` service principal). 2026-08-03 (two author decisions from decision sitting #2,
+**Revised:** 2026-08-09 (Clique-pilot delivery and grant DX closure —
+§Clique-pilot delivery and grant DX closure: client-arm signed issuance +
+React TTL refresh commissioned as owed implementation, issuance `variant`
+defaulted to `primary` with typed unknown-variant refusals, a one-call
+`assets.upload()` convenience with a settle-or-reject contract, and the
+recipient-grant authority ladder (recipe / `ctx.assets.grant` /
+app-bound sharing) opened for author ruling; evidence in LLP 0208 and
+`issues/20260809-asset-upload-dx-papercuts-g11.md` +
+`issues/20260809-asset-recipient-grant-authority-g4.md`). Prior, same
+day: (local HTTP asset finalization now splits lock-held preflight and commit around repeatable lock-free byte/media preparation; commit rechecks generation revocation before Phase A and fails closed on a mid-window revocation). Prior: 2026-08-04 (the ruled asset-intent implementation carrier is implemented end to end, with legacy policy-only generations bumped and legacy in-flight attempts refused stale); 2026-08-04 (sessions lifecycle callbacks implemented under the ruled per-app `asset-callbacks` service principal). 2026-08-03 (two author decisions from decision sitting #2,
 `issues/20260803-author-decision-sitting-2.md` — §Video location policy
 and §Asset-intent implementation identity: a `video: { location }`
 sibling block is admitted with `image:` untouched and its frozen
@@ -1689,6 +1698,96 @@ safely and refuses `SNAPBACK_ASSET_ADMISSION_STALE`; it never adopts current or
 retained code by policy hash alone. Codegen and in-process lifecycle fixtures
 pin direct-body, helper-only, and `reads` changes, rollback, frozen finalization,
 stale-reference refusal, and unrelated-intent stability.
+
+### Clique-pilot delivery and grant DX closure (dated design addition, 2026-08-09)
+
+The LLP 0201 P2 pilot (Clique, snapback lane) exercised this pipeline
+end to end — post media, chat attachments, view-once, delete-for-everyone
+— and scored the surface B5 = 62/100: the upload happy path drew praise
+("three lines; trusted finalization + variants just happened") while the
+delivery and authority edges were learned by probing. This addition
+converts that record (LLP 0208 G11 and the G4 asset slice;
+`issues/20260809-asset-upload-dx-papercuts-g11.md`,
+`issues/20260809-asset-recipient-grant-authority-g4.md`) into design.
+Items 1–3 are gap-closures inside the accepted design; item 4 is an open
+authority ruling. The normative elaboration lives in
+[LLP 0210](./0210-asset-upload-dx-closure.rfc.md) (the super-refine
+vehicle — this document is Accepted and not re-entered); on 0210's
+acceptance this addition gains a dated outcome note.
+
+**1. Client-arm signed issuance is owed, not new.** §Delivery profiles
+(`private-signed`) already states "the generated client refreshes it
+before expiry," and §Client upload surface promises renderer-level
+"automatic refresh of bounded signed delivery URLs before expiry" —
+but no SDK method performs issuance: the shipped client has only
+`deliveryUrl()` URL construction, and the pilot hand-rolled the
+`POST /assets/records/{id}/signed-url` fetch (bearer +
+`x-snapback-auth-client-protocol: 1`, discovered by probing) plus its own
+30-second URL cache. The framework-neutral client gains
+`assets.signedUrl(assetId, { variant?, widthPx?, ttlMs? })` returning the
+issued URL and its expiry, working under both AuthCoordinator and
+external-bearer custody; the React arm's projection (hook or renderer
+prop) owns TTL refresh per the existing §Client upload surface promise.
+Issuance keeps the protocol-offer discipline (the *issued* URL stays the
+pasteable lane; the issuance route does not).
+
+**2. Issuance-body defaults and typed refusals.** The issuance request's
+`variant` becomes optional, defaulting to `primary` (superseded by
+`widthPx` exactly as today). An unknown variant refuses with a typed
+`SNAPBACK_ASSET_*` diagnostic that names the intent's declared variants;
+a malformed body is never surfaced as a bare framework 422. Rationale:
+the pilot guessed `{"variant":"primary"}` from an undiagnosed 422 — the
+refusals-as-docs posture (LLP 0193) must hold on this route like every
+other.
+
+**3. One-call upload convenience and the `task.done` contract.**
+`assets.start()` remains the task-level surface. A convenience
+`assets.upload(uploadRef, source) → Promise<assetId>` is added over it,
+accepting the structural inputs the platform adapters already normalize
+(File/Blob and picker-shaped `{ uri, mimeType?, fileName? }` per LLP
+0180 §Input and platform adapters), resolving when the asset reaches
+`ready`, and **rejecting** on every other terminal state with the task's
+structured diagnostic. Motivation: the pilot re-implemented exactly this
+(URI→blob→`File`→`start`→await→status maze), and its defensive
+double-check of `task.done`'s settle semantics shows the contract is not
+legible at the call site; the helper is the documented happy path and
+the task API's docs state the settle rule plainly.
+
+**4. Recipient-scoped authority — open ruling (ascending ambition).**
+Clique modeled per-recipient media authority (chat attachments,
+view-once) as owner-principal **grant rows** minted at send and
+destroyed on delete — because membership-flavored `assetSharing` binds
+only to the declared roles machine (private roster; a product-visible
+promotable roster cannot use it), and because `ctx.assets.attach`
+refuses non-owner callers (`SNAPBACK_ASSET_FORBIDDEN`), view-once
+transfers authority by *patching the grant row's viewer principal* at
+open. The composition survived hostile probes (403 before open, 200
+during, 403 after close, ~80 lines) and the pilot essay praised the end
+state — but authority-transfer-by-field-write is not a paved spelling.
+Options for the author, ascending:
+
+- **(a)** bless the grant-rows + transfer-at-open recipe in the guide
+  (docs-only);
+- **(b)** first-class `ctx.assets.grant(assetId, principal, opts?)` /
+  `ctx.assets.revoke(...)` handler ops, making authority transfer
+  explicit and auditable — view-once becomes grant-at-open /
+  revoke-at-close;
+- **(c)** an `assetSharing` flavor binding to an app-declared
+  table/predicate, dissolving the dual-roster tax for assets (LLP
+  0056/0100 consulted).
+
+Recommendation carried into review: land (a) immediately (the recipe is
+owed regardless), rule on (b) as the design-correct spelling, and defer
+(c) to the LLP 0208 G4 membership program so asset sharing and roster
+projection move together.
+
+**Multi-image steering (no re-ruling).** The 2026-07-31 bounded-array
+withdrawal stands. The pilot's `img1..img4` column splay shows the ruled
+paved path (LLP 0110 bounded children) was not discoverable at the point
+of need — the closure is guide/capability-index steering
+(`issues/20260809-multi-image-authoring-revisit-g8.md`), and any
+bounded-array revisit is a new author ruling request on that ticket's
+evidence, not part of this addition.
 
 ## Non-goals
 
