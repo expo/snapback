@@ -176,6 +176,7 @@
       "src/live_coalesce.rs",
       "src/live_matcher.rs",
       "src/membership_rules.rs",
+      "src/realtime.rs",
       "src/rqs.rs",
       "src/snapshot_batch_cursor.rs",
       "src/snapshot_batch_cursor_v2.rs",

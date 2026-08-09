@@ -138,6 +138,7 @@ pub mod operation_ledger;
 pub mod proof_checkpoint;
 #[doc(hidden)]
 pub mod push;
+pub mod realtime;
 #[doc(hidden)]
 pub mod result_contract;
 #[doc(hidden)]
