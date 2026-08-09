@@ -2,8 +2,8 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "commit": "27802e8b9bb8d72e8a817393c17dc38cc06a5131",
-    "sourceDigest": "sha256:370cfac30fd10c00662f58b2339ecaf13288e2898638baee0e872f1565c513a5"
+    "commit": "02653816a35a9b3c841a9b3d5d8022086653a1af",
+    "sourceDigest": "sha256:6900b8707d3d1b55b807605ca258c6875e5049fc0ea5c4e1d01a53117e0fb9fb"
   },
   "limits": {
     "lookupBytes": 16384
@@ -59196,7 +59196,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/index.mjs",
-          "line": 3809,
+          "line": 3884,
           "column": 8
         }
       ],
@@ -59454,7 +59454,7 @@
         },
         {
           "file": "packages/snapback-react/index.mjs",
-          "line": 2748,
+          "line": 2749,
           "column": 8
         }
       ],
@@ -59474,7 +59474,7 @@
         },
         {
           "file": "packages/snapback-react/index.mjs",
-          "line": 2718,
+          "line": 2719,
           "column": 10
         }
       ],
@@ -59950,7 +59950,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/index.mjs",
-          "line": 3503,
+          "line": 3504,
           "column": 8
         }
       ],
@@ -60172,27 +60172,27 @@
         },
         {
           "file": "packages/snapback-react/index.mjs",
-          "line": 2966,
+          "line": 2967,
           "column": 42
         },
         {
           "file": "packages/snapback-react/index.mjs",
-          "line": 3001,
+          "line": 3002,
           "column": 42
         },
         {
           "file": "packages/snapback-react/index.mjs",
-          "line": 3328,
+          "line": 3329,
           "column": 45
         },
         {
           "file": "packages/snapback-react/index.mjs",
-          "line": 3358,
+          "line": 3359,
           "column": 43
         },
         {
           "file": "packages/snapback-react/index.mjs",
-          "line": 3389,
+          "line": 3390,
           "column": 43
         }
       ],
@@ -60314,7 +60314,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/index.mjs",
-          "line": 3036,
+          "line": 3037,
           "column": 8
         }
       ],
@@ -60332,17 +60332,17 @@
       "sites": [
         {
           "file": "packages/snapback-react/index.mjs",
-          "line": 3123,
+          "line": 3124,
           "column": 8
         },
         {
           "file": "packages/snapback-react/index.mjs",
-          "line": 3295,
+          "line": 3296,
           "column": 27
         },
         {
           "file": "packages/snapback-react/index.mjs",
-          "line": 3303,
+          "line": 3304,
           "column": 27
         }
       ],
@@ -60364,7 +60364,7 @@
         },
         {
           "file": "packages/snapback-react/index.mjs",
-          "line": 3111,
+          "line": 3112,
           "column": 19
         }
       ],
@@ -60381,22 +60381,22 @@
       "sites": [
         {
           "file": "packages/snapback-react/index.mjs",
-          "line": 3062,
+          "line": 3063,
           "column": 21
         },
         {
           "file": "packages/snapback-react/index.mjs",
-          "line": 3066,
+          "line": 3067,
           "column": 21
         },
         {
           "file": "packages/snapback-react/index.mjs",
-          "line": 3070,
+          "line": 3071,
           "column": 21
         },
         {
           "file": "packages/snapback-react/index.mjs",
-          "line": 3074,
+          "line": 3075,
           "column": 21
         }
       ],
@@ -60413,12 +60413,12 @@
       "sites": [
         {
           "file": "packages/snapback-react/index.mjs",
-          "line": 3045,
+          "line": 3046,
           "column": 21
         },
         {
           "file": "packages/snapback-react/index.mjs",
-          "line": 3051,
+          "line": 3052,
           "column": 8
         }
       ],
@@ -60435,7 +60435,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/index.mjs",
-          "line": 3084,
+          "line": 3085,
           "column": 10
         }
       ],

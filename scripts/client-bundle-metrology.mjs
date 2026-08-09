@@ -1399,6 +1399,52 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-client/package.test.mjs']],
     ]),
   }),
+  Object.freeze({
+    filename: 'baseline.asset-url-hook.v1.json',
+    profileFilename: 'client-bundle-disposition-profiles.v1.json',
+    workloadVersion: 'asset-url-hook.2026-08-09.v1',
+    profileIds: Object.freeze([
+      'external-react-application',
+      'react-external',
+    ]),
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.asset-upload-dx.v1.json',
+        profileIds: Object.freeze([
+          'external-react-application',
+          'react-external',
+        ]),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0210#d1--client-arm-signed-issuance-and-ttl-refresh-projection',
+      'LLP 0114#named-projections-from-accepted-rfcs',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-09',
+      fix: 'useSnapbackAssetUrl (LLP 0210 D1 React projection): a '
+        + 'content-keyed useSyncExternalStore projection over the '
+        + 'framework-neutral issued-URL store, with the stable refresh() '
+        + 'denied-exit affordance, in packages/snapback-react/index.mjs.',
+      ticket: 'issues/20260809-asset-upload-dx-papercuts-g11.md',
+      byteDeltas: 'external-react-application min 104131->104633, gzip '
+        + '32163->32305, brotli 28073->28170; react-external min '
+        + '103956->104458, gzip 32107->32252, brotli 27991->28086.',
+      summary: 'Advance exactly the two React closures for the thin '
+        + 'issued-URL hook projection; every other active ceiling and the '
+        + 'asset-upload-dx predecessor remain immutable.',
+    }),
+    beforeAfterProfileIds: Object.freeze([
+      'external-react-application',
+      'react-external',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['--test', 'packages/snapback-react/assets.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
+    ]),
+  }),
 ]);
 
 function fail(message) {
