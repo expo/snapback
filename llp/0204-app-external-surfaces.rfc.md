@@ -1,7 +1,7 @@
 # LLP 0204: App external surfaces
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Review
 **Systems:** API, Auth, Client integration, Agent tooling, MCP, Codegen,
 Hosted platform, Developer experience, Docs
 **Author:** Charlie Cheever / Claude (Fable 5)
