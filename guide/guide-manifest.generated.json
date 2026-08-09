@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "c1177e8dcac7e7d011e81edafbf4c0978737741b"
+    "commit": "f940bc62a13c58a5d76c4e09ded78dcd53037038"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -4087,8 +4087,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "3dfac0416037ee07982fa14ce89f57af92da937f733a783cf4d297223053e790",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "ea9da0a3cd196f7a813b6d93ddc2a235a5ed2cab2421f078bab49c104bb6280f",
       "snippets": []
     },
     "reference.api.expo.snapback.cli.verify": {
@@ -4103,13 +4103,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-cli/package.json",
         "packages/snapback-cli/verify.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "28ca8b8cff923db44bbb6ebd8402646279cb15b759d74ed3ee59fd5aa6eb9a11",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "d5751ae957684356d97e4d6bcf9bedd9b989d8f8d01df964fe9d75a7fa7cc0b5",
       "snippets": [
         {
           "lang": "ts",
@@ -4213,13 +4214,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/agent-authority.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "cb23b60fc8e161e2a6e623b74283e581a5553023946555a3568f2ca0fa90068a",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "a77a6e4aee0f734dddc5f99c2a8147cb5c5c31cbfa73eaf15a44b92bbecdde93",
       "snippets": [
         {
           "lang": "ts",
@@ -4303,13 +4305,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/app-data.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "a3db9666f99a99d2bda643c40f23bba3b75698c650ec89a266dc09ba819891f5",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "e9a7c6133e5eace3b042dbbb0f01e0b225d18fd0ab6398daa0880deac5da5e43",
       "snippets": [
         {
           "lang": "ts",
@@ -4361,13 +4364,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/assets.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "578abb3193eedb20e0158e682151d4d7a6f6430ee0cea8e75655cdc6ab28009e",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "3c4eed0c641377c7d5228d6ffa813bd55d34b599c2c3dbe7ff90868c71042e49",
       "snippets": [
         {
           "lang": "ts",
@@ -4451,13 +4455,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/canonical-client-value.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "1a37a93662c7ca50a99110ee38a59badc74e0e774fe0bd243ce2047bf4e3dc8b",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "b989411ebf734f758ede88bfcc0823128645dc688786c2d337ef278a472825e1",
       "snippets": [
         {
           "lang": "ts",
@@ -4489,13 +4494,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/commands.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "2405cde9bca11dcc36a073bbe028919340b278875e339e4fe0fa3d7f9fb474b4",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "b82768052af3296b5f3ac0370e6f76eacc51f585d550f198aa612a0a0f5c1c5b",
       "snippets": [
         {
           "lang": "ts",
@@ -4587,13 +4593,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/evaluation-floor.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "cf613f62d95c334158bb16f90d461f73b9a025d0de361dadb4cacda9d945aea1",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "1fdad3200acd8736a1604a7729c94e186f87768a3f270c6a7540e1c2dbabf479",
       "snippets": [
         {
           "lang": "ts",
@@ -4633,13 +4640,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/external-store.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "f2b0276d1da4bf12c847834d977dafeb00630de2e748fdbaaaab739935ae8d4c",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "0976b692fa8fed328f29abad6df3df8608e0675bf1fde1c8f18e5832fee1ccb6",
       "snippets": [
         {
           "lang": "ts",
@@ -4715,13 +4723,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/hosted-browser.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "4b8529cce97b711cbef176a55048bbbe60ae2efd1048dd696c9e3fe291845342",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "75355a9fc58c6969f867a0c3fbefdcf0aff8f19a7581d591ba497f04d50e250d",
       "snippets": [
         {
           "lang": "ts",
@@ -4745,13 +4754,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/ir-evaluator.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "5ad6a8fa57e4578bcee0bbe5e7a195aad72ed377835bcb9a997064aedaf6d612",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "a3dda64a2721a45194aa13045ea64bc8dc4d4da7b351ebe507d6c92e8a1005e9",
       "snippets": [
         {
           "lang": "ts",
@@ -4835,13 +4845,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/lease-convergence.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "bcb2963cc4e3bcce9bb6a6b3fe9cef90d3fbadaf5a6f17c309332103f4827290",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "6950726e276c972fa01cc91435c7fb5dcf39e9867540302e292d9016597a3e91",
       "snippets": [
         {
           "lang": "ts",
@@ -4881,13 +4892,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/local-read-admission.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "e490936faad81cdd5e18670844ed2f6a9b276f99a74db66f081ffd52a99a8ed4",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "7e822afd01da91561bab58c364770a9487374f4cd9344b5ccfaa11042cb1d352",
       "snippets": [
         {
           "lang": "ts",
@@ -4983,13 +4995,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/materialization-store.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "35879f17f5f3747e939af522c31c9d7c7fd8c3c5e88de58902ccd6c959bca082",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "5ce641dc2be71e0aa9be3d1211958b817518a823b04faf60e424d20afe85984a",
       "snippets": [
         {
           "lang": "ts",
@@ -5101,13 +5114,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/micro-core.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "6cb0fa0744148e8b14e613c89674a5980e17d4620e5ad57fc9b54cc61893fba3",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "81d7fba5b522de6e1e701ff20612e3ebc2ee8ce8200ab4be83698b981b05f37a",
       "snippets": [
         {
           "lang": "ts",
@@ -5187,13 +5201,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/micro-live.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "7b142851735e0860d6350cce16553057b66c82bd43393c24504b1711f989b4fc",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "fa603a91b99286f5c07b27cbd3eaea2618bb88cf1998fcdb1e3516bf2bffa983",
       "snippets": [
         {
           "lang": "ts",
@@ -5225,13 +5240,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/micro.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "daa2cacc5e2536bde301c646ced168384b9eecbf88a8ce6306487270e9047446",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "69ad70a109c337b0b050975e8eb61fd19781758ac754cd0307a046913b0a868a",
       "snippets": [
         {
           "lang": "ts",
@@ -5283,13 +5299,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/online.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "40696eed74802fb3ea20a6fba5e0a8035deb77be6ea9832e7668945e56dd8df6",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "db144fe225e72e2340f72e51003b7162a56b4310a076808416b4fedeeccb7c42",
       "snippets": [
         {
           "lang": "ts",
@@ -5321,13 +5338,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/optimistic-rebase.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "7091423c32ef44fde74933228336ea6ef92df37af96a58eb74999424146b9c22",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "cc9c7064521489154f78d4f256202e12bba62e43cb8f298560cadd45d90d1436",
       "snippets": [
         {
           "lang": "ts",
@@ -5387,13 +5405,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/outbox-shared.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "c9302d7a250100d652b7f6d823bd6491f442eb0f482d8794592d379d8c7461cc",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "6787f23b9ae0620bc93618980fe18d5131f4924152021a72735bf172ebdacf1c",
       "snippets": [
         {
           "lang": "ts",
@@ -5505,13 +5524,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/push-installation-expo.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "5036dfc091319bcf2ca2957b11c8d44d9b13b168b0bcac1107b574f6bbea8f24",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "b952756e8491488a27e909bf12282c3bbae6cb83b43be6fe2402660cab2f3e8d",
       "snippets": [
         {
           "lang": "ts",
@@ -5543,13 +5563,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/push-registry.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "f01878dac9bfb03be2c3ec616b389a47aef78d029b5ad45f58096f4386a78c7e",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "088540984c474aab6a7d03c0e2a9b1bc68e79abcb91fe398c4802a0421b73694",
       "snippets": [
         {
           "lang": "ts",
@@ -5593,13 +5614,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/result-transform.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "385fcc04ecd396ed83602451071c88e441d1bfad95943f7589cd54bb38f2816e",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "2dcbfd7cb254def88b63ac847bc261bc8f87fb55f1b04909c367383086758871",
       "snippets": [
         {
           "lang": "ts",
@@ -5703,13 +5725,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/rqs-preload-core.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "7cf91ac19693a92d6a317272b4ee4da36f958e8f230c5b492b7d25b70ac4da48",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "27895cf3791054162fae5a3be52fa3277b25ae21bb7959d40c4b9b7e063d8bc4",
       "snippets": [
         {
           "lang": "ts",
@@ -5769,13 +5792,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/rqs-preload.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "5a74173e8a4ada7d0fe83a662a2baecbba2d912c05577e7d70a5c708761c7bf6",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "84a814dca84949ea989fb97be94b4091cf18d4b1fff7f500df69ca610f22c706",
       "snippets": [
         {
           "lang": "ts",
@@ -5851,13 +5875,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/rqs-store-default.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "cfe682ab41ff5a93194b4c7051c0983744a645cc38878be0d882a95ca64a7e31",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "74dc48ea864488e69dbf5a492e7c21422e37b671021735e32d2b1b52b720ef76",
       "snippets": [
         {
           "lang": "ts",
@@ -5897,13 +5922,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/rqs-store-expo.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "a949c297511e13e3d06b635b73bd8b834e4bb9248a2a1240798e89133bf023e2",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "d9f80ef246b321ebe3749eef99749c01642f471f8ec0a59ef887ff5a8842395c",
       "snippets": [
         {
           "lang": "ts",
@@ -5947,13 +5973,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/rqs-store-file.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "55a5b0e85f32d80d73092aaf1d41c3e159f5000f690b5e34bcea04e155e3b519",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "307817907a2cf1c304afc0705b62d85377ed6f65b2f5689f89f4dd99e0bb562e",
       "snippets": [
         {
           "lang": "ts",
@@ -6001,13 +6028,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/rqs-store.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "c587b2d9fae9bc0ad9b828339dd11b94551d4b62f070d07a936918d66c57ce20",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "652eece8efc0aba7bd12272e847e47b9271f881c71024b5ed80d45ee3da90503",
       "snippets": [
         {
           "lang": "ts",
@@ -6115,13 +6143,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/rqs.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "f6c450d176d23194669c7dd19f1932bb81bb07b183503d6ce10c1410b608bd5f",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "dae538a13eeef622b4ec1b155c87291796e0043d079d0bf0bfcb684938498081",
       "snippets": [
         {
           "lang": "ts",
@@ -6253,13 +6282,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/search.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "00c037e1ce42e15acb7c3c05287740ca60cbd537c1052c352327e6137c8039ba",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "e6859365e9b7ad4ffebd2825f7490c794c2017bfa3bbe9f5de95253427326df1",
       "snippets": [
         {
           "lang": "ts",
@@ -6319,13 +6349,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/vector-search.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "04d049d50fd161f4acc3163347627bf56da6fb11ecf3cad4ede59d9ff23a52ea",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "d2a759c9d6d3ff69cb820fdccf42ed4fbc98cf7a8584f018f611cf9a1992519f",
       "snippets": [
         {
           "lang": "ts",
@@ -6361,13 +6392,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-client/package.json",
         "packages/snapback-client/index.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "615d29ceaee9829a510aa49114a9be7ff308cd82276df041711bd9e27c8a2d74",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "d12b42e4549d7490be1125c46f1d85a327e626e2fc2dc491f9e3bfdeeda137c9",
       "snippets": [
         {
           "lang": "ts",
@@ -7263,13 +7295,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-codegen/package.json",
         "packages/snapback-codegen/ctx.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "84ca91bd1901e180b13791505c48bf92e10fe2d701b813f8d61250fafee87712",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "802f1b9a166279f9bc8dcf7636d183eef2f568b2814387212defbf49314d33ff",
       "snippets": [
         {
           "lang": "ts",
@@ -7437,13 +7470,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-expo/package.json",
         "packages/snapback-expo/app-binding.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "e64c7ee433a1a929ece2ecacbeb761e1e382a83fd4c9e0e62f5a04ed4c76add3",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "f0d881af3382dc8b2f93b3f6ba18864174ca7fe53960d06c7d2a5fda18f36259",
       "snippets": [
         {
           "lang": "ts",
@@ -7507,13 +7541,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-expo/package.json",
         "packages/snapback-expo/config-plugin.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "5372cd563665f9db5b7d0307a78645fd20dfef3a540b915f2160d764b7674726",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "1d8ae81f1957491c50a93b30a17199325d12634aab96f801688a1f3494a0f5ac",
       "snippets": [
         {
           "lang": "ts",
@@ -7553,13 +7588,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-expo/package.json",
         "packages/snapback-expo/asset-source.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "68ab4f728b00cd49798c9fc76a061ee80feae981f9eef136889e58cff78183b7",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "33d619b0f0aaedf30a5b72cee7e3aeeb4700fbe29fea3d081a0bac77f8b06c7b",
       "snippets": [
         {
           "lang": "ts",
@@ -7603,13 +7639,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-expo/package.json",
         "packages/snapback-expo/config-plugin.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "b8cd9dd5a5ee4d6fc54582b8d545337d828f1b33890177442bea65e7ef179824",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "17bb008775dd89815f330feb9da9f995598a536684c4248449a9eddc8adbe16e",
       "snippets": [
         {
           "lang": "ts",
@@ -7649,13 +7686,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-expo/package.json",
         "packages/snapback-expo/supervised-environment.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "040efb4da307f303eeb193081f2457227438ac12d25c14bcb88698045c6293e4",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "ccd4a6ad18d195fada5aa8d035c1137d8cb8ef5e98820245aa82f283ccd27813",
       "snippets": [
         {
           "lang": "ts",
@@ -7703,13 +7741,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-expo/package.json",
         "packages/snapback-expo/index.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "a36b4e2192e9968bf522d867d1cf185008e79873b91f7c8840edaf164f0c48d8",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "83db8230e572323ec7aef12f690d04992cc5eafb1d4d8cdf4f200b35f4db56f9",
       "snippets": [
         {
           "lang": "ts",
@@ -8197,13 +8236,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-react/package.json",
         "packages/snapback-react/thumbhash.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "e830c3b20cab79a09a092ab0e251485e8f906961ebeeee3277282ad2f9d5b2f6",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "86acc7aa437c91f0baedbb5056a8790fe8d9f9dbf0f52d498e82c51fffd82d3f",
       "snippets": [
         {
           "lang": "ts",
@@ -8239,13 +8279,14 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "packages/snapback-react/package.json",
         "packages/snapback-react/index.d.mts"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "7db090c667efd1a5abcb1992c0dc380095577af61aa7a69cceed6121efb3f006",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "00a82d1f23134e7401c67740a522829565e3460eb0206ab831b811bf3b8d25ad",
       "snippets": [
         {
           "lang": "ts",
@@ -8573,14 +8614,15 @@
       "capabilities": [],
       "authorities": [
         "llp/0194-generated-api-reference.rfc.md",
+        "guide/reference/lifecycle.json",
         "scripts/generate-symbol-registry.mjs"
       ],
       "examples": [
         "tests/generated-api-reference-v1.mjs"
       ],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-      "sha256": "34dcd8d47db4d0ba9e172591f42560ce53fbc4de626b49b2c8ddaaa2a67cd533",
+      "reviewedCommit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+      "sha256": "1f78b62bc229f4c8ef47df9cf62ba92f1e13ad1393f58797d77da571146c7ea9",
       "snippets": []
     },
     "meta.retrieval-eval": {
@@ -8919,8 +8961,8 @@
       "path": "guide/reference/registry.json",
       "title": "Build-bound public API symbol registry",
       "mediaType": "application/json",
-      "bytes": 3250649,
-      "sha256": "b9aca1d6711ded506a4dc13e54720b6578ce0b5b1f00e1b09f4268da764f54b1",
+      "bytes": 3250860,
+      "sha256": "40baa0095b61c552095e9148cb2dbde9b73bbe6cba9065977acf8feb04b59dc3",
       "uri": "snapback-guide://reference/registry",
       "servedPath": "/_snapback/guide/reference/registry.json",
       "projections": {
@@ -8929,7 +8971,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-symbol-registry.v1",
-      "sourceDigest": "sha256:2d44a73d9bdd615c3373d3d7963915c07e09cbe926160d850f2696880e47780b",
+      "sourceDigest": "sha256:0309b9723ed29d31876828ad649cbb09be91251e06795d9507d94008190b4432",
       "modules": 41,
       "symbols": 892
     },
@@ -8937,8 +8979,8 @@
       "path": "guide/reference/diagnostics-registry.json",
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
-      "bytes": 1839473,
-      "sha256": "4442dda61b11392b8f600e5e758eed2b0da4cf4e4151ae7289946194d73f1b28",
+      "bytes": 1839474,
+      "sha256": "d80dcd8d559a14d2e7617eac17f564911a6e38328a858e8af22090886f290bef",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -8947,7 +8989,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:2874a0213e02b1d4b60fd4c0d1c8213c7472540b8872deb2e4ce2b826d9f49f7",
+      "sourceDigest": "sha256:e74341dfda05e25ce34f7a1ff8412d496c29b4e38c4a43036e101d39f1aa8ecd",
       "codes": 2685,
       "emittingSites": 8961
     }
@@ -9058,5 +9100,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "c749b26898af92b3552a3cf1c156c043a9c2d2f1a054dec8d438fdc22423a3e1"
+  "contentHash": "d3874bc1a7e0a9499ea3a27d3e3290b3630e5d2c55375c302b9a6b1149c67bae"
 }

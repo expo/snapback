@@ -2,8 +2,8 @@
   "schemaVersion": "snapback-symbol-registry.v1",
   "generatedBy": "scripts/generate-symbol-registry.mjs",
   "buildIdentity": {
-    "commit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
-    "sourceDigest": "sha256:2d44a73d9bdd615c3373d3d7963915c07e09cbe926160d850f2696880e47780b",
+    "commit": "f940bc62a13c58a5d76c4e09ded78dcd53037038",
+    "sourceDigest": "sha256:0309b9723ed29d31876828ad649cbb09be91251e06795d9507d94008190b4432",
     "publishedClosureVersion": "0.1.15",
     "packageVersions": {
       "@expo/snapback-cli": "0.1.15",
@@ -88621,5 +88621,12 @@
         "npm:@expo/snapback-codegen/ctx#StreamAttemptContext"
       ]
     }
-  }
+  },
+  "lifecycle": {
+    "schemaVersion": "snapback-symbol-lifecycle.v1",
+    "authoredPath": "guide/reference/lifecycle.json",
+    "currentSymbolsWithFacts": 0,
+    "removedSymbols": 0
+  },
+  "removedSymbols": []
 }

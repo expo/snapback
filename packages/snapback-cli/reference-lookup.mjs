@@ -139,7 +139,16 @@ function symbolSummary(symbol) {
     anchor: symbol.anchor,
     documentation: symbol.documentation,
     source: symbol.source,
+    lifecycle: symbol.lifecycle ?? null,
   };
+}
+
+function formattedLifecycle(facts) {
+  if (!facts) return [];
+  return [
+    ...(facts.replaces ? [`Replaces ${facts.replaces}.`] : []),
+    ...(facts.replacedBy ? [`Replaced by ${facts.replacedBy}.`] : []),
+  ];
 }
 
 function budgetedSymbol(query, symbol, member, identity, slice, budget) {
@@ -292,8 +301,12 @@ export function formatGuideReferenceLookup(result) {
     }
   } else if (result.member) {
     lines.push(`${result.symbol.module} · ${result.symbol.kind}`, '', result.member.signature);
+    // @ref LLP 0194#amendment-2026-08-09-authored-symbol-lifecycle-facts —
+    // exact lookup projects registry lifecycle facts without reparsing declarations.
+    lines.push(...formattedLifecycle(result.symbol.lifecycle), ...formattedLifecycle(result.member.lifecycle));
   } else if (result.symbol) {
     lines.push(`${result.symbol.module} · ${result.symbol.kind}`);
+    lines.push(...formattedLifecycle(result.symbol.lifecycle));
     if (result.symbol.signature) lines.push('', result.symbol.signature);
     if (result.symbol.members?.length) {
       lines.push('', ...result.symbol.members.map((member) => `${member.name}: ${member.signature ?? member.kind}`));

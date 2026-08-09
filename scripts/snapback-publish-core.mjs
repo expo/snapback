@@ -20,6 +20,19 @@ export {
   LEGACY_PROMOTION_PACKAGE_NAMES,
   PROMOTION_PACKAGE_NAMES,
 };
+// @ref LLP 0194#amendment-2026-08-09-authored-symbol-lifecycle-facts — the
+// publication entry point consumes the same authored-fact validator as the
+// registry generator and never infers renames from a symbol-set diff.
+export {
+  assertNoUndeclaredSymbolRemovals,
+  integrateSymbolLifecycle,
+  publishedSymbolsSnapshot,
+  registrySymbolIdentities,
+  SYMBOL_LIFECYCLE_INVALID,
+  SYMBOL_REMOVAL_UNDECLARED,
+  validatePublishedSymbolsSnapshot,
+  validateSymbolLifecycle,
+} from './symbol-lifecycle.mjs';
 
 // @ref LLP 0041#nine-package-candidate-promotion--2026-07-28 — the public
 // closure is an exact source/public-name vector whose qualified bytes are
