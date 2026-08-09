@@ -180,6 +180,7 @@
       "src/storage/auth_agent_credentials.rs",
       "src/storage/auth_agents.rs",
       "src/storage/auth_asset_callbacks.rs",
+      "src/storage/auth_catalog_ops.rs",
       "src/storage/auth_grants.rs",
       "src/storage/auth_invalidation.rs",
       "src/storage/auth_mode.rs",

@@ -2993,69 +2993,48 @@ async fn finite_authority_matrix_fixture() -> FiniteAuthorityMatrixFixture {
     let setup_agent_user_id = agent_user_id.clone();
     let setup_grant_id = grant_id.clone();
     let (credential, token, token_id, token_expires_at_ms) =
-            with_snapback(&state.snapback, move |snapback| {
-                let db = snapback.auth_database_mut();
-                db.reconcile_auth_scope_bases(&finite_authority_matrix_functions())?;
-                db.with_auth_transaction(|tx| {
-                    tx.execute(
-                        "INSERT INTO _auth_users(
-                           id, created_at_ms, kind, display_name, operator_contact,
-                           registration_provenance, deactivated_at_ms, owner_user_id
-                         ) VALUES(?1, ?2, 'human', NULL, NULL, NULL, NULL, NULL)",
-                        rusqlite::params![setup_effective_user_id, start_ms as i64],
-                    )?;
-                    Ok(())
-                })?;
-                db.create_agent_principal(
-                    &setup_agent_user_id,
-                    start_ms,
-                    &crate::storage::auth_agents::AgentRegistration {
-                        display_name: None,
-                        operator_contact: None,
-                        registration_provenance: "finite-authority-matrix".to_owned(),
-                        owner_user_id: Some(setup_effective_user_id.clone()),
-                    },
-                )?;
-                let credential = db.issue_initial_agent_credential(
-                    &setup_agent_user_id,
-                    start_ms,
-                    provider.agent_random_source(),
-                )?;
-                db.with_auth_transaction(|tx| {
-                    tx.execute(
-                        "INSERT INTO _auth_grants(
-                           id, actor_user_id, effective_user_id, scopes, created_at_ms,
-                           expires_at_ms, revoked_at_ms, created_by, request_id,
-                           consent_digest, last_used_at_ms
-                         ) VALUES(?1, ?2, ?3, ?4, ?5, ?6,
-                                  NULL, 'test', NULL, NULL, ?5)",
-                        rusqlite::params![
-                            setup_grant_id,
-                            setup_agent_user_id,
-                            setup_effective_user_id,
-                            r#"[{"fn":"fn:listItems","kind":"query","basis":0,"authorityCreating":false},{"fn":"fn:liveItems","kind":"liveQuery","basis":0,"authorityCreating":false},{"fn":"fn:queuedWrite","kind":"mutation","basis":0,"authorityCreating":false},{"fn":"fn:writeAction","kind":"action","basis":0,"authorityCreating":false}]"#,
-                            start_ms as i64,
-                            (start_ms + 48 * 60 * 60 * 1_000) as i64,
-                        ],
-                    )?;
-                    Ok(())
-                })?;
-                let issued = db.mint_scoped_token(
-                    &credential.secret,
-                    &setup_grant_id,
-                    Some(24 * 60 * 60 * 1_000),
-                    start_ms,
-                    provider.agent_random_source(),
-                )?;
-                Ok::<_, SnapbackError>((
-                    credential.secret.expose_secret().to_owned(),
-                    issued.secret.expose_secret().to_owned(),
-                    issued.token_id,
-                    issued.expires_at_ms,
-                ))
-            })
-            .await
-            .expect("seed real finite service authority");
+        with_snapback(&state.snapback, move |snapback| {
+            let db = snapback.auth_database_mut();
+            db.reconcile_auth_scope_bases(&finite_authority_matrix_functions())?;
+            db.auth_catalog()
+                .insert_human_user_for_test(&setup_effective_user_id, start_ms)?;
+            db.create_agent_principal(
+                &setup_agent_user_id,
+                start_ms,
+                &crate::storage::auth_agents::AgentRegistration {
+                    display_name: None,
+                    operator_contact: None,
+                    registration_provenance: "finite-authority-matrix".to_owned(),
+                    owner_user_id: Some(setup_effective_user_id.clone()),
+                },
+            )?;
+            let credential = db.issue_initial_agent_credential(
+                &setup_agent_user_id,
+                start_ms,
+                provider.agent_random_source(),
+            )?;
+            db.auth_catalog().insert_finite_authority_grant_for_test(
+                &setup_grant_id,
+                &setup_agent_user_id,
+                &setup_effective_user_id,
+                start_ms,
+            )?;
+            let issued = db.mint_scoped_token(
+                &credential.secret,
+                &setup_grant_id,
+                Some(24 * 60 * 60 * 1_000),
+                start_ms,
+                provider.agent_random_source(),
+            )?;
+            Ok::<_, SnapbackError>((
+                credential.secret.expose_secret().to_owned(),
+                issued.secret.expose_secret().to_owned(),
+                issued.token_id,
+                issued.expires_at_ms,
+            ))
+        })
+        .await
+        .expect("seed real finite service authority");
     let router = app(state.clone());
     FiniteAuthorityMatrixFixture {
         state,
@@ -3094,13 +3073,10 @@ async fn mint_same_grant_sibling_and_set_deadline(
             start_ms,
             provider.agent_random_source(),
         )?;
-        snapback.auth_database_mut().with_auth_transaction(|tx| {
-            tx.execute(
-                "UPDATE _auth_grants SET expires_at_ms = ?1 WHERE id = ?2",
-                rusqlite::params![grant_deadline_ms as i64, grant_id],
-            )?;
-            Ok(())
-        })?;
+        snapback
+            .auth_database_mut()
+            .auth_catalog()
+            .set_grant_expiry_for_test(&grant_id, grant_deadline_ms)?;
         Ok::<_, SnapbackError>((issued.secret.expose_secret().to_owned(), issued.token_id))
     })
     .await
@@ -4609,31 +4585,8 @@ fn sender_issuance_durable_counts(
         .expect("borrow sender issuance durable facts");
     snapback
         .auth_database_mut()
-        .with_auth_read(|connection| {
-            Ok((
-                connection.query_row(
-                    "SELECT attempts FROM _auth_verification_codes
-                         WHERE challenge_id = ?1",
-                    [challenge_id],
-                    |row| row.get(0),
-                )?,
-                connection.query_row(
-                    "SELECT COUNT(*) FROM _snapback_sender_proof_replay",
-                    [],
-                    |row| row.get(0),
-                )?,
-                connection.query_row(
-                    "SELECT COUNT(*) FROM _snapback_sender_family_binding",
-                    [],
-                    |row| row.get(0),
-                )?,
-                connection
-                    .query_row("SELECT COUNT(*) FROM _auth_sessions", [], |row| row.get(0))?,
-                connection.query_row("SELECT COUNT(*) FROM _snapback_sender_nonce", [], |row| {
-                    row.get(0)
-                })?,
-            ))
-        })
+        .auth_catalog()
+        .sender_issuance_durable_counts_for_test(challenge_id)
         .expect("read sender issuance durable facts")
 }
 
@@ -8517,23 +8470,8 @@ async fn hosted_sender_issuance_session_and_refresh_compose_through_the_router()
                 .expect("borrow sender replay authority for route matrix");
             snapback
                 .auth_database_mut()
-                .with_auth_transaction(|transaction| {
-                    // Seed under the durable sender replay namespace, not
-                    // the short-lived serving admission epoch (defect 10:
-                    // the two are distinct namespaces).
-                    transaction.execute(
-                        "INSERT INTO _snapback_sender_proof_replay(
-                                admission_epoch, proof_id, expires_at_seconds
-                             ) SELECT epoch, ?1, ?2
-                               FROM _snapback_sender_replay_epoch
-                               WHERE singleton = 1",
-                        rusqlite::params![
-                            replay_id.as_slice(),
-                            (provider.now_ms() / 1_000 + 31) as i64,
-                        ],
-                    )?;
-                    Ok(())
-                })
+                .auth_catalog()
+                .insert_sender_replay_for_test(replay_id.as_slice(), provider.now_ms() / 1_000 + 31)
                 .expect("seed exact replay id");
         }
         let replayed = sender_key.resource_proof(
@@ -8912,16 +8850,8 @@ async fn sender_bound_grant_invalidates_when_the_sender_replay_epoch_advances() 
             .expect("borrow sender authority for epoch advance");
         snapback
             .auth_database_mut()
-            .with_auth_transaction(|transaction| {
-                transaction.execute(
-                    "UPDATE _snapback_sender_replay_epoch
-                         SET epoch = epoch + 1 WHERE singleton = 1",
-                    [],
-                )?;
-                transaction.execute("DELETE FROM _snapback_sender_proof_replay", [])?;
-                transaction.execute("DELETE FROM _snapback_sender_nonce", [])?;
-                Ok(())
-            })
+            .auth_catalog()
+            .advance_sender_replay_epoch_for_test()
             .expect("advance durable sender replay epoch");
     }
 
@@ -9456,82 +9386,40 @@ async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scop
     let provider = state.auth_provider.clone().unwrap();
     let now_ms = provider.now_ms();
     let (token, agent_credential) = with_snapback(&state.snapback, move |snapback| {
-            let db = snapback.auth_database_mut();
-            db.with_auth_transaction(|tx| {
-                tx.execute(
-                    "INSERT INTO _auth_users(
-                       id, created_at_ms, kind, display_name, operator_contact,
-                       registration_provenance, deactivated_at_ms, owner_user_id
-                     ) VALUES('018f0d90-7b30-7a22-8c33-445566778899', ?1, 'human', NULL, NULL, NULL, NULL, NULL)",
-                    rusqlite::params![now_ms as i64],
-                )?;
-                tx.execute(
-                    "INSERT INTO _auth_scope_bases(
-                       function_id, kind, generation, present, authority_creating
-                     ) VALUES('fn:allowed', 'query', 0, 1, 0)",
-                    [],
-                )?;
-                tx.execute(
-                    "INSERT INTO _auth_scope_bases(
-                       function_id, kind, generation, present, authority_creating
-                     ) VALUES('fn:liveItems', 'liveQuery', 0, 1, 0)",
-                    [],
-                )?;
-                tx.execute(
-                    "INSERT INTO _auth_scope_bases(
-                       function_id, kind, generation, present, authority_creating
-                     ) VALUES('fn:queuedWrite', 'mutation', 0, 1, 0)",
-                    [],
-                )?;
-                Ok(())
-            })?;
-            db.create_agent_principal(
-                "018f0d90-7b31-7a22-8c33-445566778899",
-                now_ms,
-                &crate::storage::auth_agents::AgentRegistration {
-                    display_name: None,
-                    operator_contact: None,
-                    registration_provenance: "carrier-test".to_owned(),
-                    owner_user_id: Some("018f0d90-7b30-7a22-8c33-445566778899".to_owned()),
-                },
-            )?;
-            let credential = db.issue_initial_agent_credential(
-                "018f0d90-7b31-7a22-8c33-445566778899",
-                now_ms,
-                provider.agent_random_source(),
-            )?;
-            db.with_auth_transaction(|tx| {
-                tx.execute(
-                    "INSERT INTO _auth_grants(
-                       id, actor_user_id, effective_user_id, scopes, created_at_ms,
-                       expires_at_ms, revoked_at_ms, created_by, request_id,
-                       consent_digest, last_used_at_ms
-                     ) VALUES('018f0d90-7b32-7a22-8c33-445566778899',
-                              '018f0d90-7b31-7a22-8c33-445566778899',
-                              '018f0d90-7b30-7a22-8c33-445566778899', ?1, ?2, ?3,
-                              NULL, 'test', NULL, NULL, ?2)",
-                    rusqlite::params![
-                        r#"[{"fn":"fn:allowed","kind":"query","basis":0,"authorityCreating":false},{"fn":"fn:liveItems","kind":"liveQuery","basis":0,"authorityCreating":false},{"fn":"fn:queuedWrite","kind":"mutation","basis":0,"authorityCreating":false}]"#,
-                        now_ms as i64,
-                        (now_ms + 60_000) as i64,
-                    ],
-                )?;
-                Ok(())
-            })?;
-            let issued = db.mint_scoped_token(
-                &credential.secret,
-                "018f0d90-7b32-7a22-8c33-445566778899",
-                None,
-                now_ms,
-                provider.agent_random_source(),
-            )?;
-            Ok::<_, SnapbackError>((
-                issued.secret.expose_secret().to_owned(),
-                credential.secret.expose_secret().to_owned(),
-            ))
-        })
-        .await
-        .unwrap();
+        let db = snapback.auth_database_mut();
+        db.auth_catalog()
+            .insert_query_carrier_prerequisites_for_test(now_ms)?;
+        db.create_agent_principal(
+            "018f0d90-7b31-7a22-8c33-445566778899",
+            now_ms,
+            &crate::storage::auth_agents::AgentRegistration {
+                display_name: None,
+                operator_contact: None,
+                registration_provenance: "carrier-test".to_owned(),
+                owner_user_id: Some("018f0d90-7b30-7a22-8c33-445566778899".to_owned()),
+            },
+        )?;
+        let credential = db.issue_initial_agent_credential(
+            "018f0d90-7b31-7a22-8c33-445566778899",
+            now_ms,
+            provider.agent_random_source(),
+        )?;
+        db.auth_catalog()
+            .insert_query_carrier_grant_for_test(now_ms)?;
+        let issued = db.mint_scoped_token(
+            &credential.secret,
+            "018f0d90-7b32-7a22-8c33-445566778899",
+            None,
+            now_ms,
+            provider.agent_random_source(),
+        )?;
+        Ok::<_, SnapbackError>((
+            issued.secret.expose_secret().to_owned(),
+            credential.secret.expose_secret().to_owned(),
+        ))
+    })
+    .await
+    .unwrap();
 
     let connection_router = super::app(state.clone());
     let handshake = connection_router
@@ -9813,15 +9701,10 @@ async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scop
     );
 
     with_snapback(&state.snapback, |snapback| {
-        snapback.auth_database_mut().with_auth_transaction(|tx| {
-            tx.execute(
-                "UPDATE _auth_scope_bases
-                     SET generation = generation + 1, present = 0
-                     WHERE function_id = 'fn:allowed' AND kind = 'query'",
-                [],
-            )?;
-            Ok(())
-        })
+        snapback
+            .auth_database_mut()
+            .auth_catalog()
+            .tombstone_allowed_query_scope_basis_for_test()
     })
     .await
     .unwrap();
@@ -9999,70 +9882,40 @@ async fn live_attribution_is_immutable_across_renewal_and_regenerated_after_rota
     let now_ms = provider.now_ms();
     let seed_provider = provider.clone();
     let (token, agent_credential) = with_snapback(&state.snapback, move |snapback| {
-            let db = snapback.auth_database_mut();
-            db.with_auth_transaction(|tx| {
-                tx.execute(
-                    "INSERT INTO _auth_users(
-                       id, created_at_ms, kind, display_name, operator_contact,
-                       registration_provenance, deactivated_at_ms, owner_user_id
-                     ) VALUES('018f0d90-7b30-7a22-8c33-445566778899', ?1, 'human', NULL, NULL, NULL, NULL, NULL)",
-                    rusqlite::params![now_ms as i64],
-                )?;
-                tx.execute(
-                    "INSERT INTO _auth_scope_bases(
-                       function_id, kind, generation, present, authority_creating
-                     ) VALUES('fn:liveItems', 'liveQuery', 0, 1, 0)",
-                    [],
-                )?;
-                Ok(())
-            })?;
-            db.create_agent_principal(
-                "018f0d90-7b31-7a22-8c33-445566778899",
-                now_ms,
-                &crate::storage::auth_agents::AgentRegistration {
-                    display_name: None,
-                    operator_contact: None,
-                    registration_provenance: "live-attribution-test".to_owned(),
-                    owner_user_id: Some("018f0d90-7b30-7a22-8c33-445566778899".to_owned()),
-                },
-            )?;
-            let credential = db.issue_initial_agent_credential(
-                "018f0d90-7b31-7a22-8c33-445566778899",
-                now_ms,
-                seed_provider.agent_random_source(),
-            )?;
-            db.with_auth_transaction(|tx| {
-                tx.execute(
-                    "INSERT INTO _auth_grants(
-                       id, actor_user_id, effective_user_id, scopes, created_at_ms,
-                       expires_at_ms, revoked_at_ms, created_by, request_id,
-                       consent_digest, last_used_at_ms
-                     ) VALUES('018f0d90-7b32-7a22-8c33-445566778899',
-                              '018f0d90-7b31-7a22-8c33-445566778899',
-                              '018f0d90-7b30-7a22-8c33-445566778899', ?1, ?2, ?3,
-                              NULL, 'test', NULL, NULL, ?2)",
-                    rusqlite::params![
-                        r#"[{"fn":"fn:liveItems","kind":"liveQuery","basis":0,"authorityCreating":false}]"#,
-                        now_ms as i64,
-                        (now_ms + 60 * 60 * 1_000) as i64,
-                    ],
-                )?;
-                Ok(())
-            })?;
-            let issued = db.mint_scoped_token(
-                &credential.secret,
-                "018f0d90-7b32-7a22-8c33-445566778899",
-                None,
-                now_ms,
-                seed_provider.agent_random_source(),
-            )?;
-            Ok::<_, SnapbackError>((
-                issued.secret.expose_secret().to_owned(),
-                credential.secret.expose_secret().to_owned(),
-            ))
-        })
-        .await
-        .unwrap();
+        let db = snapback.auth_database_mut();
+        db.auth_catalog()
+            .insert_live_carrier_prerequisites_for_test(now_ms)?;
+        db.create_agent_principal(
+            "018f0d90-7b31-7a22-8c33-445566778899",
+            now_ms,
+            &crate::storage::auth_agents::AgentRegistration {
+                display_name: None,
+                operator_contact: None,
+                registration_provenance: "live-attribution-test".to_owned(),
+                owner_user_id: Some("018f0d90-7b30-7a22-8c33-445566778899".to_owned()),
+            },
+        )?;
+        let credential = db.issue_initial_agent_credential(
+            "018f0d90-7b31-7a22-8c33-445566778899",
+            now_ms,
+            seed_provider.agent_random_source(),
+        )?;
+        db.auth_catalog()
+            .insert_live_carrier_grant_for_test(now_ms)?;
+        let issued = db.mint_scoped_token(
+            &credential.secret,
+            "018f0d90-7b32-7a22-8c33-445566778899",
+            None,
+            now_ms,
+            seed_provider.agent_random_source(),
+        )?;
+        Ok::<_, SnapbackError>((
+            issued.secret.expose_secret().to_owned(),
+            credential.secret.expose_secret().to_owned(),
+        ))
+    })
+    .await
+    .unwrap();
     let router = super::app(state.clone());
     let expected_attribution = json!({
         "actorUserId": agent_user_id,
@@ -10115,14 +9968,10 @@ async fn live_attribution_is_immutable_across_renewal_and_regenerated_after_rota
         .register_bound(&connection_id, bound_grant_id)
         .expect("register exact service socket");
     with_snapback(&state.snapback, move |snapback| {
-        snapback.auth_database_mut().with_auth_transaction(|tx| {
-            tx.execute(
-                "UPDATE _auth_agent_credentials SET rotated_at_ms = 0
-                     WHERE user_id = ?1 AND revoked_at_ms IS NULL",
-                rusqlite::params![agent_user_id],
-            )?;
-            Ok(())
-        })
+        snapback
+            .auth_database_mut()
+            .auth_catalog()
+            .set_agent_credential_rotated_at_for_test(&agent_user_id, 0)
     })
     .await
     .unwrap();
@@ -11309,13 +11158,7 @@ async fn push_registry_routes_keep_token_custody_and_logout_retirement_host_owne
     let (inspection, bytes) = with_snapback(&state.snapback, |snapback| {
         let db = snapback.auth_database_mut();
         let inspection = db.push_registry_inspection()?;
-        let bytes = db.with_auth_read(|conn| {
-            Ok(conn.query_row(
-                "SELECT token_bytes FROM _snapback_push_tokens_v1",
-                [],
-                |row| row.get::<_, String>(0),
-            )?)
-        })?;
+        let bytes = db.push_registry().token_bytes_for_test()?;
         Ok::<_, SnapbackError>((inspection, bytes))
     })
     .await
@@ -11359,26 +11202,10 @@ async fn open_registration_mints_exactly_one_credential_and_a_kind_agent_princip
     );
 
     let inspected = with_snapback(&state.snapback, move |snapback| {
-        snapback.auth_database_mut().with_auth_read(|connection| {
-            let principal: (String, Option<String>, String) = connection.query_row(
-                "SELECT kind, owner_user_id, registration_provenance
-                         FROM _auth_users WHERE id = ?1",
-                rusqlite::params![user_id],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-            )?;
-            let credentials: i64 = connection.query_row(
-                "SELECT COUNT(*) FROM _auth_agent_credentials WHERE user_id = ?1",
-                rusqlite::params![user_id],
-                |row| row.get(0),
-            )?;
-            let identities: i64 = connection.query_row(
-                "SELECT COUNT(*) FROM _auth_identities
-                         WHERE user_id = ?1 AND provider = 'agent-credential'",
-                rusqlite::params![user_id],
-                |row| row.get(0),
-            )?;
-            Ok::<_, SnapbackError>((principal, credentials, identities))
-        })
+        snapback
+            .auth_database_mut()
+            .auth_catalog()
+            .agent_registration_facts_for_test(&user_id)
     })
     .await
     .unwrap();
@@ -11496,15 +11323,10 @@ async fn user_minted_invitation_requires_step_up_and_is_single_use() {
         "SNAPBACK_AUTH_AGENT_INVITATION_INVALID"
     );
     let invitation_row = with_snapback(&state.snapback, move |snapback| {
-        snapback.auth_database_mut().with_auth_read(|connection| {
-            connection
-                .query_row(
-                    "SELECT created_by, consumed_by FROM _auth_agent_invitations WHERE id = ?1",
-                    rusqlite::params![invitation_id],
-                    |row| Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?)),
-                )
-                .map_err(SnapbackError::from)
-        })
+        snapback
+            .auth_database_mut()
+            .auth_catalog()
+            .invitation_consumption_for_test(&invitation_id)
     })
     .await
     .unwrap();
@@ -11816,16 +11638,8 @@ async fn agent_token_route_accepts_exactly_one_target_and_returns_complete_recei
     let now_ms = provider.now_ms();
     let credential = with_snapback(&state.snapback, move |snapback| {
         let db = snapback.auth_database_mut();
-        db.with_auth_transaction(|tx| {
-            tx.execute(
-                "INSERT INTO _auth_users(
-                       id, created_at_ms, kind, display_name, operator_contact,
-                       registration_provenance, deactivated_at_ms, owner_user_id
-                     ) VALUES('grant-user', ?1, 'human', NULL, NULL, NULL, NULL, NULL)",
-                rusqlite::params![now_ms as i64],
-            )?;
-            Ok(())
-        })?;
+        db.auth_catalog()
+            .insert_human_user_for_test("grant-user", now_ms)?;
         db.create_agent_principal(
             "route-agent",
             now_ms,
@@ -11841,50 +11655,8 @@ async fn agent_token_route_accepts_exactly_one_target_and_returns_complete_recei
             now_ms,
             provider.agent_random_source(),
         )?;
-        db.with_auth_transaction(|tx| {
-            tx.execute(
-                "INSERT INTO _auth_grants(
-                       id, actor_user_id, effective_user_id, scopes, created_at_ms,
-                       expires_at_ms, revoked_at_ms, created_by, request_id,
-                       consent_digest, last_used_at_ms
-                     ) VALUES('route-grant', 'route-agent', 'grant-user', ?1, ?2, ?3,
-                              NULL, 'test', 'route-pairing', NULL, ?2)",
-                rusqlite::params![
-                    r#"[{"fn":"fn:listItems","kind":"query","basis":0,"authorityCreating":false}]"#,
-                    now_ms as i64,
-                    (now_ms + 60_000) as i64,
-                ],
-            )?;
-            tx.execute(
-                "INSERT INTO _auth_pairing_requests(
-                       id, code_hash, minted_by_user_id, agent_user_id,
-                       requested_scopes, state, attempts, created_at_ms,
-                       expires_at_ms, consumed_at_ms, grant_id
-                     ) VALUES('route-pairing', zeroblob(32), 'grant-user', 'route-agent',
-                              ?1, 'approved', 0, ?2, ?3, ?2, 'route-grant')",
-                rusqlite::params![
-                    r#"[{"fn":"fn:listItems","kind":"query","basis":0,"authorityCreating":false}]"#,
-                    now_ms as i64,
-                    (now_ms + 60_000) as i64,
-                ],
-            )?;
-            tx.execute(
-                "INSERT INTO _auth_pairing_requests(
-                       id, code_hash, minted_by_user_id, agent_user_id,
-                       requested_scopes, state, attempts, created_at_ms,
-                       expires_at_ms, consumed_at_ms, grant_id
-                     ) VALUES('route-pending',
-                              X'0101010101010101010101010101010101010101010101010101010101010101',
-                              'grant-user', 'route-agent',
-                              ?1, 'pending', 0, ?2, ?3, NULL, NULL)",
-                rusqlite::params![
-                    r#"[{"fn":"fn:listItems","kind":"query","basis":0,"authorityCreating":false}]"#,
-                    now_ms as i64,
-                    (now_ms + 60_000) as i64,
-                ],
-            )?;
-            Ok(())
-        })?;
+        db.auth_catalog()
+            .insert_agent_token_route_fixtures_for_test(now_ms)?;
         Ok::<_, SnapbackError>(issued.secret.expose_secret().to_owned())
     })
     .await
@@ -12179,14 +11951,10 @@ async fn agent_token_route_accepts_exactly_one_target_and_returns_complete_recei
     }
 
     with_snapback(&state.snapback, |snapback| {
-        snapback.auth_database_mut().with_auth_transaction(|tx| {
-            tx.execute(
-                "UPDATE _auth_agent_credentials SET rotated_at_ms = 0
-                     WHERE user_id = 'route-agent' AND revoked_at_ms IS NULL",
-                [],
-            )?;
-            Ok(())
-        })
+        snapback
+            .auth_database_mut()
+            .auth_catalog()
+            .set_agent_credential_rotated_at_for_test("route-agent", 0)
     })
     .await
     .unwrap();
@@ -12242,44 +12010,22 @@ async fn bulk_grant_revocation_is_owner_scoped_idempotent_and_no_store_over_http
     let now_ms = provider.now_ms();
     let owner_id_for_setup = owner_id.clone();
     with_snapback(&state.snapback, move |snapback| {
-            let db = snapback.auth_database_mut();
-            db.create_agent_principal(
-                "bulk-route-agent",
-                now_ms,
-                &crate::storage::auth_agents::AgentRegistration {
-                    display_name: Some("Bulk Route Agent".to_owned()),
-                    operator_contact: None,
-                    registration_provenance: "bulk-route-test".to_owned(),
-                    owner_user_id: Some(owner_id_for_setup.clone()),
-                },
-            )?;
-            db.with_auth_transaction(|tx| {
-                for (grant_id, request_id) in [
-                    ("bulk-route-grant-a", "bulk-route-request-a"),
-                    ("bulk-route-grant-b", "bulk-route-request-b"),
-                ] {
-                    tx.execute(
-                        "INSERT INTO _auth_grants(
-                           id, actor_user_id, effective_user_id, scopes,
-                           created_at_ms, expires_at_ms, revoked_at_ms,
-                           created_by, request_id, consent_digest, last_used_at_ms
-                         ) VALUES(?1, 'bulk-route-agent', ?2, ?3, ?4, ?5,
-                                  NULL, 'test', ?6, NULL, ?4)",
-                        rusqlite::params![
-                            grant_id,
-                            &owner_id_for_setup,
-                            r#"[{"fn":"fn:listItems","kind":"query","basis":0,"authorityCreating":false}]"#,
-                            now_ms as i64,
-                            (now_ms + 60_000) as i64,
-                            request_id,
-                        ],
-                    )?;
-                }
-                Ok(())
-            })
-        })
-        .await
-        .unwrap();
+        let db = snapback.auth_database_mut();
+        db.create_agent_principal(
+            "bulk-route-agent",
+            now_ms,
+            &crate::storage::auth_agents::AgentRegistration {
+                display_name: Some("Bulk Route Agent".to_owned()),
+                operator_contact: None,
+                registration_provenance: "bulk-route-test".to_owned(),
+                owner_user_id: Some(owner_id_for_setup.clone()),
+            },
+        )?;
+        db.auth_catalog()
+            .insert_bulk_route_grants_for_test(&owner_id_for_setup, now_ms)
+    })
+    .await
+    .unwrap();
     let router = app(state);
 
     let request = |method: &'static str, uri: &'static str, bearer: &str| {
@@ -12397,17 +12143,7 @@ async fn grant_step_up_is_domain_separated_target_bound_and_single_effect() {
                     provider.agent_random_source(),
                 )?
                 .secret;
-            db.with_auth_transaction(|tx| {
-                tx.execute(
-                    "INSERT INTO _auth_scope_bases(
-                           function_id, kind, generation, present, authority_creating
-                         ) VALUES
-                           ('fn:seatRole', 'mutation', 0, 1, 1),
-                           ('fn:listItems', 'query', 0, 1, 0)",
-                    [],
-                )?;
-                Ok(())
-            })?;
+            db.auth_catalog().insert_step_up_scope_bases_for_test()?;
 
             let mut present = |function_id: &str,
                                kind: crate::storage::auth_grants::ScopedFunctionKind|
@@ -12652,30 +12388,10 @@ async fn grant_step_up_is_domain_separated_target_bound_and_single_effect() {
     assert_eq!(reconciled_retry.status(), StatusCode::OK);
 
     with_snapback(&state.snapback, move |snapback| {
-        snapback.auth_database_mut().with_auth_read(|connection| {
-            let grants: i64 = connection.query_row(
-                "SELECT COUNT(*) FROM _auth_grants WHERE request_id = ?1",
-                rusqlite::params![bound_request],
-                |row| row.get(0),
-            )?;
-            let plaintext_matches: i64 = connection.query_row(
-                "SELECT COUNT(*) FROM _auth_verification_codes
-                     WHERE challenge_id = ?1 AND code_digest = CAST(?2 AS BLOB)",
-                rusqlite::params![&challenge_id, &code],
-                |row| row.get(0),
-            )?;
-            let (attempts, consumed): (i64, bool) = connection.query_row(
-                "SELECT attempts, consumed_at_ms IS NOT NULL
-                     FROM _auth_verification_codes WHERE challenge_id = ?1",
-                rusqlite::params![&challenge_id],
-                |row| Ok((row.get(0)?, row.get(1)?)),
-            )?;
-            assert_eq!(grants, 1);
-            assert_eq!(plaintext_matches, 0);
-            assert_eq!(attempts, 3);
-            assert!(consumed);
-            Ok::<_, SnapbackError>(())
-        })
+        snapback
+            .auth_database_mut()
+            .auth_catalog()
+            .assert_step_up_consumption_for_test(&bound_request, &challenge_id, &code)
     })
     .await
     .unwrap();
@@ -12711,16 +12427,10 @@ async fn production_step_up_delivery_fails_closed_without_capture() {
         "SNAPBACK_AUTH_STEP_UP_DELIVERY_UNAVAILABLE"
     );
     let challenge_count = with_snapback(&state.snapback, |snapback| {
-        snapback.auth_database_mut().with_auth_read(|connection| {
-            connection
-                .query_row(
-                    "SELECT COUNT(*) FROM _auth_verification_codes
-                         WHERE canonical_address = 'prod-step-up@example.com'",
-                    [],
-                    |row| row.get::<_, i64>(0),
-                )
-                .map_err(SnapbackError::from)
-        })
+        snapback
+            .auth_database_mut()
+            .auth_catalog()
+            .verification_address_count_for_test("prod-step-up@example.com")
     })
     .await
     .unwrap();

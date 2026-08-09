@@ -315,7 +315,6 @@ mod tests {
     };
     use crate::auth::keyring::{AUTH_KEY_ROTATION_AGE_MS, AUTH_RETIRED_KEY_MINIMUM_AGE_MS};
     use crate::auth::mailbox::CaptureMailboxEntry;
-    use rusqlite::params;
     use std::sync::atomic::{AtomicU8, Ordering};
     use std::time::Instant;
 
@@ -409,18 +408,15 @@ mod tests {
         let first_prune = retired_at + AUTH_RETIRED_KEY_MINIMUM_AGE_MS;
         let expires_at = first_prune + 1;
         database
-            .with_auth_transaction(|tx| {
-                tx.execute(
-                    "INSERT INTO _auth_verification_codes(
-                       challenge_id, canonical_address, code_digest, key_id,
-                       attempts, max_attempts, requested_at_ms, expires_at_ms,
-                       consumed_at_ms, superseded_by
-                     ) VALUES('sbc_AAAAAAAAAAAAAAAAAAAAAA', 'user@example.com', ?1, ?2,
-                              0, 5, 0, ?3, NULL, NULL)",
-                    params![vec![0_u8; 32], retired_id.as_str(), expires_at as i64],
-                )?;
-                Ok(())
-            })
+            .auth_catalog()
+            .insert_verification_code_for_test(
+                "sbc_AAAAAAAAAAAAAAAAAAAAAA",
+                "user@example.com",
+                &[0_u8; 32],
+                retired_id.as_str(),
+                0,
+                expires_at,
+            )
             .unwrap();
 
         let mailbox = CaptureMailbox::new();
@@ -581,40 +577,16 @@ mod tests {
 
     fn insert_restore_fixture(database: &mut LocalDatabase, session_id: &str, suffix: u8) {
         database
-            .with_auth_transaction(|tx| {
-                tx.execute(
-                    "INSERT OR IGNORE INTO _auth_users(id, created_at_ms) VALUES('user-1', 0)",
-                    [],
-                )?;
-                tx.execute(
-                    "INSERT OR IGNORE INTO _auth_identities(
-                       id, user_id, provider, subject, verified_at_ms
-                     ) VALUES('identity-1', 'user-1', 'email-code', 'user@example.com', 0)",
-                    [],
-                )?;
-                tx.execute(
-                    "INSERT INTO _auth_sessions(
-                       id, user_id, identity_id, authority_instance_id, token_hash,
-                       generation, created_at_ms, last_used_at_ms, expires_at_ms,
-                       absolute_expires_at_ms, revoked_at_ms
-                     ) VALUES(?1, 'user-1', 'identity-1', ?2, ?3, 1, 0, 0, 1000, 2000, NULL)",
-                    params![session_id, format!("authority-{suffix}"), vec![suffix; 32]],
-                )?;
-                tx.execute(
-                    "INSERT INTO _auth_verification_codes(
-                       challenge_id, canonical_address, code_digest, key_id,
-                       attempts, max_attempts, requested_at_ms, expires_at_ms,
-                       consumed_at_ms, superseded_by
-                     ) VALUES(?1, ?2, ?3, ?4, 0, 5, 0, 1000, NULL, NULL)",
-                    params![
-                        format!("sbc_{suffix:022}"),
-                        format!("user{suffix}@example.com"),
-                        vec![suffix; 32],
-                        format!("sbak_{suffix:022}")
-                    ],
-                )?;
-                Ok(())
-            })
+            .auth_catalog()
+            .insert_restore_fixture_for_test(
+                session_id,
+                &format!("authority-{suffix}"),
+                &vec![suffix; 32],
+                &format!("sbc_{suffix:022}"),
+                &format!("user{suffix}@example.com"),
+                &vec![suffix; 32],
+                &format!("sbak_{suffix:022}"),
+            )
             .unwrap();
     }
 
@@ -625,26 +597,16 @@ mod tests {
         revoked_at_ms: Option<i64>,
     ) {
         let actual = database
-            .with_auth_read(|conn| {
-                Ok(conn.query_row(
-                    "SELECT generation, revoked_at_ms FROM _auth_sessions WHERE id = ?1",
-                    params![session_id],
-                    |row| Ok((row.get::<_, i64>(0)?, row.get::<_, Option<i64>>(1)?)),
-                )?)
-            })
+            .auth_catalog_read()
+            .session_generation_revoked_for_test(session_id)
             .unwrap();
         assert_eq!(actual, (generation, revoked_at_ms));
     }
 
     fn challenge_count(database: &LocalDatabase) -> i64 {
         database
-            .with_auth_read(|conn| {
-                Ok(
-                    conn.query_row("SELECT COUNT(*) FROM _auth_verification_codes", [], |row| {
-                        row.get(0)
-                    })?,
-                )
-            })
+            .auth_catalog_read()
+            .verification_challenge_count_for_test()
             .unwrap()
     }
 }

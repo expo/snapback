@@ -444,10 +444,7 @@ impl AuthRuntime {
         let database = snapback.auth_database_mut();
         let pass = maintenance.run_gc_pass(database, now_ms)?;
         if let Some(declaration) = database.schema().push_seam.clone() {
-            database.with_auth_transaction(|tx| {
-                crate::push::retire_idle_in(tx, &declaration, now_ms)?;
-                Ok(())
-            })?;
+            database.push_registry().retire_idle(&declaration, now_ms)?;
         }
         Ok(Some(pass))
     }
@@ -488,10 +485,7 @@ where
         let database = snapback.auth_database_mut();
         let pass = maintenance.run_gc_pass(database, now_ms)?;
         if let Some(declaration) = database.schema().push_seam.clone() {
-            database.with_auth_transaction(|tx| {
-                crate::push::retire_idle_in(tx, &declaration, now_ms)?;
-                Ok(())
-            })?;
+            database.push_registry().retire_idle(&declaration, now_ms)?;
         }
         Ok(pass)
     })
@@ -715,7 +709,6 @@ mod tests {
     use crate::auth::provider::AuthClock;
     use crate::local::LocalSnapback;
     use crate::storage::auth::AUTH_GC_BATCH;
-    use rusqlite::params;
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::sync::{Arc, Mutex as StdMutex};
     use std::time::Instant;
@@ -768,38 +761,17 @@ mod tests {
     fn insert_expired_challenges(snapback: &mut LocalSnapback, count: usize) {
         snapback
             .auth_database_mut()
-            .with_auth_transaction(|transaction| {
-                let mut insert = transaction.prepare(
-                    "INSERT INTO _auth_verification_codes(
-                       challenge_id, canonical_address, code_digest, key_id,
-                       attempts, max_attempts, requested_at_ms, expires_at_ms,
-                       consumed_at_ms, superseded_by
-                     ) VALUES(?1, ?2, ?3, 'missing-key', 0, 5, 0, 1, NULL, NULL)",
-                )?;
-                let digest = [0_u8; 32];
-                for index in 0..count {
-                    insert.execute(params![
-                        format!("expired-challenge-{index}"),
-                        format!("expired-{index}@example.com"),
-                        digest.as_slice(),
-                    ])?;
-                }
-                Ok(())
-            })
+            .auth_catalog()
+            .insert_expired_challenges_for_test(count)
             .expect("insert expired auth challenges");
     }
 
     fn challenge_count(snapback: &mut LocalSnapback) -> usize {
         snapback
             .auth_database_mut()
-            .with_auth_read(|connection| {
-                connection
-                    .query_row("SELECT COUNT(*) FROM _auth_verification_codes", [], |row| {
-                        row.get::<_, i64>(0)
-                    })
-                    .map(|count| count as usize)
-                    .map_err(crate::diagnostic::SnapbackError::from)
-            })
+            .auth_catalog_read()
+            .verification_challenge_count_for_test()
+            .map(|count| count as usize)
             .expect("count retained auth challenges")
     }
 
@@ -945,30 +917,19 @@ mod tests {
         let token_hash = bearer.token_hash();
         snapback
             .auth_database_mut()
-            .with_auth_transaction(|transaction| {
-                transaction.execute(
-                    "INSERT INTO _auth_users(id, created_at_ms) VALUES('user-1', 1000)",
-                    [],
-                )?;
-                transaction.execute(
-                    "INSERT INTO _auth_identities(
-                       id, user_id, provider, subject, verified_at_ms
-                     ) VALUES('identity-1', 'user-1', 'email-code', 'user@example.com', 1000)",
-                    [],
-                )?;
-                transaction.execute(
-                    "INSERT INTO _auth_sessions(
-                       id, user_id, identity_id, authority_instance_id, token_hash,
-                       generation, created_at_ms, last_used_at_ms, expires_at_ms,
-                       absolute_expires_at_ms, revoked_at_ms
-                     ) VALUES(
-                       'session-1', 'user-1', 'identity-1', 'authority-1', ?1,
-                       1, 1000, 1000, 9000000000000000, 9000000000000000, NULL
-                     )",
-                    params![token_hash.as_bytes().as_slice()],
-                )?;
-                Ok(())
-            })
+            .auth_catalog()
+            .insert_email_session_for_test(
+                "user-1",
+                "identity-1",
+                "session-1",
+                "authority-1",
+                "user@example.com",
+                token_hash.as_bytes(),
+                1000,
+                1000,
+                9_000_000_000_000_000,
+                9_000_000_000_000_000,
+            )
             .unwrap();
         let keyring_path = AuthKeyringStore::keyring_path(&database_path);
         let keyring_json: serde_json::Value =
@@ -1327,32 +1288,19 @@ mod tests {
         let authority_instance_id = uuid::Uuid::now_v7().to_string();
         snapback
             .auth_database_mut()
-            .with_auth_transaction(|transaction| {
-                transaction.execute(
-                    "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, 900)",
-                    params![user_id],
-                )?;
-                transaction.execute(
-                    "INSERT INTO _auth_identities(id, user_id, provider, subject, verified_at_ms)
-                     VALUES(?1, ?2, 'email-code', 'gc@example.com', 900)",
-                    params![identity_id, user_id],
-                )?;
-                transaction.execute(
-                    "INSERT INTO _auth_sessions(
-                       id, user_id, identity_id, authority_instance_id, token_hash,
-                       generation, created_at_ms, last_used_at_ms, expires_at_ms,
-                       absolute_expires_at_ms, revoked_at_ms
-                     ) VALUES(?1, ?2, ?3, ?4, ?5, 1, 900, 900, 1100, 1100, NULL)",
-                    params![
-                        session_id,
-                        user_id,
-                        identity_id,
-                        authority_instance_id,
-                        token_hash.as_bytes().as_slice(),
-                    ],
-                )?;
-                Ok(())
-            })
+            .auth_catalog()
+            .insert_email_session_for_test(
+                &user_id,
+                &identity_id,
+                &session_id,
+                &authority_instance_id,
+                "gc@example.com",
+                token_hash.as_bytes(),
+                900,
+                900,
+                1100,
+                1100,
+            )
             .unwrap();
         snapback
             .auth_database_mut()
@@ -1436,48 +1384,14 @@ mod tests {
         let authority_id = crate::ids::mint(crate::ids::Kind::AuthorityInstance).unwrap();
         snapback
             .auth_database_mut()
-            .with_auth_transaction(|tx| {
-                tx.execute(
-                    "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, 0)",
-                    params![user_id],
-                )?;
-                tx.execute(
-                    "INSERT INTO _auth_identities(
-                       id, user_id, provider, subject, verified_at_ms
-                     ) VALUES(?1, ?2, 'email-code', 'push@example.com', 0)",
-                    params![identity_id, user_id],
-                )?;
-                tx.execute(
-                    "INSERT INTO _auth_sessions(
-                       id, user_id, identity_id, authority_instance_id, token_hash,
-                       generation, created_at_ms, last_used_at_ms, expires_at_ms,
-                       absolute_expires_at_ms, revoked_at_ms
-                     ) VALUES(?1, ?2, ?3, ?4, zeroblob(32), 1, 0, 0, ?5, ?5, NULL)",
-                    params![
-                        session_id,
-                        user_id,
-                        identity_id,
-                        authority_id,
-                        (retention_ms * 2) as i64,
-                    ],
-                )?;
-                tx.execute(
-                    "INSERT INTO _snapback_push_tokens_v1(
-                       id, app_scope, principal_id, installation_id, token_hash, token_bytes,
-                       session_id, session_generation, registered_at_ms, last_registered_at_ms
-                     ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, 1, 1, 1)",
-                    params![
-                        crate::ids::mint_time_ordered(crate::ids::Kind::PushToken),
-                        "15:eas-maintenance|23:com.example.maintenance|4:test",
-                        user_id,
-                        crate::ids::mint(crate::ids::Kind::Installation)?,
-                        vec![8_u8; 32],
-                        "ExponentPushToken[idle_maintenance_secret]",
-                        session_id,
-                    ],
-                )?;
-                Ok(())
-            })
+            .auth_catalog()
+            .insert_email_session_and_push_token_for_test(
+                &user_id,
+                &identity_id,
+                &session_id,
+                &authority_id,
+                retention_ms * 2,
+            )
             .unwrap();
         snapback
             .auth_database_mut()
@@ -1657,34 +1571,19 @@ mod tests {
         let authority_instance_id = uuid::Uuid::now_v7().to_string();
         snapback
             .auth_database_mut()
-            .with_auth_transaction(|transaction| {
-                transaction.execute(
-                    "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, 100)",
-                    params![user_id],
-                )?;
-                transaction.execute(
-                    "INSERT INTO _auth_identities(id, user_id, provider, subject, verified_at_ms)
-                     VALUES(?1, ?2, 'email-code', ?3, 100)",
-                    params![identity_id, user_id, format!("{identity_id}@example.com")],
-                )?;
-                transaction.execute(
-                    "INSERT INTO _auth_sessions(
-                       id, user_id, identity_id, authority_instance_id, token_hash,
-                       generation, created_at_ms, last_used_at_ms, expires_at_ms,
-                       absolute_expires_at_ms, revoked_at_ms
-                     ) VALUES(?1, ?2, ?3, ?4, ?5, 1, 100, 100, ?6, ?7, NULL)",
-                    params![
-                        session_id,
-                        user_id,
-                        identity_id,
-                        authority_instance_id,
-                        token_hash.as_bytes().as_slice(),
-                        expires_at_ms as i64,
-                        absolute_expires_at_ms as i64,
-                    ],
-                )?;
-                Ok(())
-            })
+            .auth_catalog()
+            .insert_email_session_for_test(
+                &user_id,
+                &identity_id,
+                &session_id,
+                &authority_instance_id,
+                &format!("{identity_id}@example.com"),
+                token_hash.as_bytes(),
+                100,
+                100,
+                expires_at_ms,
+                absolute_expires_at_ms,
+            )
             .unwrap();
         bearer_text
     }

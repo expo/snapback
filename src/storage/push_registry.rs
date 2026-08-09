@@ -59,6 +59,29 @@ impl LocalDatabase {
     }
 
     #[allow(clippy::too_many_arguments)]
+    pub(super) fn push_unregister(
+        &mut self,
+        declaration: &crate::push::PushSeamDeclarationV1,
+        principal_id: &str,
+        session_id: &str,
+        session_generation: u64,
+        installation_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::push::PushTokenUnregisterResponse> {
+        self.with_auth_transaction(|tx| {
+            crate::push::unregister_in(
+                tx,
+                declaration,
+                principal_id,
+                session_id,
+                session_generation,
+                installation_id,
+                now_ms,
+            )
+        })
+    }
+
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn push_reserve_send(
         &mut self,
         declaration: &crate::push::PushSeamDeclarationV1,
@@ -118,6 +141,22 @@ impl LocalDatabase {
         self.with_auth_transaction(|tx| crate::push::claim_due_receipts_in(tx, now_ms))
     }
 
+    pub(super) fn push_claim_maintenance(
+        &mut self,
+        now_ms: u64,
+    ) -> SnapbackResult<(
+        Option<crate::push::PushRecoveredBatchV1>,
+        crate::push::PushReceiptPollClaimV1,
+    )> {
+        self.with_auth_transaction(|tx| {
+            crate::push::recover_expired_batches_in(tx, now_ms)?;
+            crate::push::expire_ledger_in(tx, now_ms)?;
+            let recovered = crate::push::claim_recovered_batch_for_transmit_in(tx, now_ms)?;
+            let receipts = crate::push::claim_due_receipts_in(tx, now_ms)?;
+            Ok((recovered, receipts))
+        })
+    }
+
     pub(super) fn push_settle_receipt_poll(
         &mut self,
         claim: &crate::push::PushReceiptPollClaimV1,
@@ -154,6 +193,27 @@ impl LocalDatabase {
 
     pub(super) fn push_validate_exact_ledger_schema(&self) -> SnapbackResult<()> {
         self.with_auth_read(crate::push::validate_exact_ledger_schema)
+    }
+
+    pub(super) fn push_intent_state(&self, intent_id: &str) -> SnapbackResult<String> {
+        self.with_auth_read(|conn| {
+            Ok(conn.query_row(
+                "SELECT state FROM _snapback_push_intents_v1 WHERE id = ?1",
+                rusqlite::params![intent_id],
+                |row| row.get(0),
+            )?)
+        })
+    }
+
+    pub(super) fn push_retire_idle(
+        &mut self,
+        declaration: &crate::push::PushSeamDeclarationV1,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.with_auth_transaction(|tx| {
+            crate::push::retire_idle_in(tx, declaration, now_ms)?;
+            Ok(())
+        })
     }
 
     #[cfg(test)]
@@ -963,6 +1023,26 @@ impl<'a> PushRegistryKernel<'a> {
     }
 
     #[allow(clippy::too_many_arguments)]
+    pub fn unregister(
+        &mut self,
+        declaration: &crate::push::PushSeamDeclarationV1,
+        principal_id: &str,
+        session_id: &str,
+        session_generation: u64,
+        installation_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::push::PushTokenUnregisterResponse> {
+        self.db.push_unregister(
+            declaration,
+            principal_id,
+            session_id,
+            session_generation,
+            installation_id,
+            now_ms,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
     pub fn reserve_send(
         &mut self,
         declaration: &crate::push::PushSeamDeclarationV1,
@@ -1016,6 +1096,16 @@ impl<'a> PushRegistryKernel<'a> {
         self.db.push_claim_due_receipts(now_ms)
     }
 
+    pub fn claim_maintenance(
+        &mut self,
+        now_ms: u64,
+    ) -> SnapbackResult<(
+        Option<crate::push::PushRecoveredBatchV1>,
+        crate::push::PushReceiptPollClaimV1,
+    )> {
+        self.db.push_claim_maintenance(now_ms)
+    }
+
     pub fn settle_receipt_poll(
         &mut self,
         claim: &crate::push::PushReceiptPollClaimV1,
@@ -1045,6 +1135,18 @@ impl<'a> PushRegistryKernel<'a> {
 
     pub fn validate_exact_ledger_schema(&self) -> SnapbackResult<()> {
         self.db.push_validate_exact_ledger_schema()
+    }
+
+    pub fn intent_state(&self, intent_id: &str) -> SnapbackResult<String> {
+        self.db.push_intent_state(intent_id)
+    }
+
+    pub fn retire_idle(
+        &mut self,
+        declaration: &crate::push::PushSeamDeclarationV1,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.db.push_retire_idle(declaration, now_ms)
     }
 }
 

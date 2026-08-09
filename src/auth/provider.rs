@@ -182,12 +182,12 @@ pub struct ExchangeCoordination {
 /// construct this binding without first passing the session authority gate.
 #[derive(Clone, Eq, PartialEq)]
 pub(crate) struct StepUpBinding {
-    user_id: String,
-    session_id: String,
-    session_generation: u64,
-    authority_instance_id: String,
-    operation: &'static str,
-    target_id: String,
+    pub(crate) user_id: String,
+    pub(crate) session_id: String,
+    pub(crate) session_generation: u64,
+    pub(crate) authority_instance_id: String,
+    pub(crate) operation: &'static str,
+    pub(crate) target_id: String,
 }
 
 impl StepUpBinding {
@@ -607,11 +607,11 @@ impl From<SnapbackError> for ProviderError {
 pub type ProviderResult<T> = Result<T, ProviderError>;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum RequestInsertOutcome {
+pub(crate) enum RequestInsertOutcome {
     Inserted,
 }
 
-struct SessionCandidate {
+pub(crate) struct SessionCandidate {
     user_id: String,
     identity_id: String,
     session_id: String,
@@ -637,7 +637,7 @@ impl fmt::Debug for SessionCandidate {
 
 #[cfg(test)]
 #[derive(Debug)]
-enum ExchangeOutcome {
+pub(crate) enum ExchangeOutcome {
     Invalid,
     Locked,
     Issued {
@@ -647,13 +647,13 @@ enum ExchangeOutcome {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum RejectedExchangeOutcome {
+pub(crate) enum RejectedExchangeOutcome {
     Invalid,
     Locked,
     PredecessorChanged,
 }
 
-struct BearerCandidate {
+pub(crate) struct BearerCandidate {
     bearer: Option<SessionBearer>,
     token_hash: TokenHash,
 }
@@ -666,7 +666,7 @@ impl fmt::Debug for BearerCandidate {
 
 #[cfg(test)]
 #[derive(Debug)]
-enum RefreshOutcome {
+pub(crate) enum RefreshOutcome {
     AuthRequired,
     SessionExpired,
     SupersededInsideGrace,
@@ -676,7 +676,7 @@ enum RefreshOutcome {
 
 #[cfg(test)]
 #[derive(Debug)]
-enum LogoutOutcome {
+pub(crate) enum LogoutOutcome {
     AuthRequired,
     SessionExpired,
     CredentialSuperseded,
@@ -910,7 +910,7 @@ pub(crate) enum PlannedRotationCommit {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-enum PlannedIdentityState {
+pub(crate) enum PlannedIdentityState {
     Existing {
         identity_id: String,
         user_id: String,
@@ -943,10 +943,10 @@ pub(crate) struct ProviderSessionIssuanceCommitPlan {
     address: CanonicalAddress,
     now_ms: u64,
     identity: PlannedIdentityState,
-    projected: ProjectedSessionInsert,
+    pub(crate) projected: ProjectedSessionInsert,
     eviction: Option<ProviderRevocationPlan>,
     challenge: Option<PlannedChallengeConsumption>,
-    sender_issuance: Option<crate::auth::sender_proof::SenderIssuanceCommitment>,
+    pub(crate) sender_issuance: Option<crate::auth::sender_proof::SenderIssuanceCommitment>,
 }
 
 impl fmt::Debug for ProviderSessionIssuanceCommitPlan {
@@ -1417,33 +1417,8 @@ impl AuthAdmission {
     ) -> ProviderResult<CanonicalAddress> {
         validate_now(now_ms)?;
         let address = database
-            .with_auth_read(|connection| {
-                connection
-                    .query_row(
-                        "SELECT identity.subject
-                         FROM _auth_sessions AS session
-                         JOIN _auth_identities AS identity
-                           ON identity.id = session.identity_id
-                          AND identity.user_id = session.user_id
-                         WHERE session.id = ?1 AND session.user_id = ?2
-                           AND session.generation = ?3
-                           AND session.authority_instance_id = ?4
-                           AND session.revoked_at_ms IS NULL
-                           AND session.expires_at_ms > ?5
-                           AND session.absolute_expires_at_ms > ?5
-                           AND identity.provider = 'email-code'",
-                        params![
-                            binding.session_id,
-                            binding.user_id,
-                            binding.session_generation as i64,
-                            binding.authority_instance_id,
-                            now_ms as i64,
-                        ],
-                        |row| row.get::<_, String>(0),
-                    )
-                    .optional()
-                    .map_err(SnapbackError::from)
-            })
+            .auth_catalog_read()
+            .step_up_address(binding, now_ms)
             .map_err(|_| provider_unavailable())?
             .ok_or_else(auth_required)?;
         CanonicalAddress::parse(&address).map_err(|_| provider_unavailable())
@@ -1458,17 +1433,8 @@ impl AuthAdmission {
     ) -> ProviderResult<StepUpCoordination> {
         let challenge_id = ChallengeId::parse(challenge_id).map_err(|_| request_invalid())?;
         let row = database
-            .with_auth_read(|connection| {
-                connection
-                    .query_row(
-                        "SELECT canonical_address, key_id
-                         FROM _auth_verification_codes WHERE challenge_id = ?1",
-                        params![challenge_id.as_str()],
-                        |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
-                    )
-                    .optional()
-                    .map_err(SnapbackError::from)
-            })
+            .auth_catalog_read()
+            .challenge_coordination(challenge_id.as_str())
             .map_err(|_| provider_unavailable())?;
         match row {
             Some((address, key_id)) => Ok(StepUpCoordination {
@@ -1550,18 +1516,8 @@ impl AuthAdmission {
     ) -> ProviderResult<Option<ExchangeCoordination>> {
         let challenge_id = ChallengeId::parse(challenge_id).map_err(|_| request_invalid())?;
         database
-            .with_auth_read(|connection| {
-                connection
-                    .query_row(
-                        "SELECT canonical_address, key_id
-                         FROM _auth_verification_codes
-                         WHERE challenge_id = ?1",
-                        params![challenge_id.as_str()],
-                        |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
-                    )
-                    .optional()
-                    .map_err(SnapbackError::from)
-            })
+            .auth_catalog_read()
+            .challenge_coordination(challenge_id.as_str())
             .map_err(|_| provider_unavailable())?
             .map(|(address, key_id)| {
                 Ok(ExchangeCoordination {
@@ -1592,28 +1548,14 @@ impl AuthAdmission {
             .load_existing()
             .map_err(|_| provider_unavailable())?;
         database
-            .with_auth_transaction(|transaction| {
-                if let Some(sender_issuance) = sender_issuance {
-                    sender_issuance
-                        .consume_rejected_outcome(transaction)
-                        .map_err(|_| internal_state_snapback())?;
-                }
-                let _: Option<i64> = transaction
-                    .query_row(
-                        "SELECT 1 FROM _auth_verification_codes WHERE challenge_id = ?1",
-                        params![challenge_id.as_str()],
-                        |row| row.get(0),
-                    )
-                    .optional()?;
-                let digest = CodeDigest::compute(
-                    &self.provider.dummy_key,
-                    &challenge_id,
-                    &self.provider.dummy_address,
-                    &code,
-                );
-                let _ = digest.verify(&[0_u8; 32]);
-                Ok(())
-            })
+            .auth_catalog()
+            .exchange_unknown(
+                sender_issuance,
+                &challenge_id,
+                &code,
+                &self.provider.dummy_key,
+                &self.provider.dummy_address,
+            )
             .map_err(|_| provider_unavailable())?;
         Err(code_invalid())
     }
@@ -1631,7 +1573,8 @@ impl AuthAdmission {
         let bearer = SessionBearer::parse_any_version(bearer).map_err(|_| auth_required())?;
         let token_hash = bearer.token_hash();
         let lookup = database
-            .with_auth_read(|connection| lookup_presented_session(connection, &token_hash))
+            .auth_catalog_read()
+            .lookup_presented_session(&token_hash)
             .map_err(|_| provider_unavailable())?;
         resolve_ordinary_lookup(lookup, now_ms)
     }
@@ -1651,7 +1594,8 @@ impl AuthAdmission {
         let token_hash = bearer.token_hash();
         let digest = TokenDigest::from_token_hash(&token_hash);
         let lookup = database
-            .with_auth_read(|connection| lookup_presented_session(connection, &token_hash))
+            .auth_catalog_read()
+            .lookup_presented_session(&token_hash)
             .map_err(|_| provider_unavailable())?;
         Ok(match lookup {
             PresentedSessionLookup::Unknown => PlannedLogout::AuthRequired,
@@ -1702,26 +1646,8 @@ impl AuthAdmission {
         let token_hash = bearer.token_hash();
         let digest = TokenDigest::from_token_hash(&token_hash);
         let (lookup, sender_bound) = database
-            .with_auth_read(|connection| {
-                let lookup = lookup_presented_session(connection, &token_hash)?;
-                // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: the durable
-                // family binding (not the presented spelling) selects the
-                // successor spelling, so every successor of a sender-bound
-                // family stays `sbs2_`.
-                let sender_bound =
-                    crate::auth::sender_proof::presented_token_has_sender_family_binding(
-                        connection,
-                        token_hash.as_bytes(),
-                    )
-                    .map_err(|_| {
-                        SnapbackError::error(
-                            "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
-                            "auth",
-                            "sender family binding state is unavailable",
-                        )
-                    })?;
-                Ok((lookup, sender_bound))
-            })
+            .auth_catalog_read()
+            .lookup_presented_session_with_sender_binding(&token_hash)
             .map_err(|_| provider_unavailable())?;
         Ok(match lookup {
             PresentedSessionLookup::Unknown => PlannedRefresh::AuthRequired,
@@ -1786,7 +1712,8 @@ impl AuthAdmission {
             .unwrap_or_else(|| TokenHash::from_bytes(*self.provider.dummy_token_hash.as_bytes()));
         let digest = TokenDigest::from_token_hash(&token_hash);
         let lookup = database
-            .with_auth_read(|connection| lookup_presented_session(connection, &token_hash))
+            .auth_catalog_read()
+            .lookup_presented_session(&token_hash)
             .map_err(|_| provider_unavailable())?;
         Ok(match lookup {
             PresentedSessionLookup::Tombstone {
@@ -1821,9 +1748,7 @@ impl AuthAdmission {
         database: &mut LocalDatabase,
         plan: &ProviderFamilyAlarmPlan,
     ) -> AuthTransactionAttempt<PlannedFamilyAlarmCommit> {
-        let attempt = database.attempt_auth_transaction(|transaction| {
-            planned_family_alarm_transaction(transaction, plan)
-        });
+        let attempt = database.auth_catalog().attempt_planned_family_alarm(plan);
         let AuthTransactionAttempt::CommitUncertain(error) = attempt else {
             return attempt;
         };
@@ -1833,9 +1758,10 @@ impl AuthAdmission {
             // no authority successor exists to publish.
             return AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Noop);
         };
-        match database.with_auth_read(|connection| {
-            reconcile_planned_revocation(connection, &revocation, plan.observed_at_ms)
-        }) {
+        match database
+            .auth_catalog_read()
+            .reconcile_planned_revocation(&revocation, plan.observed_at_ms)
+        {
             Ok(DurableRevocationReconcile::ExactSuccessor(revocation)) => {
                 AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Revoked(revocation))
             }
@@ -1861,9 +1787,9 @@ impl AuthAdmission {
         if let Err(error) = validate_now(now_ms) {
             return AuthTransactionAttempt::RolledBack(error.into_snapback_error());
         }
-        let attempt = database.attempt_auth_transaction(|transaction| {
-            planned_revocation_transaction(transaction, plan, now_ms)
-        });
+        let attempt = database
+            .auth_catalog()
+            .attempt_planned_revocation(plan, now_ms);
         let AuthTransactionAttempt::CommitUncertain(commit_error) = attempt else {
             return attempt;
         };
@@ -1871,7 +1797,8 @@ impl AuthAdmission {
         // the exact predecessor/successor facts before deciding whether the
         // coordinator may unmark or finalize its ticket.
         match database
-            .with_auth_read(|connection| reconcile_planned_revocation(connection, plan, now_ms))
+            .auth_catalog_read()
+            .reconcile_planned_revocation(plan, now_ms)
         {
             Ok(DurableRevocationReconcile::ExactPredecessor) => {
                 AuthTransactionAttempt::RolledBack(commit_error)
@@ -1894,12 +1821,7 @@ impl AuthAdmission {
         if let Err(error) = validate_now(plan.superseded_at_ms) {
             return AuthTransactionAttempt::RolledBack(error.into_snapback_error());
         }
-        let mut body_outcome = None;
-        let attempt = database.attempt_auth_transaction(|transaction| {
-            let outcome = planned_rotation_transaction(transaction, plan)?;
-            body_outcome = Some(outcome.clone());
-            Ok(outcome)
-        });
+        let (attempt, body_outcome) = database.auth_catalog().attempt_planned_rotation(plan);
         match attempt {
             AuthTransactionAttempt::Committed(PlannedRotationTransaction::CandidateCollision) => {
                 AuthTransactionAttempt::Committed(PlannedRotationCommit::CandidateCollision)
@@ -1925,7 +1847,8 @@ impl AuthAdmission {
                     );
                 }
                 match database
-                    .with_auth_read(|connection| reconcile_planned_rotation(connection, plan))
+                    .auth_catalog_read()
+                    .reconcile_planned_rotation(plan)
                 {
                     Ok(DurableRotationReconcile::ExactPredecessor) => {
                         AuthTransactionAttempt::RolledBack(error)
@@ -1960,19 +1883,8 @@ impl AuthAdmission {
         // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: successors of a
         // sender-bound family stay `sbs2_`, selected by the durable binding.
         let sender_bound = database
-            .with_auth_read(|connection| {
-                crate::auth::sender_proof::presented_token_has_sender_family_binding(
-                    connection,
-                    predecessor_hash.as_bytes(),
-                )
-                .map_err(|_| {
-                    SnapbackError::error(
-                        "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
-                        "auth",
-                        "sender family binding state is unavailable",
-                    )
-                })
-            })
+            .auth_catalog_read()
+            .presented_token_sender_bound_for_test(&predecessor_hash)
             .map_err(|_| provider_unavailable())?;
         for _ in 0..AUTH_MAX_COLLISION_ATTEMPTS {
             let mut successor = if sender_bound {
@@ -1980,14 +1892,11 @@ impl AuthAdmission {
             } else {
                 BearerCandidate::generate(&self.provider)?
             };
-            let outcome = database.with_auth_transaction(|transaction| {
-                refresh_transaction(
-                    transaction,
-                    &predecessor_hash,
-                    &successor.token_hash,
-                    now_ms,
-                )
-            });
+            let outcome = database.auth_catalog().refresh_for_test(
+                &predecessor_hash,
+                &successor.token_hash,
+                now_ms,
+            );
             match outcome {
                 Ok(RefreshOutcome::AuthRequired) => return Err(auth_required()),
                 Ok(RefreshOutcome::SessionExpired) => return Err(session_expired()),
@@ -2031,9 +1940,8 @@ impl AuthAdmission {
         let bearer = SessionBearer::parse_any_version(bearer).map_err(|_| auth_required())?;
         let token_hash = bearer.token_hash();
         let outcome = database
-            .with_auth_transaction(|transaction| {
-                logout_transaction(transaction, &token_hash, now_ms)
-            })
+            .auth_catalog()
+            .logout_for_test(&token_hash, now_ms)
             .map_err(|_| provider_unavailable())?;
         match outcome {
             LogoutOutcome::AuthRequired => Err(auth_required()),
@@ -2062,9 +1970,8 @@ impl AuthAdmission {
             .as_ref()
             .unwrap_or(&self.provider.dummy_token_hash);
         let committed_revocation = database
-            .with_auth_transaction(|transaction| {
-                family_alarm_transaction(transaction, token_hash, now_ms)
-            })
+            .auth_catalog()
+            .family_alarm_for_test(token_hash, now_ms)
             .map_err(|_| provider_unavailable())?;
         Ok(FamilyAlarmResult {
             response: FamilyAlarmResponse::default(),
@@ -2084,9 +1991,8 @@ impl AuthAdmission {
     ) -> ProviderResult<AuthenticatedUse> {
         validate_now(now_ms)?;
         let preliminary = database
-            .with_auth_read(|connection| {
-                authenticated_use_row(connection, session_id, expected_generation)
-            })
+            .auth_catalog_read()
+            .authenticated_use_row(session_id, expected_generation)
             .map_err(|_| provider_unavailable())?;
         let Some(preliminary) = preliminary else {
             return Ok(AuthenticatedUse::NotLive);
@@ -2100,14 +2006,8 @@ impl AuthAdmission {
             });
         }
         database
-            .with_auth_transaction(|transaction| {
-                record_authenticated_use_transaction(
-                    transaction,
-                    session_id,
-                    expected_generation,
-                    now_ms,
-                )
-            })
+            .auth_catalog()
+            .record_authenticated_use(session_id, expected_generation, now_ms)
             .map_err(|_| provider_unavailable())
     }
 
@@ -2171,9 +2071,13 @@ impl ExchangeAdmission {
         provider
             .keyring
             .with_key(&self.coordination.key_id, |key| {
-                database.with_auth_read(|connection| {
-                    plan_exchange_read(connection, provider, &self.coordination, key, &code, now_ms)
-                })
+                database.auth_catalog_read().plan_exchange(
+                    provider,
+                    &self.coordination,
+                    key,
+                    &code,
+                    now_ms,
+                )
             })
             .map_err(|_| provider_unavailable())?
             .map_err(|_| provider_unavailable())
@@ -2226,17 +2130,14 @@ impl ExchangeAdmission {
         let outcome = provider
             .keyring
             .with_key(&self.coordination.key_id, |key| {
-                database.with_auth_transaction(|transaction| {
-                    rejected_exchange_transaction(
-                        transaction,
-                        provider,
-                        &self.coordination,
-                        key,
-                        &code,
-                        now_ms,
-                        sender_issuance,
-                    )
-                })
+                database.auth_catalog().commit_planned_rejection(
+                    provider,
+                    &self.coordination,
+                    key,
+                    &code,
+                    now_ms,
+                    sender_issuance,
+                )
             })
             .map_err(|_| provider_unavailable())?
             .map_err(|_| provider_unavailable())?;
@@ -2278,17 +2179,14 @@ impl ExchangeAdmission {
             let transaction = provider
                 .keyring
                 .with_key(&self.coordination.key_id, |key| {
-                    database.with_auth_transaction(|transaction| {
-                        exchange_transaction(
-                            transaction,
-                            provider,
-                            &self.coordination,
-                            key,
-                            &code,
-                            &candidate,
-                            now_ms,
-                        )
-                    })
+                    database.auth_catalog().exchange_for_test(
+                        provider,
+                        &self.coordination,
+                        key,
+                        &code,
+                        &candidate,
+                        now_ms,
+                    )
                 })
                 .map_err(|_| provider_unavailable())?;
 
@@ -2410,90 +2308,18 @@ impl AddressAdmission {
                 Err(_) => continue,
             };
 
-            let outcome = database.with_auth_transaction(|transaction| {
-                let live_address = transaction
-                    .query_row(
-                        "SELECT identity.subject
-                         FROM _auth_sessions AS session
-                         JOIN _auth_identities AS identity
-                           ON identity.id = session.identity_id
-                          AND identity.user_id = session.user_id
-                         WHERE session.id = ?1 AND session.user_id = ?2
-                           AND session.generation = ?3
-                           AND session.authority_instance_id = ?4
-                           AND session.revoked_at_ms IS NULL
-                           AND session.expires_at_ms > ?5
-                           AND session.absolute_expires_at_ms > ?5
-                           AND identity.provider = 'email-code'",
-                        params![
-                            binding.session_id,
-                            binding.user_id,
-                            binding.session_generation as i64,
-                            binding.authority_instance_id,
-                            now_ms as i64,
-                        ],
-                        |row| row.get::<_, String>(0),
-                    )
-                    .optional()?;
-                if live_address.as_deref() != Some(self.address.as_str()) {
-                    return Err(auth_required().into_snapback_error());
-                }
-
-                let global_lower = now_ms as i64 - AUTH_GLOBAL_REQUEST_WINDOW_MS as i64;
-                let global_count: i64 = transaction.query_row(
-                    "SELECT COUNT(*) FROM _auth_verification_codes
-                     WHERE requested_at_ms > ?1 AND requested_at_ms <= ?2",
-                    params![global_lower, now_ms as i64],
-                    |row| row.get(0),
-                )?;
-                if global_count >= AUTH_GLOBAL_REQUEST_LIMIT as i64 {
-                    return Err(throttled_snapback());
-                }
-
-                let address_lower = now_ms as i64 - AUTH_ADDRESS_REQUEST_WINDOW_MS as i64;
-                let address_count: i64 = transaction.query_row(
-                    "SELECT COUNT(*) FROM _auth_verification_codes
-                     WHERE canonical_address = ?1
-                       AND requested_at_ms > ?2 AND requested_at_ms <= ?3",
-                    params![self.address.as_str(), address_lower, now_ms as i64],
-                    |row| row.get(0),
-                )?;
-                if !self
-                    .provider()
+            let outcome = database.auth_catalog().insert_step_up_challenge(
+                binding,
+                &self.address,
+                &challenge_id,
+                &digest,
+                &key_id,
+                now_ms,
+                expires_at_ms,
+                self.provider()
                     .profile
-                    .exempts_capture_address_request_budget()
-                    && address_count >= AUTH_ADDRESS_REQUEST_LIMIT as i64
-                {
-                    return Err(throttled_snapback());
-                }
-
-                transaction.execute(
-                    "UPDATE _auth_verification_codes SET superseded_by = ?1
-                     WHERE canonical_address = ?2
-                       AND consumed_at_ms IS NULL AND superseded_by IS NULL",
-                    params![challenge_id.as_str(), self.address.as_str()],
-                )?;
-                match transaction.execute(
-                    "INSERT INTO _auth_verification_codes(
-                       challenge_id, canonical_address, code_digest, key_id,
-                       attempts, max_attempts, requested_at_ms, expires_at_ms,
-                       consumed_at_ms, superseded_by
-                     ) VALUES(?1, ?2, ?3, ?4, 0, ?5, ?6, ?7, NULL, NULL)",
-                    params![
-                        challenge_id.as_str(),
-                        self.address.as_str(),
-                        digest.as_bytes().as_slice(),
-                        key_id,
-                        AUTH_MAXIMUM_ATTEMPTS as i64,
-                        now_ms as i64,
-                        expires_at_ms as i64,
-                    ],
-                ) {
-                    Ok(_) => Ok(RequestInsertOutcome::Inserted),
-                    Err(error) if is_constraint_error(&error) => Err(internal_collision_snapback()),
-                    Err(error) => Err(error.into()),
-                }
-            });
+                    .exempts_capture_address_request_budget(),
+            );
 
             match outcome {
                 Ok(RequestInsertOutcome::Inserted) => {
@@ -2572,63 +2398,17 @@ impl AddressAdmission {
                 Err(_) => continue,
             };
 
-            let outcome = database.with_auth_transaction(|transaction| {
-                let global_lower = now_ms as i64 - AUTH_GLOBAL_REQUEST_WINDOW_MS as i64;
-                let global_count: i64 = transaction.query_row(
-                    "SELECT COUNT(*) FROM _auth_verification_codes
-                     WHERE requested_at_ms > ?1 AND requested_at_ms <= ?2",
-                    params![global_lower, now_ms as i64],
-                    |row| row.get(0),
-                )?;
-                if global_count >= AUTH_GLOBAL_REQUEST_LIMIT as i64 {
-                    return Err(throttled_snapback());
-                }
-
-                let address_lower = now_ms as i64 - AUTH_ADDRESS_REQUEST_WINDOW_MS as i64;
-                let address_count: i64 = transaction.query_row(
-                    "SELECT COUNT(*) FROM _auth_verification_codes
-                     WHERE canonical_address = ?1
-                       AND requested_at_ms > ?2 AND requested_at_ms <= ?3",
-                    params![self.address.as_str(), address_lower, now_ms as i64],
-                    |row| row.get(0),
-                )?;
-                if !self
-                    .provider()
+            let outcome = database.auth_catalog().insert_verification_challenge(
+                &self.address,
+                &challenge_id,
+                &digest,
+                &key_id,
+                now_ms,
+                expires_at_ms,
+                self.provider()
                     .profile
-                    .exempts_capture_address_request_budget()
-                    && address_count >= AUTH_ADDRESS_REQUEST_LIMIT as i64
-                {
-                    return Err(throttled_snapback());
-                }
-
-                transaction.execute(
-                    "UPDATE _auth_verification_codes
-                     SET superseded_by = ?1
-                     WHERE canonical_address = ?2
-                       AND consumed_at_ms IS NULL AND superseded_by IS NULL",
-                    params![challenge_id.as_str(), self.address.as_str()],
-                )?;
-                match transaction.execute(
-                    "INSERT INTO _auth_verification_codes(
-                       challenge_id, canonical_address, code_digest, key_id,
-                       attempts, max_attempts, requested_at_ms, expires_at_ms,
-                       consumed_at_ms, superseded_by
-                     ) VALUES(?1, ?2, ?3, ?4, 0, ?5, ?6, ?7, NULL, NULL)",
-                    params![
-                        challenge_id.as_str(),
-                        self.address.as_str(),
-                        digest.as_bytes().as_slice(),
-                        key_id,
-                        AUTH_MAXIMUM_ATTEMPTS as i64,
-                        now_ms as i64,
-                        expires_at_ms as i64,
-                    ],
-                ) {
-                    Ok(_) => Ok(RequestInsertOutcome::Inserted),
-                    Err(error) if is_constraint_error(&error) => Err(internal_collision_snapback()),
-                    Err(error) => Err(error.into()),
-                }
-            });
+                    .exempts_capture_address_request_budget(),
+            );
 
             match outcome {
                 Ok(RequestInsertOutcome::Inserted) => {
@@ -2665,9 +2445,8 @@ impl AddressAdmission {
         }
         let candidate = SessionCandidate::generate(self.provider(), now_ms)?;
         let (identity, eviction) = database
-            .with_auth_read(|connection| {
-                plan_session_issuance_read(connection, &self.address, &candidate, now_ms)
-            })
+            .auth_catalog_read()
+            .plan_session_issuance(&self.address, &candidate, now_ms)
             .map_err(|_| provider_unavailable())?;
         let (user_id, provider) = match &identity {
             PlannedIdentityState::Existing { user_id, .. }
@@ -2723,9 +2502,10 @@ impl AddressAdmission {
         }
         for _ in 0..AUTH_MAX_COLLISION_ATTEMPTS {
             let mut candidate = SessionCandidate::generate(self.provider(), now_ms)?;
-            let outcome = database.with_auth_transaction(|transaction| {
-                mint_session_transaction(transaction, &self.address, &candidate, now_ms)
-            });
+            let outcome =
+                database
+                    .auth_catalog()
+                    .mint_session_for_test(&self.address, &candidate, now_ms);
             match outcome {
                 Ok((session, committed_revocation)) => {
                     let token = candidate.bearer.take().ok_or_else(provider_unavailable)?;
@@ -2879,7 +2659,7 @@ impl BearerCandidate {
 }
 
 #[derive(Debug)]
-struct SessionRecord {
+pub(crate) struct SessionRecord {
     session: ResolvedSession,
     revoked: bool,
 }
@@ -2904,7 +2684,7 @@ impl SessionRecord {
 }
 
 #[derive(Debug)]
-enum PresentedSessionLookup {
+pub(crate) enum PresentedSessionLookup {
     Current(SessionRecord),
     Tombstone {
         session: SessionRecord,
@@ -2914,16 +2694,16 @@ enum PresentedSessionLookup {
 }
 
 #[derive(Clone, Copy, Debug)]
-struct AuthenticatedUseRow {
-    generation: u64,
-    last_used_at_ms: u64,
-    expires_at_ms: u64,
-    absolute_expires_at_ms: u64,
-    revoked: bool,
+pub(crate) struct AuthenticatedUseRow {
+    pub(crate) generation: u64,
+    pub(crate) last_used_at_ms: u64,
+    pub(crate) expires_at_ms: u64,
+    pub(crate) absolute_expires_at_ms: u64,
+    pub(crate) revoked: bool,
 }
 
 impl AuthenticatedUseRow {
-    fn live_at(self, now_ms: u64) -> bool {
+    pub(crate) fn live_at(self, now_ms: u64) -> bool {
         !self.revoked && now_ms < self.expires_at_ms && now_ms < self.absolute_expires_at_ms
     }
 }
@@ -2943,7 +2723,7 @@ struct RawSessionRecord {
     revoked_at_ms: Option<i64>,
 }
 
-fn lookup_presented_session(
+pub(crate) fn lookup_presented_session(
     connection: &Connection,
     token_hash: &TokenHash,
 ) -> SnapbackResult<PresentedSessionLookup> {
@@ -3178,7 +2958,7 @@ fn revocation_plan(
     }
 }
 
-fn planned_revocation_transaction(
+pub(crate) fn planned_revocation_transaction(
     transaction: &Transaction<'_>,
     plan: &ProviderRevocationPlan,
     now_ms: u64,
@@ -3270,7 +3050,7 @@ fn planned_revocation_transaction(
     }
 }
 
-fn planned_family_alarm_transaction(
+pub(crate) fn planned_family_alarm_transaction(
     transaction: &Transaction<'_>,
     plan: &ProviderFamilyAlarmPlan,
 ) -> SnapbackResult<PlannedFamilyAlarmCommit> {
@@ -3299,13 +3079,13 @@ fn planned_family_alarm_transaction(
     }
 }
 
-enum DurableRevocationReconcile {
+pub(crate) enum DurableRevocationReconcile {
     ExactPredecessor,
     ExactSuccessor(SessionRevocation),
     DifferentValid,
 }
 
-fn reconcile_planned_revocation(
+pub(crate) fn reconcile_planned_revocation(
     connection: &Connection,
     plan: &ProviderRevocationPlan,
     now_ms: u64,
@@ -3350,19 +3130,19 @@ fn reconcile_planned_revocation(
 }
 
 #[derive(Clone)]
-enum PlannedRotationTransaction {
+pub(crate) enum PlannedRotationTransaction {
     Refreshed(SessionResponse),
     CandidateCollision,
     PredecessorChanged,
 }
 
-enum DurableRotationReconcile {
+pub(crate) enum DurableRotationReconcile {
     ExactPredecessor,
     ExactSuccessor(SessionResponse),
     DifferentValid,
 }
 
-fn reconcile_planned_rotation(
+pub(crate) fn reconcile_planned_rotation(
     connection: &Connection,
     plan: &ProviderTokenRotationCommitPlan,
 ) -> SnapbackResult<DurableRotationReconcile> {
@@ -3393,7 +3173,7 @@ fn reconcile_planned_rotation(
     }
 }
 
-fn planned_rotation_transaction(
+pub(crate) fn planned_rotation_transaction(
     transaction: &Transaction<'_>,
     plan: &ProviderTokenRotationCommitPlan,
 ) -> SnapbackResult<PlannedRotationTransaction> {
@@ -3447,7 +3227,7 @@ fn planned_rotation_transaction(
 }
 
 #[cfg(test)]
-fn refresh_transaction(
+pub(crate) fn refresh_transaction(
     transaction: &Transaction<'_>,
     predecessor_hash: &TokenHash,
     successor_hash: &TokenHash,
@@ -3518,7 +3298,7 @@ fn refresh_transaction(
 }
 
 #[cfg(test)]
-fn logout_transaction(
+pub(crate) fn logout_transaction(
     transaction: &Transaction<'_>,
     token_hash: &TokenHash,
     now_ms: u64,
@@ -3594,7 +3374,7 @@ fn revoke_live_session(
 }
 
 #[cfg(test)]
-fn family_alarm_transaction(
+pub(crate) fn family_alarm_transaction(
     transaction: &Transaction<'_>,
     token_hash: &TokenHash,
     now_ms: u64,
@@ -3639,7 +3419,7 @@ fn family_alarm_transaction(
     Ok(revocation)
 }
 
-fn authenticated_use_row(
+pub(crate) fn authenticated_use_row(
     connection: &Connection,
     session_id: &str,
     expected_generation: u64,
@@ -3682,7 +3462,7 @@ fn authenticated_use_row(
     .map(Option::flatten)
 }
 
-fn record_authenticated_use_transaction(
+pub(crate) fn record_authenticated_use_transaction(
     transaction: &Transaction<'_>,
     session_id: &str,
     expected_generation: u64,
@@ -3728,7 +3508,7 @@ fn record_authenticated_use_transaction(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn plan_exchange_read(
+pub(crate) fn plan_exchange_read(
     connection: &Connection,
     provider: &AuthProvider,
     coordination: &ExchangeCoordination,
@@ -3826,7 +3606,7 @@ fn plan_exchange_read(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn rejected_exchange_transaction(
+pub(crate) fn rejected_exchange_transaction(
     transaction: &Transaction<'_>,
     provider: &AuthProvider,
     coordination: &ExchangeCoordination,
@@ -3940,7 +3720,7 @@ fn rejected_exchange_transaction(
 
 #[allow(clippy::too_many_arguments)]
 #[cfg(test)]
-fn exchange_transaction(
+pub(crate) fn exchange_transaction(
     transaction: &Transaction<'_>,
     provider: &AuthProvider,
     coordination: &ExchangeCoordination,
@@ -4115,7 +3895,7 @@ fn exchange_transaction(
 }
 
 #[cfg(test)]
-fn mint_session_transaction(
+pub(crate) fn mint_session_transaction(
     transaction: &Transaction<'_>,
     address: &CanonicalAddress,
     candidate: &SessionCandidate,
@@ -4189,7 +3969,7 @@ fn mint_session_transaction(
     ))
 }
 
-fn plan_session_issuance_read(
+pub(crate) fn plan_session_issuance_read(
     connection: &Connection,
     address: &CanonicalAddress,
     candidate: &SessionCandidate,
@@ -4257,12 +4037,9 @@ fn attempt_planned_session_issuance(
     plan: &ProviderSessionIssuanceCommitPlan,
     exchange_proof: Option<(&AuthKeyMaterial, &VerificationCode)>,
 ) -> AuthTransactionAttempt<PlannedIssuanceCommit> {
-    let mut body_outcome = None;
-    let attempt = database.attempt_auth_transaction(|transaction| {
-        let outcome = planned_session_issuance_transaction(transaction, plan, exchange_proof)?;
-        body_outcome = Some(outcome.clone());
-        Ok(outcome)
-    });
+    let (attempt, body_outcome) = database
+        .auth_catalog()
+        .attempt_planned_session_issuance(plan, exchange_proof);
     let AuthTransactionAttempt::CommitUncertain(commit_error) = attempt else {
         return attempt;
     };
@@ -4278,7 +4055,8 @@ fn attempt_planned_session_issuance(
         }
         rejected @ (PlannedIssuanceCommit::CodeInvalid | PlannedIssuanceCommit::CodeLocked) => {
             match database
-                .with_auth_read(|connection| reconcile_rejected_issuance(connection, plan))
+                .auth_catalog_read()
+                .reconcile_rejected_issuance(plan)
             {
                 Ok(DurableRejectedIssuanceReconcile::ExactSuccessor) => {
                     AuthTransactionAttempt::Committed(rejected)
@@ -4297,14 +4075,10 @@ fn attempt_planned_session_issuance(
             // consumption; its presence (with our exact expiry) alongside the
             // absent binding and the pre-existing family's nonce cell is the
             // committed witness.
-            let Some(sender_issuance) = plan.sender_issuance.as_ref() else {
-                return AuthTransactionAttempt::CommitUncertain(commit_error);
-            };
-            match database.with_auth_read(|connection| {
-                sender_issuance
-                    .is_key_bound_successor(connection, &plan.projected.session_id)
-                    .map_err(|_| internal_state_snapback())
-            }) {
+            match database
+                .auth_catalog_read()
+                .sender_key_bound_successor(plan)
+            {
                 Ok(true) => {
                     AuthTransactionAttempt::Committed(PlannedIssuanceCommit::SenderKeyBound)
                 }
@@ -4313,7 +4087,9 @@ fn attempt_planned_session_issuance(
             }
         }
         PlannedIssuanceCommit::Committed { .. } => {
-            match database.with_auth_read(|connection| reconcile_planned_issuance(connection, plan))
+            match database
+                .auth_catalog_read()
+                .reconcile_planned_issuance(plan)
             {
                 Ok(DurableIssuanceReconcile::ExactSuccessor {
                     session,
@@ -4334,7 +4110,7 @@ fn attempt_planned_session_issuance(
     }
 }
 
-fn planned_session_issuance_transaction(
+pub(crate) fn planned_session_issuance_transaction(
     transaction: &Transaction<'_>,
     plan: &ProviderSessionIssuanceCommitPlan,
     exchange_proof: Option<(&AuthKeyMaterial, &VerificationCode)>,
@@ -4632,7 +4408,7 @@ fn planned_session_issuance_transaction(
     })
 }
 
-enum DurableIssuanceReconcile {
+pub(crate) enum DurableIssuanceReconcile {
     ExactPredecessor,
     ExactSuccessor {
         session: SessionResponse,
@@ -4641,7 +4417,7 @@ enum DurableIssuanceReconcile {
     DifferentValid,
 }
 
-enum DurableRejectedIssuanceReconcile {
+pub(crate) enum DurableRejectedIssuanceReconcile {
     ExactPredecessor,
     ExactSuccessor,
     DifferentValid,
@@ -4904,7 +4680,7 @@ fn issuance_eviction_is_exact_successor(
     }))
 }
 
-fn reconcile_rejected_issuance(
+pub(crate) fn reconcile_rejected_issuance(
     connection: &Connection,
     plan: &ProviderSessionIssuanceCommitPlan,
 ) -> SnapbackResult<DurableRejectedIssuanceReconcile> {
@@ -4932,7 +4708,7 @@ fn reconcile_rejected_issuance(
     Ok(DurableRejectedIssuanceReconcile::DifferentValid)
 }
 
-fn reconcile_planned_issuance(
+pub(crate) fn reconcile_planned_issuance(
     connection: &Connection,
     plan: &ProviderSessionIssuanceCommitPlan,
 ) -> SnapbackResult<DurableIssuanceReconcile> {
@@ -5274,7 +5050,7 @@ fn mailbox_entry_not_found() -> ProviderError {
     ))
 }
 
-fn throttled_snapback() -> SnapbackError {
+pub(crate) fn throttled_snapback() -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_AUTH_THROTTLED",
         "auth",
@@ -5282,7 +5058,7 @@ fn throttled_snapback() -> SnapbackError {
     )
 }
 
-fn internal_collision_snapback() -> SnapbackError {
+pub(crate) fn internal_collision_snapback() -> SnapbackError {
     SnapbackError::error(
         INTERNAL_AUTH_COLLISION,
         "auth",
@@ -5290,7 +5066,7 @@ fn internal_collision_snapback() -> SnapbackError {
     )
 }
 
-fn internal_state_snapback() -> SnapbackError {
+pub(crate) fn internal_state_snapback() -> SnapbackError {
     SnapbackError::error(
         "INTERNAL_AUTH_STATE",
         "auth",
@@ -5298,7 +5074,7 @@ fn internal_state_snapback() -> SnapbackError {
     )
 }
 
-fn is_constraint_error(error: &rusqlite::Error) -> bool {
+pub(crate) fn is_constraint_error(error: &rusqlite::Error) -> bool {
     matches!(
         error,
         rusqlite::Error::SqliteFailure(sqlite, _)
@@ -5550,10 +5326,8 @@ mod tests {
             crate::storage::auth::AuthCatalogState::ReadyV1
         );
         let session_count: i64 = database
-            .with_auth_read(|connection| {
-                Ok(connection
-                    .query_row("SELECT COUNT(*) FROM _auth_sessions", [], |row| row.get(0))?)
-            })
+            .auth_catalog_read()
+            .session_count_for_test()
             .unwrap();
         assert_eq!(session_count, 1);
     }
@@ -5723,13 +5497,8 @@ mod tests {
     fn direct_stream_facts(database: &LocalDatabase) -> (u64, i64) {
         let version = database.current_version().expect("app version");
         let changes = database
-            .with_auth_read(|connection| {
-                connection
-                    .query_row("SELECT COUNT(*) FROM _snapback_changes", [], |row| {
-                        row.get(0)
-                    })
-                    .map_err(SnapbackError::from)
-            })
+            .auth_catalog_read()
+            .change_journal_count_for_test()
             .expect("journal count");
         (version, changes)
     }
@@ -5900,13 +5669,8 @@ mod tests {
             .expect_err("mailbox overrun throttles");
         assert_eq!(capacity.diagnostic().code, "SNAPBACK_AUTH_THROTTLED");
         let durable: i64 = capacity_database
-            .with_auth_read(|connection| {
-                connection
-                    .query_row("SELECT COUNT(*) FROM _auth_verification_codes", [], |row| {
-                        row.get(0)
-                    })
-                    .map_err(SnapbackError::from)
-            })
+            .auth_catalog_read()
+            .verification_challenge_count_for_test()
             .expect("durable challenge count");
         assert_eq!(
             durable,
@@ -5962,24 +5726,8 @@ mod tests {
         );
 
         let facts = database
-            .with_auth_read(|connection| {
-                Ok((
-                    connection.query_row(
-                        "SELECT attempts FROM _auth_verification_codes WHERE challenge_id = ?1",
-                        params![request.challenge_id],
-                        |row| row.get::<_, i64>(0),
-                    )?,
-                    connection.query_row("SELECT COUNT(*) FROM _auth_users", [], |row| {
-                        row.get::<_, i64>(0)
-                    })?,
-                    connection.query_row("SELECT COUNT(*) FROM _auth_identities", [], |row| {
-                        row.get::<_, i64>(0)
-                    })?,
-                    connection.query_row("SELECT COUNT(*) FROM _auth_sessions", [], |row| {
-                        row.get::<_, i64>(0)
-                    })?,
-                ))
-            })
+            .auth_catalog_read()
+            .challenge_issue_facts_for_test(&request.challenge_id)
             .expect("durable facts");
         assert_eq!(facts, (5, 1, 1, 1));
         assert_eq!(direct_stream_facts(&database), (0, 0));
@@ -6020,17 +5768,8 @@ mod tests {
             .expect_err("locked challenge remains locked");
         assert_eq!(later.diagnostic().code, "SNAPBACK_AUTH_CODE_LOCKED");
         let (attempts, sessions): (i64, i64) = database
-            .with_auth_read(|connection| {
-                Ok((
-                    connection.query_row(
-                        "SELECT attempts FROM _auth_verification_codes WHERE challenge_id = ?1",
-                        params![request.challenge_id],
-                        |row| row.get(0),
-                    )?,
-                    connection
-                        .query_row("SELECT COUNT(*) FROM _auth_sessions", [], |row| row.get(0))?,
-                ))
-            })
+            .auth_catalog_read()
+            .challenge_attempts_and_sessions_for_test(&request.challenge_id)
             .expect("locked facts");
         assert_eq!((attempts, sessions), (5, 0));
     }
@@ -6086,11 +5825,8 @@ mod tests {
         );
         assert_eq!(session_random.fills() - fills_before_collision, 15);
         let sessions: i64 = session_database
-            .with_auth_read(|connection| {
-                connection
-                    .query_row("SELECT COUNT(*) FROM _auth_sessions", [], |row| row.get(0))
-                    .map_err(SnapbackError::from)
-            })
+            .auth_catalog_read()
+            .session_count_for_test()
             .expect("session count");
         assert_eq!(sessions, 1);
     }
@@ -6171,17 +5907,8 @@ mod tests {
         assert_eq!(second.diagnostic().code, "SNAPBACK_AUTH_CODE_INVALID");
         drop(second_exchange);
         let counts: (i64, i64, i64) = database
-            .with_auth_read(|connection| {
-                Ok((
-                    connection
-                        .query_row("SELECT COUNT(*) FROM _auth_users", [], |row| row.get(0))?,
-                    connection.query_row("SELECT COUNT(*) FROM _auth_identities", [], |row| {
-                        row.get(0)
-                    })?,
-                    connection
-                        .query_row("SELECT COUNT(*) FROM _auth_sessions", [], |row| row.get(0))?,
-                ))
-            })
+            .auth_catalog_read()
+            .provision_counts_for_test()
             .expect("provision counts");
         assert_eq!(counts, (1, 1, 1));
 
@@ -6201,20 +5928,8 @@ mod tests {
             .expect("losing refresh did not revoke");
         assert_eq!(resolved.generation, 1);
         let (current, tombstones): (i64, i64) = database
-            .with_auth_read(|connection| {
-                Ok((
-                    connection.query_row(
-                        "SELECT COUNT(*) FROM _auth_sessions WHERE revoked_at_ms IS NULL",
-                        [],
-                        |row| row.get(0),
-                    )?,
-                    connection.query_row(
-                        "SELECT COUNT(*) FROM _auth_session_tokens",
-                        [],
-                        |row| row.get(0),
-                    )?,
-                ))
-            })
+            .auth_catalog_read()
+            .current_and_tombstone_counts_for_test()
             .expect("refresh facts");
         assert_eq!((current, tombstones), (1, 1));
     }
@@ -6264,22 +5979,8 @@ mod tests {
         assert_eq!(revocation.generation, 2);
         let now_ms = start_ms + AUTH_SESSION_LIVE_LIMIT as u64 * AUTH_ADDRESS_REQUEST_WINDOW_MS + 1;
         let (live, oldest_revoked): (i64, i64) = database
-            .with_auth_read(|connection| {
-                Ok((
-                    connection.query_row(
-                        "SELECT COUNT(*) FROM _auth_sessions
-                         WHERE revoked_at_ms IS NULL AND ?1 < expires_at_ms",
-                        params![now_ms as i64],
-                        |row| row.get(0),
-                    )?,
-                    connection.query_row(
-                        "SELECT COUNT(*) FROM _auth_sessions
-                         WHERE id = ?1 AND revoked_at_ms IS NOT NULL AND generation = 2",
-                        params![revocation.session_id],
-                        |row| row.get(0),
-                    )?,
-                ))
-            })
+            .auth_catalog_read()
+            .session_cap_facts_for_test(now_ms, &revocation.session_id)
             .expect("session cap facts");
         assert_eq!((live, oldest_revoked), (20, 1));
         let admission = provider.admit().await;
@@ -6448,13 +6149,8 @@ mod tests {
                 .expect_err("current revoked by attributable predecessor");
             assert_eq!(expired.diagnostic().code, "SNAPBACK_AUTH_SESSION_EXPIRED");
             let tombstones: i64 = database
-                .with_auth_read(|connection| {
-                    connection
-                        .query_row("SELECT COUNT(*) FROM _auth_session_tokens", [], |row| {
-                            row.get(0)
-                        })
-                        .map_err(SnapbackError::from)
-                })
+                .auth_catalog_read()
+                .tombstone_count_for_test()
                 .expect("tombstone count");
             assert_eq!(tombstones, depth as i64);
         }
@@ -6501,13 +6197,8 @@ mod tests {
             assert!(committed.is_none());
         }
         let generation: i64 = database
-            .with_auth_read(|connection| {
-                connection
-                    .query_row("SELECT generation FROM _auth_sessions", [], |row| {
-                        row.get(0)
-                    })
-                    .map_err(SnapbackError::from)
-            })
+            .auth_catalog_read()
+            .sole_session_generation_for_test()
             .expect("alarm generation");
         assert_eq!(generation, 2, "duplicates never increment a revoked family");
         assert_eq!(direct_stream_facts(&database), (0, 0));
@@ -6555,15 +6246,8 @@ mod tests {
             .expect("alarm retry after lost response");
         assert!(retry.into_parts().2.is_none());
         let (generation, revoked): (i64, bool) = database
-            .with_auth_read(|connection| {
-                connection
-                    .query_row(
-                        "SELECT generation, revoked_at_ms IS NOT NULL FROM _auth_sessions",
-                        [],
-                        |row| Ok((row.get(0)?, row.get(1)?)),
-                    )
-                    .map_err(SnapbackError::from)
-            })
+            .auth_catalog_read()
+            .sole_session_generation_revoked_for_test()
             .expect("lost-response facts");
         assert_eq!((generation, revoked), (2, true));
     }
@@ -6620,18 +6304,8 @@ mod tests {
             .expect_err("logout revokes refreshed successor");
         assert_eq!(expired.diagnostic().code, "SNAPBACK_AUTH_SESSION_EXPIRED");
         let (generation, tombstones): (i64, i64) = database
-            .with_auth_read(|connection| {
-                Ok((
-                    connection.query_row("SELECT generation FROM _auth_sessions", [], |row| {
-                        row.get(0)
-                    })?,
-                    connection.query_row(
-                        "SELECT COUNT(*) FROM _auth_session_tokens",
-                        [],
-                        |row| row.get(0),
-                    )?,
-                ))
-            })
+            .auth_catalog_read()
+            .generation_and_tombstones_for_test()
             .expect("refresh-first facts");
         assert_eq!((generation, tombstones), (2, 1));
     }
@@ -6784,17 +6458,8 @@ mod tests {
             .expect_err("logout sees expired session without mutation");
         assert_eq!(logout.diagnostic().code, "SNAPBACK_AUTH_SESSION_EXPIRED");
         let (last_used, expires, generation, revoked): (i64, i64, i64, bool) = database
-            .with_auth_read(|connection| {
-                connection
-                    .query_row(
-                        "SELECT last_used_at_ms, expires_at_ms, generation,
-                            revoked_at_ms IS NOT NULL
-                     FROM _auth_sessions WHERE id = ?1",
-                        params![resolved.session_id],
-                        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
-                    )
-                    .map_err(SnapbackError::from)
-            })
+            .auth_catalog_read()
+            .session_lifetime_facts_for_test(&resolved.session_id)
             .expect("absolute row");
         assert_eq!(last_used, (start_ms + 87 * day) as i64);
         assert_eq!(expires, absolute as i64);
@@ -6926,17 +6591,8 @@ mod tests {
             })
         ));
         database
-            .with_auth_transaction(|transaction| {
-                transaction.execute(
-                    "DELETE FROM _snapback_meta WHERE key = ?1",
-                    params![
-                        crate::auth::session_projection::SessionTerminalCauseRecord::meta_key(
-                            plan.session_id()
-                        )?
-                    ],
-                )?;
-                Ok(())
-            })
+            .auth_catalog()
+            .delete_terminal_cause_witness_for_test(plan.session_id())
             .expect("simulate a legacy terminal row without a cause witness");
         assert!(matches!(
             admission.commit_planned_revocation(&mut database, &plan, start_ms + 1),
@@ -7108,13 +6764,8 @@ mod tests {
             AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Noop)
         ));
         let revoked: i64 = database
-            .with_auth_read(|conn| {
-                Ok(conn.query_row(
-                    "SELECT revoked_at_ms IS NOT NULL FROM _auth_sessions WHERE id = ?1",
-                    params![issue.response().session.id],
-                    |row| row.get(0),
-                )?)
-            })
+            .auth_catalog_read()
+            .session_revoked_for_test(&issue.response().session.id)
             .unwrap();
         assert_eq!(revoked, 0, "malformed alarm did not revoke the family");
     }
@@ -7131,31 +6782,20 @@ mod tests {
         let issuance_plan = issuance.plan_mint_session(&database, now_ms + 1).unwrap();
         let issuance_commit = issuance_plan.commit_plan();
         database
-            .with_auth_transaction(|tx| {
-                tx.execute(
-                    "INSERT INTO _auth_session_tokens(token_hash, session_id, superseded_at_ms)
-                     VALUES(?1, ?2, ?3)",
-                    params![
-                        issuance_commit.projected.token_digest.as_bytes().as_slice(),
-                        first_id,
-                        now_ms as i64,
-                    ],
-                )?;
-                Ok(())
-            })
+            .auth_catalog()
+            .insert_session_tombstone_for_test(
+                issuance_commit.projected.token_digest.as_bytes(),
+                &first_id,
+                now_ms,
+            )
             .unwrap();
         assert!(matches!(
             issuance.commit_planned_issuance(&mut database, &issuance_commit),
             AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CandidateCollision)
         ));
         let second_exists: i64 = database
-            .with_auth_read(|conn| {
-                Ok(conn.query_row(
-                    "SELECT COUNT(*) FROM _auth_identities WHERE subject = 'second@example.com'",
-                    [],
-                    |row| row.get(0),
-                )?)
-            })
+            .auth_catalog_read()
+            .identity_subject_count_for_test("second@example.com")
             .unwrap();
         assert_eq!(second_exists, 0, "collision precedes every issuance write");
 
@@ -7168,18 +6808,12 @@ mod tests {
             panic!("rotation plan");
         };
         database
-            .with_auth_transaction(|tx| {
-                tx.execute(
-                    "INSERT INTO _auth_session_tokens(token_hash, session_id, superseded_at_ms)
-                     VALUES(?1, ?2, ?3)",
-                    params![
-                        rotation.successor.token_hash.as_bytes().as_slice(),
-                        first.response().session.id,
-                        (now_ms + 1) as i64,
-                    ],
-                )?;
-                Ok(())
-            })
+            .auth_catalog()
+            .insert_session_tombstone_for_test(
+                rotation.successor.token_hash.as_bytes(),
+                &first.response().session.id,
+                now_ms + 1,
+            )
             .unwrap();
         assert!(matches!(
             admission.commit_planned_rotation(&mut database, &rotation.commit_plan()),
@@ -7204,7 +6838,8 @@ mod tests {
         let commit_plan = plan.commit_plan();
         assert!(matches!(
             database
-                .with_auth_read(|connection| reconcile_planned_issuance(connection, &commit_plan))
+                .auth_catalog_read()
+                .reconcile_planned_issuance(&commit_plan)
                 .expect("predecessor reconciliation"),
             DurableIssuanceReconcile::ExactPredecessor
         ));
@@ -7217,7 +6852,8 @@ mod tests {
         ));
         assert!(matches!(
             database
-                .with_auth_read(|connection| reconcile_planned_issuance(connection, &commit_plan))
+                .auth_catalog_read()
+                .reconcile_planned_issuance(&commit_plan)
                 .expect("successor reconciliation"),
             DurableIssuanceReconcile::ExactSuccessor {
                 committed_revocation: None,
@@ -7256,7 +6892,8 @@ mod tests {
         let commit_plan = plan.commit_plan();
         assert!(matches!(
             database
-                .with_auth_read(|connection| reconcile_planned_issuance(connection, &commit_plan))
+                .auth_catalog_read()
+                .reconcile_planned_issuance(&commit_plan)
                 .expect("sender predecessor reconciliation"),
             DurableIssuanceReconcile::ExactPredecessor
         ));
@@ -7266,35 +6903,14 @@ mod tests {
         ));
         assert!(matches!(
             database
-                .with_auth_read(|connection| reconcile_planned_issuance(connection, &commit_plan))
+                .auth_catalog_read()
+                .reconcile_planned_issuance(&commit_plan)
                 .expect("sender successor reconciliation"),
             DurableIssuanceReconcile::ExactSuccessor { .. }
         ));
         let facts: (i64, i64, i64, String) = database
-            .with_auth_read(|connection| {
-                Ok((
-                    connection.query_row(
-                        "SELECT COUNT(*) FROM _snapback_sender_family_binding",
-                        [],
-                        |row| row.get(0),
-                    )?,
-                    connection.query_row(
-                        "SELECT COUNT(*) FROM _snapback_sender_proof_replay",
-                        [],
-                        |row| row.get(0),
-                    )?,
-                    connection.query_row(
-                        "SELECT generation FROM _snapback_sender_nonce",
-                        [],
-                        |row| row.get(0),
-                    )?,
-                    connection.query_row(
-                        "SELECT nonce FROM _snapback_sender_nonce",
-                        [],
-                        |row| row.get(0),
-                    )?,
-                ))
-            })
+            .auth_catalog_read()
+            .sender_issuance_facts_for_test()
             .expect("atomic sender issuance facts");
         assert_eq!(facts, (1, 1, 1, expected_nonce));
     }
@@ -7372,32 +6988,8 @@ mod tests {
         drop(second_admission);
 
         let facts: (i64, i64, i64, String, i64) = database
-            .with_auth_read(|connection| {
-                Ok((
-                    connection.query_row(
-                        "SELECT COUNT(*) FROM _snapback_sender_family_binding",
-                        [],
-                        |row| row.get(0),
-                    )?,
-                    connection.query_row(
-                        "SELECT COUNT(*) FROM _snapback_sender_proof_replay",
-                        [],
-                        |row| row.get(0),
-                    )?,
-                    connection.query_row(
-                        "SELECT COUNT(*) FROM _snapback_sender_nonce",
-                        [],
-                        |row| row.get(0),
-                    )?,
-                    connection.query_row(
-                        "SELECT nonce FROM _snapback_sender_nonce",
-                        [],
-                        |row| row.get(0),
-                    )?,
-                    connection
-                        .query_row("SELECT COUNT(*) FROM _auth_sessions", [], |row| row.get(0))?,
-                ))
-            })
+            .auth_catalog_read()
+            .sender_refusal_facts_for_test()
             .expect("key-bound refusal facts");
         // One binding and one session (the incumbent's), both proof ids
         // consumed, and the incumbent's generation-one nonce untouched.
@@ -7471,22 +7063,14 @@ mod tests {
         ));
         assert!(matches!(
             database
-                .with_auth_read(|connection| reconcile_rejected_issuance(connection, &commit_plan))
+                .auth_catalog_read()
+                .reconcile_rejected_issuance(&commit_plan)
                 .expect("rejected successor reconciliation"),
             DurableRejectedIssuanceReconcile::ExactSuccessor
         ));
         let facts: (i64, i64) = database
-            .with_auth_read(|connection| {
-                Ok((
-                    connection.query_row(
-                        "SELECT attempts FROM _auth_verification_codes WHERE challenge_id = ?1",
-                        params![request.challenge_id],
-                        |row| row.get(0),
-                    )?,
-                    connection
-                        .query_row("SELECT COUNT(*) FROM _auth_sessions", [], |row| row.get(0))?,
-                ))
-            })
+            .auth_catalog_read()
+            .challenge_attempts_and_sessions_for_test(&request.challenge_id)
             .expect("rejected exchange facts");
         assert_eq!(facts, (1, 0));
 
@@ -7520,16 +7104,8 @@ mod tests {
             }
         }
         let oldest: String = database
-            .with_auth_read(|connection| {
-                connection
-                    .query_row(
-                        "SELECT id FROM _auth_sessions
-                         WHERE revoked_at_ms IS NULL ORDER BY created_at_ms, id LIMIT 1",
-                        [],
-                        |row| row.get(0),
-                    )
-                    .map_err(SnapbackError::from)
-            })
+            .auth_catalog_read()
+            .oldest_live_session_for_test()
             .expect("oldest session");
         let admission = provider
             .admit_email("planned-cap@example.com")
@@ -7576,7 +7152,8 @@ mod tests {
         ));
         assert!(matches!(
             database
-                .with_auth_read(|connection| reconcile_planned_issuance(connection, &commit_plan))
+                .auth_catalog_read()
+                .reconcile_planned_issuance(&commit_plan)
                 .expect("cap successor reconciliation"),
             DurableIssuanceReconcile::ExactSuccessor {
                 committed_revocation: Some(SessionRevocation { generation: 2, .. }),
@@ -7584,15 +7161,8 @@ mod tests {
             }
         ));
         let live: i64 = database
-            .with_auth_read(|connection| {
-                connection
-                    .query_row(
-                        "SELECT COUNT(*) FROM _auth_sessions WHERE revoked_at_ms IS NULL",
-                        [],
-                        |row| row.get(0),
-                    )
-                    .map_err(SnapbackError::from)
-            })
+            .auth_catalog_read()
+            .live_session_count_for_test()
             .expect("live session count");
         assert_eq!(live, AUTH_SESSION_LIVE_LIMIT as i64);
     }

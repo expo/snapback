@@ -78,7 +78,7 @@ use crate::manifest::{
 };
 use crate::push::{
     PushTokenRegistrationResponse, PushTokenUnregisterResponse, RegisterPushTokenRequest,
-    Registration as PushTokenRegistration, UnregisterPushTokenRequest,
+    UnregisterPushTokenRequest,
 };
 use crate::runtime::{
     ActionStreamChunk, ActionStreamOpened, ActionStreamRequest, CapabilityState, IbexActionHost,
@@ -2116,20 +2116,15 @@ impl IbexActionHost for DetachedActionHost {
                 )
             })?;
             let access_token = self.push_access_token(&declaration)?;
-            let attempt = database.with_auth_transaction(|tx| {
-                crate::push::reserve_send_in(
-                    tx,
-                    crate::push::PushSendReservation {
-                        declaration: &declaration,
-                        schema: &schema,
-                        authority: &self.authority,
-                        trigger_mode,
-                        deferred_grant: self.deferred_push_grant.as_ref(),
-                        request: &request,
-                        now_ms,
-                    },
-                )
-            })?;
+            let attempt = database.push_registry().reserve_send(
+                &declaration,
+                &schema,
+                || self.authority.clone(),
+                trigger_mode,
+                self.deferred_push_grant.as_ref(),
+                &request,
+                now_ms,
+            )?;
             (attempt, access_token)
         };
 
@@ -2146,9 +2141,10 @@ impl IbexActionHost for DetachedActionHost {
             let Some(claim) = ({
                 let mut snapback = self.lock_live("push.send.claim")?;
                 let _effect = self.authority.effect_guard("push batch claim")?;
-                snapback.auth_database_mut().with_auth_transaction(|tx| {
-                    crate::push::claim_batch_in(tx, &batch.batch_id, now_millis())
-                })?
+                snapback
+                    .auth_database_mut()
+                    .push_registry()
+                    .claim_batch(&batch.batch_id, now_millis())?
             }) else {
                 continue;
             };
@@ -2168,9 +2164,10 @@ impl IbexActionHost for DetachedActionHost {
                 let _effect = self
                     .authority
                     .effect_guard("push batch transmitting marker")?;
-                snapback.auth_database_mut().with_auth_transaction(|tx| {
-                    crate::push::mark_batch_transmitting_in(tx, &claim, now_millis())
-                })?;
+                snapback
+                    .auth_database_mut()
+                    .push_registry()
+                    .mark_batch_transmitting(&claim, now_millis())?;
             }
 
             let payload = crate::push::expo_send_payload(&claim, &request);
@@ -2195,20 +2192,19 @@ impl IbexActionHost for DetachedActionHost {
             {
                 let mut snapback = self.lock_live("push.send.settle")?;
                 let _effect = self.authority.effect_guard("push batch settlement")?;
-                snapback.auth_database_mut().with_auth_transaction(|tx| {
-                    crate::push::settle_batch_in(tx, &claim, &settlement, now_millis())
-                })?;
+                snapback.auth_database_mut().push_registry().settle_batch(
+                    &claim,
+                    &settlement,
+                    now_millis(),
+                )?;
             }
         }
         let mut snapback = self.lock_live("push.send.result")?;
         let intent_id = attempt.response.intent_id.clone();
-        attempt.response.state = snapback.auth_database_mut().with_auth_read(|conn| {
-            Ok(conn.query_row(
-                "SELECT state FROM _snapback_push_intents_v1 WHERE id = ?1",
-                rusqlite::params![intent_id],
-                |row| row.get(0),
-            )?)
-        })?;
+        attempt.response.state = snapback
+            .auth_database_mut()
+            .push_registry()
+            .intent_state(&intent_id)?;
         Ok(attempt.response)
     }
 
@@ -14442,20 +14438,15 @@ async fn push_token_register(
                 "the app schema does not declare definePushSeam",
             )
         })?;
-        database.with_auth_transaction(|tx| {
-            crate::push::register_in(
-                tx,
-                PushTokenRegistration {
-                    declaration: &declaration,
-                    principal_id: &principal_id,
-                    session_id: &session_id,
-                    session_generation,
-                    installation_id: &request.installation_id,
-                    token: request.token.as_str(),
-                    now_ms,
-                },
-            )
-        })
+        database.push_registry().register(
+            &declaration,
+            &principal_id,
+            &session_id,
+            session_generation,
+            &request.installation_id,
+            request.token.as_str(),
+            now_ms,
+        )
     })
     .await?;
     Ok(Json(response))
@@ -14483,17 +14474,14 @@ async fn push_token_unregister(
                 "the app schema does not declare definePushSeam",
             )
         })?;
-        database.with_auth_transaction(|tx| {
-            crate::push::unregister_in(
-                tx,
-                &declaration,
-                &principal_id,
-                &session_id,
-                session_generation,
-                &request.installation_id,
-                now_ms,
-            )
-        })
+        database.push_registry().unregister(
+            &declaration,
+            &principal_id,
+            &session_id,
+            session_generation,
+            &request.installation_id,
+            now_ms,
+        )
     })
     .await?;
     Ok(Json(response))
@@ -16279,13 +16267,10 @@ pub(crate) async fn drive_push_maintenance_once(
                 now_ms,
             )?;
             let access_token = snapback.push_maintenance_access_token();
-            let claim = snapback.auth_database_mut().with_auth_transaction(|tx| {
-                crate::push::recover_expired_batches_in(tx, now_ms)?;
-                crate::push::expire_ledger_in(tx, now_ms)?;
-                let recovered = crate::push::claim_recovered_batch_for_transmit_in(tx, now_ms)?;
-                let receipts = crate::push::claim_due_receipts_in(tx, now_ms)?;
-                Ok((recovered, receipts))
-            })?;
+            let claim = snapback
+                .auth_database_mut()
+                .push_registry()
+                .claim_maintenance(now_ms)?;
             Ok(Some(PushMaintenancePlan {
                 recovered: claim.0,
                 receipts: claim.1,
@@ -16335,9 +16320,11 @@ pub(crate) async fn drive_push_maintenance_once(
             )
         })?;
         with_snapback(state, move |snapback| {
-            snapback.auth_database_mut().with_auth_transaction(|tx| {
-                crate::push::settle_batch_in(tx, &recovered_claim, &settlement, now_millis())
-            })
+            snapback.auth_database_mut().push_registry().settle_batch(
+                &recovered_claim,
+                &settlement,
+                now_millis(),
+            )
         })
         .await?;
     }
@@ -16377,9 +16364,10 @@ pub(crate) async fn drive_push_maintenance_once(
         return Ok(());
     };
     with_snapback(state, move |snapback| {
-        snapback.auth_database_mut().with_auth_transaction(|tx| {
-            crate::push::settle_receipt_poll_in(tx, &claim, &outcomes, now_millis())
-        })
+        snapback
+            .auth_database_mut()
+            .push_registry()
+            .settle_receipt_poll(&claim, &outcomes, now_millis())
     })
     .await
 }

@@ -9394,17 +9394,9 @@ globalThis.__snapbackHandlers = {
         let now_ms = now_millis();
         let (resolved, service_publication) = {
             let db = snapback.auth_database_mut();
-            db.with_auth_transaction(|tx| {
-                tx.execute(
-                    "INSERT INTO _auth_users(
-                       id, created_at_ms, kind, display_name, operator_contact,
-                       registration_provenance, deactivated_at_ms, owner_user_id
-                     ) VALUES('activation-owner', ?1, 'human', NULL, NULL, NULL, NULL, NULL)",
-                    rusqlite::params![now_ms as i64],
-                )?;
-                Ok(())
-            })
-            .expect("create activation owner");
+            db.auth_catalog()
+                .insert_human_user_for_test("activation-owner", now_ms)
+                .expect("create activation owner");
             db.create_agent_principal(
                 "activation-agent",
                 now_ms,
@@ -9419,29 +9411,9 @@ globalThis.__snapbackHandlers = {
             let credential = db
                 .issue_initial_agent_credential("activation-agent", now_ms, &random)
                 .expect("issue activation credential");
-            db.with_auth_transaction(|tx| {
-                tx.execute(
-                    "INSERT OR IGNORE INTO _auth_scope_bases(
-                       function_id, kind, generation, present, authority_creating
-                     ) VALUES('fn:unrelatedLive', 'liveQuery', 0, 1, 0)",
-                    [],
-                )?;
-                tx.execute(
-                    "INSERT INTO _auth_grants(
-                       id, actor_user_id, effective_user_id, scopes, created_at_ms,
-                       expires_at_ms, revoked_at_ms, created_by, request_id,
-                       consent_digest, last_used_at_ms
-                     ) VALUES('activation-grant', 'activation-agent', 'activation-owner', ?1,
-                              ?2, ?3, NULL, 'test', NULL, NULL, ?2)",
-                    rusqlite::params![
-                        r#"[{"fn":"fn:listItems","kind":"liveQuery","basis":0,"authorityCreating":false},{"fn":"fn:unrelatedLive","kind":"liveQuery","basis":0,"authorityCreating":false}]"#,
-                        now_ms as i64,
-                        now_ms.saturating_add(60_000) as i64,
-                    ],
-                )?;
-                Ok(())
-            })
-            .expect("create activation grant");
+            db.auth_catalog()
+                .insert_activation_live_grant_for_test(now_ms)
+                .expect("create activation grant");
             let token = db
                 .mint_scoped_token(
                     &credential.secret,
@@ -9558,16 +9530,8 @@ globalThis.__snapbackHandlers = {
 
         snapback
             .auth_database_mut()
-            .with_auth_transaction(|tx| {
-                tx.execute(
-                    "UPDATE _auth_scope_bases
-                     SET generation = generation + 1, present = 0
-                     WHERE function_id = 'fn:unrelatedLive'
-                       AND kind = 'liveQuery' AND authority_creating = 0",
-                    [],
-                )?;
-                Ok(())
-            })
+            .auth_catalog()
+            .tombstone_scope_basis_for_test("fn:unrelatedLive", "liveQuery", false)
             .expect("tombstone unrelated grant entry");
         let unrelated_admission = snapback
             .admission
@@ -9620,16 +9584,8 @@ globalThis.__snapbackHandlers = {
 
         snapback
             .auth_database_mut()
-            .with_auth_transaction(|tx| {
-                tx.execute(
-                    "UPDATE _auth_scope_bases
-                     SET generation = generation + 1, present = 0
-                     WHERE function_id = 'fn:listItems'
-                       AND kind = 'liveQuery' AND authority_creating = 0",
-                    [],
-                )?;
-                Ok(())
-            })
+            .auth_catalog()
+            .tombstone_scope_basis_for_test("fn:listItems", "liveQuery", false)
             .expect("tombstone matched grant entry");
         let admission = snapback
             .admission
@@ -20178,79 +20134,9 @@ globalThis.__snapbackHandlers = {
         let db = snapback.auth_database_mut();
         db.activate_current_auth_catalog()
             .expect("activate service replay auth catalog");
-        db.with_auth_transaction(|tx| {
-            tx.execute(
-                "INSERT INTO _auth_users(
-                   id, created_at_ms, kind, display_name, operator_contact,
-                   registration_provenance, deactivated_at_ms, owner_user_id
-                 ) VALUES('user-a', ?1, 'human', NULL, NULL, NULL, NULL, NULL)",
-                rusqlite::params![now_ms as i64],
-            )?;
-            tx.execute(
-                "INSERT INTO _auth_users(
-                   id, created_at_ms, kind, display_name, operator_contact,
-                   registration_provenance, deactivated_at_ms, owner_user_id
-                 ) VALUES('agent-a', ?1, 'agent', 'Agent A', NULL, 'test', NULL, NULL)",
-                rusqlite::params![now_ms as i64],
-            )?;
-            tx.execute(
-                "INSERT INTO _auth_agent_credentials(
-                   id, user_id, secret_hash, generation, created_at_ms,
-                   rotated_at_ms, last_used_at_ms, revoked_at_ms
-                 ) VALUES('credential-a', 'agent-a', ?1, 1, ?2, ?2, ?2, NULL)",
-                rusqlite::params![vec![0x41_u8; 32], now_ms as i64],
-            )?;
-            tx.execute(
-                "INSERT INTO _auth_scope_bases(
-                   function_id, kind, generation, present, authority_creating
-                 ) VALUES('fn:hostInsert', 'mutation', 0, 1, 0)",
-                [],
-            )?;
-            for grant_id in ["grant-a", "grant-b"] {
-                tx.execute(
-                    "INSERT INTO _auth_grants(
-                       id, actor_user_id, effective_user_id, scopes, created_at_ms,
-                       expires_at_ms, revoked_at_ms, created_by, request_id,
-                       consent_digest, last_used_at_ms
-                     ) VALUES(?1, 'agent-a', 'user-a', ?2, ?3, ?4, NULL,
-                              'test', NULL, NULL, ?3)",
-                    rusqlite::params![
-                        grant_id,
-                        r#"[{"fn":"fn:hostInsert","kind":"mutation","basis":0,"authorityCreating":false}]"#,
-                        now_ms as i64,
-                        SERVICE_REPLAY_EXPIRES_AT_MS as i64,
-                    ],
-                )?;
-            }
-            for (index, (token_id, grant_id)) in [
-                ("token-a", "grant-a"),
-                ("token-b", "grant-a"),
-                ("token-c", "grant-a"),
-                ("token-e", "grant-b"),
-                ("token-x", "grant-b"),
-                ("token-y", "grant-a"),
-            ]
-            .into_iter()
-            .enumerate()
-            {
-                tx.execute(
-                    "INSERT INTO _auth_grant_tokens(
-                       id, token_hash, grant_id, credential_id,
-                       credential_generation, created_at_ms, expires_at_ms,
-                       revoked_at_ms
-                     ) VALUES(?1, ?2, ?3, 'credential-a', 1, ?4, ?5, NULL)",
-                    rusqlite::params![
-                        token_id,
-                        vec![u8::try_from(index + 1).expect("small token fixture index"); 32],
-                        grant_id,
-                        now_ms as i64,
-                        SERVICE_REPLAY_EXPIRES_AT_MS as i64,
-                    ],
-                )?;
-            }
-            Ok(())
-        })
-        .expect("install current service replay authority");
+        db.auth_catalog()
+            .install_service_replay_authority_for_test(now_ms, SERVICE_REPLAY_EXPIRES_AT_MS)
+            .expect("install current service replay authority");
     }
 
     fn service_mutation_authority(
@@ -22362,44 +22248,20 @@ globalThis.__snapbackHandlers = {
         .expect("consume sessions mode");
         db.activate_current_auth_catalog()
             .expect("activate auth catalog");
-        db.with_auth_transaction(|tx| {
-            use rusqlite::params;
-            tx.execute(
-                "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, ?2)",
-                params!["user_1", LEASE_SESSION_BASE_MS as i64 - 1],
-            )?;
-            tx.execute(
-                "INSERT INTO _auth_identities(
-                   id, user_id, provider, subject, verified_at_ms
-                 ) VALUES(?1, ?2, ?3, ?4, ?5)",
-                params![
-                    "identity_1",
-                    "user_1",
-                    "email-code",
-                    "lease@example.test",
-                    LEASE_SESSION_BASE_MS as i64 - 1,
-                ],
-            )?;
-            tx.execute(
-                "INSERT INTO _auth_sessions(
-                   id, user_id, identity_id, authority_instance_id, token_hash,
-                   generation, created_at_ms, last_used_at_ms, expires_at_ms,
-                   absolute_expires_at_ms, revoked_at_ms
-                 ) VALUES(?1, ?2, ?3, ?4, ?5, 1, ?6, ?6, ?7, ?8, NULL)",
-                params![
-                    "session_1",
-                    "user_1",
-                    "identity_1",
-                    LEASE_AUTHORITY_INSTANCE,
-                    vec![0x71_u8; 32],
-                    LEASE_SESSION_BASE_MS as i64 - 1,
-                    LEASE_SESSION_NOT_AFTER_MS as i64,
-                    (LEASE_SESSION_BASE_MS + 2 * 86_400_000) as i64,
-                ],
-            )?;
-            Ok(())
-        })
-        .expect("insert lease session rows");
+        db.auth_catalog()
+            .insert_email_session_for_test(
+                "user_1",
+                "identity_1",
+                "session_1",
+                LEASE_AUTHORITY_INSTANCE,
+                "lease@example.test",
+                &[0x71_u8; 32],
+                LEASE_SESSION_BASE_MS - 1,
+                LEASE_SESSION_BASE_MS - 1,
+                LEASE_SESSION_NOT_AFTER_MS,
+                LEASE_SESSION_BASE_MS + 2 * 86_400_000,
+            )
+            .expect("insert lease session rows");
         snapback
     }
 
