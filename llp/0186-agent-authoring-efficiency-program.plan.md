@@ -18,6 +18,9 @@ multiplicity becomes a first-class W1 measurement and W5 sequencing target;
 proof composition stays with LLP 0146 D2, and the new 0193–0197 documents
 receive the implementation and publication work rather than creating a second
 orchestrator.)
+**Revised:** 2026-08-09 (m — failure-to-recovery trace amendment: W1 lane
+reports gain a per-episode carrier-class trace; see the dated amendment.
+Adopted from the LLP 0207 dissolution.)
 **Related:** LLP 0061 (agent-first guide), LLP 0130 (Convex parity standing
 decisions), LLP 0146 (agentic authoring affordances), LLP 0176 (Expo
 messaging golden-path program), LLP 0178 (generate-time authoring
@@ -863,3 +866,24 @@ closure (`scripts/snapback-publish-core.mjs` `PACKAGE_INVENTORY`); adding it the
 promotion lane's receipts, so publication is ticketed for the next promotion sweep
 (`issues/20260807-create-snapback-app-publication.md`, alongside the expo-chat cold-install
 ticket above).
+
+## Amendment (2026-08-09): W1/W5 failure-to-recovery traces
+
+Adopted from the LLP 0207 super-refine close-out (that Plan was withdrawn
+and its live pieces dissolved to their owners; the dual-family review
+record under `llp/reviews/0207-*` is the provenance). W1 lane reports
+gain a **failure-to-recovery trace**: for every costly episode — the
+threshold defined in the run-record schema before the first measured run
+— the report records the first failed action, its carrier class
+(`SNAPBACK_*` refusal · compiler/codegen diagnostic · bare not-found ·
+silent discovery miss · other), semantic actions until recovery, and the
+recovery outcome. The schema also tags W5's existing semantic-action
+classes (guide/reference lookups, orientation reads) so reorientation
+cost is observable without a failed action. This is a run-record schema
+plus post-run annotation — no runtime telemetry — and it exists to
+answer, with evidence instead of intuition, which failure presentations
+(wrong-name guesses, serialized validation cycles, mid-session
+rediscovery, stale-name episodes) actually cost sessions before any
+mechanism aimed at them is commissioned. Mechanism proposals that would
+have consumed these traces are recorded in LLP 0207's close-out and in
+`issues/20260809-*-proposal.md`; none is commissioned by this amendment.

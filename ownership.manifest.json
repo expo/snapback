@@ -146,6 +146,7 @@
       "src/proof_checkpoint.rs",
       "src/secure_file.rs",
       "src/storage.rs",
+      "src/storage/asset_maintenance.rs",
       "src/storage/auth.rs",
       "src/storage/auth_agent_credentials.rs",
       "src/storage/auth_agents.rs",

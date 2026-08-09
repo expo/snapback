@@ -10075,18 +10075,15 @@ impl LocalSnapback {
         let mut report = AssetPublicationMaintenanceReport::default();
 
         // Planned records: probe the recorded key.
-        let planned = self.db.asset_transaction(|tx| {
-            assets::publications_in_state(tx, assets::AssetPublicationState::Planned)
-        })?;
+        let planned = self
+            .db
+            .asset_maintenance()
+            .publication_records_in_state(assets::AssetPublicationState::Planned)?;
         for mut record in planned {
-            let attempt = self.db.asset_transaction(|tx| {
-                record
-                    .attempt_id
-                    .as_deref()
-                    .map(|id| assets::load_attempt(tx, id))
-                    .transpose()
-                    .map(Option::flatten)
-            })?;
+            let attempt = self
+                .db
+                .asset_maintenance()
+                .publication_attempt(&record)?;
             let re_drivable = attempt.as_ref().is_some_and(|a| a.state.is_current());
             let object = crate::assets_store::AssetObjectRef::Blob(&record.planned_key);
             let object_verifies = store.exists(object)?
@@ -10095,26 +10092,13 @@ impl LocalSnapback {
                     .map(|hashed| hashed.digest == record.digest)
                     .unwrap_or(false);
             if object_verifies {
-                let asset_id = attempt.as_ref().map(|a| a.asset_id.clone());
-                self.db.asset_transaction(|tx| {
-                    assets::transition_publication(
-                        tx,
+                self.db
+                    .asset_maintenance()
+                    .publication_stage_verified_object(
                         &mut record,
-                        assets::AssetPublicationState::Staged,
+                        attempt.as_ref(),
                         now_ms,
                     )?;
-                    assets::write_receipt(
-                        tx,
-                        &asset_receipt(
-                            &record.publication_id.clone(),
-                            assets::AssetReceiptEventV1::PublicationRepaired,
-                            asset_id.as_deref().unwrap_or("unknown"),
-                            record.attempt_id.as_deref(),
-                            now_ms,
-                            serde_json::json!({ "action": "staged", "probe": "object-verified" }),
-                        ),
-                    )
-                })?;
                 report.staged += 1;
                 continue;
             }
@@ -10124,134 +10108,74 @@ impl LocalSnapback {
                     store.delete_blob(&record.planned_key).ok();
                     report.objects_deleted += 1;
                 }
-                let asset_id = attempt.as_ref().map(|a| a.asset_id.clone());
-                self.db.asset_transaction(|tx| {
-                    assets::transition_publication(
-                        tx,
+                self.db
+                    .asset_maintenance()
+                    .publication_condemn_not_redrivable(
                         &mut record,
-                        assets::AssetPublicationState::Condemned,
+                        attempt.as_ref(),
                         now_ms,
                     )?;
-                    assets::write_receipt(
-                        tx,
-                        &asset_receipt(
-                            &record.publication_id.clone(),
-                            assets::AssetReceiptEventV1::PublicationRepaired,
-                            asset_id.as_deref().unwrap_or("unknown"),
-                            record.attempt_id.as_deref(),
-                            now_ms,
-                            serde_json::json!({ "action": "condemned", "cause": "not-re-drivable" }),
-                        ),
-                    )
-                })?;
                 report.condemned += 1;
             }
         }
 
         // Staged records whose work is dead: condemn.
-        let staged = self.db.asset_transaction(|tx| {
-            assets::publications_in_state(tx, assets::AssetPublicationState::Staged)
-        })?;
+        let staged = self
+            .db
+            .asset_maintenance()
+            .publication_records_in_state(assets::AssetPublicationState::Staged)?;
         for mut record in staged {
-            let attempt = self.db.asset_transaction(|tx| {
-                record
-                    .attempt_id
-                    .as_deref()
-                    .map(|id| assets::load_attempt(tx, id))
-                    .transpose()
-                    .map(Option::flatten)
-            })?;
+            let attempt = self
+                .db
+                .asset_maintenance()
+                .publication_attempt(&record)?;
             if attempt.as_ref().is_some_and(|a| a.state.is_current()) {
                 continue;
             }
-            let asset_id = attempt.as_ref().map(|a| a.asset_id.clone());
-            self.db.asset_transaction(|tx| {
-                assets::transition_publication(
-                    tx,
-                    &mut record,
-                    assets::AssetPublicationState::Condemned,
-                    now_ms,
-                )?;
-                assets::write_receipt(
-                    tx,
-                    &asset_receipt(
-                        &record.publication_id.clone(),
-                        assets::AssetReceiptEventV1::PublicationRepaired,
-                        asset_id.as_deref().unwrap_or("unknown"),
-                        record.attempt_id.as_deref(),
-                        now_ms,
-                        serde_json::json!({ "action": "condemned", "cause": "work-terminal" }),
-                    ),
-                )
-            })?;
+            self.db
+                .asset_maintenance()
+                .publication_condemn_terminal_work(&mut record, attempt.as_ref(), now_ms)?;
             report.condemned += 1;
         }
 
         // Condemned records: delete the object (if any), then retire.
-        let condemned = self.db.asset_transaction(|tx| {
-            assets::publications_in_state(tx, assets::AssetPublicationState::Condemned)
-        })?;
+        let condemned = self
+            .db
+            .asset_maintenance()
+            .publication_records_in_state(assets::AssetPublicationState::Condemned)?;
         for record in condemned {
             let object = crate::assets_store::AssetObjectRef::Blob(&record.planned_key);
             // Never delete an object a live blob row owns (the reused-path
             // convergence shares digests, not keys, so this is exact).
-            let owned_by_blob = self.db.asset_transaction(|tx| {
-                Ok(tx
-                    .query_row(
-                        "SELECT COUNT(*) FROM _snapback_asset_blobs_v1
-                         WHERE physical_key = ?1 AND condemned = 0",
-                        [&record.planned_key],
-                        |row| row.get::<_, u64>(0),
-                    )
-                    .unwrap_or(0)
-                    > 0)
-            })?;
+            let owned_by_blob = self
+                .db
+                .asset_maintenance()
+                .publication_key_owned_by_live_blob(&record.planned_key)?;
             if store.exists(object)? && !owned_by_blob {
                 store.delete_blob(&record.planned_key)?;
                 report.objects_deleted += 1;
             }
-            self.db.asset_transaction(|tx| {
-                assets::retire_publication(tx, &record.publication_id)?;
-                assets::write_receipt(
-                    tx,
-                    &asset_receipt(
-                        &record.publication_id.clone(),
-                        assets::AssetReceiptEventV1::PublicationRepaired,
-                        "unknown",
-                        record.attempt_id.as_deref(),
-                        now_ms,
-                        serde_json::json!({ "action": "retired", "was": "condemned" }),
-                    ),
-                )
-            })?;
+            self.db
+                .asset_maintenance()
+                .publication_retire_condemned(&record, now_ms)?;
             report.retired += 1;
         }
 
         // Committed records past the retention window: the blob row is the
         // durable evidence; retire the record so the ceiling stays clear.
-        let committed = self.db.asset_transaction(|tx| {
-            assets::publications_in_state(tx, assets::AssetPublicationState::Committed)
-        })?;
+        let committed = self
+            .db
+            .asset_maintenance()
+            .publication_records_in_state(assets::AssetPublicationState::Committed)?;
         for record in committed {
             if now_ms.saturating_sub(record.updated_at_ms)
                 < crate::assets::ASSET_PUBLICATION_RETENTION_MS
             {
                 continue;
             }
-            self.db.asset_transaction(|tx| {
-                assets::retire_publication(tx, &record.publication_id)?;
-                assets::write_receipt(
-                    tx,
-                    &asset_receipt(
-                        &record.publication_id.clone(),
-                        assets::AssetReceiptEventV1::PublicationRepaired,
-                        "unknown",
-                        record.attempt_id.as_deref(),
-                        now_ms,
-                        serde_json::json!({ "action": "retired", "was": "committed" }),
-                    ),
-                )
-            })?;
+            self.db
+                .asset_maintenance()
+                .publication_retire_committed(&record, now_ms)?;
             report.retired += 1;
         }
         Ok(report)
@@ -10963,27 +10887,12 @@ impl LocalSnapback {
         // Attempt GC: expire overdue current attempts, then fence staging.
         let expired = self
             .db
-            .asset_transaction(|tx| assets::expired_current_attempts(tx, now_ms))?;
+            .asset_maintenance()
+            .gc_expired_current_attempts(now_ms)?;
         for mut attempt in expired {
-            self.db.asset_transaction(|tx| {
-                assets::transition_attempt(
-                    tx,
-                    &mut attempt,
-                    assets::AssetAttemptState::Expired,
-                    now_ms,
-                )?;
-                assets::write_receipt(
-                    tx,
-                    &asset_receipt(
-                        &attempt.attempt_id.clone(),
-                        assets::AssetReceiptEventV1::AttemptExpired,
-                        &attempt.asset_id,
-                        Some(&attempt.attempt_id),
-                        now_ms,
-                        serde_json::json!({ "cause": "gc-sweep" }),
-                    ),
-                )
-            })?;
+            self.db
+                .asset_maintenance()
+                .gc_expire_attempt(&mut attempt, now_ms)?;
             store.delete_staging_pair(&attempt.staging_key)?;
             report.expired_attempts += 1;
         }
@@ -10991,7 +10900,8 @@ impl LocalSnapback {
         // Staging orphans: files no current attempt owns (crash leftovers).
         let live: std::collections::HashSet<String> = self
             .db
-            .asset_transaction(assets::live_staging_keys)?
+            .asset_maintenance()
+            .gc_live_staging_keys()?
             .into_iter()
             .collect();
         for key in store.list_staging_keys()? {
@@ -11006,26 +10916,13 @@ impl LocalSnapback {
         let cutoff = now_ms.saturating_sub(assets::ASSET_PENDING_GRACE_MS);
         let reclaimable = self
             .db
-            .asset_transaction(|tx| assets::reclaimable_pending_assets(tx, cutoff))?;
+            .asset_maintenance()
+            .gc_reclaimable_pending_assets(cutoff)?;
         for mut asset in reclaimable {
-            let staging = self.db.asset_transaction(|tx| {
-                let staging = asset_delete_cascade(tx, &mut asset, "pending-asset-gc", now_ms)?;
-                assets::write_receipt(
-                    tx,
-                    &asset_receipt(
-                        &asset.asset_id.clone(),
-                        assets::AssetReceiptEventV1::GcReclaimed,
-                        &asset.asset_id,
-                        None,
-                        now_ms,
-                        serde_json::json!({
-                            "policy": "pending-asset-gc",
-                            "graceMs": assets::ASSET_PENDING_GRACE_MS,
-                        }),
-                    ),
-                )?;
-                Ok(staging)
-            })?;
+            let staging = self
+                .db
+                .asset_maintenance()
+                .gc_reclaim_pending_asset(&mut asset, now_ms)?;
             if let Some(staging_key) = staging {
                 store.delete_staging_pair(&staging_key)?;
             }
@@ -11043,34 +10940,13 @@ impl LocalSnapback {
             let cutoff = now_ms.saturating_sub(grace_ms);
             let candidates = self
                 .db
-                .asset_transaction(|tx| assets::reclaimable_reference_gc_assets(tx, cutoff))?;
+                .asset_maintenance()
+                .gc_reclaimable_reference_assets(cutoff)?;
             for mut asset in candidates {
-                let reclaimed = self.db.asset_transaction(|tx| {
-                    let current = assets::load_asset(tx, &asset.asset_id)?;
-                    let still_eligible = current.as_ref().is_some_and(|current| {
-                        current.availability == assets::AssetAvailability::Ready
-                    }) && assets::load_edges_for_asset(tx, &asset.asset_id)?
-                        .is_empty();
-                    if !still_eligible {
-                        return Ok(false);
-                    }
-                    asset_delete_cascade(tx, &mut asset, "reference-gc", now_ms)?;
-                    assets::write_receipt(
-                        tx,
-                        &asset_receipt(
-                            &asset.asset_id.clone(),
-                            assets::AssetReceiptEventV1::GcReclaimed,
-                            &asset.asset_id,
-                            None,
-                            now_ms,
-                            serde_json::json!({
-                                "policy": "reference-gc",
-                                "graceMs": grace_ms,
-                            }),
-                        ),
-                    )?;
-                    Ok(true)
-                })?;
+                let reclaimed = self
+                    .db
+                    .asset_maintenance()
+                    .gc_reclaim_reference_asset(&mut asset, grace_ms, now_ms)?;
                 if reclaimed {
                     report.reference_reclaimed += 1;
                     reclaimed_asset_ids.push(asset.asset_id.clone());
@@ -11082,21 +10958,12 @@ impl LocalSnapback {
         let tombstone_cutoff = now_ms.saturating_sub(assets::ASSET_TOMBSTONE_RETENTION_MS);
         let purgeable = self
             .db
-            .asset_transaction(|tx| assets::purgeable_tombstones(tx, tombstone_cutoff))?;
+            .asset_maintenance()
+            .gc_purgeable_tombstones(tombstone_cutoff)?;
         for asset_id in purgeable {
-            self.db.asset_transaction(|tx| {
-                tx.execute(
-                    "DELETE FROM _snapback_asset_renditions_v1
-                     WHERE asset_id = ?1 AND state = 'retired'",
-                    [&asset_id],
-                )?;
-                tx.execute(
-                    "DELETE FROM _snapback_asset_records_v1
-                     WHERE asset_id = ?1 AND availability = 'deleted'",
-                    [&asset_id],
-                )?;
-                Ok(())
-            })?;
+            self.db
+                .asset_maintenance()
+                .gc_purge_tombstone(&asset_id)?;
             report.tombstones_purged += 1;
         }
 
@@ -11106,7 +10973,8 @@ impl LocalSnapback {
             now_ms.saturating_sub(assets::ASSET_DELIVERY_RECEIPT_RETENTION_MS);
         report.delivery_receipts_purged = self
             .db
-            .asset_transaction(|tx| assets::purge_delivery_receipts(tx, delivery_receipt_cutoff))?;
+            .asset_maintenance()
+            .gc_purge_delivery_receipts(delivery_receipt_cutoff)?;
 
         // Blob GC: condemn transactionally, delete the object, then drop the
         // condemned row — each step receipted and crash-recoverable (a
@@ -11114,81 +10982,37 @@ impl LocalSnapback {
         let blob_cutoff = now_ms.saturating_sub(assets::ASSET_BLOB_RETENTION_MS);
         let condemnable = self
             .db
-            .asset_transaction(|tx| assets::condemnable_blobs(tx, blob_cutoff))?;
+            .asset_maintenance()
+            .gc_condemnable_blobs(blob_cutoff)?;
         for blob in condemnable {
-            let condemned = self.db.asset_transaction(|tx| {
-                let condemned = assets::condemn_blob_if_unreferenced(tx, &blob.blob_id, now_ms)?;
-                if condemned {
-                    assets::write_receipt(
-                        tx,
-                        &asset_receipt(
-                            &blob.blob_id.clone(),
-                            assets::AssetReceiptEventV1::GcReclaimed,
-                            &blob.blob_id,
-                            None,
-                            now_ms,
-                            serde_json::json!({
-                                "policy": "blob-gc",
-                                "action": "condemned",
-                                "retentionMs": assets::ASSET_BLOB_RETENTION_MS,
-                            }),
-                        ),
-                    )?;
-                }
-                Ok(condemned)
-            })?;
+            let condemned = self
+                .db
+                .asset_maintenance()
+                .gc_condemn_blob(&blob, now_ms)?;
             if condemned {
                 report.blobs_condemned += 1;
             }
         }
-        for blob in self.db.asset_transaction(assets::condemned_blobs)? {
+        for blob in self.db.asset_maintenance().gc_condemned_blobs()? {
             if store.exists(crate::assets_store::AssetObjectRef::Blob(
                 &blob.physical_key,
             ))? {
                 store.delete_blob(&blob.physical_key)?;
                 report.blob_objects_deleted += 1;
             }
-            self.db.asset_transaction(|tx| {
-                assets::delete_blob_row(tx, &blob.blob_id)?;
-                assets::write_receipt(
-                    tx,
-                    &asset_receipt(
-                        &blob.blob_id.clone(),
-                        assets::AssetReceiptEventV1::GcReclaimed,
-                        &blob.blob_id,
-                        None,
-                        now_ms,
-                        serde_json::json!({ "policy": "blob-gc", "action": "purged" }),
-                    ),
-                )
-            })?;
+            self.db
+                .asset_maintenance()
+                .gc_purge_condemned_blob(&blob, now_ms)?;
             report.blob_rows_removed += 1;
         }
 
         // Retained-artifact GC: superseded intent generations whose last open
         // attempt has terminated release their authorizer artifacts, each
         // reclamation receipted (intent-scoped — no asset lineage).
-        report.intent_artifacts_reclaimed = self.db.asset_transaction(|tx| {
-            let reclaimed = assets::reclaim_intent_artifacts(tx)?;
-            for (intent_id, generation) in &reclaimed {
-                assets::write_receipt(
-                    tx,
-                    &assets::AssetReceiptV1 {
-                        receipt_id: assets::AssetFsStore::new_opaque_key(),
-                        operation_lineage: format!("intent:{intent_id}"),
-                        event: assets::AssetReceiptEventV1::IntentArtifactReclaimed,
-                        asset_id: None,
-                        attempt_id: None,
-                        at_ms: now_ms,
-                        details: serde_json::json!({
-                            "intentId": intent_id,
-                            "policyGeneration": generation,
-                        }),
-                    },
-                )?;
-            }
-            Ok(reclaimed.len() as u64)
-        })?;
+        report.intent_artifacts_reclaimed = self
+            .db
+            .asset_maintenance()
+            .gc_reclaim_intent_artifacts(now_ms)?;
 
         report.publication = self.asset_publication_maintain(now_ms)?;
         self.notify_asset_record_change(&reclaimed_asset_ids);
@@ -11202,116 +11026,24 @@ impl LocalSnapback {
     /// function is the deterministic drive tests call directly, and it never
     /// records sweeper-level success as the work's success (LLP 0127's bar).
     pub(crate) fn asset_runner_tick(&mut self, now_ms: u64) -> SnapbackResult<AssetRunnerReport> {
-        use crate::assets;
         let mut report = AssetRunnerReport::default();
 
         // Phase A: expired leases become enqueued again — an explicit,
         // receipted transition, never a silent claim-metadata mutation.
-        let reclaimed = self.db.asset_transaction(|tx| {
-            let expired = assets::load_expired_leases(tx, now_ms, assets::ASSET_WORK_CLAIM_BATCH)?;
-            let mut count = 0u64;
-            for mut row in expired {
-                row.lease_owner = None;
-                row.lease_expires_at_ms = None;
-                row.next_eligible_at_ms = now_ms;
-                assets::transition_work(tx, &mut row, assets::AssetWorkState::Enqueued, now_ms)?;
-                assets::write_receipt(
-                    tx,
-                    &asset_receipt(
-                        &row.work_id,
-                        assets::AssetReceiptEventV1::WorkLeaseReclaimed,
-                        &row.asset_id,
-                        row.attempt_id.as_deref(),
-                        now_ms,
-                        serde_json::json!({ "kind": row.kind, "attemptCount": row.attempt_count }),
-                    ),
-                )?;
-                count += 1;
-            }
-            Ok(count)
-        })?;
+        let reclaimed = self
+            .db
+            .asset_maintenance()
+            .runner_reclaim_expired_leases(now_ms)?;
         report.leases_reclaimed = reclaimed;
 
         // Phase B: claim due rows. The generation fence and the deadline are
         // claim-time checks, so cancelled/exhausted rows never hold a lease.
-        let claimed: Vec<assets::AssetWorkRowV1> = self.db.asset_transaction(|tx| {
-            let due = assets::load_due_work(tx, now_ms, assets::ASSET_WORK_CLAIM_BATCH)?;
-            let mut claimed = Vec::new();
-            for mut row in due {
-                let asset = assets::load_asset(tx, &row.asset_id)?;
-                let fenced = match &asset {
-                    None => true,
-                    Some(asset) => asset.lifecycle_generation != row.lifecycle_generation,
-                };
-                if fenced {
-                    assets::transition_work(
-                        tx,
-                        &mut row,
-                        assets::AssetWorkState::Cancelled,
-                        now_ms,
-                    )?;
-                    assets::write_receipt(
-                        tx,
-                        &asset_receipt(
-                            &row.work_id,
-                            assets::AssetReceiptEventV1::WorkCancelled,
-                            &row.asset_id,
-                            row.attempt_id.as_deref(),
-                            now_ms,
-                            serde_json::json!({
-                                "kind": row.kind,
-                                "cause": "generation-fence",
-                            }),
-                        ),
-                    )?;
-                    report.cancelled += 1;
-                    continue;
-                }
-                if now_ms > row.deadline_at_ms {
-                    row.failure =
-                        Some(serde_json::json!({ "cause": "deadline exceeded before completion" }));
-                    assets::transition_work(tx, &mut row, assets::AssetWorkState::Claimed, now_ms)?;
-                    assets::transition_work(
-                        tx,
-                        &mut row,
-                        assets::AssetWorkState::Exhausted,
-                        now_ms,
-                    )?;
-                    assets::write_receipt(
-                        tx,
-                        &asset_receipt(
-                            &row.work_id,
-                            assets::AssetReceiptEventV1::WorkExhausted,
-                            &row.asset_id,
-                            row.attempt_id.as_deref(),
-                            now_ms,
-                            serde_json::json!({ "kind": row.kind, "cause": "deadline" }),
-                        ),
-                    )?;
-                    report.exhausted += 1;
-                    continue;
-                }
-                row.lease_owner = Some("local-runner".to_owned());
-                row.lease_expires_at_ms = Some(now_ms + assets::ASSET_WORK_LEASE_MS);
-                // Mirror the lease deadline into the indexed column so one
-                // index serves the due scan and the expired-lease scan.
-                row.next_eligible_at_ms = now_ms + assets::ASSET_WORK_LEASE_MS;
-                assets::transition_work(tx, &mut row, assets::AssetWorkState::Claimed, now_ms)?;
-                assets::write_receipt(
-                    tx,
-                    &asset_receipt(
-                        &row.work_id,
-                        assets::AssetReceiptEventV1::WorkClaimed,
-                        &row.asset_id,
-                        row.attempt_id.as_deref(),
-                        now_ms,
-                        serde_json::json!({ "kind": row.kind, "attemptCount": row.attempt_count }),
-                    ),
-                )?;
-                claimed.push(row);
-            }
-            Ok(claimed)
-        })?;
+        let (claimed, cancelled, exhausted) = self
+            .db
+            .asset_maintenance()
+            .runner_claim_due_work(now_ms)?;
+        report.cancelled += cancelled;
+        report.exhausted += exhausted;
         report.claimed = claimed.len() as u64;
 
         // Phase C: drive each claimed row by kind, then settle it with its
@@ -11319,100 +11051,13 @@ impl LocalSnapback {
         // are idempotent, exactly like finalization's object puts.
         for mut row in claimed {
             let outcome = self.asset_execute_work(&row, now_ms);
-            self.db.asset_transaction(|tx| match &outcome {
-                Ok(authority_receipt) => {
-                    assets::transition_work(tx, &mut row, assets::AssetWorkState::Done, now_ms)?;
-                    let mut details = serde_json::json!({ "kind": row.kind });
-                    if let Some(authority) = authority_receipt {
-                        details["authority"] = authority.clone();
-                    }
-                    assets::write_receipt(
-                        tx,
-                        &asset_receipt(
-                            &row.work_id,
-                            assets::AssetReceiptEventV1::WorkCompleted,
-                            &row.asset_id,
-                            row.attempt_id.as_deref(),
-                            now_ms,
-                            details,
-                        ),
-                    )?;
-                    report.completed += 1;
-                    Ok(())
-                }
-                Err(error) => {
-                    row.attempt_count += 1;
-                    row.failure = Some(serde_json::json!({ "code": error.diagnostic.code }));
-                    // A programmer-error kind can never succeed on retry;
-                    // exhaust it on first observation instead of burning the
-                    // ceiling on deterministic failures.
-                    let unretryable = matches!(
-                        error.diagnostic.code.as_str(),
-                        "SNAPBACK_ASSET_WORK_KIND_UNKNOWN" | "SNAPBACK_ASSET_WORK_PARAMS_INVALID"
-                    );
-                    if unretryable || row.attempt_count >= row.retry_ceiling {
-                        assets::transition_work(
-                            tx,
-                            &mut row,
-                            assets::AssetWorkState::Exhausted,
-                            now_ms,
-                        )?;
-                        assets::write_receipt(
-                            tx,
-                            &asset_receipt(
-                                &row.work_id,
-                                assets::AssetReceiptEventV1::WorkExhausted,
-                                &row.asset_id,
-                                row.attempt_id.as_deref(),
-                                now_ms,
-                                serde_json::json!({
-                                    "kind": row.kind,
-                                    "cause": "retry-ceiling",
-                                    "failure": error.diagnostic.code,
-                                    "attemptCount": row.attempt_count,
-                                }),
-                            ),
-                        )?;
-                        report.exhausted += 1;
-                        return Ok(());
-                    }
-                    // Retrying is transient: it re-enters enqueued with the
-                    // backoff-derived eligibility in this same transaction.
-                    assets::transition_work(
-                        tx,
-                        &mut row,
-                        assets::AssetWorkState::Retrying,
-                        now_ms,
-                    )?;
-                    row.lease_owner = None;
-                    row.lease_expires_at_ms = None;
-                    row.next_eligible_at_ms = now_ms + assets::work_backoff_ms(row.attempt_count);
-                    assets::transition_work(
-                        tx,
-                        &mut row,
-                        assets::AssetWorkState::Enqueued,
-                        now_ms,
-                    )?;
-                    assets::write_receipt(
-                        tx,
-                        &asset_receipt(
-                            &row.work_id,
-                            assets::AssetReceiptEventV1::WorkRetrying,
-                            &row.asset_id,
-                            row.attempt_id.as_deref(),
-                            now_ms,
-                            serde_json::json!({
-                                "kind": row.kind,
-                                "failure": error.diagnostic.code,
-                                "attemptCount": row.attempt_count,
-                                "nextEligibleAtMs": row.next_eligible_at_ms,
-                            }),
-                        ),
-                    )?;
-                    report.retried += 1;
-                    Ok(())
-                }
-            })?;
+            let (completed, retried, exhausted) = self
+                .db
+                .asset_maintenance()
+                .runner_settle_work(&mut row, &outcome, now_ms)?;
+            report.completed += completed;
+            report.retried += retried;
+            report.exhausted += exhausted;
         }
         Ok(report)
     }

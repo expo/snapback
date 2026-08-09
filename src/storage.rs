@@ -33,6 +33,7 @@ use uuid::Uuid;
 
 pub(crate) const SEQUENCE_MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 
+mod asset_maintenance;
 // The item-3 provider integration consumes these crate-private seams after this
 // catalog lane lands; keep the catalog module narrow without making unfinished
 // provider routes part of the public storage API in this commit.
@@ -47,6 +48,7 @@ mod projection_rebuild;
 mod schema_transition;
 
 use connections::registered_writer_coverage_manifest;
+pub use asset_maintenance::AssetMaintenanceKernel;
 pub use connections::{PooledReader, ReaderPool};
 #[allow(unused_imports)] // Preserve the pre-split crate::storage surface.
 pub(crate) use connections::{
@@ -1933,6 +1935,10 @@ fn inspect_storage_for_open(conn: &Connection) -> SnapbackResult<()> {
 }
 
 impl LocalDatabase {
+    pub fn asset_maintenance(&mut self) -> AssetMaintenanceKernel<'_> {
+        AssetMaintenanceKernel::new(self)
+    }
+
     pub fn jobs(&mut self) -> JobsKernel<'_> {
         JobsKernel::new(self)
     }
