@@ -1247,6 +1247,9 @@ fn route_schema_refs(method: &str, path: &str) -> (Option<&'static str>, Option<
             Some("auth.exchange.input.schema.json"),
             Some("auth.credential.output.schema.json"),
         ),
+        // LLP 0204 S2 Landing A uses handler-owned closed DTOs; no committed
+        // standalone schema artifacts exist yet, so null is honest.
+        ("POST", "/auth/integrations/retire") => (None, None),
         ("POST", "/query/{name}" | "/api/v1/query/{name}") => (
             Some("query.input.schema.json"),
             Some("query.output.schema.json"),
@@ -1318,6 +1321,12 @@ fn route_schema_refs(method: &str, path: &str) -> (Option<&'static str>, Option<
         ),
         ("GET", "/_snapback/api/inspect") => (None, Some("inspect.admin.schema.json")),
         ("GET", "/_snapback/api/control-catalog") => (None, Some("control-catalog.v1.schema.json")),
+        (
+            "POST",
+            "/_snapback/api/auth/integrations/{id}/retire"
+            | "/_snapback/api/auth/integrations/{id}/suspend"
+            | "/_snapback/api/auth/integrations/{id}/resume",
+        ) => (None, None),
         _ => (None, None),
     }
 }

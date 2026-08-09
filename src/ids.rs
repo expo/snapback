@@ -71,6 +71,9 @@ pub enum Kind {
     PairingRequest,
     GrantRequest,
     Grant,
+    /// One app-visible integration registration. The principal itself remains
+    /// a random `usr_` id; this row id is chronological operational metadata.
+    Integration,
     // --- runtime and protocol --------------------------------------------
     Mutation,
     Connection,
@@ -146,6 +149,7 @@ impl Kind {
             Kind::PairingRequest => ("pair", TimeOrdered),
             Kind::GrantRequest => ("greq", TimeOrdered),
             Kind::Grant => ("grt", TimeOrdered),
+            Kind::Integration => ("intg", TimeOrdered),
 
             // These five keep the spellings they already had in the tree, so
             // only the body encoding changes for them.
@@ -206,6 +210,7 @@ pub const ALL: &[Kind] = &[
     Kind::PairingRequest,
     Kind::GrantRequest,
     Kind::Grant,
+    Kind::Integration,
     Kind::Mutation,
     Kind::Connection,
     Kind::Subscription,

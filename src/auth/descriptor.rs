@@ -217,6 +217,7 @@ mod tests {
             effective_user_id: Some("user-a".to_owned()),
             scopes: Vec::new(),
             token_expires_at_ms: 10_000,
+            integration_status: None,
         }
     }
 

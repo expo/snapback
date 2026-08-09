@@ -128,6 +128,10 @@ pub(crate) mod auth_scope_bases;
 #[path = "storage/auth_grants.rs"]
 pub(crate) mod auth_grants;
 
+// @ref LLP 0055#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08 — integration public identity and reversible admission live in a manifest-activated companion catalog, separate from versioned `_auth_*` shapes.
+#[path = "storage/auth_integrations.rs"]
+pub(crate) mod auth_integrations;
+
 #[allow(dead_code)]
 #[path = "storage/auth_rescue.rs"]
 pub(crate) mod auth_rescue;

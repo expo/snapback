@@ -3,9 +3,9 @@ title: Assets
 id: backend.assets
 order: 9
 audience: agent-first
-capabilities: [backend.assets]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0181-zero-configuration-expo.rfc.md, src/assets.rs, src/assets_cut.rs, src/cli.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-react/index.d.mts, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md, demos/zerobugs/control/snapback/functions.mjs, demos/zerobugs/control/composition/server.mts]
-examples: [demos/party-wall, demos/file-drop, demos/tandem-expo-bakeoff, demos/expo-golden-path-fixture, demos/zerobugs/control]
+capabilities: [backend.assets, clients.asset-signed-delivery, clients.asset-upload]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0210-asset-upload-dx-closure.rfc.md, src/assets.rs, src/assets_cut.rs, src/cli.rs, src/local.rs, src/server.rs, src/server/asset_routes.rs, packages/snapback-client/assets.mjs, packages/snapback-codegen/define.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md, demos/zerobugs/control/snapback/functions.mjs, demos/zerobugs/control/composition/server.mts]
+examples: [demos/party-wall, demos/file-drop, demos/tandem-expo-bakeoff, demos/expo-golden-path-fixture, demos/zerobugs/control, packages/snapback-client/assets.test.mjs, packages/snapback-react/assets.test.mjs]
 status: current
 targets: [local]
 maturity: partial
@@ -501,6 +501,182 @@ the reviewed status posture in [LLP 0012](repo:llp/0012-headless-integration-con
 and the per-profile offer contract in
 [LLP 0096](repo:llp/0096-auth-profiles-for-protocol-clients.spec.md).
 
+<!-- since: 0.1.16 unreleased -->
+
+> **Unreleased.** The signed-delivery client, one-call upload helper, and
+> settlement contract below are newer than the newest published closure,
+> 0.1.15. Use a source checkout until a later closure publishes them.
+
+### Issue and refresh a private signed URL
+
+The signed-URL request body is the closed object `{ variant?, widthPx?,
+ttlMs? }`. Omitting `variant` selects `primary`; an entirely absent or empty
+body and `{}` are valid default requests. `widthPx` selects a bounded ladder
+rendition and supersedes `variant`. `ttlMs` must be between 1 and the target's
+declared `assets.signedUrlMaxTtlMs` (86,400,000 ms on the local target); when
+omitted, the target's declared default applies (900,000 ms locally).
+
+Request parsing never escapes as a framework 422. Malformed JSON, unknown
+members, or a wrongly typed field refuse with
+`SNAPBACK_ASSET_REQUEST_INVALID`, whose details name the field. An authorized
+request for an undeclared variant refuses with
+`SNAPBACK_ASSET_VARIANT_UNKNOWN`; `details.variants` enumerates `primary` plus
+the intent's declared keys. Authorization runs before that enumeration. An
+unauthorized caller gets the same ordinary `SNAPBACK_ASSET_FORBIDDEN` denial
+for an existing or nonexistent asset, with no variant list or existence
+oracle.
+
+Use the framework-neutral asset client instead of posting to the route. Each
+`assets.signedUrl(assetId, options)` call performs one pure issuance, adds the
+current client-owned custody headers and auth-client protocol offer, resolves a relative
+server response against the client's base URL, and returns
+`{ url, expiresAt, variant }`. It deliberately does not cache.
+
+For a non-React renderer, call `assets.issuedUrlStore(assetId, options)` and
+subscribe to its external-store contract. Equal asset/option/authority keys
+share one issuance loop. Render its five states this way:
+
+| State | URL | Rendering meaning |
+| --- | --- | --- |
+| `issuing` | `null` | Initial or post-expiry issuance is in flight; render a loading placeholder. |
+| `ready` | valid | Render the URL. A transient refresh failure may leave this state and attach a diagnostic while the held URL is still valid. |
+| `refreshing` | valid | Keep rendering the held URL while replacement issuance is in flight. |
+| `unavailable` | `null` | No valid URL is held after a transport or server failure; render the offline/error fallback while bounded retry continues. |
+| `denied` | `null` | A structured authorization refusal blanked the URL and stopped timer retry; render the access-denied state. |
+
+`store.refresh()` is the explicit exit from `denied` after the application
+expects authority to have returned. Logout or authority replacement disposes
+the old entry synchronously, and a final unsubscribe fences in-flight work.
+
+React and Expo use `useSnapbackAssetUrl`, which projects that same controller;
+it does not add another cache or timer. The hook returns the five-state
+snapshot plus a stable `refresh()`:
+
+```ts source=packages/snapback-react/asset-upload-types.fixture.ts
+const issuedUrl: AssetUrlState = useSnapbackAssetUrl('asset-1', {
+  variant: 'chat',
+  widthPx: 640,
+  ttlMs: 30_000,
+});
+issuedUrl.url?.toUpperCase();
+const issuedDiagnostic: AssetDiagnostic | null = issuedUrl.diagnostic;
+const refreshed: Promise<void> = issuedUrl.refresh();
+void issuedDiagnostic;
+void refreshed;
+```
+
+TTL refresh is platform-owned. Applications should not hand-roll issuance
+fetches, custody headers, URL caches, expiry timers, or one cache per
+component; those were pilot workarounds and are now replaced by
+`signedUrl`, `issuedUrlStore`, and `useSnapbackAssetUrl`.
+
+### Upload when you only need the ready asset id
+
+Use `assets.upload(uploadRef, source, { args? })` when the caller needs only a
+ready asset id. It accepts the same normalized inputs as the platform
+adapters: `File`, `Blob`, or picker-shaped
+`{ uri, mimeType?, fileName? }`. It never retries and exposes no progress;
+use `assets.start()` when the UI needs pause, resume, cancel, retry, preview,
+or progress.
+
+The raw task contract is frozen: `task.done` resolves at the first terminal
+status — `ready | rejected | cancelled | failed`. `ready` is the only success.
+`assets.upload()` therefore resolves with `assetId` only for `ready` and
+rejects every other row with an error carrying `terminalStatus` and the
+structured `diagnostic`. The package fixture pins both branches:
+
+```js source=packages/snapback-client/assets.test.mjs
+    if (status === 'ready') {
+      assert.equal(
+        await assets.upload(AVATAR_UPLOAD_REF, new Blob(['x'])),
+        'asset_upload_helper',
+      );
+    } else {
+      await assert.rejects(
+        assets.upload(AVATAR_UPLOAD_REF, new Blob(['x'])),
+        (error) => error instanceof Error
+          && error.status === status
+          && error.terminalStatus === status
+          && error.diagnostic.code === 'SNAPBACK_ASSET_TEST_TRANSIENT'
+          && error.diagnostic.details.row === status,
+      );
+    }
+```
+
+The settled task snapshot and its `done` value never mutate. An eligible
+`retry()` returns a successor task for the same asset id with an independent
+generation; the predecessor stays frozen. `failed` and `cancelled` are
+eligible only while the underlying asset remains pending, while `ready` and
+`rejected` are never eligible. Any ineligible retry creates no successor and
+refuses with `SNAPBACK_ASSET_RETRY_INELIGIBLE`.
+
+### Compose view-once access with per-recipient grant rows
+
+Today's supported view-once recipe is the pilot-proven composition of ordinary
+app rows with `via-references` asset authorization. Give the media intent
+`access: { read: 'via-references' }` and a revocable delivery profile. Put its
+typed reference in a dedicated row whose owner-principal sharing field is the
+current viewer:
+
+```js fragment reason="pilot-proven row composition; no in-repo fixture contains the complete app-specific authorization checks"
+mediaGrants: defineTable({
+  messageId: v.id('messages'),
+  targetPrincipal: v.principal(),
+  viewerPrincipal: v.principal(),
+  asset: v.assetRef({ upload: 'messageImageUpload' }),
+  state: v.string(), // 'pending' | 'active'
+})
+  .index('by_message_target', ['messageId', 'targetPrincipal'], { unique: true })
+  .assetSharing({ kind: 'owner', field: 'viewerPrincipal' })
+  .sync(),
+```
+
+At send time, the sender calls `ctx.assets.attach` and inserts one grant row
+per recipient. Set `targetPrincipal` to the recipient, but set
+`viewerPrincipal` to the sender and `state` to `pending`; the sender must
+pre-mint because `ctx.assets.attach` admits the asset owner, not the future
+viewer. The row's typed `asset` field is also the reverse reference that keeps
+the asset protected through this pending window.
+
+In the recipient's authorized `open()` mutation, verify the message and
+recipient, reject an already-consumed view in an app-owned consumption row,
+then patch that recipient's grant row atomically:
+
+```js fragment reason="application-specific authorization and consumption checks surround this core transfer-at-open operation"
+await ctx.db.patch('mediaGrants', grant._id, {
+  viewerPrincipal: ctx.auth.userId,
+  state: 'active',
+});
+```
+
+The viewer can now issue or fetch under the intent's delivery profile. On
+`close()`, delete that recipient's grant row; delete-for-everyone deletes all
+rows for the message. Remove any remaining typed references before deleting
+the asset itself. Never recreate a consumed row: the separate consumption
+record is what makes a second `open()` refuse rather than minting authority
+again.
+
+Two constraints are load-bearing:
+
+- The grant row must be the recipient's **sole authority path**. A public
+  profile, another recipient-visible `assetSharing` table, or another
+  `via-references` edge would bypass the pending/close transition. A message
+  row may retain a typed asset reference for storage integrity, but that table
+  must not declare asset sharing that admits the recipient.
+- A typed reverse reference must remain alive for the entire pending window.
+  The pre-minted grant row supplies one above; do not replace it with a plain
+  asset-id string, or reference GC can reclaim the asset before `open()`.
+
+With `private-signed`, closing stops new issuance but an already-issued bearer
+URL remains usable until its TTL; with `private-strict`, revocation applies on
+the next governed request. Neither profile can retract bytes the viewer has
+already copied, so view-once media must not enter a durable application cache.
+
+First-class `ctx.assets.grant` / `activate` / `revoke` operations are designed
+in [LLP 0210 D5(b)](repo:llp/0210-asset-upload-dx-closure.rfc.md#d5--recipient-scoped-authority-recipe-now-grant-ops-as-the-paved-spelling),
+but they remain author-gated and unshipped. Do not call them. The grant-row
+recipe above is the supported path on today's primitives.
+
 ## Images
 
 Declare a location policy on every image intent — omission refuses at
@@ -873,3 +1049,19 @@ TTL, and count ceilings a suite can read before sending a byte. Ready
 records expose the canonical `digest`, `digestAlgorithm`, and
 `integrityGrade` as ordinary queryable facts on the record view and
 `snapback assets inspect`.
+
+## Anti-patterns
+
+- **Do not post to `/signed-url` or cache bearer URLs by hand.** Use
+  [`assets.signedUrl`, `issuedUrlStore`, or `useSnapbackAssetUrl`](#issue-and-refresh-a-private-signed-url)
+  so custody, absolute URLs, authority blanking, and TTL refresh keep one
+  owner.
+- **Do not treat `task.done` resolution as upload success without checking its
+  terminal row.** Use [`assets.upload()`](#upload-when-you-only-need-the-ready-asset-id)
+  for settle-or-reject behavior, or branch on all four raw terminal statuses.
+- **Do not add a second recipient-readable reference to view-once media.** Keep
+  the [per-recipient grant row](#compose-view-once-access-with-per-recipient-grant-rows)
+  as the sole authority edge and retain a typed reverse reference until open
+  or cancellation.
+- **Do not call the designed grant operations yet.** LLP 0210 D5(b) is a
+  design reference, not a shipped API; use the row composition above.

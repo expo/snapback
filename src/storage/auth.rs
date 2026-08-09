@@ -2108,6 +2108,14 @@ fn validate_exact(
         .map(|index| index.name)
         .collect::<BTreeSet<_>>();
 
+    // @ref LLP 0055#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08 — the manifest-owned integration companion is recognized and validated exactly without changing the frozen auth catalog version or `_auth_*` shapes.
+    if objects.iter().any(|object| {
+        object.kind == "table"
+            && object.name == super::auth_integrations::INTEGRATION_RECORD_TABLE
+    }) {
+        super::auth_integrations::validate_exact_schema(conn)?;
+    }
+
     for table in schema.tables {
         let Some(object) = by_name.get(table.name) else {
             return Err(corrupt_with_object(

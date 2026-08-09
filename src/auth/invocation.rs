@@ -312,6 +312,10 @@ pub enum ResolvedAppAuthority {
         effective_user_id: Option<String>,
         scopes: Vec<ResolvedGrantScope>,
         token_expires_at_ms: u64,
+        /// Present only for an integration registration. Fresh carrier
+        /// resolution loads this app-scoped admission fact before the shared
+        /// function-policy chokepoint runs.
+        integration_status: Option<crate::storage::auth_integrations::IntegrationStatus>,
     },
     AdminBypass {
         reason: String,
@@ -401,6 +405,7 @@ impl ResolvedAppAuthority {
                 .map(ResolvedGrantScope::from_exact)
                 .collect(),
             token_expires_at_ms: token.expires_at_ms,
+            integration_status: token.integration_status,
         }
     }
 
@@ -1571,6 +1576,7 @@ impl InvocationGate {
             effective_user_id: None,
             scopes: vec![ResolvedGrantScope::from_exact(principal.scope.clone())],
             token_expires_at_ms: u64::MAX,
+            integration_status: None,
         };
         let mut authority = Self::prepare_admitted_authority_inner(
             InvocationSource::AssetCallback,
@@ -1696,7 +1702,13 @@ fn evaluate_function_policy(
     }
     let mut authority_creating_consent = false;
     let mut matched_grant_scope = None;
-    if let ResolvedAppAuthority::ServicePrincipal { scopes, .. } = &authority.resolved {
+    if let ResolvedAppAuthority::ServicePrincipal {
+        scopes,
+        actor_user_id,
+        integration_status,
+        ..
+    } = &authority.resolved
+    {
         let scope = scopes
             .iter()
             .find(|scope| scope.function_id == function.id && scope.kind == function.kind)
@@ -1719,6 +1731,20 @@ fn evaluate_function_policy(
                 "functionId": function.id,
                 "function": function.name,
             })));
+        }
+        // @ref LLP 0055#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08 — suspended integration admission is checked beside external exposure on every invocation; it is not credential/grant revocation.
+        match integration_status {
+            Some(crate::storage::auth_integrations::IntegrationStatus::Suspended) => {
+                return Err(crate::storage::auth_integrations::integration_suspended(
+                    actor_user_id,
+                ));
+            }
+            Some(crate::storage::auth_integrations::IntegrationStatus::Revoked) => {
+                return Err(crate::storage::auth_integrations::integration_revoked(
+                    actor_user_id,
+                ));
+            }
+            Some(crate::storage::auth_integrations::IntegrationStatus::Active) | None => {}
         }
         authority_creating_consent = scope.authority_creating;
         matched_grant_scope = Some(scope.clone());
@@ -1972,6 +1998,51 @@ mod tests {
     }
 
     #[test]
+    fn suspended_integration_is_refused_at_the_shared_invocation_gate() {
+        let function = function(Some(AuthRequirement::Authenticated));
+        let service = |status| {
+            InvocationGate::prepare_authority(
+                InvocationSource::LiveInitialQuery,
+                AuthMode::Sessions,
+                ServerProfile::Test,
+                0,
+                0,
+                &WireAuthorityFields::default(),
+                ResolvedAppAuthority::ServicePrincipal {
+                    actor_user_id: "integration-1".to_owned(),
+                    credential_id: "credential-1".to_owned(),
+                    credential_generation: 1,
+                    grant_id: "grant-1".to_owned(),
+                    token_id: "token-1".to_owned(),
+                    effective_user_id: Some("user-1".to_owned()),
+                    scopes: vec![ResolvedGrantScope {
+                        function_id: function.id.clone(),
+                        kind: FunctionKind::Query,
+                        basis: 0,
+                        authority_creating: false,
+                    }],
+                    token_expires_at_ms: 10_000,
+                    integration_status: Some(status),
+                },
+            )
+            .unwrap()
+        };
+        let error = evaluate_function_policy(
+            &service(crate::storage::auth_integrations::IntegrationStatus::Suspended),
+            &function,
+        )
+        .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_INTEGRATION_SUSPENDED");
+        assert!(error.diagnostic.message.contains("suspended"));
+        assert!(!error.diagnostic.message.contains("revok"));
+        evaluate_function_policy(
+            &service(crate::storage::auth_integrations::IntegrationStatus::Active),
+            &function,
+        )
+        .expect("active integration reaches the ordinary function checks");
+    }
+
+    #[test]
     fn sessions_rejects_present_null_before_authority_projection() {
         let fields = WireAuthorityFields::inspect_handler(&json!({ "auth": null }));
         let error = InvocationGate::prepare_authority(
@@ -2107,6 +2178,7 @@ mod tests {
                 effective_user_id: None,
                 scopes: Vec::new(),
                 token_expires_at_ms: 20_000,
+                integration_status: None,
             },
         ))
         .unwrap();
@@ -2132,6 +2204,7 @@ mod tests {
                 effective_user_id: Some("user_1".to_owned()),
                 scopes: Vec::new(),
                 token_expires_at_ms: 20_000,
+                integration_status: None,
             },
         ))
         .unwrap();
@@ -2198,6 +2271,7 @@ mod tests {
                 effective_user_id: Some("user_1".to_owned()),
                 scopes: Vec::new(),
                 token_expires_at_ms: 20_000,
+                integration_status: None,
             },
         )
         .unwrap();
@@ -2239,6 +2313,7 @@ mod tests {
                 effective_user_id: Some("user_1".to_owned()),
                 scopes: Vec::new(),
                 token_expires_at_ms: 20_000,
+                integration_status: None,
             },
         )
         .unwrap();
@@ -2279,6 +2354,7 @@ mod tests {
                 effective_user_id: None,
                 scopes: Vec::new(),
                 token_expires_at_ms: 20_000,
+                integration_status: None,
             },
         )
         .unwrap();
@@ -2314,6 +2390,7 @@ mod tests {
                 effective_user_id: effective.map(str::to_owned),
                 scopes: vec![scope(scoped)],
                 token_expires_at_ms: 20_000,
+                integration_status: None,
             }
         };
         let prepare = |resolved| {
@@ -2369,6 +2446,7 @@ mod tests {
             effective_user_id: Some("user_1".to_owned()),
             scopes,
             token_expires_at_ms: 20_000,
+            integration_status: None,
         };
         let prepare = |resolved| {
             InvocationGate::prepare_authority(
@@ -2494,6 +2572,7 @@ mod tests {
             effective_user_id: Some("user_1".to_owned()),
             scopes,
             token_expires_at_ms: 20_000,
+            integration_status: None,
         };
         let prepare = |source| {
             InvocationGate::prepare_authority(
@@ -2614,6 +2693,7 @@ mod tests {
                 effective_user_id: Some("user".to_owned()),
                 scopes: Vec::new(),
                 token_expires_at_ms: 10_000,
+                integration_status: None,
             },
             Kind::Dev => ResolvedAppAuthority::DevImpersonation {
                 user_id: "dev".to_owned(),

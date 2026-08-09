@@ -161,8 +161,17 @@ export const MY_MEMBERSHIPS_LIVE_FUNCTION = '_snapback.myMemberships';
 
 const TUS_VERSION = '1.0.0';
 const DEFAULT_CHUNK_BYTES = 4 * 1024 * 1024;
+const ISSUED_URL_REFRESH_SKEW_MS = 30_000;
+const ISSUED_URL_RETRY_BASE_MS = 1_000;
+const ISSUED_URL_RETRY_MAX_MS = 30_000;
 
 const TERMINAL = ['ready', 'rejected', 'cancelled', 'failed'];
+
+const ISSUED_URL_CONSTRUCTION_SNAPSHOT = Object.freeze({
+  url: null,
+  status: 'issuing',
+  diagnostic: null,
+});
 
 /** The exact member set a persisted resume fact may carry. */
 export const PERSISTED_RESUME_FACT_MEMBERS = /* @__PURE__ */ Object.freeze([
@@ -227,6 +236,321 @@ function transferError(status) {
   return error;
 }
 
+function immutableDiagnosticValue(value, seen = new Map()) {
+  if (value === null || typeof value !== 'object') return value;
+  if (seen.has(value)) return seen.get(value);
+  const clone = Array.isArray(value) ? [] : {};
+  seen.set(value, clone);
+  for (const [key, member] of Object.entries(value)) {
+    clone[key] = immutableDiagnosticValue(member, seen);
+  }
+  return Object.freeze(clone);
+}
+
+function freezeDiagnostic(value, fallbackMessage = 'asset operation failed') {
+  const raw = value && typeof value === 'object' ? value : {};
+  return immutableDiagnosticValue({
+    ...raw,
+    code: typeof raw.code === 'string' ? raw.code : 'SNAPBACK_ASSET_TRANSFER_FAILED',
+    message: typeof raw.message === 'string' ? raw.message : fallbackMessage,
+  });
+}
+
+function retryIneligibleError(snapshot, message) {
+  const diagnostic = Object.freeze({
+    schemaVersion: 'snapback.client-diagnostic.v1',
+    code: 'SNAPBACK_ASSET_RETRY_INELIGIBLE',
+    severity: 'error',
+    message,
+    details: Object.freeze({
+      assetId: snapshot.assetId,
+      predecessorStatus: snapshot.status,
+      retryable: false,
+      effectCommitted: false,
+    }),
+  });
+  const error = new Error(message);
+  error.code = diagnostic.code;
+  error.diagnostic = diagnostic;
+  return error;
+}
+
+function terminalUploadError(snapshot) {
+  const diagnostic = freezeDiagnostic(
+    snapshot.diagnostic,
+    `asset upload ended with terminal status ${snapshot.status}`,
+  );
+  const error = new Error(diagnostic.message);
+  error.code = diagnostic.code;
+  error.status = snapshot.status;
+  error.terminalStatus = snapshot.status;
+  error.diagnostic = diagnostic;
+  return error;
+}
+
+function isStructuredAuthorizationRefusal(diagnostic) {
+  if (!diagnostic || typeof diagnostic.code !== 'string') return false;
+  const [namespace, subsystem, ...members] = diagnostic.code.split('_');
+  return namespace === 'SNAPBACK' && (
+    members.at(-1) === 'FORBIDDEN'
+    || members.at(-1) === 'DENIED'
+    || (subsystem === 'ASSET' && members.join('_') === 'OWNER_CUSTODY_UNSATISFIABLE')
+  );
+}
+
+function issuanceOptions(options = {}) {
+  if (!options || typeof options !== 'object' || Array.isArray(options)) {
+    throw new TypeError('signed URL options must be an object');
+  }
+  return Object.freeze({
+    ...(options.variant === undefined ? {} : { variant: options.variant }),
+    ...(options.widthPx === undefined ? {} : { widthPx: options.widthPx }),
+    ...(options.ttlMs === undefined ? {} : { ttlMs: options.ttlMs }),
+  });
+}
+
+/**
+ * One demand-owned issued URL entry. The containing asset client is the keyed
+ * controller/registry; equal app + authority + asset + option identities get
+ * this same object and therefore share one issuance loop.
+ *
+ * @ref LLP 0210#d1--client-arm-signed-issuance-and-ttl-refresh-projection —
+ * issuance state, refresh, denied recovery, and retry belong to the neutral
+ * controller rather than a framework projection.
+ */
+class AssetIssuedUrlStore {
+  #assetId;
+  #authority;
+  #disposed = false;
+  #expiresAt = 0;
+  #generation = 0;
+  #inFlight = null;
+  #issue;
+  #listeners = new Set();
+  #lingerGeneration = 0;
+  #onEvict;
+  #options;
+  #retryAttempt = 0;
+  #snapshot = ISSUED_URL_CONSTRUCTION_SNAPSHOT;
+  #timer = null;
+
+  constructor({ assetId, options, authority, issue, onEvict }) {
+    this.#assetId = assetId;
+    this.#options = options;
+    this.#authority = authority;
+    this.#issue = issue;
+    this.#onEvict = onEvict;
+  }
+
+  get authority() {
+    return this.#authority;
+  }
+
+  getSnapshot() {
+    return this.#snapshot;
+  }
+
+  getServerSnapshot() {
+    return ISSUED_URL_CONSTRUCTION_SNAPSHOT;
+  }
+
+  subscribe(listener) {
+    if (typeof listener !== 'function') {
+      throw new TypeError('issued URL store listener must be a function');
+    }
+    if (this.#disposed) return () => {};
+    const hadDemand = this.#listeners.size > 0;
+    this.#listeners.add(listener);
+    this.#lingerGeneration += 1;
+    if (!hadDemand) {
+      const valid = this.#snapshot.url !== null && this.#expiresAt > Date.now();
+      if (valid) {
+        this.#scheduleRefresh();
+      } else {
+        void this.#beginIssuance();
+      }
+    }
+    let subscribed = true;
+    return () => {
+      if (!subscribed) return;
+      subscribed = false;
+      this.#listeners.delete(listener);
+      if (this.#listeners.size === 0) this.#releaseDemand();
+    };
+  }
+
+  refresh() {
+    if (this.#disposed || this.#listeners.size === 0) return Promise.resolve();
+    return this.#beginIssuance();
+  }
+
+  #publish(next) {
+    if (this.#disposed) return;
+    this.#snapshot = Object.freeze(next);
+    for (const listener of [...this.#listeners]) {
+      try { listener(this.#snapshot); } catch { /* observers cannot break the issuance loop */ }
+    }
+  }
+
+  #clearTimer() {
+    if (this.#timer === null) return;
+    clearTimeout(this.#timer);
+    this.#timer = null;
+  }
+
+  #setTimer(delayMs, generation, callback) {
+    this.#clearTimer();
+    this.#timer = setTimeout(() => {
+      this.#timer = null;
+      if (
+        this.#disposed
+        || this.#listeners.size === 0
+        || generation !== this.#generation
+      ) return;
+      callback();
+    }, Math.max(0, delayMs));
+    this.#timer.unref?.();
+  }
+
+  #scheduleRefresh() {
+    if (this.#disposed || this.#listeners.size === 0) return;
+    const lifetime = this.#expiresAt - Date.now();
+    if (lifetime <= 0) {
+      void this.#beginIssuance();
+      return;
+    }
+    const skew = Math.min(
+      ISSUED_URL_REFRESH_SKEW_MS,
+      Math.max(1, Math.floor(lifetime / 5)),
+    );
+    const generation = this.#generation;
+    this.#setTimer(lifetime - skew, generation, () => {
+      void this.#beginIssuance();
+    });
+  }
+
+  #scheduleRetry() {
+    if (this.#disposed || this.#listeners.size === 0) return;
+    const exponential = ISSUED_URL_RETRY_BASE_MS * (2 ** Math.min(this.#retryAttempt, 5));
+    const bounded = Math.min(exponential, ISSUED_URL_RETRY_MAX_MS);
+    this.#retryAttempt += 1;
+    const validFor = this.#snapshot.url === null ? null : this.#expiresAt - Date.now();
+    const delay = validFor === null ? bounded : Math.min(bounded, Math.max(0, validFor));
+    const generation = this.#generation;
+    this.#setTimer(delay, generation, () => {
+      void this.#beginIssuance();
+    });
+  }
+
+  #beginIssuance() {
+    if (this.#disposed || this.#listeners.size === 0) return Promise.resolve();
+    if (this.#inFlight) return this.#inFlight;
+    this.#clearTimer();
+    const valid = this.#snapshot.url !== null && this.#expiresAt > Date.now();
+    if (!valid) this.#expiresAt = 0;
+    this.#publish({
+      url: valid ? this.#snapshot.url : null,
+      status: valid ? 'refreshing' : 'issuing',
+      diagnostic: this.#snapshot.diagnostic,
+    });
+    const generation = this.#generation + 1;
+    this.#generation = generation;
+    const work = Promise.resolve()
+      .then(() => this.#issue(this.#assetId, this.#options, this.#authority))
+      .then((issued) => {
+        if (
+          this.#disposed
+          || this.#listeners.size === 0
+          || generation !== this.#generation
+          || !this.#authority.isCurrent()
+        ) return;
+        if (
+          !issued
+          || typeof issued.url !== 'string'
+          || !Number.isSafeInteger(issued.expiresAt)
+          || issued.expiresAt <= Date.now()
+        ) {
+          const error = new Error('signed URL issuance returned an invalid or expired response');
+          error.diagnostic = {
+            code: 'SNAPBACK_ASSET_HTTP_ERROR',
+            message: error.message,
+          };
+          throw error;
+        }
+        this.#expiresAt = issued.expiresAt;
+        this.#retryAttempt = 0;
+        this.#inFlight = null;
+        this.#publish({ url: issued.url, status: 'ready', diagnostic: null });
+        this.#scheduleRefresh();
+      })
+      .catch((error) => {
+        if (
+          this.#disposed
+          || this.#listeners.size === 0
+          || generation !== this.#generation
+          || !this.#authority.isCurrent()
+        ) return;
+        const diagnostic = freezeDiagnostic(error?.diagnostic, error?.message);
+        this.#inFlight = null;
+        if (isStructuredAuthorizationRefusal(diagnostic)) {
+          this.#expiresAt = 0;
+          this.#publish({ url: null, status: 'denied', diagnostic });
+          return;
+        }
+        const stillValid = this.#snapshot.url !== null && this.#expiresAt > Date.now();
+        this.#publish({
+          url: stillValid ? this.#snapshot.url : null,
+          status: stillValid ? 'ready' : 'unavailable',
+          diagnostic,
+        });
+        this.#scheduleRetry();
+      })
+      .finally(() => {
+        if (generation === this.#generation) this.#inFlight = null;
+      });
+    this.#inFlight = work;
+    return work;
+  }
+
+  #releaseDemand() {
+    // @ref LLP 0114#external-store-composition-and-cleanup — the final
+    // subscriber fences in-flight work synchronously, while eviction waits
+    // one microtask so a Strict-Mode replay can reattach to valid held state.
+    this.#generation += 1;
+    this.#inFlight = null;
+    this.#clearTimer();
+    const lingerGeneration = this.#lingerGeneration + 1;
+    this.#lingerGeneration = lingerGeneration;
+    queueMicrotask(() => {
+      if (
+        this.#disposed
+        || this.#listeners.size > 0
+        || lingerGeneration !== this.#lingerGeneration
+      ) return;
+      this.#dispose(false);
+      this.#onEvict();
+    });
+  }
+
+  _disposeForAuthorityChange() {
+    this.#dispose(true);
+  }
+
+  #dispose(publishBlank) {
+    if (this.#disposed) return;
+    this.#generation += 1;
+    this.#inFlight = null;
+    this.#clearTimer();
+    this.#snapshot = ISSUED_URL_CONSTRUCTION_SNAPSHOT;
+    if (publishBlank) {
+      for (const listener of [...this.#listeners]) {
+        try { listener(this.#snapshot); } catch { /* confidentiality blanking continues */ }
+      }
+    }
+    this.#disposed = true;
+  }
+}
+
 /** In-memory default store for persisted resume facts. */
 export function createMemoryAssetTaskStore() {
   const map = new Map();
@@ -281,6 +605,7 @@ class AssetUploadTask {
   }
 
   #update(patch) {
+    if (TERMINAL.includes(this.#snapshot.status)) return;
     this.#snapshot = Object.freeze({ ...this.#snapshot, ...patch });
     for (const listener of this.#listeners) listener(this.#snapshot);
     if (TERMINAL.includes(this.#snapshot.status)) this.#resolveDone(this.#snapshot);
@@ -336,6 +661,9 @@ export class SnapbackAssetClient {
   #chunkBytes;
   #fetch;
   #tasks = new WeakMap();
+  #issuedUrlEntries = new Map();
+  #issuedUrlPartition = 0;
+  #issuedUrlAuthorityCapture = null;
 
   constructor(client, {
     taskStore = null,
@@ -349,6 +677,12 @@ export class SnapbackAssetClient {
     this.#taskStore = taskStore ?? createMemoryAssetTaskStore();
     this.#chunkBytes = chunkBytes;
     this.#fetch = fetchOverride ?? ((...args) => fetch(...args));
+    if (typeof this.#client.registerAuthMaterialization === 'function') {
+      this.#client.registerAuthMaterialization({
+        capture: () => this.#issuedUrlAuthorityCapture,
+        blank: () => this.#disposeIssuedUrlEntries(),
+      });
+    }
   }
 
   /** Persisted-fact partition: app (base URL) + authority identity. */
@@ -465,10 +799,153 @@ export class SnapbackAssetClient {
         message: `HTTP ${response.status}`,
       };
       const error = new Error(diagnostic.message ?? `HTTP ${response.status}`);
+      if (typeof diagnostic.code === 'string') error.code = diagnostic.code;
       error.diagnostic = diagnostic;
       throw error;
     }
     return value;
+  }
+
+  #captureIssuedUrlAuthority() {
+    let authorityCapture = null;
+    const fence = this.#client.authorityFence;
+    if (fence) {
+      authorityCapture = fence.capture();
+      if (authorityCapture === null || fence.isCurrent?.(authorityCapture) !== true) {
+        const error = new Error('signed URL authority is not current');
+        error.code = 'SNAPBACK_CLIENT_AUTHORITY_STALE';
+        error.diagnostic = {
+          code: error.code,
+          message: error.message,
+          details: { effectCommitted: false },
+        };
+        throw error;
+      }
+    }
+    const externalTransportGeneration = this.#client.__authTransportGeneration;
+    if (
+      externalTransportGeneration !== undefined
+      && this.#client.__externalBearerTransition != null
+    ) {
+      const error = new Error('signed URL admission is closed during authority replacement');
+      error.code = 'SNAPBACK_CLIENT_AUTHORITY_STALE';
+      error.diagnostic = {
+        code: error.code,
+        message: error.message,
+        details: { effectCommitted: false },
+      };
+      throw error;
+    }
+    return Object.freeze({
+      authorityCapture,
+      externalTransportGeneration,
+      isCurrent: () => {
+        if (fence) return fence.isCurrent?.(authorityCapture) === true;
+        if (externalTransportGeneration === undefined) return true;
+        return (
+          (
+            this.#client.__externalBearerTransition === null
+            || this.#client.__externalBearerTransition === undefined
+          )
+          && this.#client.__authTransportGeneration === externalTransportGeneration
+        );
+      },
+    });
+  }
+
+  #sameIssuedUrlAuthority(left, right) {
+    if (!left.isCurrent() || !right.isCurrent()) return false;
+    if (left.authorityCapture !== null || right.authorityCapture !== null) {
+      // An authority fence has exactly one current cohort. Captures need not
+      // be referentially identical when the fence returns immutable copies.
+      return left.authorityCapture !== null && right.authorityCapture !== null;
+    }
+    return left.externalTransportGeneration === right.externalTransportGeneration;
+  }
+
+  #disposeIssuedUrlEntries() {
+    this.#issuedUrlPartition += 1;
+    this.#issuedUrlAuthorityCapture = null;
+    const entries = [...this.#issuedUrlEntries.values()];
+    this.#issuedUrlEntries.clear();
+    for (const entry of entries) entry._disposeForAuthorityChange();
+  }
+
+  async #issueSignedUrl(assetId, options, authority = null) {
+    const issued = await this.#json(
+      'POST',
+      `/assets/records/${encodeURIComponent(assetId)}/signed-url`,
+      options,
+      authority === null
+        ? {}
+        : {
+            authorityCapture: authority.authorityCapture,
+            externalTransportGeneration: authority.externalTransportGeneration,
+          },
+    );
+    const expiresAt = issued?.expiresAt ?? issued?.expiresAtMs;
+    const base = this.#client.baseUrl.endsWith('/')
+      ? this.#client.baseUrl
+      : `${this.#client.baseUrl}/`;
+    return Object.freeze({
+      url: new URL(issued.url, base).href,
+      expiresAt,
+      variant: issued.variant,
+    });
+  }
+
+  /** Pure authorized signed-URL issuance. No response is cached here. */
+  signedUrl(assetId, options = {}) {
+    if (typeof assetId !== 'string' || assetId.length === 0) {
+      throw new TypeError('signedUrl requires a non-empty asset id');
+    }
+    return this.#issueSignedUrl(assetId, issuanceOptions(options));
+  }
+
+  /**
+   * Return the shared issued-URL entry for this app/authority/options key.
+   * The entry starts work only while subscribed; final unsubscribe fences it
+   * synchronously and lets it linger for one microtask before eviction.
+   */
+  issuedUrlStore(assetId, options = {}) {
+    if (typeof assetId !== 'string' || assetId.length === 0) {
+      throw new TypeError('issuedUrlStore requires a non-empty asset id');
+    }
+    const normalized = issuanceOptions(options);
+    const authority = this.#captureIssuedUrlAuthority();
+    const currentEntry = this.#issuedUrlEntries.values().next().value;
+    if (currentEntry && !this.#sameIssuedUrlAuthority(currentEntry.authority, authority)) {
+      this.#disposeIssuedUrlEntries();
+    }
+    this.#issuedUrlAuthorityCapture = authority.authorityCapture;
+    const optionIdentity = JSON.stringify([
+      assetId,
+      Object.hasOwn(normalized, 'variant') ? normalized.variant : null,
+      Object.hasOwn(normalized, 'widthPx') ? normalized.widthPx : null,
+      Object.hasOwn(normalized, 'ttlMs') ? normalized.ttlMs : null,
+    ]);
+    const key = this.taskStoreKey({
+      userId: `issued-url-authority-${this.#issuedUrlPartition}`,
+      assetId: optionIdentity,
+    });
+    const existing = this.#issuedUrlEntries.get(key);
+    if (existing) return existing;
+    let entry;
+    entry = new AssetIssuedUrlStore({
+      assetId,
+      options: normalized,
+      authority,
+      issue: (id, requestOptions, capturedAuthority) => (
+        this.#issueSignedUrl(id, requestOptions, capturedAuthority)
+      ),
+      onEvict: () => {
+        if (this.#issuedUrlEntries.get(key) === entry) {
+          this.#issuedUrlEntries.delete(key);
+        }
+      },
+    });
+    this.#issuedUrlEntries.set(key, entry);
+    return entry;
   }
 
   start({
@@ -505,7 +982,64 @@ export class SnapbackAssetClient {
     return task;
   }
 
-  async #start(task) {
+  async #normalizeUploadSource(source) {
+    if (
+      source
+      && typeof source === 'object'
+      && !Array.isArray(source)
+      && typeof source.uri === 'string'
+    ) {
+      const response = await this.#fetch(source.uri);
+      if (!response.ok) throw transferError(response.status);
+      const blob = await response.blob();
+      const fileName = source.fileName ?? 'upload';
+      const mimeType = source.mimeType ?? blob.type ?? '';
+      const file = typeof globalThis.File === 'function'
+        ? new globalThis.File([blob], fileName, { type: mimeType })
+        : {
+            size: blob.size,
+            name: fileName,
+            type: mimeType,
+            slice: (start, end) => blob.slice(start, end),
+          };
+      return {
+        file,
+        declaredFilename: fileName,
+        declaredContentType: mimeType || null,
+      };
+    }
+    assertFileLike(source);
+    return {
+      file: source,
+      declaredFilename: typeof source.name === 'string' ? source.name : null,
+      declaredContentType: typeof source.type === 'string' && source.type.length > 0
+        ? source.type
+        : null,
+    };
+  }
+
+  /**
+   * Settle-or-reject convenience over the task-level upload surface.
+   * @ref LLP 0210#d3--assetsupload-and-the-taskdone-contract — ready is the
+   * only successful terminal row; the helper never retries.
+   */
+  async upload(upload, source, { args = {} } = {}) {
+    const normalized = await this.#normalizeUploadSource(source);
+    const task = this.start({
+      upload,
+      args,
+      file: normalized.file,
+      declaredFilename: normalized.declaredFilename,
+      declaredContentType: normalized.declaredContentType,
+    });
+    const snapshot = await task.done;
+    if (snapshot.status === 'ready' && typeof snapshot.assetId === 'string') {
+      return snapshot.assetId;
+    }
+    throw terminalUploadError(snapshot);
+  }
+
+  async #start(task, { returnAfterAdmission = false } = {}) {
     const state = this.#tasks.get(task);
     try {
       const created = await this.#json(
@@ -536,9 +1070,17 @@ export class SnapbackAssetClient {
         status: 'uploading',
       });
       this.#persist(task, state);
+      if (returnAfterAdmission) {
+        void this._drive(task);
+        return;
+      }
       await this._drive(task);
     } catch (error) {
-      task._apply({ status: 'failed', diagnostic: error.diagnostic ?? { message: error.message } });
+      task._apply({
+        status: 'failed',
+        diagnostic: freezeDiagnostic(error.diagnostic, error.message),
+      });
+      if (returnAfterAdmission) throw error;
     }
   }
 
@@ -689,6 +1231,12 @@ export class SnapbackAssetClient {
       const availability = finalized.task.availability;
       task._apply({
         status: availability === 'ready' ? 'ready' : 'rejected',
+        diagnostic: availability === 'ready'
+          ? null
+          : freezeDiagnostic(
+              finalized.task.diagnostic ?? finalized.diagnostics?.[0],
+              'asset finalization was rejected',
+            ),
         integrityBasis:
           finalized.task.integrityGrade ?? 'end-to-end-verified',
       });
@@ -699,7 +1247,7 @@ export class SnapbackAssetClient {
       if (task._paused || task._cancelled) return;
       task._apply({
         status: 'failed',
-        diagnostic: error.diagnostic ?? { message: error.message },
+        diagnostic: freezeDiagnostic(error.diagnostic, error.message),
       });
     }
   }
@@ -730,7 +1278,10 @@ export class SnapbackAssetClient {
           this.taskStoreKey({ userId: state.userId, assetId: snapshot.assetId }),
         );
       }
-      task._apply({ status: 'cancelled' });
+      task._apply({
+        status: 'cancelled',
+        diagnostic: freezeDiagnostic(null, 'asset upload was cancelled'),
+      });
     }
   }
 
@@ -738,8 +1289,17 @@ export class SnapbackAssetClient {
   async _retry(task) {
     const state = this.#tasks.get(task);
     const snapshot = task.snapshot();
+    if (!TERMINAL.includes(snapshot.status)) {
+      throw retryIneligibleError(snapshot, 'retry requires a terminal asset task');
+    }
+    if (snapshot.status === 'ready') {
+      throw retryIneligibleError(snapshot, 'a ready asset cannot be retried');
+    }
+    if (snapshot.status === 'rejected') {
+      throw retryIneligibleError(snapshot, 'a durably rejected asset cannot be retried');
+    }
     if (!state || !snapshot.assetId) {
-      throw new TypeError('retry requires a task that reserved an asset id');
+      throw retryIneligibleError(snapshot, 'retry requires a task that reserved an asset id');
     }
     const successor = new AssetUploadTask(this, {
       totalBytes: state.file.size,
@@ -752,7 +1312,10 @@ export class SnapbackAssetClient {
       transfer: null,
       retryOfAssetId: snapshot.assetId,
     });
-    void this.#start(successor);
+    // Admission owns pending eligibility. Do not expose a successor until the
+    // server has accepted a same-asset attempt; a typed refusal rejects this
+    // retry call and the predecessor remains the only public task.
+    await this.#start(successor, { returnAfterAdmission: true });
     return successor;
   }
 

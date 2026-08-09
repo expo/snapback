@@ -1324,6 +1324,127 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-client/package.test.mjs']],
     ]),
   }),
+  Object.freeze({
+    filename: 'baseline.asset-upload-dx.v1.json',
+    profileFilename: 'client-bundle-disposition-profiles.v1.json',
+    workloadVersion: 'asset-upload-dx.2026-08-09.v1',
+    profileIds: Object.freeze([
+      'external-react-application',
+      'public-subpath-assets',
+      'public-subpath-commands',
+      'react-external',
+      'resolved-public-subpath-assets',
+      'resolved-public-subpath-commands',
+    ]),
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.queued-settlement-truthfulness.v1.json',
+        profileIds: Object.freeze([
+          'external-react-application',
+          'react-external',
+        ]),
+      }),
+      Object.freeze({
+        filename: 'baseline.client-bundle-disposition.v2.json',
+        profileIds: Object.freeze([
+          'public-subpath-assets',
+          'public-subpath-commands',
+          'resolved-public-subpath-assets',
+          'resolved-public-subpath-commands',
+        ]),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0210#d1--client-arm-signed-issuance-and-ttl-refresh-projection',
+      'LLP 0210#d3--assetsupload-and-the-taskdone-contract',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-09',
+      fix: 'LLP 0210 D1/D3 client asset surface: assets.signedUrl() '
+        + 'issuance under custody headers, the framework-neutral issued-URL '
+        + 'controller (keyed refresh loop, five-state algebra, authority '
+        + 'fencing, linger eviction), the one-call assets.upload() '
+        + 'convenience over the frozen terminal table, and the typed '
+        + 'SNAPBACK_ASSET_RETRY_INELIGIBLE eligibility refusal — all in '
+        + 'packages/snapback-client/assets.mjs, which the assets, commands, '
+        + 'and React closures include.',
+      ticket: 'issues/20260809-asset-upload-dx-papercuts-g11.md',
+      byteDeltas: 'external-react-application min 95915->104131, gzip '
+        + '29868->32163, brotli 26041->28073; public-subpath-assets min '
+        + '15817->23860, gzip 6022->8467, brotli 5208->7429; '
+        + 'public-subpath-commands min 27795->35860, gzip 9392->11683, '
+        + 'brotli 8203->10265; react-external min 95740->103956, gzip '
+        + '29812->32107, brotli 26044->27991; resolved-public-subpath-assets '
+        + 'min 15826->23869, gzip 6027->8472, brotli 5216->7421; '
+        + 'resolved-public-subpath-commands min 27804->35869, gzip '
+        + '9398->11690, brotli 8202->10265.',
+      summary: 'Advance exactly the six closures that include assets.mjs '
+        + 'for the reviewed LLP 0210 D1/D3 delivery surface (Review, '
+        + 'dual-family loop converged at r3); every other active ceiling '
+        + 'and both predecessors remain immutable.',
+    }),
+    beforeAfterProfileIds: Object.freeze([
+      'external-react-application',
+      'public-subpath-assets',
+      'public-subpath-commands',
+      'react-external',
+      'resolved-public-subpath-assets',
+      'resolved-public-subpath-commands',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['--test', 'packages/snapback-client/assets.test.mjs']],
+      ['node', ['--test', 'packages/snapback-client/commands.test.mjs']],
+      ['node', ['packages/snapback-client/package.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.asset-url-hook.v1.json',
+    profileFilename: 'client-bundle-disposition-profiles.v1.json',
+    workloadVersion: 'asset-url-hook.2026-08-09.v1',
+    profileIds: Object.freeze([
+      'external-react-application',
+      'react-external',
+    ]),
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.asset-upload-dx.v1.json',
+        profileIds: Object.freeze([
+          'external-react-application',
+          'react-external',
+        ]),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0210#d1--client-arm-signed-issuance-and-ttl-refresh-projection',
+      'LLP 0114#named-projections-from-accepted-rfcs',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-09',
+      fix: 'useSnapbackAssetUrl (LLP 0210 D1 React projection): a '
+        + 'content-keyed useSyncExternalStore projection over the '
+        + 'framework-neutral issued-URL store, with the stable refresh() '
+        + 'denied-exit affordance, in packages/snapback-react/index.mjs.',
+      ticket: 'issues/20260809-asset-upload-dx-papercuts-g11.md',
+      byteDeltas: 'external-react-application min 104131->104633, gzip '
+        + '32163->32305, brotli 28073->28170; react-external min '
+        + '103956->104458, gzip 32107->32252, brotli 27991->28086.',
+      summary: 'Advance exactly the two React closures for the thin '
+        + 'issued-URL hook projection; every other active ceiling and the '
+        + 'asset-upload-dx predecessor remain immutable.',
+    }),
+    beforeAfterProfileIds: Object.freeze([
+      'external-react-application',
+      'react-external',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['--test', 'packages/snapback-react/assets.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
+    ]),
+  }),
 ]);
 
 function fail(message) {

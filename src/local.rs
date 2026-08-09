@@ -3599,6 +3599,9 @@ impl LocalSnapback {
                 "finite service authority disagrees with its exact process fence",
             ));
         }
+        // @ref LLP 0055#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08 — re-read reversible integration admission under the app lock so suspension is named rather than collapsed into revocation/carrier churn.
+        self.db
+            .require_active_integration_if_present(actor_user_id)?;
         if !self.db.retained_service_authority_is_live_readonly(
             crate::storage::auth_agent_credentials::RetainedServiceAuthority {
                 actor_user_id,
@@ -3759,6 +3762,9 @@ impl LocalSnapback {
             ..
         } = retained.resolved()
         {
+            // @ref LLP 0055#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08 — a retained live computation observes current suspension as an admission refusal without deleting its durable installation.
+            self.db
+                .require_active_integration_if_present(actor_user_id)?;
             if !self.db.retained_service_authority_is_live(
                 crate::storage::auth_agent_credentials::RetainedServiceAuthority {
                     actor_user_id,
@@ -9383,31 +9389,25 @@ impl LocalSnapback {
             }
             Some(ms) => ms,
         };
-        if request.variant == "best" {
-            return Err(SnapbackError::error(
-                "SNAPBACK_ASSET_VARIANT_UNKNOWN",
-                "assets",
-                "signed issuance binds one concrete variant; resolve best before issuing",
-            ));
-        }
         // On-demand width (LLP 0044 §Ceremony floor): authorize first via
         // the probe transaction below, resolve/materialize the ladder
         // rendition, then sign that concrete variant.
-        let issued_variant = if let Some(requested) = request.width_px {
+        let (issued_variant, validate_declared_variant) = if let Some(requested) = request.width_px {
             self.db.asset_reads().signed_url_width_probe(
                 &schema,
                 caller.as_deref(),
                 asset_id,
             )?;
-            self.asset_resolve_width_variant(asset_id, requested)?
+            (self.asset_resolve_width_variant(asset_id, requested)?, false)
         } else {
-            request.variant.clone()
+            (request.variant.unwrap_or_else(|| "primary".to_owned()), true)
         };
         self.db.asset_reads().signed_url_issue(
             &schema,
             caller.as_deref(),
             asset_id,
             &issued_variant,
+            validate_declared_variant,
             ttl,
             now,
         )
@@ -29196,4 +29196,4 @@ mod authorization_acceptance;
 mod auth_room_kick_acceptance;
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

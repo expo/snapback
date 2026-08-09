@@ -27,13 +27,22 @@ export type AssetTaskStatus =
   | 'cancelled'
   | 'failed';
 
+export interface AssetDiagnostic {
+  readonly schemaVersion?: string;
+  readonly code?: string;
+  readonly severity?: string;
+  readonly message?: string;
+  readonly details?: Readonly<Record<string, unknown>>;
+  readonly [member: string]: unknown;
+}
+
 export interface AssetTaskSnapshot {
   readonly assetId: string | null;
   readonly assetRef: string | null;
   readonly attemptId: string | null;
   readonly attemptExpiresAtMs: number | null;
   readonly status: AssetTaskStatus;
-  readonly diagnostic: { code?: string; message?: string } | null;
+  readonly diagnostic: AssetDiagnostic | null;
   readonly bytesTransferred: number;
   readonly totalBytes: number;
   readonly previewUrl: string | null;
@@ -45,6 +54,53 @@ export interface AssetFileLike {
   name?: string;
   type?: string;
   slice(start: number, end?: number): { arrayBuffer(): Promise<ArrayBuffer> };
+}
+
+export interface AssetPickerSource {
+  readonly uri: string;
+  readonly mimeType?: string;
+  readonly fileName?: string;
+}
+
+export type AssetUploadSource = AssetFileLike | Blob | File | AssetPickerSource;
+
+export interface AssetSignedUrlOptions {
+  readonly variant?: string;
+  readonly widthPx?: number;
+  readonly ttlMs?: number;
+}
+
+export interface AssetSignedUrlResult {
+  readonly url: string;
+  readonly expiresAt: number;
+  readonly variant: string;
+}
+
+export type AssetIssuedUrlStatus =
+  | 'issuing'
+  | 'ready'
+  | 'refreshing'
+  | 'unavailable'
+  | 'denied';
+
+export interface AssetIssuedUrlSnapshot {
+  readonly url: string | null;
+  readonly status: AssetIssuedUrlStatus;
+  readonly diagnostic: AssetDiagnostic | null;
+}
+
+export interface AssetIssuedUrlStore {
+  getSnapshot(): AssetIssuedUrlSnapshot;
+  getServerSnapshot(): AssetIssuedUrlSnapshot;
+  subscribe(listener: (snapshot: AssetIssuedUrlSnapshot) => void): () => void;
+  refresh(): Promise<void>;
+}
+
+export interface AssetUploadTerminalError extends Error {
+  readonly code: string;
+  readonly status: Exclude<AssetTaskStatus, 'creating' | 'uploading' | 'paused' | 'finalizing' | 'ready'>;
+  readonly terminalStatus: this['status'];
+  readonly diagnostic: AssetDiagnostic;
 }
 
 export interface AssetUploadTask {
@@ -109,6 +165,11 @@ export declare class SnapbackAssetClient {
     file: AssetFileLike;
     userId?: string | null;
   }): AssetUploadTask | null;
+  upload(
+    upload: AssetUploadReferenceLike,
+    source: AssetUploadSource,
+    options?: { args?: Record<string, unknown> },
+  ): Promise<string>;
   record(assetId: string, options?: { userId?: string | null }): Promise<unknown>;
   watch(assetId: string, options?: { userId?: string | null; connectionId?: string }): unknown;
   deliveryUrl(
@@ -119,6 +180,8 @@ export declare class SnapbackAssetClient {
     assetId: string,
     options?: { variant?: string; width?: number | null },
   ): string;
+  signedUrl(assetId: string, options?: AssetSignedUrlOptions): Promise<AssetSignedUrlResult>;
+  issuedUrlStore(assetId: string, options?: AssetSignedUrlOptions): AssetIssuedUrlStore;
   watchStore(
     assetId: string,
     options?: { userId?: string | null; connectionId?: string | null },
@@ -129,7 +192,7 @@ export interface AssetRecordWatchSnapshot {
   readonly status: 'connecting' | 'ready' | 'blank' | 'error';
   readonly record: Record<string, unknown> | null;
   readonly mode: 'live' | 'static';
-  readonly diagnostic?: { code?: string; message?: string };
+  readonly diagnostic?: AssetDiagnostic;
 }
 
 export interface AssetRecordWatchStore {

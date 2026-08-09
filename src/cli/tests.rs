@@ -3255,6 +3255,7 @@ fn credential_bearing_cli_debug_never_exposes_token_material() {
         server_url: "http://127.0.0.1:4287".to_owned(),
         minted_token: Some(SENTINEL.to_owned()),
         impersonation_capability: None,
+        agent_destroy_capability: None,
     };
     let resolved_debug = format!("{resolved:?}");
     assert!(!resolved_debug.contains(SENTINEL), "{resolved_debug}");
@@ -4347,7 +4348,7 @@ fn resolve_ready_file_minted_token(
         token: None,
         impersonation_capability_stdin: false,
     };
-    resolve_http_target_for_operation(&target, false)
+    resolve_http_target_for_operation(&target, false, false)
         .unwrap()
         .minted_token
 }

@@ -1,8 +1,9 @@
 // React asset projection tests (LLP 0044 §Client upload surface, W1a):
-// snapshot reactivity over the headless task, asset-id stability across
-// retry, authority-change blanking with generation-fenced late events, the
-// ThumbHash decode checked against the committed Rust vector, and the
-// renderer ladder preview → placeholder → rendition.
+// issued-URL external-store projection, snapshot reactivity over the headless
+// task, asset-id stability across retry, authority-change blanking with
+// generation-fenced late events, the ThumbHash decode checked against the
+// committed Rust vector, and the renderer ladder preview → placeholder →
+// rendition.
 
 import assert from 'node:assert/strict';
 import React from 'react';
@@ -17,6 +18,7 @@ import {
   thumbHashToApproximateAspectRatio,
   thumbHashToRGBA,
   useSnapbackAssetImage,
+  useSnapbackAssetUrl,
   useSnapbackAssetUpload,
 } from './index.mjs';
 
@@ -148,11 +150,60 @@ class FakeTask {
   }
 }
 
+const FAKE_ISSUED_URL_CONSTRUCTION_SNAPSHOT = Object.freeze({
+  url: null,
+  status: 'issuing',
+  diagnostic: null,
+});
+
+class FakeIssuedUrlStore {
+  listeners = new Set();
+  snapshot = FAKE_ISSUED_URL_CONSTRUCTION_SNAPSHOT;
+  subscribeCalls = 0;
+  unsubscribeCalls = 0;
+  issuanceLoops = 0;
+  refreshCalls = 0;
+
+  getSnapshot = () => this.snapshot;
+  getServerSnapshot = () => FAKE_ISSUED_URL_CONSTRUCTION_SNAPSHOT;
+
+  subscribe = (listener) => {
+    this.subscribeCalls += 1;
+    if (this.listeners.size === 0) this.issuanceLoops += 1;
+    this.listeners.add(listener);
+    let subscribed = true;
+    return () => {
+      if (!subscribed) return;
+      subscribed = false;
+      this.unsubscribeCalls += 1;
+      this.listeners.delete(listener);
+    };
+  };
+
+  refresh = async () => {
+    this.refreshCalls += 1;
+  };
+
+  publish(next) {
+    this.snapshot = Object.freeze(next);
+    for (const listener of [...this.listeners]) listener();
+  }
+}
+
 function createFakeAssets() {
   const watchListeners = new Set();
   let watchSnapshot = Object.freeze({ status: 'connecting', record: null, mode: 'live' });
+  const issuedUrlStores = new Map();
+  const issuedUrlKey = (assetId, options = {}) => JSON.stringify([
+    assetId,
+    options.variant ?? null,
+    options.widthPx ?? null,
+    options.ttlMs ?? null,
+  ]);
   const assets = {
     started: [],
+    issuedUrlStoreCalls: 0,
+    get issuedUrlStoreCount() { return issuedUrlStores.size; },
     start({ upload, file }) {
       const task = new FakeTask({ totalBytes: file.size, status: 'uploading' });
       task.upload = upload;
@@ -165,6 +216,26 @@ function createFakeAssets() {
     },
     publicDeliveryUrl(assetId, { variant }) {
       return `http://fixture/assets/public/${assetId}/${variant}`;
+    },
+    issuedUrlStore(assetId, options = {}) {
+      assets.issuedUrlStoreCalls += 1;
+      const key = issuedUrlKey(assetId, options);
+      let store = issuedUrlStores.get(key);
+      if (!store) {
+        store = new FakeIssuedUrlStore();
+        issuedUrlStores.set(key, store);
+      }
+      return store;
+    },
+    issuedUrlStoreFor(assetId, options = {}) {
+      return issuedUrlStores.get(issuedUrlKey(assetId, options)) ?? null;
+    },
+    rotateIssuedUrlAuthority() {
+      const predecessors = [...issuedUrlStores.values()];
+      issuedUrlStores.clear();
+      for (const store of predecessors) {
+        store.publish(FAKE_ISSUED_URL_CONSTRUCTION_SNAPSHOT);
+      }
     },
     watchStore() {
       return {
@@ -217,6 +288,153 @@ function renderHook(provider, hook, { strict = false } = {}) {
     );
   });
   return { output, renderer };
+}
+
+// --- issued URL hook: thin shared external-store projection ---------------
+
+{
+  const { provider, assets } = await harness();
+  const options = { variant: 'chat', ttlMs: 30_000 };
+  const { output, renderer } = renderHook(
+    provider,
+    () => useSnapbackAssetUrl('asset-url-render', options),
+  );
+  const store = assets.issuedUrlStoreFor('asset-url-render', options);
+  assert.equal(output.current.url, null);
+  assert.equal(output.current.status, 'issuing');
+  const refresh = output.current.refresh;
+
+  act(() => {
+    store.publish({
+      url: 'http://fixture/assets/signed/asset-url-render',
+      status: 'ready',
+      diagnostic: null,
+    });
+  });
+  assert.equal(output.current.url, 'http://fixture/assets/signed/asset-url-render');
+  assert.equal(output.current.status, 'ready');
+  assert.equal(output.current.refresh, refresh, 'refresh identity is stable for one store');
+
+  const denial = Object.freeze({
+    code: 'SNAPBACK_ASSET_READ_DENIED',
+    message: 'viewer is not authorized for this asset',
+  });
+  act(() => {
+    store.publish({ url: null, status: 'denied', diagnostic: denial });
+  });
+  assert.equal(output.current.status, 'denied');
+  assert.equal(output.current.url, null);
+  assert.equal(output.current.diagnostic, denial);
+  await act(async () => { await output.current.refresh(); });
+  assert.equal(store.refreshCalls, 1, 'refresh forwards to the neutral store');
+
+  assert.equal(store.listeners.size, 1);
+  act(() => { renderer.unmount(); });
+  assert.equal(store.listeners.size, 0, 'unmount releases neutral-store demand');
+  assert.equal(store.unsubscribeCalls, 1);
+  console.log('asset issued URL snapshot, denied diagnostic, refresh, unmount: ok');
+}
+
+{
+  const { provider, assets } = await harness();
+  const options = { variant: 'feed', widthPx: 640 };
+  const outputs = [null, null];
+  function Probe({ index }) {
+    outputs[index] = useSnapbackAssetUrl('asset-url-shared', { ...options });
+    return null;
+  }
+  let renderer;
+  act(() => {
+    renderer = TestRenderer.create(React.createElement(
+      SnapbackProvider,
+      { provider },
+      React.createElement(React.Fragment, null,
+        React.createElement(Probe, { index: 0 }),
+        React.createElement(Probe, { index: 1 }),
+      ),
+    ));
+  });
+  const store = assets.issuedUrlStoreFor('asset-url-shared', options);
+  assert.equal(assets.issuedUrlStoreCount, 1, 'equal keys share one client store entry');
+  assert.equal(store.listeners.size, 2);
+  assert.equal(store.issuanceLoops, 1, 'equal consumers drive one issuance loop');
+  act(() => {
+    store.publish({
+      url: 'http://fixture/assets/signed/asset-url-shared',
+      status: 'ready',
+      diagnostic: null,
+    });
+  });
+  assert.equal(outputs[0].url, outputs[1].url);
+  act(() => { renderer.unmount(); });
+  assert.equal(store.listeners.size, 0);
+  console.log('asset issued URL equal keys share one neutral-store issuance loop: ok');
+}
+
+{
+  const { provider, assets } = await harness();
+  let latest = null;
+  function InlineOptionsProbe({ tick }) {
+    latest = useSnapbackAssetUrl('asset-url-inline', {
+      ...(tick % 2 === 0
+        ? { variant: 'chat', widthPx: 320 }
+        : { widthPx: 320, variant: 'chat' }),
+      ttlMs: 15_000,
+    });
+    return null;
+  }
+  const renderProbe = (tick) => React.createElement(
+    SnapbackProvider,
+    { provider },
+    React.createElement(InlineOptionsProbe, { tick }),
+  );
+  let renderer;
+  act(() => { renderer = TestRenderer.create(renderProbe(0)); });
+  const store = assets.issuedUrlStoreFor('asset-url-inline', {
+    variant: 'chat',
+    widthPx: 320,
+    ttlMs: 15_000,
+  });
+  const refresh = latest.refresh;
+  const lookupCalls = assets.issuedUrlStoreCalls;
+  act(() => { renderer.update(renderProbe(1)); });
+  assert.equal(
+    assets.issuedUrlStoreCalls,
+    lookupCalls,
+    'content-equal inline options retain the memoized store lookup',
+  );
+  assert.equal(store.subscribeCalls, 1);
+  assert.equal(store.unsubscribeCalls, 0);
+  assert.equal(latest.refresh, refresh);
+  act(() => { renderer.unmount(); });
+  assert.equal(store.listeners.size, 0);
+  console.log('asset issued URL inline options are content-keyed: ok');
+}
+
+{
+  const { provider, assets, barriers } = await harness();
+  const options = { variant: 'chat' };
+  const { output, renderer } = renderHook(
+    provider,
+    () => useSnapbackAssetUrl('asset-url-authority', options),
+  );
+  const predecessor = assets.issuedUrlStoreFor('asset-url-authority', options);
+  await act(async () => {
+    assets.rotateIssuedUrlAuthority();
+    const assetBarrier = barriers.find(
+      (entry) => entry.name.startsWith('snapback-react-assets:'),
+    );
+    assetBarrier.blank();
+    await assetBarrier.resume();
+  });
+  const successor = assets.issuedUrlStoreFor('asset-url-authority', options);
+  assert.notEqual(successor, predecessor);
+  assert.equal(predecessor.listeners.size, 0);
+  assert.equal(successor.listeners.size, 1);
+  assert.equal(successor.issuanceLoops, 1);
+  assert.equal(output.current.status, 'issuing');
+  act(() => { renderer.unmount(); });
+  console.log('asset issued URL authority generation adopts a successor store: ok');
 }
 
 // --- upload hook reactivity, retry stability, blanking ---------------------

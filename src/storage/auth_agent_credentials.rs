@@ -85,6 +85,7 @@ pub(crate) struct ResolvedScopedToken {
     pub scopes: Vec<ExactGrantScope>,
     pub expires_at_ms: u64,
     pub grant_expires_at_ms: Option<u64>,
+    pub integration_status: Option<super::auth_integrations::IntegrationStatus>,
 }
 
 pub(crate) struct RetainedServiceAuthority<'a> {
@@ -425,6 +426,105 @@ impl LocalDatabase {
         }
     }
 
+    pub(crate) fn plan_integration_credential_family_service_terminal(
+        &self,
+        attributable: &AgentCredential,
+        now_ms: u64,
+    ) -> SnapbackResult<Vec<String>> {
+        self.with_auth_read(|connection| {
+            require_agent_clock_on(connection, now_ms)?;
+            let hash = attributable.token_hash();
+            let row = credential_row_by_hash(connection, hash.as_bytes())?
+                .ok_or_else(agent_credential_invalid)?;
+            super::auth_integrations::require_record_on(connection, &row.user_id)?;
+            token_ids_for_user(connection, &row.user_id)
+        })
+    }
+
+    /// Key-holder integration retirement. The integration record transition,
+    /// credential-family destruction, token termination witnesses, all-actor
+    /// grant revocation, and membership final-state validation share one
+    /// serialized auth transaction.
+    ///
+    /// @ref LLP 0055#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08 — `integration.retire` is terminal, family-attributable, idempotent, and atomically revokes every installation.
+    pub(crate) fn retire_integration_credential_family(
+        &mut self,
+        attributable: &AgentCredential,
+        now_ms: u64,
+    ) -> SnapbackResult<AgentFamilyRevocation> {
+        self.observe_agent_authorization_clock(now_ms)?;
+        let hash = attributable.token_hash();
+        let manifest = self.schema.clone();
+        let mut body_outcome = None;
+        let attempt = self.attempt_auth_transaction_with_service_terminal(
+            crate::auth::service_fence::ServiceAuthorityDisposition::DurableDelete,
+            |tx| {
+                require_agent_clock_on(tx, now_ms)?;
+                let row = credential_row_by_hash(tx, hash.as_bytes())?
+                    .ok_or_else(agent_credential_invalid)?;
+                super::auth_integrations::require_record_on(tx, &row.user_id)?;
+                token_ids_for_user(tx, &row.user_id)
+            },
+            |tx| {
+                require_agent_clock_on(tx, now_ms)?;
+                sweep_credential_family_on(tx, now_ms)?;
+                let row = credential_row_by_hash(tx, hash.as_bytes())?
+                    .ok_or_else(agent_credential_invalid)?;
+                body_outcome = Some(retire_integration_principal_on(
+                    tx,
+                    &manifest,
+                    &row.user_id,
+                    now_ms,
+                )?);
+                Ok(())
+            },
+        );
+        finish_integration_retirement_attempt(self, attempt, body_outcome)
+    }
+
+    pub(crate) fn plan_integration_principal_service_terminal(
+        &self,
+        principal_user_id: &str,
+    ) -> SnapbackResult<Vec<String>> {
+        self.with_auth_read(|connection| {
+            super::auth_integrations::require_record_on(connection, principal_user_id)?;
+            token_ids_for_user(connection, principal_user_id)
+        })
+    }
+
+    /// Operator retirement reaches the same storage primitive without
+    /// manufacturing a credential secret.
+    pub(crate) fn retire_integration_principal(
+        &mut self,
+        principal_user_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<AgentFamilyRevocation> {
+        self.observe_agent_authorization_clock(now_ms)?;
+        let manifest = self.schema.clone();
+        let principal_user_id = principal_user_id.to_owned();
+        let mut body_outcome = None;
+        let attempt = self.attempt_auth_transaction_with_service_terminal(
+            crate::auth::service_fence::ServiceAuthorityDisposition::DurableDelete,
+            |tx| {
+                require_agent_clock_on(tx, now_ms)?;
+                super::auth_integrations::require_record_on(tx, &principal_user_id)?;
+                token_ids_for_user(tx, &principal_user_id)
+            },
+            |tx| {
+                require_agent_clock_on(tx, now_ms)?;
+                sweep_credential_family_on(tx, now_ms)?;
+                body_outcome = Some(retire_integration_principal_on(
+                    tx,
+                    &manifest,
+                    &principal_user_id,
+                    now_ms,
+                )?);
+                Ok(())
+            },
+        );
+        finish_integration_retirement_attempt(self, attempt, body_outcome)
+    }
+
     pub(crate) fn plan_scoped_token_service_terminal(
         &self,
         credential: &AgentCredential,
@@ -528,6 +628,11 @@ impl LocalDatabase {
                 let resolved = live_credential_by_hash(tx, credential.token_hash().as_bytes())?
                     .ok_or_else(agent_credential_invalid)?;
                 require_agent_active_on(tx, &resolved.user_id)?;
+                super::auth_integrations::require_installation_grant_if_integration_on(
+                    tx,
+                    &resolved.user_id,
+                    grant_id,
+                )?;
                 let grant = require_live_grant_for_actor(tx, grant_id, &resolved.user_id, now_ms)?;
                 let expires_at_ms = grant.expires_at_ms.map_or(expires_at_ms, |grant_expiry| {
                     expires_at_ms.min(grant_expiry)
@@ -683,6 +788,11 @@ impl LocalDatabase {
                     return Err(grant_invalid());
                 }
                 let grant_id = grant_id.ok_or_else(grant_invalid)?;
+                super::auth_integrations::require_installation_grant_if_integration_on(
+                    tx,
+                    &resolved.user_id,
+                    &grant_id,
+                )?;
                 let grant = require_live_grant_for_actor(tx, &grant_id, &resolved.user_id, now_ms)?;
                 let expires_at_ms = grant
                     .expires_at_ms
@@ -841,6 +951,11 @@ impl LocalDatabase {
                 return Err(scoped_token_invalid(authority_disposition));
             };
             let scopes = current_grant_scopes_on(tx, &scopes_json)?;
+            let integration_status = super::auth_integrations::record_for_principal_on(
+                tx,
+                &actor_user_id,
+            )?
+            .map(|record| record.status);
             coalesce_credential_use(tx, &credential_id, now_ms)?;
             tx.execute(
                 "UPDATE _auth_grants SET last_used_at_ms = ?1
@@ -864,6 +979,7 @@ impl LocalDatabase {
                     .map(u64::try_from)
                     .transpose()
                     .map_err(|_| agent_credential_state_corrupt())?,
+                integration_status,
             })
         })
     }
@@ -1035,6 +1151,90 @@ impl LocalDatabase {
 
     pub(super) fn observe_agent_authorization_clock(&mut self, now_ms: u64) -> SnapbackResult<()> {
         self.with_auth_transaction(|tx| advance_agent_clock_on(tx, now_ms))
+    }
+}
+
+fn retire_integration_principal_on(
+    tx: &Transaction<'_>,
+    manifest: &crate::manifest::SchemaManifest,
+    principal_user_id: &str,
+    now_ms: u64,
+) -> SnapbackResult<AgentFamilyRevocation> {
+    super::auth_integrations::mark_revoked_on(tx, principal_user_id, now_ms)?;
+    let credential_ids = credential_ids_for_user(tx, principal_user_id)?;
+    let token_ids = live_token_ids_for_user(tx, principal_user_id)?;
+    let grant_ids = live_grant_ids_for_actor(tx, principal_user_id)?;
+    tx.execute(
+        "UPDATE _auth_agent_credentials SET revoked_at_ms = COALESCE(revoked_at_ms, ?1)
+         WHERE user_id = ?2",
+        params![now_ms as i64, principal_user_id],
+    )?;
+    tx.execute(
+        "UPDATE _auth_grant_tokens SET revoked_at_ms = COALESCE(revoked_at_ms, ?1)
+         WHERE credential_id IN (
+           SELECT id FROM _auth_agent_credentials WHERE user_id = ?2
+         )",
+        params![now_ms as i64, principal_user_id],
+    )?;
+    tx.execute(
+        "UPDATE _auth_grants SET revoked_at_ms = COALESCE(revoked_at_ms, ?1)
+         WHERE actor_user_id = ?2",
+        params![now_ms as i64, principal_user_id],
+    )?;
+    super::auth_agents::validate_protected_membership_final_state(
+        tx,
+        manifest,
+        super::current_version_on(tx)?,
+    )?;
+    Ok(AgentFamilyRevocation {
+        user_id: Some(principal_user_id.to_owned()),
+        credential_ids,
+        token_ids,
+        grant_ids,
+    })
+}
+
+fn finish_integration_retirement_attempt(
+    database: &mut LocalDatabase,
+    attempt: ServiceAuthTransactionAttempt<()>,
+    outcome: Option<AgentFamilyRevocation>,
+) -> SnapbackResult<AgentFamilyRevocation> {
+    match attempt {
+        ServiceAuthTransactionAttempt::Committed(()) => {
+            outcome.ok_or_else(agent_lifecycle_commit_uncertain)
+        }
+        ServiceAuthTransactionAttempt::RolledBack(error) => Err(error),
+        ServiceAuthTransactionAttempt::CommitUncertain { error, terminal } => {
+            let expected = outcome.as_ref().ok_or_else(agent_lifecycle_commit_uncertain)?;
+            let successor = database.with_auth_read(|connection| {
+                let Some(user_id) = expected.user_id.as_deref() else {
+                    return Ok(false);
+                };
+                let record = super::auth_integrations::record_for_principal_on(connection, user_id)?;
+                let record_revoked = record.is_some_and(|record| {
+                    record.status == super::auth_integrations::IntegrationStatus::Revoked
+                });
+                let live_credentials: bool = connection.query_row(
+                    "SELECT EXISTS(SELECT 1 FROM _auth_agent_credentials
+                     WHERE user_id = ?1 AND revoked_at_ms IS NULL)",
+                    params![user_id],
+                    |row| row.get(0),
+                )?;
+                let live_grants: bool = connection.query_row(
+                    "SELECT EXISTS(SELECT 1 FROM _auth_grants
+                     WHERE actor_user_id = ?1 AND revoked_at_ms IS NULL)",
+                    params![user_id],
+                    |row| row.get(0),
+                )?;
+                Ok(record_revoked && !live_credentials && !live_grants)
+            })?;
+            if successor {
+                database.reconcile_ambiguous_service_terminal(terminal, true)?;
+                return outcome.ok_or_else(agent_lifecycle_commit_uncertain);
+            }
+            database.reconcile_ambiguous_service_terminal(terminal, false)?;
+            Err(error)
+        }
     }
 }
 
@@ -1328,6 +1528,11 @@ fn planned_scoped_token_terminal_token_ids(
     let resolved = live_credential_by_hash(connection, credential.token_hash().as_bytes())?
         .ok_or_else(agent_credential_invalid)?;
     require_agent_active_on(connection, &resolved.user_id)?;
+    super::auth_integrations::require_installation_grant_if_integration_on(
+        connection,
+        &resolved.user_id,
+        grant_id,
+    )?;
     require_live_grant_for_actor(connection, grant_id, &resolved.user_id, now_ms)?;
     let live = live_token_ids_for_grant(connection, grant_id, now_ms)?;
     let evict_count = live

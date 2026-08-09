@@ -11642,6 +11642,7 @@ mod membership_write_tests {
             effective_user_id: None,
             scopes: Vec::new(),
             token_expires_at_ms: 10_000,
+            integration_status: None,
         };
         let writer = MembershipWriter::from_resolved(&authority);
         assert_eq!(writer.effective_principal(), Some("agent-a"));

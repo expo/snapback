@@ -2380,9 +2380,10 @@ explicitly records the service actor and exact grant.
 **Commissioned by:** [LLP 0204](./0204-app-external-surfaces.rfc.md),
 especially D7, D8, D9.3, and the OQ11 ruling.
 
-**Status:** design amendment only. This section is part of this RFC's Review
-contract; it does not claim that any route, migration, or capability described
-below is implemented. This amendment does not widen scoped-token routing:
+**Status:** `S2 Landing A` (2026-08-09) makes the integration registration
+class, record, suspension, and `integration.retire` lifecycle verb reachable.
+The DCR/OAuth facade and watch anchors remain commissioned design. This
+amendment does not widen scoped-token routing:
 scoped tokens still address exactly the app-data invocation gate and
 `POST /connection/open` pinned in [§Routes and credential classes](#routes-and-credential-classes),
 and scoped-token minting of capability links is deferred to LLP 0204 D9.4's
@@ -2488,9 +2489,9 @@ required. Retirement has greater blast radius than those verbs — credential
 family plus all installations — so an implementing spec may strengthen but
 must not weaken that floor.
 
-Wire and host-operation spellings, atomic transition details, and registry rows
-belong to a future LLP 0031 amendment. Until they land,
-`integration.retire` is commissioned design, not a reachable verb.
+The LLP 0031 `S2 Landing A` dated amendment records the landed wire and
+host-operation spellings, atomic transition, and registry rows;
+`integration.retire` is now a reachable verb.
 
 ### Dynamic client registration under the registration modes
 

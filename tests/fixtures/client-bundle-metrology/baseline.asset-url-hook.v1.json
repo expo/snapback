@@ -1,0 +1,1560 @@
+{
+  "schemaVersion": "snapback.client-bundle-metrology-rollover-baseline.v1",
+  "source": {
+    "revision": "02653816a35a9b3c841a9b3d5d8022086653a1af",
+    "packageTrees": {
+      "packages/snapback-client": "429fb7485ac2e0265a4c5ca2310883261443c95b",
+      "packages/snapback-contract": "56e1e55145f6222a516e1ad082c98092e88dcce1",
+      "packages/snapback-react": "39bb149d1999715799fbeaf40a8aad00f8a0fb7e"
+    }
+  },
+  "authorities": [
+    "LLP 0063#workstream-8--performance-and-packaging-budgets",
+    "LLP 0145#phase-a--establish-a-size-ratchet",
+    "LLP 0210#d1--client-arm-signed-issuance-and-ttl-refresh-projection",
+    "LLP 0114#named-projections-from-accepted-rfcs"
+  ],
+  "frozenRule": "declared prospective workload-version rollover; predecessor receipts remain immutable; valid ceilings never loosen",
+  "workloadVersion": "asset-url-hook.2026-08-09.v1",
+  "predecessors": [
+    {
+      "filename": "baseline.asset-upload-dx.v1.json",
+      "sha256": "149c0b133cc60c9ad299b1a134de2c71a9d4472a9e1103dd21dd0299ac1532b5",
+      "profileIds": [
+        "external-react-application",
+        "react-external"
+      ]
+    }
+  ],
+  "method": {
+    "runtime": {
+      "node": "v24.18.0",
+      "zlib": "1.3.1-e00f703",
+      "brotli": "1.2.0"
+    },
+    "bundler": "esbuild@0.28.1",
+    "bundle": true,
+    "platform": "browser",
+    "format": "esm",
+    "target": "es2022",
+    "minify": true,
+    "treeShaking": true,
+    "legalComments": "none",
+    "conditions": [
+      "browser",
+      "import",
+      "default"
+    ],
+    "gzipLevel": 9,
+    "brotliQuality": 11,
+    "reactExternal": true,
+    "attribution": "esbuild module-own bytesInOutput grouped by stable package boundary"
+  },
+  "inputs": {
+    "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
+    "lockfileSha256": "224a289493f6155b5bb107b9dde4ee5bf48e368fb99f05b71ebf2958f2df8159"
+  },
+  "behaviorCommands": [
+    "node --test packages/snapback-react/assets.test.mjs",
+    "node packages/snapback-react/package.test.mjs"
+  ],
+  "rationale": {
+    "date": "2026-08-09",
+    "fix": "useSnapbackAssetUrl (LLP 0210 D1 React projection): a content-keyed useSyncExternalStore projection over the framework-neutral issued-URL store, with the stable refresh() denied-exit affordance, in packages/snapback-react/index.mjs.",
+    "ticket": "issues/20260809-asset-upload-dx-papercuts-g11.md",
+    "byteDeltas": "external-react-application min 104131->104633, gzip 32163->32305, brotli 28073->28170; react-external min 103956->104458, gzip 32107->32252, brotli 27991->28086.",
+    "summary": "Advance exactly the two React closures for the thin issued-URL hook projection; every other active ceiling and the asset-upload-dx predecessor remain immutable."
+  },
+  "beforeAfter": [
+    {
+      "id": "external-react-application",
+      "predecessor": {
+        "filename": "baseline.asset-upload-dx.v1.json",
+        "minifiedBytes": 104131,
+        "gzipBytes": 32163,
+        "brotliBytes": 28073,
+        "outputSha256": "dafb86d6638aa1ae86d137db7b90f87fb6f7d1e82bfefcf4f317da321fcecb32"
+      },
+      "successor": {
+        "minifiedBytes": 104633,
+        "gzipBytes": 32305,
+        "brotliBytes": 28170,
+        "outputSha256": "3a3da012a647b8b6d267e97155cf931e2af636047ff546ad8a2b10a620dd173d"
+      },
+      "delta": {
+        "minifiedBytes": 502,
+        "gzipBytes": 142,
+        "brotliBytes": 97
+      }
+    },
+    {
+      "id": "react-external",
+      "predecessor": {
+        "filename": "baseline.asset-upload-dx.v1.json",
+        "minifiedBytes": 103956,
+        "gzipBytes": 32107,
+        "brotliBytes": 27991,
+        "outputSha256": "a2217d65362fb8acee2157f9faeb9766a415a1b0e819f44c295f37578760431c"
+      },
+      "successor": {
+        "minifiedBytes": 104458,
+        "gzipBytes": 32252,
+        "brotliBytes": 28086,
+        "outputSha256": "633a28d693f199b576d8f3ef1512a2dbe1ba87e4f631ebb2a50452771fd60b32"
+      },
+      "delta": {
+        "minifiedBytes": 502,
+        "gzipBytes": 145,
+        "brotliBytes": 95
+      }
+    }
+  ],
+  "profiles": [
+    {
+      "id": "external-react-application",
+      "package": "@expo/snapback-react",
+      "fixtureSha256": "d9b78f6b3233ea4c453a5ef5529f9146291737dfde35cc7f74b6581a91159f62",
+      "externals": [
+        "react"
+      ],
+      "minifiedBytes": 104633,
+      "gzipBytes": 32305,
+      "brotliBytes": 28170,
+      "outputSha256": "3a3da012a647b8b6d267e97155cf931e2af636047ff546ad8a2b10a620dd173d",
+      "attribution": {
+        "packages": [
+          {
+            "name": "@expo/snapback-react",
+            "bytes": 53435
+          },
+          {
+            "name": "@expo/snapback-client",
+            "bytes": 49837
+          },
+          {
+            "name": "@expo/snapback-contract",
+            "bytes": 1141
+          },
+          {
+            "name": "<fixture>",
+            "bytes": 177
+          }
+        ],
+        "modules": [
+          {
+            "module": "packages/snapback-react/index.mjs",
+            "package": "@expo/snapback-react",
+            "bytes": 53435
+          },
+          {
+            "module": "packages/snapback-client/assets.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 23344
+          },
+          {
+            "module": "packages/snapback-client/commands.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 12293
+          },
+          {
+            "module": "packages/snapback-client/react-binding.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 7613
+          },
+          {
+            "module": "packages/snapback-client/canonical-client-value.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 3652
+          },
+          {
+            "module": "packages/snapback-client/index.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 1088
+          },
+          {
+            "module": "packages/snapback-client/rqs.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 1018
+          },
+          {
+            "module": "packages/snapback-contract/client-store.mjs",
+            "package": "@expo/snapback-contract",
+            "bytes": 719
+          },
+          {
+            "module": "packages/snapback-client/rqs-store.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 294
+          },
+          {
+            "module": "packages/snapback-contract/result-contract-validator.mjs",
+            "package": "@expo/snapback-contract",
+            "bytes": 232
+          },
+          {
+            "module": "packages/snapback-client/rqs-store-expo.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 202
+          },
+          {
+            "module": "packages/snapback-client/rqs-store-meta.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 189
+          },
+          {
+            "module": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/external-react-application.fixture.mjs",
+            "package": "<fixture>",
+            "bytes": 177
+          },
+          {
+            "module": "packages/snapback-client/sender-proof.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 123
+          },
+          {
+            "module": "packages/snapback-contract/auth-coordinator.mjs",
+            "package": "@expo/snapback-contract",
+            "bytes": 104
+          },
+          {
+            "module": "packages/snapback-contract/auth-invalidation.mjs",
+            "package": "@expo/snapback-contract",
+            "bytes": 86
+          },
+          {
+            "module": "packages/snapback-client/rqs-store-file.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 21
+          }
+        ]
+      },
+      "metafile": {
+        "inputs": {
+          "packages/snapback-client/agent-authority-brand.mjs": {
+            "bytes": 597,
+            "imports": []
+          },
+          "packages/snapback-client/agent-authority.mjs": {
+            "bytes": 160994,
+            "imports": [
+              {
+                "path": "packages/snapback-client/agent-authority-brand.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/auth-coordinator.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/ids.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-client/answer-classes.mjs": {
+            "bytes": 4865,
+            "imports": []
+          },
+          "packages/snapback-client/assets.mjs": {
+            "bytes": 56920,
+            "imports": []
+          },
+          "packages/snapback-client/canonical-client-value.mjs": {
+            "bytes": 8030,
+            "imports": []
+          },
+          "packages/snapback-client/commands.mjs": {
+            "bytes": 22283,
+            "imports": [
+              {
+                "path": "packages/snapback-client/assets.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-client/external-store.mjs": {
+            "bytes": 22532,
+            "imports": []
+          },
+          "packages/snapback-client/index.mjs": {
+            "bytes": 557506,
+            "imports": [
+              {
+                "path": "./store-runtime.mjs",
+                "kind": "dynamic-import",
+                "external": true
+              },
+              {
+                "path": "packages/snapback-client/agent-authority-brand.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/agent-authority.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/answer-classes.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/assets.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/canonical-client-value.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/commands.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/external-store.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/outbox-shared.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/react-binding.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/react-binding.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-preload-core.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-preload-core.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store-default.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store-default.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store-expo.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store-file.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store-memory.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/search-contract.generated.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/search.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/sender-proof.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/auth-coordinator.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/auth-invalidation.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/client-store.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/ids.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/query-authorization.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/result-contract-validator.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-client/outbox-shared.mjs": {
+            "bytes": 46116,
+            "imports": [
+              {
+                "path": "packages/snapback-client/canonical-client-value.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-client/react-binding.mjs": {
+            "bytes": 94409,
+            "imports": [
+              {
+                "path": "./react-binding-hmr.mjs",
+                "kind": "dynamic-import",
+                "external": true
+              },
+              {
+                "path": "packages/snapback-client/canonical-client-value.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/outbox-shared.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/auth-invalidation.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/result-contract-validator.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-client/rqs-preload-core.mjs": {
+            "bytes": 4301,
+            "imports": [
+              {
+                "path": "packages/snapback-client/rqs-store.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-client/rqs-store-default.mjs": {
+            "bytes": 7380,
+            "imports": [
+              {
+                "path": "packages/snapback-client/rqs-store-file.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store-memory.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-client/rqs-store-expo.mjs": {
+            "bytes": 7507,
+            "imports": [
+              {
+                "path": "packages/snapback-client/rqs-store-default.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store-file.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-client/rqs-store-file.mjs": {
+            "bytes": 44923,
+            "imports": [
+              {
+                "path": "./materialization-store-runtime.mjs",
+                "kind": "dynamic-import",
+                "external": true
+              },
+              {
+                "path": "packages/snapback-client/outbox-shared.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store-meta.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-client/rqs-store-memory.mjs": {
+            "bytes": 18219,
+            "imports": [
+              {
+                "path": "./materialization-store-runtime.mjs",
+                "kind": "dynamic-import",
+                "external": true
+              },
+              {
+                "path": "packages/snapback-client/outbox-shared.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store-meta.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-client/rqs-store-meta.mjs": {
+            "bytes": 5550,
+            "imports": []
+          },
+          "packages/snapback-client/rqs-store.mjs": {
+            "bytes": 36774,
+            "imports": [
+              {
+                "path": "./materialization-store-runtime.mjs",
+                "kind": "dynamic-import",
+                "external": true
+              },
+              {
+                "path": "packages/snapback-client/outbox-shared.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store-meta.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-client/rqs.mjs": {
+            "bytes": 15060,
+            "imports": []
+          },
+          "packages/snapback-client/search-contract.generated.mjs": {
+            "bytes": 412,
+            "imports": []
+          },
+          "packages/snapback-client/search.mjs": {
+            "bytes": 6207,
+            "imports": []
+          },
+          "packages/snapback-client/sender-proof.mjs": {
+            "bytes": 7480,
+            "imports": []
+          },
+          "packages/snapback-contract/auth-coordinator.mjs": {
+            "bytes": 133248,
+            "imports": [
+              {
+                "path": "packages/snapback-contract/ids.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-contract/auth-invalidation.mjs": {
+            "bytes": 20809,
+            "imports": []
+          },
+          "packages/snapback-contract/authorized-lease.mjs": {
+            "bytes": 17280,
+            "imports": [
+              {
+                "path": "packages/snapback-contract/auth-invalidation.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/ids.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-contract/client-store.mjs": {
+            "bytes": 134622,
+            "imports": [
+              {
+                "path": "packages/snapback-contract/auth-invalidation.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/authorized-lease.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/ids.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-contract/ids.mjs": {
+            "bytes": 7421,
+            "imports": []
+          },
+          "packages/snapback-contract/query-authorization.mjs": {
+            "bytes": 36045,
+            "imports": [
+              {
+                "path": "packages/snapback-contract/auth-invalidation.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-contract/result-contract-validator.mjs": {
+            "bytes": 18289,
+            "imports": []
+          },
+          "packages/snapback-react/index.mjs": {
+            "bytes": 150632,
+            "imports": [
+              {
+                "path": "./react-runtime.mjs",
+                "kind": "dynamic-import",
+                "external": true
+              },
+              {
+                "path": "./react-runtime.mjs",
+                "kind": "dynamic-import",
+                "external": true
+              },
+              {
+                "path": "packages/snapback-client/assets.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/index.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/index.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-react/thumbhash.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-react/thumbhash.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "react",
+                "kind": "import-statement",
+                "external": true
+              }
+            ]
+          },
+          "packages/snapback-react/thumbhash.mjs": {
+            "bytes": 6891,
+            "imports": []
+          },
+          "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/external-react-application.fixture.mjs": {
+            "bytes": 405,
+            "imports": [
+              {
+                "path": "packages/snapback-react/index.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          }
+        },
+        "output": {
+          "bytes": 104633,
+          "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/external-react-application.fixture.mjs",
+          "imports": [
+            {
+              "path": "./react-binding-hmr.mjs",
+              "kind": "dynamic-import",
+              "external": true
+            },
+            {
+              "path": "./react-runtime.mjs",
+              "kind": "dynamic-import",
+              "external": true
+            },
+            {
+              "path": "./react-runtime.mjs",
+              "kind": "dynamic-import",
+              "external": true
+            },
+            {
+              "path": "react",
+              "kind": "import-statement",
+              "external": true
+            }
+          ],
+          "inputs": {
+            "packages/snapback-client/assets.mjs": {
+              "bytesInOutput": 23344
+            },
+            "packages/snapback-client/canonical-client-value.mjs": {
+              "bytesInOutput": 3652
+            },
+            "packages/snapback-client/commands.mjs": {
+              "bytesInOutput": 12293
+            },
+            "packages/snapback-client/index.mjs": {
+              "bytesInOutput": 1088
+            },
+            "packages/snapback-client/react-binding.mjs": {
+              "bytesInOutput": 7613
+            },
+            "packages/snapback-client/rqs-store-expo.mjs": {
+              "bytesInOutput": 202
+            },
+            "packages/snapback-client/rqs-store-file.mjs": {
+              "bytesInOutput": 21
+            },
+            "packages/snapback-client/rqs-store-meta.mjs": {
+              "bytesInOutput": 189
+            },
+            "packages/snapback-client/rqs-store.mjs": {
+              "bytesInOutput": 294
+            },
+            "packages/snapback-client/rqs.mjs": {
+              "bytesInOutput": 1018
+            },
+            "packages/snapback-client/sender-proof.mjs": {
+              "bytesInOutput": 123
+            },
+            "packages/snapback-contract/auth-coordinator.mjs": {
+              "bytesInOutput": 104
+            },
+            "packages/snapback-contract/auth-invalidation.mjs": {
+              "bytesInOutput": 86
+            },
+            "packages/snapback-contract/client-store.mjs": {
+              "bytesInOutput": 719
+            },
+            "packages/snapback-contract/result-contract-validator.mjs": {
+              "bytesInOutput": 232
+            },
+            "packages/snapback-react/index.mjs": {
+              "bytesInOutput": 53435
+            },
+            "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/external-react-application.fixture.mjs": {
+              "bytesInOutput": 177
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "react-external",
+      "package": "@expo/snapback-react",
+      "fixtureSha256": "95b2ecf3f49e6ec162f324671e5a88de3baf51a002628bdb6c713d17cb588008",
+      "externals": [
+        "react"
+      ],
+      "minifiedBytes": 104458,
+      "gzipBytes": 32252,
+      "brotliBytes": 28086,
+      "outputSha256": "633a28d693f199b576d8f3ef1512a2dbe1ba87e4f631ebb2a50452771fd60b32",
+      "attribution": {
+        "packages": [
+          {
+            "name": "@expo/snapback-react",
+            "bytes": 53282
+          },
+          {
+            "name": "@expo/snapback-client",
+            "bytes": 49837
+          },
+          {
+            "name": "@expo/snapback-contract",
+            "bytes": 1141
+          },
+          {
+            "name": "<fixture>",
+            "bytes": 155
+          }
+        ],
+        "modules": [
+          {
+            "module": "packages/snapback-react/index.mjs",
+            "package": "@expo/snapback-react",
+            "bytes": 53282
+          },
+          {
+            "module": "packages/snapback-client/assets.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 23344
+          },
+          {
+            "module": "packages/snapback-client/commands.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 12293
+          },
+          {
+            "module": "packages/snapback-client/react-binding.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 7613
+          },
+          {
+            "module": "packages/snapback-client/canonical-client-value.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 3652
+          },
+          {
+            "module": "packages/snapback-client/index.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 1088
+          },
+          {
+            "module": "packages/snapback-client/rqs.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 1018
+          },
+          {
+            "module": "packages/snapback-contract/client-store.mjs",
+            "package": "@expo/snapback-contract",
+            "bytes": 719
+          },
+          {
+            "module": "packages/snapback-client/rqs-store.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 294
+          },
+          {
+            "module": "packages/snapback-contract/result-contract-validator.mjs",
+            "package": "@expo/snapback-contract",
+            "bytes": 232
+          },
+          {
+            "module": "packages/snapback-client/rqs-store-expo.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 202
+          },
+          {
+            "module": "packages/snapback-client/rqs-store-meta.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 189
+          },
+          {
+            "module": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/react-external.fixture.mjs",
+            "package": "<fixture>",
+            "bytes": 155
+          },
+          {
+            "module": "packages/snapback-client/sender-proof.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 123
+          },
+          {
+            "module": "packages/snapback-contract/auth-coordinator.mjs",
+            "package": "@expo/snapback-contract",
+            "bytes": 104
+          },
+          {
+            "module": "packages/snapback-contract/auth-invalidation.mjs",
+            "package": "@expo/snapback-contract",
+            "bytes": 86
+          },
+          {
+            "module": "packages/snapback-client/rqs-store-file.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 21
+          }
+        ]
+      },
+      "metafile": {
+        "inputs": {
+          "packages/snapback-client/agent-authority-brand.mjs": {
+            "bytes": 597,
+            "imports": []
+          },
+          "packages/snapback-client/agent-authority.mjs": {
+            "bytes": 160994,
+            "imports": [
+              {
+                "path": "packages/snapback-client/agent-authority-brand.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/auth-coordinator.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/ids.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-client/answer-classes.mjs": {
+            "bytes": 4865,
+            "imports": []
+          },
+          "packages/snapback-client/assets.mjs": {
+            "bytes": 56920,
+            "imports": []
+          },
+          "packages/snapback-client/canonical-client-value.mjs": {
+            "bytes": 8030,
+            "imports": []
+          },
+          "packages/snapback-client/commands.mjs": {
+            "bytes": 22283,
+            "imports": [
+              {
+                "path": "packages/snapback-client/assets.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-client/external-store.mjs": {
+            "bytes": 22532,
+            "imports": []
+          },
+          "packages/snapback-client/index.mjs": {
+            "bytes": 557506,
+            "imports": [
+              {
+                "path": "./store-runtime.mjs",
+                "kind": "dynamic-import",
+                "external": true
+              },
+              {
+                "path": "packages/snapback-client/agent-authority-brand.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/agent-authority.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/answer-classes.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/assets.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/canonical-client-value.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/commands.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/external-store.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/outbox-shared.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/react-binding.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/react-binding.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-preload-core.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-preload-core.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store-default.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store-default.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store-expo.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store-file.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store-memory.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/search-contract.generated.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/search.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/sender-proof.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/auth-coordinator.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/auth-invalidation.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/client-store.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/ids.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/query-authorization.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/result-contract-validator.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-client/outbox-shared.mjs": {
+            "bytes": 46116,
+            "imports": [
+              {
+                "path": "packages/snapback-client/canonical-client-value.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-client/react-binding.mjs": {
+            "bytes": 94409,
+            "imports": [
+              {
+                "path": "./react-binding-hmr.mjs",
+                "kind": "dynamic-import",
+                "external": true
+              },
+              {
+                "path": "packages/snapback-client/canonical-client-value.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/outbox-shared.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/auth-invalidation.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/result-contract-validator.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-client/rqs-preload-core.mjs": {
+            "bytes": 4301,
+            "imports": [
+              {
+                "path": "packages/snapback-client/rqs-store.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-client/rqs-store-default.mjs": {
+            "bytes": 7380,
+            "imports": [
+              {
+                "path": "packages/snapback-client/rqs-store-file.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store-memory.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-client/rqs-store-expo.mjs": {
+            "bytes": 7507,
+            "imports": [
+              {
+                "path": "packages/snapback-client/rqs-store-default.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store-file.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-client/rqs-store-file.mjs": {
+            "bytes": 44923,
+            "imports": [
+              {
+                "path": "./materialization-store-runtime.mjs",
+                "kind": "dynamic-import",
+                "external": true
+              },
+              {
+                "path": "packages/snapback-client/outbox-shared.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store-meta.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-client/rqs-store-memory.mjs": {
+            "bytes": 18219,
+            "imports": [
+              {
+                "path": "./materialization-store-runtime.mjs",
+                "kind": "dynamic-import",
+                "external": true
+              },
+              {
+                "path": "packages/snapback-client/outbox-shared.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store-meta.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-client/rqs-store-meta.mjs": {
+            "bytes": 5550,
+            "imports": []
+          },
+          "packages/snapback-client/rqs-store.mjs": {
+            "bytes": 36774,
+            "imports": [
+              {
+                "path": "./materialization-store-runtime.mjs",
+                "kind": "dynamic-import",
+                "external": true
+              },
+              {
+                "path": "packages/snapback-client/outbox-shared.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store-meta.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-client/rqs.mjs": {
+            "bytes": 15060,
+            "imports": []
+          },
+          "packages/snapback-client/search-contract.generated.mjs": {
+            "bytes": 412,
+            "imports": []
+          },
+          "packages/snapback-client/search.mjs": {
+            "bytes": 6207,
+            "imports": []
+          },
+          "packages/snapback-client/sender-proof.mjs": {
+            "bytes": 7480,
+            "imports": []
+          },
+          "packages/snapback-contract/auth-coordinator.mjs": {
+            "bytes": 133248,
+            "imports": [
+              {
+                "path": "packages/snapback-contract/ids.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-contract/auth-invalidation.mjs": {
+            "bytes": 20809,
+            "imports": []
+          },
+          "packages/snapback-contract/authorized-lease.mjs": {
+            "bytes": 17280,
+            "imports": [
+              {
+                "path": "packages/snapback-contract/auth-invalidation.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/ids.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-contract/client-store.mjs": {
+            "bytes": 134622,
+            "imports": [
+              {
+                "path": "packages/snapback-contract/auth-invalidation.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/authorized-lease.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-contract/ids.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-contract/ids.mjs": {
+            "bytes": 7421,
+            "imports": []
+          },
+          "packages/snapback-contract/query-authorization.mjs": {
+            "bytes": 36045,
+            "imports": [
+              {
+                "path": "packages/snapback-contract/auth-invalidation.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-contract/result-contract-validator.mjs": {
+            "bytes": 18289,
+            "imports": []
+          },
+          "packages/snapback-react/index.mjs": {
+            "bytes": 150632,
+            "imports": [
+              {
+                "path": "./react-runtime.mjs",
+                "kind": "dynamic-import",
+                "external": true
+              },
+              {
+                "path": "./react-runtime.mjs",
+                "kind": "dynamic-import",
+                "external": true
+              },
+              {
+                "path": "packages/snapback-client/assets.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/index.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/index.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-react/thumbhash.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-react/thumbhash.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "react",
+                "kind": "import-statement",
+                "external": true
+              }
+            ]
+          },
+          "packages/snapback-react/thumbhash.mjs": {
+            "bytes": 6891,
+            "imports": []
+          },
+          "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/react-external.fixture.mjs": {
+            "bytes": 344,
+            "imports": [
+              {
+                "path": "packages/snapback-react/index.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          }
+        },
+        "output": {
+          "bytes": 104458,
+          "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/react-external.fixture.mjs",
+          "imports": [
+            {
+              "path": "./react-binding-hmr.mjs",
+              "kind": "dynamic-import",
+              "external": true
+            },
+            {
+              "path": "./react-runtime.mjs",
+              "kind": "dynamic-import",
+              "external": true
+            },
+            {
+              "path": "./react-runtime.mjs",
+              "kind": "dynamic-import",
+              "external": true
+            },
+            {
+              "path": "react",
+              "kind": "import-statement",
+              "external": true
+            }
+          ],
+          "inputs": {
+            "packages/snapback-client/assets.mjs": {
+              "bytesInOutput": 23344
+            },
+            "packages/snapback-client/canonical-client-value.mjs": {
+              "bytesInOutput": 3652
+            },
+            "packages/snapback-client/commands.mjs": {
+              "bytesInOutput": 12293
+            },
+            "packages/snapback-client/index.mjs": {
+              "bytesInOutput": 1088
+            },
+            "packages/snapback-client/react-binding.mjs": {
+              "bytesInOutput": 7613
+            },
+            "packages/snapback-client/rqs-store-expo.mjs": {
+              "bytesInOutput": 202
+            },
+            "packages/snapback-client/rqs-store-file.mjs": {
+              "bytesInOutput": 21
+            },
+            "packages/snapback-client/rqs-store-meta.mjs": {
+              "bytesInOutput": 189
+            },
+            "packages/snapback-client/rqs-store.mjs": {
+              "bytesInOutput": 294
+            },
+            "packages/snapback-client/rqs.mjs": {
+              "bytesInOutput": 1018
+            },
+            "packages/snapback-client/sender-proof.mjs": {
+              "bytesInOutput": 123
+            },
+            "packages/snapback-contract/auth-coordinator.mjs": {
+              "bytesInOutput": 104
+            },
+            "packages/snapback-contract/auth-invalidation.mjs": {
+              "bytesInOutput": 86
+            },
+            "packages/snapback-contract/client-store.mjs": {
+              "bytesInOutput": 719
+            },
+            "packages/snapback-contract/result-contract-validator.mjs": {
+              "bytesInOutput": 232
+            },
+            "packages/snapback-react/index.mjs": {
+              "bytesInOutput": 53282
+            },
+            "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/react-external.fixture.mjs": {
+              "bytesInOutput": 155
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -111,7 +111,7 @@ fn config_set_post(
     value: &str,
     append: bool,
 ) -> anyhow::Result<crate::local::ConfigWriteOutcome> {
-    let resolved = resolve_http_target_for_operation(target, false)?;
+    let resolved = resolve_http_target_for_operation(target, false, false)?;
     let token = target
         .token
         .clone()

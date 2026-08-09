@@ -42,6 +42,9 @@ here (or listed here but gone from the code).
 | /_snapback/api/app/seed/preview-v1 | backend.versioned-seed |
 | /_snapback/api/app/seed/reset-install-v1 | backend.versioned-seed |
 | /_snapback/api/auth/mailbox | auth.sessions |
+| /_snapback/api/auth/integrations/{id}/resume | auth.agent-principals |
+| /_snapback/api/auth/integrations/{id}/retire | auth.agent-principals |
+| /_snapback/api/auth/integrations/{id}/suspend | auth.agent-principals |
 | /_snapback/api/client-mutations/purge | notAuthorFacing (operator settlement maintenance) |
 | /_snapback/api/config/plan | operating.secrets-config |
 | /_snapback/api/config/set | operating.secrets-config |
@@ -118,6 +121,7 @@ here (or listed here but gone from the code).
 | /auth/agents/rotate | auth.agent-principals |
 | /auth/agents/token | auth.agent-principals |
 | /auth/agents/token/release | auth.agent-principals |
+| /auth/integrations/retire | auth.agent-principals |
 | /auth/exchange | auth.sessions |
 | /auth/family-alarm | auth.sessions |
 | /auth/grant-requests | auth.agent-principals |
@@ -174,6 +178,9 @@ here (or listed here but gone from the code).
 | host_ops.asset.importCut | notAuthorFacing (operator consistent-cut restore) |
 | host_ops.auth.mintSession | operating.host-ops |
 | host_ops.auth.rescueCollidingTable | operating.host-ops |
+| host_ops.auth.integrationRetire | auth.agent-principals |
+| host_ops.auth.integrationSuspend | auth.agent-principals |
+| host_ops.auth.integrationResume | auth.agent-principals |
 | host_ops.data.patch.preview | operating.data-patch |
 | host_ops.data.patch.preview.impersonated | operating.data-patch |
 | host_ops.data.patch.apply | operating.data-patch |

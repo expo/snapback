@@ -170,9 +170,10 @@ you never build around a feature because you didn't know it existed.
 - [Reviewed migrations](./backend/migrations.md) — the `snapback migrate`
   preview → approve → rehearse → apply → verify loop for destructive schema
   changes, its intents, and its refusal codes.
-- [Assets](./backend/assets.md) — generated upload intents, an authenticated
-  Expo ImagePicker-to-Blob recipe, TUS resumable transfer, trusted SHA-256
-  finalization, typed `v.assetRef` attachment, private-strict delivery,
+- [Assets](./backend/assets.md) — generated upload intents, one-call
+  File/Blob/picker upload, signed-URL issuance with a shared TTL-refresh
+  controller and React hook, TUS resumable transfer, typed `v.assetRef`
+  attachment, private delivery, the view-once grant-row recipe,
   consistent-cut logical export, and signing-key rotation (local target;
   byte-level backup remains a nonclaim).
 - [Versioned seeds](./backend/versioned-seeds.md) — content-addressed fixture

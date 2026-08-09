@@ -12,7 +12,10 @@ import type {
   SnapbackFunctionReference,
 } from '@expo/snapback-client';
 import type {
+  AssetDiagnostic,
   AssetFileLike,
+  AssetIssuedUrlSnapshot,
+  AssetSignedUrlOptions,
   AssetTaskSnapshot,
   AssetUploadTask,
 } from '@expo/snapback-client/assets';
@@ -31,7 +34,10 @@ import type {
 } from '@expo/snapback-client/commands';
 
 export type {
+  AssetDiagnostic,
   AssetFileLike,
+  AssetIssuedUrlSnapshot,
+  AssetSignedUrlOptions,
   AssetTaskSnapshot,
   AssetUploadTask,
 } from '@expo/snapback-client/assets';
@@ -619,6 +625,16 @@ export type AssetUploadHookStatus =
   | 'rejected'
   | 'cancelled'
   | 'failed';
+
+export interface AssetUrlState extends AssetIssuedUrlSnapshot {
+  readonly diagnostic: AssetDiagnostic | null;
+  readonly refresh: () => Promise<void>;
+}
+
+export function useSnapbackAssetUrl(
+  assetId: string,
+  options?: AssetSignedUrlOptions,
+): AssetUrlState;
 
 export type AssetUploadHookState = Readonly<
   Omit<AssetTaskSnapshot, 'status' | 'integrityBasis'> & {
