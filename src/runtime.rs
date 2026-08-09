@@ -446,7 +446,7 @@ impl RuntimeManager {
             asset_admissions,
             ..
         } = invocation;
-        let membership_plans = db.authorize_membership_commands(membership_commands)?;
+        let membership_plans = db.membership_plans().authorize_membership_commands(membership_commands)?;
         db.dry_run_buffered_writes_with_jobs(
             &input,
             writes,
@@ -6196,7 +6196,7 @@ globalThis.__snapbackHandlers = {
         let commands = std::mem::take(&mut ctx.membership_commands);
         drop(ctx);
         let plans = db
-            .authorize_membership_commands(commands)
+            .membership_plans().authorize_membership_commands(commands)
             .expect("authorized plans");
         db.commit_buffered_writes_idempotent_guarded(
             &input(),
@@ -6277,7 +6277,7 @@ globalThis.__snapbackHandlers = {
         let commands = std::mem::take(&mut ctx.membership_commands);
         drop(ctx);
         let plans = db
-            .authorize_membership_commands(commands)
+            .membership_plans().authorize_membership_commands(commands)
             .expect("authorized plans");
         db.dry_run_buffered_writes(
             &input(),
@@ -6458,7 +6458,7 @@ globalThis.__snapbackHandlers = {
         let commands = std::mem::take(&mut ctx.membership_commands);
         drop(ctx);
         let plans = db
-            .authorize_membership_commands(commands)
+            .membership_plans().authorize_membership_commands(commands)
             .expect("bootstrap authorization");
         db.commit_buffered_writes_idempotent_guarded(
             &input(),

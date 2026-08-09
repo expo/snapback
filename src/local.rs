@@ -11106,7 +11106,7 @@ impl LocalSnapback {
                                 )?;
                                 let membership_plans = self
                                     .db
-                                    .authorize_membership_commands(executed.membership_commands)?;
+                                    .membership_plans().authorize_membership_commands(executed.membership_commands)?;
                                 // Callee admission for buffered enqueues happens before
                                 // any commit work: an inadmissible callee fails the whole
                                 // mutation (rollback schedules nothing).
@@ -11776,7 +11776,7 @@ impl LocalSnapback {
                     crate::result_contract::validate_handler_result(&function, &executed.result)?;
                     let membership_plans = self
                         .db
-                        .authorize_membership_commands(executed.membership_commands)?;
+                        .membership_plans().authorize_membership_commands(executed.membership_commands)?;
                     let producer_mutation_id = receipt_mutation_id
                         .map(ToOwned::to_owned)
                         .or_else(|| identity.as_ref().map(|identity| identity.id.clone()))
@@ -12122,7 +12122,7 @@ impl LocalSnapback {
         crate::result_contract::validate_handler_result(&function, &executed.result)?;
         let membership_plans = self
             .db
-            .authorize_membership_commands(executed.membership_commands)?;
+            .membership_plans().authorize_membership_commands(executed.membership_commands)?;
         // Action-hosted nested mutations may enqueue (LLP 0070: actions
         // enqueue follow-up work only through an explicit mutation). The
         // nested commit mints its own producer identity in the receipt id
@@ -16643,7 +16643,7 @@ impl LocalSnapback {
         let canonical_input = binding.invocation.canonicalize_input(input.clone());
         let membership_plans = self
             .db
-            .authorize_membership_commands(executed.membership_commands.clone())?;
+            .membership_plans().authorize_membership_commands(executed.membership_commands.clone())?;
         let preview = self.db.dry_run_buffered_writes(
             &canonical_input,
             executed.writes.clone(),

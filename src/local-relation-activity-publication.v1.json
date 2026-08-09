@@ -7,15 +7,15 @@
   ],
   "qualificationReceiptSha256": "sha256:362ed2bc9443a6a027b224705c21ad516b647583a1dfda7d2056205e3a4fa6da",
   "executorSourceSha256": {
-    "src/local.rs": "sha256:3e3a304ec4f9dc4cb7a2c45a9ccea5b2a01e074153285fd09daeb02d22a7e82c",
+    "src/local.rs": "sha256:3c5bd9bd2d2ce9b3b0fd408dedb8e16cda18103588193742fdf5d4bfbc9fa8d8",
     "src/local/auth_room_kick_acceptance.rs": "sha256:a11c4bb39304509d0e9e918b8b35d9005b3c75744ddbcaf6134871804450b19d",
     "src/local/authorization_acceptance.rs": "sha256:a1e3fd4f342fc1b1a1511746842d18e0baf2d62d6f9afd965d4de9664005788a",
     "src/local/config_types.rs": "sha256:ccae542de561b1e394053f482f21b88118c74d028017f72307691b806f2b0e85",
     "src/local/inspection.rs": "sha256:7fb4c23095d8df8d0ffd746be06a80e16134a542274c9368f5ea533864ac27c7",
     "src/local/live_protocol.rs": "sha256:0157ad0e62bb723f31a67a45fbcd82ad7cc6f63fa9fad9c41edd661d4d31ed1d",
     "src/local/receipt_log.rs": "sha256:04320e18e96a0788885e44a37e05c33b673430a7a01bbcae98601eab96a45add",
-    "src/local/tests.rs": "sha256:1ce7c874253db57b8e3c83518fe97ed1dc6a27c85dcb710260d902980d801537",
-    "src/storage.rs": "sha256:5d58768910d95122513c9e1b7e06202068db2b6d8fa4b86eadcf1ba2c6393b76",
+    "src/local/tests.rs": "sha256:d14dede9da6b5557455308ccf289511cb64a739f1616b73d014aa2e78a317592",
+    "src/storage.rs": "sha256:c760d634474c233e3ae5786087e85682d16e0a8a5876a3832de34d10fffa32a4",
     "src/storage/auth.rs": "sha256:4e5448bab9db83eedde7764de17b6ecd34a36c19ea2a28c52c632fdcfdc5b635",
     "src/storage/auth_agent_credentials.rs": "sha256:94769ec761c5b0cc22c84dad1660c69c3bf5695300b73a92026656081f052694",
     "src/storage/auth_agents.rs": "sha256:7d282fa187ccfcfe77b007a3836168f546c224f0884efb154fb507eca6c9a699",
@@ -36,7 +36,7 @@
     "src/storage/migration_scan.rs": "sha256:42f0b15bca498d6781ea5c77e0e0b9eafc18fa490ca1e13339d89f76176f6d2e",
     "src/storage/projection_rebuild.rs": "sha256:759d8b9f4b33f0093f98dea1d3c80157a2f13267982b1273e7cc55bf080fd715",
     "src/storage/schema_transition.rs": "sha256:9768b7aa06f3f76f8e2776b13c848da60324d1d60d463cb6f5df1ae152d12455",
-    "src/storage/tests.rs": "sha256:bec6e356ca69cccf850132a6d46e9ce1bf9a45c54f529dcaa4b246f5c5a7a9da",
+    "src/storage/tests.rs": "sha256:751264d8494780d7122aed4392d6f2303ddacb88e6414c815c389220364a564d",
     "src/storage/write_authority.rs": "sha256:d4f13836da07680ed8c359f20be5865ef1c131c23138bb73c151679ead7ac615"
   },
   "schemaSourceSha256": {

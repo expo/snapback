@@ -11383,7 +11383,7 @@ mod membership_write_tests {
                 )
                 .expect("corrupt membership row version");
             let error = db
-                .plan_membership_remove(&user("alice"), "event_members", &host_id)
+                .membership_plans().plan_membership_remove(&user("alice"), "event_members", &host_id)
                 .expect_err("a corrupt membership cursor must not enter a plan");
             assert_eq!(
                 error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
@@ -11493,7 +11493,7 @@ mod membership_write_tests {
                 ("role".to_owned(), json!("invited")),
             ]);
             let error = db
-                .plan_membership_insert(&user("alice"), "event_members", values)
+                .membership_plans().plan_membership_insert(&user("alice"), "event_members", values)
                 .expect_err("a corrupt resource cursor must not enter a plan");
             assert_eq!(
                 error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
@@ -11559,7 +11559,7 @@ mod membership_write_tests {
                 )
                 .expect("corrupt expired membership row version");
             let error = db
-                .plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 100)
+                .membership_plans().plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 100)
                 .expect_err("a corrupt sweep cursor must not enter a system plan");
             assert_eq!(
                 error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
@@ -11573,7 +11573,7 @@ mod membership_write_tests {
         let mut db = ready_db();
         create_event(&mut db, "alice");
         let error = db
-            .plan_membership_sweep_expired(&MembershipWriter::System, "event_members", u64::MAX)
+            .membership_plans().plan_membership_sweep_expired(&MembershipWriter::System, "event_members", u64::MAX)
             .expect_err("the sweep clock must fit the portable SQLite domain");
         assert_eq!(error.diagnostic.code, "SNAPBACK_TIMESTAMP_OUT_OF_RANGE");
     }
@@ -11817,7 +11817,7 @@ mod membership_write_tests {
         let mut db = ready_db();
         let (event_id, _) = create_event(&mut db, "alice");
         let plan = db
-            .plan_membership_insert(
+            .membership_plans().plan_membership_insert(
                 &writer,
                 "event_members",
                 Map::from_iter([
@@ -11828,7 +11828,7 @@ mod membership_write_tests {
             )
             .expect("autonomous open-join plan");
         let commit = db
-            .commit_membership_plan(&writer, plan)
+            .membership_plans().commit_membership_plan(&writer, plan)
             .expect("autonomous open-join commit");
         let membership_id = commit_id_for_table(&commit, "event_members");
         assert_eq!(
@@ -11872,7 +11872,7 @@ mod membership_write_tests {
 
         let writer = user("alice");
         let plan = db
-            .plan_membership_insert(
+            .membership_plans().plan_membership_insert(
                 &writer,
                 "event_members",
                 Map::from_iter([
@@ -11957,10 +11957,10 @@ mod membership_write_tests {
         let mut values = Map::new();
         values.insert("title".to_owned(), json!("party"));
         let plan = db
-            .plan_membership_bootstrap(&writer, "events", values, "event_members")
+            .membership_plans().plan_membership_bootstrap(&writer, "events", values, "event_members")
             .expect("bootstrap plan");
         let commit = db
-            .commit_membership_plan(&writer, plan)
+            .membership_plans().commit_membership_plan(&writer, plan)
             .expect("bootstrap commit");
         let event_id = commit_id_for_table(&commit, "events");
         let host_id = commit_id_for_table(&commit, "event_members");
@@ -11995,9 +11995,9 @@ mod membership_write_tests {
         values.insert("eventId".to_owned(), json!(event_id));
         values.insert("role".to_owned(), json!("invited"));
         let plan = db
-            .plan_membership_insert(&writer, "event_members", values)
+            .membership_plans().plan_membership_insert(&writer, "event_members", values)
             .expect("invite plan");
-        db.commit_membership_plan(&writer, plan)
+        db.membership_plans().commit_membership_plan(&writer, plan)
             .expect("invite commit");
     }
 
@@ -12008,8 +12008,8 @@ mod membership_write_tests {
         to: &str,
     ) -> SnapbackResult<()> {
         let writer = user(actor);
-        let plan = db.plan_membership_set_role(&writer, "event_members", member_id, to)?;
-        db.commit_membership_plan(&writer, plan).map(|_| ())
+        let plan = db.membership_plans().plan_membership_set_role(&writer, "event_members", member_id, to)?;
+        db.membership_plans().commit_membership_plan(&writer, plan).map(|_| ())
     }
 
     /// Seat a second, real `host` by promoting an invited principal all the way up.
@@ -12058,14 +12058,14 @@ mod membership_write_tests {
         principal: &str,
     ) -> SnapbackResult<Value> {
         let writer = user(caller);
-        let plan = db.plan_membership_remove_principal(
+        let plan = db.membership_plans().plan_membership_remove_principal(
             &writer,
             "event_members",
             Some(event_id),
             principal,
         )?;
         let result = plan.result.clone();
-        db.commit_membership_plan(&writer, plan)?;
+        db.membership_plans().commit_membership_plan(&writer, plan)?;
         Ok(result)
     }
 
@@ -12221,10 +12221,10 @@ mod membership_write_tests {
         // (bob) and an absent one (nobody) — no membership probe happened.
         let writer = user("carol");
         let present = db
-            .plan_membership_remove_principal(&writer, "event_members", Some(&event_id), "bob")
+            .membership_plans().plan_membership_remove_principal(&writer, "event_members", Some(&event_id), "bob")
             .expect_err("guest caller denied");
         let absent = db
-            .plan_membership_remove_principal(&writer, "event_members", Some(&event_id), "nobody")
+            .membership_plans().plan_membership_remove_principal(&writer, "event_members", Some(&event_id), "nobody")
             .expect_err("guest caller denied on absent target too");
         assert_eq!(
             present.diagnostic.code,
@@ -12244,7 +12244,7 @@ mod membership_write_tests {
 
         // A caller with no row at all (class none): same invariant denial.
         let outsider = db
-            .plan_membership_remove_principal(
+            .membership_plans().plan_membership_remove_principal(
                 &user("mallory"),
                 "event_members",
                 Some(&event_id),
@@ -12258,7 +12258,7 @@ mod membership_write_tests {
 
         // Self-removal remains removeSelf: typed misuse, before target lookup.
         let this_is_me = db
-            .plan_membership_remove_principal(
+            .membership_plans().plan_membership_remove_principal(
                 &user("alice"),
                 "event_members",
                 Some(&event_id),
@@ -12272,14 +12272,14 @@ mod membership_write_tests {
 
         // Shape-only argument validation.
         let empty = db
-            .plan_membership_remove_principal(&user("alice"), "event_members", Some(&event_id), "")
+            .membership_plans().plan_membership_remove_principal(&user("alice"), "event_members", Some(&event_id), "")
             .expect_err("empty principal refuses");
         assert_eq!(
             empty.diagnostic.code,
             "SNAPBACK_MEMBERSHIP_PRINCIPAL_INVALID"
         );
         let missing_resource = db
-            .plan_membership_remove_principal(&user("alice"), "event_members", None, "bob")
+            .membership_plans().plan_membership_remove_principal(&user("alice"), "event_members", None, "bob")
             .expect_err("resource-scoped removal needs a resource");
         assert_eq!(
             missing_resource.diagnostic.code,
@@ -12291,7 +12291,7 @@ mod membership_write_tests {
         let mut undeclared = ready_db();
         let (undeclared_event, _) = create_event(&mut undeclared, "alice");
         let closed = undeclared
-            .plan_membership_remove_principal(
+            .membership_plans().plan_membership_remove_principal(
                 &user("alice"),
                 "event_members",
                 Some(&undeclared_event),
@@ -12314,7 +12314,7 @@ mod membership_write_tests {
 
         let writer = user("alice");
         let stale = db
-            .plan_membership_remove_principal(&writer, "event_members", Some(&event_id), "bob")
+            .membership_plans().plan_membership_remove_principal(&writer, "event_members", Some(&event_id), "bob")
             .expect("absent-target plan");
         assert!(stale.writes.is_empty(), "the no-op plans zero writes");
         assert!(
@@ -12325,7 +12325,7 @@ mod membership_write_tests {
         // bob joins between plan and commit: the captured absence is stale.
         seat_guest(&mut db, "alice", &event_id, "bob");
         let error = db
-            .commit_membership_plan(&writer, stale)
+            .membership_plans().commit_membership_plan(&writer, stale)
             .expect_err("stale absence capture must not commit");
         assert!(
             error.diagnostic.code.contains("CONFLICT")
@@ -12353,9 +12353,9 @@ mod membership_write_tests {
         let mut values = Map::new();
         values.insert("expiresAt".to_owned(), json!(1));
         let plan = db
-            .plan_membership_patch(&user("bob"), "event_members", &alice_row, values)
+            .membership_plans().plan_membership_patch(&user("bob"), "event_members", &alice_row, values)
             .expect("expiry patch plan");
-        db.commit_membership_plan(&user("bob"), plan)
+        db.membership_plans().commit_membership_plan(&user("bob"), plan)
             .expect("expiry patch commit");
 
         // Expired-but-authorized alice removes the other protected holder:
@@ -12538,7 +12538,7 @@ mod membership_write_tests {
         // The runtime-only principal provably lost authority; fixture
         // authority survives the same cut.
         let denied = db
-            .plan_membership_remove_principal(
+            .membership_plans().plan_membership_remove_principal(
                 &user("bob"),
                 "event_members",
                 Some("evt_fixture"),
@@ -12697,7 +12697,7 @@ mod membership_write_tests {
     ) -> MembershipPlan {
         match operation {
             CallerAuthorityOperation::Insert => db
-                .plan_membership_insert(
+                .membership_plans_read().plan_membership_insert(
                     &user(caller),
                     "event_members",
                     Map::from_iter([
@@ -12708,13 +12708,13 @@ mod membership_write_tests {
                 )
                 .expect("insert plan"),
             CallerAuthorityOperation::SetRole => db
-                .plan_membership_set_role(&user(caller), "event_members", target, "cohost")
+                .membership_plans_read().plan_membership_set_role(&user(caller), "event_members", target, "cohost")
                 .expect("setRole plan"),
             CallerAuthorityOperation::Remove => db
-                .plan_membership_remove(&user(caller), "event_members", target)
+                .membership_plans_read().plan_membership_remove(&user(caller), "event_members", target)
                 .expect("remove plan"),
             CallerAuthorityOperation::Patch => db
-                .plan_membership_patch(
+                .membership_plans_read().plan_membership_patch(
                     &user(caller),
                     "event_members",
                     target,
@@ -12785,10 +12785,10 @@ mod membership_write_tests {
         assert_eq!(after_insert.epoch, after_bootstrap.epoch + 1);
 
         let role_plan = db
-            .plan_membership_set_role(&user("bob"), "event_members", &bob, "guest")
+            .membership_plans().plan_membership_set_role(&user("bob"), "event_members", &bob, "guest")
             .expect("accept invite");
         let role_commit = db
-            .commit_membership_plan(&user("bob"), role_plan)
+            .membership_plans().commit_membership_plan(&user("bob"), role_plan)
             .expect("role commit");
         assert!(role_commit.authorization.as_ref().is_some_and(|w| w.event));
         assert_eq!(
@@ -12803,7 +12803,7 @@ mod membership_write_tests {
         assert_eq!(after_role.epoch, after_insert.epoch + 1);
 
         let incidental_plan = db
-            .plan_membership_patch(
+            .membership_plans().plan_membership_patch(
                 &user("bob"),
                 "event_members",
                 &bob,
@@ -12811,7 +12811,7 @@ mod membership_write_tests {
             )
             .expect("self preferences patch");
         let incidental_commit = db
-            .commit_membership_plan(&user("bob"), incidental_plan)
+            .membership_plans().commit_membership_plan(&user("bob"), incidental_plan)
             .expect("incidental commit");
         assert!(
             incidental_commit
@@ -12830,7 +12830,7 @@ mod membership_write_tests {
         assert_eq!(db.authorization_version().unwrap(), after_role);
 
         let expiry_plan = db
-            .plan_membership_patch(
+            .membership_plans().plan_membership_patch(
                 &user("alice"),
                 "event_members",
                 &bob,
@@ -12838,7 +12838,7 @@ mod membership_write_tests {
             )
             .expect("host expiry patch");
         let expiry_commit = db
-            .commit_membership_plan(&user("alice"), expiry_plan)
+            .membership_plans().commit_membership_plan(&user("alice"), expiry_plan)
             .expect("expiry commit");
         assert!(
             expiry_commit
@@ -12852,10 +12852,10 @@ mod membership_write_tests {
         );
 
         let remove_plan = db
-            .plan_membership_remove(&user("alice"), "event_members", &bob)
+            .membership_plans().plan_membership_remove(&user("alice"), "event_members", &bob)
             .expect("host removes guest");
         let remove_commit = db
-            .commit_membership_plan(&user("alice"), remove_plan)
+            .membership_plans().commit_membership_plan(&user("alice"), remove_plan)
             .expect("remove commit");
         assert!(
             remove_commit
@@ -12891,10 +12891,10 @@ mod membership_write_tests {
             ("role".to_owned(), json!("invited")),
         ]);
         let plan = db
-            .plan_membership_insert(&delegated, "event_members", values)
+            .membership_plans().plan_membership_insert(&delegated, "event_members", values)
             .expect("delegated invite plan");
         let invite = db
-            .commit_membership_plan(&delegated, plan)
+            .membership_plans().commit_membership_plan(&delegated, plan)
             .expect("delegated invite commit");
         let bob = commit_id_for_table(&invite, "event_members");
         assert_eq!(
@@ -12910,14 +12910,14 @@ mod membership_write_tests {
         set_role(&mut db, "bob", &bob, "guest").expect("accept invite");
         set_role(&mut db, "alice", &bob, "cohost").expect("promote cohost");
         let downgrade = db
-            .plan_membership_set_role(&delegated, "event_members", &bob, "guest")
+            .membership_plans().plan_membership_set_role(&delegated, "event_members", &bob, "guest")
             .expect("delegated downgrade plan");
-        db.commit_membership_plan(&delegated, downgrade)
+        db.membership_plans().commit_membership_plan(&delegated, downgrade)
             .expect("delegated downgrade commit");
         let remove = db
-            .plan_membership_remove(&delegated, "event_members", &bob)
+            .membership_plans().plan_membership_remove(&delegated, "event_members", &bob)
             .expect("delegated kick plan");
-        db.commit_membership_plan(&delegated, remove)
+        db.membership_plans().commit_membership_plan(&delegated, remove)
             .expect("delegated kick commit");
         assert_eq!(role_of(&db, &bob), None, "the kicked row is gone");
 
@@ -12993,7 +12993,7 @@ mod membership_write_tests {
             authority_creating_consent: true,
         };
         let plan = db
-            .plan_membership_insert(
+            .membership_plans().plan_membership_insert(
                 &delegated,
                 "event_members",
                 Map::from_iter([
@@ -13004,7 +13004,7 @@ mod membership_write_tests {
             )
             .expect("consented delegate seats its actor");
         let commit = db
-            .commit_membership_plan(&delegated, plan)
+            .membership_plans().commit_membership_plan(&delegated, plan)
             .expect("self-seating commit");
         let membership_id = commit_id_for_table(&commit, "event_members");
 
@@ -13150,7 +13150,7 @@ mod membership_write_tests {
 
         let seed = MembershipWriter::Seed;
         let seed_plan = db
-            .plan_privileged_membership_insert(
+            .membership_plans().plan_privileged_membership_insert(
                 &seed,
                 "app_roles",
                 Map::from_iter([
@@ -13159,7 +13159,7 @@ mod membership_write_tests {
                 ]),
             )
             .expect("first global admin is seeded");
-        let seed_commit = db.commit_membership_plan(&seed, seed_plan).unwrap();
+        let seed_commit = db.membership_plans().commit_membership_plan(&seed, seed_plan).unwrap();
         let alice = commit_id_for_table(&seed_commit, "app_roles");
         assert_eq!(
             db.membership_creation_provenance("app_roles", &alice)
@@ -13186,7 +13186,7 @@ mod membership_write_tests {
 
         let admin = MembershipWriter::Admin;
         let admin_plan = db
-            .plan_privileged_membership_insert(
+            .membership_plans().plan_privileged_membership_insert(
                 &admin,
                 "app_roles",
                 Map::from_iter([
@@ -13196,7 +13196,7 @@ mod membership_write_tests {
             )
             .expect("admin data-edit plan");
         let admin_commit = db
-            .commit_membership_plan(&admin, admin_plan)
+            .membership_plans().commit_membership_plan(&admin, admin_plan)
             .expect("admin data-edit commit");
         let bob = commit_id_for_table(&admin_commit, "app_roles");
         assert_eq!(
@@ -13213,7 +13213,7 @@ mod membership_write_tests {
             granted_by_grant: Some("historical-grant".to_owned()),
         };
         let import_plan = db
-            .plan_privileged_membership_insert(
+            .membership_plans().plan_privileged_membership_insert(
                 &imported,
                 "app_roles",
                 Map::from_iter([
@@ -13223,7 +13223,7 @@ mod membership_write_tests {
             )
             .expect("import plan");
         let import_commit = db
-            .commit_membership_plan(&imported, import_plan)
+            .membership_plans().commit_membership_plan(&imported, import_plan)
             .expect("import commit");
         let carol = commit_id_for_table(&import_commit, "app_roles");
         assert_eq!(
@@ -13241,7 +13241,7 @@ mod membership_write_tests {
         );
 
         let duplicate = db
-            .plan_privileged_membership_insert(
+            .membership_plans().plan_privileged_membership_insert(
                 &MembershipWriter::Admin,
                 "app_roles",
                 Map::from_iter([
@@ -13251,7 +13251,7 @@ mod membership_write_tests {
             )
             .expect("admin plan");
         let error = db
-            .commit_membership_plan(&MembershipWriter::Admin, duplicate)
+            .membership_plans().commit_membership_plan(&MembershipWriter::Admin, duplicate)
             .expect_err("one global role per declaration");
         assert_eq!(
             error.diagnostic.code,
@@ -13389,7 +13389,7 @@ mod membership_write_tests {
             values.insert("eventId".to_owned(), json!(event_id));
             values.insert("role".to_owned(), json!("guest"));
             let error = db
-                .plan_membership_insert(&writer, "event_members", values)
+                .membership_plans().plan_membership_insert(&writer, "event_members", values)
                 .expect_err("userless open-join must be refused");
             assert_eq!(
                 error.diagnostic.code, "SNAPBACK_MEMBERSHIP_NO_EFFECTIVE_PRINCIPAL",
@@ -13413,9 +13413,9 @@ mod membership_write_tests {
         // Leave: self remove.
         let writer = user("bob");
         let plan = db
-            .plan_membership_remove(&writer, "event_members", &bob)
+            .membership_plans().plan_membership_remove(&writer, "event_members", &bob)
             .expect("leave plan");
-        db.commit_membership_plan(&writer, plan).expect("leave");
+        db.membership_plans().commit_membership_plan(&writer, plan).expect("leave");
         assert_eq!(role_of(&db, &bob), None);
     }
 
@@ -13430,9 +13430,9 @@ mod membership_write_tests {
         values.insert("eventId".to_owned(), json!(event_id));
         values.insert("role".to_owned(), json!("guest"));
         let plan = db
-            .plan_membership_insert(&writer, "event_members", values.clone())
+            .membership_plans().plan_membership_insert(&writer, "event_members", values.clone())
             .expect("open join plan");
-        db.commit_membership_plan(&writer, plan).expect("open join");
+        db.membership_plans().commit_membership_plan(&writer, plan).expect("open join");
         assert_eq!(
             role_of(&db, &member_id(&db, &event_id, "carol")).as_deref(),
             Some("guest")
@@ -13446,7 +13446,7 @@ mod membership_write_tests {
         with_expiry.insert("role".to_owned(), json!("guest"));
         with_expiry.insert("expiresAt".to_owned(), json!(9_999_999_999_999i64));
         let error = db
-            .plan_membership_insert(&user("dave"), "event_members", with_expiry)
+            .membership_plans().plan_membership_insert(&user("dave"), "event_members", with_expiry)
             .expect_err("open join cannot seat expiresAt");
         assert_eq!(
             error.diagnostic.code,
@@ -13484,7 +13484,7 @@ mod membership_write_tests {
             "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED"
         );
         // And bob cannot kick carol (remove other requires host).
-        let plan = db.plan_membership_remove(&user("bob"), "event_members", &carol);
+        let plan = db.membership_plans().plan_membership_remove(&user("bob"), "event_members", &carol);
         assert_eq!(
             plan.expect_err("non-host kick refused").diagnostic.code,
             "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED"
@@ -13503,16 +13503,16 @@ mod membership_write_tests {
         let mut prefs = Map::new();
         prefs.insert("notifyPrefs".to_owned(), json!("muted"));
         let plan = db
-            .plan_membership_patch(&user("bob"), "event_members", &bob, prefs)
+            .membership_plans().plan_membership_patch(&user("bob"), "event_members", &bob, prefs)
             .expect("prefs plan");
-        db.commit_membership_plan(&user("bob"), plan)
+        db.membership_plans().commit_membership_plan(&user("bob"), plan)
             .expect("prefs");
 
         // Self may NOT extend own expiresAt (the self-renewal hole).
         let mut extend = Map::new();
         extend.insert("expiresAt".to_owned(), json!(9_999_999_999_999i64));
         let error = db
-            .plan_membership_patch(&user("bob"), "event_members", &bob, extend.clone())
+            .membership_plans().plan_membership_patch(&user("bob"), "event_members", &bob, extend.clone())
             .expect_err("self expiry extend refused");
         assert_eq!(
             error.diagnostic.code,
@@ -13521,9 +13521,9 @@ mod membership_write_tests {
 
         // But a host may extend a guest's expiresAt.
         let plan = db
-            .plan_membership_patch(&user("alice"), "event_members", &bob, extend)
+            .membership_plans().plan_membership_patch(&user("alice"), "event_members", &bob, extend)
             .expect("host extend plan");
-        db.commit_membership_plan(&user("alice"), plan)
+        db.membership_plans().commit_membership_plan(&user("alice"), plan)
             .expect("host extend");
     }
 
@@ -13550,14 +13550,14 @@ mod membership_write_tests {
         set_role(&mut restricted, "bob", &bob, "guest").unwrap();
         let expiry = Map::from_iter([("expiresAt".to_owned(), json!(5000))]);
         let guest_patch = restricted
-            .plan_membership_patch(&user("alice"), "event_members", &bob, expiry.clone())
+            .membership_plans().plan_membership_patch(&user("alice"), "event_members", &bob, expiry.clone())
             .expect("guest is in from set");
         restricted
-            .commit_membership_plan(&user("alice"), guest_patch)
+            .membership_plans().commit_membership_plan(&user("alice"), guest_patch)
             .unwrap();
         set_role(&mut restricted, "alice", &bob, "cohost").unwrap();
         let error = restricted
-            .plan_membership_patch(&user("alice"), "event_members", &bob, expiry.clone())
+            .membership_plans().plan_membership_patch(&user("alice"), "event_members", &bob, expiry.clone())
             .expect_err("cohost is outside from set");
         assert_eq!(
             error.diagnostic.code,
@@ -13571,7 +13571,7 @@ mod membership_write_tests {
         set_role(&mut unrestricted, "bob", &bob, "guest").unwrap();
         set_role(&mut unrestricted, "alice", &bob, "cohost").unwrap();
         unrestricted
-            .plan_membership_patch(&user("alice"), "event_members", &bob, expiry)
+            .membership_plans().plan_membership_patch(&user("alice"), "event_members", &bob, expiry)
             .expect("omitted from accepts any current role");
     }
 
@@ -13613,7 +13613,7 @@ mod membership_write_tests {
         usurp.insert("eventId".to_owned(), json!(event_id));
         usurp.insert("role".to_owned(), json!("host"));
         let error = db
-            .plan_membership_insert(&user("mallory"), "event_members", usurp)
+            .membership_plans().plan_membership_insert(&user("mallory"), "event_members", usurp)
             .expect_err("no bootstrap witness on an existing resource");
         assert_eq!(
             error.diagnostic.code,
@@ -13627,7 +13627,7 @@ mod membership_write_tests {
         let (event_id, host_id) = create_event(&mut db, "alice");
         // Lone host leaving would strand the resource.
         let error = db
-            .plan_membership_remove(&user("alice"), "event_members", &host_id)
+            .membership_plans().plan_membership_remove(&user("alice"), "event_members", &host_id)
             .expect_err("lone host leave refused");
         assert_eq!(
             error.diagnostic.code,
@@ -13637,14 +13637,14 @@ mod membership_write_tests {
         // Seat a second host; now alice may leave.
         promote_to_host(&mut db, "alice", &event_id, "bob");
         let plan = db
-            .plan_membership_remove(&user("alice"), "event_members", &host_id)
+            .membership_plans().plan_membership_remove(&user("alice"), "event_members", &host_id)
             .expect("second host present");
-        db.commit_membership_plan(&user("alice"), plan)
+        db.membership_plans().commit_membership_plan(&user("alice"), plan)
             .expect("alice leaves");
         // And now bob is the lone host again.
         let bob_id = member_id(&db, &event_id, "bob");
         let error = db
-            .plan_membership_remove(&user("bob"), "event_members", &bob_id)
+            .membership_plans().plan_membership_remove(&user("bob"), "event_members", &bob_id)
             .expect_err("bob is now the lone host");
         assert_eq!(
             error.diagnostic.code,
@@ -13670,7 +13670,7 @@ mod membership_write_tests {
         // B leaving is now refused — A is ineligible, so B is the last eligible
         // holder and the resource would strand permanently.
         let error = db
-            .plan_membership_remove(&user("agent-b"), "event_members", &agent_b_host)
+            .membership_plans().plan_membership_remove(&user("agent-b"), "event_members", &agent_b_host)
             .expect_err("second-step leave must be refused");
         assert_eq!(
             error.diagnostic.code,
@@ -13722,13 +13722,13 @@ mod membership_write_tests {
         // detect that spending the stale plan would strand the resource.
         let (mut auth_first, agent_a, agent_b) = prepare();
         let stale_remove = auth_first
-            .plan_membership_remove(&user("agent-b"), "event_members", &agent_b)
+            .membership_plans().plan_membership_remove(&user("agent-b"), "event_members", &agent_b)
             .unwrap();
         auth_first
             .deactivate_agent("agent-a", 100, &membership_schema())
             .unwrap();
         let error = auth_first
-            .commit_membership_plan(&user("agent-b"), stale_remove)
+            .membership_plans().commit_membership_plan(&user("agent-b"), stale_remove)
             .expect_err("stale removal must observe the survivor's ineligibility");
         assert_eq!(
             error.diagnostic.code,
@@ -13741,10 +13741,10 @@ mod membership_write_tests {
         // the auth side and is the refused second writer.
         let (mut membership_first, agent_a, agent_b) = prepare();
         let remove = membership_first
-            .plan_membership_remove(&user("agent-b"), "event_members", &agent_b)
+            .membership_plans().plan_membership_remove(&user("agent-b"), "event_members", &agent_b)
             .unwrap();
         membership_first
-            .commit_membership_plan(&user("agent-b"), remove)
+            .membership_plans().commit_membership_plan(&user("agent-b"), remove)
             .unwrap();
         let error = membership_first
             .deactivate_agent("agent-a", 100, &membership_schema())
@@ -13801,13 +13801,13 @@ mod membership_write_tests {
         // the resource and the aggregate final state is otherwise nonempty.
         let (mut auth_first, target) = prepare();
         let stale_promotion = auth_first
-            .plan_membership_set_role(&user("agent-a"), "event_members", &target, "host")
+            .membership_plans().plan_membership_set_role(&user("agent-a"), "event_members", &target, "host")
             .unwrap();
         auth_first
             .deactivate_agent("agent-b", 100, &membership_schema())
             .unwrap();
         let error = auth_first
-            .commit_membership_plan(&user("agent-a"), stale_promotion)
+            .membership_plans().commit_membership_plan(&user("agent-a"), stale_promotion)
             .expect_err("commit must recheck target eligibility after deactivation");
         assert_eq!(
             error.diagnostic.code,
@@ -13820,10 +13820,10 @@ mod membership_write_tests {
         // eligible holder. Both serialized outcomes preserve the invariant.
         let (mut membership_first, target) = prepare();
         let promotion = membership_first
-            .plan_membership_set_role(&user("agent-a"), "event_members", &target, "host")
+            .membership_plans().plan_membership_set_role(&user("agent-a"), "event_members", &target, "host")
             .unwrap();
         membership_first
-            .commit_membership_plan(&user("agent-a"), promotion)
+            .membership_plans().commit_membership_plan(&user("agent-a"), promotion)
             .unwrap();
         membership_first
             .deactivate_agent("agent-b", 100, &membership_schema())
@@ -13838,13 +13838,13 @@ mod membership_write_tests {
         let (mut auth_first, _, _, agent_b, _, _) = sessions_holder_fixture(true);
         let manifest = auth_first.schema().clone();
         let demote = auth_first
-            .plan_membership_set_role(&user("agent-a"), "event_members", &agent_b, "cohost")
+            .membership_plans().plan_membership_set_role(&user("agent-a"), "event_members", &agent_b, "cohost")
             .expect("demotion plan");
         auth_first
             .deactivate_agent("agent-a", 100, &manifest)
             .expect("B remains an eligible host");
         let error = auth_first
-            .commit_membership_plan(&user("agent-a"), demote)
+            .membership_plans().commit_membership_plan(&user("agent-a"), demote)
             .expect_err("demotion cannot spend a deactivated survivor");
         assert_eq!(
             error.diagnostic.code,
@@ -13857,10 +13857,10 @@ mod membership_write_tests {
         let (mut membership_first, _, agent_a, agent_b, _, _) = sessions_holder_fixture(true);
         let manifest = membership_first.schema().clone();
         let demote = membership_first
-            .plan_membership_set_role(&user("agent-a"), "event_members", &agent_b, "cohost")
+            .membership_plans().plan_membership_set_role(&user("agent-a"), "event_members", &agent_b, "cohost")
             .expect("demotion plan");
         membership_first
-            .commit_membership_plan(&user("agent-a"), demote)
+            .membership_plans().commit_membership_plan(&user("agent-a"), demote)
             .expect("demotion commits first");
         let error = membership_first
             .deactivate_agent("agent-a", 100, &manifest)
@@ -13884,11 +13884,11 @@ mod membership_write_tests {
                 sessions_holder_fixture(demote);
             let departure = if demote {
                 auth_first
-                    .plan_membership_set_role(&user("agent-a"), "event_members", &agent_b, "cohost")
+                    .membership_plans().plan_membership_set_role(&user("agent-a"), "event_members", &agent_b, "cohost")
                     .expect("demotion plan")
             } else {
                 auth_first
-                    .plan_membership_remove(&user("agent-b"), "event_members", &agent_b)
+                    .membership_plans().plan_membership_remove(&user("agent-b"), "event_members", &agent_b)
                     .expect("removal plan")
             };
             auth_first
@@ -13900,7 +13900,7 @@ mod membership_write_tests {
                 user("agent-b")
             };
             let error = auth_first
-                .commit_membership_plan(&writer, departure)
+                .membership_plans().commit_membership_plan(&writer, departure)
                 .expect_err("departure cannot spend a now-unrecoverable survivor");
             assert_eq!(
                 error.diagnostic.code, "SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND",
@@ -13914,11 +13914,11 @@ mod membership_write_tests {
                 sessions_holder_fixture(demote);
             let departure = if demote {
                 membership_first
-                    .plan_membership_set_role(&user("agent-a"), "event_members", &agent_b, "cohost")
+                    .membership_plans().plan_membership_set_role(&user("agent-a"), "event_members", &agent_b, "cohost")
                     .expect("demotion plan")
             } else {
                 membership_first
-                    .plan_membership_remove(&user("agent-b"), "event_members", &agent_b)
+                    .membership_plans().plan_membership_remove(&user("agent-b"), "event_members", &agent_b)
                     .expect("removal plan")
             };
             let writer = if demote {
@@ -13927,7 +13927,7 @@ mod membership_write_tests {
                 user("agent-b")
             };
             membership_first
-                .commit_membership_plan(&writer, departure)
+                .membership_plans().commit_membership_plan(&writer, departure)
                 .expect("membership departure commits first");
             let error = membership_first
                 .revoke_agent_credential_family(&agent_a_credential, 100)
@@ -13955,18 +13955,18 @@ mod membership_write_tests {
 
         // Both leaves are PLANNED against the same snapshot (two eligible hosts).
         let alice_plan = db
-            .plan_membership_remove(&user("alice"), "event_members", &alice_host)
+            .membership_plans().plan_membership_remove(&user("alice"), "event_members", &alice_host)
             .expect("alice plan");
         let bob_plan = db
-            .plan_membership_remove(&user("bob"), "event_members", &bob_host)
+            .membership_plans().plan_membership_remove(&user("bob"), "event_members", &bob_host)
             .expect("bob plan");
 
         // The first commits; the second relied on the first's row surviving, so it
         // fails commit-time read-set validation.
-        db.commit_membership_plan(&user("alice"), alice_plan)
+        db.membership_plans().commit_membership_plan(&user("alice"), alice_plan)
             .expect("alice commits");
         let error = db
-            .commit_membership_plan(&user("bob"), bob_plan)
+            .membership_plans().commit_membership_plan(&user("bob"), bob_plan)
             .expect_err("bob's concurrent final removal must fail at commit");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
         // Exactly one host remains — the resource is never stranded.
@@ -13989,13 +13989,13 @@ mod membership_write_tests {
                 &target,
             );
             let remove_caller = authority_first
-                .plan_membership_remove(&user("alice"), "event_members", &alice)
+                .membership_plans().plan_membership_remove(&user("alice"), "event_members", &alice)
                 .expect("second host permits caller removal");
             authority_first
-                .commit_membership_plan(&user("alice"), remove_caller)
+                .membership_plans().commit_membership_plan(&user("alice"), remove_caller)
                 .expect("caller membership removal commits first");
             let error = authority_first
-                .commit_membership_plan(&user("alice"), stale)
+                .membership_plans().commit_membership_plan(&user("alice"), stale)
                 .expect_err("stale caller authority must not commit");
             assert_eq!(
                 error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT",
@@ -14017,23 +14017,23 @@ mod membership_write_tests {
                 &target,
             );
             let remove_caller = operation_first
-                .plan_membership_remove(&user("alice"), "event_members", &alice)
+                .membership_plans().plan_membership_remove(&user("alice"), "event_members", &alice)
                 .expect("concurrent caller removal plan");
             operation_first
-                .commit_membership_plan(&user("alice"), operation_plan)
+                .membership_plans().commit_membership_plan(&user("alice"), operation_plan)
                 .unwrap_or_else(|error| panic!("operation {operation:?} must win: {error}"));
             if let Err(error) =
-                operation_first.commit_membership_plan(&user("alice"), remove_caller)
+                operation_first.membership_plans().commit_membership_plan(&user("alice"), remove_caller)
             {
                 assert_eq!(
                     error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT",
                     "operation {operation:?}"
                 );
                 let retry = operation_first
-                    .plan_membership_remove(&user("alice"), "event_members", &alice)
+                    .membership_plans().plan_membership_remove(&user("alice"), "event_members", &alice)
                     .expect("fresh caller removal plan");
                 operation_first
-                    .commit_membership_plan(&user("alice"), retry)
+                    .membership_plans().commit_membership_plan(&user("alice"), retry)
                     .expect("fresh caller removal commits");
             }
         }
@@ -14060,13 +14060,13 @@ mod membership_write_tests {
                 &target,
             );
             let demote_caller = authority_first
-                .plan_membership_set_role(&user("bob"), "event_members", &alice, "cohost")
+                .membership_plans().plan_membership_set_role(&user("bob"), "event_members", &alice, "cohost")
                 .expect("bob may demote alice");
             authority_first
-                .commit_membership_plan(&user("bob"), demote_caller)
+                .membership_plans().commit_membership_plan(&user("bob"), demote_caller)
                 .expect("caller demotion commits first");
             let error = authority_first
-                .commit_membership_plan(&user("alice"), stale)
+                .membership_plans().commit_membership_plan(&user("alice"), stale)
                 .expect_err("a host plan cannot survive caller demotion");
             assert_eq!(
                 error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT",
@@ -14083,22 +14083,22 @@ mod membership_write_tests {
                 &target,
             );
             let demote_caller = operation_first
-                .plan_membership_set_role(&user("bob"), "event_members", &alice, "cohost")
+                .membership_plans().plan_membership_set_role(&user("bob"), "event_members", &alice, "cohost")
                 .expect("concurrent caller demotion plan");
             operation_first
-                .commit_membership_plan(&user("alice"), operation_plan)
+                .membership_plans().commit_membership_plan(&user("alice"), operation_plan)
                 .unwrap_or_else(|error| panic!("operation {operation:?} must win: {error}"));
-            if let Err(error) = operation_first.commit_membership_plan(&user("bob"), demote_caller)
+            if let Err(error) = operation_first.membership_plans().commit_membership_plan(&user("bob"), demote_caller)
             {
                 assert_eq!(
                     error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT",
                     "operation {operation:?}"
                 );
                 let retry = operation_first
-                    .plan_membership_set_role(&user("bob"), "event_members", &alice, "cohost")
+                    .membership_plans().plan_membership_set_role(&user("bob"), "event_members", &alice, "cohost")
                     .expect("fresh caller demotion plan");
                 operation_first
-                    .commit_membership_plan(&user("bob"), retry)
+                    .membership_plans().commit_membership_plan(&user("bob"), retry)
                     .expect("fresh caller demotion commits");
             }
         }
@@ -14112,7 +14112,7 @@ mod membership_write_tests {
             schema
         };
         let other_insert = |db: &LocalDatabase, event_id: &str| {
-            db.plan_membership_insert(
+            db.membership_plans_read().plan_membership_insert(
                 &user("mallory"),
                 "event_members",
                 Map::from_iter([
@@ -14124,7 +14124,7 @@ mod membership_write_tests {
             .expect("none-class other insert plan")
         };
         let join = |db: &LocalDatabase, event_id: &str| {
-            db.plan_membership_insert(
+            db.membership_plans_read().plan_membership_insert(
                 &user("mallory"),
                 "event_members",
                 Map::from_iter([
@@ -14142,10 +14142,10 @@ mod membership_write_tests {
         let stale = other_insert(&membership_first, &event_id);
         let caller_join = join(&membership_first, &event_id);
         membership_first
-            .commit_membership_plan(&user("mallory"), caller_join)
+            .membership_plans().commit_membership_plan(&user("mallory"), caller_join)
             .expect("caller membership appears first");
         let error = membership_first
-            .commit_membership_plan(&user("mallory"), stale)
+            .membership_plans().commit_membership_plan(&user("mallory"), stale)
             .expect_err("none-class plan must reject an absent-to-present caller race");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
 
@@ -14155,10 +14155,10 @@ mod membership_write_tests {
         let operation_plan = other_insert(&operation_first, &event_id);
         let caller_join = join(&operation_first, &event_id);
         operation_first
-            .commit_membership_plan(&user("mallory"), operation_plan)
+            .membership_plans().commit_membership_plan(&user("mallory"), operation_plan)
             .expect("none-class operation commits first");
         operation_first
-            .commit_membership_plan(&user("mallory"), caller_join)
+            .membership_plans().commit_membership_plan(&user("mallory"), caller_join)
             .expect("caller membership commits second");
     }
 
@@ -14168,7 +14168,7 @@ mod membership_write_tests {
         let (event_id, alice_host) = create_event(&mut db, "alice");
         promote_to_host(&mut db, "alice", &event_id, "bob");
         let invite_plan = db
-            .plan_membership_insert(
+            .membership_plans().plan_membership_insert(
                 &user("alice"),
                 "event_members",
                 Map::from_iter([
@@ -14179,12 +14179,12 @@ mod membership_write_tests {
             )
             .expect("host invite planned");
         let leave = db
-            .plan_membership_remove(&user("alice"), "event_members", &alice_host)
+            .membership_plans().plan_membership_remove(&user("alice"), "event_members", &alice_host)
             .expect("other host preserves resource");
-        db.commit_membership_plan(&user("alice"), leave)
+        db.membership_plans().commit_membership_plan(&user("alice"), leave)
             .expect("caller membership removed first");
         let error = db
-            .commit_membership_plan(&user("alice"), invite_plan)
+            .membership_plans().commit_membership_plan(&user("alice"), invite_plan)
             .expect_err("obsolete host authority must not commit");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
     }
@@ -14210,7 +14210,7 @@ mod membership_write_tests {
         db.apply_schema(schema).unwrap();
         let (event_id, _) = create_event(&mut db, "alice");
         let stale = db
-            .plan_membership_insert(
+            .membership_plans().plan_membership_insert(
                 &user("mallory"),
                 "event_members",
                 Map::from_iter([
@@ -14221,7 +14221,7 @@ mod membership_write_tests {
             )
             .expect("none-class other insert plan");
         let join = db
-            .plan_membership_insert(
+            .membership_plans().plan_membership_insert(
                 &user("mallory"),
                 "event_members",
                 Map::from_iter([
@@ -14231,9 +14231,9 @@ mod membership_write_tests {
                 ]),
             )
             .expect("caller joins");
-        db.commit_membership_plan(&user("mallory"), join).unwrap();
+        db.membership_plans().commit_membership_plan(&user("mallory"), join).unwrap();
         let error = db
-            .commit_membership_plan(&user("mallory"), stale)
+            .membership_plans().commit_membership_plan(&user("mallory"), stale)
             .expect_err("empty caller witness must invalidate");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
     }
@@ -14248,7 +14248,7 @@ mod membership_write_tests {
         values.insert("eventId".to_owned(), json!("ghost-event"));
         values.insert("role".to_owned(), json!("guest"));
         let error = db
-            .plan_membership_insert(&user("carol"), "event_members", values)
+            .membership_plans_read().plan_membership_insert(&user("carol"), "event_members", values)
             .expect_err("insert on a missing resource is refused");
         assert_eq!(
             error.diagnostic.code,
@@ -14279,9 +14279,9 @@ mod membership_write_tests {
         // Teardown clears the whole roster (including the protected host) and
         // deletes the resource.
         let plan = db
-            .plan_membership_teardown(&user("alice"), "events", &event_id)
+            .membership_plans().plan_membership_teardown(&user("alice"), "events", &event_id)
             .expect("teardown plan");
-        db.commit_membership_plan(&user("alice"), plan)
+        db.membership_plans().commit_membership_plan(&user("alice"), plan)
             .expect("teardown");
         let remaining: i64 = db
             .conn
@@ -14310,18 +14310,18 @@ mod membership_write_tests {
 
         // Both planned against the same snapshot.
         let join_plan = db
-            .plan_membership_insert(&user("carol"), "event_members", join_values)
+            .membership_plans().plan_membership_insert(&user("carol"), "event_members", join_values)
             .expect("join plan");
         let teardown_plan = db
-            .plan_membership_teardown(&user("alice"), "events", &event_id)
+            .membership_plans().plan_membership_teardown(&user("alice"), "events", &event_id)
             .expect("teardown plan");
 
         // Teardown commits first; the racing insert then fails because the
         // resource row it captured is gone — no orphan on a deleted resource.
-        db.commit_membership_plan(&user("alice"), teardown_plan)
+        db.membership_plans().commit_membership_plan(&user("alice"), teardown_plan)
             .expect("teardown commits");
         let error = db
-            .commit_membership_plan(&user("carol"), join_plan)
+            .membership_plans().commit_membership_plan(&user("carol"), join_plan)
             .expect_err("open join must lose to the completed teardown");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
     }
@@ -14335,17 +14335,17 @@ mod membership_write_tests {
         join_values.insert("eventId".to_owned(), json!(event_id));
         join_values.insert("role".to_owned(), json!("guest"));
         let join_plan = db
-            .plan_membership_insert(&user("carol"), "event_members", join_values)
+            .membership_plans().plan_membership_insert(&user("carol"), "event_members", join_values)
             .expect("join plan");
         let teardown_plan = db
-            .plan_membership_teardown(&user("alice"), "events", &event_id)
+            .membership_plans().plan_membership_teardown(&user("alice"), "events", &event_id)
             .expect("teardown plan");
         // The insert commits first; the teardown's captured roster emptiness is
         // now stale, so it fails rather than orphaning the new member.
-        db.commit_membership_plan(&user("carol"), join_plan)
+        db.membership_plans().commit_membership_plan(&user("carol"), join_plan)
             .expect("join commits");
         let error = db
-            .commit_membership_plan(&user("alice"), teardown_plan)
+            .membership_plans().commit_membership_plan(&user("alice"), teardown_plan)
             .expect_err("teardown must lose to the completed open join");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
     }
@@ -14369,9 +14369,9 @@ mod membership_write_tests {
         carol.insert("eventId".to_owned(), json!(event_id));
         carol.insert("role".to_owned(), json!("guest"));
         let plan = db
-            .plan_membership_insert(&user("carol"), "event_members", carol)
+            .membership_plans().plan_membership_insert(&user("carol"), "event_members", carol)
             .expect("carol join");
-        db.commit_membership_plan(&user("carol"), plan)
+        db.membership_plans().commit_membership_plan(&user("carol"), plan)
             .expect("carol commit");
         let carol_id = member_id(&db, &event_id, "carol");
         db.conn
@@ -14383,19 +14383,19 @@ mod membership_write_tests {
 
         // A user authority cannot sweep.
         let error = db
-            .plan_membership_sweep_expired(&user("alice"), "event_members", 1000)
+            .membership_plans().plan_membership_sweep_expired(&user("alice"), "event_members", 1000)
             .expect_err("user cannot sweep");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MEMBERSHIP_SWEEP_AUTHORITY");
 
         // System sweeps: carol (guest, expired) is removed; the host is skipped
         // because lastHolder wins over expiry.
         let plan = db
-            .plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 1000)
+            .membership_plans().plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 1000)
             .expect("sweep plan");
         assert_eq!(plan.skipped_protected(), std::slice::from_ref(&host_id));
         let before_sweep = db.authorization_version().expect("pre-sweep version");
         let sweep = db
-            .commit_membership_plan(&MembershipWriter::System, plan)
+            .membership_plans().commit_membership_plan(&MembershipWriter::System, plan)
             .expect("sweep commit");
         let authorization = sweep.authorization.expect("sweep witness");
         assert!(authorization.event, "expiry removal is event 1");
@@ -14434,20 +14434,20 @@ mod membership_write_tests {
             )
             .unwrap();
         let sweep = db
-            .plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 100)
+            .membership_plans().plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 100)
             .expect("expired row planned");
         let renewal = db
-            .plan_membership_patch(
+            .membership_plans().plan_membership_patch(
                 &user("alice"),
                 "event_members",
                 &carol,
                 Map::from_iter([("expiresAt".to_owned(), json!(1000))]),
             )
             .expect("host renewal plan");
-        db.commit_membership_plan(&user("alice"), renewal)
+        db.membership_plans().commit_membership_plan(&user("alice"), renewal)
             .expect("renewal commits first");
         let error = db
-            .commit_membership_plan(&MembershipWriter::System, sweep)
+            .membership_plans().commit_membership_plan(&MembershipWriter::System, sweep)
             .expect_err("stale sweep cannot delete a renewed row");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
         assert_eq!(role_of(&db, &carol).as_deref(), Some("guest"));
@@ -14467,11 +14467,11 @@ mod membership_write_tests {
             )
             .unwrap();
         let sweep = db
-            .plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 100)
+            .membership_plans().plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 100)
             .unwrap();
         set_role(&mut db, "alice", &carol, "cohost").unwrap();
         let error = db
-            .commit_membership_plan(&MembershipWriter::System, sweep)
+            .membership_plans().commit_membership_plan(&MembershipWriter::System, sweep)
             .expect_err("a stale sweep cannot delete a promoted row");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
         assert_eq!(role_of(&db, &carol).as_deref(), Some("cohost"));
@@ -14493,7 +14493,7 @@ mod membership_write_tests {
                 )
                 .unwrap();
             let sweep = db
-                .plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 100)
+                .membership_plans().plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 100)
                 .unwrap();
             assert_eq!(
                 sweep.writes.len(),
@@ -14521,7 +14521,7 @@ mod membership_write_tests {
             .deactivate_agent(&survivor, 100, &membership_schema())
             .unwrap();
         let error = auth_first
-            .commit_membership_plan(&MembershipWriter::System, sweep)
+            .membership_plans().commit_membership_plan(&MembershipWriter::System, sweep)
             .expect_err("sweep cannot spend a now-ineligible survivor");
         assert_eq!(
             error.diagnostic.code,
@@ -14533,7 +14533,7 @@ mod membership_write_tests {
         // later deactivation is then refused from the auth side.
         let (mut sweep_first, sweep, survivor, survivor_id) = prepare();
         sweep_first
-            .commit_membership_plan(&MembershipWriter::System, sweep)
+            .membership_plans().commit_membership_plan(&MembershipWriter::System, sweep)
             .unwrap();
         let error = sweep_first
             .deactivate_agent(&survivor, 100, &membership_schema())
@@ -14557,7 +14557,7 @@ mod membership_write_tests {
                 )
                 .expect("expire both protected holders");
             let sweep = db
-                .plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 100)
+                .membership_plans_read().plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 100)
                 .expect("expiry plan");
             assert_eq!(sweep.writes.len(), 1);
             assert_eq!(sweep.skipped_protected().len(), 1);
@@ -14594,7 +14594,7 @@ mod membership_write_tests {
             .revoke_agent_credential_family(survivor_credential, 100)
             .expect("the other expired holder is still recoverable before the sweep");
         let error = auth_first
-            .commit_membership_plan(&MembershipWriter::System, sweep)
+            .membership_plans().commit_membership_plan(&MembershipWriter::System, sweep)
             .expect_err("sweep cannot spend a revoked survivor");
         assert_eq!(
             error.diagnostic.code,
@@ -14612,7 +14612,7 @@ mod membership_write_tests {
             &agent_b_credential
         };
         sweep_first
-            .commit_membership_plan(&MembershipWriter::System, sweep)
+            .membership_plans().commit_membership_plan(&MembershipWriter::System, sweep)
             .expect("sweep commits first");
         let error = sweep_first
             .revoke_agent_credential_family(survivor_credential, 100)

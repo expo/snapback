@@ -467,15 +467,15 @@ fn concurrent_same_pair_inserts_yield_one_row_and_one_typed_conflict() {
     // authority conflict. The sanctioned gate owns authorization; the
     // generated true-unique index owns this exactly-one-wins result.
     let first = db
-        .plan_membership_insert(&writer, "event_members", values.clone())
+        .membership_plans().plan_membership_insert(&writer, "event_members", values.clone())
         .expect("first plan");
     let second = db
-        .plan_membership_insert(&writer, "event_members", values)
+        .membership_plans().plan_membership_insert(&writer, "event_members", values)
         .expect("concurrent second plan");
-    db.commit_membership_plan(&writer, first)
+    db.membership_plans().commit_membership_plan(&writer, first)
         .expect("first plan commits");
     let conflict = db
-        .commit_membership_plan(&writer, second)
+        .membership_plans().commit_membership_plan(&writer, second)
         .map(|_| ())
         .map_err(|error| error.diagnostic.code)
         .expect_err("a duplicate (principal, resource) pair must be refused");
@@ -498,9 +498,9 @@ fn concurrent_same_pair_inserts_yield_one_row_and_one_typed_conflict() {
     .expect("object")
     .clone();
     let other_resource = db
-        .plan_membership_insert(&writer, "event_members", other_resource)
+        .membership_plans().plan_membership_insert(&writer, "event_members", other_resource)
         .expect("different-resource plan");
-    db.commit_membership_plan(&writer, other_resource)
+    db.membership_plans().commit_membership_plan(&writer, other_resource)
         .expect("different resource commits");
     assert_eq!(row_count(&db, "event_members"), 2);
 }
