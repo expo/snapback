@@ -1865,12 +1865,12 @@ pub(crate) fn arm_open_derived_fork_app_row_coverage(
         .ok_or_else(|| {
             writer_coverage_invalid("writer coverage activation requires a file-backed fork")
         })?;
-    if database.current_version()? != runtime.lineage.fork_point_version {
+    if database.versions_read().current_version()? != runtime.lineage.fork_point_version {
         return Err(writer_coverage_invalid(
             "derived-fork writer coverage must arm before the first post-fork commit",
         ));
     }
-    let activation_head_version = database.current_version()?;
+    let activation_head_version = database.versions_read().current_version()?;
     if activation_head_version != runtime.lineage.fork_point_version {
         return Err(writer_coverage_invalid(
             "worktree schema preparation advanced the app-row head before writer coverage armed",
@@ -1878,7 +1878,7 @@ pub(crate) fn arm_open_derived_fork_app_row_coverage(
     }
     let manifest = database.activate_derived_fork_app_row_journal_coverage(activated_at_ms)?;
     if !database.derived_fork_exact_app_row_journal_coverage_active()?
-        || database.current_version()? != activation_head_version
+        || database.versions_read().current_version()? != activation_head_version
     {
         return Err(writer_coverage_invalid(
             "derived-fork writer coverage did not arm the exact manifest at the fork point",
@@ -8262,18 +8262,19 @@ mod tests {
             )
             .unwrap();
         }
-        let before = fork.change_journal_len().unwrap();
+        let before = fork.versions_read().change_journal_len().unwrap();
         let deleted = fork
+            .versions_read()
             .prune_change_journal(wall_clock_now_ms().saturating_add(1_000), 0, 0)
             .expect("armed maintenance writer prunes through its registered token");
-        let after = fork.change_journal_len().unwrap();
+        let after = fork.versions_read().change_journal_len().unwrap();
         assert!(
             deleted > 0,
             "the maintenance sweep must remove retained rows"
         );
         assert_eq!(after, before - deleted);
         assert!(
-            fork.journal_floor_version().unwrap() > 0,
+            fork.versions_read().journal_floor_version().unwrap() > 0,
             "the same armed sweep advances the monotonic retention floor"
         );
     }

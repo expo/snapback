@@ -3535,6 +3535,7 @@ mod tests {
         invalid_checkpoint.label.clear();
         assert_eq!(
             database
+                .checkpoints()
                 .create_named_checkpoint(None, &invalid_checkpoint)
                 .expect_err("invalid checkpoint refuses before first-use DDL")
                 .diagnostic
@@ -3546,6 +3547,7 @@ mod tests {
         invalid_erasure.row_id.clear();
         assert_eq!(
             database
+                .checkpoints_read()
                 .erase_protected_record(&invalid_erasure)
                 .expect_err("invalid erasure refuses before first-use DDL")
                 .diagnostic
@@ -3554,6 +3556,7 @@ mod tests {
         );
         assert_eq!(
             database
+                .checkpoints_read()
                 .erase_protected_record_checkpoint_copies("items", "item-a", "", 9)
                 .expect_err("invalid copy erasure refuses before first-use DDL")
                 .diagnostic
@@ -3563,11 +3566,15 @@ mod tests {
         assert_eq!(checkpoint_erasure_table_count(&reader), 0);
 
         for outcome in [
-            database.inspect_named_checkpoint("checkpoint-v1:absent", 10),
             database
+                .checkpoints_read()
+                .inspect_named_checkpoint("checkpoint-v1:absent", 10),
+            database
+                .checkpoints_read()
                 .erase_named_checkpoint("checkpoint-v1:absent", 10)
                 .map(|record| record.receipt),
             database
+                .checkpoints_read()
                 .recover_named_checkpoint("checkpoint-v1:absent", 10)
                 .map(|record| record.receipt),
         ] {
@@ -3599,6 +3606,7 @@ mod tests {
         let mut request = checkpoint_request(100);
         request.substrate = CheckpointSubstrateV1::ReceiptOnly;
         checkpoint_database
+            .checkpoints()
             .create_named_checkpoint(None, &request)
             .expect("first checkpoint initializes authority");
         let checkpoint_reader =
@@ -3612,6 +3620,7 @@ mod tests {
         let erasure_request =
             protected_erasure_request("erase-first-use", "operator-a", "item-a", 200);
         let receipt = erasure_database
+            .checkpoints_read()
             .erase_protected_record(&erasure_request)
             .expect("first erasure initializes authority");
         assert_eq!(receipt.state, ProtectedRecordErasureStateV1::Complete);
@@ -3621,6 +3630,7 @@ mod tests {
         assert_eq!(protected_erasure_generation(&erasure_reader).unwrap(), 1);
         assert_eq!(
             erasure_database
+                .checkpoints_read()
                 .erase_protected_record(&erasure_request)
                 .expect("exact first-use retry is idempotent")
                 .erasure_id,
@@ -3876,6 +3886,7 @@ mod tests {
 
         let database = LocalDatabase::open(&database_path).expect("reopen database");
         let page_one = database
+            .versions_read()
             .record_history(
                 "items",
                 "item-a",
@@ -3901,6 +3912,7 @@ mod tests {
         assert!(page_one.horizon.predecessor_anchor_complete);
 
         let page_two = database
+            .versions_read()
             .record_history(
                 "items",
                 "item-a",
@@ -3920,6 +3932,7 @@ mod tests {
         assert_eq!(page_two.horizon, page_one.horizon);
 
         let page_three = database
+            .versions_read()
             .record_history(
                 "items",
                 "item-a",
@@ -3939,21 +3952,29 @@ mod tests {
         assert_eq!(page_three.horizon, page_one.horizon);
 
         let denied = database
+            .versions_read()
             .record_history("items", "item-a", 0, 10, |_| false, |_| true)
             .expect_err("current authorization gates all history");
         assert_eq!(
             denied.diagnostic.code,
             "SNAPBACK_HISTORY_AUTHORIZATION_DENIED"
         );
-        let replay_floor = database.journal_floor_version().expect("replay floor");
+        let replay_floor = database
+            .versions_read()
+            .journal_floor_version()
+            .expect("replay floor");
         assert_eq!(
             database
+                .versions_read()
                 .prune_record_history(9_000_000_000_000_000)
                 .expect("prune history"),
             5
         );
         assert_eq!(
-            database.journal_floor_version().expect("replay floor"),
+            database
+                .versions_read()
+                .journal_floor_version()
+                .expect("replay floor"),
             replay_floor,
             "history has an independent retention clock"
         );
@@ -4018,6 +4039,7 @@ mod tests {
             .expect("newest retained change");
         assert_eq!(
             database
+                .versions_read()
                 .prune_record_history(newest_change_ms)
                 .expect("prune"),
             4
@@ -4056,6 +4078,7 @@ mod tests {
         assert_eq!(retained_after_removal, 0);
         assert_eq!(
             database
+                .versions_read()
                 .record_history("items", "item-a", 0, 10, |_| true, |_| true)
                 .expect_err("removed declaration disables history")
                 .diagnostic
@@ -4088,6 +4111,7 @@ mod tests {
             .apply_schema(legacy_schema)
             .expect("apply legacy schema");
         database
+            .versions_read()
             .configure_history_policy(&decoded)
             .expect("configure legacy policy");
         database
@@ -4136,6 +4160,7 @@ mod tests {
             .expect("newest retained change");
         assert_eq!(
             database
+                .versions_read()
                 .prune_record_history(newest_change_ms)
                 .expect("prune legacy history"),
             4
@@ -4288,6 +4313,7 @@ mod tests {
         let mut request = checkpoint_request(900);
         request.substrate = CheckpointSubstrateV1::ReceiptOnly;
         let receipt = database
+            .checkpoints()
             .create_named_checkpoint(None, &request)
             .expect("create receipt-only checkpoint");
         assert_eq!(receipt.proof_class, ProofClassV1::Inventory);
@@ -4303,6 +4329,7 @@ mod tests {
         save_registry_record(&registry, &forged).expect("forge privileged registry bytes");
         assert_eq!(
             database
+                .checkpoints_read()
                 .inspect_named_checkpoint(&receipt.checkpoint_id, 901)
                 .expect_err("receipt-only inventory cannot be upcast")
                 .diagnostic
@@ -4354,6 +4381,7 @@ mod tests {
         let destination = temp.path().join("named-checkpoint");
         let mut database = seeded_file_database(&database_path);
         let receipt = database
+            .checkpoints()
             .create_named_checkpoint(Some(&destination), &checkpoint_request(1_000))
             .expect("create checkpoint");
         assert_eq!(receipt.proof_class, ProofClassV1::VerifiedCopyFidelity);
@@ -4365,11 +4393,13 @@ mod tests {
         let mut database = LocalDatabase::open(&database_path).expect("reopen source");
         assert_eq!(
             database
+                .checkpoints_read()
                 .inspect_named_checkpoint(&receipt.checkpoint_id, 2_000)
                 .expect("registry survives reopen"),
             receipt
         );
         let erased = database
+            .checkpoints_read()
             .erase_named_checkpoint(&receipt.checkpoint_id, 3_000)
             .expect("erase checkpoint");
         assert_eq!(erased.state, CheckpointRegistryStateV1::Erased);
@@ -4380,6 +4410,7 @@ mod tests {
         assert!(!destination.exists());
         assert_eq!(
             database
+                .checkpoints_read()
                 .inspect_named_checkpoint(&receipt.checkpoint_id, 3_001)
                 .expect_err("registry invalidity outvotes old receipt")
                 .diagnostic
@@ -4389,6 +4420,7 @@ mod tests {
 
         let unreachable_destination = temp.path().join("unreachable-checkpoint");
         let unreachable = database
+            .checkpoints()
             .create_named_checkpoint(Some(&unreachable_destination), &checkpoint_request(4_000))
             .expect("create checkpoint for unreachable erasure");
         let registry = Connection::open(&database_path).expect("registry connection");
@@ -4405,6 +4437,7 @@ mod tests {
         assert!(unreachable_destination.exists());
         assert_eq!(
             database
+                .checkpoints_read()
                 .inspect_named_checkpoint(&unreachable.checkpoint_id, 5_001)
                 .expect_err("registry invalidity outvotes reachable bytes")
                 .diagnostic
@@ -4412,6 +4445,7 @@ mod tests {
             "SNAPBACK_CHECKPOINT_INVALID"
         );
         database
+            .checkpoints_read()
             .erase_named_checkpoint(&unreachable.checkpoint_id, 6_000)
             .expect("later erasure closes the open obligation");
         assert!(!unreachable_destination.exists());
@@ -4425,17 +4459,20 @@ mod tests {
         let second_path = temp.path().join("checkpoint-second");
         let mut database = seeded_file_database(&database_path);
         let first = database
+            .checkpoints()
             .create_named_checkpoint(Some(&first_path), &checkpoint_request(7_000))
             .expect("first checkpoint");
         let mut second_request = checkpoint_request(7_100);
         second_request.operation_id.push_str("-second");
         let second = database
+            .checkpoints()
             .create_named_checkpoint(Some(&second_path), &second_request)
             .expect("second checkpoint");
         let mut receipt_only_request = checkpoint_request(7_200);
         receipt_only_request.operation_id.push_str("-receipt-only");
         receipt_only_request.substrate = CheckpointSubstrateV1::ReceiptOnly;
         let receipt_only = database
+            .checkpoints()
             .create_named_checkpoint(None, &receipt_only_request)
             .expect("receipt-only checkpoint has no materialized copy");
         let registry = Connection::open(&database_path).expect("open registry");
@@ -4511,11 +4548,13 @@ mod tests {
             "history erasure commits with checkpoint invalidation"
         );
         database
+            .checkpoints_read()
             .inspect_named_checkpoint(&receipt_only.checkpoint_id, 8_001)
             .expect("receipt-only inventory retains no protected copy");
         for checkpoint_id in [&first.checkpoint_id, &second.checkpoint_id] {
             assert_eq!(
                 database
+                    .checkpoints_read()
                     .inspect_named_checkpoint(checkpoint_id, 8_001)
                     .expect_err("registry invalidity outvotes every local copy")
                     .diagnostic
@@ -4525,6 +4564,7 @@ mod tests {
         }
 
         let closed = database
+            .checkpoints_read()
             .erase_protected_record_checkpoint_copies(
                 "items",
                 "item-a",
@@ -4542,6 +4582,7 @@ mod tests {
         assert!(!second_path.exists());
         assert_eq!(
             database
+                .checkpoints_read()
                 .erase_protected_record_checkpoint_copies(
                     "items",
                     "different-row",
@@ -4562,6 +4603,7 @@ mod tests {
         let destination = temp.path().join("checkpoint");
         let mut database = seeded_file_database(&database_path);
         let checkpoint = database
+            .checkpoints()
             .create_named_checkpoint(Some(&destination), &checkpoint_request(9_500))
             .expect("checkpoint");
         let registry = Connection::open(&database_path).expect("open registry");
@@ -4590,6 +4632,7 @@ mod tests {
 
         let reopened = LocalDatabase::open(&database_path).expect("reopen after crash");
         let closed = reopened
+            .checkpoints_read()
             .erase_protected_record_checkpoint_copies(
                 "items",
                 "item-a",
@@ -4614,18 +4657,21 @@ mod tests {
         let expired_path = temp.path().join("checkpoint-expired");
         let mut database = seeded_file_database(&database_path);
         let active = database
+            .checkpoints()
             .create_named_checkpoint(Some(&active_path), &checkpoint_request(1_000))
             .expect("active checkpoint");
         let mut expired_request = checkpoint_request(1_100);
         expired_request.operation_id.push_str("-expired");
         expired_request.lease_expires_at_ms = 1_101;
         let expired = database
+            .checkpoints()
             .create_named_checkpoint(Some(&expired_path), &expired_request)
             .expect("soon-expired checkpoint");
         let mut receipt_request = checkpoint_request(1_200);
         receipt_request.operation_id.push_str("-receipt");
         receipt_request.substrate = CheckpointSubstrateV1::ReceiptOnly;
         let receipt_only = database
+            .checkpoints()
             .create_named_checkpoint(None, &receipt_request)
             .expect("receipt-only inventory");
 
@@ -4713,6 +4759,7 @@ mod tests {
         let blocked_destination = temp.path().join("blocked-checkpoint");
         assert_eq!(
             database
+                .checkpoints()
                 .create_named_checkpoint(Some(&blocked_destination), &checkpoint_request(70_001))
                 .expect_err("open erasure fence blocks checkpoint admission")
                 .diagnostic
@@ -4723,6 +4770,7 @@ mod tests {
             protected_erasure_request("erase:item-a", "operator-b", "item-a", 70_002);
         assert_eq!(
             database
+                .checkpoints_read()
                 .erase_protected_record(&divergent_authority)
                 .expect_err("authority facts are operation-bound")
                 .diagnostic
@@ -4736,6 +4784,7 @@ mod tests {
         let mut retry = request.clone();
         retry.now_ms = 70_003;
         let complete = reopened
+            .checkpoints_read()
             .erase_protected_record(&retry)
             .expect("exact retry resumes unreachable copy");
         assert_eq!(complete.erasure_id, open.erasure_id);
@@ -4763,6 +4812,7 @@ mod tests {
         let mut reopened = LocalDatabase::open(&database_path).expect("reopen complete source");
         let after_path = temp.path().join("checkpoint-after-erasure");
         let after = reopened
+            .checkpoints()
             .create_named_checkpoint(Some(&after_path), &checkpoint_request(70_004))
             .expect("new checkpoint is admitted after fence completion");
         let copied_database =
@@ -4775,6 +4825,7 @@ mod tests {
             .expect("copied target count");
         assert_eq!(copied_rows, 0, "new copies cannot resurrect erased bytes");
         reopened
+            .checkpoints_read()
             .inspect_named_checkpoint(&after.checkpoint_id, 70_005)
             .expect("post-completion checkpoint is usable");
     }
@@ -4799,6 +4850,7 @@ mod tests {
                         .expect("open concurrent exact-retry database");
                     barrier.wait();
                     database
+                        .checkpoints_read()
                         .erase_protected_record(&request)
                         .expect("concurrent exact retry converges")
                 }));
@@ -4861,7 +4913,7 @@ mod tests {
                         let database = LocalDatabase::open(database_path)
                             .expect("open concurrent divergent-retry database");
                         barrier.wait();
-                        database.erase_protected_record(&request)
+                        database.checkpoints_read().erase_protected_record(&request)
                     })
                 })
                 .collect::<Vec<_>>();
@@ -4907,6 +4959,7 @@ mod tests {
             let destination = temp.path().join("checkpoint");
             let mut database = seeded_file_database(&database_path);
             database
+                .checkpoints()
                 .create_named_checkpoint(
                     Some(&destination),
                     &checkpoint_request(80_000 + index as u64),
@@ -4965,6 +5018,7 @@ mod tests {
             let mut retry = request.clone();
             retry.now_ms += 100;
             let complete = reopened
+                .checkpoints_read()
                 .erase_protected_record(&retry)
                 .expect("exact retry completes after reopen");
             assert_eq!(complete.state, ProtectedRecordErasureStateV1::Complete);
@@ -4998,6 +5052,7 @@ mod tests {
             );
         });
         let error = database
+            .checkpoints()
             .create_named_checkpoint(Some(&destination), &checkpoint_request(89_000))
             .expect_err("a pre-erasure pin cannot publish across the fence");
         assert_eq!(
@@ -5008,6 +5063,7 @@ mod tests {
         retry.now_ms = 90_001;
         assert_eq!(
             database
+                .checkpoints_read()
                 .erase_protected_record(&retry)
                 .expect("resume the racing checkpoint obligation")
                 .state,
@@ -5019,6 +5075,7 @@ mod tests {
         let mut after_request = checkpoint_request(90_002);
         after_request.operation_id.push_str("-after");
         database
+            .checkpoints()
             .create_named_checkpoint_at_cut_for_test(
                 Some(&publication_path),
                 &after_request,
@@ -5044,6 +5101,7 @@ mod tests {
         );
         assert_eq!(
             database
+                .checkpoints_read()
                 .erase_protected_record(&second_erasure)
                 .expect_err("novel erasure still requires a present target")
                 .diagnostic
@@ -5051,6 +5109,7 @@ mod tests {
             "SNAPBACK_PROTECTED_ERASURE_TARGET_NOT_FOUND"
         );
         let recovered = database
+            .checkpoints_read()
             .recover_named_checkpoint(&checkpoint_id, 90_004)
             .expect("ordinary rename-cut recovery remains valid after completed erasure");
         assert_eq!(recovered.state, CheckpointRegistryStateV1::Published);
@@ -5085,6 +5144,7 @@ mod tests {
         });
 
         let error = database
+            .checkpoints()
             .create_named_checkpoint(Some(&destination), &request)
             .expect_err("stale-generation producer cancels");
         assert_eq!(
@@ -5121,6 +5181,7 @@ mod tests {
         retry.now_ms += 10;
         assert_eq!(
             reopened
+                .checkpoints_read()
                 .erase_protected_record(&retry)
                 .expect("exact retry observes completed cancellation")
                 .state,
@@ -5145,6 +5206,7 @@ mod tests {
             let mut database = seeded_file_database(&database_path);
             let checkpoint_request = checkpoint_request(92_000 + index as u64);
             database
+                .checkpoints()
                 .create_named_checkpoint_at_cut_for_test(
                     Some(&destination),
                     &checkpoint_request,
@@ -5190,6 +5252,7 @@ mod tests {
             let reopened =
                 LocalDatabase::open(&database_path).expect("reopen after producer crash");
             let recovered = reopened
+                .checkpoints_read()
                 .recover_named_checkpoint(&checkpoint_id, 94_000 + index as u64)
                 .expect("recovery successor destroys stale generation and acknowledges");
             assert_eq!(recovered.state, CheckpointRegistryStateV1::Erased);
@@ -5198,6 +5261,7 @@ mod tests {
             final_retry.now_ms += 2;
             assert_eq!(
                 reopened
+                    .checkpoints_read()
                     .erase_protected_record(&final_retry)
                     .expect("exact retry closes after recovery acknowledgement")
                     .state,
@@ -5228,6 +5292,7 @@ mod tests {
             let destination = temp.path().join(format!("checkpoint-{index}"));
             let mut database = seeded_file_database(&database_path);
             let error = database
+                .checkpoints()
                 .create_named_checkpoint_at_cut_for_test(
                     Some(&destination),
                     &checkpoint_request(10_000 + index as u64),
@@ -5246,6 +5311,7 @@ mod tests {
                 )
                 .expect("intent id");
             let recovered = database
+                .checkpoints_read()
                 .recover_named_checkpoint(&checkpoint_id, 20_000 + index as u64)
                 .expect("recover cut");
             match cut {
@@ -5261,6 +5327,7 @@ mod tests {
                     assert!(destination.join(CHECKPOINT_RECEIPT_FILE).is_file());
                     assert!(!destination.join(CHECKPOINT_SENTINEL).exists());
                     database
+                        .checkpoints_read()
                         .inspect_named_checkpoint(&checkpoint_id, 20_001 + index as u64)
                         .expect("published recovery is usable");
                 }
@@ -5275,6 +5342,7 @@ mod tests {
         let destination = temp.path().join("checkpoint");
         let mut database = seeded_file_database(&database_path);
         let error = database
+            .checkpoints()
             .create_named_checkpoint_at_cut_for_test(
                 Some(&destination),
                 &checkpoint_request(25_000),
@@ -5354,6 +5422,7 @@ mod tests {
         let destination = temp.path().join("checkpoint");
         let mut database = seeded_file_database(&database_path);
         database
+            .checkpoints()
             .create_named_checkpoint_at_cut_for_test(
                 Some(&destination),
                 &checkpoint_request(26_000),
@@ -5392,6 +5461,7 @@ mod tests {
             )
             .expect("rewrite registry evidence");
         let error = database
+            .checkpoints_read()
             .recover_named_checkpoint(&checkpoint_id, 27_000)
             .expect_err("disk intent outvotes coherent registry rewrite");
         assert_eq!(
@@ -5415,6 +5485,7 @@ mod tests {
             let destination = temp.path().join("checkpoint");
             let mut database = seeded_file_database(&database_path);
             database
+                .checkpoints()
                 .create_named_checkpoint_at_cut_for_test(
                     Some(&destination),
                     &checkpoint_request(27_500),
@@ -5449,6 +5520,7 @@ mod tests {
                 _ => unreachable!(),
             }
             let error = database
+                .checkpoints_read()
                 .recover_named_checkpoint(&checkpoint_id, 27_501)
                 .expect_err("copy bytes must be independently reverified");
             assert_eq!(
@@ -5473,6 +5545,7 @@ mod tests {
         let parent = destination.parent().expect("destination parent").to_owned();
         let mut database = seeded_file_database(&database_path);
         database
+            .checkpoints()
             .create_named_checkpoint_at_cut_for_test(
                 Some(&destination),
                 &checkpoint_request(28_000),
@@ -5497,6 +5570,7 @@ mod tests {
             ))
         });
         let error = database
+            .checkpoints_read()
             .recover_named_checkpoint(&checkpoint_id, 29_000)
             .expect_err("publication waits for parent durability");
         assert_eq!(
@@ -5511,6 +5585,7 @@ mod tests {
             CheckpointRegistryStateV1::Intent
         );
         let recovered = database
+            .checkpoints_read()
             .recover_named_checkpoint(&checkpoint_id, 29_001)
             .expect("recovery succeeds after durable parent sync");
         assert_eq!(recovered.state, CheckpointRegistryStateV1::Published);
@@ -5537,6 +5612,7 @@ mod tests {
         let mut request = checkpoint_request(30_000);
         request.max_retained_wal_bytes = 1;
         let error = database
+            .checkpoints()
             .create_named_checkpoint(Some(&destination), &request)
             .expect_err("finite WAL budget refuses");
         assert_eq!(
@@ -5575,7 +5651,10 @@ mod tests {
                 Value::Null,
             )
             .expect("writer before checkpoint");
-        let pinned_version = database.current_version().expect("pre-checkpoint head");
+        let pinned_version = database
+            .versions_read()
+            .current_version()
+            .expect("pre-checkpoint head");
 
         let (go_tx, go_rx) = std::sync::mpsc::sync_channel(0);
         let (done_tx, done_rx) = std::sync::mpsc::sync_channel(0);
@@ -5607,13 +5686,20 @@ mod tests {
             );
         });
         let receipt = database
+            .checkpoints()
             .create_named_checkpoint(Some(&destination), &checkpoint_request(40_000))
             .expect("checkpoint succeeds across concurrent writer");
         writer.join().expect("writer thread");
         assert_eq!(receipt.source_version, pinned_version);
         assert_eq!(receipt.proof_class, ProofClassV1::VerifiedCopyFidelity);
         assert_eq!(receipt.copied_digest.as_ref(), Some(&receipt.source_digest));
-        assert!(database.current_version().expect("live head") > receipt.source_version);
+        assert!(
+            database
+                .versions_read()
+                .current_version()
+                .expect("live head")
+                > receipt.source_version
+        );
 
         database
             .commit_buffered_writes(

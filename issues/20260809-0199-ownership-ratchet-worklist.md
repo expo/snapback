@@ -52,3 +52,12 @@ src/storage/auth_agents.rs; two are upward and join item 3's burn-down:
 imports; kernel->sync) and -> src/admin.rs (kernel->transport). Inversion:
 move the step-up proof shapes to the leaf and pass the admin dependency down
 as a typed input.
+
+**Growth 2026-08-09 (frozen at the slice-8 landing):** the S1/S2 wave's five
+catch-up modules froze two more upward edges: `storage/auth_integrations ->
+admin` (kernel->transport; the integrations kernel imports an admin type —
+move the shape to the leaf) and `auth/invocation -> telemetry`
+(sync->background; instrumentation import — invert via a leaf-side event
+shape or a callback). Slices 6-7 also relocated five kernel->sync
+type-imports (provider, sender_proof, session_projection ×2, invocation)
+into item 3's burn-down as recorded in their commit messages.

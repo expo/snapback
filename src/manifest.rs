@@ -10150,13 +10150,13 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:86a17b5fe6712f52c53ad0a121b9fe7c4b7e6591fe31a8ca7fa553fcb68a0e79";
+    "sha256:42c28f1f4b6a148e5caefdfe09e60b0e4ed7549fbe9482ff8b42d4c92e30b1cd";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:8f9aa427bdbe82e4c5d860dea2ea1a65babe147a470f528970fba8d2b8f161e2";
+    "sha256:fdf2097480a206237b642d01664477d068300bddc5b07e2473fb927fe5cd67ac";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
@@ -10556,7 +10556,7 @@ fn local_relation_activity_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:0a7b41fcafb8d6876d47979b5203c9df4b25ae66495dc1845539a9218e87d679"
+                    "sha256:5cfdbf1ba2043d3fcad4ba150c28d0a7be1956afe853996cea4a97088a40eede"
                         .to_owned(),
                 ),
                 (
@@ -10591,12 +10591,12 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:4c50f24a4f59b3d0da4529b86da07b4e2cc691ddd44874f7ac2efc5bec6db4a5"
+                    "sha256:8be8511a26ac856417cb86c5b6f6fe0b820327db121cb27a9acae5b012c6c511"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:168b88ab56fa64b96e8917712a4eee29e8f29331d892e157db8c5bde6b846d61"
+                    "sha256:a780dbe792086075ff7d8d1d42f6dc25832a70cf953830b297382bdc6f367a4b"
                         .to_owned(),
                 ),
                 (
@@ -10794,17 +10794,17 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:4c50f24a4f59b3d0da4529b86da07b4e2cc691ddd44874f7ac2efc5bec6db4a5"
+                    "sha256:8be8511a26ac856417cb86c5b6f6fe0b820327db121cb27a9acae5b012c6c511"
                         .to_owned(),
                 ),
                 (
                     "src/runtime.rs".to_owned(),
-                    "sha256:ff3ed8b347725b045c8d121154cda261c9c48625caaf0e89a8fdd26dcddc1855"
+                    "sha256:cc63b643d68eb484a602553769c817ccea71a8060b8b6ebee3a8857f2947c593"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:168b88ab56fa64b96e8917712a4eee29e8f29331d892e157db8c5bde6b846d61"
+                    "sha256:a780dbe792086075ff7d8d1d42f6dc25832a70cf953830b297382bdc6f367a4b"
                         .to_owned(),
                 ),
                 (
@@ -11053,7 +11053,7 @@ fn local_persistent_store_contributor_chain_verified(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:0a7b41fcafb8d6876d47979b5203c9df4b25ae66495dc1845539a9218e87d679"
+                    "sha256:5cfdbf1ba2043d3fcad4ba150c28d0a7be1956afe853996cea4a97088a40eede"
                         .to_owned(),
                 ),
                 (
@@ -11088,12 +11088,12 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:4c50f24a4f59b3d0da4529b86da07b4e2cc691ddd44874f7ac2efc5bec6db4a5"
+                    "sha256:8be8511a26ac856417cb86c5b6f6fe0b820327db121cb27a9acae5b012c6c511"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:168b88ab56fa64b96e8917712a4eee29e8f29331d892e157db8c5bde6b846d61"
+                    "sha256:a780dbe792086075ff7d8d1d42f6dc25832a70cf953830b297382bdc6f367a4b"
                         .to_owned(),
                 ),
                 (

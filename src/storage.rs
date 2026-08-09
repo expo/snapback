@@ -37,6 +37,7 @@ mod asset_attempts;
 mod asset_maintenance;
 mod asset_reads;
 mod auth_catalog_ops;
+mod checkpoints;
 // The item-3 provider integration consumes these crate-private seams after this
 // catalog lane lands; keep the catalog module narrow without making unfinished
 // provider routes part of the public storage API in this commit.
@@ -51,11 +52,13 @@ mod migration_scan;
 mod projection_rebuild;
 mod push_registry;
 mod schema_transition;
+mod versions;
 
 pub use asset_attempts::{AssetAttemptsKernel, AssetPreparedVariant, AssetPublishOutcome};
 pub use asset_maintenance::AssetMaintenanceKernel;
 pub use asset_reads::{AssetDelivery, AssetDeliveryOutcome, AssetReadsKernel};
 pub use auth_catalog_ops::AuthCatalogKernel;
+pub use checkpoints::{CheckpointsKernel, CheckpointsReadKernel};
 use connections::registered_writer_coverage_manifest;
 pub use connections::{PooledReader, ReaderPool};
 #[allow(unused_imports)] // Preserve the pre-split crate::storage surface.
@@ -80,6 +83,7 @@ pub use schema_transition::{
     SCHEMA_TRANSITION_JOURNAL_TABLE, SchemaTransitionEventBodyV1, SchemaTransitionEventV1,
     SchemaTransitionKind,
 };
+pub use versions::{VersionsKernel, VersionsReadKernel};
 pub(crate) use schema_transition::{
     prove_retained_work_posture, record_schema_transition_event, schema_transition_events_on,
 };
@@ -1987,6 +1991,22 @@ impl LocalDatabase {
         JobsReadKernel::new(self)
     }
 
+    pub fn versions(&mut self) -> VersionsKernel<'_> {
+        VersionsKernel::new(self)
+    }
+
+    pub fn versions_read(&self) -> VersionsReadKernel<'_> {
+        VersionsReadKernel::new(self)
+    }
+
+    pub fn checkpoints(&mut self) -> CheckpointsKernel<'_> {
+        CheckpointsKernel::new(self)
+    }
+
+    pub fn checkpoints_read(&self) -> CheckpointsReadKernel<'_> {
+        CheckpointsReadKernel::new(self)
+    }
+
     pub fn push_registry(&mut self) -> PushRegistryKernel<'_> {
         PushRegistryKernel::new(self)
     }
@@ -3381,359 +3401,6 @@ impl LocalDatabase {
         })
     }
 
-    pub fn current_version(&self) -> SnapbackResult<u64> {
-        current_version_on(&self.conn)
-    }
-
-    /// Prune the change journal to bound its growth: delete changes that are
-    /// outside **both** the version window (older than `retain_versions` behind
-    /// the current version) and the time window (older than `retain_ms`). A
-    /// change is kept if it is within either window, so a burst of writes and a
-    /// long-idle table are both retained conservatively.
-    ///
-    /// A table's **newest** change is never pruned, even when cold. Read-set
-    /// validation uses `MAX(version) WHERE table_name = ?` and treats
-    /// captured-version-equals-current as "unchanged since the read"; if the
-    /// last change of a cold table were pruned, that `MAX` would drop to 0 and
-    /// spuriously conflict a mutation that only *read* the table. Retaining the
-    /// per-table high-water row keeps the invariant while still bounding the
-    /// journal (at most one version's worth of rows per table survives the
-    /// window, and table count is bounded by the schema).
-    ///
-    /// @ref LLP 0008#retention-and-resume — version-and-time-bounded retention.
-    /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L3.
-    pub fn prune_change_journal(
-        &self,
-        now_ms: u64,
-        retain_versions: u64,
-        retain_ms: u64,
-    ) -> SnapbackResult<u64> {
-        // Validate the supplied clock before arithmetic. Saturation is useful
-        // for an ordinary window larger than the current age, but it must not
-        // turn a non-portable caller value into an apparently valid floor.
-        validate_portable_timestamp_millis(now_ms)?;
-        // Journal retention is a process-owned system writer. On an armed
-        // fork it receives exactly the DELETE authority for
-        // `_snapback_changes`; it cannot write app rows, advance the storage
-        // version, or originate journal entries.
-        //
-        // @ref LLP 0165#derived-fork-authorizer-backed-net-diff--2026-08-06
-        //   — maintenance stays inside the registered writer class instead
-        //   of silently failing every sweep after coverage activation.
-        let _writer = self
-            .writer_authority
-            .enter(write_authority::LocalWriterLaneV1::JournalMaintenance)?;
-        let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
-        let head = current_version_on(&tx)?;
-        let mut version_floor = head.saturating_sub(retain_versions);
-        // @ref LLP 0073#rebuilds-and-migrations — an unexpired derived-index
-        // journal-floor lease prevents pruning the suffix an approved catch-up
-        // operation still needs. A snapshot at S needs every change > S, so
-        // pruning may advance through S but no farther.
-        let vector_lease_floor: Option<i64> = tx.query_row(
-            "SELECT MIN(floor_version) FROM _snapback_vector_journal_leases
-             WHERE expires_at_ms >= ?1",
-            params![timestamp_to_sql_millis(now_ms)?],
-            |row| row.get(0),
-        )?;
-        if let Some(vector_lease_floor) = vector_lease_floor {
-            let vector_lease_floor = decode_required_storage_version(
-                SqlValue::Integer(vector_lease_floor),
-                "vector journal lease floor",
-            )?;
-            version_floor = version_floor.min(next_storage_version(vector_lease_floor)?);
-        }
-        let version_floor = version_to_sql_integer(version_floor)?;
-        let time_floor = timestamp_to_sql_millis(now_ms.saturating_sub(retain_ms))?;
-        // A corrupt older version can sort below both floors while a later,
-        // valid row remains the prunable MAX. Validate the whole journal via
-        // the partial invalid-version index before either advancing the replay
-        // floor or deleting anything.
-        ensure_change_journal_versions_valid(&tx, None)?;
-        validate_change_journal_head(&tx, head)?;
-        let existing_floor = retention_floor_at_most(&tx, head)?;
-        // Predicate for a prunable row: outside both windows, and not its
-        // table's high-water change (which read-set validation still needs).
-        let prunable = "version < ?1 AND changed_at_ms < ?2 \
-             AND version < (SELECT MAX(version) FROM _snapback_changes t2 \
-                            WHERE t2.table_name = _snapback_changes.table_name)";
-        // Advance the monotonic replay floor to the highest version actually
-        // pruned this pass, so a resume at/above the floor is guaranteed to have
-        // a contiguous journal.
-        let highest_pruned: SqlValue = tx.query_row(
-            &format!("SELECT MAX(version) FROM _snapback_changes WHERE {prunable}"),
-            params![version_floor, time_floor],
-            |row| row.get(0),
-        )?;
-        if let Some(highest_pruned) = decode_optional_storage_version(
-            highest_pruned,
-            "highest prunable change-journal version",
-        )? {
-            let floor = existing_floor.max(next_storage_version(highest_pruned)?);
-            save_retention_floor_on(&tx, floor)?;
-        }
-        let deleted = tx.execute(
-            &format!("DELETE FROM _snapback_changes WHERE {prunable}"),
-            params![version_floor, time_floor],
-        )?;
-        tx.commit()?;
-        Ok(deleted as u64)
-    }
-
-    /// The monotonic replay floor: one past the highest change version pruning
-    /// has removed (0 if nothing has ever been pruned). A version-based resume
-    /// below this may hit a pruned gap and must resnapshot; from at/above it the
-    /// journal is contiguous. Distinct from a table's validation high-water,
-    /// which pruning preserves.
-    ///
-    /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L3.
-    pub fn journal_floor_version(&self) -> SnapbackResult<u64> {
-        with_pinned_read_snapshot(&self.conn, |conn| {
-            retention_floor_at_most(conn, current_version_on(conn)?)
-        })
-    }
-
-    /// Configure the legacy v1 finite table-wide `maxRows` history policy.
-    /// New schema-declared history uses the distinct v2 per-record projection;
-    /// capability publication remains gated by LLP 0162's corpus.
-    pub fn configure_history_policy(
-        &self,
-        policy: &crate::proof_checkpoint::HistoryRetentionPolicyV1,
-    ) -> SnapbackResult<()> {
-        crate::proof_checkpoint::configure_history_policy(&self.conn, &self.schema, policy)
-    }
-
-    /// Prune only the history clock. This deliberately does not read or write
-    /// the sync replay floor.
-    pub fn prune_record_history(&self, now_ms: u64) -> SnapbackResult<u64> {
-        crate::proof_checkpoint::prune_record_history(&self.conn, now_ms)
-    }
-
-    /// Read retained versions under current-record plus per-post-image
-    /// authorization. Pagination occurs after elision so its cursor exposes
-    /// only the count of versions this caller could see.
-    pub fn record_history(
-        &self,
-        table: &str,
-        row_id: &str,
-        visible_offset: u64,
-        limit: u32,
-        authorize_current: impl FnOnce(Option<&Value>) -> bool,
-        authorize_historical: impl FnMut(Option<&Value>) -> bool,
-    ) -> SnapbackResult<crate::proof_checkpoint::RecordHistoryPageV1> {
-        with_pinned_read_snapshot(&self.conn, |conn| {
-            let current = get_on(conn, &self.schema, table, row_id)?;
-            crate::proof_checkpoint::read_record_history(
-                conn,
-                table,
-                row_id,
-                visible_offset,
-                limit,
-                current.as_ref(),
-                authorize_current,
-                authorize_historical,
-            )
-        })
-    }
-
-    /// Create a receipt-only or materialized named checkpoint. Materialized
-    /// creation is admitted only for file-backed databases and always uses a
-    /// finite copy/WAL/lease request.
-    pub fn create_named_checkpoint(
-        &mut self,
-        destination: Option<&Path>,
-        request: &crate::proof_checkpoint::NamedCheckpointRequestV1,
-    ) -> SnapbackResult<crate::proof_checkpoint::NamedCheckpointReceiptV1> {
-        self.create_named_checkpoint_with_cut(destination, request, None)
-    }
-
-    fn create_named_checkpoint_with_cut(
-        &mut self,
-        destination: Option<&Path>,
-        request: &crate::proof_checkpoint::NamedCheckpointRequestV1,
-        cut_at: Option<crate::proof_checkpoint::CheckpointPublicationCut>,
-    ) -> SnapbackResult<crate::proof_checkpoint::NamedCheckpointReceiptV1> {
-        let source = self.path.clone().ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_CHECKPOINT_SOURCE_UNSUPPORTED",
-                "proofCheckpoint",
-                "named checkpoints require a file-backed database",
-            )
-        })?;
-        crate::proof_checkpoint::validate_checkpoint_request(request)?;
-        // Initialize the stream before pinning. It is part of the compared
-        // checkpoint header and cannot be minted after the source scan.
-        let _ = self.data_version_stream()?;
-        self.ensure_checkpoint_erasure_infra()?;
-        crate::proof_checkpoint::create_named_checkpoint(
-            &self.conn,
-            &source,
-            &self.schema,
-            destination,
-            request,
-            cut_at,
-        )
-    }
-
-    #[cfg(test)]
-    pub(crate) fn create_named_checkpoint_at_cut_for_test(
-        &mut self,
-        destination: Option<&Path>,
-        request: &crate::proof_checkpoint::NamedCheckpointRequestV1,
-        cut_at: crate::proof_checkpoint::CheckpointPublicationCut,
-    ) -> SnapbackResult<crate::proof_checkpoint::NamedCheckpointReceiptV1> {
-        self.create_named_checkpoint_with_cut(destination, request, Some(cut_at))
-    }
-
-    pub fn inspect_named_checkpoint(
-        &self,
-        checkpoint_id: &str,
-        now_ms: u64,
-    ) -> SnapbackResult<crate::proof_checkpoint::NamedCheckpointReceiptV1> {
-        crate::proof_checkpoint::inspect_checkpoint(&self.conn, checkpoint_id, now_ms)
-    }
-
-    pub fn erase_named_checkpoint(
-        &self,
-        checkpoint_id: &str,
-        now_ms: u64,
-    ) -> SnapbackResult<crate::proof_checkpoint::CheckpointRegistryRecordV1> {
-        crate::proof_checkpoint::erase_checkpoint(&self.conn, checkpoint_id, now_ms)
-    }
-
-    /// Deliberate authenticated protected-record erasure command. This is not
-    /// an alias for `BufferedWrite::Delete`: the unforgeable authority carrier
-    /// and retry-bound operation identity let the proof/checkpoint subsystem
-    /// atomically own canonical deletion, retained-detail erasure, registry
-    /// invalidation, and resumable physical-copy obligations.
-    ///
-    /// @ref LLP 0165#protected-deletion-authority-audit--2026-08-04 — one
-    /// product command owns the complete protected-erasure boundary.
-    pub(crate) fn erase_protected_record(
-        &self,
-        request: &crate::proof_checkpoint::ProtectedRecordErasureRequestV1,
-    ) -> SnapbackResult<crate::proof_checkpoint::ProtectedRecordErasureReceiptV1> {
-        crate::proof_checkpoint::validate_protected_record_erasure_request(&self.schema, request)?;
-        self.ensure_checkpoint_erasure_infra()?;
-        crate::proof_checkpoint::erase_protected_record(&self.conn, &self.schema, request)
-    }
-
-    /// Invalidate and destroy every registered materialized checkpoint copy
-    /// that could retain a protected record. Retrying `operation_id` resumes
-    /// explicit unreachable/crash obligations instead of re-enumerating a
-    /// weaker inventory.
-    pub fn erase_protected_record_checkpoint_copies(
-        &self,
-        qualified_table: &str,
-        row_id: &str,
-        operation_id: &str,
-        now_ms: u64,
-    ) -> SnapbackResult<crate::proof_checkpoint::ProtectedRecordCheckpointErasureReceiptV1> {
-        crate::proof_checkpoint::validate_checkpoint_copy_erasure_request(
-            qualified_table,
-            row_id,
-            operation_id,
-            now_ms,
-        )?;
-        self.ensure_checkpoint_erasure_infra()?;
-        crate::proof_checkpoint::erase_protected_record_checkpoint_copies(
-            &self.conn,
-            qualified_table,
-            row_id,
-            operation_id,
-            now_ms,
-        )
-    }
-
-    pub fn recover_named_checkpoint(
-        &self,
-        checkpoint_id: &str,
-        now_ms: u64,
-    ) -> SnapbackResult<crate::proof_checkpoint::CheckpointRegistryRecordV1> {
-        crate::proof_checkpoint::recover_checkpoint(&self.conn, checkpoint_id, now_ms)
-    }
-
-    fn ensure_checkpoint_erasure_infra(&self) -> SnapbackResult<()> {
-        let _schema_maintenance = self.writer_authority.enter_internal_schema_maintenance()?;
-        crate::proof_checkpoint::ensure_checkpoint_erasure_infra(&self.conn)
-    }
-
-    pub fn change_journal_len(&self) -> SnapbackResult<u64> {
-        let count: i64 =
-            self.conn
-                .query_row("SELECT COUNT(*) FROM _snapback_changes", [], |row| {
-                    row.get(0)
-                })?;
-        Ok(count as u64)
-    }
-
-    /// Whether a client must resnapshot rather than replay. `from_version` is
-    /// the earliest change version the client still needs (it has applied every
-    /// version before it, and wants `[from_version, current]`). If that is below
-    /// the monotonic replay floor, a needed change may have been pruned, so the
-    /// client must resnapshot; at/above the floor the journal is contiguous and
-    /// can be replayed. A floor of 0 (nothing ever pruned) never forces a
-    /// resnapshot.
-    ///
-    /// This is the retention contract for the version-based replay path; the
-    /// consumer is future sync work ([LLP 0032](./0032-decision-and-implementation-hardening.plan.md)
-    /// P4 / DK-3), and this primitive keeps the floor authoritative meanwhile.
-    ///
-    /// @ref LLP 0008#retention-and-resume — resume below the retained floor requires resnapshot.
-    /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L3.
-    pub fn resume_requires_resnapshot(&self, from_version: u64) -> SnapbackResult<bool> {
-        Ok(from_version < self.journal_floor_version()?)
-    }
-
-    /// Distinct row ids journaled for `table` strictly after `version` — the
-    /// rung-2 replay's journal-affected id set (LLP 0090 D1.3): only these
-    /// ids are touched in the accumulator update; untouched witness leaves
-    /// remain. Returns at most `limit + 1` ids, so a caller comparing against
-    /// its replay-vs-replace threshold detects "over threshold" without
-    /// unbounded work. The caller must already have checked
-    /// `resume_requires_resnapshot` — below the retained floor, absence from
-    /// the journal proves nothing.
-    pub fn changed_row_ids_for_table_since(
-        &self,
-        table: &str,
-        version: u64,
-        limit: usize,
-    ) -> SnapbackResult<Vec<String>> {
-        let table = schema_table(&self.schema, table)?;
-        let mut statement = self.conn.prepare_cached(
-            "SELECT DISTINCT row_id FROM _snapback_changes \
-             WHERE table_name = ?1 AND version > ?2 LIMIT ?3",
-        )?;
-        let version = version_to_sql_integer(version)?;
-        let fetch = i64::try_from(limit.saturating_add(1)).unwrap_or(i64::MAX);
-        let rows = statement.query_map(params![table.name, version, fetch], |row| {
-            row.get::<_, String>(0)
-        })?;
-        let mut ids = Vec::new();
-        for row in rows {
-            ids.push(row?);
-        }
-        Ok(ids)
-    }
-
-    /// The `EXPLAIN QUERY PLAN` detail for the per-mutation read-set validation
-    /// query, so a test can assert it uses the `(table_name, version)` index
-    /// rather than scanning.
-    /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L3 index gate.
-    pub fn explain_table_change_version_plan(&self, table: &str) -> SnapbackResult<String> {
-        let table = schema_table(&self.schema, table)?;
-        let mut statement = self.conn.prepare(
-            "EXPLAIN QUERY PLAN SELECT MAX(version) FROM _snapback_changes WHERE table_name = ?1",
-        )?;
-        let rows = statement.query_map(params![table.name], |row| row.get::<_, String>(3))?;
-        let mut detail = String::new();
-        for row in rows {
-            detail.push_str(&row?);
-            detail.push('\n');
-        }
-        Ok(detail)
-    }
-
     pub fn apply_schema(&mut self, manifest: SchemaManifest) -> SnapbackResult<Vec<Diagnostic>> {
         let diagnostics = manifest.agent_registration_diagnostics();
         let _writer_token = self
@@ -5100,11 +4767,6 @@ impl LocalDatabase {
 
     pub fn get(&self, table: &str, id: &str) -> SnapbackResult<Option<Value>> {
         get_on(&self.conn, &self.schema, table, id)
-    }
-
-    pub fn table_change_version(&self, table: &str) -> SnapbackResult<u64> {
-        let table = schema_table(&self.schema, table)?;
-        table_change_version_from_connection(&self.conn, &table.name)
     }
 
     pub fn generate_id(&self) -> String {

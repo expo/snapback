@@ -5799,7 +5799,12 @@ globalThis.__snapbackHandlers = {
         // A committed row needs a positive version at or below the global
         // head; a fresh instance's head may still be zero, so advance it the
         // way a first commit would.
-        let version = snapback.db.current_version().expect("head").max(1);
+        let version = snapback
+            .db
+            .versions_read()
+            .current_version()
+            .expect("head")
+            .max(1);
         snapback
             .db
             .asset_reads()
@@ -20348,7 +20353,11 @@ globalThis.__snapbackHandlers = {
 
         // No partial write: the durable head still names the one valid commit.
         assert_eq!(
-            snapback.db.current_version().expect("head version"),
+            snapback
+                .db
+                .versions_read()
+                .current_version()
+                .expect("head version"),
             committed_version,
             "refused invocations must leave no observable write"
         );

@@ -5495,7 +5495,10 @@ mod tests {
     }
 
     fn direct_stream_facts(database: &LocalDatabase) -> (u64, i64) {
-        let version = database.current_version().expect("app version");
+        let version = database
+            .versions_read()
+            .current_version()
+            .expect("app version");
         let changes = database
             .auth_catalog_read()
             .change_journal_count_for_test()

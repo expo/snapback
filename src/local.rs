@@ -3511,7 +3511,7 @@ impl LocalSnapback {
         &mut self,
         request: &crate::proof_checkpoint::ProtectedRecordErasureRequestV1,
     ) -> SnapbackResult<crate::proof_checkpoint::ProtectedRecordErasureReceiptV1> {
-        let receipt = self.db.erase_protected_record(request)?;
+        let receipt = self.db.checkpoints().erase_protected_record(request)?;
         self.notify_live_subscriptions(&[]);
         Ok(receipt)
     }
@@ -5534,7 +5534,7 @@ impl LocalSnapback {
                         BTreeSet::new()
                     };
                     if seed_outcome == NetworkSeedOutcome::Seeded {
-                        let frame_version = self.db.current_version()?;
+                        let frame_version = self.db.versions_read().current_version()?;
                         self.dispatch_live_data_fanout(
                             &[],
                             &already_resynced,
@@ -6123,7 +6123,7 @@ impl LocalSnapback {
                 uuid::Uuid::now_v7()
             )),
             base_stream: self.db.current_data_version_stream()?,
-            base_version: self.db.current_version()?,
+            base_version: self.db.versions_read().current_version()?,
             artifact_binding: crate::fork_promotion::BranchArtifactBindingV1 {
                 schema_hash: schema_hash.expect("validated schema hash"),
                 function_bundle_hash: function_bundle_hash.expect("validated function bundle hash"),
@@ -6466,7 +6466,7 @@ impl LocalSnapback {
     }
 
     pub fn durable_version(&self) -> SnapbackResult<u64> {
-        self.db.current_version()
+        self.db.versions_read().current_version()
     }
 
     pub fn acknowledge_client_mutations(
@@ -7664,7 +7664,7 @@ impl LocalSnapback {
             })?;
         let (table_name, membership) = declaration;
         let caller = Self::asset_caller_principal(authority);
-        let version = self.db.current_version()?;
+        let version = self.db.versions_read().current_version()?;
         let (rows, read_dependencies) =
             self.my_memberships_projection(caller.as_deref(), &table_name, &membership)?;
         Ok(QueryInvocation {
@@ -7709,7 +7709,7 @@ impl LocalSnapback {
                 )
             })?;
         let caller = Self::asset_caller_principal(authority);
-        let version = self.db.current_version()?;
+        let version = self.db.versions_read().current_version()?;
         let (rows, read_dependencies) =
             self.asset_record_projection(caller.as_deref(), &asset_id)?;
         Ok(QueryInvocation {
@@ -10168,7 +10168,7 @@ impl LocalSnapback {
         let output = self
             .invoke_query_with_dependencies_prepared(name, input, authority)?
             .output;
-        if output.version != self.db.current_version()? {
+        if output.version != self.db.versions_read().current_version()? {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTHORIZED_LEASE_STALE",
                 "auth",
@@ -11365,7 +11365,7 @@ impl LocalSnapback {
                 commit.sequence_allocations.clone(),
                 Ok(commit),
             ),
-            Err(error) => match self.db.current_version() {
+            Err(error) => match self.db.versions_read().current_version() {
                 Ok(version) => (
                     MutationReceiptOutcome::Rejected,
                     // The diagnostic CODE only — messages may embed argument
@@ -11967,7 +11967,7 @@ impl LocalSnapback {
             // the durable head still names this exact frame; corruption or an
             // impossible mismatch suppresses publication but cannot turn the
             // confirmed mutation into a rejection.
-            let observed = self.db.current_version()?;
+            let observed = self.db.versions_read().current_version()?;
             if observed != frame_version {
                 return Err(SnapbackError::error(
                     "SNAPBACK_STORAGE_VERSION_CORRUPT",
@@ -12164,7 +12164,7 @@ impl LocalSnapback {
         let function = self.function(name)?.clone();
         let prepared = InvocationGate::prepare_function(authority, &function)?;
         let input = prepared.canonicalize_input(input);
-        let snapshot_version = self.db.current_version()?;
+        let snapshot_version = self.db.versions_read().current_version()?;
         let read_set_checked = !input.read_set.is_empty();
         let tier = match &function.runtime {
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(_)) => "hostPlan",
@@ -12669,6 +12669,7 @@ impl LocalSnapback {
         }
         let head = self
             .db
+            .versions_read()
             .current_version()
             .map_err(|_| refusal::VERSION_IMPLAUSIBLE)?;
         if body.version > head {
@@ -12730,6 +12731,7 @@ impl LocalSnapback {
         ) as usize;
         let affected = self
             .db
+            .versions_read()
             .changed_row_ids_for_table_since(&plan.table, body.version, threshold)
             .map_err(|_| refusal::JOURNAL_FLOOR)?;
         if affected.len() > threshold {
@@ -12921,6 +12923,7 @@ impl LocalSnapback {
         }
         let commit_version = self
             .db
+            .versions_read()
             .current_version()
             .map_err(|_| refuse(code::QUERY_FAILED, "bundle commit version unavailable"))?;
         let generation = self
@@ -14847,7 +14850,7 @@ impl LocalSnapback {
             return Err(live_owner_mismatch(&subscription.id, &authority));
         }
 
-        let snapshot_version = self.db.current_version()?;
+        let snapshot_version = self.db.versions_read().current_version()?;
         let _publication = authority.effect_guard("live unsubscribe publication")?;
         let prepared_retirement = match (
             self.auth_invalidation.as_ref(),
@@ -15368,7 +15371,7 @@ impl LocalSnapback {
             );
             // Read the durable floor before changing retained ownership. A read
             // failure must leave the exact predecessor scope/fence untouched.
-            let floor = self.db.current_version()?;
+            let floor = self.db.versions_read().current_version()?;
             let retry_floor = state.witness(floor);
             let predecessor_scope = authorization.scope_id.clone();
             let replacement_stage = if connection_changed {
@@ -17655,7 +17658,7 @@ impl LocalSnapback {
         {
             // Mirror finish_mutation_commit: fan out under the existing
             // admission lease rather than minting a fresh root.
-            match self.db.current_version() {
+            match self.db.versions_read().current_version() {
                 Ok(frame_version) => {
                     self.begin_live_commit_egress(committed_at);
                     self.begin_live_delivery_frame(self.subscriptions.len());
@@ -18213,7 +18216,7 @@ impl LocalSnapback {
             projection,
             scope,
             &base_auth,
-            self.db.current_version()?,
+            self.db.versions_read().current_version()?,
         )? {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_PERMISSION_DENIED",
@@ -18410,29 +18413,34 @@ impl LocalSnapback {
         retain_ms: u64,
     ) -> SnapbackResult<u64> {
         self.db
+            .versions_read()
             .prune_change_journal(now_ms, retain_versions, retain_ms)
     }
 
     pub fn change_journal_len(&self) -> SnapbackResult<u64> {
-        self.db.change_journal_len()
+        self.db.versions_read().change_journal_len()
     }
 
     pub fn journal_floor_version(&self) -> SnapbackResult<u64> {
-        self.db.journal_floor_version()
+        self.db.versions_read().journal_floor_version()
     }
 
     /// Whether a version-based resume from `from_version` must resnapshot
     /// because the journal no longer retains the needed changes (L3).
     pub fn journal_resume_requires_resnapshot(&self, from_version: u64) -> SnapbackResult<bool> {
-        self.db.resume_requires_resnapshot(from_version)
+        self.db
+            .versions_read()
+            .resume_requires_resnapshot(from_version)
     }
 
     pub fn explain_table_change_version_plan(&self, table: &str) -> SnapbackResult<String> {
-        self.db.explain_table_change_version_plan(table)
+        self.db
+            .versions_read()
+            .explain_table_change_version_plan(table)
     }
 
     pub fn table_change_version(&self, table: &str) -> SnapbackResult<u64> {
-        self.db.table_change_version(table)
+        self.db.versions_read().table_change_version(table)
     }
 
     /// The delivery notifier the WebSocket task registers with, so a push wakes
@@ -19239,7 +19247,7 @@ impl LocalSnapback {
     }
 
     pub fn migrate_head_version(&self) -> SnapbackResult<u64> {
-        self.db.current_version()
+        self.db.versions_read().current_version()
     }
 
     pub fn migrate_app_id(&self) -> String {
@@ -19535,7 +19543,7 @@ impl LocalSnapback {
         if subscriptions.is_empty() {
             return Ok(());
         }
-        let publication_version = self.db.current_version()?;
+        let publication_version = self.db.versions_read().current_version()?;
         let snapshot_version = Some(publication_version);
         let received_at_ms = now_millis();
         for subscription in subscriptions {
@@ -20570,7 +20578,7 @@ impl LocalSnapback {
             }
             return true;
         }
-        let frame_version = match self.db.current_version() {
+        let frame_version = match self.db.versions_read().current_version() {
             Ok(version) => version,
             Err(error) => {
                 self.record_attached_diagnostics(vec![error.diagnostic]);
@@ -20943,7 +20951,7 @@ impl LocalSnapback {
         let Ok(admission) = self.admission.admit() else {
             return;
         };
-        let frame_version = match self.db.current_version() {
+        let frame_version = match self.db.versions_read().current_version() {
             Ok(version) => version,
             Err(error) => {
                 self.record_attached_diagnostics(vec![error.diagnostic]);
@@ -21993,7 +22001,7 @@ impl LocalSnapback {
             })
             .collect::<SnapbackResult<Vec<_>>>()?;
 
-        let snapshot_version = Some(self.db.current_version()?);
+        let snapshot_version = Some(self.db.versions_read().current_version()?);
         let _publication = admission.effect_guard("activation live resync publication")?;
         let received_at_ms = now_millis();
         let overflowed_effects = subscriptions
@@ -23018,7 +23026,7 @@ impl LocalSnapback {
             // the wrapper records that recovery failure without propagating.
             let min_commit_version = match min_commit_version {
                 Some(version) => version,
-                None => self.db.current_version()?,
+                None => self.db.versions_read().current_version()?,
             };
             let _publication = admission.effect_guard("live failure/resync publication")?;
             if let Some(authorization) = subscription.authorization.as_ref() {

@@ -5928,7 +5928,10 @@ globalThis.__snapbackHandlers = {
             )
             .expect_err("T1's stale counter read aborts the whole attempt");
         assert_eq!(t1_error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
-        assert_eq!(db.current_version().unwrap(), committed_version);
+        assert_eq!(
+            db.versions_read().current_version().unwrap(),
+            committed_version
+        );
         assert!(db.client_mutation_result(&t1_identity).unwrap().is_none());
         let activities = db
             .scan_table("sequence_activity", 10, 0)
