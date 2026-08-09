@@ -41,7 +41,21 @@ script_dir=${0:A:h}
 worktree=${script_dir:h:h:h:h}
 control_root=${script_dir:h}
 fixture_root=$worktree/demos/zerobugs/fixtures-local
-pristine=$fixture_root/oq4-clone
+fixture_variant=${OQ4_FIXTURE:-baseline}
+authority_transitions=${OQ4_AUTHORITY_TRANSITIONS:-0}
+if [[ $fixture_variant == baseline ]]; then
+  pristine=$fixture_root/oq4-clone
+elif [[ $fixture_variant == authority ]]; then
+  pristine=$fixture_root/oq4-clone-authority
+else
+  print -u2 'OQ4_FIXTURE must be baseline or authority'
+  exit 64
+fi
+if [[ $authority_transitions != <-> ]]; then
+  print -u2 'OQ4_AUTHORITY_TRANSITIONS must be a non-negative integer'
+  exit 64
+fi
+runtime_binary=${SNAPBACK_RUNTIME_BINARY:-$worktree/target/debug/snapback}
 arm_dir=$fixture_root/oq4-arms/$arm_name
 work_dir=$arm_dir/work
 database=$work_dir/diag.sqlite3
@@ -90,7 +104,7 @@ if [[ -n ${SNAPBACK_LIVE_SCHEDULER_DISABLED:-} ]]; then
 fi
 
 env $server_env \
-  $worktree/target/debug/snapback start \
+  $runtime_binary start \
   --port 0 \
   --db $database \
   --ready-file $ready_file \
@@ -120,12 +134,17 @@ cycle_flags=()
 if [[ $arrival_mode != sustained ]]; then
   cycle_flags=(--cycles 3)
 fi
+typeset -a authority_flags
+authority_flags=()
+if (( authority_transitions > 0 )); then
+  authority_flags=(--authority-transitions $authority_transitions)
+fi
 
 if (
   cd $control_root
   ZBUGS_LARGE_OVERLAY_PATH=$overlay \
   OQ4_STARTUP_ARTIFACTS=$startup_artifacts \
-  SNAPBACK_RUNTIME_BINARY=$worktree/target/debug/snapback \
+  SNAPBACK_RUNTIME_BINARY=$runtime_binary \
   bun scripts/diag-hot-stream.mts \
     --ready-file $ready_file \
     --out $client_trace \
@@ -135,6 +154,7 @@ if (
     --coalescing $coalesce \
     --cycle-offset 10 \
     $cycle_flags \
+    $authority_flags \
     "$@"
 ); then
   harness_status=0

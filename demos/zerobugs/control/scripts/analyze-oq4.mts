@@ -308,6 +308,55 @@ async function analyzeArm(directoryArgument: string): Promise<Row> {
     })),
   };
 
+  // LLP 0200 Phase-2 authority-lane decomposition. Fence "applied" events
+  // carry the cumulative marking latency for their transition (§2.4's fence
+  // bound covers the whole marking step); "restored" marks the subscription's
+  // post-transition re-resolution delivery. Restoration latency is measured
+  // per (transition epoch, subscription) as restored-time minus that epoch's
+  // first applied-time for the subscription. The Phase-1 stage-3 landing note
+  // is honored: fence p95 comes from trace events, not the coarse counter.
+  const fenceEvents = server.filter(row => row.event === 'fence');
+  const fenceAppliedLatencies: number[] = [];
+  const appliedAt = new Map<string, number>();
+  const restorationLatencies: number[] = [];
+  const staleDiscards = fenceEvents.filter(row => row.action === 'stale_discard').length;
+  for (const event of fenceEvents) {
+    const action = string(event.action);
+    const subscription = string(event.subscription_id) ?? 'unknown';
+    const epoch = number(event.authorization_epoch);
+    const timestamp = number(event.timestamp_ms);
+    const key = `${subscription}#${epoch}`;
+    if (action === 'applied') {
+      const latency = number(event.latency_ms);
+      if (latency !== null) fenceAppliedLatencies.push(latency);
+      if (timestamp !== null && !appliedAt.has(key)) appliedAt.set(key, timestamp);
+    } else if (action === 'restored' && timestamp !== null) {
+      const started = appliedAt.get(key);
+      if (started !== undefined) {
+        restorationLatencies.push(timestamp - started);
+        appliedAt.delete(key);
+      }
+    }
+  }
+  const clientAuthorityTransitions = client.filter(
+    row => row.kind === 'authority_transition',
+  );
+  const authorityLane = {
+    fenceAppliedEvents: fenceEvents.filter(row => row.action === 'applied').length,
+    fenceAppliedLatencyMs: {
+      ...distribution(fenceAppliedLatencies),
+      p95: percentile(fenceAppliedLatencies, 0.95),
+    },
+    restorationsObserved: restorationLatencies.length,
+    restorationLatencyMs: {
+      ...distribution(restorationLatencies),
+      p95: percentile(restorationLatencies, 0.95),
+    },
+    unrestoredFences: appliedAt.size,
+    staleAuthorityFrameDiscards: staleDiscards,
+    clientAuthorityTransitions: clientAuthorityTransitions.length,
+  };
+
   const clientLedger = aggregateClientLedgers(
     client.filter(row => row.kind === 'summary'),
   );
@@ -359,6 +408,7 @@ async function analyzeArm(directoryArgument: string): Promise<Row> {
       disagreementCount: matcherDisagreements.length,
     },
     coalescer,
+    authorityLane,
     frameLedgerReconciliation,
   };
 }

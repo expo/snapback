@@ -70,6 +70,8 @@ const FIXED_ARRIVAL_INTERVAL_MS = 25;
 const DEFAULT_SUSTAIN_INTERVAL_MS = 250;
 const DEFAULT_SUSTAIN_SECONDS = 120;
 const OBSERVER_OPEN_TIMEOUT_MS = 10_000;
+const AUTHORITY_TRANSITION_INTERVAL_MS = 1_500;
+const AUTHORITY_TRANSITION_START_OFFSET_MS = 3 * FIXED_ARRIVAL_INTERVAL_MS;
 
 const ACTORS = Object.freeze([
   'ordinary-user',
@@ -151,6 +153,7 @@ interface Options {
   observerPartition: ObserverPartition;
   coalescing: 'on' | 'off';
   cycleOffset: number;
+  authorityTransitions: number;
 }
 
 // Cycle indices 0-2 (and their hotIDs, clientMutationIds, and the un-suffixed
@@ -255,6 +258,15 @@ interface MutationTracker {
   settled: number;
   applied: number;
   refused: number;
+}
+
+interface AuthorityTransitionTracker {
+  total: number;
+  dispatched: number;
+  settled: number;
+  applied: number;
+  refused: number;
+  skipped: number;
 }
 
 function roundedMilliseconds(value: number): number {
@@ -382,6 +394,7 @@ function usage(): string {
     '  --observer-count N      0, 1, or 6 persistent observers (default 6)',
     '  --observer-partition M  mixed or same authority partition (default mixed)',
     '  --coalescing MODE       on or off; records the server arm (default on)',
+    '  --authority-transitions N  alternating probe writes during the burst (default 0)',
   ].join('\n');
 }
 
@@ -423,6 +436,7 @@ function parseArgs(argv: string[]): Options | null {
   let observerCount: 0 | 1 | 6 = 6;
   let observerPartition: ObserverPartition = 'mixed';
   let coalescing: 'on' | 'off' = 'on';
+  let authorityTransitions = 0;
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === '--help' || argument === '-h') return null;
@@ -501,12 +515,33 @@ function parseArgs(argv: string[]): Options | null {
         throw new Error('--cycle-offset must be a non-negative integer');
       }
       cycleOffset = parsed;
+    } else if (
+      argument === '--authority-transitions'
+      || argument.startsWith('--authority-transitions=')
+    ) {
+      let value;
+      [value, index] = optionValue(argv, index, '--authority-transitions');
+      const parsed = Number(value);
+      if (!Number.isSafeInteger(parsed) || parsed < 0) {
+        throw new Error('--authority-transitions must be a non-negative integer');
+      }
+      authorityTransitions = parsed;
     } else {
       throw new Error(`unknown argument ${argument}`);
     }
   }
   if (!readyFile) {
     throw new Error('--ready-file or SNAPBACK_READY_FILE is required');
+  }
+  if (authorityTransitions > 0) {
+    const availableMs = (arrivalMode === 'sustained' ? sustainSeconds : observeSeconds) * 1_000;
+    const finalTransitionOffsetMs = AUTHORITY_TRANSITION_START_OFFSET_MS
+      + (authorityTransitions - 1) * AUTHORITY_TRANSITION_INTERVAL_MS;
+    if (finalTransitionOffsetMs > availableMs) {
+      throw new Error(
+        `--authority-transitions ${authorityTransitions} exceeds the active burst window`,
+      );
+    }
   }
   return {
     readyFile: resolve(readyFile),
@@ -521,6 +556,7 @@ function parseArgs(argv: string[]): Options | null {
     observerCount,
     observerPartition,
     coalescing,
+    authorityTransitions,
   };
 }
 
@@ -812,6 +848,24 @@ async function bindOrAdoptActors(
     );
     throw error;
   }
+}
+
+async function mintAuthorityProbeSession(
+  readyFile: string,
+  logger: JsonlLogger,
+): Promise<BoundSession> {
+  const email = 'zerobugs-diag-hot-stream-authority-probe@acceptance.invalid';
+  const minted = await mintDevSession(readyFile, email);
+  const client = createExternalSessionClient(minted.baseUrl, {
+    bearerToken: minted.token,
+    clientStoreId: 'zerobugs-diag-hot-stream-authority-probe',
+    rqsStore: null,
+  }) as AnyClient;
+  logger.record('authority_probe_session', {
+    principal: minted.principal,
+    initialState: 'revoked-by-pristine-authority-fixture',
+  });
+  return {client, principal: minted.principal};
 }
 
 function anonymousClient(baseUrl: string): AnyClient {
@@ -1523,6 +1577,132 @@ function scheduleMutation(
   return {dispatched, settled};
 }
 
+function scheduleAuthorityTransition(
+  index: number,
+  session: BoundSession,
+  burstStart: number,
+  logger: JsonlLogger,
+  tracker: AuthorityTransitionTracker,
+  signal: AbortSignal,
+): Promise<void> {
+  const action = index % 2 === 0 ? 'grant' : 'revoke';
+  const functionName = action === 'grant' ? 'authorityProbeGrant' : 'authorityProbeRevoke';
+  const functionReference = action === 'grant'
+    ? api.authorityProbeGrant
+    : api.authorityProbeRevoke;
+  const targetOffsetMs = AUTHORITY_TRANSITION_START_OFFSET_MS
+    + index * AUTHORITY_TRANSITION_INTERVAL_MS;
+  const targetTime = burstStart + targetOffsetMs;
+  return new Promise<void>(resolveSettled => {
+    const timer = setTimeout(async () => {
+      if (signal.aborted) {
+        tracker.skipped += 1;
+        logger.record('authority_transition', {
+          index,
+          action,
+          functionName,
+          principal: session.principal,
+          targetOffsetMs,
+          dispatchedAtPerformanceMs: null,
+          settledAtPerformanceMs: null,
+          dispatchedTMs: null,
+          settledTMs: null,
+          outcome: 'skipped',
+          committedVersion: null,
+          reason: 'harness-aborted-before-dispatch',
+        });
+        resolveSettled();
+        return;
+      }
+      const dispatchedAt = performance.now();
+      const clientMutationId = `zb5-authority-probe-${index + 1}${runIdentitySuffix}`;
+      tracker.dispatched += 1;
+      try {
+        const response = await session.client.mutate(functionReference as never, {
+          args: {},
+          clientMutationId,
+          queue: false,
+        });
+        const responseRecord = response as unknown as AnyRecord;
+        const resultRecord = responseRecord.result && typeof responseRecord.result === 'object'
+          ? responseRecord.result as AnyRecord
+          : null;
+        const committedVersion = typeof responseRecord.version === 'number'
+          ? responseRecord.version
+          : typeof resultRecord?.version === 'number' ? resultRecord.version : null;
+        const settledAt = performance.now();
+        tracker.settled += 1;
+        tracker.applied += 1;
+        logger.record('authority_transition', {
+          index,
+          action,
+          functionName,
+          principal: session.principal,
+          targetOffsetMs,
+          dispatchDriftMs: roundedMilliseconds(dispatchedAt - targetTime),
+          dispatchedAtPerformanceMs: roundedMilliseconds(dispatchedAt),
+          settledAtPerformanceMs: roundedMilliseconds(settledAt),
+          dispatchedTMs: roundedMilliseconds(dispatchedAt - logger.epochPerformanceNowMs),
+          settledTMs: roundedMilliseconds(settledAt - logger.epochPerformanceNowMs),
+          latencyMs: roundedMilliseconds(settledAt - dispatchedAt),
+          outcome: 'applied',
+          committedVersion,
+          clientMutationId,
+        });
+      } catch (error) {
+        const settledAt = performance.now();
+        tracker.settled += 1;
+        tracker.refused += 1;
+        logger.record('authority_transition', {
+          index,
+          action,
+          functionName,
+          principal: session.principal,
+          targetOffsetMs,
+          dispatchDriftMs: roundedMilliseconds(dispatchedAt - targetTime),
+          dispatchedAtPerformanceMs: roundedMilliseconds(dispatchedAt),
+          settledAtPerformanceMs: roundedMilliseconds(settledAt),
+          dispatchedTMs: roundedMilliseconds(dispatchedAt - logger.epochPerformanceNowMs),
+          settledTMs: roundedMilliseconds(settledAt - logger.epochPerformanceNowMs),
+          latencyMs: roundedMilliseconds(settledAt - dispatchedAt),
+          outcome: 'refused',
+          committedVersion: null,
+          clientMutationId,
+          error: errorFact(error),
+        });
+      } finally {
+        resolveSettled();
+      }
+    }, Math.max(0, targetTime - performance.now()));
+    timer.ref?.();
+  });
+}
+
+function scheduleAuthorityTransitions(
+  count: number,
+  session: BoundSession,
+  burstStart: number,
+  logger: JsonlLogger,
+  tracker: AuthorityTransitionTracker,
+  signal: AbortSignal,
+): Promise<void>[] {
+  const settlements: Promise<void>[] = [];
+  let preceding = Promise.resolve();
+  for (let index = 0; index < count; index += 1) {
+    const settlement = preceding.then(() => scheduleAuthorityTransition(
+      index,
+      session,
+      burstStart,
+      logger,
+      tracker,
+      signal,
+    ));
+    settlements.push(settlement);
+    preceding = settlement;
+  }
+  return settlements;
+}
+
 async function finalPolls(
   observers: Map<ObserverName, ObserverStats>,
   logger: JsonlLogger,
@@ -1689,12 +1869,16 @@ async function closeClients(
   sessions: Map<Actor, BoundSession>,
   anonymous: AnyClient | null,
   observerSources: ObserverSource[],
+  authorityProbeSession: BoundSession | null,
   logger: JsonlLogger,
 ): Promise<void> {
   const candidates: Array<[string, AnyClient]> = [
     ...[...sessions].map(([actor, session]) => [actor, session.client] as [string, AnyClient]),
     ...(anonymous ? [['anonymous', anonymous] as [string, AnyClient]] : []),
     ...observerSources.map(source => [source.label, source.client] as [string, AnyClient]),
+    ...(authorityProbeSession
+      ? [['authority-probe', authorityProbeSession.client] as [string, AnyClient]]
+      : []),
   ];
   const seen = new Set<AnyClient>();
   const clients = candidates.filter(([, client]) => {
@@ -1729,6 +1913,7 @@ async function run(options: Options, logger: JsonlLogger): Promise<void> {
 
   const sessions = new Map<Actor, BoundSession>();
   let anonymous: AnyClient | null = null;
+  let authorityProbeSession: BoundSession | null = null;
   let observerSources: ObserverSource[] = [];
   let observers = new Map<ObserverName, ObserverStats>();
   const plannedCycles = options.arrivalMode === 'sustained'
@@ -1750,6 +1935,15 @@ async function run(options: Options, logger: JsonlLogger): Promise<void> {
   };
   const mutationSettlements: Promise<void>[] = [];
   const mutationFacts: MutationFact[] = [];
+  const authorityTransitionSettlements: Promise<void>[] = [];
+  const authorityTransitionTracker: AuthorityTransitionTracker = {
+    total: options.authorityTransitions,
+    dispatched: 0,
+    settled: 0,
+    applied: 0,
+    refused: 0,
+    skipped: 0,
+  };
   let pollFailures = 0;
   try {
     const ready = JSON.parse(await readFile(options.readyFile, 'utf8')) as AnyRecord;
@@ -1781,6 +1975,11 @@ async function run(options: Options, logger: JsonlLogger): Promise<void> {
       observerPartition: options.observerPartition,
       coalescing: options.coalescing,
       coalescingDisabled: options.coalescing === 'off',
+      ...(options.authorityTransitions > 0 ? {
+        authorityTransitions: options.authorityTransitions,
+        authorityTransitionStartOffsetMs: AUTHORITY_TRANSITION_START_OFFSET_MS,
+        authorityTransitionIntervalMs: AUTHORITY_TRANSITION_INTERVAL_MS,
+      } : {}),
       repeatedOperationPolicy: 'keep-all-16-and-record-deterministic-refusals',
       observeSecondsPerCycle: options.observeSeconds,
       statusIntervalSeconds: STATUS_INTERVAL_MS / 1_000,
@@ -1835,6 +2034,9 @@ async function run(options: Options, logger: JsonlLogger): Promise<void> {
     for (const stats of observers.values()) {
       emitObserverStatus(null, 'all-open', stats, logger);
     }
+    if (options.authorityTransitions > 0) {
+      authorityProbeSession = await mintAuthorityProbeSession(options.readyFile, logger);
+    }
 
     if (options.arrivalMode === 'sustained') {
       const operationCount = Math.ceil(
@@ -1847,6 +2049,16 @@ async function run(options: Options, logger: JsonlLogger): Promise<void> {
         durationSeconds: options.sustainSeconds,
       });
       const streamStart = performance.now() + 50;
+      if (authorityProbeSession) {
+        authorityTransitionSettlements.push(...scheduleAuthorityTransitions(
+          options.authorityTransitions,
+          authorityProbeSession,
+          streamStart,
+          logger,
+          authorityTransitionTracker,
+          abortController.signal,
+        ));
+      }
       const scheduled = operations.map((operation, index) => scheduleMutation(
         Math.floor(index / MUTATION_NAMES.length),
         {...operation, arrivalOffsetMs: index * options.sustainIntervalMs},
@@ -1876,6 +2088,16 @@ async function run(options: Options, logger: JsonlLogger): Promise<void> {
         observeSeconds: options.observeSeconds,
       });
       const cycleStart = performance.now() + 50;
+      if (authorityProbeSession && authorityTransitionSettlements.length === 0) {
+        authorityTransitionSettlements.push(...scheduleAuthorityTransitions(
+          options.authorityTransitions,
+          authorityProbeSession,
+          cycleStart,
+          logger,
+          authorityTransitionTracker,
+          abortController.signal,
+        ));
+      }
       const scheduled = options.arrivalMode === 'settle-gated'
         ? []
         : cycle.operations.map(operation => scheduleMutation(
@@ -1928,6 +2150,10 @@ async function run(options: Options, logger: JsonlLogger): Promise<void> {
       });
     }
 
+    if (authorityTransitionSettlements.length > 0) {
+      await Promise.all(authorityTransitionSettlements);
+    }
+
     if (!abortController.signal.aborted) {
       pollFailures = await finalPolls(observers, logger);
     }
@@ -1947,6 +2173,9 @@ async function run(options: Options, logger: JsonlLogger): Promise<void> {
       pendingMutationResponses: tracker.dispatched - tracker.settled,
       pollFailures,
       convergence,
+      ...(options.authorityTransitions > 0
+        ? {authorityTransitionTracker}
+        : {}),
       observers: Object.fromEntries([...observers].map(([actor, stats]) => [actor, {
         connection: stats.handle?.connection ?? null,
         version: stats.handle?.version ?? null,
@@ -1958,12 +2187,13 @@ async function run(options: Options, logger: JsonlLogger): Promise<void> {
       }])),
     });
     if (pollFailures > 0) process.exitCode = 1;
+    if (authorityTransitionTracker.refused > 0) process.exitCode = 1;
     if (interruptedBy !== null) process.exitCode = interruptedBy === 'SIGINT' ? 130 : 143;
   } finally {
     process.off('SIGINT', onSigint);
     process.off('SIGTERM', onSigterm);
     await closeObservers(observers, logger);
-    await closeClients(sessions, anonymous, observerSources, logger);
+    await closeClients(sessions, anonymous, observerSources, authorityProbeSession, logger);
   }
 }
 

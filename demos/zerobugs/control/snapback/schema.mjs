@@ -155,6 +155,38 @@ export const identityBinding = defineTable({
   .index('by_user', ['userID'], { unique: true })
   .index('by_source_user_id', ['sourceUserID'], { unique: true });
 
+// This membership declaration exists only as the LLP 0200 A/B harness's
+// authority-transition probe surface. Its writes are permission-backing and
+// therefore advance the authorization epoch, but no application query or
+// mutation consults it for access control (in particular, issueListV2 does
+// not read it).
+// @ref LLP 0200#24-the-authorization-lane-splits-in-two--by-declared-classification
+// — probe writes exercise fence application and restoration without changing
+// any observer's effective access.
+export const authorityProbeMembers = defineTable({
+  userId: v.principal(),
+  role: v.string(),
+}).membership({
+  principal: 'userId',
+  role: 'role',
+  roles: ['member'],
+  scope: 'app',
+  provenance: 'full',
+  transitions: [
+    {op: 'insert', by: ['none'], target: 'self', to: ['member']},
+    {op: 'remove', by: ['self'], target: 'self', from: ['member']},
+  ],
+});
+
+// Membership rows are intentionally private to application handlers. This
+// companion ledger is the minimal app-visible fact needed to make probe
+// retries idempotent without attempting a forbidden raw membership read. It
+// is inserted/deleted atomically with the membership row and is not itself
+// permission-backing.
+export const authorityProbeState = defineTable({
+  userId: v.principal(),
+}).index('by_user_id', ['userId'], {unique: true});
+
 // W-READMODEL: one row per (project,user) that participates as an issue
 // creator, issue assignee, or non-rocibot crew picker candidate. The booleans
 // record every applicable membership reason so each picker branch stays
@@ -365,6 +397,8 @@ export default defineSchema(
     userPref,
     issueNotifications,
     identityBinding,
+    authorityProbeMembers,
+    authorityProbeState,
     projectUserRead,
     issueListRead,
     issueLabelRead,

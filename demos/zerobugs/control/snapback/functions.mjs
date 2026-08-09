@@ -176,6 +176,53 @@ function requireFixtureSession(ctx) {
   }
 }
 
+async function authorityProbeStateRow(ctx) {
+  return await ctx.db
+    .query('authorityProbeState')
+    .withIndex('by_user_id')
+    .eq('userId', ctx.auth.userId)
+    .first();
+}
+
+// Measurement plumbing only: these mutations toggle an otherwise-unused
+// permission-backing row so LLP 0200's authorization fence/restoration lane is
+// reachable without changing issueListV2 visibility. The companion state row
+// makes retries tolerant; only a state-changing call buffers a membership
+// command, and the diagnostic harness strictly alternates those calls.
+// @ref LLP 0200#24-the-authorization-lane-splits-in-two--by-declared-classification
+export const authorityProbeGrant = defineJsMutation({
+  auth: 'authenticated',
+  authorityCreating: true,
+  args: {},
+  reads: ['authorityProbeState'],
+  writes: ['authorityProbeMembers', 'authorityProbeState'],
+  result: results.value(v.null()),
+  handler: async (ctx) => {
+    if (await authorityProbeStateRow(ctx)) return null;
+    await ctx.membership.authorityProbeMembers.insert({
+      userId: ctx.auth.userId,
+      role: 'member',
+    });
+    await ctx.db.insert('authorityProbeState', {userId: ctx.auth.userId});
+    return null;
+  },
+});
+
+export const authorityProbeRevoke = defineJsMutation({
+  auth: 'authenticated',
+  args: {},
+  reads: ['authorityProbeState'],
+  writes: ['authorityProbeMembers', 'authorityProbeState'],
+  result: results.value(v.null()),
+  handler: async (ctx) => {
+    const state = await authorityProbeStateRow(ctx);
+    if (!state) return null;
+    await ctx.membership.authorityProbeMembers.removeSelf();
+    await ctx.db.delete('authorityProbeState', state._id);
+    return null;
+  },
+});
+
 // W-IDENTITY: private source rows never trust a caller-selected source user
 // id. The sessions gate supplies the principal; this helper resolves the sole
 // app-owned binding and verifies that it still names the same frozen source
