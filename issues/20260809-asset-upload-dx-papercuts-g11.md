@@ -1,6 +1,15 @@
 # Asset upload/delivery DX papercuts: client-arm signed issuance, default variant, mapping diagnostic, one-call upload helper, delivery recipes (LLP 0208 G11)
 
-**Status:** Open
+**Status:** Open — implementation landing (design ruled by LLP 0210, super-refine converged 2026-08-09)
+**Progress (2026-08-09):** D4 codegen admit+teach landed `802d08cb2`;
+D1/D3 client surface (`assets.signedUrl`, issued-URL controller,
+`assets.upload`, typed retry eligibility) landed `402dfacd2` with the
+`asset-upload-dx` metrology rollover; D2 server (optional variant →
+`primary`, typed `SNAPBACK_ASSET_REQUEST_INVALID`/`SNAPBACK_ASSET_VARIANT_UNKNOWN`,
+authorization-precedes-enumeration) landed `e8e67c0e9`. Remaining:
+`useSnapbackAssetUrl` React projection (in flight) and the guide
+work (item 5). D5(b) grant ops are author-gated on LLP 0210 acceptance
+(companion G4 ticket).
 **Severity:** P2 (every media app hits these immediately; all have workarounds discovered by probing)
 **Systems:** Assets, Headless client, React/Expo, Server, Diagnostics, Guide
 **Date:** 2026-08-09
