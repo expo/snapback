@@ -2,8 +2,8 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "commit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
-    "sourceDigest": "sha256:8e8780cf27fae269026b6645b7cc78f34621c6aa24499156a181303aedd0a599"
+    "commit": "0c5c37b88366a97045a8d6dcea99cc3ca90b11ad",
+    "sourceDigest": "sha256:3bd83f2419da1b5ea591fe75b5d240f9e3c2a797f53095a63a41a9e1f07e1d5a"
   },
   "limits": {
     "lookupBytes": 16384
@@ -13,7 +13,7 @@
     "sourceFiles": 378,
     "emittingSites": 9237,
     "httpClassified": 812,
-    "guideAnchored": 320
+    "guideAnchored": 321
   },
   "diagnostics": {
     "SNAPBACK_ACTION_CAPACITY_EXCEEDED": {
@@ -5983,8 +5983,10 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/sync/offline-and-retention.md#the-jsreact-arm-default-persistence-and-the-offline-queue",
+      "guideAnchors": [
+        "/_snapback/guide/sync/offline-and-retention.md#the-jsreact-arm-default-persistence-and-the-offline-queue"
+      ]
     },
     "SNAPBACK_APP_CLI_ABORTED": {
       "code": "SNAPBACK_APP_CLI_ABORTED",
@@ -70394,7 +70396,8 @@
       "guideAnchor": "/_snapback/guide/clients/react-expo.md#reproduce-a-supervised-cold-boot-with-bare-metro",
       "guideAnchors": [
         "/_snapback/guide/clients/react-expo.md#reproduce-a-supervised-cold-boot-with-bare-metro",
-        "/_snapback/guide/retrieval-eval.md#seed-intents"
+        "/_snapback/guide/retrieval-eval.md#seed-intents",
+        "/_snapback/guide/sync/offline-and-retention.md#the-jsreact-arm-default-persistence-and-the-offline-queue"
       ]
     },
     "SNAPBACK_SUPERVISOR_PROVIDER_RESPONSE_TOO_LARGE": {
