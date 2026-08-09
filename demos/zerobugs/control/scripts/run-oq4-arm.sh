@@ -85,6 +85,9 @@ server_env=(
 if [[ $coalesce == off ]]; then
   server_env+=(SNAPBACK_LIVE_COALESCE_DISABLED=1)
 fi
+if [[ -n ${SNAPBACK_LIVE_SCHEDULER_DISABLED:-} ]]; then
+  server_env+=(SNAPBACK_LIVE_SCHEDULER_DISABLED=$SNAPBACK_LIVE_SCHEDULER_DISABLED)
+fi
 
 env $server_env \
   $worktree/target/debug/snapback start \
@@ -122,6 +125,7 @@ if (
   cd $control_root
   ZBUGS_LARGE_OVERLAY_PATH=$overlay \
   OQ4_STARTUP_ARTIFACTS=$startup_artifacts \
+  SNAPBACK_RUNTIME_BINARY=$worktree/target/debug/snapback \
   bun scripts/diag-hot-stream.mts \
     --ready-file $ready_file \
     --out $client_trace \
