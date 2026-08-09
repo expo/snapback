@@ -1,7 +1,7 @@
 # LLP 0212: Agent-native identity and rehearsal grants
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Review
 **Systems:** Auth, Identity, Developer experience, Agent tooling, Testing,
 Security, CLI, Email delivery
 **Author:** Charlie Cheever / Claude (Fable 5), with a commissioned
@@ -9,7 +9,11 @@ independent brainstorm from Codex (gpt-5.6-sol, xhigh) on 2026-08-09 —
 idea provenance is tagged throughout ([C] Claude, [X] Codex, [=] both
 families converged independently)
 **Date:** 2026-08-09
-**Revised:** —
+**Revised:** 2026-08-09 (author sitting: all six open questions ruled —
+combined wedge+floor first wave; guest-first as template default;
+provisioning hook *and* read-only verified claims in v1; a standalone
+effect-budgets Spec; names ratified; import pipeline *and* the narrow
+JWT bridge commissioned. See §Author decisions.)
 **Related:** LLP 0011 (auth and permissions — the principal-first root),
 LLP 0057 (auth provider protocol — the shipped email-code provider,
 capture mailbox, throttle constants, `ImpersonationCapability`),
@@ -361,7 +365,9 @@ convergence (treated as signal).
 - **M2. Narrow compatibility edge** [X, C skeptical] — at most: the
   import pipeline plus an optional short-lived audience-constrained JWT
   bridge for external systems that require JWKS. A GoTrue-shaped façade
-  is evaluated below — and mostly rejected.
+  is evaluated below — and mostly rejected. (OQ6 ruling: both the
+  import pipeline and the narrow bridge are commissioned; the façade
+  stays rejected.)
 
 ## Evaluation
 
@@ -380,12 +386,18 @@ convergence (treated as signal).
 
 ### Build-first (the seven moves, in order)
 
+Per the OQ1 ruling, moves 2 and 6's password/guest floor ship as **one
+combined first wave**: the wedge lands with enough production
+capability that the first public story is complete auth, not just great
+auth testing.
+
 1. **Declared auth program + the four-layer catalog** (I1, I2) — one
    authority for mechanisms, generation, readiness, fixtures, docs.
 2. **Rehearsal grants + captured inbox + fixtures + personas** (R1–R4,
    V2, V5) — the agent-DX wedge: one command yields real principals and
    sessions with no SMTP, no CAPTCHA, no clipboard secrets, no rate-limit
-   fights. First consumer: the acceptance suites themselves.
+   fights. First consumer: the acceptance suites themselves. Ships in
+   the same wave as move 6's guest + password floor (OQ1).
 3. **Assurance layer + deferred verification** (I4, V1) — with the
    verified provisioning hook (I8) closing the binding gap.
 4. **Account lifecycle engine** (A3) — give 0151's commissioned lifecycle
@@ -608,14 +620,25 @@ This RFC creates no second authority. Deltas land by owner:
    vocabulary its authenticators consume; return intents (O2) and the
    registration copilot (O3) as completion-protocol/DX extensions;
    guest-first template posture (I3).
-4. **LLP 0057 amendments** — capture-mailbox promotion (V2), challenge
-   redemption under rehearsal authority (V5), budget vocabulary replacing
-   the throttle constants (A1) with 0060 composition.
-5. **LLP 0024/host-ops** — persona and fixture operations; `auth explain`.
-6. **LLP 0036** — secret-reference consumption from `defineAuth`.
-7. **LLP 0045** — delivery adapter contract (V4) and simulator (V3).
-8. **LLP 0203** — auth becomes the named first exhibit for P2 (explain
+4. **An effect-budgets Spec** (new number; OQ4 ruling) — one document
+   owns budget names, charge axes, and refusal semantics for local and
+   hosted alike; LLP 0057 (whose throttle constants it replaces via
+   amendment), LLP 0060's multi-bucket throttle, and the
+   rehearsal-grants Spec's rehearsal budgets all reference it.
+5. **LLP 0057 amendments** — capture-mailbox promotion (V2), challenge
+   redemption under rehearsal authority (V5), and the constant→budget
+   migration referencing the budgets Spec (A1).
+6. **LLP 0024/host-ops** — persona and fixture operations; `auth explain`.
+7. **LLP 0036** — secret-reference consumption from `defineAuth`.
+8. **LLP 0045** — delivery adapter contract (V4) and simulator (V3).
+9. **LLP 0203** — auth becomes the named first exhibit for P2 (explain
    traces) and P7 (versioned `--json` on the `auth` CLI family).
+10. **Migration surface** (OQ6 ruling) — the Supabase/GoTrue import
+    pipeline (M1) and the narrow JWT/JWKS bridge (short-lived,
+    audience-constrained tokens only), each specified inside the
+    rehearsal-era implementing work, with the bridge carrying an
+    explicit non-goal fence against façade growth: any endpoint beyond
+    token issuance + JWKS requires reopening the rejected-ideas record.
 
 ## Non-goals
 
@@ -629,27 +652,42 @@ This RFC creates no second authority. Deltas land by owner:
   sovereign (0150 invariant 5); anything Expo-side is an optional overlay
   in the 0106 lineage.
 
-## Open questions
+## Author decisions — 2026-08-09
 
-- **OQ1 — Sequencing of the wedge vs. the floor.** Does the
-  rehearsal-grants Spec ship before any new authenticator (the
-  brainstorms' recommendation: the wedge pays for itself in every
-  subsequent acceptance suite), or alongside the password floor so the
-  first marketing story is complete? Author call.
-- **OQ2 — Guest-first as template default.** Is guest-first the paved
-  posture for agent-built app templates (this RFC's proposal), or opt-in
-  per app? Interacts with the 0011 reaping-policy requirement.
-- **OQ3 — How handlers consume verified claims.** The binding gap can
-  close via the provisioning hook alone (I8), via handler-readable
-  verified claims on `ctx.auth`, or both. The hook is safer (no claim
-  surface to misuse); claims are more general. Which lands first?
-- **OQ4 — Budget vocabulary ownership.** Do effect budgets (A1) replace
-  0057's constants in a 0057 amendment, or land as a new spec that 0057
-  and 0060 both reference? The former is smaller; the latter keeps
-  hosted/local symmetry in one place.
-- **OQ5 — Naming ratification.** "Snapback Identity" and "auth rehearsal
-  grant" per §Naming; `sbrc_` prefix pending the registry check.
-- **OQ6 — The compatibility edge.** Import-only (this RFC's lean), or
-  import + the narrow JWT/JWKS bridge? A bridge helps external systems
-  (analytics, third-party APIs expecting JWKS) but is the top candidate
-  for scope creep toward the rejected full façade.
+Recorded from a sitting with the author (Charlie Cheever); the
+corresponding design and landing-shape sections have been updated and
+are normative. No open questions remain in this revision.
+
+- **OQ1 — Sequencing: wedge and floor ship together.** The
+  rehearsal-grants Spec does not ship alone: it lands in one combined
+  first wave with the zero-dependency password + guest floor (I3, I6),
+  so the first public story is complete auth *with* the agent-DX wedge
+  — not test tooling for the one existing provider. (The brainstorms'
+  wedge-first lean was considered and narrowed: the wedge still leads
+  the wave internally, since the floor's acceptance suites consume it.)
+- **OQ2 — Guest-first is the paved template default** for agent-built
+  app templates, carrying a default reaping posture for unclaimed
+  guests (templates declare it; apps may opt out or change retention).
+  The platform-wide default is unchanged; this is template posture,
+  per the 0011 amendment's cleanup-policy requirement.
+- **OQ3 — Both in v1.** The verified provisioning hook (I8) *and*
+  read-only verified/assurance claims on `ctx.auth` ship together: the
+  hook is the paved binding path, and the assurance layer (I4) needs
+  claim-shaped data anyway. The claims surface is read-only and
+  server-derived; it is never a binding mechanism by itself, and the
+  guide teaches the hook as the binding path.
+- **OQ4 — A standalone effect-budgets Spec** owns the budget
+  vocabulary (names, charge axes, refusal semantics) for local and
+  hosted alike; LLP 0057's constants migrate to it by amendment and
+  LLP 0060's throttle and the rehearsal budgets reference it.
+  (Landing-shape item 4.)
+- **OQ5 — Names ratified**: "Snapback Identity" as the subsystem;
+  `snapback auth` stays the CLI/API family; `defineAuth(...)` the
+  authoring object; "auth rehearsal grant" / "rehearsal window" /
+  "rehearsal capability" with provisional prefix `sbrc_`, still subject
+  to the mechanical credential-prefix registry check at implementation.
+- **OQ6 — Import pipeline and the narrow JWT bridge are both
+  commissioned.** The bridge is fenced: short-lived,
+  audience-constrained token issuance plus a JWKS endpoint, nothing
+  else; any growth beyond that reopens the rejected full-façade record
+  rather than extending the bridge. (Landing-shape item 10.)

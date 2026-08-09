@@ -5,7 +5,17 @@
 **Systems:** Schema, Application data API, Storage, Code generation, Client SDK
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-09
-**Revised:** 2026-08-09, round-2 revision (delta round at `bf5cfa214`:
+**Revised:** 2026-08-09, round-3 close-out revision (**this revision's
+delta is UNREVIEWED** — the 3-round budget is exhausted; round 3 at
+`a8e1d75df` returned one MATERIAL per family, both IN-DELTA, both fixed
+here: the search-storedFields disclosure split by layer per the Rust
+validator's existing `Json` refusal, and the StoredStructuredContractV1
+wire members + hash formula pinned exactly (0131's formula shape under
+`snapback:stored-structured-contract:v1`); plus the migration-case count,
+the literal-union-with-null sibling hint, and domain-string precision.
+Pre-existing text was MATERIAL-clean across both families in both delta
+rounds — the loop closes by delta-convergence with this unreviewed
+tail). Prior: 2026-08-09, round-2 revision (delta round at `bf5cfa214`:
 fable one MATERIAL / codex four MATERIAL, all IN-DELTA, zero
 PRE-EXISTING across both families — delta-convergence conditions hold on
 pre-existing text; fixes: frame-fit claim restated as bounded structured
@@ -151,7 +161,9 @@ top-level `v.union([<scalar>, v.null()])` becomes a `Structured` field —
 canonical-JSON-encoded, no predicates, no index eligibility — which is
 rarely what a nullable scalar column wants; the schema compiler's
 diagnostic on such a union names `v.optional(<scalar>)` as the likely
-intent.
+intent. The sibling case `v.union([...string literals, v.null()])` gets
+the same family of hint, naming `v.optional(v.union(...literals))` (the
+Enum path) as the likely intent.
 
 **Interior leaf set** (inside a `Structured` value) — closed, enumerated;
 everything not listed refuses fail-closed at schema compile with a named
@@ -206,15 +218,19 @@ version behind the same logical contract, not a public schema break.
 
 **The encoding identity has an authoritative carrier — specified, not
 gestured.** The field's manifest entry carries a
-**`StoredStructuredContractV1`** record: the **complete recursive
-descriptor** (the validator shape itself — persisted, because runtime
-validation executes from the descriptor; a hash alone cannot validate),
-the descriptor's contract hash under its **own domain-separated preimage**
-(`snapback:stored-structured-contract:v1`, deliberately not LLP 0131's
-`FunctionArgsContractV1` root — different root type, different domain),
-and the encoding id (`canonical-json-text.v1`). The wire shape is frozen
-at introduction; consumers **recompute the hash from the persisted
-descriptor at load** and refuse on mismatch. Both the contract hash and
+**`StoredStructuredContractV1`** record with exactly three members:
+`version` (the literal `1`), `descriptor` (the **complete recursive
+validator descriptor** — persisted, because runtime validation executes
+from it; a hash alone cannot validate — in the same frozen node grammar
+LLP 0131's descriptor entries use, restricted to this Spec's admitted
+leaf set), and `encoding` (the literal `"canonical-json-text.v1"`). The
+contract hash is
+**`sha256(UTF8("snapback:stored-structured-contract:v1" + "\n") || JCS(record))`**,
+rendered `sha256:<lowercase hex>` — LLP 0131's exact formula shape under
+this Spec's own domain string (deliberately not 0131's
+`snapback:function-args:v2` domain; different root, different domain, no
+cross-position collision). Consumers **recompute the hash from the
+persisted record at load** and refuse on mismatch. Both the contract hash and
 the encoding id participate in the storage-generation identity LLP
 0081's planner derives plans from (predecessor/successor manifests), so
 an **encoding-id-only change yields a successor generation** — a visible,
@@ -297,10 +313,14 @@ enumerated here; anything unlisted is a defect:
   fields are not projectable leaves; the existing portable-scalar-leaf
   admission already excludes them there, and acceptance pins the
   exclusion so it cannot regress. **Search and vector `storedFields` are
-  different**: current code applies no stored-field type restriction
-  (vector rejects only `Vector`), so excluding structured fields from
-  search/vector stored-field lists is a **new refusal** this Spec adds,
-  acceptance-pinned like the index-declaration refusal.
+  different, split by layer**: the Rust schema validator already refuses
+  `Json` in search `stored_fields` ("bounded scalar display field"), but
+  the JS authoring gate applies no stored-field type restriction and the
+  vector path rejects only `Vector` on both layers — so excluding
+  `Structured` is a **new refusal** on every layer where it is not
+  subsumed (the JS gate everywhere; both layers for vector; the Rust
+  search check extended from `Json` to `Structured`), acceptance-pinned
+  like the index-declaration refusal.
 - **Change journal and live deltas** — carry whole-row logical snapshots
   exactly as today; the §Representation aggregate ceiling bounds the
   structured contribution, so these surfaces keep exact parity with
@@ -330,7 +350,7 @@ foreclose the commissioned Spec:
 
 ### Migrations and forward compatibility (LLP 0081)
 
-`FieldType::Structured` is additive. Three migration cases, priced
+`FieldType::Structured` is additive. Four migration cases, priced
 honestly:
 
 1. **New structured field** — an ordinary additive migration under the

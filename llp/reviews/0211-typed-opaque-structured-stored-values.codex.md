@@ -72,3 +72,54 @@ Blindness self-attestation: I did not read review artifacts, journals, or the ot
 NOT READY — binding to revision bf5cfa214 (sha256 cad95f0810919c00)
 
 The revision has four unresolved MATERIAL concerns, all IN-DELTA: an incomplete declaration dispatch, an invalid live-frame bound, an under-specified persistent identity carrier, and an undefined capability-support authority. No MATERIAL concern is PRE-EXISTING; the only PRE-EXISTING concern reported is detail-level LLP 0044 drift.
+
+## Round 3 — 2026-08-09 (final in-budget delta round)
+
+**Provenance.** Reviewer: codex exec, model gpt-5.6-sol,
+model_reasoning_effort=xhigh, read-only sandbox, repo-local capsule at
+`a8e1d75df`. Blindness: instruction-based, self-attested. Reviser:
+orchestrator, did not review. Revision under review: `a8e1d75df` (file
+sha256 prefix `1c43c9121ff96fd4`). Delta round (round3-instructions.md).
+Verdict: **NOT READY — one MATERIAL, IN-DELTA (wire/hash pinning); zero
+PRE-EXISTING MATERIAL; delta-convergence condition holds from this
+family.**
+
+**Verbatim review body follows.**
+
+---
+
+Blindness self-attestation: I did not read review artifacts, journals, or the other family's output.
+
+## Concerns
+
+1. [MATERIAL][IN-DELTA] `StoredStructuredContractV1` still lacks a frozen wire and hash definition — §Representation names the semantic components and domain string, but never fixes the record’s JSON members, descriptor root, canonicalization input, domain separator, hash algorithm, or textual hash form. “The wire shape is frozen at introduction” postpones that decision. By contrast, LLP 0131 specifies the exact root/entry/node forms and the formula `sha256(UTF8(domain + "\n") || JCS(contract))`, including the `sha256:` lowercase-hex representation. Because these bytes and the resulting hash govern persisted-manifest compatibility and LLP 0081 storage-generation identity, implementation-selected goldens cannot establish conformance to this revision; they would merely bless whichever incompatible choice lands first.
+
+2. [DETAIL][IN-DELTA] Migration-case count is stale — §Migrations says “Three migration cases” but now enumerates four. This identifies no defective decision and is implementation-phase/editorial only.
+
+## Verdict
+
+NOT READY — binding to revision a8e1d75df (sha256 1c43c9121ff96fd4)
+
+The carrier’s durable wire and identity preimage remain underdetermined, so the revision has one unresolved MATERIAL concern. That concern is IN-DELTA; no MATERIAL concern is PRE-EXISTING.
+
+## Loop close-out — 2026-08-09
+
+**Terminal: delta-convergence with an unreviewed tail (3-round budget
+exhausted).** Final verdicts bind to revision `a8e1d75df` (sha256
+`1c43c9121ff96fd4`): fable NOT READY (1 MATERIAL in-delta), codex NOT
+READY (1 MATERIAL in-delta). **Pre-existing text was MATERIAL-clean from
+both families in both delta rounds (2 and 3)** — the delta-convergence
+condition holds. The two round-3 in-delta MATERIALs (search-storedFields
+disclosure split; StoredStructuredContractV1 wire members + hash formula)
+plus round-3 DETAILs were fixed in the round-3 close-out revision, whose
+delta is **UNREVIEWED** — recorded in the document header. Disposition
+ledger: every round-1/2/3 concern from both families is dispositioned in
+the revisions its round produced (see the dated Revised entries); no
+concern was summarized away; one reviewer claim (codex r2: "v.number is
+not a builder") was refuted against code and not applied. Growth: 349 →
+~560 lines over the loop, beyond the ~20% guidance, MATERIAL-driven and
+disclosed each round. Recommendation to the author: the Spec is ready for
+acceptance consideration with the unreviewed-tail caveat; the
+implementation phase (authorized separately by the author) proceeds
+against the close-out revision and treats both families DETAIL ledgers as
+implementation checklist items.
