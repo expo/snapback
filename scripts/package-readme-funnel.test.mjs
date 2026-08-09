@@ -35,6 +35,7 @@ const packageNames = packageRecords
 const publicManifestNames = new Set(packageRecords
   .filter(({ manifest }) => manifest.private !== true)
   .map(({ manifest }) => manifest.name));
+const publishedPackageNames = new Set(PACKAGE_INVENTORY.map(([sourceName]) => sourceName));
 
 for (const [sourceName] of PACKAGE_INVENTORY) {
   assert(
@@ -51,6 +52,12 @@ try {
     const readme = readFileSync(join(packageDir, 'README.md'), 'utf8');
 
     assert.equal(manifest.license, 'MIT', `${manifest.name} must declare the ratified MIT license`);
+    if (publishedPackageNames.has(manifest.name)) {
+      assert(
+        manifest.files.includes('README.md'),
+        `${manifest.name} must include README.md in the explicit files allowlist copied by snapback-publish`,
+      );
+    }
     assert.match(readme, new RegExp(`^# \`${manifest.name.replace('/', '\\/')}\`$`, 'm'));
     assert.match(readme, /^## Documentation outside a checkout$/mu);
     assert.match(readme, /http:\/\/127\.0\.0\.1:4287\/_snapback\/guide/u);

@@ -27,7 +27,7 @@ const manifest = JSON.parse(readFileSync(new URL('./package.json', import.meta.u
 assert.equal(manifest.name, PACKAGE_NAME);
 assert.deepEqual(manifest.os, ['darwin']);
 assert.deepEqual(manifest.cpu, ['arm64']);
-assert.deepEqual(manifest.files, ['bin', 'Frameworks', 'include', 'runtime-readiness.json']);
+assert.deepEqual(manifest.files, ['README.md', 'bin', 'Frameworks', 'include', 'runtime-readiness.json']);
 
 const ignoreRules = readFileSync(new URL('./.gitignore', import.meta.url), 'utf8')
   .split(/\r?\n/u)

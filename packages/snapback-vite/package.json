@@ -15,6 +15,7 @@
   },
   "keywords": ["snapback", "backend", "vite", "local-development"],
   "files": [
+    "README.md",
     "index.d.mts",
     "allowlist.d.mts",
     "allowlist.mjs",

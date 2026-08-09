@@ -15,6 +15,7 @@
   },
   "keywords": ["snapback", "backend", "contract", "provider"],
   "files": [
+    "README.md",
     "artifact-validation.d.mts",
     "artifact-validation.mjs",
     "auth-coordinator.d.mts",

@@ -15,6 +15,7 @@
   },
   "keywords": ["snapback", "backend", "codegen", "typescript"],
   "files": [
+    "README.md",
     "app-inspection.d.mts",
     "app-inspection.mjs",
     "api-envelope-members.mjs",

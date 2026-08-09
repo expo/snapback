@@ -35,7 +35,7 @@ const manifest = JSON.parse(readFileSync(new URL('./package.json', import.meta.u
 assert.equal(manifest.name, PACKAGE_NAME);
 assert.deepEqual(manifest.os, ['linux']);
 assert.deepEqual(manifest.cpu, ['x64']);
-assert.deepEqual(manifest.files, ['bin', 'lib', 'include', 'runtime-readiness.json']);
+assert.deepEqual(manifest.files, ['README.md', 'bin', 'lib', 'include', 'runtime-readiness.json']);
 
 // @ref LLP 0041#runtime-distribution — prepared native payloads are package
 // outputs, while the source-side package contract remains reviewable.

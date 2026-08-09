@@ -15,6 +15,7 @@
   },
   "keywords": ["snapback", "backend", "cli", "local-first"],
   "files": [
+    "README.md",
     "adapters/fly-machines-vm-driver.mjs",
     "agent-setup.mjs",
     "carrier-kit.d.mts",

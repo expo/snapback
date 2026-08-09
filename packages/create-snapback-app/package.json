@@ -15,6 +15,7 @@
   },
   "keywords": ["snapback", "backend", "scaffold", "create-app"],
   "files": [
+    "README.md",
     "cli.mjs"
   ],
   "bin": {

@@ -15,6 +15,7 @@
   },
   "keywords": ["snapback", "backend", "cli", "app-data"],
   "files": [
+    "README.md",
     "cli.mjs",
     "arguments.mjs",
     "agent-digest.schema.json",
