@@ -7923,6 +7923,27 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             ),
             get(app_api_current).layer(DefaultBodyLimit::max(0)),
         ),
+        // @ref LLP 0204#d2--surface-1-the-third-party-api — the OpenAPI
+        // document is a current, digest-pinned projection of the persisted
+        // envelope, never a separately maintained operation inventory.
+        RegisteredRoute::new(
+            public_route(
+                "GET",
+                "/app-api/openapi.json",
+                ResponseSensitivity::PublicNoStore,
+            ),
+            get(app_api_openapi).layer(DefaultBodyLimit::max(0)),
+        ),
+        // @ref LLP 0204#d92--generated-agent-skill — the small served skill
+        // points at current facts and embeds no credential or scope list.
+        RegisteredRoute::new(
+            public_route(
+                "GET",
+                "/app-api/agent-skill",
+                ResponseSensitivity::PublicNoStore,
+            ),
+            get(app_api_agent_skill).layer(DefaultBodyLimit::max(0)),
+        ),
         RegisteredRoute::new(
             public_route(
                 "GET",
@@ -9330,7 +9351,13 @@ fn bare_public_artifact_route(spec: RouteSpec) -> bool {
         && spec.policy == RoutePolicy::Public
         && spec.invocation_authority == InvocationAuthority::None
         && spec.credential_resolution == CredentialResolution::None
-        && matches!(spec.path, "/app-api/current" | "/app-api/envelope/{sha256}")
+        && matches!(
+            spec.path,
+            "/app-api/current"
+                | "/app-api/openapi.json"
+                | "/app-api/agent-skill"
+                | "/app-api/envelope/{sha256}"
+        )
 }
 
 /// The pasteable asset-delivery lanes (LLP 0044 §Delivery profiles, dated
@@ -16911,6 +16938,153 @@ async fn app_api_current(State(runtime): State<AppState>) -> Result<Response, Ap
         HeaderValue::from_static("identity"),
     );
     Ok(response)
+}
+
+async fn current_app_api_envelope(
+    runtime: &AppState,
+) -> Result<(String, String), ApiError> {
+    with_snapback(&runtime.snapback, |snapback| -> SnapbackResult<(String, String)> {
+        let Some(discovery) = snapback.app_api_discovery()? else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_APP_API_UNAVAILABLE",
+                "app-api",
+                "app-api discovery is served by sessions targets only; dev targets use /inspect and local artifacts",
+            ));
+        };
+        let crate::api_envelope::AppApiDiscoveryEnvelopeV1::Current { sha256 } =
+            discovery.envelope
+        else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_APP_API_UNAVAILABLE",
+                "app-api",
+                "the active generation has no API envelope; refetch /app-api/current after provisioning one",
+            ));
+        };
+        let Some(canonical) = snapback.app_api_envelope_bytes(&sha256)? else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_APP_API_STATE_PARSE_FAILED",
+                "app-api",
+                "the current discovery digest has no retained envelope bytes",
+            ));
+        };
+        let (_, actual_digest) = crate::api_envelope::parse_and_validate(canonical.as_bytes())
+            .map_err(|refusal| {
+                SnapbackError::error(
+                    "SNAPBACK_APP_API_STATE_PARSE_FAILED",
+                    "app-api",
+                    "the current persisted envelope no longer passes admission",
+                )
+                .with_details(json!({
+                    "envelopeCode": refusal.code,
+                    "error": refusal.message,
+                }))
+            })?;
+        if actual_digest != sha256 {
+            return Err(SnapbackError::error(
+                "SNAPBACK_APP_API_STATE_PARSE_FAILED",
+                "app-api",
+                "the current discovery digest does not identify its persisted envelope bytes",
+            ));
+        }
+        Ok((sha256, canonical))
+    })
+    .await
+    .map_err(ApiError::from)
+}
+
+fn app_api_projection_response(
+    body: Vec<u8>,
+    content_type: &'static str,
+    etag_kind: &'static str,
+    envelope_digest: &str,
+) -> Result<Response, ApiError> {
+    let mut response = Response::new(axum::body::Body::from(body));
+    let headers = response.headers_mut();
+    headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(content_type));
+    // These are current projections rather than content-addressed paths.
+    // `no-store` avoids stale discovery while the strong, projection-versioned
+    // tag still lets clients compare two responses to the same envelope.
+    headers.insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("no-store, no-transform"),
+    );
+    headers.insert(
+        header::CONTENT_ENCODING,
+        HeaderValue::from_static("identity"),
+    );
+    headers.insert(
+        header::ETAG,
+        HeaderValue::from_str(&format!("\"{etag_kind}-{envelope_digest}\"")).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_APP_API_STATE_PARSE_FAILED",
+                "app-api",
+                "projection etag header could not be encoded",
+            )
+        })?,
+    );
+    Ok(response)
+}
+
+/// `GET /app-api/openapi.json` — OpenAPI 3.1 composed from the active
+/// persisted envelope. The response is current/no-store and carries a strong
+/// envelope-derived ETag; clients that need immutable bytes pin the envelope
+/// itself through `/app-api/envelope/{sha256}`.
+///
+/// @ref LLP 0204#d2--surface-1-the-third-party-api — projections are generated
+/// from the envelope and inherit its exposed operation set.
+async fn app_api_openapi(State(runtime): State<AppState>) -> Result<Response, ApiError> {
+    let (digest, canonical) = current_app_api_envelope(&runtime).await?;
+    let document = crate::api_envelope::compose_openapi_document(canonical.as_bytes()).map_err(
+        |refusal| {
+            SnapbackError::error(
+                "SNAPBACK_APP_API_STATE_PARSE_FAILED",
+                "app-api",
+                "the persisted envelope could not be projected as OpenAPI",
+            )
+            .with_details(json!({
+                "envelopeCode": refusal.code,
+                "error": refusal.message,
+            }))
+        },
+    )?;
+    let body = serde_json::to_vec(&document).map_err(|error| {
+        SnapbackError::error(
+            "SNAPBACK_APP_API_STATE_PARSE_FAILED",
+            "app-api",
+            "the OpenAPI projection could not be serialized",
+        )
+        .with_details(json!({ "error": error.to_string() }))
+    })?;
+    app_api_projection_response(body, "application/json", "openapi-v1", &digest)
+}
+
+/// `GET /app-api/agent-skill` — a small SKILL.md-style navigation document
+/// pinned to the active envelope digest. It points at live discovery,
+/// authority, invocation, and capability facts instead of restating them.
+///
+/// @ref LLP 0204#d92--generated-agent-skill — the served skill is generated,
+/// credential-free, and code-mode-conditional.
+async fn app_api_agent_skill(State(runtime): State<AppState>) -> Result<Response, ApiError> {
+    let (digest, canonical) = current_app_api_envelope(&runtime).await?;
+    let skill = crate::api_envelope::compose_agent_skill(canonical.as_bytes()).map_err(
+        |refusal| {
+            SnapbackError::error(
+                "SNAPBACK_APP_API_STATE_PARSE_FAILED",
+                "app-api",
+                "the persisted envelope could not be projected as an agent skill",
+            )
+            .with_details(json!({
+                "envelopeCode": refusal.code,
+                "error": refusal.message,
+            }))
+        },
+    )?;
+    app_api_projection_response(
+        skill.into_bytes(),
+        "text/markdown; charset=utf-8",
+        "agent-skill-v1",
+        &digest,
+    )
 }
 
 /// `GET /app-api/envelope/<sha256>` — the immutable, content-addressed

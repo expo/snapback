@@ -603,12 +603,21 @@ function synthesizeArgs(schema, operationName) {
   return args;
 }
 
-function invocationCurl(routeKind, name, args) {
-  const body = JSON.stringify({ args, read_set: [] }, null, 2);
+function invocationPath(routeKind, name, versionedExternal) {
+  const prefix = versionedExternal ? '/api/v1' : '';
+  return `${prefix}/${routeKind}/${encodeURIComponent(name)}`;
+}
+
+function invocationCurl(routeKind, name, args, versionedExternal) {
+  const body = JSON.stringify(
+    versionedExternal ? { args } : { args, read_set: [] },
+    null,
+    2,
+  );
   return [
     '```sh',
     `curl --fail-with-body --silent --show-error \\
-  -X POST "$SNAPBACK_BASE_URL/${routeKind}/${encodeURIComponent(name)}" \\
+  -X POST "$SNAPBACK_BASE_URL${invocationPath(routeKind, name, versionedExternal)}" \\
   -H 'content-type: application/json' \\
   -H 'x-snapback-auth-client-protocol: 1' \\
   -H "authorization: Bearer $SNAPBACK_TOKEN" \\
@@ -706,6 +715,12 @@ curl --fail-with-body --silent --show-error \\
 
 export function renderApiMarkdown({ envelope, discovery = null, digest, functionsById }) {
   const tuple = identityTuple(envelope, discovery);
+  // `apiExposure` is omitted from every function when the app has no enabled
+  // `api` block. Its presence is therefore the envelope-carried fact that
+  // selects LLP 0204's versioned external family without consulting source.
+  const versionedExternal = [...functionsById.values()].some(
+    (definition) => Object.hasOwn(definition, 'apiExposure'),
+  );
   const operations = Object.entries(envelope.operations).map(([id, operation]) => ({
     id,
     operation,
@@ -738,13 +753,17 @@ export function renderApiMarkdown({ envelope, discovery = null, digest, function
     '',
     '## How to call functions',
     '',
-    'Set `SNAPBACK_BASE_URL` to the app server and send JSON to the existing finite client-protocol routes:',
+    versionedExternal
+      ? 'Set `SNAPBACK_BASE_URL` to the app server and send JSON to the versioned external finite routes:'
+      : 'Set `SNAPBACK_BASE_URL` to the app server and send JSON to the existing finite client-protocol routes:',
     '',
-    '- Queries (including live-query definitions used as finite snapshots): `POST /query/{name}`',
-    '- Mutations: `POST /mutation/{name}`',
-    '- Actions: `POST /action/{name}`',
+    `- Queries (including live-query definitions used as finite snapshots): ${inlineCode(`POST ${versionedExternal ? '/api/v1' : ''}/query/{name}`)}`,
+    `- Mutations: ${inlineCode(`POST ${versionedExternal ? '/api/v1' : ''}/mutation/{name}`)}`,
+    `- Actions: ${inlineCode(`POST ${versionedExternal ? '/api/v1' : ''}/action/{name}`)}`,
     '',
-    'Each request body contains the function arguments under `args` and a client-protocol `read_set` array. Authenticated calls send the scoped bearer in `Authorization` and opt into the sessions protocol with `x-snapback-auth-client-protocol: 1`. The examples below use a fresh snapshot and therefore send an empty `read_set`.',
+    versionedExternal
+      ? 'Each request body is the closed external shape `{ "args": … }`; `expectedGeneration` is absent by contract. Authenticated calls send the scoped bearer in `Authorization` and opt into the sessions protocol with `x-snapback-auth-client-protocol: 1`.'
+      : 'Each request body contains the function arguments under `args` and a client-protocol `read_set` array. Authenticated calls send the scoped bearer in `Authorization` and opt into the sessions protocol with `x-snapback-auth-client-protocol: 1`. The examples below use a fresh snapshot and therefore send an empty `read_set`.',
     '',
     tokenWalkthrough(),
   );
@@ -764,7 +783,7 @@ export function renderApiMarkdown({ envelope, discovery = null, digest, function
         `- Stable function ID: ${inlineCode(id)}`,
         `- Manifest kind: ${inlineCode(definition.kind)}`,
         `- Auth requirement: ${inlineCode(authRequirement)}`,
-        `- Route: ${inlineCode(`POST /${group.routeKind}/${encodeURIComponent(operation.name)}`)}`,
+        `- Route: ${inlineCode(`POST ${invocationPath(group.routeKind, operation.name, versionedExternal)}`)}`,
         '',
         '#### Arguments',
         '',
@@ -778,7 +797,12 @@ export function renderApiMarkdown({ envelope, discovery = null, digest, function
           ...rows.map((row) => `| ${inlineCode(row.name)} | ${markdownCell(row.type)} | ${markdownCell(row.required)} | ${markdownCell(row.description) || '—'} |`),
         );
       }
-      lines.push('', '#### Example', '', invocationCurl(group.routeKind, operation.name, args));
+      lines.push(
+        '',
+        '#### Example',
+        '',
+        invocationCurl(group.routeKind, operation.name, args, versionedExternal),
+      );
     }
   }
 

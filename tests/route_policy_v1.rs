@@ -189,6 +189,8 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("GET", "/inspect"),
         // LLP 0062 §5: the app-data-plane envelope surface.
         ("GET", "/app-api/current"),
+        ("GET", "/app-api/openapi.json"),
+        ("GET", "/app-api/agent-skill"),
         ("GET", "/app-api/envelope/{sha256}"),
         ("GET", "/auth/session"),
         ("POST", "/auth/request-code"),
@@ -385,6 +387,44 @@ async fn registry_and_router_have_black_box_path_method_parity() {
             }
         }
     }
+}
+
+#[test]
+fn app_api_current_projections_are_bare_public_no_store_routes() {
+    let routes = route_registry()
+        .into_iter()
+        .filter(|route| route.path.starts_with("/app-api/"))
+        .map(|route| (route.path, route))
+        .collect::<BTreeMap<_, _>>();
+    assert_eq!(routes.len(), 4);
+    for path in [
+        "/app-api/current",
+        "/app-api/openapi.json",
+        "/app-api/agent-skill",
+    ] {
+        let route = routes[path];
+        assert_eq!(route.method, "GET", "{path}");
+        assert_eq!(route.class, RouteClass::AppData, "{path}");
+        assert_eq!(route.path_policy, RoutePolicy::Public, "{path}");
+        assert_eq!(
+            route.credential_resolution,
+            CredentialResolution::None,
+            "{path}"
+        );
+        assert_eq!(
+            route.invocation_authority,
+            InvocationAuthority::None,
+            "{path}"
+        );
+        assert_eq!(route.effect_policy, EffectPolicy::None, "{path}");
+        assert_eq!(
+            route.response_sensitivity,
+            ResponseSensitivity::PublicNoStore,
+            "{path}"
+        );
+    }
+    let envelope = routes["/app-api/envelope/{sha256}"];
+    assert_eq!(envelope.response_sensitivity, ResponseSensitivity::PublicProjection);
 }
 
 /// LLP 0031 keeps the router-owned registry authoritative for method shape;

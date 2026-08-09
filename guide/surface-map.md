@@ -95,7 +95,9 @@ here (or listed here but gone from the code).
 | /api/v1/action/{name} | backend.actions |
 | /api/v1/mutation/{name} | backend.functions |
 | /api/v1/query/{name} | backend.functions |
+| /app-api/agent-skill | api.external-exposure |
 | /app-api/current | clients.app-cli |
+| /app-api/openapi.json | api.external-exposure |
 | /app-api/envelope/{sha256} | clients.app-cli |
 | /app/bundle | realtime.snapshot-bundles |
 | /app/ensure | backend.provisioning |

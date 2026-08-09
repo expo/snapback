@@ -1235,6 +1235,9 @@ fn route_schema_refs(method: &str, path: &str) -> (Option<&'static str>, Option<
     match (method, path) {
         ("GET", "/inspect") => (None, Some("inspect.public.schema.json")),
         ("GET", "/app-api/current") => (None, Some("app-api.discovery.schema.json")),
+        // LLP 0204 D2/D9.2: these are envelope-derived presentation
+        // projections, not committed Rust-owned wire DTOs. Null is honest.
+        ("GET", "/app-api/openapi.json" | "/app-api/agent-skill") => (None, None),
         ("GET", "/auth/session") => (None, Some("auth.session.output.schema.json")),
         ("POST", "/auth/request-code") => (
             Some("auth.request-code.input.schema.json"),

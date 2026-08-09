@@ -6053,6 +6053,61 @@ async fn sessions_live_stream_accepts_browser_subprotocol_offer_only_on_upgrade_
 }
 
 #[tokio::test]
+async fn app_api_artifact_lanes_skip_the_sessions_protocol_offer() {
+    let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+    let state = state
+        .with_auth_runtime_facts(
+            settled_sessions_state(),
+            AuthProgramReadiness::new(true, true, true, true, false, false, false),
+        )
+        .expect("install item-5 sessions fixture");
+    let headerless = HeaderMap::new();
+    for path in [
+        "/app-api/current",
+        "/app-api/openapi.json",
+        "/app-api/agent-skill",
+        "/app-api/envelope/{sha256}",
+    ] {
+        let spec = route_registry()
+            .into_iter()
+            .find(|spec| spec.method == "GET" && spec.path == path)
+            .unwrap_or_else(|| panic!("registered app-api route {path}"));
+        assert!(
+            super::bare_public_artifact_route(spec),
+            "{path} must be in the closed bare-artifact carrier map"
+        );
+        assert!(
+            super::session_online_protocol_refusal(spec, &state, &headerless).is_none(),
+            "{path} must serve without the auth-client protocol offer"
+        );
+    }
+}
+
+#[tokio::test]
+async fn app_api_current_projections_share_the_dev_unavailable_refusal() {
+    let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
+    let router = app(state);
+    for path in ["/app-api/openapi.json", "/app-api/agent-skill"] {
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(path)
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::NOT_FOUND, "{path}");
+        assert_eq!(
+            response_json(response).await["diagnostic"]["code"],
+            "SNAPBACK_APP_API_UNAVAILABLE",
+            "{path}"
+        );
+    }
+}
+
+#[tokio::test]
 async fn pasteable_delivery_lanes_skip_the_sessions_protocol_offer() {
     // LLP 0044 §Delivery profiles, dated note 2026-07-31: the public
     // alias and the signed serve lane are URL-authority routes a plain
