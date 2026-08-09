@@ -314,4 +314,102 @@ VERDICT: NOT READY
 
 **Review body (verbatim):**
 
-_pending — appended on receipt_
+Blind-review compliance attestation: I did not seek or read the other family’s review, prior review artifacts, or orchestrator notes. All substantive evidence below comes only from capsule files.
+
+## Overall assessment
+
+v0.3 materially improves the proposal. In particular, use-time validation of window-governed assurances, charge-on-denial semantics, durable store taint, and explicit egress-gate ownership are the right closures.
+
+The revision is not ready, however. Five v0.3 changes remain internally incomplete or contradictory. I found no MATERIAL concern in pre-existing text.
+
+## Strengths
+
+- `governingAuthority` correctly prevents assurances minted through a short-lived window from inheriting the parent grant’s longer lifetime.
+- The attempt-versus-successful-effect distinction preserves LLP 0057 wrong-code accounting and LLP 0060 charge-on-denial behavior.
+- Same-transaction tainting plus crash-cut and lifecycle acceptance is substantially stronger than row-only provenance.
+- The complete Wave 1c producer-path enumeration is appropriately concrete.
+- Naming selector entropy as the real foreign-caller boundary is more honest than treating loopback binding as proof of private reachability.
+
+## Concerns
+
+### 1. MATERIAL · IN-DELTA — Landing item 2 does not commission the Wave 1c contract it purportedly owns
+
+Wave 1c enumerates guest principal/session creation, guest claim, password account creation and authentication, password set/change, recovery-code issuance/consumption/replacement, plaintext custody, session consequences, and last-authenticator enforcement (§Build order, lines 492–506). Landing item 2 reduces this to “guest claim, password set/change, recovery-code consume” (lines 841–850).
+
+It also does not explicitly commission V6’s readiness rule or posture-independent import-provenance admissibility. “Posture-scoped admissibility rule” does not cover the separately stated posture-independent import contract.
+
+Because the landing section is the ownership handoff, the omitted paths remain uncommissioned despite being described earlier. Resolve by mirroring the complete Wave 1c list in item 2, assigning V6’s readiness derivation, and explicitly assigning import-provenance validation/admissibility. Clarify whether V6 is minimally enforceable in Wave 1b or only becomes enforceable in 2a.
+
+### 2. MATERIAL · IN-DELTA — The window selector has an impossible mint/install ordering
+
+The document says:
+
+- window installation returns a host-minted namespace (§R2, lines 315–320);
+- the namespace is a mandatory selector for `window.install` (lines 602–612); and
+- all exact selectors are fixed when the grant is minted (lines 691–694).
+
+An output generated during installation cannot simultaneously be an exact mint-time selector authorizing that installation. Calling the output a selector does not scope the pre-install authorization decision.
+
+Choose one coherent protocol:
+
+- mint the namespace with the grant and have installation consume that precommitted value; or
+- give `window.install` a mint-time constraint selector, then treat the generated namespace as immutable output and selector of the resulting window authority.
+
+Acceptance should cover namespace collision, reuse, post-mint mutation, and concurrent installs.
+
+### 3. MATERIAL · IN-DELTA — Fail-closed reachability leaves no positive Wave 1 window topology
+
+R2 refuses a window whenever reachability is undeclared or unknown, but no landing item owns a producer of the required target-authored fact or names an eligible positive topology. This matters because Wave 1 carriage is explicitly local-only.
+
+LLP 0060 says a loopback bind cannot prove absence of a public reverse proxy; therefore the ordinary local target cannot truthfully derive “not publicly reachable” merely from its listener. Adding the loopback-behind-proxy negative proves refusal but does not establish any case in which installation succeeds. As written, R2 can be fail-closed everywhere.
+
+Resolve by commissioning a concrete, target-owned admission fact and naming at least one Wave 1 topology that can prove it, with both positive and reverse-proxy-negative acceptance. If no local topology can prove non-reachability, the alternative is to make selector entropy authoritative and narrow the reachability check so unknown does not make the headline window feature unusable.
+
+### 4. MATERIAL · IN-DELTA — Egress provenance is not preserved across durable/deferred work
+
+Landing item 1a carries provenance “from the session” through immediate nested calls, actions, hooks, and adapters. That is insufficient for the capsule’s existing egress model:
+
+- LLP 0045 commits a durable notification intent and delivers it later through a cron sweep.
+- LLP 0058 separately recognizes queued/replayed and `System`/cron invocation paths.
+- A prepared invocation is an in-memory authority object; a later cron invocation does not inherit the originating session.
+
+A rehearsed mutation can therefore enqueue a real notification, return successfully, and later have the clean `System` runner perform external delivery without rehearsal provenance at the gate.
+
+The amendment must derive provenance from the effective authority or assurance decision—not merely the session—and persist it onto deferred intents or queued work. Rehydrated work must carry it through claim, retry, and delivery. Acceptance should include outbox/cron, queued replay, process restart, and retry. If arbitrary downstream causality is intentionally out of scope, narrow the claim explicitly to egress initiated or durably enqueued by a rehearsal-provenance invocation.
+
+### 5. MATERIAL · IN-DELTA — A merely well-formed export envelope cannot prevent laundering
+
+Production import refuses missing, malformed, and tainted envelopes (lines 707–724), but nothing integrity-binds the envelope to the exported payload. A tainted artifact can receive a syntactically valid “clean” envelope and still enter through the Snapback importer. That remains a Snapback-mediated path, not the disclaimed hand-copy path.
+
+Either:
+
+- authenticate the envelope and bind it to the exact payload, store identity, and relevant marker state using a verifiable trust root; or
+- narrow the guarantee to accidental paved-path protection and stop claiming structural prevention of laundering.
+
+Acceptance needs envelope-edit, clean-envelope/tainted-payload splice, payload substitution, and replay negatives.
+
+### 6. DETAIL · IN-DELTA — The illustrative grant is invalid under the new selector rule
+
+The example grants every scope but supplies only `fixtureNamespaces` (lines 638–655). The normative prose says missing selectors for verification, window installation, allocation axes, and clock domain must refuse the effect.
+
+Delete the example—lossless compression because it is explicitly not schema—or show a smaller grant whose scopes and selectors are actually compatible.
+
+### 7. DETAIL · IN-DELTA — Disposable-at-creation marking lacks commissioned persistence and acceptance
+
+R5 says the creation-time disposable marker independently and permanently bars production promotion. Landing item 1 commissions survival and promotion refusal only for rehearsal admission taint.
+
+Specify whether the disposable marker shares the export envelope and reset/backup/restore mechanics, and add a production-promotion negative for a disposable store before any clock advance or rehearsal effect.
+
+### 8. DETAIL · IN-DELTA — One assurance sentence regresses to “governing grant”
+
+The assurance definition correctly requires the exact governing authority, including a mediating window, but the next sentence says `verification.simulate` records “the governing grant” (lines 160–171). Replace that phrase with “governing authority” to prevent the Spec from copying the old lifetime bug.
+
+## Growth assessment
+
+Most v0.3 growth is load-bearing: the new lifecycle enumeration, provenance propagation owner, crash-cut requirements, and denial-accounting language should remain explicit. The illustrative grant record is the clear lossless-compression candidate because it is non-normative, currently invalid, and duplicates the surrounding mappings.
+
+## Recommended next step
+
+Revise only the v0.3 delta: complete landing item 2, choose a coherent namespace mint protocol, name a positive reachability-fact producer, extend provenance through deferred work, and integrity-bind or narrow the export-envelope guarantee. Then run one focused delta verification.
+
+VERDICT: NOT READY

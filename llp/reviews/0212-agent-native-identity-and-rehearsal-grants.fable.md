@@ -193,4 +193,84 @@ VERDICT: READY
 
 **Review body (verbatim):**
 
-_pending — appended on receipt_
+# LLP 0212 v0.3 — Super-refine round 3 review (delta round)
+
+**Blindness attestation:** I read only files inside `/private/tmp/claude-501/-Users-ccheever-projects-snapback/f38f3edc-aa45-44dc-872b-c2b7eef91a0b/scratchpad/capsule-0212-r3/` — the target RFC, REVIEW-INSTRUCTIONS.md, the nine context LLPs (0011, 0045, 0055, 0057, 0058, 0060, 0096, 0150, 0151, 0203), and the `guide-auth/` pages. I did not read anything under the repository, any prior review artifact, or any orchestrator note, and I have no knowledge of rounds 1–2 beyond the disclosure in the instructions.
+
+## Method
+
+This being a delta round, I verified each of the eleven enumerated v0.3 delta items against the document text, checked the delta's load-bearing external claims against the capsule's governing documents, and swept the whole document for internal contradictions the delta may have introduced. Pre-existing text got a consistency spot-check (held to the disclosed round-1/2 result of zero MATERIAL pre-existing findings across both families), with external anchors verified where the delta leans on them.
+
+## External anchor verification (all pass)
+
+- **0057 wrong-code charge** (budget rule 1's "preserving 0057's wrong-code charge"): confirmed — 0057 §Challenge states and exchange increments `attempts` for every submitted code and states "the wrong-code and locked outcomes are transaction outcomes, not errors that roll back attempt accounting."
+- **0060 atomic charge-on-denial**: confirmed — 0060 states "the v1 transition is charge-on-denial and fail-closed" with atomic multi-bucket acquisition ("no partial charge").
+- **R2's loopback-behind-proxy honesty framing**: confirmed as exactly 0060's documented limit ("`127.0.0.1` or `::1` behind a public reverse proxy still appears loopback to Snapback… proves nothing about the proxy… public reachability"), and 0060's deployment flag is explicitly "a request, never an operator assertion" — the RFC's "a mere operator description is not a security fact" and the target-authored-admission-fact framing are faithful to the cited authority.
+- **Landing item 1a's substrate**: 0058 §Shared invocation authority exists with the sealed `ResolvedAppAuthority` layer-set; hanging rehearsal-provenance propagation off that lineage as a named amendment is a real, ownable seam.
+- **Prod-refuses-request-code, capture mailbox, no-production-email**: confirmed in 0057 §Request-code transaction ("The capture provider is available in `dev`, `test`, and `demo`, never `prod`") and guide-auth/sessions-and-principals.md ("'email-code login, React web' has no self-serve path today").
+- **0055 plane non-substitution**: confirmed ("app-plane authority never satisfies operator-plane policy").
+- **0151 anchors** (commissioned lifecycle spec, Option D, cleanup-policy requirement, generated-domain passkeys ruled 2026-08-08) and **0011's guest-claiming amendment** (continuous `userId`, no auto-merge, collision behavior): all present as the RFC characterizes them, including the layered I3 attribution.
+- **0203 P1/P2/P4/P7**: all exist as cited.
+
+## Delta closure verification
+
+| Delta item | Status |
+| --- | --- |
+| 1. `governingAuthority`, use-time window validation, import admissibility assignment | Verified in §Design frame and prod-bleed rule 5; internally consistent (window-mediated mints die with the window even under a live parent grant, stated in both places). One wording residue — see D1. |
+| 2. R2 selector-namespace disambiguation, entropy-as-boundary, fail-closed reachability, loopback-behind-proxy | Verified; the "one-use = one namespace per installation, unlimited in-window matches up to budgets" reading is unambiguous, and the acceptance rows are named in both R2 and landing item 1. |
+| 3. R5 creation-time disposable marking vs. rule-3 taint | Verified; the two markings are cleanly distinguished and both independently bar promotion, with the observation that any advance also fires rule 3's taint. |
+| 4. `clock.auth.advance` in the illustrative record | Verified; the scope list now matches the R1 enum (8/8) and the budgets block gives every scope its counter (`clockAdvances: 20` present). Counter mapping is total. |
+| 5. Total effect-to-selector mapping | Present and total over the 8-effect enum, with the refusal rule. But it is contradicted by the illustration two paragraphs later — see D2 — and has one conceptual wrinkle for `window.install` — see D3. |
+| 6. Budget rule 1: request-bound idempotency, denials charge, attempt vs. quota counters | Verified; consistent with the 0057 and 0060 semantics it claims to preserve (anchor-checked above). |
+| 7. Prod-bleed rule 3 rewrite: same-transaction marker, survival set, provenance envelope, fail-closed import, scoped laundering claim, egress → 1a | Verified; the crash-cut closure is airtight as written, and the hand-copied-bytes honesty scoping is the right epistemic posture. |
+| 8. Landing item 1 expansion + new item 1a | Verified; 1a names the propagation path (sessions → nested calls → actions → hooks → adapters → one egress gate) and its acceptance rows, and rule 3's egress sentence now points at it. |
+| 9. Wave 1b includes R5 + V6; wave 1c complete floor enumeration; **landing item 2 mirrors** | **Partially applied — the landing-item-2 half is missing. See M1.** |
+| 10. Heading "two waves and a provider tranche"; Wave 3 label; OQ4 → item 5 | Verified (item 5 is the effect-budgets Spec; OQ4 says "Landing-shape item 5"). |
+| 11. Revised line + v0.3 revision-history entry | Verified. |
+
+## Findings
+
+### M1 — MATERIAL, IN-DELTA: landing item 2 was not updated to mirror the wave-1c closure; the identity-core Spec's commission is now internally contradicted
+
+The disclosed round-2 closure (delta item 9) has two halves. The first half landed: wave 1c enumerates the floor's producer paths completely — guest principal/session creation, guest claim, password account creation and authentication, password set/change, recovery-code issuance/consumption/rotation with one-time plaintext custody and redaction, session consequences, last-authenticator enforcement — "each specified in the identity-core Spec with LLP 0151 as the requirements authority."
+
+The second half did not land. Landing item 2 — the commissioning record for that same identity-core Spec, in the section whose contract is "Deltas land by owner" — still carries the stale, three-item gloss: "the floor's own lifecycle transitions (guest claim, password set/change, recovery-code consume)." It omits guest/password/recovery *creation and authentication* paths, session consequences, custody/redaction, and last-authenticator enforcement — i.e., most of what the round-2 finding evidently existed to pin. It also carries neither of the two other assignments the v0.3 body makes to this Spec:
+
+- **V6's readiness posture** — wave 1b says V6 "rides the identity-core Spec's readiness facts"; item 2's ownership list has no readiness-facts entry.
+- **Import-provenance admissibility** — §Design frame says non-rehearsal provenance admissibility is "owned by the identity-core Spec"; item 2 names only "the assurance record and its **posture-scoped** admissibility rule," which by the document's own kind/provenance vocabulary is the *rehearsal* rule, not the posture-*independent* import rule.
+
+Why MATERIAL rather than DETAIL: this round exists to verify the v0.3 closures, and a closure enumerated as applied is absent from the document — so either the edit was dropped or the revision record overclaims; both need repair. On its own merits it is also the exact drift class the round-2 finding targeted: two divergent enumerations of one Spec's owned scope inside one normative document, where the shorter one sits in the register a future Spec author will actually work from. The fix is cheap and shrinks the document: make item 2's floor entry point at the wave-1c enumeration as the single source ("the floor transitions enumerated in wave 1c") rather than restating a list, and add the readiness-facts and import-admissibility ownership lines.
+
+### D1 — DETAIL, IN-DELTA: "governing grant recorded" residue in §Design frame
+
+The assurance-record paragraph first (correctly) defines `governingAuthority` as naming "the exact minting authority, *window included* when one mediated the mint," then three sentences later says `verification.simulate` mints with "the governing **grant** recorded." Under R2, simulation typically happens under a window, in which case the recorded authority is the window. Say "governing authority recorded" to avoid re-importing the ambiguity this delta item existed to remove.
+
+### D2 — DETAIL, IN-DELTA: the illustrative grant record violates the selectors bullet it now sits next to
+
+The selectors bullet declares mandatory selector fields for all eight effects and "an effect whose required selector is absent or incompatible is refused." The illustrative record grants all eight scopes but its `selectors` object contains only `fixtureNamespaces` — under the stated rule, this grant would refuse its own `verification.simulate` (no identity selector), `budget.rehearsal.allocate` (no budget name/axes), and `clock.auth.advance` (no store/clock domain). Delta item 4 made the illustration counter-total; leaving it selector-non-total in the same revision that made selector totality normative invites the reading that selectors are optional for most effects. The "illustrative, not the Spec's schema" disclaimer softens but does not cure this: illustrations teach. Add the missing illustrative selector fields or a one-clause note that the example elides them.
+
+### D3 — DETAIL, IN-DELTA: `window.install`'s mandatory selector is circular as stated
+
+The mandatory selector for `window.install` is "the minted namespace" — but R2 establishes that the namespace is minted *by* installation and returned to the caller; it cannot be supplied as an input selector, so the absent-selector-refuses rule is vacuous for exactly this effect. Presumably the intent is that the selector is the *output binding* (the installed window is bound to its minted namespace), or that the grant-side selector constrains install parameters (budget envelope, TTL class). One clarifying clause, or an explicit delegation of this case to the Spec, closes it.
+
+### D4 — DETAIL, PRE-EXISTING: load-bearing normative dependencies missing from Related
+
+R5's confinement rationale rests on LLP 0059's non-decreasing durable clock floor, and prod-bleed rule 5's level-triggered termination rests on LLP 0053's obligation pattern; non-goals also lean on 0059/0077. None of 0053, 0059, 0077 appears in the Related header, which lists lighter-weight dependencies (0024, 0036, 0045, 0096). Header hygiene only.
+
+### D5 — DETAIL, IN-DELTA: one-sided V6 completion pointer
+
+Wave 1b says V6 "completes in 2a," but 2a's own bullet (I4 complete, I8, V1 general) doesn't mention V6. Harmless if deliberate; a two-word addition to 2a makes the pointer bidirectional.
+
+## Growth and compression
+
+v0.3's growth over v0.2 is load-bearing: the same-transaction taint commit, the export provenance envelope with fail-closed import, the egress-gate owner (1a), charge-on-denial semantics, and selector totality are all security-substance, not prose. The one real compression opportunity is the M1 fix itself — single-sourcing the floor enumeration between wave 1c and landing item 2 removes the only material duplication the delta introduced. I do not find bloat elsewhere; the ~45% cumulative growth is justified by what it pins.
+
+## Pre-existing sweep
+
+No MATERIAL concern found in pre-existing text. The rejected-ideas record, plane classification, naming section, non-goals fencing (two named exceptions), and author-decision records are internally consistent and consistent with the capsule's governing documents as spot-checked above. No ruled author decision is challenged.
+
+## Summary
+
+Ten of the eleven v0.3 delta items verify cleanly, and the security-model closures (taint envelope, egress-gate ownership, charge-on-denial, window-authority termination) are genuinely closed. The single unresolved MATERIAL is a dropped edit, not a design defect: landing item 2 never received its half of the delta-item-9 closure, leaving the identity-core Spec's commission contradicting the wave-1c enumeration the same revision made normative. It is a small, mechanical repair — but it is exactly the kind of closure this round exists to verify, and it did not verify.
+
+VERDICT: NOT READY
