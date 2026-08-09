@@ -10,7 +10,7 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { createServer } from 'node:http';
+import { test } from 'node:test';
 
 import {
   PERSISTED_RESUME_FACT_MEMBERS,
@@ -30,6 +30,20 @@ const AVATAR_UPLOAD_REF = Object.freeze({
   implementationHash: 'sha256:test-implementation',
 });
 
+const nextTurn = () => new Promise((resolve) => setImmediate(resolve));
+
+async function waitFor(predicate, message, timeoutMs = 1_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (!predicate()) {
+    if (Date.now() >= deadline) assert.fail(message);
+    await new Promise((resolve) => setTimeout(resolve, 2));
+  }
+}
+
+function diagnosticResponse(code, message, status) {
+  return Response.json({ diagnostics: [{ code, message }] }, { status });
+}
+
 function makeFile(bytes, { name = 'pic.jpg', type = 'image/jpeg' } = {}) {
   const buffer = Buffer.from(bytes);
   return {
@@ -43,29 +57,37 @@ function makeFile(bytes, { name = 'pic.jpg', type = 'image/jpeg' } = {}) {
   };
 }
 
-// A scripted local target speaking the asset route family.
+// A scripted local target speaking the asset route family through the same
+// Fetch contract the client uses. Keeping it in-process makes this package
+// test runnable in restricted agents that cannot bind a loopback port.
 function makeAssetServer() {
   const state = {
     assets: new Map(), // assetId -> {bytes, availability}
     attempts: new Map(), // attemptId -> {assetId, offset, chunks: [{checksum, length}]}
     nextAsset: 1,
     nextAttempt: 1,
+    failNextPatch: false,
+    rejectNextFinalize: false,
+    refuseNextRetry: false,
     requests: [],
   };
-  const server = createServer(async (request, response) => {
-    const chunks = [];
-    for await (const chunk of request) chunks.push(chunk);
-    const body = Buffer.concat(chunks);
-    const url = new URL(request.url, 'http://localhost');
+  const scriptedFetch = async (input, init = {}) => {
+    const method = init.method ?? 'GET';
+    const headers = Object.fromEntries(new Headers(init.headers ?? {}).entries());
+    const body = typeof init.body === 'string'
+      ? Buffer.from(init.body)
+      : init.body instanceof Uint8Array
+        ? Buffer.from(init.body)
+        : Buffer.alloc(0);
+    const url = new URL(input, 'http://snapback.test');
     state.requests.push({
-      method: request.method,
+      method,
       path: url.pathname,
-      headers: { ...request.headers },
+      headers,
       body: body.toString('utf8'),
     });
     const json = (value, status = 200) => {
-      response.writeHead(status, { 'content-type': 'application/json' });
-      response.end(JSON.stringify(value));
+      return Response.json(value, { status });
     };
     const taskState = (attemptId) => {
       const attempt = state.attempts.get(attemptId);
@@ -83,8 +105,17 @@ function makeAssetServer() {
           : 'received-bytes-canonical',
       };
     };
-    if (request.method === 'POST' && url.pathname === '/assets/attempts') {
+    if (method === 'POST' && url.pathname === '/assets/attempts') {
       const parsed = JSON.parse(body.toString('utf8'));
+      if (parsed.retryOfAssetId && state.refuseNextRetry) {
+        state.refuseNextRetry = false;
+        return json({
+          diagnostics: [{
+            code: 'SNAPBACK_ASSET_RETRY_INELIGIBLE',
+            message: 'the underlying asset is no longer pending-eligible',
+          }],
+        }, 409);
+      }
       if (parsed.declaredLength == null) {
         return json(
           { diagnostics: [{ code: 'SNAPBACK_ASSET_DEFERRED_LENGTH_UNSUPPORTED' }] },
@@ -120,20 +151,31 @@ function makeAssetServer() {
     if (tus) {
       const attempt = state.attempts.get(tus[1]);
       if (!attempt) return json({ diagnostics: [{ code: 'SNAPBACK_ASSET_UNKNOWN' }] }, 404);
-      if (request.method === 'HEAD') {
-        response.writeHead(200, {
-          'tus-resumable': '1.0.0',
-          'upload-offset': String(attempt.offset),
-          'upload-length': String(attempt.declaredLength),
+      if (method === 'HEAD') {
+        return new Response(null, {
+          status: 200,
+          headers: {
+            'tus-resumable': '1.0.0',
+            'upload-offset': String(attempt.offset),
+            'upload-length': String(attempt.declaredLength),
+          },
         });
-        return response.end();
       }
-      if (request.method === 'PATCH') {
-        const offset = Number(request.headers['upload-offset']);
+      if (method === 'PATCH') {
+        if (state.failNextPatch) {
+          state.failNextPatch = false;
+          return json({
+            diagnostics: [{
+              code: 'SNAPBACK_ASSET_TEST_TRANSIENT',
+              message: 'scripted transient transfer failure',
+            }],
+          }, 503);
+        }
+        const offset = Number(headers['upload-offset']);
         if (offset !== attempt.offset) {
           return json({ diagnostics: [{ code: 'SNAPBACK_ASSET_OFFSET_CONFLICT' }] }, 409);
         }
-        const checksum = request.headers['upload-checksum'] ?? null;
+        const checksum = headers['upload-checksum'] ?? null;
         if (checksum) {
           const [algorithm, expected] = checksum.split(' ');
           assert.equal(algorithm, 'sha256');
@@ -146,15 +188,17 @@ function makeAssetServer() {
         attempt.offset += body.length;
         attempt.chunks.push({ checksum, length: body.length });
         attempt.state = attempt.offset === attempt.declaredLength ? 'transferring' : 'transferring';
-        response.writeHead(204, {
-          'tus-resumable': '1.0.0',
-          'upload-offset': String(attempt.offset),
+        return new Response(null, {
+          status: 204,
+          headers: {
+            'tus-resumable': '1.0.0',
+            'upload-offset': String(attempt.offset),
+          },
         });
-        return response.end();
       }
     }
     const finalize = url.pathname.match(/^\/assets\/attempts\/([^/]+)\/finalize$/);
-    if (finalize && request.method === 'POST') {
+    if (finalize && method === 'POST') {
       const parsed = JSON.parse(body.toString('utf8'));
       const attempt = state.attempts.get(finalize[1]);
       const digest = createHash('sha256').update(attempt.received).digest('hex');
@@ -163,33 +207,51 @@ function makeAssetServer() {
       }
       attempt.state = 'complete';
       const asset = state.assets.get(attempt.assetId);
+      if (state.rejectNextFinalize) {
+        state.rejectNextFinalize = false;
+        asset.availability = 'rejected';
+        return json({
+          task: {
+            ...taskState(finalize[1]),
+            diagnostic: {
+              code: 'SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED',
+              message: 'scripted finalization rejection',
+            },
+          },
+        });
+      }
       asset.availability = 'ready';
       asset.bytes = attempt.received;
       return json({ task: taskState(finalize[1]) });
     }
     const cancel = url.pathname.match(/^\/assets\/attempts\/([^/]+)\/cancel$/);
-    if (cancel && request.method === 'POST') {
+    if (cancel && method === 'POST') {
       const attempt = state.attempts.get(cancel[1]);
       attempt.state = 'cancelled';
       return json({ task: taskState(cancel[1]) });
     }
     const record = url.pathname.match(/^\/assets\/records\/([^/]+)$/);
-    if (record && request.method === 'GET') {
+    if (record && method === 'GET') {
       const asset = state.assets.get(record[1]);
       if (!asset) return json({ diagnostics: [{ code: 'SNAPBACK_ASSET_UNKNOWN' }] }, 404);
       return json({ assetId: record[1], availability: asset.availability });
     }
-    json({ diagnostics: [{ code: 'SNAPBACK_ROUTE_UNKNOWN' }] }, 404);
-  });
-  return { server, state };
+    return json({ diagnostics: [{ code: 'SNAPBACK_ROUTE_UNKNOWN' }] }, 404);
+  };
+  return {
+    fetch: scriptedFetch,
+    close: () => {},
+    closeAllConnections: () => {},
+    state,
+  };
 }
 
-const { server, state } = makeAssetServer();
-await new Promise((resolve) => {
-  server.listen(0, '127.0.0.1', resolve);
-});
-const baseUrl = `http://127.0.0.1:${server.address().port}`;
+const server = makeAssetServer();
+const { state } = server;
+const baseUrl = 'http://snapback.test';
 const client = { baseUrl, subscribeLive: () => {} };
+const originalFetch = globalThis.fetch;
+globalThis.fetch = server.fetch;
 
 // --- upload end to end: chunked, checksummed, digested ---
 {
@@ -202,7 +264,7 @@ const client = { baseUrl, subscribeLive: () => {} };
     taskStore: store,
     fetch: (...args) => {
       transportCalls.push(args);
-      return fetch(...args);
+      return server.fetch(...args);
     },
   });
   const payload = 'twenty-six characters here!!';
@@ -309,13 +371,14 @@ const client = { baseUrl, subscribeLive: () => {} };
   assert.equal(final.assetId, fact.assetId, 'resume preserves the asset id');
 }
 
-// --- retry: a successor attempt for the SAME asset id ---
+// --- retry: eligible failures get a SAME-id successor; ready/rejected refuse ---
 {
   const assets = new SnapbackAssetClient(client, { chunkBytes: CHUNK });
   const file = makeFile('retry-payload-bytes-here');
+  state.failNextPatch = true;
   const task = assets.start({ upload: AVATAR_UPLOAD_REF, file, userId: 'user_c' });
   const first = await task.done;
-  assert.equal(first.status, 'ready');
+  assert.equal(first.status, 'failed');
   const successor = await task.retry();
   const second = await successor.done;
   assert.equal(second.status, 'ready');
@@ -325,6 +388,55 @@ const client = { baseUrl, subscribeLive: () => {} };
     'retry creates a successor attempt without re-identifying the asset',
   );
   assert.notEqual(second.attemptId, first.attemptId);
+  assert.strictEqual(await task.done, first, 'the predecessor settlement stays frozen');
+  await assert.rejects(
+    successor.retry(),
+    (error) => error.code === 'SNAPBACK_ASSET_RETRY_INELIGIBLE'
+      && error.diagnostic.details.predecessorStatus === 'ready',
+  );
+  state.refuseNextRetry = true;
+  await assert.rejects(
+    task.retry(),
+    (error) => error.code === 'SNAPBACK_ASSET_RETRY_INELIGIBLE'
+      && error.diagnostic.code === 'SNAPBACK_ASSET_RETRY_INELIGIBLE',
+    'a server-proven loss of pending eligibility returns no public successor',
+  );
+
+  state.rejectNextFinalize = true;
+  const rejectedTask = assets.start({
+    upload: AVATAR_UPLOAD_REF,
+    file: makeFile('rejected-payload'),
+    userId: 'user_c',
+  });
+  const rejected = await rejectedTask.done;
+  assert.equal(rejected.status, 'rejected');
+  assert.equal(rejected.diagnostic.code, 'SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED');
+  await assert.rejects(
+    rejectedTask.retry(),
+    (error) => error.code === 'SNAPBACK_ASSET_RETRY_INELIGIBLE'
+      && error.diagnostic.details.predecessorStatus === 'rejected',
+  );
+
+  const cancelledTask = assets.start({
+    upload: AVATAR_UPLOAD_REF,
+    file: makeFile('cancelled-payload'),
+    userId: 'user_c',
+  });
+  await new Promise((resolve) => {
+    const release = cancelledTask.subscribe((snapshot) => {
+      if (snapshot.status !== 'uploading') return;
+      cancelledTask.pause();
+      release();
+      resolve();
+    });
+  });
+  const cancelled = await cancelledTask.cancel();
+  assert.equal(cancelled.status, 'cancelled');
+  assert.equal(cancelled.diagnostic.code, 'SNAPBACK_ASSET_TRANSFER_FAILED');
+  const cancelledSuccessor = await cancelledTask.retry();
+  const cancelledRetryResult = await cancelledSuccessor.done;
+  assert.equal(cancelledRetryResult.status, 'ready');
+  assert.equal(cancelledRetryResult.assetId, cancelled.assetId);
 }
 
 // --- deferred length refuses with the registered diagnostic ---
@@ -387,6 +499,369 @@ const client = { baseUrl, subscribeLive: () => {} };
     () => delivering.publicDeliveryUrl('asset_9', { variant: 'best' }),
     TypeError,
   );
+}
+
+// --- signedUrl: custody, DTO projection, relative resolution, and no cache ---
+{
+  const capture = Object.freeze({ authority: 'signed-url-a' });
+  const calls = [];
+  const expiresAt = Date.now() + 60_000;
+  const assets = new SnapbackAssetClient({
+    baseUrl: 'https://app.example.test/root',
+    authProtocols: { authClient: 1 },
+    authorityFence: {
+      capture: () => capture,
+      isCurrent: (candidate) => candidate === capture,
+      credentialFor: () => ({ bearer: 'bearer_signed_url' }),
+    },
+    subscribeLive: () => {},
+  }, {
+    fetch: async (input, init) => {
+      calls.push({ input, init });
+      return Response.json({
+        url: '/assets/signed/asset%201/primary?token=one',
+        expiresAtMs: expiresAt,
+        variant: 'primary',
+      });
+    },
+  });
+  const first = await assets.signedUrl('asset 1');
+  const second = await assets.signedUrl('asset 1');
+  assert.equal(calls.length, 2, 'bare signedUrl performs a network issuance every time');
+  assert.equal(calls[0].input, 'https://app.example.test/root/assets/records/asset%201/signed-url');
+  assert.equal(calls[0].init.method, 'POST');
+  assert.equal(calls[0].init.headers.authorization, 'Bearer bearer_signed_url');
+  assert.equal(calls[0].init.headers['x-snapback-auth-client-protocol'], '1');
+  assert.equal(calls[0].init.body, '{}', 'absent options produce the valid empty body');
+  assert.equal(first.url, 'https://app.example.test/assets/signed/asset%201/primary?token=one');
+  assert.equal(first.expiresAt, expiresAt);
+  assert.equal(first.variant, 'primary');
+  assert.deepEqual(second, first);
+
+  const externalCalls = [];
+  const external = new SnapbackAssetClient({
+    baseUrl: 'https://external.example.test',
+    authProtocols: { authClient: 1 },
+    bearerToken: 'bearer_external_signed_url',
+    __authTransportGeneration: 4,
+    __externalBearerTransition: null,
+    subscribeLive: () => {},
+  }, {
+    fetch: async (_input, init) => {
+      externalCalls.push(init);
+      return Response.json({ url: '/signed', expiresAtMs: expiresAt, variant: 'chat' });
+    },
+  });
+  await external.signedUrl('asset_2', { variant: 'chat', ttlMs: 5_000 });
+  assert.equal(externalCalls[0].headers.authorization, 'Bearer bearer_external_signed_url');
+  assert.equal(externalCalls[0].headers['x-snapback-auth-client-protocol'], '1');
+  assert.deepEqual(JSON.parse(externalCalls[0].body), { variant: 'chat', ttlMs: 5_000 });
+}
+
+// --- issuedUrlStore: equal keys share one in-flight issuance ---
+{
+  const calls = [];
+  let resolveIssuance;
+  const assets = new SnapbackAssetClient({ baseUrl, subscribeLive: () => {} }, {
+    fetch: (...args) => {
+      calls.push(args);
+      return new Promise((resolve) => { resolveIssuance = resolve; });
+    },
+  });
+  const left = assets.issuedUrlStore('asset_shared', { variant: 'chat' });
+  const right = assets.issuedUrlStore('asset_shared', { variant: 'chat' });
+  assert.strictEqual(left, right, 'equal controller keys share one entry');
+  const unsubscribeLeft = left.subscribe(() => {});
+  const unsubscribeRight = right.subscribe(() => {});
+  await nextTurn();
+  assert.equal(calls.length, 1, 'two subscribers drive one issuance loop');
+  resolveIssuance(Response.json({
+    url: '/assets/signed/shared',
+    expiresAtMs: Date.now() + 60_000,
+    variant: 'chat',
+  }));
+  await waitFor(() => left.getSnapshot().status === 'ready', 'shared issuance becomes ready');
+  unsubscribeLeft();
+  unsubscribeRight();
+  await nextTurn();
+}
+
+// --- issuedUrlStore refreshes before expiry and preserves a still-valid URL
+// --- through a transient refresh failure before becoming unavailable. ---
+{
+  let calls = 0;
+  const assets = new SnapbackAssetClient({ baseUrl, subscribeLive: () => {} }, {
+    fetch: async () => {
+      calls += 1;
+      if (calls === 1) {
+        return Response.json({
+          url: '/assets/signed/short-lived',
+          expiresAtMs: Date.now() + 200,
+          variant: 'primary',
+        });
+      }
+      return diagnosticResponse(
+        'SNAPBACK_ASSET_TEST_TRANSIENT',
+        'temporary issuance outage',
+        503,
+      );
+    },
+  });
+  const store = assets.issuedUrlStore('asset_refresh');
+  const unsubscribe = store.subscribe(() => {});
+  await waitFor(() => store.getSnapshot().status === 'ready', 'initial URL becomes ready');
+  const heldUrl = store.getSnapshot().url;
+  await waitFor(() => calls >= 2, 'controller refreshes before the held URL expires');
+  assert.equal(store.getSnapshot().status, 'ready', 'failed refresh stays ready while URL is valid');
+  assert.equal(store.getSnapshot().url, heldUrl);
+  assert.equal(store.getSnapshot().diagnostic.code, 'SNAPBACK_ASSET_TEST_TRANSIENT');
+  await waitFor(
+    () => store.getSnapshot().status === 'unavailable',
+    'transient failures become unavailable after the held URL expires',
+  );
+  assert.equal(store.getSnapshot().url, null);
+  unsubscribe();
+  await nextTurn();
+}
+
+// --- denied is reserved for structured authorization refusals; both manual
+// --- refresh and a fresh subscription re-enter issuance. ---
+{
+  const outcomes = [
+    () => diagnosticResponse('SNAPBACK_ASSET_FORBIDDEN', 'not authorized', 403),
+    () => Response.json({
+      url: '/assets/signed/restored-manual',
+      expiresAtMs: Date.now() + 60_000,
+      variant: 'primary',
+    }),
+    () => diagnosticResponse('SNAPBACK_ASSET_FORBIDDEN', 'revoked again', 403),
+    () => Response.json({
+      url: '/assets/signed/restored-subscription',
+      expiresAtMs: Date.now() + 60_000,
+      variant: 'primary',
+    }),
+  ];
+  const assets = new SnapbackAssetClient({ baseUrl, subscribeLive: () => {} }, {
+    fetch: async () => outcomes.shift()(),
+  });
+  const store = assets.issuedUrlStore('asset_denied');
+  let unsubscribe = store.subscribe(() => {});
+  await waitFor(() => store.getSnapshot().status === 'denied', 'authorization refusal becomes denied');
+  assert.equal(store.getSnapshot().url, null);
+  await store.refresh();
+  assert.equal(store.getSnapshot().status, 'ready', 'manual refresh exits denied');
+  await store.refresh();
+  assert.equal(store.getSnapshot().status, 'denied', 'revocation blanks immediately');
+  unsubscribe();
+  unsubscribe = store.subscribe(() => {});
+  await waitFor(
+    () => store.getSnapshot().status === 'ready',
+    'fresh subscription under the same authority exits denied',
+  );
+  unsubscribe();
+  await nextTurn();
+
+  const transient = new SnapbackAssetClient({ baseUrl, subscribeLive: () => {} }, {
+    fetch: async () => diagnosticResponse('SNAPBACK_ASSET_TEST_TRANSIENT', 'offline', 403),
+  }).issuedUrlStore('asset_not_denied');
+  const releaseTransient = transient.subscribe(() => {});
+  await waitFor(
+    () => transient.getSnapshot().status === 'unavailable',
+    'a non-authorization refusal never becomes denied',
+  );
+  releaseTransient();
+  await nextTurn();
+}
+
+// --- final unsubscribe fences a late issuance, evicts the entry, and a later
+// --- subscription receives a fresh generation with no residual timer work. ---
+{
+  const pending = [];
+  let calls = 0;
+  const assets = new SnapbackAssetClient({ baseUrl, subscribeLive: () => {} }, {
+    fetch: () => {
+      calls += 1;
+      return new Promise((resolve) => pending.push(resolve));
+    },
+  });
+  const predecessor = assets.issuedUrlStore('asset_fenced');
+  const unsubscribe = predecessor.subscribe(() => {});
+  await nextTurn();
+  assert.equal(calls, 1);
+  unsubscribe();
+  await nextTurn();
+  pending.shift()(Response.json({
+    url: '/assets/signed/late',
+    expiresAtMs: Date.now() + 20,
+    variant: 'primary',
+  }));
+  await nextTurn();
+  assert.equal(predecessor.getSnapshot().url, null, 'late response never republishes');
+  const successor = assets.issuedUrlStore('asset_fenced');
+  assert.notStrictEqual(successor, predecessor, 'post-eviction demand gets a fresh entry');
+  const releaseSuccessor = successor.subscribe(() => {});
+  await nextTurn();
+  assert.equal(calls, 2, 'fresh generation starts one new issuance');
+  pending.shift()(Response.json({
+    url: '/assets/signed/fresh',
+    expiresAtMs: Date.now() + 60_000,
+    variant: 'primary',
+  }));
+  await waitFor(() => successor.getSnapshot().status === 'ready', 'fresh generation publishes');
+  releaseSuccessor();
+  await nextTurn();
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.equal(calls, 2, 'fenced late work scheduled no residual refresh');
+}
+
+// --- authority replacement synchronously blanks and evicts old entries ---
+{
+  let currentCapture = Object.freeze({ id: 'authority-a' });
+  let blankAuthority;
+  let issue = 0;
+  const parent = {
+    baseUrl,
+    authProtocols: { authClient: 1 },
+    authorityFence: {
+      capture: () => currentCapture,
+      isCurrent: (capture) => capture === currentCapture,
+      credentialFor: () => ({ bearer: `bearer-${currentCapture.id}` }),
+    },
+    registerAuthMaterialization: ({ blank }) => {
+      blankAuthority = blank;
+      return () => {};
+    },
+    subscribeLive: () => {},
+  };
+  const assets = new SnapbackAssetClient(parent, {
+    fetch: async () => {
+      issue += 1;
+      return Response.json({
+        url: `/assets/signed/authority-${issue}`,
+        expiresAtMs: Date.now() + 60_000,
+        variant: 'primary',
+      });
+    },
+  });
+  const oldStore = assets.issuedUrlStore('asset_authority');
+  const releaseOld = oldStore.subscribe(() => {});
+  await waitFor(() => oldStore.getSnapshot().status === 'ready', 'old authority becomes ready');
+  currentCapture = Object.freeze({ id: 'authority-b' });
+  blankAuthority({ reason: 'authority_replaced', disposition: 'delete' });
+  assert.deepEqual(
+    oldStore.getSnapshot(),
+    { url: null, status: 'issuing', diagnostic: null },
+    'authority barrier blanks synchronously',
+  );
+  const newStore = assets.issuedUrlStore('asset_authority');
+  assert.notStrictEqual(newStore, oldStore, 'successor authority gets a fresh entry');
+  const releaseNew = newStore.subscribe(() => {});
+  await waitFor(() => newStore.getSnapshot().status === 'ready', 'successor authority issues fresh');
+  assert.equal(issue, 2);
+  releaseOld();
+  releaseNew();
+  await nextTurn();
+
+  const externalParent = createExternalSessionClient(baseUrl, {
+    bearerToken: 'external-authority-a',
+    rqsStore: null,
+    offlineQueue: false,
+  });
+  let externalIssues = 0;
+  const externalAssets = new SnapbackAssetClient(externalParent, {
+    fetch: async () => {
+      externalIssues += 1;
+      return Response.json({
+        url: `/assets/signed/external-${externalIssues}`,
+        expiresAtMs: Date.now() + 60_000,
+        variant: 'primary',
+      });
+    },
+  });
+  const externalOld = externalAssets.issuedUrlStore('asset_external_authority');
+  const releaseExternalOld = externalOld.subscribe(() => {});
+  await waitFor(() => externalOld.getSnapshot().status === 'ready', 'external bearer becomes ready');
+  const replacing = externalParent.replaceBearerToken('external-authority-b');
+  assert.equal(externalOld.getSnapshot().url, null, 'external replacement blanks synchronously');
+  await replacing;
+  const externalNew = externalAssets.issuedUrlStore('asset_external_authority');
+  assert.notStrictEqual(externalNew, externalOld);
+  const releaseExternalNew = externalNew.subscribe(() => {});
+  await waitFor(() => externalNew.getSnapshot().status === 'ready', 'new external bearer issues fresh');
+  assert.equal(externalIssues, 2);
+  releaseExternalOld();
+  releaseExternalNew();
+  await externalParent.closeAuth();
+}
+
+// --- upload(): frozen terminal table and picker-shaped normalization ---
+{
+  const assets = new SnapbackAssetClient(client, {
+    fetch: async () => new Response(new Blob(['picker-bytes'], { type: 'image/png' })),
+  });
+  const baseSnapshot = {
+    assetId: 'asset_upload_helper',
+    assetRef: 'asset_upload_helper',
+    attemptId: 'attempt_upload_helper',
+    attemptExpiresAtMs: null,
+    bytesTransferred: 1,
+    totalBytes: 1,
+    previewUrl: null,
+    integrityBasis: 'end-to-end-verified',
+  };
+  for (const status of ['ready', 'rejected', 'cancelled', 'failed']) {
+    const diagnostic = status === 'ready'
+      ? null
+      : {
+          code: 'SNAPBACK_ASSET_TEST_TRANSIENT',
+          message: `${status} diagnostic`,
+          details: { row: status },
+        };
+    assets.start = () => ({
+      done: Promise.resolve(Object.freeze({ ...baseSnapshot, status, diagnostic })),
+    });
+    if (status === 'ready') {
+      assert.equal(
+        await assets.upload(AVATAR_UPLOAD_REF, new Blob(['x'])),
+        'asset_upload_helper',
+      );
+    } else {
+      await assert.rejects(
+        assets.upload(AVATAR_UPLOAD_REF, new Blob(['x'])),
+        (error) => error instanceof Error
+          && error.status === status
+          && error.terminalStatus === status
+          && error.diagnostic.code === 'SNAPBACK_ASSET_TEST_TRANSIENT'
+          && error.diagnostic.details.row === status,
+      );
+    }
+  }
+
+  let started;
+  assets.start = (options) => {
+    started = options;
+    return {
+      done: Promise.resolve(Object.freeze({
+        ...baseSnapshot,
+        assetId: 'asset_picker',
+        assetRef: 'asset_picker',
+        status: 'ready',
+        diagnostic: null,
+      })),
+    };
+  };
+  assert.equal(
+    await assets.upload(
+      AVATAR_UPLOAD_REF,
+      { uri: 'file:///picker/photo.png', mimeType: 'image/png', fileName: 'photo.png' },
+      { args: { conversationId: 'conversation_1' } },
+    ),
+    'asset_picker',
+  );
+  assert.equal(started.file.size, Buffer.byteLength('picker-bytes'));
+  assert.equal(started.declaredFilename, 'photo.png');
+  assert.equal(started.declaredContentType, 'image/png');
+  assert.deepEqual(started.args, { conversationId: 'conversation_1' });
 }
 
 // --- watchStore: establishment snapshot, frames, blank, dispose ---
@@ -662,6 +1137,7 @@ const client = { baseUrl, subscribeLive: () => {} };
 }
 
 server.closeAllConnections?.(); server.close();
+globalThis.fetch = originalFetch;
 // A bare intent-name string refuses client-side with the reference guidance
 // (the server DTO requires the reference's intentPolicyHash; a form that can
 // never succeed server-side must not get as far as the wire).
@@ -674,7 +1150,6 @@ server.closeAllConnections?.(); server.close();
 }
 
 console.log('assets.test.mjs passed');
-process.exit(0);
 
 // Browser-digest fallback: the incremental FIPS 180-4 implementation must
 // match node:crypto exactly across boundary lengths (diary 0041 finding 8).
