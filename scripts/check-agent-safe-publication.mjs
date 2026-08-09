@@ -306,6 +306,17 @@ export const PUBLICATION_CYCLE_ALLOWLIST = new Set([
   'src/local-persistent-store-publication.v1.json',
 ]);
 
+// The persistent-store carrier and anchor are publication-cycle exclusions
+// for their own storage claim, but remain ordinary scoped source evolution for
+// the derived-fork snapshot. The two other sibling carriers already have that
+// classification because they are not cycle exclusions.
+export const DERIVED_FORK_SIBLING_CHAIN_PATHS = Object.freeze([
+  'src/local-persistent-store-publication.anchor.v1.json',
+  'src/local-persistent-store-publication.v1.json',
+  'src/local-relation-activity-publication.v1.json',
+  'src/local-sequence-allocation-publication.v1.json',
+]);
+
 export const LOCAL_STORE_PUBLICATION_TRANSFORM = {
   anchor: 'src/local-persistent-store-publication.anchor.v1.json',
   carrier: 'src/local-persistent-store-publication.v1.json',
@@ -678,13 +689,17 @@ export function evaluateClaimSnapshot(root, {
   publicationCommit,
   scope = undefined,
   allowRequalificationDue = false,
+  publicationCycleEvolutionPaths = [],
 }) {
+  const publicationCycleEvolution = new Set(publicationCycleEvolutionPaths);
   const raw = execFileSync('git', [
     'diff', '--name-status', '--no-renames', '-z',
     `${qualificationCommit}..${publicationCommit}`,
   ], { cwd: root });
   const changes = decodeNameStatus(raw, 'claim snapshot drift')
-    .filter(({ path }) => !PUBLICATION_CYCLE_ALLOWLIST.has(path));
+    .filter(({ path }) => (
+      !PUBLICATION_CYCLE_ALLOWLIST.has(path) || publicationCycleEvolution.has(path)
+    ));
   const scopedChanges = changes.filter(({ path }) => implementationScopeCoversPath(scope, path));
   const outOfScopeChanges = changes.filter(
     ({ path }) => !implementationScopeCoversPath(scope, path),
@@ -1086,6 +1101,7 @@ export function assertQualifiedImplementationDigestAtPublication(root, {
   expectedDigestVersion,
   implementationScope = undefined,
   allowRequalificationDue = false,
+  publicationCycleEvolutionPaths = [],
 }) {
   assertImplementationDigestVersion(expectedDigestVersion, capabilityId, implementationScope);
   const qualificationDigest = implementationDigestAt(
@@ -1099,6 +1115,7 @@ export function assertQualifiedImplementationDigestAtPublication(root, {
     publicationCommit,
     scope: implementationScope,
     allowRequalificationDue,
+    publicationCycleEvolutionPaths,
   });
   const publicationEvolutionIsDue = publicationDigest !== expectedDigest
     && snapshot.requalificationDue !== undefined;
@@ -2345,12 +2362,18 @@ export function validatePublicationRecord(root, record) {
     expectedDigestVersion: receipt.implementationDigestVersion,
     implementationScope,
     allowRequalificationDue: record.id === 'agent_safe_derived_deployment_fork_v1',
+    publicationCycleEvolutionPaths: record.id === 'agent_safe_derived_deployment_fork_v1'
+      ? DERIVED_FORK_SIBLING_CHAIN_PATHS
+      : [],
   });
   const snapshot = evaluateClaimSnapshot(root, {
     qualificationCommit: carrier.qualifiedSourceCommit,
     publicationCommit: publication,
     scope: implementationScope,
     allowRequalificationDue: record.id === 'agent_safe_derived_deployment_fork_v1',
+    publicationCycleEvolutionPaths: record.id === 'agent_safe_derived_deployment_fork_v1'
+      ? DERIVED_FORK_SIBLING_CHAIN_PATHS
+      : [],
   });
   validatePublishedEvidenceSemantics(root, record, carrier.qualifiedSourceCommit, receipt);
   return {
@@ -2465,7 +2488,7 @@ export function runChecker(root) {
   validateAgentSafeCodegenDeclarations(root);
   const results = RECORDS.map((record) => validatePublicationRecord(root, record));
   for (const result of results.filter(({ state }) => state === 'published')) {
-    validateLocalStorePublicationTransform(root, result.commit);
+    validatePublishedResultCustody(root, result);
     const workingTreeDigest = implementationDigestWorkingTree(root, result.implementationScope);
     if (result.implementationDigest !== workingTreeDigest) {
       fail(`${result.id} publication HEAD and clean working-tree implementation digests differ; `
@@ -2473,6 +2496,19 @@ export function runChecker(root) {
     }
   }
   return results;
+}
+
+// @ref LLP 0189#decision — D-4's coverage-moves-never-vanishes rule transfers
+// sibling-chain integrity away from the derived-fork C: local-store-publication
+// and local-store-carrier-receipt own the persistent-store chain, while
+// relation-activity-publication and sequence-allocation-publication own their
+// carriers. The storage claim retains its own exact C-bound transform here;
+// fork-chain anchor/carrier/receipt/evidence bindings remain in
+// validatePublicationRecord and are not relaxed by this transfer.
+export function validatePublishedResultCustody(root, result) {
+  if (result.id === 'agent_safe_storage_v1') {
+    validateLocalStorePublicationTransform(root, result.commit);
+  }
 }
 
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);

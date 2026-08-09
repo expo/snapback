@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   chmodSync,
@@ -22,6 +22,7 @@ import {
   assertQualifiedImplementationDigestAtPublication,
   DERIVED_FORK_COVERAGE_TRANSFERS,
   DERIVED_FORK_IMPLEMENTATION_SCOPE,
+  DERIVED_FORK_SIBLING_CHAIN_PATHS,
   evaluateClaimSnapshot,
   exactCandidate,
   generatedPublicationPathsAt,
@@ -38,10 +39,15 @@ import {
   validateAgentSafeCodegenDeclarations,
   validatePairedPerformanceArtifact,
   validatePublicationRecord,
+  validatePublishedResultCustody,
   validateReview,
   validateLocalStorePublicationTransform,
   validateDerivedForkCoverageTransfers,
 } from '../scripts/check-agent-safe-publication.mjs';
+import {
+  loadSelectionContext,
+  selectDriftProneGates,
+} from '../scripts/select-local-proof.mjs';
 import {
   ADMIN_GENERATED_ROOTS,
   CODEGEN_JOBS,
@@ -632,6 +638,10 @@ function publishedDerivedFixture({
   execFileSync('git', ['config', 'user.email', 'snapback-test@example.invalid'], { cwd: scratch });
   mkdirSync(join(scratch, 'src'), { recursive: true });
   writeFileSync(join(scratch, 'src/qualification-marker.txt'), 'derived-fork qualification C\n');
+  for (const path of DERIVED_FORK_SIBLING_CHAIN_PATHS) {
+    mkdirSync(dirname(join(scratch, path)), { recursive: true });
+    writeFileSync(join(scratch, path), readFileSync(join(root, path)));
+  }
   for (const path of DERIVED_FORK_IMPLEMENTATION_SCOPE.files) {
     if (path === 'vendor/ibex') continue;
     mkdirSync(dirname(join(scratch, path)), { recursive: true });
@@ -654,6 +664,7 @@ function publishedDerivedFixture({
   }
   execFileSync('git', [
     'add', 'src/qualification-marker.txt',
+    ...DERIVED_FORK_SIBLING_CHAIN_PATHS,
     ...DERIVED_FORK_IMPLEMENTATION_SCOPE.files.filter((path) => path !== 'vendor/ibex'),
     ...qualificationContextPaths,
     ...(preexistingDatedEvidencePath === undefined ? [] : [preexistingDatedEvidencePath]),
@@ -2127,6 +2138,35 @@ test('one-byte src change yields requalificationDue and the published derived-fo
   ));
 });
 
+test('published fork treats structurally regenerated sibling carriers as scoped evolution', () => {
+  const scratch = publishedDerivedFixture();
+  for (const path of DERIVED_FORK_SIBLING_CHAIN_PATHS) {
+    const value = JSON.parse(readFileSync(join(scratch, path), 'utf8'));
+    value.fixtureStructuralRegeneration = { afterQualificationC: true };
+    writeJson(scratch, path, value);
+  }
+  const publication = commitFixture(
+    scratch,
+    'structurally regenerate sibling capability carriers after C',
+    ...DERIVED_FORK_SIBLING_CHAIN_PATHS,
+  );
+
+  const result = validatePublicationRecord(scratch, derived);
+  validatePublishedResultCustody(scratch, result);
+  assert.equal(result.state, 'published');
+  assert.equal(result.snapshot.state, 'stands');
+  assert.deepEqual(
+    result.requalificationDue.scopedChanges,
+    DERIVED_FORK_SIBLING_CHAIN_PATHS.map((path) => ({ status: 'M', path })),
+  );
+  assert.equal(result.requalificationDue.since, result.commit);
+  assert.equal(result.implementationDigest, implementationDigestAt(
+    scratch,
+    publication,
+    DERIVED_FORK_IMPLEMENTATION_SCOPE,
+  ));
+});
+
 test('publication-chain tampering still refuses with requalificationDue pending', () => {
   const scratch = publishedDerivedFixture();
   const sourcePath = 'src/qualification-marker.txt';
@@ -3063,6 +3103,49 @@ test('P-vs-C local-store transform rejects extra carrier or anchor edits', () =>
       path,
     );
   }
+});
+
+test('structural store-carrier tampering belongs to its registered drift gate', () => {
+  const carrierPath = LOCAL_STORE_PUBLICATION_TRANSFORM.carrier;
+  const selection = selectDriftProneGates([carrierPath], loadSelectionContext());
+  assert.ok(selection.selectedDriftProneGates.includes('local-store-publication'));
+
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-local-store-own-gate-'));
+  const carrier = JSON.parse(readFileSync(join(root, carrierPath), 'utf8'));
+  const requiredPaths = [
+    'tests/conformance/local-persistent-store-publication-v1.mjs',
+    'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json',
+    'tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json',
+    'tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json',
+    'tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json',
+    'tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json',
+    'src/local-persistent-store-publication.anchor.v1.json',
+    carrierPath,
+    'schemas/capability.manifest.local-dev-sqlite-ibex.json',
+    ...Object.keys(carrier.executorSourceSha256),
+    ...Object.keys(carrier.schemaSourceSha256),
+    ...Object.keys(carrier.clientSourceSha256),
+  ];
+  for (const path of new Set(requiredPaths)) {
+    mkdirSync(dirname(join(scratch, path)), { recursive: true });
+    writeFileSync(join(scratch, path), readFileSync(join(root, path)));
+  }
+  carrier.fixtureStructuralTampering = { ownGateMustRefuse: true };
+  writeJson(scratch, carrierPath, carrier);
+
+  // LLP 0175 registers local-store-publication as the recomputing owner for
+  // this carrier. The derived-fork checker may report evolution, but this gate
+  // must still catch an internally inconsistent carrier/anchor pair.
+  const gate = spawnSync(
+    process.execPath,
+    ['tests/conformance/local-persistent-store-publication-v1.mjs'],
+    { cwd: scratch, encoding: 'utf8' },
+  );
+  assert.notEqual(gate.status, 0);
+  assert.match(
+    `${gate.stdout ?? ''}${gate.stderr ?? ''}`,
+    /Expected values to be strictly deep-equal/u,
+  );
 });
 
 if (leafSetOnly) {
