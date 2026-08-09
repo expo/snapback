@@ -7,6 +7,16 @@
 
 set -euo pipefail
 
+usage() {
+    printf 'Usage: scripts/check-demo-surfaces [--help]\n'
+}
+
+case "${1:-}" in
+    --help|-h) [ "$#" -eq 1 ] || { usage >&2; exit 2; }; usage; exit 0 ;;
+    '') ;;
+    *) printf '[check-demo-surfaces] error: unknown argument: %s\n' "$1" >&2; usage >&2; exit 2 ;;
+esac
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 

@@ -2,8 +2,13 @@
 set -euo pipefail
 
 root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
-if [ -z "$root" ] || [ ! -x "$root/scripts/sync-agent-skills" ]; then
-  exit 0
+if [ -z "$root" ]; then
+  printf '[snapback-skills] REFUSED: repository root is unavailable\n' >&2
+  exit 2
+fi
+if [ ! -x "$root/scripts/sync-agent-skills" ]; then
+  printf '[snapback-skills] REFUSED: scripts/sync-agent-skills is missing or not executable; restore it before relying on agent skill links\n' >&2
+  exit 2
 fi
 
 if ! "$root/scripts/sync-agent-skills" --no-fetch --quiet; then

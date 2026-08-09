@@ -1,6 +1,34 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+usage() {
+  cat <<'EOF'
+Usage: scripts/install-drift-backstop-schedule [--status | --uninstall | --help]
+
+With no option, install or refresh the two-hour macOS launchd schedule.
+EOF
+}
+
+mode=install
+case "${1:-}" in
+  '') ;;
+  --status) mode=status ;;
+  --uninstall) mode=uninstall ;;
+  --help|-h) usage; exit 0 ;;
+  *)
+    printf '[snapback-drift] error: unknown argument: %s\n' "$1" >&2
+    usage >&2
+    exit 2
+    ;;
+esac
+[ "$#" -le 1 ] || { usage >&2; exit 2; }
+
+if [ "$(uname -s)" != "Darwin" ]; then
+  printf '[snapback-drift] REFUSED: the drift backstop schedule requires macOS launchd (host: %s)\n' \
+    "$(uname -s)" >&2
+  exit 2
+fi
+
 # @ref LLP 0175#same-change-frozen-record-coupling — install the two-hour
 # complete-registry backstop without changing the invoking checkout.
 repo_root="$(cd "$(dirname "$0")/.." && pwd -P)"
@@ -14,6 +42,22 @@ template="$repo_root/scripts/launchd/com.snapback.drift-backstop.plist.template"
 backstop_home="${SNAPBACK_BACKSTOP_HOME:-$HOME/.snapback-drift-backstop}"
 config_file="$backstop_home/config"
 log_file="$HOME/Library/Logs/snapback-drift-backstop.log"
+service="gui/$(id -u)/com.snapback.drift-backstop"
+
+if [ "$mode" = "status" ]; then
+  if launchctl print "$service"; then
+    exit 0
+  fi
+  printf '[snapback-drift] schedule is not loaded: %s\n' "$service" >&2
+  exit 1
+fi
+
+if [ "$mode" = "uninstall" ]; then
+  launchctl bootout "$service" 2>/dev/null || true
+  rm -f "$plist" "$config_file"
+  printf 'Uninstalled %s (logs retained at %s)\n' "$service" "$log_file"
+  exit 0
+fi
 
 mkdir -p "$launch_agents" "$HOME/Library/Logs" "$backstop_home"
 
@@ -39,7 +83,6 @@ printf '%s\n' "$backstop_source" > "$temporary_config"
 install -m 0644 "$temporary_config" "$config_file"
 rm -f "$temporary_config"
 
-service="gui/$(id -u)/com.snapback.drift-backstop"
 launchctl bootout "$service" 2>/dev/null || true
 launchctl bootstrap "gui/$(id -u)" "$plist"
 

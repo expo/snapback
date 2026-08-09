@@ -8,14 +8,14 @@ import test from 'node:test';
 const root = resolve(import.meta.dirname, '..');
 const runner = join(root, 'scripts', 'lib', 'proof-runner.sh');
 
-function fixture(body, { keepGoing = 1 } = {}) {
+function fixture(body, { keepGoing = 1, selectedCount = null } = {}) {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-proof-runner-'));
   const receipt = join(scratch, 'results.jsonl');
   const marker = join(scratch, 'dependent-ran');
   const script = `
 set -euo pipefail
 source ${JSON.stringify(runner)}
-proof_runner_init fixture ${JSON.stringify(receipt)} ${keepGoing}
+proof_runner_init fixture ${JSON.stringify(receipt)} ${keepGoing} ${selectedCount ?? body.match(/proof_gate /gu)?.length ?? 0}
 ${body}
 proof_runner_finish
 `;
@@ -66,6 +66,9 @@ proof_gate real-server --requires native-runtime -- /bin/bash -c 'touch "$FIXTUR
     );
     assert.deepEqual(run.records[2].blockedBy, ['native-runtime']);
     assert.match(run.result.stdout, /1 root failure\(s\), 1 blocked gate\(s\)/);
+    assert.match(run.result.stdout, /GATE 1\/3 native-runtime/u);
+    assert.match(run.result.stdout, /GATE 2\/3 independent-static/u);
+    assert.match(run.result.stdout, /BLOCKED 3\/3 real-server/u);
   } finally {
     rmSync(run.scratch, { recursive: true, force: true });
   }

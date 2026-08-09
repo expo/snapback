@@ -6,6 +6,7 @@ import test from 'node:test';
 import {
   loadSelectionContext,
   planSelection,
+  selectGate,
   selectChangedPaths,
   validateSelectionReceipt,
 } from '../scripts/select-local-proof.mjs';
@@ -68,6 +69,19 @@ test('affected groups retain mandatory Contract/Exact and admin behavior', () =>
   assert.equal(client.requirements.native, true);
   assert.equal(client.requirements.browser, true);
   assert.equal(client.selectedGates.includes('cloudflare-local-suite'), false);
+});
+
+test('single-gate re-entry closes over declared prerequisites', () => {
+  assert.deepEqual(selectGate('ref-check', context), ['ref-check']);
+  const realServer = selectGate('snapback-cli-real-server', context);
+  includesAll({ selectedGates: realServer }, [
+    'native-runtime-bootstrap',
+    'current-binary-build',
+    'current-binary-readiness',
+    'runtime-package-stage',
+    'snapback-cli-real-server',
+  ]);
+  assert.throws(() => selectGate('not-a-real-gate', context), /unknown gate/u);
 });
 
 test('required Exact mode reaches clean surface installs before availability sentinels', () => {
