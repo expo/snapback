@@ -3,8 +3,12 @@ import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises
 import { createServer } from 'node:http';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
-const scratch = await mkdtemp(join(process.cwd(), '.cli-test-'));
+const packageRoot = fileURLToPath(new URL('.', import.meta.url));
+const cliPath = fileURLToPath(new URL('./cli.mjs', import.meta.url));
+const packageJsonPath = fileURLToPath(new URL('./package.json', import.meta.url));
+const scratch = await mkdtemp(join(packageRoot, '.cli-test-'));
 await chmod(scratch, 0o700);
 const generated = join(scratch, 'generated');
 await mkdir(generated, { mode: 0o700 });
@@ -75,8 +79,8 @@ const server = createServer(async (request, response) => {
 });
 
 const start = (args) => {
-  const child = spawn(process.execPath, [join(process.cwd(), 'cli.mjs'), ...args], {
-    cwd: process.cwd(),
+  const child = spawn(process.execPath, [cliPath, ...args], {
+    cwd: packageRoot,
     env: { ...process.env, SNAPBACK_ADMIN_TOKEN: 'sbadm_cli_test_must_not_transmit' },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
@@ -102,7 +106,7 @@ const run = async (args, { stdin = '' } = {}) => {
 };
 
 try {
-  const packageVersion = JSON.parse(await readFile(join(process.cwd(), 'package.json'), 'utf8')).version;
+  const packageVersion = JSON.parse(await readFile(packageJsonPath, 'utf8')).version;
   const version = await run(['--version']);
   assert.equal(version.code, 0, version.stderr);
   assert.equal(version.stdout.trim(), `snapback-app ${packageVersion}`);

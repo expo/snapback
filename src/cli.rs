@@ -10688,10 +10688,10 @@ mod tests {
             render_guide_command(&["network condition profiles".to_owned()], 1, true).unwrap();
         let result: serde_json::Value = serde_json::from_str(&output).unwrap();
         assert_eq!(result["schemaVersion"], "snapback.guide-search.v1");
-        assert_eq!(result["match"], "sections");
+        assert_eq!(result["mode"], "section-search");
         assert!(result["count"].as_u64().unwrap() > 0);
         assert!(
-            result["matches"][0]["servedUrl"]
+            result["matches"][0]["url"]
                 .as_str()
                 .unwrap()
                 .starts_with(super::DEFAULT_SERVED_GUIDE_URL)

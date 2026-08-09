@@ -1147,13 +1147,13 @@ export class McpControlServer {
     const cacheKey = `${catalogDigest}:${query}:${slice}`;
     const cached = this.nativeGuideSearchCache.get(cacheKey);
     if (cached !== undefined) return cached;
-    const output = this.runNativeJson(
+    const envelope = this.runNativeJson(
       ['guide', query, '--slice', String(slice), '--json'],
       'SNAPBACK_MCP_GUIDE_SEARCH_UNAVAILABLE',
       'the co-installed native Guide search could not run',
     ).value;
-    this.nativeGuideSearchCache.set(cacheKey, output);
-    return output;
+    this.nativeGuideSearchCache.set(cacheKey, envelope);
+    return envelope;
   }
 
   controlResourceCatalog(catalog) {
@@ -1916,10 +1916,10 @@ export class McpControlServer {
             : {}),
         });
       case 'snapback_guide_search': {
-        const result = this.nativeGuideSearch(args.query, args.slice ?? 1);
+        const guideSearchEnvelope = this.nativeGuideSearch(args.query, args.slice ?? 1);
         return this.toolResult(this.envelope('guide.search', {
           ok: true,
-          data: { guideSearch: result },
+          data: { guideSearch: guideSearchEnvelope },
         }));
       }
       case 'snapback_telemetry_stats':

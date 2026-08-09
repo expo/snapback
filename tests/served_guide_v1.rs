@@ -340,6 +340,7 @@ fn served_guide_routes_are_registered_system_static_public_projections() {
         BTreeSet::from([
             "/_snapback/guide",
             "/_snapback/guide/flat.md",
+            "/_snapback/guide/http.routes.v1.json",
             "/_snapback/guide/{*path}",
             "/llms.txt",
         ])

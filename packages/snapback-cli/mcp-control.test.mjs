@@ -228,12 +228,15 @@ try {
   });
   assert.equal(guideSearch.structuredContent.operation, 'guide.search');
   assert.equal(guideSearch.structuredContent.ok, true, JSON.stringify(guideSearch));
-  assert.equal(guideSearch.structuredContent.data.guideSearch.match, 'member');
+  assert.equal(guideSearch.structuredContent.data.guideSearch.schemaVersion, 'snapback.guide-search.v1');
+  assert.equal(guideSearch.structuredContent.data.guideSearch.mode, 'exact-symbol');
+  assert.equal(guideSearch.structuredContent.data.guideSearch.result.match, 'member');
   const guideSectionSearch = await client.call('snapback_guide_search', {
     query: 'network condition profiles',
   });
   assert.equal(guideSectionSearch.structuredContent.ok, true, JSON.stringify(guideSectionSearch));
-  assert.equal(guideSectionSearch.structuredContent.data.guideSearch.match, 'sections');
+  assert.equal(guideSectionSearch.structuredContent.data.guideSearch.mode, 'section-search');
+  assert.equal(guideSectionSearch.structuredContent.data.guideSearch.result.matched, true);
   assert.ok(guideSectionSearch.structuredContent.data.guideSearch.matches.length > 0);
 
   const listed = await client.request('tools/list');

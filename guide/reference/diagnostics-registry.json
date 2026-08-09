@@ -3,7 +3,7 @@
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
     "commit": "591e7af32b27974e01fbb09ed576e9de45b1c15e",
-    "sourceDigest": "sha256:a4663bc6d1b72fb4cd75ee3e8c3e83cbb13922e3e3f5b543e39da3605a9687ec"
+    "sourceDigest": "sha256:bdc4ebac6023436fe00c1836682ec030ecea8c4a2a98a685e3936b49a4d6d14f"
   },
   "limits": {
     "lookupBytes": 16384
@@ -73239,12 +73239,12 @@
         },
         {
           "file": "src/schema_export.rs",
-          "line": 1331,
+          "line": 1335,
           "column": 8
         },
         {
           "file": "src/schema_export.rs",
-          "line": 1341,
+          "line": 1345,
           "column": 48
         },
         {

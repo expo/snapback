@@ -125,7 +125,11 @@ pub struct SchemaArtifact {
 /// @ref LLP 0146#d7-implementation-record--2026-08-06-oq6-independent-substrate
 ///   — the remediation registry schema is an intentionally data-only draft,
 ///   not a Rust-owned wire artifact.
+/// @ref LLP 0049#deployment-identity-freshness-gate-2026-07-25 — the
+///   Cloudflare deploy workflow owns its version-attested success receipt;
+///   it is not a Rust server artifact.
 pub const EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS: &[&str] = &[
+    "cloudflare.deploy-receipt-v1.schema.json",
     "control-catalog-instance.v1.schema.json",
     "control-catalog.v1.schema.json",
     "remediation-kinds.v0.schema.json",

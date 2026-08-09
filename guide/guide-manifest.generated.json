@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "591e7af32b27974e01fbb09ed576e9de45b1c15e"
+    "commit": "d9f44dec551dcbb72301895a4e1b5e8fb2ae6e67"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -8937,7 +8937,7 @@
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
       "bytes": 2066906,
-      "sha256": "433f980d67d1e7ae9bb0affcdbe4570775193455bfe50392b95666c848fba4eb",
+      "sha256": "6685b45c6ebf87b1c96c9beceb246f5c1de84ac2ef7e25aebcd39216011b7ca0",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -8946,7 +8946,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:a4663bc6d1b72fb4cd75ee3e8c3e83cbb13922e3e3f5b543e39da3605a9687ec",
+      "sourceDigest": "sha256:bdc4ebac6023436fe00c1836682ec030ecea8c4a2a98a685e3936b49a4d6d14f",
       "codes": 2702,
       "emittingSites": 11195
     }
@@ -9057,5 +9057,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "1caa41224055d0f587f18bbb39d818e399130af1adb6e04f0cdabfc5f0db6a38"
+  "contentHash": "7902244a0db5a557503466ca2ea03767b88d9e18e03e50bde679f0b702723033"
 }
