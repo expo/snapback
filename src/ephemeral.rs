@@ -2797,8 +2797,12 @@ impl OutboundQueue {
     /// @ref LLP 0200#21-settlement-is-decoupled-from-subscriber-work —
     ///   consecutive watermarks collapse, and newer content intrinsically
     ///   carries the watermark it supersedes.
-    fn supersede_pending_live_watermarks(&mut self, subscription_id: &str, next_version: u64) {
-        let mut removed = false;
+    fn supersede_pending_live_watermarks(
+        &mut self,
+        subscription_id: &str,
+        next_version: u64,
+    ) -> u64 {
+        let mut removed = 0_u64;
         self.durable.retain(|queued| {
             let Ok(envelope) = serde_json::from_slice::<crate::live_wire::LiveEnvelope>(
                 &queued.message.payload,
@@ -2847,13 +2851,14 @@ impl OutboundQueue {
                         ..
                     } if queued_subscription == subscription_id && *version <= next_version
                 );
-            removed |= superseded;
+            removed = removed.saturating_add(u64::from(superseded));
             !superseded
         });
-        if removed {
+        if removed > 0 {
             self.recompute_retained_bytes();
             self.compact_lane_storage();
         }
+        removed
     }
 
     /// Stamp the per-connection monotone deadline before the item enters the
@@ -7042,11 +7047,12 @@ impl LocalEphemeralBackend {
         connection_id: &str,
         subscription_id: &str,
         next_version: u64,
-    ) {
+    ) -> u64 {
         let outbox = lock(&self.shared.outboxes).get(connection_id).cloned();
         if let Some(outbox) = outbox {
-            lock(&outbox).supersede_pending_live_watermarks(subscription_id, next_version);
+            return lock(&outbox).supersede_pending_live_watermarks(subscription_id, next_version);
         }
+        0
     }
 
     pub(crate) fn enqueue_durable_with_network_egress(

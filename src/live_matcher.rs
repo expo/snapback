@@ -10,6 +10,20 @@ use std::cmp::Ordering;
 pub(crate) type QueryDependencyMetadata =
     (Option<Value>, Option<usize>, Option<usize>, Option<Value>);
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum LiveMatchOutcome {
+    Skip,
+    Match,
+    ConservativeFallback,
+}
+
+impl LiveMatchOutcome {
+    #[allow(dead_code)]
+    pub(crate) fn may_be_affected(self) -> bool {
+        self != Self::Skip
+    }
+}
+
 pub(crate) fn query_dependencies_from_plan(
     plan: &QueryPlan,
     input: &HandlerInput,
@@ -126,14 +140,24 @@ pub(crate) fn query_dependency_metadata(
 }
 
 /// @ref LLP 0020#phase-4-upgrade-realtime-from-v0-outbox-to-app-grade-live-delivery — the realtime matcher reuses captured query dependencies and keeps a conservative replace fallback.
+#[allow(dead_code)]
 pub(crate) fn live_subscription_may_be_affected(
     definition: &FunctionDefinition,
     input: &HandlerInput,
     read_dependencies: &[CapturedReadDependency],
     changes: &[ChangedRow],
 ) -> bool {
+    live_subscription_match_outcome(definition, input, read_dependencies, changes).may_be_affected()
+}
+
+pub(crate) fn live_subscription_match_outcome(
+    definition: &FunctionDefinition,
+    input: &HandlerInput,
+    read_dependencies: &[CapturedReadDependency],
+    changes: &[ChangedRow],
+) -> LiveMatchOutcome {
     if changes.is_empty() {
-        return true;
+        return LiveMatchOutcome::ConservativeFallback;
     }
     if let Some(matched) =
         live_subscription_may_be_affected_by_dependencies(input, read_dependencies, changes)
@@ -143,7 +167,13 @@ pub(crate) fn live_subscription_may_be_affected(
     match &definition.runtime {
         FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => changes
             .iter()
-            .any(|change| change_may_affect_query_plan(plan, input, change, None)),
+            .map(|change| query_plan_change_outcome(plan, input, change, None))
+            .max_by_key(|outcome| match outcome {
+                LiveMatchOutcome::Skip => 0,
+                LiveMatchOutcome::Match => 1,
+                LiveMatchOutcome::ConservativeFallback => 2,
+            })
+            .unwrap_or(LiveMatchOutcome::Skip),
         FunctionRuntime::IbexModule(_) => {
             let tables = &definition.read_set_summary.tables;
             let relevant = changes
@@ -151,7 +181,7 @@ pub(crate) fn live_subscription_may_be_affected(
                 .filter(|change| tables.is_empty() || tables.contains(&change.table))
                 .collect::<Vec<_>>();
             if relevant.is_empty() {
-                return false;
+                return LiveMatchOutcome::Skip;
             }
             if definition.read_set_summary.auth_scope_field.as_deref() == Some("userId")
                 && let Some(user_id) = input.auth.user_id.as_deref()
@@ -163,30 +193,36 @@ pub(crate) fn live_subscription_may_be_affected(
                     )
                 })
             {
-                return false;
+                return LiveMatchOutcome::Skip;
             }
-            true
+            LiveMatchOutcome::ConservativeFallback
         }
         // @ref LLP 0080#4-live-and-retained-capability — v1 invalidation is
         //   deliberately table-granular: a commit touching either declared
         //   source causes an authoritative resnapshot; no proved-disjoint
         //   skip path is claimed for relational plans.
-        FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => changes
-            .iter()
-            .any(|change| change.table == plan.root || change.table == plan.joined),
-        FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)) => changes
-            .iter()
-            .any(|change| change.table == plan.parent_table || change.table == plan.child_table),
+        FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => bool_outcome(
+            changes
+                .iter()
+                .any(|change| change.table == plan.root || change.table == plan.joined),
+        ),
+        FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)) => {
+            bool_outcome(changes.iter().any(|change| {
+                change.table == plan.parent_table || change.table == plan.child_table
+            }))
+        }
         // Unreachable while the static snapshot-batch carrier remains
         // support-false and whole-manifest admission refuses. Keep the
         // matcher conservative rather than accidentally claiming §2.5's
         // future live dependency implementation in this checkpoint.
-        FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(_)) => true,
+        FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(_)) => {
+            LiveMatchOutcome::ConservativeFallback
+        }
         // V2 keeps fixed table-granular whole-batch replacement over the
         // union of both owner dependency sets. A relevant change resnapshots
         // the complete tuple; an unrelated table does not wake it.
         FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)) => {
-            changes.iter().any(|change| {
+            bool_outcome(changes.iter().any(|change| {
                 plan.nodes.iter().any(|node| match node {
                     crate::manifest::SnapshotBatchNodeV2::BoundedChildren(node) => {
                         change.table == node.parent_table || change.table == node.child_table
@@ -195,26 +231,40 @@ pub(crate) fn live_subscription_may_be_affected(
                         change.table == node.root || change.table == node.joined
                     }
                 })
-            })
+            }))
         }
         FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(plan)) => {
-            changes.iter().any(|change| change.table == plan.table)
+            bool_outcome(changes.iter().any(|change| change.table == plan.table))
         }
         // VectorQuery cannot be declared live in v1. Keep a conservative
         // fallback for forged/in-memory values without claiming a matcher.
-        FunctionRuntime::HostPlan(HandlerPlan::VectorQuery(_)) => true,
+        FunctionRuntime::HostPlan(HandlerPlan::VectorQuery(_)) => {
+            LiveMatchOutcome::ConservativeFallback
+        }
         // Table-granular fallback for the declared job-status query: any job
         // lifecycle transition resnapshots it. The captured Row/MissingRow
         // dependency above already gives the per-job precise wake/skip.
-        FunctionRuntime::HostPlan(HandlerPlan::JobStatusQuery(_)) => changes
-            .iter()
-            .any(|change| change.table == crate::jobs::JOBS_STATUS_TABLE),
+        FunctionRuntime::HostPlan(HandlerPlan::JobStatusQuery(_)) => bool_outcome(
+            changes
+                .iter()
+                .any(|change| change.table == crate::jobs::JOBS_STATUS_TABLE),
+        ),
         // Push-ledger reads are query-only in v1, so this arm is exhaustive
         // defense rather than a live-subscription claim.
-        FunctionRuntime::HostPlan(HandlerPlan::PushLedgerQuery(_)) => false,
+        FunctionRuntime::HostPlan(HandlerPlan::PushLedgerQuery(_)) => LiveMatchOutcome::Skip,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(_))
         | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(_))
-        | FunctionRuntime::HostPlan(HandlerPlan::Action(_)) => true,
+        | FunctionRuntime::HostPlan(HandlerPlan::Action(_)) => {
+            LiveMatchOutcome::ConservativeFallback
+        }
+    }
+}
+
+fn bool_outcome(value: bool) -> LiveMatchOutcome {
+    if value {
+        LiveMatchOutcome::Match
+    } else {
+        LiveMatchOutcome::Skip
     }
 }
 
@@ -222,7 +272,7 @@ fn live_subscription_may_be_affected_by_dependencies(
     input: &HandlerInput,
     read_dependencies: &[CapturedReadDependency],
     changes: &[ChangedRow],
-) -> Option<bool> {
+) -> Option<LiveMatchOutcome> {
     // Point reads participate in the disjointness proof alongside query
     // predicates: an Ibex handler that does `ctx.db.get` and folds the row
     // into its result captures a `Row`/`MissingRow` dependency the query
@@ -240,13 +290,13 @@ fn live_subscription_may_be_affected_by_dependencies(
                 let (Some(table), Some(id)) =
                     (dependency.table.as_deref(), dependency.id.as_deref())
                 else {
-                    return Some(true);
+                    return Some(LiveMatchOutcome::ConservativeFallback);
                 };
                 if changes
                     .iter()
                     .any(|change| change.table == table && change.id == id)
                 {
-                    return Some(true);
+                    return Some(LiveMatchOutcome::Match);
                 }
             }
             CapturedReadKind::Query => saw_query_dependency = true,
@@ -265,22 +315,55 @@ fn live_subscription_may_be_affected_by_dependencies(
         .filter(|dependency| dependency.kind == CapturedReadKind::Query)
     {
         let Some(table) = dependency.table.as_deref() else {
-            return Some(true);
+            return Some(LiveMatchOutcome::ConservativeFallback);
         };
         let Some(predicate) = dependency.predicate.as_ref() else {
-            return Some(true);
+            return Some(LiveMatchOutcome::ConservativeFallback);
         };
         let Ok(plan) = serde_json::from_value::<QueryPlan>(predicate.clone()) else {
-            return Some(true);
+            return Some(LiveMatchOutcome::ConservativeFallback);
         };
         for change in changes.iter().filter(|change| change.table == table) {
-            if change_may_affect_query_plan(&plan, input, change, Some(dependency)) {
-                return Some(true);
+            let outcome = query_plan_change_outcome(&plan, input, change, Some(dependency));
+            if outcome != LiveMatchOutcome::Skip {
+                return Some(outcome);
             }
         }
     }
 
-    Some(false)
+    Some(LiveMatchOutcome::Skip)
+}
+
+fn query_plan_change_outcome(
+    plan: &QueryPlan,
+    input: &HandlerInput,
+    change: &ChangedRow,
+    dependency: Option<&CapturedReadDependency>,
+) -> LiveMatchOutcome {
+    if change.table != plan.table {
+        return LiveMatchOutcome::Skip;
+    }
+    let Some(row) = change.row.as_ref() else {
+        return LiveMatchOutcome::ConservativeFallback;
+    };
+    match row_matches_query_filters(plan, input, row) {
+        None => LiveMatchOutcome::ConservativeFallback,
+        Some(true) => {
+            if plan.order.is_empty() {
+                LiveMatchOutcome::Match
+            } else {
+                match matching_limited_row_may_affect_query(plan, dependency, change, row) {
+                    Some(true) => LiveMatchOutcome::Match,
+                    Some(false) => LiveMatchOutcome::Skip,
+                    None => LiveMatchOutcome::ConservativeFallback,
+                }
+            }
+        }
+        Some(false) if update_may_have_changed_query_membership(plan, change) => {
+            LiveMatchOutcome::ConservativeFallback
+        }
+        Some(false) => LiveMatchOutcome::Skip,
+    }
 }
 
 /// Whether a committed change may affect the query described by a captured

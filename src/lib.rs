@@ -155,6 +155,7 @@ pub mod service_profile;
 pub(crate) mod snapshot_batch_cursor;
 #[doc(hidden)]
 pub mod snapshot_batch_cursor_v2;
+pub(crate) mod spike_trace;
 #[doc(hidden)]
 pub mod storage;
 #[doc(hidden)]

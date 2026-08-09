@@ -222,10 +222,11 @@ impl LiveFanoutCoalescer {
     }
 }
 
-/// Cumulative coalescing counters, reported beside `LiveDeliveryStats` (kept
-/// out of the serialized inspect surface for now — exposing them there means
-/// regenerating the drift-gated inspect schemas, a deliberate follow-up).
-#[derive(Clone, Debug, Default, PartialEq)]
+/// Cumulative coalescing counters reported on the serialized inspect surface.
+#[derive(
+    Clone, Debug, Default, serde::Deserialize, PartialEq, serde::Serialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "camelCase")]
 pub struct LiveCoalesceStats {
     /// Commit frames whose data fan-out was deferred into the pending frame.
     pub deferred_commits: u64,

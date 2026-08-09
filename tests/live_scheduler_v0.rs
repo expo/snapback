@@ -108,6 +108,33 @@ async fn settlement_and_refusal_are_isolated_from_fanout_backlog() {
     let settle_elapsed = settle_started.elapsed();
     assert_eq!(second.status(), StatusCode::OK);
     assert_one_turn_not_full_fanout("applied mutation", settle_elapsed, one_turn);
+    // §2.1 settlement decomposition: writing the mutation response body is
+    // the settlement milestone, and it records the commit-ack→settlement gap
+    // on the permanent counter (LLP 0200 §3).
+    let second_body = to_bytes(second.into_body(), usize::MAX)
+        .await
+        .expect("second mutation body");
+    assert!(!second_body.is_empty());
+    {
+        let inspect_shared = shared.clone();
+        let stats = tokio::task::spawn_blocking(move || {
+            let _sanction = snapback::exec_guard::BlockingSanction::acquire();
+            inspect_shared
+                .blocking_lock()
+                .inspect()
+                .expect("inspect state")
+                .live_settlement
+        })
+        .await
+        .expect("inspect offload");
+        assert!(
+            stats.last_commit_ack_to_settlement_ms > 0.0,
+            "an applied mutation records its commit-ack→settlement gap"
+        );
+        assert!(
+            stats.cumulative_commit_ack_to_settlement_ms >= stats.last_commit_ack_to_settlement_ms
+        );
+    }
 
     // This query uses the file-backed WAL read lane. It does not need the
     // scheduler's Local lock and therefore proves durability immediately.

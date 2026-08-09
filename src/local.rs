@@ -38,8 +38,8 @@ use crate::ephemeral::{
     validate_collection_permission_backing,
 };
 use crate::live_matcher::{
-    LiveDeltaKind, LiveDeltaOutcome, compute_live_delta, live_subscription_may_be_affected,
-    query_dependencies_from_plan,
+    LiveDeltaKind, LiveDeltaOutcome, LiveMatchOutcome, compute_live_delta,
+    live_subscription_match_outcome, query_dependencies_from_plan,
 };
 use crate::live_wire::{
     AuthorizationInvalidationSnapshot, LiveDeltaOpKind, LiveDeltaWireOp, LiveEnvelope,
@@ -359,6 +359,18 @@ pub struct InspectState {
     pub reaped_connections: u64,
     #[serde(rename = "liveDelivery")]
     pub live_delivery: LiveDeliveryStats,
+    #[serde(rename = "liveMatcher")]
+    pub live_matcher: LiveMatcherDecisionStats,
+    #[serde(rename = "liveEvaluation")]
+    pub live_evaluation: LiveEvaluationStats,
+    #[serde(rename = "liveCoalesce")]
+    pub live_coalesce: crate::live_coalesce::LiveCoalesceStats,
+    #[serde(rename = "liveSettlement")]
+    pub live_settlement: LiveSettlementStats,
+    #[serde(rename = "liveAuthority")]
+    pub live_authority: LiveAuthorityLaneStats,
+    #[serde(rename = "liveWatermarks")]
+    pub live_watermarks: LiveWatermarkStats,
     pub ephemeral: EphemeralDiagnostics,
     pub cron: CronInspectState,
     pub maintenance: MaintenanceDiagnostics,
@@ -437,6 +449,18 @@ pub struct PublicInspect {
     pub reaped_connections: u64,
     #[serde(rename = "liveDelivery")]
     pub live_delivery: LiveDeliveryStats,
+    #[serde(rename = "liveMatcher")]
+    pub live_matcher: LiveMatcherDecisionStats,
+    #[serde(rename = "liveEvaluation")]
+    pub live_evaluation: LiveEvaluationStats,
+    #[serde(rename = "liveCoalesce")]
+    pub live_coalesce: crate::live_coalesce::LiveCoalesceStats,
+    #[serde(rename = "liveSettlement")]
+    pub live_settlement: LiveSettlementStats,
+    #[serde(rename = "liveAuthority")]
+    pub live_authority: LiveAuthorityLaneStats,
+    #[serde(rename = "liveWatermarks")]
+    pub live_watermarks: LiveWatermarkStats,
     pub ephemeral: PublicEphemeralDiagnostics,
     pub cron: PublicCronInspectState,
     pub maintenance: MaintenanceDiagnostics,
@@ -680,6 +704,12 @@ impl From<InspectState> for PublicInspect {
             active_connections,
             reaped_connections,
             live_delivery,
+            live_matcher,
+            live_evaluation,
+            live_coalesce,
+            live_settlement,
+            live_authority,
+            live_watermarks,
             ephemeral,
             cron,
             maintenance,
@@ -718,6 +748,12 @@ impl From<InspectState> for PublicInspect {
             active_connections,
             reaped_connections,
             live_delivery,
+            live_matcher,
+            live_evaluation,
+            live_coalesce,
+            live_settlement,
+            live_authority,
+            live_watermarks,
             ephemeral: ephemeral.into(),
             cron: cron.into(),
             maintenance,
@@ -1457,7 +1493,23 @@ struct PendingLiveFanout {
     frames: u64,
     coverage_through: u64,
     first_deferred_at: Instant,
+    /// Populated only while the optional spike trace is enabled, so the
+    /// production-disabled path performs no per-commit allocation.
+    trace_commit_versions: Vec<u64>,
+    trace_queued_ms: Option<f64>,
     generation: u64,
+}
+
+struct CurrentLiveEvaluation {
+    subscription_id: String,
+    connection_id: String,
+    commit_versions: Vec<u64>,
+    queued_ms: Option<f64>,
+    started_ms: Option<f64>,
+    started_at: Instant,
+    delivered_frames: u64,
+    delivered_bytes: u64,
+    wire_kind: Option<&'static str>,
 }
 
 #[derive(Default)]
@@ -1567,6 +1619,57 @@ pub struct LiveDeliveryStats {
     /// with rollout step 1). Cumulative runtime-epoch counters.
     #[serde(default)]
     pub resume: RqsResumeStats,
+}
+
+/// Permanent matcher-decision ledger. Every subscription disposition is
+/// classified once into one of these four OQ4-compatible lanes.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LiveMatcherDecisionStats {
+    pub match_replace: u64,
+    pub match_delta: u64,
+    pub skip: u64,
+    pub conservative_fallback: u64,
+}
+
+/// Scheduler evaluation lifecycle and wire-output accounting.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LiveEvaluationStats {
+    pub evaluations_started: u64,
+    pub evaluations_finished: u64,
+    pub evaluations_abandoned: u64,
+    pub cumulative_duration_ms: f64,
+    pub last_turn_duration_ms: f64,
+    pub delivered_frames_by_wire_kind: BTreeMap<String, u64>,
+    pub delivered_bytes: u64,
+}
+
+/// Commit-ack to caller-settlement decomposition for applied mutations.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LiveSettlementStats {
+    pub last_commit_ack_to_settlement_ms: f64,
+    pub cumulative_commit_ack_to_settlement_ms: f64,
+}
+
+/// Fail-closed authority-lane work and final-publication gate outcomes.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LiveAuthorityLaneStats {
+    pub fences_applied: u64,
+    pub last_fence_marking_latency_ms: f64,
+    pub max_fence_marking_latency_ms: f64,
+    pub restorations_completed: u64,
+    pub stale_authority_frames_discarded: u64,
+}
+
+/// Standalone convergence-envelope production and latest-value collapse.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LiveWatermarkStats {
+    pub envelopes_emitted: u64,
+    pub envelopes_coalesced: u64,
 }
 
 /// Resume attempted/admitted/refused (by per-cause `SNAPBACK_RESUME_*` code),
@@ -3198,6 +3301,19 @@ pub struct LocalSnapback {
     pending_local_live_effects: BTreeMap<String, PendingLocalLiveEffectRegistration>,
     permission_epochs: BTreeMap<String, u64>,
     live_delivery: LiveDeliveryStats,
+    live_matcher_stats: LiveMatcherDecisionStats,
+    live_evaluation_stats: LiveEvaluationStats,
+    // @ref LLP 0200#21-settlement-is-decoupled-from-subscriber-work — the
+    // settlement milestone is observed at the HTTP boundary after the Local
+    // lock is released, so the cell is shared instead of lock-guarded here.
+    live_settlement_stats: Arc<std::sync::Mutex<LiveSettlementStats>>,
+    // Commit-ack instant of the mutation currently finishing its write turn.
+    // Set by `finish_mutation_commit` and taken by the serving mutation path
+    // inside the same Local critical section, so it never pairs across
+    // concurrent mutations.
+    last_commit_ack_at: Option<Instant>,
+    live_authority_stats: LiveAuthorityLaneStats,
+    live_watermark_stats: LiveWatermarkStats,
     // @ref LLP 0008#dated-decision--post-commit-fan-out-coalescing-2026-08-08 —
     // installed by the serving process together with its backstop flusher
     // task; when absent (unit tests, embedders that opt out) every commit
@@ -3206,6 +3322,7 @@ pub struct LocalSnapback {
     pending_live_fanout: PendingLiveScheduler,
     live_evaluation_timeout_streaks: BTreeMap<String, u8>,
     live_coalesce_stats: crate::live_coalesce::LiveCoalesceStats,
+    current_live_evaluation: Option<CurrentLiveEvaluation>,
     recent_diagnostics: VecDeque<Diagnostic>,
     cron_tick_errors: u64,
     asset_runner_errors: u64,
@@ -7535,6 +7652,16 @@ impl LocalSnapback {
             active_connections: self.connections_last_seen.len(),
             reaped_connections: self.reaped_connections,
             live_delivery: self.live_delivery.clone(),
+            live_matcher: self.live_matcher_stats.clone(),
+            live_evaluation: self.live_evaluation_stats.clone(),
+            live_coalesce: self.live_coalesce_stats.clone(),
+            live_settlement: self
+                .live_settlement_stats
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .clone(),
+            live_authority: self.live_authority_stats.clone(),
+            live_watermarks: self.live_watermark_stats.clone(),
             ephemeral: EphemeralDiagnostics::default(),
             cron,
             maintenance: self.maintenance.clone(),
@@ -14081,6 +14208,10 @@ impl LocalSnapback {
             }
             StagedRecordedMutation::Ready(staged) => staged,
         };
+        // A stale stamp from an earlier non-serving commit must never pair
+        // with this invocation's settlement: only a commit-ack stamped by
+        // THIS turn's `finish_mutation_commit` may survive to the taker.
+        self.last_commit_ack_at = None;
         let StagedRecordedMutationCommit {
             name,
             transport,
@@ -14095,6 +14226,11 @@ impl LocalSnapback {
             execution,
             observation,
         } = *staged;
+        let trace_identity = crate::spike_trace::MutationTraceIdentity::capture(
+            &input,
+            identity.as_ref(),
+            Some(&receipt_mutation_id),
+        );
         let admission = prepared.admission_lease().clone();
         if let Err(mut error) = self.ensure_permission_epoch_capacity(&epoch_scopes) {
             observation.finish_error(Some(500), &mut error, None);
@@ -14160,7 +14296,9 @@ impl LocalSnapback {
                 }
             }
         }
-        .and_then(|commit| self.finish_mutation_commit(epoch_scopes, commit, &admission));
+        .and_then(|commit| {
+            self.finish_mutation_commit(&name, &trace_identity, epoch_scopes, commit, &admission)
+        });
         let network_egress = result
             .as_ref()
             .map(|commit| commit.network_egress.clone())
@@ -14513,6 +14651,8 @@ impl LocalSnapback {
             identity.as_ref().map(|identity| identity.id.as_str()),
             client_mutation_digest.as_deref(),
         );
+        let trace_identity =
+            crate::spike_trace::MutationTraceIdentity::capture(&input, identity.as_ref(), None);
         // Legacy function-declared permission-epoch scopes are evaluated
         // BEFORE the mutation executes. This compatibility resync map is not
         // LLP 0053's durable global AuthorizationVersion, which advances in
@@ -14657,7 +14797,7 @@ impl LocalSnapback {
                 }
             };
 
-            self.finish_mutation_commit(epoch_scopes, commit, &admission)
+            self.finish_mutation_commit(name, &trace_identity, epoch_scopes, commit, &admission)
         })();
         finish_function_observation(span, &mut result);
         result
@@ -14706,6 +14846,8 @@ impl LocalSnapback {
             }
         };
         let correlation = telemetry_correlation(&input.correlation);
+        let trace_identity =
+            crate::spike_trace::MutationTraceIdentity::capture(&input, identity, None);
         let span = self.telemetry.start_classified_span(
             crate::telemetry_contract::OperationClassIdV1::FUNCTION_MUTATION,
             name,
@@ -14727,14 +14869,35 @@ impl LocalSnapback {
                         Ok((admission_guard, caller_guard))
                     },
                 )?;
-                self.finish_mutation_commit(epoch_scopes, commit, prepared.admission_lease())
+                self.finish_mutation_commit(
+                    name,
+                    &trace_identity,
+                    epoch_scopes,
+                    commit,
+                    prepared.admission_lease(),
+                )
             });
         finish_function_observation(span, &mut result);
         result
     }
 
+    /// Take the commit-ack instant stamped by the mutation commit that just
+    /// finished under this same Local critical section. §2.1's settlement
+    /// milestone is measured against this instant at the HTTP boundary.
+    pub(crate) fn take_last_commit_ack_at(&mut self) -> Option<Instant> {
+        self.last_commit_ack_at.take()
+    }
+
+    /// Shared handle to the commit-ack→settlement counters; the serving
+    /// mutation path records into it after the response leaves the Local lock.
+    pub(crate) fn live_settlement_stats_cell(&self) -> Arc<std::sync::Mutex<LiveSettlementStats>> {
+        Arc::clone(&self.live_settlement_stats)
+    }
+
     fn finish_mutation_commit(
         &mut self,
+        mutation: &str,
+        trace_identity: &crate::spike_trace::MutationTraceIdentity,
         epoch_scopes: BTreeSet<String>,
         mut commit: MutationCommit,
         admission: &AdmissionLease,
@@ -14745,6 +14908,11 @@ impl LocalSnapback {
         //
         // @ref LLP 0167#observation-semantics--what-a-delay-means — ack and
         //   deltas from a real commit share one commit-relative jitter sample.
+        let commit_durable_ms = crate::spike_trace::timestamp_ms();
+        // @ref LLP 0200#21-settlement-is-decoupled-from-subscriber-work —
+        // commit-ack is milestone 1; the serving mutation path takes this
+        // stamp inside the same Local turn to measure the settlement gap.
+        self.last_commit_ack_at = Some(Instant::now());
         let has_observable_effect = !commit.changes.is_empty()
             || !commit.job_changes.is_empty()
             || !commit.job_enqueues.is_empty()
@@ -14777,6 +14945,13 @@ impl LocalSnapback {
             }
         });
         let frame_version = commit.output.version;
+        crate::spike_trace::commit(
+            commit_durable_ms,
+            mutation,
+            frame_version,
+            commit.changes.len() + commit.job_changes.len(),
+            trace_identity,
+        );
         // This is internal invalidation truth derived from the already-durable
         // commit, not an app-visible publication. Capacity was proved before
         // execution, so it must advance even if the caller's admission lease
@@ -14891,6 +15066,8 @@ impl LocalSnapback {
         self.persist_and_validate_prepared_service_authority(binding.invocation.authority())?;
         check_live()?;
         let input = binding.invocation.canonicalize_input(input);
+        let trace_identity =
+            crate::spike_trace::MutationTraceIdentity::capture(&input, identity.as_ref(), None);
         let function = self.function(name)?.clone();
         if function != binding.function
             || self.db.schema() != &binding.schema
@@ -14944,7 +15121,13 @@ impl LocalSnapback {
             },
         )?;
         Ok(self
-            .finish_mutation_commit(binding.epoch_scopes, commit, &admission)?
+            .finish_mutation_commit(
+                name,
+                &trace_identity,
+                binding.epoch_scopes,
+                commit,
+                &admission,
+            )?
             .output)
     }
 
@@ -16947,6 +17130,8 @@ impl LocalSnapback {
             })));
         }
 
+        let eval_queue_ms = crate::spike_trace::timestamp_ms();
+        let eval_start_ms = crate::spike_trace::timestamp_ms();
         let query = if let Some(query) = pinned_bundle_invocation {
             query
         } else if reserved_live {
@@ -16995,6 +17180,7 @@ impl LocalSnapback {
             finish_function_observation(span, &mut result);
             result?
         };
+        let eval_finish_ms = crate::spike_trace::timestamp_ms();
         let permission_epochs = permission_epochs_from_dependencies(&query.read_dependencies);
 
         // Server-held RQS digest state for eligible subscriptions, the fresh
@@ -17161,6 +17347,38 @@ impl LocalSnapback {
         // subscription ids are unguessable bearer capabilities, not enumerable
         // counters; they share the runtime's UUIDv7 id source.
         let subscription_id = crate::ids::mint_time_ordered(crate::ids::Kind::Subscription);
+        if crate::spike_trace::enabled() {
+            let (initial_frame_kind, initial_frame_bytes) = if answer_current_as_of {
+                ("current_as_of", 0)
+            } else if let Some(ops) = answer_delta.as_ref() {
+                (
+                    "live_delta",
+                    serde_json::to_vec(ops)
+                        .map(|payload| payload.len())
+                        .unwrap_or(0),
+                )
+            } else {
+                (
+                    "snapshot",
+                    serde_json::to_vec(&query.output.rows)
+                        .map(|payload| payload.len())
+                        .unwrap_or(0),
+                )
+            };
+            crate::spike_trace::eval(
+                &subscription_id,
+                &input.connection_id,
+                &[],
+                eval_queue_ms,
+                eval_start_ms,
+                eval_finish_ms,
+                initial_frame_bytes,
+                Some(initial_frame_kind),
+                head_version,
+                "finish",
+                None,
+            );
+        }
         let _publication = publication_authority.effect_guard("live subscribe publication")?;
         self.touch_connection(&input.connection_id, now_millis());
         let mut authorization_scope = None;
@@ -17381,9 +17599,9 @@ impl LocalSnapback {
                 ),
             };
             if let Ok(payload) = serde_json::to_vec(&envelope)
-                && let Some(subscription) = self.subscriptions.get(&subscription_id)
+                && let Some(subscription) = self.subscriptions.get(&subscription_id).cloned()
             {
-                self.enqueue_subscription_durable(subscription, payload);
+                self.enqueue_subscription_durable(&subscription, payload);
             }
         } else if let Some(ops) = answer_delta.take() {
             // Rung-2 answer (LLP 0090 D1.3): the exact replay frame — with
@@ -17415,9 +17633,9 @@ impl LocalSnapback {
                 ),
             };
             if let Ok(payload) = serde_json::to_vec(&envelope)
-                && let Some(subscription) = self.subscriptions.get(&subscription_id)
+                && let Some(subscription) = self.subscriptions.get(&subscription_id).cloned()
             {
-                self.enqueue_subscription_durable(subscription, payload);
+                self.enqueue_subscription_durable(&subscription, payload);
             }
         }
 
@@ -20657,52 +20875,101 @@ impl LocalSnapback {
     }
 
     fn prepare_scheduler_live_delivery_enqueue(
-        &self,
+        &mut self,
         subscription: &LiveSubscription,
         payload: &[u8],
     ) {
-        if self.live_coalescer.is_none() {
-            return;
-        }
         let Ok(envelope) = serde_json::from_slice::<LiveEnvelope>(payload) else {
             return;
         };
-        let position = match envelope {
+        let (wire_kind, position) = match &envelope {
             LiveEnvelope::LiveReplace {
                 subscription_id,
                 version,
                 ..
-            }
-            | LiveEnvelope::LiveDelta {
+            } => ("live_replace", Some((subscription_id.as_str(), *version))),
+            LiveEnvelope::LiveDelta {
                 subscription_id,
                 version,
                 ..
-            }
-            | LiveEnvelope::CurrentAsOf {
+            } => ("live_delta", Some((subscription_id.as_str(), *version))),
+            LiveEnvelope::CurrentAsOf {
                 subscription_id,
                 version,
                 ..
-            } => Some((subscription_id, version)),
+            } => ("current_as_of", Some((subscription_id.as_str(), *version))),
             LiveEnvelope::AuthorizationInvalidation {
                 snapshot: Some(snapshot),
                 ..
-            } => Some((snapshot.subscription_id, snapshot.version)),
-            LiveEnvelope::AuthorizationInvalidation { snapshot: None, .. }
-            | LiveEnvelope::ResyncRequired { .. } => None,
+            } => (
+                "authorization_invalidation",
+                Some((snapshot.subscription_id.as_str(), snapshot.version)),
+            ),
+            LiveEnvelope::AuthorizationInvalidation { snapshot: None, .. } => {
+                ("authorization_invalidation", None)
+            }
+            LiveEnvelope::ResyncRequired { .. } => ("resync_required", None),
         };
+        *self
+            .live_evaluation_stats
+            .delivered_frames_by_wire_kind
+            .entry(wire_kind.to_owned())
+            .or_default() += 1;
+        self.live_evaluation_stats.delivered_bytes = self
+            .live_evaluation_stats
+            .delivered_bytes
+            .saturating_add(payload.len() as u64);
+        if let Some(evaluation) = self.current_live_evaluation.as_mut() {
+            evaluation.delivered_frames = evaluation.delivered_frames.saturating_add(1);
+            evaluation.delivered_bytes = evaluation
+                .delivered_bytes
+                .saturating_add(payload.len() as u64);
+            evaluation.wire_kind = Some(wire_kind);
+        }
+        if wire_kind == "current_as_of" {
+            self.live_watermark_stats.envelopes_emitted = self
+                .live_watermark_stats
+                .envelopes_emitted
+                .saturating_add(1);
+            if let Some((subscription_id, version)) = position {
+                crate::spike_trace::watermark(
+                    subscription_id,
+                    &subscription.connection_id,
+                    version,
+                    "emitted",
+                    0,
+                );
+            }
+        }
+        if self.live_coalescer.is_none() {
+            return;
+        }
         let Some((subscription_id, version)) = position else {
             return;
         };
         debug_assert_eq!(subscription_id, subscription.id);
-        self.ephemeral.supersede_pending_live_watermarks(
+        let coalesced = self.ephemeral.supersede_pending_live_watermarks(
             &subscription.connection_id,
-            &subscription_id,
+            subscription_id,
             version,
         );
+        if coalesced > 0 {
+            self.live_watermark_stats.envelopes_coalesced = self
+                .live_watermark_stats
+                .envelopes_coalesced
+                .saturating_add(coalesced);
+            crate::spike_trace::watermark(
+                subscription_id,
+                &subscription.connection_id,
+                version,
+                "coalesced",
+                coalesced,
+            );
+        }
     }
 
     fn enqueue_subscription_durable(
-        &self,
+        &mut self,
         subscription: &LiveSubscription,
         payload: Vec<u8>,
     ) -> crate::ephemeral::DurableEnqueueOutcome {
@@ -20729,7 +20996,7 @@ impl LocalSnapback {
     }
 
     fn enqueue_subscription_authorized_durable(
-        &self,
+        &mut self,
         subscription: &LiveSubscription,
         payload: Vec<u8>,
         authorization: crate::storage::AuthorizationVersion,
@@ -20763,13 +21030,22 @@ impl LocalSnapback {
     }
 
     fn authorize_live_delivery(
-        &self,
+        &mut self,
         subscription: &LiveSubscription,
         resolved: &crate::storage::AuthorizationVersion,
     ) -> bool {
-        self.live_coalescer
+        let authorized = self
+            .live_coalescer
             .as_ref()
-            .is_none_or(|coalescer| coalescer.authorize_delivery(&subscription.id, resolved))
+            .is_none_or(|coalescer| coalescer.authorize_delivery(&subscription.id, resolved));
+        if !authorized {
+            self.live_authority_stats.stale_authority_frames_discarded = self
+                .live_authority_stats
+                .stale_authority_frames_discarded
+                .saturating_add(1);
+            crate::spike_trace::fence(&subscription.id, "stale_discard", resolved, None);
+        }
+        authorized
     }
 
     /// Admit one real commit once, then let every frame it produces clone the
@@ -21303,10 +21579,17 @@ impl LocalSnapback {
             pending_local_live_effects: BTreeMap::new(),
             permission_epochs: BTreeMap::new(),
             live_delivery: LiveDeliveryStats::default(),
+            live_matcher_stats: LiveMatcherDecisionStats::default(),
+            live_evaluation_stats: LiveEvaluationStats::default(),
+            live_settlement_stats: Arc::new(std::sync::Mutex::new(LiveSettlementStats::default())),
+            last_commit_ack_at: None,
+            live_authority_stats: LiveAuthorityLaneStats::default(),
+            live_watermark_stats: LiveWatermarkStats::default(),
             live_coalescer: None,
             pending_live_fanout: PendingLiveScheduler::default(),
             live_evaluation_timeout_streaks: BTreeMap::new(),
             live_coalesce_stats: crate::live_coalesce::LiveCoalesceStats::default(),
+            current_live_evaluation: None,
             recent_diagnostics,
             cron_tick_errors: 0,
             asset_runner_errors: 0,
@@ -22900,6 +23183,7 @@ impl LocalSnapback {
         };
         let subscription_ids = self.subscriptions.keys().cloned().collect::<Vec<_>>();
         let is_refresh = changes.is_empty();
+        let trace_queued_ms = crate::spike_trace::timestamp_ms();
         let mut enqueued = false;
         for subscription_id in subscription_ids {
             if already_resynced.contains(&subscription_id) {
@@ -22929,6 +23213,10 @@ impl LocalSnapback {
                         frames: 1,
                         coverage_through: frame_version,
                         first_deferred_at: Instant::now(),
+                        trace_commit_versions: trace_queued_ms
+                            .map(|_| vec![frame_version])
+                            .unwrap_or_default(),
+                        trace_queued_ms,
                         generation: 0,
                     },
                 );
@@ -22941,11 +23229,21 @@ impl LocalSnapback {
                 pending.changes.extend_from_slice(changes);
                 pending.frames = pending.frames.saturating_add(1);
                 pending.coverage_through = frame_version;
+                if trace_queued_ms.is_some() {
+                    pending.trace_commit_versions.push(frame_version);
+                }
                 if pending.frames >= coalescer.tunables().max_frames
                     || pending.changes.len() >= coalescer.tunables().max_changes
                     || pending.first_deferred_at.elapsed() >= coalescer.tunables().max_hold
                 {
                     let first_deferred_at = pending.first_deferred_at;
+                    // The refresh counts as ONE unit of accepted work in the
+                    // coalescer diagnostics (the committed contract of
+                    // `last_flush_merged_frames`), but the measurement trace
+                    // keeps the absorbed commit versions so the A/B can
+                    // attribute the refresh evaluation to its real commits.
+                    let trace_commit_versions = std::mem::take(&mut pending.trace_commit_versions);
+                    let trace_queued_ms = pending.trace_queued_ms.or(trace_queued_ms);
                     self.pending_live_fanout.push(
                         subscription_id,
                         PendingLiveFanout {
@@ -22956,6 +23254,8 @@ impl LocalSnapback {
                             frames: 1,
                             coverage_through: frame_version,
                             first_deferred_at,
+                            trace_commit_versions,
+                            trace_queued_ms,
                             generation: 0,
                         },
                     );
@@ -22971,6 +23271,10 @@ impl LocalSnapback {
                         frames: 1,
                         coverage_through: frame_version,
                         first_deferred_at: Instant::now(),
+                        trace_commit_versions: trace_queued_ms
+                            .map(|_| vec![frame_version])
+                            .unwrap_or_default(),
+                        trace_queued_ms,
                         generation: 0,
                     },
                 );
@@ -22982,6 +23286,32 @@ impl LocalSnapback {
         }
         self.live_coalesce_stats.deferred_commits =
             self.live_coalesce_stats.deferred_commits.saturating_add(1);
+        if crate::spike_trace::enabled() {
+            // Per-subscription pending frames replaced the spike's single
+            // pending frame; the deepest entry is the comparable merge depth.
+            let merged_frames = self
+                .pending_live_fanout
+                .entries
+                .values()
+                .map(|pending| pending.frames)
+                .max()
+                .unwrap_or(0);
+            let changed_rows = self
+                .pending_live_fanout
+                .entries
+                .values()
+                .map(|pending| pending.changes.len())
+                .max()
+                .unwrap_or(0);
+            crate::spike_trace::coalesce(
+                "defer",
+                &[frame_version],
+                merged_frames,
+                changed_rows,
+                None,
+                &self.live_coalesce_stats,
+            );
+        }
         coalescer.request_flush();
     }
 
@@ -23017,6 +23347,10 @@ impl LocalSnapback {
                 frames: 1,
                 coverage_through: frame_version,
                 first_deferred_at: Instant::now(),
+                trace_commit_versions: crate::spike_trace::timestamp_ms()
+                    .map(|_| vec![frame_version])
+                    .unwrap_or_default(),
+                trace_queued_ms: crate::spike_trace::timestamp_ms(),
                 generation: 0,
             },
         );
@@ -23050,6 +23384,8 @@ impl LocalSnapback {
                 frames: 1,
                 coverage_through: min_commit_version,
                 first_deferred_at,
+                trace_commit_versions: Vec::new(),
+                trace_queued_ms: crate::spike_trace::timestamp_ms(),
                 generation: 0,
             },
         );
@@ -23070,9 +23406,33 @@ impl LocalSnapback {
         admission: &AdmissionLease,
     ) -> SnapbackResult<()> {
         if self.live_coalescer.is_some() {
+            if crate::spike_trace::enabled() {
+                let pending_frames = self
+                    .pending_live_fanout
+                    .entries
+                    .values()
+                    .map(|pending| pending.frames)
+                    .max()
+                    .unwrap_or(0);
+                let pending_changes = self
+                    .pending_live_fanout
+                    .entries
+                    .values()
+                    .map(|pending| pending.changes.len())
+                    .max()
+                    .unwrap_or(0);
+                crate::spike_trace::fanout_dispatch(
+                    &[frame_version],
+                    "defer",
+                    changes.len(),
+                    pending_frames,
+                    pending_changes,
+                );
+            }
             self.enqueue_live_data_fanout(changes, already_resynced, frame_version);
             return Ok(());
         }
+        crate::spike_trace::fanout_dispatch(&[frame_version], "inline", changes.len(), 0, 0);
         self.run_live_data_fanout_frame(changes, already_resynced, frame_version, admission)
     }
 
@@ -23139,6 +23499,26 @@ impl LocalSnapback {
                 return true;
             }
         };
+        let connection_id = self
+            .subscriptions
+            .get(subscription_id)
+            .map(|subscription| subscription.connection_id.clone())
+            .unwrap_or_default();
+        self.live_evaluation_stats.evaluations_started = self
+            .live_evaluation_stats
+            .evaluations_started
+            .saturating_add(1);
+        self.current_live_evaluation = Some(CurrentLiveEvaluation {
+            subscription_id: subscription_id.to_owned(),
+            connection_id,
+            commit_versions: pending.trace_commit_versions.clone(),
+            queued_ms: pending.trace_queued_ms,
+            started_ms: crate::spike_trace::timestamp_ms(),
+            started_at: Instant::now(),
+            delivered_frames: 0,
+            delivered_bytes: 0,
+            wire_kind: None,
+        });
 
         if pending.first_deferred_at.elapsed()
             >= self
@@ -23205,6 +23585,16 @@ impl LocalSnapback {
         };
         self.end_live_commit_egress();
 
+        let diagnostic_code = result
+            .as_ref()
+            .err()
+            .map(|error| error.diagnostic.code.clone());
+        self.finish_current_live_evaluation(
+            frame_version,
+            control.is_abandoned(),
+            diagnostic_code.as_deref(),
+        );
+
         if control.is_abandoned() {
             self.handle_live_evaluation_timeout(subscription_id, frame_version, &admission);
         } else {
@@ -23218,7 +23608,57 @@ impl LocalSnapback {
         self.live_coalesce_stats.backstop_flushes =
             self.live_coalesce_stats.backstop_flushes.saturating_add(1);
         self.live_coalesce_stats.last_flush_merged_frames = pending.frames;
+        crate::spike_trace::coalesce(
+            "flush",
+            &pending.trace_commit_versions,
+            pending.frames,
+            pending.changes.len(),
+            Some("backstop"),
+            &self.live_coalesce_stats,
+        );
         true
+    }
+
+    fn finish_current_live_evaluation(
+        &mut self,
+        frame_version: u64,
+        abandoned: bool,
+        diagnostic_code: Option<&str>,
+    ) {
+        let Some(evaluation) = self.current_live_evaluation.take() else {
+            return;
+        };
+        let duration_ms = evaluation.started_at.elapsed().as_secs_f64() * 1_000.0;
+        self.live_evaluation_stats.last_turn_duration_ms = duration_ms;
+        self.live_evaluation_stats.cumulative_duration_ms += duration_ms;
+        if abandoned {
+            self.live_evaluation_stats.evaluations_abandoned = self
+                .live_evaluation_stats
+                .evaluations_abandoned
+                .saturating_add(1);
+        } else {
+            self.live_evaluation_stats.evaluations_finished = self
+                .live_evaluation_stats
+                .evaluations_finished
+                .saturating_add(1);
+        }
+        crate::spike_trace::eval(
+            &evaluation.subscription_id,
+            &evaluation.connection_id,
+            &evaluation.commit_versions,
+            evaluation.queued_ms,
+            evaluation.started_ms,
+            crate::spike_trace::timestamp_ms(),
+            evaluation.delivered_bytes.min(usize::MAX as u64) as usize,
+            evaluation.wire_kind,
+            frame_version,
+            if abandoned || diagnostic_code.is_some() {
+                "cancel"
+            } else {
+                "finish"
+            },
+            diagnostic_code.or(abandoned.then_some("SNAPBACK_LIVE_EVALUATION_TIMEOUT")),
+        );
     }
 
     fn run_permission_resync_turn(
@@ -23284,6 +23724,7 @@ impl LocalSnapback {
                     "authority restoration requires invalidation state",
                 )
             })?;
+        let restored_authorization = floor.authorization.clone();
         let query = match self.invoke_authorization_resolution(&subscription, floor, admission) {
             Ok(query) => query,
             Err(failure) => {
@@ -23317,6 +23758,11 @@ impl LocalSnapback {
                 .for_event(membership_declarations, |counters| {
                     counters.resnapshots += 1
                 });
+            self.live_authority_stats.restorations_completed = self
+                .live_authority_stats
+                .restorations_completed
+                .saturating_add(1);
+            crate::spike_trace::fence(subscription_id, "restored", &restored_authorization, None);
         }
         Ok(())
     }
@@ -23357,6 +23803,8 @@ impl LocalSnapback {
                         frames: 1,
                         coverage_through: frame_version,
                         first_deferred_at: Instant::now(),
+                        trace_commit_versions: Vec::new(),
+                        trace_queued_ms: crate::spike_trace::timestamp_ms(),
                         generation: 0,
                     },
                 );
@@ -24250,8 +24698,27 @@ impl LocalSnapback {
             // fence every affected subscription before any fallible obligation
             // bookkeeping; projection failure may leave it quarantined but can
             // never leave predecessor-authority delivery enabled.
+            let marking_started = Instant::now();
             for subscription in &subscriptions {
                 coalescer.fence_authority(&subscription.id, authorization.version.clone());
+                crate::spike_trace::fence(
+                    &subscription.id,
+                    "applied",
+                    &authorization.version,
+                    Some(marking_started.elapsed().as_secs_f64() * 1_000.0),
+                );
+            }
+            // §2.4's fence bound covers the marking step (O(affected
+            // subscriptions), no evaluation): the whole transition's marking
+            // duration is the recorded latency sample.
+            let marking_ms = marking_started.elapsed().as_secs_f64() * 1_000.0;
+            self.live_authority_stats.fences_applied = self
+                .live_authority_stats
+                .fences_applied
+                .saturating_add(subscriptions.len() as u64);
+            self.live_authority_stats.last_fence_marking_latency_ms = marking_ms;
+            if marking_ms > self.live_authority_stats.max_fence_marking_latency_ms {
+                self.live_authority_stats.max_fence_marking_latency_ms = marking_ms;
             }
         }
 
@@ -24561,7 +25028,17 @@ impl LocalSnapback {
         let scheduler_watermarks = self.live_coalescer.is_some() && turn_control.is_some();
         let mut skipped = 0u64;
         let mut watermark_skips = Vec::new();
-        let mut affected: Vec<(LiveSubscription, Option<QueryPlan>)> = Vec::new();
+        let mut affected: Vec<(LiveSubscription, Option<QueryPlan>, LiveMatchOutcome)> = Vec::new();
+        let commit_versions = if crate::spike_trace::enabled() {
+            self.current_live_evaluation
+                .as_ref()
+                .map(|evaluation| evaluation.commit_versions.clone())
+                .filter(|versions| !versions.is_empty())
+                .unwrap_or_else(|| vec![frame_version])
+        } else {
+            Vec::new()
+        };
+        let mut matcher_stats = LiveMatcherDecisionStats::default();
         // Reserved asset-record projections re-run natively below. Every
         // non-empty frame includes them conservatively: the recompute is a
         // few point reads, and delivery is fingerprint-deduplicated inside
@@ -24575,27 +25052,74 @@ impl LocalSnapback {
                 continue;
             }
             if already_resynced.contains(&subscription.id) {
+                matcher_stats.skip = matcher_stats.skip.saturating_add(1);
+                crate::spike_trace::matcher_decision(
+                    &subscription.id,
+                    &subscription.connection_id,
+                    &commit_versions,
+                    "skip",
+                    None,
+                    "already_resynced",
+                );
                 continue;
             }
             if is_reserved_live_function(&subscription.function) {
+                matcher_stats.conservative_fallback =
+                    matcher_stats.conservative_fallback.saturating_add(1);
+                crate::spike_trace::matcher_decision(
+                    &subscription.id,
+                    &subscription.connection_id,
+                    &commit_versions,
+                    "conservative-fallback",
+                    Some("replace"),
+                    "reserved_projection",
+                );
                 asset_record_subscriptions.push(subscription.clone());
                 continue;
             }
             let Some(function) = self.functions.function(&subscription.function) else {
                 skipped += 1;
+                matcher_stats.skip = matcher_stats.skip.saturating_add(1);
+                crate::spike_trace::matcher_decision(
+                    &subscription.id,
+                    &subscription.connection_id,
+                    &commit_versions,
+                    "skip",
+                    None,
+                    "function_missing",
+                );
                 continue;
             };
             if self.subscription_has_stale_permission(subscription) {
                 skipped += 1;
+                matcher_stats.skip = matcher_stats.skip.saturating_add(1);
+                crate::spike_trace::matcher_decision(
+                    &subscription.id,
+                    &subscription.connection_id,
+                    &commit_versions,
+                    "skip",
+                    None,
+                    "stale_permission",
+                );
                 continue;
             }
-            if !live_subscription_may_be_affected(
+            let match_outcome = live_subscription_match_outcome(
                 function,
                 &subscription.input,
                 &subscription.read_dependencies,
                 changes,
-            ) {
+            );
+            if match_outcome == LiveMatchOutcome::Skip {
                 skipped += 1;
+                matcher_stats.skip = matcher_stats.skip.saturating_add(1);
+                crate::spike_trace::matcher_decision(
+                    &subscription.id,
+                    &subscription.connection_id,
+                    &commit_versions,
+                    "skip",
+                    None,
+                    "proved_disjoint",
+                );
                 if scheduler_watermarks {
                     watermark_skips.push(subscription.clone());
                 }
@@ -24646,8 +25170,43 @@ impl LocalSnapback {
                 }
                 _ => None,
             };
-            affected.push((subscription.clone(), delta_plan));
+            let (decision, lane) = if match_outcome == LiveMatchOutcome::ConservativeFallback {
+                matcher_stats.conservative_fallback =
+                    matcher_stats.conservative_fallback.saturating_add(1);
+                ("conservative-fallback", Some("replace"))
+            } else if delta_plan.is_some() {
+                matcher_stats.match_delta = matcher_stats.match_delta.saturating_add(1);
+                ("match-delta", Some("delta"))
+            } else {
+                matcher_stats.match_replace = matcher_stats.match_replace.saturating_add(1);
+                ("match-replace", Some("replace"))
+            };
+            crate::spike_trace::matcher_decision(
+                &subscription.id,
+                &subscription.connection_id,
+                &commit_versions,
+                decision,
+                lane,
+                "selected",
+            );
+            affected.push((subscription.clone(), delta_plan, match_outcome));
         }
+        self.live_matcher_stats.match_replace = self
+            .live_matcher_stats
+            .match_replace
+            .saturating_add(matcher_stats.match_replace);
+        self.live_matcher_stats.match_delta = self
+            .live_matcher_stats
+            .match_delta
+            .saturating_add(matcher_stats.match_delta);
+        self.live_matcher_stats.skip = self
+            .live_matcher_stats
+            .skip
+            .saturating_add(matcher_stats.skip);
+        self.live_matcher_stats.conservative_fallback = self
+            .live_matcher_stats
+            .conservative_fallback
+            .saturating_add(matcher_stats.conservative_fallback);
         self.live_delivery.total_skipped += skipped;
         self.live_delivery.last_skipped += skipped as usize;
 
@@ -24674,7 +25233,7 @@ impl LocalSnapback {
                 );
             }
         }
-        for (subscription, delta_plan) in affected {
+        for (subscription, delta_plan, _match_outcome) in affected {
             if let Err(error) =
                 self.prepare_live_rerun_authority(&subscription.authority, admission.clone())
             {
@@ -54053,6 +54612,615 @@ globalThis.__snapbackHandlers = {
         assert!(
             !coalescer.authority_is_stale(&subscribed.subscription_id),
             "an exact post-transition proof restores the server-side fence"
+        );
+        // §3's permanent authority-lane counters observe the same run: the
+        // transition marked one fence and the scheduler completed exactly one
+        // restoration, and both reach the serialized inspect surface.
+        assert_eq!(snapback.live_authority_stats.fences_applied, 1);
+        assert_eq!(snapback.live_authority_stats.restorations_completed, 1);
+        let inspect = snapback.inspect().expect("inspect state");
+        assert_eq!(inspect.live_authority.fences_applied, 1);
+        assert_eq!(inspect.live_authority.restorations_completed, 1);
+        assert!(inspect.live_evaluation.evaluations_started >= 1);
+        assert!(inspect.live_evaluation.evaluations_finished >= 1);
+        assert!(inspect.live_evaluation.delivered_bytes > 0);
+        assert!(
+            inspect
+                .live_evaluation
+                .delivered_frames_by_wire_kind
+                .contains_key("authorization_invalidation"),
+            "restoration delivery is accounted by wire kind: {:?}",
+            inspect.live_evaluation.delivered_frames_by_wire_kind,
+        );
+    }
+
+    /// Shared §2.4 obligation-transfer fixture: an auth-scoped subscription
+    /// over `items` whose witnessed deliveries ride the level-triggered
+    /// obligation registry (LLP 0008), plus a scheduler with the given
+    /// tunables. Returns the snapback, the invalidation connection, and the
+    /// subscription id.
+    /// The fixture is sessions-ACTIVATED (not just session-admitted) because
+    /// the detached scheduler turn re-resolves the auth-scoped subscription
+    /// on its own authority: without activation the re-resolution fails and
+    /// the turn degrades to an obligation hint instead of the witnessed
+    /// snapshot delivery under test. The activation seeds one row
+    /// (`predecessor-visible`); `seed_values` adds more. Returns the value →
+    /// row-id map for every current row.
+    fn shrink_obligation_scheduler_fixture(
+        connection_id: &str,
+        namespace_instance: u64,
+        tunables: crate::live_coalesce::LiveCoalesceTunables,
+        seed_values: &[&str],
+        live_function: &str,
+        live_args: Value,
+    ) -> (
+        LocalSnapback,
+        AuthorizationInvalidationConnection,
+        String,
+        BTreeMap<String, String>,
+    ) {
+        let (mut schema, mut functions) = sessions_activation_pair('b', false);
+        schema.tables[0].indexes.push(IndexManifest {
+            name: "by_value".to_owned(),
+            fields: vec!["value".to_owned()],
+            unique: false,
+        });
+        let mut insert_values = BTreeMap::new();
+        insert_values.insert("value".to_owned(), ValueExpr::Arg("value".to_owned()));
+        functions.functions.push(FunctionDefinition::new(
+            "insertItem",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "items".to_owned(),
+                    values: insert_values,
+                    bind_id_as: None,
+                }],
+                return_value: Some(ReturnValue::ChangedCount),
+            })),
+        ));
+        functions.functions.push(FunctionDefinition::new(
+            "deleteItem",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Delete {
+                    table: "items".to_owned(),
+                    id: ValueExpr::Arg("id".to_owned()),
+                }],
+                return_value: Some(ReturnValue::ChangedCount),
+            })),
+        ));
+        functions.functions.push(FunctionDefinition::new(
+            "listItemsByValue",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table: "items".to_owned(),
+                filters: vec![FilterExpr {
+                    field: "value".to_owned(),
+                    op: FilterOp::Eq,
+                    value: ValueExpr::Arg("value".to_owned()),
+                }],
+                order: Vec::new(),
+                limit: None,
+                membership_filters: Vec::new(),
+                indexed_by: Some("by_value".to_owned()),
+            })),
+        ));
+        let mut snapback = settled_sessions_activation_snapback(schema, functions);
+        for value in seed_values {
+            invoke_test_session_mutation(
+                &mut snapback,
+                "insertItem",
+                HandlerInput {
+                    args: json!({ "value": value }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("seed row");
+        }
+        let mut rows_by_value = BTreeMap::new();
+        for row in snapback
+            .db
+            .query(
+                &QueryPlan {
+                    table: "items".to_owned(),
+                    filters: Vec::new(),
+                    membership_filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                },
+                &HandlerInput::default(),
+            )
+            .expect("read seeded rows")
+            .rows
+        {
+            rows_by_value.insert(
+                row["value"].as_str().expect("row value").to_owned(),
+                row["_id"].as_str().expect("row id").to_owned(),
+            );
+        }
+        let connection = install_test_invalidation(&mut snapback);
+        let subscribed = snapback
+            .subscribe_live_with_invalidation(
+                live_function,
+                LiveSubscribeInput {
+                    connection_id: connection_id.to_owned(),
+                    input: HandlerInput {
+                        args: live_args,
+                        ..HandlerInput::default()
+                    },
+                    authorization_namespace: Some(test_authorization_namespace(namespace_instance)),
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+                LiveInvalidationAdmission {
+                    session_mode: true,
+                    connection: Some(connection.clone()),
+                    effect_fence: None,
+                },
+            )
+            .expect("auth-scoped subscription");
+        assert!(drain_live_stream_through_test_sink(&mut snapback, connection_id).is_empty());
+        snapback.install_live_fanout_coalescer(Arc::new(
+            crate::live_coalesce::LiveFanoutCoalescer::with_tunables(tunables),
+        ));
+        (
+            snapback,
+            connection,
+            subscribed.subscription_id,
+            rows_by_value,
+        )
+    }
+
+    /// Drive the standard LLP 0008 obligation fault/recovery loop for one
+    /// connection: the delivered frame is treated as lost, reprojection must
+    /// re-emit the level-triggered obligation, the managed rerun re-delivers
+    /// the atomic snapshot, and only the exact ACK discharges it.
+    /// The `value` fields of a snapshot's rows, sorted (system fields vary).
+    fn snapshot_row_values(rows: &Value) -> Vec<String> {
+        let mut values = rows
+            .as_array()
+            .expect("snapshot rows array")
+            .iter()
+            .map(|row| row["value"].as_str().expect("row value").to_owned())
+            .collect::<Vec<_>>();
+        values.sort();
+        values
+    }
+
+    fn assert_obligation_rearms_until_exact_ack(
+        snapback: &mut LocalSnapback,
+        connection: AuthorizationInvalidationConnection,
+        connection_id: &str,
+        expected_values: &[&str],
+    ) {
+        let admission = managed_session_admission();
+        snapback
+            .reproject_authorization_invalidations(connection_id, &admission)
+            .expect("reproject after lost delivery");
+        let hint = drain_live_stream_through_test_sink(snapback, connection_id)
+            .into_iter()
+            .filter_map(|message| serde_json::from_str::<Value>(&message).ok())
+            .find(|message| message["kind"] == "authorization_invalidation")
+            .expect("level-triggered obligation survives the lost delivery");
+        assert!(
+            hint.get("resolution").is_none() && hint.get("snapshot").is_none(),
+            "a snapshot resolution is never projected without its atomic rows"
+        );
+        let rerun = snapback
+            .authorization_invalidation_frames(connection_id, &admission)
+            .expect("managed rerun");
+        let rerun =
+            serde_json::from_slice::<Value>(&rerun.first().expect("fresh snapshot frame").payload)
+                .expect("rerun frame JSON");
+        assert_eq!(
+            snapshot_row_values(&rerun["snapshot"]["rows"]),
+            expected_values
+        );
+        let ack_token = rerun["resolution"]["ackToken"]
+            .as_str()
+            .expect("ack token")
+            .to_owned();
+        let ack = snapback
+            .acknowledge_authorization_invalidation(
+                AuthorizationInvalidationAckInput {
+                    connection_id: connection_id.to_owned(),
+                    ack_token,
+                },
+                connection,
+                &admission,
+            )
+            .expect("exact ack");
+        assert_eq!(ack.outcome, "discharged");
+        assert!(
+            snapback
+                .authorization_invalidation_frames(connection_id, &admission)
+                .expect("post-ack frames")
+                .is_empty(),
+            "the exact ACK discharges the obligation"
+        );
+    }
+
+    // §2.4 obligation-transfer finding (LLP 0200): the witnessed-shrink
+    // delivery obligation is NOT frame-attached state the scheduler could
+    // elide — it is per-subscription-scope registry state (LLP 0008's
+    // level-triggered composite-witness obligations) raised at every
+    // witnessed auth-scoped delivery and discharged only by revision-bound
+    // exact ACK. The five tests below pin that the machinery sits below each
+    // stage-1/2 collapse path instead of adding redundant transfer plumbing.
+
+    /// Collapse path 1 — pending-frame merge (latest-value collapse): two
+    /// shrinking commits merge into one pending frame; the single flushed
+    /// delivery is obligation-backed and subsumes both shrinks.
+    #[test]
+    fn shrink_obligation_survives_pending_frame_merge() {
+        let (mut snapback, connection, subscription_id, rows_by_value) =
+            shrink_obligation_scheduler_fixture(
+                "shrink-merge",
+                30,
+                crate::live_coalesce::LiveCoalesceTunables::default(),
+                &["first"],
+                "listItems",
+                json!({}),
+            );
+        for row_id in rows_by_value.values() {
+            invoke_test_session_mutation(
+                &mut snapback,
+                "deleteItem",
+                HandlerInput {
+                    args: json!({ "id": row_id }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("shrinking delete");
+        }
+        let pending = snapback
+            .pending_live_fanout
+            .entries
+            .get(&subscription_id)
+            .expect("both shrink commits deferred into one pending frame");
+        assert_eq!(pending.frames, 2, "latest-value merge absorbed both frames");
+        assert!(
+            drain_live_stream_through_test_sink(&mut snapback, "shrink-merge").is_empty(),
+            "no inline fan-out escaped the write turns"
+        );
+
+        assert!(snapback.flush_pending_live_fanout());
+        let messages = drain_live_stream_through_test_sink(&mut snapback, "shrink-merge");
+        let frames = messages
+            .iter()
+            .filter_map(|message| serde_json::from_str::<Value>(message).ok())
+            .filter(|message| message["kind"] == "authorization_invalidation")
+            .collect::<Vec<_>>();
+        assert_eq!(
+            frames.len(),
+            1,
+            "one subsuming obligation-backed delivery: {messages:?}"
+        );
+        assert_eq!(frames[0]["obligation"]["maxDisposition"], "quarantine");
+        assert_eq!(frames[0]["snapshot"]["rows"], json!([]));
+        assert!(
+            messages
+                .iter()
+                .all(|message| !message.contains("\"kind\":\"live_delta\"")),
+            "a merged shrink must never escape as best-effort live_delta"
+        );
+        assert_obligation_rearms_until_exact_ack(&mut snapback, connection, "shrink-merge", &[]);
+    }
+
+    /// Collapse path 2 — supersession by a newer frame: a shrinking commit's
+    /// pending frame is superseded by a later grow commit; the flushed
+    /// delivery reflects the final state and still carries the obligation
+    /// (the subsuming atomic snapshot proves the shrink to the client).
+    #[test]
+    fn shrink_obligation_survives_supersession_by_newer_frame() {
+        let (mut snapback, connection, subscription_id, rows_by_value) =
+            shrink_obligation_scheduler_fixture(
+                "shrink-supersede",
+                31,
+                crate::live_coalesce::LiveCoalesceTunables::default(),
+                &[],
+                "listItems",
+                json!({}),
+            );
+        invoke_test_session_mutation(
+            &mut snapback,
+            "deleteItem",
+            HandlerInput {
+                args: json!({ "id": rows_by_value["predecessor-visible"] }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("shrinking delete");
+        invoke_test_session_mutation(
+            &mut snapback,
+            "insertItem",
+            HandlerInput {
+                args: json!({ "value": "replacement" }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("superseding insert");
+        let pending = snapback
+            .pending_live_fanout
+            .entries
+            .get(&subscription_id)
+            .expect("superseding commit merged over the shrink frame");
+        assert_eq!(pending.frames, 2);
+
+        assert!(snapback.flush_pending_live_fanout());
+        let messages = drain_live_stream_through_test_sink(&mut snapback, "shrink-supersede");
+        let frame = messages
+            .iter()
+            .filter_map(|message| serde_json::from_str::<Value>(message).ok())
+            .find(|message| message["kind"] == "authorization_invalidation")
+            .expect("obligation-backed superseding delivery");
+        assert_eq!(frame["obligation"]["maxDisposition"], "quarantine");
+        assert_eq!(
+            snapshot_row_values(&frame["snapshot"]["rows"]),
+            ["replacement"],
+            "the superseding delivery carries the final state, not the elided intermediate"
+        );
+        assert_obligation_rearms_until_exact_ack(
+            &mut snapback,
+            connection,
+            "shrink-supersede",
+            &["replacement"],
+        );
+    }
+
+    /// Collapse path 3 — bound-overflow degrade: exceeding `max_frames`
+    /// collapses the pending delta to a refresh-signal frame; §2.2 requires
+    /// the witnessed-shrink obligation to transfer to that refresh frame,
+    /// which holds because the refresh's auth-scoped delivery is itself
+    /// witnessed and obligation-raising.
+    #[test]
+    fn shrink_obligation_survives_bound_overflow_degrade_to_refresh() {
+        let (mut snapback, connection, subscription_id, rows_by_value) =
+            shrink_obligation_scheduler_fixture(
+                "shrink-overflow",
+                32,
+                crate::live_coalesce::LiveCoalesceTunables {
+                    max_frames: 2,
+                    ..crate::live_coalesce::LiveCoalesceTunables::default()
+                },
+                &["survivor"],
+                "listItems",
+                json!({}),
+            );
+        for row_id in [
+            &rows_by_value["predecessor-visible"],
+            &rows_by_value["survivor"],
+        ] {
+            invoke_test_session_mutation(
+                &mut snapback,
+                "deleteItem",
+                HandlerInput {
+                    args: json!({ "id": row_id }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("shrinking delete");
+        }
+        let pending = snapback
+            .pending_live_fanout
+            .entries
+            .get(&subscription_id)
+            .expect("overflowed pending frame");
+        assert_eq!(
+            pending.lane,
+            super::PendingLiveLane::Refresh,
+            "bound overflow degraded the pending delta to a refresh-signal frame"
+        );
+        assert!(pending.force_replace);
+
+        assert!(snapback.flush_pending_live_fanout());
+        let messages = drain_live_stream_through_test_sink(&mut snapback, "shrink-overflow");
+        let frame = messages
+            .iter()
+            .filter_map(|message| serde_json::from_str::<Value>(message).ok())
+            .find(|message| message["kind"] == "authorization_invalidation")
+            .expect("obligation-backed refresh delivery after overflow degrade");
+        assert_eq!(frame["obligation"]["maxDisposition"], "quarantine");
+        assert_eq!(frame["snapshot"]["rows"], json!([]));
+        assert_obligation_rearms_until_exact_ack(&mut snapback, connection, "shrink-overflow", &[]);
+    }
+
+    /// Collapse path 4 — watermark-envelope supersession: newer content
+    /// retracts only unleased `current_as_of` envelopes from the outbound
+    /// queue (`supersede_pending_live_watermarks` matches that wire kind
+    /// alone), so a queued obligation frame can never be elided by watermark
+    /// coalescing — and the coalesce is accounted on the permanent counter.
+    #[test]
+    fn watermark_supersession_never_elides_obligation_frames() {
+        let (mut snapback, connection, _subscription_id, rows_by_value) =
+            shrink_obligation_scheduler_fixture(
+                "shrink-watermark",
+                33,
+                crate::live_coalesce::LiveCoalesceTunables::default(),
+                &["a"],
+                "listItemsByValue",
+                json!({ "value": "a" }),
+            );
+        let row_id = rows_by_value["a"].clone();
+
+        // A proved-disjoint commit: the matcher skips the subscription and the
+        // scheduler enqueues a standalone convergence watermark instead.
+        invoke_test_session_mutation(
+            &mut snapback,
+            "insertItem",
+            HandlerInput {
+                args: json!({ "value": "b" }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("disjoint insert");
+        assert!(snapback.flush_pending_live_fanout());
+        assert!(
+            snapback.live_watermark_stats.envelopes_emitted >= 1,
+            "the skip disposition produced a standalone watermark envelope"
+        );
+
+        // The shrink delivery supersedes the still-queued watermark; the
+        // obligation frame itself must survive the retraction.
+        invoke_test_session_mutation(
+            &mut snapback,
+            "deleteItem",
+            HandlerInput {
+                args: json!({ "id": row_id }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("shrinking delete");
+        assert!(snapback.flush_pending_live_fanout());
+        assert!(
+            snapback.live_watermark_stats.envelopes_coalesced >= 1,
+            "newer content retracted the queued watermark envelope"
+        );
+        let messages = drain_live_stream_through_test_sink(&mut snapback, "shrink-watermark");
+        let frame = messages
+            .iter()
+            .filter_map(|message| serde_json::from_str::<Value>(message).ok())
+            .find(|message| message["kind"] == "authorization_invalidation")
+            .expect("obligation frame survives watermark supersession");
+        assert_eq!(frame["obligation"]["maxDisposition"], "quarantine");
+        assert_eq!(frame["snapshot"]["rows"], json!([]));
+        assert!(
+            !messages.iter().any(|message| {
+                serde_json::from_str::<Value>(message)
+                    .is_ok_and(|frame| frame["kind"] == "current_as_of")
+            }),
+            "the superseded watermark was retracted, not delivered: {messages:?}"
+        );
+        assert_obligation_rearms_until_exact_ack(
+            &mut snapback,
+            connection,
+            "shrink-watermark",
+            &[],
+        );
+    }
+
+    /// Collapse path 5 — fail-closed slow-subscriber/timeout degrade: an
+    /// abandoned evaluation turn converts the pending shrink to a
+    /// refresh-signal obligation delivered at priority (§2.5); the refresh's
+    /// witnessed delivery re-raises the obligation, so the degrade cannot
+    /// elide the shrink.
+    #[test]
+    fn shrink_obligation_survives_timeout_degrade_to_refresh_retry() {
+        let (mut snapback, connection, subscription_id, rows_by_value) =
+            shrink_obligation_scheduler_fixture(
+                "shrink-timeout",
+                34,
+                crate::live_coalesce::LiveCoalesceTunables::default(),
+                &[],
+                "listItems",
+                json!({}),
+            );
+        invoke_test_session_mutation(
+            &mut snapback,
+            "deleteItem",
+            HandlerInput {
+                args: json!({ "id": rows_by_value["predecessor-visible"] }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("shrinking delete");
+
+        // First turn: the scheduler waiter abandoned it (max_eval_turn). No
+        // publication happens; the degrade path must re-queue a refresh
+        // obligation instead of dropping the pending shrink.
+        let abandoned = Arc::new(crate::live_coalesce::LiveEvaluationControl::default());
+        assert!(abandoned.abandon());
+        assert!(snapback.run_pending_live_subscription(&subscription_id, abandoned));
+        assert!(
+            drain_live_stream_through_test_sink(&mut snapback, "shrink-timeout").is_empty(),
+            "an abandoned turn publishes nothing"
+        );
+        let pending = snapback
+            .pending_live_fanout
+            .entries
+            .get(&subscription_id)
+            .expect("timeout degrade re-queued a refresh obligation");
+        assert_eq!(pending.lane, super::PendingLiveLane::Refresh);
+        assert_eq!(snapback.live_evaluation_stats.evaluations_abandoned, 1);
+
+        // The refresh retry delivers the witnessed obligation-backed snapshot.
+        assert!(snapback.flush_pending_live_fanout());
+        let messages = drain_live_stream_through_test_sink(&mut snapback, "shrink-timeout");
+        let frame = messages
+            .iter()
+            .filter_map(|message| serde_json::from_str::<Value>(message).ok())
+            .find(|message| message["kind"] == "authorization_invalidation")
+            .expect("obligation-backed refresh delivery after timeout degrade");
+        assert_eq!(frame["obligation"]["maxDisposition"], "quarantine");
+        assert_eq!(frame["snapshot"]["rows"], json!([]));
+        assert_obligation_rearms_until_exact_ack(&mut snapback, connection, "shrink-timeout", &[]);
+    }
+
+    /// §3's permanent counters move and reach the serialized inspect surface
+    /// for the data lane: matcher decisions, evaluation lifecycle, delivered
+    /// frames/bytes by wire kind, coalescer stats, and commit-ack stamping.
+    #[test]
+    fn phase1_permanent_counters_reach_inspect_surface() {
+        let mut snapback = live_limit_snapback();
+        snapback
+            .subscribe_live("listItems", live_limit_input("counters-inspect", json!({})))
+            .expect("plain live subscription");
+        snapback.install_live_fanout_coalescer(Arc::new(
+            crate::live_coalesce::LiveFanoutCoalescer::new(),
+        ));
+        snapback
+            .invoke_mutation(
+                "insertItem",
+                HandlerInput {
+                    args: json!({ "value": "counted" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("deferred commit");
+        // §2.1 milestone 1: the write turn stamped a commit-ack instant for
+        // the serving settlement observer.
+        assert!(snapback.take_last_commit_ack_at().is_some());
+        assert!(snapback.flush_pending_live_fanout());
+
+        let inspect = snapback.inspect().expect("inspect state");
+        let matcher_total = inspect.live_matcher.match_replace
+            + inspect.live_matcher.match_delta
+            + inspect.live_matcher.skip
+            + inspect.live_matcher.conservative_fallback;
+        assert!(matcher_total >= 1, "matcher ledger moved: {inspect:?}");
+        assert!(inspect.live_evaluation.evaluations_started >= 1);
+        assert!(inspect.live_evaluation.evaluations_finished >= 1);
+        assert!(inspect.live_evaluation.delivered_bytes > 0);
+        assert!(
+            !inspect
+                .live_evaluation
+                .delivered_frames_by_wire_kind
+                .is_empty(),
+            "delivered wire kinds recorded: {:?}",
+            inspect.live_evaluation.delivered_frames_by_wire_kind,
+        );
+        assert!(inspect.live_coalesce.deferred_commits >= 1);
+        assert!(inspect.live_coalesce.coalesced_flushes >= 1);
+        // The settlement cell is shared with the serving layer and reported
+        // through the same inspect snapshot.
+        {
+            let cell = snapback.live_settlement_stats_cell();
+            let mut stats = cell.lock().expect("settlement cell");
+            stats.last_commit_ack_to_settlement_ms = 1.5;
+            stats.cumulative_commit_ack_to_settlement_ms += 1.5;
+        }
+        let inspect = snapback.inspect().expect("inspect state after settlement");
+        assert_eq!(
+            inspect.live_settlement.last_commit_ack_to_settlement_ms,
+            1.5
+        );
+        assert_eq!(
+            inspect
+                .live_settlement
+                .cumulative_commit_ack_to_settlement_ms,
+            1.5
         );
     }
 
