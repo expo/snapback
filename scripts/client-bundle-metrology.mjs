@@ -1276,6 +1276,54 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-client/package.test.mjs']],
     ]),
   }),
+  Object.freeze({
+    filename: 'baseline.queued-settlement-truthfulness.v1.json',
+    profileFilename: 'client-bundle-disposition-profiles.v1.json',
+    workloadVersion: 'queued-settlement-truthfulness.2026-08-09.v1',
+    profileIds: Object.freeze([
+      'external-react-application',
+      'react-external',
+    ]),
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.llp-0200-settlement-isolation.v1.json',
+        profileIds: Object.freeze([
+          'external-react-application',
+          'react-external',
+        ]),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0043#raw-settlement-facts-and-projection-ownership-2026-07-20-llp-0063-step-1',
+      'LLP 0114#exact-identity-bytes-and-limits',
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-09',
+      fix: 'Queued-mutation settlement truthfulness adds the distinct '
+        + 'SnapbackQueuedMutationError rejection class with dev queue/wedge '
+        + 'warnings, and the content-keyed useSnapbackQuery/useSnapbackPresence '
+        + 'dependency fix, to packages/snapback-react/index.mjs — the two P2 '
+        + 'client-contract defects from the LLP 0201 Clique pilot.',
+      ticket: 'issues/closed/20260809-queued-mutation-settlement-truthfulness.md',
+      byteDeltas: 'external-react-application min 94180->95915, gzip '
+        + '29204->29868, brotli 25517->26041; react-external min '
+        + '94005->95740, gzip 29151->29812, brotli 25426->26044.',
+      summary: 'Advance exactly the two React-closure ceilings grown by the '
+        + 'queued-settlement rejection class and canonical content-keyed hook '
+        + 'dependencies; every other active ceiling and the LLP 0200 '
+        + 'settlement-isolation predecessor remain immutable.',
+    }),
+    beforeAfterProfileIds: Object.freeze([
+      'external-react-application',
+      'react-external',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['bun', ['run', '--cwd', 'packages/snapback-react', 'test']],
+      ['node', ['packages/snapback-client/package.test.mjs']],
+    ]),
+  }),
 ]);
 
 function fail(message) {
