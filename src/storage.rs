@@ -41,7 +41,6 @@ pub(crate) const SEQUENCE_MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 pub(crate) mod auth;
 mod connections;
 mod jobs;
-mod migration_scan;
 pub mod migration_executor;
 mod migration_scan;
 mod projection_rebuild;
@@ -53,8 +52,8 @@ pub use connections::{PooledReader, ReaderPool};
 pub(crate) use connections::{
     RegisteredSystemWriterPurposeV1, RegisteredSystemWriterV1, open_registered_system_writer_v1,
 };
-pub(crate) use migration_scan::migration_keyset_scan_batch_on;
 pub use jobs::{JobsKernel, JobsReadKernel};
+pub(crate) use migration_scan::migration_keyset_scan_batch_on;
 pub use migration_scan::{
     MIGRATION_SCAN_CHECKPOINT_VERSION, MIGRATION_SCAN_MAX_BATCH_BYTES,
     MIGRATION_SCAN_MAX_BATCH_MILLIS, MIGRATION_SCAN_MAX_BATCH_ROWS, MigrationKeysetScanBatch,

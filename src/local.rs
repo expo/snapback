@@ -19351,9 +19351,7 @@ impl LocalSnapback {
         // (which takes admission-controller entry points of its own).
         let terminal_publication = (|| {
             let _publication = admission.effect_guard("job result publication")?;
-            self.db
-                .jobs()
-                .finish_job(&claim.claim, &outcome, now_ms)
+            self.db.jobs().finish_job(&claim.claim, &outcome, now_ms)
         })();
         let (disposition, changed_row) = match terminal_publication {
             Ok(terminal) => terminal,
