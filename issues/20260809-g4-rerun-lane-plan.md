@@ -103,8 +103,18 @@ not repeat.
 
 ### 3. Fresh-quarry G4 rerun
 
-**Branch:** not started; the executing session must record its branch and the
-new quarry path in this ticket before starting.
+**Branch:** `g4/rerun-0116`, claimed 2026-08-09 by the G4 external-rerun
+supervisor session. Repo worktree `~/projects/snapback-wt/g4-rerun-0116` at
+`origin/main` `0e5e80f18`. **New quarry path:**
+`/Users/ccheever/projects/snapback-g4-external-0116` (created empty at `t0`;
+`/Users/ccheever/projects/snapback-g4-external` is untouched).
+
+**Host substitution recorded before starting.** The Air
+(`100.70.173.122`) is offline in Tailscale (last seen about an hour before the
+claim), so the iOS-simulator host for this rerun is the apartment
+`Charlie's MacBook Pro (2)` at `100.72.251.34` (M1 Max, macOS 26.6, Xcode
+26.6, iOS 26.4 simulator runtime — the same runtime version the 0.1.11 Air
+run used). The Android host is unchanged: the mini at `100.106.94.95`.
 
 Create a new, clean external Expo repository. Do not reuse or mutate
 `/Users/ccheever/projects/snapback-g4-external`; it is the frozen 0.1.11
@@ -112,9 +122,9 @@ evidence quarry, preserved read-only by the housekeeping lane's archive. The
 new quarry must install only the published 0.1.16 package names, with no
 source path, override, staging copy, or monorepo edge.
 
-Rerun the frozen OQ5 ceremony on both hosts: the Air with an iOS simulator and
-the mini with an Android emulator. Preserve separate platform receipts and a
-combined verdict.
+Rerun the frozen OQ5 ceremony on both hosts: an iOS simulator and the mini
+with an Android emulator. Preserve separate platform receipts and a combined
+verdict.
 
 ## Starting state verified 2026-08-09
 
