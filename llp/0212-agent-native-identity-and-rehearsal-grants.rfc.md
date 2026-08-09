@@ -9,10 +9,12 @@ independent brainstorm from Codex (gpt-5.6-sol, xhigh) on 2026-08-09 —
 idea provenance is tagged throughout ([C] Claude, [X] Codex, [=] both
 families converged independently)
 **Date:** 2026-08-09
-**Revised:** 2026-08-09 (v0.4, round-3 delta dispositions applied; see
-§Revision history). 2026-08-09 (v0.3, round-2 delta dispositions).
-2026-08-09 (v0.2, round-1 dispositions). 2026-08-09 (author sitting: all
-six open questions ruled; see §Author decisions.)
+**Revised:** 2026-08-09 (v0.5, round-4 dispositions — the v0.5 delta
+itself is UNREVIEWED; final loop verdicts bind to v0.4. See §Revision
+history). 2026-08-09 (v0.4, round-3 delta dispositions). 2026-08-09
+(v0.3, round-2 delta dispositions). 2026-08-09 (v0.2, round-1
+dispositions). 2026-08-09 (author sitting: all six open questions
+ruled; see §Author decisions.)
 **Related:** LLP 0011 (auth and permissions — the principal-first root),
 LLP 0057 (auth provider protocol — the shipped email-code provider,
 capture mailbox, throttle constants, `ImpersonationCapability`),
@@ -342,7 +344,12 @@ convergence (treated as signal).
   not already provide. The acceptance matrix includes foreign-caller
   selector guessing, loopback-behind-proxy (installation proceeds;
   the guessing rows hold), declared-public refusal, and
-  transcript-equivalence rows.
+  transcript-equivalence rows — plus a **producer-parity gate**: the
+  reachability fact has a closed schema, every rehearsal-capable
+  target class that is public by design must publish it, and the
+  wave-1 local target is the *named* absence exception, so an
+  accidental omission cannot silently select the unknown/proceed
+  branch.
 - **R3. Declarative auth fixtures** [=] — `auth.fixtures` names logical
   personas (identities, assurances, credentials, memberships, scenarios);
   `snapback auth fixtures preview/apply` reconciles idempotently and
@@ -621,10 +628,12 @@ Neither a deployment profile alone nor a token alone:
   `verification.simulate`; for `window.install`, a **namespace
   precommitted at grant mint** — the host mints the unguessable
   namespace when the *grant* is minted, records it as the effect's
-  selector, and installation *consumes* the precommitted value, so
-  selectors stay mint-time-fixed with no output-as-input circularity
-  (acceptance: namespace collision, reuse, post-mint mutation,
-  concurrent installs); budget name and charge axes for
+  selector, and installation *consumes* the precommitted value —
+  **one precommitted namespace per budgeted install** (`windowInstalls: N`
+  precommits N namespaces; counter and selector set share one
+  cardinality by construction) — so selectors stay mint-time-fixed
+  with no output-as-input circularity (acceptance: namespace
+  collision, reuse, post-mint mutation, concurrent installs); budget name and charge axes for
   `budget.rehearsal.allocate`; the disposable store/clock domain for
   `clock.auth.advance` — and an effect whose required selector is
   absent or incompatible is refused. This is the difference between a scoped grant and a
@@ -735,11 +744,28 @@ or session bearers.
    artifact carries a provenance envelope **integrity-bound to the
    exact payload, store identity, and marker state under a host-held
    key** (the 0057 keyring lineage is the mechanism family; the Spec
-   pins the primitive), and production deploy/import **fails closed
-   on a missing, malformed, or unverifiable envelope** exactly as on
-   a tainted one — a syntactically clean envelope spliced onto a
-   tainted payload fails verification, so the paved-path claim is
-   structural, not syntactic. A marked store is **permanently
+   pins the primitive and the cross-host verification-key custody),
+   and production deploy/import **fails closed on a missing,
+   malformed, or unverifiable envelope** exactly as on a tainted one
+   — a syntactically clean envelope spliced onto a tainted payload
+   fails verification, so the paved-path claim is structural, not
+   syntactic. **The envelope authenticates marker state at export
+   time, and that is the policy, stated precisely**: ineligibility
+   binds to the store's states at and after first rehearsal
+   admission, and to every export taken from them. A verifiably
+   *pre-taint* export remains promotable **by design**, and that is
+   safe by construction, not by policy generosity: the taint marker
+   commits in the same transaction as the first rehearsal effect and
+   exports are snapshot-consistent (0057's quiescence lineage), so
+   any export whose envelope verifies clean provably contains zero
+   rehearsal-derived state. Replaying an old clean envelope after
+   the live store is tainted therefore imports only pre-rehearsal
+   bytes — legitimate, and the acceptance matrix pins it as such:
+   the exact clean-export → taint-original → import-old-export
+   sequence is a *positive* row (admitted, with the rationale
+   recorded), while any export taken at-or-after admission refuses.
+   No monotonic external lineage authority is needed because nothing
+   post-taint can produce a clean-verifying envelope. A marked store is **permanently
    ineligible for production promotion** — whole-store, fail-closed.
    This deliberately covers what row-level taint cannot: ordinary app
    rows written by handlers running under simulated assurance,
@@ -856,7 +882,11 @@ This RFC creates no second authority. Deltas land by owner:
    window expiry/revocation with the parent grant live, budget/ceiling
    exhaustion and charge-on-denial, foreign-caller selector guessing,
    loopback-behind-proxy, transcript equivalence, scope substitution,
-   carrier custody). Commissioned here.
+   carrier custody; plus, incorporated by reference as part of this
+   matrix, the R2 reachability rows, the producer-parity gate, and
+   the selector-mapping namespace rows named where those mechanisms
+   are specified — this list plus the referenced rows is the
+   authoritative superset). Commissioned here.
 1a. **Rehearsal provenance propagation and the egress gate** — a named
    amendment into the LLP 0058 invocation-authority lineage.
    Provenance derives from the **effective authority and assurance
@@ -1001,6 +1031,31 @@ are normative. No open questions remain in this revision.
 
 ## Revision history
 
+- **v0.5 — 2026-08-09 (UNREVIEWED delta).** Round-4 dispositions,
+  applied after the loop's terminal round — per the LLP 0010 delta
+  rule these fixes are recorded as **unreviewed**; the final loop
+  verdicts bind to v0.4
+  (`f3da1baed35afcf35c8b4e05fb5f39413286889c36e27c6b1f454889e67c7b33`).
+  Round-4 verdicts: Fable READY (3 DETAIL), Codex NOT READY (1
+  MATERIAL + 1 DETAIL); zero pre-existing concerns for the third
+  consecutive cross-family round. Applied here: the pre-taint export
+  policy is stated precisely per Codex's replay finding — the
+  envelope authenticates marker state *at export time*; ineligibility
+  binds to at-or-after-admission states and their exports; a
+  verifiably pre-taint export is promotable **by design** and safe by
+  construction (same-transaction taint + snapshot-consistent export
+  means a clean-verifying envelope provably contains zero
+  rehearsal-derived state); the clean-export → taint → import-old
+  sequence becomes an explicit positive acceptance row (this adopts
+  the first of Codex's two offered resolutions — no external lineage
+  authority is needed once the policy is exact); the reachability
+  fact gains a closed schema and producer-parity gate (public target
+  classes must publish; the wave-1 local target is the named
+  exception); one precommitted namespace per budgeted install
+  (counter/selector cardinality pinned); envelope cross-host
+  verification-key custody assigned to the Spec; landing item 1's
+  acceptance list incorporates the R2/selector rows by reference as
+  the authoritative superset.
 - **v0.4 — 2026-08-09.** Round-3 delta dispositions. Verdicts on v0.3:
   Fable NOT READY (1 MATERIAL — a dropped edit — + 5 DETAIL), Codex
   NOT READY (5 MATERIAL + 3 DETAIL), all in-delta; **zero pre-existing
