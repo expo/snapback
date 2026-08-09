@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import test from 'node:test';
 
 import {
   createLiveQueryAuthorizationFence,
@@ -630,5 +631,105 @@ const createFence = (overrides = {}) => createLiveQueryAuthorizationFence({
     { code: 'SNAPBACK_AUTH_QUERY_FENCE_STALE' },
   );
 }
+
+test('C1 same-envelope satisfying snapshot commits once and ACKs unchanged', () => {
+  const fence = createFence();
+  const pending = obligation();
+  const events = [];
+  const accepted = fence.receiveObligation(pending, {
+    deferCommit: true,
+    commit: (event) => events.push(event),
+  });
+  assert.equal(accepted.status, 'accepted');
+  assert.deepEqual(events, []);
+
+  const applied = fence.applyResolution({
+    fence: accepted.fence,
+    resolution: resolution(pending),
+    snapshot: snapshot({ version: 11, rows: [{ id: 'refreshed' }] }),
+    commit: (event) => events.push(event),
+  });
+  assert.deepEqual(events.map((event) => event.kind), ['snapshot']);
+  assert.deepEqual(events[0].rows, [{ id: 'refreshed' }]);
+  assert.equal(fence.acknowledge(applied.ackToken).status, 'acknowledged');
+  assert.equal(fence.acknowledge(applied.ackToken).status, 'duplicate');
+});
+
+test('C2 obligation without a resolution still quarantines immediately', () => {
+  const fence = createFence();
+  const events = [];
+  const accepted = fence.receiveObligation(obligation(), {
+    commit: (event) => events.push(event),
+  });
+  assert.equal(accepted.status, 'accepted');
+  assert.deepEqual(events.map((event) => event.kind), ['quarantine']);
+  assert.equal(fence.isRenderable(), false);
+});
+
+test('C3 stale same-envelope resolution repairs the deferred boundary fail closed', () => {
+  const fence = createFence();
+  const pending = obligation({ revision: 2 });
+  const events = [];
+  const accepted = fence.receiveObligation(pending, {
+    deferCommit: true,
+    commit: (event) => events.push(event),
+  });
+  const staleResolution = { ...resolution(pending), revision: 1 };
+  assert.throws(
+    () => fence.applyResolution({
+      fence: accepted.fence,
+      resolution: staleResolution,
+      snapshot: snapshot({ version: 11 }),
+      commit: (event) => events.push(event),
+    }),
+    { code: 'SNAPBACK_AUTH_INVALIDATION_RESOLUTION_STALE' },
+  );
+  assert.deepEqual(events, []);
+
+  fence.commitCurrentDisposition({
+    fence: fence.capture(),
+    commit: (event) => events.push(event),
+  });
+  assert.deepEqual(events.map((event) => event.kind), ['quarantine']);
+  assert.equal(fence.isRenderable(), false);
+});
+
+// The fence API permits deferCommit for any resolution kind; the CLIENT never
+// defers terminal proofs (revocation must blank at obligation receipt —
+// blankBeforeMutationReturn, pinned end-to-end by
+// tests/acceptance/require-role-live-revocation.mjs). This case pins only the
+// fence-level semantics of a deferred terminal application.
+test('C4 same-envelope terminalDelete commits delete without intermediate quarantine', () => {
+  const fence = createFence();
+  const pending = obligation({ disposition: 'delete' });
+  const events = [];
+  const accepted = fence.receiveObligation(pending, {
+    deferCommit: true,
+    commit: (event) => events.push(event),
+  });
+  const applied = fence.applyResolution({
+    fence: accepted.fence,
+    resolution: resolution(pending, { kind: 'terminalDelete' }),
+    commit: (event) => events.push(event),
+  });
+  assert.deepEqual(events.map((event) => event.kind), ['delete']);
+  assert.equal(applied.disposition, 'delete');
+  assert.equal(fence.isRenderable(), false);
+});
+
+test('deferred disposition repair rejects an older fence generation', () => {
+  const fence = createFence();
+  const first = fence.receiveObligation(obligation(), { deferCommit: true });
+  fence.receiveObligation(obligation({
+    scoped: scope({ sequence: 2 }),
+  }), { deferCommit: true });
+  assert.throws(
+    () => fence.commitCurrentDisposition({
+      fence: first.fence,
+      commit: () => assert.fail('stale deferred fence committed'),
+    }),
+    { code: 'SNAPBACK_AUTH_QUERY_FENCE_STALE' },
+  );
+});
 
 console.log('live query authorization fence conformance: ok');

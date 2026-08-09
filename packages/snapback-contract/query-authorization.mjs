@@ -318,7 +318,10 @@ export function createLiveQueryAuthorizationFence({
       && candidate.scopeSequence <= scopeFrontier.scopeSequence;
   };
 
-  const receiveObligation = (value, { commit = null } = {}) => {
+  const receiveObligation = (value, { commit = null, deferCommit = false } = {}) => {
+    if (typeof deferCommit !== 'boolean') {
+      throw new TypeError('deferCommit must be a boolean');
+    }
     const obligation = validateResyncObligation(value);
     if (state.lifecycle !== 'active') {
       throw queryAuthorizationError(
@@ -423,7 +426,7 @@ export function createLiveQueryAuthorizationFence({
       state.effectiveDisposition = effectiveDisposition(pendingObligations(state.pendingByScope));
       if (state.effectiveDisposition === 'delete') state.accepted = null;
       const fence = advance();
-      if (typeof commit === 'function') {
+      if (!deferCommit && typeof commit === 'function') {
         const outcome = commit({
           kind: state.effectiveDisposition,
           fence,
@@ -439,6 +442,19 @@ export function createLiveQueryAuthorizationFence({
       Object.assign(state, before);
       throw error;
     }
+  };
+
+  // @ref LLP 0200#24-the-authorization-lane-splits-in-two--by-declared-classification
+  // — a same-envelope resolution may defer only the render-boundary commit.
+  // Repair validates the exact current generation so an older deferred receipt
+  // cannot publish its disposition over a newer fence.
+  const commitCurrentDisposition = ({ fence, commit }) => {
+    assertFence(state, fence, 'query invalidation disposition commit', { active: false });
+    if (typeof commit !== 'function') {
+      throw new TypeError('query invalidation disposition commit requires a commit callback');
+    }
+    const outcome = commit({ kind: state.effectiveDisposition, fence: fenceFor(state) });
+    assertSynchronousCommit(outcome);
   };
 
   const applyResolution = ({ fence, resolution: value, snapshot = null, commit }) => {
@@ -957,6 +973,7 @@ export function createLiveQueryAuthorizationFence({
 
   return Object.freeze({
     receiveObligation,
+    commitCurrentDisposition,
     applyResolution,
     acknowledge,
     rejectAcknowledgement,

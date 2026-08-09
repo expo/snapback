@@ -101,6 +101,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'assets.test.mjs',
       'attribution.test.mjs',
       'auth-exchange-concurrency.test.mjs',
+      'authorization-invalidation.test.mjs',
       'bearer-rotation.test.mjs',
       'browser-closure.test.mjs',
       'bundle.test.mjs',
@@ -451,7 +452,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 240,
+  expectedTotal = 241,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -749,6 +750,8 @@ export function checkPackageTestInventories(options = {}) {
 // 239 -> 240 (2026-08-09, typed search same-release qualification):
 // @expo/snapback-codegen gains the real-codegen-to-client wrapper composition
 // suite for plain and resource-scoped generated search references.
+// 240 -> 241 (2026-08-09, LLP 0200 Phase 2): @expo/snapback-client gains the
+// same-envelope authorization resolution and no-resolution quarantine suite.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

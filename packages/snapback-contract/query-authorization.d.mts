@@ -66,8 +66,12 @@ export interface SnapbackLiveQueryOutcome {
 export interface SnapbackLiveQueryAuthorizationFence {
   receiveObligation(
     value: unknown,
-    options?: { commit?: SnapbackLiveQueryCommit | null },
+    options?: { commit?: SnapbackLiveQueryCommit | null; deferCommit?: boolean },
   ): SnapbackLiveQueryOutcome;
+  commitCurrentDisposition(input: {
+    fence: SnapbackQueryAuthorizationFenceCapture;
+    commit: SnapbackLiveQueryCommit;
+  }): void;
   applyResolution(input: {
     fence: SnapbackQueryAuthorizationFenceCapture;
     resolution: unknown;

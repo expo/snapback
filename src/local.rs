@@ -21778,25 +21778,16 @@ impl LocalSnapback {
             .iter()
             .map(|(subscription, _)| subscription.id.clone())
             .collect::<BTreeSet<_>>();
-        if scheduled_coalescer.is_some() {
-            // The commit turn performs only registry/obligation bookkeeping
-            // and authority-lane enqueue; re-resolution/VM work is off-turn.
-            // Activation still fails closed on preprojection errors above,
-            // before its caller can reopen successor admission.
-            handled.extend(
-                subscriptions
-                    .iter()
-                    .map(|subscription| subscription.id.clone()),
-            );
-            for subscription in &subscriptions {
-                self.enqueue_authority_restoration(
-                    subscription.id.clone(),
-                    min_commit_version,
-                    authorization.membership_declarations.clone(),
-                );
-            }
-            return Ok(handled);
-        }
+        // @ref LLP 0200#24-the-authorization-lane-splits-in-two--by-declared-classification —
+        // the fail-closed obligation projection is part of the cheap security
+        // step, not restoration: it publishes inline in the commit turn
+        // (serialization + connection enqueue, no evaluation) on BOTH the
+        // scheduler and legacy paths, so the client boundary blanks before the
+        // causing mutation can settle (the receipt-exported
+        // blankBeforeMutationReturn contract). Phase 3's write priority defers
+        // scheduler turns while writers are visible, so leaving this delivery
+        // to the restoration turn made the blank lose the settle race
+        // (main red, issues/closed/20260809-main-red-scheduler-defers-revocation-obligation-delivery.md).
         for (subscription, projection) in preprojected {
             if let Ok(payload) = serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
                 projection.obligation,
@@ -21823,6 +21814,27 @@ impl LocalSnapback {
                         .raise_connection_overflow(&subscription.connection_id, min_commit_version);
                 }
             }
+        }
+
+        if scheduled_coalescer.is_some() {
+            // The commit turn performs only registry/obligation bookkeeping,
+            // the inline fail-closed obligation publication above, and
+            // authority-lane enqueue; re-resolution/VM work is off-turn.
+            // Activation still fails closed on preprojection errors above,
+            // before its caller can reopen successor admission.
+            handled.extend(
+                subscriptions
+                    .iter()
+                    .map(|subscription| subscription.id.clone()),
+            );
+            for subscription in &subscriptions {
+                self.enqueue_authority_restoration(
+                    subscription.id.clone(),
+                    min_commit_version,
+                    authorization.membership_declarations.clone(),
+                );
+            }
+            return Ok(handled);
         }
 
         for subscription in subscriptions {

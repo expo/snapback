@@ -10073,9 +10073,17 @@ export class SnapbackClient {
       const work = (async () => {
         let received;
         try {
+          // @ref LLP 0200#24-the-authorization-lane-splits-in-two--by-declared-classification
+          // — a usable same-envelope SNAPSHOT ticket defers only the observable
+          // boundary; the fence receipt and durable queue obligation retain
+          // their order. A terminalDelete proof never defers: the revocation
+          // contract (blankBeforeMutationReturn, LLP 0200 §6a receipt) requires
+          // the boundary to blank at obligation receipt, ahead of the awaits
+          // that precede resolution application.
           received = await commitAuthorizationTask(taskState, () => (
             authorizationFence.receiveObligation(projection.obligation, {
               commit: commitAuthorizationBoundary,
+              deferCommit: projection.resolution?.kind === 'snapshot',
             })
           ));
         } catch (error) {
@@ -10084,6 +10092,8 @@ export class SnapbackClient {
         if (['stale-expectation', 'retired', 'acknowledged'].includes(received.status)) {
           return received;
         }
+        let deferredBoundaryPending = projection.resolution?.kind === 'snapshot'
+          && received.status === 'accepted';
         return enqueueAuthorizationTask(async () => {
           if (!authorizationTaskIsCurrent(taskState)) throw staleAuthorityError();
           await applyQueueObligation(projection.obligation);
@@ -10106,6 +10116,7 @@ export class SnapbackClient {
                 appliedBoundary = cloneAuthorizationBoundary(event);
               },
             });
+            deferredBoundaryPending = false;
             appliedRecord = {
               identity: resolutionIdentity,
               revision: projection.resolution.revision,
@@ -10182,7 +10193,23 @@ export class SnapbackClient {
             );
           }
           return { ...applied, status: 'stale-acknowledgement' };
-        }, taskState).catch((error) => {
+        }, taskState).catch(async (error) => {
+          if (deferredBoundaryPending && authorizationTaskIsCurrent(taskState)) {
+            try {
+              // Capture inside the serialized commit cut: an intervening fence
+              // advance makes the receipt capture stale, but must not suppress
+              // the current effective fail-closed disposition.
+              await commitAuthorizationTask(taskState, () => {
+                authorizationFence.commitCurrentDisposition({
+                  fence: authorizationFence.capture(),
+                  commit: commitAuthorizationBoundary,
+                });
+                deferredBoundaryPending = false;
+              });
+            } catch (repairError) {
+              throw tagAuthorizationTaskError(repairError, taskState);
+            }
+          }
           throw tagAuthorizationTaskError(error, taskState);
         });
       })();
