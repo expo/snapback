@@ -3413,11 +3413,7 @@ details name the `minItems`/`maxItems` constraint — the same closed
 constraint vocabulary [mutations](./mutations.md#consume-the-structured-result)
 documents.
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** Stored enum fields are newer than the newest published
-> closure, 0.1.15; until the next closure publishes, they are available on
-> contributor-source builds of the local target only.
+<!-- since: 0.1.16 -->
 
 A field declared as a **closed string domain (stored enum)** —
 `v.union([v.literal('crew'), v.literal('user')])` on a stored field — stays
@@ -3707,11 +3703,7 @@ the reason — retry with a different value, be shown copy — declare the code
 instead; see
 [refuse with a declared code](#refuse-with-a-declared-code-not-a-bare-throw).
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** Stored enum fields are newer than the newest published
-> closure, 0.1.15; until the next closure publishes, they are available on
-> contributor-source builds of the local target only.
+<!-- since: 0.1.16 -->
 
 The hand-rolled severity domain guard above predates **stored enums**: a
 field whose values come from a fixed set now declares that set on the schema
@@ -5947,11 +5939,7 @@ the reviewed status posture in [LLP 0012](repo:llp/0012-headless-integration-con
 and the per-profile offer contract in
 [LLP 0096](repo:llp/0096-auth-profiles-for-protocol-clients.spec.md).
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** The signed-delivery client, one-call upload helper, and
-> settlement contract below are newer than the newest published closure,
-> 0.1.15. Use a source checkout until a later closure publishes them.
+<!-- since: 0.1.16 -->
 
 ### Issue and refresh a private signed URL
 
@@ -6647,11 +6635,7 @@ registers at `POST /auth/oauth/register`, then uses authorization code with
 required PKCE S256 through `GET|POST /auth/oauth/authorize` and
 `POST /auth/oauth/token`.
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** The app-CLI login client is newer than the newest published
-> closure, 0.1.15. Use a contributor-source build until a later package
-> closure publishes it.
+<!-- since: 0.1.16 -->
 
 The paved terminal client is
 `snapback-app --server <app-url> login`. It performs discovery, DCR, loopback
@@ -10110,11 +10094,7 @@ The only client-side authorization predictions are target capability and
 anonymous-to-`authenticated`. Every role, grant scope, optional-user rule, and
 application refusal remains server-authoritative.
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** CLI URL discovery and OAuth login are newer than the newest
-> published closure, 0.1.15. Use a contributor-source build until a later
-> package closure publishes them.
+<!-- since: 0.1.16 -->
 
 ## Log in through the external OAuth facade
 
@@ -10620,10 +10600,7 @@ over the same provider-owned command client. The hooks for asset-bearing
 commands (`useSnapbackCommand`) and whole-screen compositions (`useSurface`)
 live on [application surfaces](./surfaces.md).
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** This source checkout distinguishes a durably queued React
-> mutation from failure; the newest published package is `0.1.15`.
+<!-- since: 0.1.16 -->
 
 The resolved value remains exclusively the generated mutation result. When a
 connectivity refusal has instead crossed the durable enqueue cut, the
@@ -10862,11 +10839,7 @@ entries are blanked. Presence is never persisted, hydrated, or counted as a
 durable mutation. This first-class surface is deliberately local-target only;
 a hosted binding returns `unsupported` without starting a room or socket.
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** This source checkout keys query arguments and presence
-> scope/value by canonical content. The newest published closure, 0.1.15,
-> still memoizes those hook inputs by object identity.
+<!-- since: 0.1.16 -->
 
 ## Use inline hook inputs without subscription churn
 
@@ -11067,11 +11040,7 @@ The composed mutation is still the sole application-row and asset-attachment
 commit. The command adds no server endpoint or transaction, and it does not
 change the upload intent's policy or ownership rules.
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** The command-mapping rules below are newer than the newest
-> published closure, 0.1.15. Use a source checkout until a later closure
-> publishes them.
+<!-- since: 0.1.16 -->
 
 ### Map required and optional assets safely
 
@@ -13745,11 +13714,7 @@ partial: specialized validators — typed asset references (`v.assetRef`,
 [assets](../backend/assets.md)), result-side `v.doc(table)` references
 ([queries](../backend/queries.md)) — are taught with their features.
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** Stored enum fields are newer than the newest published
-> closure, 0.1.15; until the next closure publishes, they are available on
-> contributor-source builds of the local target only.
+<!-- since: 0.1.16 -->
 
 **Closed string domains (enums).** A field whose values come from a fixed set
 — a role, a status, a visibility — declares that set directly, instead of
@@ -18339,11 +18304,7 @@ This example works on contributor-source builds and, since
 `@expo/snapback-*@0.1.11`, on published packages carrying the packaged-store
 qualification receipt — see [offline retention](../sync/offline-and-retention.md).
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** Structured route-group arguments are newer than the newest
-> published closure, 0.1.15; until the next closure publishes, use them only
-> from contributor-source builds.
+<!-- since: 0.1.16 -->
 
 ## Bind route parameters inside structured query arguments
 
@@ -20237,7 +20198,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-diagnostics-registry.mjs. Never hand-edit. -->
@@ -23044,7 +23005,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -23052,7 +23013,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # Generated API reference
 
 One build-bound projection of 913 public symbols (374 runtime values and 539 explicit type-only symbols).
-Registry identity: `sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`; source commit: `5dd2505412c128ab0eeceb52724e9136f98ad86d`.
+Registry identity: `sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`; source commit: `96059e6ed126c9551139245ec03e7c6a52401b43`.
 
 Use `snapback guide <ExactSymbolName>` for a budgeted exact lookup. Add `--slice N` when a result names a next slice. The JSON registry is available at [registry.json](./registry.json). Stable `SNAPBACK_*` failures have their own [diagnostic code registry](./diagnostics.md).
 
@@ -23119,7 +23080,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -23127,7 +23088,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client
 
 Build-bound public API projection for `@expo/snapback-client`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/index.mjs`.
 
@@ -31665,7 +31626,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -31673,7 +31634,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/agent-authority
 
 Build-bound public API projection for `@expo/snapback-client/agent-authority`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/agent-authority.mjs`.
 
@@ -32190,7 +32151,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -32198,7 +32159,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/app-data
 
 Build-bound public API projection for `@expo/snapback-client/app-data`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/app-data.mjs`.
 
@@ -32424,7 +32385,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -32432,7 +32393,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/assets
 
 Build-bound public API projection for `@expo/snapback-client/assets`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/assets.mjs`.
 
@@ -33067,7 +33028,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -33075,7 +33036,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/canonical-client-value
 
 Build-bound public API projection for `@expo/snapback-client/canonical-client-value`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/canonical-client-value.mjs`.
 
@@ -33174,7 +33135,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -33182,7 +33143,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/commands
 
 Build-bound public API projection for `@expo/snapback-client/commands`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/commands.mjs`.
 
@@ -33629,7 +33590,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -33637,7 +33598,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/evaluation-floor
 
 Build-bound public API projection for `@expo/snapback-client/evaluation-floor`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/evaluation-floor.mjs`.
 
@@ -33768,7 +33729,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -33776,7 +33737,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/external-store
 
 Build-bound public API projection for `@expo/snapback-client/external-store`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/external-store.mjs`.
 
@@ -34130,7 +34091,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -34138,7 +34099,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/hosted-browser
 
 Build-bound public API projection for `@expo/snapback-client/hosted-browser`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/hosted-browser.mjs`.
 
@@ -34221,7 +34182,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -34229,7 +34190,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/ir-evaluator
 
 Build-bound public API projection for `@expo/snapback-client/ir-evaluator`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/ir-evaluator.mjs`.
 
@@ -34590,7 +34551,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -34598,7 +34559,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/lease-convergence
 
 Build-bound public API projection for `@expo/snapback-client/lease-convergence`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/lease-convergence.mjs`.
 
@@ -34740,7 +34701,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -34748,7 +34709,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/local-read-admission
 
 Build-bound public API projection for `@expo/snapback-client/local-read-admission`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/local-read-admission.mjs`.
 
@@ -35243,7 +35204,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35251,7 +35212,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/materialization-store
 
 Build-bound public API projection for `@expo/snapback-client/materialization-store`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/materialization-store.mjs`.
 
@@ -35744,7 +35705,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35752,7 +35713,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/micro
 
 Build-bound public API projection for `@expo/snapback-client/micro`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/micro.mjs`.
 
@@ -35978,7 +35939,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35986,7 +35947,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/micro/core
 
 Build-bound public API projection for `@expo/snapback-client/micro/core`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/micro-core.mjs`.
 
@@ -36341,7 +36302,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36349,7 +36310,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/micro/live
 
 Build-bound public API projection for `@expo/snapback-client/micro/live`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/micro-live.mjs`.
 
@@ -36455,7 +36416,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36463,7 +36424,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/online
 
 Build-bound public API projection for `@expo/snapback-client/online`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/online.mjs`.
 
@@ -37053,7 +37014,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37061,7 +37022,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/optimistic-rebase
 
 Build-bound public API projection for `@expo/snapback-client/optimistic-rebase`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/optimistic-rebase.mjs`.
 
@@ -37358,7 +37319,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37366,7 +37327,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/outbox-shared
 
 Build-bound public API projection for `@expo/snapback-client/outbox-shared`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/outbox-shared.mjs`.
 
@@ -37805,7 +37766,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37813,7 +37774,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/push-installation-expo
 
 Build-bound public API projection for `@expo/snapback-client/push-installation-expo`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/push-installation-expo.mjs`.
 
@@ -37931,7 +37892,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37939,7 +37900,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/push-registry
 
 Build-bound public API projection for `@expo/snapback-client/push-registry`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/push-registry.mjs`.
 
@@ -38103,7 +38064,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38111,7 +38072,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/result-transform
 
 Build-bound public API projection for `@expo/snapback-client/result-transform`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/result-transform.mjs`.
 
@@ -38508,7 +38469,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38516,7 +38477,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/rqs
 
 Build-bound public API projection for `@expo/snapback-client/rqs`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs.mjs`.
 
@@ -38975,7 +38936,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38983,7 +38944,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/rqs-preload
 
 Build-bound public API projection for `@expo/snapback-client/rqs-preload`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-preload-core.mjs`.
 
@@ -39232,7 +39193,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39240,7 +39201,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/rqs-registered
 
 Build-bound public API projection for `@expo/snapback-client/rqs-registered`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-preload.mjs`.
 
@@ -39622,7 +39583,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39630,7 +39591,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/rqs-store
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store.mjs`.
 
@@ -40242,7 +40203,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40250,7 +40211,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/rqs-store-default
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store-default`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store-default.mjs`.
 
@@ -40390,7 +40351,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40398,7 +40359,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/rqs-store-expo
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store-expo`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store-expo.mjs`.
 
@@ -40598,7 +40559,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40606,7 +40567,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/rqs-store-file
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store-file`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store-file.mjs`.
 
@@ -40791,7 +40752,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40799,7 +40760,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/search
 
 Build-bound public API projection for `@expo/snapback-client/search`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/search.mjs`.
 
@@ -41044,7 +41005,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -41052,7 +41013,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-client/vector-search
 
 Build-bound public API projection for `@expo/snapback-client/vector-search`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-client/vector-search.mjs`.
 
@@ -41629,7 +41590,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -41637,7 +41598,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-react
 
 Build-bound public API projection for `@expo/snapback-react`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-react/index.mjs`.
 
@@ -43501,7 +43462,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -43509,7 +43470,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-react/thumbhash
 
 Build-bound public API projection for `@expo/snapback-react/thumbhash`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-react/thumbhash.mjs`.
 
@@ -43614,7 +43575,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -43622,7 +43583,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-expo
 
 Build-bound public API projection for `@expo/snapback-expo`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import, default` → `packages/snapback-expo/index.mjs`.
 
@@ -46271,7 +46232,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -46279,7 +46240,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-expo/app-binding
 
 Build-bound public API projection for `@expo/snapback-expo/app-binding`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/app-binding.mjs`.
 
@@ -46553,7 +46514,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -46561,7 +46522,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-expo/app.plugin
 
 Build-bound public API projection for `@expo/snapback-expo/app.plugin`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `require, default` → `packages/snapback-expo/app.plugin.js`.
 
@@ -46677,7 +46638,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -46685,7 +46646,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-expo/asset-source
 
 Build-bound public API projection for `@expo/snapback-expo/asset-source`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/asset-source.mjs`.
 
@@ -46832,7 +46793,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -46840,7 +46801,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-expo/config-plugin
 
 Build-bound public API projection for `@expo/snapback-expo/config-plugin`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `require, default` → `packages/snapback-expo/config-plugin.cjs`.
 
@@ -46956,7 +46917,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -46964,7 +46925,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-expo/supervised-environment
 
 Build-bound public API projection for `@expo/snapback-expo/supervised-environment`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/supervised-environment.mjs`.
 
@@ -47126,7 +47087,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -47134,7 +47095,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-cli/verify
 
 Build-bound public API projection for `@expo/snapback-cli/verify`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 Runtime parity condition:
 `default` → `packages/snapback-cli/verify.mjs`.
 
@@ -47502,7 +47463,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
+reviewed-commit: 96059e6ed126c9551139245ec03e7c6a52401b43
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -47510,7 +47471,7 @@ reviewed-commit: 5dd2505412c128ab0eeceb52724e9136f98ad86d
 # @expo/snapback-codegen/ctx
 
 Build-bound public API projection for `@expo/snapback-codegen/ctx`. Canonical registry identity:
-`sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3`.
+`sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964`.
 This package subpath is type-only; runtime export parity is not applicable.
 
 [Compact reference index](./index.md) · [machine-readable registry](./registry.json)
@@ -48582,10 +48543,7 @@ proof of the same contracts. The headless witness proves:
 
 ### Keep a queued React mutation pending
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** This source checkout distinguishes a durably queued React
-> mutation from failure; the newest published package is `0.1.15`.
+<!-- since: 0.1.16 -->
 
 The headless client resolves a durably enqueued dispatch with
 `{ queued: true, clientMutationId, sequence }`. `useSnapbackMutation` keeps its

@@ -39,13 +39,42 @@ This lane owns:
 - the irreplaceable-evidence archive of the 0.1.11 G4 quarry, recorded
   below.
 
-### 2. 0.1.16 qualified cut
+### 2. 0.1.16 qualified cut — **DONE 2026-08-09**
 
-**Branch:** `release/fastpath-0.1.16`, claimed 2026-08-09 by the release
-supervisor session. Worktree `~/projects/snapback-wt/g4-release`, candidate
-revision `fe3dae6b999d01c31117cc95145d190fa29dc497` (clean `origin/main` at
-claim time). Registry state observed at claim time: `latest` is `0.1.15` and
-no `0.1.16` exists on any name.
+**Branch:** `release/fastpath-0.1.16`, claimed and executed 2026-08-09 by the
+release supervisor session in worktree `~/projects/snapback-wt/g4-release`.
+
+**Outcome: all eleven names are live on npm `latest` at `0.1.16`.** The
+published revision is `ee21fa4a82c5486e1e4abf48e67a1745e7316e83`, one commit
+past the `fe3dae6b9` tip observed at claim time — qualification found two
+published-bytes defects (the CLI's packaged codegen fixtures and its packaged
+copy of the authoring skill, both drifted from their sources) and the lane
+repaired them in `ee21fa4a8` before publishing rather than shipping them.
+
+**The G4 rerun vector is therefore `0.1.16` at revision `ee21fa4a82`.** Lane 3
+should install exactly these published versions and no others.
+
+Retained ledger:
+`~/snapback-release-ledgers/fastpath-ledger-0.1.16-ee21fa4a82.json`, SHA-256
+`b448829da9654e4deceda58076bcfae01eb240eea053cdd2e30e1e296bac5182`, written
+before the first `npm publish`. All eleven registry tarballs re-downloaded
+after publication and confirmed byte-identical to it. Full execution record,
+including the gates run and the reds this cut publishes over, is in
+[the closed rapid-publication ticket](./closed/20260808-0116-rapid-publication.md).
+
+Two things lane 3 must know before consuming this vector:
+
+- The published closure still cannot serve the admin console
+  (`20260809-published-runtime-omits-admin-console-bundle.md`) and the Linux
+  runtime still carries the ICU-78 soname dependency
+  (`20260808-linux-runtime-icu-dynamic-link-portability.md`). Both predate
+  0.1.16 and neither was repaired by it.
+- The cheap N=1 skill-web sanity re-run that the rapid-publication ticket
+  asked for — confirming the expo-chat template web-deps loop is gone — was
+  **not** run. It is now unclaimed work sitting in front of, or alongside,
+  lane 3.
+
+The original instruction is kept below for the record.
 
 Run the qualified fast-path publication using the 0.1.14-ceremony recipe and
 publish the closure as 0.1.16. In the same promotion lane:

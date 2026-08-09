@@ -299,10 +299,7 @@ over the same provider-owned command client. The hooks for asset-bearing
 commands (`useSnapbackCommand`) and whole-screen compositions (`useSurface`)
 live on [application surfaces](./surfaces.md).
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** This source checkout distinguishes a durably queued React
-> mutation from failure; the newest published package is `0.1.15`.
+<!-- since: 0.1.16 -->
 
 The resolved value remains exclusively the generated mutation result. When a
 connectivity refusal has instead crossed the durable enqueue cut, the
@@ -541,11 +538,7 @@ entries are blanked. Presence is never persisted, hydrated, or counted as a
 durable mutation. This first-class surface is deliberately local-target only;
 a hosted binding returns `unsupported` without starting a room or socket.
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** This source checkout keys query arguments and presence
-> scope/value by canonical content. The newest published closure, 0.1.15,
-> still memoizes those hook inputs by object identity.
+<!-- since: 0.1.16 -->
 
 ## Use inline hook inputs without subscription churn
 

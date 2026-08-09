@@ -130,11 +130,7 @@ registers at `POST /auth/oauth/register`, then uses authorization code with
 required PKCE S256 through `GET|POST /auth/oauth/authorize` and
 `POST /auth/oauth/token`.
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** The app-CLI login client is newer than the newest published
-> closure, 0.1.15. Use a contributor-source build until a later package
-> closure publishes it.
+<!-- since: 0.1.16 -->
 
 The paved terminal client is
 `snapback-app --server <app-url> login`. It performs discovery, DCR, loopback

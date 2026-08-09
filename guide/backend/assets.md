@@ -501,11 +501,7 @@ the reviewed status posture in [LLP 0012](repo:llp/0012-headless-integration-con
 and the per-profile offer contract in
 [LLP 0096](repo:llp/0096-auth-profiles-for-protocol-clients.spec.md).
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** The signed-delivery client, one-call upload helper, and
-> settlement contract below are newer than the newest published closure,
-> 0.1.15. Use a source checkout until a later closure publishes them.
+<!-- since: 0.1.16 -->
 
 ### Issue and refresh a private signed URL
 
