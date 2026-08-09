@@ -2417,7 +2417,7 @@ mod tests {
     fn grant_seat(db: &mut LocalDatabase, principal: &str, resource: &str, role: &str) -> String {
         let writer = MembershipWriter::Admin;
         let plan = db
-            .plan_privileged_membership_insert(
+            .membership_plans().plan_privileged_membership_insert(
                 &writer,
                 "room_members",
                 Map::from_iter([
@@ -2428,7 +2428,7 @@ mod tests {
             )
             .expect("plan membership seat");
         let commit = db
-            .commit_membership_plan(&writer, plan)
+            .membership_plans().commit_membership_plan(&writer, plan)
             .expect("commit membership seat");
         commit
             .changes
@@ -2444,9 +2444,9 @@ mod tests {
             effective_principal: principal.to_owned(),
         };
         let plan = db
-            .plan_membership_remove(&writer, "room_members", member_id)
+            .membership_plans().plan_membership_remove(&writer, "room_members", member_id)
             .expect("plan membership revocation");
-        db.commit_membership_plan(&writer, plan)
+        db.membership_plans().commit_membership_plan(&writer, plan)
             .expect("commit membership revocation");
     }
 

@@ -1,8 +1,8 @@
 {
   "schemaVersion": "snapback.module-ownership-baseline.v1",
   "manifestSchemaVersion": "snapback.module-ownership-manifest.v1",
-  "moduleCount": 202,
-  "edgeCount": 1197,
+  "moduleCount": 203,
+  "edgeCount": 1200,
   "edges": [
     {
       "from": "src/admin_agent_destroy.rs",
@@ -2379,6 +2379,12 @@
       "fromOwner": "generation-activation-coordinator",
       "to": "src/manifest.rs",
       "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/generation_activation.rs",
+      "fromOwner": "generation-activation-coordinator",
+      "to": "src/storage.rs",
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/generation_activation.rs",
@@ -6345,6 +6351,18 @@
       "fromOwner": "storage-migration-kernel",
       "to": "src/manifest.rs",
       "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/storage/membership_plans.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/ids.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/storage/membership_plans.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/storage/auth_agents.rs",
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/storage/membership_reads.rs",

@@ -17093,7 +17093,7 @@ globalThis.__snapbackHandlers = {
         };
         let plan = snapback
             .db
-            .plan_membership_insert(
+            .membership_plans().plan_membership_insert(
                 &writer,
                 "room_members",
                 Map::from_iter([
@@ -17105,7 +17105,7 @@ globalThis.__snapbackHandlers = {
             .expect("plan membership grant");
         snapback
             .db
-            .commit_membership_plan(&writer, plan)
+            .membership_plans().commit_membership_plan(&writer, plan)
             .expect("commit membership grant");
         snapback
             .db
@@ -17124,11 +17124,11 @@ globalThis.__snapbackHandlers = {
         };
         let plan = snapback
             .db
-            .plan_membership_remove(&writer, "room_members", member_id)
+            .membership_plans().plan_membership_remove(&writer, "room_members", member_id)
             .expect("plan membership removal");
         snapback
             .db
-            .commit_membership_plan(&writer, plan)
+            .membership_plans().commit_membership_plan(&writer, plan)
             .expect("commit membership removal");
     }
 
@@ -17643,7 +17643,7 @@ globalThis.__snapbackHandlers = {
         };
         let seat_owner = snapback
             .db
-            .plan_membership_insert(
+            .membership_plans().plan_membership_insert(
                 &owner,
                 "room_members",
                 Map::from_iter([
@@ -17655,7 +17655,7 @@ globalThis.__snapbackHandlers = {
             .expect("plan owner seat");
         snapback
             .db
-            .commit_membership_plan(&owner, seat_owner)
+            .membership_plans().commit_membership_plan(&owner, seat_owner)
             .expect("commit owner seat");
         grant_membership(&mut snapback, "bob", "room-a");
         grant_membership(&mut snapback, "carol", "room-a");
@@ -17673,11 +17673,11 @@ globalThis.__snapbackHandlers = {
         // so an unrelated outstanding cursor still verifies.
         let no_op = snapback
             .db
-            .plan_membership_remove_principal(&owner, "room_members", Some("room-a"), "ghost")
+            .membership_plans().plan_membership_remove_principal(&owner, "room_members", Some("room-a"), "ghost")
             .expect("absent-target no-op plans");
         snapback
             .db
-            .commit_membership_plan(&owner, no_op)
+            .membership_plans().commit_membership_plan(&owner, no_op)
             .expect("commit absent-target no-op");
         let after_no_op = snapback
             .invoke_query(
@@ -17694,11 +17694,11 @@ globalThis.__snapbackHandlers = {
         // event 1, so the same cursor now refuses — byte-identically.
         let removal = snapback
             .db
-            .plan_membership_remove_principal(&owner, "room_members", Some("room-a"), "carol")
+            .membership_plans().plan_membership_remove_principal(&owner, "room_members", Some("room-a"), "carol")
             .expect("present-target removal plans");
         snapback
             .db
-            .commit_membership_plan(&owner, removal)
+            .membership_plans().commit_membership_plan(&owner, removal)
             .expect("commit present-target removal");
         let refused = snapback
             .invoke_query(
