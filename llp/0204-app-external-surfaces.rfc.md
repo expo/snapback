@@ -6,14 +6,14 @@
 Hosted platform, Developer experience, Docs
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (v0.3 — super-refine round-1 revision; both
-family verdicts on v0.2 were NOT READY; all nine material concerns
-repaired: hosted plane boundary restated per LLP 0055, untrusted code
-mode gated per LLP 0009/0047, registration posture required with
-`api.enabled`, integration/installation split, declared-tier storage
-bounds + fresh-identity upgrade, external anonymous set pinned to
-LLP 0058/0172, streams private by default, receipts labeled provenance,
-approval labeled prospective authorization. See Revision history.)
+**Revised:** 2026-08-08 (v0.4 — super-refine round-2 revision; six
+round-2 material concerns repaired: anonymous residual reachability
+stated as the honest limit of the exposure claim, `authorized-lease`
+removed from the third-party recipe, MCP anonymous lane pinned to the
+D1 set, integration lifecycle authorities named (unowned provisional
+DCR, key-holder rotation as fail-closed global kill), capability links
+staged to anonymous-set-only v1 with granted-link amendments
+commissioned, plus round-2 minors. See Revision history.)
 **Related:** LLP 0004 (application data API — deferred "REST auto-generation,
 public endpoint routing"), LLP 0009 (code execution security —
 comprehensive preemption as the untrusted-code prerequisite), LLP 0019
@@ -76,8 +76,9 @@ facts, none of which is new machinery:
 Cross-cutting all four surfaces is **code mode**: instead of N round trips,
 a caller may submit a bounded TypeScript program written against the app's
 generated typed client (`code-mode.d.ts`, already served in the LLP 0062
-envelope); the server executes it in the restricted no-eval handler VM under
-the caller's grant, with every embedded call still individually authorized.
+envelope); the server executes it under the caller's grant — on targets
+carrying the evidenced untrusted-code profile (D6) — with every embedded
+call still individually authorized.
 Code mode is the shared execution substrate: the API's batch endpoint, the
 MCP server's escape hatch from tool-call chattiness, the CLI's `run` verb
 (shipped today), and the inner loop of the AI interface are all the same
@@ -144,8 +145,8 @@ The framing shift matters for the threat model. The corpus's existing
 external caller is singular, trusted, and the owner's own agent. A third
 party is plural, untrusted, needs independent revocation and quota, and —
 hardest of all — needs a **stable contract across the app's redeploys**,
-which the `expectedGeneration` pinning discipline (LLP 0093) currently
-makes impossible for outsiders.
+which the `expectedGeneration` pinning discipline (LLP 0012/0058)
+currently makes impossible for outsiders.
 
 ## Design principles
 
@@ -163,9 +164,10 @@ makes impossible for outsiders.
   function bodies — so the Supabase forgot-RLS failure mode cannot occur:
   an exposed function enforces exactly what it always enforced.
 - **P3 — External authority is app authority.** No API keys that "act as
-  the app." Every external call resolves to the LLP 0055 audit tuple
-  (actor principal, effective principal, grant). Cost, quota, revocation,
-  and audit all key off that tuple.
+  the app." Every *granted* external call resolves to the LLP 0055 audit
+  tuple (actor principal, effective principal, grant); the ungranted
+  lanes attribute to the declared-id / network-evidence tuple instead
+  (D7). Cost, quota, revocation, and audit key off the lane's tuple.
 - **P4 — Exposure implies stability.** Marking a function exposed opts it
   into a compatibility regime and out of hard generation pinning. Internal
   clients keep `expectedGeneration` semantics; the public surface promises
@@ -216,7 +218,16 @@ Semantics:
   routing: an integration credential invoking an unexposed function is
   refused on the bare finite routes, live subscriptions, nested
   code-mode calls, and MCP alike — S1 acceptance enumerates these
-  bypass paths adversarially. Per LLP 0062's warning,
+  bypass paths adversarially. **Anonymous residual reachability is the
+  honest limit of that claim**: an external anonymous caller is
+  indistinguishable from a first-party anonymous caller on the bare
+  routes, so for anonymous-admitting functions `expose: false` removes
+  advertisement, projections, and declared/credentialed treatment — it
+  cannot remove bare-route anonymous reachability while first-party
+  anonymous traffic exists. An app that needs an anonymous-admitting
+  function to be externally unreachable changes its authorization
+  class; "callability follows exposure" is a credentialed-lane
+  invariant. Per LLP 0062's warning,
   `disclosure: "exposed-only"` must govern `/inspect` and the envelope
   together — redacting one but not the other protects nothing.
   `disclosure: "full"` preserves today's decided anonymous-inventory
@@ -228,19 +239,25 @@ Semantics:
   The **external anonymous set** is decided here, not left to
   projections: it is the exposed functions whose authorization admits
   anonymous callers under LLP 0058/0172 — `public`, and `optional-user`
-  invoked without a user context — subject to the LLP 0090 anonymous
-  budget posture. Every projection (API, OpenAPI, MCP, CLI, code mode,
+  invoked without a user context — subject to the bounded anonymous
+  budget posture (LLP 0090's `DeclaredPublicApplicationData` class,
+  registered via LLP 0031's dated amendment, admitted per LLP 0071). Every projection (API, OpenAPI, MCP, CLI, code mode,
   envelope, docs) derives this same set.
 - **`api.enabled` requires a registration posture.** Every credentialed
   lane (API tokens, MCP connect, CLI login) begins at principal
   creation, and LLP 0055's `auth.agents.mode` defaults to `disabled` —
   under which each of them dead-ends. Activation therefore refuses
   `api.enabled: true` without an explicit `auth.agents.mode`
-  declaration (a manifest diagnostic names the missing line); the
-  production creation-path constraint is inherited from LLP 0055
-  (`open`, or `invited` with `invitedBy: "users"`). "Automatic" in this
-  RFC means derived from declarations — never silently opened
-  registration.
+  declaration (a manifest diagnostic names the missing lines — note
+  `auth.agents.*` is meaningful only under `auth.mode: "sessions"`
+  (LLP 0055), so `api.enabled` implies sessions mode and the diagnostic
+  names both). An explicit `auth.agents.mode: "disabled"` is a *valid*
+  posture: it declares an ungranted-lanes-only external surface
+  (anonymous + declared, no tokens, no MCP grants, no CLI login). For
+  credentialed lanes the production creation-path constraint is
+  inherited from LLP 0055 (`open`, or `invited` with
+  `invitedBy: "users"`). "Automatic" in this RFC means derived from
+  declarations — never silently opened registration.
 - First-party clients are unaffected. The exposure declaration creates a
   second, outward-facing projection; it does not carve functions away from
   the app's own arms.
@@ -291,15 +308,29 @@ No parallel REST router is introduced. What changes for external callers:
   external mutations additionally gated on the durable audit log
   (LLP 0019 F8). This RFC does not amend that boundary; un-refusing any
   hosted granted lane is a named dated LLP 0055 amendment with its own
-  security argument, never an implication here. Local/trusted-local
-  targets get the full granted surface immediately, which is exactly
-  what LLP 0201 M6 needs.
-- **Live data.** v1 documents a poll/lease loop (`authorized-lease` +
-  re-poll) for third parties; connection-grant streaming for integrations
-  is v2 (the connection-open path assumes first-party lifecycle handling).
+  security argument, never an implication here. Ungranted lanes bypass
+  only the service-principal gate: the LLP 0019 F8 audit gate binds
+  granted external mutations (and externally effectful actions
+  equivalently), while anonymous-admitting mutations are today's
+  first-party surface and follow its posture. Local/trusted-local
+  targets get the granted *finite* surface immediately (LLP 0055 v1:
+  function routes + `/connection/open`), which is exactly what
+  LLP 0201 M6 needs.
+- **Live data.** v1 documents plain re-polling of the finite query
+  routes (fresh snapshots; the envelope digest for change detection) —
+  sufficient for LLP 0201 M6's "documented polling." The
+  `authorized-lease` mint is *not* part of the third-party recipe:
+  LLP 0055 pins the v1 service-principal surface to the finite routes
+  plus `/connection/open` and names retained reads a non-goal, so
+  admitting the lease under scoped tokens would be a named dated
+  LLP 0055 amendment with its own argument. Connection-grant streaming
+  for integrations is v2 (the connection-open path assumes first-party
+  lifecycle handling).
 - **CORS** for browser-based third parties: exposed-surface routes get an
-  app-declared origin policy (`api.origins`), implemented under LLP 0039's
-  deferred origin-allowlisting contract. Absent a declaration, no CORS —
+  app-declared origin policy (`api.origins`). LLP 0039's deferred
+  origin-allowlisting contract is scoped to cookie transport;
+  bearer-token CORS for `/api/v1/*` needs its own statement inside the
+  amendment that lands `api.origins`. Absent a declaration, no CORS —
   today's posture.
 
 **Projections generated from the envelope** (all P1-derived, no hand
@@ -321,15 +352,20 @@ declaration and served remotely:
   registered in the 0031 taxonomy). Tool set = exposed functions
   (`snapback_fn_<functionId>`, input/output schemas from the envelope),
   plus a small fixed set: `describe_api` (envelope digest + docs pointers),
-  `run_code` (code mode, D6), and — where enabled — `ask` (the AI
-  interface, D5, so any MCP client gets the high-level surface too).
+  `run_code` (code mode, D6 — advertised only on targets carrying the
+  evidenced untrusted-code profile), and — where enabled — `ask` (the
+  AI interface, D5, so any MCP client gets the high-level surface too).
 - **Authorization:** this is where the OAuth facade (D8) earns its keep.
   MCP clients speak OAuth 2.1 + dynamic client registration; the generated
   authorization-server metadata points at the facade, whose consent step
   *is* the LLP 0150 approval link. The resulting token is an LLP 0055
   delegated grant scoped to the user who approved it. Tool listing is
-  public (it is the envelope, per the disclosure posture); tool *calls*
-  carry the grant.
+  public (it is the envelope, per the disclosure posture). Tool *calls*
+  come in the same two lanes as the API: unauthenticated calls are
+  admitted to exactly the external anonymous set (D1) under the
+  anonymous/declared budgets, and granted calls carry the grant — so on
+  hosted targets, before LLP 0039 lands, the MCP surface serves the
+  anonymous set only, same as every other projection.
 - **Scope shaping:** eager one-tool-per-function does not scale (LLP 0149
   F3). The catalog groups tools and advertises `run_code` prominently;
   clients with small tool budgets can operate through code mode alone —
@@ -356,7 +392,9 @@ distribution and authority:
   escalation happens at refusal time.
 - **Verb surface:** external mode lists exposed functions only; the
   developer's own CLI against a trusted-local target keeps today's full
-  surface. Same engine, same knob, two projections — P1 again.
+  surface, discovered via LLP 0031 D3's gated full projection when
+  `disclosure: "exposed-only"` redacts the anonymous one. Same engine,
+  same knob, two projections — P1 again.
 
 ## D5 — Surface 4: the near-data AI interface
 
@@ -386,8 +424,8 @@ D9.1 primitive by default.
   handle. Default: no budget
   declared → surface disabled.
 - **Execution shape:** the agent's tool loop is code mode (D6) plus plain
-  function calls, in the restricted VM, with the LLP 0047 execution-limit
-  regime extended with a token meter. v1 is **read-only** (queries only)
+  function calls, under D6's per-target untrusted-code gate, with the
+  LLP 0047 execution-limit regime extended with a token meter. v1 is **read-only** (queries only)
   regardless of grant, mirroring the corpus's own hosted-mutation
   sequencing; mutating `ask` follows the audit-log gate.
 - **Receipts are provenance, not proof.** The response includes the
@@ -397,7 +435,10 @@ D9.1 primitive by default.
   itself verify the answer's derivation (LLP 0149 F9 separates "the
   task completed" from "the answer is verified"). Verification-grade
   receipts (result bytes, snapshot identity) are a declared upgrade,
-  never an implied property.
+  never an implied property. Retained digests follow LLP 0062's
+  value-minimization precedent (domain-separated keyed commitments;
+  omitted from less-authorized audit projections; custody rule
+  implementation-phase).
 - **Model plumbing** rides the existing egress/secret machinery (LLP 0036
   handles for provider keys; LLP 0070's guarded-egress posture). Model
   and provider allowlists are app policy.
@@ -461,24 +502,36 @@ The thin new identity object between "agent principal" and "OAuth client":
   identity and lifecycle* — nothing more. An **installation** is one
   user's consent to that integration: a per-user LLP 0055 delegated
   grant (actor = the integration's agent principal, effective = the
-  consenting user), revocable by that user alone. The owner's control
-  over the record never reaches other users' installations: integration
-  principals are **delegation-only in v1** (no autonomous memberships to
-  assume), and re-credentialing supersedes the credential — killing
-  every live installation for fresh consent — rather than transferring
-  them. Records live as app data in reserved tables like auth state
-  today; the registration policy knob is LLP 0055's existing
+  consenting user). The lifecycle authorities are disjoint and named:
+  **each user** revokes their own installation (and only theirs);
+  **whoever holds the integration's key** rotates or retires the
+  credential — which, because grants bind to credential generation
+  (LLP 0055), *terminally revokes every installation for fresh
+  consent*: a fail-closed global kill, never a transfer of anyone's
+  delegated authority, and the consent surface says so plainly;
+  **operators** suspend or retire the record from the admin console
+  (same fail-closed effect). Control of the record follows proof of
+  possession of its key — never "first installer": a DCR-created
+  record (D8) starts **unowned and provisional** (consistent with
+  LLP 0055's unowned open registrations), and an owner is bound only
+  as LLP 0150 binds one, at an approval ceremony; `invited` creations
+  record the inviter. Integration principals are **delegation-only in
+  v1** (no autonomous memberships to assume). Records live as app data
+  in reserved tables like auth state today; the registration policy
+  knob is LLP 0055's existing
   `auth.agents.mode: disabled | invited | open`. An integration is an
   agent principal with a public face, not a new principal kind — but
-  DCR (D8) creates only the record; authority exists only as
-  installations, each minted by its own user's consent.
+  DCR creates only the record; authority exists only as installations,
+  each minted by its own user's consent.
 - **Admission — a three-lane ladder:** LLP 0071's admission contract gains
   per-integration keys: every external call is admitted against
   (integration, principal) budgets before execution. Below the granted
   lane sit two auth-free lanes:
 
-  - **Anonymous** — the LLP 0090 bounded posture, keyed on network
-    evidence. The hard floor; nothing weakens it.
+  - **Anonymous** — the bounded anonymous posture (owned by LLP 0090's
+    `DeclaredPublicApplicationData` class via LLP 0031's dated
+    amendment, admitted per LLP 0071), keyed on network evidence. The
+    hard floor; nothing weakens it.
   - **Declared** — auth-free but *identified*: the caller self-chooses a
     client id (no registration round trip, no secret — a header such as
     `Snapback-Client-Id: <id>; contact=<email-or-url>`) and the server
@@ -517,7 +570,8 @@ The thin new identity object between "agent principal" and "OAuth client":
 Current standards, for the record: OAuth 2.1 (PKCE-required
 authorization code), RFC 8628 (the device-authorization grant, not
 consolidated into 2.1), RFC 7591 (dynamic client registration), RFC 9728 (protected
-resource metadata), and the MCP authorization spec built on all four; plus
+resource metadata), and the MCP authorization spec built on OAuth 2.1 with RFC 8414
+authorization-server metadata, RFC 7591, and RFC 9728; plus
 the 2025-vintage commercial versions (Supabase OAuth 2.1 server, Clerk
 OAuth Applications, Stytch Connected Apps). Bearer JWTs are the industry
 norm; proof-of-possession is the direction of travel.
@@ -563,8 +617,9 @@ from the D1–D8 chain; none introduces a new authority model.
 A first-class stream result kind for chatbot-style UIs, and the transport
 `ask` (D5) uses by default. An action may declare `stream: true`: chunks
 ride the existing ephemeral/live machinery to subscribed clients, and the
-**durable transcript settles into app data on completion** — attempt
-identity, final text, and token accounting land as a row, so chat
+**durable transcript settles into reserved platform tables on
+completion** — attempt identity, final text, and token accounting land
+as a row, so chat
 history, reconnect (cursor resume), and cancellation are platform
 behavior rather than per-app boilerplate. Streams are **private to the
 initiating authority by default**: chunks may derive from data read
@@ -574,7 +629,10 @@ inputs. Multi-viewer streaming remains the differentiating capability —
 as an explicit sharing declaration, delivered through a durable result
 query whose ordinary row-level authorization independently admits each
 viewer (or per-viewer re-evaluation where the app declares it) —
-something point-to-point SSE cannot express either way. Transcripts
+something point-to-point SSE cannot express either way. v1 `ask`
+streaming is request-bound private SSE, distinct from live-subscription
+authority; subscription-shaped reconnect and multi-viewer arrive with
+the v2 sharing declaration. Transcripts
 settle into reserved platform tables (like auth state) under platform
 authority, so `ask`'s v1 read-only claim concerns app data and stays
 honest on gated targets. A Vercel AI SDK-compatible SSE endpoint
@@ -586,7 +644,7 @@ core. Token accounting integrates with the D5/D7 budget ladder.
 Every app serves an installable Agent Skill — a small, digest-pinned
 bundle (SKILL.md + pointers) that teaches a harness three things:
 discovery (the envelope), authority acquisition (the D8 ceremony), and
-code mode. It deliberately does **not** embed the full API: it teaches
+code mode (taught as target-conditional, per D6). It deliberately does **not** embed the full API: it teaches
 the agent to fetch current facts from the envelope and reference
 projections, so it cannot rot (LLP 0203 P1 — generated or gated, never
 transcribed). It never contains credentials and never presents static
@@ -599,7 +657,10 @@ the same conventions this repo already uses for skill distribution.
 Any exposed live query can anchor a **watch**: a standing rule owned by
 a principal — `when this query's result satisfies this predicate, do
 that reaction` — persisted via durable background work and evaluated off
-the existing invalidation machinery, not by polling. Reactions in v1:
+the existing invalidation machinery, not by polling. v1 predicates are
+a closed declarative grammar (comparisons and presence over the
+result), never caller-submitted code; an executable predicate would be
+durable untrusted code and takes D6's gate. Reactions in v1:
 deliver a notification/webhook, or call one exposed function; a
 code-mode reaction follows D6's gates. Standing authority anchors per
 LLP 0070's contracts — `capturedGrant` for integration-owned watches
@@ -623,17 +684,25 @@ an optional use count. The server renders a generated destination —
 live result view for queries, a validated form for mutations/actions,
 asset delivery where applicable. Uses: public dashboards, upload
 requests, RSVP links, approval forms, temporary data rooms. Possession
-of the link is the authority — bearer *invocation* authority, which
-exceeds LLP 0150's acknowledged ceremony-capability exceptions. This
-RFC therefore commissions the **named dated LLP 0150 amendment** adding
-capability links to its bearer-exception inventory, with secret-URL
-discipline attached: short default and bounded maximum expiry, instant
-revocation, narrow-by-construction, journaled per use, no state change
-on GET, preview-crawler safety, and no logging or referrer leakage of
-the link token. Minting consumes the minter's authority (a scoped
-grant operation), so a revoked minter's links die with the grant. Queries by
-default; a mutating link requires explicit opt-in or an approval gate
-(D9.5, OQ9).
+of the link is bearer *invocation* authority — and LLP 0055/0058 have
+no carrier for it: a URL possessor supplies no actor principal, no
+credential generation, no grant, and the resolved-authority set is
+sealed. The design is therefore staged honestly. **v1 links bind only
+functions in the external anonymous set (D1)**: the link adds pinned
+arguments, attribution, and budget treatment to an invocation that was
+already anonymously callable — no new execution authority, no
+amendment needed. Extending links to granted operations (the narrowed
+delegated-grant ceiling) is **commissioned, not assumed**: named dated
+LLP 0055/0058/0031 amendments defining the link carrier (actor /
+effective / grant attribution for a possessor, route class, mint
+lineage, invocation gate), plus the LLP 0150 bearer-exception entry,
+with secret-URL discipline attached throughout: short default and
+bounded maximum expiry, instant revocation, narrow-by-construction,
+journaled per use, no state change on GET, preview-crawler safety, no
+logging or referrer leakage of the link token. Minting consumes the
+minter's authority, so a revoked minter's links die with the grant.
+Queries by default; a mutating link requires explicit opt-in or an
+approval gate (D9.5, OQ9).
 
 ### D9.5 — Approval-gated effects
 
@@ -669,7 +738,8 @@ an explicit `auth.agents.mode` declaration (D1):
   (bearer-only clients require the app's plain-bearer opt-in, D8).
 - `npx snapback-app <url>` CLI with login.
 - Optional `ask` endpoint with hard budgets, streaming by default.
-- Code mode on all of the above.
+- Code mode on all of the above, on targets carrying the evidenced
+  untrusted-code profile (D6).
 - An installable agent skill; watches, capability links, and
   approval-gated effects as the app opts in (D9).
 - Per-integration usage attribution, suspension, and revocation in the
@@ -811,3 +881,31 @@ must pass on the API, the MCP server, the CLI, and `ask`.
   stated, OAuth 2.1 parenthetical corrected, stability classifier
   assigned to S1, CLI default scope tied to OQ3 bundles, D9.5 on-ramp
   claim replaced with audit-scope narrowing.
+- 2026-08-08 — v0.4. Super-refine round-2 revision (delta round on
+  e36ef7bfe; claude NOT READY: 1 MATERIAL in-delta + 1 pre-existing;
+  gpt-5.6-sol NOT READY: 4 MATERIAL in-delta). Repairs: (both M1 / D1)
+  anonymous residual reachability stated — `expose: false` cannot
+  remove bare-route anonymous reachability of anonymous-admitting
+  functions; callability-follows-exposure scoped to credentialed
+  lanes; (claude M2 / D2) `authorized-lease` removed from the v1
+  third-party recipe (outside LLP 0055's v1 service-principal
+  surface); plain re-poll documented; (gpt M2 / D3) MCP unauthenticated
+  calls admitted to exactly the D1 anonymous set; hosted MCP =
+  anonymous set only pre-LLP 0039; (gpt M3 / D7) lifecycle authorities
+  made disjoint and named — per-user revocation, key-holder rotation
+  as fail-closed global kill with plain disclosure, operator
+  suspension; DCR records unowned/provisional, owner bound at
+  LLP 0150 approval, never first-installer; (gpt M4 / D9.4) v1
+  capability links restricted to the external anonymous set;
+  granted-link carrier commissioned as named LLP 0055/0058/0031
+  amendments. Minors: Summary/D5 execution wording aligned to D6's
+  per-target gate; sessions-mode implication + explicit-`disabled`
+  validity stated; transcript custody wording unified; MCP-auth
+  standards list corrected (RFC 8414); generation-pinning attribution
+  corrected (LLP 0012/0058); CORS claim scoped; anonymous-floor
+  ownership cited precisely; dev-tooling discovery named (LLP 0031 D3
+  gated projection); granted-local claim scoped to the finite surface;
+  ungranted-lane mutation posture stated; skill/D10 code-mode claims
+  made target-conditional; digest value-minimization added; P3 tuple
+  scoped to granted lanes; v1 `ask` SSE named request-bound; watch
+  predicates pinned to a closed grammar.

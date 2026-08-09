@@ -46,3 +46,61 @@ The “one authority, many projections” direction is strong, but revision `b3d
 6. **m6 — D9.3 lines 510–522:** implementation should inherit LLP 0070’s captured-grant/revalidation, webhook SSRF, idempotency, retry, and ambiguity contracts rather than treating durable work as sufficient by itself.
 
 VERDICT: NOT READY
+## Round 2 — 2026-08-08 (delta round)
+
+**Provenance:** External family reviewer — OpenAI gpt-5.6-sol via
+`codex exec`, reasoning effort xhigh, cwd = capsule worktree at commit
+e36ef7bfe (structural blindness: capsule excludes `llp/reviews/0204-*`
+and orchestrator notes). Delta-round instructions enumerated the v0.3
+delta and required IN-DELTA / PRE-EXISTING classification. Target
+revision: e36ef7bfe; target sha256:
+eaece79851f86ecd2e96cb08abb4f53c00b3c3382724866382301bae7666e9c5.
+Review received 2026-08-08, preserved verbatim below.
+
+**Verdict: NOT READY** (4 material, all IN-DELTA; 7 minors, 2
+PRE-EXISTING). No MATERIAL concern in pre-existing text from this
+family this round.
+
+---
+
+The revision materially improves the hosted-execution, untrusted-code, receipt, and streaming postures. However, four authority and exposure contradictions remain at the decision level, so this sha256 is not ready.
+
+## Material concerns
+
+1. [IN-DELTA] **Anchor: D1 “exposure declaration,” D2 transport.**  
+   **Defect:** Exposure is not enforceable as the claimed callability boundary for anonymous functions. LLP 0031/0058/0093 admit anonymous callers to bare `/query`, `/mutation`, and `/action` routes whenever the function is `public` or `optional-user`. Such a caller has no integration credential, so the server cannot distinguish a first-party anonymous caller—declared unaffected by D1—from an external caller guessing an unexposed function name. The new bypass rule only covers “an integration credential invoking an unexposed function.”  
+   **Why MATERIAL:** The keystone default-deny property is false for the newly defined external anonymous set. Either unexposed anonymous functions remain externally callable, or exposure changes first-party anonymous behavior.  
+   **Suggested disposition:** Decide the boundary explicitly: gate every bare anonymous invocation by exposure; introduce a verifiable first-party carrier; or concede that bare anonymous routes remain externally callable and narrow exposure’s callability claim to `/api/v1` and credentialed carriers.
+
+2. [IN-DELTA] **Anchor: D1 external anonymous set, D3 Authorization.**  
+   **Defect:** D1 says the same anonymous-callable set applies to MCP, but D3 says all MCP tool calls carry a delegated grant. On hosted targets those granted calls are wholesale-refused under the corrected D2 ladder, so MCP cannot exercise the supposedly gate-free anonymous set.  
+   **Why MATERIAL:** This contradicts “one authority, many projections” and materially changes whether the hosted MCP surface can do anything before LLP 0039 lands.  
+   **Suggested disposition:** Either admit unauthenticated MCP calls only to the external anonymous set, or explicitly exclude MCP from anonymous invocation and narrow the uniform-projection claim.
+
+3. [IN-DELTA] **Anchor: D7 integration versus installation; D8 DCR.**  
+   **Defect:** The lifecycle authorities contradict each other. An installation is said to be revocable “by that user alone,” and integration-owner control supposedly never reaches other users’ installations; nevertheless re-credentialing kills every installation, and suspension/revocation revokes every associated grant. LLP 0055 confirms that owner re-credentialing terminally revokes third-party grants. Separately, DCR creates an integration before an app user is known, while D7 requires every integration to have an app-user owner; LLP 0055 makes open registrations unowned, while LLP 0150 binds an owner only during approval.  
+   **Why MATERIAL:** This leaves consent revocation, global kill authority, and interoperable DCR registration undecided. A naïve resolution could give the first installer control over every later installation.  
+   **Suggested disposition:** Define distinct registration-owner and installation-user authorities, including provisional DCR state, ownership binding, operator suspension, per-install revocation, and global credential retirement. State and disclose plainly which operations invalidate other users’ installations.
+
+4. [IN-DELTA] **Anchor: D9.4 capability links; P3 external authority.**  
+   **Defect:** Adding capability links to LLP 0150’s bearer-exception inventory addresses custody but not execution authority. LLP 0055’s `servicePrincipal` requires an actor principal, credential generation, grant, and token; LLP 0058’s resolved-authority set is sealed. A URL possessor supplies none of those. Executing as the minter misattributes the actual actor; executing anonymously cannot exercise the narrowed delegated grant.  
+   **Why MATERIAL:** Capability links introduce a new bearer authority carrier while the RFC claims no new authority model and promises the LLP 0055 audit tuple for external calls. This is a security and audit-boundary defect.  
+   **Suggested disposition:** Commission explicit LLP 0055/0058/0031 amendments defining the link carrier, actor/effective/grant attribution, route class, mint/revocation lineage, and invocation gate—or initially restrict links to functions already callable anonymously.
+
+## Minor / implementation-phase notes
+
+1. [IN-DELTA] **D3, D6, D9.2, D10:** D6 correctly makes server-side code mode target-conditional, but D3 advertises `run_code` prominently, the generated skill teaches code mode, and D10 promises “Code mode on all of the above” unconditionally. Derive availability and documentation from the evidenced target capability and qualify D10.
+
+2. [IN-DELTA] **D2 hosted ladder:** “Gate-free external lanes are exactly the ungranted ones” can be misread as opening anonymous mutations, although the same section and sequencing retain the audit gate for external mutations. Say explicitly that ungranted calls bypass only the LLP 0055 service-principal gate; every external mutation remains F8-gated regardless of lane. Assign equivalent audit treatment for externally effectful actions.
+
+3. [IN-DELTA] **D1 registration posture:** Clarify whether explicit `auth.agents.mode: "disabled"` is a valid anonymous-only `api.enabled` posture. The current text refuses only an absent declaration but then names `open` or user-invited as the production constraint.
+
+4. [IN-DELTA] **D5 receipts:** Relabeling digests as provenance is correct, but retained argument/result digests can disclose low-entropy intermediate values. Follow LLP 0062’s value-minimization precedent: omit them from less-authorized audit projections or use domain-separated keyed commitments with an explicit custody/lifetime rule.
+
+5. [PRE-EXISTING] **P3 and D7 admission:** “Every external call” resolving to an LLP 0055 grant tuple and being keyed by `(integration, principal)` excludes the document’s own anonymous and declared lanes. Scope those claims to granted calls and name the separate trusted-edge/declared attribution tuple.
+
+6. [PRE-EXISTING] **D2 versus D9.1:** D2 defers integration connection-grant streaming to v2 while `ask` streams by default. Specify whether v1 `ask` uses request-bound private SSE, distinct from live subscription authority, with multi-viewer/reconnect subscription behavior remaining v2.
+
+7. [PRE-EXISTING] **D9.3 watches:** Pin watch predicates as a closed declarative grammar, or apply D6’s untrusted-code gate. A caller-submitted executable predicate would otherwise become durable untrusted code despite D6’s “query plan, not deployment” boundary.
+
+VERDICT: NOT READY

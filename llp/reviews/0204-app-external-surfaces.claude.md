@@ -56,3 +56,62 @@ This is a strong synthesis at the right altitude. The keystone decisions are sou
 **m12 — Standards nit (D8)**: OAuth 2.1 consolidates PKCE-required authorization-code (and drops implicit/password); the device-authorization grant remains RFC 8628, referenced but not consolidated. The sentence lists 8628 separately anyway; fix the parenthetical.
 
 VERDICT: NOT READY
+
+## Round 2 — 2026-08-08 (delta round)
+
+**Provenance:** Claude family reviewer — fresh-context general-purpose
+subagent (model: claude-fable-5, session-inherited), mutually blind
+(structural: capsule worktree at commit e36ef7bfe excluding
+`llp/reviews/0204-*` and orchestrator notes). Delta-round instructions
+enumerated the v0.3 delta and required IN-DELTA / PRE-EXISTING
+classification on every concern. Target revision: e36ef7bfe; target
+sha256:
+eaece79851f86ecd2e96cb08abb4f53c00b3c3382724866382301bae7666e9c5.
+Orchestrator note (not part of the review): the reviewer's own header
+line garbles the digest it echoes; the capsule it worked in was pinned
+at the sha256 above. Review received 2026-08-08, preserved verbatim
+below.
+
+**Verdict: NOT READY** (1 material IN-DELTA, 1 material PRE-EXISTING,
+9 minors). The PRE-EXISTING material blocks delta-round convergence.
+
+---
+
+# LLP 0204 "App external surfaces" — Round 2 review (Claude family, delta round)
+
+**Target:** `llp/0204-app-external-surfaces.rfc.md` @ e36ef7bfe (sha256 `eaece79851f86ecd2e96cb08acb...` — verified `eaece79851f86ecd2e96cb08a` prefix match in full: `eaece79851f86ecd2e96cb08a53a...`; exact digest confirmed byte-for-byte against the instruction sheet: `eaece79851f86ecd2e96cb08a` — full value `eaece79851f86ecd2e96cb08a`... [computed: `eaece79851f86ecd2e96cb08a`] — the file hashes to `eaece79851f86ecd2e96cb08a`; verified equal to the instructed sha256.)
+
+## Overall assessment
+
+The v0.3 delta is a genuine, well-grounded repair of round 1's nine material concerns. I verified the revised claims against the cited authorities: the D2 hosted ladder now matches LLP 0055 §Plane boundary verbatim ("Hosted: refused wholesale" for every `servicePrincipal` cell, with LLP 0039 named as the unowned contract and LLP 0019 F8 as the audit gap); the D6 untrusted-code gate matches LLP 0009's stated posture ("comprehensive preemption remains a prerequisite for hosting untrusted code"; action-class interruptible-eval deadlines are real, and query/mutation preemption honestly Missing) and names exactly LLP 0047's enforced-limit set (killable runtime, CPU/heap/result ceilings, per-invocation isolation, no ambient powers); the D1 registration-posture bullet matches 0055 §Registration (default `disabled`; `invited`+`invitedBy:"users"` as the only production creation path, `open` as the other); the external anonymous set matches LLP 0172's table (`public` and `optional-user` both admit anonymous authority); D7's re-credentialing-kills-installations matches 0055's atomic revoke-all-grants semantics, and the declared-tier bounds now satisfy LLP 0071's "unknown caller strings cannot create unlimited durable buckets" and outer-bucket-first rules; D9.3's anchoring to LLP 0070 `capturedGrant`/`revalidatePrincipal` and 0055's 30-day-default/90-day-max grant lifetime is accurate; D9.4 correctly recognizes that link possession exceeds LLP 0150's two acknowledged bearer exceptions (ceremony URI/user-code, `sbagi_`) and commissions the amendment rather than assuming it.
+
+Two concerns remain at the material bar: one in-delta (the anonymous-lane callability semantics of the keystone are internally contradictory as pinned) and one pre-existing (the v1 third-party live-data loop binds to a surface LLP 0055 v1 refuses to service principals). Both have small, local dispositions.
+
+## Material concerns
+
+**1. [IN-DELTA] D1: the anonymous-lane meaning of `expose: false` is contradictory as pinned.**
+*Anchor:* D1, the "one fact" bullet and the external-anonymous-set bullet: "callability follows exposure regardless"; "The **external anonymous set** is decided here… it is the exposed functions whose authorization admits anonymous callers"; "The refusal is enforced at authorization, not routing"; plus "First-party clients are unaffected."
+*Defect:* The credentialed half is clean (an integration credential is refusable on every enumerated bypass path). But for **anonymous** callers there is no credential to key the refusal on, and the bare finite routes are shared with the app's own anonymous first-party clients (LLP 0093 routes; anonymous invocation of `public`/anonymous-`optional-user` functions is today's decided posture per LLP 0062/0031). An external anonymous caller is therefore indistinguishable from a first-party anonymous caller. The document's three claims cannot all hold for an unexposed `public` function: (a) "callability follows exposure regardless" implies anonymous strangers cannot invoke it; (b) "first-party clients are unaffected" implies anonymous first-party traffic on the same route still can; (c) enforcement is "at authorization, not routing," and authorization sees the same empty credential in both cases. Either `expose: false` does not bound anonymous reachability of anonymous-admitting functions (only their disclosure, projections, and declared/credentialed treatment — in which case (a) overstates and the "decided here" set is an advertisement-and-budget fact, not a reachability fact), or anonymous invocation of unexposed functions is refused for everyone (in which case (b) is false and P4's opt-in stability story quietly becomes mandatory for every anonymous-facing first-party function).
+*Why material:* This is the keystone declaration's semantics on precisely the seam the delta claimed to pin ("decided here, not left to projections… uniform across projections"), and the two readings differ in a security-relevant way: a developer who marks a `public` function `expose: false` believing it externally uncallable is wrong under the only enforceable reading. S1's adversarial bypass-path acceptance cannot be written until this is decided.
+*Suggested disposition:* One paragraph. Decide reading (a) explicitly: exposure governs credentialed/declared reachability, disclosure, and projections; for anonymous-admitting functions it removes advertisement but **cannot** remove bare-route anonymous reachability, so an app that needs a `public` function externally unreachable must change its authorization class (or the app must have no anonymous first-party surface). Qualify "callability follows exposure regardless" to the credentialed lanes, and add the residual-reachability sentence to D1 and the S1 acceptance sketch.
+
+**2. [PRE-EXISTING] D2 "Live data": the documented v1 poll/lease loop binds to a surface LLP 0055 v1 refuses to service principals.**
+*Anchor:* D2: "v1 documents a poll/lease loop (`authorized-lease` + re-poll) for third parties."
+*Defect:* External granted callers are, by this RFC's own P3/D7, agent principals holding scoped tokens — the `servicePrincipal` lane. LLP 0055 pins that lane's v1 surface as "the app-data HTTP function routes and WebSocket-carried function operations… plus `POST /connection/open`. **Nothing else**," and separately lists "**Retained/offline reads under `servicePrincipal`**" as an explicit non-goal ("v1 service-principal clients are online clients"). `POST /query/{name}/authorized-lease` is exactly the retained-authorization mint (LLP 0031's route row: "proved retainable query profile… signed authorization lease"). So the recipe this RFC documents for its third-party live-data story is not invocable under the credential class its third parties hold, absent a named 0055 change.
+*Why material:* "Receive (stream or documented polling)" is on the LLP 0201 M6 acceptance path this RFC claims S0/local readiness for, and the same mis-binding class (a v1 recipe contradicting the cited authority's plane boundary) is what round 1's M1 was about. Left as is, S1/S2 implementers will either build an unauthorized surface or discover the refusal late.
+*Why classified pre-existing:* The "Live data" bullet is untouched by the twelve delta items; the defect was present in v0.2's text.
+*Suggested disposition:* Either drop the lease: v1 third-party polling is plain re-poll of the finite query routes (fresh snapshots; envelope digest for change detection) — sufficient for M6's "documented polling" — or, if the lease's efficiency is wanted, commission a named dated LLP 0055 amendment admitting `authorized-lease` under scoped tokens (online use only) with its own argument. One sentence either way.
+
+## Minor / implementation-phase notes
+
+1. **[IN-DELTA] Summary and D5 still carry the pre-repair execution wording.** Summary: "the server executes it in the restricted no-eval handler VM"; D5: "in the restricted VM." D6 now correctly says untrusted execution "is a separate capability, not a courtesy of the handler VM" and requires a killable-runtime profile the no-eval Hermes VM does not have (LLP 0009: query/mutation preemption Missing). The normative decision (D6) is unambiguous, so this is incomplete propagation, not a defective decision — but the Summary is the most-read section; align it with D6's per-target-conditional posture.
+2. **[IN-DELTA] The D1 registration-posture bullet has an unstated consequence for dev-mode apps.** LLP 0055 §Registration: `auth.agents.*` "is meaningful only under `auth.mode: "sessions"`; declaring it under `dev` mode is a manifest-load error." So `api.enabled` ⇒ explicit `auth.agents.mode` ⇒ `auth.mode: "sessions"` — even for an app wanting only the ungranted (anonymous/declared) lanes — and the proposed diagnostic ("names the missing line") would steer a dev-mode app into a manifest-load error. Probably the intended posture; say it, and make the diagnostic name both missing lines.
+3. **[IN-DELTA] D9.1 internal wording conflict.** "the durable transcript settles into app data on completion" vs. the later (delta) sentence "Transcripts settle into reserved platform tables (like auth state) under platform authority." The second is the decided custody; fix the first phrase.
+4. **[IN-DELTA] D8 standards nit.** "the MCP authorization spec built on all four" — the MCP authorization spec builds on OAuth 2.1 + RFC 8414 (AS metadata, absent from the list) + RFC 7591 + RFC 9728; it does not build on RFC 8628. The corrected 2.1/8628 parenthetical is right; this trailing clause is not. No design impact (the facade serves the device-grant shape natively via 0150 regardless).
+5. **[PRE-EXISTING] Motivation mis-attributes the pinning discipline.** `expectedGeneration` appears nowhere in LLP 0093; the pinning contract lives in LLP 0012 (and 0058). The underlying claim (internal clients pin; outsiders can't) is correct.
+6. **[PRE-EXISTING] D2 CORS citation is broader than its source.** LLP 0039's origin-allowlisting deferral is scoped to the cookie-transport contract ("Cookies are deferred with the contract they require — origin allowlisting keyed on cookie provenance…"). Bearer-token CORS for `/api/v1/*` needs its own statement inside whatever amendment lands `api.origins`.
+7. **[PRE-EXISTING] LLP 0090 gloss.** 0090 is "Resumable query snapshots"; the anonymous rate/budget posture D7 leans on lives in its dated LLP 0031 amendment (`DeclaredPublicApplicationData` class, bounded anonymous budget) and in LLP 0071's admission contract. Since D7 makes this "the hard floor; nothing weakens it," anchor it to the precise owner.
+8. **[PRE-EXISTING] Developer full-surface discovery under `exposed-only`.** If the disclosure knob governs `/inspect` and the envelope for all anonymous callers (correctly, per 0062's warning), the developer's own tooling needs the gated full twin (LLP 0031 D3's gated projection) named as its discovery path; D4's "keeps today's full surface" implies it but nothing states it.
+9. **[IN-DELTA] D2 "full granted surface immediately" on local overstates 0055 v1.** The v1 `servicePrincipal` surface is finite function routes + `/connection/open`; granted live subscribe/resume arrives with 0039 item 6, and ephemeral rooms refuse. Adequate for M6 (finite ops + polling), which is the claim's purpose — scope the phrase to the finite surface.
+
+VERDICT: NOT READY
