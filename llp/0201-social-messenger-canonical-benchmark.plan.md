@@ -1,0 +1,684 @@
+# LLP 0201: Social-messenger canonical benchmark
+
+**Type:** Plan
+**Status:** Accepted
+**Systems:** Competitive evaluation, Benchmarks, Publishing
+**Author:** Charlie Cheever / Claude
+**Date:** 2026-08-08
+**Revised:** 2026-08-08 (i — Review → Accepted, applied on the
+author's in-session ruling. Final review verdicts bind revision
+(g) — round 6 dual NOT READY with all MATERIAL concerns convergent
+and fixed in revision (h), which is **unreviewed**; its spot-review
+folds into the P3 freeze gate. Full history: Revision history
+section at the end of this document.)
+**Related:** LLP 0197 (benchmark publication standard — governs every
+publication from this instrument), LLP 0198 (surpass-Convex plan — this
+Plan adds a brief family to its instrument and rows to its rung matrix),
+LLP 0189 (claim gating), LLP 0186 (efficiency program), LLP 0193
+(errors-as-docs — the diagnostics rubric dimension reads its standard),
+`benchmarks/` (harness, protocol, records),
+`benchmarks/briefs/social-messenger.md` (the authoritative app spec),
+diaries 0058–0069 (the calibrated messaging series this extends),
+`guide/capabilities.md` (the coverage map the app was designed against)
+
+## Summary
+
+The existing messaging brief is deliberately small — a 10–65 minute
+lane that made five instrumented runs affordable. It cannot price real
+authentication (it pins a test-persona seam), push notifications,
+schema evolution, media lifecycle, search, offline *writes*, or a
+third-party API surface. This Plan defines the **canonical full-app
+benchmark**: one super-specified social-messenger application
+— named Clique: WhatsApp-shaped group messaging plus a follow-graph
+social feed — built as
+an Expo app on each competing backend, structured as **seven ordered
+milestones with per-milestone acceptance, budgets, and metrics**, so
+variance localizes, partial credit exists, and per-capability
+comparison falls out of the record.
+
+The instrument keeps the established quantitative core (wall clock,
+tokens, tool calls, correction loops under the protocol's attribution
+rule) and adds what the small brief lacks: an **independent quality
+gate** (a grader agent from a different model family, executing a
+frozen checklist plus rotated holdout probes), a
+**performance-at-scale gate** (a backend-neutral action-log replay to
+a published scale envelope, judged by hardware-independent degradation
+rules), a **preregistered
+16-dimension anchored rubric** split between builder-scored experience
+and grader-scored outcome, a **non-formulaic holistic score**, and a
+**narrative layer** (per-milestone diary entries plus a 1–2 page
+closing essay written before the agent sees any numbers).
+
+The existing messaging brief stays frozen for longitudinal integrity;
+`social-messenger` is a new brief family with its own rubric (LLP 0198
+P0.0(e)), its own rung-matrix rows preregistered at brief freeze, and
+no claim inheritance from the messaging configuration.
+
+## D1 — The app, and why this app
+
+The authoritative spec is `benchmarks/briefs/social-messenger.md`; the
+app's product name is **Clique** (the brief family and measurement
+identity remain `social-messenger`). The design intent: **the brief decides everything two reasonable agents
+would build differently, so the only decisions left to the lane are
+backend-shaped** — schema, auth wiring, sync strategy, media pipeline,
+API surface. Screens, fields, behavior windows, group semantics, the
+receipt state machine, media constraints, and conflict policy
+(last-write-wins) are all pinned in the brief.
+
+Milestones (reduced run = M1–M3; full run = M1–M7):
+
+- **M1 — Accounts and profiles.** Real email+password auth (no email
+  sending; verification out of scope), sessions surviving restart,
+  pinned profile fields, avatar upload, profile editing.
+- **M2 — Posts and the follow graph.** Text/image/video posts, likes,
+  reposts (no quote posts), flat reply threads, follow/unfollow with
+  live counts, and two reverse-chronological feeds — Following
+  (default) and Global. The Following feed is a genuine
+  fan-out/read-model decision (fan-out-on-write vs read-time
+  filtering) that the brief pins only by observable behavior, leaving
+  the architecture backend-shaped. Identity is entirely in-system —
+  no device address book, no phone-number identity (that flow needs
+  SMS and measures OS permission plumbing, not the backend).
+- **M3 — Messaging core.** Deduped DMs, group chats as entities,
+  admin add/remove without invitation flow, typing indicators,
+  sent/delivered/read receipts, WhatsApp-style quoted replies, seeded
+  fixture personas. This milestone is structurally similar to the
+  frozen messaging brief; **no longitudinal comparison is claimed** —
+  the configurations differ (real auth instead of the persona seam;
+  media, reactions, and offline arrive in later milestones).
+- **M4 — Media messages, reactions, edit/delete.** Photo/video
+  messages end-to-end, emoji reactions, edit within 15 minutes,
+  delete-for-everyone within 1 hour (tombstoned).
+- **M5 — Ephemeral, chat config, search.** Disappearing messages
+  (off/24h/7d, server-enforced), view-once photos (second view denied
+  server-side), per-chat name/color/background customization, people
+  search, in-chat and global message search (results for synced
+  messages must be available offline).
+- **M6 — Offline writes, push, custom-client API.** Cold-start
+  offline history (native-simulator proof here), offline compose with
+  queue-and-flush and correct receipt transitions, push notification
+  emission at the provider seam (logged payload; real APNs/FCM out of
+  scope — that would measure Apple, not the backend), and a
+  documented third-party API: token auth, list conversations,
+  paginated history, send, receive (stream or documented polling),
+  proven by a headless demo script the grader can run.
+- **M7 — Day-2 evolution.** In a **fresh agent session** (same aid
+  condition — skill, kit, docs posture — as the lane it continues),
+  add group polls (a new message type with live tallies and
+  offline-queued votes) **plus a backfilled field**: conversations
+  gain a message count shown in chat settings, backfilled for all
+  existing chats and maintained forward — polls alone can be built in
+  a new table without touching existing data, so the backfill is what
+  forces a real migration. **M7 runs against the pre-replay starter
+  state** (author ruling, 2026-08-08): a fresh backend instance
+  seeded with the starter log, not the scale replay's ~100k-message
+  database — cost containment and clean snapshot verification
+  outweigh the migration-at-scale signal, which remains available as
+  a future leg. No data loss, verified against a **pre-M7 snapshot
+  exported through the M6 custom-client API** over the brief's
+  pinned message field manifest (backend-neutral by construction,
+  and cheap at starter-state size). M7 runs on its own recorded
+  clock, writes its own diary entry and essay under the same
+  sequencing rules, and its session scores rubric dimension B8
+  (recorded null by the M1–M6 builder).
+
+M7 prices the edit-loop story LLP 0198 flags as plausibly Convex's
+second advantage — but as an **integrated, artifact-coupled
+measurement**: across repetitions its cost varies jointly with the
+quality of that repetition's M1–M6 output. Isolated day-2 *claims*
+remain the province of LLP 0198 P3's paired-start day-2 brief (frozen
+acceptance-equivalent starting artifacts); this instrument
+complements, and does not replace, that brief. Likewise this
+instrument's trust probes complement rather than subsume 0198 P3's
+trust-boundary brief; if the two programs' budgets collide, the
+overlap is a scoping decision recorded in the rung matrix, not silent
+double-spend.
+
+Coverage rationale: against `guide/capabilities.md`, the app exercises
+schema/functions/codegen, live queries, ephemeral state, assets,
+expiry enforcement (disappearing messages — schedulable or lazily
+enforced, a backend-shaped choice, so the cron row may go unexercised
+by some lanes; view-once is deny-after-first-view access revocation),
+text search, offline reads *and writes*, real sessions and
+scoped auth, actions and the notification seam, migrations and record
+history, the client protocol/headless arm, and acceptance testing.
+Deliberately out of scope: vector search, the Swift client, Cloudflare
+deploy (lanes run local, like the series), and `operating.*` features
+(priced by the operations rubric dimension, not app features).
+
+Session shape: one continuous session through M1–M6 (context
+accumulation is part of the product experience), per-milestone
+timestamps and token phases stamped by the harness; M7 runs fresh by
+design. A 1–3M-token session will compact; the harness's compaction
+policy is pinned per family in the record and **compaction events are
+logged**, so within-family variance attributable to context loss can
+be inspected rather than guessed at.
+
+## D2 — Quantitative instrument
+
+Unchanged core, per `benchmarks/protocol.md`: wall clock, token counts
+(input/output/cache) from the orchestration harness, raw tool
+invocations, and correction loops under the protocol's attribution rule
+(`snapback-defect` with `defect`/`knowledge-gap` sub-attribution,
+`agent-error`, `environment`, `ambiguous`). Additions:
+
+- **Per-milestone phases.** `wallClock.phases` and `tokens.phases`
+  (LLP 0198 P0.0(a)) gain a per-milestone dimension; the
+  first-green-proof timestamp (P0.0(b)) generalizes to a
+  first-green timestamp per milestone. Record schema extension is a
+  P1 deliverable.
+- **Separate recorded clocks.** The protocol's "last passing
+  acceptance evidence" boundary is restated for the milestone
+  structure: a milestone's **authoring clock** stops when the
+  harness records both a passing run of the milestone's acceptance
+  suite **and** a passing run of that milestone's choreography
+  segment — two-client and simulator behavior gates green too, so a
+  realtime-heavy milestone cannot go green headless. The suite pass
+  is honored only if its **coverage manifest** validates: at P1 every
+  checklist item is split into atomic assertions with stable IDs,
+  each assigned one executor class, and the manifest maps every
+  suite-required assertion (not merely every numbered item) to a
+  test. The grader later spot-verifies the mapping is honest; a
+  dishonest mapping **adjudicates** the milestone to
+  `capability-failure` — scoring-only and non-retroactive
+  (execution-time statuses, dependencies, termination history, and
+  other milestones' clocks stand as run; the lane's published
+  authoring wall recharges that milestone to its cap; O1 scores its
+  checklist not-passed). The green receipt is a neutral harness
+  artifact, not a builder assertion. The lane's authoring wall ends
+  at M6 green or final cap; a `capability-failure` milestone
+  contributes its full wall cap **and its actual tokens, flagged
+  capped-wall**; when tokens were the exhausted axis it charges the
+  token cap plus actual wall, flagged capped-tokens; an `aborted`
+  milestone charges exactly like a capability failure (full wall
+  cap plus actual tokens, flagged `aborted`) — the abort never
+  improves the capped axis.
+  When M6 never runs, the lane's authoring wall ends at the last
+  runnable milestone's terminal status. Grader
+  execution, scale replay and probes, and the M7 session each run on
+  **separately recorded clocks** never included in the authoring
+  statistic. Published efficiency claims read the authoring clocks
+  only; every clock is a distinct record field.
+- **Dollar cost** per lane *and per grader session*, computed from
+  tokens at the pinned models' published prices; recorded, not a
+  claim statistic (it matters once the model matrix compares across
+  tiers).
+- **Budget caps, the proceed rule, and dependency statuses.** Each
+  milestone carries a wall/token cap set by a preregistered formula:
+  cap = 2× the slowest tier-1 pilot lane's figure for that milestone
+  (the multiplier absorbs the observed ±30% per-lane spread on top
+  of an N=1 pilot calibration; that formula is the **wall** cap
+  rule). **Cap keys:** the wall cap is keyed by milestone and shared
+  by every lane in every family of a wave; the token cap is keyed by
+  **(cap family, milestone)** — token accounting is not
+  cross-family interchangeable, and there is no per-backend token
+  cap. **Cap families enumerate the model matrix exactly:** the
+  primary Claude frontier model; the GPT frontier model; the
+  mid-tier model (its own cap family — sharing a vendor with the
+  primary does not share its caps); Kimi and Grok are each their own
+  **cap-advisory** family: wall caps recorded for reference, token
+  caps recorded as inapplicable (no mini-pilot, no transfer), never
+  enforced — their N=1 cells are not claim-eligible, so enforcement
+  would only manufacture noise — with the P2 safety limits applying
+  as hard stops. Primary token cap(m) = 2× the largest tier-1 pilot lane
+  token figure for m. The GPT and mid-tier families' token cap(m)
+  derives from each family's one-lane Convex mini-pilot (GPT scope:
+  M1–M3, matching its scored P4 configuration, extended before any
+  full-app GPT lane, exploratory included; mid-tier scheduled at P3
+  after OQ1's model choice, scope M1–M3, matching its leg) via a preregistered **cross-backend transfer rule**:
+  cap(m) = 2× max over tier-1 backends B of [that family's Convex
+  figure(m) × primary pilot figure B(m) / primary pilot figure
+  Convex(m)] — pilot *figure* ratios, the 2× applied after
+  transfer, and transfer-derived token caps clamp at 2× the safety
+  limit. Pilot figures read **green** pilot milestones; a pilot
+  lane with no green figure for m contributes the safety limit as
+  its figure, and the ordinary 2× formula then applies (one rule
+  everywhere — P2 uses the same wording — keeping the cap formula
+  monotone in pilot outcomes). A single Convex lane has no
+  "slowest," and Convex is
+  predictably the cheapest lane; the transfer is what prevents
+  structurally under-calibrated caps from manufacturing spurious
+  failures. Unused budget does not roll over. A lane that exhausts a
+  cap records that milestone as a **capability failure** (all runs
+  reported, LLP 0197 rule 1; failed attempts reported as capability
+  failures per the rung matrix's L2 language) and proceeds — without
+  the proceed rule, partial credit collapses and one stuck milestone
+  eats the lane. Milestones whose **prerequisites failed** record
+  `blocked-by-M{n}`, never counted as an additional independent
+  capability failure; the prerequisite DAG is pinned in the brief
+  (M6 requires M2–M5, so its checklist's likes/media/view-once/search
+  dependencies are honest; M7's regression item is conditional on
+  previously-green milestones — prior failures are preserved, never
+  repaired under M7's budget). A milestone abandoned mid-attempt
+  (agent or environment abort before cap exhaustion) records
+  **`aborted`** — treated as a capability failure for
+  proceed/completeness purposes, distinct in the record. Two
+  consecutive capability failures/aborts (blocks don't count) end
+  the lane; milestones after a termination record `not-run`, and the
+  record carries an orthogonal **termination reason**. Completeness scoring keeps every full-run milestone in the
+  denominator regardless of status.
+- **Performance at scale** (full-app runs, after M6): a distinct axis
+  — everything else measures the *authoring* experience; this
+  measures the artifact the lane produced. The brief publishes a
+  visible **scale envelope** (~1k users, 50k posts, 100k messages, a
+  10k-message chat, 500 follows — visible by design: whether the
+  agent designs for scale is part of what is measured) as a
+  backend-neutral **action log** each lane replays through its app's
+  own write path under the brief's frozen **replay contract** (replay
+  order authoritative with settle-before-next, a frozen action schema
+  covering every log verb, log timestamps documentary, push seam
+  disabled, replay separately clocked with its own wall cap whose
+  exhaustion scores O5 — not lane completion; the replay pauses at
+  each checkpoint, probe wall time excluded from the replay cap; end
+  state verified against the log's invariant manifest, not just spot
+  counts). The grader then runs rotated performance probes at the
+  log's checkpoint sizes, and **O5 maps deterministically from the
+  frozen invariants** — invariant-manifest conformance (a
+  nonconforming end state caps O5 at its failure band: the envelope
+  was never validly reached), degradation-rule passes, ceiling
+  compliance, replay-cap margin — never from perceived speed; the
+  exact decision table publishes with the ceilings at P3. **O5 is a scale-safety gate, not a comparative
+  speed statistic**: backends run in different deployment postures
+  (local binary vs hosted dev deployment), so cross-backend latency
+  ordering is not a claim this instrument supports. What O5 scores is
+  viability at the envelope under hardware-independent **degradation
+  rules** (growth curves across checkpoints, no superlinear deep
+  paging, feed latency must not scale with follow count, no
+  timeout/OOM), with each lane's deployment posture a pinned record
+  field and absolute ceilings calibrated at the pilot. Comparative
+  performance claims are a deferred leg requiring a matched
+  deployment posture — realistically, once a hosted service exists.
+
+## D3 — Independent quality gate
+
+Scoring splits by who can honestly observe what: **the builder scores
+experience; a separate grader scores outcome.**
+
+1. The acceptance checklist is frozen with the brief, per milestone,
+   phrased as observable behaviors ("with two clients open, typing in
+   one shows the indicator in the other within 2 s, and it expires").
+2. The builder ships a scripted acceptance suite plus the M6
+   custom-client demo script.
+3. The **grader** is a fresh-session agent from the *other* scored
+   model family (D5), with a frozen prompt and pinned model, published
+   with the instrument. It receives the checklist, the built app
+   **including source code** (needed to run the suite and to verify
+   code-level obligations like password hashing), and run
+   instructions — **not** the builder's diary, self-scores, or
+   transcript. It runs the builder's suite, independently executes the
+   checklist via the custom-client API and browser automation on the
+   web build, and files a severity-bucketed defect list. Native
+   (simulator) proofs are not grader-driven: the **harness** executes
+   the frozen choreography script on the simulator and produces
+   mechanically checkable artifacts (recordings plus structured
+   receipts); the grader scores O4 from those artifacts, never from
+   builder assertions. A sanitized grader evidence/action trace is
+   the published artifact (raw transcripts follow LLP 0197's
+   redaction posture and 0198's raw-transcripts-never-publish rule);
+   grader judgment is identified as the human-judgment layer over the
+   deterministic receipts, per 0197 rule 8. For capability-floor and
+   exploratory lanes the grader comes from whichever scored family is
+   not the builder's; if the builder is from neither scored family
+   (Kimi/Grok), the grading family is chosen once per wave and
+   recorded.
+4. **Grader failure and noise.** A grader-side failure (its own
+   environment or tooling) is not a lane defect: the grader re-runs
+   once, and a second failure records `grader-abort` — the lane is
+   then regraded by the other scored family; if that also aborts,
+   O-dimensions record null and the lane is excluded from claim
+   statistics while still being reported. Before the first scored
+   wave each grader family grades **calibration artifacts** — a
+   known-good, a known-bad, and a subtly authorization-broken build
+   with planted defects — and a sampled pilot artifact is graded
+   blind by **both** families. Calibration is pass/fail on recall
+   **and precision**: a family must detect every planted MATERIAL
+   defect (missing a planted authorization defect fails outright),
+   and any MATERIAL finding against the known-good artifact fails
+   calibration unless the author adjudicates it a planting error; an ineligible
+   family regrades only after recalibration. A lane regraded by the
+   builder's own family (the abort fallback) is labeled
+   `same-family-graded` in the record and any publication. The operational grader-noise
+   trigger on the duplicate sample counts both severity-bucket
+   disagreement beyond one bucket on shared findings **and any
+   unmatched MATERIAL finding** as disagreement; tripping it
+   escalates to a grader panel for that wave.
+5. **Holdout probes.** The grader additionally runs probes the builder
+   never saw — trust-boundary shaped (can user A fetch user B's DMs
+   through the API; does a removed member still receive messages; is
+   a view-once photo's second view denied server-side; does an
+   expired edit window actually reject the edit; do server-side
+   denials survive the offline cache), and performance shaped (the
+   exact queries measured against the brief's published scale
+   envelope and degradation rules, per D2). Resolution of the
+   conflict with LLP 0197's publish-the-instrument rule: **probes are
+   published after each scored wave and rotated for the next** —
+   every published claim is retroactively fully inspectable, but no
+   builder sees its own wave's **scored** probes. Custody: the wave's
+   probe-set file is **committed as a sha256 hash before the wave's
+   first lane starts** (the hash lives in the wave record), so the
+   set provably was not selected after seeing results. Each rotation
+   covers every published probe category with at least one instance.
+   **Anchor probes are non-scored** (author ruling, 2026-08-08): each
+   category keeps one unchanged anchor across waves as a published,
+   quasi-public **continuity diagnostic** — it prices difficulty
+   drift but never bears on O3/O5, which read only the wave's secret
+   rotated probes. This dissolves the anchor/holdout contradiction:
+   publish-everything holds, and the holdout claim is scoped to
+   scored probes. The probe set, commitment mechanism, and rotation
+   log live under `benchmarks/` (P1 deliverable).
+
+## D4 — Qualitative instrument
+
+- **Rubric.** Sixteen preregistered dimensions, frozen with the brief
+  per LLP 0198 P0.0(e): five grader-scored outcome dimensions
+  (functional completeness, correctness under grading, trust
+  boundaries, observed offline behavior, performance at the scale
+  envelope — 45 points of weight) and eleven
+  builder-scored experience dimensions (schema/data-model, auth,
+  realtime, offline/sync authoring, media/storage, search,
+  push/actions, day-2 evolution, DX/docs/setup, diagnostics and error
+  quality, operations/maturity — 55 points). Every dimension carries
+  a paragraph description **and anchored examples of what ~30, ~60,
+  and ~90 look like** — anchors reduce cross-model score variance
+  more than descriptions alone. Full text in the brief.
+  **Runs score only the dimensions they exercise** (author ruling,
+  2026-08-08 — nulls block totals): the brief's reduced-run
+  applicability table freezes which dimensions record null on M1–M3
+  (O3, O4, O5, B4, B6, B7, B8), and the same rule generalizes to
+  full runs — an *attempted*
+  (`green`/`capability-failure`/`aborted`) milestone's B-dimensions
+  are scored from the attempt; *never-attempted*
+  (`blocked`/`not-run`) dimensions record null; **any run with a
+  null dimension publishes per-dimension scores and efficiency
+  statistics only, no overall weighted total**, per 0198 P0.0(e)'s
+  bar on averaging unexercised dimensions. The brief pins each
+  dimension's **observing milestones**; P1 freezes the full
+  dimension-by-milestone applicability manifest the record schema
+  reads. A **complete lane**, by enumeration: M6 green, the replay
+  attempted, M7 attempted, and every other milestone attempted —
+  that is *execution* completeness; a weighted total and L4
+  eligibility additionally require a **usable grading record**
+  (D3.4's dual-abort outcome — O-dimensions null — overrides
+  applicability). The published completion rate counts execution
+  completeness; total-eligibility is reported beside it. L4
+  statistics read complete lanes only (all lanes still reported, so
+  no survivor bias is hidden: the completion rate itself is a
+  published, claim-relevant figure). The holistic score is recorded and
+  published for every run but is narrative evidence, never a claim
+  statistic.
+- **Holistic score.** A single 0–100 from the builder that is
+  explicitly *not* derived from the dimensions — its overall sense of
+  the experience — recorded **before** the builder computes or sees
+  the weighted total, and required to cite two or three concrete
+  moments from the run.
+- **Narrative layer.** A run diary with a timestamped entry at each
+  milestone boundary, and a **1–2 page closing essay** — purely
+  qualitative, comparative against the alternatives the model knows —
+  written before the agent sees any metrics. Sequencing is mandatory:
+  essay, then rubric, then holistic, then numbers. Diaries follow the
+  repo's `diaries/` convention and feed LLP 0198's qualitative
+  synthesis.
+
+## D5 — Lanes: backends and models
+
+**Backend tiers** (standing set; a scored wave = tier 1):
+
+- **Tier 1, every scored run:** Snapback, Convex (calibrated
+  baseline), Supabase (the Postgres/RLS/PostgREST worldview and the
+  most common unprompted agent choice).
+- **Tier 2, periodic:** Firebase (the historical mobile-offline
+  incumbent), InstantDB (local-first-native), Zero/Replicache
+  (sync-engine-native — client-driven sync vs server-authoritative,
+  the strongest architectural contrast on the offline milestones).
+- **Tier 3, on demand:** a roll-your-own baseline (Hono/Express +
+  Postgres + Drizzle — what does any framework buy), PocketBase,
+  Amplify.
+
+**Model matrix:**
+
+- **Scored:** one frontier model per family × two families — Claude
+  (Fable 5) and OpenAI (GPT-5.6/Codex) — × tier-1 backends × N≥3.
+  This is LLP 0198's P0b cross-family posture applied to the new
+  family; claims are family-scoped per LLP 0197. Named risk the
+  second family partially insures: Snapback's guide and skill were
+  developed almost entirely with Claude and Codex agents in the loop
+  and may be unconsciously tuned to them.
+- **Capability-floor leg:** one mid-tier model (Sonnet 5 or
+  Haiku 4.5) × tier-1 × N≥3 on the reduced run (M1–M3). Frontier
+  models hide friction as tokens; mid-tier models convert ergonomics
+  into outcome differences, and either direction of the result is
+  informative (the guide rescues weaker models, or weaker models lean
+  harder on training priors and the gap widens). Underwrites the
+  "ship with a cheaper model" claim frontier runs cannot.
+- **Exploratory:** Kimi K3 and Grok at N=1 on the reduced brief,
+  over Snapback and Convex — the families that never touched
+  Snapback's docs development, hence the cleanest generalization
+  test — promoted to scored status only on a surprising result.
+- **Inclusion rule (no a-priori "dumb tier"):** a model qualifies for
+  scored runs only if it completes the reduced run on Convex (the
+  familiarity-maximal baseline) within budget; below that floor,
+  every lane fails and nothing is measured.
+- **Effort pinned, not varied:** one recorded effort level per model
+  (the series' setting for Fable; xhigh for Codex); effort variation
+  is a possible later probe, not an axis.
+
+Cross-family grading falls out free: each lane's grader is the other
+scored family (grading for floor/exploratory lanes per D3.3).
+
+The matrix's operative content is maintained as **one configuration
+table** frozen at P3 alongside the rung-matrix rows: every cell
+(brief scope × backend × family × aid condition) with its
+preregistered N, claim eligibility (scored vs exploratory vs
+calibration), lane-order counterbalancing schedule (LLP 0197 rule 2's
+balanced rotation across repetitions), cache/state posture, and
+stopping rules. Only cells that meet their preregistered N support
+claims; a cell run below its N (e.g., a second-family full-app N=1
+under OQ3) publishes as exploratory, never as the scored phrase.
+
+## D6 — UI kit
+
+Provided, but **purely presentational**: MessageBubble, ChatListRow,
+Composer, FeedCard, Avatar, ProfileForm, ReactionPicker, poll
+compose/display (M7's polls are in the frozen brief, so the frozen
+kit covers them — M7 sessions should not pixel-push), and the
+like — dumb props in (plain arrays and values), callbacks out, zero
+data dependencies, built against bare React Native primitives, plus
+fixed design tokens and a screen list with wireframe descriptions in
+the brief. Lanes do all data wiring. Rationale: a full app shell with
+a predefined data-interface layer smuggles in a worldview (hooks-shaped
+interfaces favor reactive backends; fetch-shaped favor Supabase), while
+no kit at all lets pixel-pushing dominate wall clock. Prop shapes stay
+deliberately naive (a `messages` array, an `onSend` callback — no
+cursor or subscription assumptions), and every component carries
+stable test IDs/accessibility labels so grader automation doesn't
+vary by lane. The kit is authored under a neutral-third-party hat,
+**reviewed against each tier-1 backend's idioms before freezing**
+(the per-backend neutrality-review notes are retained and published
+with the kit version), versioned and frozen with the brief, and
+disclosed as a symmetric aid under LLP 0197 rule 10 (starter/aid
+disclosure).
+
+## D7 — Phases
+
+- **P1 — Prerequisites** (each a concrete deliverable, so none becomes
+  an ambient blocker): the brief at freeze-candidate quality; the
+  16-dimension rubric with anchors; the UI kit built and
+  neutrality-reviewed; the fixture pack (personas with known
+  passwords, image set, one small video, and the deterministic
+  action-log generator with its committed starter and scale logs)
+  under `benchmarks/fixtures/social-messenger/`; the grader prompt,
+  harness, and initial probe set (trust-boundary and performance)
+  with the sha256 probe-commitment mechanism; the **grader-report
+  schema** (severity-bucketed defect list, probe results, O-dimension
+  scores as schema-valid machine records, per LLP 0197 rules 4
+  and 12); the **grader calibration artifacts** (known-good,
+  known-bad, subtly authorization-broken builds with planted
+  defects); the two-client choreography script, extended to produce
+  structured receipts and recordings on the simulator (D3.3); the
+  run-record schema extension for per-milestone phases, the separate
+  clocks, the full milestone status set (`green` /
+  `capability-failure` / `aborted` / `blocked-by-M{n}` / `not-run`
+  plus termination reason and adjudication flags), compaction
+  events, performance-probe results, the assertion-ID coverage
+  manifest, and the dimension applicability manifest.
+- **P2 — Pilot:** N=1 per tier-1 lane, **not claim-eligible**, run
+  on the primary family (Claude) and covering the **full scope** —
+  M1–M7 plus the scale replay — since their caps and ceilings all
+  calibrate from it; the GPT family runs a one-lane Convex mini-pilot
+  for its per-family token caps. Pilot lanes run under predeclared
+  **safety limits** (4 h wall / 2M tokens per milestone; the replay
+  under the same wall limit); a pilot lane with no green figure
+  for a milestone contributes the safety limit as its figure (the
+  ordinary 2× formula then applies — the same rule as D2), and P3
+  may rerun that pilot milestone after gap-fixes. **Material P3 changes** to
+  platform, brief, kit, or harness require rerunning the affected
+  pilot milestones before their caps/ceilings freeze — no thresholds
+  frozen from obsolete conditions. Other purposes: find Snapback
+  gaps (real auth is expected to need building; push seam and
+  migrations may too), run the grader calibration and duplicate
+  blind grading of a sampled pilot artifact (D3.4), and shake down
+  choreography and kit. LLP 0198 explicitly permits a single-run
+  pilot preceding a preregistered series. Because the pilot supplies
+  the scored thresholds, its records are **published as
+  clearly-labeled calibration evidence** when those thresholds
+  publish — excluded from claims, not hidden.
+- **P3 — Gap-fix and freeze:** fix what the pilot found (the
+  treadmill working as intended), decide whether environment-caused
+  aborts get a narrow rerun rule, run the mid-tier Convex
+  mini-pilot (after OQ1's model choice), then freeze the brief,
+  rubric,
+  kit version, budgets and ceilings, and probe-rotation log;
+  preregister the rung-matrix rows and the D5 configuration table
+  (configuration, N, thresholds, aggregation, counterbalancing
+  schedule) per LLP 0198's matrix discipline.
+- **P4 — Scored wave, reduced run:** tier-1 × two families × N≥3 on
+  M1–M3, graded, published per LLP 0197 under the reduced-run
+  scoring profile (per-dimension only, no overall total).
+- **P5 — Full-app wave and capability-floor leg:** M1–M7 at N≥3 on
+  the primary family (second family as budget allows), plus the
+  mid-tier M1–M3 leg. Named publication artifact: the
+  **per-milestone median view** — which milestone the gap comes from
+  is the point of the milestone design, so the checked publisher
+  (0197 rule 12) grows support for it now rather than ad hoc.
+- **P6 — Exploratory legs:** tier-2 backends and Kimi/Grok at N=1;
+  promotion decisions recorded.
+
+Rough cost, so scope stays conscious: the small brief runs 200–330k
+tokens per Snapback lane; this app is plausibly 5–10× **per builder
+lane** — and builder lanes are roughly half the program. All-in, P4
+(18 reduced lanes + graders) plus P5 (full-app lanes, M7 fresh
+sessions, the mid-tier leg, graders throughout) plus calibration
+grading is order **20–60M tokens**. The pilot-first posture and the
+reduced-run default exist because of this number, and P2 re-estimates
+it from measured pilot figures before P4 commits.
+
+## Open questions
+
+- **OQ1 — Mid-tier model choice.** Sonnet 5 vs Haiku 4.5 for the
+  capability-floor leg; decide at P3 from pilot-era pricing and the
+  inclusion rule.
+- **OQ2 — Kit placement.** Whether the UI kit lives under
+  `benchmarks/tools/` or as a separately published package; decide
+  when building it (P1). Publication of the instrument (0197 rule 3)
+  is the binding constraint either way.
+- **OQ3 — Second-family full-app runs.** P5 runs the full app N≥3 on
+  one family; whether the second family gets N≥3 or N=1 on M1–M7 is
+  a budget call at P5 time.
+
+Resolved during authoring (2026-08-08, author rulings): a follow graph
+and Following/Global feeds are in v1 (was OQ1); the app is named
+Clique; identity is entirely in-system (no device address book or
+phone-number identity); voice notes stay out of scope (the media
+pipeline is already priced by photo/video; recording measures the
+client); M7's day-2 task is group polls.
+
+Resolved by the round-1 review revision (2026-08-08, revision b — see
+the Revised header and `llp/reviews/0201-*`): reduced runs publish
+per-dimension scores only (no overall total, no L4 evidence); O5 is a
+scale-safety gate, with comparative performance deferred to a
+matched-posture leg; message search is normalized word-prefix, not
+substring (substring conflicts with every tier-1 backend's indexed
+text search, including Snapback's own term/prefix contract, and would
+force either full scans or a parallel client-side implementation);
+M7 is an integrated measurement complementing — not replacing —
+LLP 0198 P3's paired-start day-2 brief.
+
+Resolved by the round-2 super-refine revision (2026-08-08, revision
+d — author rulings on the three escalated items): M7 runs against the
+pre-replay starter state; null dimensions block a run's overall
+total (L4 reads complete lanes, completion rate published); anchor
+probes are non-scored continuity diagnostics, with the holdout claim
+scoped to the wave's secret rotated probes.
+
+## Revision history
+
+**Revised:** 2026-08-08 (h — post-loop closure revision;
+**UNREVIEWED** — final verdicts bind revision (g): dual NOT READY,
+round 6. Applies the round-6 convergent fixes: the safety-limit
+stand-in rule unified in the Codex-prescribed direction (stand-in as
+figure, ordinary 2× applies, transfer clamped at 2× safety limit —
+P2 aligned with D2, monotone); exact pre-probe verification of the
+named O5 fixtures with mismatch scoring O5 = 0; Kimi/Grok
+enumerated as separate advisory cap families with token caps
+recorded inapplicable and safety limits as hard stops; GPT
+mini-pilot extension keyed to any full-app GPT lane; mid-tier
+mini-pilot scope pinned M1–M3; execution-completion rate clause.)
+**Revised:** 2026-08-08 (g — round-5 revision under the author's
+1–2-round extension. Round-5 verdicts bind revision (f): Claude READY
+(all-MINOR residue), Codex NOT READY (4 MATERIAL IN-DELTA). (g)
+applies all four — cap families enumerated over the full model
+matrix with Kimi/Grok cap-advisory; grader-abort nulls override
+applicability and weighted totals/L4 require a usable grading
+record; the hidden actual-state sample covers every action-schema
+class; aborted charging mirrored in the brief — plus both families'
+minors (pilot-figure domain, O3-only parenthetical, wall-axis
+rationale, transitive blocking, never-built probe rule, table
+preamble, mid-tier mini-pilot scheduling, status enumeration
+hygiene). Round 6 is the final authorized round.)
+**Revised:** 2026-08-08 (f — post-loop closure revision applying the
+round-4 convergent smallest-sufficient fixes; **this revision is
+UNREVIEWED** — round-4 verdicts bind to revision (e): dual NOT READY,
+pre-existing clean in both families. Fixes: per-dimension
+applicability replacing the blanket O-rule; token-cap keying settled
+family-shared with max-over-backends pilot-figure transfer, 2× after
+transfer; O5 75-band as explicit complement with first-match
+precedence; replay base pinned to a fresh instance; `aborted`
+charges like capability-failure; sample custody, adjudicator,
+blocked-set recording, and wall-end wording pinned.)
+**Revised:** 2026-08-08 (e — super-refine round-3 delta revision,
+dual NOT READY on (d) with pre-existing text clean in both families
+(delta-convergence): green now requires suite plus choreography
+segment with assertion-level executor mapping; status machine closed
+(`aborted`, non-retroactive adjudication); cap keys defined with the
+GPT cross-backend transfer rule; DAG M6←M2–M5 and M7 regression
+conditional on previously-green; replay base state, settle-receipt
+accounting, and deterministic sampled manifest verifier; O5 exact
+function with manifest gating; dimension applicability manifest and
+complete-lane definition; calibration precision; residual sync.
+Reviews: round-3 sections of `llp/reviews/0201-*.{claude,gpt-5}.md`.)
+**Revised:** 2026-08-08 (d — super-refine round-2 revision, dual
+NOT READY on (c): green gated on a coverage-manifest-validated suite
+with per-item executor tags; statuses gain `not-run` + termination
+reason and M6's prerequisites become M3–M5; starter seed segmented
+per milestone, scale-adapter ruling scoped to the scale replay, and a
+frozen action schema with settle-before-next; M7 pinned to the
+pre-replay starter state with an API-export snapshot over a pinned
+message field manifest (author ruling); full-run totals blocked by
+null dimensions (author ruling); anchors demoted to non-scored
+diagnostics (author ruling); O5 mapped deterministically from frozen
+invariants; unfollow carved out of content revocation; fixture
+credential exception; calibration detection thresholds; pilot
+protocol pinned. Reviews: round-2 sections of
+`llp/reviews/0201-social-messenger-canonical-benchmark.{claude,gpt-5}.md`.)
+**Revised:** 2026-08-08 (c — Draft → Review at llp-super-refine loop
+start, the one authorized transition; reviewers instructed to refine,
+with rethink-scale feedback surfaced as author-decision items)
+**Revised:** 2026-08-08 (b — round-1 llp-review revision, both families
+NOT READY on (a): reduced-run scoring profile; milestone dependency
+statuses and preregistered cap formula; separate recorded clocks; the
+scale-replay contract; O5 rescoped to scale-safety; revocation and
+idempotency scoping; holdout custody; grader calibration and abort
+protocol; M7's relationship to LLP 0198 P3; 0197 citation repairs.
+Reviews:
+`llp/reviews/0201-social-messenger-canonical-benchmark.{claude,gpt-5}.md`.)
+**Revised:** 2026-08-08 (a — initial draft)
