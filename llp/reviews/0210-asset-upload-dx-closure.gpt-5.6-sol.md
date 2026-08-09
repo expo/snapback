@@ -123,3 +123,49 @@ The header says `Review`, while the final Status section says `Draft`. Align the
 Revise D1 around a framework-neutral refresh store and complete state algebra; admit D4’s safe mapping; freeze the raw asset-task terminal table; and close D5’s policy and grant-identity semantics. Then rerun review with acceptance fixtures updated for those decisions.
 
 VERDICT: NOT READY
+## Round 2 (delta round) — 2026-08-09
+
+- Reviewer: Codex CLI `gpt-5.6-sol`, `model_reasoning_effort=xhigh`,
+  read-only sandbox rooted at the r2 capsule; mutually blind; no
+  round-1 knowledge.
+- Target revision r2 sha256:
+  `b2acd19612ce69514143a7e1568bb4e66bb7868f3793090574b9cffe4b73f9d6`
+- Capsule sha256:
+  `43830f12a58647d700c798abc4b90518c96602107e315f57e68bd6ffc273184b`
+- Instructions sha256:
+  `a8f82bfea5b6bcb9f402a1dc8f71486fae4fb1c5ec2d5e55ff4e67bbed2dd90d`
+- Received: complete, well-formed. Verdict: **NOT READY**
+  (5 MATERIAL, all IN-DELTA; 1 DETAIL IN-DELTA; explicitly no
+  PRE-EXISTING MATERIAL).
+
+### Review body (verbatim)
+
+## Delta assessment
+
+The r2 direction largely coheres with the accepted context: D2 closes the enumeration leak, D3 adopts the shipped terminal vocabulary, D4 correctly treats the command as a safe narrowing, and D5 introduces appropriate edge identity and lifecycle. The controller and grant concepts are also directionally right. However, several IN-DELTA lifecycle and authorization invariants remain underspecified enough to permit unsafe or incompatible implementations.
+
+## Concerns
+
+1. **MATERIAL — IN-DELTA — D1 state algebra and authorization changes.** The public union has five states, but `issuing` has no normative definition or transitions. More importantly, retry stops in `denied`, yet authorization can be gained without changing authority identity—most directly when D5’s principal activates a pending grant—so a controller denied before `open()` can remain parked after the caller becomes authorized. Define a complete transition table, including `issuing`, retries from `unavailable`, and a same-authority authorization-invalidation signal that drives `denied → issuing → ready`; fixture pending-grant denial → activation → ready and ready → revocation → denied. Accepted asset authorization already treats permission dependencies as live invalidation inputs in [LLP 0044 §Asset read authorization](/private/tmp/claude-501/-Users-ccheever-projects-snapback/94eb0fa7-610e-4b8f-8ad9-e56c319904a7/scratchpad/0210-capsule-r2/llp/0044-asset-storage-pipeline.rfc.md:604).
+
+2. **MATERIAL — IN-DELTA — D1 final-unsubscribe cleanup.** Cancelling only the timer does not fence an issuance already in flight; its late response can republish or schedule another timer after demand reaches zero. That is weaker than the invoked LLP 0114 discipline, which requires synchronous generation invalidation, disposal of late handles, and eventual registry eviction on final unsubscribe ([LLP 0114 §External-store composition and cleanup](/private/tmp/claude-501/-Users-ccheever-projects-snapback/94eb0fa7-610e-4b8f-8ad9-e56c319904a7/scratchpad/0210-capsule-r2/llp/0114-first-class-react-and-query-groups.spec.md:672)). Require last-unsubscribe fencing or abort, forbid late publication/timer creation, define entry eviction or linger, and add an unsubscribe-before-issuance-resolution fixture proving zero residual work.
+
+3. **MATERIAL — IN-DELTA — D3 terminal settlement versus retry.** D3 retains retry on `assets.start()` while making `.done` settle at the first terminal status, but never states whether retry reopens that task or returns a successor task. The shipped surface exposes `retry()` and the terminal list is exactly `ready | rejected | cancelled | failed` ([client excerpt](/private/tmp/claude-501/-Users-ccheever-projects-snapback/94eb0fa7-610e-4b8f-8ad9-e56c319904a7/scratchpad/0210-capsule-r2/packages-excerpts/asset-client-custody-excerpt.txt:21)); Accepted LLP 0044 also requires retry to create a successor upload attempt for the same asset ([LLP 0044 §Client upload surface](/private/tmp/claude-501/-Users-ccheever-projects-snapback/94eb0fa7-610e-4b8f-8ad9-e56c319904a7/scratchpad/0210-capsule-r2/llp/0044-asset-storage-pipeline.rfc.md:354)). Freeze terminal task snapshots and specify that any admitted retry returns a new `AssetTask`/generation with independent `.done` and the same asset ID; add a per-terminal retry-eligibility table and predecessor/successor settlement fixtures.
+
+4. **MATERIAL — IN-DELTA — D5(b) mutation atomicity.** The RFC does not say that mint, activate, and revoke are staged in the calling mutation and commit atomically with related app-row writes, nor that their authorization and state preconditions are revalidated under the final write lock. Without this, an aborted `send()` could leave an active grant, an aborted `open()` could activate access, or `close()` could commit while revocation loses a race. LLP 0044 explicitly provides transaction-scoped admission, final-lock revalidation, and same-transaction system-edge updates for attachment to avoid this class of defect ([LLP 0044 §Typed references and atomic attachment](/private/tmp/claude-501/-Users-ccheever-projects-snapback/94eb0fa7-610e-4b8f-8ad9-e56c319904a7/scratchpad/0210-capsule-r2/llp/0044-asset-storage-pipeline.rfc.md:947)). Apply equivalent commit-bound semantics to every grant transition and fixture rollback, retry/idempotency, activate-versus-owner-revoke, and revoke-versus-issuance races.
+
+5. **MATERIAL — IN-DELTA — D5(b) no-ambient-widening claim.** `grants: true` is described only as a property of “the upload intent”; the RFC does not require the opt-in to be captured in the asset’s immutable policy generation. Looking up the current declaration after a redeploy could retroactively make older assets grantable, contradicting the claim that no existing asset gains an authority path. Accepted LLP 0044 freezes intent policy at asset creation/finalization ([LLP 0044 §Generated upload intents](/private/tmp/claude-501/-Users-ccheever-projects-snapback/94eb0fa7-610e-4b8f-8ad9-e56c319904a7/scratchpad/0210-capsule-r2/llp/0044-asset-storage-pipeline.rfc.md:257)). State that grant eligibility is an immutable per-asset/frozen-generation fact, define effective read authority as the existing policy OR an active eligible grant, and fixture an asset created before opt-in refusing mint after redeployment unless explicitly migrated.
+
+6. **DETAIL — IN-DELTA — D5(b) pending grants and reference GC.** Pending grants deliberately do not protect an asset, while reference GC reclaims ready assets lacking protective edges ([LLP 0044 §Deletion, retention, and garbage collection](/private/tmp/claude-501/-Users-ccheever-projects-snapback/94eb0fa7-610e-4b8f-8ad9-e56c319904a7/scratchpad/0210-capsule-r2/llp/0044-asset-storage-pipeline.rfc.md:1335)). The view-once recipe should therefore require a typed reverse reference or another declared retention basis throughout the pending window and fixture activation after the GC grace boundary.
+
+I found no PRE-EXISTING MATERIAL concern.
+
+## Explicit answers
+
+**(a) D5(b):** The closed authorization rules are conceptually sound: only the owner originates edges, principal-only activation expresses acceptance, and `grantId` makes revoke-one-edge semantics precise. The pending → active → revoked sequence can express view-once, but the machine is not sound enough as written without commit atomicity, same-authority client invalidation, and immutable per-asset opt-in. Its no-viewer-originated-authority claim is honest; its broader no-ambient-widening claim is conditional on adding the frozen-generation rule.
+
+**(b) D4:** Yes. Required child → optional mutation argument is safe narrowing: generation requires the command input and always supplies it while direct mutation callers retain the optional branch. The inverse remains unsafe and is correctly refused; this matches the input-derivation model and the accepted context’s observation that the admitted direction is semantically satisfiable ([LLP 0180 §Declaration](/private/tmp/claude-501/-Users-ccheever-projects-snapback/94eb0fa7-610e-4b8f-8ad9-e56c319904a7/scratchpad/0210-capsule-r2/llp/0180-asset-bearing-client-commands.rfc.md:204)).
+
+**(c) D1:** No. The keyed, authority-partitioned shared loop is the correct owner, but the missing `issuing` semantics, absent same-authority recovery from `denied`, and incomplete final-unsubscribe fencing prevent a complete fixture matrix.
+
+VERDICT: NOT READY
