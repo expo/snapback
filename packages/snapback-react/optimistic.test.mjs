@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { prepareReactBindingForClient } from '../snapback-client/react-binding.mjs';
 import { resultContractHash } from '../snapback-codegen/result-contracts.mjs';
 import {
+  SnapbackQueuedMutationError,
   createSnapbackReactProvider,
   invokeSnapbackMutation,
   observeSnapbackQueries,
@@ -116,8 +117,8 @@ function fakeClient() {
       const promise = new Promise((yes, no) => {
         resolve = (result) => yes({ result, version: dispatches });
         reject = no;
+        attempts.push({ options, resolve, resolveOutput: yes, reject });
       });
-      attempts.push({ options, resolve, reject });
       return promise;
     },
     emit(rows) {
@@ -230,6 +231,29 @@ await assert.rejects(
   (error) => error?.code === 'SNAPBACK_REACT_OPTIMISTIC_INSTALL_FAILED',
 );
 assert.equal(client.inspection().dispatches, 5, 'invalid projection refuses before dispatch');
+
+// A connectivity refusal that crossed the durable enqueue cut is pending
+// settlement, not a malformed mutation result. The React arm preserves its
+// result-only resolved type with one distinct queued rejection class instead
+// of misreporting SNAPBACK_REACT_OPTIMISTIC_INSTALL_FAILED.
+const queuedSettlement = invokeSnapbackMutation(provider, increment, { amount: 1 });
+client.inspection().attempts[5].resolveOutput({
+  queued: true,
+  clientMutationId: 'queued-increment-1',
+  sequence: 7,
+});
+await assert.rejects(queuedSettlement, (error) => {
+  assert(error instanceof SnapbackQueuedMutationError);
+  assert.equal(error.name, 'SnapbackQueuedMutationError');
+  assert.equal(error.code, 'SNAPBACK_REACT_MUTATION_QUEUED');
+  assert.equal(error.queued, true);
+  assert.equal(error.mutation, 'increment');
+  assert.equal(error.clientMutationId, 'queued-increment-1');
+  assert.equal(error.sequence, 7);
+  assert.equal(error.diagnostic.details.appCode, undefined);
+  return true;
+});
+assert.equal(client.inspection().dispatches, 6);
 
 // The increment reducer above is exactly the action-shaped anti-pattern the
 // dev replay advisory exists to catch: replayed over its own output it
