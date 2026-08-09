@@ -8805,11 +8805,10 @@ impl LocalSnapback {
         prepared: &crate::assets::AssetVariantPreparation,
     ) -> SnapbackResult<AssetPreparedVariant> {
         let now = now_millis();
-        let mut publication = self.db.asset_attempts().stage_prepared_variant_plan(
-            app_id,
-            &prepared.digest,
-            now,
-        )?;
+        let mut publication =
+            self.db
+                .asset_attempts()
+                .stage_prepared_variant_plan(app_id, &prepared.digest, now)?;
         store.put_blob_idempotent(&publication.planned_key, &prepared.rendered)?;
         let copied = store.hash(crate::assets_store::AssetObjectRef::Blob(
             &publication.planned_key,
@@ -8956,10 +8955,13 @@ impl LocalSnapback {
         // fact the attempt finalizes under.
         let on_ready: Option<String> = frozen_intent.on.as_ref().and_then(|on| on.ready.clone());
 
-        let revoked = self.db.asset_attempts().attempt_finalize_generation_revoked(
-            &attempt.intent_id,
-            attempt.admission.policy_generation,
-        )?;
+        let revoked = self
+            .db
+            .asset_attempts()
+            .attempt_finalize_generation_revoked(
+                &attempt.intent_id,
+                attempt.admission.policy_generation,
+            )?;
         if revoked {
             return Err(SnapbackError::error(
                 "SNAPBACK_ASSET_INTENT_REVOKED",
@@ -9066,10 +9068,11 @@ impl LocalSnapback {
 
         // Phase C — the object write is acknowledged: `planned → staged`.
         if publication.state == assets::AssetPublicationState::Planned {
-            publication = self
-                .db
-                .asset_attempts()
-                .attempt_finalize_commit_staged(&attempt_id, &publication, now)?;
+            publication = self.db.asset_attempts().attempt_finalize_commit_staged(
+                &attempt_id,
+                &publication,
+                now,
+            )?;
         }
         if crash_after == Some(AssetFinalizeCrashPoint::AfterStaged) {
             return Err(asset_test_crash());
@@ -9164,30 +9167,27 @@ impl LocalSnapback {
             let digest_value = digest.clone();
             let required_variants = prepared_required.clone();
             let optional_keys = optional_variants.clone();
-            let publish_attempt = self
-                .db
-                .asset_attempts()
-                .attempt_finalize_commit_completion(
-                    &attempt,
-                    attempt_id.clone(),
-                    publication_id,
-                    &schema,
-                    &witness_input,
-                    witness_snapshot,
-                    auth_moved,
-                    canonical_length,
-                    canonical_policy,
-                    image_facts,
-                    detected_type,
-                    app,
-                    digest_value,
-                    required_variants,
-                    optional_keys,
-                    app_quota,
-                    &on_ready,
-                    grade,
-                    now,
-                );
+            let publish_attempt = self.db.asset_attempts().attempt_finalize_commit_completion(
+                &attempt,
+                attempt_id.clone(),
+                publication_id,
+                &schema,
+                &witness_input,
+                witness_snapshot,
+                auth_moved,
+                canonical_length,
+                canonical_policy,
+                image_facts,
+                detected_type,
+                app,
+                digest_value,
+                required_variants,
+                optional_keys,
+                app_quota,
+                &on_ready,
+                grade,
+                now,
+            );
             let result = match publish_attempt {
                 Ok(result) => result,
                 Err(error) if error.diagnostic.code == "SNAPBACK_ASSET_QUOTA_EXCEEDED" => {
@@ -9371,10 +9371,7 @@ impl LocalSnapback {
             .asset_maintenance()
             .publication_records_in_state(assets::AssetPublicationState::Planned)?;
         for mut record in planned {
-            let attempt = self
-                .db
-                .asset_maintenance()
-                .publication_attempt(&record)?;
+            let attempt = self.db.asset_maintenance().publication_attempt(&record)?;
             let re_drivable = attempt.as_ref().is_some_and(|a| a.state.is_current());
             let object = crate::assets_store::AssetObjectRef::Blob(&record.planned_key);
             let object_verifies = store.exists(object)?
@@ -9385,11 +9382,7 @@ impl LocalSnapback {
             if object_verifies {
                 self.db
                     .asset_maintenance()
-                    .publication_stage_verified_object(
-                        &mut record,
-                        attempt.as_ref(),
-                        now_ms,
-                    )?;
+                    .publication_stage_verified_object(&mut record, attempt.as_ref(), now_ms)?;
                 report.staged += 1;
                 continue;
             }
@@ -9401,11 +9394,7 @@ impl LocalSnapback {
                 }
                 self.db
                     .asset_maintenance()
-                    .publication_condemn_not_redrivable(
-                        &mut record,
-                        attempt.as_ref(),
-                        now_ms,
-                    )?;
+                    .publication_condemn_not_redrivable(&mut record, attempt.as_ref(), now_ms)?;
                 report.condemned += 1;
             }
         }
@@ -9416,10 +9405,7 @@ impl LocalSnapback {
             .asset_maintenance()
             .publication_records_in_state(assets::AssetPublicationState::Staged)?;
         for mut record in staged {
-            let attempt = self
-                .db
-                .asset_maintenance()
-                .publication_attempt(&record)?;
+            let attempt = self.db.asset_maintenance().publication_attempt(&record)?;
             if attempt.as_ref().is_some_and(|a| a.state.is_current()) {
                 continue;
             }
@@ -9570,13 +9556,9 @@ impl LocalSnapback {
             1,
         )?;
         let now_ms = now_millis();
-        self.db.asset_attempts().resolve_width_variant_commit(
-            &app_id,
-            asset_id,
-            &prepared,
-            app_quota,
-            now_ms,
-        )?;
+        self.db
+            .asset_attempts()
+            .resolve_width_variant_commit(&app_id, asset_id, &prepared, app_quota, now_ms)?;
         Ok(key)
     }
 
@@ -10203,9 +10185,7 @@ impl LocalSnapback {
             .asset_maintenance()
             .gc_purgeable_tombstones(tombstone_cutoff)?;
         for asset_id in purgeable {
-            self.db
-                .asset_maintenance()
-                .gc_purge_tombstone(&asset_id)?;
+            self.db.asset_maintenance().gc_purge_tombstone(&asset_id)?;
             report.tombstones_purged += 1;
         }
 
@@ -10227,10 +10207,7 @@ impl LocalSnapback {
             .asset_maintenance()
             .gc_condemnable_blobs(blob_cutoff)?;
         for blob in condemnable {
-            let condemned = self
-                .db
-                .asset_maintenance()
-                .gc_condemn_blob(&blob, now_ms)?;
+            let condemned = self.db.asset_maintenance().gc_condemn_blob(&blob, now_ms)?;
             if condemned {
                 report.blobs_condemned += 1;
             }
@@ -10280,10 +10257,8 @@ impl LocalSnapback {
 
         // Phase B: claim due rows. The generation fence and the deadline are
         // claim-time checks, so cancelled/exhausted rows never hold a lease.
-        let (claimed, cancelled, exhausted) = self
-            .db
-            .asset_maintenance()
-            .runner_claim_due_work(now_ms)?;
+        let (claimed, cancelled, exhausted) =
+            self.db.asset_maintenance().runner_claim_due_work(now_ms)?;
         report.cancelled += cancelled;
         report.exhausted += exhausted;
         report.claimed = claimed.len() as u64;
@@ -10319,10 +10294,7 @@ impl LocalSnapback {
             // the same observation).
             assets::ASSET_WORK_KIND_CONDEMNED_CLEANUP => {
                 let store = self.asset_store_obj()?;
-                let condemned = self
-                    .db
-                    .asset_attempts()
-                    .work_condemned_publications()?;
+                let condemned = self.db.asset_attempts().work_condemned_publications()?;
                 for record in condemned
                     .iter()
                     .filter(|record| record.attempt_id.as_deref() == row.attempt_id.as_deref())
@@ -10526,12 +10498,7 @@ impl LocalSnapback {
                 };
                 let work_id = row.work_id.clone();
                 self.db.asset_attempts().work_commit_prepared_variant(
-                    &work_id,
-                    &app_id,
-                    &asset_id,
-                    &prepared,
-                    app_quota,
-                    now_ms,
+                    &work_id, &app_id, &asset_id, &prepared, app_quota, now_ms,
                 )?;
                 Ok(None)
             }

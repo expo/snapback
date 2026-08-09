@@ -9,8 +9,8 @@ use crate::auth::coordinator::{
     ConnectionSessionThrottleKey, IssuanceFinish, RevocationFinish, RotationFinish,
 };
 use crate::auth::crypto::{
-    AgentCredential, CreationInvitation, CredentialClass, PairingCode, ScopedToken, SessionBearer, classify_credential,
-    dispatch_credential_class,
+    AgentCredential, CreationInvitation, CredentialClass, PairingCode, ScopedToken, SessionBearer,
+    classify_credential, dispatch_credential_class,
 };
 use crate::auth::descriptor::descriptor_for_resolved_authority;
 use crate::auth::handshake::{
@@ -69,11 +69,12 @@ use crate::local::{
     StagedNestedMutation, live_stream_text, live_stream_text_with_server_observed,
 };
 use crate::manifest::{
-    ActionReturnValue, ActionStep, AgentsManifest, AgentsMode, ArtifactGeneration, AuthInput, AuthMode, AuthRequirement,
-    AuthorityDescriptor, CtxAnswerLedger, FiniteQueryOutput, FiniteQueryRequest,
-    FunctionCallRequest, FunctionInvocationFacts, FunctionKind, FunctionManifest, FunctionResponse,
-    FunctionRuntime, HandlerInput, MutationAcknowledgementRequest, MutationAcknowledgementResponse,
-    MutationOutput, MutationRequest, QueryOutput, ReadDependency, SchemaManifest, SeedData,
+    ActionReturnValue, ActionStep, AgentsManifest, AgentsMode, ArtifactGeneration, AuthInput,
+    AuthMode, AuthRequirement, AuthorityDescriptor, CtxAnswerLedger, FiniteQueryOutput,
+    FiniteQueryRequest, FunctionCallRequest, FunctionInvocationFacts, FunctionKind,
+    FunctionManifest, FunctionResponse, FunctionRuntime, HandlerInput,
+    MutationAcknowledgementRequest, MutationAcknowledgementResponse, MutationOutput,
+    MutationRequest, QueryOutput, ReadDependency, SchemaManifest, SeedData,
 };
 use crate::push::{
     PushTokenRegistrationResponse, PushTokenUnregisterResponse, RegisterPushTokenRequest,

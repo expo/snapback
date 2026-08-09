@@ -48,9 +48,9 @@ mod migration_scan;
 mod projection_rebuild;
 mod schema_transition;
 
-use connections::registered_writer_coverage_manifest;
 pub use asset_attempts::{AssetAttemptsKernel, AssetPreparedVariant, AssetPublishOutcome};
 pub use asset_maintenance::AssetMaintenanceKernel;
+use connections::registered_writer_coverage_manifest;
 pub use connections::{PooledReader, ReaderPool};
 #[allow(unused_imports)] // Preserve the pre-split crate::storage surface.
 pub(crate) use connections::{
