@@ -496,7 +496,8 @@ authoritative base; a client with a non-empty *relaunch* outbox never sent
 **Naming.** The existing `POST /live/{name}/resume` is the **reattach**
 operation — subscription-id continuation of a server-retained subscription,
 schemas `live.resume.input/output.schema.json`, already exported and
-drift-gated (`src/schema_export.rs`, `LiveResumeInput` in `src/local.rs`).
+drift-gated (`src/schema_export.rs`, `LiveResumeInput` in
+`src/local/live_protocol.rs`).
 Per 0090 D1, nothing is renamed. Token resume is **not a new route**: it is
 the optional `resumeFromToken` field on the existing subscribe input
 (`live.subscribe.input.schema.json` / `LiveSubscribeInput`), named in
