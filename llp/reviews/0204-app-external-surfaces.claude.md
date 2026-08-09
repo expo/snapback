@@ -158,3 +158,47 @@ The exception is D7's integration-lifecycle repair. The disjoint-authorities sto
 5. **[PRE-EXISTING] D6 — server-side type-check is uncosted new machinery.** "The server type-checks against `code-mode.d.ts`" requires a TypeScript checker in the serving host; LLP 0062's shipped code mode checks in the CLI engine. The decision (check against the pinned envelope's declarations) is sound; the hosting cost is implementation-phase.
 
 VERDICT: NOT READY
+
+## Round 4 — 2026-08-08 (delta round; author-authorized extension rounds 4–6)
+
+**Provenance:** Claude family reviewer — fresh-context general-purpose
+subagent (model: claude-fable-5, session-inherited), mutually blind
+(structural: capsule worktree at commit 310745d3d excluding
+`llp/reviews/0204-*` and orchestrator notes). Delta-round instructions
+enumerated the v0.5 delta and required IN-DELTA / PRE-EXISTING
+classification. Target revision: 310745d3d; target sha256:
+2bbe4029bcdd4e38f53d71f3ff1e283cf6bd3e9155b842fede930f32f21b3abf.
+Review received 2026-08-08, preserved verbatim below.
+
+**Verdict: READY** (0 material; 6 minors — amendment-content and
+wording refinements, 4 IN-DELTA / 2 PRE-EXISTING).
+
+---
+
+# LLP 0204 "App external surfaces" — Round 4 delta review (Claude family)
+
+**Target:** `llp/0204-app-external-surfaces.rfc.md` at sha256 `2bbe4029bcdd4e38f53d71f3ff1e283cf6bd3e9155b842fede930f32f21b3abf` (verified in capsule). Full-document read; grounding pass byte-verified against LLP 0055, 0150, 0031, 0071, 0090, 0062, 0058/0172, 0070 in this tree.
+
+## Overall assessment
+
+The v0.5 revision executes the round-3 six-item ledger faithfully, and — the decisive question for this delta round — the restated D7 lifecycle now matches LLP 0055's actual text rather than paraphrasing it wrongly. Verified point by point: (1) `POST /auth/agents/rotate` in 0055 is a "revocation-strength generation bump" that kills tokens, connections, and queued work but never touches grants — grant revocation appears only in owner re-credentialing's atomic step ("terminally revoke every grant", route table row for `POST /auth/agents/{id}/credential`, owner session + step-up) — so "rotation is hygiene and grant-preserving; the global kill is owner re-credentialing" is byte-accurate, correcting v0.4's inversion. (2) The operator kill verbs (`auth.revokeGrant`, `auth.revokeAgentCredential`) are AdminWrite, act "across every principal", and are available on every profile, supporting "operator … always". (3) The commissioned integration-retirement verb fills a real hole 0055 leaves for durably unowned records (recovery is unowned-only and refused on `prod`; `revoke-self` destroys the credential family but not installations) — a coherent amendment, not a contradiction. (4) The approver-as-owner exemption correctly reads 0150: its §2/§7 explicitly seat the `open`-mode approvalLink approver as owner (a named displacement of 0055's unowned-`open` rule), which for a multi-installer integration record is precisely the first-installer capture D7 forbids; and the exemption's reintroduced unowned-residual is answered by the retirement verb plus the key-possession ownership ceremony. (5) Delegation-only as a commissioned registration class is necessary and correctly motivated — 0055 mints the `auth.agents.template` grant "as an explicit step of registration". (6) The external-anonymous contract's "narrower" claim is exact: 0031's `DeclaredPublicApplicationData` governs "exactly two lanes" (0090's Channel A HTML lane and read-mode public bundles), not the D1 anonymous set. (7) The D4 reversion matches 0062's shipped `--artifacts` local-`generated/` path, and 0031 D3's gated twin is operator-plane, which the app-data-only CLI correctly refuses as a discovery surface. (8) The corrected `disabled` posture matches 0055 verbatim ("stops new principal creation; does not disable existing agents"). The remaining findings are amendment-content and wording refinements identifying no defective decision.
+
+## Material concerns
+
+None. I found no MATERIAL concern, in-delta or pre-existing, at this revision.
+
+## Minor / implementation-phase notes
+
+1. **[IN-DELTA] D7 — ownership-claim ceremony should carry 0055's ownership-assumption disclosure.** The commissioned key-possession ownership ceremony creates a new path by which a previously unowned integration — with memberships accrued across many installations — acquires an owner who immediately holds 0055's ownership-assumption capability (an owner re-credentialing can assume third-party-granted memberships; 0055 §Re-credentialing discloses this at every grant/membership surface). The commissioned amendment's content should name that the disclosure obligation attaches to the claim ceremony too. No defective decision; the amendment is already commissioned and 0055's disclosure regime is inherited.
+
+2. **[IN-DELTA] D7 — owner re-credentialing on `prod` is delivery-gated.** 0055 states the owner paths on `prod` depend on LLP 0045's real delivery seam for step-up challenges (capture-only mailbox refused on `prod`). D7's "fail-closed global kill … where an owner exists" therefore inherits that prerequisite on production profiles, with the operator path as the reachable backstop. One inheriting clause would keep the reachability story as honest as 0055's own.
+
+3. **[IN-DELTA] D7 — retirement verb's operator carrier.** 0055 gates its operator kill verbs on `prod` behind `AgentDestroyCapability` on a non-browser carrier (blast-radius argument: mass grant destruction is mass consent loss). The operator-invoked arm of the commissioned retirement verb — strictly larger blast radius (credential family plus every installation) — should be stated to inherit at least that carrier requirement. Amendment content.
+
+4. **[IN-DELTA] D7 — template suppression should be stated to cover re-application.** 0055's owner re-credentialing atomically "re-applies the app's current autonomous template." For an integration record that later gains an owner via the claim ceremony, the commissioned registration class's "template suppressed" must bind at that re-apply site as well as at registration-time minting; the class framing plausibly covers it ("activation and migration checks"), but naming both mint sites in the amendment would close the door explicitly.
+
+5. **[PRE-EXISTING] D8 — DCR under `invited` mode is under-specified.** D7 says "`invited` creations record the inviter," but how an MCP client's RFC 7591 dynamic registration carries a user-minted `sbagi_` invitation (or is simply refused under `invited`) is left to the amendment. Implementation-phase; the mode gate itself is correctly inherited.
+
+6. **[PRE-EXISTING] D7 — "operator suspension" conflates two mechanisms.** Integration-record `suspended` status is app-data record state (D7's own object); 0055's operator verbs are credential/grant revocation. The text uses "suspension / credential revocation" as one gesture; distinguishing record-status suspension (reversible, admission-layer) from 0055 revocation (terminal) would sharpen the lifecycle table without changing any decision.
+
+VERDICT: READY

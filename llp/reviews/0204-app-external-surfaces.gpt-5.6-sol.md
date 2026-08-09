@@ -152,3 +152,37 @@ The revision materially improves anonymous reachability honesty, hosted-lane sco
 6. [PRE-EXISTING] **D5, model-data egress.** The `ask` consent and receipt should identify the model/provider and disclose that authorized application data may be sent to it; the current scope language emphasizes token spend but not data egress.
 
 VERDICT: NOT READY
+## Round 4 — 2026-08-08 (delta round; author-authorized extension rounds 4–6)
+
+**Provenance:** External family reviewer — OpenAI gpt-5.6-sol via
+`codex exec`, reasoning effort xhigh, cwd = capsule worktree at commit
+310745d3d (structural blindness: capsule excludes `llp/reviews/0204-*`
+and orchestrator notes). Delta-round instructions enumerated the v0.5
+delta and required IN-DELTA / PRE-EXISTING classification. Target
+revision: 310745d3d; target sha256:
+2bbe4029bcdd4e38f53d71f3ff1e283cf6bd3e9155b842fede930f32f21b3abf.
+Review received 2026-08-08, preserved verbatim below.
+
+**Verdict: READY** (0 material; 4 minors — amendment-content and
+wording refinements). **Dual-READY with the Claude family on this
+revision: the loop converges on v0.5.**
+
+---
+
+The v0.5 delta materially resolves the prior lifecycle, ownership, anonymous-admission, discovery, and acceptance inconsistencies. At sha256 `2bbe4029bcdd4e38f53d71f3ff1e283cf6bd3e9155b842fede930f32f21b3abf`, I found no defective decision requiring another revision.
+
+## Material concerns
+
+None.
+
+## Minor / implementation-phase notes
+
+1. [IN-DELTA] **D7 ownership.** Clarify that “`invited` creations record the inviter” means provenance only. The commissioned amendment should explicitly displace both 0150’s open-mode approver-as-owner rule and its invited-mode inviter-as-owner rule.
+
+2. [IN-DELTA] **D1 disabled posture.** “No new credentialed onboarding” should be narrowed to new integration-principal creation. Under LLP 0055/0150, existing credentials may still request additional delegated grants/installations after registration is disabled.
+
+3. [IN-DELTA] **D7 suspension and retirement.** Pin that suspension either terminally revokes installations or is a reversible admission gate; resumption must not accidentally resurrect consent if suspension is part of the stated global-kill path. The retirement amendment should also inherit 0055’s tombstoned-family proof and production operator-carrier protections.
+
+4. [PRE-EXISTING] **D8 ceremony wording.** “LLP 0150 verbatim” now overstates the relationship because D7 commissions ownership and registration-class amendments. “The 0150 ceremony shape, with the named amendments” would be exact.
+
+VERDICT: READY
