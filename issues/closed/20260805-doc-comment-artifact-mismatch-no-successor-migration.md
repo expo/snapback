@@ -1,6 +1,6 @@
 # A documentation-only comment change wedges the local edit/restart loop
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 3
 **Urgency:** 3
 **Ease:** 2
@@ -40,16 +40,18 @@ This is the same gap RFC LLP 0176 §6 ("One supervised Expo development loop")
 names as required behavior — this ticket makes it a concrete, reproduced
 mechanical case rather than only a design requirement:
 
-- [ ] When the supervisor detects a new complete, valid function/schema
+- [x] When the supervisor detects a new complete, valid function/schema
   successor at restart, it should offer (or, in a scriptable dev context,
   perform) a live successor activation that preserves the local database,
   rather than requiring the author to notice the refusal and hand-roll a
-  backup/reseed. (Open — the larger LLP 0176 §"One supervised Expo development
-  loop" work.)
-- [ ] Keep the correctness property that an incomplete or invalid successor is
+  backup/reseed. (Landed 2026-08-09 — managed `snapback dev` automatically
+  invokes LLP 0058's explicit pre-bind activation only after the native
+  structured mismatch proves both complete identities.)
+- [x] Keep the correctness property that an incomplete or invalid successor is
   refused outright — this is only about the case where the new artifact is a
-  complete, valid, loadable successor. (Verified by the automatic-activation
-  rung when it lands; the pin itself remains fail-closed today.)
+  complete, valid, loadable successor. (Verified 2026-08-09 by the existing
+  incomplete-pair preflight matrix plus a storage-invalid successor over an
+  existing row; neither emits activation success or replaces the database.)
 - [x] If automatic activation is out of scope short-term, at minimum the
   refusal's repair message should name the supported migration command instead
   of leaving the author to discover the manual backup/reseed workaround.
@@ -91,5 +93,37 @@ itself, on both surfaces:
   `packages/snapback-cli/sessions-dev-loop.test.mjs` now asserts
   `recovery.freshReseed` names the backup command and the exact database.
 
-The ticket stays **open**: the automatic successor-activation rung (first
-bullet) is the remaining work.
+## Resolution
+
+**2026-08-09 — automatic successor activation landed.** The native server has
+an explicit, pre-bind `--activate-startup-successor` entry point for settled
+sessions stores. It accepts only a seedless complete pair that passes the same
+artifact/capability/load preflight twice, keeps admission closed under the
+same-mode sessions transition guard, atomically advances the schema and exact
+deployment identity with the authorization cut, publishes the prepared
+function generation, and only then permits listener bind. Ordinary native
+startup remains exact-pair pinned.
+
+The managed `snapback dev` loop performs the activation automatically only
+after its first restart attempt receives the structured
+`SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH` with both expected and observed
+deployment identities. Successful activation is explicit on the
+`snapback.dev.v1` stream as `startup-successor-activated`, naming the database
+and the from/to identities. Attached/external servers are not changed.
+
+The two named regression surfaces now cover the complete result:
+
+- `settled_sessions_pin_refusal_names_supported_repair_paths` retains the
+  ordinary refusal/repair assertions, then activates a bundle-only successor,
+  proves a seeded application row survives, and proves a pair-valid required-
+  field successor rolls back with its storage refusal nested under the startup-
+  mismatch diagnostic while the row and durable pin remain unchanged.
+- `packages/snapback-cli/sessions-dev-loop.test.mjs` performs the mechanical
+  documentation-comment edit, observes explicit activation with unchanged
+  schema identity and rotated bundle identity, and queries the pre-existing
+  row afterward. It also generates a complete but storage-invalid required-
+  field successor, requires `restart-failed` under the startup-mismatch
+  diagnostic, restores the predecessor schema, and observes the same row.
+
+LLP 0058 records the cold-successor amendment; LLP 0041, LLP 0174, and LLP 0176
+now point at the implemented complete-pair path rather than an open gap.

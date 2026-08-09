@@ -5,6 +5,10 @@
 **Systems:** Security, Code execution, Auth, Deployment, Packaging, Runtime
 **Author:** Codex (gpt-5.6-sol) / Charlie Cheever
 **Date:** 2026-08-04
+**Revised:** 2026-08-09 (follow-up implementation: LLP 0058 now owns an
+explicit complete-pair cold-successor activation, and managed `snapback dev`
+uses it only after the ordinary startup pin proves both identities; the
+subset/superset proposal remains rejected)
 **Related:** LLP 0009, LLP 0058, LLP 0108, LLP 0118, LLP 0160, LLP 0171
 
 ## Summary
@@ -129,11 +133,13 @@ The identity-subset/superset proposal is shown mistaken and deleted. LLP 0058's
 complete-pair semantics remain. LLP 0160 continues to improve migration
 experience without changing that authority.
 
-If a cold-start successor mechanism is ever needed, it is an LLP 0058
-amendment, not a DX flag. It must specify complete-pair preflight, atomic
-activation, concurrent-admission fencing, live-authority invalidation,
-crash/restart behavior, predecessor compatibility, and negative cases for
-partially or maliciously widened function surfaces.
+The subsequently implemented cold-start successor mechanism is an LLP 0058
+amendment, not a relaxed DX comparison. It preserves complete-pair preflight,
+uses the same guarded atomic sessions activation before listener bind, emits
+both identities, and refuses incomplete, incoherent, unloadable, or
+storage-invalid candidates. The managed supervisor invokes that explicit
+native path only after the ordinary pin has already proved the candidate as a
+complete pair. It does not admit a function-surface superset under an old pin.
 
 ## What is decided and what remains open
 
@@ -145,7 +151,7 @@ partially or maliciously widened function surfaces.
 | Complete schema/function startup identity | Retained; LLP 0058 governs. |
 | Function-surface superset admission | Rejected as proposed. |
 | Backgroundable live reload | Open tooling work under LLP 0041/0171, with no security-fence change. |
-| Cold successor protocol | Open only through a future LLP 0058 amendment. |
+| Cold successor protocol | Implemented through the 2026-08-09 LLP 0058 amendment; complete-pair activation only. |
 
 ## Acceptance boundary for future work
 
@@ -155,11 +161,13 @@ adversaries, conditional-export/built-in/symlink negatives, initializer and
 syntax-laundering cases, byte/graph ceilings, exact stored/rederived identity,
 and source-diagnostic fixtures.
 
-Any future cold successor proposal needs unchanged-database activation of a
-complete valid pair plus refusals for a missing half, mismatched inputs hash,
-added callable surface outside the approved pair, stale predecessor, concurrent
-old-authority invocation, and crash at every activation boundary. The current
-live-reload path remains the control.
+The landed cold successor path proves unchanged-database activation for a
+comment-only complete pair and refuses incoherent or storage-invalid candidates.
+The existing same-mode activation suite remains the authority for concurrent
+old-authority and crash-boundary coverage; cold startup has no listener or
+admitted process root before the cut. Added callable surface remains part of
+the new complete identity and receives no subset exception. Live reload remains
+the running-process control.
 
 ## MATERIAL review disposition
 

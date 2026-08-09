@@ -125,10 +125,10 @@ is in [verify](../../guide/testing/verify.md).
    pixels. Choose the delivery profile deliberately
    ([assets](../../guide/backend/assets.md);
    `issues/closed/20260806-asset-image-src-strict-url-sessions.md`).
-7. **A doc-comment-only edit rotates function-bundle identity.** There is no
-   successor migration yet, so it can cost a manual local-store rollover —
-   batch comment churn with real edits
-   (`issues/20260805-doc-comment-artifact-mismatch-no-successor-migration.md`).
+7. **A doc-comment-only edit rotates function-bundle identity.** Managed
+   `snapback dev` now activates a complete valid successor automatically on
+   restart and preserves the local store; incomplete or invalid successors
+   still refuse (`issues/closed/20260805-doc-comment-artifact-mismatch-no-successor-migration.md`).
 8. **The supervised Expo web carrier is paved since `0.1.13`** (bootstrap
    CORS, web-safe AppState, browser picker sources). On `0.1.12` or older,
    web needs the workarounds in

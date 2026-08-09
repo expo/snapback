@@ -10,7 +10,7 @@
 **Governing:** LLP 0010
 **Related:** LLP 0186 (W4); Diary 0059 ("a dirty checkout bypasses a prepared
 binary and makes acceptance pay Cargo startup cost");
-`issues/20260805-doc-comment-artifact-mismatch-no-successor-migration.md`
+`issues/closed/20260805-doc-comment-artifact-mismatch-no-successor-migration.md`
 (sibling edit-loop tax); `issues/20260803-first-npm-latest-promotion.md`
 (the external escape hatch)
 

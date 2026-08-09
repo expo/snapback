@@ -7,7 +7,10 @@ Ephemeral state, Code generation, Developer experience, Packaging, Local
 server lifecycle, Testing, Competitive evaluation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-09 (u) — A2's source and published package-closure halves
+**Revised:** 2026-08-09 (v) — A5 edit recovery resolved: managed sessions restart
+now activates a complete valid cold successor through LLP 0058's explicit
+pre-bind mechanism, reports from/to identities, preserves application rows for
+the comment-only mechanical case, and keeps invalid successors fail-closed. 2026-08-09 (u) — A2's source and published package-closure halves
 are now both resolved: the nested Expo source fixture installs one all-local
 closure, and its public-registry twin cold-installs client/React 0.1.15 with a
 transitive Contract 0.1.15, no local paths or overrides, and successful root
@@ -312,10 +315,11 @@ the cheaper mechanical fixes.
   layout. Resolved 2026-08-05: marker-walk root/app resolution in
   `demos/_kit/repo-layout.mjs`. Ticket:
   `issues/closed/20260805-headless-app-nested-demo-root.md`.
-- **A5 — edit recovery.** A comment-only source change can alter complete
-  artifact identity, correctly refuse the old store, and leave no supported
-  successor path. Ticket:
-  `issues/20260805-doc-comment-artifact-mismatch-no-successor-migration.md`.
+- **A5 — edit recovery (resolved 2026-08-09).** A comment-only source change
+  still rotates complete artifact identity, but managed restart now activates
+  the complete valid successor through LLP 0058's explicit cold path and keeps
+  the store. Invalid successors still refuse. Resolution:
+  `issues/closed/20260805-doc-comment-artifact-mismatch-no-successor-migration.md`.
 
 ### Authoring and diagnostics
 
@@ -1111,9 +1115,11 @@ placement here prevents them from bloating or blocking the core spine.
 - **First-class dev personas.** Pair declaratively named LLP 0152 personas to
   ordinary expiring sessions without ever sending a trusted `userId` from the
   app.
-- **Successor-first edit recovery.** Load an incompatible candidate into an
-  LLP 0158 fork, show the schema/function/permission diff, then switch,
-  migrate, or discard instead of moving the database away.
+- **Successor-first edit recovery.** The first mechanical rung now activates a
+  complete valid sessions successor automatically on managed cold restart and
+  reports the identity change. Loading an incompatible candidate into an LLP
+  0158 fork to show schema/function/permission diffs before switch, migrate, or
+  discard remains the richer follow-on.
 - **Executable recipes.** `snapback add chat` may print/eject ordinary schema,
   functions, surfaces, seed data, and acceptance tests. A permanent
   chat-specific runtime framework should not lead.

@@ -14,7 +14,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { SnapbackClient } from '@expo/snapback-client';
 import {
@@ -194,6 +194,28 @@ try {
   assert.equal(successorSession.activeMode, 'sessions');
   assert.equal(successorSession.modeState, 'settled');
 
+  const generatedApiPath = join(backendRoot, 'generated', 'api.mjs');
+  const initialApi = (await import(
+    `${pathToFileURL(generatedApiPath).href}?initial=${Date.now()}`
+  )).default;
+  const productClient = new SnapbackClient(dev.serverUrl, {
+    custody: 'anonymous-public',
+    rqsStore: null,
+    offlineQueue: false,
+  });
+  const preservedTitle = `Preserved successor row ${process.pid}`;
+  await productClient.mutate(initialApi.createTodo, {
+    args: { title: preservedTitle },
+    queue: false,
+  });
+  assert(
+    (await productClient.query(initialApi.listTodos)).rows.some(
+      (row) => row.title === preservedTitle,
+    ),
+    'the predecessor database contains the product row before successor activation',
+  );
+  await productClient.closeAuth();
+
   writeFileSync(failNextStart, 'fail the next managed sessions restart\n');
   const failedRestart = await dev.verbs.restart({
     requestId: 'sessions-artifact-mismatch',
@@ -217,71 +239,115 @@ try {
     /refined is not defined|ReferenceError/u,
   );
 
-  // issues/20260801-0137-a3-restart-evolution-refusal-misattributed-diagnostic:
-  // stop/regenerate/restart over the same sessions database is refused by the
-  // auth-mode startup pin. That refusal must surface as itself, carrying the
-  // expected deployment identity and the sanctioned evolution path — never as
-  // a runtime/codegen identity mismatch with reinstall advice.
+  // issues/closed/20260805-doc-comment-artifact-mismatch-no-successor-migration.md:
+  // a source comment rotates the complete bundle identity without changing
+  // schema. The managed loop observes the ordinary startup pin, explicitly
+  // activates the complete successor, and preserves the local product row.
   rmSync(failNextStart, { force: true });
-  const evolvedSchema = sessionsSchema.replace(
-    ".index('by_title', ['title'])",
-    ".index('by_title', ['title']).index('by_completed', ['completed'])",
-  );
-  assert.notEqual(evolvedSchema, sessionsSchema);
-  writeFileSync(schemaPath, evolvedSchema);
+  const functionsPath = join(backendRoot, 'functions.mjs');
+  const predecessorFunctions = readFileSync(functionsPath, 'utf8');
+  const successorFunctions = `// Documentation-only successor identity rotation.\n${predecessorFunctions}`;
+  writeFileSync(functionsPath, successorFunctions);
   const regenerated = await generateApp(backendRoot);
   assert.equal(regenerated.ok, true);
-  const pinRefused = await dev.verbs.restart({ requestId: 'sessions-startup-pin' });
-  assert.equal(pinRefused.state, 'restart-failed');
-  assert.equal(pinRefused.requestId, 'sessions-startup-pin');
-  const pinDiagnostic = pinRefused.diagnostics[0];
+  const activatedRestart = await dev.verbs.restart({ requestId: 'sessions-startup-successor' });
+  assert.equal(activatedRestart.state, 'generated-and-loaded');
+  assert.equal(activatedRestart.requestId, 'sessions-startup-successor');
+  const activation = events.find(
+    (event) => event.state === 'startup-successor-activated'
+      && event.requestId === 'sessions-startup-successor',
+  );
+  assert.ok(activation, 'the loop explicitly reports startup successor activation');
   assert.equal(
-    pinDiagnostic.code,
-    'SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH',
-    `the startup pin must name itself, got: ${JSON.stringify(pinDiagnostic)}`,
-  );
-  assert.equal(pinDiagnostic.details.causeCode, 'SNAPBACK_DEV_SERVER_START_FAILED');
-  assert.match(
-    pinDiagnostic.details.recovery.sanctionedEvolution,
-    /running dev server|reload/iu,
-    'the recovery names the supported evolution path',
-  );
-  // issues/20260805-doc-comment-artifact-mismatch-no-successor-migration.md:
-  // the discard path must be a named supported procedure with the real backup
-  // command and this exact store, not author-discovered folklore.
-  assert.match(
-    pinDiagnostic.details.recovery.freshReseed,
-    /snapback auth backup --db /u,
-    'the recovery names the supported backup-then-reseed discard path',
-  );
-  assert.ok(
-    pinDiagnostic.details.recovery.freshReseed.includes(database),
-    'the reseed guidance names the exact managed store',
-  );
-  assert.equal(
-    pinDiagnostic.details.recovery.contributorRebuild,
-    undefined,
-    'the pin refusal must not carry the runtime-identity rebuild advice',
-  );
-  assert.equal(
-    pinDiagnostic.details.recovery.compatibleOverride,
-    undefined,
-    'the pin refusal must not advise a SNAPBACK_RUNTIME_BINARY override',
-  );
-  assert.ok(
-    pinDiagnostic.details.expectedDeployment?.schemaHash,
-    'the structured refusal carries the exact expected deployment identity',
-  );
-  assert.ok(
-    pinDiagnostic.details.observedDeployment?.schemaHash,
-    'the structured refusal carries the observed (regenerated) identity',
+    activation.fromDeployment.schemaHash,
+    activation.toDeployment.schemaHash,
+    'a documentation-only function edit keeps the schema identity',
   );
   assert.notEqual(
-    pinDiagnostic.details.observedDeployment.schemaHash,
-    pinDiagnostic.details.expectedDeployment.schemaHash,
+    activation.fromDeployment.bundleHash,
+    activation.toDeployment.bundleHash,
+    'the documentation-only edit rotates the complete bundle identity',
+  );
+  assert.equal(activation.database, database);
+  const successorApi = (await import(
+    `${pathToFileURL(generatedApiPath).href}?successor=${Date.now()}`
+  )).default;
+  const successorClient = new SnapbackClient(dev.serverUrl, {
+    custody: 'anonymous-public',
+    rqsStore: null,
+    offlineQueue: false,
+  });
+  assert(
+    (await successorClient.query(successorApi.listTodos)).rows.some(
+      (row) => row.title === preservedTitle,
+    ),
+    'the local product row survives the cold successor activation',
+  );
+  await successorClient.closeAuth();
+
+  // A complete generated pair can still be an invalid schema successor. A
+  // newly required field over an existing row must fail the guarded storage
+  // cut, remain on the old deployment, and keep the row intact. The pair must
+  // be complete — the functions half provides the new required field so
+  // generation succeeds — because an incomplete pair is refused earlier, by
+  // codegen, and never reaches the guarded cut.
+  const invalidSchema = sessionsSchema.replace(
+    'completed: v.boolean(),',
+    'completed: v.boolean(),\n    category: v.string(),',
+  );
+  assert.notEqual(invalidSchema, sessionsSchema);
+  const invalidFunctions = successorFunctions.replace(
+    'completed: lit(false),',
+    "completed: lit(false),\n    category: lit('general'),",
+  );
+  assert.notEqual(invalidFunctions, successorFunctions);
+  writeFileSync(schemaPath, invalidSchema);
+  writeFileSync(functionsPath, invalidFunctions);
+  assert.equal((await generateApp(backendRoot)).ok, true);
+  const invalidRestart = await dev.verbs.restart({
+    requestId: 'sessions-invalid-successor',
+  });
+  assert.equal(invalidRestart.state, 'restart-failed');
+  assert.equal(
+    invalidRestart.diagnostics[0].code,
+    'SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH',
+    `invalid successor must remain a startup-pin refusal: ${JSON.stringify(invalidRestart)}`,
+  );
+  assert.ok(
+    invalidRestart.diagnostics[0].details.activationFailure,
+    'the refusal retains the concrete activation failure',
+  );
+  assert.equal(
+    events.some(
+      (event) => event.state === 'startup-successor-activated'
+        && event.requestId === 'sessions-invalid-successor',
+    ),
+    false,
+    'an invalid successor is never reported as activated',
   );
 
-  console.log('sessions-dev-loop.test.mjs: ordinary sessions startup/restart, deliberate stale-runtime restart, and startup-pin refusal diagnostics pass');
+  writeFileSync(schemaPath, sessionsSchema);
+  writeFileSync(functionsPath, successorFunctions);
+  assert.equal((await generateApp(backendRoot)).ok, true);
+  const recovered = await dev.verbs.restart({ requestId: 'sessions-invalid-recovery' });
+  assert.equal(recovered.state, 'generated-and-loaded');
+  const recoveredApi = (await import(
+    `${pathToFileURL(generatedApiPath).href}?recovered=${Date.now()}`
+  )).default;
+  const recoveredClient = new SnapbackClient(dev.serverUrl, {
+    custody: 'anonymous-public',
+    rqsStore: null,
+    offlineQueue: false,
+  });
+  assert(
+    (await recoveredClient.query(recoveredApi.listTodos)).rows.some(
+      (row) => row.title === preservedTitle,
+    ),
+    'the refused invalid successor leaves the local row available after recovery',
+  );
+  await recoveredClient.closeAuth();
+
+  console.log('sessions-dev-loop.test.mjs: sessions restart, explicit comment-successor activation with preserved rows, stale-runtime refusal, and invalid-successor refusal pass');
 } finally {
   dev?.close?.();
   rmSync(scratchRoot, { recursive: true, force: true });

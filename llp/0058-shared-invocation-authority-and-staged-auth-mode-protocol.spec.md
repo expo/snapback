@@ -5,7 +5,13 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-08-03 (LLP 0109 acceptance: dated versioned-seed staging
+**Revised:** 2026-08-09 (managed-development cold-successor amendment: an
+ordinary settled-sessions start remains exact-pair pinned, while the explicit
+pre-bind `--activate-startup-successor` opt-in may activate a different complete,
+valid, seedless sessions pair through the same guarded same-mode durable cut;
+the managed `snapback dev` loop uses the opt-in automatically only after a
+structured mismatch proves both old and candidate identities, and emits the
+from/to activation). 2026-08-03 (LLP 0109 acceptance: dated versioned-seed staging
 amendment — the specified `StartupArtifactsV2` stage/consume composition is
 recorded, and the accepted first landing defers the carrier, refusing
 cross-mode install before any stage). 2026-08-01, later same day (LLP 0062 §4 companion: the
@@ -111,7 +117,7 @@ DTO closure, cross-process handshake-cache invalidation, handshake UUIDv7/versio
 exactness, truly-empty seed classification, content-verified deployment
 identities, and operator-recovery diagnostics). Full triage in §Review triage.)
 2026-07-14 (admitted-body ingestion: managed-route request buffering gains a 20000 ms monotonic ingest deadline strictly below the quiescence deadline plus epoch-close cancellation, ENG-24988). 2026-07-14 (ENG-24996 review gate: archived the GPT-family review artifact at `reviews/0058-shared-invocation-authority-and-staged-auth-mode-protocol.codex.md` and applied its editorial corrections — carrier hard-link rule, contract-data v1 exception, and Related links; material findings remain for author triage). 2026-07-14 (ENG-24987: kit-side offer/echo closure — handshake validation compares each `clientProtocols` echo with the exact per-request offer tuple and rejects unsolicited echoes with `SNAPBACK_AUTH_HANDSHAKE_INVALID`; Contract cross-checks echoed axes against the transport's published offer). 2026-07-14 (ENG-24991: the generated `auth.session.output` schema is now exact with the executable kit validator — every member including nullable ones is required, `protocolVersion` is `const: 1`, protocol echoes/minima are exactly v1-or-null, `transports` is exactly `["bearer"]`, authority identifiers couple to `isAuthenticated`, lease capability facts pin their protocol constants, and a shared accept/reject corpus is proven against both the schema and the shipped kit; the example DTO gained the item-6/7/8 members it had omitted). 2026-07-14 (final auth audit reconciliation: same-mode sessions deployment is an admission-barrier activation, its exact durable authorization witness is projected before reopen, and both legacy function-load ingresses resolve through complete-pair provisioning). 2026-07-14 (implementation-vs-review reconciliation: ENG-24597/item 4 and its executable matrices have landed, later items now consume the staged extension points, and this Spec remains Draft pending author ratification and scaled review). 2026-07-13 (aligned the executable-carrier rule with the implementation's conservative no-extended-ACL boundary); 2026-07-13 (initial implementing protocol for ENG-24597 / LLP 0039 landing item 4)
-**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0034, LLP 0037, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0055, LLP 0057, LLP 0059, LLP 0060, LLP 0074, LLP 0076, LLP 0108
+**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0034, LLP 0037, LLP 0039, LLP 0041, LLP 0043, LLP 0051, LLP 0053, LLP 0055, LLP 0057, LLP 0059, LLP 0060, LLP 0074, LLP 0076, LLP 0108, LLP 0174, LLP 0176
 
 ## Summary
 
@@ -830,6 +836,32 @@ start. Missing, unreadable, or mismatched artifacts fail pre-bind with
 silently substituted. This is not a wedge: the operator can rerun with the
 pinned pair, and the CLI emits the exact expected deployment identity without
 secret material.
+
+The explicit pre-bind `--activate-startup-successor` flag is the sole cold
+same-mode exception to exact identity equality. It requires the startup carrier,
+a settled sessions predecessor, a seedless candidate, positive sessions
+readiness, and a complete candidate pair that passes every ordinary preflight
+and preparation predicate. Preflight runs once before and once under the closed
+transition guard. The guarded same-mode transaction atomically advances the
+schema manifest, complete active deployment identity, auth-scope bases, and
+authorization witness before the prepared function generation publishes. A
+cold process has no admitted predecessor requests, connections, or live
+boundaries to project; startup constructs those process-local authorities only
+from the committed successor before listener bind. The activation prints a
+structured `snapback.startup-successor-activation.v1` line containing only the
+old and new deployment identities.
+
+Ordinary `snapback start` never implies that flag. Managed `snapback dev` may
+retry automatically with it only after the first native start returned a
+structured `SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH` containing both the
+preflighted observed identity and the pinned expected identity. A malformed,
+incomplete, incoherent, capability-unsupported, unloadable, or storage-invalid
+candidate therefore remains fail-closed: it either never authorizes the retry
+or fails the guarded transaction without a success event. The managed event
+`startup-successor-activated` names the database plus both identities. This is
+successor activation, not subset/superset admission: every candidate function,
+including a comment-only byte change or an added callable surface, remains part
+of the newly activated complete pair.
 
 ### Consume ordering: dev to sessions
 
@@ -1863,6 +1895,10 @@ Tests cover:
   stage that restarts into consume without rerunning seed;
 - settled sessions startup with correct, missing, swapped, mutable, oversized,
   and mismatched carrier files;
+- ordinary mismatch refusal followed by explicit cold activation of a complete
+  comment-only function successor against unchanged application rows, plus
+  incomplete/incoherent and storage-invalid successor refusals that leave the
+  predecessor deployment and rows intact;
 - capability-aware reopen from the active key after activation;
 - the exact legacy poison remaining after activation and downgrade;
 - a pinned pre-auth binary failing database open with

@@ -90,7 +90,7 @@ fn auth_policy_unavailable(message: &'static str) -> crate::diagnostic::Snapback
 /// data-discarding backup-then-reseed procedure with the real backup command.
 // @ref LLP 0058#cold-startup-artifact-carrier — "this is not a wedge": the
 // refusal must carry its own repair, not just the expected identity
-// (issues/20260805-doc-comment-artifact-mismatch-no-successor-migration.md).
+// (issues/closed/20260805-doc-comment-artifact-mismatch-no-successor-migration.md).
 fn with_settled_pin_repair(
     mut error: crate::diagnostic::SnapbackError,
     database: &Path,
@@ -157,6 +157,93 @@ fn emit_startup_artifact_refusal(error: &crate::diagnostic::SnapbackError) {
     })) {
         eprintln!("{line}");
     }
+}
+
+fn emit_startup_successor_activation(
+    previous: &crate::auth::mode::DeploymentIdentity,
+    successor: &crate::auth::mode::DeploymentIdentity,
+) {
+    if let Ok(line) = serde_json::to_string(&json!({
+        "schemaVersion": "snapback.startup-successor-activation.v1",
+        "fromDeployment": previous,
+        "toDeployment": successor,
+    })) {
+        eprintln!("{line}");
+    }
+}
+
+fn startup_successor_refused(
+    error: crate::diagnostic::SnapbackError,
+    expected: &crate::auth::mode::DeploymentIdentity,
+    observed: &crate::auth::mode::DeploymentIdentity,
+) -> crate::diagnostic::SnapbackError {
+    crate::diagnostic::SnapbackError::error(
+        "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH",
+        "auth-mode",
+        "the complete sessions successor could not be activated; startup remains refused",
+    )
+    .with_details(json!({
+        "expectedDeployment": expected,
+        "observedDeployment": observed,
+        "activationFailure": error.diagnostic,
+        "safety": "the existing database and durable deployment pin were preserved",
+    }))
+}
+
+/// Activate one complete sessions successor before listener bind. There are no
+/// predecessor process roots or live boundaries in a cold process, but the
+/// durable cut still runs under the same transition guard and same-mode
+/// storage transaction as network provisioning. Ordinary startup never enters
+/// this path without the explicit supervisor-owned opt-in.
+// @ref LLP 0058#same-mode-provisioning — a cold successor still preflights the
+// complete pair twice and advances schema, deployment identity, authorization
+// state, and the prepared function generation as one guarded activation.
+fn activate_startup_sessions_successor(
+    snapback: &mut LocalSnapback,
+    carrier: &crate::auth::mode::StartupArtifacts,
+    expected: &crate::auth::mode::DeploymentIdentity,
+    observed: &crate::auth::mode::DeploymentIdentity,
+) -> crate::diagnostic::SnapbackResult<crate::auth::mode::AuthModeStateRecord> {
+    use crate::auth::admission::ModeCommitFailure;
+    use crate::manifest::AuthMode;
+
+    let transition = snapback.begin_auth_mode_transition()?;
+    let repeated = transition.repeat_preflight(|| {
+        let snapshot = snapback.auth_database_mut().auth_mode_snapshot()?;
+        if snapshot.state.active != AuthMode::Sessions
+            || snapshot.state.active_deployment.as_ref() != Some(expected)
+        {
+            return Err(crate::auth::mode::mode_corrupt(
+                "settled sessions deployment changed before startup successor activation",
+            ));
+        }
+        snapback.preflight_auth_artifacts(carrier, AuthMode::Sessions)
+    })?;
+    if repeated != *observed {
+        return Err(crate::auth::mode::mode_corrupt(
+            "startup successor identity changed between complete-pair preflight passes",
+        ));
+    }
+
+    let publication_generation = snapback.reserve_function_publication_generation()?;
+    let schema = carrier.schema.clone();
+    let functions = carrier.functions.clone();
+    let deployment = observed.clone();
+    let ((), state, _) = transition.commit_and_publish_mode_state(|| {
+        let committed = crate::generation_activation::GenerationActivation::new(snapback)
+            .activate_same_mode_network_generation(
+                deployment,
+                schema,
+                functions,
+                None,
+                publication_generation,
+                DiagnosticBoundary::Standalone,
+            )?;
+        let state = committed.commit.state.clone();
+        Ok::<_, ModeCommitFailure>(((), state))
+    })?;
+    emit_startup_successor_activation(expected, observed);
+    Ok(state)
 }
 
 /// Resolve the four durable auth-mode keys and the one cold artifact carrier
@@ -241,7 +328,7 @@ async fn compose_auth_mode_startup_with_embedded(
     if snapshot.state.mode_state == AuthModeStatus::Settled {
         match snapshot.state.active {
             AuthMode::Sessions => {
-                let expected = snapshot.state.active_deployment.as_ref().ok_or_else(|| {
+                let expected = snapshot.state.active_deployment.clone().ok_or_else(|| {
                     crate::auth::mode::mode_corrupt(
                         "settled sessions mode lacks an active deployment",
                     )
@@ -251,18 +338,12 @@ async fn compose_auth_mode_startup_with_embedded(
                         auth_startup_required(
                             "settled sessions mode requires --startup-artifacts on every start",
                         ),
-                        Some(expected),
+                        Some(&expected),
                         None,
                     )
                 })?;
                 let observed = startup_blocking(|| {
                     snapback.preflight_auth_artifacts(carrier, AuthMode::Sessions)
-                })?;
-                carrier.require_deployment(expected).map_err(|error| {
-                    with_settled_pin_repair(
-                        with_expected_deployment(error, Some(expected), Some(&observed)),
-                        &args.db,
-                    )
                 })?;
                 if carrier.seed.is_some() {
                     return Err(crate::diagnostic::SnapbackError::error(
@@ -270,6 +351,32 @@ async fn compose_auth_mode_startup_with_embedded(
                         "auth-mode",
                         "a settled sessions restart carrier cannot contain seed data",
                     ));
+                }
+                if let Err(error) = carrier.require_deployment(&expected) {
+                    if !args.activate_startup_successor {
+                        return Err(with_settled_pin_repair(
+                            with_expected_deployment(
+                                error,
+                                Some(&expected),
+                                Some(&observed),
+                            ),
+                            &args.db,
+                        ));
+                    }
+                    if !readiness.session_activation_ready {
+                        return Err(auth_policy_unavailable(
+                            "this binary cannot activate a sessions startup successor",
+                        ));
+                    }
+                    return startup_blocking(|| {
+                        activate_startup_sessions_successor(
+                            snapback,
+                            carrier,
+                            &expected,
+                            &observed,
+                        )
+                    })
+                    .map_err(|error| startup_successor_refused(error, &expected, &observed));
                 }
                 if !readiness.session_activation_ready {
                     return Err(auth_policy_unavailable(
@@ -641,6 +748,12 @@ pub struct Args {
     #[arg(long)]
     pub startup_artifacts: Option<PathBuf>,
 
+    /// Managed-dev-only pre-bind opt-in: activate a complete valid sessions
+    /// successor against the existing local store when the ordinary startup
+    /// pin proves that its identity differs from the settled deployment.
+    #[arg(long, hide = true, requires = "startup_artifacts")]
+    pub activate_startup_successor: bool,
+
     /// Fork-create-only pre-bind cut: after the complete startup pair is
     /// active, arm the derived fork's app-row writer coverage before bind.
     #[arg(long, hide = true, requires = "startup_artifacts")]
@@ -711,6 +824,7 @@ impl Default for Args {
             hosted_edge: None,
             hosted_admission: None,
             startup_artifacts: None,
+            activate_startup_successor: false,
             derived_fork_arm_writer_coverage: false,
             trusted_composition_activation: None,
             clear_desired_auth_mode: false,

@@ -1833,7 +1833,7 @@ function refineGeneratedArtifactFailure(error, {
         recovery: {
           sanctionedEvolution: 'run the evolved sources through the running dev server (`snapback dev` watch reload or the reload verb): its app.ensure provision moves the pinned deployment forward',
           coldStartRepair: 'to cold-start first, restore the generated artifacts matching the pinned deployment (regenerate from the previous sources if needed), boot, then apply the evolved sources through the running server',
-          // issues/20260805-doc-comment-artifact-mismatch-no-successor-migration.md:
+          // issues/closed/20260805-doc-comment-artifact-mismatch-no-successor-migration.md:
           // the discard path is a supported procedure, not author intuition —
           // name the real backup command and the exact store it targets.
           freshReseed: 'to discard local data and reseed from scratch instead: back up the store with '
@@ -2273,6 +2273,7 @@ export async function runDev(options = {}) {
   let managed = false;
   let child = null;
   let descriptor;
+  let initialStartupSuccessor = null;
   if (existsSync(readyFile)) {
     descriptor = validateDevTarget(readReadyDescriptor(readyFile), { readyFile, database });
   } else {
@@ -2295,15 +2296,66 @@ export async function runDev(options = {}) {
       descriptor = validateDevTarget(await waitForReady(readyFile, child), { readyFile, database });
     } catch (error) {
       await stopProcessGroup(child);
-      throw refineGeneratedArtifactFailure(error, {
-        binary: runtime.binary,
-        runtime,
-        runtimeIdentity,
-        database,
-        artifacts: startupArtifacts
-          ? [startupArtifacts, ...startupArtifactSources]
-          : startupArtifactSources,
-      });
+      const startupPin = authStartupPinRefusal(error);
+      if (startupPin?.details?.observedDeployment) {
+        if (existsSync(readyFile)) rmSync(readyFile, { force: true });
+        child = spawnManagedRuntime(runtime.binary, [
+          'start',
+          '--ready-file', readyFile,
+          '--db', database,
+          ...(startupArtifacts ? ['--startup-artifacts', startupArtifacts] : []),
+          '--activate-startup-successor',
+        ], {
+          cwd: projectRoot,
+          env: managedDevRuntimeEnvironment(options.env),
+          stdio: options.serverStdio ?? ['ignore', 2, 2],
+        });
+        try {
+          descriptor = validateDevTarget(
+            await waitForReady(readyFile, child),
+            { readyFile, database },
+          );
+          initialStartupSuccessor = {
+            database,
+            fromDeployment: startupPin.details.expectedDeployment,
+            toDeployment: startupPin.details.observedDeployment,
+          };
+        } catch (activationError) {
+          await stopProcessGroup(child);
+          const refinedActivation = refineGeneratedArtifactFailure(activationError, {
+            binary: runtime.binary,
+            runtime,
+            runtimeIdentity,
+            database,
+            artifacts: startupArtifacts
+              ? [startupArtifacts, ...startupArtifactSources]
+              : startupArtifactSources,
+          });
+          throw diagnosticError(
+            'SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH',
+            'the sessions startup pair differs from the pinned deployment and automatic successor activation did not complete; startup remains refused',
+            {
+              expectedDeployment: startupPin.details.expectedDeployment,
+              observedDeployment: startupPin.details.observedDeployment,
+              activationFailure: refinedActivation.diagnostic ?? {
+                code: refinedActivation.code ?? 'SNAPBACK_DEV_SERVER_START_FAILED',
+                message: refinedActivation.message,
+              },
+              safety: 'the existing database was not discarded; inspect the activation failure and retry with a complete valid successor',
+            },
+          );
+        }
+      } else {
+        throw refineGeneratedArtifactFailure(error, {
+          binary: runtime.binary,
+          runtime,
+          runtimeIdentity,
+          database,
+          artifacts: startupArtifacts
+            ? [startupArtifacts, ...startupArtifactSources]
+            : startupArtifactSources,
+        });
+      }
     }
   }
   const closeManaged = async () => {
@@ -2347,6 +2399,15 @@ export async function runDev(options = {}) {
     runtime,
     runtimeRecovery,
   };
+  if (initialStartupSuccessor) {
+    options.onEvent?.({
+      schemaVersion: 'snapback.dev.v1',
+      ok: true,
+      state: 'startup-successor-activated',
+      verb: 'start',
+      ...initialStartupSuccessor,
+    });
+  }
   options.onEvent?.(result);
   if (options.watch === false) {
     return { ...result, child, close: closeManaged };
@@ -2644,6 +2705,7 @@ export async function runDev(options = {}) {
       });
     }
     restarting = true;
+    let startupPin = null;
     try {
       const previousPid = descriptor.pid ?? null;
       if (child.exitCode === null && child.signalCode === null) {
@@ -2655,19 +2717,51 @@ export async function runDev(options = {}) {
       }
       if (existsSync(readyFile)) rmSync(readyFile, { force: true });
       refreshStartupArtifacts();
-      child = spawnManagedRuntime(runtime.binary, [
+      const startManagedChild = (activateSuccessor = false) => spawnManagedRuntime(runtime.binary, [
         'start',
         '--ready-file', readyFile,
         '--db', database,
         ...(startupArtifacts ? ['--startup-artifacts', startupArtifacts] : []),
+        ...(activateSuccessor ? ['--activate-startup-successor'] : []),
       ], {
         cwd: projectRoot,
         env: managedDevRuntimeEnvironment(options.env),
         stdio: options.serverStdio ?? ['ignore', 2, 2],
       });
+      child = startManagedChild();
       attachExitWatch(child);
-      descriptor = validateDevTarget(await waitForReady(readyFile, child), { readyFile, database });
+      try {
+        descriptor = validateDevTarget(await waitForReady(readyFile, child), { readyFile, database });
+      } catch (error) {
+        startupPin = authStartupPinRefusal(error);
+        if (!startupPin?.details?.observedDeployment) throw error;
+
+        // @ref LLP 0058#same-mode-provisioning — only a structured refusal
+        // proving that native complete-pair preflight reached the identity pin
+        // authorizes the managed loop's explicit successor retry. The native
+        // retry repeats preflight and owns the guarded durable activation.
+        await stopProcessGroup(child);
+        if (existsSync(readyFile)) rmSync(readyFile, { force: true });
+        child = startManagedChild(true);
+        attachExitWatch(child);
+        descriptor = validateDevTarget(
+          await waitForReady(readyFile, child),
+          { readyFile, database },
+        );
+      }
       adminToken = managedAdminToken(descriptor, database);
+      if (startupPin) {
+        emitDevEvent({
+          schemaVersion: 'snapback.dev.v1',
+          ok: true,
+          state: 'startup-successor-activated',
+          verb: 'restart',
+          ...tag,
+          database,
+          fromDeployment: startupPin.details.expectedDeployment,
+          toDeployment: startupPin.details.observedDeployment,
+        });
+      }
       emitDevEvent({
         schemaVersion: 'snapback.dev.v1',
         ok: true,
@@ -2680,7 +2774,7 @@ export async function runDev(options = {}) {
       });
       return await regenerateAndLoad('(restart)', { ...tag });
     } catch (error) {
-      const refined = refineGeneratedArtifactFailure(error, {
+      let refined = refineGeneratedArtifactFailure(error, {
         binary: runtime.binary,
         runtime,
         runtimeIdentity,
@@ -2689,6 +2783,24 @@ export async function runDev(options = {}) {
           ? [startupArtifacts, ...startupArtifactSources]
           : startupArtifactSources,
       });
+      if (startupPin) {
+        const activationFailure = refined.diagnostic ?? {
+          code: refined.code ?? 'SNAPBACK_DEV_SERVER_START_FAILED',
+          severity: 'error',
+          subsystem: 'cli',
+          message: refined.message ?? 'the startup successor could not be activated',
+        };
+        refined = diagnosticError(
+          'SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH',
+          'the sessions startup pair differs from the pinned deployment and automatic successor activation did not complete; startup remains refused',
+          {
+            expectedDeployment: startupPin.details.expectedDeployment,
+            observedDeployment: startupPin.details.observedDeployment,
+            activationFailure,
+            safety: 'the existing database was not discarded; inspect the activation failure and retry with a complete valid successor',
+          },
+        );
+      }
       return emitDevEvent({
         schemaVersion: 'snapback.dev.v1',
         ok: false,

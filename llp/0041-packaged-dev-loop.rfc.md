@@ -6,6 +6,11 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
 
+**Revised:** 2026-08-09 (managed sessions restart now recognizes only the
+native structured complete-pair pin refusal, invokes LLP 0058's explicit
+pre-bind successor activation, reports database/from/to identities, and leaves
+invalid successors fail-closed)
+
 **Revised (promotion closure reconciled):** 2026-08-07 (the leased-promotion
 vector now equals the full eleven-package publishable closure, including
 `@expo/snapback-expo` and `create-snapback-app`; first-publication members use
@@ -949,6 +954,16 @@ control channel rather than process-lifetime authority: EOF disables further
 commands but leaves the dev loop and managed arms running. SIGINT/SIGTERM (or
 TTY `q`/Ctrl-C) owns shutdown. MCP stdio commands retain their independent
 EOF-terminates-server contract.
+
+On managed sessions restart, an exact startup-pin mismatch does not weaken into
+partial admission. The supervisor first observes the native structured refusal;
+only when it contains both complete preflighted identities does the scriptable
+loop retry with LLP 0058's explicit cold-successor activation opt-in. A valid
+successor preserves the database and emits `startup-successor-activated` with
+the database and from/to identities. An incomplete, incoherent, unloadable, or
+storage-invalid successor remains `restart-failed`. Attached/external servers
+are unchanged because this supervisor does not own their lifecycle or activation
+authority.
 
 The same contract is the **Exact-side seam** for a native Contract/Exact
 client arm: an Exact surface participates by (a) being spawned as the

@@ -1586,12 +1586,11 @@ async fn sessions_startup_offloads_sqlite_and_ibex_from_async_workers() {
     assert_eq!(restarted.active, AuthMode::Sessions);
 }
 
-/// issues/20260805-doc-comment-artifact-mismatch-no-successor-migration.md:
-/// a comment-only source edit rotates the functions bundle identity, and
-/// the settled restart correctly refuses — but the refusal must name the
-/// supported repair paths (live evolution through the running server, or
-/// the `snapback auth backup` backup-then-reseed procedure) instead of
-/// dead-ending on the identities alone.
+/// issues/closed/20260805-doc-comment-artifact-mismatch-no-successor-migration.md:
+/// a comment-only source edit rotates only the functions bundle identity.
+/// Ordinary startup keeps refusing with named repair paths, while the managed
+/// loop's explicit native opt-in activates that complete successor without
+/// replacing the database. An incoherent successor remains nonmutating.
 #[cfg(unix)]
 #[tokio::test]
 async fn settled_sessions_pin_refusal_names_supported_repair_paths() {
@@ -1604,6 +1603,24 @@ async fn settled_sessions_pin_refusal_names_supported_repair_paths() {
     let database = directory.path().join("app.sqlite3");
     let carrier = directory.path().join("startup.json");
     sessions_startup_carrier(&carrier);
+    let mut initial: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&carrier).unwrap()).unwrap();
+    initial["schema"]["tables"] = json!([{
+        "name": "products",
+        "fields": [{
+            "name": "name",
+            "field_type": "String",
+            "optional": false
+        }],
+        "indexes": [],
+        "syncable": true
+    }]);
+    initial["seed"] = json!({
+        "tables": {
+            "products": [{ "name": "preserve me" }]
+        }
+    });
+    std::fs::write(&carrier, serde_json::to_vec(&initial).unwrap()).unwrap();
     let args = Args {
         db: database.clone(),
         startup_artifacts: Some(carrier.clone()),
@@ -1621,12 +1638,20 @@ async fn settled_sessions_pin_refusal_names_supported_repair_paths() {
         .await
         .unwrap();
     assert_eq!(settled.active, AuthMode::Sessions);
+    let persisted_product_count = || {
+        rusqlite::Connection::open(&database)
+            .unwrap()
+            .query_row("SELECT COUNT(*) FROM products", [], |row| row.get::<_, i64>(0))
+            .unwrap()
+    };
+    assert_eq!(persisted_product_count(), 1);
 
     // The doc-comment edit case: only the functions bundle identity moved.
     let mut regenerated: serde_json::Value =
         serde_json::from_slice(&std::fs::read(&carrier).unwrap()).unwrap();
     regenerated["functions"]["bundleHash"] =
         json!(format!("{FUNCTION_V1_PREFIX}{}", "d".repeat(64)));
+    regenerated["seed"] = serde_json::Value::Null;
     std::fs::write(&carrier, serde_json::to_vec(&regenerated).unwrap()).unwrap();
 
     let error = super::compose_auth_mode_startup(&args, &mut snapback, &mut runtime, &readiness)
@@ -1656,6 +1681,78 @@ async fn settled_sessions_pin_refusal_names_supported_repair_paths() {
     assert!(
         repair["safety"].as_str().unwrap().contains("LLP 0058"),
         "safety attributes the pin to auth-mode state"
+    );
+
+    let activation_args = Args {
+        activate_startup_successor: true,
+        ..args.clone()
+    };
+    let activated = super::compose_auth_mode_startup(
+        &activation_args,
+        &mut snapback,
+        &mut runtime,
+        &readiness,
+    )
+    .await
+    .unwrap();
+    assert_eq!(activated.active, AuthMode::Sessions);
+    assert_eq!(
+        activated.active_deployment.as_ref().unwrap().bundle_hash,
+        regenerated["functions"]["bundleHash"].as_str().unwrap()
+    );
+    assert_eq!(
+        persisted_product_count(),
+        1,
+        "the startup successor activation preserves existing application rows"
+    );
+
+    // A complete, pair-valid successor can still be unsafe for the existing
+    // store. Adding a required field without a backfill must roll back and
+    // retain the settled successor pin and product row.
+    let mut invalid = regenerated;
+    invalid["schema"]["tables"][0]["fields"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({
+            "name": "category",
+            "field_type": "String",
+            "optional": false
+        }));
+    invalid["schema"]["schemaHash"] = json!(format!(
+        "{}{}",
+        crate::auth::mode::SCHEMA_V1_PREFIX,
+        "f".repeat(64)
+    ));
+    let invalid_inputs = format!(
+        "{}{}",
+        crate::auth::mode::INPUTS_V1_PREFIX,
+        "e".repeat(64)
+    );
+    invalid["schema"]["inputsHash"] = json!(&invalid_inputs);
+    invalid["functions"]["inputsHash"] = json!(invalid_inputs);
+    std::fs::write(&carrier, serde_json::to_vec(&invalid).unwrap()).unwrap();
+    let invalid_error = super::compose_auth_mode_startup(
+        &activation_args,
+        &mut snapback,
+        &mut runtime,
+        &readiness,
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(
+        invalid_error.diagnostic.code,
+        "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH"
+    );
+    assert_eq!(
+        invalid_error.diagnostic.details["activationFailure"]["code"],
+        "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED"
+    );
+    assert_eq!(persisted_product_count(), 1);
+    let after_invalid = snapback.auth_database_mut().auth_mode_snapshot().unwrap();
+    assert_eq!(
+        after_invalid.state.active_deployment,
+        activated.active_deployment,
+        "an invalid schema successor does not move the durable deployment pin"
     );
 }
 
@@ -2015,6 +2112,7 @@ async fn physical_restore_is_quarantined_until_exact_prebind_declaration() {
         ready_file: Some(ready.clone()),
         restored_from_backup: None,
         startup_artifacts: None,
+        activate_startup_successor: false,
         derived_fork_arm_writer_coverage: false,
         trusted_composition_activation: None,
         clear_desired_auth_mode: false,
@@ -2040,6 +2138,7 @@ async fn physical_restore_is_quarantined_until_exact_prebind_declaration() {
         hosted_edge: None,
         hosted_admission: None,
         startup_artifacts: None,
+        activate_startup_successor: false,
         derived_fork_arm_writer_coverage: false,
         trusted_composition_activation: None,
         clear_desired_auth_mode: false,
