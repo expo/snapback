@@ -5,16 +5,15 @@
 **Systems:** Schema, Application data API, Storage, Code generation, Client SDK
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-09
-**Revised:** 2026-08-09 (codex gpt-5.6-sol xhigh adjudication absorbed:
-versioned physical-encoding identity split from the logical contract;
-migration-cost honesty corrected — `v.json()`→typed and any future
-re-representation are O(N) proof-bearing moves under LLP 0081, not
-metadata-only; current-state precision — today's `FieldType::Json` bytes
-are non-canonical serde output, so canonical encoding is a new contract,
-with CV-10 as precedent, not coverage; trap-avoidance pins added; the
-stored-`v.object` silent-degrade defect the review found is filed as
-`issues/20260809-stored-vobject-silent-json-degrade.md`; Phase A/B
-commission amendment proposed to the LLP 0115 CV-4b row.)
+**Revised:** 2026-08-09, round-1 revision (both families NOT READY at
+`0d951fa69`, artifacts in `llp/reviews/0211-*`; every MATERIAL and
+DETAIL concern addressed in place — closed dispatch/leaf tables,
+0131-ruling pins, 0081-only conversion route, encoding-identity carrier,
+complete observation matrix with aggregate byte bound, LLP 0134
+publication contract, LLP 0044 clarification landed). Prior: 2026-08-09
+(pre-loop codex adjudication absorbed; the stored-`v.object`
+silent-degrade defect it found is
+`issues/20260809-stored-vobject-silent-json-degrade.md`).
 **Related:** LLP 0115 (CV-4b commission this slice is carved from), LLP 0004
 (application data API; portability rules), LLP 0007 (storage portability),
 LLP 0081 (migrations), LLP 0131 (unified argument grammar — the validator
@@ -40,10 +39,12 @@ excluded from structured values entirely.
 
 This is the second application of the carve-out pattern the
 union-of-string-literals slice established on 2026-08-08 (LLP 0004/0007
-dated amendments, per LLP 0191 §5): identify the slice that pays none of
-CV-4b's four named costs — no new index semantics, no matcher vocabulary,
-no representation decision for *indexable* structure, trivial migration —
-and ship it without waiting for the owner Spec. The commissioned CV-4b Spec
+dated amendments, per LLP 0191 §5): identify the slice that pays the least
+of CV-4b's four named costs — no new index semantics, no matcher
+vocabulary, no representation decision for *indexable* structure, and
+migration confined to the additive case (adding a structured field is
+cheap; conversions are O(N) staged work, priced in §Migrations) — and ship
+it without waiting for the owner Spec. The commissioned CV-4b Spec
 (representation choice for indexable structure, element indexing,
 containment, live-matcher semantics) **remains commissioned and unchanged**,
 demand-gated on element-query evidence that no benchmark run has yet
@@ -82,15 +83,13 @@ bytes are **not** currently canonical anywhere. CV-10 is precedent for
 canonical-bytes contracts, not coverage of this one; §Representation
 defines a new, versioned encoding contract and implements it.
 
-There is also a live honesty defect the adjudication of this Spec
-surfaced, filed as
-`issues/20260809-stored-vobject-silent-json-degrade.md`: stored-position
-`v.object({...})` is silently accepted by codegen's closed map and
-degraded to untyped `Json` (shape erased from the manifest, row type
-`unknown`, no write validation, no diagnostic), while `v.array` refuses
-with a teaching hint and the guide claims both refuse. The current state
-is therefore not even a clean refusal surface; this Spec's admit path (or,
-short-term, the ticket's refusal fix) removes the half-state either way.
+There is also a live honesty defect
+(`issues/20260809-stored-vobject-silent-json-degrade.md`): stored-position
+`v.object({...})` is silently accepted and degraded to untyped `Json`
+(shape erased, row type `unknown`, no validation, no diagnostic) while
+`v.array` refuses and the guide claims both refuse. The current state is
+not even a clean refusal surface; this Spec's admit path removes the
+half-state.
 
 ## Prior rulings this Spec binds itself to
 
@@ -108,12 +107,11 @@ short-term, the ticket's refusal fix) removes the half-state either way.
    machinery (attach, grants, lifecycle, sharing scans) needs references
    addressable as rows, which opaque interiors would defeat.
 
-   The withdrawal's recorded rationale, however, is phrased wider than its
-   subject: "the portable field vocabulary ships no array table fields."
-   Whether that clause binds plain-data values or only the asset-reference
-   vocabulary that was the decision's subject is **open question 1** — an
-   explicit author gate on this Spec's acceptance, per the G8 ticket's
-   "new ruling request, not a default" bar.
+   The withdrawal's recorded rationale was phrased wider than its subject
+   ("the portable field vocabulary ships no array table fields"); its
+   scope was open question 1, **ruled 2026-08-09** — it binds the
+   asset-reference vocabulary only — and LLP 0044's dated clarification
+   landed with this Spec's round-1 revision.
 
 2. **The literal-union carve-out (2026-08-08, LLP 0004/0007).** Stored
    unions of string literals have a landed representation (`TEXT` with a
@@ -125,25 +123,56 @@ short-term, the ticket's refusal fix) removes the half-state either way.
 
 ## Design
 
-### Declaration
+### Declaration: closed dispatch, closed interior
 
-Stored-field positions admit the LLP 0131 recursive vocabulary —
-`v.object(...)`, `v.array(...)`, `v.union(...)`, `v.optional(...)`, and the
-scalar leaves — with these refusals, each fail-closed at schema compile
-with a named diagnostic:
+**Top-level dispatch** (after stripping one outer `v.optional`, which maps
+to column nullability as today) — a closed table, not an inference:
 
-- `v.assetRef(...)` at any depth (prior ruling; authority machinery);
-- `v.id(...)` / relation references at any depth in v1 (referential
-  integrity and cascade semantics are the commissioned Spec's problem;
-  admitting untracked row references inside opaque values would create
-  dangling-reference states nothing owns);
-- a bare structured node that is exactly a top-level union of string
-  literals (routes to the landed Enum path instead, see above).
+| Outermost node | Disposition |
+| --- | --- |
+| existing scalar leaves, `v.id`, `v.assetRef`, `v.vector`, relation incarnations | unchanged — existing `FieldType`s, existing rules; this Spec touches nothing at top level |
+| union of string literals within the Enum domain bounds | unchanged — the landed Enum path |
+| union of string literals **outside** the Enum bounds (>7 variants or >64-byte literal) | **stays refused in v1**, unchanged — it does not fall through to the structured path, preserving the Enum evolution bound |
+| `v.object(...)`, `v.array(...)`, any other `v.union(...)` | **`FieldType::Structured`** — this Spec |
+| `v.json(...)` | unchanged — existing opaque `Json` field (with its existing degraded-contract diagnostics) |
 
-Spelling is the existing vocabulary — no second grammar, exactly as the
-literal-union carve-out promised. LLP 0115 CV-4b's note that 0127 move 1's
-one-grammar question stays unadjudicated continues to hold: this Spec
-consumes the grammar; it does not extend it.
+**Interior leaf set** (inside a `Structured` value) — closed, enumerated;
+everything not listed refuses fail-closed at schema compile with a named
+diagnostic pointing at this Spec:
+
+- **Admitted:** `v.string()`, `v.boolean()`, `v.number()` (Integer/Real),
+  `v.literal(...)`, `v.null()` (as a union variant), `v.object(...)`,
+  `v.array(...)`, `v.union(...)`, and `v.optional(...)` at object-member
+  position only.
+- **Refused, each with its reason recorded:** `v.assetRef` (the prior
+  ruling; authority machinery needs addressable rows); `v.id` / relation
+  references / `v.relationIncarnationOf` (referential integrity, cascade,
+  and framework-authored lifecycle state must not hide in opaque values);
+  `v.vector` (would silently lose its BLOB binary64 representation,
+  dimension enforcement, and index eligibility); `v.json` (an unvalidated
+  escape hatch inside a value the platform calls validated — the honesty
+  defect this Spec exists to remove); `v.principal` and
+  platform-constructed schema refs (auth-relevant nominal typing);
+  `v.tuple` (deferred; no demand instance).
+
+This is a deliberate **storage-position admissible-leaf profile** of the
+LLP 0131 grammar — same spellings, no second grammar, but "same grammar"
+does not mean every argument leaf is safe as a stored leaf. The
+implementation note codex round 1 verified applies: the shared authoring
+gate currently passes `v.vector` before position branching, so the
+interior gate is new enforcement, not a re-labeling. LLP 0115 CV-4b's
+note that 0127 move 1's one-grammar question stays unadjudicated
+continues to hold: this Spec consumes the grammar; it does not extend it.
+
+**Object closure and optionality — pinned, not open** (adopting LLP
+0131's landed rulings; formerly OQ4/OQ6): declared objects are **closed
+maps** (`additionalProperties: false`, the args-boundary behavior);
+optionality means **omission**, admitted only at object-member position —
+an absent member is an absent key in the canonical bytes, never JSON
+`null`; explicit null is spelled `v.union([..., v.null()])`. `{}` and
+`{"a":null}` are therefore distinct values only when `a`'s type declares
+a null variant, and the durable byte contract never floats on this
+distinction.
 
 ### Representation and write path
 
@@ -156,25 +185,45 @@ values only — never raw stored bytes — so a future encoding
 (`jsonb`-backed, projection-augmented, child-row) is a new encoding
 version behind the same logical contract, not a public schema break.
 
+**The encoding identity has an authoritative carrier.** The field's
+manifest entry records `field_type: Structured` with the hashed logical
+contract **and** the encoding id (`canonical-json-text.v1`); the encoding
+id participates in the storage-generation identity LLP 0081's planner
+derives its plans from (predecessor/successor manifests and hashes). A
+future encoding change is therefore a visible, plannable, provable
+migration — it cannot slide behind an unchanged logical hash. This is the
+single-sourced physical mapping LLP 0007 requires, versioned.
+
 `canonical-json-text.v1` is one `TEXT` column per structured field,
 holding **RFC 8785 canonical bytes**. Deliberately `TEXT` on every target
 — not SQLite JSONB, not Postgres `jsonb` — because binary/normalized JSON
 representations do not preserve byte identity, and canonical bytes give
 the digest/evidence boundary a stable carrier (the same property CV-10
 pinned for the search boundary; this is a new contract of the same
-family). `v.optional` absence at top level stores SQL `NULL`.
+family). Top-level `v.optional` absence stores SQL `NULL`.
 
 The write path is a central fail-closed check, sharing the CV-4a validator
-core: validate the incoming value against the declared shape (RFC 6901
-pointer diagnostics on refusal, same as `validate_function_args`),
-canonicalize, enforce bounds, store. Non-canonical bytes are never stored;
-a value that fails validation writes nothing (no partial write, matching
-the CV-4a exit's property).
+core, guarding **every** write route the enum precedent guards — inserts,
+patches, seeds, imports, migrations, and every buffered writer: validate
+the incoming value against the declared shape (RFC 6901 pointer
+diagnostics on refusal, same as `validate_function_args`), **normalize
+interior numerics to their round-trip form at admission** (the CV-10/LLP
+0073 analogue, applied inside the value: an integral Real admits as the
+value its canonical spelling reloads to, so in-memory and reloaded
+documents can never disagree), canonicalize, enforce bounds, store.
+Non-canonical bytes are never stored; a value that fails validation
+writes nothing (no partial write, matching the CV-4a exit's property).
 
-Bounds, fail-closed at write (proposed; open question 3): 32 KiB canonical
-bytes per value, depth 16, 1,024 elements per array — the depth and count
-ceilings matching the existing contract bounds and the portable collect
-cap. Oversized values refuse with a named code; they do not truncate.
+Bounds, fail-closed at write (numbers provisional per open question 3;
+the **mechanism** is pinned): per-value ceilings — 32 KiB canonical
+bytes, depth 16, 1,024 elements per array (matching the existing contract
+bounds and the portable collect cap) — **plus a per-row aggregate ceiling
+on total structured bytes (proposed 48 KiB)** chosen so a whole-row
+snapshot always fits the repository's 64 KiB live-frame profile.
+Enforcement is admission-time only: an oversized write refuses with a
+named code; delivery therefore never meets an oversized row and never
+fragments, truncates, or drops in v1. Oversized values refuse; they do
+not truncate.
 
 ### Read path, types, and egress
 
@@ -186,18 +235,41 @@ types, and client types — the same projection the args/result lanes
 already do. The degraded-contract diagnostics that fire on `v.json()`
 today do not fire on a declared structured field: that is the point.
 
-### Query surface: opaque, with teaching refusals
+### Observation surface: the complete matrix
 
 In v1 a structured column admits **no predicates at all** — no equality,
-no ordering, no `arrayContains`, no index declarations, no search-index
-membership, no live-matcher inspection. Live queries treat the value as
-part of the row: whole-row invalidation and whole-value replacement,
-riding the existing delivery machinery unchanged. Each refusal names the
-capability boundary and points at the CV-4b GAP row rather than emitting a
-generic validator error. (Byte-equality on canonical bytes would be cheap
-and well-defined; it is deliberately deferred to open question 2 rather
-than shipped by default, because equality-on-structure invites
-containment-shaped expectations the v1 surface refuses.)
+no ordering, no `arrayContains`, no search-index membership, no
+live-matcher inspection. Each refusal names the capability boundary and
+points at the CV-4b GAP row rather than emitting a generic validator
+error. (Byte-equality on canonical bytes would be cheap and well-defined;
+it is deliberately deferred to open question 2, because
+equality-on-structure invites containment-shaped expectations the v1
+surface refuses.) Every surface that can observe a stored value is
+enumerated here; anything unlisted is a defect:
+
+- **Filters, ordering, live matchers, search/vector index membership** —
+  refuse (today's behavior for `Json`, kept, with teaching diagnostics).
+- **Index declarations** — refuse. Disclosed honestly: this is **new
+  machinery**, not continuation — today an ordinary index declared on a
+  `Json` column is silently accepted as dead weight by codegen and the
+  Rust schema validator. v1 refuses index declarations on `Structured`
+  columns; whether the same refusal (or a warning) retrofits onto plain
+  `Json` columns is an implementation-phase complement, not required
+  here.
+- **Bounded-children / relational / maintained projections** — structured
+  fields are not projectable leaves; the existing portable-scalar-leaf
+  admission already excludes them, and acceptance pins that exclusion so
+  it cannot regress silently.
+- **Change journal and live deltas** — carry whole-row logical snapshots
+  exactly as today; the §Representation aggregate byte ceiling guarantees
+  every such envelope fits the live-frame profile, so no journal or
+  delta surface needs structure-aware behavior.
+- **Read-your-writes overlays, retained/local client stores** — carry
+  logical values (never raw bytes); the server remains the sole
+  validation authority, and client lanes neither re-validate nor
+  re-canonicalize. Acceptance pins the round trip.
+- **Live queries** — whole-row invalidation and whole-value replacement,
+  riding the existing delivery machinery unchanged.
 
 ### Update semantics and trap-avoidance pins
 
@@ -224,10 +296,16 @@ honestly:
    **O(N) proof-bearing work, not metadata-only**: every stored value must
    parse, validate against the declared shape, and (because today's Json
    bytes are non-canonical serde output) be rewritten to canonical bytes.
-   Small tables may use a conservative activation-time scan; substantial
-   tables take LLP 0081's add/copy/validate/publish/retire route, which
-   already treats representation conversion as proof-bearing and hashes
-   logical rows independently of physical encoding.
+   **Every such conversion, at any table size, takes LLP 0081's reviewed
+   add/copy/validate/publish/retire route** — the round-1 reviews
+   converged on this: the conservative applier rejects row-rewriting type
+   changes by rule (LLP 0007), table size does not waive that authority,
+   and an activation-time scan cannot rewrite bytes anyway; no fast path
+   exists. The destination is a staged successor field/generation in
+   0081's own shape (which already treats representation conversion as
+   proof-bearing and hashes logical rows independently of physical
+   encoding); same-name conversion is expressed as successor-generation
+   publish-then-retire, never in-place mutation.
 3. **`canonical-json-text.v1` → a future encoding** (projections, jsonb,
    child rows) — logically mechanical (parse/re-emit; canonical bytes are
    already the complete document), **operationally O(N)** with the same
@@ -244,14 +322,34 @@ commissioned Spec's candidate futures remain reachable by a standard 0081
 move — and future scalar projections can even materialize from canonical
 text without rewriting the source field at all.
 
-### Capability and maturity
+### Capability and maturity (the LLP 0134 publication contract)
 
-The slice ships as an experimental capability fact
-(`structured_stored_value_v1` proposed) on the LLP 0113 qualification
-route, per LLP 0115 decision 3's maturity ruling (0113 is the default for
-new profiles). Support stays false until the acceptance corpus below is
-green; the capability index GAP row for CV-4b narrows rather than closes —
-indexable structure remains an honest GAP.
+The capability id is **`structured_stored_value_v1`**. Its publication
+contract, per LLP 0134/0113 rather than by gesture:
+
+- it enters the closed capability registries as **experimental** with the
+  **same-commit introduction record** LLP 0134 requires;
+- **local/package support** is the standard support-fact carrier with the
+  acceptance corpus below as its predicate — a green corpus is necessary
+  evidence, and the support flip is a distinct act on that carrier, never
+  implied by green tests;
+- **hosted support is not minted**: no hosted claim-family kind exists
+  for stored-field capabilities here, and per LLP 0134 creating one
+  requires its own dated governing amendment when hosted work is actually
+  pursued — until then hosted lanes are support-false by absence;
+- **per-writer scope**: any target or write lane that does not carry the
+  central validate-normalize-canonicalize seam (non-local targets,
+  client-local write lanes) stays support-false — a hosted lane can never
+  silently accept structured fields without canonical bytes;
+- **required-capability propagation**: an app schema declaring a
+  structured field emits `structured_stored_value_v1` as a required
+  capability, so an older runtime refuses the app coherently instead of
+  mis-serving it.
+
+Maturity route: LLP 0113 qualification, per LLP 0115 decision 3 (0113 is
+the default for new profiles); maturity and runtime support remain
+distinct facts per 0113. The capability index GAP row for CV-4b narrows
+rather than closes — indexable structure remains an honest GAP.
 
 ### Proposed amendment to the LLP 0115 CV-4b commission
 
@@ -269,9 +367,11 @@ decided here) restructuring the CV-4b commission into two phases:
   predicate translation (an untranslatable containment predicate causing
   silent whole-table scans is exactly what the portability rules refuse).
 
-Under this framing "defined index and sync behavior" — CV-4b's exit
-phrase — is satisfied by Phase A for the atomic tier, because a stable,
-named refusal is defined behavior.
+The proposal's claim — for the 0115 owners to adopt or reject when they
+amend the row, not asserted from here — is that CV-4b's exit phrase
+"defined index and sync behavior" is satisfied by Phase A for the atomic
+tier, because a stable, named refusal covering the complete
+§Observation-surface matrix is defined behavior.
 
 ## Acceptance evidence (exit)
 
@@ -279,17 +379,29 @@ named refusal is defined behavior.
    preview and the poll-options shapes declared without `v.json()`, typed
    end to end, with a seeded handler/type mismatch failing at typecheck
    (the CV-17 pattern applied to stored positions).
-2. Fail-closed vectors: `v.assetRef` interior refusal; `v.id` interior
-   refusal; over-ceiling value refusal (bytes, depth, count) with pointer
-   diagnostics; a non-validating write provably writes nothing.
+2. Fail-closed vectors: every refused interior leaf (§Declaration's
+   table: assetRef, id/relation incarnation, vector, json, principal,
+   platform refs, tuple) refuses at schema compile with its named code;
+   over-ceiling refusal for all four bounds (value bytes, depth, element
+   count, per-row aggregate) with pointer diagnostics; a non-validating
+   write provably writes nothing.
 3. Canonical-bytes stability: the CV-10 insert/seed fixture class extended
-   to structured fields — integral-Real spelling agrees between in-memory
-   and reloaded values; digests stable across write/reload/patch.
-4. Query-surface refusals: index declaration, filter, order, search
-   membership, and matcher use against a structured column each refuse
-   with the named teaching code on both the SQLite target and the schema
-   compiler.
-5. Guide: the schema page and capability index updated in the same landing
+   to structured fields — interior integral-Real spelling agrees between
+   in-memory and reloaded values on every write route (insert, patch,
+   seed, buffered); digests stable across write/reload/patch.
+4. Observation-surface refusals and exclusions: index declaration,
+   filter, order, search membership, and matcher use against a structured
+   column each refuse with the named teaching code on both the SQLite
+   target and the schema compiler; bounded/relational/maintained
+   projections provably exclude structured leaves (a declaration
+   attempting one refuses, pinned so the exclusion cannot regress).
+5. Round-trip parity: a read-your-writes overlay and a retained/local
+   client store each round-trip a structured value logically intact
+   through offline/reconnect; when a Postgres adapter exists, a
+   cross-adapter canonical-text/logical-value parity fixture joins this
+   corpus (named now, deferred with the adapter per LLP 0007's
+   cross-engine evidence rule).
+6. Guide: the schema page and capability index updated in the same landing
    (LLP 0061) — the GAP row rewritten to steer "typed structured value,
    interior not queryable" here and "queryable interior" to the
    commissioned Spec.
@@ -322,26 +434,31 @@ named refusal is defined behavior.
    (Charlie, 2026-08-09, at implementation kickoff) ruled the latter:
    the withdrawal binds the asset-reference vocabulary; plain-data
    structured stored values proceed under this Spec. LLP 0044's dated
-   clarification note lands with the implementation.
+   clarification note LANDED with the round-1 revision (2026-08-09),
+   closing the corpus-visible tension the round-1 review named.
 2. **Byte-equality predicate.** Admit `eq` on canonical bytes in v1, or
    ship with no predicates at all (the current text)? Lean: no predicates;
    add equality only with a demand instance.
-3. **Ceilings.** 32 KiB / depth 16 / 1,024 elements are proposals; the
-   byte ceiling in particular should be checked against the live-delivery
-   envelope before freezing, since structured values ride whole-value
-   replacement.
-4. **Nested optionality semantics.** `v.optional` at interior positions:
-   absent-vs-null distinction must be pinned (RFC 8785 has no `undefined`;
-   proposal: interior optionality means the key is omitted when absent,
-   and `v.union([..., v.null()])` spells explicit null).
+3. **Ceiling numbers.** The mechanism is pinned (§Representation:
+   admission-time enforcement, per-value plus per-row aggregate, sized to
+   the 64 KiB live-frame profile); the specific numbers (32 KiB value /
+   48 KiB row / depth 16 / 1,024 elements) are provisional until the
+   implementation verifies them against the live-frame profile with a
+   fixture. Freezing the numbers is an implementation-time act with a
+   bench receipt, not a design change.
+4. **Nested optionality semantics — RULED (round 1).** Pinned in
+   §Declaration by adopting LLP 0131's landed ruling: omission-not-null,
+   object-member position only, explicit null via `v.null()` union
+   variant. No longer open.
 5. **Capability id and naming.** `structured_stored_value_v1` vs folding
    under a future `stored_fields_v2` family — naming should follow LLP
-   0134's registry conventions at implementation time.
-6. **Closed vs open object keys.** Are declared `v.object` shapes closed
-   (`additionalProperties: false`, matching the args boundary) at stored
-   positions too? Lean: yes — closed, matching CV-4a, with open maps
-   deferred until a demand instance names them (a `v.record(...)`-class
-   node would be new vocabulary, which this Spec refuses to mint).
+   0134's registry conventions at implementation time. (The publication
+   contract itself is now pinned in §Capability; only the name floats.)
+6. **Closed vs open object keys — RULED (round 1).** Pinned in
+   §Declaration by adopting the args-boundary behavior: closed maps,
+   `additionalProperties: false`; open maps deferred until a demand
+   instance names them (a `v.record(...)`-class node would be new
+   vocabulary, which this Spec refuses to mint). No longer open.
 7. **JCS write-path cost.** The adjudication flags canonicalization cost
    on realistic write volumes as unmeasured; the implementation should
    carry a bench receipt against the existing write path before the

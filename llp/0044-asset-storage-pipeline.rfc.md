@@ -5,7 +5,13 @@
 **Systems:** Assets, Storage, API, Security, Auth, Runtime, Deployment, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-09 (Clique-pilot delivery and grant DX closure —
+**Revised:** 2026-08-09, later same day (withdrawal-scope clarification,
+author ruling, Charlie: the 2026-07-31 bounded-array withdrawal's clause
+"the portable field vocabulary ships no array table fields" binds the
+**asset-reference vocabulary** — its subject — not plain-data structured
+values, which are governed by LLP 0211; `v.array(v.assetRef(...))`
+remains withdrawn and multi-asset relationships remain on the LLP 0110
+bounded-children path, unchanged). Prior: 2026-08-09 (Clique-pilot delivery and grant DX closure —
 §Clique-pilot delivery and grant DX closure: client-arm signed issuance +
 React TTL refresh commissioned as owed implementation, issuance `variant`
 defaulted to `primary` with typed unknown-variant refusals, a one-call
