@@ -898,6 +898,7 @@
         "revision-set-fixtures",
         "control-catalog",
         "control-catalog-fixtures",
+        "app-api-md-fixtures",
         "js-production-audit"
       ]
     },
