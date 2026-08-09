@@ -258,6 +258,11 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/_snapback/api/auth/integrations/{id}/retire"),
         ("POST", "/_snapback/api/auth/integrations/{id}/suspend"),
         ("POST", "/_snapback/api/auth/integrations/{id}/resume"),
+        ("GET", "/_snapback/api/auth/declared-clients"),
+        ("POST", "/_snapback/api/auth/declared-clients/bless"),
+        ("POST", "/_snapback/api/auth/declared-clients/suspend"),
+        ("POST", "/_snapback/api/auth/declared-clients/resume"),
+        ("POST", "/_snapback/api/auth/declared-clients/delete"),
         ("POST", "/_snapback/api/functions/load"),
         ("POST", "/_snapback/api/app/reset"),
         ("POST", "/_snapback/api/app/seed/clear-v1"),
@@ -759,6 +764,30 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
         assert_eq!(route.invocation_authority, InvocationAuthority::Operator, "{path}");
         assert_eq!(route.legacy_body_policy, LegacyBodyPolicy::NotApplicable, "{path}");
         assert_eq!(route.effect_policy, effect, "{path}");
+        assert_eq!(route.response_sensitivity, ResponseSensitivity::OperatorMetadata, "{path}");
+    }
+
+    let declared_read = registry
+        .iter()
+        .find(|route| route.path == "/_snapback/api/auth/declared-clients")
+        .expect("declared-client operator projection");
+    assert_eq!(declared_read.method, "GET");
+    assert_eq!(declared_read.class, RouteClass::SystemApi);
+    assert_eq!(declared_read.path_policy, RoutePolicy::AdminRead);
+    assert_eq!(
+        declared_read.response_sensitivity,
+        ResponseSensitivity::OperatorMetadata
+    );
+    for path in [
+        "/_snapback/api/auth/declared-clients/bless",
+        "/_snapback/api/auth/declared-clients/suspend",
+        "/_snapback/api/auth/declared-clients/resume",
+        "/_snapback/api/auth/declared-clients/delete",
+    ] {
+        let route = registry.iter().find(|route| route.path == path).unwrap();
+        assert_eq!(route.method, "POST", "{path}");
+        assert_eq!(route.class, RouteClass::SystemApi, "{path}");
+        assert_eq!(route.path_policy, RoutePolicy::AdminWrite, "{path}");
         assert_eq!(route.response_sensitivity, ResponseSensitivity::OperatorMetadata, "{path}");
     }
 

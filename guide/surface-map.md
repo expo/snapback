@@ -42,6 +42,11 @@ here (or listed here but gone from the code).
 | /_snapback/api/app/seed/preview-v1 | backend.versioned-seed |
 | /_snapback/api/app/seed/reset-install-v1 | backend.versioned-seed |
 | /_snapback/api/auth/mailbox | auth.sessions |
+| /_snapback/api/auth/declared-clients | auth.agent-principals |
+| /_snapback/api/auth/declared-clients/bless | auth.agent-principals |
+| /_snapback/api/auth/declared-clients/delete | auth.agent-principals |
+| /_snapback/api/auth/declared-clients/resume | auth.agent-principals |
+| /_snapback/api/auth/declared-clients/suspend | auth.agent-principals |
 | /_snapback/api/auth/integrations/{id}/resume | auth.agent-principals |
 | /_snapback/api/auth/integrations/{id}/retire | auth.agent-principals |
 | /_snapback/api/auth/integrations/{id}/suspend | auth.agent-principals |

@@ -113,6 +113,7 @@ use tokio::sync::{Mutex, OwnedSemaphorePermit, Semaphore, mpsc, oneshot};
 use tokio::task::JoinHandle;
 use tokio::time::{Duration, interval};
 use tower_service::Service;
+use unicode_normalization::UnicodeNormalization as _;
 use uuid::Uuid;
 
 mod api_error;
@@ -3505,6 +3506,8 @@ struct ConnectionRegistryState {
     service_open_attempts: std::collections::HashMap<[u8; 32], std::collections::VecDeque<Instant>>,
     agent_route_attempts:
         std::collections::HashMap<AgentRouteThrottleKey, std::collections::VecDeque<Instant>>,
+    external_api_attempts:
+        std::collections::HashMap<ExternalApiThrottleKey, std::collections::VecDeque<Instant>>,
     pressure_mint_only: bool,
 }
 
@@ -3515,10 +3518,52 @@ struct AgentRouteThrottleKey {
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[allow(dead_code)] // Declared/integration arms are shared vocabulary for the data-plane sibling.
 enum AgentRouteThrottleSource {
     Session(String),
     Credential([u8; 32]),
+    Declared([u8; 32]),
+    Integration(String),
     Malformed,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+struct ExternalApiThrottleKey {
+    route_family: &'static str,
+    source: ExternalApiThrottleSource,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+enum ExternalApiThrottleSource {
+    NetworkFloor([u8; 32]),
+    DeclaredCreation([u8; 32]),
+    Declared([u8; 32]),
+    Integration(String),
+    OverflowNetworkFloor,
+    OverflowDeclaredCreation,
+    OverflowDeclared,
+    OverflowIntegration,
+}
+
+impl ExternalApiThrottleSource {
+    fn overflow(&self) -> (Self, usize) {
+        match self {
+            Self::NetworkFloor(_) | Self::OverflowNetworkFloor => (
+                Self::OverflowNetworkFloor,
+                EXTERNAL_API_ANONYMOUS_FLOOR_LIMIT,
+            ),
+            Self::DeclaredCreation(_) | Self::OverflowDeclaredCreation => (
+                Self::OverflowDeclaredCreation,
+                EXTERNAL_API_DECLARED_CREATION_LIMIT,
+            ),
+            Self::Declared(_) | Self::OverflowDeclared => {
+                (Self::OverflowDeclared, EXTERNAL_API_DECLARED_LIMIT)
+            }
+            Self::Integration(_) | Self::OverflowIntegration => {
+                (Self::OverflowIntegration, EXTERNAL_API_INTEGRATION_LIMIT)
+            }
+        }
+    }
 }
 
 struct ConnectionGrantRecord {
@@ -4891,6 +4936,39 @@ impl ConnectionRegistryState {
         )
     }
 
+    fn consume_external_api(
+        &mut self,
+        mut source: ExternalApiThrottleSource,
+        mut limit: usize,
+        now: Instant,
+    ) -> Result<(), u64> {
+        let mut key = ExternalApiThrottleKey {
+            route_family: EXTERNAL_API_ROUTE_FAMILY,
+            source: source.clone(),
+        };
+        if !self.external_api_attempts.contains_key(&key)
+            && self.external_api_attempts.len() >= EXTERNAL_API_THROTTLE_KEY_CAP
+        {
+            self.external_api_attempts.retain(|_, bucket| {
+                Self::prune_bucket(bucket, EXTERNAL_API_THROTTLE_WINDOW, now);
+                !bucket.is_empty()
+            });
+            if self.external_api_attempts.len() >= EXTERNAL_API_THROTTLE_KEY_CAP {
+                (source, limit) = source.overflow();
+                key = ExternalApiThrottleKey {
+                    route_family: EXTERNAL_API_ROUTE_FAMILY,
+                    source,
+                };
+            }
+        }
+        Self::consume_bucket(
+            self.external_api_attempts.entry(key).or_default(),
+            limit,
+            EXTERNAL_API_THROTTLE_WINDOW,
+            now,
+        )
+    }
+
     #[cfg(test)]
     fn assert_grant_indexes_consistent(&self) {
         assert_eq!(self.grants.len(), self.unused.len() + self.used.len());
@@ -5641,6 +5719,16 @@ impl ConnectionRegistry {
         self.lock()
             .consume_agent_route(path, source, limit, monotonic_now)
             .map_err(ApiError::auth_throttled)
+    }
+
+    fn consume_external_api(
+        &self,
+        source: ExternalApiThrottleSource,
+        limit: usize,
+        monotonic_now: Instant,
+    ) -> Result<(), u64> {
+        self.lock()
+            .consume_external_api(source, limit, monotonic_now)
     }
 
     /// Open a grant. A caller-suggested id is adopted only in non-prod
@@ -6693,6 +6781,20 @@ const CONNECTION_OPEN_COARSE_LIMIT: usize = 240;
 const CONNECTION_OPEN_WINDOW: Duration = Duration::from_secs(60);
 const AGENT_ROUTE_THROTTLE_WINDOW: Duration = Duration::from_secs(60);
 const AGENT_ROUTE_THROTTLE_SOURCE_CAP: usize = 4_096;
+const EXTERNAL_API_ROUTE_FAMILY: &str = "api.v1";
+const EXTERNAL_API_THROTTLE_WINDOW: Duration = Duration::from_secs(60);
+const EXTERNAL_API_THROTTLE_KEY_CAP: usize = 20_000;
+/// @ref LLP 0071#declared-tier — every external lane first consumes the same
+/// low-cardinality network floor, so minted declared ids cannot multiply it.
+const EXTERNAL_API_ANONYMOUS_FLOOR_LIMIT: usize = 60;
+/// @ref LLP 0071#bounded-pre-auth-ledger — new high-cardinality ledger rows
+/// require a distinct low-cardinality network-evidence creation admission.
+const EXTERNAL_API_DECLARED_CREATION_LIMIT: usize = 10;
+/// @ref LLP 0071#declared-tier — stable cooperative identification receives
+/// a larger per-id budget while retaining the anonymous network floor.
+const EXTERNAL_API_DECLARED_LIMIT: usize = 240;
+const EXTERNAL_API_INTEGRATION_LIMIT: usize = 600;
+const EXTERNAL_API_BLESSED_MULTIPLIER: usize = 4;
 
 /// Each agent-management route owns a distinct closed budget. Equal limits do
 /// not share accounting: the canonical route path is the bucket key.
@@ -6771,6 +6873,160 @@ fn single_header_value<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str
     let mut values = headers.get_all(name).iter();
     let value = values.next()?.to_str().ok()?;
     values.next().is_none().then_some(value)
+}
+
+const SNAPBACK_CLIENT_ID_HEADER: &str = "snapback-client-id";
+const SNAPBACK_CLIENT_ID_STATUS_HEADER: &str = "snapback-client-id-status";
+const NETWORK_EVIDENCE_ROTATION_MS: u64 = 24 * 60 * 60 * 1_000;
+
+#[derive(Clone, Debug)]
+struct NormalizedDeclaredClientId {
+    value: String,
+    digest: [u8; 32],
+}
+
+#[derive(Clone, Debug)]
+struct ExternalClientIdContext {
+    declared: Option<NormalizedDeclaredClientId>,
+    status: Arc<StdMutex<Option<&'static str>>>,
+}
+
+impl ExternalClientIdContext {
+    fn ignored(status: &'static str) -> Self {
+        Self {
+            declared: None,
+            status: Arc::new(StdMutex::new(Some(status))),
+        }
+    }
+
+    fn accepted(declared: NormalizedDeclaredClientId) -> Self {
+        Self {
+            declared: Some(declared),
+            status: Arc::new(StdMutex::new(Some("accepted"))),
+        }
+    }
+
+    fn absent() -> Self {
+        Self {
+            declared: None,
+            status: Arc::new(StdMutex::new(None)),
+        }
+    }
+
+    fn set_status(&self, status: &'static str) {
+        *self
+            .status
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(status);
+    }
+
+    fn status(&self) -> Option<&'static str> {
+        *self
+            .status
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+}
+
+fn declared_client_id_context(spec: RouteSpec, headers: &HeaderMap) -> Option<ExternalClientIdContext> {
+    if !external_api_route(spec) {
+        return None;
+    }
+    let mut values = headers.get_all(SNAPBACK_CLIENT_ID_HEADER).iter();
+    let Some(_) = values.next() else {
+        return Some(ExternalClientIdContext::absent());
+    };
+    if values.next().is_some() {
+        return Some(ExternalClientIdContext::ignored("ignored-duplicate"));
+    }
+    let Some(raw) = single_header_value(headers, SNAPBACK_CLIENT_ID_HEADER) else {
+        return Some(ExternalClientIdContext::ignored("ignored-invalid-encoding"));
+    };
+    match normalize_declared_client_id(raw) {
+        Ok(declared) => Some(ExternalClientIdContext::accepted(declared)),
+        Err(status) => Some(ExternalClientIdContext::ignored(status)),
+    }
+}
+
+fn normalize_declared_client_id(
+    raw: &str,
+) -> Result<NormalizedDeclaredClientId, &'static str> {
+    let normalized = raw.nfkc().collect::<String>().trim().to_lowercase();
+    if normalized.chars().count() < 16 {
+        return Err("ignored-too-short");
+    }
+    if normalized.len() > crate::storage::declared_clients::DECLARED_CLIENT_MAX_ID_BYTES {
+        return Err("ignored-too-long");
+    }
+    if normalized.chars().any(char::is_control) {
+        return Err("ignored-invalid-characters");
+    }
+    if !declared_id_contains_email(&normalized) {
+        return Err("ignored-no-email");
+    }
+    use sha2::Digest as _;
+    let mut hasher = sha2::Sha256::new();
+    hasher.update(b"snapback:declared-client-id:v1\n");
+    hasher.update(normalized.as_bytes());
+    let digest: [u8; 32] = hasher.finalize().into();
+    Ok(NormalizedDeclaredClientId {
+        value: normalized,
+        digest,
+    })
+}
+
+fn declared_id_contains_email(value: &str) -> bool {
+    static EMAIL: OnceLock<regex::Regex> = OnceLock::new();
+    EMAIL
+        .get_or_init(|| {
+            regex::Regex::new(
+                r#"(?i)[a-z0-9.!#$%&'*+?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+"#,
+            )
+            .expect("declared-id email profile regex is valid")
+        })
+        .find_iter(value)
+        .any(|candidate| {
+            let email = candidate.as_str();
+            let Some((local, domain)) = email.split_once('@') else {
+                return false;
+            };
+            !local.is_empty()
+                && local.len() <= 64
+                && !local.starts_with('.')
+                && !local.ends_with('.')
+                && !local.contains("..")
+                && domain.len() <= 253
+                && domain.split('.').all(|label| {
+                    !label.is_empty()
+                        && label.len() <= 63
+                        && label.as_bytes()[0].is_ascii_alphanumeric()
+                        && label.as_bytes()[label.len() - 1].is_ascii_alphanumeric()
+                })
+        })
+}
+
+fn external_api_network_evidence(
+    source: Option<std::net::IpAddr>,
+    now_ms: u64,
+) -> ([u8; 32], u64) {
+    let generation = now_ms / NETWORK_EVIDENCE_ROTATION_MS;
+    let grouped = source
+        .map(|source| {
+            crate::auth::throttle::AuthenticationThrottleDimensions::for_ip(
+                EXTERNAL_API_ROUTE_FAMILY,
+                source,
+                None,
+                None,
+            )
+            .effective_source
+        })
+        .unwrap_or_else(|| "unattributed".to_owned());
+    use sha2::Digest as _;
+    let mut hasher = sha2::Sha256::new();
+    hasher.update(b"snapback:external-api-network-evidence:v1\n");
+    hasher.update(generation.to_le_bytes());
+    hasher.update(grouped.as_bytes());
+    (hasher.finalize().into(), generation)
 }
 
 fn subprotocol_connection_token(headers: &HeaderMap) -> Option<String> {
@@ -8727,6 +8983,43 @@ fn system_route_registrations() -> Vec<RegisteredRoute> {
             post(admin_integration_resume).layer(DefaultBodyLimit::max(0)),
         ),
         RegisteredRoute::new(
+            system_api_route(
+                "GET",
+                "/_snapback/api/auth/declared-clients",
+                RoutePolicy::AdminRead,
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            get(admin_declared_clients).layer(DefaultBodyLimit::max(0)),
+        ),
+        RegisteredRoute::new(
+            write(
+                "/_snapback/api/auth/declared-clients/bless",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            post(admin_declared_client_bless).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            write(
+                "/_snapback/api/auth/declared-clients/suspend",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            post(admin_declared_client_suspend).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            write(
+                "/_snapback/api/auth/declared-clients/resume",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            post(admin_declared_client_resume).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            write(
+                "/_snapback/api/auth/declared-clients/delete",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            post(admin_declared_client_delete).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
             write(
                 "/_snapback/api/schema/load",
                 ResponseSensitivity::OperatorMetadata,
@@ -10174,6 +10467,11 @@ fn route_uses_managed_admission(spec: RouteSpec) -> bool {
                 | "/_snapback/api/auth/integrations/{id}/retire"
                 | "/_snapback/api/auth/integrations/{id}/suspend"
                 | "/_snapback/api/auth/integrations/{id}/resume"
+                | "/_snapback/api/auth/declared-clients"
+                | "/_snapback/api/auth/declared-clients/bless"
+                | "/_snapback/api/auth/declared-clients/suspend"
+                | "/_snapback/api/auth/declared-clients/resume"
+                | "/_snapback/api/auth/declared-clients/delete"
         )
 }
 
@@ -11284,8 +11582,33 @@ async fn admit_hosted_sender_request(
 async fn enforce_registered_route_policy(
     spec: RouteSpec,
     runtime: AppState,
+    request: Request<Body>,
+    next: Next,
+) -> Response {
+    let client_id_context = declared_client_id_context(spec, request.headers());
+    let mut response = enforce_registered_route_policy_inner(
+        spec,
+        runtime,
+        request,
+        next,
+        client_id_context.clone(),
+    )
+    .await;
+    if let Some(status) = client_id_context.and_then(|context| context.status()) {
+        response.headers_mut().insert(
+            HeaderName::from_static(SNAPBACK_CLIENT_ID_STATUS_HEADER),
+            HeaderValue::from_static(status),
+        );
+    }
+    response
+}
+
+async fn enforce_registered_route_policy_inner(
+    spec: RouteSpec,
+    runtime: AppState,
     mut request: Request<Body>,
     next: Next,
+    client_id_context: Option<ExternalClientIdContext>,
 ) -> Response {
     #[cfg(test)]
     let test_finite_authority_pause_id = request
@@ -11376,12 +11699,6 @@ async fn enforce_registered_route_policy(
             ApiError::from(SnapbackError::error(code, "auth", message)).into_response(),
         );
     }
-    let mut route_admission = match acquire_registered_route_admission(spec, &runtime) {
-        Ok(admission) => admission,
-        Err(error) => {
-            return apply_registered_response_controls(effective, error.into_response());
-        }
-    };
     let sender_nonce_response = request
         .extensions()
         .get::<SenderNonceResponse>()
@@ -11423,6 +11740,38 @@ async fn enforce_registered_route_policy(
         }
     } else {
         peer_ip
+    };
+    let external_network_evidence = external_api_route(spec).then(|| {
+        let now_ms = now_millis();
+        let (digest, generation) =
+            external_api_network_evidence(hosted_effective_source, now_ms);
+        (digest, generation, now_ms)
+    });
+    if let Some((network_digest, _, _)) = external_network_evidence
+        && let Err(retry_after) = runtime.connections.consume_external_api(
+            ExternalApiThrottleSource::NetworkFloor(network_digest),
+            EXTERNAL_API_ANONYMOUS_FLOOR_LIMIT,
+            Instant::now(),
+        )
+    {
+        return finish_registered_response(
+            effective,
+            external_api_throttle_error(
+                "SNAPBACK_API_NETWORK_FLOOR_EXCEEDED",
+                "network-floor",
+                "the external anonymous network floor is exhausted",
+                retry_after,
+            )
+            .into_response(),
+            None,
+            None,
+        );
+    }
+    let mut route_admission = match acquire_registered_route_admission(spec, &runtime) {
+        Ok(admission) => admission,
+        Err(error) => {
+            return apply_registered_response_controls(effective, error.into_response());
+        }
     };
     let hosted_sender_admission = match admit_hosted_sender_request(
         spec,
@@ -12277,6 +12626,25 @@ async fn enforce_registered_route_policy(
             None => authority,
         }
     });
+    if let (Some(authority), Some((network_digest, network_generation, now_ms))) =
+        (prepared_authority.as_ref(), external_network_evidence)
+        && let Err(error) = admit_external_api_lane(
+            &runtime,
+            client_id_context.as_ref(),
+            authority,
+            network_digest,
+            network_generation,
+            now_ms,
+        )
+        .await
+    {
+        return finish_registered_response(
+            response_policy,
+            error.into_response(),
+            route_admission.as_ref(),
+            Some(authority),
+        );
+    }
     if let Some(authority) = prepared_authority.as_ref() {
         request.extensions_mut().insert(authority.clone());
     }
@@ -15079,6 +15447,106 @@ async fn admin_integration_resume(
     })))
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+struct DeclaredClientOperatorRequest {
+    client_id: String,
+}
+
+fn operator_declared_client_id(raw: &str) -> Result<String, ApiError> {
+    normalize_declared_client_id(raw)
+        .map(|declared| declared.value)
+        .map_err(|status| {
+            ApiError::from(
+                SnapbackError::error(
+                    "SNAPBACK_API_DECLARED_CLIENT_INVALID",
+                    "api",
+                    "declared client id is invalid after normalization",
+                )
+                .with_details(json!({ "clientIdStatus": status })),
+            )
+        })
+}
+
+async fn admin_declared_clients(
+    State(runtime): State<AppState>,
+) -> Result<Json<Value>, ApiError> {
+    let rows = with_snapback(&runtime.snapback, move |snapback| {
+        snapback
+            .auth_database_mut()
+            .list_declared_clients(now_millis())
+    })
+    .await?;
+    Ok(Json(json!({ "declaredClients": rows })))
+}
+
+async fn set_declared_client_status_as_operator(
+    runtime: &AppState,
+    input: Result<Json<DeclaredClientOperatorRequest>, JsonRejection>,
+    status: crate::storage::declared_clients::DeclaredClientStatus,
+) -> Result<Json<Value>, ApiError> {
+    let Json(input) = input.map_err(ApiError::from_json_rejection)?;
+    let normalized_id = operator_declared_client_id(&input.client_id)?;
+    let record = with_snapback(&runtime.snapback, move |snapback| {
+        snapback
+            .auth_database_mut()
+            .set_declared_client_status(&normalized_id, status)
+    })
+    .await?;
+    Ok(Json(json!({ "declaredClient": record })))
+}
+
+async fn admin_declared_client_bless(
+    State(runtime): State<AppState>,
+    input: Result<Json<DeclaredClientOperatorRequest>, JsonRejection>,
+) -> Result<Json<Value>, ApiError> {
+    set_declared_client_status_as_operator(
+        &runtime,
+        input,
+        crate::storage::declared_clients::DeclaredClientStatus::Blessed,
+    )
+    .await
+}
+
+async fn admin_declared_client_suspend(
+    State(runtime): State<AppState>,
+    input: Result<Json<DeclaredClientOperatorRequest>, JsonRejection>,
+) -> Result<Json<Value>, ApiError> {
+    set_declared_client_status_as_operator(
+        &runtime,
+        input,
+        crate::storage::declared_clients::DeclaredClientStatus::Suspended,
+    )
+    .await
+}
+
+async fn admin_declared_client_resume(
+    State(runtime): State<AppState>,
+    input: Result<Json<DeclaredClientOperatorRequest>, JsonRejection>,
+) -> Result<Json<Value>, ApiError> {
+    set_declared_client_status_as_operator(
+        &runtime,
+        input,
+        crate::storage::declared_clients::DeclaredClientStatus::Active,
+    )
+    .await
+}
+
+async fn admin_declared_client_delete(
+    State(runtime): State<AppState>,
+    input: Result<Json<DeclaredClientOperatorRequest>, JsonRejection>,
+) -> Result<Response, ApiError> {
+    let Json(input) = input.map_err(ApiError::from_json_rejection)?;
+    let normalized_id = operator_declared_client_id(&input.client_id)?;
+    with_snapback(&runtime.snapback, move |snapback| {
+        snapback
+            .auth_database_mut()
+            .delete_declared_client(&normalized_id)
+    })
+    .await?;
+    Ok(StatusCode::NO_CONTENT.into_response())
+}
+
 async fn telemetry_not_found(State(runtime): State<AppState>, request: Request<Body>) -> Response {
     let method = request.method().as_str().to_owned();
     // `Uri::path` excludes the query string. The details admission scrubber
@@ -17192,7 +17660,7 @@ fn with_cors_headers(mut response: Response, allowed_origin: Option<HeaderValue>
 fn cors_allow_headers() -> &'static HeaderValue {
     static HEADERS: OnceLock<HeaderValue> = OnceLock::new();
     HEADERS.get_or_init(|| {
-        const BASE_HEADERS: &str = "content-type, authorization, dpop, x-snapback-admin-token, x-snapback-console-credential, x-snapback-connection-token, x-snapback-ephemeral-authority-instance, x-snapback-secret-read-lease, x-snapback-auth-client-protocol, x-snapback-auth-invalidation-protocol, x-snapback-authority-descriptor-protocol, x-snapback-authorized-lease-protocol, x-snapback-network-profile-source";
+        const BASE_HEADERS: &str = "content-type, authorization, dpop, snapback-client-id, x-snapback-admin-token, x-snapback-console-credential, x-snapback-connection-token, x-snapback-ephemeral-authority-instance, x-snapback-secret-read-lease, x-snapback-auth-client-protocol, x-snapback-auth-invalidation-protocol, x-snapback-authority-descriptor-protocol, x-snapback-authorized-lease-protocol, x-snapback-network-profile-source";
         // @ref LLP 0044#byte-stores-and-resumable-transfer — TUS request
         // headers ride the dev CORS lane so a browser can drive PATCH
         // `/assets/tus/{id}` without a relay. `upload-metadata` is deliberately
@@ -17213,7 +17681,7 @@ fn cors_allow_headers() -> &'static HeaderValue {
 fn cors_expose_headers() -> &'static HeaderValue {
     static HEADERS: OnceLock<HeaderValue> = OnceLock::new();
     HEADERS.get_or_init(|| {
-        const BASE_HEADERS: &str = "dpop-nonce, snapback-network-profile";
+        const BASE_HEADERS: &str = "dpop-nonce, snapback-client-id-status, snapback-network-profile";
         // `location` is deliberately absent: Snapback has no TUS creation
         // route, and no handler emits Location.
         let tus_headers = [
@@ -20160,6 +20628,228 @@ fn external_api_route(spec: RouteSpec) -> bool {
             | "/api/v1/mutation/{name}"
             | "/api/v1/action/{name}"
     )
+}
+
+fn external_api_escalation(lane: &str) -> Value {
+    match lane {
+        "network-floor" => json!({
+            "nextLane": null,
+            "action": "retry after the shared network-floor window; declaration and integration never bypass this floor"
+        }),
+        "anonymous" => json!({
+            "nextLane": "declared",
+            "action": "send a valid Snapback-Client-Id containing a contact e-mail address",
+            "header": "Snapback-Client-Id",
+            "then": {
+                "nextLane": "integration",
+                "action": "register a key-bound integration",
+                "path": "/auth/agents/register"
+            }
+        }),
+        "declared" => json!({
+            "nextLane": "integration",
+            "action": "register a key-bound integration",
+            "path": "/auth/agents/register"
+        }),
+        "integration" => json!({
+            "nextLane": null,
+            "action": "contact the app operator for integration treatment"
+        }),
+        _ => json!({
+            "nextLane": "declared",
+            "header": "Snapback-Client-Id"
+        }),
+    }
+}
+
+fn external_api_throttle_error(
+    code: &'static str,
+    lane: &'static str,
+    message: &'static str,
+    retry_after_seconds: u64,
+) -> ApiError {
+    // @ref LLP 0150#3-escalation-at-the-point-of-denial — admission refusals state the
+    // current lane and provide the next concrete authority acquisition step.
+    ApiError::api_throttled(
+        SnapbackError::error(code, "api", message).with_details(json!({
+            "lane": lane,
+            "escalation": external_api_escalation(lane),
+        })),
+        retry_after_seconds,
+    )
+}
+
+async fn declared_client_record_for_admission(
+    runtime: &AppState,
+    normalized_id: String,
+    now_ms: u64,
+) -> Result<Option<crate::storage::declared_clients::DeclaredClientRecord>, ApiError> {
+    Ok(with_snapback(&runtime.snapback, move |snapback| {
+        snapback
+            .auth_database_mut()
+            .declared_client_for_admission(&normalized_id, now_ms)
+    })
+    .await?)
+}
+
+async fn mark_declared_client_refusal(runtime: &AppState, normalized_id: String) {
+    let _ = with_snapback(&runtime.snapback, move |snapback| {
+        snapback
+            .auth_database_mut()
+            .mark_declared_client_refusal(&normalized_id)
+    })
+    .await;
+}
+
+async fn admit_external_api_lane(
+    runtime: &AppState,
+    client_id_context: Option<&ExternalClientIdContext>,
+    authority: &PreparedAuthority,
+    network_digest: [u8; 32],
+    network_generation: u64,
+    now_ms: u64,
+) -> Result<(), ApiError> {
+    if let ResolvedAppAuthority::ServicePrincipal {
+        actor_user_id,
+        integration_status: Some(status),
+        ..
+    } = authority.resolved()
+    {
+        if client_id_context
+            .and_then(|context| context.declared.as_ref())
+            .is_some()
+        {
+            client_id_context
+                .expect("checked client-id context")
+                .set_status("ignored-authenticated-integration");
+        }
+        if *status == crate::storage::auth_integrations::IntegrationStatus::Suspended {
+            return Err(external_api_throttle_error(
+                "SNAPBACK_API_INTEGRATION_SUSPENDED",
+                "integration",
+                "the integration is suspended; ask an app operator to resume admission",
+                60,
+            ));
+        }
+        let actor = actor_user_id.clone();
+        let record = with_snapback(&runtime.snapback, move |snapback| {
+            snapback
+                .auth_database_mut()
+                .integration_record_if_present(&actor)
+        })
+        .await?
+        .ok_or_else(|| {
+            ApiError::from(SnapbackError::error(
+                "SNAPBACK_AUTH_INTEGRATION_UNAVAILABLE",
+                "auth",
+                "integration registration metadata is unavailable",
+            ))
+        })?;
+        runtime
+            .connections
+            .consume_external_api(
+                ExternalApiThrottleSource::Integration(record.integration_id),
+                EXTERNAL_API_INTEGRATION_LIMIT,
+                Instant::now(),
+            )
+            .map_err(|retry_after| {
+                external_api_throttle_error(
+                    "SNAPBACK_API_INTEGRATION_LIMIT_EXCEEDED",
+                    "integration",
+                    "the per-integration external API budget is exhausted",
+                    retry_after,
+                )
+            })?;
+        return Ok(());
+    }
+
+    let Some(context) = client_id_context else {
+        return Ok(());
+    };
+    let Some(declared) = context.declared.as_ref() else {
+        return Ok(());
+    };
+    // The declared lane is auth-free. Authenticated humans and ordinary agent
+    // principals do not become declared merely by adding a caller string.
+    if !matches!(authority.resolved(), ResolvedAppAuthority::Anonymous) {
+        context.set_status("ignored-authenticated-caller");
+        return Ok(());
+    }
+    let api_enabled = with_snapback(&runtime.snapback, |snapback| {
+        Ok::<_, SnapbackError>(snapback.external_api_enabled())
+    })
+    .await?;
+    if !api_enabled {
+        // Preserve the external surface's established exposure refusal. A
+        // syntactically valid declaration cannot activate its own ledger.
+        context.set_status("ignored-api-disabled");
+        return Ok(());
+    }
+
+    let existing = declared_client_record_for_admission(
+        runtime,
+        declared.value.clone(),
+        now_ms,
+    )
+    .await?;
+    if existing.is_none()
+        && let Err(_) = runtime.connections.consume_external_api(
+            ExternalApiThrottleSource::DeclaredCreation(network_digest),
+            EXTERNAL_API_DECLARED_CREATION_LIMIT,
+            Instant::now(),
+        )
+    {
+        context.set_status("ignored-creation-throttled");
+        return Ok(());
+    }
+    let normalized_id = declared.value.clone();
+    let observation = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.auth_database_mut().observe_declared_client(
+            &normalized_id,
+            now_ms,
+            network_generation,
+        )
+    })
+    .await?;
+    let record = match observation {
+        crate::storage::declared_clients::DeclaredClientObservation::Observed(record) => record,
+        crate::storage::declared_clients::DeclaredClientObservation::Capacity => {
+            context.set_status("ignored-capacity");
+            return Ok(());
+        }
+    };
+    if record.status == crate::storage::declared_clients::DeclaredClientStatus::Suspended {
+        context.set_status("suspended");
+        mark_declared_client_refusal(runtime, record.normalized_id).await;
+        return Err(external_api_throttle_error(
+            "SNAPBACK_API_DECLARED_CLIENT_SUSPENDED",
+            "declared",
+            "the declared client id is suspended; ask an app operator to resume admission",
+            60,
+        ));
+    }
+    let limit_multiplier = if record.status
+        == crate::storage::declared_clients::DeclaredClientStatus::Blessed
+    {
+        EXTERNAL_API_BLESSED_MULTIPLIER
+    } else {
+        record.age_policy_generation as usize
+    };
+    let limit = EXTERNAL_API_DECLARED_LIMIT * limit_multiplier;
+    if let Err(retry_after) = runtime.connections.consume_external_api(
+        ExternalApiThrottleSource::Declared(declared.digest),
+        limit,
+        Instant::now(),
+    ) {
+        mark_declared_client_refusal(runtime, record.normalized_id).await;
+        return Err(external_api_throttle_error(
+            "SNAPBACK_API_DECLARED_LIMIT_EXCEEDED",
+            "declared",
+            "the per-declared-id external API budget is exhausted",
+            retry_after,
+        ));
+    }
+    Ok(())
 }
 
 async fn validate_external_api_request(

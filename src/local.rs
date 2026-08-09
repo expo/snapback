@@ -6578,8 +6578,12 @@ impl LocalSnapback {
         self.functions.function(name)
     }
 
+    pub(crate) fn external_api_enabled(&self) -> bool {
+        self.db.schema().api.as_ref().is_some_and(|api| api.enabled)
+    }
+
     pub(crate) fn validate_external_api_function(&self, name: &str) -> SnapbackResult<()> {
-        if !self.db.schema().api.as_ref().is_some_and(|api| api.enabled) {
+        if !self.external_api_enabled() {
             return Err(SnapbackError::error(
                 "SNAPBACK_API_NOT_ENABLED",
                 "api",
