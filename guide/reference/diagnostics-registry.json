@@ -2,8 +2,8 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "commit": "4cc961786811dd6007b5568cc1928bde4b006462",
-    "sourceDigest": "sha256:d47d27751a28d8315a2d066b45e32ae798021b2a22b6f2353b74b4f7235c8097"
+    "commit": "4b401a9e8c421a0f647ddbe499bae487de7a7058",
+    "sourceDigest": "sha256:8418e86566b6acc001bc9b053bc06aa32a3c109f42f032bcf55b8c278977cbb5"
   },
   "limits": {
     "lookupBytes": 16384
