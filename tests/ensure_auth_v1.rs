@@ -61,6 +61,7 @@ fn sessions_provision_body() -> Value {
         app_id: "ensure-app".to_owned(),
         auth: Some(AuthManifest {
             mode: AuthMode::Sessions,
+            agents: None,
         }),
         required_capabilities: vec!["auth.sessions.v1".to_owned()],
         schema_hash: Some(schema_hash),

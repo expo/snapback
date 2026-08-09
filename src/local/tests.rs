@@ -1228,10 +1228,28 @@ fn auth_artifact_pair(mode: AuthMode, marker: char) -> (SchemaManifest, Function
                     crate::auth::mode::SCHEMA_V1_PREFIX,
                     marker.to_string().repeat(64)
                 ),
-                format!(
-                    "{}{}",
-                    crate::auth::mode::FUNCTION_V1_PREFIX,
-                    marker.to_string().repeat(64)
+                AuthMode::Sessions => (
+                    "snapback.v1".to_owned(),
+                    Some(AuthManifest {
+                        mode: AuthMode::Sessions,
+                        agents: None,
+                    }),
+                    format!(
+                        "{}{}",
+                        crate::auth::mode::SCHEMA_V1_PREFIX,
+                        marker.to_string().repeat(64)
+                    ),
+                    format!(
+                        "{}{}",
+                        crate::auth::mode::FUNCTION_V1_PREFIX,
+                        marker.to_string().repeat(64)
+                    ),
+                    format!(
+                        "{}{}",
+                        crate::auth::mode::INPUTS_V1_PREFIX,
+                        marker.to_string().repeat(64)
+                    ),
+                    vec!["auth.sessions.v1".to_owned()],
                 ),
                 format!(
                     "{}{}",
@@ -21561,9 +21579,1205 @@ fn overflow_root_waits_for_every_auth_scoped_child() {
             .ephemeral
             .enqueue_durable("session-overflow", b"{}".to_vec());
     }
-    invoke_test_session_mutation(
-        &mut snapback,
-        "deleteItem",
+
+    #[test]
+    fn auth_requery_error_uses_one_durable_three_attempt_episode() {
+        let mut snapback = live_limit_snapback();
+        let connection = install_test_invalidation(&mut snapback);
+        let subscribed = snapback
+            .subscribe_live_with_invalidation(
+                "listItemsByValue",
+                LiveSubscribeInput {
+                    connection_id: "session-retry".to_owned(),
+                    input: HandlerInput {
+                        args: json!({ "value": "target" }),
+                        ..HandlerInput::default()
+                    },
+                    authorization_namespace: Some(QueryNamespace {
+                        client_store_id: "store_retry".to_owned(),
+                        query_key: "listItemsByValue:{target}".to_owned(),
+                        query_instance_id: 30,
+                    }),
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+                LiveInvalidationAdmission {
+                    session_mode: true,
+                    connection: Some(connection),
+                    effect_fence: None,
+                },
+            )
+            .expect("initial snapshot succeeds");
+        snapback
+            .subscriptions
+            .get_mut(&subscribed.subscription_id)
+            .expect("stored subscription")
+            .input
+            .args = json!({});
+        invoke_test_session_mutation(
+            &mut snapback,
+            "insertItem",
+            HandlerInput {
+                args: json!({ "value": "target" }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("commit survives fanout failure");
+        let scope = subscribed.authorization_scope.expect("auth scope");
+        let pending = snapback
+            .auth_invalidation
+            .as_ref()
+            .expect("state")
+            .obligations
+            .pending(&scope)
+            .expect("quarantine obligation")
+            .clone();
+        assert_eq!(pending.max_disposition, InvalidationDisposition::Quarantine);
+        let retry_id = pending
+            .retry_episode_id
+            .clone()
+            .expect("durable retry episode id");
+        let episode = snapback
+            .auth_database_mut()
+            .read_invalidation_retry_registry(|registry| {
+                Ok(registry
+                    .episodes()
+                    .values()
+                    .next()
+                    .cloned()
+                    .expect("stored retry episode"))
+            })
+            .expect("read retry registry");
+        assert_eq!(episode.episode_id, retry_id);
+        assert_eq!(
+            episode.attempts_reserved,
+            crate::auth::invalidation::AUTH_ERROR_ATTEMPTS_TOTAL
+        );
+        let revision = pending.revision;
+        let admission = test_session_admission();
+        let frames = snapback
+            .authorization_invalidation_frames("session-retry", &admission)
+            .expect("drain retry invalidation");
+        assert_eq!(frames.len(), 1);
+        let still_pending = snapback
+            .auth_invalidation
+            .as_ref()
+            .expect("state")
+            .obligations
+            .pending(&scope)
+            .expect("still quarantined");
+        assert_eq!(still_pending.revision, revision);
+        assert_eq!(
+            still_pending.retry_episode_id.as_deref(),
+            Some(retry_id.as_str())
+        );
+    }
+
+    #[test]
+    fn retired_auth_epoch_cannot_commit_retry_registry_state() {
+        let mut snapback = live_limit_snapback();
+        let _connection = install_test_invalidation(&mut snapback);
+        let controller = AdmissionController::from_mode_state(&settled_sessions_state())
+            .expect("managed Sessions admission controller");
+        let admission = controller
+            .admit_for_mode(AuthMode::Sessions)
+            .expect("managed Sessions admission");
+        assert_eq!(
+            controller
+                .retire_current_epoch_for_test()
+                .expect_err("outstanding admission forces test retirement")
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT"
+        );
+
+        let key = RetryEpisodeKey {
+            authority_subject: "sha256:retired-subject".to_owned(),
+            client_store_id: "store_retired".to_owned(),
+            query_key: "listItems:{}".to_owned(),
+        };
+        let witness = snapback
+            .auth_invalidation
+            .as_ref()
+            .expect("installed invalidation state")
+            .witness(0);
+        let before = snapback
+            .auth_database_mut()
+            .read_invalidation_retry_registry(|registry| Ok(registry.episodes().len()))
+            .expect("read retry registry");
+        let failure = snapback
+            .run_authorization_retry_transaction(
+                &admission,
+                "retired authorization retry transaction",
+                None,
+                |database| {
+                    database.with_invalidation_retry_episode(&key, |registry| {
+                        registry.reserve(
+                            key.clone(),
+                            witness,
+                            now_millis(),
+                            RetryReservationKind::Initial,
+                        )
+                    })
+                },
+            )
+            .expect_err("retired epoch must fail before the durable transaction");
+        assert_eq!(failure.error.diagnostic.code, "SNAPBACK_AUTH_MODE_PENDING");
+        let after = snapback
+            .auth_database_mut()
+            .read_invalidation_retry_registry(|registry| Ok(registry.episodes().len()))
+            .expect("read retry registry");
+        assert_eq!(after, before);
+    }
+
+    /// Base instant for the durable lease-test session rows; far enough in the
+    /// future that real `now_millis()` samples stay below the session expiry.
+    const LEASE_SESSION_BASE_MS: u64 = 1_900_000_000_000;
+    const LEASE_SESSION_NOT_AFTER_MS: u64 = LEASE_SESSION_BASE_MS + 86_400_000;
+    const LEASE_AUTHORITY_INSTANCE: &str = "01890f3c-9d5b-7000-8000-000000000004";
+
+    /// A settled sessions-mode snapback with one durable session and one
+    /// declared userId-only retainable query, the full environment
+    /// `capture_authorized_lease_query`/`reserve_captured_authorized_lease`
+    /// demand.
+    fn retainable_sessions_snapback() -> LocalSnapback {
+        let digest = |prefix: &str, byte: char| format!("{prefix}{}", byte.to_string().repeat(64));
+        let deployment = DeploymentIdentity {
+            schema_version: "snapback.v1".to_owned(),
+            auth_mode: AuthMode::Sessions,
+            app_id: "lease-app".to_owned(),
+            schema_hash: digest(SCHEMA_V1_PREFIX, 'a'),
+            bundle_hash: digest(FUNCTION_V1_PREFIX, 'b'),
+            inputs_hash: digest(INPUTS_V1_PREFIX, 'c'),
+        };
+        let items = TableManifest {
+            name: "items".to_owned(),
+            fields: vec![FieldManifest {
+                name: "owner".to_owned(),
+                field_type: FieldType::String,
+                optional: false,
+            }],
+            indexes: vec![IndexManifest {
+                name: "by_owner".to_owned(),
+                fields: vec!["owner".to_owned()],
+                unique: false,
+            }],
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+            search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
+            search_live_limits: None,
+            membership: None,
+            asset_sharing: None,
+            history: None,
+        };
+
+        let books = TableManifest {
+            name: "books".to_owned(),
+            fields: vec![
+                FieldManifest {
+                    name: "title".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "authorSlug".to_owned(),
+                    field_type: FieldType::String,
+                    optional: true,
+                },
+                FieldManifest {
+                    name: "ownerId".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+            ],
+            indexes: vec![IndexManifest {
+                name: "by_owner_title".to_owned(),
+                fields: vec!["ownerId".to_owned(), "title".to_owned()],
+                unique: false,
+            }],
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+            search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
+            search_live_limits: None,
+            membership: None,
+            asset_sharing: None,
+            history: None,
+        };
+        let authors = TableManifest {
+            name: "authors".to_owned(),
+            fields: vec![
+                FieldManifest {
+                    name: "slug".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "name".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "ownerId".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+            ],
+            indexes: vec![IndexManifest {
+                name: "by_slug".to_owned(),
+                fields: vec!["slug".to_owned()],
+                unique: true,
+            }],
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+            search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
+            search_live_limits: None,
+            membership: None,
+            asset_sharing: None,
+            history: None,
+        };
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        snapback
+            .apply_schema(SchemaManifest {
+                schema_hash: Some(deployment.schema_hash.clone()),
+                tables: vec![items.clone(), books.clone(), authors.clone()],
+                ..SchemaManifest::default()
+            })
+            .expect("apply lease schema");
+        let mut retained = FunctionDefinition::new(
+            "listOwned",
+            FunctionKind::Query,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table: "items".to_owned(),
+                filters: vec![FilterExpr {
+                    field: "owner".to_owned(),
+                    op: FilterOp::Eq,
+                    value: ValueExpr::AuthUserId,
+                }],
+                order: Vec::new(),
+                limit: None,
+                membership_filters: Vec::new(),
+                indexed_by: Some("by_owner".to_owned()),
+            })),
+        );
+        retained.retainable = true;
+        retained.authorization_dependence =
+            vec![crate::manifest::AuthorizationInputDimension::UserId];
+        retained.read_set_summary = crate::manifest::DependencySummary {
+            primary_table: Some("items".to_owned()),
+            tables: vec!["items".to_owned()],
+            mode: Some("singleTable".to_owned()),
+            auth_scope_field: None,
+        };
+        // @ref LLP 0080#4-live-and-retained-capability — the retained
+        //   relational lease-class fixture: retainable declares exactly
+        //   opaque-authorized-snapshot-v1, owner-visible, with the
+        //   relational read summary and UserId dependence.
+        let mut relational_retained = relational_test_function(
+            "relationalOwned",
+            FunctionKind::Query,
+            crate::manifest::RelationalQueryPlan {
+                root: "books".to_owned(),
+                root_alias: "book".to_owned(),
+                joined: "authors".to_owned(),
+                joined_alias: "author".to_owned(),
+                join_kind: crate::manifest::JoinKind::Inner,
+                join_on: vec![crate::manifest::JoinEquality {
+                    root_field: "authorSlug".to_owned(),
+                    joined_field: "slug".to_owned(),
+                }],
+                root_filters: Vec::new(),
+                root_visibility: vec![FilterExpr {
+                    field: "ownerId".to_owned(),
+                    op: FilterOp::Eq,
+                    value: ValueExpr::AuthUserId,
+                }],
+                joined_visibility: Vec::new(),
+                projection: vec![crate::manifest::ProjectionLeaf {
+                    name: "title".to_owned(),
+                    source: crate::manifest::ProjectionSource::RootField("title".to_owned()),
+                }],
+                order: vec![crate::manifest::OrderExpr {
+                    field: "title".to_owned(),
+                    direction: crate::manifest::OrderDirection::Asc,
+                    max_encoded_bytes: None,
+                }],
+                take: 10,
+                root_index: "by_owner_title".to_owned(),
+                joined_index: "by_slug".to_owned(),
+            },
+        );
+        relational_retained.retainable = true;
+        relational_retained.authorization_dependence =
+            vec![crate::manifest::AuthorizationInputDimension::UserId];
+        relational_retained.read_set_summary = crate::manifest::DependencySummary {
+            primary_table: Some("books".to_owned()),
+            tables: vec!["books".to_owned(), "authors".to_owned()],
+            mode: Some("relational".to_owned()),
+            auth_scope_field: None,
+        };
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            bundle_hash: Some(deployment.bundle_hash.clone()),
+            functions: vec![retained, relational_retained],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE"),
+            "unexpected function diagnostics: {diagnostics:?}"
+        );
+
+        let sessions_manifest = SchemaManifest {
+            schema_version: "snapback.v1".to_owned(),
+            app_id: "lease-app".to_owned(),
+            auth: Some(AuthManifest {
+                mode: AuthMode::Sessions,
+                agents: None,
+            }),
+            schema_hash: Some(deployment.schema_hash.clone()),
+            inputs_hash: Some(deployment.inputs_hash.clone()),
+            tables: vec![items, books, authors],
+            ..SchemaManifest::default()
+        };
+        let db = snapback.auth_database_mut();
+        db.stage_auth_mode(deployment, sessions_manifest, None)
+            .expect("stage sessions mode");
+        db.consume_sessions_auth_mode(&AuthProgramReadiness::new(
+            true, true, true, true, true, true, true,
+        ))
+        .expect("consume sessions mode");
+        db.activate_current_auth_catalog()
+            .expect("activate auth catalog");
+        db.with_auth_transaction(|tx| {
+            use rusqlite::params;
+            tx.execute(
+                "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, ?2)",
+                params!["user_1", LEASE_SESSION_BASE_MS as i64 - 1],
+            )?;
+            tx.execute(
+                "INSERT INTO _auth_identities(
+                   id, user_id, provider, subject, verified_at_ms
+                 ) VALUES(?1, ?2, ?3, ?4, ?5)",
+                params![
+                    "identity_1",
+                    "user_1",
+                    "email-code",
+                    "lease@example.test",
+                    LEASE_SESSION_BASE_MS as i64 - 1,
+                ],
+            )?;
+            tx.execute(
+                "INSERT INTO _auth_sessions(
+                   id, user_id, identity_id, authority_instance_id, token_hash,
+                   generation, created_at_ms, last_used_at_ms, expires_at_ms,
+                   absolute_expires_at_ms, revoked_at_ms
+                 ) VALUES(?1, ?2, ?3, ?4, ?5, 1, ?6, ?6, ?7, ?8, NULL)",
+                params![
+                    "session_1",
+                    "user_1",
+                    "identity_1",
+                    LEASE_AUTHORITY_INSTANCE,
+                    vec![0x71_u8; 32],
+                    LEASE_SESSION_BASE_MS as i64 - 1,
+                    LEASE_SESSION_NOT_AFTER_MS as i64,
+                    (LEASE_SESSION_BASE_MS + 2 * 86_400_000) as i64,
+                ],
+            )?;
+            Ok(())
+        })
+        .expect("insert lease session rows");
+        snapback
+    }
+
+    fn lease_session_authority() -> PreparedAuthority {
+        InvocationGate::prepare_authority(
+            InvocationSource::HttpQuery,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            0,
+            0,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::Session {
+                user_id: "user_1".to_owned(),
+                session_id: "session_1".to_owned(),
+                provider: "email-code".to_owned(),
+                generation: 1,
+                authority_instance_id: LEASE_AUTHORITY_INSTANCE.to_owned(),
+                session_not_after_ms: LEASE_SESSION_NOT_AFTER_MS,
+                provider_not_after_ms: None,
+            },
+        )
+        .expect("prepare lease session authority")
+    }
+
+    fn lease_target_namespace() -> QueryNamespace {
+        QueryNamespace {
+            client_store_id: "store_lease".to_owned(),
+            query_key: "listOwned:{}".to_owned(),
+            query_instance_id: 41,
+        }
+    }
+
+    fn lease_request(request_id: &str) -> crate::auth::lease::AuthorizedLeaseRequestIdentity {
+        let target = lease_target_namespace();
+        crate::auth::lease::AuthorizedLeaseRequestIdentity {
+            lease_request_id: request_id.to_owned(),
+            client_store_id: target.client_store_id,
+            query_key: target.query_key,
+            query_instance_id: target.query_instance_id,
+        }
+    }
+
+    fn raise_client_query_obligation(snapback: &mut LocalSnapback, namespace: QueryNamespace) {
+        let state = snapback
+            .auth_invalidation
+            .as_mut()
+            .expect("installed invalidation state");
+        let witness = state.witness(0);
+        let cause = state.reserve_cause_sequence().expect("cause sequence");
+        state
+            .obligations
+            .raise(
+                ScopeId::ClientQuery { namespace },
+                cause,
+                format!("test:{cause}"),
+                InvalidationDisposition::Quarantine,
+                witness,
+                None,
+            )
+            .expect("raise test obligation");
+    }
+
+    fn discharge_client_query_obligation(snapback: &mut LocalSnapback, namespace: QueryNamespace) {
+        let state = snapback
+            .auth_invalidation
+            .as_mut()
+            .expect("installed invalidation state");
+        let witness = state.witness(0);
+        let scope = ScopeId::ClientQuery { namespace };
+        let ticket = state
+            .obligations
+            .issue_resolution(&scope, ResolutionKind::Snapshot, witness, b"test-snapshot")
+            .expect("issue test resolution");
+        assert!(matches!(
+            state
+                .obligations
+                .acknowledge(&ticket.ack_token, true)
+                .expect("acknowledge test resolution"),
+            crate::auth::invalidation::AcknowledgeOutcome::Discharged
+        ));
+    }
+
+    fn sign_captured_lease(
+        capture: &super::AuthorizedLeaseCapture,
+        issued_at_server_ms: u64,
+    ) -> crate::auth::lease::AuthorizedLease {
+        crate::auth::lease::AuthorizedLeaseAuthenticator::from_test_key(
+            "sbak_AQEBAQEBAQEBAQEBAQEBAQ",
+            [0x31; 32],
+        )
+        .issue(
+            capture.issue.clone(),
+            crate::auth::lease::AuthorizedLeaseConfig::default(),
+            issued_at_server_ms,
+            &capture.target_profile_id,
+            &capture.app_id,
+        )
+        .expect("sign captured lease")
+    }
+
+    // @ref LLP 0080#4-live-and-retained-capability — the
+    //   opaque-authorized-snapshot-v1 lease class end to end: an
+    //   owner-visible retained relational plan captures, signs, and
+    //   reserves an authorized lease under a real Sessions authority; the
+    //   projected result is the opaque snapshot (the relational
+    //   continuation cursor never rides the lease envelope), and the
+    //   default-deny admission refuses anonymous plans and incomplete
+    //   declarations at load.
+    #[test]
+    fn relational_retention_lease_class_admits_and_captures() {
+        let mut snapback = retainable_sessions_snapback();
+        let _connection = install_test_invalidation(&mut snapback);
+
+        let capture = snapback
+            .capture_authorized_lease_query(
+                "relationalOwned",
+                HandlerInput::default(),
+                lease_session_authority(),
+                lease_request("req_relational_1"),
+            )
+            .expect("owner-visible retained relational plan captures a lease");
+        assert!(
+            capture.output.rows.is_empty(),
+            "empty owner partition captures an empty opaque snapshot"
+        );
+        assert!(
+            capture.output.cursor.is_none(),
+            "a short page carries no continuation into the retained snapshot"
+        );
+        let issued_at = now_millis();
+        let lease = sign_captured_lease(&capture, issued_at);
+        snapback
+            .reserve_captured_authorized_lease(
+                capture,
+                &lease,
+                crate::auth::lease::AuthorizedLeaseConfig::default(),
+                issued_at,
+            )
+            .expect("retained relational lease reserves end to end");
+    }
+
+    // The default-deny admission half: anonymous plans and incomplete
+    // relational declarations refuse at load with typed reasons.
+    #[test]
+    fn relational_retention_admission_is_default_deny() {
+        let (schema, functions) = relational_live_fixture_functions(10);
+        let relational = functions.functions[0].clone();
+        let load = |schema: &SchemaManifest, function: FunctionDefinition| {
+            let mut snapback = LocalSnapback::memory().expect("memory retention fixture");
+            snapback
+                .apply_schema(schema.clone())
+                .expect("apply retention schema");
+            snapback.load_functions(FunctionManifest {
+                functions: vec![function],
+                ..FunctionManifest::default()
+            })
+        };
+        let refuses = |diagnostics: &[crate::diagnostic::Diagnostic], reason: &str| {
+            diagnostics.iter().any(|d| {
+                (d.code == "SNAPBACK_AUTH_UNDECLARABLE_RETENTION"
+                    || d.message.contains("SNAPBACK_AUTH_UNDECLARABLE_RETENTION"))
+                    && d.message.contains(reason)
+            })
+        };
+
+        // All-public retained relational: anonymous results have no
+        // admissible v1 retention.
+        let mut anonymous = relational.clone();
+        anonymous.retainable = true;
+        if let FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) =
+            &mut anonymous.runtime
+        {
+            plan.root_visibility.clear();
+        }
+        let diagnostics = load(&schema, anonymous);
+        assert!(
+            refuses(&diagnostics, "relationalAnonymousRetention"),
+            "{diagnostics:?}"
+        );
+
+        // Owner-visible but with a missing relational read summary.
+        let mut incomplete = relational.clone();
+        incomplete.retainable = true;
+        incomplete.authorization_dependence =
+            vec![crate::manifest::AuthorizationInputDimension::UserId];
+        let diagnostics = load(&schema, incomplete);
+        assert!(
+            refuses(&diagnostics, "incompleteReadSummary"),
+            "{diagnostics:?}"
+        );
+
+        // The complete declaration activates.
+        let mut declared = relational;
+        declared.retainable = true;
+        declared.authorization_dependence =
+            vec![crate::manifest::AuthorizationInputDimension::UserId];
+        declared.read_set_summary = crate::manifest::DependencySummary {
+            primary_table: Some("books".to_owned()),
+            tables: vec!["books".to_owned(), "authors".to_owned()],
+            mode: Some("relational".to_owned()),
+            auth_scope_field: None,
+        };
+        let diagnostics = load(&schema, declared);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "the complete lease-class declaration must activate: {diagnostics:?}"
+        );
+    }
+
+    /// ENG-24989: one user's unresolved obligation must not deny lease
+    /// issuance for every other user and query; only an obligation capable of
+    /// quarantining/deleting the exact lease target blocks (LLP 0053 issuance
+    /// proof item 4).
+    #[test]
+    fn authorized_lease_capture_ignores_unrelated_obligations_and_blocks_matching_ones() {
+        let mut snapback = retainable_sessions_snapback();
+        let _connection = install_test_invalidation(&mut snapback);
+
+        // User A withholds ACKs for a different client store, and for the
+        // same canonical key at a different query instance.
+        let mut other_store = lease_target_namespace();
+        other_store.client_store_id = "store_other_user".to_owned();
+        raise_client_query_obligation(&mut snapback, other_store);
+        let mut other_instance = lease_target_namespace();
+        other_instance.query_instance_id += 1;
+        raise_client_query_obligation(&mut snapback, other_instance);
+
+        // User B's lease for an untouched target still issues end to end.
+        let capture = snapback
+            .capture_authorized_lease_query(
+                "listOwned",
+                HandlerInput::default(),
+                lease_session_authority(),
+                lease_request("req_unrelated_1"),
+            )
+            .expect("unrelated obligations must not block capture");
+        let issued_at = now_millis();
+        let lease = sign_captured_lease(&capture, issued_at);
+        snapback
+            .reserve_captured_authorized_lease(
+                capture,
+                &lease,
+                crate::auth::lease::AuthorizedLeaseConfig::default(),
+                issued_at,
+            )
+            .expect("unrelated obligations must not block reservation");
+
+        // An obligation for the exact target namespace still fails capture
+        // closed.
+        raise_client_query_obligation(&mut snapback, lease_target_namespace());
+        let error = snapback
+            .capture_authorized_lease_query(
+                "listOwned",
+                HandlerInput::default(),
+                lease_session_authority(),
+                lease_request("req_matching_1"),
+            )
+            .map(|_| ())
+            .expect_err("a matching obligation must block capture");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_INVALIDATION_PENDING");
+    }
+
+    /// ENG-24989: the reservation-time recheck stays in place, so a matching
+    /// obligation racing the capture/signing window still wins — while an
+    /// unrelated obligation raised in that window does not.
+    #[test]
+    fn authorized_lease_reservation_recheck_is_scoped_to_the_lease_target() {
+        let mut snapback = retainable_sessions_snapback();
+        let _connection = install_test_invalidation(&mut snapback);
+
+        let capture = snapback
+            .capture_authorized_lease_query(
+                "listOwned",
+                HandlerInput::default(),
+                lease_session_authority(),
+                lease_request("req_race_matching"),
+            )
+            .expect("clean capture");
+        raise_client_query_obligation(&mut snapback, lease_target_namespace());
+        let issued_at = now_millis();
+        let lease = sign_captured_lease(&capture, issued_at);
+        let error = snapback
+            .reserve_captured_authorized_lease(
+                capture,
+                &lease,
+                crate::auth::lease::AuthorizedLeaseConfig::default(),
+                issued_at,
+            )
+            .expect_err("a racing matching obligation must fail the reservation");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTHORIZED_LEASE_STALE");
+
+        // Once that exact obligation is applied and ACKed, a fresh capture
+        // succeeds even when an unrelated obligation races the same window.
+        discharge_client_query_obligation(&mut snapback, lease_target_namespace());
+        let capture = snapback
+            .capture_authorized_lease_query(
+                "listOwned",
+                HandlerInput::default(),
+                lease_session_authority(),
+                lease_request("req_race_unrelated"),
+            )
+            .expect("discharged target allows a fresh capture");
+        let mut unrelated = lease_target_namespace();
+        unrelated.client_store_id = "store_other_user".to_owned();
+        raise_client_query_obligation(&mut snapback, unrelated);
+        let issued_at = now_millis();
+        let lease = sign_captured_lease(&capture, issued_at);
+        snapback
+            .reserve_captured_authorized_lease(
+                capture,
+                &lease,
+                crate::auth::lease::AuthorizedLeaseConfig::default(),
+                issued_at,
+            )
+            .expect("a racing unrelated obligation must not fail the reservation");
+    }
+
+    /// ENG-24990: refiring one exhausted retry key while 10,000 episodes are
+    /// retained must not monopolize the app SQLite writer; unrelated
+    /// mutations continue within the local runtime latency budget.
+    #[test]
+    fn retry_churn_at_the_global_cap_does_not_starve_unrelated_mutations() {
+        let mut snapback = live_limit_snapback();
+        let mut episodes = BTreeMap::new();
+        let witness = crate::auth::invalidation::CompositeWitness {
+            authorization: crate::storage::AuthorizationVersion {
+                incarnation: "018f0d90-7b11-7a22-8c33-445566778899".to_owned(),
+                epoch: 0,
+            },
+            data: Some(crate::auth::invalidation::DataWitness {
+                version_stream: "stream-A".to_owned(),
+                min_commit_version: 0,
+            }),
+        };
+        for store in 0..10_u32 {
+            for query in 0..1_000_u32 {
+                let key = RetryEpisodeKey {
+                    authority_subject: format!("user-{store}"),
+                    client_store_id: format!("store-{store}"),
+                    query_key: format!("todos-{query}:{{}}"),
+                };
+                episodes.insert(
+                    key.clone(),
+                    crate::auth::invalidation::RetryEpisode {
+                        episode_id: format!("retry-{store}-{query}"),
+                        key,
+                        witness_floor: witness.clone(),
+                        first_attempt_reserved_at_ms: 1_000,
+                        first_failure_at_ms: Some(1_000),
+                        attempts_reserved: crate::auth::invalidation::AUTH_ERROR_ATTEMPTS_TOTAL,
+                        deadline_ms: Some(16_000),
+                        manual_retry_id: None,
+                        last_reservation_at_ms: 1_000,
+                    },
+                );
+            }
+        }
+        let target = episodes.keys().nth(5_005).cloned().expect("target key");
+        snapback
+            .auth_database_mut()
+            .seed_invalidation_retry_episodes_for_test(&episodes, 1_000_000)
+            .expect("seed retry episodes");
+
+        // Interleave production-shaped exhausted refires (initial reattach,
+        // then automatic exhaustion — the exact transactions
+        // invoke_authorization_resolution performs) with unrelated mutations.
+        // LLP 0035 benchmarks the local target against a ~10ms interactive
+        // budget; the pre-fix full-table rewrite spent two 10,000-row
+        // rewrite transactions per refire on this same writer.
+        let budget = Duration::from_millis(100);
+        let mut now = 1_000_000_u64;
+        for round in 0..5 {
+            now += 1;
+            let churn_started = Instant::now();
+            let initial = snapback
+                .auth_database_mut()
+                .with_invalidation_retry_episode(&target, |registry| {
+                    registry.reserve(
+                        target.clone(),
+                        witness.clone(),
+                        now,
+                        RetryReservationKind::Initial,
+                    )
+                })
+                .expect("initial refire reservation");
+            assert!(matches!(
+                initial,
+                crate::auth::invalidation::RetryReservation::Attached(_)
+            ));
+            now += 1;
+            let automatic = snapback
+                .auth_database_mut()
+                .with_invalidation_retry_episode(&target, |registry| {
+                    registry.reserve(
+                        target.clone(),
+                        witness.clone(),
+                        now,
+                        RetryReservationKind::Automatic,
+                    )
+                })
+                .expect("automatic refire reservation");
+            assert!(matches!(
+                automatic,
+                crate::auth::invalidation::RetryReservation::Exhausted(_)
+            ));
+            let churn_elapsed = churn_started.elapsed();
+            assert!(
+                churn_elapsed < budget,
+                "round {round}: exhausted refire held the writer for {churn_elapsed:?}",
+            );
+
+            let mutation_started = Instant::now();
+            invoke_test_session_mutation(
+                &mut snapback,
+                "insertItem",
+                HandlerInput {
+                    args: json!({ "value": format!("row-{round}") }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("unrelated mutation under retry churn");
+            let mutation_elapsed = mutation_started.elapsed();
+            assert!(
+                mutation_elapsed < budget,
+                "round {round}: unrelated mutation took {mutation_elapsed:?} under churn",
+            );
+        }
+        assert_eq!(
+            snapback
+                .auth_database_mut()
+                .invalidation_retry_episode_count()
+                .expect("episode count"),
+            10_000,
+            "refire churn must not evict or duplicate episodes",
+        );
+    }
+
+    #[test]
+    fn only_host_branded_permission_denial_issues_terminal_delete() {
+        let mut snapback = live_limit_snapback();
+        let connection = install_test_invalidation(&mut snapback);
+        let admission = test_session_admission();
+        let subscribe = |snapback: &mut LocalSnapback, instance, connection_id: &str| {
+            snapback
+                .subscribe_live_with_invalidation(
+                    "listItems",
+                    LiveSubscribeInput {
+                        connection_id: connection_id.to_owned(),
+                        input: HandlerInput::default(),
+                        authorization_namespace: Some(test_authorization_namespace(instance)),
+                        supersedes: None,
+                        resume_from_token: None,
+                    },
+                    LiveInvalidationAdmission {
+                        session_mode: true,
+                        connection: Some(connection.clone()),
+                        effect_fence: None,
+                    },
+                )
+                .expect("auth-scoped subscription")
+        };
+
+        let terminal = subscribe(&mut snapback, 31, "session-terminal");
+        let terminal_subscription = snapback
+            .subscriptions
+            .get(&terminal.subscription_id)
+            .expect("stored terminal subscription")
+            .clone();
+        snapback.fail_subscription_fanout_with_retry(
+            &terminal_subscription,
+            "test_terminal_denial",
+            SnapbackError::trusted_permission_denied("trusted policy denied"),
+            None,
+            None,
+            &admission,
+        );
+        let terminal_scope = terminal.authorization_scope.expect("terminal scope");
+        let projection = snapback
+            .auth_invalidation
+            .as_ref()
+            .expect("invalidation state")
+            .obligations
+            .projection(&terminal_scope)
+            .expect("terminal projection");
+        assert_eq!(
+            projection.obligation.max_disposition,
+            InvalidationDisposition::Delete
+        );
+        assert_eq!(
+            projection
+                .resolution
+                .as_ref()
+                .expect("terminal delete ticket")
+                .kind,
+            ResolutionKind::TerminalDelete
+        );
+        let first = snapback
+            .authorization_invalidation_frames("session-terminal", &admission)
+            .expect("first terminal re-fire");
+        let second = snapback
+            .authorization_invalidation_frames("session-terminal", &admission)
+            .expect("second terminal re-fire");
+        assert_eq!(first, second, "terminal truth re-fires without re-querying");
+
+        let forged = subscribe(&mut snapback, 32, "session-forged");
+        let forged_subscription = snapback
+            .subscriptions
+            .get(&forged.subscription_id)
+            .expect("stored forged subscription")
+            .clone();
+        snapback.fail_subscription_fanout_with_retry(
+            &forged_subscription,
+            "test_forged_denial",
+            SnapbackError::error(
+                "SNAPBACK_AUTH_PERMISSION_DENIED",
+                "auth",
+                "application supplied the public code",
+            ),
+            None,
+            None,
+            &admission,
+        );
+        let forged_projection = snapback
+            .auth_invalidation
+            .as_ref()
+            .expect("invalidation state")
+            .obligations
+            .projection(&forged.authorization_scope.expect("forged scope"))
+            .expect("forged projection");
+        assert_eq!(
+            forged_projection.obligation.max_disposition,
+            InvalidationDisposition::Quarantine
+        );
+        assert!(forged_projection.resolution.is_none());
+    }
+
+    #[test]
+    fn live_subscription_connection_limit_releases_on_failure_unsubscribe_and_disconnect() {
+        let mut snapback = live_limit_snapback();
+
+        // A failed initial query never reserves or retains capacity.
+        let failed = snapback
+            .subscribe_live("listItemsByValue", live_limit_input("bounded", json!({})))
+            .expect_err("missing query arg");
+        assert_eq!(failed.diagnostic.code, "SNAPBACK_ARG_MISSING");
+        assert!(snapback.subscriptions.is_empty());
+
+        let mut ids = Vec::new();
+        for _ in 0..MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION {
+            ids.push(
+                snapback
+                    .subscribe_live("listItems", live_limit_input("bounded", json!({})))
+                    .expect("admit subscription below the per-connection limit")
+                    .subscription_id,
+            );
+        }
+        assert_eq!(
+            snapback.subscriptions.len(),
+            MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION
+        );
+
+        // Admission precedes initial query execution: although this input is
+        // missing a required query arg, capacity is the stable refusal.
+        let refused = snapback
+            .subscribe_live("listItemsByValue", live_limit_input("bounded", json!({})))
+            .expect_err("per-connection limit");
+        assert_eq!(
+            refused.diagnostic.code,
+            "SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT"
+        );
+        assert_eq!(
+            refused.diagnostic.details["limit"],
+            MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION
+        );
+        assert_eq!(
+            snapback.subscriptions.len(),
+            MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION
+        );
+
+        // A net-zero replacement is admitted before the query, but failure
+        // must not destroy the old subscription or consume another slot.
+        let superseded = ids.remove(0);
+        let mut failed_replacement = live_limit_input("bounded", json!({}));
+        failed_replacement.supersedes = Some(superseded.clone());
+        let failed = snapback
+            .subscribe_live("listItemsByValue", failed_replacement)
+            .expect_err("replacement snapshot failure");
+        assert_eq!(failed.diagnostic.code, "SNAPBACK_ARG_MISSING");
+        assert!(snapback.subscriptions.contains_key(&superseded));
+        assert_eq!(
+            snapback.subscriptions.len(),
+            MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION
+        );
+
+        // Explicit same-owner supersession is net-zero and therefore remains
+        // available at the ceiling.
+        let mut replacement = live_limit_input("bounded", json!({}));
+        replacement.supersedes = Some(superseded.clone());
+        let replacement = snapback
+            .subscribe_live("listItems", replacement)
+            .expect("net-zero replacement at the limit");
+        assert_eq!(
+            replacement.superseded.as_deref(),
+            Some(superseded.as_str()),
+            "subscribe success is not itself a supersession witness"
+        );
+        assert!(replacement.supersession_refusal.is_none());
+        assert!(!snapback.subscriptions.contains_key(&superseded));
+        assert!(
+            snapback
+                .subscriptions
+                .contains_key(&replacement.subscription_id)
+        );
+        assert_eq!(
+            snapback.subscriptions.len(),
+            MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION
+        );
+
+        snapback
+            .unsubscribe_live(
+                "listItems",
+                LiveUnsubscribeInput {
+                    subscription_id: replacement.subscription_id,
+                    connection_id: "bounded".to_owned(),
+                    auth: Default::default(),
+                },
+            )
+            .expect("unsubscribe releases one slot");
+        assert_eq!(
+            snapback.subscriptions.len(),
+            MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION - 1
+        );
+        snapback
+            .subscribe_live("listItems", live_limit_input("bounded", json!({})))
+            .expect("reuse unsubscribed slot");
+
+        snapback.disconnect_topology_for_transport("bounded", 1);
+        assert!(snapback.subscriptions.is_empty());
+        let mut already_absent = live_limit_input("bounded", json!({}));
+        already_absent.supersedes = Some("sub_already_absent".to_owned());
+        let already_absent = snapback
+            .subscribe_live("listItems", already_absent)
+            .expect("reuse capacity released by disconnect");
+        assert!(already_absent.superseded.is_none());
+        assert_eq!(
+            already_absent.supersession_refusal.as_deref(),
+            Some("SNAPBACK_LIVE_SUPERSESSION_TARGET_UNKNOWN")
+        );
+    }
+
+    #[test]
+    fn live_subscription_global_limit_releases_on_disconnect() {
+        let mut snapback = live_limit_snapback();
+        assert_eq!(
+            MAX_LIVE_SUBSCRIPTIONS % MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION,
+            0,
+            "test expects the global cap to divide into full connections"
+        );
+        let connection_count = MAX_LIVE_SUBSCRIPTIONS / MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION;
+        for connection in 0..connection_count {
+            let connection_id = format!("global-{connection}");
+            for _ in 0..MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION {
+                snapback
+                    .subscribe_live("listItems", live_limit_input(&connection_id, json!({})))
+                    .expect("admit subscription below the global limit");
+            }
+        }
+        assert_eq!(snapback.subscriptions.len(), MAX_LIVE_SUBSCRIPTIONS);
+
+        // The full registry refuses before evaluating the intentionally
+        // invalid initial query, proving the expensive snapshot is not run.
+        let refused = snapback
+            .subscribe_live(
+                "listItemsByValue",
+                live_limit_input("global-overflow", json!({})),
+            )
+            .expect_err("global limit");
+        assert_eq!(
+            refused.diagnostic.code,
+            "SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT"
+        );
+        assert_eq!(refused.diagnostic.details["limit"], MAX_LIVE_SUBSCRIPTIONS);
+        assert_eq!(snapback.subscriptions.len(), MAX_LIVE_SUBSCRIPTIONS);
+
+        snapback.disconnect_topology_for_transport("global-0", 1);
+        assert_eq!(
+            snapback.subscriptions.len(),
+            MAX_LIVE_SUBSCRIPTIONS - MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION
+        );
+        snapback
+            .subscribe_live("listItems", live_limit_input("global-overflow", json!({})))
+            .expect("reuse capacity released by disconnect");
+    }
+
+    #[test]
+    fn reset_commit_failure_preserves_runtime_generation_and_live_subscription() {
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        snapback
+            .apply_schema(reload_schema("reset-failure-schema", false))
+            .expect("apply schema");
+        let mut functions = guarded_functions();
+        functions.functions.push(FunctionDefinition::new(
+            "listItems",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table: "items".to_owned(),
+                filters: Vec::new(),
+                order: Vec::new(),
+                limit: None,
+                membership_filters: Vec::new(),
+                indexed_by: None,
+            })),
+        ));
+        snapback.load_functions(functions);
+        snapback
+            .invoke_mutation("hostInsert", HandlerInput::default())
+            .expect("seed row");
+        let subscription = snapback
+            .subscribe_live(
+                "listItems",
+                LiveSubscribeInput {
+                    connection_id: "reset-failure-client".to_owned(),
+                    input: HandlerInput::default(),
+                    authorization_namespace: None,
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+            )
+            .expect("subscribe");
+        let generation = snapback.app_generation();
+
+        crate::storage::inject_reset_commit_failure_for_test();
+        let error = snapback
+            .reset()
+            .expect_err("commit-boundary failure rejects reset");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ACTION_TIMEOUT");
+        assert_eq!(snapback.app_generation(), generation);
+        assert!(
+            snapback
+                .subscriptions
+                .contains_key(&subscription.subscription_id)
+        );
+        assert_eq!(
+            snapback
+                .invoke_query("listItems", HandlerInput::default())
+                .expect("prior generation remains usable")
+                .rows
+                .len(),
+            1
+        );
+    }
+
+    fn cancelled() -> crate::diagnostic::SnapbackError {
+        crate::diagnostic::SnapbackError::error(
+            "SNAPBACK_ACTION_TIMEOUT",
+            "runtime",
+            "guarded local commit test cancellation",
+        )
+    }
+
+    struct GateScopeProbe {
+        active: Arc<AtomicBool>,
+    }
+
+    impl Drop for GateScopeProbe {
+        fn drop(&mut self) {
+            self.active.store(false, Ordering::SeqCst);
+        }
+    }
+
+    fn install_postcommit_gate_assertion(active: Arc<AtomicBool>, observed: Arc<AtomicBool>) {
+        BEFORE_MUTATION_POSTCOMMIT_HOOK.with(|slot| {
+            assert!(slot.borrow().is_none(), "postcommit hook must be one-shot");
+            *slot.borrow_mut() = Some(Box::new(move || {
+                assert!(
+                    !active.load(Ordering::SeqCst),
+                    "commit gate guard must drop before permission/live fan-out"
+                );
+                observed.store(true, Ordering::SeqCst);
+            }));
+        });
+    }
+
+    fn input() -> HandlerInput {
         HandlerInput {
             args: json!({ "id": row_id }),
             ..HandlerInput::default()

@@ -399,6 +399,7 @@ mod tests {
             app_id: "lease-test".to_owned(),
             auth: Some(AuthManifest {
                 mode: AuthMode::Sessions,
+                agents: None,
             }),
             schema_hash: Some(schema_hash.clone()),
             inputs_hash: Some(inputs_hash.clone()),

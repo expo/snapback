@@ -1115,6 +1115,7 @@ mod tests {
             app_id: "rescue-fixture".to_owned(),
             auth: Some(AuthManifest {
                 mode: AuthMode::Sessions,
+                agents: None,
             }),
             schema_hash: Some(schema_hash),
             inputs_hash: Some(inputs_hash),

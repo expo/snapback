@@ -3,14 +3,14 @@ title: Agent principals and scoped grants
 id: auth.agent-principals
 order: 6
 audience: agent-first
-capabilities: [auth.agent-principals]
+capabilities: [auth.agent-principals, auth.agent-registration]
 authorities: [llp/0055-agent-principals-and-scoped-grants.rfc.md, packages/snapback-client/agent-authority.mjs, packages/snapback-app-cli/auth.mjs, packages/snapback-app-cli/package.test.mjs, packages/snapback-app-cli/auth.test.mjs, src/server.rs]
 examples: [packages/snapback-app-cli/package.test.mjs, packages/snapback-app-cli/auth.test.mjs, demos/_kit/tests/auth-handshake.mjs]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-commit: b60e477e59cc93f67ab244a4cc359a9d32e8adb0
 ---
 
 # Agent principals and scoped grants
@@ -26,28 +26,51 @@ credential generation, grant, and token carrier. The server still applies
 ordinary auth requirements, row scoping, and
 [roles](./scoped-roles.md); a token never bypasses those gates.
 
-## Where the agent credential comes from: the provisioning boundary
+## Register an agent
 
-**There is no user-reachable registration surface today.** No route in the
-complete `/auth/*` list creates an agent principal or issues its initial
-`sbac_` credential — registration ("create an agent", "invite an agent") is
-not something an app, its owner, or the agent itself can currently do over
-the wire. The server-side creation functions (`create_agent_principal`,
-`issue_initial_agent_credential`) are invoked only from test setup and
-internal activation fixtures, so in practice an agent credential comes from
-**harness or test-lane provisioning**: the acceptance suite creates the agent
-server-side and hands the credential to the client under test. The app CLI
-likewise only *consumes* an existing `sbac_` credential — `--agent-profile`
-names a 0600 profile referencing the credential by file path or environment
-name — and `snapback agent setup` writes agent/MCP configuration; neither
-registers anything. Keep the credential outside source, logs, generated
-artifacts, and model output.
+Registration is an explicit sessions-mode schema policy. Omission is
+`disabled`; an app must choose `open` or `invited`:
 
-Everything downstream of the credential — pairing, grant approval, scoped
-tokens, the custody fence, release, rotation, and revocation — is fully
-shipped on the local target and taught below.
+```js fragment reason="show the closed nested policy without coupling this page to an app schema"
+auth: {
+  mode: 'sessions',
+  agents: { mode: 'open' },
+}
+```
 
-## Pair a provisioned agent
+With `open`, call `POST /auth/agents/register` without an Authorization header.
+The closed body accepts optional `displayName` and `operatorContact`. The
+response returns `{ credentialId, userId, generation, credential }`; generation
+is `1` and `credential` is the initial `sbac_` secret. Principal, stable
+identity, and credential are committed atomically. The secret is returned once,
+so move it directly into credential custody and never put it in source, logs,
+generated artifacts, or model output.
+
+```sh
+curl -X POST "$SNAPBACK_URL/auth/agents/register" \
+  -H 'content-type: application/json' \
+  -H 'x-snapback-auth-client-protocol: 1' \
+  --data '{"displayName":"Build agent"}'
+```
+
+With `invitedBy: 'users'`, a signed-in human first requests an
+`agentInvitation` step-up challenge through `POST /auth/step-up/request`, then
+submits that proof to `POST /auth/agent-invitations`. The returned `sbagi_`
+creation invitation is single-use. Pass it as `invitation` to
+`POST /auth/agents/register`; registration consumes it in the same transaction
+and records the minting user as the agent owner. A bearer alone cannot mint an
+invitation, and the user has at most ten live unconsumed invitations.
+
+`invitedBy: 'operators'` remains declarable so policy is forward-compatible,
+but S0 has no host-operation minting twin and codegen emits
+`SNAPBACK_AUTH_AGENT_ONBOARDING_PROD_UNAVAILABLE`. Also still absent are the
+registration template, agent listing/deletion, owner-issued replacement
+credentials, recovery, approval-link ceremony, OAuth facade, and `/api/v1/*`
+exposure. Self-service rotation and revocation remain available after an agent
+has registered. The app CLI consumes an existing `sbac_` credential and does
+not call registration for you.
+
+## Pair a registered agent
 
 Pairing delegates a user's authority without letting the agent name or
 enumerate users:

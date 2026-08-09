@@ -885,6 +885,8 @@ const GENERATED_API_RESERVED_EXPORTS = new Set([
 const SCHEMA_VERSION = 'snapback.v0';
 const SESSIONS_SCHEMA_VERSION = 'snapback.v1';
 const AUTH_MODES = new Set(['dev', 'sessions']);
+const AGENT_REGISTRATION_MODES = new Set(['disabled', 'invited', 'open']);
+const AGENT_INVITERS = new Set(['operators', 'users']);
 const AUTH_REQUIREMENTS = new Set(['public', 'optional-user', 'authenticated']);
 const TARGET_CAPABILITY_IDS = new Set([
   'agent_safe_derived_deployment_fork_v1',
@@ -1191,12 +1193,24 @@ function validateSchemaAuthDefinition(schemaDef, err) {
     return 'dev';
   }
   if (!auth || typeof auth !== 'object' || Array.isArray(auth)) {
-    err('SCHEMA_AUTH_MODE_INVALID', 'auth', 'schema auth must be an object containing only mode', {});
+    err('SCHEMA_AUTH_MODE_INVALID', 'auth', 'schema auth must be an object containing mode and optional agents', {});
     return 'dev';
   }
   const keys = Object.keys(auth);
-  if (keys.length !== 1 || keys[0] !== 'mode' || !AUTH_MODES.has(auth.mode)) {
-    err('SCHEMA_AUTH_MODE_INVALID', 'auth', 'schema auth accepts exactly mode: dev | sessions', { authMode: auth.mode });
+  if (!Object.hasOwn(auth, 'mode') || keys.some((key) => !['mode', 'agents'].includes(key)) || !AUTH_MODES.has(auth.mode)) {
+    err('SCHEMA_AUTH_MODE_INVALID', 'auth', 'schema auth accepts mode: dev | sessions and optional agents', { authMode: auth.mode });
+  }
+  if (auth.agents !== undefined) {
+    const agents = auth.agents;
+    if (!agents || typeof agents !== 'object' || Array.isArray(agents)
+      || Object.keys(agents).some((key) => !['mode', 'invitedBy'].includes(key))
+      || !AGENT_REGISTRATION_MODES.has(agents.mode)
+      || !AGENT_INVITERS.has(agents.invitedBy)) {
+      err('SCHEMA_AUTH_AGENTS_INVALID', 'auth', 'schema auth.agents accepts mode: disabled | invited | open and invitedBy: operators | users', {});
+    }
+    if (auth.mode !== 'sessions') {
+      err('SNAPBACK_AUTH_AGENT_POLICY_MODE_INVALID', 'auth', 'auth.agents requires auth.mode sessions', { authMode: auth.mode });
+    }
   }
   validateAuthoredRequiredCapabilities(schemaDef.requiredCapabilities, err);
   return AUTH_MODES.has(auth.mode) ? auth.mode : 'dev';
@@ -1455,6 +1469,17 @@ export async function generateInProcess(backendDir, options = {}) {
     return { ok: false, diagnostics };
   }
   const authMode = validateSchemaAuthDefinition(schemaDef, err);
+  const agentRegistrationWarning = schemaDef.auth?.agents?.mode === 'invited'
+    && schemaDef.auth.agents.invitedBy === 'operators'
+    ? {
+        code: 'SNAPBACK_AUTH_AGENT_ONBOARDING_PROD_UNAVAILABLE',
+        severity: 'warning',
+        subsystem: 'auth',
+        message: 'auth.agents invitedBy operators has no production onboarding path; use invitedBy users or open registration',
+        details: { mode: 'invited', invitedBy: 'operators' },
+      }
+    : null;
+  if (agentRegistrationWarning) diagnostics.push(agentRegistrationWarning);
   const artifactVersion = authMode === 'sessions' ? SESSIONS_SCHEMA_VERSION : SCHEMA_VERSION;
   const functionDefinitionSourceSpans = exportedDefinitionSourceSpans(
     graphEntrySource(functionsGraph, functionsPath),
@@ -4271,7 +4296,7 @@ export async function generateInProcess(backendDir, options = {}) {
     schemaVersion: artifactVersion,
     appId,
     ...(appIdentity ? { app: appIdentity } : {}),
-    ...(schemaDef.auth !== undefined ? { auth: { mode: authMode } } : {}),
+    ...(schemaDef.auth !== undefined ? { auth: schemaDef.auth } : {}),
     ...(schemaAssetsPolicy ? { assets: schemaAssetsPolicy } : {}),
     ...(schemaDef.pushSeam ? { pushSeam: schemaDef.pushSeam } : {}),
     // @ref LLP 0146#d1-declarationobservation-conformance — the per-app
@@ -4286,7 +4311,7 @@ export async function generateInProcess(backendDir, options = {}) {
     generatedAt,
     targetProfile,
     portabilityFlags: [],
-    artifactDiagnostics: [],
+    artifactDiagnostics: agentRegistrationWarning ? [agentRegistrationWarning] : [],
     ephemeralCollections,
     tables: Object.values(tables),
   };

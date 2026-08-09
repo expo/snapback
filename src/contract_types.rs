@@ -61,6 +61,64 @@ impl AuthMode {
 #[serde(deny_unknown_fields)]
 pub struct AuthManifest {
     pub mode: AuthMode,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agents: Option<AgentsManifest>,
+}
+
+/// App policy for creating new agent principals. Absence is deliberately
+/// equivalent to `disabled` rather than opening an ambient signup surface.
+///
+/// @ref LLP 0055#registration — registration is sessions-only, disabled by
+/// default, and user invitations require an explicit `invitedBy` opt-in.
+#[derive(
+    Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentsManifest {
+    #[serde(default)]
+    pub mode: AgentsMode,
+    #[serde(default)]
+    pub invited_by: InvitedBy,
+}
+
+#[derive(
+    Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum AgentsMode {
+    #[default]
+    Disabled,
+    Invited,
+    Open,
+}
+
+impl AgentsMode {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Disabled => "disabled",
+            Self::Invited => "invited",
+            Self::Open => "open",
+        }
+    }
+}
+
+#[derive(
+    Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum InvitedBy {
+    #[default]
+    Operators,
+    Users,
+}
+
+impl InvitedBy {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Operators => "operators",
+            Self::Users => "users",
+        }
+    }
 }
 
 /// Function-level requirement applied after caller authority has been resolved.

@@ -9418,6 +9418,7 @@ mod guarded_commit_tests {
         let manifest = SchemaManifest {
             auth: Some(crate::manifest::AuthManifest {
                 mode: crate::manifest::AuthMode::Sessions,
+                agents: None,
             }),
             tables: vec![table],
             ephemeral_collections: vec![collection],
@@ -12580,6 +12581,7 @@ mod membership_write_tests {
         // whose staged artifact handshake is covered in auth_mode tests.
         db.schema.auth = Some(crate::manifest::AuthManifest {
             mode: AuthMode::Sessions,
+            agents: None,
         });
         seed_agent(&mut db, "agent-a");
         seed_agent(&mut db, "agent-b");

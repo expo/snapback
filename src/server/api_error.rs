@@ -122,6 +122,21 @@ pub(super) fn status_for_diagnostic_code(code: &str) -> StatusCode {
 
 fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
     match code {
+        // @ref LLP 0204#d7--integration-records-admission-and-metering — S0
+        // agent registration/invitation client faults.
+        // Policy refusals (surface off, caller not permitted, fenced) are 403;
+        // malformed/ill-formed request inputs are 400; the live-invitation
+        // cap is a quota (429). Commit-uncertainty, secret-generation, and the
+        // non-served onboarding advisory keep the fail-safe 500 default.
+        "SNAPBACK_AUTH_AGENT_REGISTRATION_DISABLED"
+        | "SNAPBACK_AUTH_AGENT_INVITATIONS_DISABLED"
+        | "SNAPBACK_AUTH_AGENT_INVITATION_PROFILE_MISMATCH"
+        | "SNAPBACK_AUTH_AGENT_INVITATION_USER_INVALID" => StatusCode::FORBIDDEN,
+        "SNAPBACK_AUTH_AGENT_INVITATION_INVALID"
+        | "SNAPBACK_AUTH_AGENT_INVITATION_REQUIRED"
+        | "SNAPBACK_AUTH_AGENT_INVITATION_UNEXPECTED"
+        | "SNAPBACK_AUTH_AGENT_POLICY_MODE_INVALID" => StatusCode::BAD_REQUEST,
+        "SNAPBACK_AUTH_AGENT_INVITATION_CAP" => StatusCode::TOO_MANY_REQUESTS,
         // These are operator-only shutdown controls/failures rather than
         // served request outcomes. Inventory still classifies them explicitly
         // so an accidental HTTP projection remains fail-safe.

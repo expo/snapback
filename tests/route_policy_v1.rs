@@ -199,8 +199,10 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/push/tokens/unregister"),
         ("POST", "/auth/family-alarm"),
         ("POST", "/auth/step-up/request"),
+        ("POST", "/auth/agent-invitations"),
         ("POST", "/auth/pairing-codes"),
         ("POST", "/auth/agents/pair"),
+        ("POST", "/auth/agents/register"),
         ("POST", "/auth/agents/rotate"),
         ("POST", "/auth/agents/token"),
         ("POST", "/auth/agents/token/release"),
@@ -274,6 +276,9 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("GET", "/_snapback/admin/{*path}"),
         ("GET", "/_snapback/guide"),
         ("GET", "/_snapback/guide/flat.md"),
+        // Registered with the http.routes.v1 join artifact (5f7e262aa), which
+        // landed without extending this intentional-surface list.
+        ("GET", "/_snapback/guide/http.routes.v1.json"),
         ("GET", "/_snapback/guide/{*path}"),
         // The llms.txt convention pins this guide projection to the root.
         ("GET", "/llms.txt"),
@@ -520,7 +525,7 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
         .filter(|route| route.path.starts_with("/auth/"))
         .map(|route| (route.path, *route))
         .collect::<BTreeMap<_, _>>();
-    assert_eq!(provider.len(), 19);
+    assert_eq!(provider.len(), 21);
 
     let handshake = provider["/auth/session"];
     assert_eq!(handshake.method, "GET");
@@ -579,6 +584,7 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
 
     for path in [
         "/auth/step-up/request",
+        "/auth/agent-invitations",
         "/auth/pairing-codes",
         "/auth/grant-requests",
         "/auth/grant-requests/{id}/approve",
@@ -619,6 +625,17 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
             "{path}"
         );
     }
+    let register = provider["/auth/agents/register"];
+    assert_eq!(register.path_policy, RoutePolicy::Public);
+    assert_eq!(
+        register.credential_resolution,
+        CredentialResolution::CreationInvitationBody
+    );
+    assert_eq!(register.invocation_authority, InvocationAuthority::None);
+    assert_eq!(
+        register.response_sensitivity,
+        ResponseSensitivity::CredentialSecret
+    );
     let release = provider["/auth/agents/token/release"];
     assert_eq!(release.path_policy, RoutePolicy::Public);
     assert_eq!(
@@ -685,14 +702,30 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
             )
             .await
             .expect("probe dev-mode provider route");
-        assert_eq!(response.status(), StatusCode::NOT_FOUND, "{}", route.path);
+        assert_eq!(
+            response.status(),
+            if route.path == "/auth/agents/register" {
+                StatusCode::SERVICE_UNAVAILABLE
+            } else {
+                StatusCode::NOT_FOUND
+            },
+            "{}",
+            route.path
+        );
         assert_eq!(
             response.headers()[header::CACHE_CONTROL],
             "no-store, private",
             "{}",
             route.path
         );
-        assert_eq!(diagnostic_code(response).await, "SNAPBACK_AUTH_MODE_DEV");
+        assert_eq!(
+            diagnostic_code(response).await,
+            if route.path == "/auth/agents/register" {
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+            } else {
+                "SNAPBACK_AUTH_MODE_DEV"
+            }
+        );
     }
 }
 

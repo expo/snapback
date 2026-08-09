@@ -554,6 +554,29 @@
       ],
       "type": "object"
     },
+    "AgentsManifest": {
+      "additionalProperties": false,
+      "description": "App policy for creating new agent principals. Absence is deliberately\nequivalent to `disabled` rather than opening an ambient signup surface.\n\n@ref LLP 0055#registration — registration is sessions-only, disabled by\ndefault, and user invitations require an explicit `invitedBy` opt-in.",
+      "properties": {
+        "invitedBy": {
+          "$ref": "#/$defs/InvitedBy",
+          "default": "operators"
+        },
+        "mode": {
+          "$ref": "#/$defs/AgentsMode",
+          "default": "disabled"
+        }
+      },
+      "type": "object"
+    },
+    "AgentsMode": {
+      "enum": [
+        "disabled",
+        "invited",
+        "open"
+      ],
+      "type": "string"
+    },
     "AppCliTargetFactsV1": {
       "additionalProperties": false,
       "description": "The `app-cli.target` eligibility descriptor (LLP 0062 §4; dated LLP 0058\namendment 2026-08-01).\n\nDeliberately a **structured descriptor**, not a ninth entry in the closed\n`TargetCapabilityId` string set: §4 requires a target to state *which*\nprincipal classes it supports, whether it serves envelopes and accepts\ngeneration assertions, and the per-grant token cap the engine's admission\nbound must read rather than hardcode. A boolean could carry none of that.\n\nAbsence is the honest capability-absent report — §4's rule that the engine\n\"never infers any of this from a URL\" has teeth only because this fact\nexists to read. Facts state what the target *supports*; they never prove\ntransport locality, which is why the agent lane's loopback condition stays\nengine-enforced.",
@@ -1370,6 +1393,16 @@
       "additionalProperties": false,
       "description": "Closed schema-manifest auth declaration. Unknown members are rejected so a\nfuture authority-changing field cannot be silently ignored by this parser.",
       "properties": {
+        "agents": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AgentsManifest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "mode": {
           "$ref": "#/$defs/AuthMode"
         }
@@ -4417,6 +4450,13 @@
         "fields"
       ],
       "type": "object"
+    },
+    "InvitedBy": {
+      "enum": [
+        "operators",
+        "users"
+      ],
+      "type": "string"
     },
     "JobStatusQueryPlanV1": {
       "description": "The v1 job-status plan carries no authored parameters: the job id arrives\nas the invocation's `jobId` argument, the projection shape is Rust-owned,\nand observability scoping is the operation's own declared auth requirement\n(knowledge of the opaque job id within that auth class; per-job row policy\nis a later vocabulary — see the LLP 0070 amendment note).",

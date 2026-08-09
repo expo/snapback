@@ -35,6 +35,11 @@
     },
     {
       "body": "timeOrdered",
+      "kind": "AgentInvitation",
+      "prefix": "agin"
+    },
+    {
+      "body": "timeOrdered",
       "kind": "PairingRequest",
       "prefix": "pair"
     },

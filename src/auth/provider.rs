@@ -207,6 +207,28 @@ impl StepUpBinding {
             target_id: request_id,
         }
     }
+
+    /// Bind a fresh-authentication proof to minting one creation invitation
+    /// from this exact session. The target is server-derived because the
+    /// route never names an existing agent principal.
+    ///
+    /// @ref LLP 0055#re-credentialing-recovery-and-the-production-profile-invariant — a stolen
+    /// session bearer alone must not mint a durable agent-creation secret.
+    pub(crate) fn agent_invitation(
+        user_id: String,
+        session_id: String,
+        session_generation: u64,
+        authority_instance_id: String,
+    ) -> Self {
+        Self {
+            user_id,
+            session_id,
+            session_generation,
+            authority_instance_id,
+            operation: "agentInvitation",
+            target_id: "creation".to_owned(),
+        }
+    }
 }
 
 impl fmt::Debug for StepUpBinding {

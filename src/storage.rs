@@ -2291,6 +2291,7 @@ impl LocalDatabase {
         self.with_auth_transaction(|tx| crate::push::activate_manifest_in(tx, Some(&declaration)))?;
         self.schema.auth = Some(crate::manifest::AuthManifest {
             mode: crate::manifest::AuthMode::Sessions,
+            agents: None,
         });
         self.schema.push_seam = Some(declaration);
         Ok(())
@@ -3736,12 +3737,13 @@ impl LocalDatabase {
     }
 
     pub fn apply_schema(&mut self, manifest: SchemaManifest) -> SnapbackResult<Vec<Diagnostic>> {
+        let diagnostics = manifest.agent_registration_diagnostics();
         let _writer_token = self
             .writer_authority
             .enter(write_authority::LocalWriterLaneV1::SchemaActivation)?;
         self.apply_schema_mode_aware(manifest)?;
         self.writer_authority.set_schema(&self.schema)?;
-        Ok(Vec::new())
+        Ok(diagnostics)
     }
 
     pub fn reset(&mut self) -> SnapbackResult<()> {

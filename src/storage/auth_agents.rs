@@ -15,12 +15,21 @@
 //!   would leave a protected resource with no eligible holder.
 
 use super::LocalDatabase;
-use super::auth::ServiceAuthTransactionAttempt;
-use super::auth_agent_credentials::{require_agent_clock_on, token_ids_for_user};
+use super::auth::{AuthTransactionAttempt, ServiceAuthTransactionAttempt};
+use super::auth_agent_credentials::{
+    IssuedAgentCredential, advance_agent_clock_on, issue_initial_agent_credential_on,
+    reconcile_issued_agent_credential, require_agent_clock_on, token_ids_for_user,
+};
+use crate::admin::ServerProfile;
+use crate::auth::crypto::{CreationInvitation, RandomSource};
+use crate::auth::provider::{StepUpConsumption, StepUpProof, step_up_required_error};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use crate::manifest::{AuthMode, MembershipScope, SchemaManifest};
-use rusqlite::{Connection, OptionalExtension, params, types::Value as SqlValue};
+use crate::manifest::{AgentsMode, AuthMode, MembershipScope, SchemaManifest};
+use rusqlite::{Connection, OptionalExtension, Transaction, params, types::Value as SqlValue};
 use serde_json::json;
+
+pub const AGENT_INVITATION_TTL_MS: u64 = 24 * 60 * 60 * 1_000;
+pub const AGENT_INVITATION_LIVE_CAP: u64 = 10;
 
 #[derive(Clone, Copy)]
 struct ProtectedMembershipColumns<'a> {
@@ -45,6 +54,13 @@ pub(crate) struct AgentRegistration {
     pub owner_user_id: Option<String>,
 }
 
+#[derive(Debug)]
+pub(crate) struct IssuedAgentInvitation {
+    pub invitation_id: String,
+    pub expires_at_ms: u64,
+    pub secret: CreationInvitation,
+}
+
 impl LocalDatabase {
     /// Create a `kind: "agent"` principal. The caller has already minted the id
     /// and validated the owner. Fails closed on the catalog checks the direct
@@ -59,22 +75,241 @@ impl LocalDatabase {
         registration: &AgentRegistration,
     ) -> SnapbackResult<()> {
         self.with_auth_transaction(|tx| {
+            create_agent_principal_on(tx, user_id, created_at_ms, registration)
+        })
+    }
+
+    /// Create a principal, its stable identity, and its initial credential in
+    /// one auth transaction. Invited registration also consumes the exact
+    /// creation invitation in that commit, so neither a credential-less agent
+    /// nor a consumed-without-agent invitation can become durable.
+    ///
+    /// @ref LLP 0055#registration — registration is gated by app policy and
+    /// atomically returns the one-time initial credential.
+    /// @ref LLP 0055#routes-and-credential-classes — invited creation consumes
+    /// one `sbagi_`, records its user minter as owner, and fences operator
+    /// invitations against non-prod-to-prod laundering.
+    pub(crate) fn register_agent_principal(
+        &mut self,
+        mode: AgentsMode,
+        invitation: Option<&CreationInvitation>,
+        display_name: Option<String>,
+        operator_contact: Option<String>,
+        profile: ServerProfile,
+        now_ms: u64,
+        random: &dyn RandomSource,
+    ) -> SnapbackResult<IssuedAgentCredential> {
+        if mode == AgentsMode::Disabled {
+            return Err(agent_registration_disabled());
+        }
+        if (mode == AgentsMode::Open) != invitation.is_none() {
+            return Err(if mode == AgentsMode::Invited {
+                agent_invitation_required()
+            } else {
+                agent_invitation_unexpected()
+            });
+        }
+
+        let user_id = crate::ids::mint(crate::ids::Kind::User)?;
+        let credential_id = crate::ids::mint_time_ordered(crate::ids::Kind::AgentCredential);
+        let identity_id = crate::ids::mint_time_ordered(crate::ids::Kind::AgentIdentity);
+        let mut body_outcome = None;
+        let mut consumed_invitation_id = None;
+        let attempt = self.attempt_auth_transaction(|tx| {
+            advance_agent_clock_on(tx, now_ms)?;
+            let (owner_user_id, invitation_id, source) = match invitation {
+                Some(invitation) => {
+                    let row = creation_invitation_on(tx, invitation, now_ms)?;
+                    if profile == ServerProfile::Prod
+                        && row.minted_profile != ServerProfile::Prod.as_str()
+                        && row.created_by.starts_with("hostOps:")
+                    {
+                        return Err(agent_invitation_profile_mismatch());
+                    }
+                    let owner =
+                        (!row.created_by.starts_with("hostOps:")).then_some(row.created_by.clone());
+                    let changed = tx.execute(
+                        "UPDATE _auth_agent_invitations
+                         SET consumed_at_ms = ?1, consumed_by = ?2
+                         WHERE id = ?3 AND class = 'creation'
+                           AND revoked_at_ms IS NULL AND consumed_at_ms IS NULL
+                           AND expires_at_ms > ?1",
+                        params![now_ms as i64, user_id, row.id],
+                    )?;
+                    if changed != 1 {
+                        return Err(agent_invitation_invalid());
+                    }
+                    let source = if owner.is_some() {
+                        "user-invitation"
+                    } else {
+                        "operator-invitation"
+                    };
+                    (owner, Some(row.id), source)
+                }
+                None => (None, None, "self-register"),
+            };
+            consumed_invitation_id = invitation_id.clone();
+            let provenance = if mode == AgentsMode::Open {
+                json!({
+                    "source": source,
+                    "mode": mode.as_str(),
+                    "profile": profile.as_str(),
+                    "createdAtMs": now_ms,
+                })
+                .to_string()
+            } else {
+                json!({
+                    "source": source,
+                    "mode": mode.as_str(),
+                    "profile": profile.as_str(),
+                    "createdAtMs": now_ms,
+                    "invitationClass": "creation",
+                    "invitationId": invitation_id,
+                })
+                .to_string()
+            };
+            create_agent_principal_on(
+                tx,
+                &user_id,
+                now_ms,
+                &AgentRegistration {
+                    display_name: display_name.clone(),
+                    operator_contact: operator_contact.clone(),
+                    registration_provenance: provenance,
+                    owner_user_id,
+                },
+            )?;
+            body_outcome = Some(issue_initial_agent_credential_on(
+                tx,
+                &user_id,
+                now_ms,
+                random,
+                &credential_id,
+                &identity_id,
+            )?);
+            Ok(())
+        });
+        match attempt {
+            AuthTransactionAttempt::Committed(()) => {
+                body_outcome.ok_or_else(agent_registration_commit_uncertain)
+            }
+            AuthTransactionAttempt::RolledBack(error) => Err(error),
+            AuthTransactionAttempt::CommitUncertain(_) => {
+                let expected = body_outcome
+                    .as_ref()
+                    .ok_or_else(agent_registration_commit_uncertain)?;
+                self.with_auth_read(|connection| {
+                    reconcile_registered_agent(
+                        connection,
+                        expected,
+                        consumed_invitation_id.as_deref(),
+                    )
+                })?;
+                body_outcome.ok_or_else(agent_registration_commit_uncertain)
+            }
+        }
+    }
+
+    /// Mint one user-owned creation invitation only after consuming the
+    /// operation-bound step-up proof in the same transaction.
+    pub(crate) fn mint_agent_invitation(
+        &mut self,
+        user_id: &str,
+        profile: ServerProfile,
+        proof: &StepUpProof,
+        now_ms: u64,
+        random: &dyn RandomSource,
+    ) -> SnapbackResult<IssuedAgentInvitation> {
+        let invitation_id = crate::ids::mint_time_ordered(crate::ids::Kind::AgentInvitation);
+        let expires_at_ms = now_ms
+            .checked_add(AGENT_INVITATION_TTL_MS)
+            .filter(|expires| *expires <= super::MAX_AUTHORIZATION_EPOCH)
+            .ok_or_else(agent_invitation_invalid)?;
+        let mut body_outcome = None;
+        let attempt = self.attempt_auth_transaction(|tx| {
+            advance_agent_clock_on(tx, now_ms)?;
+            require_human_user_on(tx, user_id)?;
+            if proof.consume_on(tx, now_ms)? != StepUpConsumption::Verified {
+                return Err(step_up_required_error());
+            }
+            let live: i64 = tx.query_row(
+                "SELECT COUNT(*) FROM _auth_agent_invitations
+                 WHERE class = 'creation' AND created_by = ?1
+                   AND revoked_at_ms IS NULL AND consumed_at_ms IS NULL
+                   AND expires_at_ms > ?2",
+                params![user_id, now_ms as i64],
+                |row| row.get(0),
+            )?;
+            if live < 0 || live as u64 >= AGENT_INVITATION_LIVE_CAP {
+                return Err(agent_invitation_cap());
+            }
+            let secret = CreationInvitation::generate(random)
+                .map_err(|_| agent_invitation_secret_generation_failed())?;
+            let hash = secret.token_hash();
             tx.execute(
-                "INSERT INTO _auth_users(
-                   id, created_at_ms, kind, display_name, operator_contact,
-                   registration_provenance, deactivated_at_ms, owner_user_id
-                 ) VALUES(?1, ?2, 'agent', ?3, ?4, ?5, NULL, ?6)",
+                "INSERT INTO _auth_agent_invitations(
+                   id, token_hash, class, created_by, minted_profile,
+                   agent_user_id, created_at_ms, expires_at_ms,
+                   revoked_at_ms, consumed_at_ms, consumed_by
+                 ) VALUES(?1, ?2, 'creation', ?3, ?4, NULL, ?5, ?6, NULL, NULL, NULL)",
                 params![
+                    invitation_id,
+                    hash.as_bytes(),
                     user_id,
-                    created_at_ms as i64,
-                    registration.display_name,
-                    registration.operator_contact,
-                    registration.registration_provenance,
-                    registration.owner_user_id,
+                    profile.as_str(),
+                    now_ms as i64,
+                    expires_at_ms as i64,
                 ],
             )?;
+            body_outcome = Some(IssuedAgentInvitation {
+                invitation_id: invitation_id.clone(),
+                expires_at_ms,
+                secret,
+            });
             Ok(())
-        })
+        });
+        match attempt {
+            AuthTransactionAttempt::Committed(()) => {
+                body_outcome.ok_or_else(agent_invitation_commit_uncertain)
+            }
+            AuthTransactionAttempt::RolledBack(error) => Err(error),
+            AuthTransactionAttempt::CommitUncertain(_) => {
+                let expected = body_outcome
+                    .as_ref()
+                    .ok_or_else(agent_invitation_commit_uncertain)?;
+                let exact = self.with_auth_read(|connection| {
+                    let hash = expected.secret.token_hash();
+                    Ok(connection
+                        .query_row(
+                            "SELECT created_by, minted_profile, expires_at_ms,
+                                    revoked_at_ms, consumed_at_ms
+                             FROM _auth_agent_invitations WHERE id = ?1 AND token_hash = ?2",
+                            params![expected.invitation_id, hash.as_bytes()],
+                            |row| {
+                                Ok((
+                                    row.get::<_, String>(0)?,
+                                    row.get::<_, String>(1)?,
+                                    row.get::<_, i64>(2)?,
+                                    row.get::<_, Option<i64>>(3)?,
+                                    row.get::<_, Option<i64>>(4)?,
+                                ))
+                            },
+                        )
+                        .optional()?
+                        == Some((
+                            user_id.to_owned(),
+                            profile.as_str().to_owned(),
+                            expires_at_ms as i64,
+                            None,
+                            None,
+                        )))
+                })?;
+                if !exact {
+                    return Err(agent_invitation_commit_uncertain());
+                }
+                body_outcome.ok_or_else(agent_invitation_commit_uncertain)
+            }
+        }
     }
 
     /// The `owner_user_id` recorded for an agent, or `None` when the principal is
@@ -211,6 +446,189 @@ impl LocalDatabase {
             }
         }
     }
+}
+
+fn create_agent_principal_on(
+    tx: &Transaction<'_>,
+    user_id: &str,
+    created_at_ms: u64,
+    registration: &AgentRegistration,
+) -> SnapbackResult<()> {
+    tx.execute(
+        "INSERT INTO _auth_users(
+           id, created_at_ms, kind, display_name, operator_contact,
+           registration_provenance, deactivated_at_ms, owner_user_id
+         ) VALUES(?1, ?2, 'agent', ?3, ?4, ?5, NULL, ?6)",
+        params![
+            user_id,
+            created_at_ms as i64,
+            registration.display_name,
+            registration.operator_contact,
+            registration.registration_provenance,
+            registration.owner_user_id,
+        ],
+    )?;
+    Ok(())
+}
+
+struct CreationInvitationRow {
+    id: String,
+    created_by: String,
+    minted_profile: String,
+}
+
+fn creation_invitation_on(
+    tx: &Transaction<'_>,
+    invitation: &CreationInvitation,
+    now_ms: u64,
+) -> SnapbackResult<CreationInvitationRow> {
+    let hash = invitation.token_hash();
+    tx.query_row(
+        "SELECT id, created_by, minted_profile
+         FROM _auth_agent_invitations
+         WHERE token_hash = ?1 AND class = 'creation'
+           AND revoked_at_ms IS NULL AND consumed_at_ms IS NULL
+           AND expires_at_ms > ?2",
+        params![hash.as_bytes(), now_ms as i64],
+        |row| {
+            Ok(CreationInvitationRow {
+                id: row.get(0)?,
+                created_by: row.get(1)?,
+                minted_profile: row.get(2)?,
+            })
+        },
+    )
+    .optional()?
+    .ok_or_else(agent_invitation_invalid)
+}
+
+fn require_human_user_on(tx: &Transaction<'_>, user_id: &str) -> SnapbackResult<()> {
+    let human = tx
+        .query_row(
+            "SELECT 1 FROM _auth_users WHERE id = ?1 AND kind = 'human'",
+            params![user_id],
+            |_| Ok(()),
+        )
+        .optional()?
+        .is_some();
+    if human {
+        Ok(())
+    } else {
+        Err(SnapbackError::error(
+            "SNAPBACK_AUTH_AGENT_INVITATION_USER_INVALID",
+            "auth",
+            "agent invitations require an active human session principal",
+        ))
+    }
+}
+
+fn reconcile_registered_agent(
+    connection: &Connection,
+    expected: &IssuedAgentCredential,
+    invitation_id: Option<&str>,
+) -> SnapbackResult<()> {
+    reconcile_issued_agent_credential(connection, expected)
+        .map_err(|_| agent_registration_commit_uncertain())?;
+    let agent_exists = connection
+        .query_row(
+            "SELECT 1 FROM _auth_users
+             WHERE id = ?1 AND kind = 'agent' AND registration_provenance IS NOT NULL",
+            params![expected.user_id],
+            |_| Ok(()),
+        )
+        .optional()?
+        .is_some();
+    let invitation_exact = match invitation_id {
+        Some(invitation_id) => {
+            connection
+                .query_row(
+                    "SELECT consumed_by = ?1 AND consumed_at_ms IS NOT NULL
+                 FROM _auth_agent_invitations WHERE id = ?2",
+                    params![expected.user_id, invitation_id],
+                    |row| row.get::<_, bool>(0),
+                )
+                .optional()?
+                == Some(true)
+        }
+        None => true,
+    };
+    if agent_exists && invitation_exact {
+        Ok(())
+    } else {
+        Err(agent_registration_commit_uncertain())
+    }
+}
+
+fn agent_registration_disabled() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_AGENT_REGISTRATION_DISABLED",
+        "auth",
+        "agent registration is disabled by the active schema manifest",
+    )
+}
+
+fn agent_invitation_required() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_AGENT_INVITATION_REQUIRED",
+        "auth",
+        "invited agent registration requires a creation invitation",
+    )
+}
+
+fn agent_invitation_unexpected() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_AGENT_INVITATION_UNEXPECTED",
+        "auth",
+        "open agent registration does not accept an invitation",
+    )
+}
+
+fn agent_invitation_invalid() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_AGENT_INVITATION_INVALID",
+        "auth",
+        "agent creation invitation is invalid, expired, revoked, or already consumed",
+    )
+}
+
+fn agent_invitation_profile_mismatch() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_AGENT_INVITATION_PROFILE_MISMATCH",
+        "auth",
+        "operator-minted agent invitation cannot be consumed after promotion to prod",
+    )
+}
+
+fn agent_invitation_cap() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_AGENT_INVITATION_CAP",
+        "auth",
+        "the user already has ten live unconsumed agent invitations",
+    )
+}
+
+fn agent_registration_commit_uncertain() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_AGENT_REGISTRATION_COMMIT_UNCERTAIN",
+        "auth",
+        "agent registration commit outcome could not be reconciled",
+    )
+}
+
+fn agent_invitation_commit_uncertain() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_AGENT_INVITATION_COMMIT_UNCERTAIN",
+        "auth",
+        "agent invitation commit outcome could not be reconciled",
+    )
+}
+
+fn agent_invitation_secret_generation_failed() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_AGENT_INVITATION_SECRET_UNAVAILABLE",
+        "auth",
+        "agent invitation secret generation is unavailable",
+    )
 }
 
 fn is_deactivated_on(conn: &Connection, user_id: &str) -> rusqlite::Result<bool> {
@@ -920,6 +1338,7 @@ mod tests {
         let mut manifest = host_membership(&db);
         manifest.auth = Some(crate::manifest::AuthManifest {
             mode: AuthMode::Sessions,
+            agents: None,
         });
         create_agent(&mut db, "agent-a", None);
         seat(&db, "agent-a", "event-1", "host");
