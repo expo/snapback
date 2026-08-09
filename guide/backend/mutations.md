@@ -287,14 +287,32 @@ that the client cannot tell your business rule from a crash.
 
 A bare `throw new Error('seat is taken')` reaches the caller as the platform
 code `SNAPBACK_HANDLER_FAILED`, and the message text is deliberately *not* a
-public contract — it is withheld precisely so internal exception text cannot
-leak. So the client sees "the handler failed" and nothing else. That is the
-security posture working as designed, and it is also why refusal-first is a
-habit rather than a polish step: the Zerobugs control shipped every
+production or application contract. Direct native starts and production
+launchers default to the redacted message `JavaScript handler failed` with
+only the handler function in details; raw exception text remains on the
+private error-tracking carrier. That is why refusal-first is a habit rather
+than a polish step: the Zerobugs control shipped every
 application-semantic refusal as a plain `throw` through ten receipted gate
 attempts, and only adopted the channel when a gate assertion caught that a
 short-id boundary refusal was invisible to the client
 ([issue](repo:issues/20260808-guide-gap-declared-refusals-discoverability.md)).
+
+### Debug `SNAPBACK_HANDLER_FAILED` under the dev supervisor
+
+The managed `snapback dev` and Vite development supervisors opt into a bounded
+developer projection of the same failure. In that mode the diagnostic message
+includes the validated JavaScript error class and underlying message. Its
+details carry `errorClass` and `message`, plus `callee` and `property` when the
+runtime can resolve the failed call, and `sourcePosition` with the handler
+name, line, and column when the engine stack maps back into the handler source.
+For example, `ctx.runtime.newId()` reports `property: "newId"` and
+`callee: "ctx.runtime.newId"` instead of leaving only the generic code.
+
+This visibility split is intentional: managed development favors the shortest
+debugging loop, while production remains redacted by default because exception
+messages and stacks can contain handler source, arguments, or other private
+context. The enriched message is debugging evidence, not stable product copy;
+declare a refusal code for any condition a client must branch on.
 
 Declare a closed set of codes on the function:
 

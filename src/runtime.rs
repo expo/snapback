@@ -2908,6 +2908,29 @@ pub(crate) enum IbexInvocationMode {
     Action,
 }
 
+const HANDLER_ERROR_EXPOSURE_ENV: &str = "SNAPBACK_HANDLER_ERROR_EXPOSURE";
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum HandlerErrorExposure {
+    Redacted,
+    Development,
+}
+
+impl HandlerErrorExposure {
+    fn from_process_environment() -> Self {
+        match env::var(HANDLER_ERROR_EXPOSURE_ENV).ok().as_deref() {
+            Some("development") => Self::Development,
+            _ => Self::Redacted,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct HandlerSourcePosition {
+    line: usize,
+    column: usize,
+}
+
 /// One recorded handler host call. The trace is the LLP 0048 equivalence
 /// artifact: the V8 and Ibex legs must produce equivalent traces before their
 /// user-visible outputs are compared, so both engines' host calls route
@@ -3008,6 +3031,22 @@ fn run_ibex_handler_with_context_until(
     pool: Option<&WarmVmPool>,
     deadline: Option<Instant>,
 ) -> SnapbackResult<Value> {
+    run_ibex_handler_with_context_until_with_exposure(
+        module,
+        invocation,
+        pool,
+        deadline,
+        HandlerErrorExposure::from_process_environment(),
+    )
+}
+
+fn run_ibex_handler_with_context_until_with_exposure(
+    module: &IbexModule,
+    invocation: &mut IbexHostContext<'_>,
+    pool: Option<&WarmVmPool>,
+    deadline: Option<Instant>,
+    exposure: HandlerErrorExposure,
+) -> SnapbackResult<Value> {
     // @ref LLP 0048#architecture — the twin swaps only the handler executor:
     // storage, host-op implementation, and the logical host-call protocol are
     // this same context either way. Actions stay on Ibex (egress and secrets
@@ -3037,6 +3076,11 @@ fn run_ibex_handler_with_context_until(
     // @ref LLP 0144#invariants-for-any-extension — engine output is still a
     // handler claim. Adjudicate the declared set only after the executor join
     // so the Ibex and workerd-v8 legs cannot drift on admission again.
+    // @ref LLP 0193#program — an agent-triggerable generic failure names the
+    // condition under the managed development supervisor, while the process
+    // default keeps handler-authored message/stack data private. The stable
+    // folded code and declared-refusal admission remain unchanged.
+    let result = project_handler_failure(result, module, invocation.mode, exposure);
     let result = admit_declared_refusal(
         &invocation.declared_refusals,
         &invocation.tracked_refusals,
@@ -3046,6 +3090,203 @@ fn run_ibex_handler_with_context_until(
     // applying these empty-witness seams after the join is harmless for V8.
     let result = restore_denial_witness(invocation, claimed_code.as_deref(), result);
     restore_stream_refusal(invocation, result)
+}
+
+fn project_handler_failure(
+    result: SnapbackResult<Value>,
+    module: &IbexModule,
+    mode: IbexInvocationMode,
+    exposure: HandlerErrorExposure,
+) -> SnapbackResult<Value> {
+    let Err(mut error) = result else {
+        return result;
+    };
+    if error.diagnostic.code != "SNAPBACK_HANDLER_FAILED" {
+        return Err(error);
+    }
+
+    let carrier = error
+        .private_failure_context_mut()
+        .and_then(|context| context.carriers.first())
+        .cloned();
+    let function = module.export.clone();
+    if exposure == HandlerErrorExposure::Redacted {
+        error.diagnostic.message = "JavaScript handler failed".to_owned();
+        error.diagnostic.details = json!({ "function": function });
+        return Err(error);
+    }
+
+    let raw_message = carrier
+        .as_ref()
+        .and_then(|carrier| carrier.message.as_deref())
+        .filter(|message| !message.is_empty())
+        .unwrap_or("handler failure could not be safely inspected");
+    let error_class = carrier
+        .as_ref()
+        .map(|carrier| carrier.error_class.as_str())
+        .filter(|class| *class != UNCLASSIFIED_ERROR_CLASS);
+    let position = carrier
+        .as_ref()
+        .and_then(|carrier| carrier.stack.as_deref())
+        .and_then(|stack| handler_source_position(stack, module, mode));
+    let callee = callee_from_error_message(raw_message)
+        .or_else(|| position.and_then(|position| callee_from_source(module, position)));
+    let property = callee
+        .as_deref()
+        .and_then(|callee| callee.rsplit_once('.').map(|(_, property)| property))
+        .map(str::to_owned);
+
+    let mut summary = format!("JavaScript handler '{function}' failed");
+    if let Some(position) = position {
+        summary.push_str(&format!(
+            " at handler source {}:{}",
+            position.line, position.column
+        ));
+    }
+    summary.push_str(": ");
+    if let Some(error_class) = error_class {
+        summary.push_str(error_class);
+        summary.push_str(": ");
+    }
+    summary.push_str(raw_message);
+    if let Some(callee) = callee.as_deref()
+        && !raw_message.contains(callee)
+    {
+        summary.push_str(&format!(" (callee {callee})"));
+    }
+
+    let mut details = Map::from_iter([
+        ("function".to_owned(), Value::String(function)),
+        ("message".to_owned(), Value::String(raw_message.to_owned())),
+    ]);
+    if let Some(error_class) = error_class {
+        details.insert(
+            "errorClass".to_owned(),
+            Value::String(error_class.to_owned()),
+        );
+    }
+    if let Some(callee) = callee {
+        details.insert("callee".to_owned(), Value::String(callee));
+    }
+    if let Some(property) = property {
+        details.insert("property".to_owned(), Value::String(property));
+    }
+    if let Some(position) = position {
+        details.insert(
+            "sourcePosition".to_owned(),
+            json!({
+                "handler": module.export,
+                "line": position.line,
+                "column": position.column,
+            }),
+        );
+    }
+    error.diagnostic.message = summary;
+    error.diagnostic.details = Value::Object(details);
+    Err(error)
+}
+
+fn handler_source_position(
+    stack: &str,
+    module: &IbexModule,
+    mode: IbexInvocationMode,
+) -> Option<HandlerSourcePosition> {
+    let source_start_line = handler_source_start_line(mode);
+    let source_line_count = module.source.lines().count().max(1);
+    stack.lines().find_map(|frame| {
+        let frame = frame.trim().trim_end_matches(')');
+        let (before_column, column) = frame.rsplit_once(':')?;
+        let (before_line, engine_line) = before_column.rsplit_once(':')?;
+        let column = column.parse::<usize>().ok()?;
+        let engine_line = engine_line.parse::<usize>().ok()?;
+        let source_name = before_line
+            .rsplit_once('(')
+            .map(|(_, name)| name)
+            .unwrap_or_else(|| {
+                before_line
+                    .split_whitespace()
+                    .next_back()
+                    .unwrap_or(before_line)
+            });
+        if source_name != module.export
+            || engine_line < source_start_line
+            || engine_line >= source_start_line.saturating_add(source_line_count)
+        {
+            return None;
+        }
+        Some(HandlerSourcePosition {
+            line: engine_line - source_start_line + 1,
+            column,
+        })
+    })
+}
+
+fn handler_source_start_line(mode: IbexInvocationMode) -> usize {
+    let prefix = format!(
+        "{}\n{}\n{}\n",
+        ambient_restriction_source(mode, outbound_actions_enabled()),
+        allowlist_install_source(),
+        ctx_bootstrap_source(),
+    );
+    prefix.bytes().filter(|byte| *byte == b'\n').count() + 1
+}
+
+fn callee_from_error_message(message: &str) -> Option<String> {
+    [" is not a function", " is not callable", " is undefined"]
+        .into_iter()
+        .find_map(|suffix| {
+            let before = message.split_once(suffix)?.0;
+            let candidate = before
+                .split_whitespace()
+                .next_back()?
+                .trim_matches(|character: char| {
+                    matches!(character, '`' | '\'' | '"' | '(' | ')' | '[' | ']')
+                });
+            normalized_callee(candidate)
+        })
+}
+
+fn callee_from_source(module: &IbexModule, position: HandlerSourcePosition) -> Option<String> {
+    let line = module.source.lines().nth(position.line.checked_sub(1)?)?;
+    let mut candidates = line
+        .match_indices('(')
+        .filter_map(|(open, _)| {
+            let before = &line[..open];
+            let start = before
+                .char_indices()
+                .rev()
+                .find(|(_, character)| {
+                    !(character.is_ascii_alphanumeric()
+                        || matches!(character, '_' | '$' | '.' | '?'))
+                })
+                .map(|(index, character)| index + character.len_utf8())
+                .unwrap_or(0);
+            let callee = normalized_callee(before[start..].trim())?;
+            let distance = open.abs_diff(position.column.saturating_sub(1));
+            Some((distance, callee))
+        })
+        .collect::<Vec<_>>();
+    candidates.sort_by_key(|(distance, _)| *distance);
+    candidates.into_iter().map(|(_, callee)| callee).next()
+}
+
+fn normalized_callee(candidate: &str) -> Option<String> {
+    if candidate.is_empty() || candidate.len() > 256 {
+        return None;
+    }
+    let normalized = candidate.replace("?.", ".");
+    let mut segments = normalized.split('.');
+    let valid_identifier = |segment: &str| {
+        let mut characters = segment.chars();
+        characters.next().is_some_and(|character| {
+            character.is_ascii_alphabetic() || matches!(character, '_' | '$')
+        }) && characters
+            .all(|character| character.is_ascii_alphanumeric() || matches!(character, '_' | '$'))
+    };
+    if !segments.all(valid_identifier) || !normalized.contains('.') {
+        return None;
+    }
+    Some(normalized)
 }
 
 /// Execute only the Ibex/Hermes engine leg and return its unadmitted handler
@@ -4892,14 +5133,19 @@ mod parse_handler_output_tests {
 
 #[cfg(test)]
 mod private_failure_carrier_tests {
-    use super::{IbexHostContext, run_ibex_handler_with_context};
+    use super::{
+        HandlerErrorExposure, IbexHostContext, run_ibex_handler_with_context_until_with_exposure,
+    };
     use crate::auth::admission::AdmissionLease;
     use crate::auth::invocation::{HandlerAuthProjection, ResolvedAppAuthority};
     use crate::manifest::{HandlerInput, IbexModule};
     use crate::storage::{DbRead, LocalDatabase, MembershipWriter};
     use serde_json::json;
 
-    fn run(source: &str) -> crate::diagnostic::SnapbackError {
+    fn run_with_exposure(
+        source: &str,
+        exposure: HandlerErrorExposure,
+    ) -> crate::diagnostic::SnapbackError {
         let db = LocalDatabase::memory().expect("memory database");
         let authority = ResolvedAppAuthority::Anonymous;
         let mut invocation = IbexHostContext::new_with_projection(
@@ -4915,7 +5161,18 @@ mod private_failure_carrier_tests {
             source: source.to_owned(),
             export: "probe".to_owned(),
         };
-        run_ibex_handler_with_context(&module, &mut invocation, None).expect_err("probe must fail")
+        run_ibex_handler_with_context_until_with_exposure(
+            &module,
+            &mut invocation,
+            None,
+            None,
+            exposure,
+        )
+        .expect_err("probe must fail")
+    }
+
+    fn run(source: &str) -> crate::diagnostic::SnapbackError {
+        run_with_exposure(source, HandlerErrorExposure::Redacted)
     }
 
     #[test]
@@ -4940,6 +5197,58 @@ mod private_failure_carrier_tests {
                 .stack
                 .as_deref()
                 .is_some_and(|stack| !stack.is_empty())
+        );
+    }
+
+    #[test]
+    fn missing_ctx_member_call_is_enriched_only_for_development() {
+        let source = r#"globalThis.__snapbackHandlers = {
+  async probe(ctx) {
+    return ctx.runtime.newId();
+  }
+};"#;
+        let development = run_with_exposure(source, HandlerErrorExposure::Development);
+        assert_eq!(development.diagnostic.code, "SNAPBACK_HANDLER_FAILED");
+        assert!(
+            development.diagnostic.message.contains("newId"),
+            "developer message must name the missing member: {}",
+            development.diagnostic.message,
+        );
+        assert_eq!(development.diagnostic.details["errorClass"], "TypeError");
+        assert_eq!(
+            development.diagnostic.details["callee"],
+            "ctx.runtime.newId"
+        );
+        assert_eq!(development.diagnostic.details["property"], "newId");
+        assert_eq!(
+            development.diagnostic.details["sourcePosition"]["handler"],
+            "probe"
+        );
+        assert_eq!(development.diagnostic.details["sourcePosition"]["line"], 3);
+        assert!(
+            development.diagnostic.details["sourcePosition"]["column"]
+                .as_u64()
+                .is_some_and(|column| column > 0)
+        );
+
+        let production = run_with_exposure(source, HandlerErrorExposure::Redacted);
+        assert_eq!(production.diagnostic.message, "JavaScript handler failed");
+        assert_eq!(
+            production.diagnostic.details,
+            json!({ "function": "probe" })
+        );
+        assert!(
+            !serde_json::to_string(&production.diagnostic)
+                .unwrap()
+                .contains("newId")
+        );
+        assert_eq!(
+            production
+                .private_failure_context()
+                .and_then(|context| context.carriers.first())
+                .map(|carrier| carrier.error_class.as_str()),
+            Some("TypeError"),
+            "production redaction must not discard the private error-tracking carrier",
         );
     }
 
