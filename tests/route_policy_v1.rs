@@ -262,6 +262,7 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/ephemeral/delete"),
         ("POST", "/_snapback/api/schema/load"),
         ("GET", "/_snapback/api/auth/mailbox"),
+        ("GET", "/_snapback/api/auth/integrations"),
         ("POST", "/_snapback/api/auth/integrations/{id}/retire"),
         ("POST", "/_snapback/api/auth/integrations/{id}/suspend"),
         ("POST", "/_snapback/api/auth/integrations/{id}/resume"),
@@ -803,6 +804,24 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
     assert_eq!(
         mailbox.response_sensitivity,
         ResponseSensitivity::CredentialSecret
+    );
+
+    let integrations = registry
+        .iter()
+        .find(|route| route.path == "/_snapback/api/auth/integrations")
+        .expect("registered integration listing route");
+    assert_eq!(integrations.method, "GET");
+    assert_eq!(integrations.class, RouteClass::SystemApi);
+    assert_eq!(integrations.path_policy, RoutePolicy::AdminRead);
+    assert_eq!(
+        integrations.credential_resolution,
+        CredentialResolution::AdminCredential
+    );
+    assert_eq!(integrations.invocation_authority, InvocationAuthority::Operator);
+    assert_eq!(integrations.effect_policy, EffectPolicy::None);
+    assert_eq!(
+        integrations.response_sensitivity,
+        ResponseSensitivity::OperatorMetadata
     );
 
     for (path, effect) in [

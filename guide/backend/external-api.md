@@ -4,7 +4,7 @@ id: backend.external-api
 order: 19
 audience: agent-first
 capabilities: [api.external-exposure]
-authorities: [llp/0204-app-external-surfaces.rfc.md, llp/0031-server-route-taxonomy.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, src/manifest.rs, src/api_envelope.rs, src/server.rs, src/server/oauth.rs, src/storage/auth_integrations.rs, src/storage/auth_agent_credentials.rs, src/auth/invocation.rs]
+authorities: [llp/0204-app-external-surfaces.rfc.md, llp/0031-server-route-taxonomy.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, src/manifest.rs, src/api_envelope.rs, src/server.rs, src/server/oauth.rs, src/storage/auth_integrations.rs, src/storage/auth_agent_credentials.rs, src/auth/invocation.rs, src/telemetry.rs, src/telemetry_query.rs]
 examples: [packages/snapback-codegen/auth-artifacts.test.mjs]
 status: current
 targets: [local]
@@ -17,8 +17,9 @@ reviewed-commit: 339e9fed3500daece2ad90de0d21018e1b00a314
 
 > **Local target only**, and deliberately partial: the exposure core,
 > `/api/v1` family, generated projections, integration records, and the OAuth
-> facade are shipped; remote MCP and per-integration metering remain LLP 0204
-> S2 work. Hosted targets refuse the facade and granted external lanes until the LLP 0039
+> facade are shipped; remote MCP and billing-grade metering remain LLP 0204
+> S2 work. Loss-tolerant per-caller telemetry attribution and console visibility
+> are shipped, but are not a non-shedding usage ledger. Hosted targets refuse the facade and granted external lanes until the LLP 0039
 > deployment-security contract lands.
 
 Every function is private to the app's own clients until the schema declares
@@ -147,3 +148,18 @@ releases the presented carrier and may also revoke its installation grant.
 Suspension, integration retirement, user grant revocation, and scoped-token
 release therefore close the same underlying authority rather than a parallel
 OAuth authority model.
+
+## Caller usage visibility
+
+Function and live-subscription telemetry carries a closed caller lane:
+`anonymous`, `declared`, `integration`, or `first-party`. Declared callers are
+keyed only by the digest shown in the operator-only declared-client listing;
+their raw e-mail-bearing declaration never enters telemetry. Integrations use
+their registration record ID.
+
+`GET /_snapback/api/telemetry/stats` accepts optional `callerKey` and `lane`
+filters plus `groupByCaller=true`. The operator-only declared-client and
+integration listings include a recent 24-hour usage count from the same
+bounded rollup, beside the existing suspension controls. These counts inherit
+telemetry retention, folding, and shedding. They are useful for visibility,
+not billing, audit, entitlements, or proof that an invocation did not happen.

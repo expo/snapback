@@ -151,6 +151,10 @@ pub struct TelemetryStatsFilterV1 {
     pub from_ms: Option<i64>,
     #[serde(default)]
     pub to_ms: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub caller_key: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lane: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, JsonSchema, PartialEq, Serialize)]
@@ -158,6 +162,12 @@ pub struct TelemetryStatsFilterV1 {
 pub struct TelemetryStatsRequestV1 {
     #[serde(default, flatten)]
     pub filter: TelemetryStatsFilterV1,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub group_by_caller: bool,
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 impl TelemetryStatsRequestV1 {
@@ -178,6 +188,23 @@ impl TelemetryStatsRequestV1 {
                     "telemetry {field} filter is too long"
                 )));
             }
+        }
+        if self
+            .filter
+            .caller_key
+            .as_ref()
+            .is_some_and(|value| value.len() > 512)
+        {
+            return Err(query_invalid(
+                "telemetry callerKey filter exceeds the 512-byte caller-key bound",
+            ));
+        }
+        if let Some(lane) = self.filter.lane.as_deref()
+            && !matches!(lane, "anonymous" | "declared" | "integration" | "first-party")
+        {
+            return Err(query_invalid(
+                "telemetry lane must be anonymous, declared, integration, or first-party",
+            ));
         }
         Ok(())
     }
@@ -384,6 +411,21 @@ pub struct TelemetryCoveragePartitionV1 {
     pub count: u64,
     pub error_count: u64,
     pub folded_count: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub caller_lane: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub caller_key: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TelemetryCallerCountV1 {
+    pub lane: String,
+    pub caller_key: String,
+    pub kind: String,
+    pub name: String,
+    pub count: u64,
+    pub error_count: u64,
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
@@ -394,6 +436,8 @@ pub struct TelemetryStatsResponseV1 {
     pub latency: Vec<TelemetryLatencyV1>,
     pub named_counts: Vec<TelemetryNamedCountV1>,
     pub series: Vec<TelemetrySeriesPointV1>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub caller_counts: Vec<TelemetryCallerCountV1>,
     pub coverage: TelemetryCoverageV1,
     pub variance: TelemetryVarianceV1,
 }
@@ -833,7 +877,12 @@ fn query_stats_unbudgeted(
     let mut by_kind: BTreeMap<String, StatsAggregate> = BTreeMap::new();
     let mut by_name: BTreeMap<String, StatsAggregate> = BTreeMap::new();
     let mut by_kind_name: BTreeMap<(String, String), StatsAggregate> = BTreeMap::new();
+    let mut by_caller: BTreeMap<(String, String, String, String), StatsAggregate> =
+        BTreeMap::new();
     let mut series: BTreeMap<(i64, i64, String, String), (u64, u64)> = BTreeMap::new();
+    let caller_sensitive = request.group_by_caller
+        || request.filter.caller_key.is_some()
+        || request.filter.lane.is_some();
     let mut rollup_rows_scanned = 0u64;
     let mut rollup_rows = 0u64;
     let mut raw_tail_rows = 0u64;
@@ -848,16 +897,32 @@ fn query_stats_unbudgeted(
     // Folding metadata is read without the requested name predicate: `_other`
     // is evidence that a named filter may have been folded away, not a count
     // to merge into that named answer.
-    let folded_count =
-        query_window_folded_count(connection, meta.rollup_watermark_id, &request.filter)?;
+    let folded_count = query_window_folded_count(
+        connection,
+        meta.rollup_watermark_id,
+        &request.filter,
+        caller_sensitive,
+    )?;
     let named_filter_may_be_folded = request.filter.name.is_some() && folded_count > 0;
 
-    let mut sql = String::from(
-        "SELECT tier,bucket_start_ms,bucket_end_ms,kind,name,count,error_count,latency_histogram,coverage_start_ms,coverage_end_ms,watermark_id,folded_count FROM telemetry_rollup_visible WHERE watermark_id<=?",
-    );
+    let mut sql = if caller_sensitive {
+        String::from(
+            "SELECT tier,bucket_start_ms,bucket_end_ms,kind,name,caller_lane,caller_key,count,error_count,latency_histogram,coverage_start_ms,coverage_end_ms,watermark_id,folded_count FROM telemetry_caller_rollup_visible WHERE watermark_id<=?",
+        )
+    } else {
+        String::from(
+            "SELECT tier,bucket_start_ms,bucket_end_ms,kind,name,NULL AS caller_lane,NULL AS caller_key,count,error_count,latency_histogram,coverage_start_ms,coverage_end_ms,watermark_id,folded_count FROM telemetry_rollup_visible WHERE watermark_id<=?",
+        )
+    };
     let mut values = vec![SqlValue::Integer(meta.rollup_watermark_id)];
-    append_stats_filter(&mut sql, &mut values, &request.filter, true);
-    sql.push_str(" ORDER BY bucket_start_ms,tier,kind,name LIMIT ?");
+    append_stats_filter(
+        &mut sql,
+        &mut values,
+        &request.filter,
+        true,
+        caller_sensitive,
+    );
+    sql.push_str(" ORDER BY bucket_start_ms,tier,kind,name,caller_lane,caller_key LIMIT ?");
     values.push(SqlValue::Integer((MAX_STATS_ROLLUP_ROWS + 1) as i64));
     let mut statement = connection.prepare(&sql)?;
     let rows = statement.query_map(params_from_iter(values), |row| {
@@ -867,13 +932,15 @@ fn query_stats_unbudgeted(
             row.get::<_, i64>(2)?,
             row.get::<_, String>(3)?,
             row.get::<_, String>(4)?,
-            row.get::<_, u64>(5)?,
-            row.get::<_, u64>(6)?,
-            row.get::<_, String>(7)?,
-            row.get::<_, i64>(8)?,
-            row.get::<_, i64>(9)?,
+            row.get::<_, Option<String>>(5)?,
+            row.get::<_, Option<String>>(6)?,
+            row.get::<_, u64>(7)?,
+            row.get::<_, u64>(8)?,
+            row.get::<_, String>(9)?,
             row.get::<_, i64>(10)?,
-            row.get::<_, u64>(11)?,
+            row.get::<_, i64>(11)?,
+            row.get::<_, i64>(12)?,
+            row.get::<_, u64>(13)?,
         ))
     })?;
     for row in rows {
@@ -883,6 +950,8 @@ fn query_stats_unbudgeted(
             bucket_end,
             kind,
             name,
+            caller_lane,
+            caller_key,
             count,
             errors,
             histogram,
@@ -937,6 +1006,8 @@ fn query_stats_unbudgeted(
             count,
             error_count: errors,
             folded_count: folded,
+            caller_lane: caller_lane.clone(),
+            caller_key: caller_key.clone(),
         });
         let histogram = decode_histogram(&histogram);
         merge_stats(
@@ -965,6 +1036,18 @@ fn query_stats_unbudgeted(
             start,
             end,
         );
+        if let (Some(lane), Some(caller_key)) = (caller_lane, caller_key) {
+            merge_stats(
+                by_caller
+                    .entry((lane, caller_key, kind.clone(), name.clone()))
+                    .or_default(),
+                count,
+                errors,
+                &histogram,
+                start,
+                end,
+            );
+        }
         merge_series(
             &mut series,
             bucket_start,
@@ -978,7 +1061,7 @@ fn query_stats_unbudgeted(
 
     let exact_edge_intervals = merge_time_intervals(exact_edge_intervals);
     let mut sql = String::from(
-        "SELECT id,kind,name,status,code,duration_ms,recorded_ts_ms FROM telemetry_events_visible WHERE phase IN ('point','joined','terminal') AND (id>?",
+        "SELECT id,kind,name,status,code,duration_ms,recorded_ts_ms,details FROM telemetry_events_visible WHERE phase IN ('point','joined','terminal') AND (id>?",
     );
     let mut values = vec![SqlValue::Integer(meta.rollup_watermark_id)];
     if !exact_edge_intervals.is_empty() {
@@ -995,7 +1078,13 @@ fn query_stats_unbudgeted(
         sql.push_str("))");
     }
     sql.push(')');
-    append_stats_filter(&mut sql, &mut values, &request.filter, false);
+    append_stats_filter(
+        &mut sql,
+        &mut values,
+        &request.filter,
+        false,
+        caller_sensitive,
+    );
     sql.push_str(" ORDER BY id LIMIT ?");
     values.push(SqlValue::Integer((MAX_STATS_RAW_TAIL_ROWS + 1) as i64));
     let mut statement = connection.prepare(&sql)?;
@@ -1008,10 +1097,11 @@ fn query_stats_unbudgeted(
             row.get::<_, Option<String>>(4)?,
             row.get::<_, Option<f64>>(5)?,
             row.get::<_, i64>(6)?,
+            row.get::<_, Option<String>>(7)?,
         ))
     })?;
     for row in rows {
-        let (id, kind, name, status, code, duration, recorded) = row?;
+        let (id, kind, name, status, code, duration, recorded, details) = row?;
         let raw_rows = raw_tail_rows
             .saturating_add(raw_edge_rows)
             .saturating_add(1);
@@ -1026,6 +1116,10 @@ fn query_stats_unbudgeted(
             raw_tail_end_id = max_option(raw_tail_end_id, Some(id));
         } else {
             raw_edge_rows += 1;
+        }
+        let caller = caller_attribution_from_raw_details(details.as_deref());
+        if caller_sensitive && caller.is_none() {
+            continue;
         }
         let errors = u64::from(code.is_some() || status.is_some_and(|value| value >= 500));
         let mut histogram = [0; 17];
@@ -1058,6 +1152,18 @@ fn query_stats_unbudgeted(
             recorded,
             recorded,
         );
+        if let Some((lane, caller_key)) = caller {
+            merge_stats(
+                by_caller
+                    .entry((lane, caller_key, kind.clone(), name.clone()))
+                    .or_default(),
+                1,
+                errors,
+                &histogram,
+                recorded,
+                recorded,
+            );
+        }
         let bucket_start = recorded.div_euclid(3_600_000) * 3_600_000;
         merge_series(
             &mut series,
@@ -1120,6 +1226,58 @@ fn query_stats_unbudgeted(
             },
         )
         .collect();
+    let caller_counts = if request.group_by_caller {
+        by_caller
+            .into_iter()
+            .map(
+                |((lane, caller_key, kind, name), aggregate)| TelemetryCallerCountV1 {
+                    lane,
+                    caller_key,
+                    kind,
+                    name,
+                    count: aggregate.ok.saturating_add(aggregate.error),
+                    error_count: aggregate.error,
+                },
+            )
+            .collect()
+    } else {
+        Vec::new()
+    };
+    let exact_count_posture = if named_filter_may_be_folded || folded_count > 0 {
+        "boundedByHeavyHitterFolding".to_owned()
+    } else if snapped_to_bucket_boundaries {
+        "exactAtReportedSnappedBucketWindow".to_owned()
+    } else {
+        "exactDisjointRollupsPlusRawTailAndRetainedEdges".to_owned()
+    };
+    let mut field_exactness = BTreeMap::from([
+        (
+            "statusCounts".to_owned(),
+            if named_filter_may_be_folded {
+                "boundedByHeavyHitterFolding".to_owned()
+            } else if snapped_to_bucket_boundaries {
+                "exactAtReportedSnappedBucketWindow".to_owned()
+            } else {
+                "exactDisjointRollupsPlusRawTailAndRetainedEdges".to_owned()
+            },
+        ),
+        (
+            "latencyPercentiles".to_owned(),
+            "boundedHistogramEstimate".to_owned(),
+        ),
+        ("namedCounts".to_owned(), exact_count_posture.clone()),
+        (
+            "series".to_owned(),
+            if snapped_to_bucket_boundaries {
+                "exactAtReportedSnappedBucketWindow".to_owned()
+            } else {
+                "exactDisjointRollupsPlusRawTailAndRetainedEdges".to_owned()
+            },
+        ),
+    ]);
+    if request.group_by_caller {
+        field_exactness.insert("callerCounts".to_owned(), exact_count_posture);
+    }
 
     Ok(TelemetryStatsResponseV1 {
         schema_version: "snapback.telemetry.stats.v1".to_owned(),
@@ -1127,6 +1285,7 @@ fn query_stats_unbudgeted(
         latency,
         named_counts,
         series,
+        caller_counts,
         coverage: TelemetryCoverageV1 {
             start_ms: start,
             end_ms: end,
@@ -1141,40 +1300,7 @@ fn query_stats_unbudgeted(
         variance: variance(
             &meta,
             context,
-            BTreeMap::from([
-                (
-                    "statusCounts".to_owned(),
-                    if named_filter_may_be_folded {
-                        "boundedByHeavyHitterFolding".to_owned()
-                    } else if snapped_to_bucket_boundaries {
-                        "exactAtReportedSnappedBucketWindow".to_owned()
-                    } else {
-                        "exactDisjointRollupsPlusRawTailAndRetainedEdges".to_owned()
-                    },
-                ),
-                (
-                    "latencyPercentiles".to_owned(),
-                    "boundedHistogramEstimate".to_owned(),
-                ),
-                (
-                    "namedCounts".to_owned(),
-                    if named_filter_may_be_folded || folded_count > 0 {
-                        "boundedByHeavyHitterFolding".to_owned()
-                    } else if snapped_to_bucket_boundaries {
-                        "exactAtReportedSnappedBucketWindow".to_owned()
-                    } else {
-                        "exactDisjointRollupsPlusRawTailAndRetainedEdges".to_owned()
-                    },
-                ),
-                (
-                    "series".to_owned(),
-                    if snapped_to_bucket_boundaries {
-                        "exactAtReportedSnappedBucketWindow".to_owned()
-                    } else {
-                        "exactDisjointRollupsPlusRawTailAndRetainedEdges".to_owned()
-                    },
-                ),
-            ]),
+            field_exactness,
             TelemetryCapabilityOutcomeV1::Approximate,
             BTreeMap::from([
                 (
@@ -1237,9 +1363,13 @@ fn query_window_folded_count(
     connection: &Connection,
     watermark: i64,
     filter: &TelemetryStatsFilterV1,
+    caller_sensitive: bool,
 ) -> SnapbackResult<u64> {
-    let mut sql =
-        String::from("SELECT folded_count FROM telemetry_rollup_visible WHERE watermark_id<=?");
+    let mut sql = String::from(if caller_sensitive {
+        "SELECT folded_count FROM telemetry_caller_rollup_visible WHERE watermark_id<=?"
+    } else {
+        "SELECT folded_count FROM telemetry_rollup_visible WHERE watermark_id<=?"
+    });
     let mut values = vec![SqlValue::Integer(watermark)];
     if let Some(kind) = &filter.kind {
         sql.push_str(" AND kind=?");
@@ -1252,6 +1382,16 @@ fn query_window_folded_count(
     if let Some(to) = filter.to_ms {
         sql.push_str(" AND coverage_start_ms<=?");
         values.push(SqlValue::Integer(to));
+    }
+    if caller_sensitive {
+        if let Some(lane) = &filter.lane {
+            sql.push_str(" AND caller_lane=?");
+            values.push(SqlValue::Text(lane.clone()));
+        }
+        if let Some(caller_key) = &filter.caller_key {
+            sql.push_str(" AND caller_key=?");
+            values.push(SqlValue::Text(caller_key.clone()));
+        }
     }
     sql.push_str(" LIMIT ?");
     values.push(SqlValue::Integer((MAX_STATS_ROLLUP_ROWS + 1) as i64));
@@ -1287,6 +1427,7 @@ fn append_stats_filter(
     values: &mut Vec<SqlValue>,
     filter: &TelemetryStatsFilterV1,
     rollup: bool,
+    caller_sensitive: bool,
 ) {
     if let Some(kind) = &filter.kind {
         sql.push_str(" AND kind=?");
@@ -1312,6 +1453,42 @@ fn append_stats_filter(
         });
         values.push(SqlValue::Integer(to));
     }
+    if caller_sensitive {
+        let (lane_column, key_column) = if rollup {
+            ("caller_lane", "caller_key")
+        } else {
+            (
+                "json_extract(details,'$.callerLane')",
+                "json_extract(details,'$.callerKey')",
+            )
+        };
+        if !rollup {
+            sql.push_str(
+                " AND ((json_extract(details,'$.callerLane')='anonymous' AND json_extract(details,'$.callerKey')='anonymous') OR (json_extract(details,'$.callerLane')='first-party' AND json_extract(details,'$.callerKey')='') OR (json_extract(details,'$.callerLane') IN ('declared','integration') AND length(json_extract(details,'$.callerKey')) BETWEEN 1 AND 512))",
+            );
+        }
+        if let Some(lane) = &filter.lane {
+            sql.push_str(&format!(" AND {lane_column}=?"));
+            values.push(SqlValue::Text(lane.clone()));
+        }
+        if let Some(caller_key) = &filter.caller_key {
+            sql.push_str(&format!(" AND {key_column}=?"));
+            values.push(SqlValue::Text(caller_key.clone()));
+        }
+    }
+}
+
+fn caller_attribution_from_raw_details(details: Option<&str>) -> Option<(String, String)> {
+    let object = serde_json::from_str::<Value>(details?).ok()?;
+    let lane = object.get("callerLane")?.as_str()?;
+    let key = object.get("callerKey")?.as_str()?;
+    let valid = match lane {
+        "anonymous" => key == "anonymous",
+        "first-party" => key.is_empty(),
+        "declared" | "integration" => !key.is_empty() && key.len() <= 512,
+        _ => false,
+    };
+    valid.then(|| (lane.to_owned(), key.to_owned()))
 }
 
 fn merge_stats(

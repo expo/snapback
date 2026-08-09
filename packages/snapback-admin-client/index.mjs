@@ -521,8 +521,18 @@ export class AdminClient {
   telemetryStats(filter = {}) {
     return this.#req(
       'GET',
-      `/telemetry/stats${telemetryQuery(filter, ['kind', 'name', 'fromMs', 'toMs'])}`,
+      `/telemetry/stats${telemetryQuery(filter, [
+        'kind', 'name', 'fromMs', 'toMs', 'callerKey', 'lane', 'groupByCaller',
+      ])}`,
     );
+  }
+
+  declaredClients() {
+    return this.#req('GET', '/auth/declared-clients');
+  }
+
+  integrations() {
+    return this.#req('GET', '/auth/integrations');
   }
 
   telemetryEvents(filter = {}) {

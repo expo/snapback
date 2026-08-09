@@ -3,6 +3,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
+    "callerKey": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "fromMs": {
       "default": null,
       "format": "int64",
@@ -11,8 +17,17 @@
         "null"
       ]
     },
+    "groupByCaller": {
+      "type": "boolean"
+    },
     "kind": {
       "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "lane": {
       "type": [
         "string",
         "null"

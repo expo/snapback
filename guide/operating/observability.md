@@ -52,6 +52,12 @@ context and therefore require the separate scoped secret-read authority. The
 console acquires that authority through its existing operator boundary; an app
 session never grants it.
 
+The stats HTTP projection also accepts `callerKey`, `lane`, and
+`groupByCaller=true` for the bounded external-caller dimension. Declared
+caller keys are digests and integration keys are registration IDs. The
+declared-client and integration admin listings join a recent 24-hour count
+from this rollup so operators can inspect usage beside suspension state.
+
 ## Query the typed operations from the CLI
 
 Address the server by its readiness descriptor so the CLI can resolve its URL,
@@ -118,6 +124,7 @@ snapback telemetry query \
 
 The command opens `.snapback/dev.sqlite3.telemetry` read-only and permits one
 statement over `telemetry_events_visible` or `telemetry_rollup_visible`.
+Caller-aware investigations use the typed stats fields above.
 Base-table reads, writes, pragmas, attach/detach, extension loading, and SQL
 tails are refused. Row, SQLite-step, elapsed-time, and serialized-byte budgets
 remain enforced even though the command is local. There is no network SQL

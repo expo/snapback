@@ -3406,11 +3406,12 @@ impl LocalSnapback {
         let telemetry = self.telemetry.clone();
         if let Some(stored) = self.subscriptions.get_mut(subscription_id) {
             stored.observation.finish(200, None, "resumed");
+            let caller_details = stored.authority.telemetry_caller_details();
             stored.observation = LiveSubscriptionObservation::new(telemetry.start_classified_span(
                 crate::telemetry_contract::OperationClassIdV1::LIVE_RESUBSCRIBE,
                 name,
                 Some(connection_id),
-                None,
+                caller_details,
             ));
         }
     }
@@ -6942,7 +6943,7 @@ impl LocalSnapback {
             crate::telemetry_contract::OperationClassIdV1::FUNCTION_QUERY,
             name,
             correlation.as_deref(),
-            None,
+            prepared.telemetry_caller_details(),
         );
         let mut result =
             crate::runtime::with_runtime_log_telemetry(self.telemetry.clone(), correlation, || {
@@ -10948,7 +10949,7 @@ impl LocalSnapback {
                 crate::telemetry_contract::OperationClassIdV1::FUNCTION_MUTATION,
                 name,
                 telemetry_correlation.as_deref(),
-                None,
+                prepared.telemetry_caller_details(),
             ));
             let telemetry = self.telemetry.clone();
             let mut execution = crate::runtime::with_runtime_log_telemetry(
@@ -11613,7 +11614,7 @@ impl LocalSnapback {
             crate::telemetry_contract::OperationClassIdV1::FUNCTION_MUTATION,
             name,
             correlation.as_deref(),
-            None,
+            prepared.telemetry_caller_details(),
         );
         let mut result = (|| {
             let commit = match &function.runtime {
@@ -11795,7 +11796,7 @@ impl LocalSnapback {
             crate::telemetry_contract::OperationClassIdV1::FUNCTION_MUTATION,
             name,
             correlation.as_deref(),
-            None,
+            prepared.telemetry_caller_details(),
         );
         let mut result =
             crate::runtime::with_runtime_log_telemetry(self.telemetry.clone(), correlation, || {
@@ -13888,6 +13889,7 @@ impl LocalSnapback {
         }
         let prepared_invocation = InvocationGate::prepare_function(authority.clone(), &function)?;
         let retained_authority = prepared_invocation.retain_live_owner()?;
+        let caller_details = retained_authority.telemetry_caller_details();
         // @ref LLP 0055#audit — establishment derives the block once from the
         // retained (immutable) authority; renew/resubscribe re-answers this
         // exact block rather than re-deriving from the presenting caller.
@@ -14086,7 +14088,7 @@ impl LocalSnapback {
                 crate::telemetry_contract::OperationClassIdV1::FUNCTION_QUERY,
                 name,
                 correlation.as_deref(),
-                None,
+                caller_details.clone(),
             );
             let mut result = crate::runtime::with_runtime_log_telemetry(
                 self.telemetry.clone(),
@@ -14479,7 +14481,7 @@ impl LocalSnapback {
             crate::telemetry_contract::OperationClassIdV1::LIVE_SUBSCRIBE,
             name,
             Some(&input.connection_id),
-            None,
+            caller_details,
         ));
         self.subscriptions.insert(
             subscription_id.clone(),
@@ -19839,7 +19841,7 @@ impl LocalSnapback {
             crate::telemetry_contract::OperationClassIdV1::FUNCTION_ACTION,
             name,
             correlation.as_deref(),
-            None,
+            prepared.telemetry_caller_details(),
         );
         let host_operation = HostOperationParentV1::from_action_run(&metadata);
         Ok(ManagedHostPlanAction {
@@ -19943,7 +19945,7 @@ impl LocalSnapback {
             crate::telemetry_contract::OperationClassIdV1::FUNCTION_ACTION,
             name,
             correlation.as_deref(),
-            None,
+            prepared.telemetry_caller_details(),
         );
         let invocation_redactor = self.config.secret_redactor_for(&function.uses);
         let telemetry = self.telemetry.clone();
@@ -23791,7 +23793,7 @@ impl ReadLane {
             crate::telemetry_contract::OperationClassIdV1::FUNCTION_QUERY,
             name,
             correlation.as_deref(),
-            None,
+            prepared.telemetry_caller_details(),
         );
         let vector_quarantine = VectorQuarantineCapture::default();
         let mut result = (|| {

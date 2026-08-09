@@ -529,7 +529,10 @@ fetchOverride = async (url, options = {}) => {
 };
 const telemetryClient = new AdminClient('http://snapback.test/_snapback/api', { token: MASTER });
 telemetryClient.setSecretReadLease(SECRET_READ);
-await telemetryClient.telemetryStats({ kind: 'http_request', fromMs: 10, ignored: MASTER });
+await telemetryClient.telemetryStats({
+  kind: 'http_request', fromMs: 10, callerKey: 'int_test', lane: 'integration',
+  groupByCaller: true, ignored: MASTER,
+});
 await telemetryClient.telemetryEvents({ kind: 'log', text: 'needle / value', order: 'desc', limit: 25 });
 await telemetryClient.errorsIssues({ state: 'regressed', failureDisposition: 'fault', order: 'lastSeen', limit: 500, ignored: MASTER });
 await telemetryClient.errorsIssue('iss_test');
@@ -545,7 +548,7 @@ await telemetryClient.setNetworkProfile({
 });
 assert.equal(
   telemetryRequests[0].url,
-  'http://snapback.test/_snapback/api/telemetry/stats?kind=http_request&fromMs=10',
+  'http://snapback.test/_snapback/api/telemetry/stats?kind=http_request&fromMs=10&callerKey=int_test&lane=integration&groupByCaller=true',
   'Health uses only the closed telemetry.stats query vocabulary',
 );
 assert.equal(

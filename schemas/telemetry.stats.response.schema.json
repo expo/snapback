@@ -1,5 +1,40 @@
 {
   "$defs": {
+    "TelemetryCallerCountV1": {
+      "properties": {
+        "callerKey": {
+          "type": "string"
+        },
+        "count": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "errorCount": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "lane": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "lane",
+        "callerKey",
+        "kind",
+        "name",
+        "count",
+        "errorCount"
+      ],
+      "type": "object"
+    },
     "TelemetryCapabilityOutcomeV1": {
       "enum": [
         "exact",
@@ -18,6 +53,18 @@
         "bucketStartMs": {
           "format": "int64",
           "type": "integer"
+        },
+        "callerKey": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "callerLane": {
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "count": {
           "format": "uint64",
@@ -318,6 +365,12 @@
   "$id": "https://schemas.snapback.dev/snapback.v0/telemetry.stats.response.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
+    "callerCounts": {
+      "items": {
+        "$ref": "#/$defs/TelemetryCallerCountV1"
+      },
+      "type": "array"
+    },
     "coverage": {
       "$ref": "#/$defs/TelemetryCoverageV1"
     },

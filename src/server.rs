@@ -6981,6 +6981,15 @@ fn normalize_declared_client_id(
     })
 }
 
+fn declared_client_caller_key(normalized_id: &str) -> String {
+    use base64::Engine as _;
+    use sha2::Digest as _;
+    let mut hasher = sha2::Sha256::new();
+    hasher.update(b"snapback:declared-client-id:v1\n");
+    hasher.update(normalized_id.as_bytes());
+    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(hasher.finalize())
+}
+
 fn declared_id_contains_email(value: &str) -> bool {
     static EMAIL: OnceLock<regex::Regex> = OnceLock::new();
     EMAIL
@@ -9018,6 +9027,8 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
 ///
 /// @ref LLP 0031#migration-plan — D5 flat `subsystem/verb` writes and the D2 disconnect move.
 fn system_route_registrations() -> Vec<RegisteredRoute> {
+    let read =
+        |path, sensitivity| system_api_route("GET", path, RoutePolicy::AdminRead, sensitivity);
     let write =
         |path, sensitivity| system_api_route("POST", path, RoutePolicy::AdminWrite, sensitivity);
     vec![
@@ -9050,6 +9061,13 @@ fn system_route_registrations() -> Vec<RegisteredRoute> {
             )
             .with_effect(EffectPolicy::ImpersonationCapability),
             get(auth_mailbox),
+        ),
+        RegisteredRoute::new(
+            read(
+                "/_snapback/api/auth/integrations",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            get(admin_integrations).layer(DefaultBodyLimit::max(0)),
         ),
         RegisteredRoute::new(
             write(
@@ -10576,6 +10594,7 @@ fn route_uses_managed_admission(spec: RouteSpec) -> bool {
                 | "/_snapback/api/storage/operation-coverage/activate"
                 | "/_snapback/api/auth/mailbox"
                 | "/_snapback/api/admin-secret-read/mint"
+                | "/_snapback/api/auth/integrations"
                 | "/_snapback/api/auth/integrations/{id}/retire"
                 | "/_snapback/api/auth/integrations/{id}/suspend"
                 | "/_snapback/api/auth/integrations/{id}/resume"
@@ -12736,7 +12755,7 @@ async fn enforce_registered_route_policy_inner(
             }
         }
     };
-    let prepared_authority = prepared_authority.map(|authority| {
+    let mut prepared_authority = prepared_authority.map(|authority| {
         let bound = prepared_connection_act
             .as_ref()
             .map(|prepared| &prepared.bound)
@@ -12756,7 +12775,8 @@ async fn enforce_registered_route_policy_inner(
     });
     if let (Some(authority), Some((network_digest, network_generation, now_ms))) =
         (prepared_authority.as_ref(), external_network_evidence)
-        && let Err(error) = admit_external_api_lane(
+    {
+        let attribution = match admit_external_api_lane(
             &runtime,
             client_id_context.as_ref(),
             authority,
@@ -12765,13 +12785,34 @@ async fn enforce_registered_route_policy_inner(
             now_ms,
         )
         .await
-    {
-        return finish_registered_response(
-            response_policy,
-            error.into_response(),
-            route_admission.as_ref(),
-            Some(authority),
-        );
+        {
+            Ok(attribution) => attribution,
+            Err(error) => {
+                return finish_registered_response(
+                    response_policy,
+                    error.into_response(),
+                    route_admission.as_ref(),
+                    Some(authority),
+                );
+            }
+        };
+        prepared_authority = prepared_authority
+            .map(|authority| authority.with_caller_attribution(attribution));
+    } else if let Some(authority) = prepared_authority.as_ref() {
+        let attribution = match telemetry_caller_attribution_for_authority(&runtime, authority).await
+        {
+            Ok(attribution) => attribution,
+            Err(error) => {
+                return finish_registered_response(
+                    response_policy,
+                    error.into_response(),
+                    route_admission.as_ref(),
+                    Some(authority),
+                );
+            }
+        };
+        prepared_authority = prepared_authority
+            .map(|authority| authority.with_caller_attribution(attribution));
     }
     if let Some(authority) = prepared_authority.as_ref() {
         request.extensions_mut().insert(authority.clone());
@@ -15575,6 +15616,99 @@ async fn admin_integration_resume(
     })))
 }
 
+#[derive(Clone, Copy, Debug, Default)]
+struct RecentCallerUsageCount {
+    count: u64,
+    error_count: u64,
+}
+
+struct RecentCallerUsage {
+    window_start_ms: i64,
+    window_end_ms: i64,
+    counts: BTreeMap<(String, String), RecentCallerUsageCount>,
+}
+
+/// Build one bounded console projection from the same lossy telemetry rollup
+/// that backs telemetry stats. This is visibility only: telemetry may shed,
+/// so these values cannot serve as a non-shedding or billing-grade meter.
+///
+/// @ref LLP 0204#d7--integration-records-admission-and-metering — the owner
+///   can see per-caller consumption beside the suspension control.
+/// @ref LLP 0104#2026-08-02-implementation-cross-reference-one-class-seam-separate-sinks —
+///   the caller projection remains on the telemetry sink, never the meter.
+fn recent_caller_usage(
+    runtime: &AppState,
+    lane: &'static str,
+) -> Result<RecentCallerUsage, ApiError> {
+    let window_end_ms = now_millis() as i64;
+    let window_start_ms = window_end_ms.saturating_sub(24 * 60 * 60 * 1_000);
+    let stats = runtime.telemetry.query_stats(
+        &crate::telemetry_query::TelemetryStatsRequestV1 {
+            filter: crate::telemetry_query::TelemetryStatsFilterV1 {
+                from_ms: Some(window_start_ms),
+                to_ms: Some(window_end_ms),
+                lane: Some(lane.to_owned()),
+                ..Default::default()
+            },
+            group_by_caller: true,
+        },
+    )?;
+    let mut counts = BTreeMap::new();
+    for row in stats.caller_counts {
+        let entry = counts.entry((row.lane, row.caller_key)).or_insert(
+            RecentCallerUsageCount::default(),
+        );
+        entry.count = entry.count.saturating_add(row.count);
+        entry.error_count = entry.error_count.saturating_add(row.error_count);
+    }
+    Ok(RecentCallerUsage {
+        window_start_ms,
+        window_end_ms,
+        counts,
+    })
+}
+
+fn recent_usage_value(
+    usage: &RecentCallerUsage,
+    lane: &str,
+    caller_key: &str,
+) -> Value {
+    let count = usage
+        .counts
+        .get(&(lane.to_owned(), caller_key.to_owned()))
+        .copied()
+        .unwrap_or_default();
+    json!({
+        "count": count.count,
+        "errorCount": count.error_count,
+        "windowStartMs": usage.window_start_ms,
+        "windowEndMs": usage.window_end_ms,
+    })
+}
+
+async fn admin_integrations(
+    State(runtime): State<AppState>,
+) -> Result<Json<Value>, ApiError> {
+    let rows = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.auth_database_mut().list_integrations()
+    })
+    .await?;
+    let usage = recent_caller_usage(&runtime, "integration")?;
+    let rows = rows
+        .into_iter()
+        .map(|row| {
+            let caller_key = row.integration_id.clone();
+            let recent_usage = recent_usage_value(&usage, "integration", &caller_key);
+            let mut value = json!(row);
+            let object = value.as_object_mut().expect("integration record is an object");
+            object.insert("callerKey".to_owned(), json!(caller_key));
+            object.insert("recentUsage".to_owned(), recent_usage);
+            value
+        })
+        .collect::<Vec<_>>();
+    Ok(Json(json!({ "integrations": rows })))
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 struct DeclaredClientOperatorRequest {
@@ -15605,6 +15739,21 @@ async fn admin_declared_clients(
             .list_declared_clients(now_millis())
     })
     .await?;
+    let usage = recent_caller_usage(&runtime, "declared")?;
+    let rows = rows
+        .into_iter()
+        .map(|row| {
+            let caller_key = declared_client_caller_key(&row.normalized_id);
+            let recent_usage = recent_usage_value(&usage, "declared", &caller_key);
+            let mut value = json!(row);
+            let object = value
+                .as_object_mut()
+                .expect("declared client record is an object");
+            object.insert("callerKey".to_owned(), json!(caller_key));
+            object.insert("recentUsage".to_owned(), recent_usage);
+            value
+        })
+        .collect::<Vec<_>>();
     Ok(Json(json!({ "declaredClients": rows })))
 }
 
@@ -20883,6 +21032,41 @@ async fn mark_declared_client_refusal(runtime: &AppState, normalized_id: String)
     .await;
 }
 
+async fn telemetry_caller_attribution_for_authority(
+    runtime: &AppState,
+    authority: &PreparedAuthority,
+) -> Result<crate::telemetry::CallerAttributionV1, ApiError> {
+    if let ResolvedAppAuthority::ServicePrincipal {
+        actor_user_id,
+        integration_status: Some(_),
+        ..
+    } = authority.resolved()
+    {
+        let actor = actor_user_id.clone();
+        let record = with_snapback(&runtime.snapback, move |snapback| {
+            snapback
+                .auth_database_mut()
+                .integration_record_if_present(&actor)
+        })
+        .await?
+        .ok_or_else(|| {
+            ApiError::from(SnapbackError::error(
+                "SNAPBACK_AUTH_INTEGRATION_UNAVAILABLE",
+                "auth",
+                "integration registration metadata is unavailable",
+            ))
+        })?;
+        return Ok(crate::telemetry::CallerAttributionV1::integration(
+            record.integration_id,
+        ));
+    }
+    Ok(if matches!(authority.resolved(), ResolvedAppAuthority::Anonymous) {
+        crate::telemetry::CallerAttributionV1::anonymous()
+    } else {
+        crate::telemetry::CallerAttributionV1::first_party()
+    })
+}
+
 async fn admit_external_api_lane(
     runtime: &AppState,
     client_id_context: Option<&ExternalClientIdContext>,
@@ -20890,7 +21074,7 @@ async fn admit_external_api_lane(
     network_digest: [u8; 32],
     network_generation: u64,
     now_ms: u64,
-) -> Result<(), ApiError> {
+) -> Result<crate::telemetry::CallerAttributionV1, ApiError> {
     if let ResolvedAppAuthority::ServicePrincipal {
         actor_user_id,
         integration_status: Some(status),
@@ -20930,7 +21114,7 @@ async fn admit_external_api_lane(
         runtime
             .connections
             .consume_external_api(
-                ExternalApiThrottleSource::Integration(record.integration_id),
+                ExternalApiThrottleSource::Integration(record.integration_id.clone()),
                 EXTERNAL_API_INTEGRATION_LIMIT,
                 Instant::now(),
             )
@@ -20942,20 +21126,26 @@ async fn admit_external_api_lane(
                     retry_after,
                 )
             })?;
-        return Ok(());
+        return Ok(crate::telemetry::CallerAttributionV1::integration(
+            record.integration_id,
+        ));
     }
 
     let Some(context) = client_id_context else {
-        return Ok(());
+        return Ok(crate::telemetry::CallerAttributionV1::first_party());
     };
     let Some(declared) = context.declared.as_ref() else {
-        return Ok(());
+        return Ok(if matches!(authority.resolved(), ResolvedAppAuthority::Anonymous) {
+            crate::telemetry::CallerAttributionV1::anonymous()
+        } else {
+            crate::telemetry::CallerAttributionV1::first_party()
+        });
     };
     // The declared lane is auth-free. Authenticated humans and ordinary agent
     // principals do not become declared merely by adding a caller string.
     if !matches!(authority.resolved(), ResolvedAppAuthority::Anonymous) {
         context.set_status("ignored-authenticated-caller");
-        return Ok(());
+        return Ok(crate::telemetry::CallerAttributionV1::first_party());
     }
     let api_enabled = with_snapback(&runtime.snapback, |snapback| {
         Ok::<_, SnapbackError>(snapback.external_api_enabled())
@@ -20965,7 +21155,7 @@ async fn admit_external_api_lane(
         // Preserve the external surface's established exposure refusal. A
         // syntactically valid declaration cannot activate its own ledger.
         context.set_status("ignored-api-disabled");
-        return Ok(());
+        return Ok(crate::telemetry::CallerAttributionV1::anonymous());
     }
 
     let existing = declared_client_record_for_admission(
@@ -20982,7 +21172,7 @@ async fn admit_external_api_lane(
         )
     {
         context.set_status("ignored-creation-throttled");
-        return Ok(());
+        return Ok(crate::telemetry::CallerAttributionV1::anonymous());
     }
     let normalized_id = declared.value.clone();
     let observation = with_snapback(&runtime.snapback, move |snapback| {
@@ -20997,7 +21187,7 @@ async fn admit_external_api_lane(
         crate::storage::declared_clients::DeclaredClientObservation::Observed(record) => record,
         crate::storage::declared_clients::DeclaredClientObservation::Capacity => {
             context.set_status("ignored-capacity");
-            return Ok(());
+            return Ok(crate::telemetry::CallerAttributionV1::anonymous());
         }
     };
     if record.status == crate::storage::declared_clients::DeclaredClientStatus::Suspended {
@@ -21031,7 +21221,9 @@ async fn admit_external_api_lane(
             retry_after,
         ));
     }
-    Ok(())
+    Ok(crate::telemetry::CallerAttributionV1::declared(
+        declared_client_caller_key(&record.normalized_id),
+    ))
 }
 
 async fn validate_external_api_request(

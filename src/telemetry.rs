@@ -238,6 +238,61 @@ impl Priority {
     }
 }
 
+/// Bounded caller attribution for an externally exposed invocation.
+///
+/// This is an observability dimension only. It deliberately rides the
+/// loss-tolerant telemetry projection and is never a bill-grade usage fact.
+/// Declared callers supply only the digest already projected by their bounded
+/// admin ledger; the raw declaration (which contains an e-mail address) never
+/// enters this carrier.
+///
+/// @ref LLP 0204#d7--integration-records-admission-and-metering — external
+///   usage is visible per declared caller/integration in the owner console.
+/// @ref LLP 0104#2026-08-02-implementation-cross-reference-one-class-seam-separate-sinks —
+///   telemetry attribution may shed and cannot prove or supply billable usage.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct CallerAttributionV1 {
+    lane: &'static str,
+    caller_key: String,
+}
+
+impl CallerAttributionV1 {
+    pub(crate) fn anonymous() -> Self {
+        Self {
+            lane: "anonymous",
+            caller_key: "anonymous".to_owned(),
+        }
+    }
+
+    pub(crate) fn declared(caller_key: String) -> Self {
+        Self {
+            lane: "declared",
+            caller_key,
+        }
+    }
+
+    pub(crate) fn integration(caller_key: String) -> Self {
+        Self {
+            lane: "integration",
+            caller_key,
+        }
+    }
+
+    pub(crate) fn first_party() -> Self {
+        Self {
+            lane: "first-party",
+            caller_key: String::new(),
+        }
+    }
+
+    pub(crate) fn details(&self) -> Value {
+        json!({
+            "callerLane": self.lane,
+            "callerKey": self.caller_key,
+        })
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Phase {
     Point,
@@ -2436,6 +2491,8 @@ fn scrub_details(details: Option<Value>) -> Option<Value> {
     };
     let legacy_allowed = BTreeSet::from([
         "attempt",
+        "callerKey",
+        "callerLane",
         "cause",
         "level",
         "message",
@@ -3665,6 +3722,43 @@ fn create_schema(conn: &Connection) -> SnapbackResult<()> {
           folded_count INTEGER NOT NULL,
           PRIMARY KEY(generation, bucket_start_ms, kind, name)
         );
+        CREATE TABLE IF NOT EXISTS telemetry_caller_rollup_hourly (
+          generation TEXT NOT NULL,
+          bucket_start_ms INTEGER NOT NULL,
+          bucket_end_ms INTEGER NOT NULL,
+          kind TEXT NOT NULL,
+          name TEXT NOT NULL,
+          caller_lane TEXT NOT NULL
+            CHECK(caller_lane IN ('anonymous','declared','integration','first-party')),
+          caller_key TEXT NOT NULL,
+          count INTEGER NOT NULL,
+          error_count INTEGER NOT NULL,
+          latency_histogram TEXT NOT NULL,
+          coverage_start_ms INTEGER NOT NULL,
+          coverage_end_ms INTEGER NOT NULL,
+          watermark_id INTEGER NOT NULL,
+          finalized INTEGER NOT NULL,
+          folded_count INTEGER NOT NULL,
+          PRIMARY KEY(generation, bucket_start_ms, kind, name, caller_lane, caller_key)
+        );
+        CREATE TABLE IF NOT EXISTS telemetry_caller_rollup_daily (
+          generation TEXT NOT NULL,
+          bucket_start_ms INTEGER NOT NULL,
+          bucket_end_ms INTEGER NOT NULL,
+          kind TEXT NOT NULL,
+          name TEXT NOT NULL,
+          caller_lane TEXT NOT NULL
+            CHECK(caller_lane IN ('anonymous','declared','integration','first-party')),
+          caller_key TEXT NOT NULL,
+          count INTEGER NOT NULL,
+          error_count INTEGER NOT NULL,
+          latency_histogram TEXT NOT NULL,
+          coverage_start_ms INTEGER NOT NULL,
+          coverage_end_ms INTEGER NOT NULL,
+          watermark_id INTEGER NOT NULL,
+          folded_count INTEGER NOT NULL,
+          PRIMARY KEY(generation, bucket_start_ms, kind, name, caller_lane, caller_key)
+        );
         CREATE TABLE IF NOT EXISTS error_groups (
           issue TEXT NOT NULL,
           generation TEXT NOT NULL,
@@ -3773,6 +3867,31 @@ fn create_schema(conn: &Connection) -> SnapbackResult<()> {
                  d.coverage_start_ms, d.coverage_end_ms, d.watermark_id,
                  d.folded_count
           FROM telemetry_rollup_daily d, telemetry_meta m
+          WHERE m.singleton=1 AND m.max_days_mirror > 0
+            AND d.generation=m.generation
+            AND d.bucket_end_ms > max(
+              m.aggregate_floor_daily,
+              m.observation_clock_ms - m.daily_days * 86400000
+            );
+        DROP VIEW IF EXISTS telemetry_caller_rollup_visible;
+        CREATE VIEW telemetry_caller_rollup_visible AS
+          SELECT 'hourly' AS tier, h.generation, h.bucket_start_ms, h.bucket_end_ms,
+                 h.kind, h.name, h.caller_lane, h.caller_key, h.count, h.error_count,
+                 h.latency_histogram, h.coverage_start_ms, h.coverage_end_ms,
+                 h.watermark_id, h.folded_count
+          FROM telemetry_caller_rollup_hourly h, telemetry_meta m
+          WHERE m.singleton=1 AND m.max_days_mirror > 0
+            AND h.generation=m.generation
+            AND h.bucket_end_ms > max(
+              m.aggregate_floor_hourly,
+              m.observation_clock_ms - m.hourly_days * 86400000
+            )
+          UNION ALL
+          SELECT 'daily', d.generation, d.bucket_start_ms, d.bucket_end_ms,
+                 d.kind, d.name, d.caller_lane, d.caller_key, d.count, d.error_count,
+                 d.latency_histogram, d.coverage_start_ms, d.coverage_end_ms,
+                 d.watermark_id, d.folded_count
+          FROM telemetry_caller_rollup_daily d, telemetry_meta m
           WHERE m.singleton=1 AND m.max_days_mirror > 0
             AND d.generation=m.generation
             AND d.bucket_end_ms > max(
@@ -4619,6 +4738,19 @@ fn day_start(timestamp: i64) -> i64 {
     timestamp.div_euclid(DAY_MS) * DAY_MS
 }
 
+fn caller_attribution_from_details(details: Option<&str>) -> Option<(String, String)> {
+    let object = serde_json::from_str::<Value>(details?).ok()?;
+    let lane = object.get("callerLane")?.as_str()?;
+    let key = object.get("callerKey")?.as_str()?;
+    let valid = match lane {
+        "anonymous" => key == "anonymous",
+        "first-party" => key.is_empty(),
+        "declared" | "integration" => !key.is_empty() && key.len() <= 512,
+        _ => false,
+    };
+    valid.then(|| (lane.to_owned(), key.to_owned()))
+}
+
 fn maintain(tx: &Transaction<'_>, config: &TelemetryConfig, clock: i64) -> SnapbackResult<usize> {
     let (generation, watermark): (String, i64) = tx.query_row(
         "SELECT generation,rollup_watermark_id FROM telemetry_meta WHERE singleton=1",
@@ -4627,7 +4759,7 @@ fn maintain(tx: &Transaction<'_>, config: &TelemetryConfig, clock: i64) -> Snapb
     )?;
     let rows = {
         let mut statement = tx.prepare(
-            "SELECT id,recorded_ts_ms,phase,kind,name,status,duration_ms,code FROM telemetry_events WHERE generation=?1 AND id>?2 ORDER BY id",
+            "SELECT id,recorded_ts_ms,phase,kind,name,status,duration_ms,code,details FROM telemetry_events WHERE generation=?1 AND id>?2 ORDER BY id",
         )?;
         statement
             .query_map(params![generation, watermark], |row| {
@@ -4640,18 +4772,22 @@ fn maintain(tx: &Transaction<'_>, config: &TelemetryConfig, clock: i64) -> Snapb
                     row.get::<_, Option<i64>>(5)?,
                     row.get::<_, Option<f64>>(6)?,
                     row.get::<_, Option<String>>(7)?,
+                    row.get::<_, Option<String>>(8)?,
                 ))
             })?
             .collect::<Result<Vec<_>, _>>()?
     };
     let maximum_id = rows.last().map(|row| row.0).unwrap_or(watermark);
     let mut aggregates: BTreeMap<(i64, String, String), Aggregate> = BTreeMap::new();
-    for (id, recorded, phase, kind, name, status, duration, code) in rows {
+    let mut caller_aggregates: BTreeMap<(i64, String, String, String, String), Aggregate> =
+        BTreeMap::new();
+    for (id, recorded, phase, kind, name, status, duration, code, details) in rows {
         let counted = matches!(phase.as_str(), "point" | "joined" | "terminal");
         if !counted {
             continue;
         }
-        let key = (hour_start(recorded), kind, name);
+        let caller = caller_attribution_from_details(details.as_deref());
+        let key = (hour_start(recorded), kind.clone(), name.clone());
         let entry = aggregates.entry(key).or_insert_with(|| Aggregate {
             coverage_start: recorded,
             coverage_end: recorded,
@@ -4665,9 +4801,39 @@ fn maintain(tx: &Transaction<'_>, config: &TelemetryConfig, clock: i64) -> Snapb
         entry.coverage_start = entry.coverage_start.min(recorded);
         entry.coverage_end = entry.coverage_end.max(recorded);
         entry.watermark = entry.watermark.max(id);
+        if let Some((lane, caller_key)) = caller {
+            let key = (hour_start(recorded), kind, name, lane, caller_key);
+            let entry = caller_aggregates.entry(key).or_insert_with(|| Aggregate {
+                coverage_start: recorded,
+                coverage_end: recorded,
+                ..Aggregate::default()
+            });
+            entry.count += 1;
+            entry.errors +=
+                u64::from(code.is_some() || status.is_some_and(|value| value >= 500));
+            if let Some(duration) = duration {
+                entry.histogram[histogram_index(duration)] += 1;
+            }
+            entry.coverage_start = entry.coverage_start.min(recorded);
+            entry.coverage_end = entry.coverage_end.max(recorded);
+            entry.watermark = entry.watermark.max(id);
+        }
     }
     for ((bucket, kind, name), aggregate) in aggregates {
         upsert_hourly(tx, &generation, bucket, &kind, &name, aggregate, clock)?;
+    }
+    for ((bucket, kind, name, lane, caller_key), aggregate) in caller_aggregates {
+        upsert_caller_hourly(
+            tx,
+            &generation,
+            bucket,
+            &kind,
+            &name,
+            &lane,
+            &caller_key,
+            aggregate,
+            clock,
+        )?;
     }
     tx.execute(
         "UPDATE telemetry_meta SET rollup_watermark_id=?1 WHERE singleton=1",
@@ -4677,7 +4843,17 @@ fn maintain(tx: &Transaction<'_>, config: &TelemetryConfig, clock: i64) -> Snapb
         "UPDATE telemetry_rollup_hourly SET finalized=1 WHERE generation=?1 AND bucket_end_ms<=?2",
         params![generation, hour_start(clock)],
     )?;
+    tx.execute(
+        "UPDATE telemetry_caller_rollup_hourly SET finalized=1 WHERE generation=?1 AND bucket_end_ms<=?2",
+        params![generation, hour_start(clock)],
+    )?;
     fold_finalized_heavy_hitters(tx, &generation, config.top_names_per_hour, clock)?;
+    fold_finalized_caller_heavy_hitters(
+        tx,
+        &generation,
+        config.top_names_per_hour,
+        clock,
+    )?;
 
     let mut swept = compact_hourly(tx, &generation, config, clock)?;
     swept = swept.saturating_add(evict_daily_horizon(tx, &generation, config, clock)?);
@@ -4687,6 +4863,14 @@ fn maintain(tx: &Transaction<'_>, config: &TelemetryConfig, clock: i64) -> Snapb
     )?);
     swept = swept.saturating_add(tx.execute(
         "DELETE FROM telemetry_rollup_daily WHERE generation<>?1",
+        params![generation],
+    )?);
+    swept = swept.saturating_add(tx.execute(
+        "DELETE FROM telemetry_caller_rollup_hourly WHERE generation<>?1",
+        params![generation],
+    )?);
+    swept = swept.saturating_add(tx.execute(
+        "DELETE FROM telemetry_caller_rollup_daily WHERE generation<>?1",
         params![generation],
     )?);
     swept = swept.saturating_add(enforce_rollup_cap(tx, &generation, config.rollup_row_cap)?);
@@ -4779,6 +4963,79 @@ fn fold_finalized_heavy_hitters(
     Ok(())
 }
 
+fn fold_finalized_caller_heavy_hitters(
+    tx: &Transaction<'_>,
+    generation: &str,
+    maximum: usize,
+    clock: i64,
+) -> SnapbackResult<()> {
+    let groups = {
+        let mut statement = tx.prepare(
+            "SELECT DISTINCT bucket_start_ms,kind,caller_lane,caller_key FROM telemetry_caller_rollup_hourly WHERE generation=?1 AND finalized=1",
+        )?;
+        statement
+            .query_map(params![generation], |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                ))
+            })?
+            .collect::<Result<Vec<_>, _>>()?
+    };
+    for (bucket, kind, lane, caller_key) in groups {
+        let rows = {
+            let mut statement = tx.prepare(
+                "SELECT name,count,error_count,latency_histogram,coverage_start_ms,coverage_end_ms,watermark_id,folded_count FROM telemetry_caller_rollup_hourly WHERE generation=?1 AND bucket_start_ms=?2 AND kind=?3 AND caller_lane=?4 AND caller_key=?5 AND name<>'_other' ORDER BY count DESC,name",
+            )?;
+            statement
+                .query_map(params![generation, bucket, kind, lane, caller_key], |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        Aggregate {
+                            count: row.get::<_, i64>(1)? as u64,
+                            errors: row.get::<_, i64>(2)? as u64,
+                            histogram: decode_histogram(&row.get::<_, String>(3)?),
+                            coverage_start: row.get(4)?,
+                            coverage_end: row.get(5)?,
+                            watermark: row.get(6)?,
+                            folded: row.get::<_, i64>(7)? as u64,
+                        },
+                    ))
+                })?
+                .collect::<Result<Vec<_>, _>>()?
+        };
+        if rows.len() <= maximum {
+            continue;
+        }
+        let mut folded = Aggregate::default();
+        let mut initialized = false;
+        for (name, aggregate) in rows.into_iter().skip(maximum) {
+            tx.execute(
+                "DELETE FROM telemetry_caller_rollup_hourly WHERE generation=?1 AND bucket_start_ms=?2 AND kind=?3 AND name=?4 AND caller_lane=?5 AND caller_key=?6",
+                params![generation, bucket, kind, name, lane, caller_key],
+            )?;
+            merge_aggregate(&mut folded, &aggregate, &mut initialized);
+            folded.folded = folded.folded.saturating_add(aggregate.count);
+        }
+        if initialized {
+            upsert_caller_hourly(
+                tx,
+                generation,
+                bucket,
+                &kind,
+                "_other",
+                &lane,
+                &caller_key,
+                folded,
+                clock,
+            )?;
+        }
+    }
+    Ok(())
+}
+
 fn merge_aggregate(target: &mut Aggregate, source: &Aggregate, initialized: &mut bool) {
     target.count = target.count.saturating_add(source.count);
     target.errors = target.errors.saturating_add(source.errors);
@@ -4843,6 +5100,46 @@ fn upsert_hourly(
     Ok(())
 }
 
+fn upsert_caller_hourly(
+    tx: &Transaction<'_>,
+    generation: &str,
+    bucket: i64,
+    kind: &str,
+    name: &str,
+    lane: &str,
+    caller_key: &str,
+    mut aggregate: Aggregate,
+    clock: i64,
+) -> SnapbackResult<()> {
+    let existing: Option<(i64, i64, String, i64, i64, i64, i64)> = tx
+        .query_row(
+            "SELECT count,error_count,latency_histogram,coverage_start_ms,coverage_end_ms,watermark_id,folded_count FROM telemetry_caller_rollup_hourly WHERE generation=?1 AND bucket_start_ms=?2 AND kind=?3 AND name=?4 AND caller_lane=?5 AND caller_key=?6",
+            params![generation, bucket, kind, name, lane, caller_key],
+            |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?,row.get(5)?,row.get(6)?)),
+        )
+        .optional()?;
+    if let Some((count, errors, histogram, start, end, watermark, folded)) = existing {
+        aggregate.count += count as u64;
+        aggregate.errors += errors as u64;
+        aggregate.folded += folded as u64;
+        for (target, value) in aggregate
+            .histogram
+            .iter_mut()
+            .zip(decode_histogram(&histogram))
+        {
+            *target += value;
+        }
+        aggregate.coverage_start = aggregate.coverage_start.min(start);
+        aggregate.coverage_end = aggregate.coverage_end.max(end);
+        aggregate.watermark = aggregate.watermark.max(watermark);
+    }
+    tx.execute(
+        "INSERT OR REPLACE INTO telemetry_caller_rollup_hourly(generation,bucket_start_ms,bucket_end_ms,kind,name,caller_lane,caller_key,count,error_count,latency_histogram,coverage_start_ms,coverage_end_ms,watermark_id,finalized,folded_count) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15)",
+        params![generation,bucket,bucket.saturating_add(HOUR_MS),kind,name,lane,caller_key,aggregate.count,aggregate.errors,serde_json::to_string(&aggregate.histogram.as_slice()).expect("histogram serializes"),aggregate.coverage_start,aggregate.coverage_end,aggregate.watermark,i64::from(bucket.saturating_add(HOUR_MS)<=hour_start(clock)),aggregate.folded],
+    )?;
+    Ok(())
+}
+
 fn compact_hourly(
     tx: &Transaction<'_>,
     generation: &str,
@@ -4901,6 +5198,64 @@ fn compact_hourly(
             "DELETE FROM telemetry_rollup_hourly WHERE generation=?1 AND bucket_end_ms<=?2",
             params![generation, floor],
         )?;
+        let caller_rows = {
+            let mut statement = tx.prepare("SELECT bucket_start_ms,kind,name,caller_lane,caller_key,count,error_count,latency_histogram,coverage_start_ms,coverage_end_ms,watermark_id,folded_count FROM telemetry_caller_rollup_hourly WHERE generation=?1 AND bucket_end_ms<=?2 ORDER BY bucket_start_ms")?;
+            statement
+                .query_map(params![generation, floor], |row| {
+                    Ok((
+                        row.get::<_, i64>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, String>(3)?,
+                        row.get::<_, String>(4)?,
+                        row.get::<_, i64>(5)?,
+                        row.get::<_, i64>(6)?,
+                        row.get::<_, String>(7)?,
+                        row.get::<_, i64>(8)?,
+                        row.get::<_, i64>(9)?,
+                        row.get::<_, i64>(10)?,
+                        row.get::<_, i64>(11)?,
+                    ))
+                })?
+                .collect::<Result<Vec<_>, _>>()?
+        };
+        let mut caller_daily: BTreeMap<(i64, String, String, String, String), Aggregate> =
+            BTreeMap::new();
+        for (start, kind, name, lane, caller_key, count, errors, hist, start_cov, end_cov, watermark, folded) in caller_rows
+        {
+            let entry = caller_daily
+                .entry((day_start(start), kind, name, lane, caller_key))
+                .or_insert_with(|| Aggregate {
+                    coverage_start: start_cov,
+                    coverage_end: end_cov,
+                    ..Aggregate::default()
+                });
+            entry.count += count as u64;
+            entry.errors += errors as u64;
+            entry.folded += folded as u64;
+            for (target, value) in entry.histogram.iter_mut().zip(decode_histogram(&hist)) {
+                *target += value;
+            }
+            entry.coverage_start = entry.coverage_start.min(start_cov);
+            entry.coverage_end = entry.coverage_end.max(end_cov);
+            entry.watermark = entry.watermark.max(watermark);
+        }
+        for ((day, kind, name, lane, caller_key), aggregate) in caller_daily {
+            upsert_caller_daily(
+                tx,
+                generation,
+                day,
+                &kind,
+                &name,
+                &lane,
+                &caller_key,
+                aggregate,
+            )?;
+        }
+        swept = swept.saturating_add(tx.execute(
+            "DELETE FROM telemetry_caller_rollup_hourly WHERE generation=?1 AND bucket_end_ms<=?2",
+            params![generation, floor],
+        )?);
         tx.execute("UPDATE telemetry_meta SET aggregate_floor_hourly=max(aggregate_floor_hourly,?1) WHERE singleton=1",params![floor])?;
     }
     Ok(swept)
@@ -4935,6 +5290,41 @@ fn upsert_daily(
     Ok(())
 }
 
+fn upsert_caller_daily(
+    tx: &Transaction<'_>,
+    generation: &str,
+    bucket: i64,
+    kind: &str,
+    name: &str,
+    lane: &str,
+    caller_key: &str,
+    mut aggregate: Aggregate,
+) -> SnapbackResult<()> {
+    let existing: Option<(i64, i64, String, i64, i64, i64, i64)> = tx
+        .query_row(
+            "SELECT count,error_count,latency_histogram,coverage_start_ms,coverage_end_ms,watermark_id,folded_count FROM telemetry_caller_rollup_daily WHERE generation=?1 AND bucket_start_ms=?2 AND kind=?3 AND name=?4 AND caller_lane=?5 AND caller_key=?6",
+            params![generation, bucket, kind, name, lane, caller_key],
+            |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?,row.get(5)?,row.get(6)?)),
+        )
+        .optional()?;
+    if let Some((count, errors, hist, start, end, watermark, folded)) = existing {
+        aggregate.count += count as u64;
+        aggregate.errors += errors as u64;
+        aggregate.folded += folded as u64;
+        for (target, value) in aggregate.histogram.iter_mut().zip(decode_histogram(&hist)) {
+            *target += value;
+        }
+        aggregate.coverage_start = aggregate.coverage_start.min(start);
+        aggregate.coverage_end = aggregate.coverage_end.max(end);
+        aggregate.watermark = aggregate.watermark.max(watermark);
+    }
+    tx.execute(
+        "INSERT OR REPLACE INTO telemetry_caller_rollup_daily(generation,bucket_start_ms,bucket_end_ms,kind,name,caller_lane,caller_key,count,error_count,latency_histogram,coverage_start_ms,coverage_end_ms,watermark_id,folded_count) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)",
+        params![generation,bucket,bucket.saturating_add(DAY_MS),kind,name,lane,caller_key,aggregate.count,aggregate.errors,serde_json::to_string(&aggregate.histogram.as_slice()).expect("histogram serializes"),aggregate.coverage_start,aggregate.coverage_end,aggregate.watermark,aggregate.folded],
+    )?;
+    Ok(())
+}
+
 fn evict_daily_horizon(
     tx: &Transaction<'_>,
     generation: &str,
@@ -4949,6 +5339,10 @@ fn evict_daily_horizon(
             "DELETE FROM telemetry_rollup_daily WHERE generation=?1 AND bucket_end_ms<=?2",
             params![generation, floor],
         )?;
+        swept = swept.saturating_add(tx.execute(
+            "DELETE FROM telemetry_caller_rollup_daily WHERE generation=?1 AND bucket_end_ms<=?2",
+            params![generation, floor],
+        )?);
         tx.execute("UPDATE telemetry_meta SET aggregate_floor_daily=max(aggregate_floor_daily,?1) WHERE singleton=1",params![floor])?;
     }
     Ok(swept)
@@ -4957,7 +5351,7 @@ fn evict_daily_horizon(
 fn enforce_rollup_cap(tx: &Transaction<'_>, generation: &str, cap: usize) -> SnapbackResult<usize> {
     let mut swept = 0usize;
     loop {
-        let count:i64=tx.query_row("SELECT (SELECT count(*) FROM telemetry_rollup_hourly WHERE generation=?1)+(SELECT count(*) FROM telemetry_rollup_daily WHERE generation=?1)",params![generation],|row|row.get(0))?;
+        let count:i64=tx.query_row("SELECT (SELECT count(*) FROM telemetry_rollup_hourly WHERE generation=?1)+(SELECT count(*) FROM telemetry_rollup_daily WHERE generation=?1)+(SELECT count(*) FROM telemetry_caller_rollup_hourly WHERE generation=?1)+(SELECT count(*) FROM telemetry_caller_rollup_daily WHERE generation=?1)",params![generation],|row|row.get(0))?;
         if count <= cap as i64 {
             break;
         }
@@ -4967,13 +5361,25 @@ fn enforce_rollup_cap(tx: &Transaction<'_>, generation: &str, cap: usize) -> Sna
         let Some((tier, start, end)) = oldest else {
             break;
         };
-        let (table, floor_column) = if tier == "hourly" {
-            ("telemetry_rollup_hourly", "aggregate_floor_hourly")
+        let (table, caller_table, floor_column) = if tier == "hourly" {
+            (
+                "telemetry_rollup_hourly",
+                "telemetry_caller_rollup_hourly",
+                "aggregate_floor_hourly",
+            )
         } else {
-            ("telemetry_rollup_daily", "aggregate_floor_daily")
+            (
+                "telemetry_rollup_daily",
+                "telemetry_caller_rollup_daily",
+                "aggregate_floor_daily",
+            )
         };
         swept = swept.saturating_add(tx.execute(
             &format!("DELETE FROM {table} WHERE generation=?1 AND bucket_start_ms=?2"),
+            params![generation, start],
+        )?);
+        swept = swept.saturating_add(tx.execute(
+            &format!("DELETE FROM {caller_table} WHERE generation=?1 AND bucket_start_ms=?2"),
             params![generation, start],
         )?);
         tx.execute(
@@ -5157,10 +5563,18 @@ fn file_cap_recovery_step(
                 "telemetry schema and metadata exceed the configured file cap",
             ));
         };
-        let (table, floor) = if tier == "hourly" {
-            ("telemetry_rollup_hourly", "aggregate_floor_hourly")
+        let (table, caller_table, floor) = if tier == "hourly" {
+            (
+                "telemetry_rollup_hourly",
+                "telemetry_caller_rollup_hourly",
+                "aggregate_floor_hourly",
+            )
         } else {
-            ("telemetry_rollup_daily", "aggregate_floor_daily")
+            (
+                "telemetry_rollup_daily",
+                "telemetry_caller_rollup_daily",
+                "aggregate_floor_daily",
+            )
         };
         {
             let mut statement = tx.prepare(&format!(
@@ -5176,10 +5590,14 @@ fn file_cap_recovery_step(
                 );
             }
         }
-        let swept = tx.execute(
+        let mut swept = tx.execute(
             &format!("DELETE FROM {table} WHERE generation=?1 AND bucket_start_ms=?2"),
             params![generation, start],
         )?;
+        swept = swept.saturating_add(tx.execute(
+            &format!("DELETE FROM {caller_table} WHERE generation=?1 AND bucket_start_ms=?2"),
+            params![generation, start],
+        )?);
         tx.execute(
             &format!("UPDATE telemetry_meta SET {floor}=max({floor},?1) WHERE singleton=1"),
             params![end],
@@ -5581,6 +5999,7 @@ mod tests {
                     kind: Some("http_request".to_owned()),
                     ..Default::default()
                 },
+                ..Default::default()
             })
             .unwrap();
         assert_eq!(
@@ -5634,6 +6053,107 @@ mod tests {
             assert_eq!(record["appId"], "app-query");
             assert_eq!(record["environment"], "preview-query");
         }
+    }
+
+    #[test]
+    fn caller_rollups_group_filter_and_never_store_raw_declared_ids() {
+        let telemetry = Telemetry::in_memory_with_identity(
+            "01900000-0000-7000-8000-000000000001",
+            identity("app-callers", "preview-callers"),
+            config(),
+        )
+        .unwrap();
+        let raw_declared_id = "agent test caller <caller@example.test>";
+        let declared_key = "vR4Tof7xOOZJgFJ5wj3-yQufXiMPicPrThTlYByE8ZM";
+        for (name, attribution) in [
+            ("declared-call", CallerAttributionV1::declared(declared_key.to_owned())),
+            ("declared-call", CallerAttributionV1::declared(declared_key.to_owned())),
+            ("integration-call", CallerAttributionV1::integration("int_test".to_owned())),
+            ("anonymous-call", CallerAttributionV1::anonymous()),
+            ("first-party-call", CallerAttributionV1::first_party()),
+        ] {
+            let mut event = joined_named("ignored", "function_run", name, 0);
+            event.details = Some(attribution.details());
+            telemetry.enqueue(event, true);
+        }
+        telemetry.force_flush().unwrap();
+
+        {
+            let store = telemetry.producer.shared.store.lock().unwrap();
+            let connection = store.conn.as_ref().unwrap();
+            let declared: (i64, i64) = connection
+                .query_row(
+                    "SELECT count(*),coalesce(sum(count),0)
+                     FROM telemetry_caller_rollup_hourly
+                     WHERE caller_lane='declared' AND caller_key=?1",
+                    params![declared_key],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .unwrap();
+            assert_eq!(declared, (1, 2), "same caller and bucket share one row");
+            let callers: i64 = connection
+                .query_row(
+                    "SELECT count(DISTINCT caller_lane || ':' || caller_key)
+                     FROM telemetry_caller_rollup_hourly",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(callers, 4, "different caller facts retain separate rows");
+            let raw_matches: i64 = connection
+                .query_row(
+                    "SELECT count(*) FROM telemetry_events
+                     WHERE instr(coalesce(details,''),?1)>0",
+                    params![raw_declared_id],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(raw_matches, 0, "raw declared e-mail never enters telemetry");
+        }
+
+        let grouped = telemetry
+            .query_stats(&crate::telemetry_query::TelemetryStatsRequestV1 {
+                filter: crate::telemetry_query::TelemetryStatsFilterV1 {
+                    kind: Some("function_run".to_owned()),
+                    ..Default::default()
+                },
+                group_by_caller: true,
+            })
+            .unwrap();
+        assert_eq!(
+            grouped
+                .caller_counts
+                .iter()
+                .map(|row| (row.lane.as_str(), row.caller_key.as_str(), row.count))
+                .collect::<Vec<_>>(),
+            [
+                ("anonymous", "anonymous", 1),
+                ("declared", declared_key, 2),
+                ("first-party", "", 1),
+                ("integration", "int_test", 1),
+            ]
+        );
+
+        let filtered = telemetry
+            .query_stats(&crate::telemetry_query::TelemetryStatsRequestV1 {
+                filter: crate::telemetry_query::TelemetryStatsFilterV1 {
+                    kind: Some("function_run".to_owned()),
+                    caller_key: Some(declared_key.to_owned()),
+                    lane: Some("declared".to_owned()),
+                    ..Default::default()
+                },
+                group_by_caller: false,
+            })
+            .unwrap();
+        assert_eq!(
+            filtered
+                .status_counts
+                .iter()
+                .map(|row| row.count)
+                .sum::<u64>(),
+            2
+        );
+        assert!(filtered.caller_counts.is_empty());
     }
 
     #[test]
@@ -5908,6 +6428,7 @@ mod tests {
                     to_ms: Some(second_recorded + 2 * DAY_MS),
                     ..Default::default()
                 },
+                ..Default::default()
             })
             .unwrap();
         assert!(stats.coverage.partitions.iter().any(|p| p.tier == "daily"));
@@ -6012,6 +6533,7 @@ mod tests {
                     to_ms: Some(third_recorded),
                     ..Default::default()
                 },
+                ..Default::default()
             })
             .unwrap();
         let total = stats
@@ -6099,6 +6621,7 @@ mod tests {
                     to_ms: Some(to),
                     ..Default::default()
                 },
+                ..Default::default()
             })
             .unwrap();
         assert_eq!(
@@ -6158,6 +6681,7 @@ mod tests {
                     name: Some("z-folded-name".to_owned()),
                     ..Default::default()
                 },
+                ..Default::default()
             })
             .unwrap();
         assert!(stats.status_counts.is_empty());
@@ -8194,6 +8718,7 @@ mod tests {
                     kind: Some("function_run".to_owned()),
                     ..Default::default()
                 },
+                ..Default::default()
             },
             &crate::telemetry_query::QueryContext {
                 drops_since_boot: BTreeMap::new(),
@@ -8242,6 +8767,7 @@ mod tests {
                     kind: Some("function_run".to_owned()),
                     ..Default::default()
                 },
+                ..Default::default()
             },
             &crate::telemetry_query::QueryContext {
                 drops_since_boot: BTreeMap::new(),

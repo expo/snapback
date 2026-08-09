@@ -135,6 +135,18 @@ pub(crate) struct IntegrationRecord {
     pub status: IntegrationStatus,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct IntegrationAdminRecord {
+    pub integration_id: String,
+    pub principal_user_id: String,
+    pub display_name: Option<String>,
+    pub status: String,
+    pub owner_claim_state: String,
+    pub created_at_ms: u64,
+    pub updated_at_ms: u64,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct OAuthIntegrationClient {
     pub client_id: String,
@@ -489,6 +501,48 @@ pub(super) fn record_for_principal_on(
         })
     })
     .transpose()
+}
+
+fn list_admin_records_on(conn: &Connection) -> SnapbackResult<Vec<IntegrationAdminRecord>> {
+    if !table_exists(conn, INTEGRATION_RECORD_TABLE)? {
+        return Ok(Vec::new());
+    }
+    let mut statement = conn.prepare(
+        "SELECT id,principal_user_id,display_name,status,owner_claim_state,created_at_ms,updated_at_ms
+         FROM _snapback_integration_records ORDER BY updated_at_ms DESC,id",
+    )?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<String>>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, String>(4)?,
+                row.get::<_, i64>(5)?,
+                row.get::<_, i64>(6)?,
+            ))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    rows.into_iter()
+        .map(
+            |(integration_id, principal_user_id, display_name, status, owner_claim_state, created_at_ms, updated_at_ms)| {
+                let status = IntegrationStatus::parse(&status)?;
+                if !matches!(owner_claim_state.as_str(), "provisional" | "unclaimed" | "claimed") {
+                    return Err(integration_state_corrupt());
+                }
+                Ok(IntegrationAdminRecord {
+                    integration_id,
+                    principal_user_id,
+                    display_name,
+                    status: status.as_str().to_owned(),
+                    owner_claim_state,
+                    created_at_ms: created_at_ms as u64,
+                    updated_at_ms: updated_at_ms as u64,
+                })
+            },
+        )
+        .collect()
 }
 
 fn principal_has_integration_class_on(
@@ -961,6 +1015,10 @@ impl LocalDatabase {
         principal_user_id: &str,
     ) -> SnapbackResult<Option<IntegrationRecord>> {
         record_for_principal_on(&self.conn, principal_user_id)
+    }
+
+    pub(crate) fn list_integrations(&self) -> SnapbackResult<Vec<IntegrationAdminRecord>> {
+        list_admin_records_on(&self.conn)
     }
 
     /// @ref LLP 0055#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08 — suspend/resume changes admission only and cannot resurrect a retired registration.

@@ -3052,28 +3052,38 @@ async fn sessions_activation_server_fixture_with_integrations_async() -> AppStat
         for function in &mut functions.functions {
             function.api_exposure = Some(ApiFunctionExposure::default());
         }
-        functions
+        for function in functions
             .functions
             .iter_mut()
-            .find(|function| function.name == "listItems")
-            .unwrap()
-            .api_exposure = Some(ApiFunctionExposure {
+            .filter(|function| matches!(function.name.as_str(), "listItems" | "liveItems"))
+        {
+            function.api_exposure = Some(ApiFunctionExposure {
                 expose: true,
                 since: None,
             });
+        }
         sessions_activation_server_fixture_with_api(
             functions,
             None,
             Some(agent_policy(AgentsMode::Open, InvitedBy::Operators)),
             Some(ApiManifest {
                 enabled: true,
-                functions: BTreeMap::from([(
-                    "listItems".to_owned(),
-                    ApiFunctionExposure {
-                        expose: true,
-                        since: None,
-                    },
-                )]),
+                functions: BTreeMap::from([
+                    (
+                        "listItems".to_owned(),
+                        ApiFunctionExposure {
+                            expose: true,
+                            since: None,
+                        },
+                    ),
+                    (
+                        "liveItems".to_owned(),
+                        ApiFunctionExposure {
+                            expose: true,
+                            since: None,
+                        },
+                    ),
+                ]),
                 ..ApiManifest::default()
             }),
         )
@@ -3825,6 +3835,112 @@ async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
     .unwrap()
     .expect("accepted declaration creates its bounded attribution row");
     assert_eq!(declared_record.request_count, 1);
+
+    let declared_caller_key = super::declared_client_caller_key(&declared_record.normalized_id);
+    let first_party = mint_test_credential(&runtime, "first-party-api@example.test").await;
+    let first_party = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/query/listItems")
+                .header(header::CONTENT_TYPE, "application/json")
+                .header(
+                    header::AUTHORIZATION,
+                    format!("Bearer {}", first_party["token"].as_str().unwrap()),
+                )
+                .header("x-snapback-auth-client-protocol", "1")
+                .body(Body::from(r#"{"args":{}}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(first_party.status(), StatusCode::OK);
+
+    let caller_stats = runtime
+        .telemetry
+        .query_stats(&crate::telemetry_query::TelemetryStatsRequestV1 {
+            filter: crate::telemetry_query::TelemetryStatsFilterV1 {
+                kind: Some("function_run".to_owned()),
+                name: Some("listItems".to_owned()),
+                ..Default::default()
+            },
+            group_by_caller: true,
+        })
+        .unwrap();
+    for (lane, caller_key) in [
+        ("anonymous", "anonymous"),
+        ("declared", declared_caller_key.as_str()),
+        ("first-party", ""),
+    ] {
+        assert!(
+            caller_stats
+                .caller_counts
+                .iter()
+                .any(|row| row.lane == lane && row.caller_key == caller_key && row.count >= 1),
+            "missing {lane} caller attribution: {:?}",
+            caller_stats.caller_counts
+        );
+    }
+    let stats_endpoint = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/_snapback/api/telemetry/stats?kind=function_run&callerKey={declared_caller_key}&lane=declared&groupByCaller=true"
+                ))
+                .header("x-snapback-admin-token", "auth-http-admin")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(stats_endpoint.status(), StatusCode::OK);
+    let stats_endpoint = response_json(stats_endpoint).await;
+    assert_eq!(stats_endpoint["callerCounts"][0]["lane"], "declared");
+    assert_eq!(
+        stats_endpoint["callerCounts"][0]["callerKey"],
+        declared_caller_key
+    );
+    let telemetry_rows = runtime
+        .telemetry
+        .query_events(&crate::telemetry_query::TelemetryEventsRequestV1 {
+            filter: crate::telemetry_query::TelemetryFilterV1 {
+                kind: Some("function_run".to_owned()),
+                name: Some("listItems".to_owned()),
+                ..Default::default()
+            },
+            limit: crate::telemetry_query::MAX_EVENT_LIMIT,
+            ..Default::default()
+        })
+        .unwrap();
+    assert!(!serde_json::to_string(&telemetry_rows).unwrap().contains(
+        "crawler-7f3a9c/ops@example.com"
+    ));
+
+    let declared_listing = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/_snapback/api/auth/declared-clients")
+                .header("x-snapback-admin-token", "auth-http-admin")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(declared_listing.status(), StatusCode::OK);
+    let declared_listing = response_json(declared_listing).await;
+    let declared_listing = declared_listing["declaredClients"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| {
+            row["normalizedId"].as_str() == Some(declared_record.normalized_id.as_str())
+        })
+        .unwrap();
+    assert_eq!(declared_listing["callerKey"], declared_caller_key);
+    assert!(declared_listing["recentUsage"]["count"].as_u64().unwrap() >= 1);
 
     let suspended_id = declared_record.normalized_id.clone();
     with_snapback(&runtime.snapback, move |snapback| {
@@ -12947,6 +13063,125 @@ let token_status = token.status();
 let token = response_json(token).await;
 assert_eq!(token_status, StatusCode::OK, "{token}");
 let scoped_token = token["token"].as_str().unwrap().to_owned();
+let integration_principal = integration_id.clone();
+let integration_caller_key = with_snapback(&state.snapback, move |snapback| {
+Ok::<_, SnapbackError>(snapback
+.auth_database_mut()
+.integration_record_if_present(&integration_principal)?
+.unwrap()
+.integration_id)
+})
+.await
+.unwrap();
+let attributed_query = Request::builder()
+.method("POST")
+.uri("/api/v1/query/listItems")
+.header(header::CONTENT_TYPE, "application/json")
+.header(header::AUTHORIZATION, format!("Bearer {scoped_token}"))
+.header("x-snapback-auth-client-protocol", "1")
+.via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+.body(Body::from(r#"{"args":{}}"#))
+.unwrap();
+let attributed_query = router.clone().oneshot(attributed_query).await.unwrap();
+assert_eq!(attributed_query.status(), StatusCode::OK);
+let integration_stats = state
+.telemetry
+.query_stats(&crate::telemetry_query::TelemetryStatsRequestV1 {
+filter: crate::telemetry_query::TelemetryStatsFilterV1 {
+kind: Some("function_run".to_owned()),
+name: Some("listItems".to_owned()),
+caller_key: Some(integration_caller_key.clone()),
+lane: Some("integration".to_owned()),
+..Default::default()
+},
+group_by_caller: true,
+})
+.unwrap();
+assert_eq!(integration_stats.caller_counts.len(), 1);
+assert_eq!(integration_stats.caller_counts[0].count, 1);
+
+let opened = router
+.clone()
+.oneshot(connection_open_request(
+Some(&scoped_token),
+json!({ "authInvalidationProtocol": 1 }),
+))
+.await
+.unwrap();
+assert_eq!(opened.status(), StatusCode::OK);
+let opened = response_json(opened).await;
+let connection_id = opened["connectionId"].as_str().unwrap();
+let connection_token = opened["connectionToken"].as_str().unwrap();
+let subscribed = router
+.clone()
+.oneshot(
+Request::builder()
+.method("POST")
+.uri("/live/liveItems/subscribe")
+.header(header::CONTENT_TYPE, "application/json")
+.header(super::CONNECTION_TOKEN_HEADER, connection_token)
+.header("x-snapback-auth-client-protocol", "1")
+.via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+.header("x-snapback-auth-invalidation-protocol", "1")
+.body(Body::from(
+serde_json::to_vec(&json!({
+"connection_id": connection_id,
+"input": { "args": {} },
+"authorizationNamespace": {
+"clientStoreId": "integration-attribution-store",
+"queryKey": "liveItems:{}",
+"queryInstanceId": 1,
+},
+}))
+.unwrap(),
+))
+.unwrap(),
+)
+.await
+.unwrap();
+let subscribed_status = subscribed.status();
+let subscribed = response_json(subscribed).await;
+assert_eq!(subscribed_status, StatusCode::OK, "{subscribed}");
+let live_events = state
+.telemetry
+.query_events(&crate::telemetry_query::TelemetryEventsRequestV1 {
+filter: crate::telemetry_query::TelemetryFilterV1 {
+kind: Some("live_subscribe".to_owned()),
+name: Some("liveItems".to_owned()),
+..Default::default()
+},
+limit: crate::telemetry_query::MAX_EVENT_LIMIT,
+..Default::default()
+})
+.unwrap();
+assert!(live_events.events.iter().any(|event| {
+event.details.as_ref().is_some_and(|details| {
+details["callerLane"] == "integration"
+&& details["callerKey"] == integration_caller_key
+})
+}));
+
+let integrations = Request::builder()
+.uri("/_snapback/api/auth/integrations")
+.header("x-snapback-admin-token", "auth-http-admin")
+.body(Body::empty())
+.unwrap();
+let integrations = router.clone().oneshot(integrations).await.unwrap();
+assert_eq!(integrations.status(), StatusCode::OK);
+let integrations = response_json(integrations).await;
+let integration = integrations["integrations"]
+.as_array()
+.unwrap()
+.iter()
+.find(|row| row["principalUserId"].as_str() == Some(integration_id.as_str()))
+.unwrap();
+assert_eq!(integration["callerKey"], integration_caller_key);
+assert_eq!(integration["status"], "active");
+assert!(matches!(
+integration["ownerClaimState"].as_str(),
+Some("provisional" | "unclaimed" | "claimed")
+));
+assert!(integration["recentUsage"]["count"].as_u64().unwrap() >= 1);
 
 let pending_installation = router
 .clone()

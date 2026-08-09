@@ -176,6 +176,15 @@
       "class": "SystemApi",
       "credential_resolution": "AdminCredential",
       "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/api/auth/integrations",
+      "path_policy": "AdminRead"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
       "method": "POST",
       "outputSchema": null,
       "path": "/_snapback/api/auth/integrations/{id}/resume",

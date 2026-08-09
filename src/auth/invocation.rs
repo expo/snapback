@@ -946,6 +946,10 @@ pub struct PreparedAuthority {
     /// this carrier also applies to the diagnostic `/auth/session` projection.
     service_publication: Option<ServiceAuthorityPublication>,
     authorization_stream_incarnation: Option<String>,
+    /// Server-derived, non-authoritative telemetry attribution for a
+    /// classified invocation. Ordinary app calls use the closed first-party
+    /// lane; this fact never participates in authorization.
+    caller_attribution: Option<crate::telemetry::CallerAttributionV1>,
     /// The internal callback service has durable principal/grant authority
     /// but deliberately no credential/token carrier. Presence selects its
     /// exact protected-catalog revalidation path; it is never inferred from
@@ -975,6 +979,7 @@ pub(crate) struct RetainedLiveAuthority {
     /// changes.
     matched_grant_scope: Option<ResolvedGrantScope>,
     service_publication: Option<ServiceAuthorityPublication>,
+    caller_attribution: Option<crate::telemetry::CallerAttributionV1>,
 }
 
 impl PreparedAuthority {
@@ -1012,6 +1017,12 @@ impl PreparedAuthority {
 
     pub fn function_attribution(&self) -> Option<FunctionAttribution> {
         self.resolved.function_attribution()
+    }
+
+    pub(crate) fn telemetry_caller_details(&self) -> Option<Value> {
+        self.caller_attribution
+            .as_ref()
+            .map(crate::telemetry::CallerAttributionV1::details)
     }
 
     pub fn audit(&self) -> &AuthorityAuditFact {
@@ -1058,6 +1069,22 @@ impl PreparedAuthority {
         publication: ServiceAuthorityPublication,
     ) -> Self {
         self.service_publication = Some(publication);
+        self
+    }
+
+    pub(crate) fn with_caller_attribution(
+        mut self,
+        attribution: crate::telemetry::CallerAttributionV1,
+    ) -> Self {
+        self.caller_attribution = Some(attribution);
+        self
+    }
+
+    fn with_optional_caller_attribution(
+        mut self,
+        attribution: Option<crate::telemetry::CallerAttributionV1>,
+    ) -> Self {
+        self.caller_attribution = attribution;
         self
     }
 
@@ -1184,6 +1211,7 @@ impl PreparedAuthority {
             resolved: self.resolved.clone(),
             matched_grant_scope: None,
             service_publication: self.service_publication.clone(),
+            caller_attribution: self.caller_attribution.clone(),
         })
     }
 
@@ -1241,6 +1269,12 @@ impl RetainedLiveAuthority {
         self.resolved.function_attribution()
     }
 
+    pub(crate) fn telemetry_caller_details(&self) -> Option<Value> {
+        self.caller_attribution
+            .as_ref()
+            .map(crate::telemetry::CallerAttributionV1::details)
+    }
+
     pub(crate) fn matches(&self, authority: &PreparedAuthority) -> bool {
         self.active_mode == authority.active_mode
             && self.profile == authority.profile
@@ -1267,7 +1301,8 @@ impl RetainedLiveAuthority {
         Ok(match &self.service_publication {
             Some(publication) => prepared.with_service_publication(publication.clone()),
             None => prepared,
-        })
+        }
+        .with_optional_caller_attribution(self.caller_attribution.clone()))
     }
 
     pub(crate) fn canonicalize_input(&self, mut input: HandlerInput) -> HandlerInput {
@@ -1319,6 +1354,10 @@ pub struct PreparedInvocation {
 impl PreparedInvocation {
     pub fn authority(&self) -> &PreparedAuthority {
         &self.authority
+    }
+
+    pub(crate) fn telemetry_caller_details(&self) -> Option<Value> {
+        self.authority.telemetry_caller_details()
     }
 
     pub fn projection(&self) -> &HandlerAuthProjection {
@@ -1546,6 +1585,7 @@ impl InvocationGate {
             publication: None,
             service_publication: None,
             authorization_stream_incarnation: None,
+            caller_attribution: None,
             asset_callbacks_service: None,
         })
     }
