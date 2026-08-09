@@ -18,6 +18,8 @@
 // result-size heuristic.
 #![allow(clippy::result_large_err)]
 
+// @ref LLP 0199#target-ownership-map — owner 6 preserves this supported
+// façade while non-façade implementation modules become crate-private.
 pub mod embed;
 
 #[doc(hidden)]
@@ -69,8 +71,7 @@ pub mod completeness;
 #[doc(hidden)]
 pub mod config;
 pub mod conformance;
-#[doc(hidden)]
-pub mod contract_exact;
+pub(crate) mod contract_exact;
 // @ref LLP 0199#target-ownership-map — dependency-free shared contract/types
 // leaf consumed downward by Rust owners and generated-artifact producers.
 #[doc(hidden)]
@@ -99,10 +100,8 @@ pub mod exec_guard;
 pub mod fork_promotion;
 #[doc(hidden)]
 pub mod guide;
-#[doc(hidden)]
-pub mod guide_mcp;
-#[doc(hidden)]
-pub mod guide_reference;
+pub(crate) mod guide_mcp;
+pub(crate) mod guide_reference;
 #[doc(hidden)]
 pub mod handler_wire;
 #[doc(hidden)]
@@ -113,8 +112,7 @@ pub mod identity;
 pub mod ids;
 #[doc(hidden)]
 pub mod instance_fork;
-#[doc(hidden)]
-pub mod instance_lock;
+pub(crate) mod instance_lock;
 #[doc(hidden)]
 pub mod jobs;
 pub mod live_coalesce;
