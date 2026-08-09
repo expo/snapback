@@ -221,6 +221,11 @@
       "src/guide_mcp.rs",
       "src/main.rs",
       "src/server.rs",
+      "src/server/api_error.rs",
+      "src/server/asset_routes.rs",
+      "src/server/instance_home.rs",
+      "src/server/response_types.rs",
+      "src/server/tests.rs",
       "src/workerd_exec.rs"
     ],
     "embed-facade": [
