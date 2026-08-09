@@ -6,7 +6,10 @@
 Client integration, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-01
-**Revised:** 2026-08-02 (decision-sitting propagation: OQ2 is answered with
+**Revised:** 2026-08-08 (LLP 0204 commissioned the capability-link bearer
+exception and the integration-class ownership displacement cross-reference;
+design only, with no implementation or capability claim — see the dated
+amendment). 2026-08-02 (decision-sitting propagation: OQ2 is answered with
 the exclusive credential-kind model — one agent principal has one live
 credential kind at a time, and a kind change supersedes the prior kind;
 source: `issues/20260802-author-decision-packet.md`). 2026-08-02 (v0.5, final round-4 super-refine dispositions —
@@ -94,7 +97,7 @@ grant-request compiler this RFC consumes), LLP 0053 (authorization
 invalidation), LLP 0045 (notifications outbox), LLP 0057 (auth provider
 protocol), LLP 0062 (generated app CLI), LLP 0146 (agentic authoring
 affordances), LLP 0031 (route taxonomy), LLP 0072 / LLP 0098 (control
-plane and hosted edge)
+plane and hosted edge), LLP 0204 (app external surfaces)
 
 ## Summary
 
@@ -830,6 +833,106 @@ projection replacement (template widening or app tier raise →
 atomic revoke-and-replace, never two live delegation grants per
 credential, raised scopes never silently minted); hosted-target refusal
 of every new route.
+
+## Dated amendment: LLP 0204 capability-link bearer exception (2026-08-08)
+
+**Commissioned by:** [LLP 0204](./0204-app-external-surfaces.rfc.md), D7,
+D9.4, and the OQ9 ruling.
+
+**Status:** design amendment only. This section extends the bearer-exception
+inventory of this Draft RFC; it does not claim that capability-link minting,
+serving, approval, or revocation is implemented.
+
+### Closed v1 exception
+
+[Invariant 1](#summary) keeps durable bearer authority secrets out of the
+ordinary acquisition path and names only narrow ceremony exceptions. A
+capability-link URL is a further explicit exception: possession is bearer
+invocation authority, so it receives a closed profile rather than being
+described as proof-of-possession.
+
+In v1, a link may bind only a function in LLP 0204 D1's **external anonymous
+set**: an exposed `public` function, or an exposed `optional-user` function
+invoked without a user context. The link may pin arguments, provide
+attribution, and select a link-specific budget, but it does not make a function
+callable that an anonymous caller could not already call. Extending the carrier
+to granted functions remains separately commissioned by LLP 0204 D9.4 and is
+not implied by this exception.
+
+### Secret-URL discipline
+
+Every capability link satisfies all of the following:
+
+- expiry has a short default and a platform-bounded maximum; both values are
+  published by the target profile and cannot be raised by app source;
+- revocation is instant at the invocation gate, and a use racing revocation
+  settles through one exact terminal outcome;
+- the link is narrow by construction: one exposed function, one validated
+  argument template, one optional use count, and no scope wildcard;
+- every actual invocation is journaled before dispatch with link id, minter
+  authority lineage, function id, argument-template digest, use ordinal, and
+  coded outcome; the bearer token itself is never journaled;
+- `GET` is inert: it performs no function invocation, consumes no use, changes
+  no application or link state, and renders no auto-submitting form. An actual
+  invocation requires a non-GET request after an explicit user/client action,
+  so link-preview crawlers cannot trigger a read, write, approval, or use-count
+  consumption;
+- for a query link, the landing projection obtains its live result only through
+  the non-GET invoke route — a client-issued POST from the landing page; GET
+  itself stays inert — which is how LLP 0204 D9.4's live result view for
+  queries is deliverable with no state change on GET;
+- responses set `Referrer-Policy: no-referrer`, contain no third-party
+  subresources, and never echo the token into HTML, redirects, diagnostics, or
+  receipts; and
+- route normalization, access logging, application logging, tracing,
+  analytics, exception rendering, proxy configuration, and referrer handling
+  treat the token as credential material. The mint response and any request
+  carrying the URL are `no-store`; only a redacted link id is observable.
+
+These are bearer-exception requirements, not suggestions. The LLP 0031 dated
+amendment commissioned alongside this one owns the corresponding request-secret
+and response-sensitivity rows.
+
+### Mint lineage, revocation, and mutation
+
+Minting is itself a scoped grant operation. The mint transaction binds the link
+to the exact minter authority instance and grant/session lineage after proving
+that authority can invoke the bound function with the pinned arguments. Every
+use revalidates that lineage as well as the link. If the minter's authorizing
+grant, credential, session-family authority, or principal is revoked,
+terminally ended, or expires, every descendant link dies; reminting requires
+live authority. A link never outlives or widens its minter.
+
+Query links are the default. A link targeting an anonymously callable mutation
+or action is valid only when it is either:
+
+- **approval-gated**, using this RFC's approval-surface shape and revalidating
+  link, arguments, minter lineage, and application generation immediately
+  before execution; or
+- **single-use**, with use consumption and invocation admission decided
+  atomically so retries cannot execute twice.
+
+For a possessor-initiated mutating link that asks for approval, the **minter is
+the approver**. Possession cannot select another approver, and record ownership
+does not silently substitute. Approval remains prospective authorization of
+the bound effect, not proof that a preview is correct; LLP 0204 D9.5 owns that
+distinction.
+
+### Integration ownership displacement cross-reference
+
+[§2, “What approval of a first-contact request creates”](#2-the-approval-link-flow-agent-initiated-consent-without-the-oracle)
+normally seats the approver as owner under `open`, and under user-`invited`
+seats the invitation creator with approver = inviter. The integration
+registration class is the explicit exception: its installation approvals seat
+no owner in either mode, and an inviter is provenance only. The governing
+authority is LLP 0055's
+[2026-08-08 integration-registration amendment](./0055-agent-principals-and-scoped-grants.rfc.md#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08),
+which also defines the separate key-possession/operator ownership-claim paths.
+This cross-reference records the displacement; it does not create a second
+ownership rule here. For integration flows, “the LLP 0150 ceremony” therefore
+means this RFC's request/display/human-veto/poll **shape with the named LLP 0055
+registration-class and ownership amendments**; it must not be described as
+verbatim inheritance of this section's ordinary ownership result.
 
 ## Non-goals
 

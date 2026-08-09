@@ -8,7 +8,7 @@
 **Revised:** 2026-08-08 (hosted app-data SPA-fallback refusal: reserved
 app-data prefixes whose unimplemented route is answered by Workers Assets as
 200 HTML now return the structured
-`SNAPBACK_ROUTE_UNSUPPORTED_ON_TARGET` ErrorResponse). 2026-08-07 (LLP 0189 alignment sweep: verification-cadence/claim-gating clauses re-scoped or annotated to the LLP 0189 D-3/D-6 defaults). 2026-08-05 (§Server-binary identity: the build-identity dirty
+`SNAPBACK_ROUTE_UNSUPPORTED_ON_TARGET` ErrorResponse). 2026-08-08 (LLP 0204 commissioned the OAuth-facade, capability-link, and external-anonymous route/response classes; design only, outside this Active spec's implemented-route claim — see the dated amendment). 2026-08-07 (LLP 0189 alignment sweep: verification-cadence/claim-gating clauses re-scoped or annotated to the LLP 0189 D-3/D-6 defaults). 2026-08-05 (§Server-binary identity: the build-identity dirty
 probe is scoped to the runtime binary's input set — shared pathspec definition
 in `scripts/runtime-build-inputs.txt` — instead of the whole tree, and all
 expected-identity consumers read the same definition; demo/LLP/issue edits no
@@ -51,7 +51,7 @@ amendment). 2026-07-31 (LLP 0044 companion, tickets L1-04/L1-05: registered
 the asset upload-session route family — see the dated amendment — with the
 `AssetTransfer` authority-only invocation source and the same-path
 multi-method router merge). 2026-07-25 (hosted-arm root system-route migration: the Cloudflare gateway/coordinator system operations moved under the reserved `/_snapback/*` namespace — see the dated amendment; LLP 0093 former OQ6, executed by LLP 0094 §0A.3). 2026-07-25 (§Server-binary identity: resolved the kit-side self-confirmation defect — `startServer` no longer injects checkout-derived `SNAPBACK_BUILD_GIT_COMMIT`/`SNAPBACK_BUILD_GIT_DIRTY` into spawned children, so the build.rs stamp is an independent probe again; strict equality is replaced by an honest verdict classification (`verified`/`unpinned`/`env-stamped`/`unverifiable`/`stamp-mismatch`) carried on the server handle; see the resolved-defect paragraph and issues/closed/20260724-kit-identity-stamp-env-injection-tautology.md). 2026-07-24 (§Server-binary identity: recorded the kit-side defect where the default `cargo run` launch injects checkout-derived `SNAPBACK_BUILD_GIT_COMMIT`/`SNAPBACK_BUILD_GIT_DIRTY` into the child, making the provenance comparison self-confirming on that path; fix tracked by issues/20260724-kit-identity-stamp-env-injection-tautology.md). 2026-07-24 (LLP 0090 rollout step 2: `POST /app/bundle` and the pending-registration owner are implemented on the local arm and the route matrix row landed — see the amendment's implementation note). 2026-07-24 (LLP 0090 cluster-0F amendment: added the dated LLP 0090 resumable-snapshot-lanes section — a commissioned `DeclaredPublicApplicationData` response-sensitivity class for the Channel A inlined-HTML lane and read-mode public bundles, with server-side re-check of the codegen-compiled `publicInline` facts, body-logging exclusion with identity/refusal-code loggability, v1 `no-store`, and the bounded anonymous rate/budget posture; plus the bounded pending-registration owner that makes register mode buildable — atomic grant mint, atomic handoff on socket attach, attach-grace reaping, idempotency replay-validity scoped by LLP 0077's exact wire identities (RFC 7638 JWK thumbprint + issuance `sender_replay_epoch`), register mode refused to read mode for anonymous callers, and an acceptance obligation that socketless-HTTP-cannot-arm-demand still holds outside that one closed operation; enters the enforced registry with 0090 clusters 0D/0E). 2026-07-17 (clarified that kit connection labels and granted wire ids coincide only when an initial suggestion is adopted; collision or mint-only containment makes them diverge, and connection-owned entry keys use the granted id). 2026-07-16 (ENG-24920 companion amendment); 2026-07-15 (ENG-25102: extended the public system-static lane beyond console assets to the build-embedded `/_snapback/guide` projections; the three read-only routes carry `PublicProjection`, no instance authority, and the same registry enforcement). 2026-07-14 (auth-program route reconciliation: extend the normative matrix through the bootstrap handshake, provider/session endpoints, authorized-lease query, and explicit invalidation ACK/manual-retry routes now installed by items 3–8). 2026-07-13 (ENG-24596 final audit: registered the console-credential and secret-read-mint routes, the `SecretReadMintProof` effect, and rescue's dev/test-only profile); 2026-07-13 (ENG-24596: registered provider challenge/family-alarm credential cases, the public no-store response class, and the installed provider/mailbox/auth host-operation rows); 2026-07-13 (ENG-24594: made the route registry the enforceable router source; added independent path, credential-resolution, invocation-authority, legacy-body, effect, response-sensitivity, and session-overlay axes; re-scoped `AppAuth` to dev-mode client assertion; and pinned the complete existing-route × auth-mode matrix and metadata-driven acceptance sweep); 2026-07-13 (final audit hardening: the local durable-live registry now enforces the hosted proof's 2,048-global/64-per-connection ceilings before initial query execution, with net-zero supersession and typed 429 diagnostics); 2026-07-12 (ENG-24560/ENG-24571: the typed public-inspect projection now removes per-room ephemeral identities/scopes and client-mutation retention internals, exposing aggregate ephemeral health only); 2026-07-12 (ENG-24566: local connection grants are fixed-cap, prefer unused eviction, refuse while all used leases are current, and retire idle used grants only with stale-socket termination plus permanent minted-id fallback); 2026-07-12 (ENG-24347/ENG-24354/ENG-24358 review follow-up: hosted subscription rows, canonical args, and accepted sockets now have hard advertised ceilings, including the legacy proof socket; persisted over-limit state fails recoverably through health/reset; ENG-24347/ENG-24352/ENG-24354/ENG-24358: optional request bodies fail closed, WebSocket query-token transport is retired, hosted subscriptions and frames are bound to the current socket session so an obsolete socket cannot act for its replacement, and hosted durable connection grants are bounded and reaped; earlier: 2026-07-01 status → Active: LLP 0032 S1 implemented the full migration and the declared route registry with enforcement tests, verified against a running server; earlier same day status → Accepted, ratified in the LLP 0032 R1 batch: the five classifications are settled, LLP 0032 S0 landed the interim gate; author self-review pass: corrected the invariant's auth framing — app routes carry app-supplied `ctx.auth`, not server-enforced auth, and several are public; noted axum's `Router` is not route-introspectable so the declared registry is required for enforcement; aligned the new gated writes with the LLP 0024 host-ops projection; made explicit that the reserved-prefix proxy rule is safe only because the enforcement test holds. Not an independent review — this session authored the draft. GPT-5 review clarified that `/_snapback/admin*` is a static console shell/assets lane, not itself an `authorize()`-gated API; required the route registry to record auth policy as well as path class; and made WebSocket-carried operations part of the taxonomy so `/live/*` cannot smuggle a system operation. A further author self-revision then lifted that WebSocket insight into the normative invariant — the classified unit is the operation, not just the URL path — and clarified that the registry's `app-auth` policy means handler-enforced `ctx.auth`, not transport authentication. Still not an independent review; the GPT-5 pass above is 0031's one independent review so far. A subsequent Claude session then settled the five open-question classifications with the author and wrote them into the spec below, driven by three code-verification sub-agents and two adversarial Claude review passes over the decisions. That work corrected decision 4 — `/ephemeral/collections` (register) is an ungated definition-overwrite with no caller and is now classed system, split from the validate-only `/ephemeral/collections/ensure`, which stays app-data — dropped a category error in the delete rationale, folded seed into `app.reset` per LLP 0024, and added a field-level inspect test the route registry cannot substitute for. This remains a same-family Claude pass, not the independent review 0031 still owes: the GPT-5 review above predates these decisions, so a fresh cross-family pass over the revised spec is the outstanding review debt. 2026-07-04 (ENG-22798): added §Server-binary identity on /health — the ungated `/health` now carries a build-identity block (crate version + git commit/dirty + a per-process startup nonce) so an externally started, unprovisioned or schema-only server is reuse-verifiable before any app bundle loads; the reuse-provenance verdict falls back to it when bundle identity is unavailable. Still a same-family Claude pass; the cross-family review debt above stands. 2026-07-07 (ENG-23441): D3 tightened — the public `functions` manifest is now itself a typed projection (`PublicFunctionManifest`) that drops executable handler bodies (`IbexModule.source`, `HandlerPlan` step bodies) and `sourceSpan`; full handler source lives only on the gated twin, and the field-level trim test gains a whole-payload source-sentinel assertion. Same-family Claude pass; the cross-family review debt stands. 2026-07-07 (ENG-23365): §Server-binary identity — the build.rs stamp now tracks the binary's real inputs (src/, Cargo.toml, Cargo.lock, refs/heads, packed-refs) so incremental rebuilds and ref-only moves re-stamp instead of replaying a stale commit/dirty pair. 2026-07-07 (ENG-23419): §Server-binary identity — the dirty probe now maps `git status --porcelain` success-with-empty-output to `gitDirty: false` instead of conflating it with command failure, so a clean checkout can actually earn binary-provenance reuse. 2026-07-07 (ENG-23442): added §Connection capability grants and the `connection-auth` registry policy — connection ids are no longer caller-chosen bearerless capabilities; `POST /connection/open` mints a per-connection token (idempotent re-open under the current token; suggested ids adopted only in non-prod), and `/live/*`, `/outbox/{id}`, and the ephemeral publish/subscribe/delete routes require it, with `/outbox/{id}` reclassified from Public. Same-family Claude pass; review debt stands.)
-**Related:** LLP 0000, LLP 0003, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0023, LLP 0024, LLP 0025, LLP 0030, LLP 0039, LLP 0051, LLP 0053, LLP 0057, LLP 0058, LLP 0059, LLP 0060, LLP 0061, LLP 0077, LLP 0090, LLP 0093, LLP 0094, LLP 0143, LLP 0154
+**Related:** LLP 0000, LLP 0003, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0023, LLP 0024, LLP 0025, LLP 0030, LLP 0039, LLP 0051, LLP 0053, LLP 0057, LLP 0058, LLP 0059, LLP 0060, LLP 0061, LLP 0071, LLP 0077, LLP 0090, LLP 0093, LLP 0094, LLP 0143, LLP 0150, LLP 0154, LLP 0204
 
 ENG-24594's implementation hardening makes the sessions overlay executable
 through the real router and socket dispatcher in embedded acceptance state,
@@ -1341,6 +1341,128 @@ resolver only on `Public` + `None` + `PublicNoStore` rows, in both dev and
 sessions overlays. The router/registry parity set, route-policy matrix, method
 probe, independent throttle inventory, and response-control probe include the
 new path.
+
+## Dated amendment: LLP 0204 external-surface route families (2026-08-08)
+
+**Commissioned by:** [LLP 0204](./0204-app-external-surfaces.rfc.md), D1,
+D8, D9.4, and the OQ9 ruling.
+
+**Status:** commissioned design only. None of the rows or response classes in
+this section is part of this Active spec's implemented-route claim until its
+router/operation registry entries and metadata-derived acceptance fixtures
+land. Every route row in this amendment is refused wholesale on hosted targets
+in v1, per LLP 0055's existing plane posture and LLP 0150 §8.
+
+### OAuth facade and origin-root discovery
+
+The OAuth facade is an **AppData authentication family**, extending the current
+root `/auth/*` precedent in the
+[app-data route matrix](#app-data-http-and-websocket-surface). Its closed
+operations are:
+
+| Route / operation | Effective policy | Response sensitivity |
+| --- | --- | --- |
+| `GET /.well-known/oauth-authorization-server` | `Public`; no credential or invocation authority | closed `PublicNoStore` OAuth metadata projection |
+| `GET /.well-known/oauth-protected-resource` | `Public`; no credential or invocation authority | closed `PublicNoStore` protected-resource metadata projection |
+| `POST /auth/oauth/register` (RFC 7591 DCR) | `Public` path with `OperationSpecific` proof/invitation resolution; no invocation principal | `CredentialSecret`, because a permitted facade profile may return client-registration credential material; always `no-store` |
+| `GET|POST /auth/oauth/authorize` | `SessionAuth`; exact current session resolves the consenting user; legacy/body authority rejected | caller-scoped `ApplicationData`; this row forces `Cache-Control: no-store` on the caller-scoped response because the page carries integration, scope, and consent facts |
+| `POST /auth/oauth/token` | `Public` path with `OperationSpecific` authorization-code, PKCE, and sender-proof resolution; no body-selected principal | `CredentialSecret`; always `no-store` |
+| `POST /auth/oauth/revoke` | `Public` path with an operation-specific destroy-only credential resolver; no invocation principal | closed `PublicNoStore` acknowledgement |
+
+DCR's interaction with `disabled`, `invited`, and `open` is not route-local
+policy: LLP 0055's
+[2026-08-08 integration-registration amendment](./0055-agent-principals-and-scoped-grants.rfc.md#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08)
+owns that creation transaction. In particular, a public DCR path does not mean
+open registration; the operation-specific resolver reaches creation only after
+the current registration mode and any required invitation validate under LLP
+0055's creation-source and consumption-profile rules.
+
+The two `/.well-known/*` documents are the deliberate origin-root exception.
+RFC 8414 authorization-server discovery derives the
+`/.well-known/oauth-authorization-server` location from the issuer, and RFC
+9728 protected-resource discovery derives
+`/.well-known/oauth-protected-resource` from the protected resource. Moving
+either document under `/auth/*` or `/_snapback/*` changes the standard-derived
+URL and makes a conforming generic client miss it. Their root placement does
+not weaken [The invariant](#the-invariant): they are public AppData discovery
+operations, not system/control operations, and every non-metadata facade
+operation remains under the established root `/auth/*` family.
+
+### Capability-link mint and serve family
+
+The v1 capability-link family is:
+
+| Route / operation | Effective policy | Response sensitivity |
+| --- | --- | --- |
+| `POST /capability-links` | AppData mint; `SessionAuth` with an exact `RequiredSessionBearer` establishes the minter, and the function scope gate runs before creation | `CredentialSecret`; the returned URL/token is no-store and never logged |
+| `GET /capability-links/{token}` | AppData/Public path with a `CapabilityLinkBearer` request-secret resolver, `InvocationAuthority::None`, and no effect | `PublicNoStore` inert landing projection; it never invokes the function, consumes a use, or echoes the token |
+| `POST /capability-links/{token}/invoke` | AppData/Public path with `CapabilityLinkBearer`; resolves anonymous function authority only after link/minter-lineage/admission checks | `ExternalAnonymousApplicationData` below; always no-store |
+
+The path placeholder is credential material, not a loggable identifier. Router
+normalization must replace it with the registered template before access-log,
+trace, diagnostic, receipt, or error rendering; raw upstream/proxy logging of
+the request target is incompatible with the route. The response middleware
+sets `Referrer-Policy: no-referrer`, emits no third-party subresources, and
+forbids redirects carrying the token. The GET row is intentionally inert so
+preview crawlers cannot trigger an invocation or state transition. The POST row
+owns the real use and applies LLP 0150's
+[2026-08-08 capability-link exception](./0150-agent-token-acquisition.rfc.md#dated-amendment-llp-0204-capability-link-bearer-exception-2026-08-08),
+including instant revocation, per-use journaling, minter-lineage death, and the
+approval-or-single-use rule for mutations/actions.
+
+For a query link, the landing projection obtains its live result only through
+the non-GET invoke route — a client-issued POST from the landing page; GET
+itself stays inert — which is how LLP 0204 D9.4's live result view for queries
+is deliverable with no state change on GET.
+
+`CredentialSecret`, `PublicNoStore`, and request-secret ingestion retain their
+existing meanings under [Independent policy axes](#independent-policy-axes).
+The mint row's `RequiredSessionBearer` and `CapabilityLinkBearer` are closed
+resolvers, not aliases for a generic bearer: wrong-class credentials refuse
+before lookup, as the existing
+[agent-auth route-class amendment](#dated-amendment-agent-auth-route-classes-2026-07-16)
+requires for its credential families, and a capability-link token never becomes
+a session, grant, or actor principal.
+
+### `ExternalAnonymousApplicationData` contract
+
+`ResponseSensitivity` gains **`ExternalAnonymousApplicationData`**, a sibling
+of — not an expansion of — `DeclaredPublicApplicationData`. It covers an
+arbitrary app-derived response produced on an LLP 0204 external projection
+without authenticated caller authority. Selection requires all of these facts
+to be re-checked server-side before the handler runs:
+
+1. the function is exposed under LLP 0204 D1;
+2. its active authorization declaration is `public`, or is `optional-user` and
+   this invocation has no user context;
+3. the route/operation is one of the closed external projections using this
+   class; and
+4. LLP 0071's
+   [2026-08-08 external-anonymous admission contract](./0071-application-abuse-moderation-and-audit.rfc.md#dated-amendment-llp-0204-external-anonymous-admission-2026-08-08)
+   has admitted and atomically charged the request.
+
+The class is response handling, not authorization: setting it in registry
+metadata cannot expose a function, make an authenticated function anonymous,
+or bypass admission. v1 responses are `Cache-Control: no-store`; app-derived
+bodies, arguments, link templates, subjects, and values are excluded from body
+capture, logs, diagnostics, and receipts. Route template, method, status,
+function/integration class, response byte count, duration, and coded refusal
+remain loggable after credential and declared-id redaction.
+
+The existing
+[§`DeclaredPublicApplicationData` response sensitivity](#declaredpublicapplicationdata-response-sensitivity)
+continues to govern **exactly** its two stated lanes: LLP 0090's Channel A
+inlined-HTML lane and read-mode public bundles. It is not widened to the LLP
+0204 external anonymous set. The new sibling exists because that set includes
+both `public` and anonymous `optional-user` functions across external
+projections, rather than only LLP 0090's two `publicInline` read lanes.
+
+The route/operation parity set must enumerate every consumer of
+`ExternalAnonymousApplicationData`, and negative fixtures must prove that an
+unexposed function, an authenticated-only function, a declared-id budget
+failure, a network-floor failure, and a link outside the v1 anonymous set all
+refuse before a sentinel handler effect. These are acceptance obligations for
+the implementing landing, not evidence that it exists today.
 
 ## Status
 

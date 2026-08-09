@@ -5,7 +5,10 @@
 **Systems:** Abuse controls, Rate limits, Moderation, Audit, Auth, Runtime, Storage, Realtime, Admin, Privacy, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-26 (author-side review application: v1 now stages
+**Revised:** 2026-08-08 (LLP 0204 commissioned the external-anonymous and
+per-integration admission-key design, including the bounded declared-id ledger;
+design only, with no implementation or capability claim — see the dated
+amendment). 2026-07-26 (author-side review application: v1 now stages
 pre/post-auth identity, atomically reserves composed limits, pins token-bucket,
 network, high-cardinality, and response semantics, defines linear
 per-subject moderation reduction and visibility frontiers, routes external
@@ -14,7 +17,7 @@ external restore/checkpoint authority, and splits the four lanes into
 independently evidenced profiles. The RFC remains Draft and still requires
 independent security/privacy review and executable evidence). 2026-07-20
 (initial proposal for LLP 0063's hosted security foundation)
-**Related:** LLP 0004, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0018, LLP 0031, LLP 0036, LLP 0047, LLP 0053, LLP 0055, LLP 0056, LLP 0060, LLP 0063, LLP 0070
+**Related:** LLP 0004, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0018, LLP 0031, LLP 0036, LLP 0047, LLP 0053, LLP 0055, LLP 0056, LLP 0060, LLP 0063, LLP 0070, LLP 0150, LLP 0204
 
 ## Summary
 
@@ -456,6 +459,130 @@ The retained receipt names target profile and identity, repository/artifact and
 policy digests, trusted-proxy configuration class, effective ceilings,
 concurrency/fault corpus, moderation fixtures, audit-chain roots, retention
 windows, secret scan, and every nonclaim.
+
+## Dated amendment: LLP 0204 external-anonymous admission (2026-08-08)
+
+**Commissioned by:** [LLP 0204](./0204-app-external-surfaces.rfc.md), D1,
+D7, and the OQ8 ruling.
+
+**Status:** design amendment only. This section extends this Draft RFC's
+admission contract; it does not claim an enforced admission profile, a durable
+declared-id ledger, or any external-surface capability.
+
+### External admission keys
+
+Every LLP 0204 external call enters the staging model in
+[§Trusted request identity](#trusted-request-identity) and is charged before
+handler invocation under [§Admission rate limits](#admission-rate-limits).
+The generated key families are:
+
+- **granted integration:** server-resolved integration registration id, actor
+  principal, effective principal, installation grant, and deployment/operation
+  class;
+- **external anonymous:** deployment/operation class plus the normalized,
+  rotating network-evidence digest from
+  [§Network derivation profile](#network-derivation-profile); and
+- **declared:** deployment/operation class plus the normalized declared client
+  id, backed by the corresponding ledger row.
+
+The per-integration dimension is admitted only after credential, integration,
+and installation resolution. A caller-supplied integration name/id is not a
+trusted key, exactly as [§Trusted request identity](#trusted-request-identity)
+rejects arbitrary bucket keys and unverified token claims. Integration and
+principal budgets compose with the deployment/network floor and app ceiling;
+none replaces them. All applicable buckets and concurrency reservations are
+checked and charged atomically under the existing all-or-none transaction in
+[§Admission rate limits](#admission-rate-limits).
+
+The LLP 0031
+[2026-08-08 `ExternalAnonymousApplicationData` response contract](./0031-server-route-taxonomy.spec.md#externalanonymousapplicationdata-contract)
+is the response-side sibling of this admission class. External-surface
+activation must refuse unless both the admission and response contracts are
+installed; response classification alone never admits work.
+
+### Declared tier
+
+The declared tier is identification without authentication. Its client id is
+one string with these closed requirements:
+
+- at least 16 characters after the profile's pinned normalization;
+- it contains a syntactically valid e-mail address under the profile's pinned
+  parser; and
+- the e-mail address is the contact carried by the id itself. There is no
+  separate `contact` field and no inference that the caller controls the
+  address.
+
+Caller-chosen ids remain free-form within those requirements; they are
+prefix-namespaced like LLP 0148 ids only when server-suggested.
+
+A valid declared id conveys zero function authority: it reaches exactly LLP
+0204 D1's external anonymous set. It receives a stable cooperative budget and
+owner-visible attribution, but fresh ids start at a modest ceiling and age up
+only through the declared policy's bounded schedule. Age, contact spelling,
+and repeated use never become authentication facts, principal identity, or a
+way to exceed the network floor.
+
+The declared tier never reaches `ask`: compute requires a granted principal or
+caller-key billing, per the LLP 0204 OQ8 ruling. Declared-tier refusals name the
+caller's lane and the LLP 0150 escalation path, and the embedded contact channel
+enables warn-before-block.
+
+Declared budgets **compose with, and never replace, the external-anonymous
+network-evidence floor**. The runtime reserves the low-cardinality network
+bucket before resolving or allocating a declared-id bucket, then applies the
+strictest composed result. Minting many syntactically valid ids therefore
+cannot multiply the network allowance. This is the direct specialization of
+the existing rule in [§Admission rate limits](#admission-rate-limits) that a
+low-cardinality network/verified-principal outer bucket admits before a
+high-cardinality caller string is resolved.
+
+The rotating network-evidence digest is not part of the declared-bucket key:
+the network floor is already charged separately by the reserve-network-first
+rule. That separation makes the declared budget stable across the 24-hour
+network-evidence digest rotation.
+
+### Bounded pre-auth ledger
+
+A declared-id usage row is pre-authentication state, never an account. The
+ledger obeys the high-cardinality storage discipline already required by
+[§Admission rate limits](#admission-rate-limits):
+
+1. **Low-cardinality creation gate.** A network-evidence creation bucket must
+   admit before the first row for an id can be allocated. Rejected requests do
+   not create or refresh a row.
+2. **Idle TTL.** Every row has a bounded idle deadline. Expiry evicts the row
+   and resets its age-up state; later reuse starts fresh.
+3. **Global per-app cap.** The total live declared-row count is capped
+   independently of request-rate budgets. At the cap, a previously unseen id
+   is refused from the declared tier before allocation; it cannot evict live
+   rows merely by choosing another string. The ordinary anonymous lane remains
+   subject to its own floor.
+4. **Bounded shape.** The row retains only normalized id, first/last-seen
+   times, age-policy generation, bounded counters, coded operator status, and
+   network-evidence generation references. It retains no raw network prefix and
+   no unbounded caller metadata.
+
+Operator blessing or suspension changes cooperative treatment only. It does
+not authenticate the string, remove the network floor, or prevent another
+caller from presenting the same id.
+
+### Upgrade creates a fresh identity
+
+Moving from declared use to an integration never “claims” the string. The
+upgrade ceremony issues a fresh authenticated, key-bound integration identity
+under LLP 0055/0150. It does not transfer the declared row's budgets, age,
+operator status, or authority. The old row may be attached to the new
+integration only as explicitly **untrusted attribution** — useful for an owner
+view or abuse investigation, never as proof of continuity or control absent
+the demonstrated contact/operator proof LLP 0204 D7 names. Every subsequent
+authorized call keys on the fresh server-issued integration and installation
+facts, not on possession of the declared id.
+
+This preserves the target document's existing boundary: unknown caller strings
+cannot create unlimited durable buckets and cannot become trusted identity
+facts merely because they have history
+([§Trusted request identity](#trusted-request-identity),
+[§Admission rate limits](#admission-rate-limits)).
 
 ## Non-goals and claim boundary
 
