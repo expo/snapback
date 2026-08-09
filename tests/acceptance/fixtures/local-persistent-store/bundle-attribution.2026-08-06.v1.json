@@ -2,28 +2,20 @@
   "schemaVersion": "snapback.local-persistent-store.bundle-attribution.v1",
   "date": "2026-08-06",
   "source": {
-    "revision": "1cb7e39417cf6fdb9844df30362d50cb5dadc5d9",
+    "revision": "6915f2fe318f40ca06e4c4ce73b9b1e82abd98f3",
     "dirty": true,
     "dirtyPaths": [
       "demos/fleet-observatory-move1/snapback/generated/artifacts.json",
       "demos/fleet-observatory-move1/snapback/trusted-composition-activation.json",
       "demos/triage-graph/snapback/generated/artifacts.json",
       "demos/triage-graph/snapback/trusted-composition-activation.json",
-      "src/local-persistent-store-publication.anchor.v1.json",
-      "src/local-persistent-store-publication.v1.json",
-      "src/local-relation-activity-publication.v1.json",
-      "src/manifest.rs",
       "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
       "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
       "tests/acceptance/fixtures/fleet-observatory/runtime-readiness.2026-08-06.v1.json",
-      "tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-06.v1.json",
-      "tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json",
       "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json",
       "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
       "tests/acceptance/fleet-observatory-move1-v1-evidence.md",
-      "tests/acceptance/local-store-carrier-exit-v1-evidence.md",
-      "tests/acceptance/triage-graph-move1-v1-evidence.md",
-      "tests/conformance/relation-activity-publication-v1.mjs"
+      "tests/acceptance/triage-graph-move1-v1-evidence.md"
     ],
     "files": [
       {
@@ -80,7 +72,7 @@
       },
       {
         "path": "packages/snapback-client/index.mjs",
-        "sha256": "75855fa79db91c1e6699bd9bf9b857146daf27b26050db15a7e688f0a632a78c"
+        "sha256": "7090ed1beecf08942c4b5caf6bf477180db1edc8f951f66c394331c7329f8183"
       },
       {
         "path": "packages/snapback-client/rqs-store.mjs",
@@ -116,19 +108,19 @@
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json",
-        "sha256": "9a6b97d9ae09b4edc3e3103828fc5250dcc0f4e538fe78f643bd0aee3daa8335"
+        "sha256": "dec195e72147c61ee6dd430f4e7468f1cbebf9793c194c60ef7e6813a2d7baec"
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
-        "sha256": "93ec8310e353ca0b515f95b374359eb2466f5d081a05a880581b93ab350aa48a"
+        "sha256": "7ba56fcf41daa68b301bd95080c73ccc1193b3c347d889755900d1910daf1132"
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
-        "sha256": "968c5311dd26bda4add354a0a93775fd24dbf20ca9dca748b481b5a15ecb5d7e"
+        "sha256": "d02eaff2fddfac656b06d3dad28925350b709498fae8a4ea1e3192eb2cc439cc"
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
-        "sha256": "80fadb9bd7baf6ea94c6927ea945b1ccbc953dd1dad1076e3341b1aef6455d9f"
+        "sha256": "f0cb63ea25ef0e5280f885b8fe6f6621e62f3f8d43c40ba3918fb19edbcadd59"
       }
     ]
   },
@@ -152,10 +144,10 @@
     "external": []
   },
   "output": {
-    "minifiedBytes": 710550,
-    "gzipBytes": 195994,
-    "brotliBytes": 157871,
-    "sha256": "baaa9f44f50a787ac588ab387a45421c3161262d946758626f9b69d6bcf07030"
+    "minifiedBytes": 711616,
+    "gzipBytes": 196272,
+    "brotliBytes": 158047,
+    "sha256": "ede9d0ddfe2e3f59671dd5e61c35791eae611a6696010edc364370f6c812b221"
   },
   "modules": [
     {

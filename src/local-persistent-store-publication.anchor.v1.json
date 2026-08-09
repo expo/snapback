@@ -2,5 +2,5 @@
   "schemaVersion": "snapback.local-capability-publication-anchor.v1",
   "capabilityId": "single_table_v1",
   "state": "published",
-  "carrierSha256": "sha256:ce0caf925428e4e3216812dc0f11e233cbca5e6992896a67836e008e12aa9c3a"
+  "carrierSha256": "sha256:dc83c6aa13840a818c59cbb13cd208bfecb92c52a875407c2e530f804c24cb99"
 }
