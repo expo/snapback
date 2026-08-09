@@ -183,3 +183,16 @@ domain needs an author-minted token with Zone+Pages scope or
 confirmation of where the domain lives. D2 (examples repo), D3
 (snapshot paths /v/<closure>/), and the D4 benchmarks gate remain
 follow-ons.
+
+## Origin change + EAS Hosting migration — 2026-08-08 (author direction)
+
+Author directed same-day: publish at **https://snapback.expo.app** on
+EAS Hosting instead of Cloudflare Pages/docs.snapback.dev. Executed:
+`website/` (in-repo Expo Router site) with `/` placeholder product
+page, `/guide/` = the docs projection (links rebased), `/docs/` →
+redirect, root `/llms.txt`; deployed via `eas deploy --prod` (project
+@ccheever/snapback, id d6c81653); all routes verified 200. The
+`snapback-docs.pages.dev` Pages project was **deleted**. D1's origin is
+therefore ruled-and-executed as snapback.expo.app; the earlier
+docs.snapback.dev recommendation and its Zone-token blocker are moot.
+Redeploy recipe: `website/README.md`.
