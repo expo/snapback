@@ -2115,6 +2115,14 @@ fn validate_exact(
     }) {
         super::auth_integrations::validate_exact_schema(conn)?;
     }
+    // @ref LLP 0071#bounded-pre-auth-ledger — recognize only the exact
+    // manifest-owned declared ledger without changing `_auth_*` catalog v2.
+    if objects.iter().any(|object| {
+        object.kind == "table"
+            && object.name == super::declared_clients::DECLARED_CLIENT_TABLE
+    }) {
+        super::declared_clients::validate_exact_schema(conn)?;
+    }
 
     for table in schema.tables {
         let Some(object) = by_name.get(table.name) else {

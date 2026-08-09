@@ -3123,6 +3123,7 @@ async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
     })
     .await
     .unwrap();
+    let runtime = state.clone();
     let router = app(state);
 
     let exposed = router
@@ -3145,11 +3146,175 @@ async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
         "https://integration.example:8443"
     );
     assert_eq!(exposed.headers()[header::VARY], "Origin");
+    assert!(exposed.headers()[header::ACCESS_CONTROL_EXPOSE_HEADERS]
+        .to_str()
+        .unwrap()
+        .split(',')
+        .any(|name| name.trim() == super::SNAPBACK_CLIENT_ID_STATUS_HEADER));
     assert!(
         exposed
             .headers()
             .get(header::ACCESS_CONTROL_ALLOW_CREDENTIALS)
             .is_none()
+    );
+
+    let declared = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/query/listItems")
+                .header(header::CONTENT_TYPE, "application/json")
+                .header("x-snapback-auth-client-protocol", "1")
+                .header(
+                    super::SNAPBACK_CLIENT_ID_HEADER,
+                    "crawler-7f3a9c/ops@example.com",
+                )
+                .body(Body::from(r#"{"args":{}}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(declared.status(), StatusCode::OK);
+    assert_eq!(
+        declared.headers()[super::SNAPBACK_CLIENT_ID_STATUS_HEADER],
+        "accepted"
+    );
+    let declared_id = "crawler-7f3a9c/ops@example.com".to_owned();
+    let declared_record = with_snapback(&runtime.snapback, move |snapback| {
+        snapback
+            .auth_database_mut()
+            .declared_client_for_admission(&declared_id, super::now_millis())
+    })
+    .await
+    .unwrap()
+    .expect("accepted declaration creates its bounded attribution row");
+    assert_eq!(declared_record.request_count, 1);
+
+    let suspended_id = declared_record.normalized_id.clone();
+    with_snapback(&runtime.snapback, move |snapback| {
+        snapback.auth_database_mut().set_declared_client_status(
+            &suspended_id,
+            crate::storage::declared_clients::DeclaredClientStatus::Suspended,
+        )
+    })
+    .await
+    .unwrap();
+    let suspended = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/query/listItems")
+                .header(header::CONTENT_TYPE, "application/json")
+                .header("x-snapback-auth-client-protocol", "1")
+                .header(
+                    super::SNAPBACK_CLIENT_ID_HEADER,
+                    "crawler-7f3a9c/ops@example.com",
+                )
+                .body(Body::from(r#"{"args":{}}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(suspended.status(), StatusCode::TOO_MANY_REQUESTS);
+    assert_eq!(
+        suspended.headers()[super::SNAPBACK_CLIENT_ID_STATUS_HEADER],
+        "suspended"
+    );
+    let suspended = response_json(suspended).await;
+    assert_eq!(
+        suspended["diagnostic"]["code"],
+        "SNAPBACK_API_DECLARED_CLIENT_SUSPENDED"
+    );
+    assert!(suspended["diagnostic"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("suspended"));
+    assert!(!suspended["diagnostic"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("revoked"));
+    let resumed_id = declared_record.normalized_id;
+    with_snapback(&runtime.snapback, move |snapback| {
+        snapback.auth_database_mut().set_declared_client_status(
+            &resumed_id,
+            crate::storage::declared_clients::DeclaredClientStatus::Active,
+        )
+    })
+    .await
+    .unwrap();
+
+    for ordinal in 0..(super::EXTERNAL_API_DECLARED_CREATION_LIMIT - 1) {
+        let id = format!("crawler-{ordinal:02}/ops{ordinal:02}@example.test");
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/query/listItems")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .header("x-snapback-auth-client-protocol", "1")
+                    .header(super::SNAPBACK_CLIENT_ID_HEADER, id)
+                    .body(Body::from(r#"{"args":{}}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers()[super::SNAPBACK_CLIENT_ID_STATUS_HEADER],
+            "accepted"
+        );
+    }
+    let blocked_id = "crawler-blocked/ops-blocked@example.test";
+    let blocked_creation = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/query/listItems")
+                .header(header::CONTENT_TYPE, "application/json")
+                .header("x-snapback-auth-client-protocol", "1")
+                .header(super::SNAPBACK_CLIENT_ID_HEADER, blocked_id)
+                .body(Body::from(r#"{"args":{}}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(blocked_creation.status(), StatusCode::OK);
+    assert_eq!(
+        blocked_creation.headers()[super::SNAPBACK_CLIENT_ID_STATUS_HEADER],
+        "ignored-creation-throttled"
+    );
+    let blocked_id = blocked_id.to_owned();
+    let blocked_row = with_snapback(&runtime.snapback, move |snapback| {
+        snapback
+            .auth_database_mut()
+            .declared_client_for_admission(&blocked_id, super::now_millis())
+    })
+    .await
+    .unwrap();
+    assert!(blocked_row.is_none(), "a rejected creation does not allocate or refresh a row");
+
+    let malformed_declaration = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/query/listItems")
+                .header(header::CONTENT_TYPE, "application/json")
+                .header("x-snapback-auth-client-protocol", "1")
+                .header(super::SNAPBACK_CLIENT_ID_HEADER, "not-an-email-declaration")
+                .body(Body::from(r#"{"args":{}}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(malformed_declaration.status(), StatusCode::OK);
+    assert_eq!(
+        malformed_declaration.headers()[super::SNAPBACK_CLIENT_ID_STATUS_HEADER],
+        "ignored-no-email"
     );
 
     let bare_unexposed = router
@@ -3160,12 +3325,23 @@ async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
                 .uri("/query/liveItems")
                 .header(header::CONTENT_TYPE, "application/json")
                 .header("x-snapback-auth-client-protocol", "1")
+                .header(
+                    super::SNAPBACK_CLIENT_ID_HEADER,
+                    "crawler-first-party/ops@example.com",
+                )
                 .body(Body::from(r#"{"args":{}}"#))
                 .unwrap(),
         )
         .await
         .unwrap();
     assert_eq!(bare_unexposed.status(), StatusCode::OK);
+    assert!(
+        bare_unexposed
+            .headers()
+            .get(super::SNAPBACK_CLIENT_ID_STATUS_HEADER)
+            .is_none(),
+        "first-party app-data routes ignore the external declaration carrier"
+    );
 
     let external_unexposed = router
         .clone()
@@ -3270,6 +3446,11 @@ async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
         preflight.headers()[header::ACCESS_CONTROL_ALLOW_ORIGIN],
         "https://integration.example:8443"
     );
+    assert!(preflight.headers()[header::ACCESS_CONTROL_ALLOW_HEADERS]
+        .to_str()
+        .unwrap()
+        .split(',')
+        .any(|name| name.trim() == super::SNAPBACK_CLIENT_ID_HEADER));
 
     let mut full_functions = activation_functions('3', false);
     for function in &mut full_functions.functions {
@@ -3341,12 +3522,20 @@ async fn external_api_v1_refuses_when_the_app_did_not_enable_it() {
                 .uri("/api/v1/query/listItems")
                 .header(header::CONTENT_TYPE, "application/json")
                 .header("x-snapback-auth-client-protocol", "1")
+                .header(
+                    super::SNAPBACK_CLIENT_ID_HEADER,
+                    "crawler-disabled/ops@example.test",
+                )
                 .body(Body::from(r#"{"args":{}}"#))
                 .unwrap(),
         )
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        response.headers()[super::SNAPBACK_CLIENT_ID_STATUS_HEADER],
+        "ignored-api-disabled"
+    );
     assert_eq!(
         response_json(response).await["diagnostic"]["code"],
         "SNAPBACK_API_NOT_ENABLED"
@@ -15515,6 +15704,10 @@ fn production_snapback_literals() -> BTreeSet<String> {
 // helper constructors, embedded runtime source, and macros.
 const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
     (
+        "SNAPBACK_HANDLER_ERROR_EXPOSURE",
+        "environment variable selecting redacted versus development handler-error rendering; never an HTTP diagnostic",
+    ),
+    (
         "SNAPBACK_LIVE_EVALUATION_TASK_FAILED",
         "scheduler-health structured-log code; it is never emitted in an HTTP response",
     ),
@@ -16087,6 +16280,7 @@ const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
     // LLP 0204 S1 external-surface declarations and unpinned carrier.
     "SNAPBACK_API_AUTH_MODE_INVALID",
     "SNAPBACK_API_BUDGETS_UNAVAILABLE",
+    "SNAPBACK_API_DECLARED_CLIENT_INVALID",
     "SNAPBACK_API_EXPOSURE_COMPILATION_INVALID",
     "SNAPBACK_API_FUNCTION_EXPOSURE_INVALID",
     "SNAPBACK_API_FUNCTION_UNKNOWN",
@@ -16560,6 +16754,7 @@ const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_AUTH_INTEGRATION_UNAVAILABLE",
     "SNAPBACK_API_EXPOSURE_DENIED",
     "SNAPBACK_API_NOT_ENABLED",
+    "SNAPBACK_API_DECLARED_CLIENTS_UNAVAILABLE",
     // LLP 0158/0163/0164 authorization and sealed-authority refusals.
     "SNAPBACK_BRANCH_AUTHORITY_DENIED",
     "SNAPBACK_BRANCH_EGRESS_DENIED",
@@ -16641,6 +16836,7 @@ const NOT_FOUND_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_ADMIN_REACHABILITY_SESSION_INVALID",
     "SNAPBACK_AUTH_AGENT_UNKNOWN",
     "SNAPBACK_AUTH_INTEGRATION_UNKNOWN",
+    "SNAPBACK_API_DECLARED_CLIENT_UNKNOWN",
     "SNAPBACK_JOB_UNKNOWN",
     "SNAPBACK_BUNDLE_ROUTE_UNKNOWN",
     "SNAPBACK_ROUTE_UNKNOWN",
@@ -16671,6 +16867,7 @@ const NOT_FOUND_DIAGNOSTICS: &[&str] = &[
 const CONFLICT_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_AUTH_INTEGRATION_CATALOG_CORRUPT",
     "SNAPBACK_AUTH_INTEGRATION_CLASS_INVALID",
+    "SNAPBACK_API_DECLARED_CLIENT_CATALOG_CORRUPT",
     // LLP 0158/0163/0164 current-state, CAS, and reseal conflicts.
     "SNAPBACK_BRANCH_ARTIFACT_DRIFT",
     "SNAPBACK_BRANCH_BASE_NOT_CURRENT",
@@ -16853,6 +17050,13 @@ const PAYLOAD_TOO_LARGE_DIAGNOSTICS: &[&str] = &[
 const TOO_MANY_REQUESTS_DIAGNOSTICS: &[&str] = &[
     // LLP 0204 S0 — per-user live-invitation cap (a quota, not a fault).
     "SNAPBACK_AUTH_AGENT_INVITATION_CAP",
+    // LLP 0204 S2-B — the composed external anonymous/declared/integration
+    // admission ladder and reversible suspension refusals.
+    "SNAPBACK_API_NETWORK_FLOOR_EXCEEDED",
+    "SNAPBACK_API_DECLARED_LIMIT_EXCEEDED",
+    "SNAPBACK_API_INTEGRATION_LIMIT_EXCEEDED",
+    "SNAPBACK_API_DECLARED_CLIENT_SUSPENDED",
+    "SNAPBACK_API_INTEGRATION_SUSPENDED",
     // Live-object, concurrent-WAL, finite-range, and contention capacity.
     "SNAPBACK_BRANCH_LIVE_LIMIT_EXCEEDED",
     "SNAPBACK_BRANCH_OPERATION_LIMIT_EXCEEDED",
@@ -21281,6 +21485,252 @@ fn agent_management_routes_have_independent_exact_throttle_budgets() {
     state
         .consume_agent_route(session_path, user_b, session_limit, start)
         .expect("one user cannot exhaust another user's bucket");
+}
+
+#[test]
+fn external_client_id_header_profile_is_duplicate_safe_and_external_only() {
+    let external = super::core_route_registrations()
+        .into_iter()
+        .find(|route| route.spec.path == "/api/v1/query/{name}")
+        .unwrap()
+        .spec;
+    let first_party = super::core_route_registrations()
+        .into_iter()
+        .find(|route| route.spec.path == "/query/{name}")
+        .unwrap()
+        .spec;
+    let context = |spec, values: &[&str]| {
+        let mut headers = HeaderMap::new();
+        for value in values {
+            headers.append(
+                super::SNAPBACK_CLIENT_ID_HEADER,
+                HeaderValue::from_str(value).unwrap(),
+            );
+        }
+        super::declared_client_id_context(spec, &headers)
+    };
+
+    let valid = context(external, &["crawler-7f3a9c/OPS@Example.COM"])
+        .expect("external context");
+    assert_eq!(valid.status(), Some("accepted"));
+    assert_eq!(
+        valid.declared.unwrap().value,
+        "crawler-7f3a9c/ops@example.com"
+    );
+    assert_eq!(
+        context(external, &["ops@example.com"]).unwrap().status(),
+        Some("ignored-too-short")
+    );
+    assert_eq!(
+        context(external, &["crawler-without-contact-address"])
+            .unwrap()
+            .status(),
+        Some("ignored-no-email")
+    );
+    assert_eq!(
+        context(
+            external,
+            &["crawler-a/ops@example.com", "crawler-b/ops@example.com"]
+        )
+        .unwrap()
+        .status(),
+        Some("ignored-duplicate")
+    );
+    assert!(
+        context(first_party, &["crawler-a/ops@example.com"]).is_none(),
+        "first-party routes ignore the declaration entirely"
+    );
+}
+
+/// @ref LLP 0071#declared-tier — the low-cardinality floor is reserved first,
+/// declared/integration buckets are independent siblings, and blessing changes
+/// only cooperative treatment.
+#[test]
+fn external_api_buckets_compose_without_declared_sybil_amplification() {
+    let mut state = ConnectionRegistryState::default();
+    let now = Instant::now();
+    let network = [7; 32];
+    for minted in 0..super::EXTERNAL_API_ANONYMOUS_FLOOR_LIMIT {
+        state
+            .consume_external_api(
+                super::ExternalApiThrottleSource::NetworkFloor(network),
+                super::EXTERNAL_API_ANONYMOUS_FLOOR_LIMIT,
+                now,
+            )
+            .expect("network floor admits its exact allowance");
+        state
+            .consume_external_api(
+                super::ExternalApiThrottleSource::Declared([minted as u8; 32]),
+                super::EXTERNAL_API_DECLARED_LIMIT,
+                now,
+            )
+            .expect("fresh declared id cannot weaken the separately charged floor");
+    }
+    assert_eq!(
+        state.consume_external_api(
+            super::ExternalApiThrottleSource::NetworkFloor(network),
+            super::EXTERNAL_API_ANONYMOUS_FLOOR_LIMIT,
+            now,
+        ),
+        Err(60)
+    );
+
+    let mut declared = ConnectionRegistryState::default();
+    for _ in 0..super::EXTERNAL_API_DECLARED_LIMIT {
+        declared
+            .consume_external_api(
+                super::ExternalApiThrottleSource::Declared([1; 32]),
+                super::EXTERNAL_API_DECLARED_LIMIT,
+                now,
+            )
+            .unwrap();
+    }
+    assert_eq!(
+        declared.consume_external_api(
+            super::ExternalApiThrottleSource::Declared([1; 32]),
+            super::EXTERNAL_API_DECLARED_LIMIT,
+            now,
+        ),
+        Err(60)
+    );
+    assert!(super::EXTERNAL_API_DECLARED_LIMIT > super::EXTERNAL_API_ANONYMOUS_FLOOR_LIMIT);
+
+    let mut integrations = ConnectionRegistryState::default();
+    for _ in 0..super::EXTERNAL_API_INTEGRATION_LIMIT {
+        integrations
+            .consume_external_api(
+                super::ExternalApiThrottleSource::Integration("intg-a".to_owned()),
+                super::EXTERNAL_API_INTEGRATION_LIMIT,
+                now,
+            )
+            .unwrap();
+    }
+    assert_eq!(
+        integrations.consume_external_api(
+            super::ExternalApiThrottleSource::Integration("intg-a".to_owned()),
+            super::EXTERNAL_API_INTEGRATION_LIMIT,
+            now,
+        ),
+        Err(60)
+    );
+    integrations
+        .consume_external_api(
+            super::ExternalApiThrottleSource::Integration("intg-b".to_owned()),
+            super::EXTERNAL_API_INTEGRATION_LIMIT,
+            now,
+        )
+        .expect("one integration cannot exhaust another integration's bucket");
+
+    let blessed_limit = super::EXTERNAL_API_DECLARED_LIMIT
+        * super::EXTERNAL_API_BLESSED_MULTIPLIER;
+    assert!(blessed_limit > super::EXTERNAL_API_DECLARED_LIMIT);
+    let mut blessed = ConnectionRegistryState::default();
+    for _ in 0..=super::EXTERNAL_API_DECLARED_LIMIT {
+        blessed
+            .consume_external_api(
+                super::ExternalApiThrottleSource::Declared([4; 32]),
+                blessed_limit,
+                now,
+            )
+            .expect("blessing raises the per-id bucket above the fresh-id ceiling");
+    }
+    let maximum_aged_limit = super::EXTERNAL_API_DECLARED_LIMIT
+        * crate::storage::declared_clients::DECLARED_CLIENT_MAX_AGE_POLICY_GENERATION as usize;
+    assert!(maximum_aged_limit > super::EXTERNAL_API_DECLARED_LIMIT);
+}
+
+#[test]
+fn declared_creation_gate_is_low_cardinality_and_exact() {
+    let mut state = ConnectionRegistryState::default();
+    let now = Instant::now();
+    for _ in 0..super::EXTERNAL_API_DECLARED_CREATION_LIMIT {
+        state
+            .consume_external_api(
+                super::ExternalApiThrottleSource::DeclaredCreation([9; 32]),
+                super::EXTERNAL_API_DECLARED_CREATION_LIMIT,
+                now,
+            )
+            .unwrap();
+    }
+    assert_eq!(
+        state.consume_external_api(
+            super::ExternalApiThrottleSource::DeclaredCreation([9; 32]),
+            super::EXTERNAL_API_DECLARED_CREATION_LIMIT,
+            now,
+        ),
+        Err(60)
+    );
+    state
+        .consume_external_api(
+            super::ExternalApiThrottleSource::DeclaredCreation([8; 32]),
+            super::EXTERNAL_API_DECLARED_CREATION_LIMIT,
+            now,
+        )
+        .expect("creation gates are keyed only by bounded network evidence");
+}
+
+#[test]
+fn external_api_overflow_stays_lane_specific_and_fail_closed() {
+    for (source, expected_source, expected_limit) in [
+        (
+            super::ExternalApiThrottleSource::NetworkFloor([1; 32]),
+            super::ExternalApiThrottleSource::OverflowNetworkFloor,
+            super::EXTERNAL_API_ANONYMOUS_FLOOR_LIMIT,
+        ),
+        (
+            super::ExternalApiThrottleSource::DeclaredCreation([2; 32]),
+            super::ExternalApiThrottleSource::OverflowDeclaredCreation,
+            super::EXTERNAL_API_DECLARED_CREATION_LIMIT,
+        ),
+        (
+            super::ExternalApiThrottleSource::Declared([3; 32]),
+            super::ExternalApiThrottleSource::OverflowDeclared,
+            super::EXTERNAL_API_DECLARED_LIMIT,
+        ),
+        (
+            super::ExternalApiThrottleSource::Integration("integration".to_owned()),
+            super::ExternalApiThrottleSource::OverflowIntegration,
+            super::EXTERNAL_API_INTEGRATION_LIMIT,
+        ),
+    ] {
+        let (overflow, limit) = source.overflow();
+        assert_eq!(overflow, expected_source);
+        assert_eq!(limit, expected_limit);
+    }
+}
+
+#[tokio::test]
+async fn external_refusal_names_lane_and_escalation() {
+    let response = super::external_api_throttle_error(
+        "SNAPBACK_API_DECLARED_LIMIT_EXCEEDED",
+        "declared",
+        "declared budget exhausted",
+        9,
+    )
+    .into_response();
+    assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+    assert_eq!(response.headers()[header::RETRY_AFTER], "9");
+    let body = response_json(response).await;
+    assert_eq!(body["diagnostic"]["details"]["lane"], "declared");
+    assert_eq!(
+        body["diagnostic"]["details"]["escalation"]["nextLane"],
+        "integration"
+    );
+    assert_eq!(
+        body["diagnostic"]["details"]["escalation"]["path"],
+        "/auth/agents/register"
+    );
+
+    let floor = super::external_api_throttle_error(
+        "SNAPBACK_API_NETWORK_FLOOR_EXCEEDED",
+        "network-floor",
+        "network floor exhausted",
+        3,
+    )
+    .into_response();
+    let floor = response_json(floor).await;
+    assert_eq!(floor["diagnostic"]["details"]["lane"], "network-floor");
+    assert!(floor["diagnostic"]["details"]["escalation"]["nextLane"].is_null());
 }
 
 /// @ref LLP 0059#connection-bound-authority — exact generation

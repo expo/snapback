@@ -132,6 +132,12 @@ pub(crate) mod auth_grants;
 #[path = "storage/auth_integrations.rs"]
 pub(crate) mod auth_integrations;
 
+// @ref LLP 0071#bounded-pre-auth-ledger — declared-client attribution is a
+// manifest-activated exact companion, never an account in the frozen auth
+// catalog namespace.
+#[path = "storage/declared_clients.rs"]
+pub(crate) mod declared_clients;
+
 #[allow(dead_code)]
 #[path = "storage/auth_rescue.rs"]
 pub(crate) mod auth_rescue;

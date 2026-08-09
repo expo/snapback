@@ -5,8 +5,9 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-08-09 (LLP 0204 S2 Landing A integration lifecycle; earlier
-S1 `/api/v1` and `api.origins` bearer-token CORS — see dated amendments).
+**Revised:** 2026-08-09 (LLP 0204 S2 Landing B declared-client operator
+routes; earlier S2 Landing A integration lifecycle and S1 `/api/v1` plus
+`api.origins` bearer-token CORS — see dated amendments).
 2026-08-08 (hosted app-data SPA-fallback refusal: reserved
 app-data prefixes whose unimplemented route is answered by Workers Assets as
 200 HTML now return the structured
@@ -1555,6 +1556,32 @@ as credential or grant revocation.
 The OAuth discovery, DCR, authorization, token, and revocation facade rows in
 the 2026-08-08 LLP 0204 amendment remain commissioned design. This amendment
 does not claim that those facade routes are implemented.
+
+## Dated amendment: LLP 0204 S2 declared-client operator routes (2026-08-09)
+
+**Commissioned by:** [LLP 0204](./0204-app-external-surfaces.rfc.md) D7 and
+the [LLP 0071 external-anonymous admission amendment](./0071-application-abuse-moderation-and-audit.rfc.md#dated-amendment-llp-0204-external-anonymous-admission-2026-08-08);
+**implemented** by `S2 Landing B`.
+
+The bounded declared-client ledger has one operator read projection and four
+registered mutation routes. The id travels in the JSON body because its
+free-form normalized profile may contain characters unsuitable for a path
+segment.
+
+| Route | Policy tuple | Body / result |
+| --- | --- | --- |
+| `GET /_snapback/api/auth/declared-clients` | `SystemApi`, `AdminRead`, `AdminCredential`, `InvocationAuthority::Operator`, `LegacyBodyPolicy::NotApplicable`, no extra effect, `OperatorMetadata` | empty body; bounded usage/status projection |
+| `POST /_snapback/api/auth/declared-clients/bless` | `SystemApi`, `AdminWrite`, `AdminCredential`, `InvocationAuthority::Operator`, `LegacyBodyPolicy::NotApplicable`, no extra effect, `OperatorMetadata` | closed `{clientId}` body; status projection |
+| `POST /_snapback/api/auth/declared-clients/suspend` | same tuple as bless | closed `{clientId}` body; status projection |
+| `POST /_snapback/api/auth/declared-clients/resume` | same tuple as bless | closed `{clientId}` body; active-status projection |
+| `POST /_snapback/api/auth/declared-clients/delete` | same tuple as bless | closed `{clientId}` body; `204` |
+
+`Snapback-Client-Id` is admitted only on the registered `/api/v1/*` family;
+the bare first-party routes ignore it. Browser callers may present that header
+through the external family CORS lane, and may read the
+`Snapback-Client-Id-Status` response header. Parsing, bounded-ledger,
+network-floor composition, suspension, and fresh-identity upgrade rules remain
+normatively owned by LLP 0071 and LLP 0204 D7.
 
 ## Status
 

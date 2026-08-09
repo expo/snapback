@@ -869,6 +869,7 @@ impl LocalDatabase {
             &tx,
             &staged.schema_manifest,
         )?;
+        crate::storage::declared_clients::activate_manifest_in(&tx, &staged.schema_manifest)?;
         // @ref LLP 0055#grants — initial sessions activation seeds the durable
         //   exact-function basis rows in the same cut as the existing LLP 0053
         //   activation event. No grant can observe an empty/intermediate set.
@@ -1827,6 +1828,7 @@ fn apply_schema_tables(tx: &Transaction<'_>, manifest: &SchemaManifest) -> Snapb
     // and auth-lifecycle triggers exist iff the schema declares the seam.
     crate::push::activate_manifest_in(tx, manifest.push_seam.as_ref())?;
     crate::storage::auth_integrations::activate_manifest_in(tx, manifest)?;
+    crate::storage::declared_clients::activate_manifest_in(tx, manifest)?;
     Ok(())
 }
 

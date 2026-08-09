@@ -432,6 +432,13 @@ impl LocalDatabase {
         require_active_if_integration_on(&self.conn, principal_user_id).map(|_| ())
     }
 
+    pub(crate) fn integration_record_if_present(
+        &self,
+        principal_user_id: &str,
+    ) -> SnapbackResult<Option<IntegrationRecord>> {
+        record_for_principal_on(&self.conn, principal_user_id)
+    }
+
     /// @ref LLP 0055#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08 — suspend/resume changes admission only and cannot resurrect a retired registration.
     pub(crate) fn set_integration_suspended(
         &mut self,
@@ -716,8 +723,11 @@ mod tests {
     fn ready_database() -> LocalDatabase {
         let mut db = LocalDatabase::memory().unwrap();
         db.activate_current_auth_catalog().unwrap();
-        db.with_auth_transaction(|tx| activate_manifest_in(tx, &api_manifest()))
-            .unwrap();
+        db.with_auth_transaction(|tx| {
+            activate_manifest_in(tx, &api_manifest())?;
+            crate::storage::declared_clients::activate_manifest_in(tx, &api_manifest())
+        })
+        .unwrap();
         db
     }
 
@@ -901,6 +911,40 @@ mod tests {
         assert_eq!(claim, "provisional");
         assert_eq!(origin.as_deref(), Some("https://example.test"));
         assert!(redirects.unwrap().contains("/callback"));
+    }
+
+    #[test]
+    fn integration_registration_never_claims_matching_declared_history() {
+        let random = CounterRandom::new();
+        let mut db = ready_database();
+        let declared_id = "example integration/ops@example.test";
+        let observed = db
+            .observe_declared_client(declared_id, 900, 1)
+            .unwrap();
+        assert!(matches!(
+            observed,
+            crate::storage::declared_clients::DeclaredClientObservation::Observed(_)
+        ));
+        let before = db
+            .set_declared_client_status(
+                declared_id,
+                crate::storage::declared_clients::DeclaredClientStatus::Blessed,
+            )
+            .unwrap();
+        let integration = register_integration(&mut db, &random);
+        let after = db
+            .declared_client_for_admission(declared_id, 1_000)
+            .unwrap()
+            .expect("declared history remains a separate row");
+        assert_eq!(after, before);
+        assert_eq!(after.status.as_str(), "blessed");
+        assert_eq!(after.request_count, 1);
+        assert!(
+            db.integration_record_if_present(&integration.user_id)
+                .unwrap()
+                .is_some(),
+            "registration creates only the fresh key-bound integration record"
+        );
     }
 
     #[test]

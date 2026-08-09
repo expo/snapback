@@ -68,6 +68,16 @@ impl ApiError {
             None,
         )
     }
+
+    pub(super) fn api_throttled(error: SnapbackError, retry_after_seconds: u64) -> Self {
+        Self(
+            error,
+            None,
+            Some(retry_after_seconds.max(1)),
+            None,
+            None,
+        )
+    }
 }
 
 pub(super) fn diagnostic_from_ephemeral(error: crate::ephemeral::EphemeralError) -> Diagnostic {
@@ -152,14 +162,20 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_API_ORIGIN_INVALID"
         | "SNAPBACK_API_PAGINATION_RECOMMENDED"
         | "SNAPBACK_API_REGISTRATION_POSTURE_REQUIRED"
+        | "SNAPBACK_API_DECLARED_CLIENT_INVALID"
         | "SNAPBACK_AUTH_INTEGRATION_REQUEST_INVALID" => StatusCode::BAD_REQUEST,
-        "SNAPBACK_API_EXPOSURE_DENIED" | "SNAPBACK_API_NOT_ENABLED" => {
+        "SNAPBACK_API_EXPOSURE_DENIED"
+        | "SNAPBACK_API_NOT_ENABLED"
+        | "SNAPBACK_API_DECLARED_CLIENTS_UNAVAILABLE" => {
             StatusCode::FORBIDDEN
         }
         "SNAPBACK_AUTH_AGENT_INVITATION_CAP" => StatusCode::TOO_MANY_REQUESTS,
-        "SNAPBACK_AUTH_INTEGRATION_UNKNOWN" => StatusCode::NOT_FOUND,
+        "SNAPBACK_AUTH_INTEGRATION_UNKNOWN" | "SNAPBACK_API_DECLARED_CLIENT_UNKNOWN" => {
+            StatusCode::NOT_FOUND
+        }
         "SNAPBACK_AUTH_INTEGRATION_CATALOG_CORRUPT"
-        | "SNAPBACK_AUTH_INTEGRATION_CLASS_INVALID" => StatusCode::CONFLICT,
+        | "SNAPBACK_AUTH_INTEGRATION_CLASS_INVALID"
+        | "SNAPBACK_API_DECLARED_CLIENT_CATALOG_CORRUPT" => StatusCode::CONFLICT,
         // These are operator-only shutdown controls/failures rather than
         // served request outcomes. Inventory still classifies them explicitly
         // so an accidental HTTP projection remains fail-safe.
@@ -464,6 +480,11 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_PAIRING_CODE_CAP"
         | "SNAPBACK_AUTH_PAIRING_REQUEST_CAP"
         | "SNAPBACK_AUTH_RETRY_EPISODE_CAPACITY"
+        | "SNAPBACK_API_NETWORK_FLOOR_EXCEEDED"
+        | "SNAPBACK_API_DECLARED_LIMIT_EXCEEDED"
+        | "SNAPBACK_API_INTEGRATION_LIMIT_EXCEEDED"
+        | "SNAPBACK_API_DECLARED_CLIENT_SUSPENDED"
+        | "SNAPBACK_API_INTEGRATION_SUSPENDED"
         | "SNAPBACK_ADMIN_APPROVAL_RATE_LIMITED"
         | "SNAPBACK_ADMIN_CLAIM_RATE_LIMITED"
         | "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_RATE_LIMITED"

@@ -113,6 +113,51 @@
       "class": "SystemApi",
       "credential_resolution": "AdminCredential",
       "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/api/auth/declared-clients",
+      "path_policy": "AdminRead"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/auth/declared-clients/bless",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/auth/declared-clients/delete",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/auth/declared-clients/resume",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/auth/declared-clients/suspend",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
       "method": "POST",
       "outputSchema": null,
       "path": "/_snapback/api/auth/integrations/{id}/resume",

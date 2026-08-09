@@ -218,6 +218,10 @@ impl LocalDatabase {
                 },
             )?;
             if class == super::auth_integrations::AgentRegistrationClass::Integration {
+                // @ref LLP 0071#upgrade-creates-a-fresh-identity — registration
+                // mints fresh key-bound integration identity and deliberately
+                // neither reads, consumes, blesses, nor transfers a matching
+                // declared-client row.
                 // @ref LLP 0055#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08 — registration-time template application is forbidden for integration-class principals.
                 super::auth_integrations::validate_registration_template_suppressed_on(
                     tx, &user_id,
