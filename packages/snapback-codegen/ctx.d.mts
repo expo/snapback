@@ -188,6 +188,13 @@ export interface MutationIdentityContext {
 /** Transactional asset attachment; concrete generated APIs narrow its values. */
 export interface AssetsContext<AssetId = string, Options = unknown, Attached = any> {
   attach(assetId: AssetId, options?: Options): Promise<Attached>;
+  grant(
+    assetId: AssetId,
+    principal: string,
+    options?: Readonly<{ state?: 'pending' | 'active' }>,
+  ): Promise<Readonly<{ grantId: string }>>;
+  activate(grantId: string): Promise<void>;
+  revoke(grantId: string): Promise<void>;
 }
 
 /** Transactional durable-job enqueue available to mutation handlers. */

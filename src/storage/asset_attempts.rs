@@ -332,6 +332,7 @@ impl LocalDatabase {
                         owner_principal: owner.to_owned(),
                         delivery_profile: intent.delivery.kind,
                         read_access: intent.access.read,
+                        grants_enabled: intent.grants,
                         availability: assets::AssetAvailability::Pending,
                         primary_rendition_id: None,
                         lifecycle_generation: 1,

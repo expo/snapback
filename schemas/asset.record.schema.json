@@ -54,6 +54,10 @@
     "deliveryProfile": {
       "$ref": "#/$defs/AssetDeliveryProfile"
     },
+    "grantsEnabled": {
+      "description": "Frozen admission-time eligibility for first-class recipient grants.\nA later deploy cannot retrofit authority onto already-admitted bytes.",
+      "type": "boolean"
+    },
     "intentId": {
       "type": "string"
     },

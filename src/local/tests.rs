@@ -1916,6 +1916,7 @@ globalThis.__snapbackHandlers = {
             access: crate::manifest::AssetAccessPolicy {
                 read: crate::assets::AssetReadAccessPolicy::OwnerOnly,
             },
+            grants: false,
             image: None,
             video: None,
             on: None,
@@ -2125,6 +2126,44 @@ globalThis.__snapbackHandlers = {
             .record_count()
             .expect("count");
         assert_eq!(empty, 0, "refuse-partial lands no rows");
+    }
+
+    #[test]
+    fn asset_cut_carries_grants_at_the_same_consistent_cut() {
+        let scratch = tempfile::tempdir().expect("tempdir");
+        let export_dir = scratch.path().join("grant-cut");
+        let export_dir_str = export_dir.to_string_lossy().into_owned();
+        let mut source = asset_grant_snapback();
+        let asset_id = asset_ready(&mut source, "owner", b"grant-cut-bytes");
+        invoke_asset_grant_mutation(
+            &mut source,
+            "grantAsset",
+            "owner",
+            json!({ "assetId": asset_id, "principal": "recipient", "state": "active" }),
+        )
+        .expect("grant before cut");
+        let exported = source
+            .asset_host_op(
+                "asset.exportCut",
+                Some(&json!({ "dir": export_dir_str })),
+                None,
+                ServerProfile::Dev,
+            )
+            .expect("grant cut exports");
+        assert_eq!(exported["cut"]["grantCount"], 1);
+
+        let mut restored = asset_grant_snapback();
+        restored.set_asset_import_experimental_override(true);
+        restored
+            .asset_host_op(
+                "asset.importCut",
+                Some(&json!({ "dir": export_dir_str, "apply": true })),
+                None,
+                ServerProfile::Dev,
+            )
+            .expect("grant cut imports");
+        asset_deliver_content(&mut restored, "recipient", &asset_id, "primary", None)
+            .expect("imported active grant remains authoritative");
     }
 
     pub(crate) fn asset_dev_authority(
@@ -2626,6 +2665,412 @@ globalThis.__snapbackHandlers = {
         snapback
     }
 
+    const ASSET_GRANT_MUTATIONS_SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async grantAsset(ctx, args) {
+    return await ctx.assets.grant(args.assetId, args.principal, { state: args.state });
+  },
+  async activateGrant(ctx, args) {
+    await ctx.assets.activate(args.grantId);
+    return null;
+  },
+  async revokeGrant(ctx, args) {
+    await ctx.assets.revoke(args.grantId);
+    return null;
+  },
+  async abortGrant(ctx, args) {
+    await ctx.assets.grant(args.assetId, args.principal);
+    await ctx.db.insert('posts', { title: 'must roll back with grant' });
+    throw new Error('abort after staging grant');
+  },
+  async abortActivate(ctx, args) {
+    await ctx.assets.activate(args.grantId);
+    await ctx.db.insert('posts', { title: 'must roll back with activation' });
+    throw new Error('abort after staging activation');
+  }
+};
+"#;
+
+    fn asset_grant_snapback() -> LocalSnapback {
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        let grant_fn = |name: &str| {
+            FunctionDefinition::new(
+                name,
+                FunctionKind::Mutation,
+                FunctionRuntime::IbexModule(IbexModule {
+                    source: ASSET_GRANT_MUTATIONS_SOURCE.to_owned(),
+                    export: name.to_owned(),
+                }),
+            )
+        };
+        let mut strict = asset_test_intent();
+        strict.grants = true;
+        let mut signed = asset_profile_intent(
+            "signedUpload",
+            crate::assets::AssetDeliveryProfile::PrivateSigned,
+        );
+        signed.grants = true;
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![
+                grant_fn("grantAsset"),
+                grant_fn("activateGrant"),
+                grant_fn("revokeGrant"),
+                grant_fn("abortGrant"),
+                grant_fn("abortActivate"),
+            ],
+            asset_upload_intents: vec![strict, signed],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "grant manifest must load: {diagnostics:?}"
+        );
+        snapback
+            .db
+            .apply_schema(asset_reference_schema())
+            .expect("grant atomicity schema");
+        snapback
+    }
+
+    fn invoke_asset_grant_mutation(
+        snapback: &mut LocalSnapback,
+        name: &str,
+        user: &str,
+        args: Value,
+    ) -> SnapbackResult<MutationOutput> {
+        snapback
+            .invoke_mutation_recording(
+                name,
+                HandlerInput {
+                    args,
+                    auth: crate::manifest::AuthInput {
+                        user_id: Some(user.to_owned()),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+            )
+            .0
+    }
+
+    /// @ref LLP 0210#d5--recipient-scoped-authority-recipe-now-grant-ops-as-the-paved-spelling —
+    /// exercise the paved handler spelling against both private delivery
+    /// profiles, including consent, replay, abort, independent edges, and
+    /// revoke-to-blank authority transitions.
+    #[test]
+    fn asset_grant_ops_pilot_strict_signed_and_lifecycle() {
+        let mut snapback = asset_grant_snapback();
+        let strict = asset_ready(&mut snapback, "owner", b"grant-strict");
+        let recipient_denied = asset_deliver_content(
+            &mut snapback,
+            "recipient",
+            &strict,
+            "primary",
+            None,
+        )
+        .expect_err("recipient starts denied");
+        assert_eq!(recipient_denied.diagnostic.code, "SNAPBACK_ASSET_FORBIDDEN");
+
+        let input = HandlerInput {
+            args: json!({ "assetId": strict, "principal": "recipient", "state": "active" }),
+            auth: crate::manifest::AuthInput {
+                user_id: Some("owner".to_owned()),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let replay_id = crate::ids::mint_time_ordered(crate::ids::Kind::Mutation);
+        let first = snapback
+            .invoke_mutation_recording_with_id(
+                "grantAsset",
+                input.clone(),
+                Some(replay_id.clone()),
+                "test",
+            )
+            .0
+            .expect("owner grants");
+        let replayed = snapback
+            .invoke_mutation_recording_with_id(
+                "grantAsset",
+                input,
+                Some(replay_id),
+                "test",
+            )
+            .0
+            .expect("exact replay returns prior result");
+        assert_eq!(replayed.result, first.result);
+        let active_grant = first.result["grantId"].as_str().expect("grant id");
+        assert!(active_grant.starts_with("agr_"));
+        asset_deliver_content(&mut snapback, "recipient", &strict, "primary", None)
+            .expect("active grant admits strict delivery");
+        assert_eq!(
+            asset_receipt_events(&mut snapback, &strict)
+                .iter()
+                .filter(|event| event.as_str() == "grant-minted")
+                .count(),
+            1,
+            "idempotent replay mints one edge and receipt"
+        );
+
+        let foreign = invoke_asset_grant_mutation(
+            &mut snapback,
+            "grantAsset",
+            "intruder",
+            json!({ "assetId": strict, "principal": "intruder", "state": "active" }),
+        )
+        .expect_err("non-owner cannot mint");
+        assert_eq!(foreign.diagnostic.code, "SNAPBACK_ASSET_GRANT_FORBIDDEN");
+
+        let pending_asset = asset_ready(&mut snapback, "owner", b"grant-pending");
+        let pending = invoke_asset_grant_mutation(
+            &mut snapback,
+            "grantAsset",
+            "owner",
+            json!({ "assetId": pending_asset, "principal": "recipient", "state": "pending" }),
+        )
+        .expect("owner creates consent edge");
+        let pending_id = pending.result["grantId"].as_str().expect("pending id");
+        assert!(
+            asset_deliver_content(&mut snapback, "recipient", &pending_asset, "primary", None)
+                .is_err(),
+            "pending grants confer no read authority"
+        );
+        let aborted_activation = invoke_asset_grant_mutation(
+            &mut snapback,
+            "abortActivate",
+            "recipient",
+            json!({ "grantId": pending_id }),
+        )
+        .expect_err("throw aborts staged activation");
+        assert_eq!(
+            aborted_activation.diagnostic.code,
+            "SNAPBACK_HANDLER_FAILED"
+        );
+        assert!(
+            asset_deliver_content(&mut snapback, "recipient", &pending_asset, "primary", None)
+                .is_err(),
+            "aborted activation leaves the edge pending"
+        );
+        let owner_activate = invoke_asset_grant_mutation(
+            &mut snapback,
+            "activateGrant",
+            "owner",
+            json!({ "grantId": pending_id }),
+        )
+        .expect_err("owner cannot accept for the recipient");
+        assert_eq!(owner_activate.diagnostic.code, "SNAPBACK_ASSET_GRANT_FORBIDDEN");
+        invoke_asset_grant_mutation(
+            &mut snapback,
+            "activateGrant",
+            "recipient",
+            json!({ "grantId": pending_id }),
+        )
+        .expect("recipient activates consent edge");
+        asset_deliver_content(&mut snapback, "recipient", &pending_asset, "primary", None)
+            .expect("activation admits strict delivery");
+
+        let second = invoke_asset_grant_mutation(
+            &mut snapback,
+            "grantAsset",
+            "owner",
+            json!({ "assetId": strict, "principal": "recipient" }),
+        )
+        .expect("second independent edge defaults active");
+        let second_id = second.result["grantId"].as_str().expect("second id");
+        let unrelated_revoke = invoke_asset_grant_mutation(
+            &mut snapback,
+            "revokeGrant",
+            "intruder",
+            json!({ "grantId": active_grant }),
+        )
+        .expect_err("an unrelated principal cannot revoke");
+        assert_eq!(
+            unrelated_revoke.diagnostic.code,
+            "SNAPBACK_ASSET_GRANT_FORBIDDEN"
+        );
+        invoke_asset_grant_mutation(
+            &mut snapback,
+            "revokeGrant",
+            "owner",
+            json!({ "grantId": active_grant }),
+        )
+        .expect("owner revokes first edge");
+        asset_deliver_content(&mut snapback, "recipient", &strict, "primary", None)
+            .expect("second active edge independently preserves authority");
+        invoke_asset_grant_mutation(
+            &mut snapback,
+            "revokeGrant",
+            "recipient",
+            json!({ "grantId": second_id }),
+        )
+        .expect("recipient can revoke own edge");
+        assert!(
+            asset_deliver_content(&mut snapback, "recipient", &strict, "primary", None).is_err(),
+            "last revoke blanks strict projection"
+        );
+        let removed = invoke_asset_grant_mutation(
+            &mut snapback,
+            "revokeGrant",
+            "owner",
+            json!({ "grantId": second_id }),
+        )
+        .expect_err("removed ids become unknown");
+        assert_eq!(removed.diagnostic.code, "SNAPBACK_ASSET_GRANT_UNKNOWN");
+        let removed_activate = invoke_asset_grant_mutation(
+            &mut snapback,
+            "activateGrant",
+            "recipient",
+            json!({ "grantId": second_id }),
+        )
+        .expect_err("removed ids cannot be activated");
+        assert_eq!(
+            removed_activate.diagnostic.code,
+            "SNAPBACK_ASSET_GRANT_UNKNOWN"
+        );
+
+        let signed = asset_ready_under_intent(
+            &mut snapback,
+            "owner",
+            b"grant-signed",
+            "signedUpload",
+        );
+        let signed_grant = invoke_asset_grant_mutation(
+            &mut snapback,
+            "grantAsset",
+            "owner",
+            json!({ "assetId": signed, "principal": "recipient", "state": "pending" }),
+        )
+        .expect("pending signed grant");
+        let signed_id = signed_grant.result["grantId"].as_str().expect("signed id");
+        let recipient = asset_dev_authority(&snapback, "recipient", InvocationSource::HttpQuery);
+        let pending_signed_denial = snapback
+            .asset_signed_url_issue(
+                &recipient,
+                &signed,
+                crate::assets::AssetSignedUrlIssueRequestV1 {
+                    variant: Some("primary".to_owned()),
+                    ttl_ms: None,
+                    width_px: None,
+                },
+            )
+            .expect_err("pending consent confers no signed issuance authority");
+        assert_eq!(
+            pending_signed_denial.diagnostic.code,
+            "SNAPBACK_ASSET_FORBIDDEN"
+        );
+        invoke_asset_grant_mutation(
+            &mut snapback,
+            "activateGrant",
+            "recipient",
+            json!({ "grantId": signed_id }),
+        )
+        .expect("recipient activates signed consent");
+        let recipient = asset_dev_authority(&snapback, "recipient", InvocationSource::HttpQuery);
+        let issued = snapback
+            .asset_signed_url_issue(
+                &recipient,
+                &signed,
+                crate::assets::AssetSignedUrlIssueRequestV1 {
+                    variant: Some("primary".to_owned()),
+                    ttl_ms: None,
+                    width_px: None,
+                },
+            )
+            .expect("active grant admits signed issuance");
+        let issued_token = issued
+            .url
+            .split("token=")
+            .nth(1)
+            .expect("issued URL carries a bearer token")
+            .to_owned();
+        invoke_asset_grant_mutation(
+            &mut snapback,
+            "revokeGrant",
+            "owner",
+            json!({ "grantId": signed_id }),
+        )
+        .expect("signed edge revoked");
+        assert!(matches!(
+            snapback
+                .asset_deliver_signed(&signed, "primary", &issued_token, None)
+                .expect("issuance-first bearer remains TTL-bound after revoke"),
+            crate::storage::AssetDeliveryOutcome::Content(_)
+        ));
+        let recipient = asset_dev_authority(&snapback, "recipient", InvocationSource::HttpQuery);
+        let signed_denied = snapback
+            .asset_signed_url_issue(
+                &recipient,
+                &signed,
+                crate::assets::AssetSignedUrlIssueRequestV1 {
+                    variant: Some("primary".to_owned()),
+                    ttl_ms: None,
+                    width_px: None,
+                },
+            )
+            .expect_err("revoke blocks future signed issuance");
+        assert_eq!(signed_denied.diagnostic.code, "SNAPBACK_ASSET_FORBIDDEN");
+
+        let aborted_asset = asset_ready(&mut snapback, "owner", b"grant-abort");
+        let aborted = invoke_asset_grant_mutation(
+            &mut snapback,
+            "abortGrant",
+            "owner",
+            json!({ "assetId": aborted_asset, "principal": "recipient" }),
+        )
+        .expect_err("throw aborts staged grant");
+        assert_eq!(aborted.diagnostic.code, "SNAPBACK_HANDLER_FAILED");
+        assert!(
+            asset_deliver_content(&mut snapback, "recipient", &aborted_asset, "primary", None)
+                .is_err(),
+            "aborted mutation leaves no authority edge"
+        );
+        assert!(
+            !asset_receipt_events(&mut snapback, &aborted_asset)
+                .contains(&"grant-minted".to_owned()),
+            "aborted mutation leaves no grant receipt"
+        );
+        assert_eq!(
+            snapback
+                .db
+                .asset_reads()
+                .posts_count()
+                .expect("count rolled-back app writes"),
+            0,
+            "the app write and grant effect abort atomically"
+        );
+    }
+
+    #[test]
+    fn asset_grant_eligibility_is_frozen_at_admission() {
+        let mut snapback = asset_test_snapback();
+        let old_asset = asset_ready(&mut snapback, "owner", b"pre-grant-policy");
+        let mut enabled = asset_test_intent();
+        enabled.grants = true;
+        let grant_fn = FunctionDefinition::new(
+            "grantAsset",
+            FunctionKind::Mutation,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: ASSET_GRANT_MUTATIONS_SOURCE.to_owned(),
+                export: "grantAsset".to_owned(),
+            }),
+        );
+        snapback.load_functions(FunctionManifest {
+            functions: vec![grant_fn],
+            asset_upload_intents: vec![enabled],
+            ..FunctionManifest::default()
+        });
+        let refusal = invoke_asset_grant_mutation(
+            &mut snapback,
+            "grantAsset",
+            "owner",
+            json!({ "assetId": old_asset, "principal": "recipient", "state": "active" }),
+        )
+        .expect_err("redeploy cannot widen an old asset");
+        assert_eq!(refusal.diagnostic.code, "SNAPBACK_ASSET_GRANTS_UNDECLARED");
+    }
+
     /// Upload + finalize under a named profile intent; returns the asset id.
     pub(crate) fn asset_ready_under_intent(
         snapback: &mut LocalSnapback,
@@ -2772,6 +3217,7 @@ globalThis.__snapbackHandlers = {
                 job_enqueues: Vec::new(),
                 job_producer: None,
                 asset_admissions: admissions,
+                asset_grant_ops: Vec::new(),
             },
             None,
             || Ok(()),
@@ -4077,6 +4523,43 @@ globalThis.__snapbackHandlers = {
         snapback.asset_delete(&owner, &asset_id).expect("delete");
         let rows = asset_last_replace_rows(&mut snapback, "conn-owner");
         assert_eq!(rows.len(), 0, "deletion blanks the record projection");
+    }
+
+    #[test]
+    fn asset_grant_commit_wakes_and_revoke_blanks_live_projection() {
+        let mut snapback = asset_grant_snapback();
+        let asset_id = asset_ready(&mut snapback, "owner", b"grant-live");
+        let outsider = snapback
+            .subscribe_live(
+                ASSET_RECORD_LIVE_FUNCTION,
+                asset_live_input("conn-grant", "recipient", &asset_id),
+            )
+            .expect("recipient subscribes blank");
+        assert_eq!(outsider.snapshot.expect("initial rows").rows.len(), 0);
+        let granted = invoke_asset_grant_mutation(
+            &mut snapback,
+            "grantAsset",
+            "owner",
+            json!({ "assetId": asset_id, "principal": "recipient", "state": "active" }),
+        )
+        .expect("grant commits");
+        assert_eq!(
+            asset_last_replace_rows(&mut snapback, "conn-grant").len(),
+            1,
+            "grant-only commit wakes the live projection"
+        );
+        invoke_asset_grant_mutation(
+            &mut snapback,
+            "revokeGrant",
+            "owner",
+            json!({ "grantId": granted.result["grantId"] }),
+        )
+        .expect("revoke commits");
+        assert_eq!(
+            asset_last_replace_rows(&mut snapback, "conn-grant").len(),
+            0,
+            "revoke publishes an empty replacement instead of leaving stale authority"
+        );
     }
 
     /// LLP 0100 receipt witness: the removed member's `_snapback.myMemberships`
@@ -23860,6 +24343,7 @@ globalThis.__snapbackHandlers = {
             membership_commands: Vec::new(),
             reads: Vec::new(),
             asset_admissions: Vec::new(),
+            asset_grant_ops: Vec::new(),
             result: json!("guarded_item"),
             ctx_ledger: CtxAnswerLedger {
                 version: ctx_ledger_version(),

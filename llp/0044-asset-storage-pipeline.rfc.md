@@ -5,7 +5,12 @@
 **Systems:** Assets, Storage, API, Security, Auth, Runtime, Deployment, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-09, later same day (withdrawal-scope clarification,
+**Revised:** 2026-08-09, third same-day entry (LLP 0210 D5(b) recipient
+grants implemented on the local target, including the four recorded
+pipeline obligations: invalidation, consistent-cut system-record
+custody, active-only reference-GC protection, and the 1,024-edge
+per-app quota; §Clique-pilot delivery and grant DX closure). Prior,
+same day (withdrawal-scope clarification,
 author ruling, Charlie: the 2026-07-31 bounded-array withdrawal's clause
 "the portable field vocabulary ships no array table fields" binds the
 **asset-reference vocabulary** — its subject — not plain-data structured
@@ -606,11 +611,18 @@ every governed read boundary:
   restriction-less `v.assetRef` fields too, since handler-side `attach`
   can place any intent's asset in them. An unreferenced asset is
   readable only by its owner.
+- **Active recipient grant**: independently of the ordinary intent policy,
+  the caller may read when a system grant edge names that principal and is
+  `active`. The asset's admission-frozen policy must have captured
+  `grants: true`; `pending` edges confer no authority. Owner-only plus a grant
+  edge is the paved view-once composition because no recipient-visible
+  reference path bypasses activation or revoke.
 
 Read decisions capture their dependencies — owner identity, the referencing
 row's fields and the caller's resolved authorization facts (the declared
 filter's exact inputs, enumerable because the filter is analyzable), and
-the admitted policy identity — and project into
+the admitted policy identity — plus matching active grant identity/state when
+that edge supplies authority — and project into
 [LLP 0053](./0053-authorization-invalidation.rfc.md)'s invalidation
 machinery the same way query authorization does: a revocation, membership
 removal, reference removal, logout, or deletion invalidates dependent live
@@ -877,8 +889,11 @@ The accounting vector is exact, not a single number:
 - **bounded counts** — every durable record class has per-app (and, where a
   principal can mint records, per-principal) ceilings reported as
   capability facts: open attempts, asset records of any availability,
-  renditions, reverse-reference edges, publication records, and asset-work
-  ledger rows; receipts are bounded by declared retention windows. No
+  renditions, reverse-reference edges, publication records, asset-work ledger
+  rows, and recipient grants. Recipient grants have a per-app ceiling of
+  1,024, charged to the minting asset owner and counting `pending` plus
+  `active`; revoke releases one slot in the same transaction. Receipts are
+  bounded by declared retention windows. No
   workload — zero-byte spam, repeated rejection, retry storms, crash loops
   — grows durable state without hitting a declared ceiling, and each asset
   consumes a declared **minimum accounting unit** of logical quota so
@@ -997,6 +1012,13 @@ same changeset; row deletion removes its edges the same way. This provides:
 - ordinary replacement semantics with no bespoke avatar API;
 - a typed path from app row to live asset metadata;
 - a safe distinction between referenced pending assets and abandoned ones.
+
+Recipient-grant transitions use the same pattern. `ctx.assets.grant`,
+`activate`, and `revoke` stage transaction-scoped host operations; the final
+write lock re-reads the asset/grant state, authorization, frozen opt-in, and
+quota before committing the system edge with app writes and receipts. A
+handler refusal leaves neither kind of write behind, and a replayed mutation
+returns its original ledgered `agr_` identity instead of minting another edge.
 
 The generated field type, attach helper, reverse-edge record, and codegen
 projection must be single-sourced under LLP 0007/0037. The client cannot
@@ -1741,6 +1763,18 @@ like a typed reverse reference; `pending` edges do not); and per-app
 grant-count ceilings charged to the minting owner under §Deduplication,
 keys, and quotas. **(c)** app-bound `assetSharing` stays deferred to
 the LLP 0208 G4 membership program.
+
+**Implementation outcome (later 2026-08-09).** Rung (b) is implemented on the
+local target. Grant rows live in `_snapback_asset_grants_v1`, use `agr_`
+identities, carry owner/mutation/time provenance, and travel with the asset
+component of a consistent cut. Mint, activation, revoke, app writes, receipts,
+quota settlement, and reference-GC clock changes share the mutation's final
+write transaction. Active edges participate in the declared read witness and
+live invalidation projection; revoke therefore blanks a former viewer's live
+asset-record projection. The declared per-app ceiling is 1,024 pending plus
+active edges, and only active edges protect against reference GC. The guide now
+makes these operations primary while retaining app-owned grant rows as the
+portable/filterable fallback.
 
 **1. Client-arm signed issuance is owed, not new.** §Delivery profiles
 (`private-signed`) already states "the generated client refreshes it

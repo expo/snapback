@@ -1,12 +1,16 @@
 # LLP 0210: Asset upload and delivery DX closure
 
 **Type:** RFC
-**Status:** Accepted
+**Status:** Implemented
 **Systems:** Assets, Client integration, React/Expo, Server, Diagnostics,
 Code generation, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-09
-**Revised:** 2026-08-09, fifth same-day entry (**Accepted by the author**
+**Revised:** 2026-08-09, sixth same-day entry (D5(b) implemented on the
+local target: admission-frozen grant opt-in, `agr_` system records,
+commit-atomic lifecycle, read/invalidation/GC integration, 1,024-edge quota,
+consistent-cut custody, typed diagnostics, and the primary guide recipe).
+Prior, same day: fifth entry (**Accepted by the author**
 — Charlie Cheever, in-session, after D1–D4 and the D5(a) recipe landed
 on main; the acceptance covers the r4 revision with its unreviewed
 delta disclosed, and green-lights D5(b) grant-ops implementation under
@@ -528,7 +532,11 @@ when D1 lands; the helper and settlement table get their own row).
 
 ## Status
 
-Review (Draft → Review at super-refine loop start, 2026-08-09).
+Implemented (2026-08-09). D1–D4 and the D5(a) recipe landed before author
+acceptance; D5(b) now ships on the local target with the grant lifecycle,
+frozen opt-in, commit discipline, read/invalidation/GC behavior, quota, cut
+custody, diagnostics, and guide obligations specified above. Draft → Review at
+super-refine loop start, 2026-08-09.
 Authored from the LLP 0208 register (G11 + G4 asset slice) at author
 direction. Round-1 revision (same day) applied both families' MATERIAL
 concerns: the issued-URL controller replaces hook-owned refresh with a

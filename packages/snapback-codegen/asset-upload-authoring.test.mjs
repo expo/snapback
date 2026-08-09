@@ -149,6 +149,56 @@ export const avatarUpload = defineAssetUpload({
 
 // --- implementation identity metamorphics: root, helper closure, reads ----
 
+// --- recipient grants: explicit opt-in and presence-only policy identity --
+
+{
+  const schema = `
+import { defineSchema } from '${defineUrl}';
+export default defineSchema({});
+`;
+  const functions = (grants) => `
+import { defineAssetUpload } from '${defineUrl}';
+export const documentUpload = defineAssetUpload({
+  auth: 'authenticated',
+  accept: { mediaTypes: ['application/pdf'], maxBytes: 1_000_000 },
+  ${grants ? 'grants: true,' : ''}
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+`;
+  const loadIntent = async (grants) => {
+    const { dir, result } = await runCase({ schema, functions: functions(grants) });
+    assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+    const manifest = JSON.parse(
+      readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'),
+    );
+    return manifest.assetUploadIntents.find((intent) => intent.name === 'documentUpload');
+  };
+  const legacy = await loadIntent(false);
+  const enabled = await loadIntent(true);
+  assert.equal(Object.hasOwn(legacy, 'grants'), false, 'absent opt-in stays absent on wire');
+  assert.equal(
+    legacy.intentPolicyHash,
+    'sha256:8422185a896456dea8c90140d56f2be9664d2b282e837e5879f7f5ebce888004',
+    'adding the feature does not move the pre-feature policy preimage',
+  );
+  assert.equal(enabled.grants, true);
+  assert.notEqual(
+    enabled.intentPolicyHash,
+    legacy.intentPolicyHash,
+    'grant eligibility is a frozen policy fact',
+  );
+  const { defineAssetUpload } = await import('./define.mjs');
+  assert.throws(
+    () => defineAssetUpload({
+      auth: 'authenticated',
+      accept: { mediaTypes: ['application/pdf'], maxBytes: 1_000_000 },
+      grants: false,
+      authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+    }),
+    /grants must be true when present/,
+  );
+}
+
 {
   const schema = `
 import { defineSchema, defineTable, v } from '${defineUrl}';

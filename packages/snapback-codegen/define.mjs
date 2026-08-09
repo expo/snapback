@@ -164,7 +164,7 @@ const SEARCH_TABLE_LIVE_LIMIT_FIELDS = new Set(['maxLiveSubscriptionsPerTable'])
 // @ref LLP 0044#generated-upload-intents — the closed authoring surface for
 //   one upload intent; the client cannot supply or widen any declared fact.
 const ASSET_UPLOAD_FIELDS = new Set([
-  'args', 'auth', 'reads', 'accept', 'delivery', 'access', 'image', 'video', 'on',
+  'args', 'auth', 'reads', 'accept', 'delivery', 'access', 'grants', 'image', 'video', 'on',
   'authorize', 'source', 'exportName',
 ]);
 const ASSET_CALLBACK_EVENTS = ['ready', 'rejected'];
@@ -3984,6 +3984,10 @@ export function defineAssetUpload(spec) {
     assert(ASSET_READ_ACCESS.has(spec.access.read), 'AssetUpload access.read must be owner-only or via-references');
     access = { read: spec.access.read };
   }
+  assert(
+    spec.grants === undefined || spec.grants === true,
+    'AssetUpload grants must be true when present',
+  );
   let image;
   if (spec.image !== undefined) {
     exactObject(spec.image, 'AssetUpload image', ASSET_IMAGE_FIELDS);
@@ -4033,6 +4037,7 @@ export function defineAssetUpload(spec) {
     accept: { mediaTypes, maxBytes: spec.accept.maxBytes },
     delivery,
     access,
+    ...(spec.grants === true ? { grants: true } : {}),
     ...(image ? { image } : {}),
     ...(video ? { video } : {}),
     ...(on ? { on } : {}),

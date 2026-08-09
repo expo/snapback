@@ -35,6 +35,13 @@ pub const ASSET_UPLOAD_REFERENCE_KIND: &str = "assetUploadReference";
 pub const ASSET_ATTEMPT_TTL_MS: u64 = 6 * 60 * 60 * 1000;
 pub const ASSET_MAX_OPEN_ATTEMPTS_PER_APP: u64 = 64;
 pub const ASSET_MAX_OPEN_ATTEMPTS_PER_PRINCIPAL: u64 = 8;
+/// Durable recipient grants are charged to their asset owner's app. Pending
+/// and active rows both count; revoke releases the slot transactionally.
+pub const ASSET_MAX_GRANTS_PER_APP: u64 = 1024;
+
+fn default_asset_max_grants_per_app() -> u64 {
+    ASSET_MAX_GRANTS_PER_APP
+}
 pub const ASSET_APP_LOGICAL_QUOTA_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 /// Every asset consumes at least this much logical quota, so zero-byte
 /// assets are not free (LLP 0044 §Deduplication/quotas).
@@ -785,6 +792,10 @@ pub struct AssetRecordV1 {
     pub owner_principal: String,
     pub delivery_profile: AssetDeliveryProfile,
     pub read_access: AssetReadAccessPolicy,
+    /// Frozen admission-time eligibility for first-class recipient grants.
+    /// A later deploy cannot retrofit authority onto already-admitted bytes.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub grants_enabled: bool,
     pub availability: AssetAvailability,
     /// Primary bytes are represented exclusively by the `primary` rendition
     /// record — there is no second asset-to-blob edge, so blob references and
@@ -796,6 +807,54 @@ pub struct AssetRecordV1 {
     pub updated_at_ms: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub deleted_at_ms: Option<u64>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum AssetGrantState {
+    Pending,
+    Active,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AssetGrantProvenanceV1 {
+    pub minted_by: String,
+    pub mutation: String,
+    pub at: u64,
+}
+
+/// @ref LLP 0210#d5--recipient-scoped-authority-recipe-now-grant-ops-as-the-paved-spelling —
+/// durable, recipient-scoped authority is a system-owned edge, not an app row.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AssetGrantRecordV1 {
+    pub grant_id: String,
+    pub asset_id: String,
+    pub principal: String,
+    pub state: AssetGrantState,
+    pub provenance: AssetGrantProvenanceV1,
+}
+
+/// Handler effects staged until the mutation's final SQLite transaction.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum BufferedAssetGrantOp {
+    Grant {
+        grant_id: String,
+        asset_id: String,
+        principal: String,
+        state: AssetGrantState,
+        mutation: String,
+        at_ms: u64,
+    },
+    Activate {
+        grant_id: String,
+        at_ms: u64,
+    },
+    Revoke {
+        grant_id: String,
+        at_ms: u64,
+    },
 }
 
 /// The admission facts captured when the authorizer admitted the attempt:
@@ -1320,6 +1379,9 @@ pub enum AssetReceiptEventV1 {
     AttachmentDenied,
     AttachmentCommitted,
     ReferenceRemoved,
+    GrantMinted,
+    GrantActivated,
+    GrantRevoked,
     PublicationRepaired,
     MigrationVerified,
     GcReclaimed,
@@ -1396,12 +1458,13 @@ pub struct AssetRefusalDetailV1 {
 /// generations joined the original seven with the session ticket (L1-04);
 /// retained intent artifacts joined with the W2a retention work, and the
 /// seed-fixture mapping with the LLP 0109 §17 amendment (W2f).
-pub const ASSET_SYSTEM_TABLES: [&str; 12] = [
+pub const ASSET_SYSTEM_TABLES: [&str; 13] = [
     "_snapback_asset_records_v1",
     "_snapback_asset_attempts_v1",
     "_snapback_asset_blobs_v1",
     "_snapback_asset_renditions_v1",
     "_snapback_asset_reference_edges_v1",
+    "_snapback_asset_grants_v1",
     "_snapback_asset_publications_v1",
     "_snapback_asset_work_ledger_v1",
     "_snapback_asset_receipts_v1",
@@ -1484,6 +1547,19 @@ pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
              ON _snapback_asset_reference_edges_v1(asset_id);
          CREATE INDEX IF NOT EXISTS _snapback_asset_edges_by_row_v1
              ON _snapback_asset_reference_edges_v1(table_name, row_id);
+         CREATE TABLE IF NOT EXISTS _snapback_asset_grants_v1 (
+             grant_id TEXT PRIMARY KEY NOT NULL,
+             asset_id TEXT NOT NULL,
+             app_id TEXT NOT NULL,
+             principal TEXT NOT NULL,
+             state TEXT NOT NULL,
+             minted_by TEXT NOT NULL,
+             record_json TEXT NOT NULL
+         );
+         CREATE INDEX IF NOT EXISTS _snapback_asset_grants_by_asset_principal_v1
+             ON _snapback_asset_grants_v1(asset_id, principal, state);
+         CREATE INDEX IF NOT EXISTS _snapback_asset_grants_by_app_v1
+             ON _snapback_asset_grants_v1(app_id);
          CREATE TABLE IF NOT EXISTS _snapback_asset_publications_v1 (
              publication_id TEXT PRIMARY KEY NOT NULL,
              app_id TEXT NOT NULL,
@@ -2113,6 +2189,10 @@ pub fn delete_reference_edge(
            AND NOT EXISTS (
                SELECT 1 FROM _snapback_asset_reference_edges_v1
                WHERE asset_id = ?1
+           )
+           AND NOT EXISTS (
+               SELECT 1 FROM _snapback_asset_grants_v1
+               WHERE asset_id = ?1 AND state = 'active'
            )",
         rusqlite::params![edge.asset_id, now_ms as i64],
     )?;
@@ -2135,6 +2215,10 @@ pub fn mark_unreferenced_if_edgeless(
            AND NOT EXISTS (
                SELECT 1 FROM _snapback_asset_reference_edges_v1
                WHERE asset_id = ?1
+           )
+           AND NOT EXISTS (
+               SELECT 1 FROM _snapback_asset_grants_v1
+               WHERE asset_id = ?1 AND state = 'active'
            )",
         rusqlite::params![asset_id, now_ms as i64],
     )?;
@@ -2153,6 +2237,10 @@ pub fn reclaimable_reference_gc_assets(
          WHERE availability = 'ready'
            AND unreferenced_since_ms IS NOT NULL
            AND unreferenced_since_ms <= ?1
+           AND NOT EXISTS (
+               SELECT 1 FROM _snapback_asset_grants_v1 g
+               WHERE g.asset_id = _snapback_asset_records_v1.asset_id
+                 AND g.state = 'active')
          ORDER BY unreferenced_since_ms ASC",
     )?;
     let rows = stmt.query_map([cutoff_ms as i64], |row| row.get::<_, String>(0))?;
@@ -3442,7 +3530,10 @@ pub fn reclaimable_pending_assets(
            AND NOT EXISTS (
                SELECT 1 FROM _snapback_asset_attempts_v1 t
                WHERE t.asset_id = a.asset_id
-                 AND t.state IN ('open', 'transferring', 'finalizing'))",
+                 AND t.state IN ('open', 'transferring', 'finalizing'))
+           AND NOT EXISTS (
+               SELECT 1 FROM _snapback_asset_grants_v1 g
+               WHERE g.asset_id = a.asset_id AND g.state = 'active')",
     )?;
     let rows = stmt.query_map([cutoff_ms], |row| row.get::<_, String>(0))?;
     rows.map(|json| decode_record(&json?))
@@ -3802,6 +3893,10 @@ pub struct AssetTargetFactsV1 {
     pub attempt_ttl_ms: u64,
     pub max_open_attempts_per_app: u64,
     pub max_open_attempts_per_principal: u64,
+    /// Defaults for backward parsing of pre-grant capability manifests; new
+    /// local manifests always emit the enforced ceiling explicitly.
+    #[serde(default = "default_asset_max_grants_per_app")]
+    pub max_grants_per_app: u64,
     pub pending_grace_ms: u64,
     pub tombstone_retention_ms: u64,
     pub publication_retention_ms: u64,
@@ -3877,6 +3972,7 @@ impl AssetTargetFactsV1 {
             attempt_ttl_ms: ASSET_ATTEMPT_TTL_MS,
             max_open_attempts_per_app: ASSET_MAX_OPEN_ATTEMPTS_PER_APP,
             max_open_attempts_per_principal: ASSET_MAX_OPEN_ATTEMPTS_PER_PRINCIPAL,
+            max_grants_per_app: ASSET_MAX_GRANTS_PER_APP,
             pending_grace_ms: ASSET_PENDING_GRACE_MS,
             tombstone_retention_ms: ASSET_TOMBSTONE_RETENTION_MS,
             publication_retention_ms: ASSET_PUBLICATION_RETENTION_MS,

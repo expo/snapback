@@ -21,7 +21,8 @@
 use serde_json::Value;
 
 use crate::assets::{
-    ASSET_DIGEST_ALGORITHM_SHA256, AssetBlobRecordV1, AssetRecordV1, AssetRenditionRecordV1,
+    ASSET_DIGEST_ALGORITHM_SHA256, AssetBlobRecordV1, AssetGrantRecordV1, AssetGrantState,
+    AssetRecordV1, AssetRenditionRecordV1,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use rusqlite::Transaction;
@@ -74,6 +75,12 @@ pub struct AssetCutQuotaV1 {
     /// Settled logical bytes at the cut (the app quota contract's number).
     pub settled_logical_bytes: u64,
     pub ready_asset_count: u64,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub grant_count: u64,
+}
+
+fn is_zero(value: &u64) -> bool {
+    *value == 0
 }
 
 /// The consistent-cut manifest — the asset component of a logical export.
@@ -89,6 +96,10 @@ pub struct AssetCutManifestV1 {
     pub assets: Vec<AssetCutAssetV1>,
     pub tombstones: Vec<AssetCutTombstoneV1>,
     pub blobs: Vec<AssetCutBlobV1>,
+    /// Grant edges are captured in the same SQLite read transaction as their
+    /// ready assets. Empty is omitted to preserve pre-feature cut preimages.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub grants: Vec<AssetGrantRecordV1>,
     pub quota: AssetCutQuotaV1,
     /// Tagged SHA-256 over the canonical (JCS) manifest body with this field
     /// absent; domain `snapback:asset-cut:v1\n`.
@@ -103,7 +114,7 @@ fn cut_error(code: &str, message: impl Into<String>) -> SnapbackError {
 /// `manifestDigest` itself), in the seed-fixtures idiom.
 pub fn cut_manifest_digest(manifest: &AssetCutManifestV1) -> SnapbackResult<String> {
     use sha2::Digest as _;
-    let body = serde_json::json!({
+    let mut body = serde_json::json!({
         "formatVersion": manifest.format_version,
         "appId": manifest.app_id,
         "cutVersion": manifest.cut_version,
@@ -113,6 +124,17 @@ pub fn cut_manifest_digest(manifest: &AssetCutManifestV1) -> SnapbackResult<Stri
         "blobs": manifest.blobs,
         "quota": manifest.quota,
     });
+    if !manifest.grants.is_empty() {
+        let grants = serde_json::to_value(&manifest.grants).map_err(|error| {
+            cut_error(
+                "SNAPBACK_ASSET_EXPORT_TARGET_INVALID",
+                format!("cut grants are not serializable: {error}"),
+            )
+        })?;
+        body.as_object_mut()
+            .expect("cut body is an object")
+            .insert("grants".to_owned(), grants);
+    }
     let canonical = crate::rqs::jcs(&body).map_err(|_| {
         cut_error(
             "SNAPBACK_ASSET_EXPORT_TARGET_INVALID",
@@ -192,7 +214,32 @@ pub fn capture_cut(
     }
 
     let accounting = crate::assets::asset_accounting(tx, app_id)?;
+    let ready_ids = assets
+        .iter()
+        .map(|asset| asset.record.asset_id.as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+    // @ref LLP 0210#d5--recipient-scoped-authority-recipe-now-grant-ops-as-the-paved-spelling —
+    // system grant edges travel with their ready assets in this same SQLite
+    // snapshot; they are not independently copied app rows.
+    let mut grant_statement = tx.prepare(
+        "SELECT record_json FROM _snapback_asset_grants_v1
+         WHERE app_id = ?1 ORDER BY grant_id",
+    )?;
+    let grant_rows = grant_statement.query_map([app_id], |row| row.get::<_, String>(0))?;
+    let mut grants = Vec::new();
+    for row in grant_rows {
+        let grant: AssetGrantRecordV1 = serde_json::from_str(&row?).map_err(|error| {
+            cut_error(
+                "SNAPBACK_ASSET_EXPORT_TARGET_INVALID",
+                format!("asset grant record is undecodable: {error}"),
+            )
+        })?;
+        if ready_ids.contains(grant.asset_id.as_str()) {
+            grants.push(grant);
+        }
+    }
     let ready_asset_count = assets.len() as u64;
+    let grant_count = grants.len() as u64;
     let mut manifest = AssetCutManifestV1 {
         format_version: ASSET_CUT_FORMAT_VERSION.to_owned(),
         app_id: app_id.to_owned(),
@@ -201,9 +248,11 @@ pub fn capture_cut(
         assets,
         tombstones,
         blobs,
+        grants,
         quota: AssetCutQuotaV1 {
             settled_logical_bytes: accounting.settled_bytes,
             ready_asset_count,
+            grant_count,
         },
         manifest_digest: String::new(),
     };
@@ -316,6 +365,7 @@ pub fn validation_summary(manifest: &AssetCutManifestV1) -> Value {
         "assetCount": manifest.assets.len(),
         "tombstoneCount": manifest.tombstones.len(),
         "blobCount": manifest.blobs.len(),
+        "grantCount": manifest.grants.len(),
         "manifestDigest": manifest.manifest_digest,
     })
 }
@@ -338,9 +388,11 @@ mod tests {
                 deleted_at_ms: Some(900),
             }],
             blobs: Vec::new(),
+            grants: Vec::new(),
             quota: AssetCutQuotaV1 {
                 settled_logical_bytes: 0,
                 ready_asset_count: 0,
+                grant_count: 0,
             },
             manifest_digest: String::new(),
         };
@@ -434,16 +486,17 @@ pub fn apply_cut(
     store_kind: &str,
     now_ms: u64,
 ) -> SnapbackResult<()> {
-    let (records, blobs, renditions): (u64, u64, u64) = (
+    let (records, blobs, renditions, grants): (u64, u64, u64, u64) = (
         count(tx, "_snapback_asset_records_v1")?,
         count(tx, "_snapback_asset_blobs_v1")?,
         count(tx, "_snapback_asset_renditions_v1")?,
+        count(tx, "_snapback_asset_grants_v1")?,
     );
-    if records + blobs + renditions != 0 {
+    if records + blobs + renditions + grants != 0 {
         return Err(cut_error(
             "SNAPBACK_ASSET_IMPORT_TARGET_NOT_EMPTY",
             format!(
-                "import applies only to an empty asset state ({records} assets, {blobs} blobs, {renditions} renditions exist)"
+                "import applies only to an empty asset state ({records} assets, {blobs} blobs, {renditions} renditions, {grants} grants exist)"
             ),
         ));
     }
@@ -452,6 +505,30 @@ pub fn apply_cut(
             "SNAPBACK_ASSET_IMPORT_MANIFEST_INVALID",
             "fresh key set does not align with the manifest blob list",
         ));
+    }
+    if manifest.grants.len() as u64 > crate::assets::ASSET_MAX_GRANTS_PER_APP
+        || manifest.quota.grant_count != manifest.grants.len() as u64
+    {
+        return Err(cut_error(
+            "SNAPBACK_ASSET_IMPORT_MANIFEST_INVALID",
+            "grant rows do not match the cut quota snapshot or exceed the app ceiling",
+        ));
+    }
+    let ready_assets = manifest
+        .assets
+        .iter()
+        .map(|asset| (asset.record.asset_id.as_str(), asset.record.grants_enabled))
+        .collect::<std::collections::BTreeMap<_, _>>();
+    let mut grant_ids = std::collections::BTreeSet::new();
+    for grant in &manifest.grants {
+        if ready_assets.get(grant.asset_id.as_str()) != Some(&true)
+            || !grant_ids.insert(grant.grant_id.as_str())
+        {
+            return Err(cut_error(
+                "SNAPBACK_ASSET_IMPORT_MANIFEST_INVALID",
+                "every imported grant must have a unique id and name a grant-enabled ready asset in the cut",
+            ));
+        }
     }
 
     let mut references: std::collections::BTreeMap<&str, u64> = std::collections::BTreeMap::new();
@@ -508,6 +585,35 @@ pub fn apply_cut(
         crate::assets::mark_unreferenced_if_edgeless(tx, &record.asset_id, now_ms)?;
     }
 
+    for grant in &manifest.grants {
+        let app_id = manifest.app_id.as_str();
+        tx.execute(
+            "INSERT INTO _snapback_asset_grants_v1
+                 (grant_id, asset_id, app_id, principal, state, minted_by, record_json)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            rusqlite::params![
+                grant.grant_id,
+                grant.asset_id,
+                app_id,
+                grant.principal,
+                if grant.state == AssetGrantState::Active {
+                    "active"
+                } else {
+                    "pending"
+                },
+                grant.provenance.minted_by,
+                encode(grant)?,
+            ],
+        )?;
+        if grant.state == AssetGrantState::Active {
+            tx.execute(
+                "UPDATE _snapback_asset_records_v1 SET unreferenced_since_ms = NULL
+                 WHERE asset_id = ?1",
+                [&grant.asset_id],
+            )?;
+        }
+    }
+
     // Tombstones import as deleted rows so a later partial re-import cannot
     // resurrect them. The manifest deliberately carries only identity and
     // generation for a tombstone; the synthesized record keeps the deleted
@@ -524,6 +630,7 @@ pub fn apply_cut(
             owner_principal: String::new(),
             delivery_profile: crate::assets::AssetDeliveryProfile::PrivateStrict,
             read_access: crate::assets::AssetReadAccessPolicy::OwnerOnly,
+            grants_enabled: false,
             availability: crate::assets::AssetAvailability::Deleted,
             primary_rendition_id: None,
             lifecycle_generation: tombstone.lifecycle_generation.saturating_add(1),

@@ -690,6 +690,13 @@
           "minimum": 0,
           "type": "integer"
         },
+        "maxGrantsPerApp": {
+          "default": 1024,
+          "description": "Defaults for backward parsing of pre-grant capability manifests; new\nlocal manifests always emit the enforced ceiling explicitly.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
         "maxOpenAttemptsPerApp": {
           "format": "uint64",
           "minimum": 0,

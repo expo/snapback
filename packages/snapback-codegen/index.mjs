@@ -4170,6 +4170,9 @@ export async function generateInProcess(backendDir, options = {}) {
         },
         delivery: def.delivery,
         access: def.access,
+        // @ref LLP 0210#d5--recipient-scoped-authority-recipe-now-grant-ops-as-the-paved-spelling —
+        //   presence-only opt-in preserves every pre-feature policy preimage.
+        ...(def.grants === true ? { grants: true } : {}),
         image: def.image ?? null,
         // Presence-only is deliberate: adding the sibling must not alter the
         // canonical preimage (and frozen hashes) of existing image intents.
@@ -4225,6 +4228,7 @@ export async function generateInProcess(backendDir, options = {}) {
         accept: policyIdentity.accept,
         delivery: def.delivery,
         access: def.access,
+        ...(def.grants === true ? { grants: true } : {}),
         ...(def.image ? { image: def.image } : {}),
         ...(def.video ? { video: def.video } : {}),
         ...(def.on ? { on: def.on } : {}),

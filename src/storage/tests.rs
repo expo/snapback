@@ -1276,6 +1276,7 @@ mod guarded_commit_tests {
                 job_enqueues: Vec::new(),
                 job_producer: None,
                 asset_admissions: Vec::new(),
+                asset_grant_ops: Vec::new(),
             },
             identity,
             || Ok(()),
@@ -6178,6 +6179,7 @@ mod guarded_commit_tests {
                     job_enqueues: Vec::new(),
                     job_producer: None,
                     asset_admissions: Vec::new(),
+                    asset_grant_ops: Vec::new(),
                 },
                 Some(&buffered_identity),
                 || Ok(()),
@@ -6408,6 +6410,7 @@ mod guarded_commit_tests {
                     job_enqueues: Vec::new(),
                     job_producer: None,
                     asset_admissions: Vec::new(),
+                    asset_grant_ops: Vec::new(),
                 },
                 Some(identity),
                 || Ok(()),
@@ -6493,6 +6496,7 @@ mod guarded_commit_tests {
                     job_enqueues: Vec::new(),
                     job_producer: None,
                     asset_admissions: Vec::new(),
+                    asset_grant_ops: Vec::new(),
                 },
                 Some(identity),
                 || Ok(()),
@@ -7061,6 +7065,7 @@ mod guarded_commit_tests {
             job_enqueues: Vec::new(),
             job_producer: None,
             asset_admissions: Vec::new(),
+            asset_grant_ops: Vec::new(),
         };
         let first_buffered = both
             .commit_buffered_host_writes_guarded(
@@ -8024,6 +8029,7 @@ mod guarded_commit_tests {
             job_enqueues: Vec::new(),
             job_producer: None,
             asset_admissions: Vec::new(),
+            asset_grant_ops: Vec::new(),
         }
     }
 
@@ -11331,6 +11337,7 @@ mod guarded_commit_tests {
                     job_enqueues: Vec::new(),
                     job_producer: None,
                     asset_admissions: Vec::new(),
+                    asset_grant_ops: Vec::new(),
                 },
                 None,
                 || Ok(()),
@@ -12165,6 +12172,7 @@ mod membership_write_tests {
                     },
                     job_enqueues: Vec::new(),
                     job_producer: None,
+                    asset_grant_ops: Vec::new(),
                 },
                 None,
                 || Ok(()),

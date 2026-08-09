@@ -1548,6 +1548,11 @@ pub struct AssetUploadIntentDefinition {
     pub accept: AssetAcceptPolicy,
     pub delivery: AssetDeliveryPolicy,
     pub access: AssetAccessPolicy,
+    /// Recipient-scoped grant edges are an explicit authority opt-in. Absent
+    /// is canonical so manifests and policy hashes produced before LLP 0210
+    /// retain their exact bytes and semantics.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub grants: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub image: Option<AssetImagePolicy>,
     /// @ref LLP 0044#video-location-policy-the-video--location--sibling-block-dated-decision-2026-08-03 —
@@ -17064,6 +17069,7 @@ mod asset_upload_intent_manifest_tests {
             access: AssetAccessPolicy {
                 read: crate::assets::AssetReadAccessPolicy::OwnerOnly,
             },
+            grants: false,
             image: None,
             video: None,
             on: None,

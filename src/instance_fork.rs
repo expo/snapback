@@ -651,6 +651,10 @@ pub const TABLE_CUSTODY: &[CustodyRule] = &[
         disposition: CustodyDisposition::Copy,
     },
     CustodyRule {
+        name: "_snapback_asset_grants_v1",
+        disposition: CustodyDisposition::Copy,
+    },
+    CustodyRule {
         name: "_snapback_asset_publications_v1",
         disposition: CustodyDisposition::Copy,
     },
@@ -2175,6 +2179,9 @@ impl EgressFamily {
             | "db.delete"
             | "sequence.allocate"
             | "assets.attach"
+            | "assets.grant"
+            | "assets.activate"
+            | "assets.revoke"
             | "membership.write"
             | "runtime.now"
             | "runtime.log"

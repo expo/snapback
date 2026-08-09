@@ -792,6 +792,10 @@
             "null"
           ]
         },
+        "grants": {
+          "description": "Recipient-scoped grant edges are an explicit authority opt-in. Absent\nis canonical so manifests and policy hashes produced before LLP 0210\nretain their exact bytes and semantics.",
+          "type": "boolean"
+        },
         "handlerForm": {
           "default": null,
           "type": [

@@ -36,6 +36,7 @@ pub(crate) const META_FUNCTION_GENERATION: &str = "function_generation";
 
 mod api_envelope_state;
 mod asset_attempts;
+pub(crate) mod asset_grants;
 mod asset_maintenance;
 mod asset_reads;
 mod auth_catalog_ops;
@@ -734,6 +735,10 @@ pub struct MutationCommit {
     /// maintenance, or the version head — only the live matcher.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub job_changes: Vec<ChangedRow>,
+    /// Asset ids whose grant-authority projection changed. System state stays
+    /// out of app OCC/search paths but invalidates asset live reads.
+    #[serde(skip)]
+    pub(crate) asset_changes: Vec<String>,
     /// Authority-private facts for sequence allocations committed with this
     /// mutation. The direct receipt carries them; fan-out projection removes
     /// them because the value discloses the number of prior allocations.
@@ -832,6 +837,7 @@ pub(crate) struct BufferedCommitPayload {
     /// Transaction-scoped `ctx.assets.attach` admissions (LLP 0044); never
     /// serialized, never persisted, consumed by the commit hook.
     pub asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
+    pub asset_grant_ops: Vec<crate::assets::BufferedAssetGrantOp>,
 }
 
 struct BufferedEffects {
@@ -843,6 +849,7 @@ struct BufferedEffects {
     job_enqueues: Vec<crate::jobs::BufferedJobEnqueue>,
     job_producer: Option<crate::jobs::JobProducer>,
     asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
+    asset_grant_ops: Vec<crate::assets::BufferedAssetGrantOp>,
 }
 
 #[derive(Clone, Copy)]
@@ -3048,6 +3055,7 @@ impl LocalDatabase {
                 write_dependencies: Vec::new(),
                 job_enqueues: Vec::new(),
                 job_changes: Vec::new(),
+                asset_changes: Vec::new(),
                 sequence_allocations,
                 authorization: None,
                 network_egress: Default::default(),
@@ -4130,6 +4138,7 @@ impl LocalDatabase {
                 // note's callee/producer scoping).
                 job_enqueues: Vec::new(),
                 job_changes: Vec::new(),
+                asset_changes: Vec::new(),
                 sequence_allocations: sequence_allocation_facts,
                 authorization,
                 network_egress: Default::default(),
@@ -4244,6 +4253,7 @@ impl LocalDatabase {
             job_enqueues,
             job_producer,
             asset_admissions,
+            asset_grant_ops,
         } = payload;
         let attempted = self.apply_buffered_writes_with_lifecycle(
             match lane {
@@ -4264,6 +4274,7 @@ impl LocalDatabase {
                 job_enqueues,
                 job_producer,
                 asset_admissions,
+                asset_grant_ops,
             },
             BufferedCommitOptions {
                 ctx_ledger: Some(ctx_ledger),
@@ -4311,6 +4322,7 @@ impl LocalDatabase {
             Vec::new(),
             None,
             asset_admissions,
+            Vec::new(),
         )
     }
 
@@ -4334,6 +4346,7 @@ impl LocalDatabase {
         // makes the staged preview refuse `SNAPBACK_ASSET_REF_UNVERIFIED`
         // even though the real commit would admit the write.
         asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
+        asset_grant_ops: Vec<crate::assets::BufferedAssetGrantOp>,
     ) -> SnapbackResult<MutationCommit> {
         self.apply_buffered_writes_with_lifecycle_gated(
             write_authority::LocalWriterLaneV1::DryRun,
@@ -4347,6 +4360,7 @@ impl LocalDatabase {
                 job_enqueues,
                 job_producer,
                 asset_admissions,
+                asset_grant_ops,
             },
             BufferedCommitOptions {
                 ctx_ledger: Some(ctx_ledger),
@@ -4380,6 +4394,7 @@ impl LocalDatabase {
                 job_enqueues: Vec::new(),
                 job_producer: None,
                 asset_admissions: Vec::new(),
+                asset_grant_ops: Vec::new(),
             },
             options,
             MembershipCommitAuthority::deny(),
@@ -4442,6 +4457,7 @@ impl LocalDatabase {
             job_enqueues,
             job_producer,
             asset_admissions,
+            asset_grant_ops,
         } = effects;
         if !job_enqueues.is_empty() {
             if let Some(runtime) = self.derived_fork() {
@@ -4770,13 +4786,32 @@ impl LocalDatabase {
             now_ms,
         )?;
 
+        // @ref LLP 0210#d5--recipient-scoped-authority-recipe-now-grant-ops-as-the-paved-spelling —
+        // grant transitions share the app-write transaction and revalidate
+        // owner/principal authority plus quota under this final write lock.
+        let asset_changes = if asset_grant_ops.is_empty() {
+            BTreeSet::new()
+        } else {
+            let principal = input.auth.user_id.as_deref().ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_GRANT_FORBIDDEN",
+                    "assets",
+                    "asset grant operations require an authenticated principal",
+                )
+            })?;
+            asset_grants::apply_in_tx(&tx, principal, &asset_grant_ops)?
+        };
+
         apply_sequence_allocations_in_tx(&tx, &schema, &sequence_allocations)?;
 
-        if !changes.is_empty() || !sequence_allocations.is_empty() {
+        if !changes.is_empty() || !sequence_allocations.is_empty() || !asset_changes.is_empty() {
             set_version(&tx, next_version)?;
         }
 
-        let version = if changes.is_empty() && sequence_allocations.is_empty() {
+        let version = if changes.is_empty()
+            && sequence_allocations.is_empty()
+            && asset_changes.is_empty()
+        {
             current_version
         } else {
             next_version
@@ -4901,6 +4936,7 @@ impl LocalDatabase {
             read_dependencies,
             job_enqueues: job_enqueue_facts,
             job_changes,
+            asset_changes: asset_changes.into_iter().collect(),
             sequence_allocations,
             authorization,
             network_egress: Default::default(),
@@ -12732,6 +12768,47 @@ pub(crate) fn asset_read_authorized(
         });
     };
     if principal == asset.owner_principal {
+        return Ok(AssetReadDecision {
+            authorized: true,
+            dependencies,
+        });
+    }
+    // First-class grant authority is independent of the asset's fallback
+    // `owner-only`/`via-references` policy. Capture the empty range and the
+    // state in each row key so mint, activation, and revocation all move the
+    // authorization witness.
+    let mut grant_statement = tx.prepare(
+        "SELECT grant_id, state FROM _snapback_asset_grants_v1
+         WHERE asset_id = ?1 AND principal = ?2 ORDER BY grant_id",
+    )?;
+    let grant_rows = grant_statement
+        .query_map(rusqlite::params![asset.asset_id, principal], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    dependencies.push(CapturedReadDependency {
+        kind: CapturedReadKind::Query,
+        table: Some("_snapback_asset_grants_v1".to_owned()),
+        id: None,
+        version: None,
+        predicate: Some(serde_json::json!({
+            "assetId": asset.asset_id,
+            "principal": principal,
+        })),
+        rows: grant_rows
+            .iter()
+            .map(|(grant_id, state)| format!("{grant_id}:{state}"))
+            .collect(),
+        field: Some("state".to_owned()),
+        value: None,
+        order: None,
+        limit: None,
+        result_count: Some(grant_rows.len()),
+        boundary: None,
+    });
+    // Frozen eligibility remains part of the authority decision even if a
+    // malformed restore or operator write were ever to leave a stray edge.
+    if asset.grants_enabled && grant_rows.iter().any(|(_, state)| state == "active") {
         return Ok(AssetReadDecision {
             authorized: true,
             dependencies,

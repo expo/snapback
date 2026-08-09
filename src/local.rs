@@ -11029,6 +11029,7 @@ impl LocalSnapback {
                     write_dependencies: Vec::new(),
                     job_enqueues: Vec::new(),
                     job_changes: Vec::new(),
+                    asset_changes: Vec::new(),
                     sequence_allocations,
                     authorization: None,
                     network_egress: Default::default(),
@@ -11113,6 +11114,7 @@ impl LocalSnapback {
                     write_dependencies: Vec::new(),
                     job_enqueues: Vec::new(),
                     job_changes: Vec::new(),
+                    asset_changes: Vec::new(),
                     sequence_allocations,
                     authorization: None,
                     network_egress: Default::default(),
@@ -11226,6 +11228,7 @@ impl LocalSnapback {
                                     job_enqueues,
                                     job_producer,
                                     asset_admissions: executed.asset_admissions,
+                                    asset_grant_ops: executed.asset_grant_ops,
                                 };
                                 crate::result_contract::validate_handler_result(
                                     &function,
@@ -11242,6 +11245,7 @@ impl LocalSnapback {
                                     payload.job_enqueues.clone(),
                                     payload.job_producer.clone(),
                                     payload.asset_admissions.clone(),
+                                    payload.asset_grant_ops.clone(),
                                 )?;
                                 (
                                     self.authorization_commit_preflight_for_changes(
@@ -11727,6 +11731,7 @@ impl LocalSnapback {
                     write_dependencies: Vec::new(),
                     job_enqueues: Vec::new(),
                     job_changes: Vec::new(),
+                    asset_changes: Vec::new(),
                     sequence_allocations,
                     authorization: None,
                     network_egress: Default::default(),
@@ -11770,6 +11775,7 @@ impl LocalSnapback {
                 write_dependencies: Vec::new(),
                 job_enqueues: Vec::new(),
                 job_changes: Vec::new(),
+                asset_changes: Vec::new(),
                 sequence_allocations,
                 authorization: None,
                 network_egress: Default::default(),
@@ -11902,6 +11908,7 @@ impl LocalSnapback {
                         job_enqueues,
                         job_producer,
                         asset_admissions: executed.asset_admissions,
+                        asset_grant_ops: executed.asset_grant_ops,
                     };
                     match (branch_operation, identity.as_ref()) {
                         (Some(branch_operation), None) => {
@@ -12055,6 +12062,7 @@ impl LocalSnapback {
         self.last_commit_ack_at = Some(Instant::now());
         let has_observable_effect = !commit.changes.is_empty()
             || !commit.job_changes.is_empty()
+            || !commit.asset_changes.is_empty()
             || !commit.job_enqueues.is_empty()
             || !commit.sequence_allocations.is_empty();
         if !commit.job_changes.is_empty() {
@@ -12089,7 +12097,7 @@ impl LocalSnapback {
             commit_durable_ms,
             mutation,
             frame_version,
-            commit.changes.len() + commit.job_changes.len(),
+            commit.changes.len() + commit.job_changes.len() + commit.asset_changes.len(),
             trace_identity,
         );
         // This is internal invalidation truth derived from the already-durable
@@ -12128,6 +12136,7 @@ impl LocalSnapback {
             if !permission_changes.is_empty()
                 || !commit.changes.is_empty()
                 || !commit.job_changes.is_empty()
+                || !commit.asset_changes.is_empty()
                 || authorization_event.is_some()
             {
                 self.begin_live_delivery_frame(self.subscriptions.len());
@@ -12145,6 +12154,7 @@ impl LocalSnapback {
                 }
                 if !commit.changes.is_empty()
                     || !commit.job_changes.is_empty()
+                    || !commit.asset_changes.is_empty()
                     || authorization_event.is_some()
                 {
                     // Job-state rows ride the same frame as app changes so a
@@ -12155,7 +12165,7 @@ impl LocalSnapback {
                     // Serving commits enqueue this data behind any permission
                     // or authority work above. An absent scheduler retains the
                     // legacy inline order.
-                    if commit.job_changes.is_empty() {
+                    if commit.job_changes.is_empty() && commit.asset_changes.is_empty() {
                         self.dispatch_live_data_fanout(
                             &commit.changes,
                             &resynced,
@@ -12165,6 +12175,18 @@ impl LocalSnapback {
                     } else {
                         let mut frame_changes = commit.changes.clone();
                         frame_changes.extend(commit.job_changes.iter().cloned());
+                        // @ref LLP 0210#d5--recipient-scoped-authority-recipe-now-grant-ops-as-the-paved-spelling —
+                        // a grant-only commit invalidates the governed asset
+                        // projection so revoke can publish a blank snapshot.
+                        frame_changes.extend(commit.asset_changes.iter().map(|asset_id| {
+                            ChangedRow {
+                                table: ASSET_RECORDS_LIVE_TABLE.to_owned(),
+                                id: asset_id.clone(),
+                                op: crate::storage::ChangeOp::Update,
+                                row: None,
+                                changed_fields: Vec::new(),
+                            }
+                        }));
                         self.dispatch_live_data_fanout(
                             &frame_changes,
                             &resynced,
@@ -12250,6 +12272,7 @@ impl LocalSnapback {
                 job_enqueues,
                 job_producer,
                 asset_admissions: executed.asset_admissions,
+                asset_grant_ops: executed.asset_grant_ops,
             },
             identity.as_ref(),
             check_live,

@@ -110,6 +110,11 @@
     },
     {
       "body": "timeOrdered",
+      "kind": "AssetGrant",
+      "prefix": "agr"
+    },
+    {
+      "body": "timeOrdered",
       "kind": "Migration",
       "prefix": "mig"
     },

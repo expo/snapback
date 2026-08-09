@@ -774,12 +774,16 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // LLP 0044 asset classes (LLP 0012 dated registration 2026-07-31):
         // each producer chose these deliberately with this landing.
         "SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED"
-        | "SNAPBACK_ASSET_DEFERRED_LENGTH_UNSUPPORTED" => StatusCode::BAD_REQUEST,
-        "SNAPBACK_ASSET_FORBIDDEN" | "SNAPBACK_ASSET_OWNER_CUSTODY_UNSATISFIABLE" => {
+        | "SNAPBACK_ASSET_DEFERRED_LENGTH_UNSUPPORTED"
+        | "SNAPBACK_ASSET_GRANT_INPUT_INVALID" => StatusCode::BAD_REQUEST,
+        "SNAPBACK_ASSET_FORBIDDEN"
+        | "SNAPBACK_ASSET_GRANT_FORBIDDEN"
+        | "SNAPBACK_ASSET_OWNER_CUSTODY_UNSATISFIABLE" => {
             StatusCode::FORBIDDEN
         }
         "SNAPBACK_ASSET_INTENT_UNKNOWN"
         | "SNAPBACK_ASSET_ATTEMPT_UNKNOWN"
+        | "SNAPBACK_ASSET_GRANT_UNKNOWN"
         | "SNAPBACK_ASSET_UNKNOWN" => StatusCode::NOT_FOUND,
         "SNAPBACK_ASSET_LENGTH_MISMATCH"
         | "SNAPBACK_ASSET_DIGEST_MISMATCH"
@@ -833,6 +837,9 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_ASSET_GENERATION_STALE"
         | "SNAPBACK_ASSET_NOT_READY"
         | "SNAPBACK_ASSET_REFERENCED"
+        | "SNAPBACK_ASSET_GRANTS_UNDECLARED"
+        | "SNAPBACK_ASSET_GRANT_STATE_INVALID"
+        | "SNAPBACK_ASSET_GRANT_CONFLICT"
         // LLP 0109 §17: ordering precondition — run asset.ensureSeedFixture
         // first, then re-send the ensure.
         | "SNAPBACK_SEED_ASSET_FIXTURE_NOT_INGESTED" => StatusCode::CONFLICT,
@@ -851,6 +858,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         }
         "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED" => StatusCode::PAYLOAD_TOO_LARGE,
         "SNAPBACK_ASSET_QUOTA_EXCEEDED"
+        | "SNAPBACK_ASSET_GRANT_QUOTA_EXCEEDED"
         | "SNAPBACK_ASSET_CEILING_EXCEEDED" => StatusCode::TOO_MANY_REQUESTS,
         "SNAPBACK_ASSET_TUS_VERSION_UNSUPPORTED" => StatusCode::PRECONDITION_FAILED,
         "SNAPBACK_ASSET_TUS_CONTENT_TYPE_UNSUPPORTED" => {

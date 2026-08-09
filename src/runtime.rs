@@ -354,6 +354,7 @@ pub(crate) struct ExecutedIbexMutation {
     pub membership_commands: Vec<BufferedMembershipCommand>,
     pub reads: Vec<CapturedReadDependency>,
     pub asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
+    pub asset_grant_ops: Vec<crate::assets::BufferedAssetGrantOp>,
     pub result: Value,
     pub ctx_ledger: CtxAnswerLedger,
 }
@@ -444,6 +445,7 @@ impl RuntimeManager {
             membership_commands,
             reads,
             asset_admissions,
+            asset_grant_ops,
             ..
         } = invocation;
         let membership_plans = db.membership_plans().authorize_membership_commands(membership_commands)?;
@@ -462,6 +464,7 @@ impl RuntimeManager {
                 principal: input.auth.user_id.clone(),
             }),
             asset_admissions,
+            asset_grant_ops,
         )
     }
 
@@ -554,6 +557,7 @@ pub(crate) fn execute_ibex_mutation_prepared(
         membership_commands,
         reads,
         asset_admissions,
+        asset_grant_ops,
         ..
     } = invocation;
     prepared.validate_admission("ibex mutation completion")?;
@@ -564,6 +568,7 @@ pub(crate) fn execute_ibex_mutation_prepared(
         membership_commands,
         reads,
         asset_admissions,
+        asset_grant_ops,
         result,
         ctx_ledger,
     })
@@ -1229,6 +1234,11 @@ pub(crate) struct IbexHostContext<'a> {
     /// references): recorded during handler execution, consumed by the
     /// commit hook, never serialized or persisted.
     asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
+    /// First-class recipient authority staged until the same final write lock
+    /// as app writes and typed-reference maintenance.
+    asset_grant_ops: Vec<crate::assets::BufferedAssetGrantOp>,
+    /// One provenance id shared by all grant mints in this mutation.
+    asset_mutation_id: Option<String>,
     /// Declaration-bound membership operations carry their host-derived writer
     /// separately from raw `ctx.db` writes all the way to the central commit seam.
     membership_commands: Vec<BufferedMembershipCommand>,
@@ -1253,10 +1263,10 @@ pub(crate) struct IbexHostContext<'a> {
     recorded_ids: Vec<String>,
     /// Replay-mode state; `Some` iff the input carried a `ctx_ledger`.
     replay: Option<ReplayLedger>,
-    /// An out-of-band **trusted** role denial produced by
-    /// `ctx.permissions.<decl>.requireRole` (LLP 0056 M3). The trusted brand on
-    /// a `SnapbackError` cannot survive the JS error round-trip, so the real
-    /// terminal denial is recorded here and the outer result-assembly returns it
+    /// An out-of-band **trusted** authority refusal produced by a host-owned
+    /// permission or asset-grant operation. The trusted brand on a
+    /// `SnapbackError` cannot survive the JS error round-trip, so the real
+    /// terminal refusal is recorded here and the outer result-assembly returns it
     /// **regardless of what the handler did with the thrown error** — a handler
     /// that catches it cannot un-deny (terminalization), and a handler that
     /// *forges* `SNAPBACK_AUTH_PERMISSION_DENIED` never sets this, so a forged
@@ -1335,6 +1345,8 @@ impl<'a> IbexHostContext<'a> {
             sequence_allocations: Vec::new(),
             job_enqueues: Vec::new(),
             asset_admissions: Vec::new(),
+            asset_grant_ops: Vec::new(),
+            asset_mutation_id: None,
             membership_commands: Vec::new(),
             membership_writer,
             reads,
@@ -1396,6 +1408,8 @@ impl<'a> IbexHostContext<'a> {
             sequence_allocations: Vec::new(),
             job_enqueues: Vec::new(),
             asset_admissions: Vec::new(),
+            asset_grant_ops: Vec::new(),
+            asset_mutation_id: None,
             membership_commands: Vec::new(),
             membership_writer: MembershipWriter::System,
             reads,
@@ -1450,8 +1464,12 @@ impl<'a> IbexHostContext<'a> {
     /// one ordered `generatedIds` sequence (LLP 0008's wire pin). Actions
     /// bypass the ledger — they are outside the deterministic tier.
     fn next_host_id(&mut self) -> SnapbackResult<String> {
+        self.next_host_id_for(crate::ids::Kind::Opaque)
+    }
+
+    fn next_host_id_for(&mut self, kind: crate::ids::Kind) -> SnapbackResult<String> {
         if self.mode == IbexInvocationMode::Action {
-            return Ok(crate::storage::new_id());
+            return Ok(crate::ids::mint_time_ordered(kind));
         }
         if let Some(replay) = self.replay.as_mut() {
             let id = replay.ids.get(replay.cursor).cloned().ok_or_else(|| {
@@ -1467,6 +1485,13 @@ impl<'a> IbexHostContext<'a> {
                 )
             })?;
             replay.cursor += 1;
+            if !crate::ids::looks_like(kind, &id) {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_CTX_LEDGER_ID_KIND_MISMATCH",
+                    "runtime",
+                    "replayed host id has the wrong registered kind for this call",
+                ));
+            }
             return Ok(id);
         }
         if self.recorded_ids.len() >= crate::manifest::CTX_ANSWER_LEDGER_MAX_IDS {
@@ -1481,8 +1506,17 @@ impl<'a> IbexHostContext<'a> {
                 ),
             ));
         }
-        let id = crate::storage::new_id();
+        let id = crate::ids::mint_time_ordered(kind);
         self.recorded_ids.push(id.clone());
+        Ok(id)
+    }
+
+    fn grant_mutation_id(&mut self) -> SnapbackResult<String> {
+        if let Some(id) = &self.asset_mutation_id {
+            return Ok(id.clone());
+        }
+        let id = self.next_host_id_for(crate::ids::Kind::Mutation)?;
+        self.asset_mutation_id = Some(id.clone());
         Ok(id)
     }
 
@@ -2040,6 +2074,103 @@ impl<'a> IbexHostContext<'a> {
                         upload,
                     });
                 Ok(Value::String(asset_id))
+            }
+            "assets.grant" => {
+                // @ref LLP 0210#d5--recipient-scoped-authority-recipe-now-grant-ops-as-the-paved-spelling —
+                // handler calls stage deterministic grant identities; storage
+                // owns authority and revalidates at the final write lock.
+                self.ensure_writable("grant")?;
+                let asset_id = required_string(&args, "assetId")?;
+                let principal = required_string(&args, "principal")?;
+                let state = match required_string(&args, "state")?.as_str() {
+                    "pending" => crate::assets::AssetGrantState::Pending,
+                    "active" => crate::assets::AssetGrantState::Active,
+                    _ => {
+                        let error = SnapbackError::error(
+                            "SNAPBACK_ASSET_GRANT_INPUT_INVALID",
+                            "assets",
+                            "ctx.assets.grant state must be pending or active",
+                        );
+                        self.terminal_denial = Some(error.clone());
+                        return Err(error);
+                    }
+                };
+                let grant_id = self.next_host_id_for(crate::ids::Kind::AssetGrant)?;
+                let mutation = self.grant_mutation_id()?;
+                let proposed = crate::assets::BufferedAssetGrantOp::Grant {
+                    grant_id: grant_id.clone(),
+                    asset_id,
+                    principal,
+                    state,
+                    mutation,
+                    at_ms: self.now_ms,
+                };
+                let caller = match self.input.auth.user_id.clone() {
+                    Some(caller) => caller,
+                    None => {
+                        let error = SnapbackError::error(
+                            "SNAPBACK_ASSET_GRANT_FORBIDDEN",
+                            "assets",
+                            "asset grant operations require an authenticated principal",
+                        );
+                        self.terminal_denial = Some(error.clone());
+                        return Err(error);
+                    }
+                };
+                if let Err(error) = super::storage::asset_grants::preview(
+                    self.db().conn(),
+                    &caller,
+                    &self.asset_grant_ops,
+                    &proposed,
+                ) {
+                    self.terminal_denial = Some(error.clone());
+                    return Err(error);
+                }
+                self.asset_grant_ops.push(proposed);
+                Ok(json!({ "grantId": grant_id }))
+            }
+            "assets.activate" | "assets.revoke" => {
+                let operation = if op == "assets.activate" {
+                    "activate"
+                } else {
+                    "revoke"
+                };
+                self.ensure_writable(operation)?;
+                let grant_id = required_string(&args, "grantId")?;
+                let proposed = if op == "assets.activate" {
+                    crate::assets::BufferedAssetGrantOp::Activate {
+                        grant_id,
+                        at_ms: self.now_ms,
+                    }
+                } else {
+                    crate::assets::BufferedAssetGrantOp::Revoke {
+                        grant_id,
+                        at_ms: self.now_ms,
+                    }
+                };
+                let caller = match self.input.auth.user_id.clone() {
+                    Some(caller) => caller,
+                    None => {
+                        let error = SnapbackError::error(
+                            "SNAPBACK_ASSET_GRANT_FORBIDDEN",
+                            "assets",
+                            "asset grant operations require an authenticated principal",
+                        );
+                        self.terminal_denial = Some(error.clone());
+                        return Err(error);
+                    }
+                };
+                if let Err(error) = super::storage::asset_grants::preview(
+                    self.db().conn(),
+                    &caller,
+                    &self.asset_grant_ops,
+                    &proposed,
+                ) {
+                    self.terminal_denial = Some(error.clone());
+                    return Err(error);
+                }
+                self.asset_grant_ops.push(proposed);
+                Ok(Value::Null)
             }
             // Declaration-bound membership authoring. The JS helper supplies a
             // stable declaration id and operation arguments; the host resolves
@@ -5729,6 +5860,7 @@ mod membership_bridge_tests {
             membership_commands,
             reads,
             asset_admissions,
+            asset_grant_ops,
             ..
         } = ctx;
         assert!(membership_commands.is_empty());
@@ -5742,6 +5874,7 @@ mod membership_bridge_tests {
             job_enqueues,
             job_producer: None,
             asset_admissions,
+            asset_grant_ops,
         }
     }
 
@@ -5798,6 +5931,7 @@ mod membership_bridge_tests {
                     job_enqueues: Vec::new(),
                     job_producer: None,
                     asset_admissions: Vec::new(),
+                    asset_grant_ops: Vec::new(),
                 },
                 None,
                 || Ok(()),
@@ -6212,6 +6346,7 @@ globalThis.__snapbackHandlers = {
                 writes: Vec::new(),
                 sequence_allocations: Vec::new(),
                 asset_admissions: Vec::new(),
+                asset_grant_ops: Vec::new(),
                 membership_plans: plans,
                 read_dependencies: Vec::new(),
                 result: json!(null),
@@ -6474,6 +6609,7 @@ globalThis.__snapbackHandlers = {
                 writes: Vec::new(),
                 sequence_allocations: Vec::new(),
                 asset_admissions: Vec::new(),
+                asset_grant_ops: Vec::new(),
                 membership_plans: plans,
                 read_dependencies: Vec::new(),
                 result: result.clone(),

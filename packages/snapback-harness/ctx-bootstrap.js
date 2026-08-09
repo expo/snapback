@@ -760,10 +760,23 @@
             : options.upload;
         }
         return host("assets.attach", { assetId: assetId, upload: upload });
+      },
+      grant: function(assetId, principal, options) {
+        var state = options && options.state != null ? options.state : "active";
+        return host("assets.grant", { assetId: assetId, principal: principal, state: state });
+      },
+      activate: function(grantId) {
+        return host("assets.activate", { grantId: grantId });
+      },
+      revoke: function(grantId) {
+        return host("assets.revoke", { grantId: grantId });
       }
     };
     if (mode !== "mutation") {
       assets.attach = readonlyDenied("attach");
+      assets.grant = readonlyDenied("grant");
+      assets.activate = readonlyDenied("activate");
+      assets.revoke = readonlyDenied("revoke");
     }
     // Scoped transactional sequence allocation. Scope is a required API
     // argument; the host resolves the declaration's scope table and access

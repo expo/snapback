@@ -71,6 +71,10 @@ pub(super) fn asset_delete_cascade(
         }
         renditions_retired += 1;
     }
+    let grants_removed = tx.execute(
+        "DELETE FROM _snapback_asset_grants_v1 WHERE asset_id = ?1",
+        [&asset.asset_id],
+    )? as u64;
     assets::transition_asset(tx, asset, assets::AssetAvailability::Deleted, now_ms)?;
     assets::write_receipt(
         tx,
@@ -84,6 +88,7 @@ pub(super) fn asset_delete_cascade(
                 "cause": cause,
                 "renditionsRetired": renditions_retired,
                 "blobsReleased": blobs_released,
+                "grantsRemoved": grants_removed,
             }),
         ),
     )?;
@@ -357,7 +362,13 @@ impl LocalDatabase {
             let still_eligible = current
                 .as_ref()
                 .is_some_and(|current| current.availability == assets::AssetAvailability::Ready)
-                && assets::load_edges_for_asset(tx, &asset.asset_id)?.is_empty();
+                && assets::load_edges_for_asset(tx, &asset.asset_id)?.is_empty()
+                && tx.query_row(
+                    "SELECT COUNT(*) FROM _snapback_asset_grants_v1
+                     WHERE asset_id = ?1 AND state = 'active'",
+                    [&asset.asset_id],
+                    |row| row.get::<_, u64>(0),
+                )? == 0;
             if !still_eligible {
                 return Ok(false);
             }

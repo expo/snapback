@@ -1473,6 +1473,13 @@
           "minimum": 0,
           "type": "integer"
         },
+        "maxGrantsPerApp": {
+          "default": 1024,
+          "description": "Defaults for backward parsing of pre-grant capability manifests; new\nlocal manifests always emit the enforced ceiling explicitly.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
         "maxOpenAttemptsPerApp": {
           "format": "uint64",
           "minimum": 0,
@@ -1630,6 +1637,10 @@
             "string",
             "null"
           ]
+        },
+        "grants": {
+          "description": "Recipient-scoped grant edges are an explicit authority opt-in. Absent\nis canonical so manifests and policy hashes produced before LLP 0210\nretain their exact bytes and semantics.",
+          "type": "boolean"
         },
         "handlerForm": {
           "default": null,

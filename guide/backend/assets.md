@@ -606,13 +606,70 @@ eligible only while the underlying asset remains pending, while `ready` and
 `rejected` are never eligible. Any ineligible retry creates no successor and
 refuses with `SNAPBACK_ASSET_RETRY_INELIGIBLE`.
 
-### Compose view-once access with per-recipient grant rows
+### Grant and revoke per-recipient access
 
-Today's supported view-once recipe is the pilot-proven composition of ordinary
-app rows with `via-references` asset authorization. Give the media intent
-`access: { read: 'via-references' }` and a revocable delivery profile. Put its
-typed reference in a dedicated row whose owner-principal sharing field is the
-current viewer:
+The paved view-once recipe uses first-class asset grants. Opt the upload intent
+in explicitly, keep its ordinary policy owner-only so the grant is the
+recipient's sole authority path, and choose a revocable delivery profile:
+
+```js fragment reason="view-once intent showing the grants opt-in and sole-authority constraint"
+export const messageImageUpload = defineAssetUpload({
+  auth: 'authenticated',
+  accept: { mediaTypes: ['image/jpeg'], maxBytes: 10_000_000 },
+  delivery: { kind: 'private-strict' },
+  access: { read: 'owner-only' },
+  grants: true,
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+```
+
+At send time the asset owner mints one pending grant per recipient in the same
+mutation as the message write. Pending grants confer no read access:
+
+```js fragment reason="application-specific message writes surround this grant operation"
+const { grantId } = await ctx.assets.grant(assetId, recipientPrincipal, {
+  state: 'pending',
+});
+```
+
+The named recipient activates that grant in its authorized `open()` mutation,
+and either the recipient or asset owner removes it on close or deletion:
+
+```js fragment reason="application-specific open/consumption checks surround these transitions"
+await ctx.assets.activate(grantId);
+await ctx.assets.revoke(grantId);
+```
+
+All three transitions commit atomically with the mutation's app-row writes.
+Only the asset owner can mint; only the named principal can activate a pending
+grant; the owner or named principal can revoke. Revoke removes the record, so a
+later operation on that `grantId` refuses as unknown. Re-running the same
+mutation `clientKey` replays its original result instead of minting a second
+edge. `grants: true` is captured when the asset is admitted: adding it in a
+later deploy does not make older assets grantable.
+
+Two retention and delivery constraints are load-bearing:
+
+- A grant must be the recipient's **sole authority path**. Public delivery or
+  a recipient-visible `via-references` edge bypasses pending and revoke.
+- An active grant protects the asset from reference GC; a pending grant does
+  not. Keep a typed reverse reference, such as the message row's `assetRef`,
+  alive for the entire pending window.
+
+With `private-signed`, revoke stops new issuance but an already-issued bearer
+URL remains usable until its TTL. With `private-strict`, revoke denies the next
+governed request. Neither profile retracts bytes already copied, so view-once
+media must not enter a durable application cache.
+
+Each app may hold at most 1,024 pending plus active asset grants. The ceiling is
+checked atomically when the owner mints; revoke releases capacity atomically.
+
+#### Portable fallback: app-owned grant rows
+
+When an application needs filterable grant metadata or must remain portable to
+a target without first-class grant operations, compose ordinary app rows with
+`via-references` authorization. Put the typed reference in a dedicated row
+whose owner-principal sharing field is the current viewer:
 
 ```js fragment reason="pilot-proven row composition; no in-repo fixture contains the complete app-specific authorization checks"
 mediaGrants: defineTable({
@@ -663,15 +720,9 @@ Two constraints are load-bearing:
   The pre-minted grant row supplies one above; do not replace it with a plain
   asset-id string, or reference GC can reclaim the asset before `open()`.
 
-With `private-signed`, closing stops new issuance but an already-issued bearer
-URL remains usable until its TTL; with `private-strict`, revocation applies on
-the next governed request. Neither profile can retract bytes the viewer has
-already copied, so view-once media must not enter a durable application cache.
-
-First-class `ctx.assets.grant` / `activate` / `revoke` operations are designed
-in [LLP 0210 D5(b)](repo:llp/0210-asset-upload-dx-closure.rfc.md#d5--recipient-scoped-authority-recipe-now-grant-ops-as-the-paved-spelling),
-but they remain author-gated and unshipped. Do not call them. The grant-row
-recipe above is the supported path on today's primitives.
+The same signed-versus-strict delivery limits apply to this fallback. Prefer
+first-class grant operations unless the extra app-row shape is itself part of
+the product model.
 
 ## Images
 

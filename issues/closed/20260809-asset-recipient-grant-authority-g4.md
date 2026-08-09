@@ -1,6 +1,6 @@
 # Recipient-scoped asset authority needs a paved path: grant primitive or app-bound assetSharing (LLP 0208 G4/G11 design slice)
 
-**Status:** Open
+**Status:** Closed
 **Severity:** P2 (design commission — the workaround is sound but hand-composed)
 **Systems:** Assets, Auth, Schema, Memberships
 **Date:** 2026-08-09
@@ -81,3 +81,14 @@ composition kept as the portable fallback.
   lands and this closes docs-only; for (b)/(c): typed ops/flavor, refusal
   codes, and hostile-probe acceptance mirroring the pilot's 403/200/403
   sequence).
+
+## Resolution
+
+Closed 2026-08-09. LLP 0210 rung (b) is implemented on the local target:
+admission-frozen `grants: true`, `agr_` system records, commit-atomic
+grant/activate/revoke, policy-or-active-grant read authority, live revoke
+blanking, a 1,024-edge per-app ceiling, active-only GC protection,
+consistent-cut custody, typed diagnostics, and hostile-probe coverage. The
+guide makes first-class grants primary and retains app-owned grant rows as the
+portable fallback. Rung (c) remains separately deferred to the LLP 0208 G4
+membership program and does not keep this asset-specific ticket open.

@@ -72,6 +72,11 @@
     "AssetCutQuotaV1": {
       "additionalProperties": false,
       "properties": {
+        "grantCount": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
         "readyAssetCount": {
           "format": "uint64",
           "minimum": 0,
@@ -125,6 +130,64 @@
       ],
       "type": "string"
     },
+    "AssetGrantProvenanceV1": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "mintedBy": {
+          "type": "string"
+        },
+        "mutation": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "mintedBy",
+        "mutation",
+        "at"
+      ],
+      "type": "object"
+    },
+    "AssetGrantRecordV1": {
+      "additionalProperties": false,
+      "description": "@ref LLP 0210#d5--recipient-scoped-authority-recipe-now-grant-ops-as-the-paved-spelling —\ndurable, recipient-scoped authority is a system-owned edge, not an app row.",
+      "properties": {
+        "assetId": {
+          "type": "string"
+        },
+        "grantId": {
+          "type": "string"
+        },
+        "principal": {
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/AssetGrantProvenanceV1"
+        },
+        "state": {
+          "$ref": "#/$defs/AssetGrantState"
+        }
+      },
+      "required": [
+        "grantId",
+        "assetId",
+        "principal",
+        "state",
+        "provenance"
+      ],
+      "type": "object"
+    },
+    "AssetGrantState": {
+      "enum": [
+        "pending",
+        "active"
+      ],
+      "type": "string"
+    },
     "AssetReadAccessPolicy": {
       "enum": [
         "owner-only",
@@ -159,6 +222,10 @@
         },
         "deliveryProfile": {
           "$ref": "#/$defs/AssetDeliveryProfile"
+        },
+        "grantsEnabled": {
+          "description": "Frozen admission-time eligibility for first-class recipient grants.\nA later deploy cannot retrofit authority onto already-admitted bytes.",
+          "type": "boolean"
         },
         "intentId": {
           "type": "string"
@@ -313,6 +380,13 @@
     },
     "formatVersion": {
       "type": "string"
+    },
+    "grants": {
+      "description": "Grant edges are captured in the same SQLite read transaction as their\nready assets. Empty is omitted to preserve pre-feature cut preimages.",
+      "items": {
+        "$ref": "#/$defs/AssetGrantRecordV1"
+      },
+      "type": "array"
     },
     "manifestDigest": {
       "description": "Tagged SHA-256 over the canonical (JCS) manifest body with this field\nabsent; domain `snapback:asset-cut:v1\\n`.",

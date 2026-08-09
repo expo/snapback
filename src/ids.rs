@@ -85,6 +85,7 @@ pub enum Kind {
     Declaration,
     Job,
     Asset,
+    AssetGrant,
     Migration,
     Stage,
     Projection,
@@ -164,6 +165,9 @@ impl Kind {
             Kind::Declaration => ("dcl", TimeOrdered),
             Kind::Job => ("job", TimeOrdered),
             Kind::Asset => ("ast", TimeOrdered),
+            // @ref LLP 0210#d5--recipient-scoped-authority-recipe-now-grant-ops-as-the-paved-spelling —
+            // grant identity is durable and revoke-by-id is the public spelling.
+            Kind::AssetGrant => ("agr", TimeOrdered),
             Kind::Migration => ("mig", TimeOrdered),
             Kind::Stage => ("stg", TimeOrdered),
             Kind::Projection => ("proj", TimeOrdered),
@@ -221,6 +225,7 @@ pub const ALL: &[Kind] = &[
     Kind::Declaration,
     Kind::Job,
     Kind::Asset,
+    Kind::AssetGrant,
     Kind::Migration,
     Kind::Stage,
     Kind::Projection,
