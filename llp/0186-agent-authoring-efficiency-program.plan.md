@@ -13,13 +13,20 @@ Error handling, Code generation, Packaging, Client integration, Testing
 **Revised:** 2026-08-07 (i — implementation record: the W2 published authoring skill shipped as `skills/snapback-authoring/SKILL.md`, with its embedded Rosetta projection checked against the canonical records by `scripts/check-rosetta.mjs`; see the dated amendment. Its paired-lane success test remains gated on the W1 instrument.)
 **Revised:** 2026-08-07 (j — W2 golden-path scaffold shipped v1 as the `expo-chat` template in `snapback new`; see the dated amendment paragraph.)
 **Revised:** 2026-08-07 (k — the `create-snapback-app` ecosystem entry point named by W2 now exists in-repo as a thin wrapper package delegating to the `snapback new` scaffold mechanism; npm publication rides the next promotion. See the dated amendment paragraph.)
+**Revised:** 2026-08-08 (l — Run 5 action-economy amendment: tool/action
+multiplicity becomes a first-class W1 measurement and W5 sequencing target;
+proof composition stays with LLP 0146 D2, and the new 0193–0197 documents
+receive the implementation and publication work rather than creating a second
+orchestrator.)
 **Related:** LLP 0061 (agent-first guide), LLP 0130 (Convex parity standing
 decisions), LLP 0146 (agentic authoring affordances), LLP 0176 (Expo
 messaging golden-path program), LLP 0178 (generate-time authoring
 diagnostics), LLP 0179 (AppDescriptor and surfaces), LLP 0181
 (zero-configuration Expo), LLP 0184 (agent-accessible control plane), LLP
 0187 (agent discoverability — the companion RFC from the same evidence
-base)
+base), LLP 0193 (errors-as-docs completeness), LLP 0194 (generated API
+reference), LLP 0195 (public documentation and training surface), LLP 0196
+(template and recipe portfolio), LLP 0197 (benchmark publication standard)
 
 ## Summary
 
@@ -395,6 +402,54 @@ Per-iteration costs, weighted by how many times an agent iterates:
   staging; `issues/closed/20260805-headless-app-nested-demo-root.md`,
   `issues/closed/20260805-eas-nested-app-git-root-monorepo-archive.md`).
 
+### W5 — Action economy and proof orchestration (measurement and sequencing owned here)
+
+Run 5 changes the optimization target. The skill-equipped Snapback lane used
+131 tool calls against Convex's 39 while completing each call with less wall
+time and fewer tokens on average. That single run does not establish a causal
+decomposition, but it does establish an observable multiplicity: Snapback
+required many more discovery, authoring, and proof actions after framework
+defects had largely left the path. Correction-loop count alone can no longer
+represent the remaining cost.
+
+W5 adds two measurement layers to W1:
+
+1. **Raw harness facts:** tool calls; input, output, and cache-read tokens when
+   the harness exposes them; and non-null orientation, authoring, verification,
+   and diagnosis phase times where the transcript supports the boundary.
+2. **Semantic action facts:** guide/reference lookups, package-source reads,
+   binary-string excavation, authored file edits, process launches, proof
+   commands, and retries. Raw tool calls are useful within one pinned harness
+   but are gameable by command bundling; the product goal is fewer user-visible
+   decisions and operations, not cosmetically larger shell invocations.
+
+The implementation remains delegated to existing owners:
+
+- LLP 0193 makes failure recovery one action when a refusal can carry the
+  answer.
+- LLP 0194 eliminates signature-driven package-source reads through one
+  build-bound symbol authority and budgeted projections.
+- LLP 0196 makes templates proof-bearing and exposes one template-level proof
+  entry point backed by LLP 0146 D2's `snapback verify`; it does not mint a
+  second verifier or receipt.
+- LLP 0195 owns pre-install public retrieval and the longer-horizon training
+  surface.
+- LLP 0197 owns which of these facts a public comparison must disclose.
+
+The immediate product bar is **zero package-source reads and zero binary-string
+excavation in a cold benchmark lane**. A provisional engineering target of at
+most 70 raw tool calls for the skill-equipped messaging lane is useful for
+sizing work because it would approach 1.2x of Run 5's Convex token total at
+Run 5's observed Snapback tokens-per-call. It is explicitly not a release
+ratchet or magnitude claim until the N>=3 calibration confirms the action
+distribution and W1 chooses a non-gameable tolerance.
+
+W5 also commissions one bounded skill experiment after the harness records
+cache-read tokens: compare today's complete authoring skill with a small router
+that progressively loads only the task's assets/offline/sessions/native cards.
+The experiment decides whether prompt replay is material; prose size is not
+reduced on intuition alone.
+
 ## Sequencing and ownership
 
 | Wave | Owner | This Plan's role |
@@ -404,6 +459,7 @@ Per-iteration costs, weighted by how many times an agent iterates:
 | W2 context injection | **this Plan** (guide rows land under 0061 conventions) | build and operate |
 | W3 errors | 0146 (D7), 0178 (V1), diagnostic tickets | prioritization ask + the per-error bar |
 | W4 edit loop | existing tickets | prioritization ask |
+| W5 action economy | **this Plan** for measurement; 0146 D2 and 0193–0196 for mechanisms | sequence, measure, and prevent a second proof owner |
 | Golden path, descriptor, zero-config, catalog | 0176, 0179, 0181, 0184 | consume; re-measure via W1 as gates land |
 
 W0 and W1 are parallel and first: W0 (now reduced to the qualified npm
@@ -421,6 +477,15 @@ messaging variant, the proven lane prompt templates, and run records
 carrying the 0058/0065/0066/0068 series; standing baseline
 `benchmarks/records/2026-08-07-messaging-0113.md` — skill-web 1.59x wall
 / 2.00x tokens vs Convex on 0.1.13).
+
+**2026-08-08 (Run 5, npm 0.1.15):** skill-web completed in 19m00s,
+201,268 tokens, and 131 tool calls; Convex completed in 10m18s, 89,793
+tokens, and 39 tool calls. Snapback's absolute result was its best in the
+series, while the control was also its best; the 1.84x wall / 2.24x token
+ratios are N=1 existence evidence, not a magnitude claim. The record did not
+retain input/output/cache splits or a causal phase decomposition, so later
+documents must not convert its qualitative orientation diagnosis into a
+numeric fraction.
 
 ## Measurable outcomes
 
@@ -441,6 +506,12 @@ carrying the 0058/0065/0066/0068 series; standing baseline
    inventory (the diagnostics and catalog surfaces LLP 0178/0184 are
    building) rather than asserted as an unverifiable universal, and
    spot-checked in practice by benchmark diaries.
+6. Cold published-consumer lanes perform zero package-source reads and zero
+   binary-string excavation; signature and remediation questions resolve from
+   generated references, diagnostics, or template-owned code.
+7. W1 records raw tool calls and the W5 semantic action classes. An action-count
+   ratchet is calibrated only after N>=3; until then the Run 5-derived 70-call
+   figure is a sizing target, not a claim or release gate.
 
 ## Open questions
 
@@ -471,6 +542,10 @@ carrying the 0058/0065/0066/0068 series; standing baseline
   competitor-version pins and scheduled drift checks. The residual risk —
   competitor API drift between scheduled checks — is accepted as
   unavoidable and disclosed on every card, not hidden.
+- **OQ7 — Action-count normalization.** Which semantic action boundaries are
+  stable enough across harnesses to ratchet without rewarding command
+  bundling? Run 5 establishes raw-call multiplicity inside one harness. W1
+  must calibrate the normalized classes before action count can gate anything.
 
 ## Amendment (2026-08-06): W2 Rosetta section — worked-example tier
 
