@@ -4,8 +4,8 @@ id: clients.surfaces
 order: 2
 audience: agent-first
 capabilities: [clients.surfaces]
-authorities: [llp/0179-generated-app-descriptor-and-surfaces.rfc.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/commands.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
-examples: [packages/snapback-react/surface.test.mjs, packages/snapback-react/commands.test.mjs, packages/snapback-client/commands.test.mjs, packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.json, packages/snapback-react/fixtures/conversation/app/snapback/generated/app.d.ts, demos/expo-golden-path-fixture/snapback/functions.mjs, demos/expo-golden-path-fixture/snapback/surface-model.mjs, demos/expo-golden-path-fixture/src/screens/chat-screen.tsx, demos/expo-golden-path-fixture/tests/g2-falsification.mjs, demos/expo-golden-path-fixture/tests/g3-command.mjs]
+authorities: [llp/0179-generated-app-descriptor-and-surfaces.rfc.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0210-asset-upload-dx-closure.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/commands.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
+examples: [packages/snapback-codegen/app-descriptor.test.mjs, packages/snapback-react/surface.test.mjs, packages/snapback-react/commands.test.mjs, packages/snapback-client/commands.test.mjs, packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.json, packages/snapback-react/fixtures/conversation/app/snapback/generated/app.d.ts, demos/expo-golden-path-fixture/snapback/functions.mjs, demos/expo-golden-path-fixture/snapback/surface-model.mjs, demos/expo-golden-path-fixture/src/screens/chat-screen.tsx, demos/expo-golden-path-fixture/tests/g2-falsification.mjs, demos/expo-golden-path-fixture/tests/g3-command.mjs]
 status: current
 targets: [local]
 maturity: partial
@@ -58,6 +58,35 @@ export const send = defineCommand({
 The composed mutation is still the sole application-row and asset-attachment
 commit. The command adds no server endpoint or transaction, and it does not
 change the upload intent's policy or ownership rules.
+
+<!-- since: 0.1.16 unreleased -->
+
+> **Unreleased.** The command-mapping rules below are newer than the newest
+> published closure, 0.1.15. Use a source checkout until a later closure
+> publishes them.
+
+### Map required and optional assets safely
+
+Command asset requiredness may narrow the ordinary mutation without changing
+the mutation's own callable contract:
+
+| Command child | Mutation argument | Result |
+| --- | --- | --- |
+| Required (`optional: false`) | Optional `v.assetRef` for the same upload intent | Admitted. The generated command requires the asset and always supplies it; direct mutation callers may still omit the argument. |
+| Optional (`optional: true`) | Required `v.assetRef` | Refused. A text-only command branch would invoke the mutation without a required argument. |
+
+The admitted direction is useful for a dedicated `sendPhoto` command over a
+shared mutation that also supports a direct text-only call. The generated
+command input is required, but the mutation handler must still treat the
+argument as optional because other callers retain the wider mutation
+contract.
+
+The unsafe inverse refuses at generation with
+`SNAPBACK_COMMAND_ASSET_MAPPING_INCOMPATIBLE`. Its diagnostic names both
+repairs: **make the command child required**, or **make the mutation argument
+optional** with `v.optional(v.assetRef(...))`. Do not weaken a required command
+just to match an optional mutation argument; required-child → optional-argument
+is the admitted narrowing.
 
 ## Declare a surface for one screen
 
@@ -432,7 +461,7 @@ truncates or partially emits the descriptor:
 | `SNAPBACK_COMMAND_MULTI_ASSET_UNSUPPORTED` | More than one asset input — v1 admits at most one. |
 | `SNAPBACK_COMMAND_ASSET_INTENT_UNKNOWN` | `intent` resolves to no generated upload intent. |
 | `SNAPBACK_COMMAND_ASSET_INTENT_ARGS_UNSUPPORTED` | The upload intent declares its own argument map; v1 commands do not carry a second one. |
-| `SNAPBACK_COMMAND_ASSET_MAPPING_INCOMPATIBLE` | `mutationArg` does not name a `v.assetRef({ upload: <this intent> })` argument with matching optionality. |
+| `SNAPBACK_COMMAND_ASSET_MAPPING_INCOMPATIBLE` | `mutationArg` is not a `v.assetRef({ upload: <this intent> })`, or an optional child maps to a required argument. A required child over an optional argument is admitted. |
 | `SNAPBACK_COMMAND_INPUT_COLLISION` | The asset input name collides with a different ordinary mutation input. |
 | `SNAPBACK_COMMAND_AUTHORITY_INPUT_REFUSED` | An ordinary input would inject an authority `Principal`. |
 
@@ -539,3 +568,6 @@ made here.
   [command outcome and residue facts](#run-a-command-and-read-its-truthful-outcome),
   and keep the raw asset and ordinary mutation children visible when a commit
   fails or becomes ambiguous.
+- **Do not mirror mutation optionality mechanically onto a command child.** A
+  [required child may deliberately narrow an optional mutation argument](#map-required-and-optional-assets-safely);
+  only the unsafe optional-child → required-argument direction refuses.
