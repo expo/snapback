@@ -12,7 +12,8 @@ use std::str::FromStr;
 use std::sync::OnceLock;
 
 pub use crate::contract_types::{
-    AgentsManifest, AgentsMode, ApiDisclosure, ApiFunctionExposure, ApiManifest, AppIdentity,
+    AgentsManifest, AgentsMode, ApiDisclosure, ApiFunctionExposure, ApiManifest, ApiOAuthBundle,
+    ApiOAuthManifest, AppIdentity,
     AuthManifest, AuthMode, AuthRequirement, BoundedParentVisibility,
     BoundedProjectionField, DependencySummary, EffectCeiling, EffectCeilingRead,
     EffectCeilingWrite, FieldManifest, FieldType, FunctionArgsContract, FunctionKind,
@@ -501,6 +502,14 @@ impl SchemaManifest {
         })
     }
 
+    pub fn oauth_manifest(&self) -> Option<&ApiOAuthManifest> {
+        self.api
+            .as_ref()
+            .filter(|api| api.enabled)
+            .and_then(|api| api.oauth.as_ref())
+            .filter(|oauth| oauth.enabled)
+    }
+
     pub fn agent_registration_diagnostics(&self) -> Vec<Diagnostic> {
         let agents = self.effective_agents_manifest();
         if agents.mode == AgentsMode::Invited && agents.invited_by == InvitedBy::Operators {
@@ -586,6 +595,34 @@ impl SchemaManifest {
                 format!("api.functions names unknown function {name}"),
             ));
         }
+        if let Some(oauth) = &api.oauth {
+            for (bundle_name, bundle) in &oauth.bundles {
+                for function_name in &bundle.functions {
+                    if !names.contains(function_name.as_str()) {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_API_OAUTH_FUNCTION_UNKNOWN",
+                            "api",
+                            format!(
+                                "api.oauth.bundles.{bundle_name}.functions names unknown function {function_name}"
+                            ),
+                        ));
+                    }
+                    if !api
+                        .functions
+                        .get(function_name)
+                        .is_some_and(|exposure| exposure.expose)
+                    {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_API_OAUTH_FUNCTION_NOT_EXPOSED",
+                            "api",
+                            format!(
+                                "api.oauth bundle {bundle_name} names unexposed function {function_name}; expose it in api.functions"
+                            ),
+                        ));
+                    }
+                }
+            }
+        }
         for function in &functions.functions {
             let expected = api
                 .enabled
@@ -641,6 +678,53 @@ impl SchemaManifest {
             if let Some(origins) = &api.origins {
                 for origin in origins {
                     validate_api_origin(origin)?;
+                }
+            }
+            if let Some(oauth) = &api.oauth {
+                if oauth.enabled && !api.enabled {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_API_OAUTH_REQUIRES_API",
+                        "api",
+                        "api.oauth.enabled requires api.enabled; enable both declarations",
+                    ));
+                }
+                // v1 deliberately has no DPoP/PoP transport. Refusing the
+                // default makes the bearer weakening an explicit author act.
+                if oauth.enabled && !oauth.bearer {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_API_OAUTH_BEARER_OPT_IN_REQUIRED",
+                        "api",
+                        "the OAuth facade is bearer-only in v1; set api.oauth.bearer true to acknowledge the shorter-lived bearer weakening",
+                    ));
+                }
+                if oauth.bundles.len() > 64 {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_API_OAUTH_BUNDLES_INVALID",
+                        "api",
+                        "api.oauth.bundles accepts at most 64 named bundles",
+                    ));
+                }
+                for (name, bundle) in &oauth.bundles {
+                    let valid_name = !name.is_empty()
+                        && name.len() <= 128
+                        && name.bytes().all(|byte| {
+                            byte == b'!' || (b'#'..=b'[').contains(&byte) || (b']'..=b'~').contains(&byte)
+                        });
+                    let unique = bundle.functions.iter().collect::<BTreeSet<_>>().len()
+                        == bundle.functions.len();
+                    if !valid_name
+                        || bundle.functions.is_empty()
+                        || bundle.functions.len() > 128
+                        || !unique
+                    {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_API_OAUTH_BUNDLES_INVALID",
+                            "api",
+                            format!(
+                                "api.oauth bundle {name:?} must use an OAuth scope-token name and contain 1..=128 unique function names"
+                            ),
+                        ));
+                    }
                 }
             }
         }
@@ -10066,13 +10150,13 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:cae492640dab07e8d02dbc263ec353a30b9ad1175215e97ee729b1bed21cc8bc";
+    "sha256:c56b7b15d39f160486796c462c496cd1a5bd219f923d3044a75e172b7e215952";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:f487434e96955527fe6daf4f05bf49255f5d651c954df9ed01ccded1a0ac91dd";
+    "sha256:8f9aa427bdbe82e4c5d860dea2ea1a65babe147a470f528970fba8d2b8f161e2";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
@@ -10522,7 +10606,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_agent_credentials.rs".to_owned(),
-                    "sha256:fac620675e541924652f8bda1bee2cbaf27abb73bfcd641088f2249823432f22"
+                    "sha256:94769ec761c5b0cc22c84dad1660c69c3bf5695300b73a92026656081f052694"
                         .to_owned(),
                 ),
                 (
@@ -10537,7 +10621,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_grants.rs".to_owned(),
-                    "sha256:229bdff8140036b72dc9ffa1d9467e4866d0959f3bfc50b06eab9429658f9834"
+                    "sha256:48e4c3269cf78262addc7fd3d4c546936c0a71d9776127034dfcaa2952028a18"
                         .to_owned(),
                 ),
                 (
@@ -10629,7 +10713,7 @@ fn local_relation_activity_publication_verified_for(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:c4ffc4cc5b3f508138f618c6d75ba6ed3366bf05c86a415b2ebd1bfdfd23f377"
+                "sha256:fc671c978384f3bfc3f7ab1320922c372573c5d5da49ac019ea642e7405672ca"
                     .to_owned(),
             )])
         && carrier.package_closure_sha256.is_none()
@@ -10730,7 +10814,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_agent_credentials.rs".to_owned(),
-                    "sha256:fac620675e541924652f8bda1bee2cbaf27abb73bfcd641088f2249823432f22"
+                    "sha256:94769ec761c5b0cc22c84dad1660c69c3bf5695300b73a92026656081f052694"
                         .to_owned(),
                 ),
                 (
@@ -10745,7 +10829,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_grants.rs".to_owned(),
-                    "sha256:229bdff8140036b72dc9ffa1d9467e4866d0959f3bfc50b06eab9429658f9834"
+                    "sha256:48e4c3269cf78262addc7fd3d4c546936c0a71d9776127034dfcaa2952028a18"
                         .to_owned(),
                 ),
                 (
@@ -10837,7 +10921,7 @@ fn local_sequence_allocation_publication_verified_for(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:c4ffc4cc5b3f508138f618c6d75ba6ed3366bf05c86a415b2ebd1bfdfd23f377"
+                "sha256:fc671c978384f3bfc3f7ab1320922c372573c5d5da49ac019ea642e7405672ca"
                     .to_owned(),
             )])
         && carrier.client_source_sha256
@@ -11019,7 +11103,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/auth_agent_credentials.rs".to_owned(),
-                    "sha256:fac620675e541924652f8bda1bee2cbaf27abb73bfcd641088f2249823432f22"
+                    "sha256:94769ec761c5b0cc22c84dad1660c69c3bf5695300b73a92026656081f052694"
                         .to_owned(),
                 ),
                 (
@@ -11034,7 +11118,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/auth_grants.rs".to_owned(),
-                    "sha256:229bdff8140036b72dc9ffa1d9467e4866d0959f3bfc50b06eab9429658f9834"
+                    "sha256:48e4c3269cf78262addc7fd3d4c546936c0a71d9776127034dfcaa2952028a18"
                         .to_owned(),
                 ),
                 (
@@ -11126,7 +11210,7 @@ fn local_persistent_store_contributor_chain_verified(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/index.mjs".to_owned(),
-                "sha256:e7ae32006b09536fd9d11fd83df241c0d2f27a032ac2eea7c02457221978237b"
+                "sha256:19477ecbc076f770ec03d32ba27dd672a9660c64820978791e20fb6a4173a923"
                     .to_owned(),
             )])
         && carrier.client_source_sha256

@@ -541,15 +541,24 @@ fn path_segment_escape(raw: &str) -> String {
 /// @ref LLP 0204#d2--surface-1-the-third-party-api — OpenAPI is generated
 /// from the envelope, the external request is unpinned, and result schemas
 /// are not invented when envelope v1 does not carry them.
+/// @ref LLP 0204#d8--authority-acquisition-the-ceremony-and-the-facade — enabled apps project the OAuth authorization-code flow, discovery documents, and named-bundle scope vocabulary.
 pub fn compose_openapi_document(envelope_bytes: &[u8]) -> Result<Value, EnvelopeRefusal> {
+    compose_openapi_document_with_oauth(envelope_bytes, None)
+}
+
+pub fn compose_openapi_document_with_oauth(
+    envelope_bytes: &[u8],
+    oauth: Option<&crate::contract_types::ApiOAuthManifest>,
+) -> Result<Value, EnvelopeRefusal> {
     let (envelope, digest) = parse_and_validate(envelope_bytes)?;
     let operations = projection_operations(&envelope)?;
     let mut paths = Map::new();
     for operation in operations {
+        let scheme = if oauth.is_some() { "oauth2" } else { "bearer" };
         let security = if operation.admits_anonymous() {
-            serde_json::json!([{}, { "bearer": [] }])
+            serde_json::json!([{}, { (scheme): [] }])
         } else {
-            serde_json::json!([{ "bearer": [] }])
+            serde_json::json!([{ (scheme): [] }])
         };
         paths.insert(
             operation.path(),
@@ -593,6 +602,34 @@ pub fn compose_openapi_document(envelope_bytes: &[u8]) -> Result<Value, Envelope
         );
     }
 
+    let security_scheme = if let Some(oauth) = oauth {
+        let scopes = oauth
+            .bundles
+            .keys()
+            .map(|name| (name.clone(), Value::String(format!("Snapback function bundle {name}"))))
+            .collect::<Map<String, Value>>();
+        serde_json::json!({
+            "type": "oauth2",
+            "description": "Local-only OAuth 2.1 authorization-code facade; PKCE S256 is required.",
+            "x-snapback-authorization-server-metadata": "/.well-known/oauth-authorization-server",
+            "x-snapback-protected-resource-metadata": "/.well-known/oauth-protected-resource",
+            "flows": {
+                "authorizationCode": {
+                    "authorizationUrl": "/auth/oauth/authorize",
+                    "tokenUrl": "/auth/oauth/token",
+                    "scopes": scopes
+                }
+            }
+        })
+    } else {
+        serde_json::json!({
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "Snapback scoped token",
+            "description": "A live scoped token acquired through the app's agent authority ceremony."
+        })
+    };
+    let scheme_name = if oauth.is_some() { "oauth2" } else { "bearer" };
     Ok(serde_json::json!({
         "openapi": "3.1.0",
         "info": {
@@ -604,12 +641,7 @@ pub fn compose_openapi_document(envelope_bytes: &[u8]) -> Result<Value, Envelope
         "paths": Value::Object(paths),
         "components": {
             "securitySchemes": {
-                "bearer": {
-                    "type": "http",
-                    "scheme": "bearer",
-                    "bearerFormat": "Snapback scoped token",
-                    "description": "A live scoped token acquired through the app's agent authority ceremony."
-                }
+                (scheme_name): security_scheme
             }
         }
     }))
@@ -781,6 +813,14 @@ fn shell_quote(value: &str) -> String {
 /// invocation, and target-conditional code mode are taught without embedding
 /// credentials or a static scope list.
 pub fn compose_agent_skill(envelope_bytes: &[u8]) -> Result<String, EnvelopeRefusal> {
+    compose_agent_skill_with_oauth(envelope_bytes, false)
+}
+
+/// @ref LLP 0204#d8--authority-acquisition-the-ceremony-and-the-facade — the generated skill keeps native LLP 0150 acquisition primary while teaching standards clients the live facade discovery path.
+pub fn compose_agent_skill_with_oauth(
+    envelope_bytes: &[u8],
+    oauth_enabled: bool,
+) -> Result<String, EnvelopeRefusal> {
     let (envelope, digest) = parse_and_validate(envelope_bytes)?;
     let operations = projection_operations(&envelope)?;
     let example = if let Some(operation) = operations.first() {
@@ -823,9 +863,14 @@ pub fn compose_agent_skill(envelope_bytes: &[u8]) -> Result<String, EnvelopeRefu
         "The pinned envelope currently declares no callable operations; fetch the next current envelope before invoking.".to_string()
     };
 
+    let oauth_pointer = if oauth_enabled {
+        "\n\nThis app also enables the local-only OAuth 2.1 facade. Discover authorization-server and protected-resource facts at `GET /.well-known/oauth-authorization-server` and `GET /.well-known/oauth-protected-resource`; the former points to `POST /auth/oauth/register`, `GET|POST /auth/oauth/authorize`, `POST /auth/oauth/token`, and `POST /auth/oauth/revoke`. Use authorization code + PKCE S256. Dynamic registration returns no client secret. Tokens are 15-minute bearer carriers with no refresh-token flow; re-authorize after expiry. Suspension and revocation are checked at authorization and token exchange."
+    } else {
+        ""
+    };
     Ok(format!(
-        "---\nname: snapback-app-api\ndescription: Discover and invoke the current digest-pinned API for this Snapback app.\n---\n\n# Snapback app API: {}\n\nEnvelope digest: `{}`\n\nThis skill is a navigation aid for one persisted API envelope. Fetch current facts before acting; do not treat this document as an operation or scope registry. It contains no credential.\n\n## Discover\n\n1. Fetch `GET /app-api/current`.\n2. Fetch the exact `GET /app-api/envelope/{{sha256}}` named by discovery and require its digest to equal `{}`.\n3. Fetch `GET /app-api/openapi.json` for the OpenAPI 3.1 projection of that same current envelope.\n\nIf discovery changes, discard derived facts and repeat these steps.\n\n## Acquire authority\n\nUse the app's live LLP 0150 ceremony endpoints as pointers: `POST /auth/agents/register` for eligible registration, or the pairing path through `POST /auth/pairing-codes` and `POST /auth/agents/pair`; mint bounded authority with `POST /auth/agents/token`. Follow live refusals and discovery for the exact next step. Never invent scopes, copy a static scope list, or persist returned credentials in source or model output.\n\n## Invoke\n\nCall the versioned finite family at `POST /api/v1/{{kind}}/{{name}}` with a closed body containing only `args`; `expectedGeneration` is not part of this external contract. Use the live OpenAPI document for current names, argument schemas, and anonymous-admission facts.\n\n{}\n\n## Code mode\n\nCode mode is target-conditional. Treat `/api/v1/run` as a v1 capability pointer only: consult `GET /inspect` and the current OpenAPI document, use it only when the target explicitly advertises the evidenced untrusted-code profile and route, and otherwise continue with finite calls. This skill does not transcribe the submission protocol.\n",
-        envelope.app_id, digest, digest, example,
+        "---\nname: snapback-app-api\ndescription: Discover and invoke the current digest-pinned API for this Snapback app.\n---\n\n# Snapback app API: {}\n\nEnvelope digest: `{}`\n\nThis skill is a navigation aid for one persisted API envelope. Fetch current facts before acting; do not treat this document as an operation or scope registry. It contains no credential.\n\n## Discover\n\n1. Fetch `GET /app-api/current`.\n2. Fetch the exact `GET /app-api/envelope/{{sha256}}` named by discovery and require its digest to equal `{}`.\n3. Fetch `GET /app-api/openapi.json` for the OpenAPI 3.1 projection of that same current envelope.\n\nIf discovery changes, discard derived facts and repeat these steps.\n\n## Acquire authority\n\nUse the app's live LLP 0150 ceremony endpoints as pointers: `POST /auth/agents/register` for eligible registration, or the pairing path through `POST /auth/pairing-codes` and `POST /auth/agents/pair`; mint bounded authority with `POST /auth/agents/token`. Follow live refusals and discovery for the exact next step. Never invent scopes, copy a static scope list, or persist returned credentials in source or model output.{}\n\n## Invoke\n\nCall the versioned finite family at `POST /api/v1/{{kind}}/{{name}}` with a closed body containing only `args`; `expectedGeneration` is not part of this external contract. Use the live OpenAPI document for current names, argument schemas, and anonymous-admission facts.\n\n{}\n\n## Code mode\n\nCode mode is target-conditional. Treat `/api/v1/run` as a v1 capability pointer only: consult `GET /inspect` and the current OpenAPI document, use it only when the target explicitly advertises the evidenced untrusted-code profile and route, and otherwise continue with finite calls. This skill does not transcribe the submission protocol.\n",
+        envelope.app_id, digest, digest, oauth_pointer, example,
     ))
 }
 
@@ -1262,6 +1307,54 @@ mod tests {
                 ["additionalProperties"],
             true
         );
+    }
+
+    #[test]
+    fn oauth_enabled_projection_uses_authorization_code_bundle_scopes_and_skill_discovery() {
+        let bytes = canonical_bytes(&projectable_envelope());
+        let oauth = crate::contract_types::ApiOAuthManifest {
+            enabled: true,
+            bearer: true,
+            bundles: BTreeMap::from([(
+                "todos.read".to_owned(),
+                crate::contract_types::ApiOAuthBundle {
+                    functions: vec!["listTodos".to_owned()],
+                },
+            )]),
+        };
+        let document = compose_openapi_document_with_oauth(&bytes, Some(&oauth))
+            .expect("OAuth OpenAPI composes");
+        let scheme = &document["components"]["securitySchemes"]["oauth2"];
+        assert_eq!(scheme["type"], "oauth2");
+        assert_eq!(
+            scheme["flows"]["authorizationCode"]["authorizationUrl"],
+            "/auth/oauth/authorize"
+        );
+        assert_eq!(
+            scheme["flows"]["authorizationCode"]["tokenUrl"],
+            "/auth/oauth/token"
+        );
+        assert_eq!(
+            scheme["x-snapback-authorization-server-metadata"],
+            "/.well-known/oauth-authorization-server"
+        );
+        assert_eq!(
+            scheme["x-snapback-protected-resource-metadata"],
+            "/.well-known/oauth-protected-resource"
+        );
+        assert!(scheme["flows"]["authorizationCode"]["scopes"]["todos.read"].is_string());
+        assert_eq!(
+            document["paths"]["/api/v1/mutation/createTodo"]["post"]["security"],
+            json!([{ "oauth2": [] }])
+        );
+
+        let skill = compose_agent_skill_with_oauth(&bytes, true).expect("OAuth skill composes");
+        assert!(skill.contains("/.well-known/oauth-authorization-server"));
+        assert!(skill.contains("/.well-known/oauth-protected-resource"));
+        assert!(skill.contains("/auth/oauth/revoke"));
+        assert!(skill.contains("PKCE S256"));
+        assert!(skill.contains("no refresh-token flow"));
+        assert!(skill.contains("/auth/agents/register"), "native LLP 0150 path remains");
     }
 
     #[test]

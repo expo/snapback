@@ -84,9 +84,9 @@ use crate::runtime::{
     ActionStreamChunk, ActionStreamOpened, ActionStreamRequest, CapabilityState, IbexActionHost,
 };
 use crate::storage::auth::AuthTransactionAttempt;
-use axum::extract::rejection::{BytesRejection, JsonRejection, QueryRejection};
+use axum::extract::rejection::{BytesRejection, FormRejection, JsonRejection, QueryRejection};
 use axum::extract::ws::{CloseFrame, Message, Utf8Bytes, WebSocket, WebSocketUpgrade};
-use axum::extract::{ConnectInfo, DefaultBodyLimit, Extension, OriginalUri, Path, Query, State};
+use axum::extract::{ConnectInfo, DefaultBodyLimit, Extension, Form, OriginalUri, Path, Query, State};
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, Request, StatusCode, header};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
@@ -119,11 +119,13 @@ use uuid::Uuid;
 mod api_error;
 mod asset_routes;
 mod instance_home;
+mod oauth;
 mod response_types;
 
 pub use api_error::*;
 use asset_routes::*;
 use instance_home::*;
+use oauth::*;
 pub use response_types::*;
 
 pub type SharedSnapback = Arc<Mutex<LocalSnapback>>;
@@ -6803,6 +6805,10 @@ const EXTERNAL_API_BLESSED_MULTIPLIER: usize = 4;
 /// throttle budget, independent of its credential class.
 fn agent_route_throttle_limit(path: &str) -> Option<usize> {
     match path {
+        "/auth/oauth/register" => Some(10),
+        "/auth/oauth/authorize" => Some(60),
+        "/auth/oauth/token" => Some(120),
+        "/auth/oauth/revoke" => Some(120),
         "/auth/agents/register" => Some(10),
         "/auth/agent-invitations" => Some(10),
         "/auth/pairing-codes" => Some(20),
@@ -8303,6 +8309,22 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             ),
             get(app_api_envelope).layer(DefaultBodyLimit::max(0)),
         ),
+        RegisteredRoute::new(
+            public_route(
+                "GET",
+                "/.well-known/oauth-authorization-server",
+                ResponseSensitivity::PublicNoStore,
+            ),
+            get(oauth_authorization_server_metadata).layer(DefaultBodyLimit::max(0)),
+        ),
+        RegisteredRoute::new(
+            public_route(
+                "GET",
+                "/.well-known/oauth-protected-resource",
+                ResponseSensitivity::PublicNoStore,
+            ),
+            get(oauth_protected_resource_metadata).layer(DefaultBodyLimit::max(0)),
+        ),
         // @ref LLP 0057#routes-operations-and-dtos — provider routes carry
         // closed, independently enforced credential and response axes. Item 3
         // installs their state machines; item 4 supplies persisted activation.
@@ -8467,6 +8489,75 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
                 ResponseSensitivity::CredentialSecret,
             ),
             post(auth_agent_register).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        // @ref LLP 0204#d8--authority-acquisition-the-ceremony-and-the-facade — the OAuth family is a classified local facade over integration registration, consent grants, and scoped tokens.
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/oauth/register",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::OperationSpecific,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::CredentialSecret,
+            )
+            .with_effect(EffectPolicy::OperationSpecific),
+            post(oauth_register).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "GET",
+                "/auth/oauth/authorize",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::Rejected,
+                ResponseSensitivity::ApplicationData,
+            ),
+            get(oauth_authorize_get).layer(DefaultBodyLimit::max(0)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/oauth/authorize",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::Rejected,
+                ResponseSensitivity::ApplicationData,
+            ),
+            post(oauth_authorize_post).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/oauth/token",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::OperationSpecific,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::CredentialSecret,
+            )
+            .with_effect(EffectPolicy::OperationSpecific),
+            post(oauth_token).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/oauth/revoke",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::OperationSpecific,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::PublicNoStore,
+            )
+            .with_effect(EffectPolicy::OperationSpecific),
+            post(oauth_revoke).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
         ),
         RegisteredRoute::new(
             RouteSpec::new(
@@ -9615,6 +9706,24 @@ async fn select_http_operation(
                 None => HttpOperationSelection::UnknownHost,
             }
         }
+        EffectPolicy::OperationSpecific if spec.path == "/auth/oauth/register" => {
+            HttpOperationSelection::Selected(
+                operation_by_name("oauth.dynamic-register")
+                    .expect("OAuth dynamic registration operation is registered"),
+            )
+        }
+        EffectPolicy::OperationSpecific if spec.path == "/auth/oauth/token" => {
+            HttpOperationSelection::Selected(
+                operation_by_name("oauth.token-exchange")
+                    .expect("OAuth token exchange operation is registered"),
+            )
+        }
+        EffectPolicy::OperationSpecific if spec.path == "/auth/oauth/revoke" => {
+            HttpOperationSelection::Selected(
+                operation_by_name("oauth.revoke")
+                    .expect("OAuth revocation operation is registered"),
+            )
+        }
         _ => HttpOperationSelection::Indeterminate,
     }
 }
@@ -9781,6 +9890,8 @@ fn bare_public_artifact_route(spec: RouteSpec) -> bool {
                 | "/app-api/openapi.json"
                 | "/app-api/agent-skill"
                 | "/app-api/envelope/{sha256}"
+                | "/.well-known/oauth-authorization-server"
+                | "/.well-known/oauth-protected-resource"
         )
 }
 
@@ -9958,6 +10069,7 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
             Some(InvocationSource::PushTokenRegistry)
         }
         "/auth/step-up/request"
+        | "/auth/oauth/authorize"
         | "/auth/agent-invitations"
         | "/auth/pairing-codes"
         | "/auth/grant-requests"
@@ -11639,6 +11751,22 @@ async fn enforce_registered_route_policy_inner(
             effective,
             hosted_operator_surface_disabled_response(),
         );
+    }
+    // @ref LLP 0204#d8--authority-acquisition-the-ceremony-and-the-facade — the first OAuth facade is local-only and hosted serving refuses the whole family without enumeration.
+    if (runtime.hosted_serving.is_some()
+        || runtime.server.auth_deployment
+            == crate::auth::deployment::AuthDeploymentTarget::Hosted)
+        && matches!(
+            spec.path,
+            "/.well-known/oauth-authorization-server"
+                | "/.well-known/oauth-protected-resource"
+                | "/auth/oauth/register"
+                | "/auth/oauth/authorize"
+                | "/auth/oauth/token"
+                | "/auth/oauth/revoke"
+        )
+    {
+        return apply_registered_response_controls(effective, hosted_operator_surface_disabled_response());
     }
     if let Some(error) = auth_app_data_refusal(spec, &runtime) {
         return apply_registered_response_controls(
@@ -15936,6 +16064,7 @@ pub enum OperationTransport {
     LiveSocket,
     DirectFunctionRunner,
     HostOps,
+    OAuthFacade,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -16028,7 +16157,7 @@ const fn operation(
 /// @ref LLP 0031#enforcement — WebSocket kinds and dynamic admin operations
 /// are classified explicitly rather than smuggled through a registered path.
 pub fn operation_registry() -> Vec<OperationSpec> {
-    use OperationTransport::{DirectFunctionRunner, EnsureApp, HostOps, LiveSocket};
+    use OperationTransport::{DirectFunctionRunner, EnsureApp, HostOps, LiveSocket, OAuthFacade};
     let live = |name| {
         operation(
             name,
@@ -16116,6 +16245,45 @@ pub fn operation_registry() -> Vec<OperationSpec> {
         )
     };
     let operations = vec![
+        operation(
+            "oauth.dynamic-register",
+            "/auth/oauth/register",
+            OAuthFacade,
+            RouteClass::AppData,
+            RoutePolicy::Public,
+            CredentialResolution::OperationSpecific,
+            InvocationAuthority::None,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::None,
+            ResponseSensitivity::CredentialSecret,
+            SessionModeOverlay::NONE,
+        ),
+        operation(
+            "oauth.token-exchange",
+            "/auth/oauth/token",
+            OAuthFacade,
+            RouteClass::AppData,
+            RoutePolicy::Public,
+            CredentialResolution::OperationSpecific,
+            InvocationAuthority::None,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::None,
+            ResponseSensitivity::CredentialSecret,
+            SessionModeOverlay::NONE,
+        ),
+        operation(
+            "oauth.revoke",
+            "/auth/oauth/revoke",
+            OAuthFacade,
+            RouteClass::AppData,
+            RoutePolicy::Public,
+            CredentialResolution::OperationSpecific,
+            InvocationAuthority::None,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::None,
+            ResponseSensitivity::PublicNoStore,
+            SessionModeOverlay::NONE,
+        ),
         operation(
             "app.ensure.legacy",
             "/app/ensure",
@@ -17908,7 +18076,14 @@ fn app_api_projection_response(
 /// from the envelope and inherit its exposed operation set.
 async fn app_api_openapi(State(runtime): State<AppState>) -> Result<Response, ApiError> {
     let (digest, canonical) = current_app_api_envelope(&runtime).await?;
-    let document = crate::api_envelope::compose_openapi_document(canonical.as_bytes()).map_err(
+    let oauth = with_snapback(&runtime.snapback, |snapback| {
+        snapback.auth_database_mut().schema().oauth_manifest().cloned()
+    })
+    .await;
+    let document = crate::api_envelope::compose_openapi_document_with_oauth(
+        canonical.as_bytes(),
+        oauth.as_ref(),
+    ).map_err(
         |refusal| {
             SnapbackError::error(
                 "SNAPBACK_APP_API_STATE_PARSE_FAILED",
@@ -17940,7 +18115,14 @@ async fn app_api_openapi(State(runtime): State<AppState>) -> Result<Response, Ap
 /// credential-free, and code-mode-conditional.
 async fn app_api_agent_skill(State(runtime): State<AppState>) -> Result<Response, ApiError> {
     let (digest, canonical) = current_app_api_envelope(&runtime).await?;
-    let skill = crate::api_envelope::compose_agent_skill(canonical.as_bytes()).map_err(
+    let oauth_enabled = with_snapback(&runtime.snapback, |snapback| {
+        snapback.auth_database_mut().schema().oauth_manifest().is_some()
+    })
+    .await;
+    let skill = crate::api_envelope::compose_agent_skill_with_oauth(
+        canonical.as_bytes(),
+        oauth_enabled,
+    ).map_err(
         |refusal| {
             SnapbackError::error(
                 "SNAPBACK_APP_API_STATE_PARSE_FAILED",

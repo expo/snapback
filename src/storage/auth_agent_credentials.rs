@@ -596,6 +596,187 @@ impl LocalDatabase {
         })
     }
 
+    pub(crate) fn oauth_revoke_scoped_token(
+        &mut self,
+        token: &ScopedToken,
+        revoke_grant: bool,
+        now_ms: u64,
+    ) -> SnapbackResult<super::auth_grants::GrantRevocation> {
+        self.observe_agent_authorization_clock(now_ms)?;
+        let hash = token.token_hash();
+        self.with_auth_transaction(|tx| {
+            require_agent_clock_on(tx, now_ms)?;
+            let row = tx
+                .query_row(
+                    "SELECT t.id, t.grant_id, g.actor_user_id, g.effective_user_id
+                     FROM _auth_grant_tokens AS t
+                     JOIN _auth_grants AS g ON g.id = t.grant_id
+                     WHERE t.token_hash = ?1",
+                    params![hash.as_bytes()],
+                    |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, String>(1)?,
+                            row.get::<_, String>(2)?,
+                            row.get::<_, Option<String>>(3)?,
+                        ))
+                    },
+                )
+                .optional()?
+                .ok_or_else(|| scoped_token_invalid(ScopedTokenAuthorityDisposition::Carrier))?;
+            tx.execute(
+                "UPDATE _auth_grant_tokens SET revoked_at_ms = COALESCE(revoked_at_ms, ?1)
+                 WHERE id = ?2",
+                params![now_ms as i64, row.0],
+            )?;
+            if !revoke_grant {
+                return Ok(super::auth_grants::GrantRevocation {
+                    grant_id: row.1,
+                    token_ids: vec![row.0],
+                });
+            }
+            if row.3.is_none()
+                || super::auth_integrations::record_for_principal_on(tx, &row.2)?.is_none()
+            {
+                return Err(super::auth_integrations::oauth_grant_invalid());
+            }
+            let token_ids = live_token_ids_for_grant(tx, &row.1, now_ms)?;
+            tx.execute(
+                "UPDATE _auth_grant_tokens SET revoked_at_ms = COALESCE(revoked_at_ms, ?1)
+                 WHERE grant_id = ?2",
+                params![now_ms as i64, row.1],
+            )?;
+            tx.execute(
+                "UPDATE _auth_grants SET revoked_at_ms = COALESCE(revoked_at_ms, ?1)
+                 WHERE id = ?2 AND actor_user_id = ?3 AND effective_user_id IS NOT NULL",
+                params![now_ms as i64, row.1, row.2],
+            )?;
+            Ok(super::auth_grants::GrantRevocation {
+                grant_id: row.1,
+                token_ids,
+            })
+        })
+    }
+
+    /// Exchange one facade authorization code for the same short-lived,
+    /// grant-bound scoped token ordinary agents use. Code consumption and
+    /// token insertion share this transaction, so a retried code cannot mint
+    /// a second carrier.
+    ///
+    /// @ref LLP 0204#d8--authority-acquisition-the-ceremony-and-the-facade — OAuth is a compatibility facade over existing grant-bound authority.
+    pub(crate) fn mint_scoped_token_for_oauth_code(
+        &mut self,
+        code: &str,
+        client_id: &str,
+        redirect_uri: &str,
+        verifier: &str,
+        now_ms: u64,
+        random: &dyn RandomSource,
+    ) -> SnapbackResult<IssuedScopedToken> {
+        let expires_at_ms = now_ms
+            .checked_add(super::auth_integrations::OAUTH_BEARER_TOKEN_TTL_MS)
+            .filter(|expiry| *expiry <= MAX_AUTHORIZATION_EPOCH)
+            .ok_or_else(scoped_token_ttl_invalid)?;
+        self.observe_agent_authorization_clock(now_ms)?;
+        let secret = ScopedToken::generate(random).map_err(|_| secret_generation_failed())?;
+        let token_hash = secret.token_hash();
+        let token_id = crate::ids::mint_time_ordered(crate::ids::Kind::AgentToken);
+        let mut body_outcome = None;
+        let attempt = self.attempt_auth_transaction(|tx| {
+            require_agent_clock_on(tx, now_ms)?;
+            let authorization = super::auth_integrations::consume_oauth_authorization_code_on(
+                tx,
+                code,
+                client_id,
+                redirect_uri,
+                verifier,
+                now_ms,
+            )?;
+            require_agent_active_on(tx, &authorization.principal_user_id)?;
+            super::auth_integrations::require_installation_grant_if_integration_on(
+                tx,
+                &authorization.principal_user_id,
+                &authorization.grant_id,
+            )?;
+            let resolved = tx.query_row(
+                "SELECT id, generation FROM _auth_agent_credentials
+                 WHERE user_id = ?1 AND revoked_at_ms IS NULL",
+                params![authorization.principal_user_id],
+                |row| {
+                    let generation = row.get::<_, i64>(1)?;
+                    Ok((row.get::<_, String>(0)?, generation))
+                },
+            )?;
+            if resolved.1 <= 0 {
+                return Err(agent_credential_state_corrupt());
+            }
+            let grant = require_live_grant_for_actor(
+                tx,
+                &authorization.grant_id,
+                &authorization.principal_user_id,
+                now_ms,
+            )?;
+            let expires_at_ms = grant.expires_at_ms.map_or(expires_at_ms, |grant_expiry| {
+                expires_at_ms.min(grant_expiry)
+            });
+            let mut live = live_token_ids_for_grant(tx, &authorization.grant_id, now_ms)?;
+            let mut evicted_token_ids = Vec::new();
+            while live.len() as u64 >= SCOPED_TOKEN_LIVE_CAP {
+                let evicted = live.remove(0);
+                tx.execute(
+                    "UPDATE _auth_grant_tokens SET revoked_at_ms = ?1
+                     WHERE id = ?2 AND revoked_at_ms IS NULL",
+                    params![now_ms as i64, evicted],
+                )?;
+                evicted_token_ids.push(evicted);
+            }
+            tx.execute(
+                "INSERT INTO _auth_grant_tokens(
+                   id, token_hash, grant_id, credential_id,
+                   credential_generation, created_at_ms, expires_at_ms, revoked_at_ms
+                 ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, NULL)",
+                params![
+                    token_id,
+                    token_hash.as_bytes(),
+                    authorization.grant_id,
+                    resolved.0,
+                    resolved.1,
+                    now_ms as i64,
+                    expires_at_ms as i64,
+                ],
+            )?;
+            coalesce_credential_use(tx, &resolved.0, now_ms)?;
+            body_outcome = Some(IssuedScopedToken {
+                token_id: token_id.clone(),
+                grant_id: authorization.grant_id,
+                actor_user_id: authorization.principal_user_id,
+                effective_user_id: grant.effective_user_id,
+                credential_id: resolved.0,
+                credential_generation: resolved.1 as u64,
+                expires_at_ms,
+                grant_expires_at_ms: grant.expires_at_ms,
+                scopes: grant.scopes,
+                evicted_token_ids,
+                secret,
+            });
+            Ok(())
+        });
+        match attempt {
+            AuthTransactionAttempt::Committed(()) => {
+                body_outcome.ok_or_else(agent_lifecycle_commit_uncertain)
+            }
+            AuthTransactionAttempt::RolledBack(error) => Err(error),
+            AuthTransactionAttempt::CommitUncertain(_) => {
+                let expected = body_outcome
+                    .as_ref()
+                    .ok_or_else(agent_lifecycle_commit_uncertain)?;
+                self.with_auth_read(|connection| reconcile_issued_scoped_token(connection, expected))
+                    .map_err(|_| agent_lifecycle_commit_uncertain())?;
+                body_outcome.ok_or_else(agent_lifecycle_commit_uncertain)
+            }
+        }
+    }
+
     /// Mint one grant-bound scoped token under the current live credential
     /// generation. The eleventh live token atomically revokes the oldest and
     /// returns its id for connection invalidation projection.

@@ -1009,7 +1009,7 @@ fn approval_request_on(
     Ok(row)
 }
 
-fn resolve_delegated_scopes_on(
+pub(super) fn resolve_delegated_scopes_on(
     tx: &Transaction<'_>,
     requested: &[GrantScopeRequest],
 ) -> SnapbackResult<Vec<ExactGrantScope>> {
@@ -1062,6 +1062,50 @@ fn resolve_delegated_scopes_on(
     }
     if scopes.is_empty() || scopes.len() > GRANT_SCOPE_ENTRY_CAP {
         return Err(grant_scope_invalid());
+    }
+    Ok(scopes.into_iter().collect())
+}
+
+pub(super) fn resolve_exact_function_names_on(
+    tx: &Transaction<'_>,
+    app_id: &str,
+    function_names: &[String],
+) -> SnapbackResult<Vec<ExactGrantScope>> {
+    if function_names.is_empty() || function_names.len() > GRANT_SCOPE_ENTRY_CAP {
+        return Err(grant_scope_invalid());
+    }
+    let mut scopes = BTreeSet::new();
+    for function_name in function_names {
+        let generated_id = format!("{app_id}:{function_name}");
+        let constructor_id = format!("fn:{function_name}");
+        let row = tx
+            .query_row(
+                "SELECT function_id, kind, generation, authority_creating
+                 FROM _auth_scope_bases
+                 WHERE function_id IN (?1, ?2, ?3) AND present = 1
+                 ORDER BY CASE function_id WHEN ?1 THEN 0 WHEN ?2 THEN 1 ELSE 2 END
+                 LIMIT 1",
+                params![function_name, generated_id, constructor_id],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, i64>(2)?,
+                        row.get::<_, i64>(3)?,
+                    ))
+                },
+            )
+            .optional()?
+            .ok_or_else(grant_scope_invalid)?;
+        if row.2 < 0 || !matches!(row.3, 0 | 1) {
+            return Err(grant_state_corrupt());
+        }
+        scopes.insert(ExactGrantScope {
+            function_id: row.0,
+            kind: ScopedFunctionKind::parse(&row.1).ok_or_else(grant_state_corrupt)?,
+            basis: row.2 as u64,
+            authority_creating: row.3 == 1,
+        });
     }
     Ok(scopes.into_iter().collect())
 }

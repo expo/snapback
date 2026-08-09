@@ -11,6 +11,24 @@
       "path_policy": "Public"
     },
     {
+      "class": "AppData",
+      "credential_resolution": "None",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/.well-known/oauth-authorization-server",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "None",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/.well-known/oauth-protected-resource",
+      "path_policy": "Public"
+    },
+    {
       "class": "SystemStatic",
       "credential_resolution": "None",
       "inputSchema": null,
@@ -1069,6 +1087,51 @@
       "outputSchema": null,
       "path": "/auth/logout",
       "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "RequiredSessionBearer",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/auth/oauth/authorize",
+      "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "RequiredSessionBearer",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/auth/oauth/authorize",
+      "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "OperationSpecific",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/auth/oauth/register",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "OperationSpecific",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/auth/oauth/revoke",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "OperationSpecific",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/auth/oauth/token",
+      "path_policy": "Public"
     },
     {
       "class": "AppData",

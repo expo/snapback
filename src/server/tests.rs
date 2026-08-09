@@ -431,7 +431,7 @@ use crate::local::{
 };
 use crate::manifest::{
     ActionPlan, ActionReturnValue, ActionStep, AgentsManifest, AgentsMode, ApiDisclosure,
-    ApiFunctionExposure, ApiManifest, AuthInput, AuthManifest,
+    ApiFunctionExposure, ApiManifest, ApiOAuthBundle, ApiOAuthManifest, AuthInput, AuthManifest,
     AuthMode, AuthRequirement, CronActivationPolicy, CronJitterPolicy, CronJobDefinition,
     CronOverlapPolicy, CronRetryMode, CronRetryPolicy, CronSchedule, FieldManifest, FieldType,
     FilterExpr, FilterOp, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime,
@@ -3082,6 +3082,640 @@ async fn sessions_activation_server_fixture_with_integrations_async() -> AppStat
     .expect("construct integration lifecycle fixture off the async workers")
 }
 
+async fn sessions_activation_server_fixture_with_oauth_async() -> AppState {
+    sessions_activation_server_fixture_with_oauth_policy_async(agent_policy(
+        AgentsMode::Open,
+        InvitedBy::Operators,
+    ))
+    .await
+}
+
+async fn sessions_activation_server_fixture_with_oauth_policy_async(
+    agents: AgentsManifest,
+) -> AppState {
+    let state = tokio::task::spawn_blocking(move || {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        let mut functions = activation_functions('2', false);
+        for function in &mut functions.functions {
+            function.api_exposure = Some(ApiFunctionExposure::default());
+        }
+        functions
+            .functions
+            .iter_mut()
+            .find(|function| function.name == "listItems")
+            .unwrap()
+            .api_exposure = Some(ApiFunctionExposure {
+                expose: true,
+                since: None,
+            });
+        let queued_write = functions
+            .functions
+            .iter_mut()
+            .find(|function| function.name == "queuedWrite")
+            .unwrap();
+        queued_write.api_exposure = Some(ApiFunctionExposure {
+                expose: true,
+                since: None,
+            });
+        queued_write.authority_creating = true;
+        sessions_activation_server_fixture_with_api(
+            functions,
+            None,
+            Some(agents),
+            Some(ApiManifest {
+                enabled: true,
+                functions: BTreeMap::from([
+                    (
+                        "listItems".to_owned(),
+                        ApiFunctionExposure {
+                            expose: true,
+                            since: None,
+                        },
+                    ),
+                    (
+                        "queuedWrite".to_owned(),
+                        ApiFunctionExposure {
+                            expose: true,
+                            since: None,
+                        },
+                    ),
+                ]),
+                oauth: Some(ApiOAuthManifest {
+                    enabled: true,
+                    bearer: true,
+                    bundles: BTreeMap::from([
+                        (
+                            "items.read".to_owned(),
+                            ApiOAuthBundle {
+                                functions: vec!["listItems".to_owned()],
+                            },
+                        ),
+                        (
+                            "items.write".to_owned(),
+                            ApiOAuthBundle {
+                                functions: vec!["queuedWrite".to_owned()],
+                            },
+                        ),
+                    ]),
+                }),
+                ..ApiManifest::default()
+            }),
+        )
+    })
+    .await
+    .expect("construct OAuth facade fixture off the async workers");
+    with_snapback(&state.snapback, |snapback| {
+        let database = snapback.auth_database_mut();
+        let mut scope_functions = activation_functions('2', false);
+        scope_functions
+            .functions
+            .iter_mut()
+            .find(|function| function.name == "queuedWrite")
+            .unwrap()
+            .authority_creating = true;
+        database.reconcile_auth_scope_bases(&scope_functions)?;
+        assert_eq!(
+            database.current_auth_scope_basis("fn:listItems", &FunctionKind::Query, false)?,
+            Some(0),
+        );
+        assert_eq!(
+            database.current_auth_scope_basis("fn:queuedWrite", &FunctionKind::Mutation, true)?,
+            Some(0),
+        );
+        Ok::<_, SnapbackError>(())
+    })
+    .await
+    .expect("compile bundle function names to current scope bases");
+    state
+}
+
+fn oauth_protocol_request(
+    method: &str,
+    uri: &str,
+    content_type: Option<&str>,
+    body: impl Into<Body>,
+    bearer: Option<&str>,
+) -> Request<Body> {
+    let mut builder = Request::builder()
+        .method(method)
+        .uri(uri)
+        .header("x-snapback-auth-client-protocol", "1");
+    if let Some(content_type) = content_type {
+        builder = builder.header(header::CONTENT_TYPE, content_type);
+    }
+    if let Some(bearer) = bearer {
+        builder = builder.header(header::AUTHORIZATION, format!("Bearer {bearer}"));
+    }
+    builder.body(body.into()).unwrap()
+}
+
+#[tokio::test]
+async fn oauth_dynamic_registration_reuses_open_invited_and_disabled_agent_policy() {
+    let register = |body: Value| {
+        oauth_protocol_request(
+            "POST",
+            "/auth/oauth/register",
+            Some("application/json"),
+            serde_json::to_vec(&body).unwrap(),
+            None,
+        )
+    };
+
+    let open_state = sessions_activation_server_fixture_with_oauth_async().await;
+    let open_router = app(open_state.clone());
+    let invalid_redirect = open_router
+        .clone()
+        .oneshot(register(json!({
+            "redirect_uris": ["http://public.example/callback"]
+        })))
+        .await
+        .unwrap();
+    assert_eq!(invalid_redirect.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(response_json(invalid_redirect).await["error"], "invalid_redirect_uri");
+    let open = open_router
+        .clone()
+        .oneshot(register(json!({
+            "redirect_uris": ["https://open.example/callback"],
+            "client_name": "Open OAuth"
+        })))
+        .await
+        .unwrap();
+    assert_eq!(open.status(), StatusCode::OK);
+    let open = response_json(open).await;
+    assert!(open.get("client_secret").is_none());
+    assert!(open["token_endpoint"].as_str().unwrap().ends_with("/auth/oauth/token"));
+    let open_client_id = open["client_id"].as_str().unwrap().to_owned();
+    let lookup_client_id = open_client_id.clone();
+    let open_facts = with_snapback(&open_state.snapback, move |snapback| {
+        let database = snapback.auth_database_mut();
+        let (principal, claim, redirects) =
+            database.oauth_registration_facts_for_test(&lookup_client_id)?;
+        let principal_facts = database
+            .auth_catalog()
+            .agent_registration_facts_for_test(&principal)?;
+        Ok::<_, SnapbackError>((principal, principal_facts, claim, redirects))
+    })
+    .await
+    .unwrap();
+    assert_eq!(open_facts.1.0.1, None);
+    assert_eq!(open_facts.2, "provisional");
+    assert_eq!(serde_json::from_str::<Value>(&open_facts.3).unwrap(), json!(["https://open.example/callback"]));
+    let open_provenance = serde_json::from_str::<Value>(&open_facts.1.0.2).unwrap();
+    assert_eq!(open_provenance["class"], "integration");
+    assert_eq!(open_provenance["mode"], "open");
+    let suspended_principal = open_facts.0;
+    let suspension_at = open_state.auth_provider.as_ref().unwrap().now_ms();
+    with_snapback(&open_state.snapback, move |snapback| {
+        snapback
+            .auth_database_mut()
+            .set_integration_suspended(&suspended_principal, true, suspension_at)
+    })
+    .await
+    .unwrap();
+    let suspended_reregistration = open_router
+        .oneshot(register(json!({
+            "client_id": open_client_id,
+            "redirect_uris": ["https://open.example/callback"]
+        })))
+        .await
+        .unwrap();
+    assert_eq!(suspended_reregistration.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        response_json(suspended_reregistration).await["error"],
+        "invalid_client_metadata"
+    );
+
+    let invited_state = sessions_activation_server_fixture_with_oauth_policy_async(agent_policy(
+        AgentsMode::Invited,
+        InvitedBy::Users,
+    ))
+    .await;
+    let inviter = mint_test_credential(&invited_state, "oauth-inviter@example.com").await;
+    let inviter_id = inviter["session"]["userId"].as_str().unwrap().to_owned();
+    let invited_router = app(invited_state.clone());
+    let invitation = mint_user_agent_invitation(
+        &invited_state,
+        &invited_router,
+        inviter["token"].as_str().unwrap(),
+    )
+    .await;
+    let invitation_id = invitation["invitationId"].as_str().unwrap().to_owned();
+    let invitation_secret = invitation["invitation"].as_str().unwrap().to_owned();
+    let invited = invited_router
+        .clone()
+        .oneshot(register(json!({
+            "redirect_uris": ["http://[::1]:8765/callback"],
+            "client_name": "Invited OAuth",
+            "invitation": invitation_secret,
+        })))
+        .await
+        .unwrap();
+    assert_eq!(invited.status(), StatusCode::OK);
+    let invited = response_json(invited).await;
+    let invited_client_id = invited["client_id"].as_str().unwrap().to_owned();
+    let invited_facts = with_snapback(&invited_state.snapback, move |snapback| {
+        let database = snapback.auth_database_mut();
+        let (principal, claim, _) =
+            database.oauth_registration_facts_for_test(&invited_client_id)?;
+        let principal_facts = database
+            .auth_catalog()
+            .agent_registration_facts_for_test(&principal)?;
+        let consumption = database
+            .auth_catalog()
+            .invitation_consumption_for_test(&invitation_id)?;
+        Ok::<_, SnapbackError>((principal, principal_facts, claim, consumption))
+    })
+    .await
+    .unwrap();
+    assert_eq!(invited_facts.1.0.1, None);
+    assert_eq!(invited_facts.2, "unclaimed");
+    assert_eq!(invited_facts.3, (inviter_id.clone(), Some(invited_facts.0.clone())));
+    let invited_provenance = serde_json::from_str::<Value>(&invited_facts.1.0.2).unwrap();
+    assert_eq!(invited_provenance["inviter"], inviter_id);
+    let replay = invited_router
+        .oneshot(register(json!({
+            "redirect_uris": ["https://replay.example/callback"],
+            "invitation": invitation["invitation"],
+        })))
+        .await
+        .unwrap();
+    assert_eq!(replay.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(response_json(replay).await["details"]["code"], "SNAPBACK_AUTH_AGENT_INVITATION_INVALID");
+
+    let disabled_state = sessions_activation_server_fixture_with_oauth_policy_async(agent_policy(
+        AgentsMode::Disabled,
+        InvitedBy::Operators,
+    ))
+    .await;
+    let disabled = app(disabled_state)
+        .oneshot(register(json!({
+            "redirect_uris": ["https://disabled.example/callback"]
+        })))
+        .await
+        .unwrap();
+    assert_eq!(disabled.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(response_json(disabled).await["details"]["code"], "SNAPBACK_AUTH_AGENT_REGISTRATION_DISABLED");
+}
+
+#[tokio::test]
+async fn oauth_facade_is_wholesale_absent_on_hosted_targets() {
+    let mut state = sessions_activation_server_fixture_with_oauth_async().await;
+    Arc::make_mut(&mut state.server).auth_deployment =
+        crate::auth::deployment::AuthDeploymentTarget::Hosted;
+    let router = app(state);
+    for (method, path) in [
+        ("GET", "/.well-known/oauth-authorization-server"),
+        ("GET", "/.well-known/oauth-protected-resource"),
+        ("POST", "/auth/oauth/register"),
+        ("GET", "/auth/oauth/authorize"),
+        ("POST", "/auth/oauth/authorize"),
+        ("POST", "/auth/oauth/token"),
+        ("POST", "/auth/oauth/revoke"),
+    ] {
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(method)
+                    .uri(path)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND, "{method} {path}");
+        assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store, private");
+        assert!(to_bytes(response.into_body(), 64).await.unwrap().is_empty());
+    }
+}
+
+#[tokio::test]
+async fn oauth_metadata_and_full_authorization_code_journey_are_enabled_only_and_no_store() {
+    let absent = app(sessions_activation_server_fixture_async().await)
+        .oneshot(
+            Request::builder()
+                .uri("/.well-known/oauth-authorization-server")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(absent.status(), StatusCode::NOT_FOUND);
+
+    let state = sessions_activation_server_fixture_with_oauth_async().await;
+    let router = app(state.clone());
+    for path in [
+        "/.well-known/oauth-authorization-server",
+        "/.well-known/oauth-protected-resource",
+    ] {
+        let response = router
+            .clone()
+            .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK, "{path}");
+        assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store, private");
+        let metadata = response_json(response).await;
+        assert_eq!(metadata["scopes_supported"], json!(["items.read", "items.write"]));
+        if path.ends_with("authorization-server") {
+            assert_eq!(metadata["code_challenge_methods_supported"], json!(["S256"]));
+            assert_eq!(metadata["grant_types_supported"], json!(["authorization_code"]));
+            assert!(metadata["registration_endpoint"].as_str().unwrap().ends_with("/auth/oauth/register"));
+        } else {
+            assert_eq!(metadata["bearer_methods_supported"], json!(["header"]));
+        }
+    }
+
+    let registered = router
+        .clone()
+        .oneshot(oauth_protocol_request(
+            "POST",
+            "/auth/oauth/register",
+            Some("application/json"),
+            serde_json::to_vec(&json!({
+                "redirect_uris": ["http://127.0.0.1:4321/callback"],
+                "client_name": "OAuth Journey",
+                "token_endpoint_auth_method": "none"
+            }))
+            .unwrap(),
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(registered.status(), StatusCode::OK);
+    assert_eq!(registered.headers()[header::CACHE_CONTROL], "no-store, private");
+    let registered = response_json(registered).await;
+    let client_id = registered["client_id"].as_str().unwrap().to_owned();
+    assert!(client_id.starts_with("intg_"));
+    assert!(registered.get("client_secret").is_none());
+
+    let user = mint_test_credential(&state, "oauth-user@example.com").await;
+    let bearer = user["token"].as_str().unwrap();
+    let verifier = "v".repeat(43);
+    let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
+    let authorize_uri = format!(
+        "/auth/oauth/authorize?response_type=code&client_id={client_id}&redirect_uri=http%3A%2F%2F127.0.0.1%3A4321%2Fcallback&scope=items.read&state=journey-state&code_challenge={challenge}&code_challenge_method=S256"
+    );
+    let consent = router
+        .clone()
+        .oneshot(oauth_protocol_request("GET", &authorize_uri, None, Body::empty(), Some(bearer)))
+        .await
+        .unwrap();
+    if consent.status() != StatusCode::OK {
+        let status = consent.status();
+        let refusal = String::from_utf8(
+            to_bytes(consent.into_body(), 64 * 1024)
+                .await
+                .unwrap()
+                .to_vec(),
+        )
+        .unwrap();
+        panic!("OAuth consent failed with {status}: {refusal}");
+    }
+    assert_eq!(consent.headers()[header::CACHE_CONTROL], "no-store, private");
+    let consent = String::from_utf8(
+        to_bytes(consent.into_body(), 64 * 1024)
+            .await
+            .unwrap()
+            .to_vec(),
+    )
+    .unwrap();
+    assert!(consent.contains("OAuth Journey"));
+    assert!(consent.contains("items.read"));
+    assert!(consent.contains("query fn:listItems"));
+    let marker = "name=request_id value=\"";
+    let request_id = consent
+        .split_once(marker)
+        .and_then(|(_, rest)| rest.split_once('\"'))
+        .map(|(id, _)| id.to_owned())
+        .expect("consent page carries opaque request id");
+    let decision = format!("request_id={request_id}&decision=approve");
+    let approval = router
+        .clone()
+        .oneshot(oauth_protocol_request(
+            "POST",
+            "/auth/oauth/authorize",
+            Some("application/x-www-form-urlencoded"),
+            decision,
+            Some(bearer),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(approval.status(), StatusCode::FOUND);
+    let location = approval.headers()[header::LOCATION].to_str().unwrap().to_owned();
+    assert!(location.contains("state=journey-state"));
+    let code = location
+        .split_once("code=")
+        .and_then(|(_, rest)| rest.split('&').next())
+        .unwrap()
+        .to_owned();
+
+    let token_form = |proof: &str| {
+        format!(
+            "grant_type=authorization_code&code={code}&redirect_uri=http%3A%2F%2F127.0.0.1%3A4321%2Fcallback&client_id={client_id}&code_verifier={proof}"
+        )
+    };
+    let wrong = router
+        .clone()
+        .oneshot(oauth_protocol_request(
+            "POST",
+            "/auth/oauth/token",
+            Some("application/x-www-form-urlencoded"),
+            token_form(&"x".repeat(43)),
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(wrong.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(response_json(wrong).await["error"], "invalid_grant");
+
+    let token = router
+        .clone()
+        .oneshot(oauth_protocol_request(
+            "POST",
+            "/auth/oauth/token",
+            Some("application/x-www-form-urlencoded"),
+            token_form(&verifier),
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(token.status(), StatusCode::OK);
+    assert_eq!(token.headers()[header::CACHE_CONTROL], "no-store, private");
+    let token = response_json(token).await;
+    assert_eq!(token["token_type"], "Bearer");
+    assert_eq!(token["expires_in"], 900);
+    assert_eq!(token["scope"], "items.read");
+    let access_token = token["access_token"].as_str().unwrap().to_owned();
+
+    let reused = router
+        .clone()
+        .oneshot(oauth_protocol_request(
+            "POST",
+            "/auth/oauth/token",
+            Some("application/x-www-form-urlencoded"),
+            token_form(&verifier),
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response_json(reused).await["error"], "invalid_grant");
+
+    let invocation = router
+        .clone()
+        .oneshot(oauth_protocol_request(
+            "POST",
+            "/api/v1/query/listItems",
+            Some("application/json"),
+            br#"{"args":{}}"#.to_vec(),
+            Some(&access_token),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(invocation.status(), StatusCode::OK);
+
+    let revoked = router
+        .clone()
+        .oneshot(oauth_protocol_request(
+            "POST",
+            "/auth/oauth/revoke",
+            Some("application/x-www-form-urlencoded"),
+            format!("token={access_token}&token_type_hint=access_token"),
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(revoked.status(), StatusCode::OK);
+    let refused = router
+        .oneshot(oauth_protocol_request(
+            "POST",
+            "/api/v1/query/listItems",
+            Some("application/json"),
+            br#"{"args":{}}"#.to_vec(),
+            Some(&access_token),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(refused.status(), StatusCode::UNAUTHORIZED);
+}
+
+/// @ref LLP 0204#d8--authority-acquisition-the-ceremony-and-the-facade — OAuth consent is the ordinary grant approval surface, including its operation-bound step-up requirement.
+#[tokio::test]
+async fn oauth_authority_creating_consent_reuses_operation_bound_step_up() {
+    let state = sessions_activation_server_fixture_with_oauth_async().await;
+    let provider = state.auth_provider.clone().expect("OAuth auth provider");
+    let router = app(state.clone());
+    let registered = router
+        .clone()
+        .oneshot(oauth_protocol_request(
+            "POST",
+            "/auth/oauth/register",
+            Some("application/json"),
+            serde_json::to_vec(&json!({
+                "redirect_uris": ["https://step-up.example/callback"],
+                "client_name": "Step-up OAuth"
+            }))
+            .unwrap(),
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(registered.status(), StatusCode::OK);
+    let client_id = response_json(registered).await["client_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+
+    let user = mint_test_credential(&state, "oauth-step-up@example.com").await;
+    let bearer = user["token"].as_str().unwrap();
+    let verifier = "s".repeat(43);
+    let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
+    let authorize_uri = format!(
+        "/auth/oauth/authorize?response_type=code&client_id={client_id}&redirect_uri=https%3A%2F%2Fstep-up.example%2Fcallback&scope=items.write&code_challenge={challenge}&code_challenge_method=S256"
+    );
+    let consent = router
+        .clone()
+        .oneshot(oauth_protocol_request(
+            "GET",
+            &authorize_uri,
+            None,
+            Body::empty(),
+            Some(bearer),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(consent.status(), StatusCode::OK);
+    let consent = String::from_utf8(
+        to_bytes(consent.into_body(), 64 * 1024)
+            .await
+            .unwrap()
+            .to_vec(),
+    )
+    .unwrap();
+    assert!(consent.contains("mutation fn:queuedWrite"));
+    assert!(consent.contains("fresh authentication required"));
+    let request_id = consent
+        .split_once("name=request_id value=\"")
+        .and_then(|(_, rest)| rest.split_once('\"'))
+        .map(|(id, _)| id.to_owned())
+        .expect("authority-creating consent carries its request id");
+
+    let missing = router
+        .clone()
+        .oneshot(oauth_protocol_request(
+            "POST",
+            "/auth/oauth/authorize",
+            Some("application/x-www-form-urlencoded"),
+            format!("request_id={request_id}&decision=approve"),
+            Some(bearer),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(missing.status(), StatusCode::UNAUTHORIZED);
+    let missing = response_json(missing).await;
+    assert_eq!(missing["error"], "access_denied");
+    assert_eq!(missing["details"]["code"], "SNAPBACK_AUTH_STEP_UP_REQUIRED");
+
+    let step_up = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/step-up/request",
+            serde_json::to_vec(&json!({
+                "operation": "grantApproval",
+                "requestId": request_id,
+            }))
+            .unwrap(),
+            bearer,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(step_up.status(), StatusCode::OK);
+    let challenge_id = response_json(step_up).await["challengeId"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let mailbox = serde_json::to_value(provider.mailbox_entry(&challenge_id).await.unwrap())
+        .unwrap();
+    let code = mailbox["code"].as_str().unwrap();
+    let approved = router
+        .oneshot(oauth_protocol_request(
+            "POST",
+            "/auth/oauth/authorize",
+            Some("application/x-www-form-urlencoded"),
+            format!(
+                "request_id={request_id}&decision=approve&challenge_id={challenge_id}&code={code}"
+            ),
+            Some(bearer),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(approved.status(), StatusCode::FOUND);
+    assert!(approved.headers()[header::LOCATION]
+        .to_str()
+        .unwrap()
+        .contains("code=sboac_"));
+}
+
 #[tokio::test]
 async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
     let mut functions = activation_functions('2', false);
@@ -3108,6 +3742,7 @@ async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
             },
         )]),
         origins: Some(vec!["https://integration.example:8443".to_owned()]),
+        oauth: None,
     };
     let state = tokio::task::spawn_blocking(move || {
         let _sanction = crate::exec_guard::BlockingSanction::acquire();
@@ -3476,6 +4111,7 @@ async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
             },
         )]),
         origins: None,
+        oauth: None,
     };
     let full_state = tokio::task::spawn_blocking(move || {
         let _sanction = crate::exec_guard::BlockingSanction::acquire();
@@ -16281,6 +16917,10 @@ const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_AUTH_AGENT_INVITATION_UNEXPECTED",
     "SNAPBACK_AUTH_AGENT_POLICY_MODE_INVALID",
     "SNAPBACK_AUTH_INTEGRATION_REQUEST_INVALID",
+    "SNAPBACK_AUTH_OAUTH_GRANT_INVALID",
+    "SNAPBACK_AUTH_OAUTH_REDIRECT_URI_INVALID",
+    "SNAPBACK_AUTH_OAUTH_REQUEST_INVALID",
+    "SNAPBACK_AUTH_OAUTH_SCOPE_INVALID",
     // LLP 0204 S1 external-surface declarations and unpinned carrier.
     "SNAPBACK_API_AUTH_MODE_INVALID",
     "SNAPBACK_API_BUDGETS_UNAVAILABLE",
@@ -16291,6 +16931,11 @@ const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_API_GENERATION_PIN_UNSUPPORTED",
     "SNAPBACK_API_MANIFEST_INVALID",
     "SNAPBACK_API_ORIGIN_INVALID",
+    "SNAPBACK_API_OAUTH_BEARER_OPT_IN_REQUIRED",
+    "SNAPBACK_API_OAUTH_BUNDLES_INVALID",
+    "SNAPBACK_API_OAUTH_FUNCTION_NOT_EXPOSED",
+    "SNAPBACK_API_OAUTH_FUNCTION_UNKNOWN",
+    "SNAPBACK_API_OAUTH_REQUIRES_API",
     "SNAPBACK_API_PAGINATION_RECOMMENDED",
     "SNAPBACK_API_REGISTRATION_POSTURE_REQUIRED",
     // LLP 0158/0163/0164/0165 experimental control-plane request shapes.
@@ -16719,6 +17364,7 @@ const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
 const APP_API_BAD_REQUEST_DIAGNOSTICS: &[&str] = &["SNAPBACK_APP_API_ENVELOPE_HASH_INVALID"];
 
 const UNAUTHORIZED_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_AUTH_OAUTH_INVALID_CLIENT",
     "SNAPBACK_ASSET_SIGNATURE_EXPIRED",
     "SNAPBACK_ADMIN_APPROVAL_INVALID",
     "SNAPBACK_ADMIN_CLAIM_INVALID",
@@ -16744,6 +17390,7 @@ const UNAUTHORIZED_DIAGNOSTICS: &[&str] = &[
 ];
 
 const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_AUTH_OAUTH_ACCESS_DENIED",
     // LLP 0204 S0 agent registration/invitation — policy refusals: the
     // surface is off, the caller may not mint, or the invitation is fenced.
     "SNAPBACK_AUTH_AGENT_INVITATIONS_DISABLED",
@@ -17131,6 +17778,7 @@ const MISDIRECTED_REQUEST_DIAGNOSTICS: &[&str] = &["SNAPBACK_ADMIN_RELAY_HOST_RE
 const NOT_IMPLEMENTED_DIAGNOSTICS: &[&str] = &["SNAPBACK_ADMIN_RELAY_WEBSOCKET_UNAVAILABLE"];
 
 const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_AUTH_OAUTH_UNAVAILABLE",
     "SNAPBACK_BRANCH_CUSTODY_RECOVERY_REQUIRED",
     "SNAPBACK_BRANCH_EXPIRY_REAP_REQUIRED",
     "SNAPBACK_CHECKPOINT_SOURCE_UNSUPPORTED",
@@ -17228,6 +17876,8 @@ const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
 // diagnostics that never normally become an `ApiError`. If one does reach
 // that boundary, the fail-safe class is still 500 rather than a false 4xx.
 const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_AUTH_OAUTH_SERVER_ERROR",
+    "SNAPBACK_AUTH_OAUTH_STATE_CORRUPT",
     // Local CLI, embedded-runtime, Guide-integrity, and migration-recovery
     // diagnostics already use the mapper's fail-safe 500 projection. Keep
     // them explicit so the production inventory remains exhaustive.
@@ -21429,6 +22079,10 @@ fn agent_management_routes_have_independent_exact_throttle_budgets() {
             "/auth/grants",
             "/auth/grants/by-actor/{actor_id}",
             "/auth/grants/{id}",
+            "/auth/oauth/authorize",
+            "/auth/oauth/register",
+            "/auth/oauth/revoke",
+            "/auth/oauth/token",
             "/auth/pairing-codes",
         ]
     );

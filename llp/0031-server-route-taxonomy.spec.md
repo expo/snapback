@@ -5,8 +5,8 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-08-09 (LLP 0204 S2 Landing B declared-client operator
-routes; earlier S2 Landing A integration lifecycle and S1 `/api/v1` plus
+**Revised:** 2026-08-09 (LLP 0204 S2 Landing C local OAuth facade;
+earlier Landing B declared-client operator routes, Landing A integration lifecycle, and S1 `/api/v1` plus
 `api.origins` bearer-token CORS — see dated amendments).
 2026-08-08 (hosted app-data SPA-fallback refusal: reserved
 app-data prefixes whose unimplemented route is answered by Workers Assets as
@@ -1350,11 +1350,12 @@ new path.
 **Commissioned by:** [LLP 0204](./0204-app-external-surfaces.rfc.md), D1,
 D8, D9.4, and the OQ9 ruling.
 
-**Status:** commissioned design only. None of the rows or response classes in
-this section is part of this Active spec's implemented-route claim until its
-router/operation registry entries and metadata-derived acceptance fixtures
-land. Every route row in this amendment is refused wholesale on hosted targets
-in v1, per LLP 0055's existing plane posture and LLP 0150 §8.
+**Status:** the OAuth facade family is implemented by `S2 Landing C`
+(2026-08-09), including the registered policy tuples, metadata projections,
+and local-only hosted refusal. The capability-link and external-anonymous rows
+later in this amendment remain commissioned design. Every route row in this
+amendment is refused wholesale on hosted targets in v1, per LLP 0055's existing
+plane posture and LLP 0150 §8.
 
 ### OAuth facade and origin-root discovery
 
@@ -1554,8 +1555,8 @@ Suspension is reversible admission state and is not represented or described
 as credential or grant revocation.
 
 The OAuth discovery, DCR, authorization, token, and revocation facade rows in
-the 2026-08-08 LLP 0204 amendment remain commissioned design. This amendment
-does not claim that those facade routes are implemented.
+the 2026-08-08 LLP 0204 amendment are implemented by `S2 Landing C`. The
+capability-link family remains commissioned design.
 
 ## Dated amendment: LLP 0204 S2 declared-client operator routes (2026-08-09)
 

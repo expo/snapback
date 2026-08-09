@@ -4,21 +4,21 @@ id: backend.external-api
 order: 19
 audience: agent-first
 capabilities: [api.external-exposure]
-authorities: [llp/0204-app-external-surfaces.rfc.md, llp/0031-server-route-taxonomy.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, src/manifest.rs, src/api_envelope.rs, src/server.rs, src/auth/invocation.rs]
+authorities: [llp/0204-app-external-surfaces.rfc.md, llp/0031-server-route-taxonomy.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, src/manifest.rs, src/api_envelope.rs, src/server.rs, src/server/oauth.rs, src/storage/auth_integrations.rs, src/storage/auth_agent_credentials.rs, src/auth/invocation.rs]
 examples: [packages/snapback-codegen/auth-artifacts.test.mjs]
 status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-09
-reviewed-commit: c85902cd15e1a0c25a63cfba69558db2e34fca42
+reviewed-commit: 339e9fed3500daece2ad90de0d21018e1b00a314
 ---
 
 # External API exposure
 
 > **Local target only**, and deliberately partial: the exposure core,
-> `/api/v1` family, and generated projections are shipped; integration
-> records, the OAuth facade, and per-integration budgets land with LLP 0204
-> S2. Hosted targets refuse granted external lanes until the LLP 0039
+> `/api/v1` family, generated projections, integration records, and the OAuth
+> facade are shipped; remote MCP and per-integration metering remain LLP 0204
+> S2 work. Hosted targets refuse the facade and granted external lanes until the LLP 0039
 > deployment-security contract lands.
 
 Every function is private to the app's own clients until the schema declares
@@ -46,6 +46,11 @@ it means no new credentialed onboarding):
 - `since` is an optional additive-only stamp (no deprecation machinery
   exists yet; that waits for the first real deprecation).
 - `budgets` is refused until LLP 0204 S2 lands (the diagnostic says so).
+- `oauth.enabled` requires `api.enabled`. The current facade is bearer-only,
+  so `oauth.bearer: true` is an explicit acknowledgment of that weaker
+  custody posture; omitting it refuses activation. `oauth.bundles` maps
+  human-sized scope names to exposed function names, which activation
+  compiles to the existing exact function/kind/basis grant scopes.
 - The exposure fact compiles onto each function
   (`functions.manifest.json#apiExposure`) and rides the api envelope, so
   every projection derives the same set.
@@ -114,3 +119,31 @@ Served alongside the envelope, all derived from the same exposed set:
 Exposed queries whose result contract declares a large row bound
 (`maxItems > 100`) without a cursor argument get the
 `SNAPBACK_API_PAGINATION_RECOMMENDED` lint at generation time.
+
+## OAuth 2.1 compatibility facade
+
+Apps that explicitly enable `api.oauth` publish local, no-store discovery at
+`GET /.well-known/oauth-authorization-server` and
+`GET /.well-known/oauth-protected-resource`. A generic client dynamically
+registers at `POST /auth/oauth/register`, then uses authorization code with
+required PKCE S256 through `GET|POST /auth/oauth/authorize` and
+`POST /auth/oauth/token`.
+
+Dynamic registration creates the same delegation-only integration principal
+and record as the native registration path, under the active
+`auth.agents.mode`. It returns no client secret and creates neither an
+installation nor authority. V1 DCR is creation-only: it exposes no
+re-registration/update contract, so an existing client record — including a
+suspended or revoked one — cannot be mutated through this endpoint. The
+consent page resolves requested bundle names
+to exact canonical scopes; approval uses the ordinary grant approval and
+operation-bound step-up machinery. Authorization codes are single-use and
+expire after 60 seconds.
+
+Facade access tokens are ordinary grant-bound scoped tokens with a 15-minute
+bearer lifetime. V1 intentionally issues no refresh token: after expiry, an
+MCP or other OAuth client repeats authorization. `POST /auth/oauth/revoke`
+releases the presented carrier and may also revoke its installation grant.
+Suspension, integration retirement, user grant revocation, and scoped-token
+release therefore close the same underlying authority rather than a parallel
+OAuth authority model.

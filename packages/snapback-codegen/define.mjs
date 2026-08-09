@@ -1416,7 +1416,7 @@ export function defineSchema(tables, options = {}) {
         'SNAPBACK_API_BUDGETS_UNAVAILABLE',
       );
     }
-    exactObject(options.api, 'defineSchema api', new Set(['enabled', 'disclosure', 'functions', 'origins']));
+    exactObject(options.api, 'defineSchema api', new Set(['enabled', 'disclosure', 'functions', 'origins', 'oauth']));
     const enabled = options.api.enabled ?? false;
     const disclosure = options.api.disclosure ?? 'exposed-only';
     const functions = options.api.functions ?? {};
@@ -1440,6 +1440,28 @@ export function defineSchema(tables, options = {}) {
       assert(Array.isArray(options.api.origins), 'defineSchema api.origins must be an array');
       origins = [...options.api.origins];
     }
+    let oauth;
+    if (options.api.oauth !== undefined) {
+      assert(options.api.oauth && typeof options.api.oauth === 'object' && !Array.isArray(options.api.oauth), 'defineSchema api.oauth must be an object');
+      exactObject(options.api.oauth, 'defineSchema api.oauth', new Set(['enabled', 'bearer', 'bundles']));
+      const oauthEnabled = options.api.oauth.enabled ?? false;
+      const bearer = options.api.oauth.bearer ?? false;
+      const bundles = options.api.oauth.bundles ?? {};
+      assert(typeof oauthEnabled === 'boolean', 'defineSchema api.oauth.enabled must be a boolean');
+      assert(typeof bearer === 'boolean', 'defineSchema api.oauth.bearer must be a boolean');
+      assert(bundles && typeof bundles === 'object' && !Array.isArray(bundles), 'defineSchema api.oauth.bundles must be an object');
+      const normalizedBundles = {};
+      for (const [name, bundle] of Object.entries(bundles)) {
+        assert(bundle && typeof bundle === 'object' && !Array.isArray(bundle), `defineSchema api.oauth.bundles.${name} must be an object`);
+        exactObject(bundle, `defineSchema api.oauth.bundles.${name}`, new Set(['functions']));
+        assert(Array.isArray(bundle.functions), `defineSchema api.oauth.bundles.${name}.functions must be an array`);
+        assert(bundle.functions.every((fn) => typeof fn === 'string'), `defineSchema api.oauth.bundles.${name}.functions must contain function names`);
+        normalizedBundles[name] = { functions: [...bundle.functions] };
+      }
+      // @ref LLP 0204#open-questions — OQ3's human-sized scope vocabulary is
+      // preserved for Rust activation to compile against stable function ids.
+      oauth = { enabled: oauthEnabled, bearer, bundles: normalizedBundles };
+    }
     // @ref LLP 0204#d1--the-exposure-declaration-keystone — preserve the
     // explicit registration posture and the default-closed function map.
     api = {
@@ -1447,6 +1469,7 @@ export function defineSchema(tables, options = {}) {
       disclosure,
       functions: normalizedFunctions,
       ...(origins ? { origins } : {}),
+      ...(oauth ? { oauth } : {}),
       __agentsModeExplicit: Boolean(
         options.auth?.agents && Object.hasOwn(options.auth.agents, 'mode'),
       ),

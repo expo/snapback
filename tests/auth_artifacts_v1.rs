@@ -3,7 +3,8 @@
 
 use serde_json::json;
 use snapback::manifest::{
-    AgentsManifest, AgentsMode, ApiDisclosure, ApiFunctionExposure, ApiManifest, AuthManifest,
+    AgentsManifest, AgentsMode, ApiDisclosure, ApiFunctionExposure, ApiManifest, ApiOAuthBundle,
+    ApiOAuthManifest, AuthManifest,
     AuthMode, AuthRequirement, CapabilityManifest, CapabilityMaturity,
     CronJobDefinition, FilterExpr, FilterOp, FunctionDefinition, FunctionKind, FunctionManifest,
     FunctionResultContract, FunctionRuntime, HandlerPlan, IbexModule, InvitedBy, QueryPlan,
@@ -25,6 +26,96 @@ fn host_query(name: &str) -> FunctionDefinition {
             indexed_by: None,
         })),
     )
+}
+
+#[test]
+fn oauth_manifest_requires_explicit_bearer_opt_in_and_exact_exposed_bundles() {
+    let mut schema = sessions_schema();
+    schema.auth.as_mut().unwrap().agents = Some(AgentsManifest::explicit(
+        AgentsMode::Open,
+        InvitedBy::Operators,
+    ));
+    schema.api = Some(ApiManifest {
+        enabled: true,
+        disclosure: ApiDisclosure::ExposedOnly,
+        functions: BTreeMap::from([(
+            "listed".to_owned(),
+            ApiFunctionExposure { expose: true, since: None },
+        )]),
+        origins: None,
+        oauth: Some(ApiOAuthManifest {
+            enabled: true,
+            bearer: false,
+            bundles: BTreeMap::from([(
+                "todos.read".to_owned(),
+                ApiOAuthBundle { functions: vec!["listed".to_owned()] },
+            )]),
+        }),
+    });
+    assert_eq!(
+        schema.validate_artifact().unwrap_err().diagnostic.code,
+        "SNAPBACK_API_OAUTH_BEARER_OPT_IN_REQUIRED"
+    );
+
+    schema.api.as_mut().unwrap().oauth.as_mut().unwrap().bearer = true;
+    schema.validate_artifact().expect("explicit bearer opt-in activates");
+    let mut listed = host_query("listed");
+    listed.api_exposure = Some(ApiFunctionExposure { expose: true, since: None });
+    let mut closed = host_query("closed");
+    closed.api_exposure = Some(ApiFunctionExposure::default());
+    let functions = FunctionManifest {
+        functions: vec![listed, closed],
+        ..FunctionManifest::default()
+    };
+    schema
+        .validate_api_against_functions(&functions)
+        .expect("bundle compiles to the exposed function identity and kind");
+
+    schema
+        .api
+        .as_mut()
+        .unwrap()
+        .oauth
+        .as_mut()
+        .unwrap()
+        .bundles
+        .get_mut("todos.read")
+        .unwrap()
+        .functions = vec!["missing".to_owned()];
+    assert_eq!(
+        schema
+            .validate_api_against_functions(&functions)
+            .unwrap_err()
+            .diagnostic
+            .code,
+        "SNAPBACK_API_OAUTH_FUNCTION_UNKNOWN"
+    );
+
+    schema
+        .api
+        .as_mut()
+        .unwrap()
+        .oauth
+        .as_mut()
+        .unwrap()
+        .bundles
+        .get_mut("todos.read")
+        .unwrap()
+        .functions = vec!["closed".to_owned()];
+    assert_eq!(
+        schema
+            .validate_api_against_functions(&functions)
+            .unwrap_err()
+            .diagnostic
+            .code,
+        "SNAPBACK_API_OAUTH_FUNCTION_NOT_EXPOSED"
+    );
+
+    schema.api.as_mut().unwrap().enabled = false;
+    assert_eq!(
+        schema.validate_artifact().unwrap_err().diagnostic.code,
+        "SNAPBACK_API_OAUTH_REQUIRES_API"
+    );
 }
 
 #[test]
@@ -142,6 +233,7 @@ fn api_manifest_is_sessions_only_explicit_default_closed_and_pair_validated() {
             },
         )]),
         origins: Some(vec!["https://example.com:8443".to_owned()]),
+        oauth: None,
     });
     schema.validate_artifact().expect("explicit disabled is valid");
 

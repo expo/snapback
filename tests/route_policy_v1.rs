@@ -192,6 +192,8 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("GET", "/app-api/openapi.json"),
         ("GET", "/app-api/agent-skill"),
         ("GET", "/app-api/envelope/{sha256}"),
+        ("GET", "/.well-known/oauth-authorization-server"),
+        ("GET", "/.well-known/oauth-protected-resource"),
         ("GET", "/auth/session"),
         ("POST", "/auth/request-code"),
         ("POST", "/auth/exchange"),
@@ -210,6 +212,11 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/auth/agents/token/release"),
         ("POST", "/auth/agents/revoke-self"),
         ("POST", "/auth/integrations/retire"),
+        ("POST", "/auth/oauth/register"),
+        ("GET", "/auth/oauth/authorize"),
+        ("POST", "/auth/oauth/authorize"),
+        ("POST", "/auth/oauth/token"),
+        ("POST", "/auth/oauth/revoke"),
         ("GET", "/auth/grant-requests"),
         ("POST", "/auth/grant-requests/{id}/approve"),
         ("POST", "/auth/grant-requests/{id}/deny"),
@@ -436,6 +443,62 @@ fn app_api_current_projections_are_bare_public_no_store_routes() {
     assert_eq!(envelope.response_sensitivity, ResponseSensitivity::PublicProjection);
 }
 
+#[test]
+fn oauth_facade_rows_pin_the_commissioned_policy_tuples() {
+    let routes = route_registry();
+    for path in [
+        "/.well-known/oauth-authorization-server",
+        "/.well-known/oauth-protected-resource",
+    ] {
+        let route = routes.iter().find(|route| route.path == path).unwrap();
+        assert_eq!(route.method, "GET", "{path}");
+        assert_eq!(route.class, RouteClass::AppData, "{path}");
+        assert_eq!(route.path_policy, RoutePolicy::Public, "{path}");
+        assert_eq!(route.credential_resolution, CredentialResolution::None, "{path}");
+        assert_eq!(route.invocation_authority, InvocationAuthority::None, "{path}");
+        assert_eq!(route.response_sensitivity, ResponseSensitivity::PublicNoStore, "{path}");
+    }
+
+    let authorize = routes
+        .iter()
+        .filter(|route| route.path == "/auth/oauth/authorize")
+        .collect::<Vec<_>>();
+    assert_eq!(authorize.len(), 2);
+    assert_eq!(authorize.iter().map(|route| route.method).collect::<BTreeSet<_>>(), BTreeSet::from(["GET", "POST"]));
+    for route in authorize {
+        assert_eq!(route.path_policy, RoutePolicy::SessionAuth);
+        assert_eq!(route.credential_resolution, CredentialResolution::RequiredSessionBearer);
+        assert_eq!(route.invocation_authority, InvocationAuthority::ResolvedCaller);
+        assert_eq!(route.legacy_body_policy, LegacyBodyPolicy::Rejected);
+        assert_eq!(route.response_sensitivity, ResponseSensitivity::ApplicationData);
+    }
+
+    for (path, sensitivity) in [
+        ("/auth/oauth/register", ResponseSensitivity::CredentialSecret),
+        ("/auth/oauth/token", ResponseSensitivity::CredentialSecret),
+        ("/auth/oauth/revoke", ResponseSensitivity::PublicNoStore),
+    ] {
+        let route = routes.iter().find(|route| route.path == path).unwrap();
+        assert_eq!(route.method, "POST", "{path}");
+        assert_eq!(route.path_policy, RoutePolicy::Public, "{path}");
+        assert_eq!(route.credential_resolution, CredentialResolution::OperationSpecific, "{path}");
+        assert_eq!(route.invocation_authority, InvocationAuthority::None, "{path}");
+        assert_eq!(route.effect_policy, EffectPolicy::OperationSpecific, "{path}");
+        assert_eq!(route.response_sensitivity, sensitivity, "{path}");
+    }
+
+    let operations = operation_registry()
+        .into_iter()
+        .filter(|operation| operation.transport == OperationTransport::OAuthFacade)
+        .map(|operation| operation.operation)
+        .collect::<BTreeSet<_>>();
+    assert_eq!(operations, BTreeSet::from([
+        "oauth.dynamic-register",
+        "oauth.revoke",
+        "oauth.token-exchange",
+    ]));
+}
+
 /// LLP 0031 keeps the router-owned registry authoritative for method shape;
 /// the loopback CORS projection must advertise every registered browser method
 /// without manufacturing operations on unknown paths.
@@ -577,7 +640,7 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
         .filter(|route| route.path.starts_with("/auth/"))
         .map(|route| (route.path, *route))
         .collect::<BTreeMap<_, _>>();
-    assert_eq!(provider.len(), 22);
+    assert_eq!(provider.len(), 26);
 
     let handshake = provider["/auth/session"];
     assert_eq!(handshake.method, "GET");
@@ -1131,6 +1194,7 @@ fn transport_name(transport: OperationTransport) -> &'static str {
         OperationTransport::LiveSocket => "live-socket",
         OperationTransport::DirectFunctionRunner => "direct-runner",
         OperationTransport::HostOps => "host-ops",
+        OperationTransport::OAuthFacade => "oauth-facade",
     }
 }
 
@@ -1594,6 +1658,7 @@ fn session_overlay_closes_socket_and_direct_runner_body_authority() {
             }
             OperationTransport::HostOps => unreachable!("filtered above"),
             OperationTransport::EnsureApp => unreachable!("filtered above"),
+            OperationTransport::OAuthFacade => unreachable!("filtered above"),
         }
     }
 
@@ -1817,6 +1882,22 @@ fn session_http_body_probes() -> BTreeMap<(&'static str, &'static str), SessionB
         ]
     };
     BTreeMap::from([
+        (
+            ("GET", "/auth/oauth/authorize"),
+            SessionBodyProbe {
+                uri: "/auth/oauth/authorize",
+                base: json!({}),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("POST", "/auth/oauth/authorize"),
+            SessionBodyProbe {
+                uri: "/auth/oauth/authorize",
+                base: json!({}),
+                forbidden_fields: handler_fields(),
+            },
+        ),
         (
             ("POST", "/query/{name}"),
             SessionBodyProbe {

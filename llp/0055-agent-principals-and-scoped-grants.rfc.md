@@ -5,10 +5,10 @@
 **Systems:** Auth, API, Security, Agent tooling, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-08-08 (LLP 0204 commissioned the integration-registration,
-integration-lifecycle, ownership, watch-anchor, DCR, and suspension design
-amendments; design only, with no implementation or capability claim — see the
-dated amendment). 2026-08-04 (implemented the per-app `asset-callbacks` principal and exact grants). 2026-08-03 (per-app `asset-callbacks` service principal for
+**Revised:** 2026-08-09 (LLP 0204 S2 Landing C implemented DCR and the local
+OAuth grant facade; Landing A implemented the integration registration and
+lifecycle core; watch anchors remain commissioned — see the dated amendment).
+2026-08-04 (implemented the per-app `asset-callbacks` principal and exact grants). 2026-08-03 (per-app `asset-callbacks` service principal for
 sessions-mode asset lifecycle callbacks — author decision sitting #2;
 see the dated amendment). 2026-08-01 (LLP 0062 app-CLI credentialed lane: exact scoped-token
 release, server-relative TTL receipts, actor/effective tuple re-attestation,
@@ -2381,8 +2381,9 @@ explicitly records the service actor and exact grant.
 especially D7, D8, D9.3, and the OQ11 ruling.
 
 **Status:** `S2 Landing A` (2026-08-09) makes the integration registration
-class, record, suspension, and `integration.retire` lifecycle verb reachable.
-The DCR/OAuth facade and watch anchors remain commissioned design. This
+class, record, suspension, and `integration.retire` lifecycle verb reachable;
+`S2 Landing C` implements DCR and the local OAuth authorization-code facade.
+Watch anchors remain commissioned design. This
 amendment does not widen scoped-token routing:
 scoped tokens still address exactly the app-data invocation gate and
 `POST /connection/open` pinned in [§Routes and credential classes](#routes-and-credential-classes),

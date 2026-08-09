@@ -631,6 +631,12 @@ land via a dated LLP 0031 amendment extending the root `/auth/*`
 precedent. Standards for the ecosystem, the better ceremony
 for everyone who talks to us directly (P5).
 
+**Implementation note (S2 Landing C, 2026-08-09):** the first local facade is
+bearer-only behind the explicit `api.oauth.bearer: true` opt-in. It issues
+single-use 60-second authorization codes and 15-minute grant-bound scoped
+tokens. It deliberately omits refresh tokens; clients repeat authorization
+after expiry. Hosted targets refuse the complete family.
+
 "PAT-like" long-lived credentials for the M6-style headless script are the
 same mechanism at maximum simplicity: a user mints a scoped delegated
 grant from the app's console (the LLP 0055 approval surface), bound to a

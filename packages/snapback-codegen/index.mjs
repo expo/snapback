@@ -1245,7 +1245,7 @@ function validateSchemaApiDefinition(schemaDef, authMode, err) {
   if (Object.hasOwn(api, 'budgets')) {
     err('SNAPBACK_API_BUDGETS_UNAVAILABLE', 'api', 'api.budgets lands with LLP 0204 S2', {});
   }
-  const allowed = new Set(['enabled', 'disclosure', 'functions', 'origins', '__agentsModeExplicit']);
+  const allowed = new Set(['enabled', 'disclosure', 'functions', 'origins', 'oauth', '__agentsModeExplicit']);
   const shapeValid = !Object.keys(api).some((key) => !allowed.has(key))
     && typeof api.enabled === 'boolean'
     && API_DISCLOSURES.has(api.disclosure)
@@ -1283,11 +1283,46 @@ function validateSchemaApiDefinition(schemaDef, authMode, err) {
       }
     }
   }
+  if (api.oauth !== undefined) {
+    const oauth = api.oauth;
+    const oauthShapeValid = oauth && typeof oauth === 'object' && !Array.isArray(oauth)
+      && !Object.keys(oauth).some((key) => !['enabled', 'bearer', 'bundles'].includes(key))
+      && typeof oauth.enabled === 'boolean'
+      && typeof oauth.bearer === 'boolean'
+      && oauth.bundles && typeof oauth.bundles === 'object' && !Array.isArray(oauth.bundles);
+    if (!oauthShapeValid) {
+      err('SNAPBACK_API_OAUTH_MANIFEST_INVALID', 'api', 'api.oauth accepts enabled, bearer, and bundles', {});
+    } else {
+      if (oauth.enabled && !api.enabled) {
+        err('SNAPBACK_API_OAUTH_REQUIRES_API', 'api', 'api.oauth.enabled requires api.enabled; enable both declarations', {});
+      }
+      if (oauth.enabled && !oauth.bearer) {
+        err('SNAPBACK_API_OAUTH_BEARER_OPT_IN_REQUIRED', 'api', 'the OAuth facade is bearer-only in v1; set api.oauth.bearer true to acknowledge the shorter-lived bearer weakening', {});
+      }
+      for (const [bundleName, bundle] of Object.entries(oauth.bundles)) {
+        const validName = bundleName.length > 0 && bundleName.length <= 128
+          && [...bundleName].every((character) => {
+            const code = character.codePointAt(0);
+            return code === 0x21 || (code >= 0x23 && code <= 0x5b) || (code >= 0x5d && code <= 0x7e);
+          });
+        const validFunctions = bundle && typeof bundle === 'object' && !Array.isArray(bundle)
+          && Object.keys(bundle).every((key) => key === 'functions')
+          && Array.isArray(bundle.functions)
+          && bundle.functions.length >= 1 && bundle.functions.length <= 128
+          && bundle.functions.every((fn) => typeof fn === 'string')
+          && new Set(bundle.functions).size === bundle.functions.length;
+        if (!validName || !validFunctions) {
+          err('SNAPBACK_API_OAUTH_BUNDLES_INVALID', 'api', `api.oauth bundle ${JSON.stringify(bundleName)} must use an OAuth scope-token name and contain 1..=128 unique function names`, { bundle: bundleName });
+        }
+      }
+    }
+  }
   return {
     enabled: api.enabled,
     disclosure: api.disclosure,
     functions: api.functions,
     ...(api.origins !== undefined ? { origins: [...api.origins] } : {}),
+    ...(api.oauth !== undefined ? { oauth: structuredClone(api.oauth) } : {}),
   };
 }
 
@@ -1297,6 +1332,15 @@ function compileApiExposure(api, functions, err, diagnostics) {
   for (const name of Object.keys(api.functions)) {
     if (!functionsByName.has(name)) {
       err('SNAPBACK_API_FUNCTION_UNKNOWN', 'api', `api.functions names unknown function ${name}`, { function: name });
+    }
+  }
+  for (const [bundleName, bundle] of Object.entries(api.oauth?.bundles ?? {})) {
+    for (const name of bundle.functions) {
+      if (!functionsByName.has(name)) {
+        err('SNAPBACK_API_OAUTH_FUNCTION_UNKNOWN', 'api', `api.oauth.bundles.${bundleName}.functions names unknown function ${name}`, { bundle: bundleName, function: name });
+      } else if (api.functions[name]?.expose !== true) {
+        err('SNAPBACK_API_OAUTH_FUNCTION_NOT_EXPOSED', 'api', `api.oauth bundle ${bundleName} names unexposed function ${name}; expose it in api.functions`, { bundle: bundleName, function: name });
+      }
     }
   }
   if (!api.enabled) return;

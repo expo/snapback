@@ -525,6 +525,16 @@
           "default": {},
           "type": "object"
         },
+        "oauth": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApiOAuthManifest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "origins": {
           "items": {
             "type": "string"
@@ -533,6 +543,41 @@
             "array",
             "null"
           ]
+        }
+      },
+      "type": "object"
+    },
+    "ApiOAuthBundle": {
+      "additionalProperties": false,
+      "properties": {
+        "functions": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "ApiOAuthManifest": {
+      "additionalProperties": false,
+      "description": "Standards-interoperability projection over the native LLP 0150 ceremony.\nBundle names are the public OAuth scope vocabulary; activation resolves\ntheir function names to the same stable id/kind pairs used by grants.\n\n@ref LLP 0204#d8--authority-acquisition-the-ceremony-and-the-facade — the\n  generated facade has no independent authority and bearer is an explicit\n  per-app weakening.\n@ref LLP 0204#open-questions — OQ3 selects named bundles compiled at\n  activation rather than exposing canonical grant scopes as OAuth strings.",
+      "properties": {
+        "bearer": {
+          "default": false,
+          "type": "boolean"
+        },
+        "bundles": {
+          "additionalProperties": {
+            "$ref": "#/$defs/ApiOAuthBundle"
+          },
+          "default": {},
+          "type": "object"
+        },
+        "enabled": {
+          "default": false,
+          "type": "boolean"
         }
       },
       "type": "object"

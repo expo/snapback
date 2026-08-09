@@ -318,6 +318,82 @@ export default defineSchema({ ${tables} }, {
   assert(result.diagnostics.some(({ code }) => code === 'SNAPBACK_API_FUNCTION_UNKNOWN'));
 }
 
+// @ref LLP 0204#d8--authority-acquisition-the-ceremony-and-the-facade — v1
+// bearer transport is explicit, and OQ3 bundle names compile from function
+// names rather than exposing canonical grant-scope syntax to OAuth clients.
+{
+  const implicitBearerSchema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ ${tables} }, {
+  auth: { mode: 'sessions', agents: { mode: 'open' } },
+  api: {
+    enabled: true,
+    functions: { listTodos: { expose: true } },
+    oauth: { enabled: true, bundles: { todos: { functions: ['listTodos'] } } },
+  },
+});
+`;
+  const result = await generate(backend(implicitBearerSchema, ordinaryFunctions));
+  assert.equal(result.ok, false);
+  assert(result.diagnostics.some(
+    ({ code, message }) => code === 'SNAPBACK_API_OAUTH_BEARER_OPT_IN_REQUIRED'
+      && /api\.oauth\.bearer true/u.test(message),
+  ));
+}
+
+{
+  const oauthSchema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ ${tables} }, {
+  auth: { mode: 'sessions', agents: { mode: 'open' } },
+  api: {
+    enabled: true,
+    functions: { listTodos: { expose: true }, createTodo: { expose: true } },
+    oauth: {
+      enabled: true,
+      bearer: true,
+      bundles: {
+        todos: { functions: ['listTodos'] },
+        'todos.write': { functions: ['createTodo'] },
+      },
+    },
+  },
+});
+`;
+  const dir = backend(oauthSchema, ordinaryFunctions);
+  const result = await generate(dir);
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  assert.deepEqual(readJson(join(dir, 'generated', 'schema.manifest.json')).api.oauth, {
+    enabled: true,
+    bearer: true,
+    bundles: {
+      todos: { functions: ['listTodos'] },
+      'todos.write': { functions: ['createTodo'] },
+    },
+  });
+}
+
+{
+  const invalidBundleSchema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ ${tables} }, {
+  auth: { mode: 'sessions', agents: { mode: 'open' } },
+  api: {
+    enabled: true,
+    functions: { listTodos: { expose: true } },
+    oauth: {
+      enabled: true,
+      bearer: true,
+      bundles: { todos: { functions: ['missing'] } },
+    },
+  },
+});
+`;
+  const result = await generate(backend(invalidBundleSchema, ordinaryFunctions));
+  assert.equal(result.ok, false);
+  assert(result.diagnostics.some(({ code }) => code === 'SNAPBACK_API_OAUTH_FUNCTION_UNKNOWN'));
+}
+
 {
   const fullDisclosureSchema = `
 import { defineSchema, defineTable, v } from '${defineUrl}';

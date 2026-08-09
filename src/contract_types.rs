@@ -83,6 +83,35 @@ pub struct ApiManifest {
     pub functions: BTreeMap<String, ApiFunctionExposure>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub origins: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub oauth: Option<ApiOAuthManifest>,
+}
+
+/// Standards-interoperability projection over the native LLP 0150 ceremony.
+/// Bundle names are the public OAuth scope vocabulary; activation resolves
+/// their function names to the same stable id/kind pairs used by grants.
+///
+/// @ref LLP 0204#d8--authority-acquisition-the-ceremony-and-the-facade — the
+///   generated facade has no independent authority and bearer is an explicit
+///   per-app weakening.
+/// @ref LLP 0204#open-questions — OQ3 selects named bundles compiled at
+///   activation rather than exposing canonical grant scopes as OAuth strings.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ApiOAuthManifest {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub bearer: bool,
+    #[serde(default)]
+    pub bundles: BTreeMap<String, ApiOAuthBundle>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ApiOAuthBundle {
+    #[serde(default)]
+    pub functions: Vec<String>,
 }
 
 #[derive(

@@ -103,6 +103,8 @@ here (or listed here but gone from the code).
 | /api/v1/action/{name} | backend.actions |
 | /api/v1/mutation/{name} | backend.functions |
 | /api/v1/query/{name} | backend.functions |
+| /.well-known/oauth-authorization-server | api.external-exposure |
+| /.well-known/oauth-protected-resource | api.external-exposure |
 | /app-api/agent-skill | api.external-exposure |
 | /app-api/current | clients.app-cli |
 | /app-api/openapi.json | api.external-exposure |
@@ -127,6 +129,10 @@ here (or listed here but gone from the code).
 | /auth/agents/token | auth.agent-principals |
 | /auth/agents/token/release | auth.agent-principals |
 | /auth/integrations/retire | auth.agent-principals |
+| /auth/oauth/authorize | api.external-exposure |
+| /auth/oauth/register | api.external-exposure |
+| /auth/oauth/revoke | api.external-exposure |
+| /auth/oauth/token | api.external-exposure |
 | /auth/exchange | auth.sessions |
 | /auth/family-alarm | auth.sessions |
 | /auth/grant-requests | auth.agent-principals |
