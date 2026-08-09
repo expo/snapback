@@ -1,8 +1,8 @@
 {
   "schemaVersion": "snapback.module-ownership-baseline.v1",
   "manifestSchemaVersion": "snapback.module-ownership-manifest.v1",
-  "moduleCount": 188,
-  "edgeCount": 1113,
+  "moduleCount": 189,
+  "edgeCount": 1119,
   "edges": [
     {
       "from": "src/admin_impersonation.rs",
@@ -821,6 +821,12 @@
       "toOwner": "storage-migration-kernel"
     },
     {
+      "from": "src/auth/invocation.rs",
+      "fromOwner": "unassigned",
+      "to": "src/storage/auth_scope_bases.rs",
+      "toOwner": "storage-migration-kernel"
+    },
+    {
       "from": "src/auth/keyring.rs",
       "fromOwner": "unassigned",
       "to": "src/secure_file.rs",
@@ -1028,6 +1034,12 @@
       "from": "src/auth/recovery.rs",
       "fromOwner": "unassigned",
       "to": "src/auth/wire.rs",
+      "toOwner": "unassigned"
+    },
+    {
+      "from": "src/auth/recovery.rs",
+      "fromOwner": "unassigned",
+      "to": "src/control_catalog.rs",
       "toOwner": "unassigned"
     },
     {
@@ -1711,6 +1723,12 @@
     {
       "from": "src/cli/migration.rs",
       "fromOwner": "transport-adapters",
+      "to": "src/control_catalog.rs",
+      "toOwner": "unassigned"
+    },
+    {
+      "from": "src/cli/migration.rs",
+      "fromOwner": "transport-adapters",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
@@ -1821,6 +1839,12 @@
       "fromOwner": "transport-adapters",
       "to": "src/config.rs",
       "toOwner": "generation-activation-coordinator"
+    },
+    {
+      "from": "src/cli/tests.rs",
+      "fromOwner": "transport-adapters",
+      "to": "src/control_catalog.rs",
+      "toOwner": "unassigned"
     },
     {
       "from": "src/cli/tests.rs",
@@ -4663,6 +4687,12 @@
     {
       "from": "src/server.rs",
       "fromOwner": "transport-adapters",
+      "to": "src/authoring_suggestion.rs",
+      "toOwner": "unassigned"
+    },
+    {
+      "from": "src/server.rs",
+      "fromOwner": "transport-adapters",
       "to": "src/bundle.rs",
       "toOwner": "generation-activation-coordinator"
     },
@@ -5403,6 +5433,12 @@
       "fromOwner": "storage-migration-kernel",
       "to": "src/vector/storage.rs",
       "toOwner": "unassigned"
+    },
+    {
+      "from": "src/storage/asset_maintenance.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/assets.rs",
+      "toOwner": "background-services"
     },
     {
       "from": "src/storage/auth_agent_credentials.rs",
