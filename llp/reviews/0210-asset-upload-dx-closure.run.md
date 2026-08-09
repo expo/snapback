@@ -55,3 +55,7 @@ revision.
 - Artifacts on receipt: `0210-asset-upload-dx-closure.claude.md`,
   `0210-asset-upload-dx-closure.gpt-5.6-sol.md` (verbatim, sealed from
   each other until both land).
+- Launch log: Codex launch #1 failed before any model output (CLI
+  trust check — capsule dir is not a git repo; no review content
+  produced, not counted). Launch #2 relaunched identically plus
+  `--skip-git-repo-check`. Claude launch #1 proceeding.
