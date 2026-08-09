@@ -1,7 +1,7 @@
 # LLP 0212: Agent-native identity and rehearsal grants
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Review
 **Systems:** Auth, Identity, Developer experience, Agent tooling, Testing,
 Security, CLI, Email delivery
 **Author:** Charlie Cheever / Claude (Fable 5), with a commissioned
