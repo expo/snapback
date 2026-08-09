@@ -283,7 +283,7 @@ route stability plus the additive-fields policy — not by the
 connection-bound version. Receipts are owned precisely, with one honest
 seam: the typed `Receipt` union today rides only `/mutation` responses;
 the subscribe/unsubscribe outputs carry `receipt` as untyped
-`Option<Value>` (`src/local.rs:674,774`), so the subscription receipt is
+`Option<Value>` (`src/local/live_protocol.rs`), so the subscription receipt is
 currently an **untyped compatibility seam**. P-0 types both fields as
 `Option<Receipt>` and regenerates the schemas — only then is the shared
 union a ratified claim, evolving under the stricter connection-scoped
@@ -301,7 +301,7 @@ for this purpose). Client→server the wire is **heterogeneous today**, and
 the policy states it honestly rather than assuming closure: the handshake
 and invalidation-ack DTOs are closed (`deny_unknown_fields` —
 `OpenConnectionRequest`, `src/server.rs:4072`;
-`AuthorizationInvalidationAckInput`, `src/local.rs:785`), sessions-mode
+`AuthorizationInvalidationAckInput`, `src/local/live_protocol.rs`), sessions-mode
 socket requests decode a third, auth-mode-dependent closed family
 (`SessionLiveSocketClientMessage`, `src/server.rs:18204`), while the
 subscribe/resume/unsubscribe bodies, `HandlerInput`
@@ -318,7 +318,7 @@ decides which families stay open; closing an open DTO changes observable
 behavior and needs its own blast-radius evidence. The matrix covers
 **both directions**: several server→client families are closed today too
 (`AuthorizationInvalidationSnapshot`, `src/live_wire.rs:128-136`;
-`AuthorizationInvalidationAckOutput`, `src/local.rs:792-796` — their
+`AuthorizationInvalidationAckOutput`, `src/local/live_protocol.rs` — their
 schemas say `additionalProperties: false`), so the schemas describe what
 current servers *emit* while the fixture corpus and abstract state
 machine define what clients must *accept*; on unknown fields the
@@ -366,7 +366,7 @@ ground truth; the generated schemas are their authoritative machine view;
 the fixture corpus is normative for clients (it also pins facts schemars
 cannot express, like the accepted aliases — `request_id` on the socket
 client family and `authorization_namespace` on the subscribe body,
-`src/local.rs:623-626`); the exact wire-shape tests are
+`src/local/live_protocol.rs`); the exact wire-shape tests are
 illustrative. Where prose disagrees with any of these, prose loses; where
 schema and served bytes disagree, that is a drift-gate defect, not a spec
 question. The existing exact wire-shape tests (`live_wire.rs:481-820`) are

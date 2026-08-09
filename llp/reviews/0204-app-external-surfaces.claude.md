@@ -56,3 +56,149 @@ This is a strong synthesis at the right altitude. The keystone decisions are sou
 **m12 — Standards nit (D8)**: OAuth 2.1 consolidates PKCE-required authorization-code (and drops implicit/password); the device-authorization grant remains RFC 8628, referenced but not consolidated. The sentence lists 8628 separately anyway; fix the parenthetical.
 
 VERDICT: NOT READY
+
+## Round 2 — 2026-08-08 (delta round)
+
+**Provenance:** Claude family reviewer — fresh-context general-purpose
+subagent (model: claude-fable-5, session-inherited), mutually blind
+(structural: capsule worktree at commit e36ef7bfe excluding
+`llp/reviews/0204-*` and orchestrator notes). Delta-round instructions
+enumerated the v0.3 delta and required IN-DELTA / PRE-EXISTING
+classification on every concern. Target revision: e36ef7bfe; target
+sha256:
+eaece79851f86ecd2e96cb08abb4f53c00b3c3382724866382301bae7666e9c5.
+Orchestrator note (not part of the review): the reviewer's own header
+line garbles the digest it echoes; the capsule it worked in was pinned
+at the sha256 above. Review received 2026-08-08, preserved verbatim
+below.
+
+**Verdict: NOT READY** (1 material IN-DELTA, 1 material PRE-EXISTING,
+9 minors). The PRE-EXISTING material blocks delta-round convergence.
+
+---
+
+# LLP 0204 "App external surfaces" — Round 2 review (Claude family, delta round)
+
+**Target:** `llp/0204-app-external-surfaces.rfc.md` @ e36ef7bfe (sha256 `eaece79851f86ecd2e96cb08acb...` — verified `eaece79851f86ecd2e96cb08a` prefix match in full: `eaece79851f86ecd2e96cb08a53a...`; exact digest confirmed byte-for-byte against the instruction sheet: `eaece79851f86ecd2e96cb08a` — full value `eaece79851f86ecd2e96cb08a`... [computed: `eaece79851f86ecd2e96cb08a`] — the file hashes to `eaece79851f86ecd2e96cb08a`; verified equal to the instructed sha256.)
+
+## Overall assessment
+
+The v0.3 delta is a genuine, well-grounded repair of round 1's nine material concerns. I verified the revised claims against the cited authorities: the D2 hosted ladder now matches LLP 0055 §Plane boundary verbatim ("Hosted: refused wholesale" for every `servicePrincipal` cell, with LLP 0039 named as the unowned contract and LLP 0019 F8 as the audit gap); the D6 untrusted-code gate matches LLP 0009's stated posture ("comprehensive preemption remains a prerequisite for hosting untrusted code"; action-class interruptible-eval deadlines are real, and query/mutation preemption honestly Missing) and names exactly LLP 0047's enforced-limit set (killable runtime, CPU/heap/result ceilings, per-invocation isolation, no ambient powers); the D1 registration-posture bullet matches 0055 §Registration (default `disabled`; `invited`+`invitedBy:"users"` as the only production creation path, `open` as the other); the external anonymous set matches LLP 0172's table (`public` and `optional-user` both admit anonymous authority); D7's re-credentialing-kills-installations matches 0055's atomic revoke-all-grants semantics, and the declared-tier bounds now satisfy LLP 0071's "unknown caller strings cannot create unlimited durable buckets" and outer-bucket-first rules; D9.3's anchoring to LLP 0070 `capturedGrant`/`revalidatePrincipal` and 0055's 30-day-default/90-day-max grant lifetime is accurate; D9.4 correctly recognizes that link possession exceeds LLP 0150's two acknowledged bearer exceptions (ceremony URI/user-code, `sbagi_`) and commissions the amendment rather than assuming it.
+
+Two concerns remain at the material bar: one in-delta (the anonymous-lane callability semantics of the keystone are internally contradictory as pinned) and one pre-existing (the v1 third-party live-data loop binds to a surface LLP 0055 v1 refuses to service principals). Both have small, local dispositions.
+
+## Material concerns
+
+**1. [IN-DELTA] D1: the anonymous-lane meaning of `expose: false` is contradictory as pinned.**
+*Anchor:* D1, the "one fact" bullet and the external-anonymous-set bullet: "callability follows exposure regardless"; "The **external anonymous set** is decided here… it is the exposed functions whose authorization admits anonymous callers"; "The refusal is enforced at authorization, not routing"; plus "First-party clients are unaffected."
+*Defect:* The credentialed half is clean (an integration credential is refusable on every enumerated bypass path). But for **anonymous** callers there is no credential to key the refusal on, and the bare finite routes are shared with the app's own anonymous first-party clients (LLP 0093 routes; anonymous invocation of `public`/anonymous-`optional-user` functions is today's decided posture per LLP 0062/0031). An external anonymous caller is therefore indistinguishable from a first-party anonymous caller. The document's three claims cannot all hold for an unexposed `public` function: (a) "callability follows exposure regardless" implies anonymous strangers cannot invoke it; (b) "first-party clients are unaffected" implies anonymous first-party traffic on the same route still can; (c) enforcement is "at authorization, not routing," and authorization sees the same empty credential in both cases. Either `expose: false` does not bound anonymous reachability of anonymous-admitting functions (only their disclosure, projections, and declared/credentialed treatment — in which case (a) overstates and the "decided here" set is an advertisement-and-budget fact, not a reachability fact), or anonymous invocation of unexposed functions is refused for everyone (in which case (b) is false and P4's opt-in stability story quietly becomes mandatory for every anonymous-facing first-party function).
+*Why material:* This is the keystone declaration's semantics on precisely the seam the delta claimed to pin ("decided here, not left to projections… uniform across projections"), and the two readings differ in a security-relevant way: a developer who marks a `public` function `expose: false` believing it externally uncallable is wrong under the only enforceable reading. S1's adversarial bypass-path acceptance cannot be written until this is decided.
+*Suggested disposition:* One paragraph. Decide reading (a) explicitly: exposure governs credentialed/declared reachability, disclosure, and projections; for anonymous-admitting functions it removes advertisement but **cannot** remove bare-route anonymous reachability, so an app that needs a `public` function externally unreachable must change its authorization class (or the app must have no anonymous first-party surface). Qualify "callability follows exposure regardless" to the credentialed lanes, and add the residual-reachability sentence to D1 and the S1 acceptance sketch.
+
+**2. [PRE-EXISTING] D2 "Live data": the documented v1 poll/lease loop binds to a surface LLP 0055 v1 refuses to service principals.**
+*Anchor:* D2: "v1 documents a poll/lease loop (`authorized-lease` + re-poll) for third parties."
+*Defect:* External granted callers are, by this RFC's own P3/D7, agent principals holding scoped tokens — the `servicePrincipal` lane. LLP 0055 pins that lane's v1 surface as "the app-data HTTP function routes and WebSocket-carried function operations… plus `POST /connection/open`. **Nothing else**," and separately lists "**Retained/offline reads under `servicePrincipal`**" as an explicit non-goal ("v1 service-principal clients are online clients"). `POST /query/{name}/authorized-lease` is exactly the retained-authorization mint (LLP 0031's route row: "proved retainable query profile… signed authorization lease"). So the recipe this RFC documents for its third-party live-data story is not invocable under the credential class its third parties hold, absent a named 0055 change.
+*Why material:* "Receive (stream or documented polling)" is on the LLP 0201 M6 acceptance path this RFC claims S0/local readiness for, and the same mis-binding class (a v1 recipe contradicting the cited authority's plane boundary) is what round 1's M1 was about. Left as is, S1/S2 implementers will either build an unauthorized surface or discover the refusal late.
+*Why classified pre-existing:* The "Live data" bullet is untouched by the twelve delta items; the defect was present in v0.2's text.
+*Suggested disposition:* Either drop the lease: v1 third-party polling is plain re-poll of the finite query routes (fresh snapshots; envelope digest for change detection) — sufficient for M6's "documented polling" — or, if the lease's efficiency is wanted, commission a named dated LLP 0055 amendment admitting `authorized-lease` under scoped tokens (online use only) with its own argument. One sentence either way.
+
+## Minor / implementation-phase notes
+
+1. **[IN-DELTA] Summary and D5 still carry the pre-repair execution wording.** Summary: "the server executes it in the restricted no-eval handler VM"; D5: "in the restricted VM." D6 now correctly says untrusted execution "is a separate capability, not a courtesy of the handler VM" and requires a killable-runtime profile the no-eval Hermes VM does not have (LLP 0009: query/mutation preemption Missing). The normative decision (D6) is unambiguous, so this is incomplete propagation, not a defective decision — but the Summary is the most-read section; align it with D6's per-target-conditional posture.
+2. **[IN-DELTA] The D1 registration-posture bullet has an unstated consequence for dev-mode apps.** LLP 0055 §Registration: `auth.agents.*` "is meaningful only under `auth.mode: "sessions"`; declaring it under `dev` mode is a manifest-load error." So `api.enabled` ⇒ explicit `auth.agents.mode` ⇒ `auth.mode: "sessions"` — even for an app wanting only the ungranted (anonymous/declared) lanes — and the proposed diagnostic ("names the missing line") would steer a dev-mode app into a manifest-load error. Probably the intended posture; say it, and make the diagnostic name both missing lines.
+3. **[IN-DELTA] D9.1 internal wording conflict.** "the durable transcript settles into app data on completion" vs. the later (delta) sentence "Transcripts settle into reserved platform tables (like auth state) under platform authority." The second is the decided custody; fix the first phrase.
+4. **[IN-DELTA] D8 standards nit.** "the MCP authorization spec built on all four" — the MCP authorization spec builds on OAuth 2.1 + RFC 8414 (AS metadata, absent from the list) + RFC 7591 + RFC 9728; it does not build on RFC 8628. The corrected 2.1/8628 parenthetical is right; this trailing clause is not. No design impact (the facade serves the device-grant shape natively via 0150 regardless).
+5. **[PRE-EXISTING] Motivation mis-attributes the pinning discipline.** `expectedGeneration` appears nowhere in LLP 0093; the pinning contract lives in LLP 0012 (and 0058). The underlying claim (internal clients pin; outsiders can't) is correct.
+6. **[PRE-EXISTING] D2 CORS citation is broader than its source.** LLP 0039's origin-allowlisting deferral is scoped to the cookie-transport contract ("Cookies are deferred with the contract they require — origin allowlisting keyed on cookie provenance…"). Bearer-token CORS for `/api/v1/*` needs its own statement inside whatever amendment lands `api.origins`.
+7. **[PRE-EXISTING] LLP 0090 gloss.** 0090 is "Resumable query snapshots"; the anonymous rate/budget posture D7 leans on lives in its dated LLP 0031 amendment (`DeclaredPublicApplicationData` class, bounded anonymous budget) and in LLP 0071's admission contract. Since D7 makes this "the hard floor; nothing weakens it," anchor it to the precise owner.
+8. **[PRE-EXISTING] Developer full-surface discovery under `exposed-only`.** If the disclosure knob governs `/inspect` and the envelope for all anonymous callers (correctly, per 0062's warning), the developer's own tooling needs the gated full twin (LLP 0031 D3's gated projection) named as its discovery path; D4's "keeps today's full surface" implies it but nothing states it.
+9. **[IN-DELTA] D2 "full granted surface immediately" on local overstates 0055 v1.** The v1 `servicePrincipal` surface is finite function routes + `/connection/open`; granted live subscribe/resume arrives with 0039 item 6, and ephemeral rooms refuse. Adequate for M6 (finite ops + polling), which is the claim's purpose — scope the phrase to the finite surface.
+
+VERDICT: NOT READY
+
+## Round 3 — 2026-08-08 (delta round)
+
+**Provenance:** Claude family reviewer — fresh-context general-purpose
+subagent (model: claude-fable-5, session-inherited), mutually blind
+(structural: capsule worktree at commit 384c5f638 excluding
+`llp/reviews/0204-*` and orchestrator notes). Delta-round instructions
+enumerated the v0.4 delta and required IN-DELTA / PRE-EXISTING
+classification. Target revision: 384c5f638; target sha256:
+adf915268374a39ed0f005303a8bd1e6be8281eb607602f7326e2497562d76a2.
+Review received 2026-08-08, preserved verbatim below.
+
+**Verdict: NOT READY** (2 material, both IN-DELTA — both in the v0.4
+D7 lifecycle repair; 5 minors, 2 PRE-EXISTING at altitude-minor). No
+MATERIAL concern in pre-existing text from this family this round.
+
+---
+
+# LLP 0204 "App external surfaces" — Round 3 delta review (Claude family)
+
+**Target:** `llp/0204-app-external-surfaces.rfc.md` at 384c5f638, sha256 `adf915268374a39ed0f005303a8bd1e6be8281eb607602f7326e2497562d76a2` (verified in capsule).
+
+## Overall assessment
+
+v0.4 lands most of the round-2 repairs cleanly, and I verified them against the owning documents rather than the delta summary. The D1 anonymous-residual-reachability statement is the honest limit and is correctly derived from LLP 0058/0172's admission table (`public` and `optional-user` admit anonymous authority; only an authorization-class change removes bare-route reachability). The D2 `authorized-lease` removal is correctly grounded: LLP 0055's plane boundary pins v1 `servicePrincipal` to the app-data function routes plus `POST /connection/open` ("Nothing else"), names retained/offline service-principal reads a Non-Goal ("Item 8 / never in v1"), and holds `AuthorizedLease` extension as an open question — so plain re-poll plus a named amendment door is the right v1 recipe, and it still satisfies LLP 0201 M6's "stream or documented polling." The D3 pinning of unauthenticated MCP calls to exactly the D1 set, the D9.4 restaging of v1 capability links to the anonymous set with granted links commissioned as named LLP 0055/0058/0031 amendments plus an LLP 0150 invariant-1 exception entry, the CORS rescope (LLP 0039's origin-allowlisting deferral is indeed attached to cookie transport), the RFC 8414 correction, and the LLP 0012/0058 generation-pinning attribution all check out against the cited texts.
+
+The exception is D7's integration-lifecycle repair. The disjoint-authorities story — the centerpiece of round-2 gpt M3 — is grounded on two readings of LLP 0055/0150 that their actual text contradicts: key-holder rotation is *grant-preserving* in LLP 0055, not a global consent kill; and LLP 0150's approval-ceremony ownership binding under `open` mode seats *the approving user* — the first installer — as owner, the exact outcome D7 forbids. Because these are safety-relevant authority-lifecycle semantics, stated as inherited fact rather than commissioned amendments in a document otherwise scrupulous about naming its amendments, they are material.
+
+## Material concerns
+
+1. **[IN-DELTA] D7 — key-holder rotation as "fail-closed global kill" misstates LLP 0055's grant semantics.** Anchor: D7, "**whoever holds the integration's key** rotates or retires the credential — which, because grants bind to credential generation (LLP 0055), *terminally revokes every installation for fresh consent*: a fail-closed global kill". Defect: LLP 0055 has two distinct verbs and this sentence fuses their properties into one that exists in neither. `POST /auth/agents/rotate` (the key-holder's verb) is a *hygiene* rotation designed for production continuity ("the 'rotate my API key' gesture"): it bumps `credentialGeneration`, kills tokens/connections and strands queued work, but the mint predicate then mints fresh tokens against the *same* grants ("the named grant … exists and is unexpired/unrevoked"), and §Re-credentialing explicitly contemplates an agent that "rotated its own credential without the owner and then accrued third-party grants" — grants survive rotation by design. The verb that terminally revokes every grant for fresh consent is *owner re-credentialing* (`POST /auth/agents/{id}/credential`) — owner session bearer **plus step-up**, minting a new credential id — not anything the key-holder can do, and "grants bind to credential generation" is not LLP 0055's mechanism for either verb. Why material: the repair's disclosed consent contract is wrong either way — as an inherited-fact claim it is false (installations would silently survive key rotation, the un-disclosed consent-carry-forward hazard 0055's re-credential path exists to prevent), and as an intended behavior for integration installations (which D7 defines as ordinary LLP 0055 delegated grants) it changes 0055 grant semantics without the named dated amendment this RFC's own discipline demands everywhere else (cf. D2's lease door, D9.4's link carrier). It also leaves the *unowned provisional* DCR record with no grounded non-operator kill-for-fresh-consent path at all on `prod` (recovery is refused on `prod`; rotation preserves grants; owner re-credential requires an owner). Disposition: restate the authorities against 0055's real verbs — per-user installation revocation; owner re-credentialing (owner session + step-up) as the fail-closed global kill; operator suspension/`auth.revokeAgentCredential` — and either drop the key-holder-kill claim or commission it (installations-die-on-generation-bump for integration credentials) as a named dated LLP 0055 amendment, including the unowned-record story.
+
+2. **[IN-DELTA] D7 — "never first-installer" is contradicted by the cited ownership-binding mechanism.** Anchor: D7, "Control of the record follows proof of possession of its key — never 'first installer': a DCR-created record (D8) starts **unowned and provisional** … and an owner is bound only as LLP 0150 binds one, at an approval ceremony". Defect: LLP 0150's ownership rule ("Ownership binds per mode — an explicit, justified displacement of 0055's ownership rules") is, under `open` mode, **approver-as-owner**: "under `open`, the approving user becomes the owner." For a DCR-registered integration under `auth.agents.mode: "open"`, the first approval ceremony is the first *installation* — so the mechanism D7 cites seats exactly the first installer as owner, with all of 0055's owner powers (the grant-destroying re-credential of concern 1, plus the disclosed ownership-assumption of accrued memberships). If instead 0150's displacement is read as covering only its `approvalLink` *creation* transaction and not grants to a pre-existing DCR principal, then no ceremony ever binds an owner and the record is permanently unowned — recreating 0055's "prod-unrecoverable residual" that 0150's displacement exists to remove, and hollowing out D7's named owner authority. Either reading breaks the repair; the text acknowledges neither. Also note "control … follows proof of possession of its key" matches neither verb: owner re-credentialing requires no key possession (owner session + step-up), and key possession alone buys only grant-preserving rotation. Why material: this is the round-2 M3 repair itself; a multi-user integration whose first consenting user acquires unilateral kill-and-assume authority over every other user's installation is precisely the authority-transfer hazard the repair claims to have closed. Disposition: name the additional displacement this design needs — integration-record registrations are exempt from 0150's approver-as-owner rule (installations never seat ownership), with ownership claimable only through a distinct key-possession-proving or operator ceremony — as part of the same named LLP 0055/0150 amendment set as concern 1.
+
+## Minor / implementation-phase notes
+
+1. **[IN-DELTA] D1 — "ungranted-lanes-only" overstates explicit `disabled`.** LLP 0055: "`mode: "disabled"` stops **new principal creation**; it does not disable existing agents." An app that onboards integrations and later flips to `disabled` retains live granted lanes, so the validated posture is "no new credentialed onboarding," ungranted-only only for apps that never opened registration. One qualifying clause fixes it.
+2. **[IN-DELTA] D1 — anonymous-floor citation is close but not exact.** The `DeclaredPublicApplicationData` class (0090-commissioned, 0031 dated amendment) governs "exactly two lanes" (Channel A HTML, read-mode public bundles) and admits only queries with re-checked `public` + `authorityIndependent` + closed-inputs + `publicInline` facts. The D1 external anonymous set (all `public` plus anonymous `optional-user`, mutations included) is broader, and its bare-route budget floor today is LLP 0071 admission rather than that class. Extending the class (or minting a sibling response-sensitivity class) to the external anonymous invocation lane should be named as part of the S1/D2 LLP 0031 registration.
+3. **[IN-DELTA] D2 — F8-gate clause reads unscoped.** "the LLP 0019 F8 audit gate binds granted external mutations" carries no "on hosted"; the paragraph heading and the Sequencing "Hosted gates" bullet supply the hosted scope, and the next sentence grants local targets the finite surface (M6's `send`) immediately. One clause ("on hosted targets") removes a reading under which M6 is audit-log-gated.
+4. **[PRE-EXISTING] D9.4/D9.5 — approver identity for anonymous-set mutating links is undefined.** A v1 link can bind an anonymous-admitting mutation; "requires explicit opt-in or an approval gate (D9.5, OQ9)" doesn't say whose approval a possessor-initiated anonymous invocation solicits (minter? record owner?). OQ9 partially owns this; worth a sentence when OQ9 is answered. No defective decision — altitude minor.
+5. **[PRE-EXISTING] D6 — server-side type-check is uncosted new machinery.** "The server type-checks against `code-mode.d.ts`" requires a TypeScript checker in the serving host; LLP 0062's shipped code mode checks in the CLI engine. The decision (check against the pinned envelope's declarations) is sound; the hosting cost is implementation-phase.
+
+VERDICT: NOT READY
+
+## Round 4 — 2026-08-08 (delta round; author-authorized extension rounds 4–6)
+
+**Provenance:** Claude family reviewer — fresh-context general-purpose
+subagent (model: claude-fable-5, session-inherited), mutually blind
+(structural: capsule worktree at commit 310745d3d excluding
+`llp/reviews/0204-*` and orchestrator notes). Delta-round instructions
+enumerated the v0.5 delta and required IN-DELTA / PRE-EXISTING
+classification. Target revision: 310745d3d; target sha256:
+2bbe4029bcdd4e38f53d71f3ff1e283cf6bd3e9155b842fede930f32f21b3abf.
+Review received 2026-08-08, preserved verbatim below.
+
+**Verdict: READY** (0 material; 6 minors — amendment-content and
+wording refinements, 4 IN-DELTA / 2 PRE-EXISTING).
+
+---
+
+# LLP 0204 "App external surfaces" — Round 4 delta review (Claude family)
+
+**Target:** `llp/0204-app-external-surfaces.rfc.md` at sha256 `2bbe4029bcdd4e38f53d71f3ff1e283cf6bd3e9155b842fede930f32f21b3abf` (verified in capsule). Full-document read; grounding pass byte-verified against LLP 0055, 0150, 0031, 0071, 0090, 0062, 0058/0172, 0070 in this tree.
+
+## Overall assessment
+
+The v0.5 revision executes the round-3 six-item ledger faithfully, and — the decisive question for this delta round — the restated D7 lifecycle now matches LLP 0055's actual text rather than paraphrasing it wrongly. Verified point by point: (1) `POST /auth/agents/rotate` in 0055 is a "revocation-strength generation bump" that kills tokens, connections, and queued work but never touches grants — grant revocation appears only in owner re-credentialing's atomic step ("terminally revoke every grant", route table row for `POST /auth/agents/{id}/credential`, owner session + step-up) — so "rotation is hygiene and grant-preserving; the global kill is owner re-credentialing" is byte-accurate, correcting v0.4's inversion. (2) The operator kill verbs (`auth.revokeGrant`, `auth.revokeAgentCredential`) are AdminWrite, act "across every principal", and are available on every profile, supporting "operator … always". (3) The commissioned integration-retirement verb fills a real hole 0055 leaves for durably unowned records (recovery is unowned-only and refused on `prod`; `revoke-self` destroys the credential family but not installations) — a coherent amendment, not a contradiction. (4) The approver-as-owner exemption correctly reads 0150: its §2/§7 explicitly seat the `open`-mode approvalLink approver as owner (a named displacement of 0055's unowned-`open` rule), which for a multi-installer integration record is precisely the first-installer capture D7 forbids; and the exemption's reintroduced unowned-residual is answered by the retirement verb plus the key-possession ownership ceremony. (5) Delegation-only as a commissioned registration class is necessary and correctly motivated — 0055 mints the `auth.agents.template` grant "as an explicit step of registration". (6) The external-anonymous contract's "narrower" claim is exact: 0031's `DeclaredPublicApplicationData` governs "exactly two lanes" (0090's Channel A HTML lane and read-mode public bundles), not the D1 anonymous set. (7) The D4 reversion matches 0062's shipped `--artifacts` local-`generated/` path, and 0031 D3's gated twin is operator-plane, which the app-data-only CLI correctly refuses as a discovery surface. (8) The corrected `disabled` posture matches 0055 verbatim ("stops new principal creation; does not disable existing agents"). The remaining findings are amendment-content and wording refinements identifying no defective decision.
+
+## Material concerns
+
+None. I found no MATERIAL concern, in-delta or pre-existing, at this revision.
+
+## Minor / implementation-phase notes
+
+1. **[IN-DELTA] D7 — ownership-claim ceremony should carry 0055's ownership-assumption disclosure.** The commissioned key-possession ownership ceremony creates a new path by which a previously unowned integration — with memberships accrued across many installations — acquires an owner who immediately holds 0055's ownership-assumption capability (an owner re-credentialing can assume third-party-granted memberships; 0055 §Re-credentialing discloses this at every grant/membership surface). The commissioned amendment's content should name that the disclosure obligation attaches to the claim ceremony too. No defective decision; the amendment is already commissioned and 0055's disclosure regime is inherited.
+
+2. **[IN-DELTA] D7 — owner re-credentialing on `prod` is delivery-gated.** 0055 states the owner paths on `prod` depend on LLP 0045's real delivery seam for step-up challenges (capture-only mailbox refused on `prod`). D7's "fail-closed global kill … where an owner exists" therefore inherits that prerequisite on production profiles, with the operator path as the reachable backstop. One inheriting clause would keep the reachability story as honest as 0055's own.
+
+3. **[IN-DELTA] D7 — retirement verb's operator carrier.** 0055 gates its operator kill verbs on `prod` behind `AgentDestroyCapability` on a non-browser carrier (blast-radius argument: mass grant destruction is mass consent loss). The operator-invoked arm of the commissioned retirement verb — strictly larger blast radius (credential family plus every installation) — should be stated to inherit at least that carrier requirement. Amendment content.
+
+4. **[IN-DELTA] D7 — template suppression should be stated to cover re-application.** 0055's owner re-credentialing atomically "re-applies the app's current autonomous template." For an integration record that later gains an owner via the claim ceremony, the commissioned registration class's "template suppressed" must bind at that re-apply site as well as at registration-time minting; the class framing plausibly covers it ("activation and migration checks"), but naming both mint sites in the amendment would close the door explicitly.
+
+5. **[PRE-EXISTING] D8 — DCR under `invited` mode is under-specified.** D7 says "`invited` creations record the inviter," but how an MCP client's RFC 7591 dynamic registration carries a user-minted `sbagi_` invitation (or is simply refused under `invited`) is left to the amendment. Implementation-phase; the mode gate itself is correctly inherited.
+
+6. **[PRE-EXISTING] D7 — "operator suspension" conflates two mechanisms.** Integration-record `suspended` status is app-data record state (D7's own object); 0055's operator verbs are credential/grant revocation. The text uses "suspension / credential revocation" as one gesture; distinguishing record-status suspension (reversible, admission-layer) from 0055 revocation (terminal) would sharpen the lifecycle table without changing any decision.
+
+VERDICT: READY

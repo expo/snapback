@@ -45,7 +45,9 @@ function walk(directory, accept) {
 }
 
 const productionPaths = [
-  ...walk(join(root, 'src'), (path) => path.endsWith('.rs')),
+  // @ref LLP 0199#sequencing-guidance-not-a-schedule — these files inherit
+  // `#[cfg(test)]` from their parent modules; a filesystem walk does not.
+  ...walk(join(root, 'src'), (path) => path.endsWith('.rs') && !/^src\/(?:local|server|storage)\/tests\.rs$/u.test(path)),
   ...walk(join(root, 'packages'), (path) => (
     path.endsWith('.mjs')
     && !/(?:^|\.)test\.mjs$/u.test(path)
@@ -132,7 +134,9 @@ const HTTP_STATUS_NUMBERS = {
 };
 
 function parseHttpStatuses() {
-  const source = readFileSync(join(root, 'src/server.rs'), 'utf8');
+  // @ref LLP 0199#sequencing-guidance-not-a-schedule — the reviewed family
+  // table moved with the server's extracted test owner.
+  const source = readFileSync(join(root, 'src/server/tests.rs'), 'utf8');
   const families = new Map();
   for (const match of source.matchAll(/const\s+([A-Z0-9_]+):\s*&\[&str\]\s*=\s*&\[(.*?)\];/gsu)) {
     families.set(match[1], [...match[2].matchAll(/"(SNAPBACK_[A-Z0-9_]+)"/gu)].map((item) => item[1]));
@@ -220,7 +224,7 @@ function renderMarkdown(registry) {
     'order: 99',
     'audience: agent-first',
     'capabilities: []',
-    'authorities: [llp/0193-errors-as-docs-completeness.plan.md, scripts/generate-diagnostics-registry.mjs, src/server.rs]',
+    'authorities: [llp/0193-errors-as-docs-completeness.plan.md, scripts/generate-diagnostics-registry.mjs, src/server/api_error.rs, src/server/tests.rs]',
     'examples: []',
     'status: current',
     'targets: [all]',
@@ -247,7 +251,6 @@ function renderMarkdown(registry) {
     const anchor = `<a id="diagnostic-${record.code.toLowerCase().replaceAll('_', '-')}"></a>`;
     lines.push(`| ${anchor}\`${record.code}\` | ${escapeTable(record.subsystem)} | ${record.httpStatus ?? '—'} | ${guide} | \`${first.file}:${first.line}\` | ${record.sites.length} |`);
   }
-  lines.push('');
   return `${lines.join('\n')}\n`;
 }
 

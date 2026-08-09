@@ -1,0 +1,135 @@
+{
+  "version": "0.1.0-p1",
+  "starter": [
+    {
+      "id": "alice",
+      "email": "alice@example.com",
+      "password": "Alice!Clique2026",
+      "profile": {
+        "displayName": "Alice Alvarez",
+        "handle": "alice",
+        "bio": "Coffee, cameras, and neighborhood walks.",
+        "location": "Oakland, CA",
+        "link": "https://example.com/alice",
+        "avatar": "media/avatar-alice.png"
+      }
+    },
+    {
+      "id": "bob",
+      "email": "bob@example.com",
+      "password": "Bob!Clique2026",
+      "profile": {
+        "displayName": "Bob Bennett",
+        "handle": "bob",
+        "bio": "Bikes, bread, and tiny software tools.",
+        "location": "Berkeley, CA",
+        "link": "https://example.com/bob",
+        "avatar": "media/avatar-bob.png"
+      }
+    },
+    {
+      "id": "carol",
+      "email": "carol@example.com",
+      "password": "Carol!Clique2026",
+      "profile": {
+        "displayName": "Carol Chen",
+        "handle": "carol",
+        "bio": "Ceramics student and relentless list maker.",
+        "location": "San Francisco, CA",
+        "link": "https://example.com/carol",
+        "avatar": "media/avatar-alice.png"
+      }
+    },
+    {
+      "id": "dave",
+      "email": "dave@example.com",
+      "password": "Dave!Clique2026",
+      "profile": {
+        "displayName": "Dave Diaz",
+        "handle": "dave",
+        "bio": "Live music, trail maps, and spicy noodles.",
+        "location": "Portland, OR",
+        "link": "https://example.com/dave",
+        "avatar": "media/avatar-bob.png"
+      }
+    },
+    {
+      "id": "erin",
+      "email": "erin@example.com",
+      "password": "Erin!Clique2026",
+      "profile": {
+        "displayName": "Erin Evans",
+        "handle": "erin",
+        "bio": "Designing kinder interfaces and growing herbs.",
+        "location": "Seattle, WA",
+        "link": "https://example.com/erin",
+        "avatar": "media/avatar-alice.png"
+      }
+    },
+    {
+      "id": "frank",
+      "email": "frank@example.com",
+      "password": "Frank!Clique2026",
+      "profile": {
+        "displayName": "Frank Flores",
+        "handle": "frank",
+        "bio": "Weekend cook and weekday data wrangler.",
+        "location": "Austin, TX",
+        "link": "https://example.com/frank",
+        "avatar": "media/avatar-bob.png"
+      }
+    },
+    {
+      "id": "grace",
+      "email": "grace@example.com",
+      "password": "Grace!Clique2026",
+      "profile": {
+        "displayName": "Grace Green",
+        "handle": "grace",
+        "bio": "Gardens, graphic novels, and good questions.",
+        "location": "Chicago, IL",
+        "link": "https://example.com/grace",
+        "avatar": "media/avatar-alice.png"
+      }
+    },
+    {
+      "id": "henry",
+      "email": "henry@example.com",
+      "password": "Henry!Clique2026",
+      "profile": {
+        "displayName": "Henry Hall",
+        "handle": "henry",
+        "bio": "History podcasts and pickup basketball.",
+        "location": "Brooklyn, NY",
+        "link": "https://example.com/henry",
+        "avatar": "media/avatar-bob.png"
+      }
+    }
+  ],
+  "scale": {
+    "firstId": "u0001",
+    "lastId": "u1000",
+    "count": 1000,
+    "idRule": "u followed by a zero-padded four-digit integer from 0001 through 1000",
+    "emailRule": "<id>@example.com",
+    "password": "CliqueScale!20260808",
+    "profileRule": {
+      "displayName": "Scale User <zero-padded four-digit integer>",
+      "handle": "<id>",
+      "bio": "Deterministic scale fixture user <zero-padded four-digit integer>.",
+      "location": "Fixture City",
+      "link": "https://example.com/<id>",
+      "avatar": "media/avatar-alice.png for odd-numbered users; media/avatar-bob.png for even-numbered users"
+    },
+    "namedCredentials": {
+      "u0005": {
+        "email": "u0005@example.com",
+        "password": "CliqueScale!20260808"
+      },
+      "u0500": {
+        "email": "u0500@example.com",
+        "password": "CliqueScale!20260808"
+      }
+    }
+  }
+}

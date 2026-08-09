@@ -1,0 +1,12 @@
+{
+  "name": "@snapback-benchmarks/social-messenger-choreography",
+  "version": "0.1.0-p1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "choreography": "node choreography.mjs"
+  },
+  "dependencies": {
+    "playwright": "1.62.1"
+  }
+}

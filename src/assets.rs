@@ -111,6 +111,453 @@ pub const ASSET_DELIVERY_CHUNK_BYTES: usize = 64 * 1024;
 pub const ASSET_PUBLICATION_RETENTION_MS: u64 = 7 * 24 * 60 * 60 * 1000;
 
 // ---------------------------------------------------------------------------
+// Finalization prepare/commit seam (LLP 0199 owner #4).
+//
+// `prepare_asset_finalize` owns the repeatable byte-store reads, whole-object
+// hashing/buffering, media decode/canonicalization, ThumbHash/fact derivation,
+// and required-variant renders. It deliberately has no database handle: a
+// caller may run it outside the global Local/SQLite writer and later carry the
+// immutable result through the write-ahead publication commits in `local.rs`.
+// The local transport still holds that outer guard today; the call-site OQ
+// note records the remaining choreography rather than pretending the lock move
+// has landed.
+//
+// @ref LLP 0199#target-ownership-map — background services prepare CPU/network
+//   work outside the global writer and enter the kernel through narrow commits.
+// @ref LLP 0044#publication-and-crash-recovery — preparation is re-drivable;
+//   planned/staged/committed publication records remain the durable authority.
+// ---------------------------------------------------------------------------
+
+pub(crate) struct AssetFinalizePrepareInput<'a> {
+    pub staging_key: &'a str,
+    pub declared_length: u64,
+    pub declared_digest: Option<&'a str>,
+    pub declared_content_type: Option<&'a str>,
+    pub accepted_media_types: &'a [String],
+    pub max_canonical_bytes: u64,
+    pub image_location: Option<crate::manifest::AssetLocationPolicy>,
+    pub video_location: Option<crate::manifest::AssetLocationPolicy>,
+    pub image_finalization_enabled: bool,
+    pub video_finalization_enabled: bool,
+}
+
+pub(crate) struct AssetFinalizePrepareFailure {
+    pub asset_outcome: AssetAvailability,
+    pub refusal: SnapbackError,
+}
+
+pub(crate) enum AssetFinalizePrepareError {
+    /// Store access failed before a deterministic byte/policy refusal. The
+    /// attempt remains current and retryable exactly as it did before the
+    /// prepare boundary was extracted.
+    Transient(SnapbackError),
+    /// The received bytes deterministically violate the stated policy.
+    Refusal(AssetFinalizePrepareFailure),
+}
+
+/// The restricted-custody object containing the canonical bytes after
+/// preparation. It is not a deliverable blob and carries no database state.
+pub(crate) enum AssetPreparedCanonicalObject {
+    Staging(String),
+    Canonical(String),
+}
+
+impl AssetPreparedCanonicalObject {
+    pub(crate) fn as_ref(&self) -> crate::assets_store::AssetObjectRef<'_> {
+        match self {
+            Self::Staging(key) => crate::assets_store::AssetObjectRef::Staging(key),
+            Self::Canonical(key) => crate::assets_store::AssetObjectRef::Canonical(key),
+        }
+    }
+}
+
+pub(crate) struct AssetPreparedCanonical {
+    pub object: AssetPreparedCanonicalObject,
+    pub digest: String,
+    pub byte_length: u64,
+    pub policy: &'static str,
+}
+
+#[derive(Clone)]
+pub(crate) struct AssetVariantPreparation {
+    pub key: String,
+    pub width: u64,
+    pub rendered: Vec<u8>,
+    pub digest: String,
+    pub byte_length: u64,
+    pub content_type: String,
+    pub recipe_version: u64,
+}
+
+pub(crate) struct AssetFinalizePreparation {
+    pub staged_digest: String,
+    pub detected_content_type: &'static str,
+    pub canonical: AssetPreparedCanonical,
+    pub media_facts: serde_json::Map<String, serde_json::Value>,
+}
+
+fn asset_finalize_refusal(
+    asset_outcome: AssetAvailability,
+    refusal: SnapbackError,
+) -> AssetFinalizePrepareError {
+    AssetFinalizePrepareError::Refusal(AssetFinalizePrepareFailure {
+        asset_outcome,
+        refusal,
+    })
+}
+
+fn media_type_admitted(accepted: &[String], declared: &str) -> bool {
+    let declared = declared
+        .split(';')
+        .next()
+        .unwrap_or_default()
+        .trim()
+        .to_ascii_lowercase();
+    accepted.iter().any(|entry| {
+        let entry = entry.to_ascii_lowercase();
+        entry == declared
+            || entry
+                .strip_suffix("/*")
+                .is_some_and(|prefix| declared.starts_with(&format!("{prefix}/")))
+    })
+}
+
+fn insert_derived_image_facts(
+    facts: &mut serde_json::Map<String, serde_json::Value>,
+    derived: &crate::assets_image::AssetImageDerivedFacts,
+) {
+    facts.insert(
+        "placeholder".into(),
+        serde_json::json!({
+            "algo": crate::assets_image::ASSET_PLACEHOLDER_ALGO_THUMBHASH_V1,
+            "value": derived.placeholder,
+        }),
+    );
+    facts.insert(
+        "dominantColor".into(),
+        derived.dominant_color.clone().into(),
+    );
+}
+
+fn insert_video_facts(
+    facts: &mut serde_json::Map<String, serde_json::Value>,
+    video: &crate::assets_video::AssetVideoFacts,
+) {
+    if let Some(duration_ms) = video.duration_ms {
+        facts.insert("durationMs".into(), duration_ms.into());
+    }
+    if let Some(width) = video.width {
+        facts.insert("width".into(), width.into());
+    }
+    if let Some(height) = video.height {
+        facts.insert("height".into(), height.into());
+    }
+}
+
+fn hash_bytes(bytes: &[u8]) -> String {
+    use sha2::Digest as _;
+    let mut hasher = sha2::Sha256::new();
+    hasher.update(bytes);
+    hasher
+        .finalize()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
+}
+
+pub(crate) fn prepare_asset_variant(
+    canonical_bytes: &[u8],
+    content_type: &str,
+    variant: &crate::manifest::AssetImageVariant,
+    recipe_version: u64,
+) -> SnapbackResult<AssetVariantPreparation> {
+    let rendered = crate::assets_image::render_variant(
+        canonical_bytes,
+        content_type,
+        variant.width,
+        &crate::assets_image::ASSET_IMAGE_CEILINGS_LOCAL_V1,
+    )?;
+    let digest = hash_bytes(&rendered);
+    Ok(AssetVariantPreparation {
+        key: variant.key.clone(),
+        width: variant.width,
+        byte_length: rendered.len() as u64,
+        rendered,
+        digest,
+        content_type: content_type.to_owned(),
+        recipe_version,
+    })
+}
+
+/// Repeatable variant-render half of the prepare/commit seam. The caller
+/// invokes this only after the primary publication reaches `staged`, keeping
+/// the LLP 0044 crash-cut ordering identical; the returned bytes have no
+/// durable meaning until `local.rs` stages and transactionally commits them.
+pub(crate) fn prepare_required_asset_variants(
+    store: &dyn crate::assets_store::AssetStore,
+    canonical: crate::assets_store::AssetObjectRef<'_>,
+    content_type: &str,
+    variants: &[crate::manifest::AssetImageVariant],
+) -> Result<Vec<AssetVariantPreparation>, AssetFinalizePrepareError> {
+    let canonical_bytes = store
+        .read(canonical)
+        .map_err(AssetFinalizePrepareError::Transient)?;
+    variants
+        .iter()
+        .filter(|variant| variant.required)
+        .map(|variant| {
+            prepare_asset_variant(&canonical_bytes, content_type, variant, 1)
+                .map_err(|error| asset_finalize_refusal(AssetAvailability::Rejected, error))
+        })
+        .collect()
+}
+
+/// Repeatable, database-free half of asset finalization. All output remains
+/// in restricted staging custody until the caller records and commits the
+/// LLP 0044 publication protocol.
+pub(crate) fn prepare_asset_finalize(
+    store: &dyn crate::assets_store::AssetStore,
+    input: AssetFinalizePrepareInput<'_>,
+) -> Result<AssetFinalizePreparation, AssetFinalizePrepareError> {
+    let staged = store
+        .hash(crate::assets_store::AssetObjectRef::Staging(
+            input.staging_key,
+        ))
+        .map_err(AssetFinalizePrepareError::Transient)?;
+    if staged.byte_length != input.declared_length {
+        return Err(asset_finalize_refusal(
+            AssetAvailability::Pending,
+            SnapbackError::error(
+                "SNAPBACK_ASSET_LENGTH_MISMATCH",
+                "assets",
+                format!(
+                    "staging holds {} bytes but the attempt declared {}",
+                    staged.byte_length, input.declared_length
+                ),
+            ),
+        ));
+    }
+    if let Some(declared_digest) = input.declared_digest
+        && declared_digest != staged.digest
+    {
+        return Err(asset_finalize_refusal(
+            AssetAvailability::Pending,
+            SnapbackError::error(
+                "SNAPBACK_ASSET_DIGEST_MISMATCH",
+                "assets",
+                "the declared whole-upload digest does not match the received bytes",
+            ),
+        ));
+    }
+
+    let detected = detect_content_type(&staged.head);
+    if !media_type_admitted(input.accepted_media_types, detected) {
+        return Err(asset_finalize_refusal(
+            AssetAvailability::Pending,
+            SnapbackError::error(
+                "SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED",
+                "assets",
+                format!("detected content type {detected} is outside the intent's accept list"),
+            )
+            .with_details(serde_json::json!({
+                "declared": input.declared_content_type,
+                "detected": detected,
+            })),
+        ));
+    }
+
+    let mut media_facts = serde_json::Map::new();
+    let detected_video_container = matches!(detected, "video/mp4" | "video/quicktime");
+    let location_policy = if detected_video_container {
+        input.video_location
+    } else {
+        input.image_location
+    };
+    if location_policy.is_some() && staged.byte_length > ASSET_BUFFERED_FINALIZE_MAX_BYTES {
+        return Err(asset_finalize_refusal(
+            AssetAvailability::Pending,
+            SnapbackError::error(
+                "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED",
+                "assets",
+                format!(
+                    "staged media length {} exceeds the buffered finalizer ceiling {}",
+                    staged.byte_length, ASSET_BUFFERED_FINALIZE_MAX_BYTES
+                ),
+            )
+            .with_details(serde_json::json!({
+                "limit": ASSET_BUFFERED_FINALIZE_MAX_BYTES,
+                "observed": staged.byte_length,
+                "path": "buffered-finalizer",
+            })),
+        ));
+    }
+    if location_policy.is_none() && (detected_video_container || detected.starts_with("image/")) {
+        return Err(asset_finalize_refusal(
+            AssetAvailability::Rejected,
+            SnapbackError::error(
+                "SNAPBACK_ASSET_LOCATION_POLICY_UNSUPPORTED",
+                "assets",
+                format!(
+                    "detected {detected} requires the deployed intent's {}.location policy; the image and video blocks do not alias",
+                    if detected_video_container { "video" } else { "image" },
+                ),
+            ),
+        ));
+    }
+
+    let strip_declared = location_policy == Some(crate::manifest::AssetLocationPolicy::Strip);
+    let strip_capability_missing = if detected_video_container {
+        !input.video_finalization_enabled
+    } else {
+        !input.image_finalization_enabled
+    };
+    if strip_declared && strip_capability_missing {
+        return Err(asset_finalize_refusal(
+            AssetAvailability::Rejected,
+            SnapbackError::error(
+                "SNAPBACK_ASSET_LOCATION_POLICY_UNSUPPORTED",
+                "assets",
+                "location stripping is not available on this target; no strip-declared media can publish",
+            ),
+        ));
+    }
+
+    let canonical = if strip_declared && detected_video_container {
+        let source = store
+            .read(crate::assets_store::AssetObjectRef::Staging(
+                input.staging_key,
+            ))
+            .map_err(AssetFinalizePrepareError::Transient)?;
+        let outcome = crate::assets_video::canonicalize_strip_video(
+            &source,
+            &crate::assets_video::ASSET_VIDEO_CEILINGS_LOCAL_V1,
+        )
+        .map_err(|error| asset_finalize_refusal(AssetAvailability::Rejected, error))?;
+        store
+            .write_canonical(input.staging_key, &outcome.canonical)
+            .map_err(AssetFinalizePrepareError::Transient)?;
+        let hashed = store
+            .hash(crate::assets_store::AssetObjectRef::Canonical(
+                input.staging_key,
+            ))
+            .map_err(AssetFinalizePrepareError::Transient)?;
+        insert_video_facts(&mut media_facts, &outcome.facts);
+        AssetPreparedCanonical {
+            object: AssetPreparedCanonicalObject::Canonical(input.staging_key.to_owned()),
+            digest: hashed.digest,
+            byte_length: hashed.byte_length,
+            policy: ASSET_CANONICALIZATION_STRIP_VIDEO_V1,
+        }
+    } else if strip_declared {
+        let source = store
+            .read(crate::assets_store::AssetObjectRef::Staging(
+                input.staging_key,
+            ))
+            .map_err(AssetFinalizePrepareError::Transient)?;
+        let outcome = crate::assets_image::canonicalize_strip(
+            &source,
+            detected,
+            &crate::assets_image::ASSET_IMAGE_CEILINGS_LOCAL_V1,
+        )
+        .map_err(|error| asset_finalize_refusal(AssetAvailability::Rejected, error))?;
+        store
+            .write_canonical(input.staging_key, &outcome.canonical)
+            .map_err(AssetFinalizePrepareError::Transient)?;
+        let hashed = store
+            .hash(crate::assets_store::AssetObjectRef::Canonical(
+                input.staging_key,
+            ))
+            .map_err(AssetFinalizePrepareError::Transient)?;
+        if let Some(orientation) = outcome.safe_exif.orientation {
+            media_facts.insert("orientationApplied".into(), orientation.into());
+        }
+        if let Some(captured_at) = outcome.safe_exif.captured_at {
+            media_facts.insert("capturedAt".into(), captured_at.into());
+        }
+        media_facts.insert("width".into(), outcome.width.into());
+        media_facts.insert("height".into(), outcome.height.into());
+        insert_derived_image_facts(&mut media_facts, &outcome.derived);
+        AssetPreparedCanonical {
+            object: AssetPreparedCanonicalObject::Canonical(input.staging_key.to_owned()),
+            digest: hashed.digest,
+            byte_length: hashed.byte_length,
+            policy: ASSET_CANONICALIZATION_STRIP_IMAGE_V1,
+        }
+    } else {
+        if input.image_location.is_some()
+            && input.image_finalization_enabled
+            && matches!(detected, "image/jpeg" | "image/png")
+        {
+            let source = store
+                .read(crate::assets_store::AssetObjectRef::Staging(
+                    input.staging_key,
+                ))
+                .map_err(AssetFinalizePrepareError::Transient)?;
+            let inspection = crate::assets_image::inspect_image(
+                &source,
+                detected,
+                &crate::assets_image::ASSET_IMAGE_CEILINGS_LOCAL_V1,
+            )
+            .map_err(|error| asset_finalize_refusal(AssetAvailability::Rejected, error))?;
+            if let Some(orientation) = inspection.safe_exif.orientation {
+                media_facts.insert("orientationApplied".into(), orientation.into());
+            }
+            if let Some(captured_at) = inspection.safe_exif.captured_at {
+                media_facts.insert("capturedAt".into(), captured_at.into());
+            }
+            media_facts.insert("width".into(), inspection.width.into());
+            media_facts.insert("height".into(), inspection.height.into());
+            insert_derived_image_facts(&mut media_facts, &inspection.derived);
+        } else if input.video_location.is_some()
+            && input.video_finalization_enabled
+            && detected_video_container
+        {
+            let source = store
+                .read(crate::assets_store::AssetObjectRef::Staging(
+                    input.staging_key,
+                ))
+                .map_err(AssetFinalizePrepareError::Transient)?;
+            let facts = crate::assets_video::inspect_video(
+                &source,
+                &crate::assets_video::ASSET_VIDEO_CEILINGS_LOCAL_V1,
+            )
+            .map_err(|error| asset_finalize_refusal(AssetAvailability::Rejected, error))?;
+            insert_video_facts(&mut media_facts, &facts);
+        }
+        AssetPreparedCanonical {
+            object: AssetPreparedCanonicalObject::Staging(input.staging_key.to_owned()),
+            digest: staged.digest.clone(),
+            byte_length: staged.byte_length,
+            policy: ASSET_CANONICALIZATION_NONE,
+        }
+    };
+
+    if location_policy.is_some() {
+        media_facts.insert(
+            "locationPolicy".into(),
+            if strip_declared { "strip" } else { "retain" }.into(),
+        );
+    }
+    if canonical.byte_length > input.max_canonical_bytes {
+        return Err(asset_finalize_refusal(
+            AssetAvailability::Pending,
+            SnapbackError::error(
+                "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED",
+                "assets",
+                "canonical bytes exceed the intent's byte bound",
+            ),
+        ));
+    }
+
+    Ok(AssetFinalizePreparation {
+        staged_digest: staged.digest,
+        detected_content_type: detected,
+        canonical,
+        media_facts,
+    })
+}
+
+// ---------------------------------------------------------------------------
 // Closed state vocabularies (LLP 0044 §Lifecycle transitions). Name-keyed per
 // the LLP 0037 dated constraint; an unlisted transition is refused by the
 // state machines built on these, not by this module.

@@ -1,0 +1,214 @@
+{
+  "manifestVersion": "0.1.0-p1",
+  "title": "social-messenger dimension applicability manifest",
+  "provenance": {
+    "brief": "benchmarks/briefs/social-messenger.md (Scoring section: Applicability paragraph, dimension definitions and weights)",
+    "plan": "llp/0201-social-messenger-canonical-benchmark.plan.md (D4 rubric and applicability; author ruling 2026-08-08: nulls block totals)",
+    "phase": "LLP 0201 P1 deliverable - the frozen dimension-by-milestone applicability manifest the record schema reads; DRAFT until P3 freeze"
+  },
+  "statusVocabulary": {
+    "attempted": ["green", "capability-failure", "aborted"],
+    "never-attempted": ["blocked", "not-run"],
+    "note": "'blocked' is the record-schema rendering of the brief's blocked-by-M{n} status (the blockedBy set carries the failed-prerequisite milestones)."
+  },
+  "weights": {
+    "graderScoredOutcome": 45,
+    "builderScoredExperience": 55,
+    "total": 100
+  },
+  "dimensions": {
+    "O1": {
+      "name": "Functional completeness",
+      "weight": 13,
+      "scorer": "grader",
+      "observingMilestones": { "reduced": ["M1", "M2", "M3"], "full": ["M1", "M2", "M3", "M4", "M5", "M6", "M7"] },
+      "applicability": {
+        "predicate": "grading-phase-ran",
+        "rule": "Scores whenever the grading phase ran, over every in-scope milestone regardless of status. Every milestone of the run's scope stays in the denominator: non-green milestones (capability-failure, aborted, blocked, not-run) score their checklists as not passed - the status distinction matters for attribution, not for completeness credit. A milestone adjudicated capability-failure for a dishonest coverage mapping scores its checklist not-passed."
+      },
+      "reducedRunNote": "On reduced runs anchors are interpreted over M1-M3 scope only: the 60-anchor reads 'M1-M2 solid, M3 patchy'."
+    },
+    "O2": {
+      "name": "Correctness under grading",
+      "weight": 7,
+      "scorer": "grader",
+      "observingMilestones": { "reduced": ["M1", "M2", "M3"], "full": ["M1", "M2", "M3", "M4", "M5", "M6", "M7"] },
+      "applicability": {
+        "predicate": "grading-phase-ran",
+        "rule": "Scores whenever the grading phase ran (severity-weighted defects found beyond the checklist), over every in-scope milestone regardless of status."
+      }
+    },
+    "O3": {
+      "name": "Trust boundaries",
+      "weight": 8,
+      "scorer": "grader",
+      "observingMilestones": { "reduced": null, "full": ["M6", "M1", "M2", "M3", "M4", "M5"] },
+      "applicability": {
+        "predicate": "m6-green-and-m1-m5-attempted",
+        "rule": "Requires M6 green plus M1-M5 attempted (green/capability-failure/aborted). Otherwise null. Scored from the wave's secret rotated holdout probes only; anchor probes are non-scored continuity diagnostics and never bear on O3."
+      },
+      "reducedRunNull": true
+    },
+    "O4": {
+      "name": "Observed offline behavior",
+      "weight": 9,
+      "scorer": "grader",
+      "observingMilestones": { "reduced": null, "full": ["M6"] },
+      "applicability": {
+        "predicate": "m6-green",
+        "rule": "Requires M6 green. Otherwise null. Scored from the harness's mechanically checkable simulator choreography artifacts (recordings plus structured receipts), never from builder assertions."
+      },
+      "reducedRunNull": true
+    },
+    "O5": {
+      "name": "Performance at the scale envelope",
+      "weight": 8,
+      "scorer": "grader",
+      "observingMilestones": { "reduced": null, "full": ["scale-replay"] },
+      "applicability": {
+        "predicate": "replay-attempted",
+        "rule": "Requires the scale replay *attempted*. Its exact function scores failures, including its 0 branches, so an attempted replay is never null. Never-attempted replay records null. A scale-safety gate mapped by an exact function of the frozen invariants; bands evaluate first-match in the order 0, 30, 60, 90, 75; the rubric-wide 'interpolate' instruction does not apply to O5.",
+        "bandFunction": {
+          "order": ["0", "30", "60", "90", "75"],
+          "0": "invariant manifest does not conform (including a named-fixture mismatch) OR replay's wall cap was exhausted",
+          "30": "any degradation rule fails OR any probe times out/errors/OOMs",
+          "60": "all rules pass but any absolute ceiling is exceeded OR replay used >80% of its cap",
+          "90": "every probe's observed ceiling utilization is <=50% AND replay used <=50% of its cap",
+          "75": "otherwise (all rules and ceilings pass, 90's condition not met)"
+        }
+      },
+      "reducedRunNull": true
+    },
+    "B1": {
+      "name": "Schema and data-model ergonomics",
+      "weight": 6,
+      "scorer": "builder",
+      "observingMilestones": { "reduced": ["M1", "M2", "M3"], "full": ["M1", "M2", "M3"] },
+      "applicability": {
+        "predicate": "all-observing-attempted",
+        "rule": "Scores if every observing milestone was at least attempted (green/capability-failure/aborted); never-attempted scope records null."
+      }
+    },
+    "B2": {
+      "name": "Auth ergonomics",
+      "weight": 5,
+      "scorer": "builder",
+      "observingMilestones": { "reduced": ["M1"], "full": ["M1"] },
+      "applicability": {
+        "predicate": "all-observing-attempted",
+        "rule": "Scores if every observing milestone was at least attempted; never-attempted scope records null."
+      }
+    },
+    "B3": {
+      "name": "Realtime ergonomics",
+      "weight": 6,
+      "scorer": "builder",
+      "observingMilestones": { "reduced": ["M2", "M3"], "full": ["M2", "M3"] },
+      "applicability": {
+        "predicate": "all-observing-attempted",
+        "rule": "Scores if every observing milestone was at least attempted; never-attempted scope records null."
+      }
+    },
+    "B4": {
+      "name": "Offline/sync authoring ergonomics",
+      "weight": 7,
+      "scorer": "builder",
+      "observingMilestones": { "reduced": null, "full": ["M6"] },
+      "applicability": {
+        "predicate": "all-observing-attempted",
+        "rule": "Scores if M6 was at least attempted; never-attempted scope records null."
+      },
+      "reducedRunNull": true
+    },
+    "B5": {
+      "name": "Media and storage ergonomics",
+      "weight": 4,
+      "scorer": "builder",
+      "observingMilestones": { "reduced": ["M1", "M2"], "full": ["M1", "M2", "M4", "M5"] },
+      "applicability": {
+        "predicate": "all-observing-attempted",
+        "rule": "Scores if every observing milestone was at least attempted; the observing set is run-scope-dependent (M1-M2 on reduced runs, plus M4-M5 on full runs). Never-attempted scope records null."
+      },
+      "reducedRunNote": "On reduced runs the anchors read over avatars and post media only."
+    },
+    "B6": {
+      "name": "Search ergonomics",
+      "weight": 3,
+      "scorer": "builder",
+      "observingMilestones": { "reduced": null, "full": ["M5"] },
+      "applicability": {
+        "predicate": "all-observing-attempted",
+        "rule": "Scores if M5 was at least attempted; never-attempted scope records null."
+      },
+      "reducedRunNull": true
+    },
+    "B7": {
+      "name": "Push/actions ergonomics",
+      "weight": 3,
+      "scorer": "builder",
+      "observingMilestones": { "reduced": null, "full": ["M6"] },
+      "applicability": {
+        "predicate": "all-observing-attempted",
+        "rule": "Scores if M6 was at least attempted; never-attempted scope records null."
+      },
+      "reducedRunNull": true
+    },
+    "B8": {
+      "name": "Day-2 evolution experience",
+      "weight": 6,
+      "scorer": "m7-session",
+      "observingMilestones": { "reduced": null, "full": ["M7"] },
+      "applicability": {
+        "predicate": "all-observing-attempted",
+        "rule": "Scored by the M7 fresh session (recorded null by the M1-M6 builder). Scores if M7 was at least attempted; never-attempted scope records null."
+      },
+      "reducedRunNull": true
+    },
+    "B9": {
+      "name": "DX, docs, setup",
+      "weight": 6,
+      "scorer": "builder",
+      "observingMilestones": { "reduced": ["M1", "M2", "M3"], "full": ["M1", "M2", "M3", "M4", "M5", "M6", "M7"] },
+      "applicability": {
+        "predicate": "at-least-one-attempted",
+        "rule": "Scores if at least one milestone was attempted - terminated lanes' experience data is exactly what must publish."
+      }
+    },
+    "B10": {
+      "name": "Diagnostics and error quality",
+      "weight": 4,
+      "scorer": "builder",
+      "observingMilestones": { "reduced": ["M1", "M2", "M3"], "full": ["M1", "M2", "M3", "M4", "M5", "M6", "M7"] },
+      "applicability": {
+        "predicate": "at-least-one-attempted",
+        "rule": "Scores if at least one milestone was attempted (LLP 0193's errors-as-docs bar)."
+      }
+    },
+    "B11": {
+      "name": "Operations and maturity",
+      "weight": 5,
+      "scorer": "builder",
+      "observingMilestones": { "reduced": ["M1", "M2", "M3"], "full": ["M1", "M2", "M3", "M4", "M5", "M6", "M7"] },
+      "applicability": {
+        "predicate": "at-least-one-attempted",
+        "rule": "Scores if at least one milestone was attempted."
+      }
+    }
+  },
+  "reducedRunNullDimensions": ["O3", "O4", "O5", "B4", "B6", "B7", "B8"],
+  "completeLane": {
+    "definition": "Execution completeness, by enumeration: M6 green, the scale replay attempted, M7 attempted, and every other milestone (M1-M5) attempted.",
+    "conditions": [
+      { "subject": "M6", "requires": "green" },
+      { "subject": "scale-replay", "requires": "attempted" },
+      { "subject": "M7", "requires": "attempted" },
+      { "subject": ["M1", "M2", "M3", "M4", "M5"], "requires": "attempted" }
+    ],
+    "notes": "The published completion rate counts execution completeness; total-eligibility is reported beside it. L4 statistics read complete lanes only, with every lane reported and the completion rate published alongside, so no survivor bias is hidden."
+  },
+  "usableGradingRecord": {
+    "definition": "A weighted total and L4 eligibility additionally require a usable grading record. The dual grader-abort outcome (D3.4: grader re-runs once, second failure records grader-abort, other-family regrade, and that regrade also aborts) nulls the O-dimensions and OVERRIDES these applicability rules - the lane is excluded from claim statistics while still being reported. A lane regraded by the builder's own family is labeled same-family-graded in the record and any publication."
+  },
+  "nullDimensionRule": "Any run with a null dimension publishes per-dimension scores and efficiency statistics only - no overall weighted total (LLP 0198 P0.0(e)'s bar on averaging unexercised dimensions). The Holistic section's 'report both' applies only when a weighted total exists.",
+  "holisticScore": "Recorded and published for every run as narrative evidence, never a claim statistic; recorded before the builder computes or sees the weighted total, citing 2-3 concrete moments."
+}

@@ -1,0 +1,52 @@
+2026-01-01T00:00:16Z alice follow bob set mf-alice-bob
+2026-01-01T00:00:17Z alice follow carol set mf-alice-carol
+2026-01-01T00:00:18Z bob follow alice set mf-bob-alice
+2026-01-01T00:00:19Z bob follow dave set mf-bob-dave
+2026-01-01T00:00:20Z carol follow alice set mf-carol-alice
+2026-01-01T00:00:21Z dave follow erin set mf-dave-erin
+2026-01-01T00:00:22Z erin follow alice set mf-erin-alice
+2026-01-01T00:00:23Z erin follow frank set mf-erin-frank
+2026-01-01T00:00:24Z frank follow grace set mf-frank-grace
+2026-01-01T00:00:25Z grace follow alice set mf-grace-alice
+2026-01-01T00:00:26Z henry follow bob set mf-henry-bob
+2026-01-01T00:00:27Z henry follow grace set mf-henry-grace
+2026-01-01T00:00:28Z alice post sp0001 text "Coffee time at the corner table https://example.com/cafe"
+2026-01-01T00:00:29Z alice post sp0002 images "Two colors from this morning's walk." media/img-02.png,media/img-03.png
+2026-01-01T00:00:30Z alice post sp0003 video "A five-second hello from the lake." media/vid-01.mp4
+2026-01-01T00:00:31Z bob post sp0004 text "Fresh bread, still warm."
+2026-01-01T00:00:32Z bob post sp0005 text "Bike route notes for Saturday."
+2026-01-01T00:00:33Z bob post sp0006 text "Small tools should have sharp edges."
+2026-01-01T00:00:34Z carol post sp0007 text "The blue glaze finally worked."
+2026-01-01T00:00:35Z carol post sp0008 images "Studio shelf before cleanup." media/img-02.png,media/img-03.png
+2026-01-01T00:00:36Z carol post sp0009 video "A quiet clip from class." media/vid-01.mp4
+2026-01-01T00:00:37Z dave post sp0010 text "Tonight's set starts at eight."
+2026-01-01T00:00:38Z dave post sp0011 text "Trail conditions: dry and windy."
+2026-01-01T00:00:39Z dave post sp0012 text "Noodles worth crossing town for."
+2026-01-01T00:00:40Z erin post sp0013 text "Basil has officially taken over."
+2026-01-01T00:00:41Z erin post sp0014 images "Sketching a calmer settings screen." media/img-02.png,media/img-03.png
+2026-01-01T00:00:42Z erin post sp0015 text "Three interface details I keep noticing."
+2026-01-01T00:00:43Z frank post sp0016 text "Beans, tomatoes, and too much garlic."
+2026-01-01T00:00:44Z frank post sp0017 text "Data cleanup can be satisfying."
+2026-01-01T00:00:45Z frank post sp0018 text "Sunday lunch test number four."
+2026-01-01T00:00:46Z grace post sp0019 text "The tomatoes are showing off."
+2026-01-01T00:00:47Z grace post sp0020 images "A graphic novel with perfect pacing." media/img-02.png,media/img-03.png
+2026-01-01T00:00:48Z grace post sp0021 text "Questions for the garden club."
+2026-01-01T00:00:49Z henry post sp0022 text "A history episode for the train ride."
+2026-01-01T00:00:50Z henry post sp0023 text "Pickup game moved to six."
+2026-01-01T00:00:51Z henry post sp0024 text "Brooklyn looked silver after rain."
+2026-01-01T00:00:52Z bob reply sr0001 sp0001 "Save me a cup."
+2026-01-01T00:00:53Z carol reply sr0002 sp0004 "That crust looks perfect."
+2026-01-01T00:00:54Z alice reply sr0003 sp0013 "I need your basil secrets."
+2026-01-01T00:00:55Z grace reply sr0004 sp0022 "Adding it to my queue."
+2026-01-01T00:00:56Z bob like sp0001 set ml-bob-sp0001
+2026-01-01T00:00:57Z carol like sp0001 set ml-carol-sp0001
+2026-01-01T00:00:58Z dave like sp0004 set ml-dave-sp0004
+2026-01-01T00:00:59Z erin like sp0007 set ml-erin-sp0007
+2026-01-01T00:01:00Z frank like sp0013 set ml-frank-sp0013
+2026-01-01T00:01:01Z grace like sp0016 set ml-grace-sp0016
+2026-01-01T00:01:02Z henry like sp0019 set ml-henry-sp0019
+2026-01-01T00:01:03Z alice like sp0022 set ml-alice-sp0022
+2026-01-01T00:01:04Z carol repost sp0001 set mr-carol-sp0001
+2026-01-01T00:01:05Z alice repost sp0004 set mr-alice-sp0004
+2026-01-01T00:01:06Z henry repost sp0013 set mr-henry-sp0013
+2026-01-01T00:01:07Z bob repost sp0019 set mr-bob-sp0019

@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "profile": "production",
+  "editWindowSeconds": 900,
+  "deleteForEveryoneWindowSeconds": 3600,
+  "disappearingOptions": [
+    {
+      "value": "off",
+      "label": "Off",
+      "ttlSeconds": null
+    },
+    {
+      "value": "24h",
+      "label": "24 hours",
+      "ttlSeconds": 86400
+    },
+    {
+      "value": "7d",
+      "label": "7 days",
+      "ttlSeconds": 604800
+    }
+  ],
+  "serverTimeAuthoritative": true
+}
