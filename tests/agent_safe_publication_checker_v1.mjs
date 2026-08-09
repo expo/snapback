@@ -2106,7 +2106,47 @@ test('claim snapshot stands when only out-of-scope files change', () => {
   }), scopedDigest);
 });
 
-test('withdrawal scenario keeps all nine wave leaves out of scope but refuses one runtime byte', () => {
+test('one-byte src change yields requalificationDue and the published derived-fork claim stands', () => {
+  const scratch = publishedDerivedFixture();
+  const sourcePath = 'src/qualification-marker.txt';
+  writeFileSync(join(scratch, sourcePath), 'derived-fork qualification D\n');
+  const publication = commitFixture(scratch, 'change one qualified source byte', sourcePath);
+
+  const result = validatePublicationRecord(scratch, derived);
+  assert.equal(result.state, 'published');
+  assert.equal(result.snapshot.state, 'stands');
+  assert.deepEqual(result.requalificationDue, {
+    scopedChanges: [{ status: 'M', path: sourcePath }],
+    since: result.commit,
+  });
+  assert.deepEqual(result.snapshot.requalificationDue, result.requalificationDue);
+  assert.equal(result.implementationDigest, implementationDigestAt(
+    scratch,
+    publication,
+    DERIVED_FORK_IMPLEMENTATION_SCOPE,
+  ));
+});
+
+test('publication-chain tampering still refuses with requalificationDue pending', () => {
+  const scratch = publishedDerivedFixture();
+  const sourcePath = 'src/qualification-marker.txt';
+  writeFileSync(join(scratch, sourcePath), 'derived-fork qualification D\n');
+  commitFixture(scratch, 'change one qualified source byte', sourcePath);
+
+  const pending = validatePublicationRecord(scratch, derived);
+  assert.equal(pending.state, 'published');
+  assert.ok(pending.requalificationDue);
+
+  const [tamperedKind, tamperedPath] = derivedEvidence[3];
+  writeFileSync(join(scratch, tamperedPath), 'tampered historical evidence\n');
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /evidence bytes drifted at tests\/acceptance\/asset-lifecycle-v1-evidence\.md/u,
+    `${tamperedKind} tampering must remain fatal while requalification is due`,
+  );
+});
+
+test('withdrawal scenario keeps all nine wave leaves out of scope while generic custody stays strict', () => {
   const { scratch, qualification, scoped, scopedDigest } = qualifiedImplementationScopeFixture();
   const ninePaths = DERIVED_FORK_COVERAGE_TRANSFERS.map(({ path }) => path);
   for (const path of ninePaths) {
