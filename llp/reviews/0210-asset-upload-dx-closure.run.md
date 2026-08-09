@@ -114,3 +114,23 @@ Growth note: r2 is 405 lines vs 271 entering (+49%), exceeding the
 grant machine and the state algebra). No MATERIAL concern is left open
 by the reviser's lights; if round 2 finds MATERIALs requiring further
 growth, the growth-exhaustion escalation applies.
+
+## Round 2 (delta round) — launched 2026-08-09
+
+- Target revision r2 sha256:
+  `b2acd19612ce69514143a7e1568bb4e66bb7868f3793090574b9cffe4b73f9d6`
+  (landed on main before launch).
+- Topology unchanged (single target). Families unchanged: fresh claude
+  subagent (`claude-fable-5`) + Codex `gpt-5.6-sol` xhigh, read-only,
+  capsule-rooted; launch logs kept outside the capsule this round.
+- Capsule r2 (tar) sha256:
+  `43830f12a58647d700c798abc4b90518c96602107e315f57e68bd6ffc273184b` —
+  r1 layout with the r2 target, refreshed 0044/0180/0208 copies, the
+  corrected `AssetSignedUrlIssueRequestV1` excerpt, and the client
+  `TERMINAL` list appended to the custody excerpt.
+- Instructions sha256 (delta enumeration + IN-DELTA/PRE-EXISTING
+  classification requirement + three named decision questions):
+  `a8f82bfea5b6bcb9f402a1dc8f71486fae4fb1c5ec2d5e55ff4e67bbed2dd90d`.
+- Convergence rule in force: no MATERIAL in PRE-EXISTING text from
+  either family converges the loop; IN-DELTA MATERIALs get one focused
+  follow-up round.
