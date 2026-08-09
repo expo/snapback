@@ -327,6 +327,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'client-store-authority.test.mjs',
       'client-store-queue-authorization.test.mjs',
       'cold-offline-authorized-retention.test.mjs',
+      'convergence-gating.test.mjs',
       'derived-overlay-duplicate-reapply.test.mjs',
       'derived-overlay-reconcile-failure.test.mjs',
       'derived-overlay.test.mjs',
@@ -450,7 +451,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 239,
+  expectedTotal = 240,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -743,7 +744,9 @@ export function checkPackageTestInventories(options = {}) {
 // @expo/snapback-codegen gains end-to-end stored enum authoring coverage.
 // 237 -> 238 (2026-08-08, LLP 0194): @expo/snapback-cli gains build-bound,
 // budgeted exact symbol and module-slice Guide lookup coverage.
-// 238 -> 239 (2026-08-09, typed search same-release qualification):
+// 238 -> 239 (2026-08-08, LLP 0200 Phase 1): @expo/snapback-contract gains
+// the watermark-gated optimistic-release and server-version regression suite.
+// 239 -> 240 (2026-08-09, typed search same-release qualification):
 // @expo/snapback-codegen gains the real-codegen-to-client wrapper composition
 // suite for plain and resource-scoped generated search references.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
