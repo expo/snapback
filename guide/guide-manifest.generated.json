@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd"
+    "commit": "cce8567305444813e3965ff19aa818263d85e275"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -4138,8 +4138,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "ccdf939ba146b47241698b31df3f505db52f94bf265b73af15391315d23e370e",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "566dca5ab5a0288e802922b1636c2d240a4b91e7f0b42ba4d53a40b61c15ebc9",
       "snippets": []
     },
     "reference.api.expo.snapback.cli.verify": {
@@ -4160,8 +4160,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "2e67ef550927f8b21d2487496da17cc9611f108a3e4dfd5c719859cf567415c2",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "9b00e6dc317c97d55aa1ac4eb3a3282b7eb5641ac1492ea3fa2a3952a157e657",
       "snippets": [
         {
           "lang": "ts",
@@ -4271,8 +4271,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "0803d2b63e82cde980676e824fd1c967f3298fc9cb41312bfc47602f2db2335e",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "5216261330709b910bb8b6ab40981ea800b078e20bfe05803dd72164aab99191",
       "snippets": [
         {
           "lang": "ts",
@@ -4362,8 +4362,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "1a4d383a1dd538add428506e39ac53d96b6a416cc0b5b5a739fb9c026f64bf50",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "04b7e1c34890278c80bad1c38a666a297bc18543288377612f1e5f28eb0a0292",
       "snippets": [
         {
           "lang": "ts",
@@ -4421,8 +4421,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "a44033f048288c639694039cbf3bc634a28d82480c00add3f9eae6c67d65901a",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "ce686812a52d12b09aa3e6db21c3f0368accdeec1d5cc59b16ace40fd908f6f2",
       "snippets": [
         {
           "lang": "ts",
@@ -4512,8 +4512,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "ddc22e76dc56913dfc376dd3b86083b8a68755354c73b482ae5ed0d27a10e6d8",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "751ef99e0dce52a800cf7c807946d3ceb1c9615f41da22257a23de1dc5b2b7cd",
       "snippets": [
         {
           "lang": "ts",
@@ -4551,8 +4551,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "32716f7bb7cd98a9843c063b6dc76601706c56133246f5b239a11d2e947b8bd6",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "ebe6ef78e0d9e7e9442e6ea4a5a3e29efc04b077fb08e6b31000d753f4d3226c",
       "snippets": [
         {
           "lang": "ts",
@@ -4650,8 +4650,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "197f2fc543f1f345000ffa55725cafea8f236dd0c333509d86f197716334d7c6",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "6e7ef099b569f9bf4230702bbea6d48a2e33002b987491fa3afe9700bd39afb1",
       "snippets": [
         {
           "lang": "ts",
@@ -4697,8 +4697,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "1e4b413bee25d4eddaa2a25564afeedc44d27132a22c1e7f2a459f1ab00b0a69",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "818955e39cf8e97a77f65273fa526772d82452d5f4e1e7853282b1d669f88e78",
       "snippets": [
         {
           "lang": "ts",
@@ -4780,8 +4780,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "4b1f7c8671aec7174c1df6f164c058e2cded18d6c7f38aa62339c8b058a39b3a",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "f5c5082558059d47419e2557cc868124f7f46346cd6e0e66f585a693987e41d5",
       "snippets": [
         {
           "lang": "ts",
@@ -4811,8 +4811,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "831e5dcf3f172bdaff6252e1bf30c240ff4c199a903380e71ee6ba4e2322edc0",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "d6a95a7b88f59f062a180285fb0a75f56078858248426e4037869ec734853012",
       "snippets": [
         {
           "lang": "ts",
@@ -4902,8 +4902,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "896e1ce5a455c83e39d1506c70ea7484fe130700cc8c366b864c33957c68df07",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "5cb0bd6c2fea166367732a51ea516deaafb5a76c16c523f9a943e321f035a69b",
       "snippets": [
         {
           "lang": "ts",
@@ -4949,8 +4949,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "5947e74cdfff3120dd2c3858d99fdbd7810178037522d1341bcdf8dd9e6536a2",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "ae221f2034db710855ba80a9f9b9e6112775ebf34657260d84ba7e0185538145",
       "snippets": [
         {
           "lang": "ts",
@@ -5052,8 +5052,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "b5a5feb94b1385ab8eeda00e0572fbb3ad888a7b402e01cebe43f7ac0af0cbcb",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "698c81748bff8df228ca166730262252921f2f980fd1e4cd8f2002411bd129aa",
       "snippets": [
         {
           "lang": "ts",
@@ -5171,8 +5171,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "7ae17ab806c94a7b042b381f71e5f1750a4a058542f9c95e3bccbd2bf5dfa5c9",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "612f2af3976ccad78a744630392307665c6256190c7c53ba415f1aef2f412187",
       "snippets": [
         {
           "lang": "ts",
@@ -5258,8 +5258,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "4a5769ec2ebb080a0b31bd772cfdf9b19f26ccb61d5f456bfce64b065289035b",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "d09101b1c04c2d2e74f3637fd7be17a082a682d42d4a11de9f2c8372d33f6ca6",
       "snippets": [
         {
           "lang": "ts",
@@ -5297,8 +5297,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "b5b1d9afa4f30c9d85e5af2bc01cec52fd54df8d412cd41deb5b28ef6f80471f",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "0fa9b32698f41f944d393be769d68c7e033447fe99da4a782d13cf2c74c84ac2",
       "snippets": [
         {
           "lang": "ts",
@@ -5356,8 +5356,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "45e1342c24a5979b9a178f1919f1a853e4618fcd532a4f6ad0b75dcd0385aaa2",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "f1aa5f8f77eb291a1a3a3d20ad9076d66213bb5ee0ae15bc7553d79c874eae72",
       "snippets": [
         {
           "lang": "ts",
@@ -5395,8 +5395,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "584094937f8dc52fd831365a6f4adbeac141b436cfaf52b37dd354b1af12e56b",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "3edaefbb82669e8f1cca38bac9a1d9d302a95953c03d85376260c3d5be62826b",
       "snippets": [
         {
           "lang": "ts",
@@ -5462,8 +5462,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "2d9295c0b1a79876cb61bdedeff87408c7725c0ae66cbb17c5f4d134711f2d09",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "319dcad8197a68a4a9100cf9518bff71b40bfcc34bc94afb72d0ecf23fbea79f",
       "snippets": [
         {
           "lang": "ts",
@@ -5581,8 +5581,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "8b7ef43deeff8738cf35f31bd59eb584818a73e31758ace9e04f1ff028da881c",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "c77a5ca421386471bb6ec6c0c24061edbbeda27344d7fb6484fd8b27c175521d",
       "snippets": [
         {
           "lang": "ts",
@@ -5620,8 +5620,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "897473e6329284c85a20474b77a538faf8616a9751b67301b013d0a303a0201c",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "ebe34dbceffb482b172a023968c236b54c4ce4f97fe7b350d2327fd0db211408",
       "snippets": [
         {
           "lang": "ts",
@@ -5671,8 +5671,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "307cd787d8a6a8783405528e0a8174a2c34eefd5d4e4e04540a47d5673f28433",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "df56154a84781a2083fe07a2c1ffccc2ecf32fb417178fa319dd0725d2c3f99e",
       "snippets": [
         {
           "lang": "ts",
@@ -5782,8 +5782,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "63906f4fc31ac9b574f257fab1f1e57bdc444d81090408b09f0396d4b73677fa",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "5071b0a51db4b71fb0cb6ada26fcafaf7dbcbb5e43474fbabd7c33e479d79714",
       "snippets": [
         {
           "lang": "ts",
@@ -5849,8 +5849,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "1a253b10b89f3280977fa42660815a4db20dd84a52ac212d70bc5c578af0bb4a",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "6ec91ad0c69dbfb92780356d817eadfcc0ae1fd144a51da042661d25c8b3f06d",
       "snippets": [
         {
           "lang": "ts",
@@ -5932,8 +5932,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "64cc5e2d2725b803d4e9986ab592a3f1be126395cd4784bb9ebf391237aa4636",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "4b28d3952f96922b818f6908e555a4f34fdc3de48eaaddf60b2a965c4d57e525",
       "snippets": [
         {
           "lang": "ts",
@@ -5979,8 +5979,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "13d0e7046ebf62ccdfbd690b93ced21effa2196ff975613f640ed335c22dac3c",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "89c9d1ffde2b3d4dd5f1c2a8baa7ec5d4c04b594f25d66162451e8606a8d3af1",
       "snippets": [
         {
           "lang": "ts",
@@ -6030,8 +6030,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "98e2e03a9505d4bbb8a0eaac25f6ef4b86a66c6fa53bd332470c946ccd90f30a",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "5373c3156b5d6e2fe63b37f75634e77efd8d9d0ed572b5bf8d0081c5c9484217",
       "snippets": [
         {
           "lang": "ts",
@@ -6085,8 +6085,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "0a043216fa899fdb0e1358b3ea709330a41069f7d5f25ae9346387cf927cd280",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "6a05ab840168979ee12e6f25966970ebf9c25aa52a9cc230ca7763322f254cce",
       "snippets": [
         {
           "lang": "ts",
@@ -6200,8 +6200,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "b848d8b7493e6fdeeea9d560a213148465d5931a3b93b787890fe9f9c8ffa5ce",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "33a3b8c8b9b0184c5137bc88a24daae63e401c86a1c98f08e8cf84ed4ca8bc46",
       "snippets": [
         {
           "lang": "ts",
@@ -6339,8 +6339,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "db050d977c6bbfbcac156d1c23b951b47e16e5cea07d32900fdb9c00d36f214e",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "b3d0ccdb82f8a2c01acc3f17a15924038bc6c922a3304570f45eed83c8f97ac3",
       "snippets": [
         {
           "lang": "ts",
@@ -6406,8 +6406,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "c63d69906f342b4c77fd111159afe460bec759d5b8e7ddcd3c49f9c66675a7b6",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "ce76b1b94b509c338f9fc38068c3f079de129a05f73271fc927fdad04fa80c85",
       "snippets": [
         {
           "lang": "ts",
@@ -6449,8 +6449,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "f4d92c639ad5c30748167da273f004c86ae2ad0889bfdf8d1e85d80490c2cbd6",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "f6f59499bc68dd0f9defadcfa626c46306072a14ac1596c31531a76f2c9c77b6",
       "snippets": [
         {
           "lang": "ts",
@@ -7352,8 +7352,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "d8fc5e03e9ab1b2d95c6785102de05cc30adf9db691d1e85597ef7cd0706b52d",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "c87f04ea76f655edd10264be8cfdd7d51368e660018d825c8c97e10ca9aea256",
       "snippets": [
         {
           "lang": "ts",
@@ -7527,8 +7527,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "043f4e371abd6b8190b4f928a6b9cee07897953da3061e7d9ffc61890c552eee",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "df42f544b80fd2ab3cd9e60d96b8420d7d3f7bd61bf580aaf24db51324ce1efe",
       "snippets": [
         {
           "lang": "ts",
@@ -7598,8 +7598,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "4eb72d37897260c27b295fc3a1233e91fc693adf7041a6bdf1217aa8c473ebd7",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "69bfee73290f944434174c1eb55c2eb21bc2f3796d4167662110c45c2236da99",
       "snippets": [
         {
           "lang": "ts",
@@ -7645,8 +7645,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "7b922e55793f510dc7ac352cd5a292ee74261584be0869cc615206cf446e3785",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "58a6d88747cf2807a812c7093ef445acb5f49f748ebf9322c6e5766e9158e7f6",
       "snippets": [
         {
           "lang": "ts",
@@ -7696,8 +7696,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "7f3d9f2242a43840d16797273ff841576fb34c1e52c1f10b163cee8a04d5480c",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "5a89f7dd59a03693b06cdeddd7bad8e02d6aed57914e0981781ca57fb99323e9",
       "snippets": [
         {
           "lang": "ts",
@@ -7743,8 +7743,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "30eacf6b4252c61d582c541578fec0898253744e1615dca175d12f28be931708",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "bbaed1b9b4591c0f66a4cf6148ef0ecc20863357913e77b800ee2320caa8fc0d",
       "snippets": [
         {
           "lang": "ts",
@@ -7798,8 +7798,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "02849f0583c7c2618b3f02dc894b123daac59a6ad0ed1519b37a45ec447877d0",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "9e90b13bf3f9bc8bc7ca3ae663e65675f9245d59cca0e902f1820727839ed1f3",
       "snippets": [
         {
           "lang": "ts",
@@ -8297,8 +8297,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "50690d97685a5e2c2ec5f0150a1776a89be29e32867dc4445fd1206b1aef836e",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "dd269c90ba404e23f1e6da4ac5610e3303410a30a92e032867a9bfb75f35b137",
       "snippets": [
         {
           "lang": "ts",
@@ -8340,8 +8340,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "9eda0e1693bfb5f1be9e11a6f55e80c82ada10ad6451e6226085bb1543c9abbb",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "1e29331e79311e4b54765d24b28f0cee0e65d40deb833c64ead612395e3d1de5",
       "snippets": [
         {
           "lang": "ts",
@@ -8680,8 +8680,8 @@
         "tests/generated-api-reference-v1.mjs"
       ],
       "reviewed": "2026-08-08",
-      "reviewedCommit": "61a59a54ce39fbf740bff5a99f98b017a8dec4dd",
-      "sha256": "cfc4b45fcf7b379991038ffaba4968d8b34c528cf42b1d2399f920e800171e05",
+      "reviewedCommit": "cce8567305444813e3965ff19aa818263d85e275",
+      "sha256": "008cf6732962da3b342d0bf1886fcff268f2c4ca6821e378848f24d5c927cc0e",
       "snippets": []
     },
     "meta.retrieval-eval": {
@@ -9026,7 +9026,7 @@
       "title": "Build-bound public API symbol registry",
       "mediaType": "application/json",
       "bytes": 3270380,
-      "sha256": "cac2c690fd27f905f29484f0305a7da5f3031b58758c9b0cda97427f16f1423f",
+      "sha256": "2decd78d7e711bf399e9428c848af77cf4b910e29f205ab4a6ae796d6c1c5014",
       "uri": "snapback-guide://reference/registry",
       "servedPath": "/_snapback/guide/reference/registry.json",
       "projections": {
@@ -9043,8 +9043,8 @@
       "path": "guide/reference/diagnostics-registry.json",
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
-      "bytes": 1863905,
-      "sha256": "6f2c6f19ba2eab2dbf0c80ba1ea1f1aa8a834075337ef7898e7af638d4da950e",
+      "bytes": 1863908,
+      "sha256": "a9781c63af0c57fcebf3fb556c78df7e8ab3420104ee37bbec8ce5f52191dc20",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -9053,7 +9053,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:6c78f3b5f5c75d82d89790e54952291b8c7f7fba96a8de0cf7d3b97d1431739a",
+      "sourceDigest": "sha256:f7be33c75bbfb2de3390b586b6a8dea9163316597814d456bfac794d9d5af05b",
       "codes": 2719,
       "emittingSites": 9078
     }
@@ -9165,5 +9165,5 @@
     "routes": 129,
     "hostOps": 43
   },
-  "contentHash": "94eff4657a086c152c4769ef09f776dd543580af8e979a021227a6bd87a5a7e8"
+  "contentHash": "8ad7cffd53ca4c5c279e9e6ecc8b37fb32fdf3bdd87420ce47edc3507317b0ab"
 }
