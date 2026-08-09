@@ -43,7 +43,10 @@ revision.
 - Blindness: structural — both reviewers work only from the capsule,
   which contains no review artifacts, no run journal, and no
   orchestrator notes. Capsule (tar) sha256:
-  `fb420ca4028b8e03882c1a624a588b753ebd67c8bcef3ae9201d7b048e5c9ff4`.
+  `590864da49af5471408c81716c459e0622b2e60cffd565c6dbd4fd3791b5b3c6`
+  (an earlier capsule hash `fb420ca4…` was taken before the target's
+  status flip was copied in; refreshed and re-hashed pre-launch — the
+  capsule's target copy byte-matches the recorded target revision).
 - Shared instructions sha256:
   `64e8fd22e6e6899bdf655ed9754ac9100f7afb93ea1c1551e8d0cc9a1fb1689b`
   (focus: D1–D5 + guide obligations/acceptance; pre-existing accepted
